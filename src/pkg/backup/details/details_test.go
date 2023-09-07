@@ -207,32 +207,51 @@ func exchangeEntry(t *testing.T, id string, size int, it ItemType) Entry {
 	}
 }
 
-func oneDriveishEntry(t *testing.T, id string, size int, it ItemType) Entry {
-	service := path.OneDriveService
-	category := path.FilesCategory
-	info := ItemInfo{
-		OneDrive: &OneDriveInfo{
-			ItemName:  "bar",
-			DriveID:   "drive-id",
-			DriveName: "drive-name",
-			Modified:  time.Now(),
-			ItemType:  it,
-			Size:      int64(size),
-		},
-	}
+func oneDriveishEntry(t *testing.T, id string, size int, it ItemType, service path.ServiceType) Entry {
+	var (
+		category path.CategoryType
+		info     ItemInfo
+	)
 
-	if it == SharePointLibrary {
-		service = path.SharePointService
+	switch it {
+	case OneDriveItem:
+		category = path.FilesCategory
+		info = ItemInfo{
+			OneDrive: &OneDriveInfo{
+				ItemName:  "bar",
+				DriveID:   "drive-id",
+				DriveName: "drive-name",
+				Modified:  time.Now(),
+				ItemType:  it,
+				Size:      int64(size),
+			},
+		}
+	case SharePointLibrary:
 		category = path.LibrariesCategory
 
-		info.OneDrive = nil
-		info.SharePoint = &SharePointInfo{
-			ItemName:  "bar",
-			DriveID:   "drive-id",
-			DriveName: "drive-name",
-			Modified:  time.Now(),
-			ItemType:  it,
-			Size:      int64(size),
+		switch service {
+		case path.SharePointService:
+			info = ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemName:  "bar",
+					DriveID:   "drive-id",
+					DriveName: "drive-name",
+					Modified:  time.Now(),
+					ItemType:  it,
+					Size:      int64(size),
+				},
+			}
+		case path.GroupsService:
+			info = ItemInfo{
+				Groups: &GroupsInfo{
+					ItemName:  "bar",
+					DriveID:   "drive-id",
+					DriveName: "drive-name",
+					Modified:  time.Now(),
+					ItemType:  it,
+					Size:      int64(size),
+				},
+			}
 		}
 	}
 
@@ -277,20 +296,24 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_NoLocationFolders() {
 		},
 		{
 			name:  "OneDrive File",
-			entry: oneDriveishEntry(t, itemID, 42, OneDriveItem),
+			entry: oneDriveishEntry(t, itemID, 42, OneDriveItem, path.OneDriveService),
 		},
 		{
 			name:  "SharePoint File",
-			entry: oneDriveishEntry(t, itemID, 42, SharePointLibrary),
+			entry: oneDriveishEntry(t, itemID, 42, SharePointLibrary, path.SharePointService),
 		},
 		{
 			name: "Legacy SharePoint File",
 			entry: func() Entry {
-				res := oneDriveishEntry(t, itemID, 42, SharePointLibrary)
+				res := oneDriveishEntry(t, itemID, 42, SharePointLibrary, path.SharePointService)
 				res.SharePoint.ItemType = OneDriveItem
 
 				return res
 			}(),
+		},
+		{
+			name:  "Group SharePoint File",
+			entry: oneDriveishEntry(t, itemID, 42, SharePointLibrary, path.GroupsService),
 		},
 	}
 
@@ -333,11 +356,11 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 	t := suite.T()
 
 	exchangeMail1 := exchangeEntry(t, "foo1", 42, ExchangeMail)
-	oneDrive1 := oneDriveishEntry(t, "foo1", 42, OneDriveItem)
-	sharePoint1 := oneDriveishEntry(t, "foo1", 42, SharePointLibrary)
-	sharePointLegacy1 := oneDriveishEntry(t, "foo1", 42, SharePointLibrary)
+	oneDrive1 := oneDriveishEntry(t, "foo1", 42, OneDriveItem, path.OneDriveService)
+	sharePoint1 := oneDriveishEntry(t, "foo1", 42, SharePointLibrary, path.SharePointService)
+	sharePointLegacy1 := oneDriveishEntry(t, "foo1", 42, SharePointLibrary, path.SharePointService)
 	sharePointLegacy1.SharePoint.ItemType = OneDriveItem
-
+	group1 := oneDriveishEntry(t, "foo1", 42, SharePointLibrary, path.GroupsService)
 	// Sleep for a little so we get a larger difference in mod times between the
 	// earlier and later entries.
 	time.Sleep(100 * time.Millisecond)
@@ -607,6 +630,33 @@ func (suite *DetailsUnitSuite) TestDetailsAdd_LocationFolders() {
 					e.Folder.DataType = SharePointLibrary
 					e.Folder.Size = sharePoint1.SharePoint.Size
 					e.Folder.Modified = sharePoint1.SharePoint.Modified
+
+					res = append(res, e)
+				}
+
+				return res
+			},
+		},
+		{
+			name: "One Group SharePoint Item",
+			entries: func() []Entry {
+				e := group1
+				ei := *group1.Groups
+				e.Groups = &ei
+
+				return []Entry{e}
+			},
+			expectedDirs: func() []Entry {
+				res := []Entry{}
+
+				for _, entry := range oneDriveishFolders {
+					e := entry
+					ei := *entry.Folder
+
+					e.Folder = &ei
+					e.Folder.DataType = SharePointLibrary
+					e.Folder.Size = group1.Groups.Size
+					e.Folder.Modified = group1.Groups.Modified
 
 					res = append(res, e)
 				}

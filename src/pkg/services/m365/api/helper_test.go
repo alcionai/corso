@@ -74,16 +74,19 @@ func parseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
 // Suite Setup
 // ---------------------------------------------------------------------------
 
+type ids struct {
+	id                string
+	driveID           string
+	driveRootFolderID string
+	testContainerID   string
+}
+
 type intgTesterSetup struct {
-	ac                    api.Client
-	gockAC                api.Client
-	userID                string
-	userDriveID           string
-	userDriveRootFolderID string
-	siteID                string
-	siteDriveID           string
-	siteDriveRootFolderID string
-	groupID               string
+	ac     api.Client
+	gockAC api.Client
+	user   ids
+	site   ids
+	group  ids
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -106,42 +109,47 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	// user drive
 
-	its.userID = tconfig.M365UserID(t)
+	its.user.id = tconfig.M365UserID(t)
 
-	userDrive, err := its.ac.Users().GetDefaultDrive(ctx, its.userID)
+	userDrive, err := its.ac.Users().GetDefaultDrive(ctx, its.user.id)
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.userDriveID = ptr.Val(userDrive.GetId())
+	its.user.driveID = ptr.Val(userDrive.GetId())
 
-	userDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.userDriveID)
+	userDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.user.driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.userDriveRootFolderID = ptr.Val(userDriveRootFolder.GetId())
-
-	its.siteID = tconfig.M365SiteID(t)
+	its.user.driveRootFolderID = ptr.Val(userDriveRootFolder.GetId())
 
 	// site
 
-	siteDrive, err := its.ac.Sites().GetDefaultDrive(ctx, its.siteID)
+	its.site.id = tconfig.M365SiteID(t)
+
+	siteDrive, err := its.ac.Sites().GetDefaultDrive(ctx, its.site.id)
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.siteDriveID = ptr.Val(siteDrive.GetId())
+	its.site.driveID = ptr.Val(siteDrive.GetId())
 
-	siteDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.siteDriveID)
+	siteDriveRootFolder, err := its.ac.Drives().GetRootFolder(ctx, its.site.driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.siteDriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
+	its.site.driveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
 
-	// group
+	// groups/teams
 
 	// use of the TeamID is intentional here, so that we are assured
 	// the group has full usage of the teams api.
-	its.groupID = tconfig.M365TeamID(t)
+	its.group.id = tconfig.M365TeamID(t)
 
-	team, err := its.ac.Groups().GetByID(ctx, its.groupID)
+	channel, err := its.ac.Channels().
+		GetChannelByName(
+			ctx,
+			its.group.id,
+			"Test")
 	require.NoError(t, err, clues.ToCore(err))
+	require.Equal(t, "Test", ptr.Val(channel.GetDisplayName()))
 
-	its.groupID = ptr.Val(team.GetId())
+	its.group.testContainerID = ptr.Val(channel.GetId())
 
 	return its
 }

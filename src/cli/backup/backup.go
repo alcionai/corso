@@ -196,7 +196,7 @@ var defaultSelectorConfig = selectors.Config{OnlyMatchItemNames: true}
 func runBackups(
 	ctx context.Context,
 	r repository.Repository,
-	serviceName, resourceOwnerType string,
+	serviceName string,
 	selectorSet []selectors.Selector,
 	ins idname.Cacher,
 ) error {
@@ -229,7 +229,9 @@ func runBackups(
 		err = bo.Run(ictx)
 		if err != nil {
 			if errors.Is(err, graph.ErrServiceNotEnabled) {
-				logger.Ctx(ctx).Infow("service not enabled", "resource_owner_name", bo.ResourceOwner.Name())
+				logger.Ctx(ctx).Infow("service not enabled",
+					"resource_owner_id", bo.ResourceOwner.ID(),
+					"service", serviceName)
 
 				continue
 			}
@@ -255,7 +257,10 @@ func runBackups(
 		return Only(ctx, clues.Wrap(berrs.Failure(), "Unable to retrieve backup results from storage"))
 	}
 
-	Info(ctx, "Completed Backups:")
+	if len(bups) > 0 {
+		Info(ctx, "Completed Backups:")
+	}
+
 	backup.PrintAll(ctx, bups)
 
 	if len(errs) > 0 {

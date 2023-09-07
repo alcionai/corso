@@ -124,7 +124,6 @@ func populateCollections(
 		}
 
 		cID := ptr.Val(c.GetId())
-		delete(tombstones, cID)
 
 		var (
 			err         error
@@ -142,11 +141,13 @@ func populateCollections(
 				})
 		)
 
-		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		// Only create a collection if the path matches the scope.
+		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		if !ok {
 			continue
 		}
+
+		delete(tombstones, cID)
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
@@ -266,11 +267,18 @@ func populateCollections(
 		"num_paths_entries", len(currPaths),
 		"num_deltas_entries", len(deltaURLs))
 
-	col, err := graph.MakeMetadataCollection(
+	pathPrefix, err := path.BuildMetadata(
 		qp.TenantID,
 		qp.ProtectedResource.ID(),
 		path.ExchangeService,
 		qp.Category,
+		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata path")
+	}
+
+	col, err := graph.MakeMetadataCollection(
+		pathPrefix,
 		[]graph.MetadataCollectionEntry{
 			graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
 			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
@@ -327,8 +335,8 @@ func includeContainer(
 	)
 
 	// Clause ensures that DefaultContactFolder is inspected properly
-	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == api.DefaultContacts {
-		loc = loc.Append(api.DefaultContacts)
+	if category == path.ContactsCategory && len(loc.Elements()) == 0 {
+		loc = loc.Append(ptr.Val(c.GetDisplayName()))
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(

@@ -40,15 +40,15 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.userID, api.MailInbox)
+	container, err := ac.GetContainerByID(ctx, suite.its.user.id, api.MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msgs, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.userID).
+		ByUserIdString(suite.its.user.id).
 		MailFolders().
-		ByMailFolderId(ptr.Val(container.GetId())).
+		ByMailFolderIdString(ptr.Val(container.GetId())).
 		Messages().
 		Get(ctx, nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -62,7 +62,7 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 
 	expect := maps.Keys(expectM)
 
-	results, err := suite.its.ac.Mail().GetItemsInContainerByCollisionKey(ctx, suite.its.userID, api.MailInbox)
+	results, err := suite.its.ac.Mail().GetItemsInContainerByCollisionKey(ctx, suite.its.user.id, api.MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 
@@ -101,9 +101,9 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsIDsInContainer() {
 	msgs, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.userID).
+		ByUserIdString(suite.its.user.id).
 		MailFolders().
-		ByMailFolderId(api.MailInbox).
+		ByMailFolderIdString(api.MailInbox).
 		Messages().
 		Get(ctx, config)
 	require.NoError(t, err, clues.ToCore(err))
@@ -116,7 +116,7 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsIDsInContainer() {
 	}
 
 	results, err := suite.its.ac.Mail().
-		GetItemIDsInContainer(ctx, suite.its.userID, api.MailInbox)
+		GetItemIDsInContainer(ctx, suite.its.user.id, api.MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 	require.Equal(t, len(expect), len(results), "must have same count of items")

@@ -6,8 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type GroupsUtilsSuite struct {
@@ -156,6 +158,47 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 			test.expect(t, utils.ValidateGroupsRestoreFlags(test.backupID, test.opts))
+		})
+	}
+}
+
+func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
+	table := []struct {
+		name           string
+		cats           []string
+		expectScopeLen int
+	}{
+		{
+			name:           "none",
+			cats:           []string{},
+			expectScopeLen: 2,
+		},
+		{
+			name:           "libraries",
+			cats:           []string{flags.DataLibraries},
+			expectScopeLen: 1,
+		},
+		{
+			name:           "messages",
+			cats:           []string{flags.DataMessages},
+			expectScopeLen: 1,
+		},
+		{
+			name:           "all allowed",
+			cats:           []string{flags.DataLibraries, flags.DataMessages},
+			expectScopeLen: 2,
+		},
+		{
+			name:           "bad inputs",
+			cats:           []string{"foo"},
+			expectScopeLen: 0,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			sel := utils.AddGroupsCategories(selectors.NewGroupsBackup(selectors.Any()), test.cats)
+			scopes := sel.Scopes()
+			assert.Len(suite.T(), scopes, test.expectScopeLen)
 		})
 	}
 }

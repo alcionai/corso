@@ -73,6 +73,11 @@ var (
 			category: path.PagesCategory,
 			expected: assert.Falsef,
 		},
+		{
+			service:  path.GroupsService,
+			category: path.LibrariesCategory,
+			expected: assert.Truef,
+		},
 	}
 )
 

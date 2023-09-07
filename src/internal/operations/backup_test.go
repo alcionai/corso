@@ -218,7 +218,7 @@ func makeMetadataBasePath(
 ) path.Path {
 	t.Helper()
 
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenant,
 		resourceOwner,
 		service,
@@ -1579,7 +1579,7 @@ func (mbp *mockBackupProducer) ProduceBackupCollections(
 	return mbp.colls, nil, true, nil
 }
 
-func (mbp *mockBackupProducer) IsBackupRunnable(
+func (mbp *mockBackupProducer) IsServiceEnabled(
 	context.Context,
 	path.ServiceType,
 	string,
@@ -1871,11 +1871,16 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			cs := test.collFunc()
 
-			mc, err := graph.MakeMetadataCollection(
+			pathPrefix, err := path.BuildMetadata(
 				tenantID,
 				userID,
 				path.OneDriveService,
 				path.FilesCategory,
+				false)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mc, err := graph.MakeMetadataCollection(
+				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
 				func(*support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))
@@ -2184,11 +2189,16 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 			cs := test.collFunc()
 
-			mc, err := graph.MakeMetadataCollection(
+			pathPrefix, err := path.BuildMetadata(
 				tenantID,
 				userID,
 				path.OneDriveService,
 				path.FilesCategory,
+				false)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mc, err := graph.MakeMetadataCollection(
+				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
 				func(*support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))

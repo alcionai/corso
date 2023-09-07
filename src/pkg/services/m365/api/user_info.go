@@ -35,12 +35,12 @@ type AutomaticRepliesSettings struct {
 	ExternalAudience       string
 	ExternalReplyMessage   string
 	InternalReplyMessage   string
-	ScheduledEndDateTime   timeInfo
-	ScheduledStartDateTime timeInfo
+	ScheduledEndDateTime   TimeInfo
+	ScheduledStartDateTime TimeInfo
 	Status                 string
 }
 
-type timeInfo struct {
+type TimeInfo struct {
 	DateTime string
 	Timezone string
 }
@@ -68,25 +68,7 @@ func newUserInfo() *UserInfo {
 	}
 }
 
-// ServiceEnabled returns true if the UserInfo has an entry for the
-// service.  If no entry exists, the service is assumed to not be enabled.
-func (ui *UserInfo) ServiceEnabled(service path.ServiceType) bool {
-	if ui == nil || len(ui.ServicesEnabled) == 0 {
-		return false
-	}
-
-	_, ok := ui.ServicesEnabled[service]
-
-	return ok
-}
-
-// Returns if we can run delta queries on a mailbox. We cannot run
-// them if the mailbox is full which is indicated by QuotaExceeded.
-func (ui *UserInfo) CanMakeDeltaQueries() bool {
-	return !ui.Mailbox.QuotaExceeded
-}
-
-func parseMailboxSettings(
+func ParseMailboxSettings(
 	settings models.Userable,
 	mi MailboxInfo,
 ) MailboxInfo {

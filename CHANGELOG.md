@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
-## [v0.12.0] (beta) - 2023-08-28
+### Changed
+- Switched to Go 1.21
+- SharePoint exported libraries are now exported with a `Libraries` prefix.
+
+### Fixed
+- Contacts backups no longer slices root-folder data if outlook is set to languages other than english.
+
+## [v0.12.0] (beta) - 2023-08-29
 
 ### Added
 - Added `export` command to export data from OneDrive and SharePoint backups as individual files or as a single zip file.
@@ -25,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix OneDrive restores could fail with a concurrent map write error
 - Fix backup list displaying backups that had errors
 - Fix OneDrive backup could fail if item was deleted during backup
+- Exchange backups would fail attempting to use delta tokens even if the user was over quota
 
 
 ## [v0.11.1] (beta) - 2023-07-20

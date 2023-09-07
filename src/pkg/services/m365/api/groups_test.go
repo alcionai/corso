@@ -112,7 +112,7 @@ func (suite *GroupsIntgSuite) TestGetAll() {
 
 func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 	var (
-		groupID   = suite.its.groupID
+		groupID   = suite.its.group.id
 		groupsAPI = suite.its.ac.Groups()
 	)
 

@@ -10,7 +10,6 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/mock"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -43,7 +42,6 @@ type ItemInfo struct {
 
 type ConfigInfo struct {
 	Opts           control.Options
-	Resource       resource.Category
 	Service        path.ServiceType
 	Tenant         string
 	ResourceOwners []string

@@ -158,62 +158,70 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 	table := []struct {
 		name      string
 		id        string
-		expectErr func(*testing.T, error)
+		expectErr func(*testing.T, error) bool
 	}{
 		{
 			name: "3 part id",
 			id:   siteID,
-			expectErr: func(t *testing.T, err error) {
+			expectErr: func(t *testing.T, err error) bool {
 				assert.NoError(t, err, clues.ToCore(err))
+				return false
 			},
 		},
 		{
 			name: "2 part id",
 			id:   uuids,
-			expectErr: func(t *testing.T, err error) {
+			expectErr: func(t *testing.T, err error) bool {
 				assert.NoError(t, err, clues.ToCore(err))
+				return false
 			},
 		},
 		{
 			name: "malformed id",
 			id:   uuid.NewString(),
-			expectErr: func(t *testing.T, err error) {
+			expectErr: func(t *testing.T, err error) bool {
 				assert.Error(t, err, clues.ToCore(err))
+				return true
 			},
 		},
 		{
 			name: "random id",
 			id:   uuid.NewString() + "," + uuid.NewString(),
-			expectErr: func(t *testing.T, err error) {
+			expectErr: func(t *testing.T, err error) bool {
 				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+				return true
 			},
 		},
 		{
 			name: "url",
 			id:   siteURL,
-			expectErr: func(t *testing.T, err error) {
+			expectErr: func(t *testing.T, err error) bool {
 				assert.NoError(t, err, clues.ToCore(err))
+				return false
 			},
 		},
 		{
 			name: "malformed url",
 			id:   "barunihlda",
-			expectErr: func(t *testing.T, err error) {
+			expectErr: func(t *testing.T, err error) bool {
 				assert.Error(t, err, clues.ToCore(err))
+				return true
 			},
 		},
 		{
 			name: "well formed url, invalid hostname",
 			id:   "https://test/sites/testing",
-			expectErr: func(t *testing.T, err error) {
+			expectErr: func(t *testing.T, err error) bool {
 				assert.Error(t, err, clues.ToCore(err))
+				return true
 			},
 		},
 		{
 			name: "well formed url, no sites match",
 			id:   modifiedSiteURL,
-			expectErr: func(t *testing.T, err error) {
+			expectErr: func(t *testing.T, err error) bool {
 				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+				return true
 			},
 		},
 	}
@@ -224,8 +232,16 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := sitesAPI.GetByID(ctx, test.id)
-			test.expectErr(t, err)
+			site, err := sitesAPI.GetByID(ctx, test.id)
+			expectedErr := test.expectErr(t, err)
+
+			if expectedErr {
+				return
+			}
+
+			require.NotEmpty(t, ptr.Val(site.GetId()), "must have an id")
+			require.NotNil(t, site.GetDrive(), "must have drive info")
+			require.NotNil(t, site.GetDrive().GetOwner(), "must have drive owner info")
 		})
 	}
 }
@@ -240,4 +256,6 @@ func (suite *SitesIntgSuite) TestGetRoot() {
 	require.NoError(t, err)
 	require.NotNil(t, result, "must find the root site")
 	require.NotEmpty(t, ptr.Val(result.GetId()), "must have an id")
+	require.NotNil(t, result.GetDrive(), "must have drive info")
+	require.NotNil(t, result.GetDrive().GetOwner(), "must have drive owner info")
 }
