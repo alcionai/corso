@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -73,7 +74,7 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 
 			streamItems(
 				ctx,
-				test.backingColl,
+				[]data.RestoreCollection{test.backingColl},
 				version.NoBackup,
 				ch)
 

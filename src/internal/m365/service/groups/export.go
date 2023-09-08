@@ -42,7 +42,7 @@ func ProduceExportCollections(
 
 		coll := groups.NewExportCollection(
 			path.Builder{}.Append(folders...).String(),
-			restoreColl,
+			[]data.RestoreCollection{restoreColl},
 			backupVersion)
 
 		ec = append(ec, coll)
