@@ -330,7 +330,7 @@ jobs:
 
       # generate new entries for test
       - name: Groups - Create new data
-        if: false # TODO: enable when ready
+        if: true # TODO: enable when ready
         id: new-data-creation-groups
         working-directory: ./src/cmd/factory
         run: |
