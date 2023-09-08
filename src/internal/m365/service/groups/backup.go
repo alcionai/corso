@@ -107,7 +107,7 @@ func ProduceBackupCollections(
 			}
 
 		case path.ChannelMessagesCategory:
-			dbcs, err = groups.CreateCollections(
+			dbcs, canUsePreviousBackup, err = groups.CreateCollections(
 				ctx,
 				bpc,
 				groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels()),

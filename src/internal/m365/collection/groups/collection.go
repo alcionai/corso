@@ -64,7 +64,7 @@ type Collection struct {
 	state data.CollectionState
 
 	// doNotMergeItems should only be true if the old delta token expired.
-	// doNotMergeItems bool
+	doNotMergeItems bool
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection.
@@ -79,20 +79,22 @@ func NewCollection(
 	curr, prev path.Path,
 	location *path.Builder,
 	category path.CategoryType,
+	added map[string]struct{},
+	removed map[string]struct{},
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
-	// doNotMergeItems bool,
+	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
-		added:    map[string]struct{}{},
-		category: category,
-		ctrl:     ctrlOpts,
-		// doNotMergeItems:   doNotMergeItems,
+		added:             added,
+		category:          category,
+		ctrl:              ctrlOpts,
+		doNotMergeItems:   doNotMergeItems,
 		fullPath:          curr,
 		getter:            getter,
 		locationPath:      location,
 		prevPath:          prev,
-		removed:           make(map[string]struct{}, 0),
+		removed:           removed,
 		state:             data.StateOf(prev, curr),
 		statusUpdater:     statusUpdater,
 		stream:            make(chan data.Item, collectionChannelBufferSize),

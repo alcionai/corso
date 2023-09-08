@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -29,7 +30,7 @@ func CreateCollections(
 	handlers map[path.CategoryType]backupHandler,
 	tenantID string,
 	scope selectors.ExchangeScope,
-	dps DeltaPaths,
+	dps metadata.DeltaPaths,
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
@@ -98,7 +99,7 @@ func populateCollections(
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
-	dps DeltaPaths,
+	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
@@ -280,8 +281,8 @@ func populateCollections(
 	col, err := graph.MakeMetadataCollection(
 		pathPrefix,
 		[]graph.MetadataCollectionEntry{
-			graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
-			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
+			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
+			graph.NewMetadataEntry(metadata.DeltaURLsFileName, deltaURLs),
 		},
 		statusUpdater)
 	if err != nil {
@@ -296,7 +297,7 @@ func populateCollections(
 // produces a set of id:path pairs from the deltapaths map.
 // Each entry in the set will, if not removed, produce a collection
 // that will delete the tombstone by path.
-func makeTombstones(dps DeltaPaths) map[string]string {
+func makeTombstones(dps metadata.DeltaPaths) map[string]string {
 	r := make(map[string]string, len(dps))
 
 	for id, v := range dps {
