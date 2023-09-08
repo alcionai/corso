@@ -1,6 +1,8 @@
 package path
 
-import "github.com/alcionai/clues"
+import (
+	"github.com/alcionai/clues"
+)
 
 // TODO: Move this into m365/collection/drive
 // drivePath is used to represent path components
@@ -27,6 +29,11 @@ func ToDrivePath(p Path) (*DrivePath, error) {
 			With("path_folders", p.Folder(false))
 	}
 
+	if p.Service() == GroupsService {
+		// Groups have an extra /sites/<siteID> in the path
+		return &DrivePath{DriveID: folders[3], Root: folders[4], Folders: folders[5:]}, nil
+	}
+
 	return &DrivePath{DriveID: folders[1], Root: folders[2], Folders: folders[3:]}, nil
 }
 
@@ -48,4 +55,14 @@ func BuildDriveLocation(
 	unescapedElements ...string,
 ) *Builder {
 	return Builder{}.Append("drives", driveID).Append(unescapedElements...)
+}
+
+// BuildGroupsDriveLocation is same as BuildDriveLocation, but for
+// group drives and thus includes siteID.
+func BuildGroupsDriveLocation(
+	siteID string,
+	driveID string,
+	unescapedElements ...string,
+) *Builder {
+	return Builder{}.Append("sites", siteID, "drives", driveID).Append(unescapedElements...)
 }

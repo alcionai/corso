@@ -28,7 +28,7 @@ func locationRef(
 	// was in the root of the data type.
 	elems := repoRef.Folders()
 
-	if ent.OneDrive != nil || ent.SharePoint != nil {
+	if ent.OneDrive != nil || ent.SharePoint != nil || ent.Groups != nil {
 		dp, err := path.ToDrivePath(repoRef)
 		if err != nil {
 			return nil, clues.Wrap(err, "fallback for LocationRef")
@@ -73,6 +73,8 @@ func drivePathMerge(
 
 	if ent.SharePoint != nil {
 		driveID = ent.SharePoint.DriveID
+	} else if ent.Groups != nil {
+		driveID = ent.Groups.DriveID
 	} else if ent.OneDrive != nil {
 		driveID = ent.OneDrive.DriveID
 	}
@@ -87,9 +89,12 @@ func drivePathMerge(
 		driveID = odp.DriveID
 	}
 
-	return basicLocationPath(
-		repoRef,
-		path.BuildDriveLocation(driveID, locRef.Elements()...))
+	driveLoc := path.BuildDriveLocation(driveID, locRef.Elements()...)
+	if ent.Groups != nil {
+		driveLoc = path.BuildGroupsDriveLocation(ent.Groups.SiteID, driveID, locRef.Elements()...)
+	}
+
+	return basicLocationPath(repoRef, driveLoc)
 }
 
 func makeRestorePathsForEntry(
@@ -129,13 +134,14 @@ func makeRestorePathsForEntry(
 	//   * Exchange Email/Contacts
 	//   * OneDrive/SharePoint (needs drive information)
 	switch true {
-	case ent.Exchange != nil || ent.Groups != nil:
+	case ent.Exchange != nil:
 		// TODO(ashmrtn): Eventually make Events have it's own function to handle
 		// setting the restore destination properly.
 		res.RestorePath, err = basicLocationPath(repoRef, locRef)
 	case ent.OneDrive != nil ||
 		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.SharePointLibrary) ||
-		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.OneDriveItem):
+		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.OneDriveItem) ||
+		(ent.Groups != nil && ent.Groups.ItemType == details.SharePointLibrary):
 		res.RestorePath, err = drivePathMerge(ent, repoRef, locRef)
 	default:
 		return res, clues.New("unknown entry type").WithClues(ctx)
