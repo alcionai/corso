@@ -39,22 +39,6 @@ func (l deltaNextLink) GetOdataDeltaLink() *string {
 	return l.deltaLink
 }
 
-// mock values
-
-type testPagerValue struct {
-	id      string
-	removed bool
-}
-
-func (v testPagerValue) GetId() *string { return &v.id } //revive:disable-line:var-naming
-func (v testPagerValue) GetAdditionalData() map[string]any {
-	if v.removed {
-		return map[string]any{graph.AddtlDataRemoved: true}
-	}
-
-	return map[string]any{}
-}
-
 // mock page
 
 type testPage struct {
@@ -77,7 +61,7 @@ func (p testPage) GetValue() []any {
 
 // mock item pager
 
-var _ itemPager[any] = &testPager{}
+var _ Pager[any] = &testPager{}
 
 type testPager struct {
 	t       *testing.T
@@ -85,17 +69,15 @@ type testPager struct {
 	pageErr error
 }
 
-//lint:ignore U1000 False Positive
-func (p *testPager) getPage(ctx context.Context) (PageLinkValuer[any], error) {
+func (p *testPager) GetPage(ctx context.Context) (NextLinkValuer[any], error) {
 	return p.pager, p.pageErr
 }
 
-//lint:ignore U1000 False Positive
-func (p *testPager) setNext(nextLink string) {}
+func (p *testPager) SetNextLink(nextLink string) {}
 
 // mock id pager
 
-var _ DeltaPager[getIDAndAddtler] = &testIDsPager{}
+var _ Pager[any] = &testIDsPager{}
 
 type testIDsPager struct {
 	t          *testing.T
@@ -105,7 +87,9 @@ type testIDsPager struct {
 	needsReset bool
 }
 
-func (p *testIDsPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
+func (p *testIDsPager) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[any], error) {
 	if p.errorCode != "" {
 		ierr := odataerrors.NewMainError()
 		ierr.SetCode(&p.errorCode)
@@ -118,7 +102,9 @@ func (p *testIDsPager) GetPage(ctx context.Context) (DeltaPageLinker, error) {
 
 	return testPage{}, nil
 }
-func (p *testIDsPager) SetNext(string) {}
+
+func (p *testIDsPager) SetNextLink(string) {}
+
 func (p *testIDsPager) Reset(context.Context) {
 	if !p.needsReset {
 		require.Fail(p.t, "reset should not be called")
@@ -128,36 +114,59 @@ func (p *testIDsPager) Reset(context.Context) {
 	p.errorCode = ""
 }
 
-func (p *testIDsPager) ValuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
-	items := []getIDAndAddtler{}
+var _ DeltaPager[any] = &testIDsDeltaPager{}
 
-	for _, id := range p.added {
-		items = append(items, testPagerValue{id: id})
+type testIDsDeltaPager struct {
+	t          *testing.T
+	added      []string
+	removed    []string
+	errorCode  string
+	needsReset bool
+}
+
+func (p *testIDsDeltaPager) GetPage(
+	ctx context.Context,
+) (DeltaLinkValuer[any], error) {
+	if p.errorCode != "" {
+		ierr := odataerrors.NewMainError()
+		ierr.SetCode(&p.errorCode)
+
+		err := odataerrors.NewODataError()
+		err.SetErrorEscaped(ierr)
+
+		return nil, err
 	}
 
-	for _, id := range p.removed {
-		items = append(items, testPagerValue{id: id, removed: true})
+	return testPage{}, nil
+}
+
+func (p *testIDsDeltaPager) SetNextLink(string) {}
+
+func (p *testIDsDeltaPager) Reset(context.Context) {
+	if !p.needsReset {
+		require.Fail(p.t, "reset should not be called")
 	}
 
-	return items, nil
+	p.needsReset = false
+	p.errorCode = ""
 }
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-type ItemPagerUnitSuite struct {
+type PagerUnitSuite struct {
 	tester.Suite
 }
 
-func TestItemPagerUnitSuite(t *testing.T) {
-	suite.Run(t, &ItemPagerUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestPagerUnitSuite(t *testing.T) {
+	suite.Run(t, &PagerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
+func (suite *PagerUnitSuite) TestEnumerateItems() {
 	tests := []struct {
 		name      string
-		getPager  func(*testing.T, context.Context) itemPager[any]
+		getPager  func(*testing.T, context.Context) Pager[any]
 		expect    []any
 		expectErr require.ErrorAssertionFunc
 	}{
@@ -166,7 +175,7 @@ func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
 			getPager: func(
 				t *testing.T,
 				ctx context.Context,
-			) itemPager[any] {
+			) Pager[any] {
 				return &testPager{
 					t:     t,
 					pager: testPage{[]any{"foo", "bar"}},
@@ -180,7 +189,7 @@ func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
 			getPager: func(
 				t *testing.T,
 				ctx context.Context,
-			) itemPager[any] {
+			) Pager[any] {
 				return &testPager{
 					t:       t,
 					pageErr: assert.AnError,
@@ -206,7 +215,7 @@ func (suite *ItemPagerUnitSuite) TestEnumerateItems() {
 	}
 }
 
-func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
+func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 	tests := []struct {
 		name        string
 		pagerGetter func(
@@ -215,14 +224,14 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			graph.Servicer,
 			string, string,
 			bool,
-		) (DeltaPager[getIDAndAddtler], error)
+		) (Pager[any], error)
 		deltaPagerGetter func(
 			*testing.T,
 			context.Context,
 			graph.Servicer,
 			string, string, string,
 			bool,
-		) (DeltaPager[getIDAndAddtler], error)
+		) (DeltaPager[any], error)
 		added               []string
 		removed             []string
 		deltaUpdate         DeltaUpdate
@@ -238,7 +247,7 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				user string,
 				directory string,
 				immutableIDs bool,
-			) (DeltaPager[getIDAndAddtler], error) {
+			) (Pager[any], error) {
 				// this should not be called
 				return nil, assert.AnError
 			},
@@ -250,8 +259,8 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				directory string,
 				delta string,
 				immutableIDs bool,
-			) (DeltaPager[getIDAndAddtler], error) {
-				return &testIDsPager{
+			) (DeltaPager[any], error) {
+				return &testIDsDeltaPager{
 					t:       t,
 					added:   []string{"uno", "dos"},
 					removed: []string{"tres", "quatro"},
@@ -271,7 +280,7 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				user string,
 				directory string,
 				immutableIDs bool,
-			) (DeltaPager[getIDAndAddtler], error) {
+			) (Pager[any], error) {
 				// this should not be called
 				return nil, assert.AnError
 			},
@@ -283,8 +292,8 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				directory string,
 				delta string,
 				immutableIDs bool,
-			) (DeltaPager[getIDAndAddtler], error) {
-				return &testIDsPager{
+			) (DeltaPager[any], error) {
+				return &testIDsDeltaPager{
 					t:       t,
 					added:   []string{"uno", "dos"},
 					removed: []string{"tres", "quatro"},
@@ -305,7 +314,7 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				user string,
 				directory string,
 				immutableIDs bool,
-			) (DeltaPager[getIDAndAddtler], error) {
+			) (Pager[any], error) {
 				// this should not be called
 				return nil, assert.AnError
 			},
@@ -317,8 +326,8 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				directory string,
 				delta string,
 				immutableIDs bool,
-			) (DeltaPager[getIDAndAddtler], error) {
-				return &testIDsPager{
+			) (DeltaPager[any], error) {
+				return &testIDsDeltaPager{
 					t:          t,
 					added:      []string{"uno", "dos"},
 					removed:    []string{"tres", "quatro"},
@@ -341,7 +350,7 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				user string,
 				directory string,
 				immutableIDs bool,
-			) (DeltaPager[getIDAndAddtler], error) {
+			) (Pager[any], error) {
 				return &testIDsPager{
 					t:       t,
 					added:   []string{"uno", "dos"},
@@ -356,8 +365,8 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				directory string,
 				delta string,
 				immutableIDs bool,
-			) (DeltaPager[getIDAndAddtler], error) {
-				return &testIDsPager{errorCode: "ErrorQuotaExceeded"}, nil
+			) (DeltaPager[any], error) {
+				return &testIDsDeltaPager{errorCode: "ErrorQuotaExceeded"}, nil
 			},
 			added:               []string{"uno", "dos"},
 			removed:             []string{"tres", "quatro"},
@@ -366,28 +375,27 @@ func (suite *ItemPagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		},
 	}
 
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
+	for _, test := range tests {
+		suite.Run(test.name, func() {
 			t := suite.T()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			pager, _ := tt.pagerGetter(t, ctx, graph.Service{}, "user", "directory", false)
-			deltaPager, _ := tt.deltaPagerGetter(t, ctx, graph.Service{}, "user", "directory", tt.delta, false)
+			pager, _ := test.pagerGetter(t, ctx, graph.Service{}, "user", "directory", false)
+			deltaPager, _ := test.deltaPagerGetter(t, ctx, graph.Service{}, "user", "directory", test.delta, false)
 
-			added, removed, deltaUpdate, err := getAddedAndRemovedItemIDs(
+			added, removed, deltaUpdate, err := getAddedAndRemovedItemIDs[any](
 				ctx,
-				graph.Service{},
 				pager,
 				deltaPager,
-				tt.delta,
-				tt.canMakeDeltaQueries)
+				test.delta,
+				test.canMakeDeltaQueries)
 
 			require.NoError(t, err, "getting added and removed item IDs")
-			require.EqualValues(t, tt.added, added, "added item IDs")
-			require.EqualValues(t, tt.removed, removed, "removed item IDs")
-			require.Equal(t, tt.deltaUpdate, deltaUpdate, "delta update")
+			require.EqualValues(t, test.added, added, "added item IDs")
+			require.EqualValues(t, test.removed, removed, "removed item IDs")
+			require.Equal(t, test.deltaUpdate, deltaUpdate, "delta update")
 		})
 	}
 }
@@ -423,7 +431,7 @@ var (
 	}
 )
 
-func (suite *ItemPagerUnitSuite) TestNextAndDeltaLink() {
+func (suite *PagerUnitSuite) TestNextAndDeltaLink() {
 	deltaTable := []testInput{
 		{
 			name:         "empty",
@@ -467,7 +475,7 @@ func (suite *ItemPagerUnitSuite) TestNextAndDeltaLink() {
 // Related to: https://github.com/alcionai/corso/issues/2520
 //
 //nolint:lll
-func (suite *ItemPagerUnitSuite) TestIsLinkValid() {
+func (suite *PagerUnitSuite) TestIsLinkValid() {
 	invalidString := `https://graph.microsoft.com/v1.0/users//mailFolders//messages/microsoft.graph.delta()?$select=id%2CisRead`
 	tests := []struct {
 		name        string

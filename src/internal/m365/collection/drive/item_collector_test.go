@@ -83,7 +83,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 	table := []struct {
 		name            string
 		pagerResults    []mock.PagerResult[models.Driveable]
-		retry           bool
 		expectedErr     assert.ErrorAssertionFunc
 		expectedResults []models.Driveable
 	}{
@@ -96,7 +95,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           false,
 			expectedErr:     assert.NoError,
 			expectedResults: resultDrives,
 		},
@@ -109,7 +107,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           false,
 			expectedErr:     assert.NoError,
 			expectedResults: resultDrives,
 		},
@@ -127,7 +124,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           false,
 			expectedErr:     assert.NoError,
 			expectedResults: resultDrives,
 		},
@@ -145,7 +141,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           false,
 			expectedErr:     assert.NoError,
 			expectedResults: resultDrives,
 		},
@@ -163,7 +158,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      assert.AnError,
 				},
 			},
-			retry:           true,
 			expectedErr:     assert.Error,
 			expectedResults: nil,
 		},
@@ -176,7 +170,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      graph.Stack(ctx, mySiteURLNotFound),
 				},
 			},
-			retry:           true,
 			expectedErr:     assert.NoError,
 			expectedResults: nil,
 		},
@@ -189,7 +182,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      graph.Stack(ctx, mySiteNotFound),
 				},
 			},
-			retry:           true,
 			expectedErr:     assert.NoError,
 			expectedResults: nil,
 		},
@@ -212,7 +204,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           true,
 			expectedErr:     assert.NoError,
 			expectedResults: resultDrives,
 		},
@@ -235,7 +226,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           false,
 			expectedErr:     assert.Error,
 			expectedResults: nil,
 		},
@@ -250,7 +240,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					},
 				},
 				tooManyRetries...),
-			retry:           true,
 			expectedErr:     assert.Error,
 			expectedResults: nil,
 		},
@@ -266,7 +255,7 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 				ToReturn: test.pagerResults,
 			}
 
-			drives, err := api.GetAllDrives(ctx, pager, test.retry, maxDrivesRetries)
+			drives, err := api.GetAllDrives(ctx, pager)
 			test.expectedErr(t, err, clues.ToCore(err))
 
 			assert.ElementsMatch(t, test.expectedResults, drives)
