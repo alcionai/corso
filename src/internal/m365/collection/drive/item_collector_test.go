@@ -72,14 +72,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		resultDrives = append(resultDrives, d)
 	}
 
-	tooManyRetries := make([]mock.PagerResult[models.Driveable], 0, maxDrivesRetries+1)
-
-	for i := 0; i < maxDrivesRetries+1; i++ {
-		tooManyRetries = append(tooManyRetries, mock.PagerResult[models.Driveable]{
-			Err: context.DeadlineExceeded,
-		})
-	}
-
 	table := []struct {
 		name            string
 		pagerResults    []mock.PagerResult[models.Driveable]
@@ -186,29 +178,7 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 			expectedResults: nil,
 		},
 		{
-			name: "SplitResultsContextTimeoutWithRetries",
-			pagerResults: []mock.PagerResult[models.Driveable]{
-				{
-					Values:   resultDrives[:numDriveResults/2],
-					NextLink: &link,
-					Err:      nil,
-				},
-				{
-					Values:   nil,
-					NextLink: nil,
-					Err:      context.DeadlineExceeded,
-				},
-				{
-					Values:   resultDrives[numDriveResults/2:],
-					NextLink: &emptyLink,
-					Err:      nil,
-				},
-			},
-			expectedErr:     assert.NoError,
-			expectedResults: resultDrives,
-		},
-		{
-			name: "SplitResultsContextTimeoutNoRetries",
+			name: "SplitResultsContextTimeout",
 			pagerResults: []mock.PagerResult[models.Driveable]{
 				{
 					Values:   resultDrives[:numDriveResults/2],
@@ -227,19 +197,27 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 				},
 			},
 			expectedErr:     assert.Error,
-			expectedResults: nil,
+			expectedResults: resultDrives,
 		},
 		{
-			name: "TooManyRetries",
-			pagerResults: append(
-				[]mock.PagerResult[models.Driveable]{
-					{
-						Values:   resultDrives[:numDriveResults/2],
-						NextLink: &link,
-						Err:      nil,
-					},
+			name: "SplitResultsContextTimeout",
+			pagerResults: []mock.PagerResult[models.Driveable]{
+				{
+					Values:   resultDrives[:numDriveResults/2],
+					NextLink: &link,
+					Err:      nil,
 				},
-				tooManyRetries...),
+				{
+					Values:   nil,
+					NextLink: nil,
+					Err:      context.DeadlineExceeded,
+				},
+				{
+					Values:   resultDrives[numDriveResults/2:],
+					NextLink: &emptyLink,
+					Err:      nil,
+				},
+			},
 			expectedErr:     assert.Error,
 			expectedResults: nil,
 		},
