@@ -125,8 +125,7 @@ func MessageWithBodyBytes(subject, body, preview string) []byte {
 		defaultMessageCreatedTime,
 		defaultMessageModifiedTime,
 		defaultMessageSentTime,
-		defaultMessageReceivedTime,
-	)
+		defaultMessageReceivedTime)
 }
 
 // MessageWith returns bytes for a Messageable item.
@@ -498,8 +497,7 @@ func MessageWithItemAttachmentMail(subject string) []byte {
 		defaultAlias,
 		defaultMessageSender,
 		defaultMessageFrom,
-		defaultMessageTo,
-	)
+		defaultMessageTo)
 
 	return []byte(message)
 }
@@ -684,8 +682,7 @@ func MessageWithNestedItemAttachmentEvent(subject string) []byte {
 		defaultAlias,
 		defaultMessageSender,
 		defaultMessageFrom,
-		defaultMessageTo,
-	)
+		defaultMessageTo)
 
 	return []byte(message)
 }

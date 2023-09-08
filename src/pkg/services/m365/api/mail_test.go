@@ -398,8 +398,7 @@ func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
 		ptr.Val(mailfolder.GetId()),
 		ptr.Val(item.GetId()),
 		"raboganm",
-		[]byte("mangobar"),
-	)
+		[]byte("mangobar"))
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, id, "empty id for large attachment")
 }

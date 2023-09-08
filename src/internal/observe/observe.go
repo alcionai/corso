@@ -523,8 +523,7 @@ func CollectionProgress(
 		mpb.PrependDecorators(decor.Name(string(category))),
 		mpb.AppendDecorators(
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
-			decor.Name(plain),
-		),
+			decor.Name(plain)),
 		mpb.BarFillerOnComplete(spinFrames[0]),
 	}
 

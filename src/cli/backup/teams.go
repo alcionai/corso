@@ -250,8 +250,7 @@ func validateTeamsBackupCreateFlags(teams, cats []string) error {
 		return clues.New(
 			"requires one or more --" +
 				flags.TeamFN + " ids, or the wildcard --" +
-				flags.TeamFN + " *",
-		)
+				flags.TeamFN + " *")
 	}
 
 	msg := fmt.Sprintf(

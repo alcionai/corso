@@ -168,8 +168,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 				given+" "+sur,
 				sur+", "+given,
 				given, mid, sur,
-				"123-456-7890",
-			)
+				"123-456-7890")
 		},
 		control.DefaultOptions(),
 		errs,

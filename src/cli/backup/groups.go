@@ -312,8 +312,7 @@ func validateGroupsBackupCreateFlags(groups, cats []string) error {
 		return clues.New(
 			"requires one or more --" +
 				flags.GroupFN + " ids, or the wildcard --" +
-				flags.GroupFN + " *",
-		)
+				flags.GroupFN + " *")
 	}
 
 	msg := fmt.Sprintf(

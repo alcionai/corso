@@ -24,8 +24,7 @@ func TestExchangeServiceSuite(t *testing.T) {
 	suite.Run(t, &ExchangeServiceSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -55,8 +54,7 @@ func (suite *ExchangeServiceSuite) TestHasAttachments() {
 				byteArray := exchMock.MessageWithBodyBytes(
 					"Test",
 					"This is testing",
-					"This is testing",
-				)
+					"This is testing")
 				message, err := BytesToMessageable(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 				return message.GetBody()

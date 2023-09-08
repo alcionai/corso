@@ -82,8 +82,7 @@ func (h groupBackupHandler) CanonicalPath(
 		path.LibrariesCategory,
 		false,
 		odConsts.SitesPathDir,
-		h.siteID,
-	)
+		h.siteID)
 }
 
 func (h groupBackupHandler) SitePathPrefix(tenantID string) (path.Path, error) {

@@ -240,8 +240,7 @@ func EventWithSubjectBytes(subject string) []byte {
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		NoOriginalStartDate, atTime, endTime, NoRecurrence, NoAttendees,
-		NoAttachments, NoCancelledOccurrences, NoExceptionOccurrences,
-	)
+		NoAttachments, NoCancelledOccurrences, NoExceptionOccurrences)
 }
 
 func EventWithAttachment(subject string) []byte {
@@ -255,8 +254,7 @@ func EventWithAttachment(subject string) []byte {
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		NoOriginalStartDate, atTime, atTime, NoRecurrence, NoAttendees,
-		defaultEventAttachments, NoCancelledOccurrences, NoExceptionOccurrences,
-	)
+		defaultEventAttachments, NoCancelledOccurrences, NoExceptionOccurrences)
 }
 
 func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
@@ -272,15 +270,13 @@ func EventWithRecurrenceBytes(subject, recurrenceTimeZone string) []byte {
 		strconv.Itoa(int(at.Month())),
 		strconv.Itoa(at.Day()),
 		timeSlice[0],
-		recurrenceTimeZone,
-	))
+		recurrenceTimeZone))
 
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		NoOriginalStartDate, atTime, atTime, recurrence, attendeesTmpl,
-		NoAttachments, NoCancelledOccurrences, NoExceptionOccurrences,
-	)
+		NoAttachments, NoCancelledOccurrences, NoExceptionOccurrences)
 }
 
 func EventWithRecurrenceAndCancellationBytes(subject string) []byte {
@@ -297,8 +293,7 @@ func EventWithRecurrenceAndCancellationBytes(subject string) []byte {
 		strconv.Itoa(int(at.Month())),
 		strconv.Itoa(at.Day()),
 		timeSlice[0],
-		`"UTC"`,
-	))
+		`"UTC"`))
 
 	cancelledInstances := []string{fmt.Sprintf(cancelledOccurrenceInstanceFormat, dttm.FormatTo(nextYear, dttm.DateOnly))}
 	cancelledOccurrences := fmt.Sprintf(cancelledOccurrencesFormat, strings.Join(cancelledInstances, ","))
@@ -307,8 +302,7 @@ func EventWithRecurrenceAndCancellationBytes(subject string) []byte {
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		NoOriginalStartDate, atTime, atTime, recurrence, attendeesTmpl,
-		defaultEventAttachments, cancelledOccurrences, NoExceptionOccurrences,
-	)
+		defaultEventAttachments, cancelledOccurrences, NoExceptionOccurrences)
 }
 
 func EventWithRecurrenceAndExceptionBytes(subject string) []byte {
@@ -326,24 +320,21 @@ func EventWithRecurrenceAndExceptionBytes(subject string) []byte {
 		strconv.Itoa(int(at.Month())),
 		strconv.Itoa(at.Day()),
 		timeSlice[0],
-		`"UTC"`,
-	))
+		`"UTC"`))
 
 	exceptionEvent := EventWith(
 		defaultEventOrganizer, subject+"(modified)",
 		defaultEventBody, defaultEventBodyPreview,
 		fmt.Sprintf(originalStartDateFormat, originalStartDate),
 		newTime, newTime, NoRecurrence, attendeesTmpl,
-		NoAttachments, NoCancelledOccurrences, NoExceptionOccurrences,
-	)
+		NoAttachments, NoCancelledOccurrences, NoExceptionOccurrences)
 	exceptionOccurrences := fmt.Sprintf(exceptionOccurrencesFormat, exceptionEvent)
 
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		NoOriginalStartDate, atTime, atTime, recurrence, attendeesTmpl,
-		defaultEventAttachments, NoCancelledOccurrences, exceptionOccurrences,
-	)
+		defaultEventAttachments, NoCancelledOccurrences, exceptionOccurrences)
 }
 
 func EventWithRecurrenceAndExceptionAndAttachmentBytes(subject string) []byte {
@@ -361,8 +352,7 @@ func EventWithRecurrenceAndExceptionAndAttachmentBytes(subject string) []byte {
 		strconv.Itoa(int(at.Month())),
 		strconv.Itoa(at.Day()),
 		timeSlice[0],
-		`"UTC"`,
-	))
+		`"UTC"`))
 
 	exceptionEvent := EventWith(
 		defaultEventOrganizer, subject+"(modified)",
@@ -370,19 +360,16 @@ func EventWithRecurrenceAndExceptionAndAttachmentBytes(subject string) []byte {
 		fmt.Sprintf(originalStartDateFormat, originalStartDate),
 		newTime, newTime, NoRecurrence, attendeesTmpl,
 		"\"attachments\":["+fmt.Sprintf(eventAttachmentFormat, "exception-database.db")+"],",
-		NoCancelledOccurrences, NoExceptionOccurrences,
-	)
+		NoCancelledOccurrences, NoExceptionOccurrences)
 	exceptionOccurrences := fmt.Sprintf(
 		exceptionOccurrencesFormat,
-		strings.Join([]string{string(exceptionEvent)}, ","),
-	)
+		strings.Join([]string{string(exceptionEvent)}, ","))
 
 	return EventWith(
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		NoOriginalStartDate, atTime, atTime, recurrence, attendeesTmpl,
-		defaultEventAttachments, NoCancelledOccurrences, exceptionOccurrences,
-	)
+		defaultEventAttachments, NoCancelledOccurrences, exceptionOccurrences)
 }
 
 func EventWithAttendeesBytes(subject string) []byte {
@@ -396,8 +383,7 @@ func EventWithAttendeesBytes(subject string) []byte {
 		defaultEventOrganizer, subject,
 		defaultEventBody, defaultEventBodyPreview,
 		NoOriginalStartDate, atTime, atTime, NoRecurrence, attendeesTmpl,
-		defaultEventAttachments, NoCancelledOccurrences, NoExceptionOccurrences,
-	)
+		defaultEventAttachments, NoCancelledOccurrences, NoExceptionOccurrences)
 }
 
 // EventWith returns bytes for an Eventable item.
@@ -442,6 +428,5 @@ func EventWith(
 		recurrence,
 		cancelledOccurrences,
 		exceptionOccurrences,
-		attendees,
-	))
+		attendees))
 }

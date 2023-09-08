@@ -28,8 +28,7 @@ type S3E2ESuite struct {
 func TestS3E2ESuite(t *testing.T) {
 	suite.Run(t, &S3E2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *S3E2ESuite) TestInitS3Cmd() {
@@ -113,8 +112,7 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 			"--config-file", configFP,
 			"--bucket", cfg.Bucket,
 			"--prefix", cfg.Prefix,
-			"--succeed-if-exists",
-		)
+			"--succeed-if-exists")
 		cli.BuildCommandTree(cmd)
 
 		// run the command
@@ -214,8 +212,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 				"repo", "connect", "s3",
 				"--config-file", configFP,
 				"--bucket", test.bucketPrefix+cfg.Bucket,
-				"--prefix", cfg.Prefix,
-			)
+				"--prefix", cfg.Prefix)
 			cli.BuildCommandTree(cmd)
 
 			// run the command

@@ -585,8 +585,7 @@ func getStreamItemFunc(
 			baseDir,
 			seen,
 			globalExcludeSet,
-			progress,
-		); err != nil {
+			progress); err != nil {
 			return clues.Wrap(err, "streaming base snapshot entries")
 		}
 
@@ -633,9 +632,7 @@ func buildKopiaDirs(
 			dir.collection,
 			dir.baseDir,
 			globalExcludeSet,
-			progress,
-		),
-	), nil
+			progress)), nil
 }
 
 type treeMap struct {
@@ -1144,8 +1141,7 @@ func inflateBaseTree(
 			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
-			stats,
-		); err != nil {
+			stats); err != nil {
 			return clues.Wrap(err, "traversing base snapshot").WithClues(ictx)
 		}
 

@@ -42,8 +42,7 @@ func (r *Opts) AsConfigs(
 		if err := maintenance.CheckExtendRetention(ctx, r.blobCfg, &r.params); err != nil {
 			return format.BlobStorageConfiguration{}, maintenance.Params{}, clues.Wrap(
 				err,
-				"invalid retention config",
-			).WithClues(ctx)
+				"invalid retention config").WithClues(ctx)
 		}
 	}
 
@@ -63,8 +62,7 @@ func (r *Opts) Set(opts repository.Retention) error {
 
 	return clues.Wrap(
 		r.setBlobConfigParams(opts.Mode, opts.Duration),
-		"setting mode or duration",
-	).OrNil()
+		"setting mode or duration").OrNil()
 }
 
 func (r *Opts) setMaintenanceParams(extend *bool) {

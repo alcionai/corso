@@ -351,8 +351,7 @@ func TestSPCollectionIntgSuite(t *testing.T) {
 	suite.Run(t, &SPCollectionIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 

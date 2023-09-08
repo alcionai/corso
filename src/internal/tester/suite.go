@@ -53,9 +53,7 @@ func NewIntegrationSuite(
 		t,
 		append(
 			[]string{CorsoCITests},
-			runOnAnyEnv...,
-		)...,
-	)
+			runOnAnyEnv...)...)
 
 	MustGetEnvSets(t, envSets...)
 
@@ -82,9 +80,7 @@ func NewE2ESuite(
 		t,
 		append(
 			[]string{CorsoE2ETests},
-			runOnAnyEnv...,
-		)...,
-	)
+			runOnAnyEnv...)...)
 
 	MustGetEnvSets(t, envSets...)
 
@@ -111,9 +107,7 @@ func NewLoadSuite(
 		t,
 		append(
 			[]string{CorsoLoadTests},
-			runOnAnyEnv...,
-		)...,
-	)
+			runOnAnyEnv...)...)
 
 	MustGetEnvSets(t, envSets...)
 
@@ -140,9 +134,7 @@ func NewNightlySuite(
 		t,
 		append(
 			[]string{CorsoNightlyTests},
-			runOnAnyEnv...,
-		)...,
-	)
+			runOnAnyEnv...)...)
 
 	MustGetEnvSets(t, envSets...)
 
@@ -169,9 +161,7 @@ func NewRetentionSuite(
 		t,
 		append(
 			[]string{CorsoRetentionTests},
-			runOnAnyEnv...,
-		)...,
-	)
+			runOnAnyEnv...)...)
 
 	MustGetEnvSets(t, envSets...)
 

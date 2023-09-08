@@ -187,8 +187,7 @@ func restoreEvent(
 		destinationID,
 		ptr.Val(item.GetId()),
 		event,
-		errs,
-	)
+		errs)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}

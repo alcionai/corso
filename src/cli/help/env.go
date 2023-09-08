@@ -93,8 +93,7 @@ func envGuide(cmd *cobra.Command, args []string) {
 	Info(ctx,
 		"\n--- Environment Variable Guide ---\n",
 		"As a best practice, Corso retrieves credentials and sensitive information from environment variables.\n ",
-		"\n",
-	)
+		"\n")
 	Table(ctx, toPrintable(corsoEVs))
 	Info(ctx, "\n")
 	Table(ctx, toPrintable(azureEVs))

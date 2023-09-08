@@ -38,8 +38,7 @@ func TestMailFolderCacheIntegrationSuite(t *testing.T) {
 	suite.Run(t, &MailFolderCacheIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 

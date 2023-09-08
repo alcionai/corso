@@ -472,8 +472,7 @@ func (ms *ModelStore) Update(
 			}
 
 			return nil
-		},
-	)
+		})
 	if err != nil {
 		return clues.Wrap(err, "updating model").WithClues(ctx)
 	}

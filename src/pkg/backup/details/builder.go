@@ -42,8 +42,7 @@ func (b *Builder) Add(
 	if err := b.addFolderEntries(
 		repoRef.ToBuilder().Dir(),
 		locationRef,
-		entry,
-	); err != nil {
+		entry); err != nil {
 		return clues.Wrap(err, "adding folder entries")
 	}
 

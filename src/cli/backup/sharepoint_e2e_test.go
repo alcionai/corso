@@ -37,8 +37,7 @@ type NoBackupSharePointE2ESuite struct {
 func TestNoBackupSharePointE2ESuite(t *testing.T) {
 	suite.Run(t, &NoBackupSharePointE2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
@@ -151,9 +150,7 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	assert.True(t,
 		strings.HasSuffix(
 			result,
-			fmt.Sprintf("Deleted SharePoint backup %s\n", string(suite.backupOp.Results.BackupID)),
-		),
-	)
+			fmt.Sprintf("Deleted SharePoint backup %s\n", string(suite.backupOp.Results.BackupID))))
 }
 
 // moved out of the func above to make the linter happy

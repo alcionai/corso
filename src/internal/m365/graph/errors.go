@@ -119,8 +119,7 @@ func IsErrDeletedInFlight(err error) bool {
 		err,
 		errorItemNotFound,
 		itemNotFound,
-		syncFolderNotFound,
-	) {
+		syncFolderNotFound) {
 		return true
 	}
 

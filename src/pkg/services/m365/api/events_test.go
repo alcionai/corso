@@ -272,8 +272,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_RestoreLargeAttachment() {
 		ptr.Val(calendar.GetId()),
 		ptr.Val(item.GetId()),
 		"raboganm",
-		[]byte("mangobar"),
-	)
+		[]byte("mangobar"))
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, id, "empty id for large attachment")
 }
