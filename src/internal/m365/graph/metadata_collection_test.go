@@ -61,8 +61,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		t,
 		len(itemNames),
 		len(itemData),
-		"Requires same number of items and data",
-	)
+		"Requires same number of items and data")
 
 	items := []MetadataItem{}
 
@@ -85,8 +84,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		func(c *support.ControllerOperationStatus) {
 			assert.Equal(t, len(itemNames), c.Metrics.Objects)
 			assert.Equal(t, len(itemNames), c.Metrics.Successes)
-		},
-	)
+		})
 
 	gotData := [][]byte{}
 	gotNames := []string{}

@@ -45,8 +45,7 @@ type NoBackupExchangeE2ESuite struct {
 func TestNoBackupExchangeE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupExchangeE2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
@@ -100,8 +99,7 @@ type BackupExchangeE2ESuite struct {
 func TestBackupExchangeE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupExchangeE2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *BackupExchangeE2ESuite) SetupSuite() {
@@ -244,8 +242,7 @@ func (suite *BackupExchangeE2ESuite) TestBackupCreateExchange_badAzureClientIDFl
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "exchange",
 		"--user", suite.its.user.ID,
-		"--azure-client-id", "invalid-value",
-	)
+		"--azure-client-id", "invalid-value")
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetErr(&suite.dpnd.recorder)
@@ -300,8 +297,7 @@ func (suite *BackupExchangeE2ESuite) TestBackupCreateExchange_badAWSFlags() {
 		"backup", "create", "exchange",
 		"--user", suite.its.user.ID,
 		"--aws-access-key", "invalid-value",
-		"--aws-secret-access-key", "some-invalid-value",
-	)
+		"--aws-secret-access-key", "some-invalid-value")
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetOut(&suite.dpnd.recorder)

@@ -381,8 +381,7 @@ func includeContainer(
 	logger.Ctx(ctx).With(
 		"included", ok,
 		"scope", scope,
-		"matches_input", directory,
-	).Debug("backup folder selection filter")
+		"matches_input", directory).Debug("backup folder selection filter")
 
 	return dirPath, loc, ok
 }

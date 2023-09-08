@@ -154,8 +154,7 @@ func cleanupOrphanedData(
 			ctx,
 			model.BackupSchema,
 			bup.ModelStoreID,
-			&bm,
-		); err != nil {
+			&bm); err != nil {
 			if !errors.Is(err, data.ErrNotFound) {
 				return clues.Wrap(err, "getting backup model").
 					With("search_backup_id", bup.ID)

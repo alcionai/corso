@@ -119,13 +119,11 @@ func configureStorage(
 		DoNotUseTLS: str.ParseBool(str.First(
 			overrides[storage.DoNotUseTLS],
 			strconv.FormatBool(s3Cfg.DoNotUseTLS),
-			"false",
-		)),
+			"false")),
 		DoNotVerifyTLS: str.ParseBool(str.First(
 			overrides[storage.DoNotVerifyTLS],
 			strconv.FormatBool(s3Cfg.DoNotVerifyTLS),
-			"false",
-		)),
+			"false")),
 	}
 
 	// compose the common config and credentials

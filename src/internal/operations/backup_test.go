@@ -295,8 +295,7 @@ func makeDetailsEntry(
 			assert.FailNowf(
 				t,
 				"category %s not supported in helper function",
-				p.Category().String(),
-			)
+				p.Category().String())
 		}
 
 		res.Exchange = &details.ExchangeInfo{
@@ -546,8 +545,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"work",
 				"item1",
 			},
-			true,
-		)
+			true)
 		locationPath1 = path.Builder{}.Append(odConsts.RootPathDir, "work-display-name")
 		itemPath2     = makePath(
 			suite.T(),
@@ -562,8 +560,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"personal",
 				"item2",
 			},
-			true,
-		)
+			true)
 		locationPath2 = path.Builder{}.Append(odConsts.RootPathDir, "personal-display-name")
 		itemPath3     = makePath(
 			suite.T(),
@@ -575,8 +572,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"personal",
 				"item3",
 			},
-			true,
-		)
+			true)
 		locationPath3 = path.Builder{}.Append("personal-display-name")
 
 		backup1 = backup.Backup{
@@ -734,9 +730,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 											itemPath1.ResourceOwner(),
 											path.UnknownCategory.String(),
 										},
-										itemPath1.Folders()...,
-									)...,
-								),
+										itemPath1.Folders()...)...),
 								ItemInfo: details.ItemInfo{
 									OneDrive: &details.OneDriveInfo{
 										ItemType:   details.OneDriveItem,
@@ -765,8 +759,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 						"personal",
 						"item1",
 					},
-					true,
-				)
+					true)
 
 				res.add(itemPath1, p, nil)
 
@@ -1616,16 +1609,14 @@ func makeMetadataCollectionEntries(
 	return []graph.MetadataCollectionEntry{
 		graph.NewMetadataEntry(
 			graph.DeltaURLsFileName,
-			map[string]string{driveID: deltaURL},
-		),
+			map[string]string{driveID: deltaURL}),
 		graph.NewMetadataEntry(
 			graph.PreviousPathFileName,
 			map[string]map[string]string{
 				driveID: {
 					folderID: p.PlainString(),
 				},
-			},
-		),
+			}),
 	}
 }
 

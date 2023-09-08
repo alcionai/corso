@@ -328,8 +328,7 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 		vpr,
 		true,
 		false,
-		overrides,
-	)
+		overrides)
 
 	m365Config, _ := repoDetails.Account.M365Config()
 	s3Cfg, _ := repoDetails.Storage.S3Config()
@@ -366,8 +365,7 @@ type ConfigIntegrationSuite struct {
 func TestConfigIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ConfigIntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {

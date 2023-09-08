@@ -232,8 +232,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			name: "Test Mail: Hydrated Item Attachment Mail",
 			bytes: exchMock.MessageWithNestedItemAttachmentMail(t,
 				exchMock.MessageBytes("Basic Item Attachment"),
-				"Mail Item Attachment",
-			),
+				"Mail Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailbasicattch").Location
@@ -248,8 +247,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			name: "Test Mail: Hydrated Item Attachment Mail One Attach",
 			bytes: exchMock.MessageWithNestedItemAttachmentMail(t,
 				exchMock.MessageWithDirectAttachment("Item Attachment Included"),
-				"Mail Item Attachment",
-			),
+				"Mail Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailnestattch").Location
@@ -264,8 +262,7 @@ func (suite *RestoreIntgSuite) TestRestoreExchangeObject() {
 			name: "Test Mail: Item Attachment_Contact",
 			bytes: exchMock.MessageWithNestedItemAttachmentContact(t,
 				exchMock.ContactBytes("Victor"),
-				"Contact Item Attachment",
-			),
+				"Contact Item Attachment"),
 			category: path.EmailCategory,
 			destination: func(t *testing.T, ctx context.Context) string {
 				folderName := testdata.DefaultRestoreConfig("mailcontactattch").Location

@@ -309,8 +309,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			coll, err := graph.MakeMetadataCollection(
 				pathPrefix,
 				entries,
-				func(cos *support.ControllerOperationStatus) {},
-			)
+				func(cos *support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))
 
 			cdps, canUsePreviousBackup, err := ParseMetadataCollections(ctx, []data.RestoreCollection{
@@ -446,8 +445,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 			name: "Folder Iterative Check Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
 				[]string{api.MailInbox},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 			folderNames: map[string]struct{}{
 				api.MailInbox: {},
 			},
@@ -457,8 +455,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 			name: "Folder Iterative Check Mail Non-Delta",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
 				[]string{api.MailInbox},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 			folderNames: map[string]struct{}{
 				api.MailInbox: {},
 			},
@@ -533,22 +530,19 @@ func (suite *BackupIntgSuite) TestDelta() {
 			name: "Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
 				[]string{api.MailInbox},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 		{
 			name: "Contacts",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
 				[]string{api.DefaultContacts},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 		{
 			name: "Events",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{api.DefaultCalendar},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 	}
 	for _, test := range tests {
@@ -832,16 +826,14 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 			expected: calID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{api.DefaultCalendar},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 		{
 			name:     "Birthday Calendar",
 			expected: bdayID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{"Birthdays"},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 	}
 
@@ -1878,8 +1870,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 					displayName: strPtr("prev"),
 					p:           path.Builder{}.Append("2", "prev"),
 					l:           path.Builder{}.Append("2", "prev"),
-				},
-			),
+				}),
 			dps: DeltaPaths{
 				"1": DeltaPath{
 					Delta: "old_delta_url",
@@ -1977,8 +1968,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 					displayName: strPtr("moved"),
 					p:           path.Builder{}.Append("4", "moved"),
 					l:           path.Builder{}.Append("4", "moved"),
-				},
-			),
+				}),
 			dps: DeltaPaths{
 				"2": DeltaPath{
 					Delta: "old_delta_url",

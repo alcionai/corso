@@ -142,8 +142,7 @@ func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityA
 
 	auth, err := kauth.NewAzureIdentityAuthenticationProviderWithScopes(
 		cred,
-		[]string{"https://graph.microsoft.com/.default"},
-	)
+		[]string{"https://graph.microsoft.com/.default"})
 	if err != nil {
 		return nil, clues.Wrap(err, "creating azure authentication")
 	}

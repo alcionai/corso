@@ -17,14 +17,11 @@ func AreSameFunc(t *testing.T, expect, have any) {
 		runtime.FuncForPC(
 			reflect.
 				ValueOf(expect).
-				Pointer(),
-		).Name(),
+				Pointer()).Name(),
 		runtime.FuncForPC(
 			reflect.
 				ValueOf(have).
-				Pointer(),
-		).Name(),
-	)
+				Pointer()).Name())
 }
 
 type TestT interface {

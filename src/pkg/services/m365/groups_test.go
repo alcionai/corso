@@ -109,8 +109,7 @@ func (suite *GroupsIntgSuite) TestGroups_InvalidCredentials() {
 							AzureClientSecret: "without",
 						},
 						AzureTenantID: "data",
-					},
-				)
+					})
 				require.NoError(t, err, clues.ToCore(err))
 
 				return a

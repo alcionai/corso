@@ -355,8 +355,7 @@ func TestControllerIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ControllerIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -732,15 +731,13 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 						{
 							Name: "someencodeditemID",
 							Data: exchMock.MessageWithDirectAttachment(
-								subjectText + "-1",
-							),
+								subjectText + "-1"),
 							LookupKey: subjectText + "-1",
 						},
 						{
 							Name: "someencodeditemID2",
 							Data: exchMock.MessageWithTwoAttachments(
-								subjectText + "-2",
-							),
+								subjectText + "-2"),
 							LookupKey: subjectText + "-2",
 						},
 					},
@@ -760,8 +757,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-1",
 								bodyText+" 1.",
-								bodyText+" 1.",
-							),
+								bodyText+" 1."),
 							LookupKey: subjectText + "-1",
 						},
 					},
@@ -775,8 +771,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-2",
 								bodyText+" 2.",
-								bodyText+" 2.",
-							),
+								bodyText+" 2."),
 							LookupKey: subjectText + "-2",
 						},
 						{
@@ -784,8 +779,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-3",
 								bodyText+" 3.",
-								bodyText+" 3.",
-							),
+								bodyText+" 3."),
 							LookupKey: subjectText + "-3",
 						},
 					},
@@ -799,8 +793,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-4",
 								bodyText+" 4.",
-								bodyText+" 4.",
-							),
+								bodyText+" 4."),
 							LookupKey: subjectText + "-4",
 						},
 					},
@@ -814,8 +807,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-5",
 								bodyText+" 5.",
-								bodyText+" 5.",
-							),
+								bodyText+" 5."),
 							LookupKey: subjectText + "-5",
 						},
 					},
@@ -1068,8 +1060,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					suite.user,
 					restoreCfg,
 					[]stub.ColInfo{collection},
-					version.Backup,
-				)
+					version.Backup)
 				require.NoError(t, err)
 
 				allItems += totalItems
@@ -1082,8 +1073,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					"Restoring %v/%v collections to %s\n",
 					i+1,
 					len(test.collections),
-					restoreCfg.Location,
-				)
+					restoreCfg.Location)
 
 				restoreCtrl := newController(ctx, t, path.ExchangeService)
 

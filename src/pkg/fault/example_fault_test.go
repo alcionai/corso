@@ -434,8 +434,7 @@ func ExampleBus_AddSkip() {
 		"deduplication-namespace",
 		"file-id",
 		"file-name",
-		map[string]any{"foo": "bar"},
-	))
+		map[string]any{"foo": "bar"}))
 
 	// later on, after processing, end users can scrutinize the skipped items.
 	fmt.Println(errs.Skipped()[0].String())

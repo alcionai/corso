@@ -323,8 +323,7 @@ func checkMetadataFilesExist(
 						int64(0),
 						"empty metadata file: %s/%s",
 						col.FullPath(),
-						item.ID(),
-					)
+						item.ID())
 
 					itemNames = append(itemNames, item.ID())
 				}
@@ -334,8 +333,7 @@ func checkMetadataFilesExist(
 					pathsByRef[col.FullPath().ShortRef()],
 					itemNames,
 					"collection %s missing expected files",
-					col.FullPath(),
-				)
+					col.FullPath())
 			}
 		})
 	}

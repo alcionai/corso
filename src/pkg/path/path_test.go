@@ -334,14 +334,12 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 				testUser,
 				testElement1,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -351,8 +349,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
 				testElementTrimmed,
-				testElement2,
-			),
+				testElement2),
 			expectedItemSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -366,14 +363,12 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 				testUser,
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -383,8 +378,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
 				testElementTrimmed,
-				testElement2,
-			),
+				testElement2),
 			expectedItemSplit: []string{
 				testElementTrimmed,
 				testElement2,

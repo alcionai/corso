@@ -330,8 +330,7 @@ func genLogger(set Settings) (*zapcore.Core, *zap.SugaredLogger) {
 		out            = zapcore.Lock(os.Stderr)
 		consoleEncoder = zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 		core           = zapcore.NewTee(
-			zapcore.NewCore(consoleEncoder, out, levelFilter),
-		)
+			zapcore.NewCore(consoleEncoder, out, levelFilter))
 
 		cfg zap.Config
 	)
