@@ -537,17 +537,21 @@ func (suite *PathUnitSuite) TestBuildRestorePaths() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			r, err := BuildRestorePaths(
+			r, err := BuildMetadata(
 				test.args.tenantID,
 				test.args.protectedResource,
 				test.args.service,
 				test.args.category,
+				true,
 				test.args.fp...,
 			)
 			test.expectErr(t, err, clues.ToCore(err))
 
-			assert.Equal(t, test.restorePath, r.RestorePath.String(), "restore path")
-			assert.Equal(t, test.storagePath, r.StoragePath.String(), "storage path")
+			rdir, err := r.Dir()
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.restorePath, rdir.String(), "restore path")
+			assert.Equal(t, test.storagePath, r.String(), "storage path")
 		})
 	}
 }

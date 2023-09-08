@@ -127,36 +127,6 @@ type RestorePaths struct {
 	RestorePath Path
 }
 
-func BuildRestorePaths(
-	tenantID, protectedResource string,
-	service ServiceType,
-	category CategoryType,
-	fp ...string,
-) (RestorePaths, error) {
-	p, err := Builder{}.
-		Append(fp...).
-		ToServiceCategoryMetadataPath(
-			tenantID,
-			protectedResource,
-			service,
-			category,
-			true)
-	if err != nil {
-		return RestorePaths{}, clues.
-			Wrap(err, "building metadata path").
-			With("metadata_file", fp, "category", category)
-	}
-
-	dir, err := p.Dir()
-	if err != nil {
-		return RestorePaths{}, clues.
-			Wrap(err, "building metadata collection path").
-			With("metadata_file", fp, "category", category)
-	}
-
-	return RestorePaths{StoragePath: p, RestorePath: dir}, nil
-}
-
 // ---------------------------------------------------------------------------
 // Exported Helpers
 // ---------------------------------------------------------------------------

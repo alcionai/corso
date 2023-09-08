@@ -216,17 +216,25 @@ func (ctrl *Controller) CollectMetadata(
 		}
 
 		for _, fp := range filePaths {
-			rp, err := path.BuildRestorePaths(
+			pth, err := path.BuildMetadata(
 				reason.Tenant(),
 				reason.ProtectedResource(),
 				reason.Service(),
 				reason.Category(),
+				true,
 				fp...)
 			if err != nil {
 				return nil, err
 			}
 
-			paths = append(paths, rp)
+			dir, err := pth.Dir()
+			if err != nil {
+				return nil, clues.
+					Wrap(err, "building metadata collection path").
+					With("metadata_file", fp)
+			}
+
+			paths = append(paths, path.RestorePaths{StoragePath: pth, RestorePath: dir})
 		}
 	}
 

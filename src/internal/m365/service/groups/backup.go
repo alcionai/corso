@@ -231,21 +231,27 @@ func MetadataFiles(
 	manID manifest.ID,
 	errs *fault.Bus,
 ) ([][]string, error) {
-	rp, err := path.BuildRestorePaths(
+	pth, err := path.BuildMetadata(
 		reason.Tenant(),
 		reason.ProtectedResource(),
 		reason.Service(),
 		reason.Category(),
+		true,
 		odConsts.SitesPathDir,
 		graph.PreviousPathFileName)
 	if err != nil {
 		return nil, err
 	}
 
+	dir, err := pth.Dir()
+	if err != nil {
+		return nil, clues.Wrap(err, "building metadata collection path")
+	}
+
 	dcs, err := r.ProduceRestoreCollections(
 		ctx,
 		string(manID),
-		[]path.RestorePaths{rp},
+		[]path.RestorePaths{{StoragePath: pth, RestorePath: dir}},
 		nil,
 		errs,
 	)
