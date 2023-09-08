@@ -117,6 +117,43 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 	}
 }
 
+func (suite *UsersUnitSuite) TestIsAnyErrMailboxNotFound() {
+	table := []struct {
+		name   string
+		errs   []error
+		expect bool
+	}{
+		{
+			name:   "no errors",
+			errs:   nil,
+			expect: false,
+		},
+		{
+			name: "mailbox not found error",
+			errs: []error{
+				clues.New("an error"),
+				api.ErrMailBoxNotFound,
+				clues.New("an error"),
+			},
+			expect: true,
+		},
+		{
+			name: "other errors",
+			errs: []error{
+				clues.New("an error"),
+				api.ErrMailBoxSettingsAccessDenied,
+				clues.New("an error"),
+			},
+			expect: false,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			assert.Equal(suite.T(), test.expect, api.IsAnyErrMailboxNotFound(test.errs))
+		})
+	}
+}
+
 type UsersIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup

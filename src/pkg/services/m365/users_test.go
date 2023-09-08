@@ -1,18 +1,14 @@
 package m365
 
 import (
-	"context"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -94,34 +90,115 @@ func (suite *userIntegrationSuite) TestUsersCompat_HasNoInfo() {
 
 func (suite *userIntegrationSuite) TestUserHasMailbox() {
 	t := suite.T()
+	acct := tconfig.NewM365Account(t)
+	userID := tconfig.M365UserID(t)
 
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+	table := []struct {
+		name   string
+		user   string
+		expect bool
+	}{
+		{
+			name:   "user with no mailbox",
+			user:   "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
+			expect: false,
+		},
+		{
+			name:   "user with mailbox",
+			user:   userID,
+			expect: true,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	var (
-		acct = tconfig.NewM365Account(t)
-		uid  = tconfig.M365UserID(t)
-	)
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-	enabled, err := UserHasMailbox(ctx, acct, uid)
-	require.NoError(t, err, clues.ToCore(err))
-	assert.True(t, enabled)
+			enabled, err := UserHasMailbox(ctx, acct, test.user)
+			require.NoError(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expect, enabled)
+		})
+	}
 }
 
 func (suite *userIntegrationSuite) TestUserHasDrive() {
 	t := suite.T()
+	acct := tconfig.NewM365Account(t)
+	userID := tconfig.M365UserID(t)
 
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+	table := []struct {
+		name   string
+		user   string
+		expect bool
+	}{
+		{
+			name:   "user without drive",
+			user:   "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
+			expect: false,
+		},
+		{
+			name:   "user with drive",
+			user:   userID,
+			expect: true,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	var (
-		acct = tconfig.NewM365Account(t)
-		uid  = tconfig.M365UserID(t)
-	)
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-	enabled, err := UserHasDrives(ctx, acct, uid)
-	require.NoError(t, err, clues.ToCore(err))
-	assert.True(t, enabled)
+			enabled, err := UserHasDrives(ctx, acct, test.user)
+			require.NoError(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expect, enabled)
+		})
+	}
+}
+
+func (suite *userIntegrationSuite) TestUserGetMailboxInfo() {
+	t := suite.T()
+	acct := tconfig.NewM365Account(t)
+
+	table := []struct {
+		name      string
+		user      string
+		expect    func(t *testing.T, info api.MailboxInfo)
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "shared mailbox",
+			user: "bb1a2049-3fc1-4fdc-93b8-7a14f63dd0db", // User: neha-test-shared-mailbox@10rqc2.onmicrosoft.com
+			expect: func(t *testing.T, info api.MailboxInfo) {
+				require.NotNil(t, info)
+				assert.Equal(t, "shared", info.Purpose)
+			},
+			expectErr: require.NoError,
+		},
+		{
+			name: "user with no mailbox",
+			user: "a53c26f7-5100-4acb-a910-4d20960b2c19", // User: testevents@10rqc2.onmicrosoft.com
+			expect: func(t *testing.T, info api.MailboxInfo) {
+				require.NotNil(t, info)
+				assert.Contains(t, info.ErrGetMailBoxSetting, api.ErrMailBoxNotFound)
+			},
+			expectErr: require.NoError,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			info, err := UserGetMailboxInfo(ctx, acct, test.user)
+			test.expectErr(t, err, clues.ToCore(err))
+			test.expect(t, info)
+		})
+	}
 }
 
 func (suite *userIntegrationSuite) TestUsers_InvalidCredentials() {
@@ -228,7 +305,7 @@ func (suite *userIntegrationSuite) TestGetUserInfo_userWithoutDrive() {
 			expect: &api.UserInfo{
 				ServicesEnabled: map[path.ServiceType]struct{}{},
 				Mailbox: api.MailboxInfo{
-					ErrGetMailBoxSetting: []error{api.ErrMailBoxSettingsNotFound},
+					ErrGetMailBoxSetting: []error{api.ErrMailBoxNotFound},
 				},
 			},
 		},
@@ -259,141 +336,6 @@ func (suite *userIntegrationSuite) TestGetUserInfo_userWithoutDrive() {
 			assert.Equal(t, test.expect.ServicesEnabled, result.ServicesEnabled)
 			assert.Equal(t, test.expect.Mailbox.ErrGetMailBoxSetting, result.Mailbox.ErrGetMailBoxSetting)
 			assert.Equal(t, test.expect.Mailbox.Purpose, result.Mailbox.Purpose)
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Unit
-// ---------------------------------------------------------------------------
-
-type userUnitSuite struct {
-	tester.Suite
-}
-
-func TestUserUnitSuite(t *testing.T) {
-	suite.Run(t, &userUnitSuite{Suite: tester.NewUnitSuite(t)})
-}
-
-type mockDGDD struct {
-	response models.Driveable
-	err      error
-}
-
-func (m mockDGDD) GetDefaultDrive(context.Context, string) (models.Driveable, error) {
-	return m.response, m.err
-}
-
-func (suite *userUnitSuite) TestCheckUserHasDrives() {
-	table := []struct {
-		name      string
-		mock      func(context.Context) getDefaultDriver
-		expect    assert.BoolAssertionFunc
-		expectErr func(*testing.T, error)
-	}{
-		{
-			name: "ok",
-			mock: func(ctx context.Context) getDefaultDriver {
-				return mockDGDD{models.NewDrive(), nil}
-			},
-			expect: assert.True,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "mysite not found",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To("code"))
-				merr.SetMessage(ptr.To(string(graph.MysiteNotFound)))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "mysite URL not found",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To("code"))
-				merr.SetMessage(ptr.To(string(graph.MysiteURLNotFound)))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "no sharepoint license",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To("code"))
-				merr.SetMessage(ptr.To(string(graph.NoSPLicense)))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "user not found",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To(string(graph.RequestResourceNotFound)))
-				merr.SetMessage(ptr.To("message"))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "arbitrary error",
-			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odataerrors.NewODataError()
-				merr := odataerrors.NewMainError()
-				merr.SetCode(ptr.To("code"))
-				merr.SetMessage(ptr.To("message"))
-				odErr.SetErrorEscaped(merr)
-
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
-			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			dgdd := test.mock(ctx)
-
-			ok, err := checkUserHasDrives(ctx, dgdd, "foo")
-			test.expect(t, ok, "has drives flag")
-			test.expectErr(t, err)
 		})
 	}
 }

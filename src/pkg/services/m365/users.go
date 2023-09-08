@@ -7,7 +7,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/service/exchange"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -66,16 +67,20 @@ func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (b
 		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	_, err = ac.Users().GetMailInbox(ctx, userID)
-	if err != nil {
-		if err := api.EvaluateMailboxError(err); err != nil {
-			return false, clues.Stack(err)
-		}
+	return exchange.IsServiceEnabled(ctx, ac.Users(), userID)
+}
 
-		return false, nil
+func UserGetMailboxInfo(
+	ctx context.Context,
+	acct account.Account,
+	userID string,
+) (api.MailboxInfo, error) {
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
+	if err != nil {
+		return api.MailboxInfo{}, clues.Stack(err).WithClues(ctx)
 	}
 
-	return true, nil
+	return exchange.GetMailboxInfo(ctx, ac.Users(), userID)
 }
 
 // UserHasDrives returns true if the user has any drives
@@ -86,26 +91,7 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 		return false, clues.Stack(err).WithClues(ctx)
 	}
 
-	return checkUserHasDrives(ctx, ac.Users(), userID)
-}
-
-func checkUserHasDrives(ctx context.Context, dgdd getDefaultDriver, userID string) (bool, error) {
-	_, err := dgdd.GetDefaultDrive(ctx, userID)
-	if err != nil {
-		// we consider this a non-error case, since it
-		// answers the question the caller is asking.
-		if clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-			return false, nil
-		}
-
-		if graph.IsErrUserNotFound(err) {
-			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
-		}
-
-		return false, clues.Stack(err)
-	}
-
-	return true, nil
+	return onedrive.IsServiceEnabled(ctx, ac.Users(), userID)
 }
 
 // usersNoInfo returns a list of users in the specified M365 tenant - with no info

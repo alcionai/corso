@@ -9,6 +9,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -20,7 +21,7 @@ import (
 
 // Variables
 var (
-	ErrMailBoxSettingsNotFound     = clues.New("mailbox settings not found")
+	ErrMailBoxNotFound             = clues.New("mailbox not found")
 	ErrMailBoxSettingsAccessDenied = clues.New("mailbox settings access denied")
 )
 
@@ -215,7 +216,7 @@ func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
 	}
 
 	if !mailFolderFound {
-		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, ErrMailBoxSettingsNotFound)
+		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, ErrMailBoxNotFound)
 		userInfo.Mailbox = mi
 
 		return userInfo, nil
@@ -266,6 +267,18 @@ func EvaluateMailboxError(err error) error {
 	}
 
 	return err
+}
+
+// IsAnyErrMailboxNotFound inspects the secondary errors inside MailboxInfo and
+// determines whether the resource has a mailbox.
+func IsAnyErrMailboxNotFound(errs []error) bool {
+	for _, err := range errs {
+		if errors.Is(err, ErrMailBoxNotFound) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c Users) GetMailboxSettings(
