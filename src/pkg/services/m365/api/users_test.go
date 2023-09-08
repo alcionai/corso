@@ -117,7 +117,7 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 	}
 }
 
-func (suite *UsersUnitSuite) TestIsErrMailboxNotFound() {
+func (suite *UsersUnitSuite) TestIsAnyErrMailboxNotFound() {
 	table := []struct {
 		name   string
 		errs   []error
@@ -149,7 +149,7 @@ func (suite *UsersUnitSuite) TestIsErrMailboxNotFound() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			assert.Equal(suite.T(), test.expect, api.IsErrMailboxNotFound(test.errs))
+			assert.Equal(suite.T(), test.expect, api.IsAnyErrMailboxNotFound(test.errs))
 		})
 	}
 }

@@ -269,9 +269,9 @@ func EvaluateMailboxError(err error) error {
 	return err
 }
 
-// IsErrMailboxNotFound inspects the secondary errors inside MailboxInfo and
+// IsAnyErrMailboxNotFound inspects the secondary errors inside MailboxInfo and
 // determines whether the resource has a mailbox.
-func IsErrMailboxNotFound(errs []error) bool {
+func IsAnyErrMailboxNotFound(errs []error) bool {
 	for _, err := range errs {
 		if errors.Is(err, ErrMailBoxNotFound) {
 			return true
