@@ -38,7 +38,12 @@ func ProduceExportCollections(
 
 		baseDir := path.Builder{}.Append(drivePath.Folders...)
 
-		ec = append(ec, drive.NewExportCollection(baseDir.String(), dc, backupVersion))
+		ec = append(
+			ec,
+			drive.NewExportCollection(
+				baseDir.String(),
+				[]data.RestoreCollection{dc},
+				backupVersion))
 	}
 
 	return ec, el.Failure()
