@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -32,6 +33,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var (
@@ -41,6 +43,7 @@ var (
 	Tenant        string
 	User          string
 	SecondaryUser string
+	Group         string
 )
 
 // TODO: ErrGenerating       = clues.New("not all items were successfully generated")
@@ -454,4 +457,54 @@ func generateAndRestoreDriveItems(
 	}
 
 	return ctrl.ConsumeRestoreCollections(ctx, rcc, collections, errs, ctr)
+}
+
+// Channel data creation
+func generateAndCreateChannelItems(
+	ctrl *m365.Controller,
+	protectedResource idname.Provider,
+	acct account.Account,
+	tenantID, destFldr string,
+	intCount int,
+	errs *fault.Bus,
+	ctr *count.Bus,
+) (
+	*details.Details,
+	error,
+) {
+	ctx, flush := tester.NewContext(nil)
+	defer flush()
+	teamID := protectedResource.ID()
+
+	account, err := acct.M365Config()
+	if err != nil {
+		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+	}
+
+	ac, err := api.NewClient(account, control.Options{})
+	if err != nil {
+		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+	}
+
+	chCient := ac.Channels()
+
+	channel, err := chCient.CreateChannel(ctx, protectedResource.ID(), destFldr)
+	if err != nil {
+		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+	}
+
+	channelID := ptr.Val(channel.GetId())
+
+	for i := 0; i < intCount; i++ {
+		body := models.ItemBody{}
+		content := fmt.Sprintf("Hello new automated message: %d", 0)
+
+		body.SetContent(&content)
+		_, err := chCient.PostChannelMessage(ctx, teamID, channelID, &body)
+		if err != nil {
+			return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+		}
+	}
+
+	return &details.Details{}, nil
 }

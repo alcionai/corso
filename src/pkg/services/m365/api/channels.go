@@ -100,6 +100,52 @@ func (c Channels) GetChannelByName(
 	return cal, nil
 }
 
+// CreateChannel makes an channels with the name in the team
+func (c Channels) CreateChannel(
+	ctx context.Context,
+	teamID, channelName string,
+) (models.Channelable, error) {
+	body := models.NewChannel()
+	body.SetDisplayName(&channelName)
+
+	channel, err := c.Stable.
+		Client().
+		Teams().
+		ByTeamIdString(teamID).
+		Channels().
+		Post(ctx, body, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating channel")
+	}
+
+	return channel, nil
+}
+
+// DeleteChannel removes a channel from team with given teamID
+func (c Channels) DeleteChannel(
+	ctx context.Context,
+	teamID, channelID string,
+) error {
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	srv, err := NewService(c.Credentials)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = srv.Client().
+		Teams().
+		ByTeamIdString(teamID).
+		Channels().
+		ByChannelIdString(channelID).
+		Delete(ctx, nil)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // message
 // ---------------------------------------------------------------------------
@@ -126,6 +172,60 @@ func (c Channels) GetChannelMessage(
 	info := ChannelMessageInfo(message, size)
 
 	return message, info, nil
+}
+
+func (c Channels) PostChannelMessage(
+	ctx context.Context,
+	teamID, channelID string,
+	body *models.ItemBody,
+) (models.ChatMessageable, error) {
+	requestBody := models.NewChatMessage()
+	requestBody.SetBody(body)
+
+	itm, err := c.Stable.
+		Client().
+		Teams().
+		ByTeamIdString(teamID).
+		Channels().
+		ByChannelIdString(channelID).
+		Messages().
+		Post(ctx, requestBody, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating chamailnnel message")
+	}
+
+	if itm == nil {
+		return nil, clues.New("nil response channel message creation").WithClues(ctx)
+	}
+
+	return itm, nil
+}
+
+func (c Channels) DeleteChannelMessage(
+	ctx context.Context,
+	teamID, messageID, channelID string,
+) error {
+	// deletes require unique http clients
+	// https://github.com/alcionai/corso/issues/2707
+	srv, err := NewService(c.Credentials)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	err = srv.
+		Client().
+		Teams().
+		ByTeamIdString(teamID).
+		Channels().
+		ByChannelIdString(channelID).
+		Messages().
+		ByChatMessageIdString(messageID).
+		Delete(ctx, nil)
+	if err != nil {
+		return graph.Wrap(ctx, err, "deleting channel message")
+	}
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------
