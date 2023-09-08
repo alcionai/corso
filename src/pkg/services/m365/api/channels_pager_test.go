@@ -56,27 +56,28 @@ func (suite *ChannelsPagerIntgSuite) TestEnumerateChannelMessages() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	msgIDs, du, err := ac.GetChannelMessageIDsDelta(
+	addedIDs, _, du, err := ac.GetChannelMessageIDsDelta(
 		ctx,
 		suite.its.group.id,
 		suite.its.group.testContainerID,
 		"")
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, msgIDs)
+	require.NotEmpty(t, addedIDs)
 	require.NotZero(t, du.URL, "delta link")
 	require.True(t, du.Reset, "reset due to empty prev delta link")
 
-	msgIDs, du, err = ac.GetChannelMessageIDsDelta(
+	addedIDs, deletedIDs, du, err := ac.GetChannelMessageIDsDelta(
 		ctx,
 		suite.its.group.id,
 		suite.its.group.testContainerID,
 		du.URL)
 	require.NoError(t, err, clues.ToCore(err))
-	require.Empty(t, msgIDs, "should have no new messages from delta")
+	require.Empty(t, addedIDs, "should have no new messages from delta")
+	require.Empty(t, deletedIDs, "should have no deleted messages from delta")
 	require.NotZero(t, du.URL, "delta link")
 	require.False(t, du.Reset, "prev delta link should be valid")
 
-	for id := range msgIDs {
+	for id := range addedIDs {
 		suite.Run(id+"-replies", func() {
 			testEnumerateChannelMessageReplies(
 				suite.T(),

@@ -24,7 +24,7 @@ type backupHandler interface {
 	getChannelMessageIDsDelta(
 		ctx context.Context,
 		channelID, prevDelta string,
-	) (map[string]struct{}, api.DeltaUpdate, error)
+	) (map[string]struct{}, map[string]struct{}, api.DeltaUpdate, error)
 
 	// includeContainer evaluates whether the channel is included
 	// in the provided scope.

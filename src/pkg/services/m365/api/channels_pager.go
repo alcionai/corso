@@ -86,12 +86,14 @@ func (c Channels) NewChannelMessageDeltaPager(
 }
 
 // GetChannelMessageIDsDelta fetches a delta of all messages in the channel.
+// returns two maps: addedItems, deletedItems
 func (c Channels) GetChannelMessageIDsDelta(
 	ctx context.Context,
 	teamID, channelID, prevDelta string,
-) (map[string]struct{}, DeltaUpdate, error) {
+) (map[string]struct{}, map[string]struct{}, DeltaUpdate, error) {
 	var (
-		vs = map[string]struct{}{}
+		added   = map[string]struct{}{}
+		deleted = map[string]struct{}{}
 		// select is not currently allowed on messages
 		// this func will still isolate to the ID, however,
 		// because we need the follow-up get request to gather
@@ -109,7 +111,8 @@ func (c Channels) GetChannelMessageIDsDelta(
 			logger.Ctx(ctx).Infow("Invalid previous delta", "delta_link", prevDelta)
 
 			invalidPrevDelta = true
-			vs = map[string]struct{}{}
+			added = map[string]struct{}{}
+			deleted = map[string]struct{}{}
 
 			pager.Reset(ctx)
 
@@ -117,16 +120,20 @@ func (c Channels) GetChannelMessageIDsDelta(
 		}
 
 		if err != nil {
-			return nil, DeltaUpdate{}, graph.Wrap(ctx, err, "retrieving page of channel messages")
+			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "retrieving page of channel messages")
 		}
 
 		vals, err := pager.ValuesIn(page)
 		if err != nil {
-			return nil, DeltaUpdate{}, graph.Wrap(ctx, err, "extracting channel messages from response")
+			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "extracting channel messages from response")
 		}
 
 		for _, v := range vals {
-			vs[ptr.Val(v.GetId())] = struct{}{}
+			if v.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
+				added[ptr.Val(v.GetId())] = struct{}{}
+			} else {
+				deleted[ptr.Val(v.GetId())] = struct{}{}
+			}
 		}
 
 		nextLink, deltaLink := NextAndDeltaLink(page)
@@ -142,14 +149,14 @@ func (c Channels) GetChannelMessageIDsDelta(
 		pager.SetNext(nextLink)
 	}
 
-	logger.Ctx(ctx).Debugf("retrieved %d channel messages", len(vs))
+	logger.Ctx(ctx).Debugf("retrieved %d channel messages", len(added))
 
 	du := DeltaUpdate{
 		URL:   newDeltaLink,
 		Reset: invalidPrevDelta,
 	}
 
-	return vs, du, nil
+	return added, deleted, du, nil
 }
 
 // ---------------------------------------------------------------------------

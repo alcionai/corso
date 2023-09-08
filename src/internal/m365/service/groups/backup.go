@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -107,7 +108,7 @@ func ProduceBackupCollections(
 			}
 
 		case path.ChannelMessagesCategory:
-			dbcs, err = groups.CreateCollections(
+			dbcs, canUsePreviousBackup, err = groups.CreateCollections(
 				ctx,
 				bpc,
 				groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels()),
@@ -183,7 +184,7 @@ func getSitesMetadataCollection(
 	md, err := graph.MakeMetadataCollection(
 		p,
 		[]graph.MetadataCollectionEntry{
-			graph.NewMetadataEntry(graph.PreviousPathFileName, sites),
+			graph.NewMetadataEntry(metadata.PreviousPathFileName, sites),
 		},
 		su)
 

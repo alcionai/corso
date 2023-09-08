@@ -39,7 +39,7 @@ func (bh channelsBackupHandler) getChannels(
 func (bh channelsBackupHandler) getChannelMessageIDsDelta(
 	ctx context.Context,
 	channelID, prevDelta string,
-) (map[string]struct{}, api.DeltaUpdate, error) {
+) (map[string]struct{}, map[string]struct{}, api.DeltaUpdate, error) {
 	return bh.ac.GetChannelMessageIDsDelta(ctx, bh.protectedResource, channelID, prevDelta)
 }
 

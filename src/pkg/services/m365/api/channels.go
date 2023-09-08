@@ -159,6 +159,8 @@ func ChannelMessageInfo(
 	from := msg.GetFrom()
 
 	switch true {
+	case from == nil:
+		// not all messages have a populated 'from'.  Namely, system messages do not.
 	case from.GetApplication() != nil:
 		msgCreator = ptr.Val(from.GetApplication().GetDisplayName())
 	case from.GetDevice() != nil:

@@ -36,6 +36,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/extensions"
@@ -1608,10 +1609,10 @@ func makeMetadataCollectionEntries(
 ) []graph.MetadataCollectionEntry {
 	return []graph.MetadataCollectionEntry{
 		graph.NewMetadataEntry(
-			graph.DeltaURLsFileName,
+			metadata.DeltaURLsFileName,
 			map[string]string{driveID: deltaURL}),
 		graph.NewMetadataEntry(
-			graph.PreviousPathFileName,
+			metadata.PreviousPathFileName,
 			map[string]map[string]string{
 				driveID: {
 					folderID: p.PlainString(),

@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
+	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -173,7 +174,7 @@ func runDriveIncrementalTest(
 		now = dttm.FormatNow(dttm.SafeForTesting)
 
 		categories = map[path.CategoryType][]string{
-			category: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
+			category: {bupMD.DeltaURLsFileName, bupMD.PreviousPathFileName},
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
@@ -787,7 +788,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		mb   = evmock.NewBus()
 
 		categories = map[path.CategoryType][]string{
-			path.FilesCategory: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
+			path.FilesCategory: {bupMD.DeltaURLsFileName, bupMD.PreviousPathFileName},
 		}
 	)
 
