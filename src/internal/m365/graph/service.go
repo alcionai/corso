@@ -37,12 +37,6 @@ const (
 	defaultHTTPClientTimeout  = 1 * time.Hour
 )
 
-// AllMetadataFileNames produces the standard set of filenames used to store graph
-// metadata such as delta tokens and folderID->path references.
-func AllMetadataFileNames() []string {
-	return []string{DeltaURLsFileName, PreviousPathFileName}
-}
-
 type QueryParams struct {
 	Category          path.CategoryType
 	ProtectedResource idname.Provider
