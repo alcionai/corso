@@ -67,19 +67,6 @@ func NextAndDeltaLink(pl DeltaLinker) (string, string) {
 	return NextLink(pl), ptr.Val(pl.GetOdataDeltaLink())
 }
 
-// EmptyDeltaLinker is used to convert PageLinker to DeltaPageLinker
-// type EmptyDeltaLinker[T any] struct {
-// 	PageLinkValuer[T]
-// }
-
-// func (EmptyDeltaLinker[T]) GetOdataDeltaLink() *string {
-// 	return ptr.To("")
-// }
-
-// func (e EmptyDeltaLinker[T]) GetValue() []T {
-// 	return e.PageLinkValuer.GetValue()
-// }
-
 // ---------------------------------------------------------------------------
 // non-delta item paging
 // ---------------------------------------------------------------------------
