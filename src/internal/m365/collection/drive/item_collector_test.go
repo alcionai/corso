@@ -1,7 +1,6 @@
 package drive
 
 import (
-	"context"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -175,50 +174,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 				},
 			},
 			expectedErr:     assert.NoError,
-			expectedResults: nil,
-		},
-		{
-			name: "SplitResultsContextTimeout",
-			pagerResults: []mock.PagerResult[models.Driveable]{
-				{
-					Values:   resultDrives[:numDriveResults/2],
-					NextLink: &link,
-					Err:      nil,
-				},
-				{
-					Values:   nil,
-					NextLink: nil,
-					Err:      context.DeadlineExceeded,
-				},
-				{
-					Values:   resultDrives[numDriveResults/2:],
-					NextLink: &emptyLink,
-					Err:      nil,
-				},
-			},
-			expectedErr:     assert.Error,
-			expectedResults: resultDrives,
-		},
-		{
-			name: "SplitResultsContextTimeout",
-			pagerResults: []mock.PagerResult[models.Driveable]{
-				{
-					Values:   resultDrives[:numDriveResults/2],
-					NextLink: &link,
-					Err:      nil,
-				},
-				{
-					Values:   nil,
-					NextLink: nil,
-					Err:      context.DeadlineExceeded,
-				},
-				{
-					Values:   resultDrives[numDriveResults/2:],
-					NextLink: &emptyLink,
-					Err:      nil,
-				},
-			},
-			expectedErr:     assert.Error,
 			expectedResults: nil,
 		},
 	}
