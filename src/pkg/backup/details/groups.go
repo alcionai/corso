@@ -124,8 +124,13 @@ func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 }
 
 func (i *GroupsInfo) updateFolder(f *FolderInfo) error {
-	if i.ItemType == SharePointLibrary {
+	f.DataType = i.ItemType
+
+	switch i.ItemType {
+	case SharePointLibrary:
 		return updateFolderWithinDrive(SharePointLibrary, i.DriveName, i.DriveID, f)
+	case GroupsChannelMessage:
+		return nil
 	}
 
 	return clues.New("unsupported ItemType for GroupsInfo").With("item_type", i.ItemType)
