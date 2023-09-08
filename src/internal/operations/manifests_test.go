@@ -10,13 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
-	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/internal/operations/inject/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
@@ -193,32 +192,6 @@ func buildReasons(
 	return reasons
 }
 
-type mockBackupProduer struct{}
-
-func (mbp mockBackupProduer) ProduceBackupCollections(
-	context.Context,
-	inject.BackupProducerConfig,
-	*fault.Bus,
-) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	panic("unimplemented")
-}
-func (mbp mockBackupProduer) Wait() *data.CollectionStats { panic("unimplemented") }
-func (mbp mockBackupProduer) IsServiceEnabled(context.Context, path.ServiceType, string) (bool, error) {
-	panic("unimplemented")
-}
-
-func (mbp mockBackupProduer) CollectMetadata(
-	ctx context.Context,
-	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
-	errs *fault.Bus,
-) ([]data.RestoreCollection, error) {
-	// Since the controller does not need anything special, we can
-	// directly use it
-	ctrl := m365.Controller{}
-	return ctrl.CollectMetadata(ctx, r, man, errs)
-}
-
 func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 	const (
 		ro  = "resourceowner"
@@ -252,7 +225,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 	table := []struct {
 		name        string
 		bf          *mockBackupFinder
-		bp          mockBackupProduer
+		bp          inject.BackupProducer
 		rp          mockRestoreProducer
 		reasons     []identity.Reasoner
 		getMeta     bool
@@ -918,10 +891,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			mbp := mock.NewMockBackupProducer()
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				test.bf,
-				&mockBackupProduer{},
+				mbp,
 				&test.rp,
 				test.reasons, test.fallbackReasons,
 				tid,

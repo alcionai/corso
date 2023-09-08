@@ -221,8 +221,7 @@ func (ctrl *Controller) CollectMetadata(
 				reason.ProtectedResource(),
 				reason.Service(),
 				reason.Category(),
-				fp,
-			)
+				fp...)
 			if err != nil {
 				return nil, err
 			}

@@ -542,7 +542,7 @@ func (suite *PathUnitSuite) TestBuildRestorePaths() {
 				test.args.protectedResource,
 				test.args.service,
 				test.args.category,
-				test.args.fp,
+				test.args.fp...,
 			)
 			test.expectErr(t, err, clues.ToCore(err))
 

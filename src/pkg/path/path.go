@@ -131,7 +131,7 @@ func BuildRestorePaths(
 	tenantID, protectedResource string,
 	service ServiceType,
 	category CategoryType,
-	fp []string,
+	fp ...string,
 ) (RestorePaths, error) {
 	p, err := Builder{}.
 		Append(fp...).

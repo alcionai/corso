@@ -236,7 +236,8 @@ func MetadataFiles(
 		reason.ProtectedResource(),
 		reason.Service(),
 		reason.Category(),
-		[]string{odConsts.SitesPathDir, graph.PreviousPathFileName})
+		odConsts.SitesPathDir,
+		graph.PreviousPathFileName)
 	if err != nil {
 		return nil, err
 	}
