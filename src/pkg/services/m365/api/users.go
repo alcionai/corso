@@ -9,18 +9,17 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // Variables
 var (
-	ErrMailBoxSettingsNotFound     = clues.New("mailbox settings not found")
+	ErrMailBoxNotFound             = clues.New("mailbox not found")
 	ErrMailBoxSettingsAccessDenied = clues.New("mailbox settings access denied")
 )
 
@@ -168,86 +167,6 @@ func appendIfErr(errs []error, err error) []error {
 	return append(errs, err)
 }
 
-// ---------------------------------------------------------------------------
-// Info
-// ---------------------------------------------------------------------------
-
-// TODO(pandeyabs): Remove this once the SDK users have migrated to new APIs
-func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
-	var (
-		// Assume all services are enabled
-		// then filter down to only services the user has enabled
-		userInfo        = newUserInfo()
-		mailFolderFound = true
-	)
-
-	// check whether the user is able to access their onedrive drive.
-	// if they cannot, we can assume they are ineligible for onedrive backups.
-	if _, err := c.GetDefaultDrive(ctx, userID); err != nil {
-		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) && !clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-			logger.CtxErr(ctx, err).Error("getting user's default drive")
-			return nil, graph.Wrap(ctx, err, "getting user's default drive info")
-		}
-
-		logger.Ctx(ctx).Info("resource owner does not have a drive")
-		delete(userInfo.ServicesEnabled, path.OneDriveService)
-	}
-
-	// check whether the user is able to access their inbox.
-	// if they cannot, we can assume they are ineligible for exchange backups.
-	inbx, err := c.GetMailInbox(ctx, userID)
-	if err != nil {
-		if err := EvaluateMailboxError(graph.Stack(ctx, err)); err != nil {
-			logger.CtxErr(ctx, err).Error("getting user's mail folder")
-			return nil, err
-		}
-
-		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
-		delete(userInfo.ServicesEnabled, path.ExchangeService)
-
-		mailFolderFound = false
-	}
-
-	// check whether the user has accessible mailbox settings.
-	// if they do, aggregate them in the MailboxInfo
-	mi := MailboxInfo{
-		ErrGetMailBoxSetting: []error{},
-	}
-
-	if !mailFolderFound {
-		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, ErrMailBoxSettingsNotFound)
-		userInfo.Mailbox = mi
-
-		return userInfo, nil
-	}
-
-	mboxSettings, err := c.GetMailboxSettings(ctx, userID)
-	if err != nil {
-		logger.CtxErr(ctx, err).Info("err getting user's mailbox settings")
-
-		if !graph.IsErrAccessDenied(err) {
-			return nil, graph.Wrap(ctx, err, "getting user's mailbox settings")
-		}
-
-		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, clues.New("access denied"))
-	} else {
-		mi = ParseMailboxSettings(mboxSettings, mi)
-	}
-
-	err = c.GetFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
-	if err != nil {
-		if !graph.IsErrQuotaExceeded(err) {
-			return nil, clues.Stack(err)
-		}
-
-		mi.QuotaExceeded = graph.IsErrQuotaExceeded(err)
-	}
-
-	userInfo.Mailbox = mi
-
-	return userInfo, nil
-}
-
 // EvaluateMailboxError checks whether the provided error can be interpreted
 // as "user does not have a mailbox", or whether it is some other error.  If
 // the former (no mailbox), returns nil, otherwise returns an error.
@@ -266,6 +185,18 @@ func EvaluateMailboxError(err error) error {
 	}
 
 	return err
+}
+
+// IsAnyErrMailboxNotFound inspects the secondary errors inside MailboxInfo and
+// determines whether the resource has a mailbox.
+func IsAnyErrMailboxNotFound(errs []error) bool {
+	for _, err := range errs {
+		if errors.Is(err, ErrMailBoxNotFound) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c Users) GetMailboxSettings(

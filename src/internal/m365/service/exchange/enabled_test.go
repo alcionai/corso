@@ -189,7 +189,7 @@ func (suite *EnabledUnitSuite) TestGetMailboxInfo() {
 				mi := api.MailboxInfo{}
 				mi.ErrGetMailBoxSetting = append(
 					mi.ErrGetMailBoxSetting,
-					api.ErrMailBoxSettingsNotFound)
+					api.ErrMailBoxNotFound)
 
 				return mi
 			},
