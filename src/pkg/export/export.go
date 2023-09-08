@@ -29,12 +29,12 @@ type BaseCollection struct {
 
 	// BackingCollection is the restore collection from which we will
 	// create the export collection.
-	BackingCollection data.RestoreCollection
+	BackingCollection []data.RestoreCollection
 
 	// BackupVersion is the backupVersion of the data source.
 	BackupVersion int
 
-	Stream func(context.Context, data.RestoreCollection, int, chan<- Item)
+	Stream func(context.Context, []data.RestoreCollection, int, chan<- Item)
 }
 
 func (bc BaseCollection) BasePath() string {

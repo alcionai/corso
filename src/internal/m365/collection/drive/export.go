@@ -15,7 +15,7 @@ import (
 
 func NewExportCollection(
 	baseDir string,
-	backingCollection data.RestoreCollection,
+	backingCollection []data.RestoreCollection,
 	backupVersion int,
 ) export.Collectioner {
 	return export.BaseCollection{
@@ -29,7 +29,7 @@ func NewExportCollection(
 // streamItems streams the streamItems in the backingCollection into the export stream chan
 func streamItems(
 	ctx context.Context,
-	drc data.RestoreCollection,
+	drc []data.RestoreCollection,
 	backupVersion int,
 	ch chan<- export.Item,
 ) {
@@ -37,35 +37,37 @@ func streamItems(
 
 	errs := fault.New(false)
 
-	for item := range drc.Items(ctx, errs) {
-		itemUUID := item.ID()
-		if isMetadataFile(itemUUID, backupVersion) {
-			continue
+	for _, rc := range drc {
+		for item := range rc.Items(ctx, errs) {
+			itemUUID := item.ID()
+			if isMetadataFile(itemUUID, backupVersion) {
+				continue
+			}
+
+			name, err := getItemName(ctx, itemUUID, backupVersion, rc)
+
+			ch <- export.Item{
+				ID:    itemUUID,
+				Name:  name,
+				Body:  item.ToReader(),
+				Error: err,
+			}
 		}
 
-		name, err := getItemName(ctx, itemUUID, backupVersion, drc)
+		items, recovered := errs.ItemsAndRecovered()
 
-		ch <- export.Item{
-			ID:    itemUUID,
-			Name:  name,
-			Body:  item.ToReader(),
-			Error: err,
+		// Return all the items that we failed to source from the persistence layer
+		for _, err := range items {
+			ch <- export.Item{
+				ID:    err.ID,
+				Error: &err,
+			}
 		}
-	}
 
-	items, recovered := errs.ItemsAndRecovered()
-
-	// Return all the items that we failed to source from the persistence layer
-	for _, err := range items {
-		ch <- export.Item{
-			ID:    err.ID,
-			Error: &err,
-		}
-	}
-
-	for _, err := range recovered {
-		ch <- export.Item{
-			Error: err,
+		for _, err := range recovered {
+			ch <- export.Item{
+				Error: err,
+			}
 		}
 	}
 }

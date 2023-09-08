@@ -245,7 +245,10 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ec := drive.NewExportCollection("", test.backingCollection, test.version)
+			ec := drive.NewExportCollection(
+				"",
+				[]data.RestoreCollection{test.backingCollection},
+				test.version)
 
 			items := ec.Items(ctx)
 
