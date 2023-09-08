@@ -162,8 +162,7 @@ func recipientEqual(
 	// Don't compare names as M365 will override the name if the address is known.
 	return reflect.DeepEqual(
 		ptr.Val(expected.GetEmailAddress().GetAddress()),
-		ptr.Val(got.GetEmailAddress().GetAddress()),
-	)
+		ptr.Val(got.GetEmailAddress().GetAddress()))
 }
 
 func checkMessage(
@@ -222,8 +221,7 @@ func checkMessage(
 		t,
 		ptr.Val(expected.GetIsDeliveryReceiptRequested()),
 		ptr.Val(got.GetIsDeliveryReceiptRequested()),
-		"IsDeliverReceiptRequested",
-	)
+		"IsDeliverReceiptRequested")
 
 	assert.Equal(t, ptr.Val(expected.GetIsDraft()), ptr.Val(got.GetIsDraft()), "IsDraft")
 
@@ -542,8 +540,7 @@ func checkEvent(
 		t,
 		ptr.Val(expected.GetReminderMinutesBeforeStart()),
 		ptr.Val(got.GetReminderMinutesBeforeStart()),
-		"ReminderMinutesBeforeStart",
-	)
+		"ReminderMinutesBeforeStart")
 
 	assert.Equal(
 		t,
@@ -777,8 +774,7 @@ func compareDriveItem(
 			t,
 			expectedData,
 			"unexpected metadata file with name %s",
-			name,
-		) {
+			name) {
 			return true
 		}
 
@@ -1057,8 +1053,7 @@ func makeExchangeBackupSel(
 
 			toInclude = append(toInclude, builder(
 				[]string{d.dest},
-				selectors.PrefixMatch(),
-			))
+				selectors.PrefixMatch()))
 		}
 	}
 
@@ -1084,8 +1079,7 @@ func makeOneDriveBackupSel(
 
 		toInclude = append(toInclude, sel.Folders(
 			[]string{d.dest},
-			selectors.PrefixMatch(),
-		))
+			selectors.PrefixMatch()))
 	}
 
 	sel := selectors.NewOneDriveBackup(maps.Keys(resourceOwners))
@@ -1115,8 +1109,7 @@ func makeSharePointBackupSel(
 
 			toInclude = append(toInclude, sel.LibraryFolders(
 				[]string{d.dest},
-				selectors.PrefixMatch(),
-			))
+				selectors.PrefixMatch()))
 		}
 	}
 

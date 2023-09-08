@@ -728,8 +728,7 @@ func (c *Collections) UpdateCollections(
 				isFolder,
 				excluded,
 				itemCollection,
-				invalidPrevDelta,
-			); err != nil {
+				invalidPrevDelta); err != nil {
 				return clues.Stack(err).WithClues(ictx)
 			}
 

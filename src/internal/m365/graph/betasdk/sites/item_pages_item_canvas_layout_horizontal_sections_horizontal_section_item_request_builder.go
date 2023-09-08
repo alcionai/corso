@@ -114,8 +114,7 @@ func NewItemPagesItemCanvasLayoutHorizontalSectionsHorizontalSectionItemRequestB
 
 	return NewItemPagesItemCanvasLayoutHorizontalSectionsHorizontalSectionItemRequestBuilderInternal(
 		urlParams,
-		requestAdapter,
-	)
+		requestAdapter)
 }
 
 // CreateDeleteRequestInformation delete navigation property horizontalSections for sites

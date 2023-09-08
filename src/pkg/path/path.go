@@ -208,8 +208,7 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 
 	service, category, err := validateServiceAndCategoryStrings(
 		pb.elements[1],
-		pb.elements[3],
-	)
+		pb.elements[3])
 	if err != nil {
 		return nil, clues.Stack(errParsingPath, err).With("path_string", p)
 	}

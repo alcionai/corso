@@ -141,8 +141,7 @@ func (md MetadataCollection) Items(
 					Successes: len(md.items),
 					Bytes:     totalBytes,
 				},
-				md.fullPath.Folder(false),
-			)
+				md.fullPath.Folder(false))
 
 			md.statusUpdater(status)
 		}()

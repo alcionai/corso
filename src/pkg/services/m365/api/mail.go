@@ -346,8 +346,7 @@ func (c Mail) GetItem(
 					With(
 						"skipped_reason", fault.SkipNotFound,
 						"attachment_id", ptr.Val(a.GetId()),
-						"attachment_size", ptr.Val(a.GetSize()),
-					).Info("attachment not found")
+						"attachment_size", ptr.Val(a.GetSize())).Info("attachment not found")
 				// TODO This should use a `AddSkip` once we have
 				// figured out the semantics for skipping
 				// subcomponents of an item

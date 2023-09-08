@@ -8,10 +8,20 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+)
+
+type SiteOwnerType string
+
+const (
+	SiteOwnerUnknown SiteOwnerType = ""
+	SiteOwnerUser    SiteOwnerType = "user"
+	SiteOwnerGroup   SiteOwnerType = "group"
 )
 
 // Site is the minimal information required to identify and display a SharePoint site.
@@ -27,6 +37,14 @@ type Site struct {
 	// user provided when they created the site, though it can be changed across time.
 	// Ex: webUrl: https://host.com/sites/TestingSite, displayName: "Testing Site"
 	DisplayName string
+
+	OwnerType SiteOwnerType
+	// OwnerID may or may not contain the site owner's ID.
+	// Requires:
+	// * a discoverable site owner type
+	// * getByID (the drive expansion doesn't work on paginated data)
+	// * lucky chance (not all responses contain an owner ID)
+	OwnerID string
 }
 
 // Sites returns a list of Sites in a specified M365 tenant
@@ -55,26 +73,43 @@ func getAllSites(
 	ret := make([]*Site, 0, len(sites))
 
 	for _, s := range sites {
-		ps, err := parseSite(s)
-		if err != nil {
-			return nil, clues.Wrap(err, "parsing siteable")
-		}
-
-		ret = append(ret, ps)
+		ret = append(ret, ParseSite(s))
 	}
 
 	return ret, nil
 }
 
-// parseSite extracts the information from `models.Siteable` we care about
-func parseSite(item models.Siteable) (*Site, error) {
+// ParseSite extracts the information from `models.Siteable` we care about
+func ParseSite(item models.Siteable) *Site {
 	s := &Site{
 		ID:          ptr.Val(item.GetId()),
 		WebURL:      ptr.Val(item.GetWebUrl()),
 		DisplayName: ptr.Val(item.GetDisplayName()),
+		OwnerType:   SiteOwnerUnknown,
 	}
 
-	return s, nil
+	if item.GetDrive() != nil &&
+		item.GetDrive().GetOwner() != nil &&
+		item.GetDrive().GetOwner().GetUser() != nil {
+		s.OwnerType = SiteOwnerUser
+		s.OwnerID = ptr.Val(item.GetDrive().GetOwner().GetUser().GetId())
+	}
+
+	if _, ok := item.GetAdditionalData()["group"]; ok {
+		s.OwnerType = SiteOwnerGroup
+
+		group, err := tform.AnyValueToT[map[string]any]("group", item.GetAdditionalData())
+		if err != nil {
+			return s
+		}
+
+		s.OwnerID, err = str.AnyValueToString("id", group)
+		if err != nil {
+			return s
+		}
+	}
+
+	return s
 }
 
 // SitesMap retrieves all sites in the tenant, and returns two maps: one id-to-webURL,

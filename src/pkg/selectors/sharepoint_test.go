@@ -63,8 +63,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs() {
 		scopeMustHave(
 			t,
 			SharePointScope(sc),
-			map[categorizer][]string{SharePointWebURL: s12},
-		)
+			map[categorizer][]string{SharePointWebURL: s12})
 	}
 }
 
@@ -98,8 +97,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Include_WebURLs_any
 				scopeMustHave(
 					t,
 					SharePointScope(sc),
-					map[categorizer][]string{SharePointWebURL: test.expect},
-				)
+					map[categorizer][]string{SharePointWebURL: test.expect})
 			}
 		})
 	}
@@ -124,8 +122,7 @@ func (suite *SharePointSelectorSuite) TestSharePointSelector_Exclude_WebURLs() {
 		scopeMustHave(
 			t,
 			SharePointScope(sc),
-			map[categorizer][]string{SharePointWebURL: s12},
-		)
+			map[categorizer][]string{SharePointWebURL: s12})
 	}
 }
 

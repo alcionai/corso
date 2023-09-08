@@ -187,9 +187,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	assert.True(t,
 		strings.HasSuffix(
 			result,
-			fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID)),
-		),
-	)
+			fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID))))
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(

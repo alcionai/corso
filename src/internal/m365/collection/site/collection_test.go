@@ -54,8 +54,7 @@ func TestSharePointCollectionSuite(t *testing.T) {
 	suite.Run(t, &SharePointCollectionSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 

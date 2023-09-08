@@ -45,8 +45,7 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 		storage.CommonConfig{
 			Corso:       GetAndInsertCorso(""),
 			KopiaCfgDir: t.TempDir(),
-		},
-	)
+		})
 	require.NoError(t, err, "creating storage", clues.ToCore(err))
 
 	return st

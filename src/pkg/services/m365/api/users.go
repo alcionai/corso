@@ -206,8 +206,7 @@ func (c Users) GetMailboxSettings(
 	settings, err := users.
 		NewUserItemRequestBuilder(
 			fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID),
-			c.Stable.Adapter(),
-		).
+			c.Stable.Adapter()).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
