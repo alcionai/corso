@@ -268,7 +268,7 @@ func (op *ExportOperation) do(
 		dcs,
 		op.Errors)
 	if err != nil {
-		return nil, clues.Wrap(err, "exporting collections")
+		return nil, clues.Stack(err)
 	}
 
 	opStats.ctrl = op.ec.Wait()
