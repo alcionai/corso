@@ -196,7 +196,6 @@ func getContactDeltaBuilder(
 	ctx context.Context,
 	gs graph.Servicer,
 	userID, containerID string,
-	options *users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemContactFoldersItemContactsDeltaRequestBuilder {
 	builder := gs.Client().
 		Users().
@@ -226,10 +225,10 @@ func (c Contacts) NewContactsDeltaPager(
 	}
 
 	var builder *users.ItemContactFoldersItemContactsDeltaRequestBuilder
-	if len(prevDeltaLink) == 0 {
+	if len(prevDeltaLink) > 0 {
 		builder = users.NewItemContactFoldersItemContactsDeltaRequestBuilder(prevDeltaLink, c.Stable.Adapter())
 	} else {
-		builder = getContactDeltaBuilder(ctx, c.Stable, userID, containerID, options)
+		builder = getContactDeltaBuilder(ctx, c.Stable, userID, containerID)
 	}
 
 	return &contactDeltaPager{c.Stable, userID, containerID, builder, options}
@@ -247,7 +246,7 @@ func (p *contactDeltaPager) SetNextLink(nextLink string) {
 }
 
 func (p *contactDeltaPager) Reset(ctx context.Context) {
-	p.builder = getContactDeltaBuilder(ctx, p.gs, p.userID, p.containerID, p.options)
+	p.builder = getContactDeltaBuilder(ctx, p.gs, p.userID, p.containerID)
 }
 
 func (c Contacts) GetAddedAndRemovedItemIDs(
@@ -267,12 +266,12 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		containerID,
 		prevDeltaLink,
 		immutableIDs,
-		idAnd(additionalData)...)
+		idAnd()...)
 	pager := c.NewContactsPager(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd(additionalData)...)
+		idAnd()...)
 
 	return getAddedAndRemovedItemIDs[models.Contactable](
 		ctx,

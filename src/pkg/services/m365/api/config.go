@@ -17,7 +17,6 @@ const (
 // get easily misspelled.
 // eg: we don't need a const for "id"
 const (
-	additionalData    = "additionalData"
 	bccRecipients     = "bccRecipients"
 	ccRecipients      = "ccRecipients"
 	createdDateTime   = "createdDateTime"

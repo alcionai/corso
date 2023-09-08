@@ -201,7 +201,6 @@ func getEventDeltaBuilder(
 	ctx context.Context,
 	gs graph.Servicer,
 	userID, containerID string,
-	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemCalendarsItemEventsDeltaRequestBuilder {
 	builder := gs.Client().
 		Users().
@@ -232,11 +231,11 @@ func (c Events) NewEventsDeltaPager(
 
 	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
 
-	if len(prevDeltaLink) == 0 {
+	if len(prevDeltaLink) > 0 {
 		rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, userID, containerID)
 		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, c.Stable.Adapter())
 	} else {
-		builder = getEventDeltaBuilder(ctx, c.Stable, userID, containerID, options)
+		builder = getEventDeltaBuilder(ctx, c.Stable, userID, containerID)
 	}
 
 	return &eventDeltaPager{c.Stable, userID, containerID, builder, options}
@@ -254,7 +253,7 @@ func (p *eventDeltaPager) SetNextLink(nextLink string) {
 }
 
 func (p *eventDeltaPager) Reset(ctx context.Context) {
-	p.builder = getEventDeltaBuilder(ctx, p.gs, p.userID, p.containerID, p.options)
+	p.builder = getEventDeltaBuilder(ctx, p.gs, p.userID, p.containerID)
 }
 
 func (c Events) GetAddedAndRemovedItemIDs(
@@ -274,12 +273,12 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		containerID,
 		prevDeltaLink,
 		immutableIDs,
-		idAnd(additionalData)...)
+		idAnd()...)
 	pager := c.NewEventsPager(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd(additionalData)...)
+		idAnd()...)
 
 	return getAddedAndRemovedItemIDs[models.Eventable](
 		ctx,

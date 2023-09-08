@@ -226,7 +226,6 @@ func getMailDeltaBuilder(
 	ctx context.Context,
 	gs graph.Servicer,
 	userID, containerID string,
-	options *users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemMailFoldersItemMessagesDeltaRequestBuilder {
 	builder := gs.Client().
 		Users().
@@ -256,10 +255,10 @@ func (c Mail) NewMailDeltaPager(
 	}
 
 	var builder *users.ItemMailFoldersItemMessagesDeltaRequestBuilder
-	if len(prevDeltaLink) == 0 {
+	if len(prevDeltaLink) > 0 {
 		builder = users.NewItemMailFoldersItemMessagesDeltaRequestBuilder(prevDeltaLink, c.Stable.Adapter())
 	} else {
-		builder = getMailDeltaBuilder(ctx, c.Stable, userID, containerID, options)
+		builder = getMailDeltaBuilder(ctx, c.Stable, userID, containerID)
 	}
 
 	return &mailDeltaPager{c.Stable, userID, containerID, builder, options}
@@ -277,7 +276,7 @@ func (p *mailDeltaPager) SetNextLink(nextLink string) {
 }
 
 func (p *mailDeltaPager) Reset(ctx context.Context) {
-	p.builder = getMailDeltaBuilder(ctx, p.gs, p.userID, p.containerID, p.options)
+	p.builder = getMailDeltaBuilder(ctx, p.gs, p.userID, p.containerID)
 }
 
 func (c Mail) GetAddedAndRemovedItemIDs(
@@ -297,12 +296,12 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		containerID,
 		prevDeltaLink,
 		immutableIDs,
-		idAnd(additionalData)...)
+		idAnd()...)
 	pager := c.NewMailPager(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd(additionalData)...)
+		idAnd()...)
 
 	return getAddedAndRemovedItemIDs[models.Messageable](
 		ctx,
