@@ -3,6 +3,8 @@ package mock
 import (
 	"context"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -13,32 +15,56 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type mockBackupProduer struct{}
+var _ inject.BackupProducer = &mockBackupProducer{}
 
-func NewMockBackupProducer() inject.BackupProducer {
-	return mockBackupProduer{}
+type mockBackupProducer struct {
+	colls                   []data.BackupCollection
+	dcs                     data.CollectionStats
+	injectNonRecoverableErr bool
 }
 
-func (mbp mockBackupProduer) ProduceBackupCollections(
+func NewMockBackupProducer(
+	colls []data.BackupCollection,
+	dcs data.CollectionStats,
+	injectNonRecoverableErr bool,
+) mockBackupProducer {
+	return mockBackupProducer{
+		colls:                   colls,
+		dcs:                     dcs,
+		injectNonRecoverableErr: injectNonRecoverableErr,
+	}
+}
+
+func (mbp *mockBackupProducer) ProduceBackupCollections(
 	context.Context,
 	inject.BackupProducerConfig,
 	*fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	panic("unimplemented")
-}
-func (mbp mockBackupProduer) Wait() *data.CollectionStats { panic("unimplemented") }
-func (mbp mockBackupProduer) IsServiceEnabled(context.Context, path.ServiceType, string) (bool, error) {
-	panic("unimplemented")
+	if mbp.injectNonRecoverableErr {
+		return nil, nil, false, clues.New("non-recoverable error")
+	}
+
+	return mbp.colls, nil, true, nil
 }
 
-func (mbp mockBackupProduer) CollectMetadata(
+func (mbp *mockBackupProducer) IsServiceEnabled(
+	context.Context,
+	path.ServiceType,
+	string,
+) (bool, error) {
+	return true, nil
+}
+
+func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
+	return &mbp.dcs
+}
+
+func (mbp mockBackupProducer) CollectMetadata(
 	ctx context.Context,
 	r kinject.RestoreProducer,
 	man kopia.ManifestEntry,
 	errs *fault.Bus,
 ) ([]data.RestoreCollection, error) {
-	// Since the controller does not need anything special, we can
-	// directly use it
 	ctrl := m365.Controller{}
 	return ctrl.CollectMetadata(ctx, r, man, errs)
 }

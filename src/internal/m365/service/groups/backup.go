@@ -253,8 +253,7 @@ func MetadataFiles(
 		string(manID),
 		[]path.RestorePaths{{StoragePath: pth, RestorePath: dir}},
 		nil,
-		errs,
-	)
+		errs)
 	if err != nil {
 		return nil, err
 	}
@@ -300,8 +299,7 @@ func deserializeSiteMetadata(
 			case <-ctx.Done():
 				return nil, clues.Wrap(
 					ctx.Err(),
-					"deserializing previous sites metadata",
-				).WithClues(ctx)
+					"deserializing previous sites metadata").WithClues(ctx)
 
 			case item, ok := <-items:
 				if !ok {

@@ -19,8 +19,6 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
-	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
-	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
@@ -29,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	opMock "github.com/alcionai/corso/src/internal/operations/inject/mock"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	ssmock "github.com/alcionai/corso/src/internal/streamstore/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -1555,48 +1554,6 @@ func (suite *AssistBackupIntegrationSuite) TearDownSuite() {
 	}
 }
 
-var _ inject.BackupProducer = &mockBackupProducer{}
-
-type mockBackupProducer struct {
-	colls                   []data.BackupCollection
-	dcs                     data.CollectionStats
-	injectNonRecoverableErr bool
-}
-
-func (mbp *mockBackupProducer) ProduceBackupCollections(
-	context.Context,
-	inject.BackupProducerConfig,
-	*fault.Bus,
-) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	if mbp.injectNonRecoverableErr {
-		return nil, nil, false, clues.New("non-recoverable error")
-	}
-
-	return mbp.colls, nil, true, nil
-}
-
-func (mbp *mockBackupProducer) IsServiceEnabled(
-	context.Context,
-	path.ServiceType,
-	string,
-) (bool, error) {
-	return true, nil
-}
-
-func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
-	return &mbp.dcs
-}
-
-func (mbp mockBackupProducer) CollectMetadata(
-	ctx context.Context,
-	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
-	errs *fault.Bus,
-) ([]data.RestoreCollection, error) {
-	ctrl := m365.Controller{}
-	return ctrl.CollectMetadata(ctx, r, man, errs)
-}
-
 func makeBackupCollection(
 	p path.Path,
 	locPath *path.Builder,
@@ -1890,10 +1847,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)
-			bp := &mockBackupProducer{
-				colls:                   cs,
-				injectNonRecoverableErr: test.injectNonRecoverableErr,
-			}
+			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, test.injectNonRecoverableErr)
 
 			opts.FailureHandling = test.failurePolicy
 
@@ -1902,7 +1856,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				opts,
 				suite.kw,
 				suite.sw,
-				bp,
+				&bp,
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
@@ -2208,9 +2162,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)
-			bp := &mockBackupProducer{
-				colls: cs,
-			}
+			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, false)
 
 			opts.FailureHandling = failurePolicy
 
@@ -2219,7 +2171,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				opts,
 				suite.kw,
 				suite.sw,
-				bp,
+				&bp,
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},

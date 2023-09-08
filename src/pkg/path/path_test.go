@@ -543,8 +543,7 @@ func (suite *PathUnitSuite) TestBuildRestorePaths() {
 				test.args.service,
 				test.args.category,
 				true,
-				test.args.fp...,
-			)
+				test.args.fp...)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			rdir, err := r.Dir()

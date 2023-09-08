@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/operations/inject/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -225,7 +224,6 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 	table := []struct {
 		name        string
 		bf          *mockBackupFinder
-		bp          inject.BackupProducer
 		rp          mockRestoreProducer
 		reasons     []identity.Reasoner
 		getMeta     bool
@@ -438,10 +436,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			emptyMockBackpuProducer := mock.NewMockBackupProducer(nil, data.CollectionStats{}, false)
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				test.bf,
-				test.bp,
+				&emptyMockBackpuProducer,
 				&test.rp,
 				test.reasons, nil,
 				tid,
@@ -891,11 +890,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			mbp := mock.NewMockBackupProducer()
+			mbp := mock.NewMockBackupProducer(nil, data.CollectionStats{}, false)
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				test.bf,
-				mbp,
+				&mbp,
 				&test.rp,
 				test.reasons, test.fallbackReasons,
 				tid,
