@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -123,7 +124,7 @@ func deltaEnumerateItems[T any](
 		result = make([]T, 0)
 		// stubbed initial value to ensure we enter the loop.
 		newDeltaLink     = ""
-		invalidPrevDelta bool
+		invalidPrevDelta = len(prevDeltaLink) == 0
 		nextLink         = "do-while"
 	)
 
@@ -148,11 +149,12 @@ func deltaEnumerateItems[T any](
 
 		result = append(result, page.GetValue()...)
 
-		nextLink, deltaLink := NextAndDeltaLink(page)
+		nl, deltaLink := NextAndDeltaLink(page)
 		if len(deltaLink) > 0 {
 			newDeltaLink = deltaLink
 		}
 
+		nextLink = nl
 		pager.SetNextLink(nextLink)
 	}
 
@@ -179,14 +181,13 @@ func getAddedAndRemovedItemIDs[T any](
 ) ([]string, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := deltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
+		if err != nil && (!graph.IsErrInvalidDelta(err) || len(prevDeltaLink) == 0) {
+			return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+		}
+
 		if err == nil {
 			a, r, err := addedAndRemovedByAddtlData(ts)
 			return a, r, du, graph.Stack(ctx, err).OrNil()
-		}
-
-		// return error if invalid not delta error or prevDeltaLink was empty
-		if !graph.IsErrInvalidDelta(err) || len(prevDeltaLink) == 0 {
-			return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 		}
 	}
 
@@ -213,7 +214,8 @@ func addedAndRemovedByAddtlData[T any](items []T) ([]string, []string, error) {
 	for _, item := range items {
 		giaa, ok := any(item).(getIDAndAddtler)
 		if !ok {
-			return nil, nil, clues.New("item does not have an id or additional data")
+			return nil, nil, clues.New("item does not provide id and additional data getters").
+				With("item_type", fmt.Sprintf("%T", item))
 		}
 
 		// if the additional data contains a `@removed` key, the value will either

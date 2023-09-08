@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,7 +101,24 @@ func (p *testIDsPager) GetPage(
 		return nil, err
 	}
 
-	return testPage{}, nil
+	values := make([]any, 0, len(p.added)+len(p.removed))
+
+	for _, a := range p.added {
+		// contact chosen arbitrarily, any exchange model should work
+		itm := models.NewContact()
+		itm.SetId(ptr.To(a))
+		values = append(values, itm)
+	}
+
+	for _, r := range p.removed {
+		// contact chosen arbitrarily, any exchange model should work
+		itm := models.NewContact()
+		itm.SetId(ptr.To(r))
+		itm.SetAdditionalData(map[string]any{graph.AddtlDataRemoved: struct{}{}})
+		values = append(values, itm)
+	}
+
+	return testPage{values}, nil
 }
 
 func (p *testIDsPager) SetNextLink(string) {}
@@ -137,7 +155,24 @@ func (p *testIDsDeltaPager) GetPage(
 		return nil, err
 	}
 
-	return testPage{}, nil
+	values := make([]any, 0, len(p.added)+len(p.removed))
+
+	for _, a := range p.added {
+		// contact chosen arbitrarily, any exchange model should work
+		itm := models.NewContact()
+		itm.SetId(ptr.To(a))
+		values = append(values, itm)
+	}
+
+	for _, r := range p.removed {
+		// contact chosen arbitrarily, any exchange model should work
+		itm := models.NewContact()
+		itm.SetId(ptr.To(r))
+		itm.SetAdditionalData(map[string]any{graph.AddtlDataRemoved: struct{}{}})
+		values = append(values, itm)
+	}
+
+	return testPage{values}, nil
 }
 
 func (p *testIDsDeltaPager) SetNextLink(string) {}
@@ -216,162 +251,103 @@ func (suite *PagerUnitSuite) TestEnumerateItems() {
 }
 
 func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
+	type expected struct {
+		added       []string
+		removed     []string
+		deltaUpdate DeltaUpdate
+	}
+
 	tests := []struct {
 		name        string
 		pagerGetter func(
 			*testing.T,
-			context.Context,
-			graph.Servicer,
-			string, string,
-			bool,
-		) (Pager[any], error)
+		) Pager[any]
 		deltaPagerGetter func(
 			*testing.T,
-			context.Context,
-			graph.Servicer,
-			string, string, string,
-			bool,
-		) (DeltaPager[any], error)
-		added               []string
-		removed             []string
-		deltaUpdate         DeltaUpdate
-		delta               string
-		canMakeDeltaQueries bool
+		) DeltaPager[any]
+		prevDelta string
+		expect    expected
+		canDelta  bool
 	}{
 		{
 			name: "no prev delta",
-			pagerGetter: func(
-				t *testing.T,
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				immutableIDs bool,
-			) (Pager[any], error) {
-				// this should not be called
-				return nil, assert.AnError
+			pagerGetter: func(t *testing.T) Pager[any] {
+				return nil
 			},
-			deltaPagerGetter: func(
-				t *testing.T,
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				delta string,
-				immutableIDs bool,
-			) (DeltaPager[any], error) {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
 				return &testIDsDeltaPager{
 					t:       t,
 					added:   []string{"uno", "dos"},
 					removed: []string{"tres", "quatro"},
-				}, nil
+				}
 			},
-			added:               []string{"uno", "dos"},
-			removed:             []string{"tres", "quatro"},
-			deltaUpdate:         DeltaUpdate{Reset: true},
-			canMakeDeltaQueries: true,
+			expect: expected{
+				added:       []string{"uno", "dos"},
+				removed:     []string{"tres", "quatro"},
+				deltaUpdate: DeltaUpdate{Reset: true},
+			},
+			canDelta: true,
 		},
 		{
 			name: "with prev delta",
-			pagerGetter: func(
-				t *testing.T,
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				immutableIDs bool,
-			) (Pager[any], error) {
-				// this should not be called
-				return nil, assert.AnError
+			pagerGetter: func(t *testing.T) Pager[any] {
+				return nil
 			},
-			deltaPagerGetter: func(
-				t *testing.T,
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				delta string,
-				immutableIDs bool,
-			) (DeltaPager[any], error) {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
 				return &testIDsDeltaPager{
 					t:       t,
 					added:   []string{"uno", "dos"},
 					removed: []string{"tres", "quatro"},
-				}, nil
+				}
 			},
-			added:               []string{"uno", "dos"},
-			removed:             []string{"tres", "quatro"},
-			delta:               "delta",
-			deltaUpdate:         DeltaUpdate{Reset: false},
-			canMakeDeltaQueries: true,
+			prevDelta: "delta",
+			expect: expected{
+				added:       []string{"uno", "dos"},
+				removed:     []string{"tres", "quatro"},
+				deltaUpdate: DeltaUpdate{Reset: false},
+			},
+			canDelta: true,
 		},
 		{
 			name: "delta expired",
-			pagerGetter: func(
-				t *testing.T,
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				immutableIDs bool,
-			) (Pager[any], error) {
-				// this should not be called
-				return nil, assert.AnError
+			pagerGetter: func(t *testing.T) Pager[any] {
+				return nil
 			},
-			deltaPagerGetter: func(
-				t *testing.T,
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				delta string,
-				immutableIDs bool,
-			) (DeltaPager[any], error) {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
 				return &testIDsDeltaPager{
 					t:          t,
 					added:      []string{"uno", "dos"},
 					removed:    []string{"tres", "quatro"},
 					errorCode:  "SyncStateNotFound",
 					needsReset: true,
-				}, nil
+				}
 			},
-			added:               []string{"uno", "dos"},
-			removed:             []string{"tres", "quatro"},
-			delta:               "delta",
-			deltaUpdate:         DeltaUpdate{Reset: true},
-			canMakeDeltaQueries: true,
+			prevDelta: "delta",
+			expect: expected{
+				added:       []string{"uno", "dos"},
+				removed:     []string{"tres", "quatro"},
+				deltaUpdate: DeltaUpdate{Reset: true},
+			},
+			canDelta: true,
 		},
 		{
-			name: "quota exceeded",
-			pagerGetter: func(
-				t *testing.T,
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				immutableIDs bool,
-			) (Pager[any], error) {
+			name: "delta not allowed",
+			pagerGetter: func(t *testing.T) Pager[any] {
 				return &testIDsPager{
 					t:       t,
 					added:   []string{"uno", "dos"},
 					removed: []string{"tres", "quatro"},
-				}, nil
+				}
 			},
-			deltaPagerGetter: func(
-				t *testing.T,
-				ctx context.Context,
-				gs graph.Servicer,
-				user string,
-				directory string,
-				delta string,
-				immutableIDs bool,
-			) (DeltaPager[any], error) {
-				return &testIDsDeltaPager{errorCode: "ErrorQuotaExceeded"}, nil
+			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+				return nil
 			},
-			added:               []string{"uno", "dos"},
-			removed:             []string{"tres", "quatro"},
-			deltaUpdate:         DeltaUpdate{Reset: true},
-			canMakeDeltaQueries: false,
+			expect: expected{
+				added:       []string{"uno", "dos"},
+				removed:     []string{"tres", "quatro"},
+				deltaUpdate: DeltaUpdate{Reset: true},
+			},
+			canDelta: false,
 		},
 	}
 
@@ -382,20 +358,17 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			pager, _ := test.pagerGetter(t, ctx, graph.Service{}, "user", "directory", false)
-			deltaPager, _ := test.deltaPagerGetter(t, ctx, graph.Service{}, "user", "directory", test.delta, false)
-
 			added, removed, deltaUpdate, err := getAddedAndRemovedItemIDs[any](
 				ctx,
-				pager,
-				deltaPager,
-				test.delta,
-				test.canMakeDeltaQueries)
+				test.pagerGetter(t),
+				test.deltaPagerGetter(t),
+				test.prevDelta,
+				test.canDelta)
 
-			require.NoError(t, err, "getting added and removed item IDs")
-			require.EqualValues(t, test.added, added, "added item IDs")
-			require.EqualValues(t, test.removed, removed, "removed item IDs")
-			require.Equal(t, test.deltaUpdate, deltaUpdate, "delta update")
+			require.NoErrorf(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
+			require.EqualValues(t, test.expect.added, added, "added item IDs")
+			require.EqualValues(t, test.expect.removed, removed, "removed item IDs")
+			require.Equal(t, test.expect.deltaUpdate, deltaUpdate, "delta update")
 		})
 	}
 }
