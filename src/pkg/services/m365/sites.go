@@ -57,6 +57,20 @@ func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site,
 	return getAllSites(ctx, ac.Sites())
 }
 
+func GetSite(ctx context.Context, acct account.Account, siteID string, errs *fault.Bus) (*Site, error) {
+	ac, err := makeAC(ctx, acct, path.SharePointService)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	site, err := ac.Sites().GetByID(ctx, siteID)
+	if err != nil {
+		return nil, clues.Wrap(err, "retrieving site")
+	}
+
+	return ParseSite(site), nil
+}
+
 func getAllSites(
 	ctx context.Context,
 	ga getAller[models.Siteable],
