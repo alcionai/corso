@@ -197,8 +197,10 @@ func runAndCheckBackup(
 		for i, err := range bo.Errors.Recovered() {
 			t.Logf("recoverable err %d, %+v", i, err)
 		}
+
 		assert.Fail(t, "not allowed to error")
 	}
+
 	require.NotEmpty(t, bo.Results, "the backup had non-zero results")
 	require.NotEmpty(t, bo.Results.BackupID, "the backup generated an ID")
 
