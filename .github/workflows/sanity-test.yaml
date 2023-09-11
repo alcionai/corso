@@ -336,7 +336,7 @@ jobs:
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
           go run . sharepoint files  \
-            --site ${{ secrets.CORSO_M365_TEST_GROUPS_SITE_URL }} \
+            --site ${{ env.CORSO_M365_TEST_GROUPS_SITE_URL }} \
             --user ${{ env.TEST_USER }} \
             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
