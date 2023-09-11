@@ -178,7 +178,7 @@ func (w Wrapper) ConsumeBackupCollections(
 			mergeBase = bases.MergeBases()
 		}
 
-		assistBase = bases.AssistBases()
+		assistBase = bases.UniqueAssistBases()
 	}
 
 	dirTree, err := inflateDirTree(
