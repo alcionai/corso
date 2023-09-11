@@ -25,10 +25,6 @@ var (
 // S3 bucket flags
 func AddS3BucketFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
-	fs.StringVar(&CorsoPassphraseFV,
-		CorsoPassphraseFN,
-		"",
-		"Passphrase to protect encrypted repository contents")
 
 	// Flags addition ordering should follow the order we want them to appear in help and docs:
 	// More generic and more frequently used flags take precedence.
