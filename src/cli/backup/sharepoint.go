@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -159,7 +158,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.SharePointService, repo.S3Overrides(cmd))
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.SharePointService, cmd.Flags())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -319,7 +318,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.SharePointService, repo.S3Overrides(cmd))
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.SharePointService, cmd.Flags())
 	if err != nil {
 		return Only(ctx, err)
 	}

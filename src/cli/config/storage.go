@@ -7,11 +7,13 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/aws/aws-sdk-go/aws/defaults"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -38,6 +40,7 @@ func s3CredsFromViper(vpr *viper.Viper, s3Config storage.S3Config) (storage.S3Co
 	return s3Config, nil
 }
 
+// Rename this
 func s3Overrides(in map[string]string) map[string]string {
 	return map[string]string{
 		storage.Bucket:         in[storage.Bucket],
@@ -47,6 +50,52 @@ func s3Overrides(in map[string]string) map[string]string {
 		storage.DoNotVerifyTLS: in[storage.DoNotVerifyTLS],
 		StorageProviderTypeKey: in[StorageProviderTypeKey],
 	}
+}
+
+// Make it local
+func S3Overrides(pfs *pflag.FlagSet) map[string]string {
+	fs := flags.GetPopulatedFlags(pfs)
+	return PopulateS3Flags(fs)
+}
+
+func PopulateS3Flags(flagset flags.PopulatedFlags) map[string]string {
+	s3Overrides := make(map[string]string)
+	s3Overrides[AccountProviderTypeKey] = account.ProviderM365.String()
+	s3Overrides[StorageProviderTypeKey] = storage.ProviderS3.String()
+
+	if _, ok := flagset[flags.AWSAccessKeyFN]; ok {
+		s3Overrides[credentials.AWSAccessKeyID] = flags.AWSAccessKeyFV
+	}
+
+	if _, ok := flagset[flags.AWSSecretAccessKeyFN]; ok {
+		s3Overrides[credentials.AWSSecretAccessKey] = flags.AWSSecretAccessKeyFV
+	}
+
+	if _, ok := flagset[flags.AWSSessionTokenFN]; ok {
+		s3Overrides[credentials.AWSSessionToken] = flags.AWSSessionTokenFV
+	}
+
+	if _, ok := flagset[flags.BucketFN]; ok {
+		s3Overrides[storage.Bucket] = flags.BucketFV
+	}
+
+	if _, ok := flagset[flags.PrefixFN]; ok {
+		s3Overrides[storage.Prefix] = flags.PrefixFV
+	}
+
+	if _, ok := flagset[flags.DoNotUseTLSFN]; ok {
+		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(flags.DoNotUseTLSFV)
+	}
+
+	if _, ok := flagset[flags.DoNotVerifyTLSFN]; ok {
+		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(flags.DoNotVerifyTLSFV)
+	}
+
+	if _, ok := flagset[flags.EndpointFN]; ok {
+		s3Overrides[storage.Endpoint] = flags.EndpointFV
+	}
+
+	return s3Overrides
 }
 
 // configureStorage builds a complete storage configuration from a mix of

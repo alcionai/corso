@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -291,7 +290,7 @@ func genericDeleteCommand(
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, pst, repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, pst, cmd.Flags())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -317,7 +316,7 @@ func genericListCommand(
 ) error {
 	ctx := cmd.Context()
 
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, service, repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, service, cmd.Flags())
 	if err != nil {
 		return Only(ctx, err)
 	}

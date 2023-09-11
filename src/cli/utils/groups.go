@@ -53,7 +53,7 @@ func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate
 		// between an "empty" and a "missing" value.
-		Populated: flags.GetPopulatedFlags(cmd),
+		Populated: flags.GetPopulatedFlags(cmd.Flags()),
 	}
 }
 

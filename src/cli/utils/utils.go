@@ -24,9 +24,9 @@ var ErrNotYetImplemented = clues.New("not yet implemented")
 func GetAccountAndConnect(
 	ctx context.Context,
 	pst path.ServiceType,
-	overrides map[string]string,
+	pfs *pflag.FlagSet,
 ) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
-	cfg, err := config.GetConfigRepoDetails(ctx, true, true, overrides)
+	cfg, err := config.GetConfigRepoDetails(ctx, true, true, pfs)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -55,9 +55,9 @@ func GetAccountAndConnect(
 func AccountConnectAndWriteRepoConfig(
 	ctx context.Context,
 	pst path.ServiceType,
-	overrides map[string]string,
+	pfs *pflag.FlagSet,
 ) (repository.Repository, *account.Account, error) {
-	r, stg, acc, opts, err := GetAccountAndConnect(ctx, pst, overrides)
+	r, stg, acc, opts, err := GetAccountAndConnect(ctx, pst, pfs)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err

@@ -45,7 +45,7 @@ func preRun(cc *cobra.Command, args []string) error {
 	ctx := cc.Context()
 	log := logger.Ctx(ctx)
 
-	fs := flags.GetPopulatedFlags(cc)
+	fs := flags.GetPopulatedFlags(cc.Flags())
 	flagSl := make([]string, 0, len(fs))
 
 	// currently only tracking flag names to avoid pii leakage.
@@ -70,9 +70,7 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains(avoidTheseDescription, cc.Short) {
-		overrides := repo.S3Overrides(cc)
-
-		cfg, err := config.GetConfigRepoDetails(ctx, true, false, overrides)
+		cfg, err := config.GetConfigRepoDetails(ctx, true, false, cc.Flags())
 		if err != nil {
 			log.Error("Error while getting config info to run command: ", cc.Use)
 			return err

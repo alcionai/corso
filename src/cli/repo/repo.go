@@ -121,7 +121,7 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.UnknownService, S3Overrides(cmd))
+	r, _, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.UnknownService, cmd.Flags())
 	if err != nil {
 		return print.Only(ctx, err)
 	}

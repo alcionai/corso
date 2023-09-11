@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
@@ -71,7 +70,7 @@ func runExport(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, sel.PathService(), repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, sel.PathService(), cmd.Flags())
 	if err != nil {
 		return Only(ctx, err)
 	}

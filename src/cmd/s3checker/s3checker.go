@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/cmd/s3checker/pkg/s3"
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 // Matches other definitions of this const.
@@ -181,13 +180,7 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 
 	ctx := cmd.Context()
 
-	// Scavenged from src/internal/kopia/s3/s3.go.
-	overrides := map[string]string{
-		storage.Bucket: f.bucket,
-		storage.Prefix: f.bucketPrefix,
-	}
-
-	repoDetails, err := config.GetConfigRepoDetails(ctx, false, false, overrides)
+	repoDetails, err := config.GetConfigRepoDetails(ctx, false, false, cmd.Flags())
 	if err != nil {
 		return clues.Wrap(err, "getting storage config")
 	}

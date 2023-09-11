@@ -1,7 +1,6 @@
 package flags
 
 import (
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -22,15 +21,15 @@ func (fs PopulatedFlags) populate(pf *pflag.Flag) {
 // GetPopulatedFlags returns a map of flags that have been
 // populated by the user.  Entry keys match the flag's long
 // name.  Values are empty.
-func GetPopulatedFlags(cmd *cobra.Command) PopulatedFlags {
+func GetPopulatedFlags(pfs *pflag.FlagSet) PopulatedFlags {
 	pop := PopulatedFlags{}
 
-	fs := cmd.Flags()
-	if fs == nil {
+	// fs := cmd.Flags()
+	if pfs == nil {
 		return pop
 	}
 
-	fs.VisitAll(pop.populate)
+	pfs.VisitAll(pop.populate)
 
 	return pop
 }

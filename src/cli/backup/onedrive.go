@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -149,7 +148,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.OneDriveService, repo.S3Overrides(cmd))
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.OneDriveService, cmd.Flags())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -235,7 +234,7 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeOneDriveOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.OneDriveService, repo.S3Overrides(cmd))
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.OneDriveService, cmd.Flags())
 	if err != nil {
 		return Only(ctx, err)
 	}

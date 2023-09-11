@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	"github.com/alcionai/corso/src/cli/flags"
@@ -265,12 +266,12 @@ func GetConfigRepoDetails(
 	ctx context.Context,
 	readFromFile bool,
 	mustMatchFromConfig bool,
-	overrides map[string]string,
+	pfs *pflag.FlagSet,
 ) (
 	RepoDetails,
 	error,
 ) {
-	config, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, mustMatchFromConfig, overrides)
+	config, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, mustMatchFromConfig, pfs)
 	return config, err
 }
 
@@ -280,7 +281,7 @@ func getStorageAndAccountWithViper(
 	vpr *viper.Viper,
 	readFromFile bool,
 	mustMatchFromConfig bool,
-	overrides map[string]string,
+	pfs *pflag.FlagSet,
 ) (
 	RepoDetails,
 	error,
@@ -290,6 +291,7 @@ func getStorageAndAccountWithViper(
 		err    error
 	)
 
+	overrides := S3Overrides(pfs)
 	readConfigFromViper := readFromFile
 
 	// possibly read the prior config from a .corso file
