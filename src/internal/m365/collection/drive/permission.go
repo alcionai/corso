@@ -268,7 +268,10 @@ func UpdatePermissions(
 
 		newPerm, err := udip.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
 		if err != nil {
-			return clues.Stack(err)
+			// TODO: Only skip if the error is due to the user not being found
+			logger.CtxErr(ictx, err).Info("Unable to restore permission")
+
+			continue
 		}
 
 		oldPermIDToNewID.Store(p.ID, ptr.Val(newPerm.GetValue()[0].GetId()))
@@ -364,7 +367,10 @@ func UpdateLinkShares(
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if err != nil {
-			return alreadyDeleted, clues.Stack(err)
+			// TODO: Only skip if the error is due to the user not being found
+			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+
+			continue
 		}
 
 		oldLinkShareIDToNewID.Store(ls.ID, ptr.Val(newLS.GetId()))
