@@ -489,6 +489,20 @@ jobs:
           go install github.com/ashmrtn/allowtags@latest
           allowtags --allow-key json --allow-key uriparametername ./...
 
+      # I could not find a way to install tree-grepper without nix
+      # https://github.com/BrianHicks/tree-grepper/issues/293
+      - uses: cachix/install-nix-action@v22
+      - uses: cachix/cachix-action@v12
+        with:
+            name: tree-grepper
+      - run: nix-env -if https://github.com/BrianHicks/tree-grepper/archive/refs/heads/main.tar.gz
+      - name: Run trailing comma lint rule
+        run: |
+          # Using `grep .` as the exit codes are always true for correct grammar
+          if tree-grepper -q go '(argument_list "," @no-trailing-comma .)' | grep .; then
+            echo "No trailing commas for function calls"
+            exit 1
+          fi
 
   # ----------------------------------------------------------------------------------------------------
   # --- GitHub Actions Linting -------------------------------------------------------------------------
