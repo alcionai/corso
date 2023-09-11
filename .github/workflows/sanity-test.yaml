@@ -351,7 +351,7 @@ jobs:
         with:
           service: groups
           kind: initial
-          backup-args: '--group "${{ secrets.CORSO_M365_TEST_TEAM_ID }}"'
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
 
@@ -361,7 +361,7 @@ jobs:
         with:
           service: teams
           kind: initial
-          backup-args: '--group "${{ secrets.CORSO_M365_TEST_TEAM_ID }}"'
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
 
