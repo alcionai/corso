@@ -84,7 +84,7 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 	}
 }
 
-func (suite *BackupBasesUnitSuite) TestMakeAssistBase() {
+func (suite *BackupBasesUnitSuite) TestConvertToAssistBase() {
 	backups := []BackupEntry{
 		{Backup: &backup.Backup{SnapshotID: "1"}},
 		{Backup: &backup.Backup{SnapshotID: "2"}},
@@ -193,7 +193,7 @@ func (suite *BackupBasesUnitSuite) TestMakeAssistBase() {
 				expected.assistBackups = append(expected.assistBackups, backups[i])
 			}
 
-			bb.MakeAssistBase(delID)
+			bb.ConvertToAssistBase(delID)
 			AssertBackupBasesEqual(t, expected, bb)
 		})
 	}

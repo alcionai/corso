@@ -15,9 +15,9 @@ import (
 // TODO(ashmrtn): Move this into some inject package. Here to avoid import
 // cycles.
 type BackupBases interface {
-	// MakeAssistBase converts the base with the given item data snapshot ID from
-	// a merge base to an assist base.
-	MakeAssistBase(manifestID manifest.ID)
+	// ConvertToAssistBase converts the base with the given item data snapshot ID
+	// from a merge base to an assist base.
+	ConvertToAssistBase(manifestID manifest.ID)
 	Backups() []BackupEntry
 	UniqueAssistBackups() []BackupEntry
 	MinBackupVersion() int
@@ -63,7 +63,7 @@ func (bb *backupBases) SnapshotAssistBases() []ManifestEntry {
 	return append(slices.Clone(bb.assistBases), bb.mergeBases...)
 }
 
-func (bb *backupBases) MakeAssistBase(manifestID manifest.ID) {
+func (bb *backupBases) ConvertToAssistBase(manifestID manifest.ID) {
 	var (
 		snapshotMan ManifestEntry
 		base        BackupEntry
