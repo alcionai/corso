@@ -291,7 +291,6 @@ func getStorageAndAccountWithViper(
 		err    error
 	)
 
-	overrides := S3Overrides(pfs)
 	readConfigFromViper := readFromFile
 
 	// possibly read the prior config from a .corso file
@@ -309,12 +308,12 @@ func getStorageAndAccountWithViper(
 		config.RepoID = vpr.GetString(RepoID)
 	}
 
-	config.Account, err = configureAccount(vpr, readConfigFromViper, mustMatchFromConfig, overrides)
+	config.Account, err = configureAccount(vpr, readConfigFromViper, mustMatchFromConfig, nil)
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
 
-	config.Storage, err = configureStorage(vpr, readConfigFromViper, mustMatchFromConfig, overrides)
+	config.Storage, err = configureStorage(vpr, readConfigFromViper, mustMatchFromConfig, pfs)
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving storage provider details")
 	}

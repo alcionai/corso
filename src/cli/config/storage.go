@@ -104,13 +104,15 @@ func configureStorage(
 	vpr *viper.Viper,
 	readConfigFromViper bool,
 	matchFromConfig bool,
-	overrides map[string]string,
+	pfs *pflag.FlagSet,
 ) (storage.Storage, error) {
 	var (
 		s3Cfg storage.S3Config
 		store storage.Storage
 		err   error
 	)
+
+	// Read storage provider first
 
 	if readConfigFromViper {
 		if s3Cfg, err = s3ConfigsFromViper(vpr); err != nil {
@@ -141,7 +143,6 @@ func configureStorage(
 		return store, clues.Wrap(err, "reading s3 configs from corso config file")
 	}
 
-	s3Overrides(overrides)
 	aws := credentials.GetAWS(overrides)
 
 	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
