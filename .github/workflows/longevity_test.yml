@@ -352,14 +352,14 @@ jobs:
             #   - x - index blobs
             ./s3checker \
               --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
-              --bucket-prefix ${{ env.PREFIX }} \
+              --prefix ${{ env.PREFIX }} \
               --retention-mode ${{ env.RETENTION_MODE }} \
               --live-retention-duration "$((${{ env.RETENTION_DURATION }}-1))h" \
-              --prefix "kopia.blobcfg" \
-              --prefix "kopia.repository" \
-              --prefix "p" \
-              --prefix "q" \
-              --prefix "x"
+              --object-prefix "kopia.blobcfg" \
+              --object-prefix "kopia.repository" \
+              --object-prefix "p" \
+              --object-prefix "q" \
+              --object-prefix "x"
           fi
 
       ##########################################################################
