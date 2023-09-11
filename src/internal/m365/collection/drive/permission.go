@@ -277,7 +277,7 @@ func UpdatePermissions(
 
 		newPerm, err := udip.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
-			logger.CtxErr(ictx, err).Info("Unabxle to restore link share")
+			logger.CtxErr(ictx, err).Info("Unable to restore link share")
 			continue
 		}
 
