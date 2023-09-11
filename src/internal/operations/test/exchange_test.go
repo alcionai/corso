@@ -20,7 +20,6 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	exchTD "github.com/alcionai/corso/src/internal/m365/service/exchange/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -264,7 +263,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	)
 
 	opts.ToggleFeatures = toggles
-	ctrl, sels := ControllerWithSelector(t, ctx, acct, resource.Users, sel.Selector, nil, nil)
+	ctrl, sels := ControllerWithSelector(t, ctx, acct, sel.Selector, nil, nil)
 	sel.DiscreteOwner = sels.ID()
 	sel.DiscreteOwnerName = sels.Name()
 

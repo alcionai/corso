@@ -320,8 +320,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			}
 
 			return nil
-		},
-	)
+		})
 	// Telling kopia to always flush may hide other errors if it fails while
 	// flushing the write session (hence logging above).
 	if err != nil {

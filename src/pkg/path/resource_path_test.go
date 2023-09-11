@@ -155,8 +155,7 @@ func (suite *DataLayerResourcePath) TestMissingInfoErrors() {
 								b,
 								test.tenant,
 								test.user,
-								m.isItem,
-							)
+								m.isItem)
 							assert.Error(t, err)
 						})
 					}
@@ -178,8 +177,7 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 				b,
 				testTenant,
 				testUser,
-				true,
-			)
+				true)
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Empty(t, p.Folder(false))
@@ -192,8 +190,7 @@ func (suite *DataLayerResourcePath) TestMailItemNoFolder() {
 func (suite *DataLayerResourcePath) TestPopFront() {
 	expected := path.Builder{}.Append(append(
 		[]string{path.ExchangeService.String(), testUser, path.EmailCategory.String()},
-		rest...,
-	)...)
+		rest...)...)
 
 	for _, m := range modes {
 		suite.Run(m.name, func() {
@@ -204,8 +201,7 @@ func (suite *DataLayerResourcePath) TestPopFront() {
 				testTenant,
 				testUser,
 				path.EmailCategory,
-				m.isItem,
-			)
+				m.isItem)
 			require.NoError(t, err, clues.ToCore(err))
 
 			b := p.PopFront()
@@ -229,8 +225,7 @@ func (suite *DataLayerResourcePath) TestDir() {
 				testTenant,
 				testUser,
 				path.EmailCategory,
-				m.isItem,
-			)
+				m.isItem)
 			require.NoError(suite.T(), err, clues.ToCore(err))
 
 			for i := 1; i <= len(rest); i++ {
@@ -344,14 +339,13 @@ func (suite *DataLayerResourcePath) TestToServiceCategoryMetadataPath() {
 			test.category.String(),
 		}, "_"), func() {
 			t := suite.T()
-			pb := path.Builder{}.Append(test.postfix...)
-
-			p, err := pb.ToServiceCategoryMetadataPath(
+			p, err := path.BuildMetadata(
 				tenant,
 				user,
 				test.service,
 				test.category,
-				false)
+				false,
+				test.postfix...)
 			test.check(t, err, clues.ToCore(err))
 
 			if err != nil {
@@ -440,8 +434,7 @@ func (suite *PopulatedDataLayerResourcePath) SetupSuite() {
 			testTenant,
 			testUser,
 			path.EmailCategory,
-			t,
-		)
+			t)
 		require.NoError(suite.T(), err, clues.ToCore(err))
 
 		suite.paths[t] = p
@@ -496,8 +489,7 @@ func (suite *PopulatedDataLayerResourcePath) TestFolder() {
 			assert.Equal(
 				t,
 				strings.Join(m.expectedFolders, "/"),
-				suite.paths[m.isItem].Folder(false),
-			)
+				suite.paths[m.isItem].Folder(false))
 		})
 	}
 }
@@ -542,8 +534,7 @@ func (suite *PopulatedDataLayerResourcePath) TestAppend() {
 			hasItem: false,
 			expectedFolder: strings.Join(
 				append(append([]string{}, rest...), newElement),
-				"/",
-			),
+				"/"),
 			expectedItem: "",
 		},
 	}

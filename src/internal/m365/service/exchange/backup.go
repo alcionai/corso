@@ -95,3 +95,17 @@ func ProduceBackupCollections(
 
 	return collections, nil, canUsePreviousBackup, el.Failure()
 }
+
+func CanMakeDeltaQueries(
+	ctx context.Context,
+	service path.ServiceType,
+	gmi getMailboxer,
+	resourceOwner string,
+) (bool, error) {
+	mi, err := GetMailboxInfo(ctx, gmi, resourceOwner)
+	if err != nil {
+		return false, clues.Stack(err)
+	}
+
+	return !mi.QuotaExceeded, nil
+}

@@ -177,7 +177,7 @@ func restoreListItem(
 	newList.SetItems(contents)
 
 	// Restore to List base to M365 back store
-	restoredList, err := service.Client().Sites().BySiteId(siteID).Lists().Post(ctx, newList, nil)
+	restoredList, err := service.Client().Sites().BySiteIdString(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
 		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
@@ -188,9 +188,9 @@ func restoreListItem(
 		for _, lItem := range contents {
 			_, err := service.Client().
 				Sites().
-				BySiteId(siteID).
+				BySiteIdString(siteID).
 				Lists().
-				ByListId(ptr.Val(restoredList.GetId())).
+				ByListIdString(ptr.Val(restoredList.GetId())).
 				Items().
 				Post(ctx, lItem, nil)
 			if err != nil {

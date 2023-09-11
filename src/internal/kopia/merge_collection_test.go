@@ -159,19 +159,16 @@ func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
 						encodeAsPath(fileName1),
-						nil,
-					),
+						nil),
 					r: newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData1)),
-					),
+						io.NopCloser(bytes.NewReader(fileData1))),
 					size: int64(len(fileData1) + versionSize),
 				},
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
 						encodeAsPath(fileOpenErrName),
-						nil,
-					),
+						nil),
 					openErr: assert.AnError,
 				},
 			})
@@ -186,34 +183,28 @@ func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
 						encodeAsPath(fileName1),
-						nil,
-					),
+						nil),
 					r: newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData2)),
-					),
+						io.NopCloser(bytes.NewReader(fileData2))),
 					size: int64(len(fileData2) + versionSize),
 				},
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
 						encodeAsPath(fileName2),
-						nil,
-					),
+						nil),
 					r: newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData1)),
-					),
+						io.NopCloser(bytes.NewReader(fileData1))),
 					size: int64(len(fileData1) + versionSize),
 				},
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
 						encodeAsPath(fileOpenErrName),
-						nil,
-					),
+						nil),
 					r: newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData3)),
-					),
+						io.NopCloser(bytes.NewReader(fileData3))),
 					size: int64(len(fileData3) + versionSize),
 				},
 			})

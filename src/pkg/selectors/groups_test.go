@@ -159,7 +159,7 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 					LocationRef: strings.Join(itemElems1, "/"),
 					ItemInfo: details.ItemInfo{
 						Groups: &details.GroupsInfo{
-							ItemType:   details.TeamsChannelMessage,
+							ItemType:   details.GroupsChannelMessage,
 							ParentPath: strings.Join(itemElems1, "/"),
 						},
 					},
@@ -170,7 +170,7 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 					// ItemRef intentionally blank to test fallback case
 					ItemInfo: details.ItemInfo{
 						Groups: &details.GroupsInfo{
-							ItemType:   details.TeamsChannelMessage,
+							ItemType:   details.GroupsChannelMessage,
 							ParentPath: strings.Join(itemElems2, "/"),
 						},
 					},
@@ -181,7 +181,7 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 					LocationRef: strings.Join(itemElems3, "/"),
 					ItemInfo: details.ItemInfo{
 						Groups: &details.GroupsInfo{
-							ItemType:   details.TeamsChannelMessage,
+							ItemType:   details.GroupsChannelMessage,
 							ParentPath: strings.Join(itemElems3, "/"),
 						},
 					},
@@ -366,7 +366,7 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 		now          = time.Now()
 		modification = now.Add(15 * time.Minute)
 		future       = now.Add(45 * time.Minute)
-		dtch         = details.TeamsChannelMessage
+		dtch         = details.GroupsChannelMessage
 	)
 
 	table := []struct {

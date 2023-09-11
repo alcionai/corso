@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -40,7 +41,7 @@ type statePath struct {
 func getExpectedStatePathGenerator(
 	t *testing.T,
 	bh BackupHandler,
-	tenant, user, base string,
+	tenant, base string,
 ) func(data.CollectionState, ...string) statePath {
 	return func(state data.CollectionState, pths ...string) statePath {
 		var (
@@ -56,12 +57,12 @@ func getExpectedStatePathGenerator(
 		} else {
 			require.Len(t, pths, 2, "invalid number of paths to getExpectedStatePathGenerator")
 			pb := path.Builder{}.Append(path.Split(base + pths[1])...)
-			p2, err = bh.CanonicalPath(pb, tenant, user)
+			p2, err = bh.CanonicalPath(pb, tenant)
 			require.NoError(t, err, clues.ToCore(err))
 		}
 
 		pb := path.Builder{}.Append(path.Split(base + pths[0])...)
-		p1, err = bh.CanonicalPath(pb, tenant, user)
+		p1, err = bh.CanonicalPath(pb, tenant)
 		require.NoError(t, err, clues.ToCore(err))
 
 		switch state {
@@ -88,11 +89,11 @@ func getExpectedStatePathGenerator(
 func getExpectedPathGenerator(
 	t *testing.T,
 	bh BackupHandler,
-	tenant, user, base string,
+	tenant, base string,
 ) func(string) string {
 	return func(p string) string {
 		pb := path.Builder{}.Append(path.Split(base + p)...)
-		cp, err := bh.CanonicalPath(pb, tenant, user)
+		cp, err := bh.CanonicalPath(pb, tenant)
 		require.NoError(t, err, clues.ToCore(err))
 
 		return cp.String()
@@ -129,10 +130,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 		pkg       = "/package"
 	)
 
-	bh := itemBackupHandler{}
+	bh := itemBackupHandler{userID: user}
 	testBaseDrivePath := odConsts.DriveFolderPrefixBuilder("driveID1").String()
-	expectedPath := getExpectedPathGenerator(suite.T(), bh, tenant, user, testBaseDrivePath)
-	expectedStatePath := getExpectedStatePathGenerator(suite.T(), bh, tenant, user, testBaseDrivePath)
+	expectedPath := getExpectedPathGenerator(suite.T(), bh, tenant, testBaseDrivePath)
+	expectedStatePath := getExpectedStatePathGenerator(suite.T(), bh, tenant, testBaseDrivePath)
 
 	tests := []struct {
 		testCase               string
@@ -519,8 +520,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 					"subfolder",
 					true,
 					false,
-					false,
-				),
+					false),
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
 			},
 			inputFolderMap: map[string]string{
@@ -744,7 +744,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(outputFolderMap, tt.inputFolderMap)
 
 			c := NewCollections(
-				&itemBackupHandler{api.Drives{}, tt.scope},
+				&itemBackupHandler{api.Drives{}, user, tt.scope},
 				tenant,
 				user,
 				nil,
@@ -815,17 +815,15 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
-							map[string]string{driveID1: deltaURL1},
-						),
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1}),
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {
 									folderID1: path1,
 								},
-							},
-						),
+							}),
 					}
 				},
 			},
@@ -846,9 +844,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
-							map[string]string{driveID1: deltaURL1},
-						),
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1}),
 					}
 				},
 			},
@@ -863,13 +860,12 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {
 									folderID1: path1,
 								},
-							},
-						),
+							}),
 					}
 				},
 			},
@@ -891,15 +887,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
-							map[string]string{driveID1: deltaURL1},
-						),
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1}),
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {},
-							},
-						),
+							}),
 					}
 				},
 			},
@@ -917,19 +911,17 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
+							bupMD.DeltaURLsFileName,
 							map[string]string{
 								driveID1: "",
-							},
-						),
+							}),
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {
 									folderID1: path1,
 								},
-							},
-						),
+							}),
 					}
 				},
 			},
@@ -948,33 +940,29 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
-							map[string]string{driveID1: deltaURL1},
-						),
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1}),
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {
 									folderID1: path1,
 								},
-							},
-						),
+							}),
 					}
 				},
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
-							map[string]string{driveID2: deltaURL2},
-						),
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID2: deltaURL2}),
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID2: {
 									folderID2: path2,
 								},
-							},
-						),
+							}),
 					}
 				},
 			},
@@ -1001,9 +989,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
-							map[string]string{driveID1: deltaURL1},
-						),
+							bupMD.PreviousPathFileName,
+							map[string]string{driveID1: deltaURL1}),
 					}
 				},
 			},
@@ -1018,21 +1005,18 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
-							map[string]string{driveID1: deltaURL1},
-						),
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1}),
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {
 									folderID1: path1,
 								},
-							},
-						),
+							}),
 						graph.NewMetadataEntry(
 							"foo",
-							map[string]string{driveID1: deltaURL1},
-						),
+							map[string]string{driveID1: deltaURL1}),
 					}
 				},
 			},
@@ -1053,29 +1037,26 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
-							map[string]string{driveID1: deltaURL1},
-						),
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1}),
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {
 									folderID1: path1,
 								},
-							},
-						),
+							}),
 					}
 				},
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {
 									folderID2: path2,
 								},
-							},
-						),
+							}),
 					}
 				},
 			},
@@ -1090,25 +1071,22 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
-							map[string]string{driveID1: deltaURL1},
-						),
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1}),
 						graph.NewMetadataEntry(
-							graph.PreviousPathFileName,
+							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {
 									folderID1: path1,
 								},
-							},
-						),
+							}),
 					}
 				},
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
-							graph.DeltaURLsFileName,
-							map[string]string{driveID1: deltaURL2},
-						),
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL2}),
 					}
 				},
 			},
@@ -1129,11 +1107,16 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 			cols := []data.RestoreCollection{}
 
 			for _, c := range test.cols {
-				mc, err := graph.MakeMetadataCollection(
+				pathPrefix, err := path.BuildMetadata(
 					tenant,
 					user,
 					path.OneDriveService,
 					path.FilesCategory,
+					false)
+				require.NoError(t, err, clues.ToCore(err))
+
+				mc, err := graph.MakeMetadataCollection(
+					pathPrefix,
 					c(),
 					func(*support.ControllerOperationStatus) {})
 				require.NoError(t, err, clues.ToCore(err))
@@ -1189,7 +1172,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 		delta2 = "delta2"
 	)
 
-	metadataPath, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	metadataPath, err := path.BuildMetadata(
 		tenant,
 		user,
 		path.OneDriveService,
@@ -1208,13 +1191,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 	drive2.SetName(&driveID2)
 
 	var (
-		bh = itemBackupHandler{}
+		bh = itemBackupHandler{userID: user}
 
 		driveBasePath1 = odConsts.DriveFolderPrefixBuilder(driveID1).String()
 		driveBasePath2 = odConsts.DriveFolderPrefixBuilder(driveID2).String()
 
-		expectedPath1 = getExpectedPathGenerator(suite.T(), bh, tenant, user, driveBasePath1)
-		expectedPath2 = getExpectedPathGenerator(suite.T(), bh, tenant, user, driveBasePath2)
+		expectedPath1 = getExpectedPathGenerator(suite.T(), bh, tenant, driveBasePath1)
+		expectedPath2 = getExpectedPathGenerator(suite.T(), bh, tenant, driveBasePath2)
 
 		rootFolderPath1 = expectedPath1("")
 		folderPath1     = expectedPath1("/folder")
@@ -2279,7 +2262,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				}
 			}
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.DrivePagerV = mockDrivePager
 			mbh.ItemPagerV = itemPagers
 
@@ -2291,24 +2274,24 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				control.Options{ToggleFeatures: control.Toggles{}})
 
 			prevDelta := "prev-delta"
+
+			pathPrefix, err := mbh.MetadataPathPrefix(tenant)
+			require.NoError(t, err, clues.ToCore(err))
+
 			mc, err := graph.MakeMetadataCollection(
-				tenant,
-				user,
-				path.OneDriveService,
-				path.FilesCategory,
+				pathPrefix,
 				[]graph.MetadataCollectionEntry{
 					graph.NewMetadataEntry(
-						graph.DeltaURLsFileName,
+						bupMD.DeltaURLsFileName,
 						map[string]string{
 							driveID1: prevDelta,
 							driveID2: prevDelta,
 						}),
 					graph.NewMetadataEntry(
-						graph.PreviousPathFileName,
+						bupMD.PreviousPathFileName,
 						test.prevFolderPaths),
 				},
-				func(*support.ControllerOperationStatus) {},
-			)
+				func(*support.ControllerOperationStatus) {})
 			assert.NoError(t, err, "creating metadata collection", clues.ToCore(err))
 
 			prevMetadata := []data.RestoreCollection{data.NoFetchRestoreCollection{Collection: mc}}
@@ -2650,7 +2633,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			itemPagers := map[string]api.DeltaPager[models.DriveItemable]{}
 			itemPagers[driveID] = &apiMock.DeltaPager[models.DriveItemable]{}
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("test-user")
 			mbh.ItemPagerV = itemPagers
 
 			c := NewCollections(
@@ -2667,7 +2650,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			// Add a few collections
 			for i := 0; i < collCount; i++ {
 				coll, err := NewCollection(
-					&itemBackupHandler{api.Drives{}, anyFolder},
+					&itemBackupHandler{api.Drives{}, "test-user", anyFolder},
 					nil,
 					nil,
 					driveID,

@@ -249,8 +249,7 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 						Err:      nil,
 					},
 				},
-				tooManyRetries...,
-			),
+				tooManyRetries...),
 			retry:           true,
 			expectedErr:     assert.Error,
 			expectedResults: nil,
@@ -344,7 +343,7 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
-				&itemBackupHandler{suite.ac.Drives(), scope},
+				&itemBackupHandler{suite.ac.Drives(), test.user, scope},
 				creds.AzureTenantID,
 				test.user,
 				service.updateStatus,

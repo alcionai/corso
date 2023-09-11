@@ -4,19 +4,24 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/collection/groups"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -40,12 +45,34 @@ func ProduceBackupCollections(
 		categories           = map[path.CategoryType]struct{}{}
 		ssmb                 = prefixmatcher.NewStringSetBuilder()
 		canUsePreviousBackup bool
+		sitesPreviousPaths   = map[string]string{}
 	)
 
 	ctx = clues.Add(
 		ctx,
 		"group_id", clues.Hide(bpc.ProtectedResource.ID()),
 		"group_name", clues.Hide(bpc.ProtectedResource.Name()))
+
+	resp, err := ac.Groups().GetByID(ctx, bpc.ProtectedResource.ID())
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "getting group").WithClues(ctx)
+	}
+
+	// Not all groups will have associated SharePoint
+	// sites. Distribution channels and Security groups will not
+	// have one. This check is to skip those groups.
+	groupTypes := resp.GetGroupTypes()
+	hasSharePoint := slices.Contains(groupTypes, "Unified")
+
+	// If we don't have SharePoint site, there is nothing here to
+	// backup as of now.
+	if !hasSharePoint {
+		logger.Ctx(ctx).
+			With("group_id", bpc.ProtectedResource.ID()).
+			Infof("No SharePoint site found for group")
+
+		return nil, nil, false, clues.Stack(graph.ErrServiceNotEnabled, err).WithClues(ctx)
+	}
 
 	for _, scope := range b.Scopes() {
 		if el.Failure() != nil {
@@ -77,12 +104,39 @@ func ProduceBackupCollections(
 				Selector:          bpc.Selector,
 			}
 
+			bh := drive.NewGroupBackupHandler(
+				bpc.ProtectedResource.ID(),
+				ptr.Val(resp.GetId()),
+				ac.Drives(),
+				scope)
+
+			cp, err := bh.SitePathPrefix(creds.AzureTenantID)
+			if err != nil {
+				return nil, nil, false, clues.Wrap(err, "getting canonical path")
+			}
+
+			sitesPreviousPaths[ptr.Val(resp.GetId())] = cp.String()
+
 			dbcs, canUsePreviousBackup, err = site.CollectLibraries(
 				ctx,
 				sbpc,
-				drive.NewGroupBackupHandler(bpc.ProtectedResource.ID(), ac.Drives(), scope),
+				bh,
 				creds.AzureTenantID,
 				ssmb,
+				su,
+				errs)
+			if err != nil {
+				el.AddRecoverable(ctx, err)
+				continue
+			}
+
+		case path.ChannelMessagesCategory:
+			dbcs, canUsePreviousBackup, err = groups.CreateCollections(
+				ctx,
+				bpc,
+				groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels()),
+				creds.AzureTenantID,
+				scope,
 				su,
 				errs)
 			if err != nil {
@@ -113,5 +167,49 @@ func ProduceBackupCollections(
 		collections = append(collections, baseCols...)
 	}
 
+	// Add metadata about sites
+	md, err := getSitesMetadataCollection(
+		creds.AzureTenantID,
+		bpc.ProtectedResource.ID(),
+		sitesPreviousPaths,
+		su)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	collections = append(collections, md)
+
 	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
+}
+
+func getSitesMetadataCollection(
+	tenantID, groupID string,
+	sites map[string]string,
+	su support.StatusUpdater,
+) (data.BackupCollection, error) {
+	// TODO(meain): Switch to using BuildMetadata
+	// https://github.com/alcionai/corso/pull/4184#discussion_r1316139701
+	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		tenantID,
+		groupID,
+		path.GroupsService,
+		path.LibrariesCategory,
+		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata path")
+	}
+
+	p, err = p.Append(false, odConsts.SitesPathDir)
+	if err != nil {
+		return nil, clues.Wrap(err, "appending sites to metadata path")
+	}
+
+	md, err := graph.MakeMetadataCollection(
+		p,
+		[]graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(metadata.PreviousPathFileName, sites),
+		},
+		su)
+
+	return md, err
 }

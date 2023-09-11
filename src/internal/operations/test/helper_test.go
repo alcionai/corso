@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
@@ -132,16 +131,10 @@ func prepNewTestBackupOp(
 
 	bod.sw = store.NewWrapper(bod.kms)
 
-	connectorResource := resource.Users
-	if sel.Service == selectors.ServiceSharePoint {
-		connectorResource = resource.Sites
-	}
-
 	bod.ctrl, bod.sel = ControllerWithSelector(
 		t,
 		ctx,
 		bod.acct,
-		connectorResource,
 		sel,
 		nil,
 		bod.close)
@@ -200,7 +193,14 @@ func runAndCheckBackup(
 	acceptNoData bool,
 ) {
 	err := bo.Run(ctx)
-	require.NoError(t, err, clues.ToCore(err))
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		for i, err := range bo.Errors.Recovered() {
+			t.Logf("recoverable err %d, %+v", i, err)
+		}
+
+		assert.Fail(t, "not allowed to error")
+	}
+
 	require.NotEmpty(t, bo.Results, "the backup had non-zero results")
 	require.NotEmpty(t, bo.Results.BackupID, "the backup generated an ID")
 
@@ -293,9 +293,7 @@ func checkMetadataFilesExist(
 			pathsByRef := map[string][]string{}
 
 			for _, fName := range files {
-				p, err := path.Builder{}.
-					Append(fName).
-					ToServiceCategoryMetadataPath(tenant, resourceOwner, service, category, true)
+				p, err := path.BuildMetadata(tenant, resourceOwner, service, category, true, fName)
 				if !assert.NoError(t, err, "bad metadata path", clues.ToCore(err)) {
 					continue
 				}
@@ -332,8 +330,7 @@ func checkMetadataFilesExist(
 						int64(0),
 						"empty metadata file: %s/%s",
 						col.FullPath(),
-						item.ID(),
-					)
+						item.ID())
 
 					itemNames = append(itemNames, item.ID())
 				}
@@ -343,8 +340,7 @@ func checkMetadataFilesExist(
 					pathsByRef[col.FullPath().ShortRef()],
 					itemNames,
 					"collection %s missing expected files",
-					col.FullPath(),
-				)
+					col.FullPath())
 			}
 		})
 	}
@@ -521,6 +517,8 @@ func toDataLayerPath(
 		p, err = pb.ToDataLayerOneDrivePath(tenant, resourceOwner, isItem)
 	case path.SharePointService:
 		p, err = pb.ToDataLayerSharePointPath(tenant, resourceOwner, category, isItem)
+	case path.GroupsService:
+		p, err = pb.ToDataLayerPath(tenant, resourceOwner, service, category, false)
 	default:
 		err = clues.New(fmt.Sprintf("unknown service: %s", service))
 	}
@@ -537,12 +535,11 @@ func ControllerWithSelector(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	acct account.Account,
-	cr resource.Category,
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(*testing.T, context.Context),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.DefaultOptions())
+	ctrl, err := m365.NewController(ctx, acct, sel.PathService(), control.DefaultOptions())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)
@@ -575,6 +572,11 @@ type ids struct {
 	DriveRootFolderID string
 }
 
+type gids struct {
+	ID       string
+	RootSite ids
+}
+
 type intgTesterSetup struct {
 	ac            api.Client
 	gockAC        api.Client
@@ -582,7 +584,7 @@ type intgTesterSetup struct {
 	secondaryUser ids
 	site          ids
 	secondarySite ids
-	group         ids
+	group         gids
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -652,22 +654,26 @@ func siteIDs(t *testing.T, id string, ac api.Client) ids {
 	return r
 }
 
-func groupIDs(t *testing.T, id string, ac api.Client) ids {
-	r := ids{ID: id}
+func groupIDs(t *testing.T, id string, ac api.Client) gids {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-	// ctx, flush := tester.NewContext(t)
-	// defer flush()
+	r := gids{ID: id}
 
-	// TODO: get default site drive info
-	// drive, err := ac.Groups().GetDefaultDrive(ctx, id)
-	// require.NoError(t, err, clues.ToCore(err))
+	site, err := ac.Groups().GetRootSite(ctx, id)
+	require.NoError(t, err, clues.ToCore(err))
 
-	// r.DriveID = ptr.Val(drive.GetId())
+	r.RootSite.ID = ptr.Val(site.GetId())
 
-	// driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.DriveID)
-	// require.NoError(t, err, clues.ToCore(err))
+	drive, err := ac.Sites().GetDefaultDrive(ctx, r.RootSite.ID)
+	require.NoError(t, err, clues.ToCore(err))
 
-	// r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
+	r.RootSite.DriveID = ptr.Val(drive.GetId())
+
+	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.RootSite.DriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r.RootSite.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
 
 	return r
 }

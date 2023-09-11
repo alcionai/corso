@@ -44,9 +44,9 @@ func (c Drives) NewDriveItemPager(
 	builder := c.Stable.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(containerID).
+		ByDriveItemIdString(containerID).
 		Children()
 
 	return &driveItemPageCtrl{c.Stable, builder, options}
@@ -158,9 +158,9 @@ func (c Drives) NewDriveItemDeltaPager(
 		builder: c.Stable.
 			Client().
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Items().
-			ByDriveItemId(onedrive.RootID).
+			ByDriveItemIdString(onedrive.RootID).
 			Delta(),
 	}
 
@@ -192,9 +192,9 @@ func (p *DriveItemDeltaPageCtrl) SetNext(link string) {
 func (p *DriveItemDeltaPageCtrl) Reset(context.Context) {
 	p.builder = p.gs.Client().
 		Drives().
-		ByDriveId(p.driveID).
+		ByDriveIdString(p.driveID).
 		Items().
-		ByDriveItemId(onedrive.RootID).
+		ByDriveItemIdString(onedrive.RootID).
 		Delta()
 }
 
@@ -232,7 +232,7 @@ func (c Drives) NewUserDrivePager(
 		builder: c.Stable.
 			Client().
 			Users().
-			ByUserId(userID).
+			ByUserIdString(userID).
 			Drives(),
 	}
 
@@ -254,7 +254,7 @@ func (p *userDrivePager) GetPage(ctx context.Context) (PageLinker, error) {
 	d, err := p.gs.
 		Client().
 		Users().
-		ByUserId(p.userID).
+		ByUserIdString(p.userID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -325,7 +325,7 @@ func (c Drives) NewSiteDrivePager(
 		builder: c.Stable.
 			Client().
 			Sites().
-			BySiteId(siteID).
+			BySiteIdString(siteID).
 			Drives(),
 	}
 

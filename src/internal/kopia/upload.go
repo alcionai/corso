@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 	"runtime/trace"
@@ -249,10 +248,12 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 	for i := range sl {
 		rdt, err := base64.StdEncoding.DecodeString(sl[i])
 		if err != nil {
-			fmt.Println("f did not decode")
+			logger.Ctx(cp.ctx).Infow(
+				"unable to decode base64 path segment",
+				"segment", sl[i])
+		} else {
+			sl[i] = string(rdt)
 		}
-
-		sl[i] = string(rdt)
 	}
 
 	logger.Ctx(cp.ctx).Debugw(
@@ -584,8 +585,7 @@ func getStreamItemFunc(
 			baseDir,
 			seen,
 			globalExcludeSet,
-			progress,
-		); err != nil {
+			progress); err != nil {
 			return clues.Wrap(err, "streaming base snapshot entries")
 		}
 
@@ -632,9 +632,7 @@ func buildKopiaDirs(
 			dir.collection,
 			dir.baseDir,
 			globalExcludeSet,
-			progress,
-		),
-	), nil
+			progress)), nil
 }
 
 type treeMap struct {
@@ -1143,8 +1141,7 @@ func inflateBaseTree(
 			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
-			stats,
-		); err != nil {
+			stats); err != nil {
 			return clues.Wrap(err, "traversing base snapshot").WithClues(ictx)
 		}
 

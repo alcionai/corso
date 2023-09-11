@@ -9,8 +9,8 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -63,7 +63,7 @@ func getManifestsAndMetadata(
 ) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
 	var (
 		tags          = map[string]string{kopia.TagBackupCategory: ""}
-		metadataFiles = graph.AllMetadataFileNames()
+		metadataFiles = metadata.AllMetadataFileNames()
 		collections   []data.RestoreCollection
 	)
 
@@ -141,14 +141,13 @@ func collectMetadata(
 
 	for _, fn := range fileNames {
 		for _, reason := range man.Reasons {
-			p, err := path.Builder{}.
-				Append(fn).
-				ToServiceCategoryMetadataPath(
-					tenantID,
-					reason.ProtectedResource(),
-					reason.Service(),
-					reason.Category(),
-					true)
+			p, err := path.BuildMetadata(
+				tenantID,
+				reason.ProtectedResource(),
+				reason.Service(),
+				reason.Category(),
+				true,
+				fn)
 			if err != nil {
 				return nil, clues.
 					Wrap(err, "building metadata path").

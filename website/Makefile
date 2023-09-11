@@ -1,6 +1,6 @@
 .PHONY: buildimage build dev shell check genclidocs _validatemdgen publish sync
 
-GO_VERSION := 1.19
+GO_VERSION := 1.20
 CORSO_BUILD_DIR := /tmp/.corsobuild
 CORSO_BUILD_CACHE := ${CORSO_BUILD_DIR}/cache
 CORSO_BUILD_MOD := ${CORSO_BUILD_DIR}/mod

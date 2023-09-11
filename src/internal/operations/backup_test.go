@@ -36,6 +36,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/extensions"
@@ -218,7 +219,7 @@ func makeMetadataBasePath(
 ) path.Path {
 	t.Helper()
 
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenant,
 		resourceOwner,
 		service,
@@ -295,8 +296,7 @@ func makeDetailsEntry(
 			assert.FailNowf(
 				t,
 				"category %s not supported in helper function",
-				p.Category().String(),
-			)
+				p.Category().String())
 		}
 
 		res.Exchange = &details.ExchangeInfo{
@@ -546,8 +546,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"work",
 				"item1",
 			},
-			true,
-		)
+			true)
 		locationPath1 = path.Builder{}.Append(odConsts.RootPathDir, "work-display-name")
 		itemPath2     = makePath(
 			suite.T(),
@@ -562,8 +561,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"personal",
 				"item2",
 			},
-			true,
-		)
+			true)
 		locationPath2 = path.Builder{}.Append(odConsts.RootPathDir, "personal-display-name")
 		itemPath3     = makePath(
 			suite.T(),
@@ -575,8 +573,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"personal",
 				"item3",
 			},
-			true,
-		)
+			true)
 		locationPath3 = path.Builder{}.Append("personal-display-name")
 
 		backup1 = backup.Backup{
@@ -734,9 +731,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 											itemPath1.ResourceOwner(),
 											path.UnknownCategory.String(),
 										},
-										itemPath1.Folders()...,
-									)...,
-								),
+										itemPath1.Folders()...)...),
 								ItemInfo: details.ItemInfo{
 									OneDrive: &details.OneDriveInfo{
 										ItemType:   details.OneDriveItem,
@@ -765,8 +760,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 						"personal",
 						"item1",
 					},
-					true,
-				)
+					true)
 
 				res.add(itemPath1, p, nil)
 
@@ -1579,7 +1573,7 @@ func (mbp *mockBackupProducer) ProduceBackupCollections(
 	return mbp.colls, nil, true, nil
 }
 
-func (mbp *mockBackupProducer) IsBackupRunnable(
+func (mbp *mockBackupProducer) IsServiceEnabled(
 	context.Context,
 	path.ServiceType,
 	string,
@@ -1615,17 +1609,15 @@ func makeMetadataCollectionEntries(
 ) []graph.MetadataCollectionEntry {
 	return []graph.MetadataCollectionEntry{
 		graph.NewMetadataEntry(
-			graph.DeltaURLsFileName,
-			map[string]string{driveID: deltaURL},
-		),
+			metadata.DeltaURLsFileName,
+			map[string]string{driveID: deltaURL}),
 		graph.NewMetadataEntry(
-			graph.PreviousPathFileName,
+			metadata.PreviousPathFileName,
 			map[string]map[string]string{
 				driveID: {
 					folderID: p.PlainString(),
 				},
-			},
-		),
+			}),
 	}
 }
 
@@ -1871,11 +1863,16 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			cs := test.collFunc()
 
-			mc, err := graph.MakeMetadataCollection(
+			pathPrefix, err := path.BuildMetadata(
 				tenantID,
 				userID,
 				path.OneDriveService,
 				path.FilesCategory,
+				false)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mc, err := graph.MakeMetadataCollection(
+				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
 				func(*support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))
@@ -2184,11 +2181,16 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 			cs := test.collFunc()
 
-			mc, err := graph.MakeMetadataCollection(
+			pathPrefix, err := path.BuildMetadata(
 				tenantID,
 				userID,
 				path.OneDriveService,
 				path.FilesCategory,
+				false)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mc, err := graph.MakeMetadataCollection(
+				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
 				func(*support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))

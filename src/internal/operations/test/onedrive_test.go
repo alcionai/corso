@@ -23,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -32,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
+	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -140,7 +140,6 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 		suite,
 		suite.its.user.ID,
 		suite.its.user.ID,
-		resource.Users,
 		path.OneDriveService,
 		path.FilesCategory,
 		ic,
@@ -152,7 +151,6 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 func runDriveIncrementalTest(
 	suite tester.Suite,
 	owner, permissionsUser string,
-	rc resource.Category,
 	service path.ServiceType,
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
@@ -176,7 +174,7 @@ func runDriveIncrementalTest(
 		now = dttm.FormatNow(dttm.SafeForTesting)
 
 		categories = map[path.CategoryType][]string{
-			category: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
+			category: {bupMD.DeltaURLsFileName, bupMD.PreviousPathFileName},
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
@@ -195,7 +193,7 @@ func runDriveIncrementalTest(
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ctrl, sel := ControllerWithSelector(t, ctx, acct, rc, sel, nil, nil)
+	ctrl, sel := ControllerWithSelector(t, ctx, acct, sel, nil, nil)
 	ac := ctrl.AC.Drives()
 	rh := getRestoreHandler(ctrl.AC)
 
@@ -684,7 +682,7 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			cleanCtrl, err := m365.NewController(ctx, acct, rc, sel.PathService(), control.DefaultOptions())
+			cleanCtrl, err := m365.NewController(ctx, acct, sel.PathService(), control.DefaultOptions())
 			require.NoError(t, err, clues.ToCore(err))
 
 			bod.ctrl = cleanCtrl
@@ -790,7 +788,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		mb   = evmock.NewBus()
 
 		categories = map[path.CategoryType][]string{
-			path.FilesCategory: {graph.DeltaURLsFileName, graph.PreviousPathFileName},
+			path.FilesCategory: {bupMD.DeltaURLsFileName, bupMD.PreviousPathFileName},
 		}
 	)
 
@@ -800,7 +798,6 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	ctrl, err := m365.NewController(
 		ctx,
 		acct,
-		resource.Users,
 		path.OneDriveService,
 		control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))

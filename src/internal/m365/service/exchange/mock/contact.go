@@ -54,8 +54,7 @@ func ContactBytes(middleName string) []byte {
 		defaultContactGivenName,
 		middleName,
 		defaultContactSurname,
-		phone,
-	)
+		phone)
 }
 
 func ContactBytesWith(
@@ -70,6 +69,5 @@ func ContactBytesWith(
 		phone,
 		givenName,
 		middleName,
-		surname,
-	))
+		surname))
 }

@@ -34,7 +34,7 @@ const (
 	// failed for an attachment."
 	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
 	emailFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
-	errorAccessDenied        errorCode = "ErrorAccessDenied"
+	ErrorAccessDenied        errorCode = "ErrorAccessDenied"
 	errorItemNotFound        errorCode = "ErrorItemNotFound"
 	// This error occurs when an attempt is made to create a folder that has
 	// the same name as another folder in the same parent. Such duplicate folder
@@ -49,7 +49,7 @@ const (
 	// nameAlreadyExists occurs when a request with
 	// @microsoft.graph.conflictBehavior=fail finds a conflicting file.
 	nameAlreadyExists       errorCode = "nameAlreadyExists"
-	quotaExceeded           errorCode = "ErrorQuotaExceeded"
+	QuotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
 	// Returned when we try to get the inbox of a user that doesn't exist.
 	ResourceNotFound   errorCode = "ResourceNotFound"
@@ -119,8 +119,7 @@ func IsErrDeletedInFlight(err error) bool {
 		err,
 		errorItemNotFound,
 		itemNotFound,
-		syncFolderNotFound,
-	) {
+		syncFolderNotFound) {
 		return true
 	}
 
@@ -137,7 +136,7 @@ func IsErrInvalidDelta(err error) bool {
 }
 
 func IsErrQuotaExceeded(err error) bool {
-	return hasErrorCode(err, quotaExceeded)
+	return hasErrorCode(err, QuotaExceeded)
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
@@ -170,7 +169,7 @@ func IsErrCannotOpenFileAttachment(err error) bool {
 }
 
 func IsErrAccessDenied(err error) bool {
-	return hasErrorCode(err, errorAccessDenied) || clues.HasLabel(err, LabelStatus(http.StatusForbidden))
+	return hasErrorCode(err, ErrorAccessDenied) || clues.HasLabel(err, LabelStatus(http.StatusForbidden))
 }
 
 func IsErrTimeout(err error) bool {

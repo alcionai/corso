@@ -74,8 +74,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_AllData() {
 					map[categorizer][]string{
 						OneDriveItem:   Any(),
 						OneDriveFolder: Any(),
-					},
-				)
+					})
 			}
 		})
 	}
@@ -106,8 +105,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Include_AllData() {
 			map[categorizer][]string{
 				OneDriveItem:   Any(),
 				OneDriveFolder: Any(),
-			},
-		)
+			})
 	}
 }
 
@@ -136,8 +134,7 @@ func (suite *OneDriveSelectorSuite) TestOneDriveSelector_Exclude_AllData() {
 			map[categorizer][]string{
 				OneDriveItem:   Any(),
 				OneDriveFolder: Any(),
-			},
-		)
+			})
 	}
 }
 

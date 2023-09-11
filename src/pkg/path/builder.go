@@ -258,7 +258,7 @@ func (pb Builder) ToStreamStorePath(
 }
 
 func (pb Builder) ToServiceCategoryMetadataPath(
-	tenant, user string,
+	tenant, protectedResource string,
 	service ServiceType,
 	category CategoryType,
 	isItem bool,
@@ -267,7 +267,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		return nil, err
 	}
 
-	if err := verifyInputValues(tenant, user); err != nil {
+	if err := verifyInputValues(tenant, protectedResource); err != nil {
 		return nil, err
 	}
 
@@ -288,17 +288,18 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		metadataService = GroupsMetadataService
 	}
 
-	return &dataLayerResourcePath{
+	rp := dataLayerResourcePath{
 		Builder: *pb.withPrefix(
 			tenant,
 			metadataService.String(),
-			user,
-			category.String(),
-		),
+			protectedResource,
+			category.String()),
 		service:  metadataService,
 		category: category,
 		hasItem:  isItem,
-	}, nil
+	}
+
+	return &rp, nil
 }
 
 func (pb Builder) ToDataLayerPath(
@@ -306,6 +307,7 @@ func (pb Builder) ToDataLayerPath(
 	service ServiceType,
 	category CategoryType,
 	isItem bool,
+	elems ...string,
 ) (Path, error) {
 	if err := ValidateServiceAndCategory(service, category); err != nil {
 		return nil, err
@@ -315,12 +317,15 @@ func (pb Builder) ToDataLayerPath(
 		return nil, err
 	}
 
+	prefixItems := append([]string{
+		tenant,
+		service.String(),
+		user,
+		category.String(),
+	}, elems...)
+
 	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			service.String(),
-			user,
-			category.String()),
+		Builder:  *pb.withPrefix(prefixItems...),
 		service:  service,
 		category: category,
 		hasItem:  isItem,

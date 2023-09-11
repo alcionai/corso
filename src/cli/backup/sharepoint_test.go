@@ -226,7 +226,7 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 		{
 			name:   "Pages",
 			site:   bothIDs,
-			data:   []string{dataPages},
+			data:   []string{flags.DataPages},
 			expect: bothIDs,
 		},
 	}

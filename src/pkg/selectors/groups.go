@@ -222,21 +222,24 @@ func (s *groups) AllData() []GroupsScope {
 	return scopes
 }
 
-// Channel produces one or more SharePoint channel scopes, where the channel
+// Channels produces one or more SharePoint channel scopes, where the channel
 // matches upon a given channel by ID or Name.  In order to ensure channel selection
 // this should always be embedded within the Filter() set; include(channel()) will
 // select all items in the channel without further filtering.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *groups) Channel(channel string) []GroupsScope {
-	return []GroupsScope{
-		makeInfoScope[GroupsScope](
-			GroupsChannel,
-			GroupsInfoChannel,
-			[]string{channel},
-			filters.Equal),
-	}
+func (s *groups) Channels(channels []string, opts ...option) []GroupsScope {
+	var (
+		scopes = []GroupsScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(
+		scopes,
+		makeScope[GroupsScope](GroupsChannel, channels, os...))
+
+	return scopes
 }
 
 // ChannelMessages produces one or more Groups channel message scopes.
@@ -406,7 +409,6 @@ const (
 
 	// channel and drive selection
 	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive"
-	GroupsInfoChannel          groupsCategory = "GroupsInfoChannel"
 
 	// data contained within details.ItemInfo
 	GroupsInfoChannelMessageCreatedAfter    groupsCategory = "GroupsInfoChannelMessageCreatedAfter"
@@ -669,18 +671,6 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 		}
 
 		return matchesAny(s, GroupsInfoSiteLibraryDrive, ds)
-	case GroupsInfoChannel:
-		ds := []string{}
-
-		if len(info.ChannelID) > 0 {
-			ds = append(ds, info.ChannelID)
-		}
-
-		if len(info.ChannelName) > 0 {
-			ds = append(ds, info.ChannelName)
-		}
-
-		return matchesAny(s, GroupsInfoChannel, ds)
 	case GroupsInfoChannelMessageCreator:
 		i = info.MessageCreator
 	case GroupsInfoChannelMessageCreatedAfter, GroupsInfoChannelMessageCreatedBefore:

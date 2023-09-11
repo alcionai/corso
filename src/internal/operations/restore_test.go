@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/stats"
@@ -344,7 +343,6 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 	ctrl, err := m365.NewController(
 		ctx,
 		suite.acct,
-		resource.Users,
 		rsel.PathService(),
 		control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))

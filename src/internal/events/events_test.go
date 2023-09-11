@@ -36,8 +36,7 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 		storage.S3Config{
 			Bucket: "bckt",
 			Prefix: "prfx",
-		},
-	)
+		})
 	require.NoError(t, err, clues.ToCore(err))
 
 	a, err := account.NewAccount(
@@ -48,8 +47,7 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 				AzureClientSecret: "secret",
 			},
 			AzureTenantID: "tid",
-		},
-	)
+		})
 	require.NoError(t, err, clues.ToCore(err))
 
 	b, err := events.NewBus(ctx, s, a.ID(), control.DefaultOptions())

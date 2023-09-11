@@ -236,8 +236,7 @@ func (s *SharePointRestore) WebURL(urls []string, opts ...option) []SharePointSc
 			SharePointPage,
 			SharePointWebURL,
 			urls,
-			pathFilterFactory(os...)),
-	)
+			pathFilterFactory(os...)))
 
 	return scopes
 }

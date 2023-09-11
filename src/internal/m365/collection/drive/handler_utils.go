@@ -90,7 +90,6 @@ func augmentItemInfo(
 		}
 
 	case path.GroupsService:
-		// TODO: Add channel name and ID
 		dii.Groups = &details.GroupsInfo{
 			Created:    ptr.Val(item.GetCreatedDateTime()),
 			DriveID:    driveID,

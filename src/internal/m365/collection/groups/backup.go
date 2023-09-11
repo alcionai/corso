@@ -6,18 +6,19 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // TODO: incremental support
@@ -31,13 +32,12 @@ import (
 func CreateCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
-	handler BackupHandler,
+	bh backupHandler,
 	tenantID string,
 	scope selectors.GroupsScope,
-	// dps DeltaPaths,
 	su support.StatusUpdater,
 	errs *fault.Bus,
-) ([]data.BackupCollection, error) {
+) ([]data.BackupCollection, bool, error) {
 	ctx = clues.Add(ctx, "category", scope.Category().PathType())
 
 	var (
@@ -50,269 +50,229 @@ func CreateCollections(
 		}
 	)
 
+	cdps, canUsePreviousBackup, err := parseMetadataCollections(ctx, bpc.MetadataCollections)
+	if err != nil {
+		return nil, false, err
+	}
+
+	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
+
 	catProgress := observe.MessageWithCompletion(
 		ctx,
 		observe.Bulletf("%s", qp.Category))
 	defer close(catProgress)
 
-	// TODO(keepers): probably shouldn't call out channels here specifically.
-	// This should be a generic container handler.  But we don't need
-	// to worry about that until if/when we use this code to get email
-	// conversations as well.
-	// Also, this should be produced by the Handler.
-	// chanPager := handler.NewChannelsPager(qp.ProtectedResource.ID())
-	// TODO(neha): enumerate channels
-	channels := []graph.Displayable{}
+	channels, err := bh.getChannels(ctx)
+	if err != nil {
+		return nil, false, clues.Stack(err)
+	}
 
 	collections, err := populateCollections(
 		ctx,
 		qp,
-		handler,
+		bh,
 		su,
 		channels,
 		scope,
-		// dps,
+		cdps[scope.Category().PathType()],
 		bpc.Options,
 		errs)
 	if err != nil {
-		return nil, clues.Wrap(err, "filling collections")
+		return nil, false, clues.Wrap(err, "filling collections")
 	}
 
 	for _, coll := range collections {
 		allCollections = append(allCollections, coll)
 	}
 
-	return allCollections, nil
+	return allCollections, canUsePreviousBackup, nil
 }
 
 func populateCollections(
 	ctx context.Context,
 	qp graph.QueryParams,
-	bh BackupHandler,
+	bh backupHandler,
 	statusUpdater support.StatusUpdater,
-	channels []graph.Displayable,
+	channels []models.Channelable,
 	scope selectors.GroupsScope,
-	// dps DeltaPaths,
+	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
-	// channel ID -> BackupCollection.
-	channelCollections := map[string]data.BackupCollection{}
+	var (
+		// channel ID -> BackupCollection.
+		collections = map[string]data.BackupCollection{}
+		// channel ID -> delta url or folder path lookups
+		deltaURLs = map[string]string{}
+		currPaths = map[string]string{}
+		// copy of previousPaths.  every channel present in the slice param
+		// gets removed from this map; the remaining channels at the end of
+		// the process have been deleted.
+		tombstones = makeTombstones(dps)
+		el         = errs.Local()
+	)
 
-	// channel ID -> delta url or folder path lookups
-	// TODO(neha/keepers): figure out if deltas are stored per channel, or per group.
-	// deltaURLs = map[string]string{}
-	// currPaths = map[string]string{}
-	// copy of previousPaths.  every channel present in the slice param
-	// gets removed from this map; the remaining channels at the end of
-	// the process have been deleted.
-	// tombstones = makeTombstones(dps)
-
-	logger.Ctx(ctx).Infow("filling collections")
-	// , "len_deltapaths", len(dps))
-
-	el := errs.Local()
+	logger.Ctx(ctx).Info("filling collections", "len_deltapaths", len(dps))
 
 	for _, c := range channels {
 		if el.Failure() != nil {
 			return nil, el.Failure()
 		}
 
-		cID := ptr.Val(c.GetId())
-		// delete(tombstones, cID)
-
 		var (
-			err error
-			// dp          = dps[cID]
-			// prevDelta   = dp.Delta
-			// prevPathStr = dp.Path // do not log: pii; log prevPath instead
-			// prevPath    path.Path
-			ictx = clues.Add(
+			cID         = ptr.Val(c.GetId())
+			cName       = ptr.Val(c.GetDisplayName())
+			err         error
+			dp          = dps[cID]
+			prevDelta   = dp.Delta
+			prevPathStr = dp.Path // do not log: pii; log prevPath instead
+			prevPath    path.Path
+			ictx        = clues.Add(
 				ctx,
-				"channel_id", cID)
-			// "previous_delta", pii.SafeURL{
-			// 	URL:           prevDelta,
-			// 	SafePathElems: graph.SafeURLPathParams,
-			// 	SafeQueryKeys: graph.SafeURLQueryParams,
-			// })
+				"channel_id", cID,
+				"previous_delta", pii.SafeURL{
+					URL:           prevDelta,
+					SafePathElems: graph.SafeURLPathParams,
+					SafeQueryKeys: graph.SafeURLQueryParams,
+				})
 		)
 
-		// currPath, locPath
-		// TODO(rkeepers): the handler should provide this functionality.
+		delete(tombstones, cID)
+
 		// Only create a collection if the path matches the scope.
-		if !includeContainer(ictx, qp, c, scope, qp.Category) {
+		if !bh.includeContainer(ictx, qp, c, scope) {
 			continue
 		}
 
-		// if len(prevPathStr) > 0 {
-		// 	if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
-		// 		logger.CtxErr(ictx, err).Error("parsing prev path")
-		// 		// if the previous path is unusable, then the delta must be, too.
-		// 		prevDelta = ""
-		// 	}
-		// }
+		if len(prevPathStr) > 0 {
+			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
+				logger.CtxErr(ictx, err).Error("parsing prev path")
+				// if the previous path is unusable, then the delta must be, too.
+				prevDelta = ""
+			}
+		}
 
-		// ictx = clues.Add(ictx, "previous_path", prevPath)
+		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		// TODO: the handler should provide this implementation.
-		items, err := collectItems(
-			ctx,
-			bh.NewMessagePager(qp.ProtectedResource.ID(), ptr.Val(c.GetId())))
+		added, removed, du, err := bh.getChannelMessageIDsDelta(ctx, cID, prevDelta)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
 		}
 
-		// if len(newDelta.URL) > 0 {
-		// 	deltaURLs[cID] = newDelta.URL
-		// } else if !newDelta.Reset {
-		// 	logger.Ctx(ictx).Info("missing delta url")
-		// }
+		if len(du.URL) > 0 {
+			deltaURLs[cID] = du.URL
+		} else if !du.Reset {
+			logger.Ctx(ictx).Info("missing delta url")
+		}
 
-		var prevPath path.Path
-
-		// TODO: retrieve from handler
-		currPath, err := path.Builder{}.
-			Append(ptr.Val(c.GetId())).
-			ToDataLayerPath(
-				qp.TenantID,
-				qp.ProtectedResource.ID(),
-				path.GroupsService,
-				qp.Category,
-				true)
+		currPath, err := bh.canonicalPath(path.Builder{}.Append(cID), qp.TenantID)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
+			continue
+		}
+
+		// Remove any deleted IDs from the set of added IDs because items that are
+		// deleted and then restored will have a different ID than they did
+		// originally.
+		for remove := range removed {
+			delete(added, remove)
+		}
+
+		edc := NewCollection(
+			bh,
+			qp.ProtectedResource.ID(),
+			currPath,
+			prevPath,
+			path.Builder{}.Append(cName),
+			qp.Category,
+			added,
+			removed,
+			statusUpdater,
+			ctrlOpts,
+			du.Reset)
+
+		collections[cID] = &edc
+
+		// add the current path for the container ID to be used in the next backup
+		// as the "previous path", for reference in case of a rename or relocation.
+		currPaths[cID] = currPath.String()
+	}
+
+	// A tombstone is a channel that needs to be marked for deletion.
+	// The only situation where a tombstone should appear is if the channel exists
+	// in the `previousPath` set, but does not exist in the enumeration.
+	for id, p := range tombstones {
+		if el.Failure() != nil {
+			return nil, el.Failure()
+		}
+
+		var (
+			err  error
+			ictx = clues.Add(ctx, "tombstone_id", id)
+		)
+
+		if collections[id] != nil {
+			el.AddRecoverable(ctx, clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
+			continue
+		}
+
+		// only occurs if it was a new folder that we picked up during the container
+		// resolver phase that got deleted in flight by the time we hit this stage.
+		if len(p) == 0 {
+			continue
+		}
+
+		prevPath, err := pathFromPrevString(p)
+		if err != nil {
+			// technically shouldn't ever happen.  But just in case...
+			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
 			continue
 		}
 
 		edc := NewCollection(
+			bh,
 			qp.ProtectedResource.ID(),
-			currPath,
+			nil, // marks the collection as deleted
 			prevPath,
-			path.Builder{}.Append(ptr.Val(c.GetDisplayName())),
+			nil, // tombstones don't need a location
 			qp.Category,
+			nil, // no items added
+			nil, // this deletes a directory, so no items deleted either
 			statusUpdater,
-			ctrlOpts)
+			ctrlOpts,
+			false)
 
-		channelCollections[cID] = &edc
-
-		// TODO: handle deleted items for v1 backup.
-		// // Remove any deleted IDs from the set of added IDs because items that are
-		// // deleted and then restored will have a different ID than they did
-		// // originally.
-		// for _, remove := range removed {
-		// 	delete(edc.added, remove)
-		// 	edc.removed[remove] = struct{}{}
-		// }
-
-		// // add the current path for the container ID to be used in the next backup
-		// // as the "previous path", for reference in case of a rename or relocation.
-		// currPaths[cID] = currPath.String()
-
-		// FIXME: normally this goes before removal, but linters
-		for _, item := range items {
-			edc.added[ptr.Val(item.GetId())] = struct{}{}
-		}
+		collections[id] = &edc
 	}
-
-	// TODO: handle tombstones here
 
 	logger.Ctx(ctx).Infow(
 		"adding metadata collection entries",
-		// "num_deltas_entries", len(deltaURLs),
-		"num_paths_entries", len(channelCollections))
+		"num_deltas_entries", len(deltaURLs),
+		"num_paths_entries", len(collections))
 
-	// col, err := graph.MakeMetadataCollection(
-	// 	qp.TenantID,
-	// 	qp.ProtectedResource.ID(),
-	// 	path.ExchangeService,
-	// 	qp.Category,
-	// 	[]graph.MetadataCollectionEntry{
-	// 		graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
-	// 		graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
-	// 	},
-	// 	statusUpdater)
-	// if err != nil {
-	// 	return nil, clues.Wrap(err, "making metadata collection")
-	// }
-
-	// channelCollections["metadata"] = col
-
-	return channelCollections, el.Failure()
-}
-
-func collectItems(
-	ctx context.Context,
-	pager api.ChannelMessageDeltaEnumerator,
-) ([]models.ChatMessageable, error) {
-	items := []models.ChatMessageable{}
-
-	for {
-		// assume delta urls here, which allows single-token consumption
-		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "getting page")
-		}
-
-		// if graph.IsErrInvalidDelta(err) {
-		// 	logger.Ctx(ctx).Infow("Invalid previous delta link", "link", prevDelta)
-
-		// 	invalidPrevDelta = true
-		// 	newPaths = map[string]string{}
-
-		// 	pager.Reset()
-
-		// 	continue
-		// }
-
-		vals, err := pager.ValuesIn(page)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "getting items in page")
-		}
-
-		items = append(items, vals...)
-
-		nextLink, _ := api.NextAndDeltaLink(page)
-
-		// if len(deltaLink) > 0 {
-		// 	newDeltaURL = deltaLink
-		// }
-
-		// Check if there are more items
-		if len(nextLink) == 0 {
-			break
-		}
-
-		logger.Ctx(ctx).Debugw("found nextLink", "next_link", nextLink)
-		pager.SetNext(nextLink)
+	pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
+		qp.TenantID,
+		qp.ProtectedResource.ID(),
+		path.GroupsService,
+		qp.Category,
+		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata path")
 	}
 
-	return items, nil
-}
+	col, err := graph.MakeMetadataCollection(
+		pathPrefix,
+		[]graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
+			graph.NewMetadataEntry(metadata.DeltaURLsFileName, deltaURLs),
+		},
+		statusUpdater)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata collection")
+	}
 
-// Returns true if the container passes the scope comparison and should be included.
-// Returns:
-// - the path representing the directory as it should be stored in the repository.
-// - the human-readable path using display names.
-// - true if the path passes the scope comparison.
-func includeContainer(
-	ctx context.Context,
-	qp graph.QueryParams,
-	gd graph.Displayable,
-	scope selectors.GroupsScope,
-	category path.CategoryType,
-) bool {
-	// assume a single-level hierarchy
-	directory := ptr.Val(gd.GetDisplayName())
+	collections["metadata"] = col
 
-	// TODO(keepers): awaiting parent branch to update to main
-	ok := scope.Matches(selectors.GroupsCategoryUnknown, directory)
-
-	logger.Ctx(ctx).With(
-		"included", ok,
-		"scope", scope,
-		"match_target", directory,
-	).Debug("backup folder selection filter")
-
-	return ok
+	return collections, el.Failure()
 }

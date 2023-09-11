@@ -289,7 +289,7 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 	_, err = NewService(adpt).
 		Client().
 		Users().
-		ByUserId("user").
+		ByUserIdString("user").
 		MailFolders().
 		Post(ctx, body, nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -326,7 +326,7 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryResponse_maintainBodyAft
 	_, err = NewService(adpt).
 		Client().
 		Users().
-		ByUserId("user").
+		ByUserIdString("user").
 		MailFolders().
 		Post(ctx, models.NewMailFolder(), nil)
 	require.Error(t, err, clues.ToCore(err))
@@ -370,6 +370,11 @@ func (suite *MiddlewareUnitSuite) TestBindExtractLimiterConfig() {
 		{
 			name:          "sharePoint",
 			service:       path.SharePointService,
+			expectLimiter: driveLimiter,
+		},
+		{
+			name:          "groups",
+			service:       path.GroupsService,
 			expectLimiter: driveLimiter,
 		},
 		{

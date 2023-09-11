@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	stdpath "path"
+	"strings"
 	"testing"
 	"time"
 
@@ -139,10 +140,8 @@ func (suite *KopiaUnitSuite) SetupSuite() {
 			path.ExchangeService.String(),
 			testUser,
 			path.EmailCategory.String(),
-			testInboxDir,
-		),
-		false,
-	)
+			testInboxDir),
+		false)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	suite.testPath = tmp
@@ -173,8 +172,7 @@ func TestBasicKopiaIntegrationSuite(t *testing.T) {
 	suite.Run(t, &BasicKopiaIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -397,8 +395,7 @@ func TestRetentionIntegrationSuite(t *testing.T) {
 	suite.Run(t, &RetentionIntegrationSuite{
 		Suite: tester.NewRetentionSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -716,8 +713,7 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 	suite.Run(t, &KopiaIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -765,18 +761,24 @@ func (suite *KopiaIntegrationSuite) TearDownTest() {
 }
 
 func (suite *KopiaIntegrationSuite) TestBackupCollections() {
+	c1 := exchMock.NewCollection(
+		suite.storePath1,
+		suite.locPath1,
+		5)
+	// Add a 4k chunk of data that should be compressible. This helps check
+	// compression is enabled because we do some testing on the number of bytes
+	// uploaded during the first backup.
+	c1.Data[0] = []byte(strings.Repeat("abcdefgh", 512))
+
 	collections := []data.BackupCollection{
-		exchMock.NewCollection(
-			suite.storePath1,
-			suite.locPath1,
-			5),
+		c1,
 		exchMock.NewCollection(
 			suite.storePath2,
 			suite.locPath2,
 			42),
 	}
 
-	c1 := exchMock.NewCollection(
+	c1 = exchMock.NewCollection(
 		suite.storePath1,
 		suite.locPath1,
 		0)
@@ -806,14 +808,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			testTenant,
 			suite.storePath1.ResourceOwner(),
 			suite.storePath1.Service(),
-			suite.storePath1.Category(),
-		),
+			suite.storePath1.Category()),
 		NewReason(
 			testTenant,
 			suite.storePath2.ResourceOwner(),
 			suite.storePath2.Service(),
-			suite.storePath2.Category(),
-		),
+			suite.storePath2.Category()),
 	}
 
 	expectedTags := map[string]string{}
@@ -922,8 +922,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 					t,
 					details,
 					// 47 file and 2 folder entries.
-					test.expectedUploadedFiles+test.expectedCachedFiles+2,
-				)
+					test.expectedUploadedFiles+test.expectedCachedFiles+2)
 			}
 
 			checkSnapshotTags(
@@ -931,14 +930,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				ctx,
 				suite.w.c,
 				expectedTags,
-				stats.SnapshotID,
-			)
+				stats.SnapshotID)
 
 			snap, err := snapshot.LoadSnapshot(
 				ctx,
 				suite.w.c,
-				manifest.ID(stats.SnapshotID),
-			)
+				manifest.ID(stats.SnapshotID))
 			require.NoError(t, err, clues.ToCore(err))
 
 			res = ManifestEntry{
@@ -1199,8 +1196,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			assert.Len(
 				t,
 				details,
-				test.numDeetsEntries+1,
-			)
+				test.numDeetsEntries+1)
 
 			for _, entry := range details {
 				if test.hasMetaDeets {
@@ -1219,8 +1215,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				suite.ctx,
 				suite.w.c,
 				expectedTags,
-				stats.SnapshotID,
-			)
+				stats.SnapshotID)
 
 			snap, err := snapshot.LoadSnapshot(
 				suite.ctx,
@@ -1232,8 +1227,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				ManifestEntry{
 					Manifest: snap,
 					Reasons:  reasons,
-				},
-			)
+				})
 		})
 	}
 }
@@ -1457,8 +1451,7 @@ func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
 	suite.Run(t, &KopiaSimpleRepoIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -1571,8 +1564,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 					ItemID:   item.itemPath.Item(),
 					Reader:   io.NopCloser(bytes.NewReader(item.data)),
 					ItemInfo: exchMock.StubMailInfo(),
-				},
-			)
+				})
 		}
 
 		collections = append(collections, collection)
@@ -1714,8 +1706,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 					ManifestEntry{
 						Manifest: man,
 						Reasons:  []identity.Reasoner{r},
-					},
-				),
+					}),
 				test.cols(),
 				excluded,
 				nil,

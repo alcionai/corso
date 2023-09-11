@@ -71,8 +71,7 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 	suite.Run(t, &WrapperIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -298,26 +297,22 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 				require.Equal(
 					t,
 					defaultRetention,
-					p.RetentionPolicy,
-				)
+					p.RetentionPolicy)
 				assert.Equal(
 					t,
 					math.MaxInt,
-					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42),
-				)
+					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42))
 			},
 			checkFunc: func(t *testing.T, p *policy.Policy) {
 				t.Helper()
 				require.Equal(
 					t,
 					newRetention,
-					p.RetentionPolicy,
-				)
+					p.RetentionPolicy)
 				assert.Equal(
 					t,
 					42,
-					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42),
-				)
+					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42))
 			},
 			mutator: func(innerCtx context.Context, p *policy.Policy) error {
 				updateRetentionOnPolicy(newRetention, p)
@@ -468,8 +463,7 @@ func TestConnRetentionIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ConnRetentionIntegrationSuite{
 		Suite: tester.NewRetentionSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 

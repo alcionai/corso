@@ -106,7 +106,7 @@ func (c Groups) GetByID(
 		return nil, err
 	}
 
-	resp, err := service.Client().Groups().ByGroupId(identifier).Get(ctx, nil)
+	resp, err := service.Client().Groups().ByGroupIdString(identifier).Get(ctx, nil)
 	if err != nil {
 		err := graph.Wrap(ctx, err, "getting group by id")
 
@@ -129,9 +129,9 @@ func (c Groups) GetRootSite(
 	resp, err := service.
 		Client().
 		Groups().
-		ByGroupId(identifier).
+		ByGroupIdString(identifier).
 		Sites().
-		BySiteId("root").
+		BySiteIdString("root").
 		Get(ctx, nil)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting root site for group")

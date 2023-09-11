@@ -26,8 +26,7 @@ func NewM365Account(t *testing.T) account.Account {
 		account.M365Config{
 			M365:          credentials.GetM365(),
 			AzureTenantID: cfg[TestCfgAzureTenantID],
-		},
-	)
+		})
 	require.NoError(t, err, "initializing account", clues.ToCore(err))
 
 	return acc
@@ -42,8 +41,7 @@ func NewFakeM365Account(t *testing.T) account.Account {
 				AzureClientSecret: "abcde",
 			},
 			AzureTenantID: "09876",
-		},
-	)
+		})
 	require.NoError(t, err, "initializing mock account", clues.ToCore(err))
 
 	return acc
