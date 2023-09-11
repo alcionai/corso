@@ -30,7 +30,7 @@ jobs:
       run:
         working-directory: src
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # single setup and sum cache handling here.
       # the results will cascade onto both testing and linting.
@@ -61,7 +61,7 @@ jobs:
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
       CORSO_ENABLE_GROUPS: true
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v4
