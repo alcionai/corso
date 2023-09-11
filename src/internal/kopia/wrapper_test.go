@@ -1125,7 +1125,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					streams = append(streams, ms)
 				}
 
-				mc := &dataMock.BackupCollection{
+				mc := &dataMock.Collection{
 					Path:    storePath,
 					Loc:     locPath,
 					Streams: streams,
@@ -1152,7 +1152,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					ItemInfo: details.ItemInfo{OneDrive: &info},
 				}
 
-				mc := &dataMock.BackupCollection{
+				mc := &dataMock.Collection{
 					Path:    storePath,
 					Loc:     locPath,
 					Streams: []data.Item{ms},
@@ -1295,7 +1295,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	collections := []data.BackupCollection{
-		&dataMock.BackupCollection{
+		&dataMock.Collection{
 			Path: suite.storePath1,
 			Loc:  loc1,
 			Streams: []data.Item{
@@ -1311,7 +1311,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 				},
 			},
 		},
-		&dataMock.BackupCollection{
+		&dataMock.Collection{
 			Path: suite.storePath2,
 			Loc:  loc2,
 			Streams: []data.Item{
@@ -1554,7 +1554,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
 		loc := path.Builder{}.Append(parent.Folders()...)
-		collection := &dataMock.BackupCollection{Path: parent, Loc: loc}
+		collection := &dataMock.Collection{Path: parent, Loc: loc}
 
 		for _, item := range suite.files[parent.String()] {
 			collection.Streams = append(

@@ -238,7 +238,7 @@ func MetadataFiles(
 		reason.Category(),
 		true,
 		odConsts.SitesPathDir,
-		graph.PreviousPathFileName)
+		metadata.PreviousPathFileName)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func MetadataFiles(
 	filePaths := [][]string{}
 
 	for k := range sites {
-		for _, fn := range graph.AllMetadataFileNames() {
+		for _, fn := range metadata.AllMetadataFileNames() {
 			filePaths = append(filePaths, []string{odConsts.SitesPathDir, k, fn})
 		}
 	}
@@ -313,7 +313,7 @@ func deserializeSiteMetadata(
 				)
 
 				switch item.ID() {
-				case graph.PreviousPathFileName:
+				case metadata.PreviousPathFileName:
 					err = drive.DeserializeMap(item.ToReader(), prevFolders)
 
 				default:

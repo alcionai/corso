@@ -5,8 +5,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -80,8 +78,10 @@ var (
 
 type Collection struct {
 	Path                 path.Path
+	Loc                  *path.Builder
 	ItemData             []*Item
 	ItemsRecoverableErrs []error
+	CState               data.CollectionState
 }
 
 func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
@@ -114,20 +114,34 @@ func (c Collection) FullPath() path.Path {
 }
 
 func (c Collection) PreviousPath() path.Path {
-	return nil
+	return c.Path
+}
+
+func (c Collection) LocationPath() *path.Builder {
+	return c.Loc
 }
 
 func (c Collection) State() data.CollectionState {
-	return data.NewState
+	return c.CState
 }
 
 func (c Collection) DoNotMergeItems() bool {
-	return true
+	return false
 }
 
-func (c Collection) FetchItemByName(ctx context.Context, name string) (data.Item, error) {
-	return &Item{}, clues.New("not implemented")
+func (c Collection) FetchItemByName(
+	ctx context.Context,
+	name string,
+) (data.Item, error) {
+	res := c.AuxItems[name]
+	if res == nil {
+		return nil, data.ErrNotFound
+	}
+
+	return res, nil
 }
+
+var _ data.RestoreCollection = &RestoreCollection{}
 
 type RestoreCollection struct {
 	data.Collection
@@ -144,45 +158,4 @@ func (rc RestoreCollection) FetchItemByName(
 	}
 
 	return res, nil
-}
-
-type BackupCollection struct {
-	Path    path.Path
-	Loc     *path.Builder
-	Streams []data.Item
-	CState  data.CollectionState
-}
-
-func (c *BackupCollection) Items(context.Context, *fault.Bus) <-chan data.Item {
-	res := make(chan data.Item)
-
-	go func() {
-		defer close(res)
-
-		for _, s := range c.Streams {
-			res <- s
-		}
-	}()
-
-	return res
-}
-
-func (c BackupCollection) FullPath() path.Path {
-	return c.Path
-}
-
-func (c BackupCollection) PreviousPath() path.Path {
-	return c.Path
-}
-
-func (c BackupCollection) LocationPath() *path.Builder {
-	return c.Loc
-}
-
-func (c BackupCollection) State() data.CollectionState {
-	return c.CState
-}
-
-func (c BackupCollection) DoNotMergeItems() bool {
-	return false
 }

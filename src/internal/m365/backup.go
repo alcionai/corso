@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -210,7 +211,7 @@ func (ctrl *Controller) CollectMetadata(
 				return nil, err
 			}
 		default:
-			for _, fn := range graph.AllMetadataFileNames() {
+			for _, fn := range bupMD.AllMetadataFileNames() {
 				filePaths = append(filePaths, []string{fn})
 			}
 		}

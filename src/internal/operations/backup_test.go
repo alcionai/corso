@@ -1565,7 +1565,7 @@ func makeBackupCollection(
 		streams[i] = &items[i]
 	}
 
-	return &dataMock.BackupCollection{
+	return &dataMock.Collection{
 		Path:    p,
 		Loc:     locPath,
 		Streams: streams,
