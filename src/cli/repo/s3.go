@@ -39,7 +39,6 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	flags.AddAWSCredsFlags(c)
 	flags.AddAzureCredsFlags(c)
 	flags.AddCorsoPassphaseFlags(c)
-
 	flags.AddS3BucketFlags(c)
 
 	return c

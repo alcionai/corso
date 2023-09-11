@@ -2,7 +2,7 @@ package flags
 
 import "github.com/spf13/cobra"
 
-// s3 bucket flags
+// S3 bucket flags
 const (
 	BucketFN          = "bucket"
 	EndpointFN        = "endpoint"
@@ -12,7 +12,7 @@ const (
 	SucceedIfExistsFN = "succeed-if-exists"
 )
 
-// s3 bucket info from flags
+// S3 bucket flag values
 var (
 	BucketFV          string
 	EndpointFV        string
