@@ -336,7 +336,7 @@ jobs:
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
           go run . sharepoint files  \
-            --site ${{ secrets.CORSO_M365_TEST_GROUPS_SITE_URL }} \
+            --site ${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }} \
             --user ${{ env.TEST_USER }} \
             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
@@ -351,7 +351,7 @@ jobs:
         with:
           service: groups
           kind: initial
-          backup-args: '--group "${{ secrets.CORSO_M365_TEST_TEAM_ID }}"'
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
 
@@ -361,7 +361,7 @@ jobs:
         with:
           service: teams
           kind: initial
-          backup-args: '--group "${{ secrets.CORSO_M365_TEST_TEAM_ID }}"'
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
 
