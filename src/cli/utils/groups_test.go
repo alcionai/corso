@@ -8,7 +8,9 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -24,9 +26,13 @@ func TestGroupsUtilsSuite(t *testing.T) {
 // differentiates between the 3 categories: Pages, Libraries and Lists CLI
 func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 	var (
-		empty  = []string{}
-		single = []string{"single"}
-		multi  = []string{"more", "than", "one"}
+		empty             = []string{}
+		single            = []string{"single"}
+		multi             = []string{"more", "than", "one"}
+		containsOnly      = []string{"contains"}
+		prefixOnly        = []string{"/prefix"}
+		containsAndPrefix = []string{"contains", "/prefix"}
+		onlySlash         = []string{string(path.PathSeparator)}
 	)
 
 	table := []struct {
@@ -60,8 +66,105 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			},
 			expectIncludeLen: 2,
 		},
-		// TODO Add library specific tests once we have filters based
-		// on library folders
+		{
+			name: "library folder contains",
+			opts: utils.GroupsOpts{
+				FileName:   empty,
+				FolderPath: containsOnly,
+				SiteID:     empty,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "library folder prefixes",
+			opts: utils.GroupsOpts{
+				FileName:   empty,
+				FolderPath: prefixOnly,
+				SiteID:     empty,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "library folder prefixes and contains",
+			opts: utils.GroupsOpts{
+				FileName:   empty,
+				FolderPath: containsAndPrefix,
+				SiteID:     empty,
+			},
+			expectIncludeLen: 2,
+		},
+		{
+			name: "list contains",
+			opts: utils.GroupsOpts{
+				FileName:   empty,
+				FolderPath: empty,
+				ListItem:   empty,
+				ListFolder: containsOnly,
+				SiteID:     empty,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "list prefixes",
+			opts: utils.GroupsOpts{
+				ListFolder: prefixOnly,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "list prefixes and contains",
+			opts: utils.GroupsOpts{
+				ListFolder: containsAndPrefix,
+			},
+			expectIncludeLen: 2,
+		},
+		{
+			name: "library folder suffixes",
+			opts: utils.GroupsOpts{
+				FileName:   empty,
+				FolderPath: empty,
+				// SiteID:     empty,  // TODO(meain): Update once we support multiple sites
+			},
+			expectIncludeLen: 2,
+		},
+		{
+			name: "library folder suffixes and contains",
+			opts: utils.GroupsOpts{
+				FileName:   empty,
+				FolderPath: empty,
+				// SiteID:     empty, // TODO(meain): update once we support multiple sites
+			},
+			expectIncludeLen: 2,
+		},
+		{
+			name: "Page Folder",
+			opts: utils.GroupsOpts{
+				PageFolder: single,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "Site Page ",
+			opts: utils.GroupsOpts{
+				Page: single,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "Page & library Files",
+			opts: utils.GroupsOpts{
+				PageFolder: single,
+				FileName:   multi,
+			},
+			expectIncludeLen: 2,
+		},
+		{
+			name: "folder with just /",
+			opts: utils.GroupsOpts{
+				FolderPath: onlySlash,
+			},
+			expectIncludeLen: 1,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -95,64 +198,68 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 			opts:     utils.GroupsOpts{},
 			expect:   assert.Error,
 		},
-		// TODO: Add tests for selectors once we have them
-		// {
-		// 	name:     "all valid",
-		// 	backupID: "id",
-		// 	opts: utils.GroupsOpts{
-		// 		Populated: flags.PopulatedFlags{
-		// 			flags.FileCreatedAfterFN:   struct{}{},
-		// 			flags.FileCreatedBeforeFN:  struct{}{},
-		// 			flags.FileModifiedAfterFN:  struct{}{},
-		// 			flags.FileModifiedBeforeFN: struct{}{},
-		// 		},
-		// 	},
-		// 	expect: assert.NoError,
-		// },
-		// {
-		// 	name:     "invalid file created after",
-		// 	backupID: "id",
-		// 	opts: utils.GroupsOpts{
-		// 		FileCreatedAfter: "1235",
-		// 		Populated: flags.PopulatedFlags{
-		// 			flags.FileCreatedAfterFN: struct{}{},
-		// 		},
-		// 	},
-		// 	expect: assert.Error,
-		// },
-		// {
-		// 	name:     "invalid file created before",
-		// 	backupID: "id",
-		// 	opts: utils.GroupsOpts{
-		// 		FileCreatedBefore: "1235",
-		// 		Populated: flags.PopulatedFlags{
-		// 			flags.FileCreatedBeforeFN: struct{}{},
-		// 		},
-		// 	},
-		// 	expect: assert.Error,
-		// },
-		// {
-		// 	name:     "invalid file modified after",
-		// 	backupID: "id",
-		// 	opts: utils.GroupsOpts{
-		// 		FileModifiedAfter: "1235",
-		// 		Populated: flags.PopulatedFlags{
-		// 			flags.FileModifiedAfterFN: struct{}{},
-		// 		},
-		// 	},
-		// 	expect: assert.Error,
-		// },
-		// {
-		// 	name:     "invalid file modified before",
-		// 	backupID: "id",
-		// 	opts: utils.GroupsOpts{
-		// 		FileModifiedBefore: "1235",
-		// 		Populated: flags.PopulatedFlags{
-		// 			flags.FileModifiedBeforeFN: struct{}{},
-		// 		},
-		// 	},
-		// 	expect: assert.Error,
-		// },
+		{
+			name:     "all valid",
+			backupID: "id",
+			opts: utils.GroupsOpts{
+				FileCreatedAfter:   dttm.Now(),
+				FileCreatedBefore:  dttm.Now(),
+				FileModifiedAfter:  dttm.Now(),
+				FileModifiedBefore: dttm.Now(),
+				Populated: flags.PopulatedFlags{
+					flags.SiteFN:               struct{}{},
+					flags.FileCreatedAfterFN:   struct{}{},
+					flags.FileCreatedBeforeFN:  struct{}{},
+					flags.FileModifiedAfterFN:  struct{}{},
+					flags.FileModifiedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.NoError,
+		},
+		{
+			name:     "invalid file created after",
+			backupID: "id",
+			opts: utils.GroupsOpts{
+				FileCreatedAfter: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.FileCreatedAfterFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid file created before",
+			backupID: "id",
+			opts: utils.GroupsOpts{
+				FileCreatedBefore: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.FileCreatedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid file modified after",
+			backupID: "id",
+			opts: utils.GroupsOpts{
+				FileModifiedAfter: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.FileModifiedAfterFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid file modified before",
+			backupID: "id",
+			opts: utils.GroupsOpts{
+				FileModifiedBefore: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.FileModifiedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
