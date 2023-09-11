@@ -299,7 +299,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_NoBackupsOrSnapshots() {
 
 	bb := bf.FindBases(ctx, reasons, nil)
 	assert.Empty(t, bb.MergeBases())
-	assert.Empty(t, bb.AssistBases())
+	assert.Empty(t, bb.UniqueAssistBases())
 }
 
 func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
@@ -318,7 +318,7 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 
 	bb := bf.FindBases(ctx, reasons, nil)
 	assert.Empty(t, bb.MergeBases())
-	assert.Empty(t, bb.AssistBases())
+	assert.Empty(t, bb.UniqueAssistBases())
 }
 
 func (suite *BaseFinderUnitSuite) TestGetBases() {
@@ -1061,7 +1061,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				test.expectedBaseReasons)
 			checkBackupEntriesMatch(
 				t,
-				bb.AssistBackups(),
+				bb.UniqueAssistBackups(),
 				test.backupData,
 				test.expectedAssistReasons)
 
@@ -1072,7 +1072,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				test.expectedBaseReasons)
 			checkManifestEntriesMatch(
 				t,
-				bb.AssistBases(),
+				bb.UniqueAssistBases(),
 				test.manifestData,
 				test.expectedAssistManifestReasons)
 		})

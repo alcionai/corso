@@ -12,7 +12,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -193,7 +195,10 @@ func UpdatePermissions(
 	itemID string,
 	permAdded, permRemoved []metadata.Permission,
 	oldPermIDToNewID *xsync.MapOf[string, string],
+	errs *fault.Bus,
 ) error {
+	el := errs.Local()
+
 	// The ordering of the operations is important here. We first
 	// remove all the removed permissions and then add the added ones.
 	for _, p := range permRemoved {
@@ -223,6 +228,10 @@ func UpdatePermissions(
 	}
 
 	for _, p := range permAdded {
+		if el.Failure() != nil {
+			break
+		}
+
 		ictx := clues.Add(
 			ctx,
 			"permission_entity_type", p.EntityType,
@@ -267,14 +276,20 @@ func UpdatePermissions(
 		pbody.SetRecipients([]models.DriveRecipientable{rec})
 
 		newPerm, err := udip.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
+		if graph.IsErrUsersCannotBeResolved(err) {
+			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+			continue
+		}
+
 		if err != nil {
-			return clues.Stack(err)
+			el.AddRecoverable(ictx, clues.Stack(err))
+			continue
 		}
 
 		oldPermIDToNewID.Store(p.ID, ptr.Val(newPerm.GetValue()[0].GetId()))
 	}
 
-	return nil
+	return el.Failure()
 }
 
 type updateDeleteItemLinkSharer interface {
@@ -289,14 +304,20 @@ func UpdateLinkShares(
 	itemID string,
 	lsAdded, lsRemoved []metadata.LinkShare,
 	oldLinkShareIDToNewID *xsync.MapOf[string, string],
+	errs *fault.Bus,
 ) (bool, error) {
 	// You can only delete inherited sharing links the first time you
 	// create a sharing link which is done using
 	// `retainInheritedPermissions`.  We cannot separately delete any
 	// inherited link shares via DELETE API call like for permissions.
 	alreadyDeleted := false
+	el := errs.Local()
 
 	for _, ls := range lsAdded {
+		if el.Failure() != nil {
+			break
+		}
+
 		ictx := clues.Add(ctx, "link_share_id", ls.ID)
 
 		// Links with password are not shared with a specific user
@@ -363,11 +384,21 @@ func UpdateLinkShares(
 		}
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
+		if graph.IsErrUsersCannotBeResolved(err) {
+			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+			continue
+		}
+
 		if err != nil {
-			return alreadyDeleted, clues.Stack(err)
+			el.AddRecoverable(ctx, clues.Stack(err))
+			continue
 		}
 
 		oldLinkShareIDToNewID.Store(ls.ID, ptr.Val(newLS.GetId()))
+	}
+
+	if el.Failure() != nil {
+		return alreadyDeleted, el.Failure()
 	}
 
 	// It is possible to have empty link shares even though we should
@@ -411,6 +442,7 @@ func RestorePermissions(
 	itemPath path.Path,
 	current metadata.Metadata,
 	caches *restoreCaches,
+	errs *fault.Bus,
 ) error {
 	if current.SharingMode == metadata.SharingModeInherited {
 		return nil
@@ -435,7 +467,8 @@ func RestorePermissions(
 		itemID,
 		lsAdded,
 		lsRemoved,
-		caches.OldLinkShareIDToNewID)
+		caches.OldLinkShareIDToNewID,
+		errs)
 	if err != nil {
 		return clues.Wrap(err, "updating link shares")
 	}
@@ -464,7 +497,8 @@ func RestorePermissions(
 		itemID,
 		permAdded,
 		permRemoved,
-		caches.OldPermIDToNewID)
+		caches.OldPermIDToNewID,
+		errs)
 	if err != nil {
 		return clues.Wrap(err, "updating permissions")
 	}

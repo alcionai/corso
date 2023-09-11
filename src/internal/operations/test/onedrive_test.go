@@ -393,7 +393,8 @@ func runDriveIncrementalTest(
 					ptr.Val(newFile.GetId()),
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
-					permissionIDMappings)
+					permissionIDMappings,
+					fault.New(true))
 				require.NoErrorf(t, err, "adding permission to file %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
@@ -411,7 +412,8 @@ func runDriveIncrementalTest(
 					*newFile.GetId(),
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
-					permissionIDMappings)
+					permissionIDMappings,
+					fault.New(true))
 				require.NoErrorf(t, err, "removing permission from file %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
@@ -430,7 +432,8 @@ func runDriveIncrementalTest(
 					targetContainer,
 					[]metadata.Permission{writePerm},
 					[]metadata.Permission{},
-					permissionIDMappings)
+					permissionIDMappings,
+					fault.New(true))
 				require.NoErrorf(t, err, "adding permission to container %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
@@ -449,7 +452,8 @@ func runDriveIncrementalTest(
 					targetContainer,
 					[]metadata.Permission{},
 					[]metadata.Permission{writePerm},
-					permissionIDMappings)
+					permissionIDMappings,
+					fault.New(true))
 				require.NoErrorf(t, err, "removing permission from container %v", clues.ToCore(err))
 				// no expectedDeets: metadata isn't tracked
 			},
