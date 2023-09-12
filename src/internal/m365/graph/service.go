@@ -356,14 +356,12 @@ func (aw *adapterWrap) Send(
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
 		sp, err = aw.RequestAdapter.Send(ctx, requestInfo, constructor, errorMappings)
-		if err != nil &&
-			!(IsErrConnectionReset(err) ||
-				connectionEnded.Compare(err.Error())) {
-			return nil, Stack(ictx, err)
-		}
-
 		if err == nil {
 			break
+		}
+
+		if !IsErrConnectionReset(err) && !connectionEnded.Compare(err.Error()) {
+			return nil, clues.Stack(err).WithTrace(1).WithClues(ictx)
 		}
 
 		logger.Ctx(ictx).Debug("http connection error")

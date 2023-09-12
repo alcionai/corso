@@ -183,9 +183,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			item := readItems[0]
 			shareInfo, ok := item.(data.ItemInfo)
 			require.True(t, ok)
-			require.NotNil(t, shareInfo.Info())
-			require.NotNil(t, shareInfo.Info().SharePoint)
-			assert.Equal(t, test.itemName, shareInfo.Info().SharePoint.ItemName)
+
+			info, err := shareInfo.Info()
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.NotNil(t, info)
+			assert.NotNil(t, info.SharePoint)
+			assert.Equal(t, test.itemName, info.SharePoint.ItemName)
 		})
 	}
 }

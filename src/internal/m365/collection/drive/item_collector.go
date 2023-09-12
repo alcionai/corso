@@ -12,8 +12,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-const maxDrivesRetries = 3
-
 // DeltaUpdate holds the results of a current delta token.  It normally
 // gets produced when aggregating the addition and removal of items in
 // a delta-queryable folder.
@@ -72,7 +70,7 @@ func collectItems(
 
 	if !invalidPrevDelta {
 		maps.Copy(newPaths, oldPaths)
-		pager.SetNext(prevDelta)
+		pager.SetNextLink(prevDelta)
 	}
 
 	for {
@@ -94,10 +92,7 @@ func collectItems(
 			return DeltaUpdate{}, nil, nil, graph.Wrap(ctx, err, "getting page")
 		}
 
-		vals, err := pager.ValuesIn(page)
-		if err != nil {
-			return DeltaUpdate{}, nil, nil, graph.Wrap(ctx, err, "extracting items from response")
-		}
+		vals := page.GetValue()
 
 		err = collector(
 			ctx,
@@ -126,7 +121,7 @@ func collectItems(
 		}
 
 		logger.Ctx(ctx).Debugw("Found nextLink", "link", nextLink)
-		pager.SetNext(nextLink)
+		pager.SetNextLink(nextLink)
 	}
 
 	return DeltaUpdate{URL: newDeltaURL, Reset: invalidPrevDelta}, newPaths, excluded, nil

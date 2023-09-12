@@ -732,16 +732,20 @@ func compareDriveItem(
 
 	if !isMeta {
 		oitem := item.(*drive.Item)
-		info := oitem.Info()
+
+		info, err := oitem.Info()
+		if !assert.NoError(t, err, clues.ToCore(err)) {
+			return true
+		}
 
 		if info.OneDrive != nil {
-			displayName = oitem.Info().OneDrive.ItemName
+			displayName = info.OneDrive.ItemName
 
 			// Don't need to check SharePoint because it was added after we stopped
 			// adding meta files to backup details.
-			assert.False(t, oitem.Info().OneDrive.IsMeta, "meta marker for non meta item %s", name)
+			assert.False(t, info.OneDrive.IsMeta, "meta marker for non meta item %s", name)
 		} else if info.SharePoint != nil {
-			displayName = oitem.Info().SharePoint.ItemName
+			displayName = info.SharePoint.ItemName
 		} else {
 			assert.Fail(t, "ItemInfo is not SharePoint or OneDrive")
 		}
@@ -935,7 +939,7 @@ func checkHasCollections(
 
 		p, err := loc.ToDataLayerPath(
 			fp.Tenant(),
-			fp.ResourceOwner(),
+			fp.ProtectedResource(),
 			fp.Service(),
 			fp.Category(),
 			false)

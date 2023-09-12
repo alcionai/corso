@@ -77,7 +77,7 @@ type Item interface {
 
 // ItemInfo returns the details.ItemInfo for the item.
 type ItemInfo interface {
-	Info() details.ItemInfo
+	Info() (details.ItemInfo, error)
 }
 
 // ItemSize returns the size of the item in bytes.
