@@ -187,9 +187,7 @@ func getSitesMetadataCollection(
 	sites map[string]string,
 	su support.StatusUpdater,
 ) (data.BackupCollection, error) {
-	// TODO(meain): Switch to using BuildMetadata
-	// https://github.com/alcionai/corso/pull/4184#discussion_r1316139701
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenantID,
 		groupID,
 		path.GroupsService,

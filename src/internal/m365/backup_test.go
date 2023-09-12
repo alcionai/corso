@@ -543,9 +543,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	// but it should be more than one.
 	assert.Greater(t, len(collections), 1)
 
-	// TODO(meain): Switch to using BuildMetadata
-	// https://github.com/alcionai/corso/pull/4184#discussion_r1316139701
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		suite.tenantID,
 		groupID,
 		path.GroupsService,
