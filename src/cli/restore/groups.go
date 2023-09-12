@@ -41,6 +41,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 // TODO: correct examples
 const (
 	groupsServiceCommand          = "groups"
+	teamsServiceCommand           = "teams"
 	groupsServiceCommandUseSuffix = "--backup <backupId>"
 
 	groupsServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's last backup (1234abcd...)
@@ -62,6 +63,7 @@ corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd
 func groupsRestoreCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     groupsServiceCommand,
+		Aliases: []string{teamsServiceCommand},
 		Short:   "Restore M365 Groups service data",
 		RunE:    restoreGroupsCmd,
 		Args:    cobra.NoArgs,

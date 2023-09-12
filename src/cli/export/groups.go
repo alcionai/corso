@@ -39,6 +39,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 // TODO: correct examples
 const (
 	groupsServiceCommand          = "groups"
+	teamsServiceCommand           = "teams"
 	groupsServiceCommandUseSuffix = "<destination> --backup <backupId>"
 
 	//nolint:lll
@@ -57,9 +58,10 @@ corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd
 // `corso export groups [<flag>...] <destination>`
 func groupsExportCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   groupsServiceCommand,
-		Short: "Export M365 Groups service data",
-		RunE:  exportGroupsCmd,
+		Use:     groupsServiceCommand,
+		Aliases: []string{teamsServiceCommand},
+		Short:   "Export M365 Groups service data",
+		RunE:    exportGroupsCmd,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.New("missing export destination")
