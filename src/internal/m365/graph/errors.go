@@ -63,11 +63,12 @@ const (
 type errorMessage string
 
 const (
-	IOErrDuringRead       errorMessage = "IO error during request payload read"
-	MysiteURLNotFound     errorMessage = "unable to retrieve user's mysite url"
-	MysiteNotFound        errorMessage = "user's mysite not found"
-	NoSPLicense           errorMessage = "Tenant does not have a SPO license"
-	usersCannotBeResolved errorMessage = "One or more users could not be resolved"
+	IOErrDuringRead                 errorMessage = "IO error during request payload read"
+	MysiteURLNotFound               errorMessage = "unable to retrieve user's mysite url"
+	MysiteNotFound                  errorMessage = "user's mysite not found"
+	NoSPLicense                     errorMessage = "Tenant does not have a SPO license"
+	parameterDeltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request"
+	usersCannotBeResolved           errorMessage = "One or more users could not be resolved"
 )
 
 const (
@@ -134,6 +135,7 @@ func IsErrItemNotFound(err error) bool {
 
 func IsErrInvalidDelta(err error) bool {
 	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid) ||
+		hasErrorMessage(err, parameterDeltaTokenNotSupported) ||
 		errors.Is(err, ErrInvalidDelta)
 }
 
@@ -279,7 +281,7 @@ func hasErrorMessage(err error, msgs ...errorMessage) bool {
 		cs[i] = string(c)
 	}
 
-	return filters.Equal(cs).Compare(msg)
+	return filters.Contains(cs).Compare(msg)
 }
 
 // Wrap is a helper function that extracts ODataError metadata from
