@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -12,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (
@@ -121,7 +123,9 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.UnknownService, S3Overrides(cmd))
+	// Change this to override too?
+	r, _, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx, path.UnknownService, storage.ProviderS3.String(), S3Overrides(cmd))
 	if err != nil {
 		return print.Only(ctx, err)
 	}
@@ -163,4 +167,19 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 	}
 
 	return res, nil
+}
+
+func GetStorageOverrides(
+	ctx context.Context,
+	cmd *cobra.Command,
+	storageProvider string,
+) (map[string]string, error) {
+	overrides := map[string]string{}
+
+	switch storageProvider {
+	case storage.ProviderS3.String():
+		overrides = S3Overrides(cmd)
+	}
+
+	return overrides, nil
 }

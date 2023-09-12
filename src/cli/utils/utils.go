@@ -24,9 +24,10 @@ var ErrNotYetImplemented = clues.New("not yet implemented")
 func GetAccountAndConnect(
 	ctx context.Context,
 	pst path.ServiceType,
+	provider string,
 	overrides map[string]string,
 ) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
-	cfg, err := config.GetConfigRepoDetails(ctx, true, true, overrides)
+	cfg, err := config.GetConfigRepoDetails(ctx, provider, true, true, overrides)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -55,17 +56,19 @@ func GetAccountAndConnect(
 func AccountConnectAndWriteRepoConfig(
 	ctx context.Context,
 	pst path.ServiceType,
+	provider string,
 	overrides map[string]string,
 ) (repository.Repository, *account.Account, error) {
-	r, stg, acc, opts, err := GetAccountAndConnect(ctx, pst, overrides)
+	r, stg, acc, opts, err := GetAccountAndConnect(ctx, pst, provider, overrides)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err
 	}
 
-	s3Config, err := stg.S3Config()
+	storageCfg, err := stg.GetStorageConfig()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting storage configuration")
+
 		return nil, nil, err
 	}
 
@@ -77,7 +80,7 @@ func AccountConnectAndWriteRepoConfig(
 
 	// repo config gets set during repo connect and init.
 	// This call confirms we have the correct values.
-	err = config.WriteRepoConfig(ctx, s3Config, m365Config, opts.Repo, r.GetID())
+	err = config.WriteRepoConfig(ctx, storageCfg, m365Config, opts.Repo, r.GetID())
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("writing to repository configuration")
 		return nil, nil, err

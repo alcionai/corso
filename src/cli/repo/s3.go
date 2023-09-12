@@ -2,7 +2,6 @@ package repo
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
@@ -92,7 +91,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from flags
 	s3Override := S3Overrides(cmd)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, false, s3Override)
+	cfg, err := config.GetConfigRepoDetails(ctx, storage.ProviderS3.String(), true, false, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -113,17 +112,19 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		opt)
 
-	s3Cfg, err := cfg.Storage.S3Config()
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
-	}
+	//s3Cfg, err := cfg.Storage.S3Config() // why not let it return configurer?
+	storageCfg, err := cfg.Storage.GetStorageConfig()
+	// if err != nil {
+	// 	return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
+	// }
 
-	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
-		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
-			"pass --disable-tls flag to use http:// instead of default https://"
+	// BUG: This should be moved to validate()
+	// if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
+	// 	invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
+	// 		"pass --disable-tls flag to use http:// instead of default https://"
 
-		return Only(ctx, clues.New(invalidEndpointErr))
-	}
+	// 	return Only(ctx, clues.New(invalidEndpointErr))
+	// }
 
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
@@ -146,9 +147,10 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	Infof(ctx, "Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
+	// Strong typecast?
+	Infof(ctx, "Initialized a S3 repository within bucket %s.", cfg.Storage.Config[storage.Bucket])
 
-	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, opt.Repo, r.GetID()); err != nil {
+	if err = config.WriteRepoConfig(ctx, storageCfg, m365, opt.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 
@@ -178,7 +180,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from flags
 	s3Override := S3Overrides(cmd)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, true, s3Override)
+	cfg, err := config.GetConfigRepoDetails(ctx, storage.ProviderS3.String(), true, true, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -188,7 +190,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		repoID = events.RepoIDNotFound
 	}
 
-	s3Cfg, err := cfg.Storage.S3Config()
+	s3Cfg, err := cfg.Storage.GetStorageConfig()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
@@ -198,12 +200,13 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
-		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
-			"pass --disable-tls flag to use http:// instead of default https://"
+	// Move these to validate()?
+	// if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
+	// 	invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
+	// 		"pass --disable-tls flag to use http:// instead of default https://"
 
-		return Only(ctx, clues.New(invalidEndpointErr))
-	}
+	// 	return Only(ctx, clues.New(invalidEndpointErr))
+	// }
 
 	opts := utils.ControlWithConfig(cfg)
 
@@ -219,7 +222,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	Infof(ctx, "Connected to S3 bucket %s.", s3Cfg.Bucket)
+	Infof(ctx, "Connected to S3 bucket %s.", cfg.Storage.Config[storage.Bucket])
 
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, opts.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))

@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
@@ -103,7 +104,13 @@ func runRestore(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, sel.PathService(), repo.S3Overrides(cmd))
+	provider, _ := config.GetStorageProviderFromConfigFile(ctx)
+	overrides, err := repo.GetStorageOverrides(ctx, cmd, provider)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, sel.PathService(), provider, overrides)
 	if err != nil {
 		return Only(ctx, err)
 	}

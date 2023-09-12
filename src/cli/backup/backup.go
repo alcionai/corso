@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
@@ -290,7 +291,16 @@ func genericDeleteCommand(
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, pst, repo.S3Overrides(cmd))
+	// Let it return both provider and overrides for now?
+	// That way we can stop config pkg from being included everywhere.
+	provider, _ := config.GetStorageProviderFromConfigFile(ctx)
+
+	overrides, err := repo.GetStorageOverrides(ctx, cmd, provider)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, pst, provider, overrides)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -316,7 +326,14 @@ func genericListCommand(
 ) error {
 	ctx := cmd.Context()
 
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, service, repo.S3Overrides(cmd))
+	provider, _ := config.GetStorageProviderFromConfigFile(ctx)
+
+	overrides, err := repo.GetStorageOverrides(ctx, cmd, provider)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, _, _, _, err := utils.GetAccountAndConnect(ctx, service, provider, overrides)
 	if err != nil {
 		return Only(ctx, err)
 	}

@@ -17,6 +17,15 @@ const (
 	ProviderFilesystem ProviderType = 2 // Filesystem
 )
 
+func StringToEnum(s string) StorageProvider {
+	switch s {
+	case ProviderS3.String():
+		return ProviderS3
+	}
+
+	return ProviderUnknown
+}
+
 // storage parsing errors
 var (
 	errMissingRequired = clues.New("missing required storage configuration")
@@ -81,4 +90,54 @@ func orEmptyString(v any) string {
 	}
 
 	return v.(string)
+}
+
+func (s Storage) GetStorageConfig() (StorageConfigurer, error) {
+	switch s.Provider {
+	case ProviderS3:
+		return MakeS3ConfigFromMap(s.Config)
+	}
+
+	return nil, clues.New("unsupported storage provider: " + s.Provider.String())
+}
+
+func NewStorageConfig(provider string) (StorageConfigurer, error) {
+	switch provider {
+	case ProviderS3.String():
+		return S3Config{}, nil
+	}
+
+	return nil, clues.New("unsupported storage provider: " + provider)
+}
+
+// Change it to just getter
+type KVStorer interface {
+	Get(key string) any
+	Set(key string, value any)
+}
+
+type KVStoreSetter interface {
+	Set(key string, value any)
+}
+
+// Call it configurer if necessary.
+type StorageConfigurer interface {
+	common.StringConfigurer
+	FetchConfigFromStorer
+	WriteConfigToStorer
+}
+
+type WriteConfigToStorer interface {
+	WriteConfigToStore(
+		kvs KVStoreSetter,
+	)
+}
+
+type FetchConfigFromStorer interface {
+	FetchConfigFromStore(
+		kv KVStorer,
+		readConfigFromStore bool,
+		matchFromConfig bool,
+		overrides map[string]string,
+	) error
 }

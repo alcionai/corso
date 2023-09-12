@@ -4,10 +4,27 @@ import (
 	"strconv"
 
 	"github.com/alcionai/clues"
+	"github.com/aws/aws-sdk-go/aws/defaults"
+	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/credentials"
+)
+
+const (
+	// S3 config
+	StorageProviderTypeKey    = "provider"
+	BucketNameKey             = "bucket"
+	EndpointKey               = "endpoint"
+	PrefixKey                 = "prefix"
+	DisableTLSKey             = "disable_tls"
+	DisableTLSVerificationKey = "disable_tls_verification"
+	RepoID                    = "repo_id"
+
+	AccessKey       = "aws_access_key_id"
+	SecretAccessKey = "aws_secret_access_key"
+	SessionToken    = "aws_session_token"
 )
 
 type S3Config struct {
@@ -50,6 +67,120 @@ func (c S3Config) Normalize() S3Config {
 	}
 }
 
+// No need to return error here. Viper returns empty values.
+func s3ConfigsFromStore(kvs KVStorer) S3Config {
+	var s3Config S3Config
+
+	s3Config.Bucket = cast.ToString(kvs.Get(BucketNameKey))
+	s3Config.Endpoint = cast.ToString(kvs.Get(EndpointKey))
+	s3Config.Prefix = cast.ToString(kvs.Get(PrefixKey))
+	s3Config.DoNotUseTLS = cast.ToBool(kvs.Get(DisableTLSKey))
+	s3Config.DoNotVerifyTLS = cast.ToBool(kvs.Get(DisableTLSVerificationKey))
+
+	return s3Config
+}
+
+func s3CredsFromStore(
+	kvs KVStorer,
+	s3Config S3Config,
+) S3Config {
+	s3Config.AccessKey = cast.ToString(kvs.Get(AccessKey))
+	s3Config.SecretKey = cast.ToString(kvs.Get(SecretAccessKey))
+	s3Config.SessionToken = cast.ToString(kvs.Get(SessionToken))
+
+	return s3Config
+}
+
+var _ StorageConfigurer = S3Config{}
+
+func (c S3Config) FetchConfigFromStore(
+	kvs KVStorer,
+	readConfigFromStore bool,
+	matchFromConfig bool,
+	overrides map[string]string,
+) error {
+	var (
+		s3Cfg S3Config
+		err   error
+	)
+
+	if readConfigFromStore {
+		s3Cfg = s3ConfigsFromStore(kvs)
+		if b, ok := overrides[Bucket]; ok {
+			overrides[Bucket] = common.NormalizeBucket(b)
+		}
+
+		if p, ok := overrides[Prefix]; ok {
+			overrides[Prefix] = common.NormalizePrefix(p)
+		}
+
+		if matchFromConfig {
+			providerType := cast.ToString(kvs.Get(StorageProviderTypeKey))
+			if providerType != ProviderS3.String() {
+				return clues.New("unsupported storage provider: " + providerType)
+			}
+
+			// This is matching override values from config file.
+			if err := mustMatchConfig(kvs, s3Overrides(overrides)); err != nil {
+				return clues.Wrap(err, "verifying s3 configs in corso config file")
+			}
+		}
+	}
+
+	s3Cfg = s3CredsFromStore(kvs, s3Cfg)
+	aws := credentials.GetAWS(overrides)
+
+	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
+		_, err = defaults.CredChain(
+			defaults.Config().WithCredentialsChainVerboseErrors(true),
+			defaults.Handlers()).Get()
+		if err != nil && (len(s3Cfg.AccessKey) > 0 || len(s3Cfg.SecretKey) > 0) {
+			aws = credentials.AWS{
+				AccessKey:    s3Cfg.AccessKey,
+				SecretKey:    s3Cfg.SecretKey,
+				SessionToken: s3Cfg.SessionToken,
+			}
+			err = nil
+		}
+
+		if err != nil {
+			return clues.Wrap(err, "validating aws credentials")
+		}
+	}
+
+	s3Cfg = S3Config{
+		AWS:      aws,
+		Bucket:   str.First(overrides[Bucket], s3Cfg.Bucket),
+		Endpoint: str.First(overrides[Endpoint], s3Cfg.Endpoint, "s3.amazonaws.com"),
+		Prefix:   str.First(overrides[Prefix], s3Cfg.Prefix),
+		DoNotUseTLS: str.ParseBool(str.First(
+			overrides[DoNotUseTLS],
+			strconv.FormatBool(s3Cfg.DoNotUseTLS),
+			"false")),
+		DoNotVerifyTLS: str.ParseBool(str.First(
+			overrides[DoNotVerifyTLS],
+			strconv.FormatBool(s3Cfg.DoNotVerifyTLS),
+			"false")),
+	}
+
+	return nil
+}
+
+var _ WriteConfigToStorer = S3Config{}
+
+func (c S3Config) WriteConfigToStore(
+	kvs KVStoreSetter,
+) {
+	s3Config := c.Normalize()
+
+	kvs.Set(StorageProviderTypeKey, ProviderS3.String())
+	kvs.Set(BucketNameKey, s3Config.Bucket)
+	kvs.Set(EndpointKey, s3Config.Endpoint)
+	kvs.Set(PrefixKey, s3Config.Prefix)
+	kvs.Set(DisableTLSKey, s3Config.DoNotUseTLS)
+	kvs.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
+}
+
 // StringConfig transforms a s3Config struct into a plain
 // map[string]string.  All values in the original struct which
 // serialize into the map are expected to be strings.
@@ -70,19 +201,19 @@ func (c S3Config) StringConfig() (map[string]string, error) {
 }
 
 // S3Config retrieves the S3Config details from the Storage config.
-func (s Storage) S3Config() (S3Config, error) {
+func MakeS3ConfigFromMap(config map[string]string) (S3Config, error) {
 	c := S3Config{}
 
-	if len(s.Config) > 0 {
-		c.AccessKey = orEmptyString(s.Config[keyS3AccessKey])
-		c.SecretKey = orEmptyString(s.Config[keyS3SecretKey])
-		c.SessionToken = orEmptyString(s.Config[keyS3SessionToken])
+	if len(config) > 0 {
+		c.AccessKey = orEmptyString(config[keyS3AccessKey])
+		c.SecretKey = orEmptyString(config[keyS3SecretKey])
+		c.SessionToken = orEmptyString(config[keyS3SessionToken])
 
-		c.Bucket = orEmptyString(s.Config[keyS3Bucket])
-		c.Endpoint = orEmptyString(s.Config[keyS3Endpoint])
-		c.Prefix = orEmptyString(s.Config[keyS3Prefix])
-		c.DoNotUseTLS = str.ParseBool(s.Config[keyS3DoNotUseTLS])
-		c.DoNotVerifyTLS = str.ParseBool(s.Config[keyS3DoNotVerifyTLS])
+		c.Bucket = orEmptyString(config[keyS3Bucket])
+		c.Endpoint = orEmptyString(config[keyS3Endpoint])
+		c.Prefix = orEmptyString(config[keyS3Prefix])
+		c.DoNotUseTLS = str.ParseBool(config[keyS3DoNotUseTLS])
+		c.DoNotVerifyTLS = str.ParseBool(config[keyS3DoNotVerifyTLS])
 	}
 
 	return c, c.validate()
@@ -99,4 +230,45 @@ func (c S3Config) validate() error {
 	}
 
 	return nil
+}
+
+var constToTomlKeyMap = map[string]string{
+	Bucket:                 BucketNameKey,
+	Endpoint:               EndpointKey,
+	Prefix:                 PrefixKey,
+	StorageProviderTypeKey: StorageProviderTypeKey,
+}
+
+// mustMatchConfig compares the values of each key to their config file value in store.
+// If any value differs from the store value, an error is returned.
+// values in m that aren't stored in the config are ignored.
+func mustMatchConfig(kvs KVStorer, m map[string]string) error {
+	for k, v := range m {
+		if len(v) == 0 {
+			continue // empty variables will get caught by configuration validators, if necessary
+		}
+
+		tomlK, ok := constToTomlKeyMap[k]
+		if !ok {
+			continue // m may declare values which aren't stored in the config file
+		}
+
+		vv := cast.ToString(kvs.Get(tomlK))
+		if v != vv {
+			return clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
+		}
+	}
+
+	return nil
+}
+
+func s3Overrides(in map[string]string) map[string]string {
+	return map[string]string{
+		Bucket:                 in[Bucket],
+		Endpoint:               in[Endpoint],
+		Prefix:                 in[Prefix],
+		DoNotUseTLS:            in[DoNotUseTLS],
+		DoNotVerifyTLS:         in[DoNotVerifyTLS],
+		StorageProviderTypeKey: in[StorageProviderTypeKey],
+	}
 }

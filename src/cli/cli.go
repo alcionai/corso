@@ -70,9 +70,13 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains(avoidTheseDescription, cc.Short) {
-		overrides := repo.S3Overrides(cc)
+		provider, _ := config.GetStorageProviderFromConfigFile(ctx)
+		overrides, err := repo.GetStorageOverrides(ctx, cc, provider)
+		if err != nil {
+			return err
+		}
 
-		cfg, err := config.GetConfigRepoDetails(ctx, true, false, overrides)
+		cfg, err := config.GetConfigRepoDetails(ctx, provider, true, false, overrides)
 		if err != nil {
 			log.Error("Error while getting config info to run command: ", cc.Use)
 			return err

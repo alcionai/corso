@@ -20,29 +20,32 @@ func s3BlobStorage(
 	repoOpts repository.Options,
 	s storage.Storage,
 ) (blob.Storage, error) {
-	cfg, err := s.S3Config()
+	cfg, err := s.GetStorageConfig()
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
+	// Cast to S3Config
+	s3Cfg := cfg.(storage.S3Config)
+
 	endpoint := defaultS3Endpoint
-	if len(cfg.Endpoint) > 0 {
-		endpoint = cfg.Endpoint
+	if len(s3Cfg.Endpoint) > 0 {
+		endpoint = s3Cfg.Endpoint
 	}
 
 	opts := s3.Options{
-		BucketName:          cfg.Bucket,
+		BucketName:          s3Cfg.Bucket,
 		Endpoint:            endpoint,
-		Prefix:              cfg.Prefix,
-		DoNotUseTLS:         cfg.DoNotUseTLS,
-		DoNotVerifyTLS:      cfg.DoNotVerifyTLS,
+		Prefix:              s3Cfg.Prefix,
+		DoNotUseTLS:         s3Cfg.DoNotUseTLS,
+		DoNotVerifyTLS:      s3Cfg.DoNotVerifyTLS,
 		Tags:                s.SessionTags,
 		SessionName:         s.SessionName,
 		RoleARN:             s.Role,
 		RoleDuration:        s.SessionDuration,
-		AccessKeyID:         cfg.AccessKey,
-		SecretAccessKey:     cfg.SecretKey,
-		SessionToken:        cfg.SessionToken,
+		AccessKeyID:         s3Cfg.AccessKey,
+		SecretAccessKey:     s3Cfg.SecretKey,
+		SessionToken:        s3Cfg.SessionToken,
 		TLSHandshakeTimeout: 60,
 		PointInTime:         repoOpts.ViewTimestamp,
 	}

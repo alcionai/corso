@@ -203,14 +203,14 @@ func Read(ctx context.Context) error {
 // It does not check for conflicts or existing data.
 func WriteRepoConfig(
 	ctx context.Context,
-	s3Config storage.S3Config,
+	scfg storage.WriteConfigToStorer,
 	m365Config account.M365Config,
 	repoOpts repository.Options,
 	repoID string,
 ) error {
 	return writeRepoConfigWithViper(
 		GetViper(ctx),
-		s3Config,
+		scfg,
 		m365Config,
 		repoOpts,
 		repoID)
@@ -220,20 +220,12 @@ func WriteRepoConfig(
 // struct for testing.
 func writeRepoConfigWithViper(
 	vpr *viper.Viper,
-	s3Config storage.S3Config,
+	scfg storage.WriteConfigToStorer,
 	m365Config account.M365Config,
 	repoOpts repository.Options,
 	repoID string,
 ) error {
-	s3Config = s3Config.Normalize()
-	// Rudimentary support for persisting repo config
-	// TODO: Handle conflicts, support other config types
-	vpr.Set(StorageProviderTypeKey, storage.ProviderS3.String())
-	vpr.Set(BucketNameKey, s3Config.Bucket)
-	vpr.Set(EndpointKey, s3Config.Endpoint)
-	vpr.Set(PrefixKey, s3Config.Prefix)
-	vpr.Set(DisableTLSKey, s3Config.DoNotUseTLS)
-	vpr.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
+	scfg.WriteConfigToStore(vpr)
 	vpr.Set(RepoID, repoID)
 
 	// Need if-checks as Viper will write empty values otherwise.
@@ -263,6 +255,7 @@ func writeRepoConfigWithViper(
 // data sources (config file, env vars, flag overrides) and the config file.
 func GetConfigRepoDetails(
 	ctx context.Context,
+	provider string,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
@@ -270,7 +263,7 @@ func GetConfigRepoDetails(
 	RepoDetails,
 	error,
 ) {
-	config, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, mustMatchFromConfig, overrides)
+	config, err := getStorageAndAccountWithViper(GetViper(ctx), provider, readFromFile, mustMatchFromConfig, overrides)
 	return config, err
 }
 
@@ -278,6 +271,7 @@ func GetConfigRepoDetails(
 // struct for testing.
 func getStorageAndAccountWithViper(
 	vpr *viper.Viper,
+	provider string,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
@@ -312,7 +306,7 @@ func getStorageAndAccountWithViper(
 		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
 
-	config.Storage, err = configureStorage(vpr, readConfigFromViper, mustMatchFromConfig, overrides)
+	config.Storage, err = configureStorage(vpr, provider, readConfigFromViper, mustMatchFromConfig, overrides)
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving storage provider details")
 	}
@@ -377,4 +371,18 @@ func requireProps(props map[string]string) error {
 	}
 
 	return nil
+}
+
+// Storage provider is not a flag. It can only be sourced from config file.
+// Only exceptions are the commands that create a new repo.
+// This is needed to figure out which storage overrides to use.
+func GetStorageProviderFromConfigFile(ctx context.Context) (string, error) {
+	vpr := GetViper(ctx)
+
+	provider := vpr.GetString(StorageProviderTypeKey)
+	if provider != storage.ProviderS3.String() {
+		return storage.ProviderUnknown.String(), clues.New("unsupported storage provider: " + provider)
+	}
+
+	return provider, nil
 }

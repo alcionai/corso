@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
@@ -149,7 +150,13 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.OneDriveService, repo.S3Overrides(cmd))
+	provider, _ := config.GetStorageProviderFromConfigFile(ctx)
+	overrides, err := repo.GetStorageOverrides(ctx, cmd, provider)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.OneDriveService, provider, overrides)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -235,7 +242,13 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeOneDriveOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.OneDriveService, repo.S3Overrides(cmd))
+	provider, _ := config.GetStorageProviderFromConfigFile(ctx)
+	overrides, err := repo.GetStorageOverrides(ctx, cmd, provider)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.OneDriveService, provider, overrides)
 	if err != nil {
 		return Only(ctx, err)
 	}
