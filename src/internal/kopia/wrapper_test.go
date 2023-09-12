@@ -1002,7 +1002,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		{
 			name: "Merge Only",
 			baseBackups: func(base ManifestEntry) BackupBases {
-				return NewMockBackupBases().WithMergeBases(base).ClearMockAssistBases()
+				return NewMockBackupBases().WithMergeBases(base).MockDisableAssistBases()
 			},
 			// Pass in empty collections to force a backup. Otherwise we'll skip
 			// actually trying to do anything because we'll see there's nothing that

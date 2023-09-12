@@ -732,7 +732,7 @@ func mergeDetails(
 	// leaves us in a bit of a pickle if the user has run any concurrent backups
 	// with overlapping Reasons that turn into assist bases, but the modTime check
 	// in DetailsMergeInfoer should handle that.
-	for _, base := range bases.AssistBackups() {
+	for _, base := range bases.UniqueAssistBackups() {
 		added, err := mergeItemsFromBase(
 			ctx,
 			false,
