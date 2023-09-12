@@ -368,7 +368,7 @@ func (op *BackupOperation) do(
 	ctx = clues.Add(
 		ctx,
 		"can_use_metadata", canUseMetadata,
-		"assist_bases", len(mans.AssistBases()),
+		"assist_bases", len(mans.UniqueAssistBases()),
 		"merge_bases", len(mans.MergeBases()))
 
 	if canUseMetadata {
