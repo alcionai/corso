@@ -17,7 +17,10 @@ import (
 // Item
 // ---------------------------------------------------------------------------
 
-var _ data.Item = &Item{}
+var (
+	_ data.Item     = &Item{}
+	_ data.ItemInfo = &Item{}
+)
 
 type Item struct {
 	DeletedFlag  bool
@@ -45,8 +48,8 @@ func (s *Item) ToReader() io.ReadCloser {
 	return s.Reader
 }
 
-func (s *Item) Info() details.ItemInfo {
-	return s.ItemInfo
+func (s *Item) Info() (details.ItemInfo, error) {
+	return s.ItemInfo, nil
 }
 
 func (s *Item) Size() int64 {

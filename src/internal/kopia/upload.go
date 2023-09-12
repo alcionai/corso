@@ -132,7 +132,7 @@ func (rw *restoreStreamReader) Read(p []byte) (n int, err error) {
 }
 
 type itemDetails struct {
-	infoFunc     func() (details.ItemInfo, error)
+	infoer       data.ItemInfo
 	repoPath     path.Path
 	prevPath     path.Path
 	locationPath *path.Builder
@@ -204,7 +204,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	// These items were sourced from a base snapshot or were cached in kopia so we
 	// never had to materialize their details in-memory.
-	if d.infoFunc == nil || d.cached {
+	if d.infoer == nil || d.cached {
 		if d.prevPath == nil {
 			cp.errs.AddRecoverable(ctx, clues.New("finished file sourced from previous backup with no previous path").
 				WithClues(ctx).
@@ -230,7 +230,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		return
 	}
 
-	info, err := d.infoFunc()
+	info, err := d.infoer.Info()
 	if err != nil {
 		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "getting ItemInfo").
 			WithClues(ctx).
@@ -412,11 +412,7 @@ func collectionEntries(
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
 				d := &itemDetails{
-					// TODO(ashmrtn): Update API in data package to return an error and
-					// then remove this wrapper.
-					infoFunc: func() (details.ItemInfo, error) {
-						return ei.Info(), nil
-					},
+					infoer:   ei,
 					repoPath: itemPath,
 					// Also use the current path as the previous path for this item. This
 					// is so that if the item is marked as cached and we need to merge
