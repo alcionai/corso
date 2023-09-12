@@ -373,6 +373,18 @@ func (suite *CorsoProgressUnitSuite) SetupSuite() {
 	suite.targetFileName = suite.targetFilePath.ToBuilder().Dir().String()
 }
 
+var _ data.ItemInfo = &mockExchangeMailInfoer{}
+
+type mockExchangeMailInfoer struct{}
+
+func (m mockExchangeMailInfoer) Info() (details.ItemInfo, error) {
+	return details.ItemInfo{
+		Exchange: &details.ExchangeInfo{
+			ItemType: details.ExchangeMail,
+		},
+	}, nil
+}
+
 type testInfo struct {
 	info       *itemDetails
 	err        error
@@ -394,13 +406,7 @@ var finishedFileTable = []struct {
 			return map[string]testInfo{
 				fname: {
 					info: &itemDetails{
-						infoFunc: func() (details.ItemInfo, error) {
-							return details.ItemInfo{
-								Exchange: &details.ExchangeInfo{
-									ItemType: details.ExchangeMail,
-								},
-							}, nil
-						},
+						infoer:       mockExchangeMailInfoer{},
 						repoPath:     fpath,
 						locationPath: path.Builder{}.Append(fpath.Folders()...),
 					},
@@ -432,13 +438,7 @@ var finishedFileTable = []struct {
 			return map[string]testInfo{
 				fname: {
 					info: &itemDetails{
-						infoFunc: func() (details.ItemInfo, error) {
-							return details.ItemInfo{
-								Exchange: &details.ExchangeInfo{
-									ItemType: details.ExchangeMail,
-								},
-							}, nil
-						},
+						infoer:   mockExchangeMailInfoer{},
 						repoPath: fpath,
 					},
 					err: assert.AnError,
@@ -530,7 +530,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 							}
 
 							if cachedTest.dropInfo {
-								v.info.infoFunc = nil
+								v.info.infoer = nil
 							}
 						}
 
