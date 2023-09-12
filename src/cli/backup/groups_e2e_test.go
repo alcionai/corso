@@ -46,8 +46,7 @@ type NoBackupGroupsE2ESuite struct {
 func TestNoBackupGroupsE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupGroupsE2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *NoBackupGroupsE2ESuite) SetupSuite() {
@@ -101,8 +100,7 @@ type BackupGroupsE2ESuite struct {
 func TestBackupGroupsE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupGroupsE2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *BackupGroupsE2ESuite) SetupSuite() {
@@ -259,8 +257,7 @@ func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_badAWSFlags() {
 		"backup", "create", "groups",
 		"--group", suite.its.group.ID,
 		"--aws-access-key", "invalid-value",
-		"--aws-secret-access-key", "some-invalid-value",
-	)
+		"--aws-secret-access-key", "some-invalid-value")
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetOut(&suite.dpnd.recorder)
@@ -517,8 +514,7 @@ func TestBackupDeleteGroupsE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupDeleteGroupsE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
