@@ -119,6 +119,15 @@ func (c Channels) GetChannelMessageIDsDelta(
 			continue
 		}
 
+		if graph.IsErrInvalidDelta(err) {
+			logger.Ctx(ctx).Infow("delta token not supported", "delta_link", prevDelta)
+
+			added = map[string]struct{}{}
+			deleted = map[string]struct{}{}
+
+			break
+		}
+
 		if err != nil {
 			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "retrieving page of channel messages")
 		}
@@ -129,7 +138,7 @@ func (c Channels) GetChannelMessageIDsDelta(
 		}
 
 		for _, v := range vals {
-			if v.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
+			if v.GetDeletedDateTime() == nil {
 				added[ptr.Val(v.GetId())] = struct{}{}
 			} else {
 				deleted[ptr.Val(v.GetId())] = struct{}{}

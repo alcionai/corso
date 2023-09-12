@@ -91,3 +91,34 @@ func (suite *FlagUnitSuite) TestAddCorsoPassphraseFlags() {
 	err := cmd.Execute()
 	require.NoError(t, err, clues.ToCore(err))
 }
+
+func (suite *FlagUnitSuite) TestAddS3BucketFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{
+		Use: "test",
+		Run: func(cmd *cobra.Command, args []string) {
+			assert.Equal(t, "bucket1", flags.BucketFV, flags.BucketFN)
+			assert.Equal(t, "endpoint1", flags.EndpointFV, flags.EndpointFN)
+			assert.Equal(t, "prefix1", flags.PrefixFV, flags.PrefixFN)
+			assert.Equal(t, true, flags.DoNotUseTLSFV, flags.DoNotUseTLSFN)
+			assert.Equal(t, true, flags.DoNotVerifyTLSFV, flags.DoNotVerifyTLSFN)
+			assert.Equal(t, true, flags.SucceedIfExistsFV, flags.SucceedIfExistsFN)
+		},
+	}
+
+	flags.AddS3BucketFlags(cmd)
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		"test",
+		"--" + flags.BucketFN, "bucket1",
+		"--" + flags.EndpointFN, "endpoint1",
+		"--" + flags.PrefixFN, "prefix1",
+		"--" + flags.DoNotUseTLSFN,
+		"--" + flags.DoNotVerifyTLSFN,
+		"--" + flags.SucceedIfExistsFN,
+	})
+
+	err := cmd.Execute()
+	require.NoError(t, err, clues.ToCore(err))
+}

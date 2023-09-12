@@ -365,7 +365,11 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
-	ctx = clues.Add(ctx, "can_use_metadata", canUseMetadata)
+	ctx = clues.Add(
+		ctx,
+		"can_use_metadata", canUseMetadata,
+		"assist_bases", len(mans.UniqueAssistBases()),
+		"merge_bases", len(mans.MergeBases()))
 
 	if canUseMetadata {
 		lastBackupVersion = mans.MinBackupVersion()
@@ -711,6 +715,7 @@ func mergeDetails(
 
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if bases == nil || dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
+		logger.Ctx(ctx).Info("no base details to merge")
 		return nil
 	}
 
@@ -732,7 +737,7 @@ func mergeDetails(
 	// leaves us in a bit of a pickle if the user has run any concurrent backups
 	// with overlapping Reasons that turn into assist bases, but the modTime check
 	// in DetailsMergeInfoer should handle that.
-	for _, base := range bases.AssistBackups() {
+	for _, base := range bases.UniqueAssistBackups() {
 		added, err := mergeItemsFromBase(
 			ctx,
 			false,

@@ -49,6 +49,7 @@ const (
 	// nameAlreadyExists occurs when a request with
 	// @microsoft.graph.conflictBehavior=fail finds a conflicting file.
 	nameAlreadyExists       errorCode = "nameAlreadyExists"
+	noResolvedUsers         errorCode = "noResolvedUsers"
 	QuotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
 	// Returned when we try to get the inbox of a user that doesn't exist.
@@ -62,10 +63,12 @@ const (
 type errorMessage string
 
 const (
-	IOErrDuringRead   errorMessage = "IO error during request payload read"
-	MysiteURLNotFound errorMessage = "unable to retrieve user's mysite url"
-	MysiteNotFound    errorMessage = "user's mysite not found"
-	NoSPLicense       errorMessage = "Tenant does not have a SPO license"
+	IOErrDuringRead                 errorMessage = "IO error during request payload read"
+	MysiteURLNotFound               errorMessage = "unable to retrieve user's mysite url"
+	MysiteNotFound                  errorMessage = "user's mysite not found"
+	NoSPLicense                     errorMessage = "Tenant does not have a SPO license"
+	parameterDeltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request"
+	usersCannotBeResolved           errorMessage = "One or more users could not be resolved"
 )
 
 const (
@@ -132,6 +135,7 @@ func IsErrItemNotFound(err error) bool {
 
 func IsErrInvalidDelta(err error) bool {
 	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid) ||
+		hasErrorMessage(err, parameterDeltaTokenNotSupported) ||
 		errors.Is(err, ErrInvalidDelta)
 }
 
@@ -225,6 +229,10 @@ func IsErrFolderExists(err error) bool {
 	return hasErrorCode(err, folderExists)
 }
 
+func IsErrUsersCannotBeResolved(err error) bool {
+	return hasErrorCode(err, noResolvedUsers) || hasErrorMessage(err, usersCannotBeResolved)
+}
+
 // ---------------------------------------------------------------------------
 // error parsers
 // ---------------------------------------------------------------------------
@@ -250,6 +258,30 @@ func hasErrorCode(err error, codes ...errorCode) bool {
 	}
 
 	return filters.Equal(cs).Compare(code)
+}
+
+// only use this as a last resort.  Prefer the code or statuscode if possible.
+func hasErrorMessage(err error, msgs ...errorMessage) bool {
+	if err == nil {
+		return false
+	}
+
+	var oDataError odataerrors.ODataErrorable
+	if !errors.As(err, &oDataError) {
+		return false
+	}
+
+	msg, ok := ptr.ValOK(oDataError.GetErrorEscaped().GetMessage())
+	if !ok {
+		return false
+	}
+
+	cs := make([]string, len(msgs))
+	for i, c := range msgs {
+		cs[i] = string(c)
+	}
+
+	return filters.Contains(cs).Compare(msg)
 }
 
 // Wrap is a helper function that extracts ODataError metadata from

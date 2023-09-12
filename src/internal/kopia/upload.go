@@ -132,7 +132,7 @@ func (rw *restoreStreamReader) Read(p []byte) (n int, err error) {
 }
 
 type itemDetails struct {
-	info         *details.ItemInfo
+	infoFunc     func() (details.ItemInfo, error)
 	repoPath     path.Path
 	prevPath     path.Path
 	locationPath *path.Builder
@@ -198,13 +198,16 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	ctx := clues.Add(
 		cp.ctx,
 		"service", d.repoPath.Service().String(),
-		"category", d.repoPath.Category().String())
+		"category", d.repoPath.Category().String(),
+		"item_path", d.repoPath,
+		"item_loc", d.locationPath)
 
 	// These items were sourced from a base snapshot or were cached in kopia so we
 	// never had to materialize their details in-memory.
-	if d.info == nil || d.cached {
+	if d.infoFunc == nil || d.cached {
 		if d.prevPath == nil {
 			cp.errs.AddRecoverable(ctx, clues.New("finished file sourced from previous backup with no previous path").
+				WithClues(ctx).
 				Label(fault.LabelForceNoBackupCreation))
 
 			return
@@ -220,18 +223,32 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 			d.locationPath)
 		if err != nil {
 			cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to merge list").
+				WithClues(ctx).
 				Label(fault.LabelForceNoBackupCreation))
 		}
 
 		return
 	}
 
-	err = cp.deets.Add(
-		d.repoPath,
-		d.locationPath,
-		*d.info)
+	info, err := d.infoFunc()
+	if err != nil {
+		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "getting ItemInfo").
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation))
+
+		return
+	} else if !ptr.Val(d.modTime).Equal(info.Modified()) {
+		cp.errs.AddRecoverable(ctx, clues.New("item modTime mismatch").
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation))
+
+		return
+	}
+
+	err = cp.deets.Add(d.repoPath, d.locationPath, info)
 	if err != nil {
 		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to details").
+			WithClues(ctx).
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
@@ -394,13 +411,12 @@ func collectionEntries(
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
-				//
-				// TODO(ashmrtn): If we want to pull item info for cached item from a
-				// previous snapshot then we should populate prevPath here and leave
-				// info nil.
-				itemInfo := ei.Info()
 				d := &itemDetails{
-					info:     &itemInfo,
+					// TODO(ashmrtn): Update API in data package to return an error and
+					// then remove this wrapper.
+					infoFunc: func() (details.ItemInfo, error) {
+						return ei.Info(), nil
+					},
 					repoPath: itemPath,
 					// Also use the current path as the previous path for this item. This
 					// is so that if the item is marked as cached and we need to merge
@@ -517,7 +533,6 @@ func streamBaseEntries(
 			// the item to progress and having progress aggregate everything for
 			// later.
 			d := &itemDetails{
-				info:         nil,
 				repoPath:     itemPath,
 				prevPath:     prevItemPath,
 				locationPath: locationPath,

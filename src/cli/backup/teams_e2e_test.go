@@ -41,8 +41,7 @@ type NoBackupTeamsE2ESuite struct {
 func TestNoBackupTeamsE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupTeamsE2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *NoBackupTeamsE2ESuite) SetupSuite() {
@@ -96,8 +95,7 @@ type BackupTeamsE2ESuite struct {
 func TestBackupTeamsE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupTeamsE2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *BackupTeamsE2ESuite) SetupSuite() {
@@ -254,8 +252,7 @@ func (suite *BackupTeamsE2ESuite) TestBackupCreateTeams_badAWSFlags() {
 		"backup", "create", "teams",
 		"--team", suite.its.team.ID,
 		"--aws-access-key", "invalid-value",
-		"--aws-secret-access-key", "some-invalid-value",
-	)
+		"--aws-secret-access-key", "some-invalid-value")
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetOut(&suite.dpnd.recorder)
@@ -512,8 +509,7 @@ func TestBackupDeleteTeamsE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupDeleteTeamsE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
