@@ -15,7 +15,9 @@ import (
 // TODO(ashmrtn): Move this into some inject package. Here to avoid import
 // cycles.
 type BackupBases interface {
-	RemoveMergeBaseByManifestID(manifestID manifest.ID)
+	// ConvertToAssistBase converts the base with the given item data snapshot ID
+	// from a merge base to an assist base.
+	ConvertToAssistBase(manifestID manifest.ID)
 	Backups() []BackupEntry
 	UniqueAssistBackups() []BackupEntry
 	MinBackupVersion() int
@@ -28,6 +30,11 @@ type BackupBases interface {
 		other BackupBases,
 		reasonToKey func(identity.Reasoner) string,
 	) BackupBases
+	// SnapshotAssistBases returns the set of bases to use for kopia assisted
+	// incremental snapshot operations. It consists of the union of merge bases
+	// and assist bases. If DisableAssistBases has been called then it returns
+	// nil.
+	SnapshotAssistBases() []ManifestEntry
 }
 
 type backupBases struct {
@@ -46,25 +53,32 @@ type backupBases struct {
 	disableMergeBases bool
 }
 
-func (bb *backupBases) RemoveMergeBaseByManifestID(manifestID manifest.ID) {
+func (bb *backupBases) SnapshotAssistBases() []ManifestEntry {
+	if bb.disableAssistBases {
+		return nil
+	}
+
+	// Need to use the actual variables here because the functions will return nil
+	// depending on what's been marked as disabled.
+	return append(slices.Clone(bb.assistBases), bb.mergeBases...)
+}
+
+func (bb *backupBases) ConvertToAssistBase(manifestID manifest.ID) {
+	var (
+		snapshotMan ManifestEntry
+		base        BackupEntry
+		snapFound   bool
+	)
+
 	idx := slices.IndexFunc(
 		bb.mergeBases,
 		func(man ManifestEntry) bool {
 			return man.ID == manifestID
 		})
 	if idx >= 0 {
+		snapFound = true
+		snapshotMan = bb.mergeBases[idx]
 		bb.mergeBases = slices.Delete(bb.mergeBases, idx, idx+1)
-	}
-
-	// TODO(ashmrtn): This may not be strictly necessary but is at least easier to
-	// reason about.
-	idx = slices.IndexFunc(
-		bb.assistBases,
-		func(man ManifestEntry) bool {
-			return man.ID == manifestID
-		})
-	if idx >= 0 {
-		bb.assistBases = slices.Delete(bb.assistBases, idx, idx+1)
 	}
 
 	idx = slices.IndexFunc(
@@ -73,7 +87,14 @@ func (bb *backupBases) RemoveMergeBaseByManifestID(manifestID manifest.ID) {
 			return bup.SnapshotID == string(manifestID)
 		})
 	if idx >= 0 {
+		base = bb.backups[idx]
 		bb.backups = slices.Delete(bb.backups, idx, idx+1)
+	}
+
+	// Account for whether we found the backup.
+	if idx >= 0 && snapFound {
+		bb.assistBackups = append(bb.assistBackups, base)
+		bb.assistBases = append(bb.assistBases, snapshotMan)
 	}
 }
 
@@ -241,9 +262,6 @@ func (bb *backupBases) MergeBackupBases(
 
 		res.backups = append(res.backups, bup)
 		res.mergeBases = append(res.mergeBases, man)
-		// TODO(pandeyabs): Remove this once we remove overlap between
-		// between merge and assist bases as part of #3943.
-		res.assistBases = append(res.assistBases, man)
 	}
 
 	return res
@@ -381,16 +399,6 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 
 		backupsToKeep = append(backupsToKeep, bup)
 		mergeToKeep = append(mergeToKeep, man)
-	}
-
-	// Every merge base is also a kopia assist base.
-	// TODO(pandeyabs): This should be removed as part of #3943.
-	for _, man := range bb.mergeBases {
-		if _, ok := toDrop[man.ID]; ok {
-			continue
-		}
-
-		assistToKeep = append(assistToKeep, man)
 	}
 
 	// Drop assist snapshots with overlapping reasons.
