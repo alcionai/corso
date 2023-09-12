@@ -291,6 +291,8 @@ func getStorageAndAccountWithViper(
 		err    error
 	)
 
+	//overrides := repo.S3Overrides(pfs)
+	overrides := make(map[string]string)
 	readConfigFromViper := readFromFile
 
 	// possibly read the prior config from a .corso file

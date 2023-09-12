@@ -24,7 +24,7 @@ func (fs PopulatedFlags) populate(pf *pflag.Flag) {
 func GetPopulatedFlags(pfs *pflag.FlagSet) PopulatedFlags {
 	pop := PopulatedFlags{}
 
-	// fs := cmd.Flags()
+	//fs := cmd.Flags()
 	if pfs == nil {
 		return pop
 	}

@@ -14,6 +14,15 @@ const (
 	CorsoPassphraseFN = "passphrase"
 )
 
+// s3 bucket flags
+const (
+	BucketFN         = "bucket"
+	EndpointFN       = "endpoint"
+	PrefixFN         = "prefix"
+	DoNotUseTLSFN    = "disable-tls"
+	DoNotVerifyTLSFN = "disable-tls-verification"
+)
+
 var (
 	BackupIDFV           string
 	AWSAccessKeyFV       string

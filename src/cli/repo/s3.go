@@ -15,6 +15,16 @@ import (
 	"github.com/alcionai/corso/src/pkg/repository"
 )
 
+// s3 bucket info from flags
+var (
+	succeedIfExists bool
+	bucket          string
+	endpoint        string
+	prefix          string
+	doNotUseTLS     bool
+	doNotVerifyTLS  bool
+)
+
 // called by repo.go to map subcommands to provider-specific handling.
 func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	var c *cobra.Command
@@ -35,7 +45,19 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	flags.AddAWSCredsFlags(c)
 	flags.AddAzureCredsFlags(c)
 	flags.AddCorsoPassphaseFlags(c)
-	flags.AddS3BucketFlags(c)
+
+	// Flags addition ordering should follow the order we want them to appear in help and docs:
+	// More generic and more frequently used flags take precedence.
+	fs.StringVar(&bucket, flags.BucketFN, "", "Name of S3 bucket for repo. (required)")
+	fs.StringVar(&prefix, flags.PrefixFN, "", "Repo prefix within bucket.")
+	fs.StringVar(&endpoint, flags.EndpointFN, "", "S3 service endpoint.")
+	fs.BoolVar(&doNotUseTLS, flags.DoNotUseTLSFN, false, "Disable TLS (HTTPS)")
+	fs.BoolVar(&doNotVerifyTLS, flags.DoNotVerifyTLSFN, false, "Disable TLS (HTTPS) certificate verification.")
+
+	// In general, we don't want to expose this flag to users and have them mistake it
+	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
+	fs.BoolVar(&succeedIfExists, "succeed-if-exists", false, "Exit with success if the repo has already been initialized.")
+	cobra.CheckErr(fs.MarkHidden("succeed-if-exists"))
 
 	return c
 }

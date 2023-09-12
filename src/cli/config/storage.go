@@ -52,7 +52,7 @@ func s3Overrides(in map[string]string) map[string]string {
 	}
 }
 
-// Make it local
+// Moved from repo/s3.go pkg
 func S3Overrides(pfs *pflag.FlagSet) map[string]string {
 	fs := flags.GetPopulatedFlags(pfs)
 	return PopulateS3Flags(fs)
@@ -76,23 +76,23 @@ func PopulateS3Flags(flagset flags.PopulatedFlags) map[string]string {
 	}
 
 	if _, ok := flagset[flags.BucketFN]; ok {
-		s3Overrides[storage.Bucket] = flags.BucketFV
+		s3Overrides[storage.Bucket] = bucket
 	}
 
-	if _, ok := flagset[flags.PrefixFN]; ok {
-		s3Overrides[storage.Prefix] = flags.PrefixFV
+	if _, ok := flagset[prefixFN]; ok {
+		s3Overrides[storage.Prefix] = prefix
 	}
 
-	if _, ok := flagset[flags.DoNotUseTLSFN]; ok {
-		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(flags.DoNotUseTLSFV)
+	if _, ok := flagset[doNotUseTLSFN]; ok {
+		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(doNotUseTLS)
 	}
 
-	if _, ok := flagset[flags.DoNotVerifyTLSFN]; ok {
-		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(flags.DoNotVerifyTLSFV)
+	if _, ok := flagset[doNotVerifyTLSFN]; ok {
+		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(doNotVerifyTLS)
 	}
 
-	if _, ok := flagset[flags.EndpointFN]; ok {
-		s3Overrides[storage.Endpoint] = flags.EndpointFV
+	if _, ok := flagset[endpointFN]; ok {
+		s3Overrides[storage.Endpoint] = endpoint
 	}
 
 	return s3Overrides
