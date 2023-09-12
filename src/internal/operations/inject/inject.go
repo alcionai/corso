@@ -74,7 +74,7 @@ type (
 			opts control.Options,
 			dcs []data.RestoreCollection,
 			errs *fault.Bus,
-		) ([]export.Collection, error)
+		) ([]export.Collectioner, error)
 
 		Wait() *data.CollectionStats
 
