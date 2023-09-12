@@ -54,8 +54,7 @@ func TestSharePointCollectionSuite(t *testing.T) {
 	suite.Run(t, &SharePointCollectionSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -221,7 +220,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	// Clean-Up
 	var (
-		builder  = service.Client().Sites().BySiteId(suite.siteID).Lists()
+		builder  = service.Client().Sites().BySiteIdString(suite.siteID).Lists()
 		isFound  bool
 		deleteID string
 	)

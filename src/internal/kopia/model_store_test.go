@@ -84,8 +84,7 @@ func TestModelStoreIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ModelStoreIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -786,8 +785,7 @@ func TestModelStoreRegressionSuite(t *testing.T) {
 	suite.Run(t, &ModelStoreRegressionSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -840,8 +838,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 			newID = foo.ModelStoreID
 
 			return assert.AnError
-		},
-	)
+		})
 
 	assert.ErrorIs(t, err, assert.AnError, clues.ToCore(err))
 
@@ -957,8 +954,7 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 		ctx,
 		model.BackupSchema,
 		backupModel.ModelStoreID,
-		&gotBackup,
-	)
+		&gotBackup)
 	assert.Error(t, err, clues.ToCore(err))
 
 	// Old instance should still be able to access added model.
@@ -967,7 +963,6 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 		ctx,
 		model.BackupSchema,
 		backupModel.ModelStoreID,
-		&gotBackup,
-	)
+		&gotBackup)
 	assert.NoError(t, err, clues.ToCore(err))
 }

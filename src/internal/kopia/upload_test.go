@@ -50,16 +50,14 @@ func baseWithChildren(
 	if len(basic) == 1 {
 		return virtualfs.NewStaticDirectory(
 			encodeElements(basic[0])[0],
-			children,
-		)
+			children)
 	}
 
 	return virtualfs.NewStaticDirectory(
 		encodeElements(basic[0])[0],
 		[]fs.Entry{
 			baseWithChildren(basic[1:], children),
-		},
-	)
+		})
 }
 
 type expectedNode struct {
@@ -279,8 +277,7 @@ func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
 				expectedVersion: test.readVersion,
 				ReadCloser: newBackupStreamReader(
 					test.writeVersion,
-					io.NopCloser(baseReader),
-				),
+					io.NopCloser(baseReader)),
 			}
 
 			defer reversible.Close()
@@ -639,8 +636,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 	prevPath := makePath(
 		suite.T(),
 		[]string{testTenant, service, testUser, category, testInboxDir, testFileName2},
-		true,
-	)
+		true)
 
 	// Location is sourced from collections now so we don't need to check it here.
 	expectedToMerge := []expectedRef{
@@ -1154,12 +1150,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 						virtualfs.StreamingFileWithModTimeFromReader(
 							encodeElements(testFileName)[0],
 							time.Time{},
-							io.NopCloser(bytes.NewReader(testFileData)),
-						),
-					},
-				),
-			},
-		)
+							io.NopCloser(bytes.NewReader(testFileData))),
+					}),
+			})
 	}
 
 	table := []struct {
@@ -1188,8 +1181,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 						name:     testInboxID,
 						children: []*expectedNode{},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "AddsNewItems",
@@ -1224,8 +1216,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "SkipsUpdatedItems",
@@ -1256,8 +1247,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "DeleteAndNew",
@@ -1291,8 +1281,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "MovedAndNew",
@@ -1335,8 +1324,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "NewDoesntMerge",
@@ -1366,8 +1354,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 	}
 
@@ -1481,37 +1468,29 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 						virtualfs.StreamingFileWithModTimeFromReader(
 							encodeElements(inboxFileName1)[0],
 							time.Time{},
-							io.NopCloser(bytes.NewReader(inboxFileData1)),
-						),
+							io.NopCloser(bytes.NewReader(inboxFileData1))),
 						virtualfs.NewStaticDirectory(
 							encodeElements(personalID)[0],
 							[]fs.Entry{
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(personalFileName1)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(testFileData)),
-								),
+									io.NopCloser(bytes.NewReader(testFileData))),
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(personalFileName2)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(testFileData2)),
-								),
-							},
-						),
+									io.NopCloser(bytes.NewReader(testFileData2))),
+							}),
 						virtualfs.NewStaticDirectory(
 							encodeElements(workID)[0],
 							[]fs.Entry{
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(workFileName1)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(testFileData3)),
-								),
-							},
-						),
-					},
-				),
-			},
-		)
+									io.NopCloser(bytes.NewReader(testFileData3))),
+							}),
+					}),
+			})
 	}
 
 	table := []struct {
@@ -1561,8 +1540,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "MovesSubtree",
@@ -1621,8 +1599,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "MovesChildAfterAncestorMove",
@@ -1693,8 +1670,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "MovesChildAfterAncestorDelete",
@@ -1735,8 +1711,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "ReplaceDeletedDirectory",
@@ -1776,8 +1751,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "ReplaceDeletedDirectoryWithNew",
@@ -1827,8 +1801,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "ReplaceDeletedSubtreeWithNew",
@@ -1861,8 +1834,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "ReplaceMovedDirectory",
@@ -1922,8 +1894,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "MoveDirectoryAndMergeItems",
@@ -1989,8 +1960,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "MoveParentDeleteFileNoMergeSubtreeMerge",
@@ -2078,8 +2048,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			name: "NoMoveParentDeleteFileNoMergeSubtreeMerge",
@@ -2146,8 +2115,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			// This could happen if a subfolder is moved out of the parent, the parent
@@ -2200,8 +2168,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			// This could happen if a subfolder is moved out of the parent, the parent
@@ -2246,8 +2213,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 		{
 			// This could happen if a subfolder is moved out of the parent, the parent
@@ -2290,8 +2256,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 							},
 						},
 					},
-				},
-			),
+				}),
 		},
 	}
 
@@ -2380,22 +2345,17 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(testFileData)),
-								),
-							},
-						),
+									io.NopCloser(bytes.NewReader(testFileData))),
+							}),
 						virtualfs.NewStaticDirectory(
 							encodeElements(workDir)[0],
 							[]fs.Entry{
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName2)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(testFileData2)),
-								),
-							},
-						),
-					},
-				),
+									io.NopCloser(bytes.NewReader(testFileData2))),
+							}),
+					}),
 				virtualfs.NewStaticDirectory(
 					encodeElements(testArchiveID)[0],
 					[]fs.Entry{
@@ -2405,24 +2365,18 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName3)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(testFileData3)),
-								),
-							},
-						),
+									io.NopCloser(bytes.NewReader(testFileData3))),
+							}),
 						virtualfs.NewStaticDirectory(
 							encodeElements(workDir)[0],
 							[]fs.Entry{
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(testFileName4)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(testFileData4)),
-								),
-							},
-						),
-					},
-				),
-			},
-		)
+									io.NopCloser(bytes.NewReader(testFileData4))),
+							}),
+					}),
+			})
 	}
 
 	expected := expectedTreeWithChildren(
@@ -2456,8 +2410,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 					},
 				},
 			},
-		},
-	)
+		})
 
 	progress := &corsoProgress{
 		ctx:     ctx,
@@ -2534,10 +2487,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(testFileName)[0],
 					time.Time{},
-					io.NopCloser(bytes.NewReader(testFileData)),
-				),
-			},
-		)
+					io.NopCloser(bytes.NewReader(testFileData))),
+			})
 	}
 
 	// Metadata subtree doesn't appear because we don't select it as one of the
@@ -2559,8 +2510,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 					},
 				},
 			},
-		},
-	)
+		})
 
 	progress := &corsoProgress{
 		ctx:     ctx,
@@ -2674,12 +2624,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(inboxFileData1)),
-								),
-							},
-						),
-					},
-				),
+									io.NopCloser(bytes.NewReader(inboxFileData1))),
+							}),
+					}),
 				virtualfs.NewStaticDirectory(
 					encodeElements(path.ContactsCategory.String())[0],
 					[]fs.Entry{
@@ -2689,14 +2636,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(contactsFileName1)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(contactsFileData1)),
-								),
-							},
-						),
-					},
-				),
-			},
-		)
+									io.NopCloser(bytes.NewReader(contactsFileData1))),
+							}),
+					}),
+			})
 	}
 
 	// Must be a function that returns a new instance each time as StreamingFile
@@ -2731,13 +2674,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 									// Wrap with a backup reader so it gets the version injected.
 									newBackupStreamReader(
 										serializationVersion,
-										io.NopCloser(bytes.NewReader(inboxFileData1v2)),
-									),
-								),
-							},
-						),
-					},
-				),
+										io.NopCloser(bytes.NewReader(inboxFileData1v2)))),
+							}),
+					}),
 				virtualfs.NewStaticDirectory(
 					encodeElements(path.EventsCategory.String())[0],
 					[]fs.Entry{
@@ -2747,14 +2686,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(eventsFileName1)[0],
 									time.Time{},
-									io.NopCloser(bytes.NewReader(eventsFileData1)),
-								),
-							},
-						),
-					},
-				),
-			},
-		)
+									io.NopCloser(bytes.NewReader(eventsFileData1))),
+							}),
+					}),
+			})
 	}
 
 	// Check the following:
@@ -2816,8 +2751,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 					},
 				},
 			},
-		},
-	)
+		})
 
 	progress := &corsoProgress{
 		ctx:     ctx,
@@ -2934,8 +2868,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 										io.NopCloser(bytes.NewReader(contactsFileData1)))),
 							}),
 					}),
-			},
-		)
+			})
 	}
 
 	// Check the following:
@@ -2985,8 +2918,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 					},
 				},
 			},
-		},
-	)
+		})
 
 	progress := &corsoProgress{
 		ctx:     ctx,

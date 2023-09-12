@@ -52,12 +52,12 @@ func checkerCommand() (*cobra.Command, error) {
 		"Name of bucket to check")
 	fs.StringVar(
 		&f.bucketPrefix,
-		"bucket-prefix",
+		"prefix",
 		"",
 		"Prefix to add to all object lookups")
 	fs.StringSliceVar(
 		&f.prefixes,
-		"prefix",
+		"object-prefix",
 		nil,
 		"Set of object prefixes to check. Pass multiple times for multiple prefixes")
 

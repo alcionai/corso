@@ -24,8 +24,7 @@ func Example_newSelector() {
 	// owners (users, in this example).  Only these users
 	// will be involved in the backup.
 	seb = selectors.NewExchangeBackup(
-		[]string{"your-user-id", "foo-user-id", "bar-user-id"},
-	)
+		[]string{"your-user-id", "foo-user-id", "bar-user-id"})
 
 	// The core selector can be passed around without slicing any
 	// application-specific data.
@@ -59,8 +58,7 @@ func Example_newSelector() {
 // ExampleIncludeFoldersAndItems demonstrates how to select for granular data.
 func Example_includeFoldersAndItems() {
 	seb := selectors.NewExchangeBackup(
-		[]string{"your-user-id", "foo-user-id", "bar-user-id"},
-	)
+		[]string{"your-user-id", "foo-user-id", "bar-user-id"})
 
 	// Much of the data handled by Corso exists within an established hierarchy.
 	// Resource Owner-level data (such as users) sits at the top, with Folder
@@ -88,15 +86,13 @@ func Example_includeFoldersAndItems() {
 	// usually unique, and have a low chance of collision.
 	seb.Mails(
 		selectors.Any(),
-		[]string{"item-id-1", "item-id-2"},
-	)
+		[]string{"item-id-1", "item-id-2"})
 }
 
 // ExampleFilters demonstrates selector filters.
 func Example_filters() {
 	ser := selectors.NewExchangeRestore(
-		[]string{"your-user-id", "foo-user-id", "bar-user-id"},
-	)
+		[]string{"your-user-id", "foo-user-id", "bar-user-id"})
 
 	// In addition to data ownership details (user, folder, itemID), certain operations
 	// like `backup details` and restores allow items to be selected by filtering on
@@ -112,8 +108,7 @@ func Example_filters() {
 		// make much sense to accept multiple values here.
 		ser.MailReceivedBefore("2006-01-02"),
 		// But you can still make a compound filter by adding each scope individually.
-		ser.MailSubject("the answer to life, the universe, and everything"),
-	)
+		ser.MailSubject("the answer to life, the universe, and everything"))
 }
 
 var (
@@ -142,8 +137,7 @@ var (
 // ExampleReduceDetails demonstrates how selectors are used to filter backup details.
 func Example_reduceDetails() {
 	ser := selectors.NewExchangeRestore(
-		[]string{"your-user-id", "foo-user-id", "bar-user-id"},
-	)
+		[]string{"your-user-id", "foo-user-id", "bar-user-id"})
 	errAgg := fault.New(false)
 
 	// The Reduce() call is where our constructed selectors are applied to the data
@@ -170,8 +164,7 @@ func Example_scopeMatching() {
 	// if an individual bit of data matches our scopes, too.
 	scope := selectors.
 		NewExchangeBackup(
-			[]string{"your-user-id", "foo-user-id", "bar-user-id"},
-		).
+			[]string{"your-user-id", "foo-user-id", "bar-user-id"}).
 		Mails([]string{"Inbox"}, selectors.Any())[0]
 
 	// To compare data against a scope, you need to specify the category of data,

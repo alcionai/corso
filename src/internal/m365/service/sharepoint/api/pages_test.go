@@ -110,8 +110,7 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 
 	pageData := site.NewItem(
 		testName,
-		io.NopCloser(bytes.NewReader(byteArray)),
-	)
+		io.NopCloser(bytes.NewReader(byteArray)))
 
 	info, err := api.RestoreSitePage(
 		ctx,

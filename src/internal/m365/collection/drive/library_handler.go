@@ -61,7 +61,7 @@ func (h libraryBackupHandler) PathPrefix(
 func (h libraryBackupHandler) MetadataPathPrefix(
 	tenantID string,
 ) (path.Path, error) {
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenantID,
 		h.siteID,
 		h.service,

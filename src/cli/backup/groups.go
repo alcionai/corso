@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
@@ -74,7 +75,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		flags.AddGroupFlag(c)
-		flags.AddDataFlag(c, []string{dataLibraries}, false)
+		flags.AddDataFlag(c, []string{flags.DataLibraries, flags.DataMessages}, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
@@ -176,7 +177,7 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 	return runBackups(
 		ctx,
 		r,
-		"Group", "group",
+		"Group",
 		selectorSet,
 		ins)
 }
@@ -311,23 +312,24 @@ func validateGroupsBackupCreateFlags(groups, cats []string) error {
 		return clues.New(
 			"requires one or more --" +
 				flags.GroupFN + " ids, or the wildcard --" +
-				flags.GroupFN + " *",
-		)
+				flags.GroupFN + " *")
 	}
 
-	// TODO(meain)
-	// for _, d := range cats {
-	// 	if d != dataLibraries {
-	// 		return clues.New(
-	// 			d + " is an unrecognized data type; only  " + dataLibraries + " is supported"
-	// 		)
-	// 	}
-	// }
+	msg := fmt.Sprintf(
+		" is an unrecognized data type; only %s and %s are supported",
+		flags.DataLibraries, flags.DataMessages)
+
+	allowedCats := utils.GroupsAllowedCategories()
+
+	for _, d := range cats {
+		if _, ok := allowedCats[d]; !ok {
+			return clues.New(d + msg)
+		}
+	}
 
 	return nil
 }
 
-// TODO: users might specify a data type, this only supports AllData().
 func groupsBackupCreateSelectors(
 	ctx context.Context,
 	ins idname.Cacher,
@@ -339,27 +341,9 @@ func groupsBackupCreateSelectors(
 
 	sel := selectors.NewGroupsBackup(slices.Clone(group))
 
-	return addGroupsCategories(sel, cats)
+	return utils.AddGroupsCategories(sel, cats)
 }
 
 func includeAllGroupWithCategories(ins idname.Cacher, categories []string) *selectors.GroupsBackup {
-	return addGroupsCategories(selectors.NewGroupsBackup(ins.IDs()), categories)
-}
-
-func addGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.GroupsBackup {
-	if len(cats) == 0 {
-		sel.Include(sel.AllData())
-	}
-
-	// TODO(meain): handle filtering
-	// for _, d := range cats {
-	// 	switch d {
-	// 	case dataLibraries:
-	// 		sel.Include(sel.LibraryFolders(selectors.Any()))
-	// 	case dataPages:
-	// 		sel.Include(sel.Pages(selectors.Any()))
-	// 	}
-	// }
-
-	return sel
+	return utils.AddGroupsCategories(selectors.NewGroupsBackup(ins.IDs()), categories)
 }

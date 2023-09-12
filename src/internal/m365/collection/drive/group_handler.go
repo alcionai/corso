@@ -53,7 +53,7 @@ func (h groupBackupHandler) PathPrefix(
 }
 
 func (h groupBackupHandler) MetadataPathPrefix(tenantID string) (path.Path, error) {
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenantID,
 		h.groupID,
 		h.service,
@@ -61,6 +61,11 @@ func (h groupBackupHandler) MetadataPathPrefix(tenantID string) (path.Path, erro
 		false)
 	if err != nil {
 		return nil, clues.Wrap(err, "making metadata path")
+	}
+
+	p, err = p.Append(false, odConsts.SitesPathDir, h.siteID)
+	if err != nil {
+		return nil, clues.Wrap(err, "appending site id to metadata path")
 	}
 
 	return p, nil
@@ -77,8 +82,18 @@ func (h groupBackupHandler) CanonicalPath(
 		path.LibrariesCategory,
 		false,
 		odConsts.SitesPathDir,
-		h.siteID,
-	)
+		h.siteID)
+}
+
+func (h groupBackupHandler) SitePathPrefix(tenantID string) (path.Path, error) {
+	return path.Build(
+		tenantID,
+		h.groupID,
+		h.service,
+		path.LibrariesCategory,
+		false,
+		odConsts.SitesPathDir,
+		h.siteID)
 }
 
 func (h groupBackupHandler) IsAllPass() bool {

@@ -9,7 +9,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -22,12 +21,11 @@ func ControllerWithSelector(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	acct account.Account,
-	cr resource.Category,
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, cr, sel.PathService(), control.DefaultOptions())
+	ctrl, err := m365.NewController(ctx, acct, sel.PathService(), control.DefaultOptions())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail()

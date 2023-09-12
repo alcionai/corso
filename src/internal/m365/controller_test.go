@@ -16,8 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
-	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
@@ -357,8 +355,7 @@ func TestControllerIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ControllerIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -368,49 +365,11 @@ func (suite *ControllerIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.ctrl = newController(ctx, t, resource.Users, path.ExchangeService)
+	suite.ctrl = newController(ctx, t, path.ExchangeService)
 	suite.user = tconfig.M365UserID(t)
 	suite.secondaryUser = tconfig.SecondaryM365UserID(t)
 
 	tester.LogTimeOfTest(t)
-}
-
-func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		restoreCfg = testdata.DefaultRestoreConfig("")
-		sel        = selectors.Selector{
-			Service: selectors.ServiceUnknown,
-		}
-	)
-
-	restoreCfg.IncludePermissions = true
-
-	rcc := inject.RestoreConsumerConfig{
-		BackupVersion:     version.Backup,
-		Options:           control.DefaultOptions(),
-		ProtectedResource: sel,
-		RestoreConfig:     restoreCfg,
-		Selector:          sel,
-	}
-
-	deets, err := suite.ctrl.ConsumeRestoreCollections(
-		ctx,
-		rcc,
-		[]data.RestoreCollection{&dataMock.Collection{}},
-		fault.New(true),
-		count.New())
-	assert.Error(t, err, graph.ErrServiceNotEnabled, clues.ToCore(err))
-	assert.Nil(t, deets)
-
-	status := suite.ctrl.Wait()
-	assert.Equal(t, 0, status.Objects)
-	assert.Equal(t, 0, status.Folders)
-	assert.Equal(t, 0, status.Successes)
 }
 
 func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
@@ -512,7 +471,7 @@ func runRestore(
 
 	start := time.Now()
 
-	restoreCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
+	restoreCtrl := newController(ctx, t, path.ExchangeService)
 	restoreSel := getSelectorWith(t, sci.Service, sci.ResourceOwners, true)
 
 	rcc := inject.RestoreConsumerConfig{
@@ -581,7 +540,7 @@ func runBackupAndCompare(
 		nameToID[ro] = ro
 	}
 
-	backupCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
+	backupCtrl := newController(ctx, t, path.ExchangeService)
 	backupCtrl.IDNameLookup = inMock.NewCache(idToName, nameToID)
 
 	backupSel := backupSelectorForExpected(t, sci.Service, expectedDests)
@@ -637,7 +596,6 @@ func runRestoreBackupTest(
 
 	cfg := stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       test.resourceCat,
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
@@ -683,7 +641,6 @@ func runRestoreTestWithVersion(
 
 	cfg := stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       test.resourceCat,
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
@@ -721,7 +678,6 @@ func runRestoreBackupTestVersions(
 
 	cfg := stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       test.resourceCat,
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
@@ -765,9 +721,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 
 	table := []restoreBackupInfo{
 		{
-			name:        "EmailsWithAttachments",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "EmailsWithAttachments",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{api.MailInbox},
@@ -776,15 +731,13 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 						{
 							Name: "someencodeditemID",
 							Data: exchMock.MessageWithDirectAttachment(
-								subjectText + "-1",
-							),
+								subjectText + "-1"),
 							LookupKey: subjectText + "-1",
 						},
 						{
 							Name: "someencodeditemID2",
 							Data: exchMock.MessageWithTwoAttachments(
-								subjectText + "-2",
-							),
+								subjectText + "-2"),
 							LookupKey: subjectText + "-2",
 						},
 					},
@@ -792,9 +745,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 			},
 		},
 		{
-			name:        "MultipleEmailsMultipleFolders",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "MultipleEmailsMultipleFolders",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{api.MailInbox},
@@ -805,8 +757,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-1",
 								bodyText+" 1.",
-								bodyText+" 1.",
-							),
+								bodyText+" 1."),
 							LookupKey: subjectText + "-1",
 						},
 					},
@@ -820,8 +771,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-2",
 								bodyText+" 2.",
-								bodyText+" 2.",
-							),
+								bodyText+" 2."),
 							LookupKey: subjectText + "-2",
 						},
 						{
@@ -829,8 +779,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-3",
 								bodyText+" 3.",
-								bodyText+" 3.",
-							),
+								bodyText+" 3."),
 							LookupKey: subjectText + "-3",
 						},
 					},
@@ -844,8 +793,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-4",
 								bodyText+" 4.",
-								bodyText+" 4.",
-							),
+								bodyText+" 4."),
 							LookupKey: subjectText + "-4",
 						},
 					},
@@ -859,8 +807,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-5",
 								bodyText+" 5.",
-								bodyText+" 5.",
-							),
+								bodyText+" 5."),
 							LookupKey: subjectText + "-5",
 						},
 					},
@@ -868,9 +815,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 			},
 		},
 		{
-			name:        "MultipleContactsSingleFolder",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "MultipleContactsSingleFolder",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Contacts"},
@@ -896,9 +842,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 			},
 		},
 		{
-			name:        "MultipleContactsMultipleFolders",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "MultipleContactsMultipleFolders",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Work"},
@@ -1027,9 +972,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
 		{
-			name:        "Contacts",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "Contacts",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Work"},
@@ -1116,8 +1060,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					suite.user,
 					restoreCfg,
 					[]stub.ColInfo{collection},
-					version.Backup,
-				)
+					version.Backup)
 				require.NoError(t, err)
 
 				allItems += totalItems
@@ -1130,10 +1073,9 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					"Restoring %v/%v collections to %s\n",
 					i+1,
 					len(test.collections),
-					restoreCfg.Location,
-				)
+					restoreCfg.Location)
 
-				restoreCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
+				restoreCtrl := newController(ctx, t, path.ExchangeService)
 
 				rcc := inject.RestoreConsumerConfig{
 					BackupVersion:     version.Backup,
@@ -1167,7 +1109,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			// Run a backup and compare its output with what we put in.
 
-			backupCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
+			backupCtrl := newController(ctx, t, path.ExchangeService)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
@@ -1215,9 +1157,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 	subjectText := "Test message for restore with large attachment"
 
 	test := restoreBackupInfo{
-		name:        "EmailsWithLargeAttachments",
-		service:     path.ExchangeService,
-		resourceCat: resource.Users,
+		name:    "EmailsWithLargeAttachments",
+		service: path.ExchangeService,
 		collections: []stub.ColInfo{
 			{
 				PathElements: []string{api.MailInbox},
@@ -1318,7 +1259,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			defer flush()
 
 			var (
-				backupCtrl = newController(ctx, t, test.resourceCat, path.ExchangeService)
+				backupCtrl = newController(ctx, t, test.service)
 				backupSel  = test.selectorFunc(t)
 				errs       = fault.New(true)
 				start      = time.Now()

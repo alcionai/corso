@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -55,24 +54,25 @@ func (ctrl *Controller) ProduceBackupCollections(
 		return nil, nil, false, clues.Stack(err).WithClues(ctx)
 	}
 
-	serviceEnabled, canMakeDeltaQueries, err := checkServiceEnabled(
-		ctx,
-		ctrl.AC.Users(),
-		service,
-		bpc.ProtectedResource.ID())
-	if err != nil {
-		return nil, nil, false, err
-	}
-
-	if !serviceEnabled {
-		return []data.BackupCollection{}, nil, false, nil
-	}
-
 	var (
 		colls                []data.BackupCollection
 		ssmb                 *prefixmatcher.StringSetMatcher
 		canUsePreviousBackup bool
 	)
+
+	// All services except Exchange can make delta queries by default.
+	// Exchange can only make delta queries if the mailbox is not over quota.
+	canMakeDeltaQueries := true
+	if service == path.ExchangeService {
+		canMakeDeltaQueries, err = exchange.CanMakeDeltaQueries(
+			ctx,
+			service,
+			ctrl.AC.Users(),
+			bpc.ProtectedResource.ID())
+		if err != nil {
+			return nil, nil, false, clues.Stack(err)
+		}
+	}
 
 	if !canMakeDeltaQueries {
 		logger.Ctx(ctx).Info("delta requests not available")
@@ -148,48 +148,23 @@ func (ctrl *Controller) ProduceBackupCollections(
 	return colls, ssmb, canUsePreviousBackup, nil
 }
 
-// IsBackupRunnable verifies that the users provided has the services enabled and
-// data can be backed up. The canMakeDeltaQueries provides info if the mailbox is
-// full and delta queries can be made on it.
-func (ctrl *Controller) IsBackupRunnable(
+func (ctrl *Controller) IsServiceEnabled(
 	ctx context.Context,
 	service path.ServiceType,
 	resourceOwner string,
 ) (bool, error) {
-	if service == path.GroupsService {
-		_, err := ctrl.AC.Groups().GetByID(ctx, resourceOwner)
-		if err != nil {
-			// TODO(meain): check for error message in case groups are
-			// not enabled at all similar to sharepoint
-			return false, err
-		}
-
-		return true, nil
+	switch service {
+	case path.ExchangeService:
+		return exchange.IsServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
+	case path.OneDriveService:
+		return onedrive.IsServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
+	case path.SharePointService:
+		return sharepoint.IsServiceEnabled(ctx, ctrl.AC.Users().Sites(), resourceOwner)
+	case path.GroupsService:
+		return groups.IsServiceEnabled(ctx, ctrl.AC.Groups(), resourceOwner)
 	}
 
-	if service == path.SharePointService {
-		_, err := ctrl.AC.Sites().GetRoot(ctx)
-		if err != nil {
-			if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-				return false, clues.Stack(graph.ErrServiceNotEnabled, err)
-			}
-
-			return false, err
-		}
-
-		return true, nil
-	}
-
-	info, err := ctrl.AC.Users().GetInfo(ctx, resourceOwner)
-	if err != nil {
-		return false, clues.Stack(err)
-	}
-
-	if !info.ServiceEnabled(service) {
-		return false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
-	}
-
-	return true, nil
+	return false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
 }
 
 func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
@@ -210,37 +185,4 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	}
 
 	return nil
-}
-
-type getInfoer interface {
-	GetInfo(context.Context, string) (*api.UserInfo, error)
-}
-
-func checkServiceEnabled(
-	ctx context.Context,
-	gi getInfoer,
-	service path.ServiceType,
-	resource string,
-) (bool, bool, error) {
-	if service == path.SharePointService || service == path.GroupsService {
-		// No "enabled" check required for sharepoint or groups.
-		return true, true, nil
-	}
-
-	info, err := gi.GetInfo(ctx, resource)
-	if err != nil {
-		return false, false, clues.Stack(err)
-	}
-
-	if !info.ServiceEnabled(service) {
-		return false, false, clues.Wrap(graph.ErrServiceNotEnabled, "checking service access")
-	}
-
-	canMakeDeltaQueries := true
-	if service == path.ExchangeService {
-		// we currently can only check quota exceeded for exchange
-		canMakeDeltaQueries = info.CanMakeDeltaQueries()
-	}
-
-	return true, canMakeDeltaQueries, nil
 }

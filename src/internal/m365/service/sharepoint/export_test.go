@@ -95,8 +95,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		dpb       = odConsts.DriveFolderPrefixBuilder(driveID)
 		cache     = idname.NewCache(
 			// Cache check with lowercased ids
-			map[string]string{strings.ToLower(driveID): driveName},
-		)
+			map[string]string{strings.ToLower(driveID): driveName})
 		dii           = odStub.DriveItemInfo()
 		expectedPath  = "Libraries/" + driveName
 		expectedItems = []export.Item{

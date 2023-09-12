@@ -199,8 +199,7 @@ func (c *Client) ObjectRetention(
 	return mode, retainUntil, clues.Wrap(err, fmt.Sprintf(
 		"getting object (key) %q (versionID) %q",
 		obj.Key,
-		obj.Version,
-	)).
+		obj.Version)).
 		With("object_key", obj.Key, "object_version", obj.Version).
 		OrNil()
 }

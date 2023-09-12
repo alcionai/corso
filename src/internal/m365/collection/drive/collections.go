@@ -19,6 +19,7 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
+	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -120,10 +121,10 @@ func deserializeMetadata(
 				)
 
 				switch item.ID() {
-				case graph.PreviousPathFileName:
+				case bupMD.PreviousPathFileName:
 					err = deserializeMap(item.ToReader(), prevFolders)
 
-				case graph.DeltaURLsFileName:
+				case bupMD.DeltaURLsFileName:
 					err = deserializeMap(item.ToReader(), prevDeltas)
 
 				default:
@@ -449,8 +450,8 @@ func (c *Collections) Get(
 	md, err := graph.MakeMetadataCollection(
 		pathPrefix,
 		[]graph.MetadataCollectionEntry{
-			graph.NewMetadataEntry(graph.PreviousPathFileName, folderPaths),
-			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
+			graph.NewMetadataEntry(bupMD.PreviousPathFileName, folderPaths),
+			graph.NewMetadataEntry(bupMD.DeltaURLsFileName, deltaURLs),
 		},
 		c.statusUpdater)
 
@@ -728,8 +729,7 @@ func (c *Collections) UpdateCollections(
 				isFolder,
 				excluded,
 				itemCollection,
-				invalidPrevDelta,
-			); err != nil {
+				invalidPrevDelta); err != nil {
 				return clues.Stack(err).WithClues(ictx)
 			}
 

@@ -126,30 +126,25 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(files[0].uuid),
-					nil,
-				),
+					nil),
 				r: newBackupStreamReader(
 					serializationVersion,
-					io.NopCloser(bytes.NewReader(files[0].data)),
-				),
+					io.NopCloser(bytes.NewReader(files[0].data))),
 				size: int64(len(files[0].data) + versionSize),
 			},
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(files[1].uuid),
-					nil,
-				),
+					nil),
 				r: newBackupStreamReader(
 					serializationVersion,
-					io.NopCloser(bytes.NewReader(files[1].data)),
-				),
+					io.NopCloser(bytes.NewReader(files[1].data))),
 				size: int64(len(files[1].data) + versionSize),
 			},
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(fileOpenErrName),
-					nil,
-				),
+					nil),
 				openErr: assert.AnError,
 			},
 			virtualfs.NewStaticDirectory(encodeAsPath(notFileErrName), []fs.Entry{}),
@@ -301,28 +296,23 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(noErrFileName),
-					nil,
-				),
+					nil),
 				r: newBackupStreamReader(
 					serVersion,
-					io.NopCloser(bytes.NewReader([]byte(noErrFileData))),
-				),
+					io.NopCloser(bytes.NewReader([]byte(noErrFileData)))),
 			},
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(errFileName),
-					nil,
-				),
+					nil),
 				r: newBackupStreamReader(
 					serVersion,
-					errReader.ToReader(),
-				),
+					errReader.ToReader()),
 			},
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(errFileName2),
-					nil,
-				),
+					nil),
 				openErr: assert.AnError,
 			},
 		})
