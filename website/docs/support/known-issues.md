@@ -25,3 +25,5 @@ Below is a list of known Corso issues and limitations:
   not be inheritable by children.
 
 * Link shares with password protection can't be restored.
+
+* All replies in a Teams Conversation are removed from backup when the root message gets deleted.
