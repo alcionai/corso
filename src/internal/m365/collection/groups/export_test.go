@@ -72,7 +72,7 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 
 			ch := make(chan export.Item)
 
-			streamItems(
+			go streamItems(
 				ctx,
 				[]data.RestoreCollection{test.backingColl},
 				version.NoBackup,
