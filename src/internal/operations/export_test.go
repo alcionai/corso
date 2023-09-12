@@ -29,15 +29,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-type ExportOpSuite struct {
+type ExportUnitSuite struct {
 	tester.Suite
 }
 
-func TestExportOpSuite(t *testing.T) {
-	suite.Run(t, &ExportOpSuite{Suite: tester.NewUnitSuite(t)})
+func TestExportUnitSuite(t *testing.T) {
+	suite.Run(t, &ExportUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ExportOpSuite) TestExportOperation_PersistResults() {
+func (suite *ExportUnitSuite) TestExportOperation_PersistResults() {
 	var (
 		kw        = &kopia.Wrapper{}
 		sw        = store.NewWrapper(&kopia.ModelStore{})
@@ -163,30 +163,33 @@ func (r *ReadSeekCloser) Close() error {
 	return nil
 }
 
-func (suite *ExportOpSuite) TestZipExports() {
+func (suite *ExportUnitSuite) TestZipExports() {
 	table := []struct {
-		name       string
-		collection []export.Collectioner
-		shouldErr  bool
-		readErr    bool
+		name          string
+		inputColls    []export.Collectioner
+		expectZipErr  assert.ErrorAssertionFunc
+		expectReadErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:       "nothing",
-			collection: []export.Collectioner{},
-			shouldErr:  true,
+			name:          "nothing",
+			inputColls:    []export.Collectioner{},
+			expectZipErr:  assert.Error,
+			expectReadErr: assert.NoError,
 		},
 		{
 			name: "empty",
-			collection: []export.Collectioner{
+			inputColls: []export.Collectioner{
 				expCol{
 					base:  "",
 					items: []export.Item{},
 				},
 			},
+			expectZipErr:  assert.NoError,
+			expectReadErr: assert.NoError,
 		},
 		{
 			name: "one item",
-			collection: []export.Collectioner{
+			inputColls: []export.Collectioner{
 				expCol{
 					base: "",
 					items: []export.Item{
@@ -198,10 +201,12 @@ func (suite *ExportOpSuite) TestZipExports() {
 					},
 				},
 			},
+			expectZipErr:  assert.NoError,
+			expectReadErr: assert.NoError,
 		},
 		{
 			name: "multiple items",
-			collection: []export.Collectioner{
+			inputColls: []export.Collectioner{
 				expCol{
 					base: "",
 					items: []export.Item{
@@ -223,10 +228,12 @@ func (suite *ExportOpSuite) TestZipExports() {
 					},
 				},
 			},
+			expectZipErr:  assert.NoError,
+			expectReadErr: assert.NoError,
 		},
 		{
 			name: "one item with err",
-			collection: []export.Collectioner{
+			inputColls: []export.Collectioner{
 				expCol{
 					base: "",
 					items: []export.Item{
@@ -237,7 +244,8 @@ func (suite *ExportOpSuite) TestZipExports() {
 					},
 				},
 			},
-			readErr: true,
+			expectZipErr:  assert.NoError,
+			expectReadErr: assert.Error,
 		},
 	}
 
@@ -248,14 +256,13 @@ func (suite *ExportOpSuite) TestZipExports() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			zc, err := archive.ZipExportCollection(ctx, test.collection)
+			zc, err := archive.ZipExportCollection(ctx, test.inputColls)
+			test.expectZipErr(t, err, clues.ToCore(err))
 
-			if test.shouldErr {
-				assert.Error(t, err, "error")
+			if err != nil {
 				return
 			}
 
-			require.NoError(t, err, "error")
 			assert.Empty(t, zc.BasePath(), "base path")
 
 			zippedItems := []export.Item{}
@@ -266,24 +273,25 @@ func (suite *ExportOpSuite) TestZipExports() {
 				assert.True(t, strings.HasSuffix(item.Name, ".zip"), "name suffix")
 
 				data, err := io.ReadAll(item.Body)
-				if test.readErr {
-					assert.Error(t, err, "read error")
+				test.expectReadErr(t, err, clues.ToCore(err))
+
+				if err != nil {
 					return
 				}
 
-				size := int64(len(data))
+				assert.NotEmpty(t, item.Name, "item name")
 
 				item.Body.Close()
 
-				reader, err := zip.NewReader(bytes.NewReader(data), size)
-				require.NoError(t, err, "zip reader")
+				reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+				require.NoError(t, err, clues.ToCore(err))
 
 				for _, f := range reader.File {
 					rc, err := f.Open()
-					assert.NoError(t, err, "open file in zip")
+					assert.NoError(t, err, clues.ToCore(err))
 
 					data, err := io.ReadAll(rc)
-					require.NoError(t, err, "read zip file content")
+					require.NoError(t, err, clues.ToCore(err))
 
 					rc.Close()
 
@@ -299,16 +307,27 @@ func (suite *ExportOpSuite) TestZipExports() {
 			assert.Equal(t, 1, count, "single item")
 
 			expectedZippedItems := []export.Item{}
-			for _, col := range test.collection {
+
+			for _, col := range test.inputColls {
 				for item := range col.Items(ctx) {
-					if col.BasePath() != "" {
-						item.Name = strings.Join([]string{col.BasePath(), item.Name}, "/")
+					expected := export.Item{
+						Name: item.Name,
+						Body: item.Body,
 					}
-					_, err := item.Body.(io.ReadSeeker).Seek(0, io.SeekStart)
-					require.NoError(t, err, "seek")
-					expectedZippedItems = append(expectedZippedItems, item)
+
+					if col.BasePath() != "" {
+						expected.Name = strings.Join([]string{col.BasePath(), item.Name}, "/")
+					}
+
+					_, err := expected.Body.(io.ReadSeeker).Seek(0, io.SeekStart)
+					require.NoError(t, err, clues.ToCore(err))
+
+					expected.ID = ""
+
+					expectedZippedItems = append(expectedZippedItems, expected)
 				}
 			}
+
 			assert.Equal(t, expectedZippedItems, zippedItems, "items")
 		})
 	}

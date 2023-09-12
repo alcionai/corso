@@ -11,8 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
+	groupMock "github.com/alcionai/corso/src/internal/m365/service/groups/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -57,24 +56,21 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	defer flush()
 
 	var (
-		driveID       = "driveID1"
-		containerName = "containerName1"
+		itemID        = "itemID"
+		containerName = "channelID"
 		exportCfg     = control.ExportConfig{}
-		dpb           = odConsts.DriveFolderPrefixBuilder(driveID)
-		dii           = odStub.DriveItemInfo()
+		dii           = groupMock.ItemInfo()
 		expectedPath  = path.ChannelMessagesCategory.String() + "/" + containerName
 		expectedItems = []export.Item{
 			{
-				ID:   "id1.data",
-				Name: "name1",
+				ID:   itemID,
+				Name: dii.Groups.ItemName,
 				Body: io.NopCloser((bytes.NewBufferString("body1"))),
 			},
 		}
 	)
 
-	dii.OneDrive.ItemName = "name1"
-
-	p, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
+	p, err := path.Build("t", "pr", path.GroupsService, path.ChannelMessagesCategory, false, containerName)
 	assert.NoError(t, err, "build path")
 
 	dcs := []data.RestoreCollection{
@@ -83,13 +79,13 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				Path: p,
 				ItemData: []*dataMock.Item{
 					{
-						ItemID:   "id1.data",
+						ItemID:   itemID,
 						Reader:   io.NopCloser(bytes.NewBufferString("body1")),
 						ItemInfo: dii,
 					},
 				},
 			},
-			FetchItemByNamer: finD{id: "id1.meta", name: "name1"},
+			FetchItemByNamer: finD{id: itemID, name: dii.Groups.ItemName},
 		},
 	}
 
