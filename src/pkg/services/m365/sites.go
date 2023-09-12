@@ -47,6 +47,25 @@ type Site struct {
 	OwnerID string
 }
 
+// SiteByID retrieves a specific site.
+func SiteByID(
+	ctx context.Context,
+	acct account.Account,
+	id string,
+) (*Site, error) {
+	ac, err := makeAC(ctx, acct, path.SharePointService)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	s, err := ac.Sites().GetByID(ctx, id)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	return ParseSite(s), nil
+}
+
 // Sites returns a list of Sites in a specified M365 tenant
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
 	ac, err := makeAC(ctx, acct, path.SharePointService)
