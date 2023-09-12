@@ -55,14 +55,15 @@ runs:
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
       run: ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
 
-    - name: Reset retention for all mailboxes to 0
-      if: ${{ inputs.user == '' }}
-      shell: pwsh
-      working-directory: ./src/cmd/purge/scripts
-      env:
-        M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
-        M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
-      run: ./exchangeRetention.ps1
+    # TODO(ashmrtn): Re-enable when we figure out errors we're seeing with Get-Mailbox call.
+    #- name: Reset retention for all mailboxes to 0
+    #  if: ${{ inputs.user == '' }}
+    #  shell: pwsh
+    #  working-directory: ./src/cmd/purge/scripts
+    #  env:
+    #    M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
+    #    M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
+    #  run: ./exchangeRetention.ps1
 
     ################################################################################################################
     # OneDrive
