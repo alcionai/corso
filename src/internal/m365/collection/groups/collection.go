@@ -133,8 +133,7 @@ func (col Collection) State() data.CollectionState {
 }
 
 func (col Collection) DoNotMergeItems() bool {
-	// TODO: depends on whether or not deltas are valid
-	return true
+	return col.doNotMergeItems
 }
 
 // ---------------------------------------------------------------------------

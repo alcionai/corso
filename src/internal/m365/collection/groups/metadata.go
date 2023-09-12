@@ -69,7 +69,15 @@ func parseMetadataCollections(
 
 				switch item.ID() {
 				case metadata.PreviousPathFileName:
-					// no-op at this time, previous paths not needed
+					if _, ok := found[category][metadata.PathKey]; ok {
+						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)
+					}
+
+					for k, p := range m {
+						cdps.AddPath(k, p)
+					}
+
+					found[category][metadata.PathKey] = struct{}{}
 
 				case metadata.DeltaURLsFileName:
 					if _, ok := found[category][metadata.DeltaKey]; ok {
@@ -100,9 +108,16 @@ func parseMetadataCollections(
 		}, false, nil
 	}
 
-	// Do not remove entries that contain only a path or a delta, but not both.
-	// This condition is expected.  Channels only record their path.  Messages
-	// only record their deltas.
+	// Remove any entries that contain a path or a delta, but not both.
+	// That metadata is considered incomplete, and needs to incur a
+	// complete backup on the next run.
+	for _, dps := range cdp {
+		for k, dp := range dps {
+			if len(dp.Path) == 0 {
+				delete(dps, k)
+			}
+		}
+	}
 
 	return cdp, true, nil
 }
