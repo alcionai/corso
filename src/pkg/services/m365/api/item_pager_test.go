@@ -363,7 +363,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				test.pagerGetter(t),
 				test.deltaPagerGetter(t),
 				test.prevDelta,
-				test.canDelta)
+				test.canDelta,
+				addedAndRemovedByAddtlData)
 
 			require.NoErrorf(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
 			require.EqualValues(t, test.expect.added, added, "added item IDs")

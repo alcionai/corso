@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/alcionai/clues"
 
@@ -172,12 +173,15 @@ func deltaEnumerateItems[T any](
 // shared enumeration runner funcs
 // ---------------------------------------------------------------------------
 
+type addedAndRemovedHandler[T any] func(items []T) ([]string, []string, error)
+
 func getAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
 	pager Pager[T],
 	deltaPager DeltaPager[T],
 	prevDeltaLink string,
 	canMakeDeltaQueries bool,
+	aarh addedAndRemovedHandler[T],
 ) ([]string, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := deltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
@@ -186,7 +190,7 @@ func getAddedAndRemovedItemIDs[T any](
 		}
 
 		if err == nil {
-			a, r, err := addedAndRemovedByAddtlData(ts)
+			a, r, err := aarh(ts)
 			return a, r, du, graph.Stack(ctx, err).OrNil()
 		}
 	}
@@ -198,13 +202,19 @@ func getAddedAndRemovedItemIDs[T any](
 		return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 	}
 
-	a, r, err := addedAndRemovedByAddtlData[T](ts)
+	a, r, err := aarh(ts)
 
 	return a, r, du, graph.Stack(ctx, err).OrNil()
 }
 
-type getIDAndAddtler interface {
+type getIDer interface {
 	GetId() *string
+}
+
+// for added and removed by additionalData[@removed]
+
+type getIDAndAddtler interface {
+	getIDer
 	GetAdditionalData() map[string]any
 }
 
@@ -225,6 +235,36 @@ func addedAndRemovedByAddtlData[T any](items []T) ([]string, []string, error) {
 			added = append(added, ptr.Val(giaa.GetId()))
 		} else {
 			removed = append(removed, ptr.Val(giaa.GetId()))
+		}
+	}
+
+	return added, removed, nil
+}
+
+// for added and removed by GetDeletedDateTime()
+
+type getIDAndDeletedDateTimer interface {
+	getIDer
+	GetDeletedDateTime() *time.Time
+}
+
+func addedAndRemovedByDeletedDateTime[T any](items []T) ([]string, []string, error) {
+	added, removed := []string{}, []string{}
+
+	for _, item := range items {
+		giaddt, ok := any(item).(getIDAndDeletedDateTimer)
+		if !ok {
+			return nil, nil, clues.New("item does not provide id and deleted date time getters").
+				With("item_type", fmt.Sprintf("%T", item))
+		}
+
+		// if the additional data contains a `@removed` key, the value will either
+		// be 'changed' or 'deleted'.  We don't really care about the cause: both
+		// cases are handled the same way in storage.
+		if giaddt.GetDeletedDateTime() == nil {
+			added = append(added, ptr.Val(giaddt.GetId()))
+		} else {
+			removed = append(removed, ptr.Val(giaddt.GetId()))
 		}
 	}
 

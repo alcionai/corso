@@ -80,3 +80,13 @@ func Preview(s string, size int) string {
 
 	return ss
 }
+
+func SliceToMap(ss []string) map[string]struct{} {
+	m := map[string]struct{}{}
+
+	for _, s := range ss {
+		m[s] = struct{}{}
+	}
+
+	return m
+}

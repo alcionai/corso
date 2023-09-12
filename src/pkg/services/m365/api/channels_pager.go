@@ -6,13 +6,67 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
 // channel message pager
+// ---------------------------------------------------------------------------
+
+var _ Pager[models.ChatMessageable] = &channelMessagePageCtrl{}
+
+type channelMessagePageCtrl struct {
+	resourceID, channelID string
+	gs                    graph.Servicer
+	builder               *teams.ItemChannelsItemMessagesRequestBuilder
+	options               *teams.ItemChannelsItemMessagesRequestBuilderGetRequestConfiguration
+}
+
+func (p *channelMessagePageCtrl) SetNextLink(nextLink string) {
+	p.builder = teams.NewItemChannelsItemMessagesRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *channelMessagePageCtrl) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[models.ChatMessageable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+func (c Channels) NewChannelMessagePager(
+	teamID, channelID string,
+	selectProps ...string,
+) *channelMessagePageCtrl {
+	builder := c.Stable.
+		Client().
+		Teams().
+		ByTeamIdString(teamID).
+		Channels().
+		ByChannelIdString(channelID).
+		Messages()
+
+	options := &teams.ItemChannelsItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &teams.ItemChannelsItemMessagesRequestBuilderGetQueryParameters{},
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
+	return &channelMessagePageCtrl{
+		resourceID: teamID,
+		channelID:  channelID,
+		builder:    builder,
+		gs:         c.Stable,
+		options:    options,
+	}
+}
+
+// ---------------------------------------------------------------------------
+// channel message delta pager
 // ---------------------------------------------------------------------------
 
 var _ DeltaPager[models.ChatMessageable] = &channelMessageDeltaPageCtrl{}
@@ -65,7 +119,7 @@ func (c Channels) NewChannelMessageDeltaPager(
 
 	options := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetQueryParameters{},
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+		Headers:         newPreferHeaders(preferPageSize(maxDeltaPageSize)),
 	}
 
 	if len(selectProps) > 0 {
@@ -83,44 +137,20 @@ func (c Channels) NewChannelMessageDeltaPager(
 
 // GetChannelMessageIDsDelta fetches a delta of all messages in the channel.
 // returns two maps: addedItems, deletedItems
-func (c Channels) GetChannelMessageIDsDelta(
+func (c Channels) GetChannelMessageIDs(
 	ctx context.Context,
-	teamID, channelID, prevDelta string,
-) (map[string]struct{}, map[string]struct{}, DeltaUpdate, error) {
-	var (
-		added   = map[string]struct{}{}
-		deleted = map[string]struct{}{}
-		// select is not currently allowed on messages
-		// this func will still isolate to the ID, however,
-		// because we need the follow-up get request to gather
-		// all replies to the message.
-		// selectProps      = idAnd()
-		pager = c.NewChannelMessageDeltaPager(teamID, channelID, prevDelta)
-	)
+	teamID, channelID, prevDeltaLink string,
+	canMakeDeltaQueries bool,
+) ([]string, []string, DeltaUpdate, error) {
+	added, removed, du, err := getAddedAndRemovedItemIDs(
+		ctx,
+		c.NewChannelMessagePager(teamID, channelID),
+		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
+		prevDeltaLink,
+		canMakeDeltaQueries,
+		addedAndRemovedByDeletedDateTime)
 
-	results, du, err := deltaEnumerateItems[models.ChatMessageable](ctx, pager, prevDelta)
-	if graph.IsErrInvalidDelta(err) {
-		logger.Ctx(ctx).Infow("delta token not supported", "delta_link", prevDelta)
-
-		added = map[string]struct{}{}
-		deleted = map[string]struct{}{}
-
-		return added, deleted, du, nil
-	}
-
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "extracting channel messages from response")
-	}
-
-	for _, r := range results {
-		if r.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
-			added[ptr.Val(r.GetId())] = struct{}{}
-		} else {
-			deleted[ptr.Val(r.GetId())] = struct{}{}
-		}
-	}
-
-	return added, deleted, du, nil
+	return added, removed, du, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
