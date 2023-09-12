@@ -26,7 +26,7 @@ jobs:
       run:
         working-directory: src
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Build the otel-daemon
         run: make build-otel-daemon
@@ -120,7 +120,7 @@ jobs:
     outputs:
       matrix: ${{ steps.build.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - id: build
         run: |
           u=$(echo "${{ secrets.CORSO_M365_LOAD_TEST_ORG_USERS }}" | sed 's/\[/["/g' | sed 's/\]/"]/g' | sed 's/|/","/g')
@@ -140,7 +140,7 @@ jobs:
       matrix:
         user: [ CORSO_M365_LOAD_TEST_USER_ID, '' ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set folder boundary datetime
         run: |
           echo "NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV

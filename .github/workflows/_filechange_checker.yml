@@ -24,7 +24,7 @@ jobs:
       websitefileschanged: ${{ steps.websitechecker.outputs.websitefileschanged }}
       actionsfileschanged: ${{ steps.actionschecker.outputs.actionsfileschanged }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # only run CI tests if the src folder or workflow actions have changed
       - name: Check for file changes in src/ or .github/workflows/
