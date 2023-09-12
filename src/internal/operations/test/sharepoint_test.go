@@ -381,7 +381,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			Drives().
 			NewSiteDrivePager(suite.its.site.ID, []string{"id", "name"})
 
-		drives, err := api.GetAllDrives(ctx, pgr, false, -1)
+		drives, err := api.GetAllDrives(ctx, pgr)
 		require.NoError(t, err, clues.ToCore(err))
 
 		var created models.Driveable

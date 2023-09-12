@@ -40,7 +40,7 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 			Append(
 				repoRef.Tenant(),
 				repoRef.Service().String(),
-				repoRef.ResourceOwner(),
+				repoRef.ProtectedResource(),
 				repoRef.Category().String()).
 			Append(unescapedFolders...).
 			String()

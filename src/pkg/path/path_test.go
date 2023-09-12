@@ -291,7 +291,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPathErrors() {
 func (suite *PathUnitSuite) TestFromDataLayerPath() {
 	const (
 		testTenant         = "tenant"
-		testUser           = "user"
+		testResource       = "resource"
 		testElement1       = "folder/"
 		testElementTrimmed = "folder"
 		testElement2       = "folder2"
@@ -331,7 +331,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			unescapedPath: fmt.Sprintf(
 				"%s/%%s/%s/%%s/%s/%s/%s",
 				testTenant,
-				testUser,
+				testResource,
 				testElement1,
 				testElement2,
 				testElement3),
@@ -360,7 +360,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			unescapedPath: fmt.Sprintf(
 				"/%s//%%s//%s//%%s//%s///%s//%s//",
 				testTenant,
-				testUser,
+				testResource,
 				testElementTrimmed,
 				testElement2,
 				testElement3),
@@ -401,7 +401,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 							assert.Equal(t, service, p.Service(), "service")
 							assert.Equal(t, cat, p.Category(), "category")
 							assert.Equal(t, testTenant, p.Tenant(), "tenant")
-							assert.Equal(t, testUser, p.ResourceOwner(), "resource owner")
+							assert.Equal(t, testResource, p.ProtectedResource(), "resource owner")
 
 							fld := p.Folder(false)
 							escfld := p.Folder(true)

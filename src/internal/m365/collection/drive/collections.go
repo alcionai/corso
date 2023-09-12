@@ -249,7 +249,7 @@ func (c *Collections) Get(
 	// Enumerate drives for the specified resourceOwner
 	pager := c.handler.NewDrivePager(c.resourceOwner, nil)
 
-	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	drives, err := api.GetAllDrives(ctx, pager)
 	if err != nil {
 		return nil, false, err
 	}
