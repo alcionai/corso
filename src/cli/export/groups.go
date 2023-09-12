@@ -27,6 +27,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, true)
+		flags.AddGroupDetailsAndRestoreFlags(c)
 		flags.AddExportConfigFlags(c)
 		flags.AddFailFastFlag(c)
 		flags.AddCorsoPassphaseFlags(c)

@@ -106,6 +106,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddBackupIDFlag(c, true)
+		flags.AddGroupDetailsAndRestoreFlags(c)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
