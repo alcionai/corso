@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
@@ -20,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -50,6 +52,27 @@ func ProduceBackupCollections(
 		ctx,
 		"group_id", clues.Hide(bpc.ProtectedResource.ID()),
 		"group_name", clues.Hide(bpc.ProtectedResource.Name()))
+
+	resp, err := ac.Groups().GetByID(ctx, bpc.ProtectedResource.ID())
+	if err != nil {
+		return nil, nil, false, clues.Wrap(err, "getting group").WithClues(ctx)
+	}
+
+	// Not all groups will have associated SharePoint
+	// sites. Distribution channels and Security groups will not
+	// have one. This check is to skip those groups.
+	groupTypes := resp.GetGroupTypes()
+	hasSharePoint := slices.Contains(groupTypes, "Unified")
+
+	// If we don't have SharePoint site, there is nothing here to
+	// backup as of now.
+	if !hasSharePoint {
+		logger.Ctx(ctx).
+			With("group_id", bpc.ProtectedResource.ID()).
+			Infof("No SharePoint site found for group")
+
+		return nil, nil, false, clues.Stack(graph.ErrServiceNotEnabled, err).WithClues(ctx)
+	}
 
 	for _, scope := range b.Scopes() {
 		if el.Failure() != nil {
@@ -164,9 +187,7 @@ func getSitesMetadataCollection(
 	sites map[string]string,
 	su support.StatusUpdater,
 ) (data.BackupCollection, error) {
-	// TODO(meain): Switch to using BuildMetadata
-	// https://github.com/alcionai/corso/pull/4184#discussion_r1316139701
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenantID,
 		groupID,
 		path.GroupsService,
