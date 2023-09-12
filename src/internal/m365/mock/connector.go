@@ -78,7 +78,7 @@ func (ctrl Controller) ProduceExportCollections(
 	_ control.Options,
 	_ []data.RestoreCollection,
 	_ *fault.Bus,
-) ([]export.Collection, error) {
+) ([]export.Collectioner, error) {
 	return nil, ctrl.Err
 }
 
