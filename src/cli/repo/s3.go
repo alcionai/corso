@@ -7,7 +7,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
@@ -20,41 +19,18 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-// s3 bucket info from flags
-var (
-	succeedIfExists bool
-	bucket          string
-	endpoint        string
-	prefix          string
-	doNotUseTLS     bool
-	doNotVerifyTLS  bool
-)
-
-// s3 bucket flags
-const (
-	succeedIfExistsFN = "succeedIfExists"
-	bucketFN          = "bucket"
-	endpointFN        = "endpoint"
-	prefixFN          = "prefix"
-	doNotUseTLSFN     = "disable-tls"
-	doNotVerifyTLSFN  = "disable-tls-verification"
-)
-
 // called by repo.go to map subcommands to provider-specific handling.
 func addS3Commands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case initCommand:
 		init := s3InitCmd()
 		flags.AddRetentionConfigFlags(init)
-		c, fs = utils.AddCommand(cmd, init)
+		c, _ = utils.AddCommand(cmd, init)
 
 	case connectCommand:
-		c, fs = utils.AddCommand(cmd, s3ConnectCmd())
+		c, _ = utils.AddCommand(cmd, s3ConnectCmd())
 	}
 
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
@@ -63,19 +39,7 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	flags.AddAWSCredsFlags(c)
 	flags.AddAzureCredsFlags(c)
 	flags.AddCorsoPassphaseFlags(c)
-
-	// Flags addition ordering should follow the order we want them to appear in help and docs:
-	// More generic and more frequently used flags take precedence.
-	fs.StringVar(&bucket, bucketFN, "", "Name of S3 bucket for repo. (required)")
-	fs.StringVar(&prefix, prefixFN, "", "Repo prefix within bucket.")
-	fs.StringVar(&endpoint, endpointFN, "", "S3 service endpoint.")
-	fs.BoolVar(&doNotUseTLS, doNotUseTLSFN, false, "Disable TLS (HTTPS)")
-	fs.BoolVar(&doNotVerifyTLS, doNotVerifyTLSFN, false, "Disable TLS (HTTPS) certificate verification.")
-
-	// In general, we don't want to expose this flag to users and have them mistake it
-	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
-	fs.BoolVar(&succeedIfExists, "succeed-if-exists", false, "Exit with success if the repo has already been initialized.")
-	cobra.CheckErr(fs.MarkHidden("succeed-if-exists"))
+	flags.AddS3BucketFlags(c)
 
 	return c
 }
@@ -173,7 +137,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		opt,
 		retentionOpts)
 	if err != nil {
-		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
+		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
 		}
 
@@ -286,24 +250,24 @@ func PopulateS3Flags(flagset flags.PopulatedFlags) map[string]string {
 		s3Overrides[credentials.AWSSessionToken] = flags.AWSSessionTokenFV
 	}
 
-	if _, ok := flagset[bucketFN]; ok {
-		s3Overrides[storage.Bucket] = bucket
+	if _, ok := flagset[flags.BucketFN]; ok {
+		s3Overrides[storage.Bucket] = flags.BucketFV
 	}
 
-	if _, ok := flagset[prefixFN]; ok {
-		s3Overrides[storage.Prefix] = prefix
+	if _, ok := flagset[flags.PrefixFN]; ok {
+		s3Overrides[storage.Prefix] = flags.PrefixFV
 	}
 
-	if _, ok := flagset[doNotUseTLSFN]; ok {
-		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(doNotUseTLS)
+	if _, ok := flagset[flags.DoNotUseTLSFN]; ok {
+		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(flags.DoNotUseTLSFV)
 	}
 
-	if _, ok := flagset[doNotVerifyTLSFN]; ok {
-		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(doNotVerifyTLS)
+	if _, ok := flagset[flags.DoNotVerifyTLSFN]; ok {
+		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(flags.DoNotVerifyTLSFV)
 	}
 
-	if _, ok := flagset[endpointFN]; ok {
-		s3Overrides[storage.Endpoint] = endpoint
+	if _, ok := flagset[flags.EndpointFN]; ok {
+		s3Overrides[storage.Endpoint] = flags.EndpointFV
 	}
 
 	return s3Overrides
