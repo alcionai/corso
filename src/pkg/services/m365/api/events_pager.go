@@ -202,15 +202,8 @@ func getEventDeltaBuilder(
 	gs graph.Servicer,
 	userID, containerID string,
 ) *users.ItemCalendarsItemEventsDeltaRequestBuilder {
-	builder := gs.Client().
-		Users().
-		ByUserIdString(userID).
-		Calendars().
-		ByCalendarIdString(containerID).
-		Events().
-		Delta()
-
-	return builder
+	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, userID, containerID)
+	return users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, gs.Adapter())
 }
 
 func (c Events) NewEventsDeltaPager(
@@ -232,8 +225,7 @@ func (c Events) NewEventsDeltaPager(
 	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
 
 	if len(prevDeltaLink) > 0 {
-		rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, userID, containerID)
-		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, c.Stable.Adapter())
+		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(prevDeltaLink, c.Stable.Adapter())
 	} else {
 		builder = getEventDeltaBuilder(ctx, c.Stable, userID, containerID)
 	}

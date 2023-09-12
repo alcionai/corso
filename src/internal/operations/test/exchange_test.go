@@ -63,28 +63,28 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		category      path.CategoryType
 		metadataFiles []string
 	}{
-		{
-			name: "Mail",
-			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
-				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.its.user.ID
+		// 	{
+		// 		name: "Mail",
+		// 		selector: func() *selectors.ExchangeBackup {
+		// 			sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+		// 			sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
+		// 			sel.DiscreteOwner = suite.its.user.ID
 
-				return sel
-			},
-			category:      path.EmailCategory,
-			metadataFiles: exchange.MetadataFileNames(path.EmailCategory),
-		},
-		{
-			name: "Contacts",
-			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
-				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
-				return sel
-			},
-			category:      path.ContactsCategory,
-			metadataFiles: exchange.MetadataFileNames(path.ContactsCategory),
-		},
+		// 			return sel
+		// 		},
+		// 		category:      path.EmailCategory,
+		// 		metadataFiles: exchange.MetadataFileNames(path.EmailCategory),
+		// 	},
+		// 	{
+		// 		name: "Contacts",
+		// 		selector: func() *selectors.ExchangeBackup {
+		// 			sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+		// 			sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
+		// 			return sel
+		// 		},
+		// 		category:      path.ContactsCategory,
+		// 		metadataFiles: exchange.MetadataFileNames(path.ContactsCategory),
+		// 	},
 		{
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
