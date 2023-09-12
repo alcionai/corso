@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -185,8 +186,8 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			force := map[string]string{
-				tconfig.TestCfgAccountProvider: "M365",
-				tconfig.TestCfgStorageProvider: "S3",
+				tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
+				tconfig.TestCfgStorageProvider: storage.ProviderS3.String(),
 				tconfig.TestCfgPrefix:          cfg.Prefix,
 			}
 			vpr, configFP := tconfig.MakeTempTestConfigClone(t, force)
