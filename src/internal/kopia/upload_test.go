@@ -394,10 +394,12 @@ var finishedFileTable = []struct {
 			return map[string]testInfo{
 				fname: {
 					info: &itemDetails{
-						info: &details.ItemInfo{
-							Exchange: &details.ExchangeInfo{
-								ItemType: details.ExchangeMail,
-							},
+						infoFunc: func() (details.ItemInfo, error) {
+							return details.ItemInfo{
+								Exchange: &details.ExchangeInfo{
+									ItemType: details.ExchangeMail,
+								},
+							}, nil
 						},
 						repoPath:     fpath,
 						locationPath: path.Builder{}.Append(fpath.Folders()...),
@@ -430,10 +432,12 @@ var finishedFileTable = []struct {
 			return map[string]testInfo{
 				fname: {
 					info: &itemDetails{
-						info: &details.ItemInfo{
-							Exchange: &details.ExchangeInfo{
-								ItemType: details.ExchangeMail,
-							},
+						infoFunc: func() (details.ItemInfo, error) {
+							return details.ItemInfo{
+								Exchange: &details.ExchangeInfo{
+									ItemType: details.ExchangeMail,
+								},
+							}, nil
 						},
 						repoPath: fpath,
 					},
@@ -526,7 +530,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 							}
 
 							if cachedTest.dropInfo {
-								v.info.info = nil
+								v.info.infoFunc = nil
 							}
 						}
 
@@ -589,7 +593,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 	bd := &details.Builder{}
 	cachedItems := map[string]testInfo{
 		suite.targetFileName: {
-			info:       &itemDetails{info: nil, repoPath: suite.targetFilePath},
+			info:       &itemDetails{repoPath: suite.targetFilePath},
 			err:        nil,
 			totalBytes: 100,
 		},
@@ -654,7 +658,6 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 	}
 
 	deets := &itemDetails{
-		info:         nil,
 		repoPath:     suite.targetFilePath,
 		prevPath:     prevPath,
 		locationPath: suite.targetFileLoc,
