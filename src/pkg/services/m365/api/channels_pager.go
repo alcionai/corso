@@ -119,8 +119,8 @@ func (c Channels) GetChannelMessageIDsDelta(
 			continue
 		}
 
-		if graph.IsErrDeltaTokenNotSupported(err) {
-			logger.Ctx(ctx).Infow("delta token not supported for", "delta_link", prevDelta)
+		if graph.IsErrInvalidDelta(err) {
+			logger.Ctx(ctx).Infow("delta token not supported", "delta_link", prevDelta)
 
 			added = map[string]struct{}{}
 			deleted = map[string]struct{}{}
