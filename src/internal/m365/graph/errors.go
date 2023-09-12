@@ -63,11 +63,12 @@ const (
 type errorMessage string
 
 const (
-	IOErrDuringRead       errorMessage = "IO error during request payload read"
-	MysiteURLNotFound     errorMessage = "unable to retrieve user's mysite url"
-	MysiteNotFound        errorMessage = "user's mysite not found"
-	NoSPLicense           errorMessage = "Tenant does not have a SPO license"
-	usersCannotBeResolved errorMessage = "One or more users could not be resolved"
+	IOErrDuringRead        errorMessage = "IO error during request payload read"
+	MysiteURLNotFound      errorMessage = "unable to retrieve user's mysite url"
+	MysiteNotFound         errorMessage = "user's mysite not found"
+	NoSPLicense            errorMessage = "Tenant does not have a SPO license"
+	usersCannotBeResolved  errorMessage = "One or more users could not be resolved"
+	deltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request."
 )
 
 const (
@@ -135,6 +136,10 @@ func IsErrItemNotFound(err error) bool {
 func IsErrInvalidDelta(err error) bool {
 	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid) ||
 		errors.Is(err, ErrInvalidDelta)
+}
+
+func IsErrDeltaTokenNotSupported(err error) bool {
+	return hasErrorMessage(err, deltaTokenNotSupported)
 }
 
 func IsErrQuotaExceeded(err error) bool {
