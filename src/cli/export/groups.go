@@ -18,7 +18,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case exportCommand:
-		c, fs = utils.AddCommand(cmd, groupsExportCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsExportCmd())
 
 		c.Use = c.Use + " " + groupsServiceCommandUseSuffix
 
@@ -43,16 +43,20 @@ const (
 	groupsServiceCommandUseSuffix = "<destination> --backup <backupId>"
 
 	//nolint:lll
-	groupsServiceCommandExportExamples = `# Export a message in Marketing's last backup (1234abcd...) to my-exports directory
+	groupsServiceCommandExportExamples = `# Export a message in Marketing's last backup (1234abcd...) to /my-exports
 corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd --message 98765abcdef
 
 # Export all messages named in channel "Finance Reports" to the current directory
 corso export groups . --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --message '*' --channel "Finance Reports"
 
-# Export all messages in channel "Finance Reports" that were created before 2020 to my-exports
+# Export all messages in channel "Finance Reports" that were created before 2020 to /my-exports
 corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd
-    --channel "Finance Reports" --message-created-before 2020-01-01T00:00:00`
+    --channel "Finance Reports" --message-created-before 2020-01-01T00:00:00
+
+# Export all files and folders in folder "Documents/Finance Reports" that were created before 2020 to /my-exports
+corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso export groups [<flag>...] <destination>`

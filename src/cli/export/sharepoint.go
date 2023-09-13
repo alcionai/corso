@@ -42,19 +42,19 @@ const (
 	sharePointServiceCommandUseSuffix = "<destination> --backup <backupId>"
 
 	//nolint:lll
-	sharePointServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's latest backup (1234abcd...) to my-exports directory
+	sharePointServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's latest backup (1234abcd...) to /my-exports
 corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef my-exports
 
-# Export files named "ServerRenderTemplate.xsl" in the folder "Display Templates/Style Sheets". as archive to current directory
+# Export files named "ServerRenderTemplate.xsl" in the folder "Display Templates/Style Sheets". as archive to the current directory
 corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets" --archive .
 
-# Export all files in the folder "Display Templates/Style Sheets" that were created before 2020 to my-exports directory.
-corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
+# Export all files in the folder "Display Templates/Style Sheets" that were created before 2020 to /my-exports
+corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file-created-before 2020-01-01T00:00:00 --folder "Display Templates/Style Sheets" my-exports
 
-# Export all files in the "Documents" library to current directory.
-corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
+# Export all files in the "Documents" library to the current directory.
+corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --library Documents --folder "Display Templates/Style Sheets" .`
 )
 

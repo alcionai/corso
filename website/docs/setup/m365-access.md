@@ -52,11 +52,19 @@ then click **Add permissions**.
 | API / Permissions Name | Type | Description
 |:--|:--|:--|
 | Calendars.ReadWrite | Application | Read and write calendars in all mailboxes |
+| ChannelMessage.Read.All | Application | Read all messages in Teams' channels |
+| ChannelSettings.Read.All | Application | Read all Teams' channel settings |
+| Chat.Read.All | Application | Read all Teams' chats and chat messages |
 | Contacts.ReadWrite | Application | Read and write contacts in all mailboxes |
+| Directory.Read.All | Application | Read all directory data |
 | Files.ReadWrite.All | Application | Read and write files in all site collections |
+| Group.Read.All | Application | Read all groups' data |
 | MailboxSettings.Read | Application | Read all user mailbox settings |
 | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
+| Member.Read.Hidden | Application | Read hidden group memberships |
 | Sites.FullControl.All | Application | Have full control of all site collections |
+| TeamMember.Read.All | Application | Read all Teams' user memberships |
+| TeamSettings.Read.All | Application | Read all Teams' settings |
 | User.Read.All | Application | Read all users' full profiles |
 
 <!-- vale Microsoft.Spacing = YES -->

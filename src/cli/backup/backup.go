@@ -3,7 +3,6 @@ package backup
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -39,9 +38,7 @@ var serviceCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 	addOneDriveCommands,
 	addSharePointCommands,
-	// awaiting release
-	// addGroupsCommands,
-	// addTeamsCommands,
+	addGroupsCommands,
 }
 
 // AddCommands attaches all `corso backup * *` commands to the parent.
@@ -55,11 +52,6 @@ func AddCommands(cmd *cobra.Command) {
 
 		for _, addBackupTo := range serviceCommands {
 			addBackupTo(subCommand)
-		}
-
-		// delete after release
-		if len(os.Getenv("CORSO_ENABLE_GROUPS")) > 0 {
-			addGroupsCommands(subCommand)
 		}
 	}
 }

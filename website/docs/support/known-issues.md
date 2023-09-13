@@ -26,4 +26,4 @@ Below is a list of known Corso issues and limitations:
 
 * Link shares with password protection can't be restored.
 
-* All replies in a Teams Conversation are removed from backup when the root message gets deleted.
+* Teams conversation replies are only backed up if the parent message is available at the time of backup.

@@ -18,7 +18,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(cmd, groupsRestoreCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsRestoreCmd())
 
 		c.Use = c.Use + " " + groupsServiceCommandUseSuffix
 
@@ -40,24 +40,22 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 	return c
 }
 
-// TODO: correct examples
 const (
 	groupsServiceCommand          = "groups"
 	teamsServiceCommand           = "teams"
 	groupsServiceCommandUseSuffix = "--backup <backupId>"
 
-	groupsServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's last backup (1234abcd...)
+	groupsServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Marketing's last backup (1234abcd...)
 corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
 # Restore the file with ID 98765abcdef along with its associated permissions
 corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --restore-permissions
 
-# Restore files named "FY2021 Planning.xlsx" in "Documents/Finance Reports"
-corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+# Restore all files named "FY2021 Planning.xlsx"
+corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file "FY2021 Planning.xlsx"
 
 # Restore all files and folders in folder "Documents/Finance Reports" that were created before 2020
-corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd 
+corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
