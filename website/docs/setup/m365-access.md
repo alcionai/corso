@@ -56,9 +56,8 @@ then click **Add permissions**.
 | ChannelSettings.Read.All | Application | Read all Teams' channel settings |
 | Chat.Read.All | Application | Read all Teams' chats and chat messages |
 | Contacts.ReadWrite | Application | Read and write contacts in all mailboxes |
-| Directory.Read.All | Application | Read all directory data |
+| Directory.Read.All | Application | Read all organization directory data |
 | Files.ReadWrite.All | Application | Read and write files in all site collections |
-| Group.Read.All | Application | Read all groups' data |
 | MailboxSettings.Read | Application | Read all user mailbox settings |
 | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
 | Member.Read.Hidden | Application | Read hidden group memberships |
