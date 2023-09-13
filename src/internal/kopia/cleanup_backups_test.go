@@ -355,13 +355,23 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		res := *b
 		res.ProtectedResourceID = protectedResource
 
+		t := model.MergeBackup
 		if isAssist {
-			if res.Tags == nil {
-				res.Tags = map[string]string{}
-			}
-
-			res.Tags[model.BackupTypeTag] = model.AssistBackup
+			t = model.AssistBackup
 		}
+
+		if res.Tags == nil {
+			res.Tags = map[string]string{}
+		}
+
+		res.Tags[model.BackupTypeTag] = t
+
+		return &res
+	}
+
+	backupWithLegacyResource := func(protectedResource string, b *backup.Backup) *backup.Backup {
+		res := *b
+		res.ResourceOwnerID = protectedResource
 
 		return &res
 	}
