@@ -62,6 +62,18 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 				"--" + flags.RunModeFN, flags.RunModeFlagTest,
 				"--" + flags.BackupFN, testdata.BackupInput,
 
+				"--" + flags.LibraryFN, testdata.LibraryInput,
+				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
+				"--" + flags.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
+				"--" + flags.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
+				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
+				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
+				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+				"--" + flags.ListItemFN, testdata.FlgInputs(testdata.ListItemInput),
+				"--" + flags.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
+				"--" + flags.PageFN, testdata.FlgInputs(testdata.PageInput),
+				"--" + flags.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
+
 				"--" + flags.CollisionsFN, testdata.Collisions,
 				"--" + flags.DestinationFN, testdata.Destination,
 				"--" + flags.ToResourceFN, testdata.ToResource,
@@ -87,6 +99,14 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 
 			opts := utils.MakeGroupsOpts(cmd)
 			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+
+			assert.Equal(t, testdata.LibraryInput, opts.Library)
+			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
+			assert.ElementsMatch(t, testdata.FolderPathInput, opts.FolderPath)
+			assert.Equal(t, testdata.FileCreatedAfterInput, opts.FileCreatedAfter)
+			assert.Equal(t, testdata.FileCreatedBeforeInput, opts.FileCreatedBefore)
+			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
+			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
 
 			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
 			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)

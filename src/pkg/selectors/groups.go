@@ -379,7 +379,7 @@ func (s *groups) CreatedAfter(timeStrings string) []GroupsScope {
 	return []GroupsScope{
 		makeInfoScope[GroupsScope](
 			GroupsLibraryItem,
-			GroupsInfoCreatedAfter,
+			GroupsInfoLibraryItemCreatedAfter,
 			[]string{timeStrings},
 			filters.Less),
 	}
@@ -389,7 +389,7 @@ func (s *groups) CreatedBefore(timeStrings string) []GroupsScope {
 	return []GroupsScope{
 		makeInfoScope[GroupsScope](
 			GroupsLibraryItem,
-			GroupsInfoCreatedBefore,
+			GroupsInfoLibraryItemCreatedBefore,
 			[]string{timeStrings},
 			filters.Greater),
 	}
@@ -399,7 +399,7 @@ func (s *groups) ModifiedAfter(timeStrings string) []GroupsScope {
 	return []GroupsScope{
 		makeInfoScope[GroupsScope](
 			GroupsLibraryItem,
-			GroupsInfoModifiedAfter,
+			GroupsInfoLibraryItemModifiedAfter,
 			[]string{timeStrings},
 			filters.Less),
 	}
@@ -409,7 +409,7 @@ func (s *groups) ModifiedBefore(timeStrings string) []GroupsScope {
 	return []GroupsScope{
 		makeInfoScope[GroupsScope](
 			GroupsLibraryItem,
-			GroupsInfoModifiedBefore,
+			GroupsInfoLibraryItemModifiedBefore,
 			[]string{timeStrings},
 			filters.Greater),
 	}
@@ -512,10 +512,10 @@ const (
 	GroupsPage           groupsCategory = "GroupsPage"
 
 	// details.itemInfo comparables
-	GroupsInfoCreatedAfter   groupsCategory = "GroupsInfoCreatedAfter"
-	GroupsInfoCreatedBefore  groupsCategory = "GroupsInfoCreatedBefore"
-	GroupsInfoModifiedAfter  groupsCategory = "GroupsInfoModifiedAfter"
-	GroupsInfoModifiedBefore groupsCategory = "GroupsInfoModifiedBefore"
+	GroupsInfoLibraryItemCreatedAfter   groupsCategory = "GroupsInfoLibraryItemCreatedAfter"
+	GroupsInfoLibraryItemCreatedBefore  groupsCategory = "GroupsInfoLibraryItemCreatedBefore"
+	GroupsInfoLibraryItemModifiedAfter  groupsCategory = "GroupsInfoLibraryItemModifiedAfter"
+	GroupsInfoLibraryItemModifiedBefore groupsCategory = "GroupsInfoLibraryItemModifiedBefore"
 
 	// channel and drive selection
 	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive"
@@ -562,8 +562,8 @@ func (c groupsCategory) leafCat() categorizer {
 		GroupsInfoChannelMessageLastReplyAfter, GroupsInfoChannelMessageLastReplyBefore:
 		return GroupsChannelMessage
 	case GroupsLibraryFolder, GroupsLibraryItem, GroupsInfoSiteLibraryDrive,
-		GroupsInfoCreatedAfter, GroupsInfoCreatedBefore,
-		GroupsInfoModifiedAfter, GroupsInfoModifiedBefore:
+		GroupsInfoLibraryItemCreatedAfter, GroupsInfoLibraryItemCreatedBefore,
+		GroupsInfoLibraryItemModifiedAfter, GroupsInfoLibraryItemModifiedBefore:
 		return GroupsLibraryItem
 	}
 
@@ -783,9 +783,9 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 		}
 
 		return matchesAny(s, GroupsInfoSiteLibraryDrive, ds)
-	case GroupsInfoCreatedAfter, GroupsInfoCreatedBefore:
+	case GroupsInfoLibraryItemCreatedAfter, GroupsInfoLibraryItemCreatedBefore:
 		i = dttm.Format(info.Created)
-	case GroupsInfoModifiedAfter, GroupsInfoModifiedBefore:
+	case GroupsInfoLibraryItemModifiedAfter, GroupsInfoLibraryItemModifiedBefore:
 		i = dttm.Format(info.Modified)
 	case GroupsInfoChannelMessageCreator:
 		i = info.MessageCreator
