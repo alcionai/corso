@@ -17,6 +17,12 @@ const (
 	ProviderFilesystem ProviderType = 2 // Filesystem
 )
 
+var StringToProviderType = map[string]ProviderType{
+	ProviderUnknown.String():    ProviderUnknown,
+	ProviderS3.String():         ProviderS3,
+	ProviderFilesystem.String(): ProviderFilesystem,
+}
+
 // storage parsing errors
 var (
 	errMissingRequired = clues.New("missing required storage configuration")

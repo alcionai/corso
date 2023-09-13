@@ -154,7 +154,16 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.GroupsService, repo.S3Overrides(cmd))
+	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx,
+		path.GroupsService,
+		provider,
+		overrides)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -226,7 +235,16 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeGroupsOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.GroupsService, repo.S3Overrides(cmd))
+	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(
+		ctx,
+		path.GroupsService,
+		provider,
+		overrides)
 	if err != nil {
 		return Only(ctx, err)
 	}

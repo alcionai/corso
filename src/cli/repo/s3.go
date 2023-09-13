@@ -90,9 +90,14 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	// s3 values from flags
-	s3Override := S3Overrides(cmd)
+	s3Override := S3FlagOverrides(cmd)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, false, s3Override)
+	cfg, err := config.GetConfigRepoDetails(
+		ctx,
+		storage.ProviderS3,
+		true,
+		false,
+		s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -176,9 +181,14 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	// s3 values from flags
-	s3Override := S3Overrides(cmd)
+	s3Override := S3FlagOverrides(cmd)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, true, s3Override)
+	cfg, err := config.GetConfigRepoDetails(
+		ctx,
+		storage.ProviderS3,
+		true,
+		true,
+		s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -228,7 +238,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func S3Overrides(cmd *cobra.Command) map[string]string {
+func S3FlagOverrides(cmd *cobra.Command) map[string]string {
 	fs := flags.GetPopulatedFlags(cmd)
 	return PopulateS3Flags(fs)
 }

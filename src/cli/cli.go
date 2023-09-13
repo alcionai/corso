@@ -64,15 +64,24 @@ func preRun(cc *cobra.Command, args []string) error {
 	avoidTheseDescription := []string{
 		"Initialize a repository.",
 		"Initialize a S3 repository",
+		"Connect to a S3 repository",
 		"Help about any command",
 		"Free, Secure, Open-Source Backup for M365.",
 		"env var guide",
 	}
 
 	if !slices.Contains(avoidTheseDescription, cc.Short) {
-		overrides := repo.S3Overrides(cc)
+		provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cc)
+		if err != nil {
+			return err
+		}
 
-		cfg, err := config.GetConfigRepoDetails(ctx, true, false, overrides)
+		cfg, err := config.GetConfigRepoDetails(
+			ctx,
+			provider,
+			true,
+			false,
+			overrides)
 		if err != nil {
 			log.Error("Error while getting config info to run command: ", cc.Use)
 			return err

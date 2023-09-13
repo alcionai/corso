@@ -263,6 +263,7 @@ func writeRepoConfigWithViper(
 // data sources (config file, env vars, flag overrides) and the config file.
 func GetConfigRepoDetails(
 	ctx context.Context,
+	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
@@ -270,7 +271,13 @@ func GetConfigRepoDetails(
 	RepoDetails,
 	error,
 ) {
-	config, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, mustMatchFromConfig, overrides)
+	config, err := getStorageAndAccountWithViper(
+		GetViper(ctx),
+		provider,
+		readFromFile,
+		mustMatchFromConfig,
+		overrides)
+
 	return config, err
 }
 
@@ -278,6 +285,7 @@ func GetConfigRepoDetails(
 // struct for testing.
 func getStorageAndAccountWithViper(
 	vpr *viper.Viper,
+	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
@@ -312,7 +320,7 @@ func getStorageAndAccountWithViper(
 		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
 
-	config.Storage, err = configureStorage(vpr, readConfigFromViper, mustMatchFromConfig, overrides)
+	config.Storage, err = configureStorage(vpr, provider, readConfigFromViper, mustMatchFromConfig, overrides)
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving storage provider details")
 	}

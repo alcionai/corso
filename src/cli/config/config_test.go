@@ -326,6 +326,7 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 
 	repoDetails, err := getStorageAndAccountWithViper(
 		vpr,
+		storage.ProviderS3,
 		true,
 		false,
 		overrides)
@@ -400,7 +401,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	cfg, err := getStorageAndAccountWithViper(vpr, true, true, nil)
+	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, true, true, nil)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := cfg.Storage.S3Config()
@@ -448,7 +449,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		StorageProviderTypeKey: storage.ProviderS3.String(),
 	}
 
-	cfg, err := getStorageAndAccountWithViper(vpr, false, true, overrides)
+	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, false, true, overrides)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := cfg.Storage.S3Config()
