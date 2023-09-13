@@ -152,11 +152,16 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 					}),
 			}
 
-			mc, err := graph.MakeMetadataCollection(
+			prefixPath, err := path.BuildMetadata(
 				tenantID,
 				userID,
 				path.OneDriveService,
 				path.FilesCategory,
+				false)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mc, err := graph.MakeMetadataCollection(
+				prefixPath,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
 				func(*support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))

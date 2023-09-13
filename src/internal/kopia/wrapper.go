@@ -609,13 +609,9 @@ func (w Wrapper) RepoMaintenance(
 			buffer = *opts.CleanupBuffer
 		}
 
-		err := cleanupOrphanedData(
-			ctx,
-			storer,
-			w.c,
-			buffer,
-			time.Now)
-		if err != nil {
+		// Even if we fail this we don't want to fail the overall maintenance
+		// operation since there's other useful work we can still do.
+		if err := cleanupOrphanedData(ctx, storer, w.c, buffer, time.Now); err != nil {
 			logger.CtxErr(ctx, err).Info(
 				"cleaning up failed backups, some space may not be freed")
 		}
