@@ -600,10 +600,7 @@ func (w Wrapper) RepoMaintenance(
 
 	// Check if we should do additional cleanup prior to running kopia's
 	// maintenance.
-	//
-	// TODO(ashmrtn): Switch to checking against repository.CompleteMaintenance
-	// once we're ready to release this cleanup feature.
-	if opts.Type == repository.CompletePlusMaintenance {
+	if opts.Type == repository.CompleteMaintenance {
 		buffer := time.Hour * 24 * 7
 		if opts.CleanupBuffer != nil {
 			buffer = *opts.CleanupBuffer
@@ -683,10 +680,6 @@ func translateSafety(
 
 func translateMode(t repository.MaintenanceType) (maintenance.Mode, error) {
 	switch t {
-	// TODO(ashmrtn): Remove this case once we're ready to release the cleanup
-	// feature.
-	case repository.CompletePlusMaintenance:
-		fallthrough
 	case repository.CompleteMaintenance:
 		return maintenance.ModeFull, nil
 

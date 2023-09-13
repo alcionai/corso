@@ -225,7 +225,7 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 			kw,
 			store.NewWrapper(ms),
 			repository.Maintenance{
-				Type: repository.CompletePlusMaintenance,
+				Type: repository.CompleteMaintenance,
 				// Set buffer to 0 so things will actually be garbage collected.
 				CleanupBuffer: ptr.To(time.Duration(0)),
 			},
