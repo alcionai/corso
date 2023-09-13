@@ -11,6 +11,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -77,8 +78,8 @@ func addFilesystemCommands(cmd *cobra.Command) *cobra.Command {
 func fsInitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   fsProviderCommand,
-		Short: "Initialize a repository in local or network attached storage",
-		Long: `Bootstraps a new local or network attached storage repository
+		Short: "Initialize a repository on local or network storage.",
+		Long: `Bootstraps a new repository on local or network storage
 		and connects it to your m365 account.`,
 		RunE:    initFsCmd,
 		Args:    cobra.NoArgs,
@@ -95,7 +96,7 @@ func initFsCmd(cmd *cobra.Command, args []string) error {
 		storage.ProviderFilesystem,
 		true,
 		false,
-		nil)
+		FilesystemOverrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -176,7 +177,7 @@ func connectFsCmd(cmd *cobra.Command, args []string) error {
 		storage.ProviderFilesystem,
 		true,
 		true,
-		nil)
+		FilesystemOverrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -210,11 +211,28 @@ func connectFsCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	Infof(ctx, "Connected to repository at path %s", flags.FilesystemPathFV)
+	Infof(ctx, "Connected to repository at path %s", cfg.Storage.Config[storage.FilesystemPath])
 
 	if err = config.WriteRepoConfig(ctx, sc, m365, opts.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 
 	return nil
+}
+
+func FilesystemOverrides(cmd *cobra.Command) map[string]string {
+	fs := flags.GetPopulatedFlags(cmd)
+	return PopulateFilesystemFlags(fs)
+}
+
+func PopulateFilesystemFlags(flagset flags.PopulatedFlags) map[string]string {
+	fsOverrides := make(map[string]string)
+	fsOverrides[config.AccountProviderTypeKey] = account.ProviderM365.String()
+	fsOverrides[config.StorageProviderTypeKey] = storage.ProviderFilesystem.String()
+
+	if _, ok := flagset[flags.FilesystemPathFN]; ok {
+		fsOverrides[flags.FilesystemPathFN] = flags.FilesystemPathFV
+	}
+
+	return fsOverrides
 }

@@ -2,7 +2,6 @@ package kopia
 
 import (
 	"context"
-	"os"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/blob"
@@ -17,8 +16,14 @@ func localFSBlobStorage(
 	repoOpts repository.Options,
 	s storage.Storage,
 ) (blob.Storage, error) {
+	cfg, err := s.StorageConfig()
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	fsCfg := cfg.(storage.FilesystemConfig)
 	opts := filesystem.Options{
-		Path: os.Getenv("filesystem_path"),
+		Path: fsCfg.Path,
 	}
 
 	store, err := filesystem.New(ctx, &opts, false)
