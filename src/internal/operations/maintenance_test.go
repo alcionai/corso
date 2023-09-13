@@ -92,15 +92,19 @@ func (suite *MaintenanceOpIntegrationSuite) TestRepoMaintenance() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
-func TestMaintenanceOpNightlyIntegrationSuite(t *testing.T) {
-	suite.Run(t, &MaintenanceOpIntegrationSuite{
+type MaintenanceOpNightlySuite struct {
+	tester.Suite
+}
+
+func TestMaintenanceOpNightlySuite(t *testing.T) {
+	suite.Run(t, &MaintenanceOpNightlySuite{
 		Suite: tester.NewNightlySuite(
 			t,
 			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *MaintenanceOpIntegrationSuite) TestRepoMaintenance_GarbageCollection() {
+func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() {
 	var (
 		t        = suite.T()
 		acct     = tconfig.NewM365Account(suite.T())

@@ -616,9 +616,8 @@ func (w Wrapper) RepoMaintenance(
 			buffer,
 			time.Now)
 		if err != nil {
-			logger.Ctx(ctx).Infow(
-				"error cleaning up failed backups, some space may not be freed",
-				"error", err)
+			logger.CtxErr(ctx, err).Info(
+				"cleaning up failed backups, some space may not be freed")
 		}
 	}
 
