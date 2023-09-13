@@ -62,8 +62,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 1,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: dataMock.Collection{
-					ItemData: []*dataMock.Item{
-						{
+					ItemData: []data.Item{
+						&dataMock.Item{
 							ItemID: "name1",
 							Reader: io.NopCloser(bytes.NewBufferString("body1")),
 						},
@@ -83,12 +83,12 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 1,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: dataMock.Collection{
-					ItemData: []*dataMock.Item{
-						{
+					ItemData: []data.Item{
+						&dataMock.Item{
 							ItemID: "name1",
 							Reader: io.NopCloser(bytes.NewBufferString("body1")),
 						},
-						{
+						&dataMock.Item{
 							ItemID: "name2",
 							Reader: io.NopCloser(bytes.NewBufferString("body2")),
 						},
@@ -113,8 +113,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 2,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: dataMock.Collection{
-					ItemData: []*dataMock.Item{
-						{
+					ItemData: []data.Item{
+						&dataMock.Item{
 							ItemID: "name1.data",
 							Reader: io.NopCloser(bytes.NewBufferString("body1")),
 						},
@@ -134,8 +134,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.Backup,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: dataMock.Collection{
-					ItemData: []*dataMock.Item{
-						{
+					ItemData: []data.Item{
+						&dataMock.Item{
 							ItemID: "id1.data",
 							Reader: io.NopCloser(bytes.NewBufferString("body1")),
 						},
@@ -156,8 +156,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.Backup,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: dataMock.Collection{
-					ItemData: []*dataMock.Item{
-						{ItemID: "id1.data"},
+					ItemData: []data.Item{
+						&dataMock.Item{ItemID: "id1.data"},
 					},
 				},
 				FetchItemByNamer: finD{err: assert.AnError},
@@ -174,11 +174,11 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.Backup,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: dataMock.Collection{
-					ItemData: []*dataMock.Item{
-						{
+					ItemData: []data.Item{
+						&dataMock.Item{
 							ItemID: "missing.data",
 						},
-						{
+						&dataMock.Item{
 							ItemID: "id1.data",
 							Reader: io.NopCloser(bytes.NewBufferString("body1")),
 						},
@@ -203,16 +203,16 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.OneDrive1DataAndMetaFiles,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: dataMock.Collection{
-					ItemData: []*dataMock.Item{
-						{
+					ItemData: []data.Item{
+						&dataMock.Item{
 							ItemID: "name0",
 							Reader: io.NopCloser(bytes.NewBufferString("body0")),
 						},
-						{
+						&dataMock.Item{
 							ItemID:  "name1",
 							ReadErr: assert.AnError,
 						},
-						{
+						&dataMock.Item{
 							ItemID: "name2",
 							Reader: io.NopCloser(bytes.NewBufferString("body2")),
 						},
@@ -300,8 +300,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		data.FetchRestoreCollection{
 			Collection: dataMock.Collection{
 				Path: p,
-				ItemData: []*dataMock.Item{
-					{
+				ItemData: []data.Item{
+					&dataMock.Item{
 						ItemID:   "id1.data",
 						Reader:   io.NopCloser(bytes.NewBufferString("body1")),
 						ItemInfo: dii,

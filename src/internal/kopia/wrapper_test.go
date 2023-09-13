@@ -1126,9 +1126,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				}
 
 				mc := &dataMock.Collection{
-					Path:    storePath,
-					Loc:     locPath,
-					Streams: streams,
+					Path:     storePath,
+					Loc:      locPath,
+					ItemData: streams,
 				}
 
 				return []data.BackupCollection{mc}
@@ -1153,10 +1153,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				}
 
 				mc := &dataMock.Collection{
-					Path:    storePath,
-					Loc:     locPath,
-					Streams: []data.Item{ms},
-					CState:  data.NotMovedState,
+					Path:     storePath,
+					Loc:      locPath,
+					ItemData: []data.Item{ms},
+					CState:   data.NotMovedState,
 				}
 
 				return []data.BackupCollection{mc}
@@ -1298,7 +1298,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		&dataMock.Collection{
 			Path: suite.storePath1,
 			Loc:  loc1,
-			Streams: []data.Item{
+			ItemData: []data.Item{
 				&dataMock.Item{
 					ItemID:   testFileName,
 					Reader:   io.NopCloser(bytes.NewReader(testFileData)),
@@ -1314,7 +1314,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		&dataMock.Collection{
 			Path: suite.storePath2,
 			Loc:  loc2,
-			Streams: []data.Item{
+			ItemData: []data.Item{
 				&dataMock.Item{
 					ItemID:   testFileName3,
 					Reader:   io.NopCloser(bytes.NewReader(testFileData3)),
@@ -1557,8 +1557,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		collection := &dataMock.Collection{Path: parent, Loc: loc}
 
 		for _, item := range suite.files[parent.String()] {
-			collection.Streams = append(
-				collection.Streams,
+			collection.ItemData = append(
+				collection.ItemData,
 				&dataMock.Item{
 					ItemID:   item.itemPath.Item(),
 					Reader:   io.NopCloser(bytes.NewReader(item.data)),

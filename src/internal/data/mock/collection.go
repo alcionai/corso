@@ -79,9 +79,12 @@ var (
 type Collection struct {
 	Path                 path.Path
 	Loc                  *path.Builder
-	ItemData             []*Item
+	ItemData             []data.Item
 	ItemsRecoverableErrs []error
 	CState               data.CollectionState
+
+	// For restore
+	AuxItems map[string]data.Item
 }
 
 func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
@@ -93,9 +96,12 @@ func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item
 		el := errs.Local()
 
 		for _, item := range c.ItemData {
-			if item.ReadErr != nil {
-				el.AddRecoverable(ctx, item.ReadErr)
-				continue
+			it, ok := item.(*Item)
+			if ok {
+				if it.ReadErr != nil {
+					el.AddRecoverable(ctx, it.ReadErr)
+					continue
+				}
 			}
 
 			ch <- item

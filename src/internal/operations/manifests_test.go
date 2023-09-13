@@ -217,7 +217,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				SnapshotID:    snapID,
 				StreamStoreID: snapID + "store",
 			},
-			Reasons: buildReasons(ro, path.ExchangeService, cats...),
+			Reasons: buildReasons(tid, ro, path.ExchangeService, cats...),
 		}
 	}
 

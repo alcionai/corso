@@ -1566,9 +1566,9 @@ func makeBackupCollection(
 	}
 
 	return &dataMock.Collection{
-		Path:    p,
-		Loc:     locPath,
-		Streams: streams,
+		Path:     p,
+		Loc:      locPath,
+		ItemData: streams,
 	}
 }
 
