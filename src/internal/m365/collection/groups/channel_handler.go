@@ -65,7 +65,7 @@ func (bh channelsBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh channelsBackupHandler) getChannelMessage(
+func (bh channelsBackupHandler) GetChannelMessage(
 	ctx context.Context,
 	teamID, channelID, itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {

@@ -261,7 +261,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			flds := col.fullPath.Folders()
 			parentFolderID := flds[len(flds)-1]
 
-			item, info, err := col.getter.getChannelMessage(
+			item, info, err := col.getter.GetChannelMessage(
 				ctx,
 				col.protectedResource,
 				parentFolderID,
