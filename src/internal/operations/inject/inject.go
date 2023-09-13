@@ -28,18 +28,18 @@ type (
 
 		IsServiceEnableder
 
-		// CollectMetadata returns a list of metadata collections. In
-		// case of service that have just a single underlying service like
-		// OneDrive or SharePoint, it will mostly just have a single
-		// collection per manifest reason, but in the case of groups, it
-		// will contain a collection each for the underlying service,
-		// for example one per SharePoint site.
-		CollectMetadata(
+		// GetMetadataPaths returns a list of paths that form metadata
+		// collections. In case of service that have just a single
+		// underlying service like OneDrive or SharePoint, it will mostly
+		// just have a single collection per manifest reason, but in the
+		// case of groups, it will contain a collection each for the
+		// underlying service, for example one per SharePoint site.
+		GetMetadataPaths(
 			ctx context.Context,
 			r inject.RestoreProducer,
 			man kopia.ManifestEntry,
 			errs *fault.Bus,
-		) ([]data.RestoreCollection, error)
+		) ([]path.RestorePaths, error)
 
 		Wait() *data.CollectionStats
 	}

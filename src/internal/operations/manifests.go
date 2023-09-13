@@ -103,8 +103,19 @@ func getManifestsAndMetadata(
 		// spread around.  Need to find more idiomatic handling.
 		fb := fault.New(true)
 
-		colls, err := bp.CollectMetadata(mctx, rp, man, fb)
-		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+		paths, err := bp.GetMetadataPaths(mctx, rp, man, fb)
+		if err != nil {
+			LogFaultErrors(ctx, fb.Errors(), "collecting metadata paths")
+			return nil, nil, false, err
+		}
+
+		colls, err := rp.ProduceRestoreCollections(ctx, string(man.ID), paths, nil, fb)
+		if err != nil {
+			// Restore is best-effort and we want to keep it that way since we want to
+			// return as much metadata as we can to reduce the work we'll need to do.
+			// Just wrap the error here for better reporting/debugging.
+			LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+		}
 
 		// TODO(ashmrtn): It should be alright to relax this condition a little. We
 		// should be able to just remove the offending manifest and backup from the

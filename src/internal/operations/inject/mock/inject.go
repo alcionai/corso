@@ -59,12 +59,12 @@ func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
 	return &mbp.dcs
 }
 
-func (mbp mockBackupProducer) CollectMetadata(
+func (mbp mockBackupProducer) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
 	man kopia.ManifestEntry,
 	errs *fault.Bus,
-) ([]data.RestoreCollection, error) {
+) ([]path.RestorePaths, error) {
 	ctrl := m365.Controller{}
-	return ctrl.CollectMetadata(ctx, r, man, errs)
+	return ctrl.GetMetadataPaths(ctx, r, man, errs)
 }

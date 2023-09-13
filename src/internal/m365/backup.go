@@ -190,12 +190,12 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	return nil
 }
 
-func (ctrl *Controller) CollectMetadata(
+func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
 	man kopia.ManifestEntry,
 	errs *fault.Bus,
-) ([]data.RestoreCollection, error) {
+) ([]path.RestorePaths, error) {
 	var (
 		paths = []path.RestorePaths{}
 		err   error
@@ -239,13 +239,5 @@ func (ctrl *Controller) CollectMetadata(
 		}
 	}
 
-	dcs, err := r.ProduceRestoreCollections(ctx, string(man.ID), paths, nil, errs)
-	if err != nil {
-		// Restore is best-effort and we want to keep it that way since we want to
-		// return as much metadata as we can to reduce the work we'll need to do.
-		// Just wrap the error here for better reporting/debugging.
-		return dcs, clues.Wrap(err, "collecting prior metadata")
-	}
-
-	return dcs, nil
+	return paths, nil
 }

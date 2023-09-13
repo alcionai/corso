@@ -50,12 +50,12 @@ func (ctrl Controller) ProduceBackupCollections(
 	return ctrl.Collections, ctrl.Exclude, ctrl.Err == nil, ctrl.Err
 }
 
-func (ctrl *Controller) CollectMetadata(
+func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
 	man kopia.ManifestEntry,
 	errs *fault.Bus,
-) ([]data.RestoreCollection, error) {
+) ([]path.RestorePaths, error) {
 	return nil, clues.New("not implemented")
 }
 

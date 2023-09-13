@@ -81,7 +81,7 @@ func TestOperationsManifestsUnitSuite(t *testing.T) {
 	suite.Run(t, &OperationsManifestsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
+func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 	const (
 		ro  = "owner"
 		tid = "tenantid"
@@ -168,7 +168,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			}
 
 			controller := m365.Controller{}
-			_, err := controller.CollectMetadata(ctx, &mr, man, fault.New(true))
+			_, err := controller.GetMetadataPaths(ctx, &mr, man, fault.New(true))
 			assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
 		})
 	}
