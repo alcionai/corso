@@ -40,8 +40,8 @@ var _ backupHandler = &mockBackupHandler{}
 type mockBackupHandler struct {
 	channels      []models.Channelable
 	channelsErr   error
-	messageIDs    map[string]struct{}
-	deletedMsgIDs map[string]struct{}
+	messageIDs    []string
+	deletedMsgIDs []string
 	messagesErr   error
 	messages      map[string]models.ChatMessageable
 	info          map[string]*details.GroupsInfo
@@ -53,10 +53,11 @@ func (bh mockBackupHandler) getChannels(context.Context) ([]models.Channelable, 
 	return bh.channels, bh.channelsErr
 }
 
-func (bh mockBackupHandler) getChannelMessageIDsDelta(
+func (bh mockBackupHandler) getChannelMessageIDs(
 	_ context.Context,
 	_, _ string,
-) (map[string]struct{}, map[string]struct{}, api.DeltaUpdate, error) {
+	_ bool,
+) ([]string, []string, api.DeltaUpdate, error) {
 	return bh.messageIDs, bh.deletedMsgIDs, api.DeltaUpdate{}, bh.messagesErr
 }
 
@@ -131,7 +132,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			name: "happy path, one container",
 			mock: mockBackupHandler{
 				channels:   testdata.StubChannels("one"),
-				messageIDs: map[string]struct{}{"msg-one": {}},
+				messageIDs: []string{"msg-one"},
 			},
 			expectErr:           require.NoError,
 			expectColls:         2,
@@ -142,7 +143,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			name: "happy path, one container, only deleted messages",
 			mock: mockBackupHandler{
 				channels:      testdata.StubChannels("one"),
-				deletedMsgIDs: map[string]struct{}{"msg-one": {}},
+				deletedMsgIDs: []string{"msg-one"},
 			},
 			expectErr:           require.NoError,
 			expectColls:         2,
@@ -153,7 +154,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			name: "happy path, many containers",
 			mock: mockBackupHandler{
 				channels:   testdata.StubChannels("one", "two"),
-				messageIDs: map[string]struct{}{"msg-one": {}},
+				messageIDs: []string{"msg-one"},
 			},
 			expectErr:           require.NoError,
 			expectColls:         3,
@@ -291,7 +292,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_incremental() {
 			name: "non incremental",
 			mock: mockBackupHandler{
 				channels:   testdata.StubChannels("chan"),
-				messageIDs: map[string]struct{}{"msg": {}},
+				messageIDs: []string{"msg"},
 			},
 			deltaPaths:          metadata.DeltaPaths{},
 			expectErr:           require.NoError,
@@ -304,7 +305,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_incremental() {
 			name: "incremental",
 			mock: mockBackupHandler{
 				channels:      testdata.StubChannels("chan"),
-				deletedMsgIDs: map[string]struct{}{"msg": {}},
+				deletedMsgIDs: []string{"msg"},
 			},
 			deltaPaths: metadata.DeltaPaths{
 				"chan": {
@@ -356,7 +357,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_incremental() {
 			name: "incremental new and deleted channel",
 			mock: mockBackupHandler{
 				channels:   testdata.StubChannels("chan2"),
-				messageIDs: map[string]struct{}{"msg": {}},
+				messageIDs: []string{"msg"},
 			},
 			deltaPaths: metadata.DeltaPaths{
 				"chan": {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -154,11 +155,18 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, removed, du, err := bh.getChannelMessageIDsDelta(ctx, cID, prevDelta)
+		// if the channel has no email property, it is unable to process delta tokens
+		// and will return an error if a delta token is queried.
+		canMakeDeltaQueries := len(ptr.Val(c.GetEmail())) > 0
+
+		add, rem, du, err := bh.getChannelMessageIDs(ctx, cID, prevDelta, canMakeDeltaQueries)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
 		}
+
+		added := str.SliceToMap(add)
+		removed := str.SliceToMap(rem)
 
 		if len(du.URL) > 0 {
 			deltaURLs[cID] = du.URL

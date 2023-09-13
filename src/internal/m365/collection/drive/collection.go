@@ -255,11 +255,11 @@ type Item struct {
 // Deleted implements an interface function. However, OneDrive items are marked
 // as deleted by adding them to the exclude list so this can always return
 // false.
-func (i Item) Deleted() bool            { return false }
-func (i *Item) ID() string              { return i.id }
-func (i *Item) ToReader() io.ReadCloser { return i.data }
-func (i *Item) Info() details.ItemInfo  { return i.info }
-func (i *Item) ModTime() time.Time      { return i.info.Modified() }
+func (i Item) Deleted() bool                    { return false }
+func (i *Item) ID() string                      { return i.id }
+func (i *Item) ToReader() io.ReadCloser         { return i.data }
+func (i *Item) Info() (details.ItemInfo, error) { return i.info, nil }
+func (i *Item) ModTime() time.Time              { return i.info.Modified() }
 
 // getDriveItemContent fetch drive item's contents with retries
 func (oc *Collection) getDriveItemContent(

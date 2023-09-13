@@ -15,7 +15,7 @@ import (
 func ConsumeExportCollections(
 	ctx context.Context,
 	exportLocation string,
-	expColl []Collection,
+	expColl []Collectioner,
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
@@ -36,7 +36,7 @@ func ConsumeExportCollections(
 			if err := writeItem(ictx, item, folder); err != nil {
 				el.AddRecoverable(
 					ictx,
-					clues.Wrap(err, "writing item").With("file_name", item.Data.Name).WithClues(ctx))
+					clues.Wrap(err, "writing item").With("file_name", item.Name).WithClues(ctx))
 			}
 		}
 	}
@@ -46,16 +46,16 @@ func ConsumeExportCollections(
 
 // writeItem writes an ExportItem to disk in the specified folder.
 func writeItem(ctx context.Context, item Item, folder string) error {
-	name := item.Data.Name
+	name := item.Name
 	fpath := filepath.Join(folder, name)
 
 	progReader, pclose := observe.ItemSpinner(
 		ctx,
-		item.Data.Body,
+		item.Body,
 		observe.ItemExportMsg,
 		clues.Hide(name))
 
-	defer item.Data.Body.Close()
+	defer item.Body.Close()
 	defer pclose()
 
 	err := os.MkdirAll(folder, os.ModePerm)

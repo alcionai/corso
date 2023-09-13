@@ -27,10 +27,10 @@ func ProduceExportCollections(
 	backupDriveIDNames idname.CacheBuilder,
 	deets *details.Builder,
 	errs *fault.Bus,
-) ([]export.Collection, error) {
+) ([]export.Collectioner, error) {
 	var (
 		el = errs.Local()
-		ec = make([]export.Collection, 0, len(dcs))
+		ec = make([]export.Collectioner, 0, len(dcs))
 	)
 
 	for _, dc := range dcs {
@@ -51,7 +51,12 @@ func ProduceExportCollections(
 			Append(driveName).
 			Append(drivePath.Folders...)
 
-		ec = append(ec, drive.NewExportCollection(baseDir.String(), dc, backupVersion))
+		ec = append(
+			ec,
+			drive.NewExportCollection(
+				baseDir.String(),
+				[]data.RestoreCollection{dc},
+				backupVersion))
 	}
 
 	return ec, el.Failure()

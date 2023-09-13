@@ -3,16 +3,70 @@ package api
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------
 // channel message pager
+// ---------------------------------------------------------------------------
+
+var _ Pager[models.ChatMessageable] = &channelMessagePageCtrl{}
+
+type channelMessagePageCtrl struct {
+	resourceID, channelID string
+	gs                    graph.Servicer
+	builder               *teams.ItemChannelsItemMessagesRequestBuilder
+	options               *teams.ItemChannelsItemMessagesRequestBuilderGetRequestConfiguration
+}
+
+func (p *channelMessagePageCtrl) SetNextLink(nextLink string) {
+	p.builder = teams.NewItemChannelsItemMessagesRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *channelMessagePageCtrl) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[models.ChatMessageable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+func (c Channels) NewChannelMessagePager(
+	teamID, channelID string,
+	selectProps ...string,
+) *channelMessagePageCtrl {
+	builder := c.Stable.
+		Client().
+		Teams().
+		ByTeamIdString(teamID).
+		Channels().
+		ByChannelIdString(channelID).
+		Messages()
+
+	options := &teams.ItemChannelsItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &teams.ItemChannelsItemMessagesRequestBuilderGetQueryParameters{},
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
+	return &channelMessagePageCtrl{
+		resourceID: teamID,
+		channelID:  channelID,
+		builder:    builder,
+		gs:         c.Stable,
+		options:    options,
+	}
+}
+
+// ---------------------------------------------------------------------------
+// channel message delta pager
 // ---------------------------------------------------------------------------
 
 var _ DeltaPager[models.ChatMessageable] = &channelMessageDeltaPageCtrl{}
@@ -24,13 +78,13 @@ type channelMessageDeltaPageCtrl struct {
 	options               *teams.ItemChannelsItemMessagesDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (p *channelMessageDeltaPageCtrl) SetNext(nextLink string) {
+func (p *channelMessageDeltaPageCtrl) SetNextLink(nextLink string) {
 	p.builder = teams.NewItemChannelsItemMessagesDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 func (p *channelMessageDeltaPageCtrl) GetPage(
 	ctx context.Context,
-) (DeltaPageLinker, error) {
+) (DeltaLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -44,10 +98,6 @@ func (p *channelMessageDeltaPageCtrl) Reset(context.Context) {
 		ByChannelIdString(p.channelID).
 		Messages().
 		Delta()
-}
-
-func (p *channelMessageDeltaPageCtrl) ValuesIn(l PageLinker) ([]models.ChatMessageable, error) {
-	return getValues[models.ChatMessageable](l)
 }
 
 func (c Channels) NewChannelMessageDeltaPager(
@@ -69,7 +119,7 @@ func (c Channels) NewChannelMessageDeltaPager(
 
 	options := &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		QueryParameters: &teams.ItemChannelsItemMessagesDeltaRequestBuilderGetQueryParameters{},
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+		Headers:         newPreferHeaders(preferPageSize(maxDeltaPageSize)),
 	}
 
 	if len(selectProps) > 0 {
@@ -87,85 +137,20 @@ func (c Channels) NewChannelMessageDeltaPager(
 
 // GetChannelMessageIDsDelta fetches a delta of all messages in the channel.
 // returns two maps: addedItems, deletedItems
-func (c Channels) GetChannelMessageIDsDelta(
+func (c Channels) GetChannelMessageIDs(
 	ctx context.Context,
-	teamID, channelID, prevDelta string,
-) (map[string]struct{}, map[string]struct{}, DeltaUpdate, error) {
-	var (
-		added   = map[string]struct{}{}
-		deleted = map[string]struct{}{}
-		// select is not currently allowed on messages
-		// this func will still isolate to the ID, however,
-		// because we need the follow-up get request to gather
-		// all replies to the message.
-		// selectProps      = idAnd()
-		pager            = c.NewChannelMessageDeltaPager(teamID, channelID, prevDelta)
-		invalidPrevDelta = len(prevDelta) == 0
-		newDeltaLink     string
-	)
+	teamID, channelID, prevDeltaLink string,
+	canMakeDeltaQueries bool,
+) ([]string, []string, DeltaUpdate, error) {
+	added, removed, du, err := getAddedAndRemovedItemIDs(
+		ctx,
+		c.NewChannelMessagePager(teamID, channelID),
+		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
+		prevDeltaLink,
+		canMakeDeltaQueries,
+		addedAndRemovedByDeletedDateTime)
 
-	// Loop through all pages returned by Graph API.
-	for {
-		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
-		if graph.IsErrInvalidDelta(err) {
-			logger.Ctx(ctx).Infow("Invalid previous delta", "delta_link", prevDelta)
-
-			invalidPrevDelta = true
-			added = map[string]struct{}{}
-			deleted = map[string]struct{}{}
-
-			pager.Reset(ctx)
-
-			continue
-		}
-
-		if graph.IsErrInvalidDelta(err) {
-			logger.Ctx(ctx).Infow("delta token not supported", "delta_link", prevDelta)
-
-			added = map[string]struct{}{}
-			deleted = map[string]struct{}{}
-
-			break
-		}
-
-		if err != nil {
-			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "retrieving page of channel messages")
-		}
-
-		vals, err := pager.ValuesIn(page)
-		if err != nil {
-			return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "extracting channel messages from response")
-		}
-
-		for _, v := range vals {
-			if v.GetDeletedDateTime() == nil {
-				added[ptr.Val(v.GetId())] = struct{}{}
-			} else {
-				deleted[ptr.Val(v.GetId())] = struct{}{}
-			}
-		}
-
-		nextLink, deltaLink := NextAndDeltaLink(page)
-
-		if len(deltaLink) > 0 {
-			newDeltaLink = deltaLink
-		}
-
-		if len(nextLink) == 0 {
-			break
-		}
-
-		pager.SetNext(nextLink)
-	}
-
-	logger.Ctx(ctx).Debugf("retrieved %d channel messages", len(added))
-
-	du := DeltaUpdate{
-		URL:   newDeltaLink,
-		Reset: invalidPrevDelta,
-	}
-
-	return added, deleted, du, nil
+	return added, removed, du, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -180,23 +165,19 @@ type channelMessageRepliesPageCtrl struct {
 	options *teams.ItemChannelsItemMessagesItemRepliesRequestBuilderGetRequestConfiguration
 }
 
-func (p *channelMessageRepliesPageCtrl) SetNext(nextLink string) {
+func (p *channelMessageRepliesPageCtrl) SetNextLink(nextLink string) {
 	p.builder = teams.NewItemChannelsItemMessagesItemRepliesRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 func (p *channelMessageRepliesPageCtrl) GetPage(
 	ctx context.Context,
-) (PageLinker, error) {
+) (NextLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
 
 func (p *channelMessageRepliesPageCtrl) GetOdataNextLink() *string {
 	return ptr.To("")
-}
-
-func (p *channelMessageRepliesPageCtrl) ValuesIn(l PageLinker) ([]models.ChatMessageable, error) {
-	return getValues[models.ChatMessageable](l)
 }
 
 func (c Channels) NewChannelMessageRepliesPager(
@@ -233,42 +214,7 @@ func (c Channels) GetChannelMessageReplies(
 	ctx context.Context,
 	teamID, channelID, messageID string,
 ) ([]models.ChatMessageable, error) {
-	var (
-		vs = []models.ChatMessageable{}
-		// select is not currently enabled for replies.
-		// selectProps = idAnd(
-		// 	"messageType",
-		// 	"createdDateTime",
-		// 	"from",
-		// 	"body")
-		pager = c.NewChannelMessageRepliesPager(teamID, channelID, messageID)
-	)
-
-	// Loop through all pages returned by Graph API.
-	for {
-		page, err := pager.GetPage(ctx)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "retrieving page of channels")
-		}
-
-		vals, err := pager.ValuesIn(page)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "extracting channels from response")
-		}
-
-		vs = append(vs, vals...)
-
-		nextLink := ptr.Val(page.GetOdataNextLink())
-		if len(nextLink) == 0 {
-			break
-		}
-
-		pager.SetNext(nextLink)
-	}
-
-	logger.Ctx(ctx).Debugf("retrieved %d channel message replies", len(vs))
-
-	return vs, nil
+	return enumerateItems[models.ChatMessageable](ctx, c.NewChannelMessageRepliesPager(teamID, channelID, messageID))
 }
 
 // ---------------------------------------------------------------------------
@@ -283,19 +229,15 @@ type channelPageCtrl struct {
 	options *teams.ItemChannelsRequestBuilderGetRequestConfiguration
 }
 
-func (p *channelPageCtrl) SetNext(nextLink string) {
+func (p *channelPageCtrl) SetNextLink(nextLink string) {
 	p.builder = teams.NewItemChannelsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
 func (p *channelPageCtrl) GetPage(
 	ctx context.Context,
-) (PageLinker, error) {
+) (NextLinkValuer[models.Channelable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
-}
-
-func (p *channelPageCtrl) ValuesIn(l PageLinker) ([]models.Channelable, error) {
-	return getValues[models.Channelable](l)
 }
 
 func (c Channels) NewChannelPager(
@@ -323,34 +265,5 @@ func (c Channels) GetChannels(
 	ctx context.Context,
 	teamID string,
 ) ([]models.Channelable, error) {
-	var (
-		vs    = []models.Channelable{}
-		pager = c.NewChannelPager(teamID)
-	)
-
-	// Loop through all pages returned by Graph API.
-	for {
-		page, err := pager.GetPage(ctx)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "retrieving page of channels")
-		}
-
-		vals, err := pager.ValuesIn(page)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "extracting channels from response")
-		}
-
-		vs = append(vs, vals...)
-
-		nextLink := ptr.Val(page.GetOdataNextLink())
-		if len(nextLink) == 0 {
-			break
-		}
-
-		pager.SetNext(nextLink)
-	}
-
-	logger.Ctx(ctx).Debugf("retrieved %d channels", len(vs))
-
-	return vs, nil
+	return enumerateItems[models.Channelable](ctx, c.NewChannelPager(teamID))
 }

@@ -8,16 +8,21 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type DeltaNextLinks struct {
-	Next  *string
-	Delta *string
+type DeltaNextLinkValues[T any] struct {
+	Next   *string
+	Delta  *string
+	Values []T
 }
 
-func (dnl *DeltaNextLinks) GetOdataNextLink() *string {
+func (dnl *DeltaNextLinkValues[T]) GetValue() []T {
+	return dnl.Values
+}
+
+func (dnl *DeltaNextLinkValues[T]) GetOdataNextLink() *string {
 	return dnl.Next
 }
 
-func (dnl *DeltaNextLinks) GetOdataDeltaLink() *string {
+func (dnl *DeltaNextLinkValues[T]) GetOdataDeltaLink() *string {
 	return dnl.Delta
 }
 
@@ -37,7 +42,9 @@ type Pager[T any] struct {
 	getIdx   int
 }
 
-func (p *Pager[T]) GetPage(context.Context) (api.PageLinker, error) {
+func (p *Pager[T]) GetPage(
+	context.Context,
+) (api.NextLinkValuer[T], error) {
 	if len(p.ToReturn) <= p.getIdx {
 		return nil, clues.New("index out of bounds").
 			With("index", p.getIdx, "values", p.ToReturn)
@@ -46,27 +53,15 @@ func (p *Pager[T]) GetPage(context.Context) (api.PageLinker, error) {
 	idx := p.getIdx
 	p.getIdx++
 
-	link := DeltaNextLinks{Next: p.ToReturn[idx].NextLink}
+	link := DeltaNextLinkValues[T]{
+		Next:   p.ToReturn[idx].NextLink,
+		Values: p.ToReturn[idx].Values,
+	}
 
 	return &link, p.ToReturn[idx].Err
 }
 
-func (p *Pager[T]) SetNext(string) {}
-
-func (p *Pager[T]) ValuesIn(api.PageLinker) ([]T, error) {
-	idx := p.getIdx
-	if idx > 0 {
-		// Return values lag by one since we increment in GetPage().
-		idx--
-	}
-
-	if len(p.ToReturn) <= idx {
-		return nil, clues.New("index out of bounds").
-			With("index", idx, "values", p.ToReturn)
-	}
-
-	return p.ToReturn[idx].Values, nil
-}
+func (p *Pager[T]) SetNextLink(string) {}
 
 // ---------------------------------------------------------------------------
 // delta pager
@@ -77,7 +72,9 @@ type DeltaPager[T any] struct {
 	getIdx   int
 }
 
-func (p *DeltaPager[T]) GetPage(context.Context) (api.DeltaPageLinker, error) {
+func (p *DeltaPager[T]) GetPage(
+	context.Context,
+) (api.DeltaLinkValuer[T], error) {
 	if len(p.ToReturn) <= p.getIdx {
 		return nil, clues.New("index out of bounds").
 			With("index", p.getIdx, "values", p.ToReturn)
@@ -86,28 +83,14 @@ func (p *DeltaPager[T]) GetPage(context.Context) (api.DeltaPageLinker, error) {
 	idx := p.getIdx
 	p.getIdx++
 
-	link := DeltaNextLinks{
-		Next:  p.ToReturn[idx].NextLink,
-		Delta: p.ToReturn[idx].DeltaLink,
+	link := DeltaNextLinkValues[T]{
+		Next:   p.ToReturn[idx].NextLink,
+		Delta:  p.ToReturn[idx].DeltaLink,
+		Values: p.ToReturn[idx].Values,
 	}
 
 	return &link, p.ToReturn[idx].Err
 }
 
-func (p *DeltaPager[T]) SetNext(string)        {}
+func (p *DeltaPager[T]) SetNextLink(string)    {}
 func (p *DeltaPager[T]) Reset(context.Context) {}
-
-func (p *DeltaPager[T]) ValuesIn(api.PageLinker) ([]T, error) {
-	idx := p.getIdx
-	if idx > 0 {
-		// Return values lag by one since we increment in GetPage().
-		idx--
-	}
-
-	if len(p.ToReturn) <= idx {
-		return nil, clues.New("index out of bounds").
-			With("index", idx, "values", p.ToReturn)
-	}
-
-	return p.ToReturn[idx].Values, nil
-}

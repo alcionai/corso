@@ -36,11 +36,12 @@ func (bh channelsBackupHandler) getChannels(
 	return bh.ac.GetChannels(ctx, bh.protectedResource)
 }
 
-func (bh channelsBackupHandler) getChannelMessageIDsDelta(
+func (bh channelsBackupHandler) getChannelMessageIDs(
 	ctx context.Context,
 	channelID, prevDelta string,
-) (map[string]struct{}, map[string]struct{}, api.DeltaUpdate, error) {
-	return bh.ac.GetChannelMessageIDsDelta(ctx, bh.protectedResource, channelID, prevDelta)
+	canMakeDeltaQueries bool,
+) ([]string, []string, api.DeltaUpdate, error) {
+	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, canMakeDeltaQueries)
 }
 
 func (bh channelsBackupHandler) includeContainer(

@@ -806,12 +806,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
-			suite.storePath1.ResourceOwner(),
+			suite.storePath1.ProtectedResource(),
 			suite.storePath1.Service(),
 			suite.storePath1.Category()),
 		NewReason(
 			testTenant,
-			suite.storePath2.ResourceOwner(),
+			suite.storePath2.ProtectedResource(),
 			suite.storePath2.Service(),
 			suite.storePath2.Category()),
 	}
@@ -1072,7 +1072,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
-			storePath.ResourceOwner(),
+			storePath.ProtectedResource(),
 			storePath.Service(),
 			storePath.Category()),
 	}

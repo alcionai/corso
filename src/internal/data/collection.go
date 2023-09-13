@@ -10,6 +10,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+// ---------------------------------------------------------------------------
+// Collections
+// ---------------------------------------------------------------------------
+
 // A Collection represents the set of data within a single logical location
 // denoted by FullPath.
 type Collection interface {
@@ -56,12 +60,9 @@ type RestoreCollection interface {
 	FetchItemByNamer
 }
 
-type FetchItemByNamer interface {
-	// Fetch retrieves an item with the given name from the Collection if it
-	// exists. Items retrieved with Fetch may still appear in the channel returned
-	// by Items().
-	FetchItemByName(ctx context.Context, name string) (Item, error)
-}
+// ---------------------------------------------------------------------------
+// Items
+// ---------------------------------------------------------------------------
 
 // Item represents a single item within a Collection
 type Item interface {
@@ -73,6 +74,35 @@ type Item interface {
 	// deleted and should be removed from the current in-progress backup.
 	Deleted() bool
 }
+
+// ItemInfo returns the details.ItemInfo for the item.
+type ItemInfo interface {
+	Info() (details.ItemInfo, error)
+}
+
+// ItemSize returns the size of the item in bytes.
+type ItemSize interface {
+	Size() int64
+}
+
+// ItemModTime provides the last modified time of the item.
+//
+// If an item implements ItemModTime and ItemInfo it should return the same
+// value here as in item.Info().Modified().
+type ItemModTime interface {
+	ModTime() time.Time
+}
+
+type FetchItemByNamer interface {
+	// Fetch retrieves an item with the given name from the Collection if it
+	// exists. Items retrieved with Fetch may still appear in the channel returned
+	// by Items().
+	FetchItemByName(ctx context.Context, name string) (Item, error)
+}
+
+// ---------------------------------------------------------------------------
+// Paths
+// ---------------------------------------------------------------------------
 
 // LocationPather provides a LocationPath describing the path with Display Names
 // instead of canonical IDs
@@ -89,22 +119,4 @@ type LocationPather interface {
 type PreviousLocationPather interface {
 	LocationPather
 	PreviousLocationPath() details.LocationIDer
-}
-
-// ItemInfo returns the details.ItemInfo for the item.
-type ItemInfo interface {
-	Info() details.ItemInfo
-}
-
-// ItemSize returns the size of the item in bytes.
-type ItemSize interface {
-	Size() int64
-}
-
-// ItemModTime provides the last modified time of the item.
-//
-// If an item implements ItemModTime and ItemInfo it should return the same
-// value here as in item.Info().Modified().
-type ItemModTime interface {
-	ModTime() time.Time
 }

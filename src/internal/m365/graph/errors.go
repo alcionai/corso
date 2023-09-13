@@ -293,7 +293,7 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 
 	var oDataError odataerrors.ODataErrorable
 	if !errors.As(e, &oDataError) {
-		return clues.Wrap(e, msg).WithClues(ctx)
+		return clues.Wrap(e, msg).WithClues(ctx).WithTrace(1)
 	}
 
 	mainMsg, data, innerMsg := errData(oDataError)
@@ -316,7 +316,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 
 	var oDataError *odataerrors.ODataError
 	if !errors.As(e, &oDataError) {
-		return clues.Stack(e).WithClues(ctx)
+		return clues.Stack(e).WithClues(ctx).WithTrace(1)
 	}
 
 	mainMsg, data, innerMsg := errData(oDataError)

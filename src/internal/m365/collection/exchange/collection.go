@@ -320,8 +320,8 @@ func (i Item) Deleted() bool {
 	return i.deleted
 }
 
-func (i *Item) Info() details.ItemInfo {
-	return details.ItemInfo{Exchange: i.info}
+func (i *Item) Info() (details.ItemInfo, error) {
+	return details.ItemInfo{Exchange: i.info}, nil
 }
 
 func (i *Item) ModTime() time.Time {

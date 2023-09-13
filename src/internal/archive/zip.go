@@ -32,10 +32,8 @@ func (z zipCollection) Items(ctx context.Context) <-chan export.Item {
 	defer close(rc)
 
 	rc <- export.Item{
-		Data: export.ItemData{
-			Name: "Corso_Export_" + dttm.FormatNow(dttm.HumanReadable) + ".zip",
-			Body: z.reader,
-		},
+		Name: "Corso_Export_" + dttm.FormatNow(dttm.HumanReadable) + ".zip",
+		Body: z.reader,
 	}
 
 	return rc
@@ -45,8 +43,8 @@ func (z zipCollection) Items(ctx context.Context) <-chan export.Item {
 // them into a single collection.
 func ZipExportCollection(
 	ctx context.Context,
-	expCollections []export.Collection,
-) (export.Collection, error) {
+	expCollections []export.Collectioner,
+) (export.Collectioner, error) {
 	if len(expCollections) == 0 {
 		return nil, clues.New("no export collections provided")
 	}
@@ -71,7 +69,7 @@ func ZipExportCollection(
 					return
 				}
 
-				name := item.Data.Name
+				name := item.Name
 
 				// We assume folder and name to not contain any path separators.
 				// Also, this should always use `/` as this is
@@ -86,7 +84,7 @@ func ZipExportCollection(
 					return
 				}
 
-				_, err = io.CopyBuffer(f, item.Data.Body, buf)
+				_, err = io.CopyBuffer(f, item.Body, buf)
 				if err != nil {
 					writer.CloseWithError(clues.Wrap(err, "writing zip entry").With("name", name).With("id", item.ID))
 					return

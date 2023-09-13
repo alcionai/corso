@@ -31,6 +31,7 @@ import (
 
 const (
 	groupsServiceCommand                 = "groups"
+	teamsServiceCommand                  = "teams"
 	groupsServiceCommandCreateUseSuffix  = "--group <groupsName> | '" + flags.Wildcard + "'"
 	groupsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	groupsServiceCommandDetailsUseSuffix = "--backup <backupId>"
@@ -133,10 +134,11 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 // `corso backup create groups [<flag>...]`
 func groupsCreateCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   groupsServiceCommand,
-		Short: "Backup M365 Group service data",
-		RunE:  createGroupsCmd,
-		Args:  cobra.NoArgs,
+		Use:     groupsServiceCommand,
+		Aliases: []string{teamsServiceCommand},
+		Short:   "Backup M365 Group service data",
+		RunE:    createGroupsCmd,
+		Args:    cobra.NoArgs,
 	}
 }
 

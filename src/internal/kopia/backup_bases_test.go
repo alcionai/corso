@@ -8,6 +8,7 @@ import (
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -201,10 +202,20 @@ func (suite *BackupBasesUnitSuite) TestConvertToAssistBase() {
 
 func (suite *BackupBasesUnitSuite) TestDisableMergeBases() {
 	t := suite.T()
+
+	merge := []BackupEntry{
+		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "m1"}}},
+		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "m2"}}},
+	}
+	assist := []BackupEntry{
+		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "a1"}}},
+		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "a2"}}},
+	}
+
 	bb := &backupBases{
-		backups:       make([]BackupEntry, 2),
+		backups:       slices.Clone(merge),
 		mergeBases:    make([]ManifestEntry, 2),
-		assistBackups: make([]BackupEntry, 2),
+		assistBackups: slices.Clone(assist),
 		assistBases:   make([]ManifestEntry, 2),
 	}
 
@@ -212,12 +223,15 @@ func (suite *BackupBasesUnitSuite) TestDisableMergeBases() {
 	assert.Empty(t, bb.Backups())
 	assert.Empty(t, bb.MergeBases())
 
-	// Assist base set should be unchanged.
-	assert.Len(t, bb.UniqueAssistBackups(), 2)
-	assert.Len(t, bb.UniqueAssistBases(), 2)
-	// Merge bases should still appear in the assist base set passed in for kopia
-	// snapshots.
+	// Assist base set now has what used to be merge bases.
+	assert.Len(t, bb.UniqueAssistBases(), 4)
 	assert.Len(t, bb.SnapshotAssistBases(), 4)
+	// Merge bases should appear in the set of backup bases used for details
+	// merging.
+	assert.ElementsMatch(
+		t,
+		append(slices.Clone(merge), assist...),
+		bb.UniqueAssistBackups())
 }
 
 func (suite *BackupBasesUnitSuite) TestDisableAssistBases() {
