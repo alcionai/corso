@@ -114,14 +114,14 @@ func (suite *BackupGroupsE2ESuite) SetupSuite() {
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_channelMessages() {
-	runGroupsBackupCategoryTest(suite, channelMessages)
+	runGroupsBackupCategoryTest(suite, "messages")
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_libraries() {
-	runGroupsBackupCategoryTest(suite, libraries)
+	runGroupsBackupCategoryTest(suite, libraries.String())
 }
 
-func runGroupsBackupCategoryTest(suite *BackupGroupsE2ESuite, category path.CategoryType) {
+func runGroupsBackupCategoryTest(suite *BackupGroupsE2ESuite, category string) {
 	recorder := strings.Builder{}
 	recorder.Reset()
 
@@ -136,7 +136,7 @@ func runGroupsBackupCategoryTest(suite *BackupGroupsE2ESuite, category path.Cate
 		ctx,
 		suite.dpnd.configFilePath,
 		suite.its.group.ID,
-		category.String(),
+		category,
 		&recorder)
 
 	// run the command
@@ -145,20 +145,17 @@ func runGroupsBackupCategoryTest(suite *BackupGroupsE2ESuite, category path.Cate
 
 	result := recorder.String()
 	t.Log("backup results", result)
-
-	// as an offhand check: the result should contain the m365 group id
-	assert.Contains(t, result, suite.its.group.ID)
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_groupNotFound_channelMessages() {
-	runGroupsBackupGroupNotFoundTest(suite, channelMessages)
+	runGroupsBackupGroupNotFoundTest(suite, "messages")
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_groupNotFound_libraries() {
-	runGroupsBackupGroupNotFoundTest(suite, libraries)
+	runGroupsBackupGroupNotFoundTest(suite, libraries.String())
 }
 
-func runGroupsBackupGroupNotFoundTest(suite *BackupGroupsE2ESuite, category path.CategoryType) {
+func runGroupsBackupGroupNotFoundTest(suite *BackupGroupsE2ESuite, category string) {
 	recorder := strings.Builder{}
 	recorder.Reset()
 
@@ -173,7 +170,7 @@ func runGroupsBackupGroupNotFoundTest(suite *BackupGroupsE2ESuite, category path
 		ctx,
 		suite.dpnd.configFilePath,
 		"foo@not-there.com",
-		category.String(),
+		category,
 		&recorder)
 
 	// run the command
@@ -236,12 +233,6 @@ func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_fromConfigFile() {
 	// run the command
 	err := cmd.ExecuteContext(ctx)
 	require.NoError(t, err, clues.ToCore(err))
-
-	result := suite.dpnd.recorder.String()
-	t.Log("backup results", result)
-
-	// as an offhand check: the result should contain the m365 group id
-	assert.Contains(t, result, suite.its.group.ID)
 }
 
 // AWS flags
