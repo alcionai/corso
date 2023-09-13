@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Contacts backups no longer slices root-folder data if outlook is set to languages other than english.
+- Failed backups if the --disable-incrementals flag was passed when there was a valid merge base under some conditions.
 
 ## [v0.12.0] (beta) - 2023-08-29
 

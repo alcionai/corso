@@ -36,8 +36,23 @@ const (
 const (
 	ServiceTag    = "service"
 	BackupTypeTag = "backup-type"
-	AssistBackup  = "assist-backup"
-	MergeBackup   = "merge-backup"
+	// AssistBackup denotes that this backup should only be used for kopia
+	// assisted incrementals since it doesn't contain the complete set of data
+	// being backed up.
+	//
+	// This tag should only be used for finding backups during a
+	// manifest search. It shouldn't be used to differentiate between backups once
+	// the manifest search completes.
+	AssistBackup = "assist-backup"
+	// MergeBackup denotes that this backup can be used as a merge base during an
+	// incremental backup. It contains a complete snapshot of the data in the
+	// external service. Merge bases can also be used as assist bases during an
+	// incremental backup or demoted to being only an assist base.
+	//
+	// This tag should only be used for finding backups during a
+	// manifest search. It shouldn't be used to differentiate between backups once
+	// the manifest search completes.
+	MergeBackup = "merge-backup"
 )
 
 // Valid returns true if the ModelType value fits within the const range.
