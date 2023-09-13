@@ -97,11 +97,9 @@ func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item
 
 		for _, item := range c.ItemData {
 			it, ok := item.(*Item)
-			if ok {
-				if it.ReadErr != nil {
-					el.AddRecoverable(ctx, it.ReadErr)
-					continue
-				}
+			if ok && it.ReadErr != nil {
+				el.AddRecoverable(ctx, it.ReadErr)
+				continue
 			}
 
 			ch <- item

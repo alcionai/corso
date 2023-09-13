@@ -139,7 +139,7 @@ func (suite *GroupsBackupUnitSuite) TestMetadataFiles() {
 			res, err := MetadataFiles(ctx, test.reason, test.r, test.manID, fault.New(true))
 
 			test.expectErr(t, err)
-			assert.EqualValues(t, test.result, res)
+			assert.ElementsMatch(t, test.result, res)
 		})
 	}
 }

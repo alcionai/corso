@@ -1339,6 +1339,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 	}
 
+	errs := fault.New(true)
+
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		[]identity.Reasoner{r},
@@ -1347,13 +1349,14 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		nil,
 		true,
-		fault.New(true))
+		errs)
 	require.Error(t, err, clues.ToCore(err))
-	assert.Equal(t, 0, stats.ErrorCount)
-	assert.Equal(t, 5, stats.TotalFileCount)
-	assert.Equal(t, 6, stats.TotalDirectoryCount)
-	assert.Equal(t, 1, stats.IgnoredErrorCount)
-	assert.False(t, stats.Incomplete)
+	assert.Equal(t, 0, stats.ErrorCount, "error count")
+	assert.Equal(t, 5, stats.TotalFileCount, "total files")
+	assert.Equal(t, 6, stats.TotalDirectoryCount, "total directories")
+	assert.Equal(t, 0, stats.IgnoredErrorCount, "ignored errors")
+	assert.Equal(t, 1, len(errs.Errors().Recovered), "recovered errors")
+	assert.False(t, stats.Incomplete, "incomplete")
 	// 5 file and 2 folder entries.
 	assert.Len(t, deets.Details().Entries, 5+2)
 
@@ -1372,7 +1375,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	require.Len(t, dcs, 1, "number of restore collections")
 
-	errs := fault.New(true)
+	errs = fault.New(true)
 	items := dcs[0].Items(suite.ctx, errs)
 
 	// Get all the items from channel
