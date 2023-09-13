@@ -90,8 +90,17 @@ func drivePathMerge(
 	}
 
 	driveLoc := path.BuildDriveLocation(driveID, locRef.Elements()...)
+
 	if ent.Groups != nil {
-		driveLoc = path.BuildGroupsDriveLocation(ent.Groups.SiteID, driveID, locRef.Elements()...)
+		siteID := ent.Groups.SiteID
+
+		// Fallback to getting from RepoRef.
+		if len(siteID) == 0 {
+			folders := repoRef.Folders()
+			siteID = folders[1]
+		}
+
+		driveLoc = path.BuildGroupsDriveLocation(siteID, driveID, locRef.Elements()...)
 	}
 
 	return basicLocationPath(repoRef, driveLoc)

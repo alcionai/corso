@@ -29,6 +29,10 @@ func ToDrivePath(p Path) (*DrivePath, error) {
 			With("path_folders", p.Folder(false))
 	}
 
+	// FIXME(meain): Don't have any service specific code within this
+	// function. Change this to either accept only the fragment of the
+	// path that is the drive path or have a separate function for each
+	// service.
 	if p.Service() == GroupsService {
 		// Groups have an extra /sites/<siteID> in the path
 		return &DrivePath{DriveID: folders[3], Root: folders[4], Folders: folders[5:]}, nil
