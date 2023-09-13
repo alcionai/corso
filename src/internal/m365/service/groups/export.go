@@ -1,12 +1,10 @@
-package onedrive
+package groups
 
 import (
 	"context"
 
-	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/collection/groups"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
@@ -30,20 +28,24 @@ func ProduceExportCollections(
 		ec = make([]export.Collectioner, 0, len(dcs))
 	)
 
-	for _, dc := range dcs {
-		drivePath, err := path.ToDrivePath(dc.FullPath())
-		if err != nil {
-			return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
+	for _, restoreColl := range dcs {
+		var (
+			fp      = restoreColl.FullPath()
+			cat     = fp.Category()
+			folders = []string{cat.String()}
+		)
+
+		switch cat {
+		case path.ChannelMessagesCategory:
+			folders = append(folders, fp.Folders()...)
 		}
 
-		baseDir := path.Builder{}.Append(drivePath.Folders...)
+		coll := groups.NewExportCollection(
+			path.Builder{}.Append(folders...).String(),
+			[]data.RestoreCollection{restoreColl},
+			backupVersion)
 
-		ec = append(
-			ec,
-			drive.NewExportCollection(
-				baseDir.String(),
-				[]data.RestoreCollection{dc},
-				backupVersion))
+		ec = append(ec, coll)
 	}
 
 	return ec, el.Failure()

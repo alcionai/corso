@@ -38,9 +38,9 @@ func (rp dataLayerResourcePath) Category() CategoryType {
 	return rp.category
 }
 
-// ResourceOwner returns the user ID or group ID embedded in the
+// ResourceOwner returns the resource ID or group ID embedded in the
 // dataLayerResourcePath.
-func (rp dataLayerResourcePath) ResourceOwner() string {
+func (rp dataLayerResourcePath) ProtectedResource() string {
 	return rp.Builder.elements[2]
 }
 

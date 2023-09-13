@@ -38,7 +38,6 @@ func AddCommands(cmd *cobra.Command) {
 	// delete after release
 	if len(os.Getenv("CORSO_ENABLE_GROUPS")) > 0 {
 		addGroupsCommands(restoreC)
-		addTeamsCommands(restoreC)
 	}
 }
 

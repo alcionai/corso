@@ -104,7 +104,7 @@ func (p repoRefAndLocRef) locationAsRepoRef() path.Path {
 
 	res, err := tmp.ToDataLayerPath(
 		p.RR.Tenant(),
-		p.RR.ResourceOwner(),
+		p.RR.ProtectedResource(),
 		p.RR.Service(),
 		p.RR.Category(),
 		len(p.ItemLocation()) > 0)
@@ -133,7 +133,7 @@ func mustPathRep(ref string, isItem bool) repoRefAndLocRef {
 
 	rr, err := rrPB.ToDataLayerPath(
 		tmp.Tenant(),
-		tmp.ResourceOwner(),
+		tmp.ProtectedResource(),
 		tmp.Service(),
 		tmp.Category(),
 		isItem)

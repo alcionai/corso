@@ -82,7 +82,7 @@ type Path interface {
 	Service() ServiceType
 	Category() CategoryType
 	Tenant() string
-	ResourceOwner() string
+	ProtectedResource() string
 	Folder(escaped bool) string
 	Folders() Elements
 	Item() string

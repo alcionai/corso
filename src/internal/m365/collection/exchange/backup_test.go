@@ -704,9 +704,9 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 	}{
 		{
 			name: "Default Contact Folder",
-			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				[]string{api.DefaultContacts},
-				selectors.PrefixMatch())[0],
+			scope: selectors.
+				NewExchangeBackup(users).
+				ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch())[0],
 		},
 	}
 
@@ -742,8 +742,10 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 			require.GreaterOrEqual(t, 2, len(edcs), "expected 1 <= num collections <= 2")
 
 			for _, edc := range edcs {
-				isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
-				count := 0
+				var (
+					isMetadata = edc.FullPath().Service() == path.ExchangeMetadataService
+					count      = 0
+				)
 
 				for stream := range edc.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}

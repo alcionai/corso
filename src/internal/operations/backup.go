@@ -365,7 +365,11 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
-	ctx = clues.Add(ctx, "can_use_metadata", canUseMetadata)
+	ctx = clues.Add(
+		ctx,
+		"can_use_metadata", canUseMetadata,
+		"assist_bases", len(mans.UniqueAssistBases()),
+		"merge_bases", len(mans.MergeBases()))
 
 	if canUseMetadata {
 		lastBackupVersion = mans.MinBackupVersion()
@@ -543,7 +547,7 @@ func consumeBackupCollections(
 
 func matchesReason(reasons []identity.Reasoner, p path.Path) bool {
 	for _, reason := range reasons {
-		if p.ResourceOwner() == reason.ProtectedResource() &&
+		if p.ProtectedResource() == reason.ProtectedResource() &&
 			p.Service() == reason.Service() &&
 			p.Category() == reason.Category() {
 			return true
@@ -711,6 +715,7 @@ func mergeDetails(
 
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if bases == nil || dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
+		logger.Ctx(ctx).Info("no base details to merge")
 		return nil
 	}
 

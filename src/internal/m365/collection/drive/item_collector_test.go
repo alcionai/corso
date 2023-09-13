@@ -1,7 +1,6 @@
 package drive
 
 import (
-	"context"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -72,18 +71,9 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 		resultDrives = append(resultDrives, d)
 	}
 
-	tooManyRetries := make([]mock.PagerResult[models.Driveable], 0, maxDrivesRetries+1)
-
-	for i := 0; i < maxDrivesRetries+1; i++ {
-		tooManyRetries = append(tooManyRetries, mock.PagerResult[models.Driveable]{
-			Err: context.DeadlineExceeded,
-		})
-	}
-
 	table := []struct {
 		name            string
 		pagerResults    []mock.PagerResult[models.Driveable]
-		retry           bool
 		expectedErr     assert.ErrorAssertionFunc
 		expectedResults []models.Driveable
 	}{
@@ -96,7 +86,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           false,
 			expectedErr:     assert.NoError,
 			expectedResults: resultDrives,
 		},
@@ -109,7 +98,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           false,
 			expectedErr:     assert.NoError,
 			expectedResults: resultDrives,
 		},
@@ -127,7 +115,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           false,
 			expectedErr:     assert.NoError,
 			expectedResults: resultDrives,
 		},
@@ -145,7 +132,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      nil,
 				},
 			},
-			retry:           false,
 			expectedErr:     assert.NoError,
 			expectedResults: resultDrives,
 		},
@@ -163,7 +149,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      assert.AnError,
 				},
 			},
-			retry:           true,
 			expectedErr:     assert.Error,
 			expectedResults: nil,
 		},
@@ -176,7 +161,6 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      graph.Stack(ctx, mySiteURLNotFound),
 				},
 			},
-			retry:           true,
 			expectedErr:     assert.NoError,
 			expectedResults: nil,
 		},
@@ -189,69 +173,7 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      graph.Stack(ctx, mySiteNotFound),
 				},
 			},
-			retry:           true,
 			expectedErr:     assert.NoError,
-			expectedResults: nil,
-		},
-		{
-			name: "SplitResultsContextTimeoutWithRetries",
-			pagerResults: []mock.PagerResult[models.Driveable]{
-				{
-					Values:   resultDrives[:numDriveResults/2],
-					NextLink: &link,
-					Err:      nil,
-				},
-				{
-					Values:   nil,
-					NextLink: nil,
-					Err:      context.DeadlineExceeded,
-				},
-				{
-					Values:   resultDrives[numDriveResults/2:],
-					NextLink: &emptyLink,
-					Err:      nil,
-				},
-			},
-			retry:           true,
-			expectedErr:     assert.NoError,
-			expectedResults: resultDrives,
-		},
-		{
-			name: "SplitResultsContextTimeoutNoRetries",
-			pagerResults: []mock.PagerResult[models.Driveable]{
-				{
-					Values:   resultDrives[:numDriveResults/2],
-					NextLink: &link,
-					Err:      nil,
-				},
-				{
-					Values:   nil,
-					NextLink: nil,
-					Err:      context.DeadlineExceeded,
-				},
-				{
-					Values:   resultDrives[numDriveResults/2:],
-					NextLink: &emptyLink,
-					Err:      nil,
-				},
-			},
-			retry:           false,
-			expectedErr:     assert.Error,
-			expectedResults: nil,
-		},
-		{
-			name: "TooManyRetries",
-			pagerResults: append(
-				[]mock.PagerResult[models.Driveable]{
-					{
-						Values:   resultDrives[:numDriveResults/2],
-						NextLink: &link,
-						Err:      nil,
-					},
-				},
-				tooManyRetries...),
-			retry:           true,
-			expectedErr:     assert.Error,
 			expectedResults: nil,
 		},
 	}
@@ -266,7 +188,7 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 				ToReturn: test.pagerResults,
 			}
 
-			drives, err := api.GetAllDrives(ctx, pager, test.retry, maxDrivesRetries)
+			drives, err := api.GetAllDrives(ctx, pager)
 			test.expectedErr(t, err, clues.ToCore(err))
 
 			assert.ElementsMatch(t, test.expectedResults, drives)

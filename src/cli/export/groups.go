@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 )
 
@@ -40,6 +39,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 // TODO: correct examples
 const (
 	groupsServiceCommand          = "groups"
+	teamsServiceCommand           = "teams"
 	groupsServiceCommandUseSuffix = "<destination> --backup <backupId>"
 
 	//nolint:lll
@@ -58,9 +58,10 @@ corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd
 // `corso export groups [<flag>...] <destination>`
 func groupsExportCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   groupsServiceCommand,
-		Short: "Export M365 Groups service data",
-		RunE:  exportGroupsCmd,
+		Use:     groupsServiceCommand,
+		Aliases: []string{teamsServiceCommand},
+		Short:   "Export M365 Groups service data",
+		RunE:    exportGroupsCmd,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.New("missing export destination")
@@ -80,5 +81,18 @@ func exportGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return Only(ctx, utils.ErrNotYetImplemented)
+	opts := utils.MakeGroupsOpts(cmd)
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
+	if err := utils.ValidateGroupsRestoreFlags(flags.BackupIDFV, opts); err != nil {
+		return err
+	}
+
+	sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
+	utils.FilterGroupsRestoreInfoSelectors(sel, opts)
+
+	return runExport(ctx, cmd, args, opts.ExportCfg, sel.Selector, flags.BackupIDFV, "Groups")
 }

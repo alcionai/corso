@@ -199,6 +199,11 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 			expect: assert.False,
 		},
 		{
+			name:   "non-matching oDataErrMsg",
+			err:    odErrMsg("fnords", "deltatoken not supported"),
+			expect: assert.False,
+		},
+		{
 			name:   "resync-required oDataErr",
 			err:    odErr(string(resyncRequired)),
 			expect: assert.True,
@@ -206,6 +211,11 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 		{
 			name:   "sync state invalid oDataErr",
 			err:    odErr(string(syncStateInvalid)),
+			expect: assert.True,
+		},
+		{
+			name:   "deltatoken not supported oDataErrMsg",
+			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive

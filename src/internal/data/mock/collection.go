@@ -17,7 +17,10 @@ import (
 // Item
 // ---------------------------------------------------------------------------
 
-var _ data.Item = &Item{}
+var (
+	_ data.Item     = &Item{}
+	_ data.ItemInfo = &Item{}
+)
 
 type Item struct {
 	DeletedFlag  bool
@@ -45,8 +48,8 @@ func (s *Item) ToReader() io.ReadCloser {
 	return s.Reader
 }
 
-func (s *Item) Info() details.ItemInfo {
-	return s.ItemInfo
+func (s *Item) Info() (details.ItemInfo, error) {
+	return s.ItemInfo, nil
 }
 
 func (s *Item) Size() int64 {
@@ -75,14 +78,39 @@ var (
 	_ data.RestoreCollection = &Collection{}
 )
 
-type Collection struct{}
+type Collection struct {
+	Path                 path.Path
+	ItemData             []*Item
+	ItemsRecoverableErrs []error
+}
 
 func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
-	return nil
+	ch := make(chan data.Item)
+
+	go func() {
+		defer close(ch)
+
+		el := errs.Local()
+
+		for _, item := range c.ItemData {
+			if item.ReadErr != nil {
+				el.AddRecoverable(ctx, item.ReadErr)
+				continue
+			}
+
+			ch <- item
+		}
+	}()
+
+	for _, err := range c.ItemsRecoverableErrs {
+		errs.AddRecoverable(ctx, err)
+	}
+
+	return ch
 }
 
 func (c Collection) FullPath() path.Path {
-	return nil
+	return c.Path
 }
 
 func (c Collection) PreviousPath() path.Path {

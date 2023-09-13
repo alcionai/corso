@@ -44,7 +44,7 @@ func basicLocationPath(repoRef path.Path, locRef *path.Builder) (path.Path, erro
 	if len(locRef.Elements()) == 0 {
 		res, err := path.BuildPrefix(
 			repoRef.Tenant(),
-			repoRef.ResourceOwner(),
+			repoRef.ProtectedResource(),
 			repoRef.Service(),
 			repoRef.Category())
 		if err != nil {
@@ -56,7 +56,7 @@ func basicLocationPath(repoRef path.Path, locRef *path.Builder) (path.Path, erro
 
 	return locRef.ToDataLayerPath(
 		repoRef.Tenant(),
-		repoRef.ResourceOwner(),
+		repoRef.ProtectedResource(),
 		repoRef.Service(),
 		repoRef.Category(),
 		false)

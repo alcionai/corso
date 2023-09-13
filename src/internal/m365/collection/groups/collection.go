@@ -133,8 +133,7 @@ func (col Collection) State() data.CollectionState {
 }
 
 func (col Collection) DoNotMergeItems() bool {
-	// TODO: depends on whether or not deltas are valid
-	return true
+	return col.doNotMergeItems
 }
 
 // ---------------------------------------------------------------------------
@@ -169,8 +168,8 @@ func (i Item) Deleted() bool {
 	return i.deleted
 }
 
-func (i *Item) Info() details.ItemInfo {
-	return details.ItemInfo{Groups: i.info}
+func (i *Item) Info() (details.ItemInfo, error) {
+	return details.ItemInfo{Groups: i.info}, nil
 }
 
 func (i *Item) ModTime() time.Time {
