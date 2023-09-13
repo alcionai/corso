@@ -20,11 +20,12 @@ type backupHandler interface {
 		ctx context.Context,
 	) ([]models.Channelable, error)
 
-	// gets all message IDs by delta in the channel
-	getChannelMessageIDsDelta(
+	// gets all message IDs (by delta, if possible) in the channel
+	getChannelMessageIDs(
 		ctx context.Context,
 		channelID, prevDelta string,
-	) (map[string]struct{}, map[string]struct{}, api.DeltaUpdate, error)
+		canMakeDeltaQueries bool,
+	) ([]string, []string, api.DeltaUpdate, error)
 
 	// includeContainer evaluates whether the channel is included
 	// in the provided scope.

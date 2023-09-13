@@ -308,5 +308,6 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		canMakeDeltaQueries)
+		canMakeDeltaQueries,
+		addedAndRemovedByAddtlData)
 }

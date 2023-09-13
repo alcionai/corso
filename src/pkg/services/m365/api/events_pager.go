@@ -277,5 +277,6 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		canMakeDeltaQueries)
+		canMakeDeltaQueries,
+		addedAndRemovedByAddtlData)
 }

@@ -278,5 +278,6 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		canMakeDeltaQueries)
+		canMakeDeltaQueries,
+		addedAndRemovedByAddtlData)
 }
