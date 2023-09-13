@@ -258,9 +258,6 @@ func addedAndRemovedByDeletedDateTime[T any](items []T) ([]string, []string, err
 				With("item_type", fmt.Sprintf("%T", item))
 		}
 
-		// if the additional data contains a `@removed` key, the value will either
-		// be 'changed' or 'deleted'.  We don't really care about the cause: both
-		// cases are handled the same way in storage.
 		if giaddt.GetDeletedDateTime() == nil {
 			added = append(added, ptr.Val(giaddt.GetId()))
 		} else {
