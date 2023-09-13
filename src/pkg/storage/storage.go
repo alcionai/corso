@@ -99,7 +99,8 @@ func (s Storage) StorageConfig() (Configurer, error) {
 	case ProviderS3:
 		return buildS3ConfigFromMap(s.Config)
 	}
-
+	// case ProviderFilesystem:
+	// 	return MakeFilesystemConfigFromMap(s.Config)
 	return nil, clues.New("unsupported storage provider: " + s.Provider.String())
 }
 

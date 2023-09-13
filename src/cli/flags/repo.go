@@ -12,6 +12,9 @@ const (
 
 	// Corso Flags
 	CorsoPassphraseFN = "passphrase"
+
+	// Local / Network Attached Storage
+	FilesystemPathFN = "path"
 )
 
 var (
@@ -20,6 +23,7 @@ var (
 	AWSSecretAccessKeyFV string
 	AWSSessionTokenFV    string
 	CorsoPassphraseFV    string
+	FilesystemPathFV     string
 )
 
 // AddBackupIDFlag adds the --backup flag.
@@ -45,4 +49,12 @@ func AddCorsoPassphaseFlags(cmd *cobra.Command) {
 		CorsoPassphraseFN,
 		"",
 		"Passphrase to protect encrypted repository contents")
+}
+
+func AddFilesystemPathFlag(cmd *cobra.Command, require bool) {
+	cmd.Flags().StringVar(&FilesystemPathFV, FilesystemPathFN, "", "path to local/network storage")
+
+	if require {
+		cobra.CheckErr(cmd.MarkFlagRequired(FilesystemPathFN))
+	}
 }

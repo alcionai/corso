@@ -22,6 +22,7 @@ const (
 
 var repoCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addS3Commands,
+	addFilesystemCommands,
 }
 
 // AddCommands attaches all `corso repo * *` commands to the parent.
