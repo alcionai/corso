@@ -8,6 +8,7 @@ import (
 	"github.com/kopia/kopia/repo/blob/s3"
 
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -20,7 +21,7 @@ func s3BlobStorage(
 	repoOpts repository.Options,
 	s storage.Storage,
 ) (blob.Storage, error) {
-	cfg, err := s.GetStorageConfig()
+	cfg, err := s.StorageConfig()
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
@@ -33,6 +34,7 @@ func s3BlobStorage(
 		endpoint = s3Cfg.Endpoint
 	}
 
+	logger.Ctx(ctx).Infow("aws creds", "key", s3Cfg.AccessKey)
 	opts := s3.Options{
 		BucketName:          s3Cfg.Bucket,
 		Endpoint:            endpoint,

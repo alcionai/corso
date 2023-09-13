@@ -66,8 +66,10 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	suite.acct = tconfig.NewM365Account(t)
 	suite.st = storeTD.NewPrefixedS3Storage(t)
 
-	cfg, err := suite.st.S3Config()
+	sc, err := suite.st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(storage.S3Config)
 
 	force := map[string]string{
 		tconfig.TestCfgAccountProvider: account.ProviderM365.String(),

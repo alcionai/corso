@@ -68,44 +68,45 @@ func (c S3Config) Normalize() S3Config {
 }
 
 // No need to return error here. Viper returns empty values.
-func s3ConfigsFromStore(kvs KVStorer) S3Config {
+func s3ConfigsFromStore(kvg KVStoreGetter) S3Config {
 	var s3Config S3Config
 
-	s3Config.Bucket = cast.ToString(kvs.Get(BucketNameKey))
-	s3Config.Endpoint = cast.ToString(kvs.Get(EndpointKey))
-	s3Config.Prefix = cast.ToString(kvs.Get(PrefixKey))
-	s3Config.DoNotUseTLS = cast.ToBool(kvs.Get(DisableTLSKey))
-	s3Config.DoNotVerifyTLS = cast.ToBool(kvs.Get(DisableTLSVerificationKey))
+	s3Config.Bucket = cast.ToString(kvg.Get(BucketNameKey))
+	s3Config.Endpoint = cast.ToString(kvg.Get(EndpointKey))
+	s3Config.Prefix = cast.ToString(kvg.Get(PrefixKey))
+	s3Config.DoNotUseTLS = cast.ToBool(kvg.Get(DisableTLSKey))
+	s3Config.DoNotVerifyTLS = cast.ToBool(kvg.Get(DisableTLSVerificationKey))
 
 	return s3Config
 }
 
 func s3CredsFromStore(
-	kvs KVStorer,
+	kvg KVStoreGetter,
 	s3Config S3Config,
 ) S3Config {
-	s3Config.AccessKey = cast.ToString(kvs.Get(AccessKey))
-	s3Config.SecretKey = cast.ToString(kvs.Get(SecretAccessKey))
-	s3Config.SessionToken = cast.ToString(kvs.Get(SessionToken))
+	s3Config.AccessKey = cast.ToString(kvg.Get(AccessKey))
+	s3Config.SecretKey = cast.ToString(kvg.Get(SecretAccessKey))
+	s3Config.SessionToken = cast.ToString(kvg.Get(SessionToken))
 
 	return s3Config
 }
 
-var _ StorageConfigurer = S3Config{}
+var _ Configurer = S3Config{}
 
 func (c S3Config) FetchConfigFromStore(
-	kvs KVStorer,
+	kvg KVStoreGetter,
 	readConfigFromStore bool,
 	matchFromConfig bool,
 	overrides map[string]string,
-) error {
+) (Configurer, error) {
 	var (
 		s3Cfg S3Config
 		err   error
 	)
 
 	if readConfigFromStore {
-		s3Cfg = s3ConfigsFromStore(kvs)
+		s3Cfg = s3ConfigsFromStore(kvg)
+
 		if b, ok := overrides[Bucket]; ok {
 			overrides[Bucket] = common.NormalizeBucket(b)
 		}
@@ -115,19 +116,19 @@ func (c S3Config) FetchConfigFromStore(
 		}
 
 		if matchFromConfig {
-			providerType := cast.ToString(kvs.Get(StorageProviderTypeKey))
+			providerType := cast.ToString(kvg.Get(StorageProviderTypeKey))
 			if providerType != ProviderS3.String() {
-				return clues.New("unsupported storage provider: " + providerType)
+				return S3Config{}, clues.New("unsupported storage provider: " + providerType)
 			}
 
 			// This is matching override values from config file.
-			if err := mustMatchConfig(kvs, s3Overrides(overrides)); err != nil {
-				return clues.Wrap(err, "verifying s3 configs in corso config file")
+			if err := mustMatchConfig(kvg, s3Overrides(overrides)); err != nil {
+				return S3Config{}, clues.Wrap(err, "verifying s3 configs in corso config file")
 			}
 		}
 	}
 
-	s3Cfg = s3CredsFromStore(kvs, s3Cfg)
+	s3Cfg = s3CredsFromStore(kvg, s3Cfg)
 	aws := credentials.GetAWS(overrides)
 
 	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
@@ -144,7 +145,7 @@ func (c S3Config) FetchConfigFromStore(
 		}
 
 		if err != nil {
-			return clues.Wrap(err, "validating aws credentials")
+			return S3Config{}, clues.Wrap(err, "validating aws credentials")
 		}
 	}
 
@@ -163,7 +164,7 @@ func (c S3Config) FetchConfigFromStore(
 			"false")),
 	}
 
-	return nil
+	return s3Cfg, s3Cfg.validate()
 }
 
 var _ WriteConfigToStorer = S3Config{}
@@ -242,7 +243,7 @@ var constToTomlKeyMap = map[string]string{
 // mustMatchConfig compares the values of each key to their config file value in store.
 // If any value differs from the store value, an error is returned.
 // values in m that aren't stored in the config are ignored.
-func mustMatchConfig(kvs KVStorer, m map[string]string) error {
+func mustMatchConfig(kvg KVStoreGetter, m map[string]string) error {
 	for k, v := range m {
 		if len(v) == 0 {
 			continue // empty variables will get caught by configuration validators, if necessary
@@ -253,7 +254,7 @@ func mustMatchConfig(kvs KVStorer, m map[string]string) error {
 			continue // m may declare values which aren't stored in the config file
 		}
 
-		vv := cast.ToString(kvs.Get(tomlK))
+		vv := cast.ToString(kvg.Get(tomlK))
 		if v != vv {
 			return clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
 		}

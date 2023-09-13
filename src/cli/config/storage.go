@@ -17,7 +17,7 @@ import (
 // viper properties and manual overrides.
 func configureStorage(
 	vpr *viper.Viper,
-	provider string,
+	provider storage.ProviderType,
 	readConfigFromViper bool,
 	matchFromConfig bool,
 	overrides map[string]string,
@@ -29,7 +29,8 @@ func configureStorage(
 
 	storageCfg, _ := storage.NewStorageConfig(provider)
 
-	err = storageCfg.FetchConfigFromStore(
+	// Rename this. It's not just fetch config from store.
+	storageCfg, err = storageCfg.FetchConfigFromStore(
 		vpr,
 		readConfigFromViper,
 		matchFromConfig,
@@ -63,8 +64,7 @@ func configureStorage(
 	}
 
 	// build the storage
-	store, err = storage.NewStorage(
-		storage.StringToEnum(provider), storageCfg, cCfg)
+	store, err = storage.NewStorage(provider, storageCfg, cCfg)
 	if err != nil {
 		return store, clues.Wrap(err, "configuring repository storage")
 	}

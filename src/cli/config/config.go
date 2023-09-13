@@ -255,7 +255,7 @@ func writeRepoConfigWithViper(
 // data sources (config file, env vars, flag overrides) and the config file.
 func GetConfigRepoDetails(
 	ctx context.Context,
-	provider string,
+	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
@@ -271,7 +271,7 @@ func GetConfigRepoDetails(
 // struct for testing.
 func getStorageAndAccountWithViper(
 	vpr *viper.Viper,
-	provider string,
+	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
@@ -376,13 +376,13 @@ func requireProps(props map[string]string) error {
 // Storage provider is not a flag. It can only be sourced from config file.
 // Only exceptions are the commands that create a new repo.
 // This is needed to figure out which storage overrides to use.
-func GetStorageProviderFromConfigFile(ctx context.Context) (string, error) {
+func GetStorageProviderFromConfigFile(ctx context.Context) (storage.ProviderType, error) {
 	vpr := GetViper(ctx)
 
 	provider := vpr.GetString(StorageProviderTypeKey)
 	if provider != storage.ProviderS3.String() {
-		return storage.ProviderUnknown.String(), clues.New("unsupported storage provider: " + provider)
+		return storage.ProviderUnknown, clues.New("unsupported storage provider: " + provider)
 	}
 
-	return provider, nil
+	return storage.StringToProviderType[provider], nil
 }

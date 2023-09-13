@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
@@ -160,9 +159,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	provider, _ := config.GetStorageProviderFromConfigFile(ctx)
-
-	overrides, err := repo.GetStorageOverrides(ctx, cmd, provider)
+	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -327,8 +324,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	provider, _ := config.GetStorageProviderFromConfigFile(ctx)
-	overrides, err := repo.GetStorageOverrides(ctx, cmd, provider)
+	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
 		return Only(ctx, err)
 	}

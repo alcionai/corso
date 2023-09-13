@@ -107,14 +107,23 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	s3Cfg, err := s3ConfigsFromViper(vpr)
+	// Unset AWS env vars so that we can test reading creds from config file
+	os.Unsetenv(credentials.AWSAccessKeyID)
+	os.Unsetenv(credentials.AWSSecretAccessKey)
+	os.Unsetenv(credentials.AWSSessionToken)
+
+	sc, err := storage.S3Config{}.FetchConfigFromStore(vpr, true, true, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	s3Cfg := sc.(storage.S3Config)
+
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, b, s3Cfg.Bucket)
 	assert.Equal(t, "test-prefix/", s3Cfg.Prefix)
 	assert.Equal(t, disableTLS, strconv.FormatBool(s3Cfg.DoNotUseTLS))
 	assert.Equal(t, disableTLSVerification, strconv.FormatBool(s3Cfg.DoNotVerifyTLS))
 
-	s3Cfg, err = s3CredsFromViper(vpr, s3Cfg)
+	// s3Cfg, err = s3CredsFromViper(vpr, s3Cfg)
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, accKey, s3Cfg.AWS.AccessKey)
 	assert.Equal(t, secret, s3Cfg.AWS.SecretKey)
@@ -160,7 +169,11 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	readS3Cfg, err := s3ConfigsFromViper(vpr)
+	sc, err := storage.S3Config{}.FetchConfigFromStore(vpr, true, true, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	readS3Cfg := sc.(storage.S3Config)
+
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
 	assert.Equal(t, readS3Cfg.DoNotUseTLS, s3Cfg.DoNotUseTLS)
@@ -326,12 +339,14 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 
 	repoDetails, err := getStorageAndAccountWithViper(
 		vpr,
+		storage.ProviderS3,
 		true,
 		false,
 		overrides)
 
 	m365Config, _ := repoDetails.Account.M365Config()
-	s3Cfg, _ := repoDetails.Storage.S3Config()
+	cfg, _ := repoDetails.Storage.StorageConfig()
+	s3Cfg, _ := cfg.(storage.S3Config)
 	commonConfig, _ := repoDetails.Storage.CommonConfig()
 	pass := commonConfig.Corso.CorsoPassphrase
 
@@ -400,11 +415,13 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	cfg, err := getStorageAndAccountWithViper(vpr, true, true, nil)
+	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, true, true, nil)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
-	readS3Cfg, err := cfg.Storage.S3Config()
+	sc, err := cfg.Storage.StorageConfig()
 	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
+
+	readS3Cfg := sc.(storage.S3Config)
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
 	assert.Equal(t, readS3Cfg.Endpoint, s3Cfg.Endpoint)
 	assert.Equal(t, readS3Cfg.Prefix, s3Cfg.Prefix)
@@ -448,11 +465,13 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		StorageProviderTypeKey: storage.ProviderS3.String(),
 	}
 
-	cfg, err := getStorageAndAccountWithViper(vpr, false, true, overrides)
+	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, false, true, overrides)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
-	readS3Cfg, err := cfg.Storage.S3Config()
+	sc, err := cfg.Storage.StorageConfig()
 	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
+
+	readS3Cfg := sc.(storage.S3Config)
 	assert.Equal(t, readS3Cfg.Bucket, bkt)
 	assert.Equal(t, cfg.RepoID, "")
 	assert.Equal(t, readS3Cfg.Endpoint, end)

@@ -91,7 +91,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from flags
 	s3Override := S3Overrides(cmd)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, storage.ProviderS3.String(), true, false, s3Override)
+	cfg, err := config.GetConfigRepoDetails(ctx, storage.ProviderS3, true, false, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -112,11 +112,10 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		opt)
 
-	//s3Cfg, err := cfg.Storage.S3Config() // why not let it return configurer?
-	storageCfg, err := cfg.Storage.GetStorageConfig()
-	// if err != nil {
-	// 	return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
-	// }
+	storageCfg, err := cfg.Storage.StorageConfig()
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
+	}
 
 	// BUG: This should be moved to validate()
 	// if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
@@ -180,7 +179,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	// s3 values from flags
 	s3Override := S3Overrides(cmd)
 
-	cfg, err := config.GetConfigRepoDetails(ctx, storage.ProviderS3.String(), true, true, s3Override)
+	cfg, err := config.GetConfigRepoDetails(ctx, storage.ProviderS3, true, true, s3Override)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -190,7 +189,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		repoID = events.RepoIDNotFound
 	}
 
-	s3Cfg, err := cfg.Storage.GetStorageConfig()
+	s3Cfg, err := cfg.Storage.StorageConfig()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}

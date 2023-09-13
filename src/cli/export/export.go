@@ -8,7 +8,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/config"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -71,8 +70,7 @@ func runExport(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
-	provider, _ := config.GetStorageProviderFromConfigFile(ctx)
-	overrides, err := repo.GetStorageOverrides(ctx, cmd, provider)
+	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
 		return Only(ctx, err)
 	}

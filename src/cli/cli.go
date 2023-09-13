@@ -70,8 +70,7 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	if !slices.Contains(avoidTheseDescription, cc.Short) {
-		provider, _ := config.GetStorageProviderFromConfigFile(ctx)
-		overrides, err := repo.GetStorageOverrides(ctx, cc, provider)
+		provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cc)
 		if err != nil {
 			return err
 		}

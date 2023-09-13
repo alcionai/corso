@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -29,7 +30,11 @@ func deleteBackups(
 ) ([]string, error) {
 	ctx = clues.Add(ctx, "cutoff_days", deletionDays)
 
-	provider, _ := config.GetStorageProviderFromConfigFile(ctx)
+	provider, err := config.GetStorageProviderFromConfigFile(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	r, _, _, _, err := utils.GetAccountAndConnect(ctx, service, provider, nil)
 	if err != nil {
 		return nil, clues.Wrap(err, "connecting to account").WithClues(ctx)
@@ -88,7 +93,7 @@ func pitrListBackups(
 
 	// TODO(ashmrtn): This may be moved into CLI layer at some point when we add
 	// flags for opening a repo at a point in time.
-	cfg, err := config.GetConfigRepoDetails(ctx, true, true, nil)
+	cfg, err := config.GetConfigRepoDetails(ctx, storage.ProviderS3, true, true, nil)
 	if err != nil {
 		return clues.Wrap(err, "getting config info")
 	}

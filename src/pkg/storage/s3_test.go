@@ -66,8 +66,10 @@ func (suite *S3CfgSuite) TestStorage_S3Config() {
 	in := goodS3Config
 	s, err := NewStorage(ProviderS3, in)
 	assert.NoError(t, err, clues.ToCore(err))
-	out, err := s.S3Config()
+	sc, err := s.StorageConfig()
 	assert.NoError(t, err, clues.ToCore(err))
+
+	out := sc.(S3Config)
 
 	assert.Equal(t, in.Bucket, out.Bucket)
 	assert.Equal(t, in.Endpoint, out.Endpoint)
@@ -117,7 +119,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 			st, err := NewStorage(ProviderUnknown, goodS3Config)
 			assert.NoError(t, err, clues.ToCore(err))
 			test.amend(st)
-			_, err = st.S3Config()
+			_, err = st.StorageConfig()
 			assert.Error(t, err)
 		})
 	}

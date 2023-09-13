@@ -17,13 +17,9 @@ const (
 	ProviderFilesystem ProviderType = 2 // Filesystem
 )
 
-func StringToEnum(s string) StorageProvider {
-	switch s {
-	case ProviderS3.String():
-		return ProviderS3
-	}
-
-	return ProviderUnknown
+var StringToProviderType = map[string]ProviderType{
+	ProviderUnknown.String(): ProviderUnknown,
+	ProviderS3.String():      ProviderS3,
 }
 
 // storage parsing errors
@@ -35,6 +31,7 @@ var (
 // required to set up or communicate with that provider.
 type Storage struct {
 	Provider ProviderType
+	Provider ProviderType
 	Config   map[string]string
 	// TODO: These are AWS S3 specific -> move these out
 	SessionTags     map[string]string
@@ -44,6 +41,7 @@ type Storage struct {
 }
 
 // NewStorage aggregates all the supplied configurations into a single configuration.
+func NewStorage(p ProviderType, cfgs ...common.StringConfigurer) (Storage, error) {
 func NewStorage(p ProviderType, cfgs ...common.StringConfigurer) (Storage, error) {
 	cs, err := common.UnionStringConfigs(cfgs...)
 
@@ -56,6 +54,7 @@ func NewStorage(p ProviderType, cfgs ...common.StringConfigurer) (Storage, error
 // NewStorageUsingRole supports specifying an AWS IAM role the storage provider
 // should assume.
 func NewStorageUsingRole(
+	p ProviderType,
 	p ProviderType,
 	roleARN string,
 	sessionName string,
@@ -92,7 +91,7 @@ func orEmptyString(v any) string {
 	return v.(string)
 }
 
-func (s Storage) GetStorageConfig() (StorageConfigurer, error) {
+func (s Storage) StorageConfig() (Configurer, error) {
 	switch s.Provider {
 	case ProviderS3:
 		return MakeS3ConfigFromMap(s.Config)
@@ -101,30 +100,21 @@ func (s Storage) GetStorageConfig() (StorageConfigurer, error) {
 	return nil, clues.New("unsupported storage provider: " + s.Provider.String())
 }
 
-func NewStorageConfig(provider string) (StorageConfigurer, error) {
+func NewStorageConfig(provider ProviderType) (Configurer, error) {
 	switch provider {
-	case ProviderS3.String():
+	case ProviderS3:
 		return S3Config{}, nil
 	}
 
-	return nil, clues.New("unsupported storage provider: " + provider)
+	return nil, clues.New("unsupported storage provider: " + provider.String())
 }
 
-// Change it to just getter
-type KVStorer interface {
+type KVStoreGetter interface {
 	Get(key string) any
-	Set(key string, value any)
 }
 
 type KVStoreSetter interface {
 	Set(key string, value any)
-}
-
-// Call it configurer if necessary.
-type StorageConfigurer interface {
-	common.StringConfigurer
-	FetchConfigFromStorer
-	WriteConfigToStorer
 }
 
 type WriteConfigToStorer interface {
@@ -135,9 +125,15 @@ type WriteConfigToStorer interface {
 
 type FetchConfigFromStorer interface {
 	FetchConfigFromStore(
-		kv KVStorer,
+		kvg KVStoreGetter,
 		readConfigFromStore bool,
 		matchFromConfig bool,
 		overrides map[string]string,
-	) error
+	) (Configurer, error)
+}
+
+type Configurer interface {
+	common.StringConfigurer
+	FetchConfigFromStorer
+	WriteConfigToStorer
 }
