@@ -204,8 +204,8 @@ func (ctrl *Controller) GetMetadataPaths(
 	for _, reason := range man.Reasons {
 		filePaths := [][]string{}
 
-		switch reason.Service() {
-		case path.GroupsService:
+		switch true {
+		case reason.Service() == path.GroupsService && reason.Category() == path.LibrariesCategory:
 			filePaths, err = groups.MetadataFiles(ctx, reason, r, man.ID, errs)
 			if err != nil {
 				return nil, err
