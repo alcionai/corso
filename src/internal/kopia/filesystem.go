@@ -11,7 +11,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-func localFSBlobStorage(
+func filesystemStorage(
 	ctx context.Context,
 	repoOpts repository.Options,
 	s storage.Storage,

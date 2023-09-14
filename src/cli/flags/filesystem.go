@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	// Local / Network Attached Storage
 	FilesystemPathFN = "path"
 )
 

@@ -99,6 +99,8 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Retrieving filesystem configuration"))
 	}
 
+	storageCfg := sc.(*storage.FilesystemConfig)
+
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
@@ -120,7 +122,7 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 
 	defer utils.CloseRepo(ctx, r)
 
-	Infof(ctx, "Initialized a repository at path %s", flags.FilesystemPathFV)
+	Infof(ctx, "Initialized a repository at path %s", storageCfg.Path)
 
 	if err = config.WriteRepoConfig(ctx, sc, m365, opt.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
@@ -133,7 +135,7 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 // Connect
 // ---------------------------------------------------------------------------------------------------------
 
-// `corso repo connect s3 [<flag>...]`
+// `corso repo connect filesystem [<flag>...]`
 func filesystemConnectCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     fsProviderCmd,
@@ -145,7 +147,7 @@ func filesystemConnectCmd() *cobra.Command {
 	}
 }
 
-// connects to an existing s3 repo.
+// connects to an existing filesystem repo.
 func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
@@ -169,6 +171,8 @@ func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Retrieving filesystem configuration"))
 	}
 
+	storageCfg := sc.(*storage.FilesystemConfig)
+
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
@@ -183,12 +187,12 @@ func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 		repoID,
 		opts)
 	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
+		return Only(ctx, clues.Wrap(err, "Failed to connect to the filesystem repository"))
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	Infof(ctx, "Connected to repository at path %s", cfg.Storage.Config[storage.FilesystemPath])
+	Infof(ctx, "Connected to repository at path %s", storageCfg.Path)
 
 	if err = config.WriteRepoConfig(ctx, sc, m365, opts.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))

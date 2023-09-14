@@ -44,16 +44,6 @@ func (c *FilesystemConfig) validate() error {
 	return nil
 }
 
-func MakeFSConfigFromMap(config map[string]string) (FilesystemConfig, error) {
-	c := FilesystemConfig{}
-
-	if len(config) > 0 {
-		c.Path = orEmptyString(config[FilesystemPath])
-	}
-
-	return c, c.validate()
-}
-
 func (c *FilesystemConfig) fsConfigsFromStore(kvg KVStoreGetter) {
 	c.Path = cast.ToString(kvg.Get(FilesystemPath))
 }
@@ -94,7 +84,8 @@ func (c *FilesystemConfig) ApplyConfigOverrides(
 	return c.validate()
 }
 
-// TODO(pandeyabs): Do we need to sanitize path?
+// TODO(pandeyabs): We need to sanitize paths e.g. handle relative paths,
+// make paths cross platform compatible, etc.
 func (c FilesystemConfig) StringConfig() (map[string]string, error) {
 	cfg := map[string]string{
 		FilesystemPath: c.Path,
