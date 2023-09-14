@@ -96,6 +96,13 @@ var (
 	// when filenames collide in a @microsoft.graph.conflictBehavior=fail request.
 	ErrItemAlreadyExistsConflict = clues.New("item already exists")
 
+	// ErrMultipleResultsMatchIdentifier describes a situation where we're doing a lookup
+	// in some way other than by canonical url ID (ex: filtering, searching, etc).
+	// This error should only be returned if a unique result is an expected constraint
+	// of the call results.  If it's possible to opportunistically select one of the many
+	// replies, no error should get returned.
+	ErrMultipleResultsMatchIdentifier = clues.New("multiple results match the identifier")
+
 	// ErrServiceNotEnabled identifies that a resource owner does not have
 	// access to a given service.
 	ErrServiceNotEnabled = clues.New("service is not enabled for that resource owner")
