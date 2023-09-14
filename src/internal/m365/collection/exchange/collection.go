@@ -36,22 +36,13 @@ const (
 	numberOfRetries             = 4
 )
 
-// Collection implements the interface from data.Collection
-// Structure holds data for an Exchange application for a single user
-type Collection struct {
-	user   string
-	stream chan data.Item
-
-	// added is a list of existing item IDs that were added to a container
-	added map[string]struct{}
-	// removed is a list of item IDs that were deleted from, or moved out, of a container
-	removed map[string]struct{}
-
-	getter itemGetterSerializer
-
-	category      path.CategoryType
-	statusUpdater support.StatusUpdater
-	ctrl          control.Options
+// baseCollection contains basic functionality like returning path, location,
+// and state information. It can be embedded in other implementations to provide
+// this functionality.
+//
+// Functionality like how items are fetched is left to the embedding struct.
+type baseCollection struct {
+	ctrl control.Options
 
 	// FullPath is the current hierarchical path used by this collection.
 	fullPath path.Path
@@ -71,6 +62,29 @@ type Collection struct {
 	doNotMergeItems bool
 }
 
+// FullPath returns the baseCollection's fullPath []string
+func (col *baseCollection) FullPath() path.Path {
+	return col.fullPath
+}
+
+// LocationPath produces the baseCollection's full path, but with display names
+// instead of IDs in the folders.  Only populated for Calendars.
+func (col *baseCollection) LocationPath() *path.Builder {
+	return col.locationPath
+}
+
+func (col baseCollection) PreviousPath() path.Path {
+	return col.prevPath
+}
+
+func (col baseCollection) State() data.CollectionState {
+	return col.state
+}
+
+func (col baseCollection) DoNotMergeItems() bool {
+	return col.doNotMergeItems
+}
+
 // NewExchangeDataCollection creates an ExchangeDataCollection.
 // State of the collection is set as an observation of the current
 // and previous paths.  If the curr path is nil, the state is assumed
@@ -88,22 +102,41 @@ func NewCollection(
 	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
-		added:           make(map[string]struct{}, 0),
-		category:        category,
-		ctrl:            ctrlOpts,
-		stream:          make(chan data.Item, collectionChannelBufferSize),
-		doNotMergeItems: doNotMergeItems,
-		fullPath:        curr,
-		getter:          items,
-		locationPath:    location,
-		prevPath:        prev,
-		removed:         make(map[string]struct{}, 0),
-		state:           data.StateOf(prev, curr),
-		statusUpdater:   statusUpdater,
-		user:            user,
+		baseCollection: baseCollection{
+			ctrl:            ctrlOpts,
+			doNotMergeItems: doNotMergeItems,
+			fullPath:        curr,
+			locationPath:    location,
+			prevPath:        prev,
+			state:           data.StateOf(prev, curr),
+		},
+		stream:        make(chan data.Item, collectionChannelBufferSize),
+		user:          user,
+		added:         make(map[string]struct{}, 0),
+		removed:       make(map[string]struct{}, 0),
+		getter:        items,
+		statusUpdater: statusUpdater,
 	}
 
 	return collection
+}
+
+// Collection implements the interface from data.Collection
+// Structure holds data for an Exchange application for a single user
+type Collection struct {
+	baseCollection
+	stream chan data.Item
+
+	user string
+
+	// added is a list of existing item IDs that were added to a container
+	added map[string]struct{}
+	// removed is a list of item IDs that were deleted from, or moved out, of a container
+	removed map[string]struct{}
+
+	getter itemGetterSerializer
+
+	statusUpdater support.StatusUpdater
 }
 
 // Items utility function to asynchronously execute process to fill data channel with
@@ -111,31 +144,6 @@ func NewCollection(
 func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	go col.streamItems(ctx, errs)
 	return col.stream
-}
-
-// FullPath returns the Collection's fullPath []string
-func (col *Collection) FullPath() path.Path {
-	return col.fullPath
-}
-
-// LocationPath produces the Collection's full path, but with display names
-// instead of IDs in the folders.  Only populated for Calendars.
-func (col *Collection) LocationPath() *path.Builder {
-	return col.locationPath
-}
-
-// TODO(ashmrtn): Fill in with previous path once the Controller compares old
-// and new folder hierarchies.
-func (col Collection) PreviousPath() path.Path {
-	return col.prevPath
-}
-
-func (col Collection) State() data.CollectionState {
-	return col.state
-}
-
-func (col Collection) DoNotMergeItems() bool {
-	return col.doNotMergeItems
 }
 
 // ---------------------------------------------------------------------------

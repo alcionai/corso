@@ -72,8 +72,10 @@ func (suite *CollectionUnitSuite) TestCollection_NewCollection() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	edc := Collection{
-		user:     name,
-		fullPath: fullPath,
+		baseCollection: baseCollection{
+			fullPath: fullPath,
+		},
+		user: name,
 	}
 	assert.Equal(t, name, edc.user)
 	assert.Equal(t, fullPath, edc.FullPath())
