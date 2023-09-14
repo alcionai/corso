@@ -121,7 +121,12 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.UnknownService, S3Overrides(cmd))
+	r, _, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx,
+		// Need to give it a valid service so it won't error out on us even though
+		// we don't need the graph client.
+		path.OneDriveService,
+		S3Overrides(cmd))
 	if err != nil {
 		return print.Only(ctx, err)
 	}
