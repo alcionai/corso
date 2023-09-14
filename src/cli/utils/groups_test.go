@@ -22,8 +22,6 @@ func TestGroupsUtilsSuite(t *testing.T) {
 	suite.Run(t, &GroupsUtilsSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-// Tests selector build for Groups properly
-// differentiates between the 3 categories: Pages, Libraries and Lists CLI
 func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 	var (
 		empty             = []string{}
@@ -40,6 +38,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 		opts             utils.GroupsOpts
 		expectIncludeLen int
 	}{
+		// resource
 		{
 			name:             "no inputs",
 			opts:             utils.GroupsOpts{},
@@ -66,6 +65,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			},
 			expectIncludeLen: 2,
 		},
+		// sharepoint
 		{
 			name: "library folder contains",
 			opts: utils.GroupsOpts{
@@ -165,6 +165,50 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			},
 			expectIncludeLen: 1,
 		},
+		// channels
+		{
+			name: "multiple channel multiple message",
+			opts: utils.GroupsOpts{
+				Groups:   single,
+				Channels: multi,
+				Messages: multi,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "single channel multiple message",
+			opts: utils.GroupsOpts{
+				Groups:   single,
+				Channels: single,
+				Messages: multi,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "single channel and message",
+			opts: utils.GroupsOpts{
+				Groups:   single,
+				Channels: single,
+				Messages: single,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "multiple channel only",
+			opts: utils.GroupsOpts{
+				Groups:   single,
+				Channels: multi,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "single channel only",
+			opts: utils.GroupsOpts{
+				Groups:   single,
+				Channels: single,
+			},
+			expectIncludeLen: 1,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -174,7 +218,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			defer flush()
 
 			sel := utils.IncludeGroupsRestoreDataSelectors(ctx, test.opts)
-			assert.Len(suite.T(), sel.Includes, test.expectIncludeLen)
+			assert.Len(t, sel.Includes, test.expectIncludeLen)
 		})
 	}
 }
@@ -202,20 +246,29 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 			name:     "all valid",
 			backupID: "id",
 			opts: utils.GroupsOpts{
-				FileCreatedAfter:   dttm.Now(),
-				FileCreatedBefore:  dttm.Now(),
-				FileModifiedAfter:  dttm.Now(),
-				FileModifiedBefore: dttm.Now(),
+				FileCreatedAfter:       dttm.Now(),
+				FileCreatedBefore:      dttm.Now(),
+				FileModifiedAfter:      dttm.Now(),
+				FileModifiedBefore:     dttm.Now(),
+				MessageCreatedAfter:    dttm.Now(),
+				MessageCreatedBefore:   dttm.Now(),
+				MessageLastReplyAfter:  dttm.Now(),
+				MessageLastReplyBefore: dttm.Now(),
 				Populated: flags.PopulatedFlags{
-					flags.SiteFN:               struct{}{},
-					flags.FileCreatedAfterFN:   struct{}{},
-					flags.FileCreatedBeforeFN:  struct{}{},
-					flags.FileModifiedAfterFN:  struct{}{},
-					flags.FileModifiedBeforeFN: struct{}{},
+					flags.SiteFN:                   struct{}{},
+					flags.FileCreatedAfterFN:       struct{}{},
+					flags.FileCreatedBeforeFN:      struct{}{},
+					flags.FileModifiedAfterFN:      struct{}{},
+					flags.FileModifiedBeforeFN:     struct{}{},
+					flags.MessageCreatedAfterFN:    struct{}{},
+					flags.MessageCreatedBeforeFN:   struct{}{},
+					flags.MessageLastReplyAfterFN:  struct{}{},
+					flags.MessageLastReplyBeforeFN: struct{}{},
 				},
 			},
 			expect: assert.NoError,
 		},
+		// sharepoint
 		{
 			name:     "invalid file created after",
 			backupID: "id",
@@ -239,6 +292,17 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 			expect: assert.Error,
 		},
 		{
+			name:     "invalid file modified before",
+			backupID: "id",
+			opts: utils.GroupsOpts{
+				FileModifiedBefore: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.FileModifiedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
 			name:     "invalid file modified after",
 			backupID: "id",
 			opts: utils.GroupsOpts{
@@ -249,13 +313,47 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 			},
 			expect: assert.Error,
 		},
+		// channels
 		{
-			name:     "invalid file modified before",
+			name:     "invalid message last reply before",
 			backupID: "id",
 			opts: utils.GroupsOpts{
-				FileModifiedBefore: "1235",
+				MessageLastReplyBefore: "1235",
 				Populated: flags.PopulatedFlags{
-					flags.FileModifiedBeforeFN: struct{}{},
+					flags.MessageLastReplyBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid message last reply after",
+			backupID: "id",
+			opts: utils.GroupsOpts{
+				MessageLastReplyAfter: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.MessageLastReplyAfterFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid message created before",
+			backupID: "id",
+			opts: utils.GroupsOpts{
+				MessageCreatedBefore: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.MessageCreatedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid message created after",
+			backupID: "id",
+			opts: utils.GroupsOpts{
+				MessageCreatedAfter: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.MessageCreatedAfterFN: struct{}{},
 				},
 			},
 			expect: assert.Error,
