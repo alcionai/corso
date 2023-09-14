@@ -114,38 +114,43 @@ func (c Groups) GetByID(
 
 	var group models.Groupable
 
+	// prefer lookup by id, but fallback to lookup by display name,
+	// even in the case of a uuid, just in case the display name itself
+	// is a uuid.
 	if uuidRE.MatchString(identifier) {
 		group, err = service.
 			Client().
 			Groups().
 			ByGroupIdString(identifier).
 			Get(ctx, nil)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "getting group by id")
-		}
-	} else {
-		opts := &groups.GroupsRequestBuilderGetRequestConfiguration{
-			Headers: newEventualConsistencyHeaders(),
-			QueryParameters: &groups.GroupsRequestBuilderGetQueryParameters{
-				Filter: ptr.To(fmt.Sprintf(filterGroupByDisplayNameQueryTmpl, identifier)),
-			},
+		if err == nil {
+			return group, nil
 		}
 
-		resp, err := service.Client().Groups().Get(ctx, opts)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "finding group by display name")
-		}
-
-		vs := resp.GetValue()
-
-		if len(vs) == 0 {
-			return nil, clues.Stack(graph.ErrResourceOwnerNotFound).WithClues(ctx)
-		} else if len(vs) > 1 {
-			return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).WithClues(ctx)
-		}
-
-		group = vs[0]
+		logger.CtxErr(ctx, err).Info("finding group by id, falling back to display name")
 	}
+
+	opts := &groups.GroupsRequestBuilderGetRequestConfiguration{
+		Headers: newEventualConsistencyHeaders(),
+		QueryParameters: &groups.GroupsRequestBuilderGetQueryParameters{
+			Filter: ptr.To(fmt.Sprintf(filterGroupByDisplayNameQueryTmpl, identifier)),
+		},
+	}
+
+	resp, err := service.Client().Groups().Get(ctx, opts)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "finding group by display name")
+	}
+
+	vs := resp.GetValue()
+
+	if len(vs) == 0 {
+		return nil, clues.Stack(graph.ErrResourceOwnerNotFound).WithClues(ctx)
+	} else if len(vs) > 1 {
+		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).WithClues(ctx)
+	}
+
+	group = vs[0]
 
 	return group, nil
 }
