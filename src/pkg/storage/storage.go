@@ -8,12 +8,13 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 )
 
-type storageProvider int
+type ProviderType int
 
-//go:generate stringer -type=storageProvider -linecomment
+//go:generate stringer -type=ProviderType -linecomment
 const (
-	ProviderUnknown storageProvider = 0 // Unknown Provider
-	ProviderS3      storageProvider = 1 // S3
+	ProviderUnknown    ProviderType = 0 // Unknown Provider
+	ProviderS3         ProviderType = 1 // S3
+	ProviderFilesystem ProviderType = 2 // Filesystem
 )
 
 // storage parsing errors
@@ -24,7 +25,7 @@ var (
 // Storage defines a storage provider, along with any configuration
 // required to set up or communicate with that provider.
 type Storage struct {
-	Provider storageProvider
+	Provider ProviderType
 	Config   map[string]string
 	// TODO: These are AWS S3 specific -> move these out
 	SessionTags     map[string]string
@@ -34,7 +35,7 @@ type Storage struct {
 }
 
 // NewStorage aggregates all the supplied configurations into a single configuration.
-func NewStorage(p storageProvider, cfgs ...common.StringConfigurer) (Storage, error) {
+func NewStorage(p ProviderType, cfgs ...common.StringConfigurer) (Storage, error) {
 	cs, err := common.UnionStringConfigs(cfgs...)
 
 	return Storage{
@@ -46,7 +47,7 @@ func NewStorage(p storageProvider, cfgs ...common.StringConfigurer) (Storage, er
 // NewStorageUsingRole supports specifying an AWS IAM role the storage provider
 // should assume.
 func NewStorageUsingRole(
-	p storageProvider,
+	p ProviderType,
 	roleARN string,
 	sessionName string,
 	sessionTags map[string]string,
