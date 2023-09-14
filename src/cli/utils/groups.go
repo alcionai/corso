@@ -11,7 +11,14 @@ import (
 )
 
 type GroupsOpts struct {
-	Groups []string
+	Groups   []string
+	Channels []string
+	Messages []string
+
+	MessageCreatedAfter    string
+	MessageCreatedBefore   string
+	MessageLastReplyAfter  string
+	MessageLastReplyBefore string
 
 	SiteID             []string
 	Library            string
@@ -60,17 +67,22 @@ func AddGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.
 
 func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 	return GroupsOpts{
-		Groups: flags.GroupFV,
+		Groups:   flags.GroupFV,
+		Channels: flags.ChannelFV,
+		Messages: flags.MessageFV,
+		SiteID:   flags.SiteIDFV,
 
-		SiteID: flags.SiteIDFV,
-
-		Library:            flags.LibraryFV,
-		FileName:           flags.FileNameFV,
-		FolderPath:         flags.FolderPathFV,
-		FileCreatedAfter:   flags.FileCreatedAfterFV,
-		FileCreatedBefore:  flags.FileCreatedBeforeFV,
-		FileModifiedAfter:  flags.FileModifiedAfterFV,
-		FileModifiedBefore: flags.FileModifiedBeforeFV,
+		Library:                flags.LibraryFV,
+		FileName:               flags.FileNameFV,
+		FolderPath:             flags.FolderPathFV,
+		FileCreatedAfter:       flags.FileCreatedAfterFV,
+		FileCreatedBefore:      flags.FileCreatedBeforeFV,
+		FileModifiedAfter:      flags.FileModifiedAfterFV,
+		FileModifiedBefore:     flags.FileModifiedBeforeFV,
+		MessageCreatedAfter:    flags.MessageCreatedAfterFV,
+		MessageCreatedBefore:   flags.MessageCreatedBeforeFV,
+		MessageLastReplyAfter:  flags.MessageLastReplyAfterFV,
+		MessageLastReplyBefore: flags.MessageLastReplyBeforeFV,
 
 		ListFolder: flags.ListFolderFV,
 		ListItem:   flags.ListItemFV,
@@ -110,12 +122,30 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts) error {
 		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
 	}
 
+	if _, ok := opts.Populated[flags.MessageCreatedAfterFN]; ok && !IsValidTimeFormat(opts.MessageCreatedAfter) {
+		return clues.New("invalid time format for " + flags.MessageCreatedAfterFN)
+	}
+
+	if _, ok := opts.Populated[flags.MessageCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.MessageCreatedBefore) {
+		return clues.New("invalid time format for " + flags.MessageCreatedBeforeFN)
+	}
+
+	if _, ok := opts.Populated[flags.MessageLastReplyAfterFN]; ok && !IsValidTimeFormat(opts.MessageLastReplyAfter) {
+		return clues.New("invalid time format for " + flags.MessageLastReplyAfterFN)
+	}
+
+	if _, ok := opts.Populated[flags.MessageLastReplyBeforeFN]; ok && !IsValidTimeFormat(opts.MessageLastReplyBefore) {
+		return clues.New("invalid time format for " + flags.MessageLastReplyBeforeFN)
+	}
+
+	// TODO(meain): selectors (refer sharepoint)
+
 	return validateRestoreConfigFlags(flags.CollisionsFV, opts.RestoreCfg)
 }
 
-// AddGroupInfo adds the scope of the provided values to the selector's
+// AddGroupsFilter adds the scope of the provided values to the selector's
 // filter set
-func AddGroupInfo(
+func AddGroupsFilter(
 	sel *selectors.GroupsRestore,
 	v string,
 	f func(string) []selectors.GroupsScope,
@@ -130,16 +160,15 @@ func AddGroupInfo(
 // IncludeGroupsRestoreDataSelectors builds the common data-selector
 // inclusions for Group commands.
 func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *selectors.GroupsRestore {
-	groups := opts.Groups
-
-	lg := len(opts.Groups)
-
-	// TODO(meain): handle sites once we add non-root site backup
-	// ls := len(opts.SiteID)
-
-	lfp, lfn := len(opts.FolderPath), len(opts.FileName)
-	slp, sli := len(opts.ListFolder), len(opts.ListItem)
-	pf, pi := len(opts.PageFolder), len(opts.Page)
+	var (
+		groups      = opts.Groups
+		lfp, lfn    = len(opts.FolderPath), len(opts.FileName)
+		llf, lli    = len(opts.ListFolder), len(opts.ListItem)
+		lpf, lpi    = len(opts.PageFolder), len(opts.Page)
+		lg, lch, lm = len(opts.Groups), len(opts.Channels), len(opts.Messages)
+		// TODO(meain): handle sites once we add non-root site backup
+		// ls := len(opts.SiteID)
+	)
 
 	if lg == 0 {
 		groups = selectors.Any()
@@ -147,59 +176,80 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 
 	sel := selectors.NewGroupsRestore(groups)
 
-	if lfp+lfn+slp+sli+pf+pi == 0 {
+	if lfp+lfn+llf+lli+lpf+lpi+lch+lm == 0 {
 		sel.Include(sel.AllData())
 		return sel
 	}
 
-	if lfp+lfn > 0 {
-		if lfn == 0 {
-			opts.FileName = selectors.Any()
+	// sharepoint site selectors
+
+	if lfp+lfn+llf+lli+lpf+lpi > 0 {
+		if lfp+lfn > 0 {
+			if lfn == 0 {
+				opts.FileName = selectors.Any()
+			}
+
+			opts.FolderPath = trimFolderSlash(opts.FolderPath)
+			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPath)
+
+			if len(containsFolders) > 0 {
+				sel.Include(sel.LibraryItems(containsFolders, opts.FileName))
+			}
+
+			if len(prefixFolders) > 0 {
+				sel.Include(sel.LibraryItems(prefixFolders, opts.FileName, selectors.PrefixMatch()))
+			}
 		}
 
-		opts.FolderPath = trimFolderSlash(opts.FolderPath)
-		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPath)
+		if llf+lli > 0 {
+			if lli == 0 {
+				opts.ListItem = selectors.Any()
+			}
 
-		if len(containsFolders) > 0 {
-			sel.Include(sel.LibraryItems(containsFolders, opts.FileName))
+			opts.ListFolder = trimFolderSlash(opts.ListFolder)
+			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListFolder)
+
+			if len(containsFolders) > 0 {
+				sel.Include(sel.ListItems(containsFolders, opts.ListItem))
+			}
+
+			if len(prefixFolders) > 0 {
+				sel.Include(sel.ListItems(prefixFolders, opts.ListItem, selectors.PrefixMatch()))
+			}
 		}
 
-		if len(prefixFolders) > 0 {
-			sel.Include(sel.LibraryItems(prefixFolders, opts.FileName, selectors.PrefixMatch()))
+		if lpf+lpi > 0 {
+			if lpi == 0 {
+				opts.Page = selectors.Any()
+			}
+
+			opts.PageFolder = trimFolderSlash(opts.PageFolder)
+			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PageFolder)
+
+			if len(containsFolders) > 0 {
+				sel.Include(sel.PageItems(containsFolders, opts.Page))
+			}
+
+			if len(prefixFolders) > 0 {
+				sel.Include(sel.PageItems(prefixFolders, opts.Page, selectors.PrefixMatch()))
+			}
 		}
 	}
 
-	if slp+sli > 0 {
-		if sli == 0 {
-			opts.ListItem = selectors.Any()
+	// channel and message selectors
+
+	if lch+lm > 0 {
+		// if no channel is specified, include all channels
+		if lch == 0 {
+			opts.Channels = selectors.Any()
 		}
 
-		opts.ListFolder = trimFolderSlash(opts.ListFolder)
-		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListFolder)
-
-		if len(containsFolders) > 0 {
-			sel.Include(sel.ListItems(containsFolders, opts.ListItem))
-		}
-
-		if len(prefixFolders) > 0 {
-			sel.Include(sel.ListItems(prefixFolders, opts.ListItem, selectors.PrefixMatch()))
-		}
-	}
-
-	if pf+pi > 0 {
-		if pi == 0 {
-			opts.Page = selectors.Any()
-		}
-
-		opts.PageFolder = trimFolderSlash(opts.PageFolder)
-		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PageFolder)
-
-		if len(containsFolders) > 0 {
-			sel.Include(sel.PageItems(containsFolders, opts.Page))
-		}
-
-		if len(prefixFolders) > 0 {
-			sel.Include(sel.PageItems(prefixFolders, opts.Page, selectors.PrefixMatch()))
+		// if no message is specified, only select channels
+		// otherwise, look for channel/message pairs
+		if lm == 0 {
+			sel.Include(sel.Channels(opts.Channels))
+		} else {
+			sel.Include(sel.ChannelMessages(opts.Channels, opts.Messages))
 		}
 	}
 
@@ -211,9 +261,13 @@ func FilterGroupsRestoreInfoSelectors(
 	sel *selectors.GroupsRestore,
 	opts GroupsOpts,
 ) {
-	AddGroupInfo(sel, opts.Library, sel.Library)
-	AddGroupInfo(sel, opts.FileCreatedAfter, sel.CreatedAfter)
-	AddGroupInfo(sel, opts.FileCreatedBefore, sel.CreatedBefore)
-	AddGroupInfo(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
-	AddGroupInfo(sel, opts.FileModifiedBefore, sel.ModifiedBefore)
+	AddGroupsFilter(sel, opts.Library, sel.Library)
+	AddGroupsFilter(sel, opts.FileCreatedAfter, sel.CreatedAfter)
+	AddGroupsFilter(sel, opts.FileCreatedBefore, sel.CreatedBefore)
+	AddGroupsFilter(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
+	AddGroupsFilter(sel, opts.FileModifiedBefore, sel.ModifiedBefore)
+	AddGroupsFilter(sel, opts.MessageCreatedAfter, sel.MessageCreatedAfter)
+	AddGroupsFilter(sel, opts.MessageCreatedBefore, sel.MessageCreatedBefore)
+	AddGroupsFilter(sel, opts.MessageLastReplyAfter, sel.MessageLastReplyAfter)
+	AddGroupsFilter(sel, opts.MessageLastReplyBefore, sel.MessageLastReplyBefore)
 }

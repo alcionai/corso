@@ -37,26 +37,25 @@ const (
 	groupsServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
-// TODO: correct examples
 const (
-	groupsServiceCommandCreateExamples = `# Backup all Groups data for Alice
-corso backup create groups --group alice@example.com 
+	groupsServiceCommandCreateExamples = `# Backup all Groups and Teams data for the Marketing group
+corso backup create groups --group Marketing
 
-# Backup only Groups contacts for Alice and Bob
-corso backup create groups --group engineering,sales --data contacts
+# Backup only Teams conversations messages
+corso backup create groups --group Marketing --data messages
 
-# Backup all Groups data for all M365 users 
+# Backup all Groups and Teams data for all groups
 corso backup create groups --group '*'`
 
 	groupsServiceCommandDeleteExamples = `# Delete Groups backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete groups --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	groupsServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
+	groupsServiceCommandDetailsExamples = `# Explore items in Marketing's latest backup (1234abcd...)
 corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd
 
-# Explore calendar events occurring after start of 2022
+# Explore Marketing messages posted after the start of 2022
 corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --event-starts-after 2022-01-01T00:00:00`
+    --last-message-reply-after 2022-01-01T00:00:00`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -107,6 +106,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddBackupIDFlag(c, true)
+		flags.AddGroupDetailsAndRestoreFlags(c)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
