@@ -84,6 +84,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		path.LibrariesCategory,
 		ic,
 		gtdi,
+		nil,
 		grh,
 		true)
 }

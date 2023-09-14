@@ -61,7 +61,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		name          string
 		selector      func() *selectors.ExchangeBackup
 		category      path.CategoryType
-		metadataFiles []string
+		metadataFiles [][]string
 	}{
 		// 	{
 		// 		name: "Mail",
@@ -140,7 +140,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				m365.AzureTenantID,
 				userID,
 				path.ExchangeService,
-				map[path.CategoryType][]string{test.category: test.metadataFiles})
+				map[path.CategoryType][][]string{test.category: test.metadataFiles})
 
 			_, expectDeets := deeTD.GetDeetsInBackup(
 				t,
@@ -194,7 +194,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				m365.AzureTenantID,
 				userID,
 				path.ExchangeService,
-				map[path.CategoryType][]string{test.category: test.metadataFiles})
+				map[path.CategoryType][][]string{test.category: test.metadataFiles})
 			deeTD.CheckBackupDetails(
 				t,
 				ctx,
@@ -243,7 +243,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		mb         = evmock.NewBus()
 		now        = dttm.Now()
 		service    = path.ExchangeService
-		categories = map[path.CategoryType][]string{
+		categories = map[path.CategoryType][][]string{
 			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
 			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
 			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
@@ -439,6 +439,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				creds.AzureTenantID,
 				uidn.ID(),
 				"",
+				"",
 				destName,
 				2,
 				version.Backup,
@@ -577,7 +578,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 						service,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-						creds.AzureTenantID, suite.its.user.ID, "", container3,
+						creds.AzureTenantID, suite.its.user.ID, "", "", container3,
 						2,
 						version.Backup,
 						gen.dbf)

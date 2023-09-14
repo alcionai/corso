@@ -1,11 +1,13 @@
 package test_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -14,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -34,9 +37,47 @@ func (suite *GroupsBackupIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-// TODO(v1 backup): Incremental backup
 // TODO(v0,v1 restore): Library restore
 // TODO(v0 export): Channels export
+
+func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
+	sel := selectors.NewGroupsRestore([]string{suite.its.group.ID})
+
+	ic := func(cs []string) selectors.Selector {
+		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))
+		return sel.Selector
+	}
+
+	gtdi := func(
+		t *testing.T,
+		ctx context.Context,
+	) string {
+		return suite.its.group.RootSite.DriveID
+	}
+
+	gtsi := func(
+		t *testing.T,
+		ctx context.Context,
+	) string {
+		return suite.its.group.RootSite.ID
+	}
+
+	grh := func(ac api.Client) drive.RestoreHandler {
+		return drive.NewLibraryRestoreHandler(ac, path.GroupsService)
+	}
+
+	runDriveIncrementalTest(
+		suite,
+		suite.its.group.ID,
+		suite.its.user.ID,
+		path.GroupsService,
+		path.LibrariesCategory,
+		ic,
+		gtdi,
+		gtsi,
+		grh,
+		true)
+}
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	t := suite.T()
@@ -52,8 +93,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	)
 
 	sel.Include(
-		// TODO(abin): ensure implementation succeeds
-		// selTD.GroupsBackupLibraryFolderScope(sel),
+		selTD.GroupsBackupLibraryFolderScope(sel),
 		selTD.GroupsBackupChannelScope(sel))
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)

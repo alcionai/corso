@@ -15,13 +15,13 @@ import (
 
 // MetadataFileNames produces the category-specific set of filenames used to
 // store graph metadata such as delta tokens and folderID->path references.
-func MetadataFileNames(cat path.CategoryType) []string {
+func MetadataFileNames(cat path.CategoryType) [][]string {
 	switch cat {
 	// TODO: should this include events?
 	case path.EmailCategory, path.ContactsCategory:
-		return []string{metadata.DeltaURLsFileName, metadata.PreviousPathFileName}
+		return [][]string{{metadata.DeltaURLsFileName}, {metadata.PreviousPathFileName}}
 	default:
-		return []string{metadata.PreviousPathFileName}
+		return [][]string{{metadata.PreviousPathFileName}}
 	}
 }
 
