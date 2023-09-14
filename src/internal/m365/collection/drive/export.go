@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
@@ -31,6 +32,7 @@ func streamItems(
 	ctx context.Context,
 	drc []data.RestoreCollection,
 	backupVersion int,
+	cec control.ExportConfig,
 	ch chan<- export.Item,
 ) {
 	defer close(ch)

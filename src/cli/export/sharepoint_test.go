@@ -82,6 +82,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 				// bool flags
 				"--" + flags.ArchiveFN,
+				"--" + flags.RawFN,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -107,6 +108,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.ElementsMatch(t, testdata.PageFolderInput, opts.PageFolder)
 
 			assert.Equal(t, testdata.Archive, opts.ExportCfg.Archive)
+			assert.Equal(t, testdata.Raw, opts.ExportCfg.Raw)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)

@@ -11,6 +11,7 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 )
 
@@ -76,6 +77,7 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 				ctx,
 				[]data.RestoreCollection{test.backingColl},
 				version.NoBackup,
+				control.DefaultExportConfig(),
 				ch)
 
 			var (

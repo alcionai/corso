@@ -13,6 +13,9 @@ type ExportConfig struct {
 	// or pst for emails.
 	// TODO: Enable once we support outlook exports
 	// DataFormat string
+
+	// When true, exports the plain json value of every item with no changes.
+	Raw bool
 }
 
 func DefaultExportConfig() ExportConfig {

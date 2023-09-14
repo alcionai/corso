@@ -52,6 +52,7 @@ var (
 	DeltaPageSize = "deltaPageSize"
 
 	Archive = true
+	Raw     = true
 
 	AzureClientID     = "testAzureClientId"
 	AzureTenantID     = "testAzureTenantId"

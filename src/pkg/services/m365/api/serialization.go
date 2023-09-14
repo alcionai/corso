@@ -6,8 +6,8 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 )
 
-// createFromBytes generates an m365 object form bytes.
-func createFromBytes(
+// CreateFromBytes generates an m365 object form bytes.
+func CreateFromBytes(
 	bytes []byte,
 	createFunc serialization.ParsableFactory,
 ) (serialization.Parsable, error) {
