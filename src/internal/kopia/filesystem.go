@@ -21,7 +21,7 @@ func localFSBlobStorage(
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	fsCfg := cfg.(storage.FilesystemConfig)
+	fsCfg := cfg.(*storage.FilesystemConfig)
 	opts := filesystem.Options{
 		Path: fsCfg.Path,
 	}

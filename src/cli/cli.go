@@ -66,6 +66,7 @@ func preRun(cc *cobra.Command, args []string) error {
 		"Initialize a S3 repository",
 		"Connect to a S3 repository",
 		"Initialize a repository on local or network storage.",
+		"Connect to a repository on local or network storage.",
 		"Help about any command",
 		"Free, Secure, Open-Source Backup for M365.",
 		"env var guide",

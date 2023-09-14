@@ -4,91 +4,68 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (
-	fsProviderCommand          = "filesystem"
-	fsProviderCommandUseSuffix = "--path <path>"
+	fsProviderCmd          = "filesystem"
+	fsProviderCmdUseSuffix = "--path <path>"
 )
 
 const (
-	fsProviderCommandInitExamples = `# Create a new Corso repository at local or 
-	network attached storage
-corso repo init filesystem --path /mnt/corso-repo
-# Create a new Corso repo in local or network attached storage using a prefix
-corso repo init filesystem --path /mnt/corso-repo --prefix my-prefix`
+	fsProviderCmdInitExamples = `# Create a new Corso repository on local or network attached storage
+corso repo init filesystem --path ~/corso-repo`
 
-	fsProviderCommandConnectExamples = `# Connect to a Corso repository at local or
-	network attached storage"
-corso repo connect filesystem --path /mnt/corso-repo
-# Connect to a Corso repo in local or network attached storage using a prefix
-corso repo connect filesystem --path /mnt/corso-repo --prefix my-prefix`
+	fsProviderCmdConnectExamples = `# Connect to a Corso repository on local or network attached storage
+corso repo connect filesystem --path ~/corso-repo`
 )
 
 func addFilesystemCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case initCommand:
-		init := fsInitCmd()
-		flags.AddRetentionConfigFlags(init)
-		c, fs = utils.AddCommand(cmd, init)
+		init := filesystemInitCmd()
+		// TODO(pandeyabs): Enable retention for filesystem repos
+		// flags.AddRetentionConfigFlags(init)
+		c, _ = utils.AddCommand(cmd, init)
 
 	case connectCommand:
-		c, fs = utils.AddCommand(cmd, fsConnectCmd())
+		c, _ = utils.AddCommand(cmd, filesystemConnectCmd())
 	}
 
-	c.Use = c.Use + " " + fsProviderCommandUseSuffix
+	c.Use = c.Use + " " + fsProviderCmdUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
 	flags.AddAzureCredsFlags(c)
 	flags.AddCorsoPassphaseFlags(c)
-	flags.AddFilesystemPathFlag(c, true)
-
-	// Flags addition ordering should follow the order we want them to appear in help and docs:
-	// More generic and more frequently used flags take precedence.
-	fs.StringVar(&flags.PrefixFV, flags.PrefixFN, "", "Repo prefix.")
-
-	// In general, we don't want to expose this flag to users and have them mistake it
-	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
-	fs.BoolVar(
-		&flags.SucceedIfExistsFV,
-		flags.SucceedIfExistsFN,
-		false,
-		"Exit with success if the repo has already been initialized.")
-	cobra.CheckErr(fs.MarkHidden(flags.SucceedIfExistsFN))
+	flags.AddFilesystemFlags(c)
 
 	return c
 }
 
 // `corso repo init filesystem [<flag>...]`
-func fsInitCmd() *cobra.Command {
+func filesystemInitCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   fsProviderCommand,
+		Use:   fsProviderCmd,
 		Short: "Initialize a repository on local or network storage.",
 		Long: `Bootstraps a new repository on local or network storage
 		and connects it to your m365 account.`,
-		RunE:    initFsCmd,
+		RunE:    initFilesystemCmd,
 		Args:    cobra.NoArgs,
-		Example: fsProviderCommandInitExamples,
+		Example: fsProviderCmdInitExamples,
 	}
 }
 
 // initializes a filesystem repo.
-func initFsCmd(cmd *cobra.Command, args []string) error {
+func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	cfg, err := config.GetConfigRepoDetails(
@@ -96,7 +73,7 @@ func initFsCmd(cmd *cobra.Command, args []string) error {
 		storage.ProviderFilesystem,
 		true,
 		false,
-		FilesystemOverrides(cmd))
+		flags.FilesystemFlagOverrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -157,19 +134,19 @@ func initFsCmd(cmd *cobra.Command, args []string) error {
 // ---------------------------------------------------------------------------------------------------------
 
 // `corso repo connect s3 [<flag>...]`
-func fsConnectCmd() *cobra.Command {
+func filesystemConnectCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     fsProviderCommand,
-		Short:   "Connect to a local repository",
-		Long:    `Ensures a connection to an existing local repository.`,
-		RunE:    connectFsCmd,
+		Use:     fsProviderCmd,
+		Short:   "Connect to a repository on local or network storage.",
+		Long:    `Ensures a connection to an existing repository on local or network storage.`,
+		RunE:    connectFilesystemCmd,
 		Args:    cobra.NoArgs,
-		Example: fsProviderCommandConnectExamples,
+		Example: fsProviderCmdConnectExamples,
 	}
 }
 
 // connects to an existing s3 repo.
-func connectFsCmd(cmd *cobra.Command, args []string) error {
+func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	cfg, err := config.GetConfigRepoDetails(
@@ -177,7 +154,7 @@ func connectFsCmd(cmd *cobra.Command, args []string) error {
 		storage.ProviderFilesystem,
 		true,
 		true,
-		FilesystemOverrides(cmd))
+		flags.FilesystemFlagOverrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -218,21 +195,4 @@ func connectFsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func FilesystemOverrides(cmd *cobra.Command) map[string]string {
-	fs := flags.GetPopulatedFlags(cmd)
-	return PopulateFilesystemFlags(fs)
-}
-
-func PopulateFilesystemFlags(flagset flags.PopulatedFlags) map[string]string {
-	fsOverrides := make(map[string]string)
-	fsOverrides[config.AccountProviderTypeKey] = account.ProviderM365.String()
-	fsOverrides[config.StorageProviderTypeKey] = storage.ProviderFilesystem.String()
-
-	if _, ok := flagset[flags.FilesystemPathFN]; ok {
-		fsOverrides[flags.FilesystemPathFN] = flags.FilesystemPathFV
-	}
-
-	return fsOverrides
 }

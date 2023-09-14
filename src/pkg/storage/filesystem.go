@@ -4,30 +4,33 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/str"
 )
 
 const (
-	// Make this better
 	FilesystemPath = "path"
 )
+
+var fsConstToTomlKeyMap = map[string]string{
+	StorageProviderTypeKey: StorageProviderTypeKey,
+	FilesystemPath:         FilesystemPath,
+}
 
 type FilesystemConfig struct {
 	Path string
 }
 
-func (s Storage) FsConfig() (FilesystemConfig, error) {
-	c := FilesystemConfig{}
+func buildFilesystemConfigFromMap(config map[string]string) (*FilesystemConfig, error) {
+	c := &FilesystemConfig{}
 
-	if len(s.Config) > 0 {
-		c.Path = orEmptyString(s.Config[FilesystemPath])
+	if len(config) > 0 {
+		c.Path = orEmptyString(config[FilesystemPath])
 	}
 
 	return c, c.validate()
 }
 
-func (c FilesystemConfig) validate() error {
+func (c *FilesystemConfig) validate() error {
 	check := map[string]string{
 		FilesystemPath: c.Path,
 	}
@@ -41,8 +44,6 @@ func (c FilesystemConfig) validate() error {
 	return nil
 }
 
-// S3Config retrieves the S3Config details from the Storage config.
-// TODO(pandeyabs): Unexpose
 func MakeFSConfigFromMap(config map[string]string) (FilesystemConfig, error) {
 	c := FilesystemConfig{}
 
@@ -53,56 +54,44 @@ func MakeFSConfigFromMap(config map[string]string) (FilesystemConfig, error) {
 	return c, c.validate()
 }
 
-// No need to return error here. Viper returns empty values.
-func fsConfigsFromStore(kvg KVStoreGetter) FilesystemConfig {
-	var fsConfig FilesystemConfig
-
-	fsConfig.Path = cast.ToString(kvg.Get(FilesystemPath))
-
-	return fsConfig
+func (c *FilesystemConfig) fsConfigsFromStore(kvg KVStoreGetter) {
+	c.Path = cast.ToString(kvg.Get(FilesystemPath))
 }
 
+// TODO(pandeyabs): Remove this. It's not adding any value.
 func fsOverrides(in map[string]string) map[string]string {
 	return map[string]string{
 		FilesystemPath: in[FilesystemPath],
 	}
 }
 
-var _ Configurer = FilesystemConfig{}
+var _ Configurer = &FilesystemConfig{}
 
-func (c FilesystemConfig) FetchConfigFromStore(
+func (c *FilesystemConfig) ApplyConfigOverrides(
 	kvg KVStoreGetter,
 	readConfigFromStore bool,
 	matchFromConfig bool,
 	overrides map[string]string,
-) (Configurer, error) {
-	var fsCfg FilesystemConfig
-
+) error {
 	if readConfigFromStore {
-		fsCfg = fsConfigsFromStore(kvg)
-
-		if b, ok := overrides[Bucket]; ok {
-			overrides[Bucket] = common.NormalizeBucket(b)
-		}
+		c.fsConfigsFromStore(kvg)
 
 		if matchFromConfig {
 			providerType := cast.ToString(kvg.Get(StorageProviderTypeKey))
 			if providerType != ProviderFilesystem.String() {
-				return FilesystemConfig{}, clues.New("unsupported storage provider: " + providerType)
+				return clues.New("unsupported storage provider in config file: " + providerType)
 			}
 
 			// This is matching override values from config file.
-			if err := mustMatchConfig(kvg, fsOverrides(overrides)); err != nil {
-				return S3Config{}, clues.Wrap(err, "verifying s3 configs in corso config file")
+			if err := mustMatchConfig(kvg, fsConstToTomlKeyMap, fsOverrides(overrides)); err != nil {
+				return clues.Wrap(err, "verifying storage configs in corso config file")
 			}
 		}
 	}
 
-	fsCfg = FilesystemConfig{
-		Path: str.First(overrides[FilesystemPath], fsCfg.Path),
-	}
+	c.Path = str.First(overrides[FilesystemPath], c.Path)
 
-	return fsCfg, fsCfg.validate()
+	return c.validate()
 }
 
 // TODO(pandeyabs): Do we need to sanitize path?

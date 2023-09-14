@@ -51,6 +51,29 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 	return st
 }
 
+func NewFilesystemStorage(t tester.TestT) storage.Storage {
+	now := tester.LogTimeOfTest(t)
+	repoPath := "/tmp/fs_test" + now
+
+	err := os.MkdirAll(repoPath, 0700)
+	require.NoError(t, err, "creating filesystem repo", clues.ToCore(err))
+
+	t.Logf("testing at filesystem repo [%s]", repoPath)
+
+	st, err := storage.NewStorage(
+		storage.ProviderFilesystem,
+		&storage.FilesystemConfig{
+			Path: repoPath,
+		},
+		storage.CommonConfig{
+			Corso:       GetAndInsertCorso(""),
+			KopiaCfgDir: t.TempDir(),
+		})
+	require.NoError(t, err, "creating storage", clues.ToCore(err))
+
+	return st
+}
+
 // GetCorso is a helper for aggregating Corso secrets and credentials.
 func GetAndInsertCorso(passphase string) credentials.Corso {
 	// fetch data from flag, env var or func param giving priority to func param
