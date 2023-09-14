@@ -108,8 +108,6 @@ func (c Channels) GetChannelMessage(
 	ctx context.Context,
 	teamID, channelID, messageID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
-	var size int64
-
 	message, err := c.Stable.
 		Client().
 		Teams().
@@ -123,7 +121,14 @@ func (c Channels) GetChannelMessage(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	info := ChannelMessageInfo(message, size)
+	replies, err := c.GetChannelMessageReplies(ctx, teamID, channelID, messageID)
+	if err != nil {
+		return nil, nil, graph.Wrap(ctx, err, "retrieving message replies")
+	}
+
+	message.SetReplies(replies)
+
+	info := ChannelMessageInfo(message)
 
 	return message, info, nil
 }
@@ -134,12 +139,12 @@ func (c Channels) GetChannelMessage(
 
 func ChannelMessageInfo(
 	msg models.ChatMessageable,
-	size int64,
 ) *details.GroupsInfo {
 	var (
 		lastReply  time.Time
 		modTime    = ptr.OrNow(msg.GetLastModifiedDateTime())
 		msgCreator string
+		content    string
 	)
 
 	for _, r := range msg.GetReplies() {
@@ -169,15 +174,19 @@ func ChannelMessageInfo(
 		msgCreator = ptr.Val(from.GetUser().GetDisplayName())
 	}
 
+	if msg.GetBody() != nil {
+		content = ptr.Val(msg.GetBody().GetContent())
+	}
+
 	return &details.GroupsInfo{
 		ItemType:       details.GroupsChannelMessage,
 		Created:        ptr.Val(msg.GetCreatedDateTime()),
 		LastReplyAt:    lastReply,
 		Modified:       modTime,
 		MessageCreator: msgCreator,
-		MessagePreview: str.Preview(ptr.Val(msg.GetBody().GetContent()), 16),
+		MessagePreview: str.Preview(content, 16),
 		ReplyCount:     len(msg.GetReplies()),
-		Size:           size,
+		Size:           int64(len(content)),
 	}
 }
 

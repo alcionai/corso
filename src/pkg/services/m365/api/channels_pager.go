@@ -214,7 +214,9 @@ func (c Channels) GetChannelMessageReplies(
 	ctx context.Context,
 	teamID, channelID, messageID string,
 ) ([]models.ChatMessageable, error) {
-	return enumerateItems[models.ChatMessageable](ctx, c.NewChannelMessageRepliesPager(teamID, channelID, messageID))
+	return enumerateItems[models.ChatMessageable](
+		ctx,
+		c.NewChannelMessageRepliesPager(teamID, channelID, messageID))
 }
 
 // ---------------------------------------------------------------------------

@@ -83,7 +83,7 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh mockBackupHandler) getChannelMessage(
+func (bh mockBackupHandler) GetChannelMessage(
 	_ context.Context,
 	_, _, itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
