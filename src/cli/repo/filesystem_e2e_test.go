@@ -33,6 +33,8 @@ func TestFilesystemE2ESuite(t *testing.T) {
 }
 
 func (suite *FilesystemE2ESuite) cleanup(t *testing.T, repoPath string) {
+	// sanity check that we are not deleting wrong directory by accident
+	assert.Contains(t, repoPath, os.TempDir())
 	err := os.RemoveAll(repoPath)
 	require.NoError(t, err, clues.ToCore(err))
 }

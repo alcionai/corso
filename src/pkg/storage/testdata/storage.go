@@ -2,6 +2,7 @@ package testdata
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
@@ -53,7 +54,8 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 
 func NewFilesystemStorage(t tester.TestT) storage.Storage {
 	now := tester.LogTimeOfTest(t)
-	repoPath := "/tmp/fs_test" + now
+	dir := "filesystem_test" + now
+	repoPath := filepath.Join(t.TempDir(), dir)
 
 	err := os.MkdirAll(repoPath, 0700)
 	require.NoError(t, err, "creating filesystem repo", clues.ToCore(err))
