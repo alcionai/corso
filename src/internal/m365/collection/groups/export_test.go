@@ -32,8 +32,8 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 		{
 			name: "no errors",
 			backingColl: dataMock.Collection{
-				ItemData: []*dataMock.Item{
-					{ItemID: "zim"},
+				ItemData: []data.Item{
+					&dataMock.Item{ItemID: "zim"},
 				},
 			},
 			expectName: "zim",
@@ -51,8 +51,8 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 		{
 			name: "items and recoverable errors",
 			backingColl: dataMock.Collection{
-				ItemData: []*dataMock.Item{
-					{ItemID: "gir"},
+				ItemData: []data.Item{
+					&dataMock.Item{ItemID: "gir"},
 				},
 				ItemsRecoverableErrs: []error{
 					clues.New("I miss my cupcake."),

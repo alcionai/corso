@@ -9,16 +9,16 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
+	oinject "github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
-	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 func produceManifestsAndMetadata(
 	ctx context.Context,
 	bf inject.BaseFinder,
+	bp oinject.BackupProducer,
 	rp inject.RestoreProducer,
 	reasons, fallbackReasons []identity.Reasoner,
 	tenantID string,
@@ -27,6 +27,7 @@ func produceManifestsAndMetadata(
 	bb, meta, useMergeBases, err := getManifestsAndMetadata(
 		ctx,
 		bf,
+		bp,
 		rp,
 		reasons,
 		fallbackReasons,
@@ -56,15 +57,15 @@ func produceManifestsAndMetadata(
 func getManifestsAndMetadata(
 	ctx context.Context,
 	bf inject.BaseFinder,
+	bp oinject.BackupProducer,
 	rp inject.RestoreProducer,
 	reasons, fallbackReasons []identity.Reasoner,
 	tenantID string,
 	getMetadata bool,
 ) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
 	var (
-		tags          = map[string]string{kopia.TagBackupCategory: ""}
-		metadataFiles = metadata.AllMetadataFileNames()
-		collections   []data.RestoreCollection
+		tags        = map[string]string{kopia.TagBackupCategory: ""}
+		collections []data.RestoreCollection
 	)
 
 	bb := bf.FindBases(ctx, reasons, tags)
@@ -102,8 +103,19 @@ func getManifestsAndMetadata(
 		// spread around.  Need to find more idiomatic handling.
 		fb := fault.New(true)
 
-		colls, err := collectMetadata(mctx, rp, man, metadataFiles, tenantID, fb)
-		LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+		paths, err := bp.GetMetadataPaths(mctx, rp, man, fb)
+		if err != nil {
+			LogFaultErrors(ctx, fb.Errors(), "collecting metadata paths")
+			return nil, nil, false, err
+		}
+
+		colls, err := rp.ProduceRestoreCollections(ctx, string(man.ID), paths, nil, fb)
+		if err != nil {
+			// Restore is best-effort and we want to keep it that way since we want to
+			// return as much metadata as we can to reduce the work we'll need to do.
+			// Just wrap the error here for better reporting/debugging.
+			LogFaultErrors(ctx, fb.Errors(), "collecting metadata")
+		}
 
 		// TODO(ashmrtn): It should be alright to relax this condition a little. We
 		// should be able to just remove the offending manifest and backup from the
@@ -126,52 +138,4 @@ func getManifestsAndMetadata(
 	}
 
 	return bb, collections, true, nil
-}
-
-// collectMetadata retrieves all metadata files associated with the manifest.
-func collectMetadata(
-	ctx context.Context,
-	r inject.RestoreProducer,
-	man kopia.ManifestEntry,
-	fileNames []string,
-	tenantID string,
-	errs *fault.Bus,
-) ([]data.RestoreCollection, error) {
-	paths := []path.RestorePaths{}
-
-	for _, fn := range fileNames {
-		for _, reason := range man.Reasons {
-			p, err := path.BuildMetadata(
-				tenantID,
-				reason.ProtectedResource(),
-				reason.Service(),
-				reason.Category(),
-				true,
-				fn)
-			if err != nil {
-				return nil, clues.
-					Wrap(err, "building metadata path").
-					With("metadata_file", fn, "category", reason.Category)
-			}
-
-			dir, err := p.Dir()
-			if err != nil {
-				return nil, clues.
-					Wrap(err, "building metadata collection path").
-					With("metadata_file", fn, "category", reason.Category)
-			}
-
-			paths = append(paths, path.RestorePaths{StoragePath: p, RestorePath: dir})
-		}
-	}
-
-	dcs, err := r.ProduceRestoreCollections(ctx, string(man.ID), paths, nil, errs)
-	if err != nil {
-		// Restore is best-effort and we want to keep it that way since we want to
-		// return as much metadata as we can to reduce the work we'll need to do.
-		// Just wrap the error here for better reporting/debugging.
-		return dcs, clues.Wrap(err, "collecting prior metadata")
-	}
-
-	return dcs, nil
 }

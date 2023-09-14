@@ -356,6 +356,7 @@ func (op *BackupOperation) do(
 	mans, mdColls, canUseMetadata, err := produceManifestsAndMetadata(
 		ctx,
 		kbf,
+		op.bp,
 		op.kopia,
 		reasons, fallbackReasons,
 		op.account.ID(),

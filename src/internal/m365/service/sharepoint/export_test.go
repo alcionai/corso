@@ -85,8 +85,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		data.FetchRestoreCollection{
 			Collection: dataMock.Collection{
 				Path: p,
-				ItemData: []*dataMock.Item{
-					{
+				ItemData: []data.Item{
+					&dataMock.Item{
 						ItemID:   "id1.data",
 						Reader:   io.NopCloser(bytes.NewBufferString("body1")),
 						ItemInfo: dii,
