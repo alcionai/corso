@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -159,7 +158,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
+	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -328,7 +327,7 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
+	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
 		return Only(ctx, err)
 	}

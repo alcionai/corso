@@ -1,14 +1,12 @@
 package repo
 
 import (
-	"context"
 	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -130,7 +128,7 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		// we don't need the graph client.
 		path.OneDriveService,
 		storage.ProviderS3,
-		S3FlagOverrides(cmd))
+		flags.S3FlagOverrides(cmd))
 	if err != nil {
 		return print.Only(ctx, err)
 	}
@@ -172,25 +170,4 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 	}
 
 	return res, nil
-}
-
-// GetStorageProviderAndOverrides returns the storage provider type and
-// any flags specified on the command line which are storage provider specific.
-func GetStorageProviderAndOverrides(
-	ctx context.Context,
-	cmd *cobra.Command,
-) (storage.ProviderType, map[string]string, error) {
-	provider, err := config.GetStorageProviderFromConfigFile(ctx)
-	if err != nil {
-		return provider, nil, clues.Stack(err)
-	}
-
-	overrides := map[string]string{}
-
-	switch provider {
-	case storage.ProviderS3:
-		overrides = S3FlagOverrides(cmd)
-	}
-
-	return provider, overrides, nil
 }

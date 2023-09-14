@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -213,4 +214,25 @@ func SendStartCorsoEvent(
 
 	bus.SetRepoID(repoID)
 	bus.Event(ctx, events.CorsoStart, data)
+}
+
+// GetStorageProviderAndOverrides returns the storage provider type and
+// any flags specified on the command line which are storage provider specific.
+func GetStorageProviderAndOverrides(
+	ctx context.Context,
+	cmd *cobra.Command,
+) (storage.ProviderType, map[string]string, error) {
+	provider, err := config.GetStorageProviderFromConfigFile(ctx)
+	if err != nil {
+		return provider, nil, clues.Stack(err)
+	}
+
+	overrides := map[string]string{}
+
+	switch provider {
+	case storage.ProviderS3:
+		overrides = flags.S3FlagOverrides(cmd)
+	}
+
+	return provider, overrides, nil
 }

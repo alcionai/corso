@@ -21,7 +21,6 @@ import (
 
 const (
 	// S3 config
-	StorageProviderTypeKey    = "provider"
 	BucketNameKey             = "bucket"
 	EndpointKey               = "endpoint"
 	PrefixKey                 = "prefix"
@@ -32,12 +31,6 @@ const (
 	AccessKey       = "aws_access_key_id"
 	SecretAccessKey = "aws_secret_access_key"
 	SessionToken    = "aws_session_token"
-
-	// M365 config
-	AccountProviderTypeKey = "account_provider"
-	AzureTenantIDKey       = "azure_tenantid"
-	AzureClientID          = "azure_client_id"
-	AzureSecret            = "azure_secret"
 
 	// Corso passphrase in config
 	CorsoPassphrase = "passphrase"
@@ -228,7 +221,7 @@ func writeRepoConfigWithViper(
 	s3Config = s3Config.Normalize()
 	// Rudimentary support for persisting repo config
 	// TODO: Handle conflicts, support other config types
-	vpr.Set(StorageProviderTypeKey, storage.ProviderS3.String())
+	vpr.Set(storage.StorageProviderTypeKey, storage.ProviderS3.String())
 	vpr.Set(BucketNameKey, s3Config.Bucket)
 	vpr.Set(EndpointKey, s3Config.Endpoint)
 	vpr.Set(PrefixKey, s3Config.Prefix)
@@ -245,8 +238,8 @@ func writeRepoConfigWithViper(
 		vpr.Set(CorsoHost, repoOpts.Host)
 	}
 
-	vpr.Set(AccountProviderTypeKey, account.ProviderM365.String())
-	vpr.Set(AzureTenantIDKey, m365Config.AzureTenantID)
+	vpr.Set(account.AccountProviderTypeKey, account.ProviderM365.String())
+	vpr.Set(account.AzureTenantIDKey, m365Config.AzureTenantID)
 
 	if err := vpr.SafeWriteConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
@@ -344,12 +337,12 @@ func getUserHost(vpr *viper.Viper, readConfigFromViper bool) (string, string) {
 // ---------------------------------------------------------------------------
 
 var constToTomlKeyMap = map[string]string{
-	account.AzureTenantID:  AzureTenantIDKey,
-	AccountProviderTypeKey: AccountProviderTypeKey,
-	storage.Bucket:         BucketNameKey,
-	storage.Endpoint:       EndpointKey,
-	storage.Prefix:         PrefixKey,
-	StorageProviderTypeKey: StorageProviderTypeKey,
+	account.AzureTenantID:          account.AzureTenantIDKey,
+	account.AccountProviderTypeKey: account.AccountProviderTypeKey,
+	storage.Bucket:                 BucketNameKey,
+	storage.Endpoint:               EndpointKey,
+	storage.Prefix:                 PrefixKey,
+	storage.StorageProviderTypeKey: storage.StorageProviderTypeKey,
 }
 
 // mustMatchConfig compares the values of each key to their config file value in viper.

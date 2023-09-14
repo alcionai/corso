@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -168,7 +167,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
+	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -286,7 +285,7 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
+	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
 		return Only(ctx, err)
 	}

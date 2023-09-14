@@ -41,12 +41,12 @@ func s3CredsFromViper(vpr *viper.Viper, s3Config storage.S3Config) (storage.S3Co
 
 func s3Overrides(in map[string]string) map[string]string {
 	return map[string]string{
-		storage.Bucket:         in[storage.Bucket],
-		storage.Endpoint:       in[storage.Endpoint],
-		storage.Prefix:         in[storage.Prefix],
-		storage.DoNotUseTLS:    in[storage.DoNotUseTLS],
-		storage.DoNotVerifyTLS: in[storage.DoNotVerifyTLS],
-		StorageProviderTypeKey: in[StorageProviderTypeKey],
+		storage.Bucket:                 in[storage.Bucket],
+		storage.Endpoint:               in[storage.Endpoint],
+		storage.Prefix:                 in[storage.Prefix],
+		storage.DoNotUseTLS:            in[storage.DoNotUseTLS],
+		storage.DoNotVerifyTLS:         in[storage.DoNotVerifyTLS],
+		storage.StorageProviderTypeKey: in[storage.StorageProviderTypeKey],
 	}
 }
 
@@ -79,7 +79,7 @@ func configureStorage(
 		}
 
 		if matchFromConfig {
-			providerType := vpr.GetString(StorageProviderTypeKey)
+			providerType := vpr.GetString(storage.StorageProviderTypeKey)
 			if providerType != storage.ProviderS3.String() {
 				return store, clues.New("unsupported storage provider: " + providerType)
 			}
@@ -183,7 +183,7 @@ func GetStorageProviderFromConfigFile(ctx context.Context) (storage.ProviderType
 		return storage.ProviderUnknown, clues.Wrap(err, "reading config file")
 	}
 
-	provider := vpr.GetString(StorageProviderTypeKey)
+	provider := vpr.GetString(storage.StorageProviderTypeKey)
 	if provider != storage.ProviderS3.String() {
 		return storage.ProviderUnknown, clues.New("unsupported storage provider: " + provider)
 	}

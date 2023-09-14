@@ -23,6 +23,10 @@ var StringToProviderType = map[string]ProviderType{
 	ProviderFilesystem.String(): ProviderFilesystem,
 }
 
+const (
+	StorageProviderTypeKey = "provider"
+)
+
 // storage parsing errors
 var (
 	errMissingRequired = clues.New("missing required storage configuration")

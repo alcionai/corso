@@ -29,15 +29,15 @@ const (
 ` + BucketNameKey + ` = '%s'
 ` + EndpointKey + ` = 's3.amazonaws.com'
 ` + PrefixKey + ` = 'test-prefix/'
-` + StorageProviderTypeKey + ` = 'S3'
-` + AccountProviderTypeKey + ` = 'M365'
-` + AzureTenantIDKey + ` = '%s'
+` + storage.StorageProviderTypeKey + ` = 'S3'
+` + account.AccountProviderTypeKey + ` = 'M365'
+` + account.AzureTenantIDKey + ` = '%s'
 ` + AccessKey + ` = '%s'
 ` + SecretAccessKey + ` = '%s'
 ` + SessionToken + ` = '%s'
 ` + CorsoPassphrase + ` = '%s'
-` + AzureClientID + ` = '%s'
-` + AzureSecret + ` = '%s'
+` + account.AzureClientID + ` = '%s'
+` + account.AzureSecret + ` = '%s'
 ` + DisableTLSKey + ` = '%s'
 ` + DisableTLSVerificationKey + ` = '%s'
 `
@@ -439,14 +439,14 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 	m365 := account.M365Config{AzureTenantID: tid}
 
 	overrides := map[string]string{
-		account.AzureTenantID:  tid,
-		AccountProviderTypeKey: account.ProviderM365.String(),
-		storage.Bucket:         bkt,
-		storage.Endpoint:       end,
-		storage.Prefix:         pfx,
-		storage.DoNotUseTLS:    "true",
-		storage.DoNotVerifyTLS: "true",
-		StorageProviderTypeKey: storage.ProviderS3.String(),
+		account.AzureTenantID:          tid,
+		account.AccountProviderTypeKey: account.ProviderM365.String(),
+		storage.Bucket:                 bkt,
+		storage.Endpoint:               end,
+		storage.Prefix:                 pfx,
+		storage.DoNotUseTLS:            "true",
+		storage.DoNotVerifyTLS:         "true",
+		storage.StorageProviderTypeKey: storage.ProviderS3.String(),
 	}
 
 	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, false, true, overrides)

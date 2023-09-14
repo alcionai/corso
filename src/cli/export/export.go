@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
@@ -70,7 +69,7 @@ func runExport(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
-	provider, overrides, err := repo.GetStorageProviderAndOverrides(ctx, cmd)
+	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
 		return Only(ctx, err)
 	}
