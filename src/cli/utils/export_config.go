@@ -11,7 +11,7 @@ import (
 
 type ExportCfgOpts struct {
 	Archive bool
-	Raw     bool
+	Format  string
 
 	Populated flags.PopulatedFlags
 }
@@ -34,7 +34,7 @@ func MakeExportConfig(
 	exportCfg := control.DefaultExportConfig()
 
 	exportCfg.Archive = opts.Archive
-	exportCfg.Raw = opts.Raw
+	exportCfg.Format = control.FormatType(opts.Format)
 
 	return exportCfg
 }

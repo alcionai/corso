@@ -99,7 +99,7 @@ func formatChannelMessage(
 	cec control.ExportConfig,
 	rc io.ReadCloser,
 ) (io.ReadCloser, error) {
-	if cec.Raw {
+	if cec.Format == control.JSONFormat {
 		return rc, nil
 	}
 
