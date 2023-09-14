@@ -315,7 +315,7 @@ func (suite *ExportUnitSuite) TestZipExports() {
 						Body: item.Body,
 					}
 
-					if col.BasePath() != "" {
+					if len(col.BasePath()) > 0 {
 						expected.Name = strings.Join([]string{col.BasePath(), item.Name}, "/")
 					}
 

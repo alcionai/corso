@@ -48,11 +48,11 @@ func (p Permission) Equals(other Permission) bool {
 	// have EntityID/Email as we backup permissions for all the
 	// parents and children when we have a change in permissions.
 	// We cannot just compare id because of the problem described in #3117
-	if p.EntityID != "" && p.EntityID != other.EntityID {
+	if len(p.EntityID) > 0 && p.EntityID != other.EntityID {
 		return false
 	}
 
-	if p.Email != "" && p.Email != other.Email {
+	if len(p.Email) > 0 && p.Email != other.Email {
 		return false
 	}
 
@@ -165,7 +165,7 @@ func FilterPermissions(ctx context.Context, perms []models.Permissionable) []Per
 
 		// Technically GrantedToV2 can also contain devices, but the
 		// documentation does not mention about devices in permissions
-		if entityID == "" {
+		if len(entityID) == 0 {
 			// This should ideally not be hit
 			continue
 		}
@@ -204,7 +204,7 @@ func FilterLinkShares(ctx context.Context, perms []models.Permissionable) []Link
 
 			// Technically GrantedToV2 can also contain devices, but the
 			// documentation does not mention about devices in permissions
-			if entityID == "" {
+			if len(entityID) == 0 {
 				// This should ideally not be hit
 				continue
 			}
