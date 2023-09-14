@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -76,16 +77,19 @@ func (p *testPager) GetPage(ctx context.Context) (NextLinkValuer[any], error) {
 
 func (p *testPager) SetNextLink(nextLink string) {}
 
+func (p testPager) ValidModTimes() bool { return true }
+
 // mock id pager
 
 var _ Pager[any] = &testIDsPager{}
 
 type testIDsPager struct {
-	t          *testing.T
-	added      []string
-	removed    []string
-	errorCode  string
-	needsReset bool
+	t             *testing.T
+	added         []string
+	removed       []string
+	errorCode     string
+	needsReset    bool
+	validModTimes bool
 }
 
 func (p *testIDsPager) GetPage(
@@ -132,14 +136,19 @@ func (p *testIDsPager) Reset(context.Context) {
 	p.errorCode = ""
 }
 
+func (p testIDsPager) ValidModTimes() bool {
+	return p.validModTimes
+}
+
 var _ DeltaPager[any] = &testIDsDeltaPager{}
 
 type testIDsDeltaPager struct {
-	t          *testing.T
-	added      []string
-	removed    []string
-	errorCode  string
-	needsReset bool
+	t             *testing.T
+	added         []string
+	removed       []string
+	errorCode     string
+	needsReset    bool
+	validModTimes bool
 }
 
 func (p *testIDsDeltaPager) GetPage(
@@ -184,6 +193,10 @@ func (p *testIDsDeltaPager) Reset(context.Context) {
 
 	p.needsReset = false
 	p.errorCode = ""
+}
+
+func (p testIDsDeltaPager) ValidModTimes() bool {
+	return p.validModTimes
 }
 
 // ---------------------------------------------------------------------------
@@ -252,9 +265,10 @@ func (suite *PagerUnitSuite) TestEnumerateItems() {
 
 func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 	type expected struct {
-		added       []string
-		removed     []string
-		deltaUpdate DeltaUpdate
+		added         []string
+		removed       []string
+		deltaUpdate   DeltaUpdate
+		validModTimes bool
 	}
 
 	tests := []struct {
@@ -265,12 +279,34 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		deltaPagerGetter func(
 			*testing.T,
 		) DeltaPager[any]
-		prevDelta string
-		expect    expected
-		canDelta  bool
+		prevDelta     string
+		expect        expected
+		canDelta      bool
+		validModTimes bool
 	}{
 		{
 			name: "no prev delta",
+			pagerGetter: func(t *testing.T) Pager[any] {
+				return nil
+			},
+			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+				return &testIDsDeltaPager{
+					t:             t,
+					added:         []string{"uno", "dos"},
+					removed:       []string{"tres", "quatro"},
+					validModTimes: true,
+				}
+			},
+			expect: expected{
+				added:         []string{"uno", "dos"},
+				removed:       []string{"tres", "quatro"},
+				deltaUpdate:   DeltaUpdate{Reset: true},
+				validModTimes: true,
+			},
+			canDelta: true,
+		},
+		{
+			name: "no prev delta invalid mod times",
 			pagerGetter: func(t *testing.T) Pager[any] {
 				return nil
 			},
@@ -295,16 +331,18 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
 				return &testIDsDeltaPager{
-					t:       t,
-					added:   []string{"uno", "dos"},
-					removed: []string{"tres", "quatro"},
+					t:             t,
+					added:         []string{"uno", "dos"},
+					removed:       []string{"tres", "quatro"},
+					validModTimes: true,
 				}
 			},
 			prevDelta: "delta",
 			expect: expected{
-				added:       []string{"uno", "dos"},
-				removed:     []string{"tres", "quatro"},
-				deltaUpdate: DeltaUpdate{Reset: false},
+				added:         []string{"uno", "dos"},
+				removed:       []string{"tres", "quatro"},
+				deltaUpdate:   DeltaUpdate{Reset: false},
+				validModTimes: true,
 			},
 			canDelta: true,
 		},
@@ -315,18 +353,20 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
 				return &testIDsDeltaPager{
-					t:          t,
-					added:      []string{"uno", "dos"},
-					removed:    []string{"tres", "quatro"},
-					errorCode:  "SyncStateNotFound",
-					needsReset: true,
+					t:             t,
+					added:         []string{"uno", "dos"},
+					removed:       []string{"tres", "quatro"},
+					errorCode:     "SyncStateNotFound",
+					needsReset:    true,
+					validModTimes: true,
 				}
 			},
 			prevDelta: "delta",
 			expect: expected{
-				added:       []string{"uno", "dos"},
-				removed:     []string{"tres", "quatro"},
-				deltaUpdate: DeltaUpdate{Reset: true},
+				added:         []string{"uno", "dos"},
+				removed:       []string{"tres", "quatro"},
+				deltaUpdate:   DeltaUpdate{Reset: true},
+				validModTimes: true,
 			},
 			canDelta: true,
 		},
@@ -334,18 +374,20 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			name: "delta not allowed",
 			pagerGetter: func(t *testing.T) Pager[any] {
 				return &testIDsPager{
-					t:       t,
-					added:   []string{"uno", "dos"},
-					removed: []string{"tres", "quatro"},
+					t:             t,
+					added:         []string{"uno", "dos"},
+					removed:       []string{"tres", "quatro"},
+					validModTimes: true,
 				}
 			},
 			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
 				return nil
 			},
 			expect: expected{
-				added:       []string{"uno", "dos"},
-				removed:     []string{"tres", "quatro"},
-				deltaUpdate: DeltaUpdate{Reset: true},
+				added:         []string{"uno", "dos"},
+				removed:       []string{"tres", "quatro"},
+				deltaUpdate:   DeltaUpdate{Reset: true},
+				validModTimes: true,
 			},
 			canDelta: false,
 		},
@@ -358,18 +400,19 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			added, removed, deltaUpdate, err := getAddedAndRemovedItemIDs[any](
+			added, validModTimes, removed, deltaUpdate, err := getAddedAndRemovedItemIDs[any](
 				ctx,
 				test.pagerGetter(t),
 				test.deltaPagerGetter(t),
 				test.prevDelta,
 				test.canDelta,
-				addedAndRemovedByAddtlData)
+				addedAndRemovedByAddtlData[any])
 
 			require.NoErrorf(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
-			require.EqualValues(t, test.expect.added, added, "added item IDs")
-			require.EqualValues(t, test.expect.removed, removed, "removed item IDs")
-			require.Equal(t, test.expect.deltaUpdate, deltaUpdate, "delta update")
+			assert.ElementsMatch(t, test.expect.added, maps.Keys(added), "added item IDs")
+			assert.Equal(t, test.expect.validModTimes, validModTimes, "valid mod times")
+			assert.EqualValues(t, test.expect.removed, removed, "removed item IDs")
+			assert.Equal(t, test.expect.deltaUpdate, deltaUpdate, "delta update")
 		})
 	}
 }

@@ -8,6 +8,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
+var (
+	_ api.Pager[any]      = &Pager[any]{}
+	_ api.DeltaPager[any] = &DeltaPager[any]{}
+)
+
 type DeltaNextLinkValues[T any] struct {
 	Next   *string
 	Delta  *string
@@ -61,7 +66,8 @@ func (p *Pager[T]) GetPage(
 	return &link, p.ToReturn[idx].Err
 }
 
-func (p *Pager[T]) SetNextLink(string) {}
+func (p *Pager[T]) SetNextLink(string)  {}
+func (p *Pager[T]) ValidModTimes() bool { return true }
 
 // ---------------------------------------------------------------------------
 // delta pager
@@ -94,3 +100,4 @@ func (p *DeltaPager[T]) GetPage(
 
 func (p *DeltaPager[T]) SetNextLink(string)    {}
 func (p *DeltaPager[T]) Reset(context.Context) {}
+func (p *DeltaPager[T]) ValidModTimes() bool   { return true }

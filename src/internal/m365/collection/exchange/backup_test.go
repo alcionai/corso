@@ -5,6 +5,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
@@ -72,14 +73,15 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	_ bool,
 	_ bool,
 ) (
-	[]string,
+	map[string]time.Time,
+	bool,
 	[]string,
 	api.DeltaUpdate,
 	error,
 ) {
 	results, ok := mg.results[cID]
 	if !ok {
-		return nil, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
+		return nil, false, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
 	}
 
 	delta := results.newDelta
@@ -87,7 +89,12 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 		delta.URL = ""
 	}
 
-	return results.added, results.removed, delta, results.err
+	resAdded := make(map[string]time.Time, len(results.added))
+	for _, add := range results.added {
+		resAdded[add] = time.Time{}
+	}
+
+	return resAdded, false, results.removed, delta, results.err
 }
 
 var _ graph.ContainerResolver = &mockResolver{}
