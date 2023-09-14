@@ -144,8 +144,8 @@ func prepM365Test(
 	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
-		tconfig.TestCfgAccountProvider: "M365",
-		tconfig.TestCfgStorageProvider: "S3",
+		tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
+		tconfig.TestCfgStorageProvider: storage.ProviderS3.String(),
 		tconfig.TestCfgPrefix:          cfg.Prefix,
 	}
 
