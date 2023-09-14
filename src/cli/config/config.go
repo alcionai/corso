@@ -20,17 +20,7 @@ import (
 )
 
 const (
-	// S3 config
-	BucketNameKey             = "bucket"
-	EndpointKey               = "endpoint"
-	PrefixKey                 = "prefix"
-	DisableTLSKey             = "disable_tls"
-	DisableTLSVerificationKey = "disable_tls_verification"
-	RepoID                    = "repo_id"
-
-	AccessKey       = "aws_access_key_id"
-	SecretAccessKey = "aws_secret_access_key"
-	SessionToken    = "aws_session_token"
+	RepoID = "repo_id"
 
 	// Corso passphrase in config
 	CorsoPassphrase = "passphrase"
@@ -196,14 +186,14 @@ func Read(ctx context.Context) error {
 // It does not check for conflicts or existing data.
 func WriteRepoConfig(
 	ctx context.Context,
-	s3Config storage.S3Config,
+	wcs storage.WriteConfigToStorer,
 	m365Config account.M365Config,
 	repoOpts repository.Options,
 	repoID string,
 ) error {
 	return writeRepoConfigWithViper(
 		GetViper(ctx),
-		s3Config,
+		wcs,
 		m365Config,
 		repoOpts,
 		repoID)
@@ -213,20 +203,14 @@ func WriteRepoConfig(
 // struct for testing.
 func writeRepoConfigWithViper(
 	vpr *viper.Viper,
-	s3Config storage.S3Config,
+	wcs storage.WriteConfigToStorer,
 	m365Config account.M365Config,
 	repoOpts repository.Options,
 	repoID string,
 ) error {
-	s3Config = s3Config.Normalize()
-	// Rudimentary support for persisting repo config
-	// TODO: Handle conflicts, support other config types
-	vpr.Set(storage.StorageProviderTypeKey, storage.ProviderS3.String())
-	vpr.Set(BucketNameKey, s3Config.Bucket)
-	vpr.Set(EndpointKey, s3Config.Endpoint)
-	vpr.Set(PrefixKey, s3Config.Prefix)
-	vpr.Set(DisableTLSKey, s3Config.DoNotUseTLS)
-	vpr.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
+	// Write storage configuration to viper
+	wcs.WriteConfigToStore(vpr)
+
 	vpr.Set(RepoID, repoID)
 
 	// Need if-checks as Viper will write empty values otherwise.
@@ -339,15 +323,12 @@ func getUserHost(vpr *viper.Viper, readConfigFromViper bool) (string, string) {
 var constToTomlKeyMap = map[string]string{
 	account.AzureTenantID:          account.AzureTenantIDKey,
 	account.AccountProviderTypeKey: account.AccountProviderTypeKey,
-	storage.Bucket:                 BucketNameKey,
-	storage.Endpoint:               EndpointKey,
-	storage.Prefix:                 PrefixKey,
-	storage.StorageProviderTypeKey: storage.StorageProviderTypeKey,
 }
 
 // mustMatchConfig compares the values of each key to their config file value in viper.
 // If any value differs from the viper value, an error is returned.
 // values in m that aren't stored in the config are ignored.
+// TODO(pandeyabs): This code is currently duplicated in 2 places.
 func mustMatchConfig(vpr *viper.Viper, m map[string]string) error {
 	for k, v := range m {
 		if len(v) == 0 {

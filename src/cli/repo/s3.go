@@ -112,10 +112,12 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		opt)
 
-	s3Cfg, err := cfg.Storage.S3Config()
+	sc, err := cfg.Storage.StorageConfig()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
+
+	s3Cfg := sc.(*storage.S3Config)
 
 	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
 		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
@@ -189,10 +191,12 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		repoID = events.RepoIDNotFound
 	}
 
-	s3Cfg, err := cfg.Storage.S3Config()
+	sc, err := cfg.Storage.StorageConfig()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
+
+	s3Cfg := sc.(*storage.S3Config)
 
 	m365, err := cfg.Account.M365Config()
 	if err != nil {

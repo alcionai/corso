@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/alcionai/clues"
+	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common"
 )
@@ -91,4 +92,80 @@ func orEmptyString(v any) string {
 	}
 
 	return v.(string)
+}
+
+func (s Storage) StorageConfig() (Configurer, error) {
+	switch s.Provider {
+	case ProviderS3:
+		return buildS3ConfigFromMap(s.Config)
+	}
+
+	return nil, clues.New("unsupported storage provider: " + s.Provider.String())
+}
+
+func NewStorageConfig(provider ProviderType) (Configurer, error) {
+	switch provider {
+	case ProviderS3:
+		return &S3Config{}, nil
+	}
+
+	return nil, clues.New("unsupported storage provider: " + provider.String())
+}
+
+type KVStoreGetter interface {
+	Get(key string) any
+}
+
+type KVStoreSetter interface {
+	Set(key string, value any)
+}
+
+// WriteConfigToStorer writes config key value pairs to provided store.
+type WriteConfigToStorer interface {
+	WriteConfigToStore(
+		kvs KVStoreSetter,
+	)
+}
+
+type Configurer interface {
+	common.StringConfigurer
+
+	// ApplyOverrides fetches config from file, processes overrides
+	// from sources like environment variables and flags, and updates the
+	// underlying configuration accordingly.
+	ApplyConfigOverrides(
+		kvg KVStoreGetter,
+		readConfigFromStore bool,
+		matchFromConfig bool,
+		overrides map[string]string,
+	) error
+
+	WriteConfigToStorer
+}
+
+// mustMatchConfig compares the values of each key to their config file value in store.
+// If any value differs from the store value, an error is returned.
+// values in m that aren't stored in the config are ignored.
+func mustMatchConfig(
+	kvg KVStoreGetter,
+	tomlMap map[string]string,
+	m map[string]string,
+) error {
+	for k, v := range m {
+		if len(v) == 0 {
+			continue // empty variables will get caught by configuration validators, if necessary
+		}
+
+		tomlK, ok := tomlMap[k]
+		if !ok {
+			continue // m may declare values which aren't stored in the config file
+		}
+
+		vv := cast.ToString(kvg.Get(tomlK))
+		if v != vv {
+			return clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
+		}
+	}
+
+	return nil
 }

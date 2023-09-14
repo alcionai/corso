@@ -89,11 +89,13 @@ func AccountConnectAndWriteRepoConfig(
 		return nil, nil, err
 	}
 
-	s3Config, err := stg.S3Config()
+	sc, err := stg.StorageConfig()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting storage configuration")
 		return nil, nil, err
 	}
+
+	s3Config := sc.(*storage.S3Config)
 
 	m365Config, err := acc.M365Config()
 	if err != nil {
