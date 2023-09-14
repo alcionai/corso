@@ -149,6 +149,18 @@ jobs:
             exit 1
           fi
 
+      # Run maintenance on an empty repo just to make sure the command still
+      # works.
+      - name: Repo maintenance test
+        run: |
+          set -euo pipefail
+          echo -e "\nRepo maintenance test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo maintenance \
+            --no-stats \
+            --hide-progress \
+            --mode complete \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-maintenance.log
+
 ##########################################################################################################################################
 
 # Exchange
