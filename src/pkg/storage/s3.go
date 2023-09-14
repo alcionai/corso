@@ -1,10 +1,10 @@
 package storage
 
 import (
+	"os"
 	"strconv"
 
 	"github.com/alcionai/clues"
-	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -180,27 +180,19 @@ func (c *S3Config) ApplyConfigOverrides(
 
 	c.s3CredsFromStore(kvg)
 
-	// 1. Check flag overrides first.
-	aws := credentials.GetAWS(overrides)
-	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
-		// 2. Check env vars.
-		_, err := defaults.CredChain(
-			defaults.Config().WithCredentialsChainVerboseErrors(true),
-			defaults.Handlers()).Get()
-		// 3. Fall back to config file.
-		if err != nil && (len(c.AccessKey) > 0 || len(c.SecretKey) > 0) {
-			aws = credentials.AWS{
-				AccessKey:    c.AccessKey,
-				SecretKey:    c.SecretKey,
-				SessionToken: c.SessionToken,
-			}
-
-			err = nil
-		}
-
-		if err != nil {
-			return clues.Wrap(err, "validating aws credentials")
-		}
+	aws := credentials.AWS{
+		AccessKey: str.First(
+			overrides[credentials.AWSAccessKeyID],
+			os.Getenv(credentials.AWSAccessKeyID),
+			c.AccessKey),
+		SecretKey: str.First(
+			overrides[credentials.AWSSecretAccessKey],
+			os.Getenv(credentials.AWSSecretAccessKey),
+			c.SecretKey),
+		SessionToken: str.First(
+			overrides[credentials.AWSSessionToken],
+			os.Getenv(credentials.AWSSessionToken),
+			c.SessionToken),
 	}
 
 	c.AWS = aws

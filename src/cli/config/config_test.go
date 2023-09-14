@@ -79,11 +79,13 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	)
 
 	const (
-		b                      = "read-repo-config-basic-bucket"
-		tID                    = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
-		accKey                 = "aws-test-access-key"
-		secret                 = "aws-test-secret-key"
-		token                  = "aws-test-session-token"
+		b      = "read-repo-config-basic-bucket"
+		tID    = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
+		accKey = "aws-test-access-key"
+		secret = "aws-test-secret-key"
+		// intentionally empty so that we don't error out if testing with
+		// local minio s3 server
+		token                  = ""
 		passphrase             = "passphrase-test"
 		azureClientID          = "azure-client-id-test"
 		azureSecret            = "azure-secret-test"
@@ -107,11 +109,6 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	// Unset AWS env vars so that we can test reading creds from config file
-	os.Unsetenv(credentials.AWSAccessKeyID)
-	os.Unsetenv(credentials.AWSSecretAccessKey)
-	os.Unsetenv(credentials.AWSSessionToken)
-
 	sc, err := storage.NewStorageConfig(storage.ProviderS3)
 	require.NoError(t, err, clues.ToCore(err))
 	err = sc.ApplyConfigOverrides(vpr, true, true, nil)
@@ -124,9 +121,16 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	assert.Equal(t, disableTLS, strconv.FormatBool(s3Cfg.DoNotUseTLS))
 	assert.Equal(t, disableTLSVerification, strconv.FormatBool(s3Cfg.DoNotVerifyTLS))
 
-	assert.Equal(t, accKey, s3Cfg.AWS.AccessKey)
-	assert.Equal(t, secret, s3Cfg.AWS.SecretKey)
-	assert.Equal(t, token, s3Cfg.AWS.SessionToken)
+	// Config file is not the source of truth for below values. These will be
+	// overridden by env vars. Other alternatives are to
+	// 1) unset env vars temporarily so that we can test against config file values. But that
+	// may be problematic if we decide to parallelize tests in future.
+	// 2) assert against env var values instead of config file values.
+	// Going with 2 so that we atleast have some coverage.
+
+	assert.Equal(t, os.Getenv(credentials.AWSAccessKeyID), s3Cfg.AWS.AccessKey)
+	assert.Equal(t, os.Getenv(credentials.AWSSecretAccessKey), s3Cfg.AWS.SecretKey)
+	assert.Equal(t, os.Getenv(credentials.AWSSessionToken), s3Cfg.AWS.SessionToken)
 
 	m365, err := m365ConfigsFromViper(vpr)
 	require.NoError(t, err, clues.ToCore(err))
