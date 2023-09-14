@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -136,6 +137,10 @@ func (p *contactsPageCtrl) SetNextLink(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
+func (p *contactsPageCtrl) ValidModTimes() bool {
+	return true
+}
+
 func (c Contacts) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	userID, containerID string,
@@ -249,12 +254,16 @@ func (p *contactDeltaPager) Reset(ctx context.Context) {
 	p.builder = getContactDeltaBuilder(ctx, p.gs, p.userID, p.containerID)
 }
 
+func (p *contactDeltaPager) ValidModTimes() bool {
+	return true
+}
+
 func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
-) ([]string, []string, DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	ctx = clues.Add(
 		ctx,
 		"data_category", path.ContactsCategory,
@@ -266,12 +275,12 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		containerID,
 		prevDeltaLink,
 		immutableIDs,
-		idAnd()...)
+		idAnd(modifiedTime)...)
 	pager := c.NewContactsPager(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd()...)
+		idAnd(modifiedTime)...)
 
 	return getAddedAndRemovedItemIDs[models.Contactable](
 		ctx,
@@ -279,5 +288,5 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		deltaPager,
 		prevDeltaLink,
 		canMakeDeltaQueries,
-		addedAndRemovedByAddtlData)
+		addedAndRemovedByAddtlData[models.Contactable])
 }

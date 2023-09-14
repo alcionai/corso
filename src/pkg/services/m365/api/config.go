@@ -26,6 +26,7 @@ const (
 	isCancelled       = "isCancelled"
 	isDraft           = "isDraft"
 	mobilePhone       = "mobilePhone"
+	modifiedTime      = "lastModifiedDateTime"
 	parentFolderID    = "parentFolderId"
 	receivedDateTime  = "receivedDateTime"
 	recurrence        = "recurrence"

@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -33,6 +34,10 @@ func (p *channelMessagePageCtrl) GetPage(
 ) (NextLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+func (p *channelMessagePageCtrl) ValidModTimes() bool {
+	return true
 }
 
 func (c Channels) NewChannelMessagePager(
@@ -100,6 +105,10 @@ func (p *channelMessageDeltaPageCtrl) Reset(context.Context) {
 		Delta()
 }
 
+func (p *channelMessageDeltaPageCtrl) ValidModTimes() bool {
+	return true
+}
+
 func (c Channels) NewChannelMessageDeltaPager(
 	teamID, channelID, prevDelta string,
 	selectProps ...string,
@@ -142,15 +151,15 @@ func (c Channels) GetChannelMessageIDs(
 	teamID, channelID, prevDeltaLink string,
 	canMakeDeltaQueries bool,
 ) ([]string, []string, DeltaUpdate, error) {
-	added, removed, du, err := getAddedAndRemovedItemIDs(
+	added, _, removed, du, err := getAddedAndRemovedItemIDs[models.ChatMessageable](
 		ctx,
 		c.NewChannelMessagePager(teamID, channelID),
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
 		prevDeltaLink,
 		canMakeDeltaQueries,
-		addedAndRemovedByDeletedDateTime)
+		addedAndRemovedByDeletedDateTime[models.ChatMessageable])
 
-	return added, removed, du, clues.Stack(err).OrNil()
+	return maps.Keys(added), removed, du, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +187,10 @@ func (p *channelMessageRepliesPageCtrl) GetPage(
 
 func (p *channelMessageRepliesPageCtrl) GetOdataNextLink() *string {
 	return ptr.To("")
+}
+
+func (p *channelMessageRepliesPageCtrl) ValidModTimes() bool {
+	return true
 }
 
 func (c Channels) NewChannelMessageRepliesPager(
@@ -240,6 +253,10 @@ func (p *channelPageCtrl) GetPage(
 ) (NextLinkValuer[models.Channelable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+func (p *channelPageCtrl) ValidModTimes() bool {
+	return false
 }
 
 func (c Channels) NewChannelPager(
