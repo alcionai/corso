@@ -48,8 +48,10 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 
 	var (
 		driveID                = "some-drive-id"
+		siteID                 = "some-site-id"
 		extraItemName          = "some-item"
 		SharePointRootItemPath = testdata.SharePointRootPath.MustAppend(extraItemName, true)
+		GroupsRootItemPath     = testdata.GroupsRootPath.MustAppend(extraItemName, true)
 	)
 
 	table := []struct {
@@ -59,6 +61,67 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 		expectErr     assert.ErrorAssertionFunc
 		expected      []expectPaths
 	}{
+		{
+			name: "Groups List Errors",
+			// No version bump for the change so we always have to check for this.
+			backupVersion: version.All8MigrateUserPNToID,
+			input: []*details.Entry{
+				{
+					RepoRef:     GroupsRootItemPath.RR.String(),
+					LocationRef: GroupsRootItemPath.Loc.String(),
+					ItemInfo: details.ItemInfo{
+						Groups: &details.GroupsInfo{
+							ItemType: details.SharePointList,
+						},
+					},
+				},
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "Groups Page Errors",
+			// No version bump for the change so we always have to check for this.
+			backupVersion: version.All8MigrateUserPNToID,
+			input: []*details.Entry{
+				{
+					RepoRef:     GroupsRootItemPath.RR.String(),
+					LocationRef: GroupsRootItemPath.Loc.String(),
+					ItemInfo: details.ItemInfo{
+						Groups: &details.GroupsInfo{
+							ItemType: details.SharePointPage,
+						},
+					},
+				},
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name:          "Groups, no LocationRef, no DriveID, item in root",
+			backupVersion: version.OneDrive6NameInMeta,
+			input: []*details.Entry{
+				{
+					RepoRef: GroupsRootItemPath.RR.String(),
+					ItemInfo: details.ItemInfo{
+						Groups: &details.GroupsInfo{
+							ItemType: details.SharePointLibrary,
+							SiteID:   siteID,
+						},
+					},
+				},
+			},
+			expectErr: assert.NoError,
+			expected: []expectPaths{
+				{
+					storage: GroupsRootItemPath.RR.String(),
+					restore: toRestore(
+						GroupsRootItemPath.RR,
+						append(
+							[]string{"sites", siteID, "drives"},
+							// testdata path has '.d' on the drives folder we need to remove.
+							GroupsRootItemPath.RR.Folders()[3:]...)...),
+				},
+			},
+		},
 		{
 			name: "SharePoint List Errors",
 			// No version bump for the change so we always have to check for this.
