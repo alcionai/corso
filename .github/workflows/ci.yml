@@ -503,6 +503,13 @@ jobs:
             echo "No trailing commas for function calls"
             exit 1
           fi
+      - name: Check for empty string comparison
+        run: |
+          # Using `grep .` as the exit codes are always true for correct grammar
+          if tree-grepper -q go '((binary_expression (identifier) ["==" "!="] (interpreted_string_literal) @ri) (#eq? @ri "\"\""))' | grep .; then
+            echo "Use len check instead of empty string comparison"
+            exit 1
+          fi
 
   # ----------------------------------------------------------------------------------------------------
   # --- GitHub Actions Linting -------------------------------------------------------------------------
