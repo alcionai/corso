@@ -234,6 +234,17 @@ func M365TeamID(t *testing.T) string {
 	return strings.ToLower(cfg[TestCfgTeamID])
 }
 
+// SecondaryM365TeamID returns a teamID string representing the secondarym365TeamID described
+// by either the env var CORSO_SECONDARY_M365_TEST_TEAM_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func SecondaryM365TeamID(t *testing.T) string {
+	cfg, err := ReadTestConfig()
+	require.NoError(t, err, "retrieving secondary m365 team id from test configuration: %+v", clues.ToCore(err))
+
+	return strings.ToLower(cfg[TestCfgSecondaryTeamID])
+}
+
 // Groups
 
 // M365GroupID returns a groupID string representing the m365GroupID described

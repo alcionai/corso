@@ -194,3 +194,51 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 		}
 	}
 }
+
+type GroupsRestoreNightlyIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestGroupsRestoreIntgSuite(t *testing.T) {
+	suite.Run(t, &GroupsRestoreNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *GroupsRestoreNightlyIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsWithAdvancedOptions() {
+	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+	sel.Filter(sel.Library("documents"))
+	sel.DiscreteOwner = suite.its.group.ID
+
+	runDriveRestoreWithAdvancedOptions(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.group.RootSite.DriveID,
+		suite.its.group.RootSite.DriveRootFolderID)
+}
+
+func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsAlternateProtectedResource() {
+	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+	sel.Filter(sel.Library("documents"))
+	sel.DiscreteOwner = suite.its.group.ID
+
+	runDriveRestoreToAlternateProtectedResource(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.group.RootSite,
+		suite.its.secondaryGroup.RootSite,
+		suite.its.secondaryGroup.ID)
+}

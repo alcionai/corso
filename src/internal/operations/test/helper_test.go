@@ -580,13 +580,14 @@ type gids struct {
 }
 
 type intgTesterSetup struct {
-	ac            api.Client
-	gockAC        api.Client
-	user          ids
-	secondaryUser ids
-	site          ids
-	secondarySite ids
-	group         gids
+	ac             api.Client
+	gockAC         api.Client
+	user           ids
+	secondaryUser  ids
+	site           ids
+	secondarySite  ids
+	group          gids
+	secondaryGroup gids
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -614,6 +615,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	// teamID is used here intentionally.  We want the group
 	// to have access to teams data
 	its.group = groupIDs(t, tconfig.M365TeamID(t), its.ac)
+	its.secondaryGroup = groupIDs(t, tconfig.SecondaryM365TeamID(t), its.ac)
 
 	return its
 }

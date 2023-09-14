@@ -1284,7 +1284,8 @@ func (suite *OneDriveRestoreNightlyIntgSuite) TestRestore_Run_onedriveAlternateP
 		suite.its.ac,
 		sel.Selector,
 		suite.its.user,
-		suite.its.secondaryUser)
+		suite.its.secondaryUser,
+		suite.its.secondaryUser.ID)
 }
 
 func runDriveRestoreToAlternateProtectedResource(
@@ -1292,7 +1293,8 @@ func runDriveRestoreToAlternateProtectedResource(
 	suite tester.Suite,
 	ac api.Client,
 	sel selectors.Selector, // owner should match 'from', both Restore and Backup types work.
-	from, to ids,
+	driveFrom, driveTo ids,
+	toResource string,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -1321,8 +1323,8 @@ func runDriveRestoreToAlternateProtectedResource(
 	suite.Run("restore original resource", func() {
 		mb = evmock.NewBus()
 		fromCtr := count.New()
-		driveID := from.DriveID
-		rootFolderID := from.DriveRootFolderID
+		driveID := driveFrom.DriveID
+		rootFolderID := driveFrom.DriveRootFolderID
 		restoreCfg.OnCollision = control.Copy
 
 		ro, _ := prepNewTestRestoreOp(
@@ -1359,9 +1361,9 @@ func runDriveRestoreToAlternateProtectedResource(
 	suite.Run("restore to alternate resource", func() {
 		mb = evmock.NewBus()
 		toCtr := count.New()
-		driveID := to.DriveID
-		rootFolderID := to.DriveRootFolderID
-		restoreCfg.ProtectedResource = to.ID
+		driveID := driveTo.DriveID
+		rootFolderID := driveTo.DriveRootFolderID
+		restoreCfg.ProtectedResource = toResource
 
 		ro, _ := prepNewTestRestoreOp(
 			t,
