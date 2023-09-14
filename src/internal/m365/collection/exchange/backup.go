@@ -193,7 +193,6 @@ func populateCollections(
 			currPath,
 			prevPath,
 			locPath,
-			category,
 			bh.itemHandler(),
 			statusUpdater,
 			ctrlOpts,
@@ -255,7 +254,6 @@ func populateCollections(
 			nil, // marks the collection as deleted
 			prevPath,
 			nil, // tombstones don't need a location
-			category,
 			bh.itemHandler(),
 			statusUpdater,
 			ctrlOpts,
