@@ -152,7 +152,6 @@ func (h libraryBackupHandler) NewLocationIDer(
 	driveID string,
 	elems ...string,
 ) details.LocationIDer {
-	// TODO(meain): path related changes for groups
 	return details.NewSharePointLocationIDer(driveID, elems...)
 }
 

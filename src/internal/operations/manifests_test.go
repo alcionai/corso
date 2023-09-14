@@ -12,7 +12,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/operations/inject/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
@@ -79,7 +81,7 @@ func TestOperationsManifestsUnitSuite(t *testing.T) {
 	suite.Run(t, &OperationsManifestsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
+func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 	const (
 		ro  = "owner"
 		tid = "tenantid"
@@ -104,13 +106,12 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 		name        string
 		manID       string
 		reasons     []identity.Reasoner
-		fileNames   []string
 		expectPaths func(*testing.T, []string) []path.Path
 		expectErr   error
 	}{
 		{
-			name:  "single reason, single file",
-			manID: "single single",
+			name:  "single reason",
+			manID: "single",
 			reasons: []identity.Reasoner{
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 			},
@@ -125,30 +126,10 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				return ps
 			},
-			fileNames: []string{"a"},
 		},
 		{
-			name:  "single reason, multiple files",
-			manID: "single multi",
-			reasons: []identity.Reasoner{
-				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
-			},
-			expectPaths: func(t *testing.T, files []string) []path.Path {
-				ps := make([]path.Path, 0, len(files))
-
-				for _, f := range files {
-					p, err := emailPath.AppendItem(f)
-					assert.NoError(t, err, clues.ToCore(err))
-					ps = append(ps, p)
-				}
-
-				return ps
-			},
-			fileNames: []string{"a", "b"},
-		},
-		{
-			name:  "multiple reasons, single file",
-			manID: "multi single",
+			name:  "multiple reasons",
+			manID: "multi",
 			reasons: []identity.Reasoner{
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 				kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
@@ -167,30 +148,6 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 
 				return ps
 			},
-			fileNames: []string{"a"},
-		},
-		{
-			name:  "multiple reasons, multiple file",
-			manID: "multi multi",
-			reasons: []identity.Reasoner{
-				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
-				kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
-			},
-			expectPaths: func(t *testing.T, files []string) []path.Path {
-				ps := make([]path.Path, 0, len(files))
-
-				for _, f := range files {
-					p, err := emailPath.AppendItem(f)
-					assert.NoError(t, err, clues.ToCore(err))
-					ps = append(ps, p)
-					p, err = contactPath.AppendItem(f)
-					assert.NoError(t, err, clues.ToCore(err))
-					ps = append(ps, p)
-				}
-
-				return ps
-			},
-			fileNames: []string{"a", "b"},
 		},
 	}
 	for _, test := range table {
@@ -200,7 +157,7 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			paths := test.expectPaths(t, test.fileNames)
+			paths := test.expectPaths(t, []string{"delta", "previouspath"})
 
 			mr := mockRestoreProducer{err: test.expectErr}
 			mr.buildRestoreFunc(t, test.manID, paths)
@@ -210,13 +167,15 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 				Reasons:  test.reasons,
 			}
 
-			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, fault.New(true))
+			controller := m365.Controller{}
+			_, err := controller.GetMetadataPaths(ctx, &mr, man, fault.New(true))
 			assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
 		})
 	}
 }
 
 func buildReasons(
+	tenant string,
 	ro string,
 	service path.ServiceType,
 	cats ...path.CategoryType,
@@ -226,7 +185,7 @@ func buildReasons(
 	for _, cat := range cats {
 		reasons = append(
 			reasons,
-			kopia.NewReason("", ro, service, cat))
+			kopia.NewReason(tenant, ro, service, cat))
 	}
 
 	return reasons
@@ -245,7 +204,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				ID:               manifest.ID(id),
 				IncompleteReason: incmpl,
 			},
-			Reasons: buildReasons(ro, path.ExchangeService, cats...),
+			Reasons: buildReasons(tid, ro, path.ExchangeService, cats...),
 		}
 	}
 
@@ -258,7 +217,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				SnapshotID:    snapID,
 				StreamStoreID: snapID + "store",
 			},
-			Reasons: buildReasons(ro, path.ExchangeService, cats...),
+			Reasons: buildReasons(tid, ro, path.ExchangeService, cats...),
 		}
 	}
 
@@ -477,9 +436,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			emptyMockBackpuProducer := mock.NewMockBackupProducer(nil, data.CollectionStats{}, false)
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				test.bf,
+				&emptyMockBackpuProducer,
 				&test.rp,
 				test.reasons, nil,
 				tid,
@@ -545,7 +506,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				IncompleteReason: incmpl,
 				Tags:             map[string]string{"tag:" + kopia.TagBackupID: id + "bup"},
 			},
-			Reasons: buildReasons(ro, path.ExchangeService, cats...),
+			Reasons: buildReasons(tid, ro, path.ExchangeService, cats...),
 		}
 	}
 
@@ -558,7 +519,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				SnapshotID:    snapID,
 				StreamStoreID: snapID + "store",
 			},
-			Reasons: buildReasons(ro, path.ExchangeService, cats...),
+			Reasons: buildReasons(tid, ro, path.ExchangeService, cats...),
 		}
 	}
 
@@ -929,9 +890,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			mbp := mock.NewMockBackupProducer(nil, data.CollectionStats{}, false)
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
 				test.bf,
+				&mbp,
 				&test.rp,
 				test.reasons, test.fallbackReasons,
 				tid,

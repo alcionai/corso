@@ -11,7 +11,7 @@ const GroupFN = "group"
 var GroupFV []string
 
 func AddGroupDetailsAndRestoreFlags(cmd *cobra.Command) {
-	// TODO: implement flags
+	// TODO: implement groups specific flags
 }
 
 // AddGroupFlag adds the --group flag, which accepts id or name values.

@@ -8,12 +8,15 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/kopia"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -185,4 +188,56 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	}
 
 	return nil
+}
+
+func (ctrl *Controller) GetMetadataPaths(
+	ctx context.Context,
+	r kinject.RestoreProducer,
+	man kopia.ManifestEntry,
+	errs *fault.Bus,
+) ([]path.RestorePaths, error) {
+	var (
+		paths = []path.RestorePaths{}
+		err   error
+	)
+
+	for _, reason := range man.Reasons {
+		filePaths := [][]string{}
+
+		switch reason.Service() {
+		case path.GroupsService:
+			filePaths, err = groups.MetadataFiles(ctx, reason, r, man.ID, errs)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			for _, fn := range bupMD.AllMetadataFileNames() {
+				filePaths = append(filePaths, []string{fn})
+			}
+		}
+
+		for _, fp := range filePaths {
+			pth, err := path.BuildMetadata(
+				reason.Tenant(),
+				reason.ProtectedResource(),
+				reason.Service(),
+				reason.Category(),
+				true,
+				fp...)
+			if err != nil {
+				return nil, err
+			}
+
+			dir, err := pth.Dir()
+			if err != nil {
+				return nil, clues.
+					Wrap(err, "building metadata collection path").
+					With("metadata_file", fp)
+			}
+
+			paths = append(paths, path.RestorePaths{StoragePath: pth, RestorePath: dir})
+		}
+	}
+
+	return paths, nil
 }

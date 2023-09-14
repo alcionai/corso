@@ -4,12 +4,14 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"github.com/kopia/kopia/repo/manifest"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
@@ -19,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -96,12 +99,21 @@ func ProduceBackupCollections(
 				return nil, nil, false, err
 			}
 
+			siteMetadataCollection := map[string][]data.RestoreCollection{}
+
+			// Once we have metadata collections for chat as well, we will have to filter those out
+			for _, c := range bpc.MetadataCollections {
+				siteID := c.FullPath().Elements().Last()
+				siteMetadataCollection[siteID] = append(siteMetadataCollection[siteID], c)
+			}
+
 			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
 			sbpc := inject.BackupProducerConfig{
-				LastBackupVersion: bpc.LastBackupVersion,
-				Options:           bpc.Options,
-				ProtectedResource: pr,
-				Selector:          bpc.Selector,
+				LastBackupVersion:   bpc.LastBackupVersion,
+				Options:             bpc.Options,
+				ProtectedResource:   pr,
+				Selector:            bpc.Selector,
+				MetadataCollections: siteMetadataCollection[ptr.Val(resp.GetId())],
 			}
 
 			bh := drive.NewGroupBackupHandler(
@@ -210,4 +222,126 @@ func getSitesMetadataCollection(
 		su)
 
 	return md, err
+}
+
+func MetadataFiles(
+	ctx context.Context,
+	reason identity.Reasoner,
+	r kinject.RestoreProducer,
+	manID manifest.ID,
+	errs *fault.Bus,
+) ([][]string, error) {
+	pth, err := path.BuildMetadata(
+		reason.Tenant(),
+		reason.ProtectedResource(),
+		reason.Service(),
+		reason.Category(),
+		true,
+		odConsts.SitesPathDir,
+		metadata.PreviousPathFileName)
+	if err != nil {
+		return nil, err
+	}
+
+	dir, err := pth.Dir()
+	if err != nil {
+		return nil, clues.Wrap(err, "building metadata collection path")
+	}
+
+	dcs, err := r.ProduceRestoreCollections(
+		ctx,
+		string(manID),
+		[]path.RestorePaths{{StoragePath: pth, RestorePath: dir}},
+		nil,
+		errs)
+	if err != nil {
+		return nil, err
+	}
+
+	sites, err := deserializeSiteMetadata(ctx, dcs)
+	if err != nil {
+		return nil, err
+	}
+
+	filePaths := [][]string{}
+
+	for k := range sites {
+		for _, fn := range metadata.AllMetadataFileNames() {
+			filePaths = append(filePaths, []string{odConsts.SitesPathDir, k, fn})
+		}
+	}
+
+	return filePaths, nil
+}
+
+func deserializeSiteMetadata(
+	ctx context.Context,
+	cols []data.RestoreCollection,
+) (map[string]string, error) {
+	logger.Ctx(ctx).Infow(
+		"deserializing previous sites metadata",
+		"num_collections", len(cols))
+
+	var (
+		prevFolders = map[string]string{}
+		errs        = fault.New(true) // metadata item reads should not fail backup
+	)
+
+	for _, col := range cols {
+		if errs.Failure() != nil {
+			break
+		}
+
+		items := col.Items(ctx, errs)
+
+		for breakLoop := false; !breakLoop; {
+			select {
+			case <-ctx.Done():
+				return nil, clues.Wrap(
+					ctx.Err(),
+					"deserializing previous sites metadata").WithClues(ctx)
+
+			case item, ok := <-items:
+				if !ok {
+					breakLoop = true
+					break
+				}
+
+				var (
+					err  error
+					ictx = clues.Add(ctx, "item_uuid", item.ID())
+				)
+
+				switch item.ID() {
+				case metadata.PreviousPathFileName:
+					err = drive.DeserializeMap(item.ToReader(), prevFolders)
+
+				default:
+					logger.Ctx(ictx).Infow(
+						"skipping unknown metadata file",
+						"file_name", item.ID())
+
+					continue
+				}
+
+				if err == nil {
+					// Successful decode.
+					continue
+				}
+
+				if err != nil {
+					return nil, clues.Stack(err).WithClues(ictx)
+				}
+			}
+		}
+	}
+
+	// if reads from items failed, return empty but no error
+	if errs.Failure() != nil {
+		logger.CtxErr(ctx, errs.Failure()).Info("reading metadata collection items")
+
+		return map[string]string{}, nil
+	}
+
+	return prevFolders, nil
 }
