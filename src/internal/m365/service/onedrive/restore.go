@@ -109,7 +109,16 @@ func AugmentRestorePaths(
 	// of the directory.
 	colPaths := map[string]path.RestorePaths{}
 
+	allowedCategories := map[path.CategoryType]struct{}{
+		path.LibrariesCategory: {},
+		path.FilesCategory:     {},
+	}
+
 	for _, p := range paths {
+		if _, ok := allowedCategories[p.StoragePath.Category()]; !ok {
+			continue
+		}
+
 		first := true
 
 		for {
