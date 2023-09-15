@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -37,6 +38,17 @@ func ProduceBackupCollections(
 		categories  = map[path.CategoryType]struct{}{}
 		handlers    = exchange.BackupHandlers(ac)
 	)
+
+	canMakeDeltaQueries, err := canMakeDeltaQueries(ctx, ac.Users(), bpc.ProtectedResource.ID())
+	if err != nil {
+		return nil, nil, false, clues.Stack(err)
+	}
+
+	if !canMakeDeltaQueries {
+		logger.Ctx(ctx).Info("delta requests not available")
+
+		bpc.Options.ToggleFeatures.DisableDelta = true
+	}
 
 	// Turn on concurrency limiter middleware for exchange backups
 	// unless explicitly disabled through DisableConcurrencyLimiterFN cli flag
@@ -96,9 +108,8 @@ func ProduceBackupCollections(
 	return collections, nil, canUsePreviousBackup, el.Failure()
 }
 
-func CanMakeDeltaQueries(
+func canMakeDeltaQueries(
 	ctx context.Context,
-	service path.ServiceType,
 	gmi getMailboxer,
 	resourceOwner string,
 ) (bool, error) {

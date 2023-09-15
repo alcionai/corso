@@ -770,6 +770,15 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 		return false
 	}
 
+	acceptableItemType := -1
+
+	switch infoCat.leafCat() {
+	case GroupsLibraryItem:
+		acceptableItemType = int(details.SharePointLibrary)
+	case GroupsChannelMessage:
+		acceptableItemType = int(details.GroupsChannelMessage)
+	}
+
 	switch infoCat {
 	case GroupsInfoSiteLibraryDrive:
 		ds := []string{}
@@ -795,5 +804,5 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 		i = dttm.Format(info.LastReplyAt)
 	}
 
-	return s.Matches(infoCat, i)
+	return s.Matches(infoCat, i) && int(info.ItemType) == acceptableItemType
 }

@@ -362,12 +362,12 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 		host = "www.website.com"
 		// pth  = "/foo"
 		// url          = host + pth
-		epoch        = time.Time{}
-		now          = time.Now()
-		modification = now.Add(15 * time.Minute)
-		future       = now.Add(45 * time.Minute)
-		dtch         = details.GroupsChannelMessage
-		dtsl         = details.SharePointLibrary
+		epoch  = time.Time{}
+		now    = time.Now()
+		mod    = now.Add(15 * time.Minute)
+		future = now.Add(45 * time.Minute)
+		dgcm   = details.GroupsChannelMessage
+		dspl   = details.SharePointLibrary
 	)
 
 	table := []struct {
@@ -377,39 +377,44 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 		scope    []GroupsScope
 		expect   assert.BoolAssertionFunc
 	}{
-		{"file create after the epoch", dtsl, user, sel.CreatedAfter(dttm.Format(epoch)), assert.True},
-		{"file create after now", dtsl, user, sel.CreatedAfter(dttm.Format(now)), assert.False},
-		{"file create after later", dtsl, user, sel.CreatedAfter(dttm.Format(future)), assert.False},
-		{"file create before future", dtsl, user, sel.CreatedBefore(dttm.Format(future)), assert.True},
-		{"file create before now", dtsl, user, sel.CreatedBefore(dttm.Format(now)), assert.False},
-		{"file create before modification", dtsl, user, sel.CreatedBefore(dttm.Format(modification)), assert.True},
-		{"file create before epoch", dtsl, user, sel.CreatedBefore(dttm.Format(now)), assert.False},
-		{"file modified after the epoch", dtsl, user, sel.ModifiedAfter(dttm.Format(epoch)), assert.True},
-		{"file modified after now", dtsl, user, sel.ModifiedAfter(dttm.Format(now)), assert.True},
-		{"file modified after later", dtsl, user, sel.ModifiedAfter(dttm.Format(future)), assert.False},
-		{"file modified before future", dtsl, user, sel.ModifiedBefore(dttm.Format(future)), assert.True},
-		{"file modified before now", dtsl, user, sel.ModifiedBefore(dttm.Format(now)), assert.False},
-		{"file modified before epoch", dtsl, user, sel.ModifiedBefore(dttm.Format(now)), assert.False},
-		{"in library", dtsl, user, sel.Library("included-library"), assert.True},
-		{"not in library", dtsl, user, sel.Library("not-included-library"), assert.False},
-		{"library id", dtsl, user, sel.Library("1234"), assert.True},
-		{"not library id", dtsl, user, sel.Library("abcd"), assert.False},
+		{"file create after the epoch", dspl, user, sel.CreatedAfter(dttm.Format(epoch)), assert.True},
+		{"file create after the epoch wrong type", dgcm, user, sel.CreatedAfter(dttm.Format(epoch)), assert.False},
+		{"file create after now", dspl, user, sel.CreatedAfter(dttm.Format(now)), assert.False},
+		{"file create after later", dspl, user, sel.CreatedAfter(dttm.Format(future)), assert.False},
+		{"file create before future", dspl, user, sel.CreatedBefore(dttm.Format(future)), assert.True},
+		{"file create before future wrong type", dgcm, user, sel.CreatedBefore(dttm.Format(future)), assert.False},
+		{"file create before now", dspl, user, sel.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file create before modification", dspl, user, sel.CreatedBefore(dttm.Format(mod)), assert.True},
+		{"file create before epoch", dspl, user, sel.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file modified after the epoch", dspl, user, sel.ModifiedAfter(dttm.Format(epoch)), assert.True},
+		{"file modified after now", dspl, user, sel.ModifiedAfter(dttm.Format(now)), assert.True},
+		{"file modified after later", dspl, user, sel.ModifiedAfter(dttm.Format(future)), assert.False},
+		{"file modified before future", dspl, user, sel.ModifiedBefore(dttm.Format(future)), assert.True},
+		{"file modified before now", dspl, user, sel.ModifiedBefore(dttm.Format(now)), assert.False},
+		{"file modified before epoch", dspl, user, sel.ModifiedBefore(dttm.Format(now)), assert.False},
+		{"in library", dspl, user, sel.Library("included-library"), assert.True},
+		{"not in library", dspl, user, sel.Library("not-included-library"), assert.False},
+		{"library id", dspl, user, sel.Library("1234"), assert.True},
+		{"not library id", dspl, user, sel.Library("abcd"), assert.False},
 
-		{"channel message created by", dtch, user, sel.MessageCreator(user), assert.True},
-		{"channel message not created by", dtch, user, sel.MessageCreator(host), assert.False},
-		{"chan msg create after the epoch", dtch, user, sel.MessageCreatedAfter(dttm.Format(epoch)), assert.True},
-		{"chan msg create after now", dtch, user, sel.MessageCreatedAfter(dttm.Format(now)), assert.False},
-		{"chan msg create after later", dtch, user, sel.MessageCreatedAfter(dttm.Format(future)), assert.False},
-		{"chan msg create before future", dtch, user, sel.MessageCreatedBefore(dttm.Format(future)), assert.True},
-		{"chan msg create before now", dtch, user, sel.MessageCreatedBefore(dttm.Format(now)), assert.False},
-		{"chan msg create before reply", dtch, user, sel.MessageCreatedBefore(dttm.Format(modification)), assert.True},
-		{"chan msg create before epoch", dtch, user, sel.MessageCreatedBefore(dttm.Format(now)), assert.False},
-		{"chan msg last reply after the epoch", dtch, user, sel.MessageLastReplyAfter(dttm.Format(epoch)), assert.True},
-		{"chan msg last reply after now", dtch, user, sel.MessageLastReplyAfter(dttm.Format(now)), assert.True},
-		{"chan msg last reply after later", dtch, user, sel.MessageLastReplyAfter(dttm.Format(future)), assert.False},
-		{"chan msg last reply before future", dtch, user, sel.MessageLastReplyBefore(dttm.Format(future)), assert.True},
-		{"chan msg last reply before now", dtch, user, sel.MessageLastReplyBefore(dttm.Format(now)), assert.False},
-		{"chan msg last reply before epoch", dtch, user, sel.MessageLastReplyBefore(dttm.Format(now)), assert.False},
+		{"channel message created by", dgcm, user, sel.MessageCreator(user), assert.True},
+		{"channel message not created by", dgcm, user, sel.MessageCreator(host), assert.False},
+		{"chan msg create after the epoch", dgcm, user, sel.MessageCreatedAfter(dttm.Format(epoch)), assert.True},
+		{"chan msg create after the epoch wrong type", dspl, user, sel.MessageCreatedAfter(dttm.Format(epoch)), assert.False},
+		{"chan msg create after now", dgcm, user, sel.MessageCreatedAfter(dttm.Format(now)), assert.False},
+		{"chan msg create after later", dgcm, user, sel.MessageCreatedAfter(dttm.Format(future)), assert.False},
+		{"chan msg create before future", dgcm, user, sel.MessageCreatedBefore(dttm.Format(future)), assert.True},
+		{"chan msg create before future wrong type", dspl, user, sel.MessageCreatedBefore(dttm.Format(future)), assert.False},
+		{"chan msg create before now", dgcm, user, sel.MessageCreatedBefore(dttm.Format(now)), assert.False},
+		{"chan msg create before reply", dgcm, user, sel.MessageCreatedBefore(dttm.Format(mod)), assert.True},
+		{"chan msg create before reply wrong type", dspl, user, sel.MessageCreatedBefore(dttm.Format(mod)), assert.False},
+		{"chan msg create before epoch", dgcm, user, sel.MessageCreatedBefore(dttm.Format(now)), assert.False},
+		{"chan msg last reply after the epoch", dgcm, user, sel.MessageLastReplyAfter(dttm.Format(epoch)), assert.True},
+		{"chan msg last reply after now", dgcm, user, sel.MessageLastReplyAfter(dttm.Format(now)), assert.True},
+		{"chan msg last reply after later", dgcm, user, sel.MessageLastReplyAfter(dttm.Format(future)), assert.False},
+		{"chan msg last reply before future", dgcm, user, sel.MessageLastReplyBefore(dttm.Format(future)), assert.True},
+		{"chan msg last reply before now", dgcm, user, sel.MessageLastReplyBefore(dttm.Format(now)), assert.False},
+		{"chan msg last reply before epoch", dgcm, user, sel.MessageLastReplyBefore(dttm.Format(now)), assert.False},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -421,8 +426,8 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 					WebURL:         test.creator,
 					MessageCreator: test.creator,
 					Created:        now,
-					Modified:       modification,
-					LastReplyAt:    modification,
+					Modified:       mod,
+					LastReplyAt:    mod,
 					DriveName:      "included-library",
 					DriveID:        "1234",
 				},
