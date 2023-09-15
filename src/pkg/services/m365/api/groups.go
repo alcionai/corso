@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/groups"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -70,8 +72,8 @@ func getGroups(
 	}
 
 	var (
-		groups = make([]models.Groupable, 0)
-		el     = errs.Local()
+		results = make([]models.Groupable, 0)
+		el      = errs.Local()
 	)
 
 	iterator := func(item models.Groupable) bool {
@@ -83,7 +85,7 @@ func getGroups(
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating groups"))
 		} else {
-			groups = append(groups, item)
+			results = append(results, item)
 		}
 
 		return true
@@ -93,8 +95,10 @@ func getGroups(
 		return nil, graph.Wrap(ctx, err, "iterating all groups")
 	}
 
-	return groups, el.Failure()
+	return results, el.Failure()
 }
+
+const filterGroupByDisplayNameQueryTmpl = "displayName eq '%s'"
 
 // GetID retrieves group by groupID.
 func (c Groups) GetByID(
@@ -106,14 +110,49 @@ func (c Groups) GetByID(
 		return nil, err
 	}
 
-	resp, err := service.Client().Groups().ByGroupIdString(identifier).Get(ctx, nil)
-	if err != nil {
-		err := graph.Wrap(ctx, err, "getting group by id")
+	ctx = clues.Add(ctx, "resource_identifier", identifier)
 
-		return nil, err
+	var group models.Groupable
+
+	// prefer lookup by id, but fallback to lookup by display name,
+	// even in the case of a uuid, just in case the display name itself
+	// is a uuid.
+	if uuidRE.MatchString(identifier) {
+		group, err = service.
+			Client().
+			Groups().
+			ByGroupIdString(identifier).
+			Get(ctx, nil)
+		if err == nil {
+			return group, nil
+		}
+
+		logger.CtxErr(ctx, err).Info("finding group by id, falling back to display name")
 	}
 
-	return resp, graph.Stack(ctx, err).OrNil()
+	opts := &groups.GroupsRequestBuilderGetRequestConfiguration{
+		Headers: newEventualConsistencyHeaders(),
+		QueryParameters: &groups.GroupsRequestBuilderGetQueryParameters{
+			Filter: ptr.To(fmt.Sprintf(filterGroupByDisplayNameQueryTmpl, identifier)),
+		},
+	}
+
+	resp, err := service.Client().Groups().Get(ctx, opts)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "finding group by display name")
+	}
+
+	vs := resp.GetValue()
+
+	if len(vs) == 0 {
+		return nil, clues.Stack(graph.ErrResourceOwnerNotFound).WithClues(ctx)
+	} else if len(vs) > 1 {
+		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).WithClues(ctx)
+	}
+
+	group = vs[0]
+
+	return group, nil
 }
 
 // GetRootSite retrieves the root site for the group.
@@ -158,10 +197,10 @@ func ValidateGroup(item models.Groupable) error {
 	return nil
 }
 
-func OnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
+func OnlyTeams(ctx context.Context, gs []models.Groupable) []models.Groupable {
 	var teams []models.Groupable
 
-	for _, g := range groups {
+	for _, g := range gs {
 		if IsTeam(ctx, g) {
 			teams = append(teams, g)
 		}

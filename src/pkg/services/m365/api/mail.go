@@ -169,7 +169,7 @@ func (c Mail) GetContainerByName(
 	// Return an error if multiple container exist (unlikely) or if no container
 	// is found.
 	if len(gv) != 1 {
-		return nil, clues.New("unexpected number of folders returned").
+		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).
 			With("returned_container_count", len(gv)).
 			WithClues(ctx)
 	}
