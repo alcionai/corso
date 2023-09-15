@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -1184,10 +1185,12 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 						make([]string, 0, len(exColl.removed)),
 					}
 
-					for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
-						for id := range cIDs {
-							ids[i] = append(ids[i], id)
-						}
+					for id := range exColl.added {
+						ids[0] = append(ids[0], id)
+					}
+
+					for id := range exColl.removed {
+						ids[1] = append(ids[1], id)
 					}
 
 					assert.ElementsMatch(t, expect.added, ids[0], "added items")
@@ -1519,10 +1522,12 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 							make([]string, 0, len(exColl.removed)),
 						}
 
-						for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
-							for id := range cIDs {
-								ids[i] = append(ids[i], id)
-							}
+						for id := range exColl.added {
+							ids[0] = append(ids[0], id)
+						}
+
+						for id := range exColl.removed {
+							ids[1] = append(ids[1], id)
 						}
 
 						assert.ElementsMatch(t, expect.added, ids[0], "added items")
@@ -1680,7 +1685,11 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 				exColl, ok := coll.(*prefetchCollection)
 				require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
-				assert.Equal(t, test.expectAdded, exColl.added, "added items")
+				assert.ElementsMatch(
+					t,
+					maps.Keys(test.expectAdded),
+					maps.Keys(exColl.added),
+					"added items")
 				assert.Equal(t, test.expectRemoved, exColl.removed, "removed items")
 			}
 		})

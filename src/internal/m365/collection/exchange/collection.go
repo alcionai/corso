@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -174,15 +175,29 @@ func NewCollection(
 	bc baseCollection,
 	user string,
 	items itemGetterSerializer,
+	added map[string]time.Time,
+	removed []string,
 	statusUpdater support.StatusUpdater,
 ) prefetchCollection {
 	collection := prefetchCollection{
 		baseCollection: bc,
 		user:           user,
-		added:          map[string]struct{}{},
+		added:          maps.Clone(added),
 		removed:        map[string]struct{}{},
 		getter:         items,
 		statusUpdater:  statusUpdater,
+	}
+
+	// Remove any deleted IDs from the set of added IDs because items that are
+	// deleted and then restored will have a different ID than they did
+	// originally.
+	//
+	// TODO(ashmrtn): If we switch to immutable IDs then we'll need to handle this
+	// sort of operation in the pager since this would become order-dependent
+	// unless Graph started consolidating the changes into a single delta result.
+	for _, remove := range removed {
+		delete(collection.added, remove)
+		collection.removed[remove] = struct{}{}
 	}
 
 	return collection
@@ -196,7 +211,7 @@ type prefetchCollection struct {
 	user string
 
 	// added is a list of existing item IDs that were added to a container
-	added map[string]struct{}
+	added map[string]time.Time
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange/mock"
@@ -135,6 +136,8 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 					false),
 				"u",
 				mock.DefaultItemGetSerialize(),
+				nil,
+				nil,
 				nil)
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.fullPath, "full path")
@@ -207,26 +210,22 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 
 	table := []struct {
 		name    string
-		added   map[string]struct{}
+		added   map[string]time.Time
 		removed map[string]struct{}
 	}{
 		{
-			name:    "no items",
-			added:   map[string]struct{}{},
-			removed: map[string]struct{}{},
+			name: "no items",
 		},
 		{
 			name: "only added items",
-			added: map[string]struct{}{
+			added: map[string]time.Time{
 				"fisher":    {},
 				"flannigan": {},
 				"fitzbog":   {},
 			},
-			removed: map[string]struct{}{},
 		},
 		{
-			name:  "only removed items",
-			added: map[string]struct{}{},
+			name: "only removed items",
 			removed: map[string]struct{}{
 				"princess": {},
 				"poppy":    {},
@@ -234,8 +233,7 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 			},
 		},
 		{
-			name:  "added and removed items",
-			added: map[string]struct{}{},
+			name: "added and removed items",
 			removed: map[string]struct{}{
 				"general":  {},
 				"goose":    {},
@@ -263,10 +261,9 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 					false),
 				"",
 				&mock.ItemGetSerialize{},
+				test.added,
+				maps.Keys(test.removed),
 				statusUpdater)
-
-			col.added = test.added
-			col.removed = test.removed
 
 			for item := range col.Items(ctx, errs) {
 				itemCount++
