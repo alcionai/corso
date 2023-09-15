@@ -19,7 +19,6 @@ import (
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -62,26 +61,6 @@ func (ctrl *Controller) ProduceBackupCollections(
 		ssmb                 *prefixmatcher.StringSetMatcher
 		canUsePreviousBackup bool
 	)
-
-	// All services except Exchange can make delta queries by default.
-	// Exchange can only make delta queries if the mailbox is not over quota.
-	canMakeDeltaQueries := true
-	if service == path.ExchangeService {
-		canMakeDeltaQueries, err = exchange.CanMakeDeltaQueries(
-			ctx,
-			service,
-			ctrl.AC.Users(),
-			bpc.ProtectedResource.ID())
-		if err != nil {
-			return nil, nil, false, clues.Stack(err)
-		}
-	}
-
-	if !canMakeDeltaQueries {
-		logger.Ctx(ctx).Info("delta requests not available")
-
-		bpc.Options.ToggleFeatures.DisableDelta = true
-	}
 
 	switch service {
 	case path.ExchangeService:
@@ -162,7 +141,7 @@ func (ctrl *Controller) IsServiceEnabled(
 	case path.OneDriveService:
 		return onedrive.IsServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
 	case path.SharePointService:
-		return sharepoint.IsServiceEnabled(ctx, ctrl.AC.Users().Sites(), resourceOwner)
+		return sharepoint.IsServiceEnabled(ctx, ctrl.AC.Sites(), resourceOwner)
 	case path.GroupsService:
 		return groups.IsServiceEnabled(ctx, ctrl.AC.Groups(), resourceOwner)
 	}
