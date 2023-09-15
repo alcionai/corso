@@ -1,7 +1,9 @@
 package operations
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -11,13 +13,16 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -87,6 +92,8 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 		tid = "tenantid"
 	)
 
+	t := suite.T()
+
 	var (
 		emailPath = makeMetadataBasePath(
 			suite.T(),
@@ -100,14 +107,57 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 			path.ExchangeService,
 			ro,
 			path.ContactsCategory)
+		spLibsPath = makeMetadataBasePath(
+			suite.T(),
+			tid,
+			path.SharePointService,
+			ro,
+			path.LibrariesCategory)
+		messagesPath = makeMetadataBasePath(
+			suite.T(),
+			tid,
+			path.GroupsService,
+			ro,
+			path.ChannelMessagesCategory)
+		groupLibsPath = makeMetadataBasePath(
+			suite.T(),
+			tid,
+			path.GroupsService,
+			ro,
+			path.LibrariesCategory)
 	)
 
+	groupLibsSitesPath, err := groupLibsPath.Append(false, odConsts.SitesPathDir)
+	assert.NoError(t, err, clues.ToCore(err))
+
+	groupLibsSite1Path, err := groupLibsSitesPath.Append(false, "site1")
+	assert.NoError(t, err, clues.ToCore(err))
+
+	groupLibsSite2Path, err := groupLibsSitesPath.Append(false, "site2")
+	assert.NoError(t, err, clues.ToCore(err))
+
+	getRestorePaths := func(t *testing.T, base path.Path, paths []string) []path.RestorePaths {
+		ps := []path.RestorePaths{}
+
+		for _, f := range paths {
+			p, err := base.AppendItem(f)
+			assert.NoError(t, err, clues.ToCore(err))
+
+			ps = append(ps, path.RestorePaths{StoragePath: p, RestorePath: base})
+		}
+
+		return ps
+	}
+
 	table := []struct {
-		name        string
-		manID       string
-		reasons     []identity.Reasoner
-		expectPaths func(*testing.T, []string) []path.Path
-		expectErr   error
+		name               string
+		manID              string
+		reasons            []identity.Reasoner
+		preFetchPaths      []string
+		preFetchCollection []data.RestoreCollection
+		expectPaths        func(*testing.T, []string) []path.Path
+		restorePaths       []path.RestorePaths
+		expectErr          error
 	}{
 		{
 			name:  "single reason",
@@ -115,6 +165,7 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 			reasons: []identity.Reasoner{
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 			},
+			preFetchPaths: []string{},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
 
@@ -126,6 +177,7 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 
 				return ps
 			},
+			restorePaths: getRestorePaths(t, emailPath, metadata.AllMetadataFileNames()),
 		},
 		{
 			name:  "multiple reasons",
@@ -134,6 +186,7 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 				kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 				kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
 			},
+			preFetchPaths: []string{},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
 
@@ -148,6 +201,81 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 
 				return ps
 			},
+			restorePaths: append(
+				getRestorePaths(t, emailPath, metadata.AllMetadataFileNames()),
+				getRestorePaths(t, contactPath, metadata.AllMetadataFileNames())...),
+		},
+		{
+			name:  "single reason sp libraries",
+			manID: "single-sp-libraries",
+			reasons: []identity.Reasoner{
+				kopia.NewReason(tid, ro, path.SharePointService, path.LibrariesCategory),
+			},
+			preFetchPaths: []string{},
+			expectPaths: func(t *testing.T, files []string) []path.Path {
+				ps := make([]path.Path, 0, len(files))
+
+				for _, f := range files {
+					p, err := spLibsPath.AppendItem(f)
+					assert.NoError(t, err, clues.ToCore(err))
+					ps = append(ps, p)
+				}
+
+				return ps
+			},
+			restorePaths: getRestorePaths(t, spLibsPath, metadata.AllMetadataFileNames()),
+		},
+		{
+			name:  "single reason groups messages",
+			manID: "single-groups-messages",
+			reasons: []identity.Reasoner{
+				kopia.NewReason(tid, ro, path.GroupsService, path.ChannelMessagesCategory),
+			},
+			preFetchPaths: []string{},
+			expectPaths: func(t *testing.T, files []string) []path.Path {
+				ps := make([]path.Path, 0, len(files))
+
+				for _, f := range files {
+					p, err := messagesPath.AppendItem(f)
+					assert.NoError(t, err, clues.ToCore(err))
+					ps = append(ps, p)
+				}
+
+				return ps
+			},
+			restorePaths: getRestorePaths(t, messagesPath, metadata.AllMetadataFileNames()),
+		},
+		{
+			name:  "single reason groups libraries",
+			manID: "single-groups-libraries",
+			reasons: []identity.Reasoner{
+				kopia.NewReason(tid, ro, path.GroupsService, path.LibrariesCategory),
+			},
+			preFetchPaths: []string{"previouspath"},
+			expectPaths: func(t *testing.T, files []string) []path.Path {
+				ps := make([]path.Path, 0, len(files))
+
+				assert.NoError(t, err, clues.ToCore(err))
+				for _, f := range files {
+					p, err := groupLibsSitesPath.AppendItem(f)
+					assert.NoError(t, err, clues.ToCore(err))
+					ps = append(ps, p)
+				}
+
+				return ps
+			},
+			restorePaths: append(
+				getRestorePaths(t, groupLibsSite1Path, metadata.AllMetadataFileNames()),
+				getRestorePaths(t, groupLibsSite2Path, metadata.AllMetadataFileNames())...),
+			preFetchCollection: []data.RestoreCollection{dataMock.Collection{
+				ItemData: []data.Item{
+					&dataMock.Item{
+						ItemID: "previouspath",
+						Reader: io.NopCloser(bytes.NewReader(
+							[]byte(`{"site1": "/path/does/not/matter", "site2": "/path/does/not/matter"}`))),
+					},
+				},
+			}},
 		},
 	}
 	for _, test := range table {
@@ -157,9 +285,9 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			paths := test.expectPaths(t, []string{"delta", "previouspath"})
+			paths := test.expectPaths(t, test.preFetchPaths)
 
-			mr := mockRestoreProducer{err: test.expectErr}
+			mr := mockRestoreProducer{err: test.expectErr, colls: test.preFetchCollection}
 			mr.buildRestoreFunc(t, test.manID, paths)
 
 			man := kopia.ManifestEntry{
@@ -168,8 +296,9 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 			}
 
 			controller := m365.Controller{}
-			_, err := controller.GetMetadataPaths(ctx, &mr, man, fault.New(true))
+			pths, err := controller.GetMetadataPaths(ctx, &mr, man, fault.New(true))
 			assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
+			assert.ElementsMatch(t, test.restorePaths, pths, "restore paths")
 		})
 	}
 }
