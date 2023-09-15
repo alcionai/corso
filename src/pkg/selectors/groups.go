@@ -773,9 +773,9 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 	acceptableItemType := -1
 
 	switch infoCat.leafCat() {
-	case GroupsChannelMessage:
-		acceptableItemType = int(details.SharePointLibrary)
 	case GroupsLibraryItem:
+		acceptableItemType = int(details.SharePointLibrary)
+	case GroupsChannelMessage:
 		acceptableItemType = int(details.GroupsChannelMessage)
 	}
 
