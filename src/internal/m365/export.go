@@ -69,6 +69,7 @@ func (ctrl *Controller) ProduceExportCollections(
 			exportCfg,
 			opts,
 			dcs,
+			ctrl.backupDriveIDNames,
 			deets,
 			errs)
 
