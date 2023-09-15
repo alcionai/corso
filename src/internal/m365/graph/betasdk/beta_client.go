@@ -73,7 +73,7 @@ func NewBetaClient(requestAdapter abstractions.RequestAdapter) *BetaClient {
 		return kform.NewFormParseNodeFactory()
 	})
 
-	if m.requestAdapter.GetBaseUrl() == "" {
+	if len(m.requestAdapter.GetBaseUrl()) == 0 {
 		m.requestAdapter.SetBaseUrl("https://graph.microsoft.com/beta")
 	}
 	return m
@@ -85,7 +85,7 @@ func (m *BetaClient) SitesById(id string) *i1a3c1a5501c5e41b7fd169f2d4c768dce9b0
 	for idx, item := range m.pathParameters {
 		urlTplParams[idx] = item
 	}
-	if id != "" {
+	if len(id) > 0 {
 		urlTplParams["site%2Did"] = id
 	}
 	return i1a3c1a5501c5e41b7fd169f2d4c768dce9b096ac28fb5431bf02afcc57295411.NewSiteItemRequestBuilderInternal(urlTplParams, m.requestAdapter)

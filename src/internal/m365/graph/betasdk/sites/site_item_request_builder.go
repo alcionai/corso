@@ -196,7 +196,7 @@ func (m *SiteItemRequestBuilder) PagesById(id string) *ItemPagesSitePageItemRequ
 	for idx, item := range m.pathParameters {
 		urlTplParams[idx] = item
 	}
-	if id != "" {
+	if len(id) > 0 {
 		urlTplParams["sitePage%2Did"] = id
 	}
 	return NewItemPagesSitePageItemRequestBuilderInternal(urlTplParams, m.requestAdapter)
@@ -240,7 +240,7 @@ func (m *SiteItemRequestBuilder) SitesById(id string) *ItemSitesSiteItemRequestB
 	for idx, item := range m.pathParameters {
 		urlTplParams[idx] = item
 	}
-	if id != "" {
+	if len(id) > 0 {
 		urlTplParams["site%2Did1"] = id
 	}
 	return NewItemSitesSiteItemRequestBuilderInternal(urlTplParams, m.requestAdapter)

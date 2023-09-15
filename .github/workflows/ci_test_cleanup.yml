@@ -47,7 +47,7 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        site: [ CORSO_M365_TEST_SITE_URL ] 
+        site: [ CORSO_M365_TEST_SITE_URL, CORSO_M365_TEST_GROUPS_SITE_URL ] 
 
     steps:
       - uses: actions/checkout@v4

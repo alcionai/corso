@@ -182,13 +182,13 @@ func printFlags(buf *bytes.Buffer, flags *pflag.FlagSet) {
 		buf.WriteString(fmt.Sprintf("`--%s`", flag.Name))
 		buf.WriteString("|")
 
-		if flag.Shorthand != "" && flag.ShorthandDeprecated == "" {
+		if len(flag.Shorthand) > 0 && flag.ShorthandDeprecated == "" {
 			buf.WriteString(fmt.Sprintf("`-%s`", flag.Shorthand))
 		}
 
 		buf.WriteString("|")
 
-		if flag.DefValue != "" {
+		if len(flag.DefValue) > 0 {
 			defValue := flag.DefValue
 			if defValue == "[]" {
 				defValue = ""

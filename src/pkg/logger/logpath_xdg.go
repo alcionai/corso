@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	if os.Getenv("XDG_CACHE_HOME") != "" {
+	if len(os.Getenv("XDG_CACHE_HOME")) > 0 {
 		userLogsDir = os.Getenv("XDG_CACHE_HOME")
 	} else {
 		userLogsDir = filepath.Join(os.Getenv("HOME"), ".cache")

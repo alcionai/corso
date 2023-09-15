@@ -367,6 +367,7 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 		modification = now.Add(15 * time.Minute)
 		future       = now.Add(45 * time.Minute)
 		dtch         = details.GroupsChannelMessage
+		dtsl         = details.SharePointLibrary
 	)
 
 	table := []struct {
@@ -376,32 +377,23 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 		scope    []GroupsScope
 		expect   assert.BoolAssertionFunc
 	}{
-		// TODO(abin): implement
-		// {"host match", host, sel.WebURL([]string{host}), assert.True},
-		// {"url match", url, sel.WebURL([]string{url}), assert.True},
-		// {"host suffixes host", host, sel.WebURL([]string{host}, SuffixMatch()), assert.True},
-		// {"url does not suffix host", url, sel.WebURL([]string{host}, SuffixMatch()), assert.False},
-		// {"url has path suffix", url, sel.WebURL([]string{pth}, SuffixMatch()), assert.True},
-		// {"host does not contain substring", host, sel.WebURL([]string{"website"}), assert.False},
-		// {"url does not suffix substring", url, sel.WebURL([]string{"oo"}, SuffixMatch()), assert.False},
-		// {"host mismatch", host, sel.WebURL([]string{"www.google.com"}), assert.False},
-		// {"file create after the epoch", host, sel.CreatedAfter(dttm.Format(epoch)), assert.True},
-		// {"file create after now", host, sel.CreatedAfter(dttm.Format(now)), assert.False},
-		// {"file create after later", url, sel.CreatedAfter(dttm.Format(future)), assert.False},
-		// {"file create before future", host, sel.CreatedBefore(dttm.Format(future)), assert.True},
-		// {"file create before now", host, sel.CreatedBefore(dttm.Format(now)), assert.False},
-		// {"file create before modification", host, sel.CreatedBefore(dttm.Format(modification)), assert.True},
-		// {"file create before epoch", host, sel.CreatedBefore(dttm.Format(now)), assert.False},
-		// {"file modified after the epoch", host, sel.ModifiedAfter(dttm.Format(epoch)), assert.True},
-		// {"file modified after now", host, sel.ModifiedAfter(dttm.Format(now)), assert.True},
-		// {"file modified after later", host, sel.ModifiedAfter(dttm.Format(future)), assert.False},
-		// {"file modified before future", host, sel.ModifiedBefore(dttm.Format(future)), assert.True},
-		// {"file modified before now", host, sel.ModifiedBefore(dttm.Format(now)), assert.False},
-		// {"file modified before epoch", host, sel.ModifiedBefore(dttm.Format(now)), assert.False},
-		// {"in library", host, sel.Library("included-library"), assert.True},
-		// {"not in library", host, sel.Library("not-included-library"), assert.False},
-		// {"library id", host, sel.Library("1234"), assert.True},
-		// {"not library id", host, sel.Library("abcd"), assert.False},
+		{"file create after the epoch", dtsl, user, sel.CreatedAfter(dttm.Format(epoch)), assert.True},
+		{"file create after now", dtsl, user, sel.CreatedAfter(dttm.Format(now)), assert.False},
+		{"file create after later", dtsl, user, sel.CreatedAfter(dttm.Format(future)), assert.False},
+		{"file create before future", dtsl, user, sel.CreatedBefore(dttm.Format(future)), assert.True},
+		{"file create before now", dtsl, user, sel.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file create before modification", dtsl, user, sel.CreatedBefore(dttm.Format(modification)), assert.True},
+		{"file create before epoch", dtsl, user, sel.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file modified after the epoch", dtsl, user, sel.ModifiedAfter(dttm.Format(epoch)), assert.True},
+		{"file modified after now", dtsl, user, sel.ModifiedAfter(dttm.Format(now)), assert.True},
+		{"file modified after later", dtsl, user, sel.ModifiedAfter(dttm.Format(future)), assert.False},
+		{"file modified before future", dtsl, user, sel.ModifiedBefore(dttm.Format(future)), assert.True},
+		{"file modified before now", dtsl, user, sel.ModifiedBefore(dttm.Format(now)), assert.False},
+		{"file modified before epoch", dtsl, user, sel.ModifiedBefore(dttm.Format(now)), assert.False},
+		{"in library", dtsl, user, sel.Library("included-library"), assert.True},
+		{"not in library", dtsl, user, sel.Library("not-included-library"), assert.False},
+		{"library id", dtsl, user, sel.Library("1234"), assert.True},
+		{"not library id", dtsl, user, sel.Library("abcd"), assert.False},
 
 		{"channel message created by", dtch, user, sel.MessageCreator(user), assert.True},
 		{"channel message not created by", dtch, user, sel.MessageCreator(host), assert.False},
