@@ -772,14 +772,10 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 
 	acceptableItemType := -1
 
-	switch infoCat {
-	case GroupsInfoSiteLibraryDrive,
-		GroupsInfoLibraryItemCreatedAfter, GroupsInfoLibraryItemCreatedBefore,
-		GroupsInfoLibraryItemModifiedAfter, GroupsInfoLibraryItemModifiedBefore:
+	switch infoCat.leafCat() {
+	case GroupsChannelMessage:
 		acceptableItemType = int(details.SharePointLibrary)
-	case GroupsInfoChannelMessageCreator,
-		GroupsInfoChannelMessageCreatedAfter, GroupsInfoChannelMessageCreatedBefore,
-		GroupsInfoChannelMessageLastReplyAfter, GroupsInfoChannelMessageLastReplyBefore:
+	case GroupsLibraryItem:
 		acceptableItemType = int(details.GroupsChannelMessage)
 	}
 
