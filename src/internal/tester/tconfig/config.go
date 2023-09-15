@@ -169,7 +169,7 @@ func ReadTestConfig() (map[string]string, error) {
 		TestCfgSecondaryTeamID,
 		os.Getenv(EnvCorsoSecondaryM365TestTeamID),
 		vpr.GetString(TestCfgSecondaryTeamID),
-		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0") // TODO(meain): update
+		"20cda3c0-6f9a-4286-9f2f-bb284e1f79c9")
 	fallbackTo(
 		testEnv,
 		TestCfgGroupID,
@@ -181,7 +181,7 @@ func ReadTestConfig() (map[string]string, error) {
 		TestCfgSecondaryGroupID,
 		os.Getenv(EnvCorsoSecondaryM365TestGroupID),
 		vpr.GetString(TestCfgSecondaryGroupID),
-		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0") // TODO(meain): update
+		"20cda3c0-6f9a-4286-9f2f-bb284e1f79c9")
 	fallbackTo(
 		testEnv,
 		TestCfgSiteURL,

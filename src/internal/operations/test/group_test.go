@@ -37,7 +37,6 @@ func (suite *GroupsBackupIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-// TODO(v0,v1 restore): Library restore
 // TODO(v0 export): Channels export
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
