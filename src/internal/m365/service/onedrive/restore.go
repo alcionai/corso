@@ -110,6 +110,10 @@ func AugmentRestorePaths(
 	colPaths := map[string]path.RestorePaths{}
 
 	for _, p := range paths {
+		if p.StoragePath.Category() == path.ChannelMessagesCategory {
+			continue
+		}
+
 		first := true
 
 		for {
