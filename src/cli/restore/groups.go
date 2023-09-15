@@ -18,7 +18,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(cmd, groupsRestoreCmd())
+		c, fs = utils.AddCommand(cmd, groupsRestoreCmd(), utils.MarkEarlyAccessCommand())
 
 		c.Use = c.Use + " " + groupsServiceCommandUseSuffix
 
