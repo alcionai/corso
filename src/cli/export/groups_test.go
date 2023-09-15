@@ -69,6 +69,8 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 
+				"--" + flags.FormatFN, testdata.FormatType,
+
 				// bool flags
 				"--" + flags.ArchiveFN,
 			})
@@ -82,6 +84,7 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
 
 			assert.Equal(t, testdata.Archive, opts.ExportCfg.Archive)
+			assert.Equal(t, testdata.FormatType, opts.ExportCfg.Format)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
