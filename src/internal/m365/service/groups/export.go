@@ -38,6 +38,8 @@ func ProduceExportCollections(
 		switch cat {
 		case path.ChannelMessagesCategory:
 			folders = append(folders, fp.Folders()...)
+		default:
+			continue
 		}
 
 		coll := groups.NewExportCollection(

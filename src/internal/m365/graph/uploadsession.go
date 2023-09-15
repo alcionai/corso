@@ -91,7 +91,7 @@ func (iw *largeItemWriter) Write(p []byte) (int, error) {
 	// https://outlook.office.com/api/v2.0/Users('<user-id>')/Messages('<message-id>')/Attachments('<attachment-id>')
 	// Ref: https://learn.microsoft.com/en-us/graph/outlook-large-attachments?tabs=http
 	loc := resp.Header.Get("Location")
-	if loc != "" {
+	if len(loc) > 0 {
 		splits := strings.Split(loc, "'")
 		if len(splits) != 7 || splits[4] != ")/Attachments(" || len(splits[5]) == 0 {
 			return 0, clues.New("invalid format for upload completion url").

@@ -194,7 +194,7 @@ func (m *ItemPagesItemCanvasLayoutRequestBuilder) HorizontalSectionsById(id stri
 	for idx, item := range m.pathParameters {
 		urlTplParams[idx] = item
 	}
-	if id != "" {
+	if len(id) > 0 {
 		urlTplParams["horizontalSection%2Did"] = id
 	}
 	return NewItemPagesItemCanvasLayoutHorizontalSectionsHorizontalSectionItemRequestBuilderInternal(urlTplParams, m.requestAdapter)

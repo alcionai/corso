@@ -45,7 +45,7 @@ type backupHandler interface {
 }
 
 type getChannelMessager interface {
-	getChannelMessage(
+	GetChannelMessage(
 		ctx context.Context,
 		teamID, channelID, itemID string,
 	) (models.ChatMessageable, *details.GroupsInfo, error)

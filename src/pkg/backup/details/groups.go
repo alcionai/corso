@@ -24,7 +24,7 @@ func NewGroupsLocationIDer(
 	pb := path.Builder{}.Append(category.String())
 	prefixElems := 1
 
-	if driveID != "" { // non sp paths don't have driveID
+	if len(driveID) > 0 { // non sp paths don't have driveID
 		pb = pb.Append(driveID)
 
 		prefixElems = 2

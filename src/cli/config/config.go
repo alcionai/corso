@@ -118,7 +118,7 @@ func InitFunc(cmd *cobra.Command, args []string) error {
 // struct for testing.
 func initWithViper(vpr *viper.Viper, configFP string) error {
 	// Configure default config file location
-	if configFP == "" || configFP == displayDefaultFP {
+	if len(configFP) == 0 || configFP == displayDefaultFP {
 		// Find home directory.
 		_, err := os.Stat(configDir)
 		if err != nil {
