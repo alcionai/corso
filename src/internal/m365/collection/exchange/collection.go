@@ -36,6 +36,22 @@ const (
 	numberOfRetries             = 4
 )
 
+func NewBaseCollection(
+	curr, prev path.Path,
+	location *path.Builder,
+	ctrlOpts control.Options,
+	doNotMergeItems bool,
+) baseCollection {
+	return baseCollection{
+		ctrl:            ctrlOpts,
+		doNotMergeItems: doNotMergeItems,
+		fullPath:        curr,
+		locationPath:    location,
+		prevPath:        prev,
+		state:           data.StateOf(prev, curr),
+	}
+}
+
 // baseCollection contains basic functionality like returning path, location,
 // and state information. It can be embedded in other implementations to provide
 // this functionality.
@@ -155,28 +171,18 @@ func getItemAndInfo(
 // If both are populated, then state is either moved (if they differ),
 // or notMoved (if they match).
 func NewCollection(
+	bc baseCollection,
 	user string,
-	curr, prev path.Path,
-	location *path.Builder,
 	items itemGetterSerializer,
 	statusUpdater support.StatusUpdater,
-	ctrlOpts control.Options,
-	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
-		baseCollection: baseCollection{
-			ctrl:            ctrlOpts,
-			doNotMergeItems: doNotMergeItems,
-			fullPath:        curr,
-			locationPath:    location,
-			prevPath:        prev,
-			state:           data.StateOf(prev, curr),
-		},
-		user:          user,
-		added:         make(map[string]struct{}, 0),
-		removed:       make(map[string]struct{}, 0),
-		getter:        items,
-		statusUpdater: statusUpdater,
+		baseCollection: bc,
+		user:           user,
+		added:          map[string]struct{}{},
+		removed:        map[string]struct{}{},
+		getter:         items,
+		statusUpdater:  statusUpdater,
 	}
 
 	return collection

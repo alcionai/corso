@@ -189,14 +189,15 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			NewBaseCollection(
+				currPath,
+				prevPath,
+				locPath,
+				ctrlOpts,
+				newDelta.Reset),
 			qp.ProtectedResource.ID(),
-			currPath,
-			prevPath,
-			locPath,
 			bh.itemHandler(),
-			statusUpdater,
-			ctrlOpts,
-			newDelta.Reset)
+			statusUpdater)
 
 		collections[cID] = &edc
 
@@ -250,14 +251,15 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			NewBaseCollection(
+				nil, // marks the collection as deleted
+				prevPath,
+				nil, // tombstones don't need a location
+				ctrlOpts,
+				false),
 			qp.ProtectedResource.ID(),
-			nil, // marks the collection as deleted
-			prevPath,
-			nil, // tombstones don't need a location
 			bh.itemHandler(),
-			statusUpdater,
-			ctrlOpts,
-			false)
+			statusUpdater)
 		collections[id] = &edc
 	}
 

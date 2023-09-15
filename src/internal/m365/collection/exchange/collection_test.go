@@ -127,13 +127,15 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 			t := suite.T()
 
 			c := NewCollection(
+				NewBaseCollection(
+					test.curr,
+					test.prev,
+					test.loc,
+					control.DefaultOptions(),
+					false),
 				"u",
-				test.curr, test.prev, test.loc,
-				0,
 				mock.DefaultItemGetSerialize(),
-				nil,
-				control.DefaultOptions(),
-				false)
+				nil)
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.fullPath, "full path")
 			assert.Equal(t, test.prev, c.prevPath, "prev path")
@@ -193,7 +195,7 @@ func (suite *CollectionUnitSuite) TestGetItemWithRetries() {
 func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 	var (
 		t             = suite.T()
-		start         = time.Now().Add(-1 * time.Second)
+		start         = time.Now().Add(-time.Second)
 		statusUpdater = func(*support.ControllerOperationStatus) {}
 	)
 
@@ -252,20 +254,21 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			col := &Collection{
-				added:         test.added,
-				removed:       test.removed,
-				ctrl:          control.DefaultOptions(),
-				getter:        &mock.ItemGetSerialize{},
-				stream:        make(chan data.Item),
-				fullPath:      fullPath,
-				locationPath:  locPath.ToBuilder(),
-				statusUpdater: statusUpdater,
-			}
+			col := NewCollection(
+				NewBaseCollection(
+					fullPath,
+					nil,
+					locPath.ToBuilder(),
+					control.DefaultOptions(),
+					false),
+				"",
+				&mock.ItemGetSerialize{},
+				statusUpdater)
 
-			go col.streamItems(ctx, errs)
+			col.added = test.added
+			col.removed = test.removed
 
-			for item := range col.stream {
+			for item := range col.Items(ctx, errs) {
 				itemCount++
 
 				_, aok := test.added[item.ID()]
