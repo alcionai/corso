@@ -19,6 +19,7 @@ type ExportCfgOpts struct {
 func makeExportCfgOpts(cmd *cobra.Command) ExportCfgOpts {
 	return ExportCfgOpts{
 		Archive: flags.ArchiveFV,
+		Format:  flags.FormatFV,
 
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate

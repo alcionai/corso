@@ -1,6 +1,8 @@
 package groups
 
 import (
+	"bytes"
+	"io"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -24,6 +26,10 @@ func TestExportUnitSuite(t *testing.T) {
 }
 
 func (suite *ExportUnitSuite) TestStreamItems() {
+	makeBody := func() io.ReadCloser {
+		return io.NopCloser(bytes.NewReader([]byte("{}")))
+	}
+
 	table := []struct {
 		name        string
 		backingColl dataMock.Collection
@@ -34,7 +40,10 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 			name: "no errors",
 			backingColl: dataMock.Collection{
 				ItemData: []data.Item{
-					&dataMock.Item{ItemID: "zim"},
+					&dataMock.Item{
+						ItemID: "zim",
+						Reader: makeBody(),
+					},
 				},
 			},
 			expectName: "zim",
@@ -53,7 +62,10 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 			name: "items and recoverable errors",
 			backingColl: dataMock.Collection{
 				ItemData: []data.Item{
-					&dataMock.Item{ItemID: "gir"},
+					&dataMock.Item{
+						ItemID: "gir",
+						Reader: makeBody(),
+					},
 				},
 				ItemsRecoverableErrs: []error{
 					clues.New("I miss my cupcake."),
