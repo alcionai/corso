@@ -36,7 +36,7 @@ func LogTimeOfTest(t TestT) string {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	name := t.Name()
 
-	if name == "" {
+	if len(name) == 0 {
 		t.Logf("Test run at %s.", now)
 		return now
 	}
