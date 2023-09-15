@@ -3,6 +3,7 @@ package groups
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
@@ -15,7 +16,12 @@ func IsServiceEnabled(
 	gbi getByIDer,
 	resource string,
 ) (bool, error) {
-	// TODO(meain): check for error message in case groups are
-	// not enabled at all similar to sharepoint
+	_, err := gbi.GetByID(ctx, resource)
+	if err != nil {
+		// TODO(meain): check for error message in case groups are
+		// not enabled at all similar to sharepoint
+		return false, clues.Stack(err)
+	}
+
 	return true, nil
 }
