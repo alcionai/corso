@@ -38,12 +38,15 @@ func ProduceExportCollections(
 		switch cat {
 		case path.ChannelMessagesCategory:
 			folders = append(folders, fp.Folders()...)
+		default:
+			continue
 		}
 
 		coll := groups.NewExportCollection(
 			path.Builder{}.Append(folders...).String(),
 			[]data.RestoreCollection{restoreColl},
-			backupVersion)
+			backupVersion,
+			exportCfg)
 
 		ec = append(ec, coll)
 	}

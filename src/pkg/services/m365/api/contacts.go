@@ -254,7 +254,7 @@ func (c Contacts) DeleteItem(
 // ---------------------------------------------------------------------------
 
 func BytesToContactable(bytes []byte) (models.Contactable, error) {
-	v, err := createFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
+	v, err := CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to contact")
 	}

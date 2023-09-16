@@ -30,16 +30,11 @@ func (c Client) Groups() Groups {
 	return Groups{c}
 }
 
-// On creation of each Teams team a corresponding group gets created.
-// The group acts as the protected resource, and all teams data like events,
-// drive and mail messages are owned by that group.
-
 // Groups is an interface-compliant provider of the client.
 type Groups struct {
 	Client
 }
 
-// GetAllGroups retrieves all groups.
 func (c Groups) GetAll(
 	ctx context.Context,
 	errs *fault.Bus,
@@ -100,7 +95,10 @@ func getGroups(
 
 const filterGroupByDisplayNameQueryTmpl = "displayName eq '%s'"
 
-// GetID retrieves group by groupID.
+// GetID can look up a group by either its canonical id (a uuid)
+// or by the group's display name.  If looking up the display name
+// an error will be returned if more than one group gets returned
+// in the results.
 func (c Groups) GetByID(
 	ctx context.Context,
 	identifier string,
@@ -155,7 +153,6 @@ func (c Groups) GetByID(
 	return group, nil
 }
 
-// GetRootSite retrieves the root site for the group.
 func (c Groups) GetRootSite(
 	ctx context.Context,
 	identifier string,

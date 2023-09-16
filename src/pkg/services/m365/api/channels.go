@@ -141,10 +141,9 @@ func ChannelMessageInfo(
 	msg models.ChatMessageable,
 ) *details.GroupsInfo {
 	var (
-		lastReply  time.Time
-		modTime    = ptr.OrNow(msg.GetLastModifiedDateTime())
-		msgCreator string
-		content    string
+		lastReply time.Time
+		modTime   = ptr.OrNow(msg.GetLastModifiedDateTime())
+		content   string
 	)
 
 	for _, r := range msg.GetReplies() {
@@ -161,19 +160,6 @@ func ChannelMessageInfo(
 		modTime = lastReply
 	}
 
-	from := msg.GetFrom()
-
-	switch true {
-	case from == nil:
-		// not all messages have a populated 'from'.  Namely, system messages do not.
-	case from.GetApplication() != nil:
-		msgCreator = ptr.Val(from.GetApplication().GetDisplayName())
-	case from.GetDevice() != nil:
-		msgCreator = ptr.Val(from.GetDevice().GetDisplayName())
-	case from.GetUser() != nil:
-		msgCreator = ptr.Val(from.GetUser().GetDisplayName())
-	}
-
 	if msg.GetBody() != nil {
 		content = ptr.Val(msg.GetBody().GetContent())
 	}
@@ -183,7 +169,7 @@ func ChannelMessageInfo(
 		Created:        ptr.Val(msg.GetCreatedDateTime()),
 		LastReplyAt:    lastReply,
 		Modified:       modTime,
-		MessageCreator: msgCreator,
+		MessageCreator: GetChatMessageFrom(msg),
 		MessagePreview: str.Preview(content, 16),
 		ReplyCount:     len(msg.GetReplies()),
 		Size:           int64(len(content)),
@@ -208,4 +194,21 @@ func CheckIDAndName(c models.Channelable) error {
 	}
 
 	return nil
+}
+
+func GetChatMessageFrom(msg models.ChatMessageable) string {
+	from := msg.GetFrom()
+
+	switch true {
+	case from == nil:
+		return ""
+	case from.GetApplication() != nil:
+		return ptr.Val(from.GetApplication().GetDisplayName())
+	case from.GetDevice() != nil:
+		return ptr.Val(from.GetDevice().GetDisplayName())
+	case from.GetUser() != nil:
+		return ptr.Val(from.GetUser().GetDisplayName())
+	}
+
+	return ""
 }
