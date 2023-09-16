@@ -278,7 +278,7 @@ func checkMetadataFilesExist(
 	ms *kopia.ModelStore,
 	tenant, resourceOwner string,
 	service path.ServiceType,
-	filesByCat map[path.CategoryType][]string,
+	filesByCat map[path.CategoryType][][]string,
 ) {
 	for category, files := range filesByCat {
 		t.Run(category.String(), func(t *testing.T) {
@@ -293,7 +293,7 @@ func checkMetadataFilesExist(
 			pathsByRef := map[string][]string{}
 
 			for _, fName := range files {
-				p, err := path.BuildMetadata(tenant, resourceOwner, service, category, true, fName)
+				p, err := path.BuildMetadata(tenant, resourceOwner, service, category, true, fName...)
 				if !assert.NoError(t, err, "bad metadata path", clues.ToCore(err)) {
 					continue
 				}
@@ -306,7 +306,7 @@ func checkMetadataFilesExist(
 				paths = append(
 					paths,
 					path.RestorePaths{StoragePath: p, RestorePath: dir})
-				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName)
+				pathsByRef[dir.ShortRef()] = append(pathsByRef[dir.ShortRef()], fName[len(fName)-1])
 			}
 
 			cols, err := kw.ProduceRestoreCollections(
@@ -365,7 +365,7 @@ func generateContainerOfItems(
 	service path.ServiceType,
 	cat path.CategoryType,
 	sel selectors.Selector,
-	tenantID, resourceOwner, driveID, destFldr string,
+	tenantID, resourceOwner, siteID, driveID, destFldr string,
 	howManyItems int,
 	backupVersion int,
 	dbf dataBuilderFunc,
@@ -388,6 +388,8 @@ func generateContainerOfItems(
 	switch service {
 	case path.OneDriveService, path.SharePointService:
 		pathFolders = []string{odConsts.DrivesPathDir, driveID, odConsts.RootPathDir, destFldr}
+	case path.GroupsService:
+		pathFolders = []string{odConsts.SitesPathDir, siteID, odConsts.DrivesPathDir, driveID, odConsts.RootPathDir, destFldr}
 	}
 
 	collections := []incrementalCollection{{

@@ -23,7 +23,7 @@ func ToDrivePath(p Path) (*DrivePath, error) {
 	folders := p.Folders()
 
 	// Must be at least `drives/<driveID>/root:`
-	if len(folders) < 3 {
+	if len(folders) < 3 || (p.Service() == GroupsService && len(folders) < 5) {
 		return nil, clues.
 			New("folder path doesn't match expected format for Drive items").
 			With("path_folders", p.Folder(false))
