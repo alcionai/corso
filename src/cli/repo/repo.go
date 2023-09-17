@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (
@@ -124,11 +123,10 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 
 	r, _, err := utils.AccountConnectAndWriteRepoConfig(
 		ctx,
+		cmd,
 		// Need to give it a valid service so it won't error out on us even though
 		// we don't need the graph client.
-		path.OneDriveService,
-		storage.ProviderS3,
-		flags.S3FlagOverrides(cmd))
+		path.OneDriveService)
 	if err != nil {
 		return print.Only(ctx, err)
 	}

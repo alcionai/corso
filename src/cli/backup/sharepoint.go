@@ -158,16 +158,10 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
 	r, acct, err := utils.AccountConnectAndWriteRepoConfig(
 		ctx,
-		path.SharePointService,
-		provider,
-		overrides)
+		cmd,
+		path.SharePointService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -327,16 +321,10 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
 		ctx,
-		path.SharePointService,
-		provider,
-		overrides)
+		cmd,
+		path.SharePointService)
 	if err != nil {
 		return Only(ctx, err)
 	}

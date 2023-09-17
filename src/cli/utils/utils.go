@@ -22,6 +22,22 @@ import (
 
 var ErrNotYetImplemented = clues.New("not yet implemented")
 
+// GetAccountAndConnectWithOverrides is a wrapper for GetAccountAndConnect
+// that also gets the storage provider and any storage provider specific
+// flag overrides from the command line.
+func GetAccountAndConnectWithOverrides(
+	ctx context.Context,
+	cmd *cobra.Command,
+	pst path.ServiceType,
+) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
+	provider, overrides, err := GetStorageProviderAndOverrides(ctx, cmd)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return GetAccountAndConnect(ctx, pst, provider, overrides)
+}
+
 func GetAccountAndConnect(
 	ctx context.Context,
 	pst path.ServiceType,
@@ -61,15 +77,13 @@ func GetAccountAndConnect(
 
 func AccountConnectAndWriteRepoConfig(
 	ctx context.Context,
+	cmd *cobra.Command,
 	pst path.ServiceType,
-	provider storage.ProviderType,
-	overrides map[string]string,
 ) (repository.Repository, *account.Account, error) {
-	r, stg, acc, opts, err := GetAccountAndConnect(
+	r, stg, acc, opts, err := GetAccountAndConnectWithOverrides(
 		ctx,
-		pst,
-		provider,
-		overrides)
+		cmd,
+		pst)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err

@@ -167,16 +167,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
 	r, acct, err := utils.AccountConnectAndWriteRepoConfig(
 		ctx,
-		path.ExchangeService,
-		provider,
-		overrides)
+		cmd,
+		path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -285,16 +279,10 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
 		ctx,
-		path.ExchangeService,
-		provider,
-		overrides)
+		cmd,
+		path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}

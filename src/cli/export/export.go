@@ -69,16 +69,10 @@ func runExport(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
-	provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cmd)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, _, _, _, err := utils.GetAccountAndConnect(
+	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
 		ctx,
-		sel.PathService(),
-		provider,
-		overrides)
+		cmd,
+		sel.PathService())
 	if err != nil {
 		return Only(ctx, err)
 	}
