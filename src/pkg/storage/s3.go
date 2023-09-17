@@ -109,7 +109,7 @@ func buildS3ConfigFromMap(config map[string]string) (*S3Config, error) {
 	return c, c.validate()
 }
 
-func (c *S3Config) validate() error {
+func (c S3Config) validate() error {
 	check := map[string]string{
 		Bucket: c.Bucket,
 	}
@@ -133,7 +133,7 @@ func s3Overrides(in map[string]string) map[string]string {
 	}
 }
 
-func (c *S3Config) s3ConfigsFromStore(kvg KVStoreGetter) {
+func (c *S3Config) s3ConfigsFromStore(kvg Getter) {
 	c.Bucket = cast.ToString(kvg.Get(BucketNameKey))
 	c.Endpoint = cast.ToString(kvg.Get(EndpointKey))
 	c.Prefix = cast.ToString(kvg.Get(PrefixKey))
@@ -141,7 +141,7 @@ func (c *S3Config) s3ConfigsFromStore(kvg KVStoreGetter) {
 	c.DoNotVerifyTLS = cast.ToBool(kvg.Get(DisableTLSVerificationKey))
 }
 
-func (c *S3Config) s3CredsFromStore(kvg KVStoreGetter) {
+func (c *S3Config) s3CredsFromStore(kvg Getter) {
 	c.AccessKey = cast.ToString(kvg.Get(AccessKey))
 	c.SecretKey = cast.ToString(kvg.Get(SecretAccessKey))
 	c.SessionToken = cast.ToString(kvg.Get(SessionToken))
@@ -150,7 +150,7 @@ func (c *S3Config) s3CredsFromStore(kvg KVStoreGetter) {
 var _ Configurer = &S3Config{}
 
 func (c *S3Config) ApplyConfigOverrides(
-	kvg KVStoreGetter,
+	kvg Getter,
 	readConfigFromStore bool,
 	matchFromConfig bool,
 	overrides map[string]string,
@@ -158,13 +158,8 @@ func (c *S3Config) ApplyConfigOverrides(
 	if readConfigFromStore {
 		c.s3ConfigsFromStore(kvg)
 
-		if b, ok := overrides[Bucket]; ok {
-			overrides[Bucket] = common.NormalizeBucket(b)
-		}
-
-		if p, ok := overrides[Prefix]; ok {
-			overrides[Prefix] = common.NormalizePrefix(p)
-		}
+		overrides[Bucket] = common.NormalizeBucket(overrides[Bucket])
+		overrides[Prefix] = common.NormalizePrefix(overrides[Prefix])
 
 		if matchFromConfig {
 			providerType := cast.ToString(kvg.Get(StorageProviderTypeKey))
@@ -214,7 +209,7 @@ func (c *S3Config) ApplyConfigOverrides(
 var _ WriteConfigToStorer = &S3Config{}
 
 func (c *S3Config) WriteConfigToStore(
-	kvs KVStoreSetter,
+	kvs Setter,
 ) {
 	s3Config := c.normalize()
 

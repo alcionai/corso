@@ -53,9 +53,9 @@ func S3FlagOverrides(cmd *cobra.Command) map[string]string {
 }
 
 func PopulateS3Flags(flagset PopulatedFlags) map[string]string {
-	s3Overrides := make(map[string]string)
-
-	s3Overrides[storage.StorageProviderTypeKey] = storage.ProviderS3.String()
+	s3Overrides := map[string]string{
+		storage.StorageProviderTypeKey: storage.ProviderS3.String(),
+	}
 
 	if _, ok := flagset[AWSAccessKeyFN]; ok {
 		s3Overrides[credentials.AWSAccessKeyID] = AWSAccessKeyFV

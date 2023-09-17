@@ -79,13 +79,11 @@ func (suite *ConfigSuite) TestReadRepoConfigBasic() {
 	)
 
 	const (
-		b      = "read-repo-config-basic-bucket"
-		tID    = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
-		accKey = "aws-test-access-key"
-		secret = "aws-test-secret-key"
-		// intentionally empty so that we don't error out if testing with
-		// local minio s3 server
-		token                  = ""
+		b                      = "read-repo-config-basic-bucket"
+		tID                    = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
+		accKey                 = "aws-test-access-key"
+		secret                 = "aws-test-secret-key"
+		token                  = "aws-test-session-token"
 		passphrase             = "passphrase-test"
 		azureClientID          = "azure-client-id-test"
 		azureSecret            = "azure-secret-test"

@@ -112,18 +112,18 @@ func NewStorageConfig(provider ProviderType) (Configurer, error) {
 	return nil, clues.New("unsupported storage provider: " + provider.String())
 }
 
-type KVStoreGetter interface {
+type Getter interface {
 	Get(key string) any
 }
 
-type KVStoreSetter interface {
+type Setter interface {
 	Set(key string, value any)
 }
 
 // WriteConfigToStorer writes config key value pairs to provided store.
 type WriteConfigToStorer interface {
 	WriteConfigToStore(
-		kvs KVStoreSetter,
+		s Setter,
 	)
 }
 
@@ -134,7 +134,7 @@ type Configurer interface {
 	// from sources like environment variables and flags, and updates the
 	// underlying configuration accordingly.
 	ApplyConfigOverrides(
-		kvg KVStoreGetter,
+		g Getter,
 		readConfigFromStore bool,
 		matchFromConfig bool,
 		overrides map[string]string,
@@ -147,7 +147,7 @@ type Configurer interface {
 // If any value differs from the store value, an error is returned.
 // values in m that aren't stored in the config are ignored.
 func mustMatchConfig(
-	kvg KVStoreGetter,
+	g Getter,
 	tomlMap map[string]string,
 	m map[string]string,
 ) error {
@@ -161,7 +161,7 @@ func mustMatchConfig(
 			continue // m may declare values which aren't stored in the config file
 		}
 
-		vv := cast.ToString(kvg.Get(tomlK))
+		vv := cast.ToString(g.Get(tomlK))
 		if v != vv {
 			return clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
 		}
