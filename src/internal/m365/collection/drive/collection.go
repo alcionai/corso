@@ -198,7 +198,6 @@ func (oc *Collection) Remove(itemID string) bool {
 }
 
 // IsEmpty check if a collection does not contain any items
-// TODO(meain): Should we just have function that returns driveItems?
 func (oc *Collection) IsEmpty() bool {
 	return len(oc.driveItems) == 0
 }

@@ -34,7 +34,6 @@ import (
 const (
 	// CopyBufferSize is the size of the copy buffer for disk
 	// write operations
-	// TODO(meain): tweak this value
 	CopyBufferSize = 5 * 1024 * 1024
 )
 
