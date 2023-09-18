@@ -305,12 +305,12 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		containerID,
 		prevDeltaLink,
 		immutableIDs,
-		idAnd(modifiedTime)...)
+		idAnd(lastModifiedDateTime)...)
 	pager := c.NewMailPager(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd(modifiedTime)...)
+		idAnd(lastModifiedDateTime)...)
 
 	return getAddedAndRemovedItemIDs[models.Messageable](
 		ctx,

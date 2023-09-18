@@ -275,12 +275,12 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		containerID,
 		prevDeltaLink,
 		immutableIDs,
-		idAnd(modifiedTime)...)
+		idAnd(lastModifiedDateTime)...)
 	pager := c.NewContactsPager(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd(modifiedTime)...)
+		idAnd(lastModifiedDateTime)...)
 
 	return getAddedAndRemovedItemIDs[models.Contactable](
 		ctx,

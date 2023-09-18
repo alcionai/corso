@@ -279,7 +279,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd(modifiedTime)...)
+		idAnd(lastModifiedDateTime)...)
 
 	return getAddedAndRemovedItemIDs[models.Eventable](
 		ctx,
