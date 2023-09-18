@@ -25,7 +25,7 @@ func ProduceExportCollections(
 	exportCfg control.ExportConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
-	backupDriveIDNames idname.CacheBuilder,
+	backupDriveIDNames idname.Cacher,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
@@ -51,7 +51,7 @@ func ProduceExportCollections(
 				[]data.RestoreCollection{restoreColl},
 				backupVersion,
 				exportCfg)
-		case path.FilesCategory:
+		case path.LibrariesCategory:
 			drivePath, err := path.ToDrivePath(restoreColl.FullPath())
 			if err != nil {
 				return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
@@ -77,11 +77,11 @@ func ProduceExportCollections(
 			el.AddRecoverable(
 				ctx,
 				clues.New("unsupported category for export").With("category", cat))
+
+			continue
 		}
 
-		if coll != nil {
-			ec = append(ec, coll)
-		}
+		ec = append(ec, coll)
 	}
 
 	return ec, el.Failure()
