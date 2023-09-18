@@ -31,7 +31,7 @@ import (
 const (
 	groupsServiceCommand                 = "groups"
 	teamsServiceCommand                  = "teams"
-	groupsServiceCommandCreateUseSuffix  = "--group <groupsName> | '" + flags.Wildcard + "'"
+	groupsServiceCommandCreateUseSuffix  = "--group <groupName> | '" + flags.Wildcard + "'"
 	groupsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	groupsServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
