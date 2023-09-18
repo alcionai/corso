@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -13,8 +12,6 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -89,10 +86,12 @@ func s3InitCmd() *cobra.Command {
 func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	// s3 values from flags
-	s3Override := S3Overrides(cmd)
-
-	cfg, err := config.GetConfigRepoDetails(ctx, true, false, s3Override)
+	cfg, err := config.GetConfigRepoDetails(
+		ctx,
+		storage.ProviderS3,
+		true,
+		false,
+		flags.S3FlagOverrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -113,10 +112,12 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		opt)
 
-	s3Cfg, err := cfg.Storage.S3Config()
+	sc, err := cfg.Storage.StorageConfig()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
+
+	s3Cfg := sc.(*storage.S3Config)
 
 	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
 		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
@@ -175,10 +176,12 @@ func s3ConnectCmd() *cobra.Command {
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	// s3 values from flags
-	s3Override := S3Overrides(cmd)
-
-	cfg, err := config.GetConfigRepoDetails(ctx, true, true, s3Override)
+	cfg, err := config.GetConfigRepoDetails(
+		ctx,
+		storage.ProviderS3,
+		true,
+		true,
+		flags.S3FlagOverrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -188,10 +191,12 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		repoID = events.RepoIDNotFound
 	}
 
-	s3Cfg, err := cfg.Storage.S3Config()
+	sc, err := cfg.Storage.StorageConfig()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
+
+	s3Cfg := sc.(*storage.S3Config)
 
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
@@ -226,49 +231,4 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func S3Overrides(cmd *cobra.Command) map[string]string {
-	fs := flags.GetPopulatedFlags(cmd)
-	return PopulateS3Flags(fs)
-}
-
-func PopulateS3Flags(flagset flags.PopulatedFlags) map[string]string {
-	s3Overrides := make(map[string]string)
-	s3Overrides[config.AccountProviderTypeKey] = account.ProviderM365.String()
-	s3Overrides[config.StorageProviderTypeKey] = storage.ProviderS3.String()
-
-	if _, ok := flagset[flags.AWSAccessKeyFN]; ok {
-		s3Overrides[credentials.AWSAccessKeyID] = flags.AWSAccessKeyFV
-	}
-
-	if _, ok := flagset[flags.AWSSecretAccessKeyFN]; ok {
-		s3Overrides[credentials.AWSSecretAccessKey] = flags.AWSSecretAccessKeyFV
-	}
-
-	if _, ok := flagset[flags.AWSSessionTokenFN]; ok {
-		s3Overrides[credentials.AWSSessionToken] = flags.AWSSessionTokenFV
-	}
-
-	if _, ok := flagset[flags.BucketFN]; ok {
-		s3Overrides[storage.Bucket] = flags.BucketFV
-	}
-
-	if _, ok := flagset[flags.PrefixFN]; ok {
-		s3Overrides[storage.Prefix] = flags.PrefixFV
-	}
-
-	if _, ok := flagset[flags.DoNotUseTLSFN]; ok {
-		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(flags.DoNotUseTLSFV)
-	}
-
-	if _, ok := flagset[flags.DoNotVerifyTLSFN]; ok {
-		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(flags.DoNotVerifyTLSFV)
-	}
-
-	if _, ok := flagset[flags.EndpointFN]; ok {
-		s3Overrides[storage.Endpoint] = flags.EndpointFV
-	}
-
-	return s3Overrides
 }

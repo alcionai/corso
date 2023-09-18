@@ -155,7 +155,7 @@ jobs:
 
       # AWS creds
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
@@ -226,7 +226,7 @@ jobs:
 
       # AWS creds
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
@@ -377,7 +377,7 @@ jobs:
 
       # AWS creds
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
@@ -491,7 +491,7 @@ jobs:
 
       # I could not find a way to install tree-grepper without nix
       # https://github.com/BrianHicks/tree-grepper/issues/293
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v23
       - uses: cachix/cachix-action@v12
         with:
             name: tree-grepper

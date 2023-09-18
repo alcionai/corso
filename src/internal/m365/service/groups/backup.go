@@ -67,9 +67,14 @@ func ProduceBackupCollections(
 			break
 		}
 
+		catStr := scope.Category().PathType().String()
+		if scope.Category().PathType() == path.ChannelMessagesCategory {
+			catStr = "messages"
+		}
+
 		progressBar := observe.MessageWithCompletion(
 			ctx,
-			observe.Bulletf("%s", scope.Category().PathType()))
+			observe.Bulletf("%s", catStr))
 		defer close(progressBar)
 
 		var dbcs []data.BackupCollection
