@@ -54,8 +54,8 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 
 func NewFilesystemStorage(t tester.TestT) storage.Storage {
 	now := tester.LogTimeOfTest(t)
-	dir := "filesystem_test" + now
-	repoPath := filepath.Join(t.TempDir(), dir)
+	//dir := "filesystem_test" + now
+	repoPath := filepath.Join(t.TempDir(), now)
 
 	err := os.MkdirAll(repoPath, 0700)
 	require.NoError(t, err, "creating filesystem repo", clues.ToCore(err))
@@ -68,8 +68,7 @@ func NewFilesystemStorage(t tester.TestT) storage.Storage {
 			Path: repoPath,
 		},
 		storage.CommonConfig{
-			Corso:       GetAndInsertCorso(""),
-			KopiaCfgDir: t.TempDir(),
+			Corso: GetAndInsertCorso(""),
 		})
 	require.NoError(t, err, "creating storage", clues.ToCore(err))
 

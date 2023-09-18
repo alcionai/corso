@@ -122,3 +122,26 @@ func (suite *FlagUnitSuite) TestAddS3BucketFlags() {
 	err := cmd.Execute()
 	require.NoError(t, err, clues.ToCore(err))
 }
+
+func (suite *FlagUnitSuite) TestAddFilesystemFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{
+		Use: "test",
+		Run: func(cmd *cobra.Command, args []string) {
+			assert.Equal(t, "/tmp/test", flags.FilesystemPathFV, flags.FilesystemPathFN)
+			assert.Equal(t, true, flags.SucceedIfExistsFV, flags.SucceedIfExistsFN)
+		},
+	}
+
+	flags.AddFilesystemFlags(cmd)
+
+	cmd.SetArgs([]string{
+		"test",
+		"--" + flags.FilesystemPathFN, "/tmp/test",
+		"--" + flags.SucceedIfExistsFN,
+	})
+
+	err := cmd.Execute()
+	require.NoError(t, err, clues.ToCore(err))
+}

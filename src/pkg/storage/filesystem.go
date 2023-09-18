@@ -30,7 +30,7 @@ func buildFilesystemConfigFromMap(config map[string]string) (*FilesystemConfig, 
 	return c, c.validate()
 }
 
-func (c *FilesystemConfig) validate() error {
+func (c FilesystemConfig) validate() error {
 	check := map[string]string{
 		FilesystemPath: c.Path,
 	}
@@ -44,8 +44,8 @@ func (c *FilesystemConfig) validate() error {
 	return nil
 }
 
-func (c *FilesystemConfig) fsConfigsFromStore(kvg KVStoreGetter) {
-	c.Path = cast.ToString(kvg.Get(FilesystemPath))
+func (c *FilesystemConfig) fsConfigsFromStore(g Getter) {
+	c.Path = cast.ToString(g.Get(FilesystemPath))
 }
 
 // TODO(pandeyabs): Remove this. It's not adding any value.
@@ -58,22 +58,22 @@ func fsOverrides(in map[string]string) map[string]string {
 var _ Configurer = &FilesystemConfig{}
 
 func (c *FilesystemConfig) ApplyConfigOverrides(
-	kvg KVStoreGetter,
+	g Getter,
 	readConfigFromStore bool,
 	matchFromConfig bool,
 	overrides map[string]string,
 ) error {
 	if readConfigFromStore {
-		c.fsConfigsFromStore(kvg)
+		c.fsConfigsFromStore(g)
 
 		if matchFromConfig {
-			providerType := cast.ToString(kvg.Get(StorageProviderTypeKey))
+			providerType := cast.ToString(g.Get(StorageProviderTypeKey))
 			if providerType != ProviderFilesystem.String() {
 				return clues.New("unsupported storage provider in config file: " + providerType)
 			}
 
 			// This is matching override values from config file.
-			if err := mustMatchConfig(kvg, fsConstToTomlKeyMap, fsOverrides(overrides)); err != nil {
+			if err := mustMatchConfig(g, fsConstToTomlKeyMap, fsOverrides(overrides)); err != nil {
 				return clues.Wrap(err, "verifying storage configs in corso config file")
 			}
 		}
@@ -97,8 +97,8 @@ func (c FilesystemConfig) StringConfig() (map[string]string, error) {
 var _ WriteConfigToStorer = FilesystemConfig{}
 
 func (c FilesystemConfig) WriteConfigToStore(
-	kvs KVStoreSetter,
+	s Setter,
 ) {
-	kvs.Set(StorageProviderTypeKey, ProviderFilesystem.String())
-	kvs.Set(FilesystemPath, c.Path)
+	s.Set(StorageProviderTypeKey, ProviderFilesystem.String())
+	s.Set(FilesystemPath, c.Path)
 }

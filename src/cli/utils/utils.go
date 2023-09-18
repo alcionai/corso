@@ -3,6 +3,8 @@ package utils
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
@@ -251,4 +253,28 @@ func GetStorageProviderAndOverrides(
 	}
 
 	return provider, overrides, nil
+}
+
+func MakeAbsoluteFilePath(p string) (string, error) {
+	if len(p) == 0 {
+		return "", clues.New("empty path")
+	}
+
+	// Special case handling for "~". filepath.Abs will not expand it.
+	// If the path starts with "~", expand it to the user's home directory.
+	if p[0] == '~' {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", clues.Wrap(err, "getting user home directory")
+		}
+
+		p = filepath.Join(homeDir, p[1:])
+	}
+
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", clues.Stack(err)
+	}
+
+	return abs, nil
 }

@@ -10,6 +10,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
+	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -21,10 +22,10 @@ const (
 
 const (
 	fsProviderCmdInitExamples = `# Create a new Corso repository on local or network attached storage
-corso repo init filesystem --path ~/corso-repo`
+corso repo init filesystem --path /tmp/corso-repo`
 
 	fsProviderCmdConnectExamples = `# Connect to a Corso repository on local or network attached storage
-corso repo connect filesystem --path ~/corso-repo`
+corso repo connect filesystem --path /tmp/corso-repo`
 )
 
 func addFilesystemCommands(cmd *cobra.Command) *cobra.Command {
@@ -33,8 +34,6 @@ func addFilesystemCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case initCommand:
 		init := filesystemInitCmd()
-		// TODO(pandeyabs): Enable retention for filesystem repos
-		// flags.AddRetentionConfigFlags(init)
 		c, _ = utils.AddCommand(cmd, init)
 
 	case connectCommand:
@@ -67,6 +66,15 @@ func filesystemInitCmd() *cobra.Command {
 // initializes a filesystem repo.
 func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
+	overrides := flags.FilesystemFlagOverrides(cmd)
+
+	// TODO(pandeyabs): Move filepath conversion to FilesystemConfig scope.
+	abs, err := utils.MakeAbsoluteFilePath(overrides[flags.FilesystemPathFN])
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "getting absolute repo path"))
+	}
+
+	overrides[flags.FilesystemPathFN] = abs
 
 	cfg, err := config.GetConfigRepoDetails(
 		ctx,
@@ -79,11 +87,8 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	opt := utils.ControlWithConfig(cfg)
-
-	retentionOpts, err := utils.MakeRetentionOpts(cmd)
-	if err != nil {
-		return Only(ctx, err)
-	}
+	// Retention is not supported for filesystem repos.
+	retention := ctrlRepo.Retention{}
 
 	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
 	utils.SendStartCorsoEvent(
@@ -111,7 +116,7 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 		cfg.Account,
 		cfg.Storage,
 		opt,
-		retentionOpts)
+		retention)
 	if err != nil {
 		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
@@ -150,13 +155,22 @@ func filesystemConnectCmd() *cobra.Command {
 // connects to an existing filesystem repo.
 func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
+	overrides := flags.FilesystemFlagOverrides(cmd)
+
+	// TODO(pandeyabs): Move filepath conversion to FilesystemConfig scope.
+	abs, err := utils.MakeAbsoluteFilePath(overrides[flags.FilesystemPathFN])
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "getting absolute repo path"))
+	}
+
+	overrides[flags.FilesystemPathFN] = abs
 
 	cfg, err := config.GetConfigRepoDetails(
 		ctx,
 		storage.ProviderFilesystem,
 		true,
 		true,
-		flags.FilesystemFlagOverrides(cmd))
+		overrides)
 	if err != nil {
 		return Only(ctx, err)
 	}
