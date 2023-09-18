@@ -52,12 +52,12 @@ func checkerCommand() (*cobra.Command, error) {
 		"Name of bucket to check")
 	fs.StringVar(
 		&f.bucketPrefix,
-		"bucket-prefix",
+		"prefix",
 		"",
 		"Prefix to add to all object lookups")
 	fs.StringSliceVar(
 		&f.prefixes,
-		"prefix",
+		"object-prefix",
 		nil,
 		"Set of object prefixes to check. Pass multiple times for multiple prefixes")
 
@@ -187,15 +187,22 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 		storage.Prefix: f.bucketPrefix,
 	}
 
-	repoDetails, err := config.GetConfigRepoDetails(ctx, false, false, overrides)
+	repoDetails, err := config.GetConfigRepoDetails(
+		ctx,
+		storage.ProviderS3,
+		false,
+		false,
+		overrides)
 	if err != nil {
 		return clues.Wrap(err, "getting storage config")
 	}
 
-	cfg, err := repoDetails.Storage.S3Config()
+	sc, err := repoDetails.Storage.StorageConfig()
 	if err != nil {
 		return clues.Wrap(err, "getting S3 config")
 	}
+
+	cfg := sc.(*storage.S3Config)
 
 	endpoint := defaultS3Endpoint
 	if len(cfg.Endpoint) > 0 {

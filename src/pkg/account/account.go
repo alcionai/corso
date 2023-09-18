@@ -19,6 +19,14 @@ var (
 	errMissingRequired = clues.New("missing required storage configuration")
 )
 
+const (
+	// M365 config
+	AccountProviderTypeKey = "account_provider"
+	AzureTenantIDKey       = "azure_tenantid"
+	AzureClientID          = "azure_client_id"
+	AzureSecret            = "azure_secret"
+)
+
 // Account defines an account provider, along with any credentials
 // and identifiers required to set up or communicate with that provider.
 type Account struct {

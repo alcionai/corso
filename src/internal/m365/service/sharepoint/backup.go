@@ -52,7 +52,7 @@ func ProduceBackupCollections(
 
 		progressBar := observe.MessageWithCompletion(
 			ctx,
-			observe.Bulletf("%s", scope.Category().PathType()))
+			observe.Bulletf("%s", scope.Category().PathType().HumanString()))
 		defer close(progressBar)
 
 		var spcs []data.BackupCollection
@@ -80,7 +80,11 @@ func ProduceBackupCollections(
 			spcs, canUsePreviousBackup, err = site.CollectLibraries(
 				ctx,
 				bpc,
-				drive.NewLibraryBackupHandler(ac.Drives(), scope, bpc.Selector.PathService()),
+				drive.NewLibraryBackupHandler(
+					ac.Drives(),
+					bpc.ProtectedResource.ID(),
+					scope,
+					bpc.Selector.PathService()),
 				creds.AzureTenantID,
 				ssmb,
 				su,

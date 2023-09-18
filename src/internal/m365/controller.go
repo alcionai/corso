@@ -59,7 +59,6 @@ type Controller struct {
 func NewController(
 	ctx context.Context,
 	acct account.Account,
-	rc resource.Category,
 	pst path.ServiceType,
 	co control.Options,
 ) (*Controller, error) {
@@ -73,6 +72,17 @@ func NewController(
 	ac, err := api.NewClient(creds, co)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+	}
+
+	rc := resource.UnknownResource
+
+	switch pst {
+	case path.ExchangeService, path.OneDriveService:
+		rc = resource.Users
+	case path.GroupsService:
+		rc = resource.Groups
+	case path.SharePointService:
+		rc = resource.Sites
 	}
 
 	rCli, err := getResourceClient(rc, ac)
@@ -151,6 +161,10 @@ func (ctrl *Controller) incrementAwaitingMessages() {
 }
 
 func (ctrl *Controller) CacheItemInfo(dii details.ItemInfo) {
+	if dii.Groups != nil {
+		ctrl.backupDriveIDNames.Add(dii.Groups.DriveID, dii.Groups.DriveName)
+	}
+
 	if dii.SharePoint != nil {
 		ctrl.backupDriveIDNames.Add(dii.SharePoint.DriveID, dii.SharePoint.DriveName)
 	}

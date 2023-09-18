@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -30,31 +30,31 @@ import (
 
 const (
 	groupsServiceCommand                 = "groups"
+	teamsServiceCommand                  = "teams"
 	groupsServiceCommandCreateUseSuffix  = "--group <groupsName> | '" + flags.Wildcard + "'"
 	groupsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	groupsServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
-// TODO: correct examples
 const (
-	groupsServiceCommandCreateExamples = `# Backup all Groups data for Alice
-corso backup create groups --group alice@example.com 
+	groupsServiceCommandCreateExamples = `# Backup all Groups and Teams data for the Marketing group
+corso backup create groups --group Marketing
 
-# Backup only Groups contacts for Alice and Bob
-corso backup create groups --group engineering,sales --data contacts
+# Backup only Teams conversations messages
+corso backup create groups --group Marketing --data messages
 
-# Backup all Groups data for all M365 users 
+# Backup all Groups and Teams data for all groups
 corso backup create groups --group '*'`
 
 	groupsServiceCommandDeleteExamples = `# Delete Groups backup with ID 1234abcd-12ab-cd34-56de-1234abcd
 corso backup delete groups --backup 1234abcd-12ab-cd34-56de-1234abcd`
 
-	groupsServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
+	groupsServiceCommandDetailsExamples = `# Explore items in Marketing's latest backup (1234abcd...)
 corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd
 
-# Explore calendar events occurring after start of 2022
+# Explore Marketing messages posted after the start of 2022
 corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --event-starts-after 2022-01-01T00:00:00`
+    --last-message-reply-after 2022-01-01T00:00:00`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
@@ -74,12 +74,14 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		flags.AddGroupFlag(c)
-		flags.AddDataFlag(c, []string{dataLibraries}, false)
+		flags.AddDataFlag(c, []string{flags.DataLibraries, flags.DataMessages}, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
+		flags.AddDisableIncrementalsFlag(c)
+		flags.AddForceItemDataDownloadFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreReleaseCommand())
@@ -105,9 +107,11 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddBackupIDFlag(c, true)
+		flags.AddGroupDetailsAndRestoreFlags(c)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
+		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreReleaseCommand())
@@ -132,10 +136,11 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 // `corso backup create groups [<flag>...]`
 func groupsCreateCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   groupsServiceCommand,
-		Short: "Backup M365 Group service data",
-		RunE:  createGroupsCmd,
-		Args:  cobra.NoArgs,
+		Use:     groupsServiceCommand,
+		Aliases: []string{teamsServiceCommand},
+		Short:   "Backup M365 Group service data",
+		RunE:    createGroupsCmd,
+		Args:    cobra.NoArgs,
 	}
 }
 
@@ -151,7 +156,10 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.GroupsService, repo.S3Overrides(cmd))
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx,
+		cmd,
+		path.GroupsService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -176,7 +184,7 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 	return runBackups(
 		ctx,
 		r,
-		"Group", "group",
+		"Group",
 		selectorSet,
 		ins)
 }
@@ -223,7 +231,10 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeGroupsOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.GroupsService, repo.S3Overrides(cmd))
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
+		ctx,
+		cmd,
+		path.GroupsService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -311,23 +322,24 @@ func validateGroupsBackupCreateFlags(groups, cats []string) error {
 		return clues.New(
 			"requires one or more --" +
 				flags.GroupFN + " ids, or the wildcard --" +
-				flags.GroupFN + " *",
-		)
+				flags.GroupFN + " *")
 	}
 
-	// TODO(meain)
-	// for _, d := range cats {
-	// 	if d != dataLibraries {
-	// 		return clues.New(
-	// 			d + " is an unrecognized data type; only  " + dataLibraries + " is supported"
-	// 		)
-	// 	}
-	// }
+	msg := fmt.Sprintf(
+		" is an unrecognized data type; only %s and %s are supported",
+		flags.DataLibraries, flags.DataMessages)
+
+	allowedCats := utils.GroupsAllowedCategories()
+
+	for _, d := range cats {
+		if _, ok := allowedCats[d]; !ok {
+			return clues.New(d + msg)
+		}
+	}
 
 	return nil
 }
 
-// TODO: users might specify a data type, this only supports AllData().
 func groupsBackupCreateSelectors(
 	ctx context.Context,
 	ins idname.Cacher,
@@ -339,27 +351,9 @@ func groupsBackupCreateSelectors(
 
 	sel := selectors.NewGroupsBackup(slices.Clone(group))
 
-	return addGroupsCategories(sel, cats)
+	return utils.AddGroupsCategories(sel, cats)
 }
 
 func includeAllGroupWithCategories(ins idname.Cacher, categories []string) *selectors.GroupsBackup {
-	return addGroupsCategories(selectors.NewGroupsBackup(ins.IDs()), categories)
-}
-
-func addGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.GroupsBackup {
-	if len(cats) == 0 {
-		sel.Include(sel.AllData())
-	}
-
-	// TODO(meain): handle filtering
-	// for _, d := range cats {
-	// 	switch d {
-	// 	case dataLibraries:
-	// 		sel.Include(sel.LibraryFolders(selectors.Any()))
-	// 	case dataPages:
-	// 		sel.Include(sel.Pages(selectors.Any()))
-	// 	}
-	// }
-
-	return sel
+	return utils.AddGroupsCategories(selectors.NewGroupsBackup(ins.IDs()), categories)
 }

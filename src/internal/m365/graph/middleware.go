@@ -357,7 +357,7 @@ func (mw RetryMiddleware) getRetryDelay(
 		retryAfter = resp.Header.Get(retryAfterHeader)
 	}
 
-	if retryAfter != "" {
+	if len(retryAfter) > 0 {
 		retryAfterDelay, err := strconv.ParseFloat(retryAfter, 64)
 		if err == nil {
 			return time.Duration(retryAfterDelay) * time.Second

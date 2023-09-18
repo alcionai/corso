@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -29,7 +30,7 @@ func CreateCollections(
 	handlers map[path.CategoryType]backupHandler,
 	tenantID string,
 	scope selectors.ExchangeScope,
-	dps DeltaPaths,
+	dps metadata.DeltaPaths,
 	su support.StatusUpdater,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
@@ -52,7 +53,7 @@ func CreateCollections(
 
 	foldersComplete := observe.MessageWithCompletion(
 		ctx,
-		observe.Bulletf("%s", qp.Category))
+		observe.Bulletf("%s", qp.Category.HumanString()))
 	defer close(foldersComplete)
 
 	rootFolder, cc := handler.NewContainerCache(bpc.ProtectedResource.ID())
@@ -98,7 +99,7 @@ func populateCollections(
 	statusUpdater support.StatusUpdater,
 	resolver graph.ContainerResolver,
 	scope selectors.ExchangeScope,
-	dps DeltaPaths,
+	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
@@ -124,7 +125,6 @@ func populateCollections(
 		}
 
 		cID := ptr.Val(c.GetId())
-		delete(tombstones, cID)
 
 		var (
 			err         error
@@ -142,11 +142,13 @@ func populateCollections(
 				})
 		)
 
-		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		// Only create a collection if the path matches the scope.
+		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		if !ok {
 			continue
 		}
+
+		delete(tombstones, cID)
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
@@ -158,7 +160,7 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, removed, newDelta, err := bh.itemEnumerator().
+		added, _, removed, newDelta, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
@@ -187,19 +189,19 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			NewBaseCollection(
+				currPath,
+				prevPath,
+				locPath,
+				ctrlOpts,
+				newDelta.Reset),
 			qp.ProtectedResource.ID(),
-			currPath,
-			prevPath,
-			locPath,
-			category,
 			bh.itemHandler(),
-			statusUpdater,
-			ctrlOpts,
-			newDelta.Reset)
+			statusUpdater)
 
 		collections[cID] = &edc
 
-		for _, add := range added {
+		for add := range added {
 			edc.added[add] = struct{}{}
 		}
 
@@ -249,15 +251,15 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			NewBaseCollection(
+				nil, // marks the collection as deleted
+				prevPath,
+				nil, // tombstones don't need a location
+				ctrlOpts,
+				false),
 			qp.ProtectedResource.ID(),
-			nil, // marks the collection as deleted
-			prevPath,
-			nil, // tombstones don't need a location
-			category,
 			bh.itemHandler(),
-			statusUpdater,
-			ctrlOpts,
-			false)
+			statusUpdater)
 		collections[id] = &edc
 	}
 
@@ -266,14 +268,21 @@ func populateCollections(
 		"num_paths_entries", len(currPaths),
 		"num_deltas_entries", len(deltaURLs))
 
-	col, err := graph.MakeMetadataCollection(
+	pathPrefix, err := path.BuildMetadata(
 		qp.TenantID,
 		qp.ProtectedResource.ID(),
 		path.ExchangeService,
 		qp.Category,
+		false)
+	if err != nil {
+		return nil, clues.Wrap(err, "making metadata path")
+	}
+
+	col, err := graph.MakeMetadataCollection(
+		pathPrefix,
 		[]graph.MetadataCollectionEntry{
-			graph.NewMetadataEntry(graph.PreviousPathFileName, currPaths),
-			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
+			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
+			graph.NewMetadataEntry(metadata.DeltaURLsFileName, deltaURLs),
 		},
 		statusUpdater)
 	if err != nil {
@@ -288,7 +297,7 @@ func populateCollections(
 // produces a set of id:path pairs from the deltapaths map.
 // Each entry in the set will, if not removed, produce a collection
 // that will delete the tombstone by path.
-func makeTombstones(dps DeltaPaths) map[string]string {
+func makeTombstones(dps metadata.DeltaPaths) map[string]string {
 	r := make(map[string]string, len(dps))
 
 	for id, v := range dps {
@@ -327,8 +336,8 @@ func includeContainer(
 	)
 
 	// Clause ensures that DefaultContactFolder is inspected properly
-	if category == path.ContactsCategory && ptr.Val(c.GetDisplayName()) == api.DefaultContacts {
-		loc = loc.Append(api.DefaultContacts)
+	if category == path.ContactsCategory && len(loc.Elements()) == 0 {
+		loc = loc.Append(ptr.Val(c.GetDisplayName()))
 	}
 
 	dirPath, err := pb.ToDataLayerExchangePathForCategory(
@@ -373,8 +382,7 @@ func includeContainer(
 	logger.Ctx(ctx).With(
 		"included", ok,
 		"scope", scope,
-		"matches_input", directory,
-	).Debug("backup folder selection filter")
+		"matches_input", directory).Debug("backup folder selection filter")
 
 	return dirPath, loc, ok
 }

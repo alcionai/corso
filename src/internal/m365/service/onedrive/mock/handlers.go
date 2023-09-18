@@ -28,15 +28,19 @@ type BackupHandler struct {
 	PathPrefixFn  pathPrefixer
 	PathPrefixErr error
 
+	MetadataPathPrefixFn  metadataPathPrefixer
+	MetadataPathPrefixErr error
+
 	CanonPathFn  canonPather
 	CanonPathErr error
 
-	Service  path.ServiceType
-	Category path.CategoryType
+	ResourceOwner string
+	Service       path.ServiceType
+	Category      path.CategoryType
 
-	DrivePagerV api.DrivePager
+	DrivePagerV api.Pager[models.Driveable]
 	// driveID -> itemPager
-	ItemPagerV map[string]api.DriveItemDeltaEnumerator
+	ItemPagerV map[string]api.DeltaPager[models.DriveItemable]
 
 	LocationIDFn locationIDer
 
@@ -45,44 +49,48 @@ type BackupHandler struct {
 	GetErrs  []error
 }
 
-func DefaultOneDriveBH() *BackupHandler {
+func DefaultOneDriveBH(resourceOwner string) *BackupHandler {
 	return &BackupHandler{
 		ItemInfo: details.ItemInfo{
 			OneDrive:  &details.OneDriveInfo{},
 			Extension: &details.ExtensionData{},
 		},
-		GI:           GetsItem{Err: clues.New("not defined")},
-		GIP:          GetsItemPermission{Err: clues.New("not defined")},
-		PathPrefixFn: defaultOneDrivePathPrefixer,
-		CanonPathFn:  defaultOneDriveCanonPather,
-		Service:      path.OneDriveService,
-		Category:     path.FilesCategory,
-		LocationIDFn: defaultOneDriveLocationIDer,
-		GetResps:     []*http.Response{nil},
-		GetErrs:      []error{clues.New("not defined")},
+		GI:                   GetsItem{Err: clues.New("not defined")},
+		GIP:                  GetsItemPermission{Err: clues.New("not defined")},
+		PathPrefixFn:         defaultOneDrivePathPrefixer,
+		MetadataPathPrefixFn: defaultOneDriveMetadataPathPrefixer,
+		CanonPathFn:          defaultOneDriveCanonPather,
+		ResourceOwner:        resourceOwner,
+		Service:              path.OneDriveService,
+		Category:             path.FilesCategory,
+		LocationIDFn:         defaultOneDriveLocationIDer,
+		GetResps:             []*http.Response{nil},
+		GetErrs:              []error{clues.New("not defined")},
 	}
 }
 
-func DefaultSharePointBH() *BackupHandler {
+func DefaultSharePointBH(resourceOwner string) *BackupHandler {
 	return &BackupHandler{
 		ItemInfo: details.ItemInfo{
 			SharePoint: &details.SharePointInfo{},
 			Extension:  &details.ExtensionData{},
 		},
-		GI:           GetsItem{Err: clues.New("not defined")},
-		GIP:          GetsItemPermission{Err: clues.New("not defined")},
-		PathPrefixFn: defaultSharePointPathPrefixer,
-		CanonPathFn:  defaultSharePointCanonPather,
-		Service:      path.SharePointService,
-		Category:     path.LibrariesCategory,
-		LocationIDFn: defaultSharePointLocationIDer,
-		GetResps:     []*http.Response{nil},
-		GetErrs:      []error{clues.New("not defined")},
+		GI:                   GetsItem{Err: clues.New("not defined")},
+		GIP:                  GetsItemPermission{Err: clues.New("not defined")},
+		PathPrefixFn:         defaultSharePointPathPrefixer,
+		MetadataPathPrefixFn: defaultSharePointMetadataPathPrefixer,
+		CanonPathFn:          defaultSharePointCanonPather,
+		ResourceOwner:        resourceOwner,
+		Service:              path.SharePointService,
+		Category:             path.LibrariesCategory,
+		LocationIDFn:         defaultSharePointLocationIDer,
+		GetResps:             []*http.Response{nil},
+		GetErrs:              []error{clues.New("not defined")},
 	}
 }
 
-func (h BackupHandler) PathPrefix(tID, ro, driveID string) (path.Path, error) {
-	pp, err := h.PathPrefixFn(tID, ro, driveID)
+func (h BackupHandler) PathPrefix(tID, driveID string) (path.Path, error) {
+	pp, err := h.PathPrefixFn(tID, h.ResourceOwner, driveID)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +98,17 @@ func (h BackupHandler) PathPrefix(tID, ro, driveID string) (path.Path, error) {
 	return pp, h.PathPrefixErr
 }
 
-func (h BackupHandler) CanonicalPath(pb *path.Builder, tID, ro string) (path.Path, error) {
-	cp, err := h.CanonPathFn(pb, tID, ro)
+func (h BackupHandler) MetadataPathPrefix(tID string) (path.Path, error) {
+	pp, err := h.MetadataPathPrefixFn(tID, h.ResourceOwner)
+	if err != nil {
+		return nil, err
+	}
+
+	return pp, h.PathPrefixErr
+}
+
+func (h BackupHandler) CanonicalPath(pb *path.Builder, tID string) (path.Path, error) {
+	cp, err := h.CanonPathFn(pb, tID, h.ResourceOwner)
 	if err != nil {
 		return nil, err
 	}
@@ -103,11 +120,11 @@ func (h BackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
 	return h.Service, h.Category
 }
 
-func (h BackupHandler) NewDrivePager(string, []string) api.DrivePager {
+func (h BackupHandler) NewDrivePager(string, []string) api.Pager[models.Driveable] {
 	return h.DrivePagerV
 }
 
-func (h BackupHandler) NewItemPager(driveID string, _ string, _ []string) api.DriveItemDeltaEnumerator {
+func (h BackupHandler) NewItemPager(driveID string, _ string, _ []string) api.DeltaPager[models.DriveItemable] {
 	return h.ItemPagerV[driveID]
 }
 
@@ -156,7 +173,10 @@ var defaultSharePointCanonPather = func(pb *path.Builder, tID, ro string) (path.
 	return pb.ToDataLayerSharePointPath(tID, ro, path.LibrariesCategory, false)
 }
 
-type pathPrefixer func(tID, ro, driveID string) (path.Path, error)
+type (
+	pathPrefixer         func(tID, ro, driveID string) (path.Path, error)
+	metadataPathPrefixer func(tID, ro string) (path.Path, error)
+)
 
 var defaultOneDrivePathPrefixer = func(tID, ro, driveID string) (path.Path, error) {
 	return path.Build(
@@ -170,6 +190,15 @@ var defaultOneDrivePathPrefixer = func(tID, ro, driveID string) (path.Path, erro
 		odConsts.RootPathDir)
 }
 
+var defaultOneDriveMetadataPathPrefixer = func(tID, ro string) (path.Path, error) {
+	return path.BuildMetadata(
+		tID,
+		ro,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+}
+
 var defaultSharePointPathPrefixer = func(tID, ro, driveID string) (path.Path, error) {
 	return path.Build(
 		tID,
@@ -180,6 +209,15 @@ var defaultSharePointPathPrefixer = func(tID, ro, driveID string) (path.Path, er
 		odConsts.DrivesPathDir,
 		driveID,
 		odConsts.RootPathDir)
+}
+
+var defaultSharePointMetadataPathPrefixer = func(tID, ro string) (path.Path, error) {
+	return path.BuildMetadata(
+		tID,
+		ro,
+		path.SharePointService,
+		path.LibrariesCategory,
+		false)
 }
 
 type locationIDer func(string, ...string) details.LocationIDer
@@ -249,7 +287,7 @@ type RestoreHandler struct {
 	PostItemResp   models.DriveItemable
 	PostItemErr    error
 
-	DrivePagerV api.DrivePager
+	DrivePagerV api.Pager[models.Driveable]
 
 	PostDriveResp models.Driveable
 	PostDriveErr  error
@@ -264,7 +302,7 @@ func (h RestoreHandler) PostDrive(
 	return h.PostDriveResp, h.PostDriveErr
 }
 
-func (h RestoreHandler) NewDrivePager(string, []string) api.DrivePager {
+func (h RestoreHandler) NewDrivePager(string, []string) api.Pager[models.Driveable] {
 	return h.DrivePagerV
 }
 

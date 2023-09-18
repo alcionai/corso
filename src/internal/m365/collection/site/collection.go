@@ -149,8 +149,8 @@ func (sd Item) Deleted() bool {
 	return sd.deleted
 }
 
-func (sd *Item) Info() details.ItemInfo {
-	return details.ItemInfo{SharePoint: sd.info}
+func (sd *Item) Info() (details.ItemInfo, error) {
+	return details.ItemInfo{SharePoint: sd.info}, nil
 }
 
 func (sd *Item) ModTime() time.Time {
@@ -196,7 +196,7 @@ func (sc *Collection) runPopulate(
 	// TODO: Insert correct ID for CollectionProgress
 	colProgress := observe.CollectionProgress(
 		ctx,
-		sc.fullPath.Category().String(),
+		sc.fullPath.Category().HumanString(),
 		sc.fullPath.Folders())
 	defer close(colProgress)
 
@@ -227,7 +227,7 @@ func (sc *Collection) retrieveLists(
 	lists, err := loadSiteLists(
 		ctx,
 		sc.client.Stable,
-		sc.fullPath.ResourceOwner(),
+		sc.fullPath.ProtectedResource(),
 		sc.jobs,
 		errs)
 	if err != nil {
@@ -290,14 +290,14 @@ func (sc *Collection) retrievePages(
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
-	parent, err := as.GetByID(ctx, sc.fullPath.ResourceOwner())
+	parent, err := as.GetByID(ctx, sc.fullPath.ProtectedResource())
 	if err != nil {
 		return metrics, err
 	}
 
 	root := ptr.Val(parent.GetWebUrl())
 
-	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ResourceOwner(), sc.jobs, errs)
+	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ProtectedResource(), sc.jobs, errs)
 	if err != nil {
 		return metrics, err
 	}

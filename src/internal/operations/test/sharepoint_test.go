@@ -15,7 +15,6 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -81,11 +80,11 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		suite,
 		suite.its.site.ID,
 		suite.its.user.ID,
-		resource.Sites,
 		path.SharePointService,
 		path.LibrariesCategory,
 		ic,
 		gtdi,
+		nil,
 		grh,
 		true)
 }
@@ -226,7 +225,8 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointAltern
 		suite.its.ac,
 		sel.Selector,
 		suite.its.site,
-		suite.its.secondarySite)
+		suite.its.secondarySite,
+		suite.its.secondarySite.ID)
 }
 
 func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDeletedDrives() {
@@ -305,7 +305,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		md, err = graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Patch(ctx, patchBody, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
 
@@ -330,9 +330,9 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		resp, err := graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Items().
-			ByDriveItemId(rootFolderID).
+			ByDriveItemIdString(rootFolderID).
 			Children().
 			Get(ctx, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
@@ -356,7 +356,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		err = graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Delete(ctx, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
 
@@ -383,7 +383,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			Drives().
 			NewSiteDrivePager(suite.its.site.ID, []string{"id", "name"})
 
-		drives, err := api.GetAllDrives(ctx, pgr, false, -1)
+		drives, err := api.GetAllDrives(ctx, pgr)
 		require.NoError(t, err, clues.ToCore(err))
 
 		var created models.Driveable
@@ -407,9 +407,9 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		resp, err := graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Items().
-			ByDriveItemId(rootFolderID).
+			ByDriveItemIdString(rootFolderID).
 			Children().
 			Get(ctx, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
@@ -450,9 +450,9 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 
 		resp, err := graphClient.
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Items().
-			ByDriveItemId(rootFolderID).
+			ByDriveItemIdString(rootFolderID).
 			Children().
 			Get(ctx, nil)
 		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))

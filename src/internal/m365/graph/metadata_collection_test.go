@@ -61,8 +61,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		t,
 		len(itemNames),
 		len(itemData),
-		"Requires same number of items and data",
-	)
+		"Requires same number of items and data")
 
 	items := []MetadataItem{}
 
@@ -85,8 +84,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		func(c *support.ControllerOperationStatus) {
 			assert.Equal(t, len(itemNames), c.Metrics.Objects)
 			assert.Equal(t, len(itemNames), c.Metrics.Successes)
-		},
-	)
+		})
 
 	gotData := [][]byte{}
 	gotNames := []string{}
@@ -116,6 +114,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 		cat             path.CategoryType
 		metadata        MetadataCollectionEntry
 		collectionCheck assert.ValueAssertionFunc
+		pathPrefixCheck assert.ErrorAssertionFunc
 		errCheck        assert.ErrorAssertionFunc
 	}{
 		{
@@ -124,6 +123,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 			cat:             path.EmailCategory,
 			metadata:        NewMetadataEntry("", nil),
 			collectionCheck: assert.Nil,
+			pathPrefixCheck: assert.NoError,
 			errCheck:        assert.Error,
 		},
 		{
@@ -137,6 +137,7 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 					"hola":  "mundo",
 				}),
 			collectionCheck: assert.NotNil,
+			pathPrefixCheck: assert.NoError,
 			errCheck:        assert.NoError,
 		},
 		{
@@ -150,7 +151,8 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 					"hola":  "mundo",
 				}),
 			collectionCheck: assert.Nil,
-			errCheck:        assert.Error,
+			pathPrefixCheck: assert.Error,
+			errCheck:        assert.NoError,
 		},
 	}
 
@@ -161,11 +163,19 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			col, err := MakeMetadataCollection(
+			pathPrefix, err := path.BuildMetadata(
 				tenant,
 				user,
 				test.service,
 				test.cat,
+				false)
+			test.pathPrefixCheck(t, err, "path prefix")
+			if err != nil {
+				return
+			}
+
+			col, err := MakeMetadataCollection(
+				pathPrefix,
 				[]MetadataCollectionEntry{test.metadata},
 				func(*support.ControllerOperationStatus) {})
 

@@ -351,15 +351,27 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		return &res
 	}
 
-	backupAssist := func(protectedResource string, b *backup.Backup) *backup.Backup {
+	backupWithResource := func(protectedResource string, isAssist bool, b *backup.Backup) *backup.Backup {
 		res := *b
 		res.ProtectedResourceID = protectedResource
+
+		t := model.MergeBackup
+		if isAssist {
+			t = model.AssistBackup
+		}
 
 		if res.Tags == nil {
 			res.Tags = map[string]string{}
 		}
 
-		res.Tags[model.BackupTypeTag] = model.AssistBackup
+		res.Tags[model.BackupTypeTag] = t
+
+		return &res
+	}
+
+	backupWithLegacyResource := func(protectedResource string, b *backup.Backup) *backup.Backup {
+		res := *b
+		res.ResourceOwnerID = protectedResource
 
 		return &res
 	}
@@ -646,8 +658,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
 			},
 			time:      baseTime,
 			buffer:    24 * time.Hour,
@@ -655,8 +667,10 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		},
 		{
 			// Test that an assist base that has the same Reasons as a newer assist
-			// base is garbage collected when it's outside the buffer period.
-			name: "AssistBases NotYoungest CausesCleanup",
+			// base is garbage collected when it's outside the buffer period. Also
+			// check the most recent assist base isn't garbage collected if it's
+			// younger than the most recent merge base.
+			name: "AssistAndMergeBases MixedAges CausesCleanup",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
@@ -677,28 +691,60 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", false, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
 			},
 			expectDeleteIDs: []manifest.ID{
 				snapCurrent().ID,
 				deetsCurrent().ID,
 				manifest.ID(bupCurrent().ModelStoreID),
-				snapCurrent2().ID,
-				deetsCurrent2().ID,
-				manifest.ID(bupCurrent2().ModelStoreID),
 			},
 			time:      baseTime.Add(48 * time.Hour),
 			buffer:    24 * time.Hour,
 			expectErr: assert.NoError,
 		},
 		{
-			// Test that the most recent assist base is not garbage collected even if
-			// there's a newer merge base that has the same Reasons as the assist
-			// base. Also ensure assist bases with the same Reasons that are older
-			// than the newest assist base are still garbage collected.
-			name: "AssistBasesAndMergeBase NotYoungest CausesCleanupForAssistBase",
+			// Test that an assist base that has the same Reasons as a newer merge
+			// base but the merge base is from an older version of corso for some
+			// reason doesn't cause the assist base to be garbage collected. This is
+			// not ideal, but some older versions of corso didn't even populate the
+			// resource owner ID.
+			//
+			// Worst case, the assist base will be cleaned up when the user upgrades
+			// corso and generates either a new assist base or merge base with the
+			// same reason.
+			name: "AssistAndLegacyMergeBases NotYoungest Noops",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+			},
+			backups: []backupRes{
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithLegacyResource("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+			},
+			time:      baseTime.Add(48 * time.Hour),
+			buffer:    24 * time.Hour,
+			expectErr: assert.NoError,
+		},
+		{
+			// Test that an assist base that has the same Reasons as a newer merge
+			// base but the merge base is from an older version of corso for some
+			// reason and an even newer merge base from a current version of corso
+			// causes the assist base to be garbage collected.
+			//
+			// This also tests that bases without a merge or assist tag are not
+			// garbage collected as an assist base.
+			name: "AssistAndLegacyAndCurrentMergeBases NotYoungest CausesCleanup",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
@@ -719,9 +765,46 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
-				{bup: backupWithTime(baseTime.Add(time.Minute), bupCurrent3())},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithLegacyResource("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", false, backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
+			},
+			time:   baseTime.Add(48 * time.Hour),
+			buffer: 24 * time.Hour,
+			expectDeleteIDs: []manifest.ID{
+				snapCurrent().ID,
+				deetsCurrent().ID,
+				manifest.ID(bupCurrent().ModelStoreID),
+			},
+			expectErr: assert.NoError,
+		},
+		{
+			// Test that the most recent assist base is garbage collected if there's a
+			// newer merge base that has the same Reasons as the assist base.
+			name: "AssistBasesAndMergeBases NotYoungest CausesCleanupForAssistBase",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Minute), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent2()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent3()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent3()),
+			},
+			backups: []backupRes{
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", false, backupWithTime(baseTime.Add(time.Minute), bupCurrent2()))},
+				{bup: backupWithResource("ro", false, backupWithTime(baseTime.Add(-time.Second), bupCurrent3()))},
 			},
 			expectDeleteIDs: []manifest.ID{
 				snapCurrent().ID,
@@ -751,8 +834,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
 			},
 			time:      baseTime.Add(48 * time.Hour),
 			buffer:    24 * time.Hour,
@@ -778,8 +861,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro1", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro2", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro1", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro2", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
 			},
 			time:      baseTime.Add(48 * time.Hour),
 			buffer:    24 * time.Hour,
@@ -805,8 +888,8 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
 			},
 			time:      baseTime.Add(48 * time.Hour),
 			buffer:    24 * time.Hour,
@@ -838,9 +921,9 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
 			},
 			backups: []backupRes{
-				{bup: backupAssist("ro", backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
-				{bup: backupAssist("ro", backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
 			},
 			time:   baseTime.Add(48 * time.Hour),
 			buffer: 24 * time.Hour,

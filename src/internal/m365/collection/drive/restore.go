@@ -130,7 +130,8 @@ func RestoreCollection(
 		dc.FullPath(),
 		colMeta,
 		caches,
-		rcc.RestoreConfig.IncludePermissions)
+		rcc.RestoreConfig.IncludePermissions,
+		errs)
 	if err != nil {
 		return metrics, clues.Wrap(err, "creating folders for restore")
 	}
@@ -211,7 +212,8 @@ func RestoreCollection(
 					caches,
 					itemData,
 					itemPath,
-					ctr)
+					ctr,
+					errs)
 
 				// skipped items don't get counted, but they can error
 				if !skipped {
@@ -260,6 +262,7 @@ func restoreItem(
 	itemData data.Item,
 	itemPath path.Path,
 	ctr *count.Bus,
+	errs *fault.Bus,
 ) (details.ItemInfo, bool, error) {
 	itemUUID := itemData.ID()
 	ctx = clues.Add(ctx, "item_id", itemUUID)
@@ -332,7 +335,8 @@ func restoreItem(
 			caches,
 			itemPath,
 			itemData,
-			ctr)
+			ctr,
+			errs)
 		if err != nil {
 			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
 				return details.ItemInfo{}, true, nil
@@ -357,7 +361,8 @@ func restoreItem(
 		caches,
 		itemPath,
 		itemData,
-		ctr)
+		ctr,
+		errs)
 	if err != nil {
 		if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
 			return details.ItemInfo{}, true, nil
@@ -412,6 +417,7 @@ func restoreV1File(
 	itemPath path.Path,
 	itemData data.Item,
 	ctr *count.Bus,
+	errs *fault.Bus,
 ) (details.ItemInfo, error) {
 	trimmedName := strings.TrimSuffix(itemData.ID(), metadata.DataFileSuffix)
 
@@ -452,7 +458,8 @@ func restoreV1File(
 		itemID,
 		itemPath,
 		meta,
-		caches)
+		caches,
+		errs)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}
@@ -472,6 +479,7 @@ func restoreV6File(
 	itemPath path.Path,
 	itemData data.Item,
 	ctr *count.Bus,
+	errs *fault.Bus,
 ) (details.ItemInfo, error) {
 	trimmedName := strings.TrimSuffix(itemData.ID(), metadata.DataFileSuffix)
 
@@ -521,8 +529,6 @@ func restoreV6File(
 		return itemInfo, nil
 	}
 
-	fmt.Printf("\n-----\nrestorev6 %+v\n-----\n", rcc.RestoreConfig.IncludePermissions)
-
 	err = RestorePermissions(
 		ctx,
 		rh,
@@ -530,7 +536,8 @@ func restoreV6File(
 		itemID,
 		itemPath,
 		meta,
-		caches)
+		caches,
+		errs)
 	if err != nil {
 		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
 	}
@@ -552,6 +559,7 @@ func CreateRestoreFolders(
 	folderMetadata metadata.Metadata,
 	caches *restoreCaches,
 	restorePerms bool,
+	errs *fault.Bus,
 ) (string, error) {
 	id, err := createRestoreFolders(
 		ctx,
@@ -572,8 +580,6 @@ func CreateRestoreFolders(
 		return id, nil
 	}
 
-	fmt.Printf("\n-----\ncreatefolders %+v\n-----\n", restorePerms)
-
 	err = RestorePermissions(
 		ctx,
 		rh,
@@ -581,7 +587,8 @@ func CreateRestoreFolders(
 		id,
 		folderPath,
 		folderMetadata,
-		caches)
+		caches,
+		errs)
 
 	return id, err
 }

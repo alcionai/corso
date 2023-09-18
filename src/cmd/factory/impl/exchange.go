@@ -5,7 +5,6 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -53,7 +52,7 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.ExchangeService)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -100,7 +99,7 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.ExchangeService)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -149,7 +148,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, resource.Users, User, path.ExchangeService)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -169,8 +168,7 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 				given+" "+sur,
 				sur+", "+given,
 				given, mid, sur,
-				"123-456-7890",
-			)
+				"123-456-7890")
 		},
 		control.DefaultOptions(),
 		errs,

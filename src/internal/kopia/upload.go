@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 	"runtime/trace"
@@ -133,7 +132,7 @@ func (rw *restoreStreamReader) Read(p []byte) (n int, err error) {
 }
 
 type itemDetails struct {
-	info         *details.ItemInfo
+	infoer       data.ItemInfo
 	repoPath     path.Path
 	prevPath     path.Path
 	locationPath *path.Builder
@@ -199,13 +198,16 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	ctx := clues.Add(
 		cp.ctx,
 		"service", d.repoPath.Service().String(),
-		"category", d.repoPath.Category().String())
+		"category", d.repoPath.Category().String(),
+		"item_path", d.repoPath,
+		"item_loc", d.locationPath)
 
 	// These items were sourced from a base snapshot or were cached in kopia so we
 	// never had to materialize their details in-memory.
-	if d.info == nil || d.cached {
+	if d.infoer == nil || d.cached {
 		if d.prevPath == nil {
 			cp.errs.AddRecoverable(ctx, clues.New("finished file sourced from previous backup with no previous path").
+				WithClues(ctx).
 				Label(fault.LabelForceNoBackupCreation))
 
 			return
@@ -221,18 +223,32 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 			d.locationPath)
 		if err != nil {
 			cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to merge list").
+				WithClues(ctx).
 				Label(fault.LabelForceNoBackupCreation))
 		}
 
 		return
 	}
 
-	err = cp.deets.Add(
-		d.repoPath,
-		d.locationPath,
-		*d.info)
+	info, err := d.infoer.Info()
+	if err != nil {
+		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "getting ItemInfo").
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation))
+
+		return
+	} else if !ptr.Val(d.modTime).Equal(info.Modified()) {
+		cp.errs.AddRecoverable(ctx, clues.New("item modTime mismatch").
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation))
+
+		return
+	}
+
+	err = cp.deets.Add(d.repoPath, d.locationPath, info)
 	if err != nil {
 		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to details").
+			WithClues(ctx).
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
@@ -249,10 +265,12 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 	for i := range sl {
 		rdt, err := base64.StdEncoding.DecodeString(sl[i])
 		if err != nil {
-			fmt.Println("f did not decode")
+			logger.Ctx(cp.ctx).Infow(
+				"unable to decode base64 path segment",
+				"segment", sl[i])
+		} else {
+			sl[i] = string(rdt)
 		}
-
-		sl[i] = string(rdt)
 	}
 
 	logger.Ctx(cp.ctx).Debugw(
@@ -393,13 +411,8 @@ func collectionEntries(
 				// Relative path given to us in the callback is missing the root
 				// element. Add to pending set before calling the callback to avoid race
 				// conditions when the item is completed.
-				//
-				// TODO(ashmrtn): If we want to pull item info for cached item from a
-				// previous snapshot then we should populate prevPath here and leave
-				// info nil.
-				itemInfo := ei.Info()
 				d := &itemDetails{
-					info:     &itemInfo,
+					infoer:   ei,
 					repoPath: itemPath,
 					// Also use the current path as the previous path for this item. This
 					// is so that if the item is marked as cached and we need to merge
@@ -516,7 +529,6 @@ func streamBaseEntries(
 			// the item to progress and having progress aggregate everything for
 			// later.
 			d := &itemDetails{
-				info:         nil,
 				repoPath:     itemPath,
 				prevPath:     prevItemPath,
 				locationPath: locationPath,
@@ -584,8 +596,7 @@ func getStreamItemFunc(
 			baseDir,
 			seen,
 			globalExcludeSet,
-			progress,
-		); err != nil {
+			progress); err != nil {
 			return clues.Wrap(err, "streaming base snapshot entries")
 		}
 
@@ -632,9 +643,7 @@ func buildKopiaDirs(
 			dir.collection,
 			dir.baseDir,
 			globalExcludeSet,
-			progress,
-		),
-	), nil
+			progress)), nil
 }
 
 type treeMap struct {
@@ -1143,8 +1152,7 @@ func inflateBaseTree(
 			newSubtreePath.Dir(),
 			subtreeDir,
 			roots,
-			stats,
-		); err != nil {
+			stats); err != nil {
 			return clues.Wrap(err, "traversing base snapshot").WithClues(ictx)
 		}
 

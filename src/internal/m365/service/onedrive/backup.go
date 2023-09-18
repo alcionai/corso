@@ -49,7 +49,7 @@ func ProduceBackupCollections(
 		logger.Ctx(ctx).Debug("creating OneDrive collections")
 
 		nc := drive.NewCollections(
-			drive.NewItemBackupHandler(ac.Drives(), scope),
+			drive.NewItemBackupHandler(ac.Drives(), bpc.ProtectedResource.ID(), scope),
 			tenant,
 			bpc.ProtectedResource.ID(),
 			su,

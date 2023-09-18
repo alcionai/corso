@@ -6,6 +6,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -23,7 +25,21 @@ type (
 			bpc BackupProducerConfig,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
-		IsBackupRunnable(ctx context.Context, service path.ServiceType, resourceOwner string) (bool, error)
+
+		IsServiceEnableder
+
+		// GetMetadataPaths returns a list of paths that form metadata
+		// collections. In case of service that have just a single
+		// underlying service like OneDrive or SharePoint, it will mostly
+		// just have a single collection per manifest reason, but in the
+		// case of groups, it will contain a collection each for the
+		// underlying service, for example one per SharePoint site.
+		GetMetadataPaths(
+			ctx context.Context,
+			r inject.RestoreProducer,
+			man kopia.ManifestEntry,
+			errs *fault.Bus,
+		) ([]path.RestorePaths, error)
 
 		Wait() *data.CollectionStats
 	}
@@ -37,10 +53,22 @@ type (
 			ctr *count.Bus,
 		) (*details.Details, error)
 
+		IsServiceEnableder
+
 		Wait() *data.CollectionStats
 
 		CacheItemInfoer
 		PopulateProtectedResourceIDAndNamer
+	}
+
+	IsServiceEnableder interface {
+		// IsServiceEnabled checks if the service is enabled for backup/restore
+		// for the provided resource owner.
+		IsServiceEnabled(
+			ctx context.Context,
+			service path.ServiceType,
+			resourceOwner string,
+		) (bool, error)
 	}
 
 	CacheItemInfoer interface {
@@ -61,7 +89,7 @@ type (
 			opts control.Options,
 			dcs []data.RestoreCollection,
 			errs *fault.Bus,
-		) ([]export.Collection, error)
+		) ([]export.Collectioner, error)
 
 		Wait() *data.CollectionStats
 

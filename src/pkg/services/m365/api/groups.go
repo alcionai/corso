@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/microsoftgraph/msgraph-sdk-go/groups"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -28,16 +30,11 @@ func (c Client) Groups() Groups {
 	return Groups{c}
 }
 
-// On creation of each Teams team a corresponding group gets created.
-// The group acts as the protected resource, and all teams data like events,
-// drive and mail messages are owned by that group.
-
 // Groups is an interface-compliant provider of the client.
 type Groups struct {
 	Client
 }
 
-// GetAllGroups retrieves all groups.
 func (c Groups) GetAll(
 	ctx context.Context,
 	errs *fault.Bus,
@@ -70,8 +67,8 @@ func getGroups(
 	}
 
 	var (
-		groups = make([]models.Groupable, 0)
-		el     = errs.Local()
+		results = make([]models.Groupable, 0)
+		el      = errs.Local()
 	)
 
 	iterator := func(item models.Groupable) bool {
@@ -83,7 +80,7 @@ func getGroups(
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating groups"))
 		} else {
-			groups = append(groups, item)
+			results = append(results, item)
 		}
 
 		return true
@@ -93,10 +90,15 @@ func getGroups(
 		return nil, graph.Wrap(ctx, err, "iterating all groups")
 	}
 
-	return groups, el.Failure()
+	return results, el.Failure()
 }
 
-// GetID retrieves group by groupID.
+const filterGroupByDisplayNameQueryTmpl = "displayName eq '%s'"
+
+// GetID can look up a group by either its canonical id (a uuid)
+// or by the group's display name.  If looking up the display name
+// an error will be returned if more than one group gets returned
+// in the results.
 func (c Groups) GetByID(
 	ctx context.Context,
 	identifier string,
@@ -106,17 +108,51 @@ func (c Groups) GetByID(
 		return nil, err
 	}
 
-	resp, err := service.Client().Groups().ByGroupId(identifier).Get(ctx, nil)
-	if err != nil {
-		err := graph.Wrap(ctx, err, "getting group by id")
+	ctx = clues.Add(ctx, "resource_identifier", identifier)
 
-		return nil, err
+	var group models.Groupable
+
+	// prefer lookup by id, but fallback to lookup by display name,
+	// even in the case of a uuid, just in case the display name itself
+	// is a uuid.
+	if uuidRE.MatchString(identifier) {
+		group, err = service.
+			Client().
+			Groups().
+			ByGroupIdString(identifier).
+			Get(ctx, nil)
+		if err == nil {
+			return group, nil
+		}
+
+		logger.CtxErr(ctx, err).Info("finding group by id, falling back to display name")
 	}
 
-	return resp, graph.Stack(ctx, err).OrNil()
+	opts := &groups.GroupsRequestBuilderGetRequestConfiguration{
+		Headers: newEventualConsistencyHeaders(),
+		QueryParameters: &groups.GroupsRequestBuilderGetQueryParameters{
+			Filter: ptr.To(fmt.Sprintf(filterGroupByDisplayNameQueryTmpl, identifier)),
+		},
+	}
+
+	resp, err := service.Client().Groups().Get(ctx, opts)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "finding group by display name")
+	}
+
+	vs := resp.GetValue()
+
+	if len(vs) == 0 {
+		return nil, clues.Stack(graph.ErrResourceOwnerNotFound).WithClues(ctx)
+	} else if len(vs) > 1 {
+		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).WithClues(ctx)
+	}
+
+	group = vs[0]
+
+	return group, nil
 }
 
-// GetRootSite retrieves the root site for the group.
 func (c Groups) GetRootSite(
 	ctx context.Context,
 	identifier string,
@@ -129,9 +165,9 @@ func (c Groups) GetRootSite(
 	resp, err := service.
 		Client().
 		Groups().
-		ByGroupId(identifier).
+		ByGroupIdString(identifier).
 		Sites().
-		BySiteId("root").
+		BySiteIdString("root").
 		Get(ctx, nil)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting root site for group")
@@ -158,10 +194,10 @@ func ValidateGroup(item models.Groupable) error {
 	return nil
 }
 
-func OnlyTeams(ctx context.Context, groups []models.Groupable) []models.Groupable {
+func OnlyTeams(ctx context.Context, gs []models.Groupable) []models.Groupable {
 	var teams []models.Groupable
 
-	for _, g := range groups {
+	for _, g := range gs {
 		if IsTeam(ctx, g) {
 			teams = append(teams, g)
 		}

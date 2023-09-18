@@ -30,7 +30,7 @@ jobs:
       run:
         working-directory: src
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # single setup and sum cache handling here.
       # the results will cascade onto both testing and linting.
@@ -59,8 +59,9 @@ jobs:
       AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
+      CORSO_ENABLE_GROUPS: true
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v4
@@ -75,7 +76,7 @@ jobs:
 
       # AWS creds
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing

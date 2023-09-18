@@ -17,7 +17,6 @@ func NewGroupsLocationIDer(
 	driveID string,
 	escapedFolders ...string,
 ) (uniqueLoc, error) {
-	// TODO(meain): path fixes
 	if err := path.ValidateServiceAndCategory(path.GroupsService, category); err != nil {
 		return uniqueLoc{}, clues.Wrap(err, "making groups LocationIDer")
 	}
@@ -25,13 +24,13 @@ func NewGroupsLocationIDer(
 	pb := path.Builder{}.Append(category.String())
 	prefixElems := 1
 
-	if driveID != "" { // non sp paths don't have driveID
-		pb.Append(driveID)
+	if len(driveID) > 0 { // non sp paths don't have driveID
+		pb = pb.Append(driveID)
 
 		prefixElems = 2
 	}
 
-	pb.Append(escapedFolders...)
+	pb = pb.Append(escapedFolders...)
 
 	return uniqueLoc{pb, prefixElems}, nil
 }
@@ -47,8 +46,6 @@ type GroupsInfo struct {
 	Size       int64     `json:"size,omitempty"`
 
 	// Channels Specific
-	ChannelName    string    `json:"channelName,omitempty"`
-	ChannelID      string    `json:"channelID,omitempty"`
 	LastReplyAt    time.Time `json:"lastResponseAt,omitempty"`
 	MessageCreator string    `json:"messageCreator,omitempty"`
 	MessagePreview string    `json:"messagePreview,omitempty"`
@@ -67,8 +64,8 @@ func (i GroupsInfo) Headers() []string {
 	switch i.ItemType {
 	case SharePointLibrary:
 		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
-	case TeamsChannelMessage:
-		return []string{"Message", "Channel", "Replies", "Creator", "Created", "Last Response"}
+	case GroupsChannelMessage:
+		return []string{"Message", "Channel", "Replies", "Creator", "Created", "Last Reply"}
 	}
 
 	return []string{}
@@ -88,14 +85,19 @@ func (i GroupsInfo) Values() []string {
 			dttm.FormatToTabularDisplay(i.Created),
 			dttm.FormatToTabularDisplay(i.Modified),
 		}
-	case TeamsChannelMessage:
+	case GroupsChannelMessage:
+		lastReply := dttm.FormatToTabularDisplay(i.LastReplyAt)
+		if i.LastReplyAt.Equal(time.Time{}) {
+			lastReply = ""
+		}
+
 		return []string{
 			i.MessagePreview,
-			i.ChannelName,
+			i.ParentPath,
 			strconv.Itoa(i.ReplyCount),
 			i.MessageCreator,
 			dttm.FormatToTabularDisplay(i.Created),
-			dttm.FormatToTabularDisplay(i.Modified),
+			lastReply,
 		}
 	}
 
@@ -103,30 +105,37 @@ func (i GroupsInfo) Values() []string {
 }
 
 func (i *GroupsInfo) UpdateParentPath(newLocPath *path.Builder) {
-	i.ParentPath = newLocPath.PopFront().String()
+	i.ParentPath = newLocPath.String()
 }
 
 func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
-	var category path.CategoryType
+	var (
+		loc uniqueLoc
+		err error
+	)
 
 	switch i.ItemType {
 	case SharePointLibrary:
-		category = path.LibrariesCategory
-
 		if len(i.DriveID) == 0 {
 			return nil, clues.New("empty drive ID")
 		}
-	}
 
-	loc, err := NewGroupsLocationIDer(category, i.DriveID, baseLoc.Elements()...)
+		loc, err = NewGroupsLocationIDer(path.LibrariesCategory, i.DriveID, baseLoc.Elements()...)
+	case GroupsChannelMessage:
+		loc, err = NewGroupsLocationIDer(path.ChannelMessagesCategory, "", baseLoc.Elements()...)
+	}
 
 	return &loc, err
 }
 
 func (i *GroupsInfo) updateFolder(f *FolderInfo) error {
-	// TODO(meain): path updates if any
-	if i.ItemType == SharePointLibrary {
+	f.DataType = i.ItemType
+
+	switch i.ItemType {
+	case SharePointLibrary:
 		return updateFolderWithinDrive(SharePointLibrary, i.DriveName, i.DriveID, f)
+	case GroupsChannelMessage:
+		return nil
 	}
 
 	return clues.New("unsupported ItemType for GroupsInfo").With("item_type", i.ItemType)

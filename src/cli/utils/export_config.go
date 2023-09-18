@@ -11,6 +11,7 @@ import (
 
 type ExportCfgOpts struct {
 	Archive bool
+	Format  string
 
 	Populated flags.PopulatedFlags
 }
@@ -18,6 +19,7 @@ type ExportCfgOpts struct {
 func makeExportCfgOpts(cmd *cobra.Command) ExportCfgOpts {
 	return ExportCfgOpts{
 		Archive: flags.ArchiveFV,
+		Format:  flags.FormatFV,
 
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate
@@ -33,6 +35,7 @@ func MakeExportConfig(
 	exportCfg := control.DefaultExportConfig()
 
 	exportCfg.Archive = opts.Archive
+	exportCfg.Format = control.FormatType(opts.Format)
 
 	return exportCfg
 }

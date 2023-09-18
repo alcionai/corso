@@ -5,8 +5,8 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common/dttm"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -28,6 +28,8 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddBackupIDFlag(c, true)
 		flags.AddRestorePermissionsFlag(c)
+		flags.AddSharePointDetailsAndRestoreFlags(c) // for sp restores
+		flags.AddSiteIDFlag(c)
 		flags.AddRestoreConfigFlags(c)
 		flags.AddFailFastFlag(c)
 		flags.AddCorsoPassphaseFlags(c)
@@ -41,6 +43,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 // TODO: correct examples
 const (
 	groupsServiceCommand          = "groups"
+	teamsServiceCommand           = "teams"
 	groupsServiceCommandUseSuffix = "--backup <backupId>"
 
 	groupsServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's last backup (1234abcd...)
@@ -62,6 +65,7 @@ corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd
 func groupsRestoreCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     groupsServiceCommand,
+		Aliases: []string{teamsServiceCommand},
 		Short:   "Restore M365 Groups service data",
 		RunE:    restoreGroupsCmd,
 		Args:    cobra.NoArgs,
@@ -77,5 +81,25 @@ func restoreGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return Only(ctx, utils.ErrNotYetImplemented)
+	opts := utils.MakeGroupsOpts(cmd)
+	opts.RestoreCfg.DTTMFormat = dttm.HumanReadableDriveItem
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
+	if err := utils.ValidateGroupsRestoreFlags(flags.BackupIDFV, opts); err != nil {
+		return err
+	}
+
+	sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
+	utils.FilterGroupsRestoreInfoSelectors(sel, opts)
+
+	return runRestore(
+		ctx,
+		cmd,
+		opts.RestoreCfg,
+		sel.Selector,
+		flags.BackupIDFV,
+		"Groups")
 }

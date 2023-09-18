@@ -82,7 +82,7 @@ type Path interface {
 	Service() ServiceType
 	Category() CategoryType
 	Tenant() string
-	ResourceOwner() string
+	ProtectedResource() string
 	Folder(escaped bool) string
 	Folders() Elements
 	Item() string
@@ -146,6 +146,22 @@ func Build(
 		hasItem)
 }
 
+// BuildMetadata is a shorthand for Builder{}.Append(...).ToServiceCategoryMetadataPath(...)
+func BuildMetadata(
+	tenant, resourceOwner string,
+	service ServiceType,
+	category CategoryType,
+	hasItem bool,
+	elements ...string,
+) (Path, error) {
+	return Builder{}.
+		Append(elements...).
+		ToServiceCategoryMetadataPath(
+			tenant, resourceOwner,
+			service, category,
+			hasItem)
+}
+
 func BuildPrefix(
 	tenant, resourceOwner string,
 	s ServiceType,
@@ -190,8 +206,7 @@ func pathFromDataLayerPath(p string, isItem bool, minElements int) (Path, error)
 
 	service, category, err := validateServiceAndCategoryStrings(
 		pb.elements[1],
-		pb.elements[3],
-	)
+		pb.elements[3])
 	if err != nil {
 		return nil, clues.Stack(errParsingPath, err).With("path_string", pb)
 	}

@@ -1,6 +1,6 @@
 module github.com/alcionai/corso/src
 
-go 1.20
+go 1.21
 
 replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20230822191057-17d4deff94a3
 
@@ -8,7 +8,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.3.1
 	github.com/alcionai/clues v0.0.0-20230728164842-7dc4795a43e4
 	github.com/armon/go-metrics v0.4.1
-	github.com/aws/aws-sdk-go v1.44.331
+	github.com/aws/aws-sdk-go v1.45.0
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/google/uuid v1.3.1
@@ -19,7 +19,7 @@ require (
 	github.com/microsoft/kiota-http-go v1.1.0
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.16.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.17.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v2 v2.5.0
@@ -94,7 +94,7 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/minio/minio-go/v7 v7.0.62
+	github.com/minio/minio-go/v7 v7.0.63
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

@@ -33,7 +33,7 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 	tests := []struct {
 		name           string
 		args           models.Groupable
-		errCheck       assert.ErrorAssertionFunc
+		expectErr      assert.ErrorAssertionFunc
 		errIsSkippable bool
 	}{
 		{
@@ -44,7 +44,7 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 				s.SetDisplayName(ptr.To("testgroup"))
 				return s
 			}(),
-			errCheck: assert.NoError,
+			expectErr: assert.NoError,
 		},
 		{
 			name: "No name",
@@ -53,7 +53,7 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 				s.SetId(ptr.To("id"))
 				return s
 			}(),
-			errCheck: assert.Error,
+			expectErr: assert.Error,
 		},
 		{
 			name: "No ID",
@@ -62,7 +62,7 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 				s.SetDisplayName(ptr.To("testgroup"))
 				return s
 			}(),
-			errCheck: assert.Error,
+			expectErr: assert.Error,
 		},
 	}
 
@@ -71,7 +71,7 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 			t := suite.T()
 
 			err := api.ValidateGroup(test.args)
-			test.errCheck(t, err, clues.ToCore(err))
+			test.expectErr(t, err, clues.ToCore(err))
 
 			if test.errIsSkippable {
 				assert.ErrorIs(t, err, api.ErrKnownSkippableCase)
@@ -111,29 +111,43 @@ func (suite *GroupsIntgSuite) TestGetAll() {
 }
 
 func (suite *GroupsIntgSuite) TestGroups_GetByID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	var (
-		groupID   = suite.its.groupID
+		groupID   = suite.its.group.id
 		groupsAPI = suite.its.ac.Groups()
 	)
+
+	grp, err := groupsAPI.GetByID(ctx, groupID)
+	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
 		name      string
 		id        string
-		expectErr func(*testing.T, error)
+		expectErr assert.ErrorAssertionFunc
 	}{
 		{
-			name: "valid id",
-			id:   groupID,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			name:      "valid id",
+			id:        groupID,
+			expectErr: assert.NoError,
 		},
 		{
-			name: "invalid id",
-			id:   uuid.NewString(),
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
+			name:      "invalid id",
+			id:        uuid.NewString(),
+			expectErr: assert.Error,
+		},
+		{
+			name:      "valid display name",
+			id:        ptr.Val(grp.GetDisplayName()),
+			expectErr: assert.NoError,
+		},
+		{
+			name:      "invalid displayName",
+			id:        "jabberwocky",
+			expectErr: assert.Error,
 		},
 	}
 	for _, test := range table {
@@ -144,7 +158,7 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 			defer flush()
 
 			_, err := groupsAPI.GetByID(ctx, test.id)
-			test.expectErr(t, err)
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }

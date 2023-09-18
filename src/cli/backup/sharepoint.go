@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -27,11 +26,6 @@ import (
 // ------------------------------------------------------------------------------------------------
 // setup and globals
 // ------------------------------------------------------------------------------------------------
-
-const (
-	dataLibraries = "libraries"
-	dataPages     = "pages"
-)
 
 const (
 	sharePointServiceCommand                 = "sharepoint"
@@ -90,7 +84,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
-		flags.AddDataFlag(c, []string{dataLibraries}, true)
+		flags.AddDataFlag(c, []string{flags.DataLibraries}, true)
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
 		flags.AddForceItemDataDownloadFlag(c)
@@ -164,7 +158,10 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.SharePointService, repo.S3Overrides(cmd))
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx,
+		cmd,
+		path.SharePointService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -193,7 +190,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	return runBackups(
 		ctx,
 		r,
-		"SharePoint", "site",
+		"SharePoint",
 		selectorSet,
 		ins)
 }
@@ -203,15 +200,13 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 		return clues.New(
 			"requires one or more --" +
 				flags.SiteFN + " urls, or the wildcard --" +
-				flags.SiteFN + " *",
-		)
+				flags.SiteFN + " *")
 	}
 
 	for _, d := range cats {
-		if d != dataLibraries && d != dataPages {
+		if d != flags.DataLibraries && d != flags.DataPages {
 			return clues.New(
-				d + " is an unrecognized data type; either  " + dataLibraries + "or " + dataPages,
-			)
+				d + " is an unrecognized data type; either  " + flags.DataLibraries + "or " + flags.DataPages)
 		}
 	}
 
@@ -253,9 +248,9 @@ func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.Sh
 
 	for _, d := range cats {
 		switch d {
-		case dataLibraries:
+		case flags.DataLibraries:
 			sel.Include(sel.LibraryFolders(selectors.Any()))
-		case dataPages:
+		case flags.DataPages:
 			sel.Include(sel.Pages(selectors.Any()))
 		}
 	}
@@ -326,7 +321,10 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.SharePointService, repo.S3Overrides(cmd))
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
+		ctx,
+		cmd,
+		path.SharePointService)
 	if err != nil {
 		return Only(ctx, err)
 	}

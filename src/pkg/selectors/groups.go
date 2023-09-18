@@ -3,6 +3,7 @@ package selectors
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/alcionai/clues"
 
@@ -222,21 +223,24 @@ func (s *groups) AllData() []GroupsScope {
 	return scopes
 }
 
-// Channel produces one or more SharePoint channel scopes, where the channel
+// Channels produces one or more SharePoint channel scopes, where the channel
 // matches upon a given channel by ID or Name.  In order to ensure channel selection
 // this should always be embedded within the Filter() set; include(channel()) will
 // select all items in the channel without further filtering.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *groups) Channel(channel string) []GroupsScope {
-	return []GroupsScope{
-		makeInfoScope[GroupsScope](
-			GroupsChannel,
-			GroupsInfoChannel,
-			[]string{channel},
-			filters.Equal),
-	}
+func (s *groups) Channels(channels []string, opts ...option) []GroupsScope {
+	var (
+		scopes = []GroupsScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(
+		scopes,
+		makeScope[GroupsScope](GroupsChannel, channels, os...))
+
+	return scopes
 }
 
 // ChannelMessages produces one or more Groups channel message scopes.
@@ -307,8 +311,110 @@ func (s *groups) LibraryItems(libraries, items []string, opts ...option) []Group
 	return scopes
 }
 
+// Lists produces one or more Groups list scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// Any empty slice defaults to [selectors.None]
+func (s *groups) Lists(lists []string, opts ...option) []GroupsScope {
+	var (
+		scopes = []GroupsScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(scopes, makeScope[GroupsScope](GroupsList, lists, os...))
+
+	return scopes
+}
+
+// ListItems produces one or more Groups list item scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the list scopes.
+func (s *groups) ListItems(lists, items []string, opts ...option) []GroupsScope {
+	scopes := []GroupsScope{}
+
+	scopes = append(
+		scopes,
+		makeScope[GroupsScope](GroupsListItem, items, defaultItemOptions(s.Cfg)...).
+			set(GroupsList, lists, opts...))
+
+	return scopes
+}
+
+// Pages produces one or more Groups page scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *groups) Pages(pages []string, opts ...option) []GroupsScope {
+	var (
+		scopes = []GroupsScope{}
+		os     = append([]option{pathComparator()}, opts...)
+	)
+
+	scopes = append(scopes, makeScope[GroupsScope](GroupsPageFolder, pages, os...))
+
+	return scopes
+}
+
+// PageItems produces one or more Groups page item scopes.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+// options are only applied to the page scopes.
+func (s *groups) PageItems(pages, items []string, opts ...option) []GroupsScope {
+	scopes := []GroupsScope{}
+
+	scopes = append(
+		scopes,
+		makeScope[GroupsScope](GroupsPage, items).
+			set(GroupsPageFolder, pages, opts...))
+
+	return scopes
+}
+
 // -------------------
 // ItemInfo Factories
+
+func (s *groups) CreatedAfter(timeStrings string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsLibraryItem,
+			GroupsInfoLibraryItemCreatedAfter,
+			[]string{timeStrings},
+			filters.Less),
+	}
+}
+
+func (s *groups) CreatedBefore(timeStrings string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsLibraryItem,
+			GroupsInfoLibraryItemCreatedBefore,
+			[]string{timeStrings},
+			filters.Greater),
+	}
+}
+
+func (s *groups) ModifiedAfter(timeStrings string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsLibraryItem,
+			GroupsInfoLibraryItemModifiedAfter,
+			[]string{timeStrings},
+			filters.Less),
+	}
+}
+
+func (s *groups) ModifiedBefore(timeStrings string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsLibraryItem,
+			GroupsInfoLibraryItemModifiedBefore,
+			[]string{timeStrings},
+			filters.Greater),
+	}
+}
 
 // MessageCreator produces one or more groups channelMessage info scopes.
 // Matches any channel message created by the specified user.
@@ -401,12 +507,19 @@ const (
 	GroupsChannelMessage groupsCategory = "GroupsChannelMessage"
 	GroupsLibraryFolder  groupsCategory = "GroupsLibraryFolder"
 	GroupsLibraryItem    groupsCategory = "GroupsLibraryItem"
+	GroupsList           groupsCategory = "GroupsList"
+	GroupsListItem       groupsCategory = "GroupsListItem"
+	GroupsPageFolder     groupsCategory = "GroupsPageFolder"
+	GroupsPage           groupsCategory = "GroupsPage"
 
 	// details.itemInfo comparables
+	GroupsInfoLibraryItemCreatedAfter   groupsCategory = "GroupsInfoLibraryItemCreatedAfter"
+	GroupsInfoLibraryItemCreatedBefore  groupsCategory = "GroupsInfoLibraryItemCreatedBefore"
+	GroupsInfoLibraryItemModifiedAfter  groupsCategory = "GroupsInfoLibraryItemModifiedAfter"
+	GroupsInfoLibraryItemModifiedBefore groupsCategory = "GroupsInfoLibraryItemModifiedBefore"
 
 	// channel and drive selection
 	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive"
-	GroupsInfoChannel          groupsCategory = "GroupsInfoChannel"
 
 	// data contained within details.ItemInfo
 	GroupsInfoChannelMessageCreatedAfter    groupsCategory = "GroupsInfoChannelMessageCreatedAfter"
@@ -449,7 +562,9 @@ func (c groupsCategory) leafCat() categorizer {
 		GroupsInfoChannelMessageCreatedAfter, GroupsInfoChannelMessageCreatedBefore, GroupsInfoChannelMessageCreator,
 		GroupsInfoChannelMessageLastReplyAfter, GroupsInfoChannelMessageLastReplyBefore:
 		return GroupsChannelMessage
-	case GroupsLibraryFolder, GroupsLibraryItem, GroupsInfoSiteLibraryDrive:
+	case GroupsLibraryFolder, GroupsLibraryItem, GroupsInfoSiteLibraryDrive,
+		GroupsInfoLibraryItemCreatedAfter, GroupsInfoLibraryItemCreatedBefore,
+		GroupsInfoLibraryItemModifiedAfter, GroupsInfoLibraryItemModifiedBefore:
 		return GroupsLibraryItem
 	}
 
@@ -656,6 +771,15 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 		return false
 	}
 
+	acceptableItemType := -1
+
+	switch infoCat.leafCat() {
+	case GroupsLibraryItem:
+		acceptableItemType = int(details.SharePointLibrary)
+	case GroupsChannelMessage:
+		acceptableItemType = int(details.GroupsChannelMessage)
+	}
+
 	switch infoCat {
 	case GroupsInfoSiteLibraryDrive:
 		ds := []string{}
@@ -669,25 +793,21 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 		}
 
 		return matchesAny(s, GroupsInfoSiteLibraryDrive, ds)
-	case GroupsInfoChannel:
-		ds := []string{}
-
-		if len(info.ChannelID) > 0 {
-			ds = append(ds, info.ChannelID)
-		}
-
-		if len(info.ChannelName) > 0 {
-			ds = append(ds, info.ChannelName)
-		}
-
-		return matchesAny(s, GroupsInfoChannel, ds)
+	case GroupsInfoLibraryItemCreatedAfter, GroupsInfoLibraryItemCreatedBefore:
+		i = dttm.Format(info.Created)
+	case GroupsInfoLibraryItemModifiedAfter, GroupsInfoLibraryItemModifiedBefore:
+		i = dttm.Format(info.Modified)
 	case GroupsInfoChannelMessageCreator:
 		i = info.MessageCreator
 	case GroupsInfoChannelMessageCreatedAfter, GroupsInfoChannelMessageCreatedBefore:
 		i = dttm.Format(info.Created)
 	case GroupsInfoChannelMessageLastReplyAfter, GroupsInfoChannelMessageLastReplyBefore:
+		if info.LastReplyAt.Equal(time.Time{}) {
+			return false
+		}
+
 		i = dttm.Format(info.LastReplyAt)
 	}
 
-	return s.Matches(infoCat, i)
+	return s.Matches(infoCat, i) && int(info.ItemType) == acceptableItemType
 }

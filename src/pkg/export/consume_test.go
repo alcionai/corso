@@ -132,15 +132,13 @@ func (suite *ExportE2ESuite) TestConsumeExportCollection() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ecs := []Collection{}
+			ecs := []Collectioner{}
 			for _, col := range test.cols {
 				items := []Item{}
 				for _, item := range col.items {
 					items = append(items, Item{
-						Data: ItemData{
-							Name: item.name,
-							Body: io.NopCloser((bytes.NewBufferString(item.body))),
-						},
+						Name: item.name,
+						Body: io.NopCloser((bytes.NewBufferString(item.body))),
 					})
 				}
 

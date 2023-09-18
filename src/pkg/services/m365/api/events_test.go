@@ -272,8 +272,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_RestoreLargeAttachment() {
 		ptr.Val(calendar.GetId()),
 		ptr.Val(item.GetId()),
 		"raboganm",
-		[]byte("mangobar"),
-	)
+		[]byte("mangobar"))
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, id, "empty id for large attachment")
 }
@@ -289,7 +288,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 	ac := suite.its.ac.Events()
 	rc := testdata.DefaultRestoreConfig("api_calendar_discovery")
 
-	cal, err := ac.CreateContainer(ctx, suite.its.userID, "", rc.Location)
+	cal, err := ac.CreateContainer(ctx, suite.its.user.id, "", rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
@@ -306,7 +305,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 
 	err = ac.EnumerateContainers(
 		ctx,
-		suite.its.userID,
+		suite.its.user.id,
 		"Calendar",
 		findContainer,
 		fault.New(true))
@@ -342,7 +341,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName() {
 
 			_, err := suite.its.ac.
 				Events().
-				GetContainerByName(ctx, suite.its.userID, "", test.name)
+				GetContainerByName(ctx, suite.its.user.id, "", test.name)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}

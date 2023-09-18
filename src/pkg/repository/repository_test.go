@@ -259,7 +259,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 
 	userID := tconfig.M365UserID(t)
 
-	bo, err := r.NewBackup(ctx, selectors.Selector{DiscreteOwner: userID})
+	bo, err := r.NewBackup(ctx, selectors.NewExchangeBackup([]string{userID}).Selector)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, bo)
 }
@@ -284,7 +284,11 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 		ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
-	ro, err := r.NewRestore(ctx, "backup-id", selectors.Selector{DiscreteOwner: "test"}, restoreCfg)
+	ro, err := r.NewRestore(
+		ctx,
+		"backup-id",
+		selectors.NewExchangeBackup([]string{"test"}).Selector,
+		restoreCfg)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, ro)
 }
@@ -331,7 +335,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackupAndDelete() {
 	ro, err := r.NewRestore(
 		ctx,
 		backupID,
-		selectors.Selector{DiscreteOwner: userID},
+		selectors.NewExchangeBackup([]string{userID}).Selector,
 		restoreCfg)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, ro)

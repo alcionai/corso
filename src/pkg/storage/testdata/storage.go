@@ -38,15 +38,14 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 
 	st, err := storage.NewStorage(
 		storage.ProviderS3,
-		storage.S3Config{
+		&storage.S3Config{
 			Bucket: cfg[tconfig.TestCfgBucket],
 			Prefix: prefix,
 		},
 		storage.CommonConfig{
 			Corso:       GetAndInsertCorso(""),
 			KopiaCfgDir: t.TempDir(),
-		},
-	)
+		})
 	require.NoError(t, err, "creating storage", clues.ToCore(err))
 
 	return st

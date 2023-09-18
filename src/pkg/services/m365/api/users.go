@@ -9,18 +9,18 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // Variables
 var (
-	ErrMailBoxSettingsNotFound = clues.New("mailbox settings not found")
+	ErrMailBoxNotFound             = clues.New("mailbox not found")
+	ErrMailBoxSettingsAccessDenied = clues.New("mailbox settings access denied")
 )
 
 // ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 		err  error
 	)
 
-	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
+	resp, err = c.Stable.Client().Users().ByUserIdString(identifier).Get(ctx, nil)
 
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting user")
@@ -167,85 +167,6 @@ func appendIfErr(errs []error, err error) []error {
 	return append(errs, err)
 }
 
-// ---------------------------------------------------------------------------
-// Info
-// ---------------------------------------------------------------------------
-
-func (c Users) GetInfo(ctx context.Context, userID string) (*UserInfo, error) {
-	var (
-		// Assume all services are enabled
-		// then filter down to only services the user has enabled
-		userInfo        = newUserInfo()
-		mailFolderFound = true
-	)
-
-	// check whether the user is able to access their onedrive drive.
-	// if they cannot, we can assume they are ineligible for onedrive backups.
-	if _, err := c.GetDefaultDrive(ctx, userID); err != nil {
-		if !clues.HasLabel(err, graph.LabelsMysiteNotFound) && !clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-			logger.CtxErr(ctx, err).Error("getting user's default drive")
-			return nil, graph.Wrap(ctx, err, "getting user's default drive info")
-		}
-
-		logger.Ctx(ctx).Info("resource owner does not have a drive")
-		delete(userInfo.ServicesEnabled, path.OneDriveService)
-	}
-
-	// check whether the user is able to access their inbox.
-	// if they cannot, we can assume they are ineligible for exchange backups.
-	inbx, err := c.GetMailInbox(ctx, userID)
-	if err != nil {
-		if err := EvaluateMailboxError(graph.Stack(ctx, err)); err != nil {
-			logger.CtxErr(ctx, err).Error("getting user's mail folder")
-			return nil, err
-		}
-
-		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
-		delete(userInfo.ServicesEnabled, path.ExchangeService)
-
-		mailFolderFound = false
-	}
-
-	// check whether the user has accessible mailbox settings.
-	// if they do, aggregate them in the MailboxInfo
-	mi := MailboxInfo{
-		ErrGetMailBoxSetting: []error{},
-	}
-
-	if !mailFolderFound {
-		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, ErrMailBoxSettingsNotFound)
-		userInfo.Mailbox = mi
-
-		return userInfo, nil
-	}
-
-	mboxSettings, err := c.getMailboxSettings(ctx, userID)
-	if err != nil {
-		logger.CtxErr(ctx, err).Info("err getting user's mailbox settings")
-
-		if !graph.IsErrAccessDenied(err) {
-			return nil, graph.Wrap(ctx, err, "getting user's mailbox settings")
-		}
-
-		mi.ErrGetMailBoxSetting = append(mi.ErrGetMailBoxSetting, clues.New("access denied"))
-	} else {
-		mi = parseMailboxSettings(mboxSettings, mi)
-	}
-
-	err = c.getFirstInboxMessage(ctx, userID, ptr.Val(inbx.GetId()))
-	if err != nil {
-		if !graph.IsErrQuotaExceeded(err) {
-			return nil, clues.Stack(err)
-		}
-
-		userInfo.Mailbox.QuotaExceeded = graph.IsErrQuotaExceeded(err)
-	}
-
-	userInfo.Mailbox = mi
-
-	return userInfo, nil
-}
-
 // EvaluateMailboxError checks whether the provided error can be interpreted
 // as "user does not have a mailbox", or whether it is some other error.  If
 // the former (no mailbox), returns nil, otherwise returns an error.
@@ -266,15 +187,26 @@ func EvaluateMailboxError(err error) error {
 	return err
 }
 
-func (c Users) getMailboxSettings(
+// IsAnyErrMailboxNotFound inspects the secondary errors inside MailboxInfo and
+// determines whether the resource has a mailbox.
+func IsAnyErrMailboxNotFound(errs []error) bool {
+	for _, err := range errs {
+		if errors.Is(err, ErrMailBoxNotFound) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c Users) GetMailboxSettings(
 	ctx context.Context,
 	userID string,
 ) (models.Userable, error) {
 	settings, err := users.
 		NewUserItemRequestBuilder(
 			fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID),
-			c.Stable.Adapter(),
-		).
+			c.Stable.Adapter()).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -290,9 +222,9 @@ func (c Users) GetMailInbox(
 	inbox, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(MailInbox).
+		ByMailFolderIdString(MailInbox).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting MailFolders")
@@ -308,7 +240,7 @@ func (c Users) GetDefaultDrive(
 	d, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -323,7 +255,7 @@ func (c Users) GetDefaultDrive(
 // exceeded error. Ideally(if available) we should convert this to
 // pull the user's usage via an api and compare if they have used
 // up their quota.
-func (c Users) getFirstInboxMessage(
+func (c Users) GetFirstInboxMessage(
 	ctx context.Context,
 	userID, inboxID string,
 ) error {
@@ -337,9 +269,9 @@ func (c Users) getFirstInboxMessage(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(inboxID).
+		ByMailFolderIdString(inboxID).
 		Messages().
 		Delta().
 		Get(ctx, config)

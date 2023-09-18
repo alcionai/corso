@@ -46,9 +46,11 @@ func (suite *ContactsAPIUnitSuite) TestContactInfo() {
 					Created:  initial,
 					Modified: initial,
 				}
+
 				return contact, i
 			},
-		}, {
+		},
+		{
 			name: "Only Name",
 			contactAndRP: func() (models.Contactable, *details.ExchangeInfo) {
 				aPerson := "Whole Person"
@@ -56,12 +58,14 @@ func (suite *ContactsAPIUnitSuite) TestContactInfo() {
 				contact.SetCreatedDateTime(&initial)
 				contact.SetLastModifiedDateTime(&initial)
 				contact.SetDisplayName(&aPerson)
+
 				i := &details.ExchangeInfo{
 					ItemType:    details.ExchangeContact,
 					ContactName: aPerson,
 					Created:     initial,
 					Modified:    initial,
 				}
+
 				return contact, i
 			},
 		},
@@ -141,7 +145,7 @@ func (suite *ContactsAPIIntgSuite) TestContacts_GetContainerByName() {
 
 	cc, err := suite.its.ac.Contacts().CreateContainer(
 		ctx,
-		suite.its.userID,
+		suite.its.user.id,
 		"",
 		rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
@@ -168,7 +172,7 @@ func (suite *ContactsAPIIntgSuite) TestContacts_GetContainerByName() {
 
 			_, err := suite.its.ac.
 				Contacts().
-				GetContainerByName(ctx, suite.its.userID, "", test.name)
+				GetContainerByName(ctx, suite.its.user.id, "", test.name)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}

@@ -51,7 +51,7 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	pager := suite.service.ac.Drives().NewUserDrivePager(suite.user, nil)
 
-	odDrives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	odDrives, err := api.GetAllDrives(ctx, pager)
 	require.NoError(t, err, clues.ToCore(err))
 	// Test Requirement 1: Need a drive
 	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
@@ -124,6 +124,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	bh := itemBackupHandler{
 		suite.service.ac.Drives(),
+		suite.user,
 		(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0],
 	}
 

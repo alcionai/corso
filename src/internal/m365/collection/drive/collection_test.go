@@ -38,16 +38,16 @@ import (
 // tests
 // ---------------------------------------------------------------------------
 
-type CollectionUnitTestSuite struct {
+type CollectionUnitSuite struct {
 	tester.Suite
 }
 
-func TestCollectionUnitTestSuite(t *testing.T) {
-	suite.Run(t, &CollectionUnitTestSuite{Suite: tester.NewUnitSuite(t)})
+func TestCollectionUnitSuite(t *testing.T) {
+	suite.Run(t, &CollectionUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 // Returns a status update function that signals the specified WaitGroup when it is done
-func (suite *CollectionUnitTestSuite) testStatusUpdater(
+func (suite *CollectionUnitSuite) testStatusUpdater(
 	wg *sync.WaitGroup,
 	statusToUpdate *support.ControllerOperationStatus,
 ) support.StatusUpdater {
@@ -59,7 +59,7 @@ func (suite *CollectionUnitTestSuite) testStatusUpdater(
 	}
 }
 
-func (suite *CollectionUnitTestSuite) TestCollection() {
+func (suite *CollectionUnitSuite) TestCollection() {
 	var (
 		now = time.Now()
 
@@ -182,9 +182,9 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 			folderPath, err := pb.ToDataLayerOneDrivePath("tenant", "owner", false)
 			require.NoError(t, err, clues.ToCore(err))
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			if test.service == path.SharePointService {
-				mbh = mock.DefaultSharePointBH()
+				mbh = mock.DefaultSharePointBH("a-site")
 				mbh.ItemInfo.SharePoint.Modified = now
 				mbh.ItemInfo.SharePoint.ItemName = stubItemName
 			} else {
@@ -281,7 +281,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 	}
 }
 
-func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
+func (suite *CollectionUnitSuite) TestCollectionReadError() {
 	var (
 		t                = suite.T()
 		stubItemID       = "fakeItemID"
@@ -301,7 +301,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
 	require.NoError(t, err, clues.ToCore(err))
 
-	mbh := mock.DefaultOneDriveBH()
+	mbh := mock.DefaultOneDriveBH("a-user")
 	mbh.GI = mock.GetsItem{Err: assert.AnError}
 	mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 	mbh.GetResps = []*http.Response{
@@ -349,7 +349,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	require.Equal(t, 1, collStatus.Metrics.Successes, "TODO: should be 0, but allowing 1 to reduce async management")
 }
 
-func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry() {
+func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 	var (
 		t                = suite.T()
 		stubItemID       = "fakeItemID"
@@ -378,7 +378,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
 	require.NoError(t, err)
 
-	mbh := mock.DefaultOneDriveBH()
+	mbh := mock.DefaultOneDriveBH("a-user")
 	mbh.GI = mock.GetsItem{Item: stubItem}
 	mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 	mbh.GetResps = []*http.Response{
@@ -417,7 +417,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 }
 
 // Ensure metadata file always uses latest time for mod time
-func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTime() {
+func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() {
 	var (
 		t            = suite.T()
 		stubItemID   = "fakeItemID"
@@ -436,7 +436,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTim
 	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
 	require.NoError(t, err, clues.ToCore(err))
 
-	mbh := mock.DefaultOneDriveBH()
+	mbh := mock.DefaultOneDriveBH("a-user")
 	mbh.ItemInfo = details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}}
 	mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 	mbh.GetResps = []*http.Response{{
@@ -587,7 +587,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 				true,
 				false)
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.GI = mock.GetsItem{Item: stubItem}
 			mbh.GetResps = []*http.Response{{StatusCode: http.StatusOK}}
 			mbh.GetErrs = []error{test.err}
@@ -766,7 +766,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 				}
 			}
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.GI = test.mgi
 			mbh.ItemInfo = test.itemInfo
 			mbh.GetResps = resps
@@ -779,7 +779,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 	}
 }
 
-func (suite *CollectionUnitTestSuite) TestItemExtensions() {
+func (suite *CollectionUnitSuite) TestItemExtensions() {
 	type verifyExtensionOutput func(
 		t *testing.T,
 		info details.ItemInfo,
@@ -932,7 +932,7 @@ func (suite *CollectionUnitTestSuite) TestItemExtensions() {
 
 			wg.Add(1)
 
-			mbh := mock.DefaultOneDriveBH()
+			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.GI = mock.GetsItem{Err: assert.AnError}
 			mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 			mbh.GetResps = []*http.Response{
@@ -980,7 +980,9 @@ func (suite *CollectionUnitTestSuite) TestItemExtensions() {
 
 			ei, ok := collItem.(data.ItemInfo)
 			assert.True(t, ok)
-			itemInfo := ei.Info()
+
+			itemInfo, err := ei.Info()
+			require.NoError(t, err, clues.ToCore(err))
 
 			_, err = io.ReadAll(collItem.ToReader())
 			test.expectReadErr(t, err, clues.ToCore(err))

@@ -5,6 +5,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
@@ -21,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -71,14 +73,15 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	_ bool,
 	_ bool,
 ) (
-	[]string,
+	map[string]time.Time,
+	bool,
 	[]string,
 	api.DeltaUpdate,
 	error,
 ) {
 	results, ok := mg.results[cID]
 	if !ok {
-		return nil, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
+		return nil, false, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
 	}
 
 	delta := results.newDelta
@@ -86,7 +89,12 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 		delta.URL = ""
 	}
 
-	return results.added, results.removed, delta, results.err
+	resAdded := make(map[string]time.Time, len(results.added))
+	for _, add := range results.added {
+		resAdded[add] = time.Time{}
+	}
+
+	return resAdded, false, results.removed, delta, results.err
 }
 
 var _ graph.ContainerResolver = &mockResolver{}
@@ -150,24 +158,24 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 	table := []struct {
 		name                 string
 		data                 []fileValues
-		expect               map[string]DeltaPath
+		expect               map[string]metadata.DeltaPath
 		canUsePreviousBackup bool
 		expectError          assert.ErrorAssertionFunc
 	}{
 		{
 			name: "delta urls only",
 			data: []fileValues{
-				{graph.DeltaURLsFileName, "delta-link"},
+				{metadata.DeltaURLsFileName, "delta-link"},
 			},
-			expect:               map[string]DeltaPath{},
+			expect:               map[string]metadata.DeltaPath{},
 			canUsePreviousBackup: true,
 			expectError:          assert.NoError,
 		},
 		{
 			name: "multiple delta urls",
 			data: []fileValues{
-				{graph.DeltaURLsFileName, "delta-link"},
-				{graph.DeltaURLsFileName, "delta-link-2"},
+				{metadata.DeltaURLsFileName, "delta-link"},
+				{metadata.DeltaURLsFileName, "delta-link-2"},
 			},
 			canUsePreviousBackup: false,
 			expectError:          assert.Error,
@@ -175,9 +183,9 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "previous path only",
 			data: []fileValues{
-				{graph.PreviousPathFileName, "prev-path"},
+				{metadata.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]metadata.DeltaPath{
 				"key": {
 					Delta: "delta-link",
 					Path:  "prev-path",
@@ -189,8 +197,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "multiple previous paths",
 			data: []fileValues{
-				{graph.PreviousPathFileName, "prev-path"},
-				{graph.PreviousPathFileName, "prev-path-2"},
+				{metadata.PreviousPathFileName, "prev-path"},
+				{metadata.PreviousPathFileName, "prev-path-2"},
 			},
 			canUsePreviousBackup: false,
 			expectError:          assert.Error,
@@ -198,10 +206,10 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "delta urls and previous paths",
 			data: []fileValues{
-				{graph.DeltaURLsFileName, "delta-link"},
-				{graph.PreviousPathFileName, "prev-path"},
+				{metadata.DeltaURLsFileName, "delta-link"},
+				{metadata.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]metadata.DeltaPath{
 				"key": {
 					Delta: "delta-link",
 					Path:  "prev-path",
@@ -213,20 +221,20 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "delta urls and empty previous paths",
 			data: []fileValues{
-				{graph.DeltaURLsFileName, "delta-link"},
-				{graph.PreviousPathFileName, ""},
+				{metadata.DeltaURLsFileName, "delta-link"},
+				{metadata.PreviousPathFileName, ""},
 			},
-			expect:               map[string]DeltaPath{},
+			expect:               map[string]metadata.DeltaPath{},
 			canUsePreviousBackup: true,
 			expectError:          assert.NoError,
 		},
 		{
 			name: "empty delta urls and previous paths",
 			data: []fileValues{
-				{graph.DeltaURLsFileName, ""},
-				{graph.PreviousPathFileName, "prev-path"},
+				{metadata.DeltaURLsFileName, ""},
+				{metadata.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]metadata.DeltaPath{
 				"key": {
 					Delta: "delta-link",
 					Path:  "prev-path",
@@ -238,10 +246,10 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "delta urls with special chars",
 			data: []fileValues{
-				{graph.DeltaURLsFileName, "`!@#$%^&*()_[]{}/\"\\"},
-				{graph.PreviousPathFileName, "prev-path"},
+				{metadata.DeltaURLsFileName, "`!@#$%^&*()_[]{}/\"\\"},
+				{metadata.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]metadata.DeltaPath{
 				"key": {
 					Delta: "`!@#$%^&*()_[]{}/\"\\",
 					Path:  "prev-path",
@@ -253,10 +261,10 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 		{
 			name: "delta urls with escaped chars",
 			data: []fileValues{
-				{graph.DeltaURLsFileName, `\n\r\t\b\f\v\0\\`},
-				{graph.PreviousPathFileName, "prev-path"},
+				{metadata.DeltaURLsFileName, `\n\r\t\b\f\v\0\\`},
+				{metadata.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]metadata.DeltaPath{
 				"key": {
 					Delta: "\\n\\r\\t\\b\\f\\v\\0\\\\",
 					Path:  "prev-path",
@@ -271,10 +279,10 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 				// rune(92) = \, rune(110) = n.  Ensuring it's not possible to
 				// error in serializing/deserializing and produce a single newline
 				// character from those two runes.
-				{graph.DeltaURLsFileName, string([]rune{rune(92), rune(110)})},
-				{graph.PreviousPathFileName, "prev-path"},
+				{metadata.DeltaURLsFileName, string([]rune{rune(92), rune(110)})},
+				{metadata.PreviousPathFileName, "prev-path"},
 			},
-			expect: map[string]DeltaPath{
+			expect: map[string]metadata.DeltaPath{
 				"key": {
 					Delta: "\\n",
 					Path:  "prev-path",
@@ -299,13 +307,17 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 					graph.NewMetadataEntry(d.fileName, map[string]string{"key": d.value}))
 			}
 
-			coll, err := graph.MakeMetadataCollection(
+			pathPrefix, err := path.BuildMetadata(
 				"t", "u",
 				path.ExchangeService,
 				path.EmailCategory,
+				false)
+			require.NoError(t, err, "path prefix")
+
+			coll, err := graph.MakeMetadataCollection(
+				pathPrefix,
 				entries,
-				func(cos *support.ControllerOperationStatus) {},
-			)
+				func(cos *support.ControllerOperationStatus) {})
 			require.NoError(t, err, clues.ToCore(err))
 
 			cdps, canUsePreviousBackup, err := ParseMetadataCollections(ctx, []data.RestoreCollection{
@@ -441,8 +453,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 			name: "Folder Iterative Check Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
 				[]string{api.MailInbox},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 			folderNames: map[string]struct{}{
 				api.MailInbox: {},
 			},
@@ -452,8 +463,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 			name: "Folder Iterative Check Mail Non-Delta",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
 				[]string{api.MailInbox},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 			folderNames: map[string]struct{}{
 				api.MailInbox: {},
 			},
@@ -483,7 +493,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 				handlers,
 				suite.tenantID,
 				test.scope,
-				DeltaPaths{},
+				metadata.DeltaPaths{},
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -528,22 +538,19 @@ func (suite *BackupIntgSuite) TestDelta() {
 			name: "Mail",
 			scope: selectors.NewExchangeBackup(users).MailFolders(
 				[]string{api.MailInbox},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 		{
 			name: "Contacts",
 			scope: selectors.NewExchangeBackup(users).ContactFolders(
 				[]string{api.DefaultContacts},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 		{
 			name: "Events",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{api.DefaultCalendar},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 	}
 	for _, test := range tests {
@@ -566,7 +573,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 				handlers,
 				suite.tenantID,
 				test.scope,
-				DeltaPaths{},
+				metadata.DeltaPaths{},
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -650,7 +657,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 		handlers,
 		suite.tenantID,
 		sel.Scopes()[0],
-		DeltaPaths{},
+		metadata.DeltaPaths{},
 		newStatusUpdater(t, &wg),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -704,9 +711,9 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 	}{
 		{
 			name: "Default Contact Folder",
-			scope: selectors.NewExchangeBackup(users).ContactFolders(
-				[]string{api.DefaultContacts},
-				selectors.PrefixMatch())[0],
+			scope: selectors.
+				NewExchangeBackup(users).
+				ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch())[0],
 		},
 	}
 
@@ -731,7 +738,7 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 				handlers,
 				suite.tenantID,
 				test.scope,
-				DeltaPaths{},
+				metadata.DeltaPaths{},
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -742,8 +749,10 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 			require.GreaterOrEqual(t, 2, len(edcs), "expected 1 <= num collections <= 2")
 
 			for _, edc := range edcs {
-				isMetadata := edc.FullPath().Service() == path.ExchangeMetadataService
-				count := 0
+				var (
+					isMetadata = edc.FullPath().Service() == path.ExchangeMetadataService
+					count      = 0
+				)
 
 				for stream := range edc.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
@@ -827,16 +836,14 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 			expected: calID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{api.DefaultCalendar},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 		{
 			name:     "Birthday Calendar",
 			expected: bdayID,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{"Birthdays"},
-				selectors.PrefixMatch(),
-			)[0],
+				selectors.PrefixMatch())[0],
 		},
 	}
 
@@ -861,7 +868,7 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 				handlers,
 				suite.tenantID,
 				test.scope,
-				DeltaPaths{},
+				metadata.DeltaPaths{},
 				newStatusUpdater(t, &wg),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -926,7 +933,7 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 		}
 		statusUpdater = func(*support.ControllerOperationStatus) {}
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
-		dps           = DeltaPaths{} // incrementals are tested separately
+		dps           = metadata.DeltaPaths{} // incrementals are tested separately
 		commonResult  = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
@@ -1195,7 +1202,7 @@ func checkMetadata(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	cat path.CategoryType,
-	expect DeltaPaths,
+	expect metadata.DeltaPaths,
 	c data.BackupCollection,
 ) {
 	catPaths, _, err := ParseMetadataCollections(
@@ -1316,10 +1323,10 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 		name           string
 		getter         mockGetter
 		resolver       graph.ContainerResolver
-		inputMetadata  func(t *testing.T, cat path.CategoryType) DeltaPaths
+		inputMetadata  func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths
 		expectNewColls int
 		expectDeleted  int
-		expectMetadata func(t *testing.T, cat path.CategoryType) DeltaPaths
+		expectMetadata func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths
 	}{
 		{
 			name: "1 moved to duplicate",
@@ -1330,25 +1337,25 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 				},
 			},
 			resolver: newMockResolver(container1, container2),
-			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
-				return DeltaPaths{
-					"1": DeltaPath{
+			inputMetadata: func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths {
+				return metadata.DeltaPaths{
+					"1": metadata.DeltaPath{
 						Delta: "old_delta",
 						Path:  oldPath1(t, cat).String(),
 					},
-					"2": DeltaPath{
+					"2": metadata.DeltaPath{
 						Delta: "old_delta",
 						Path:  idPath2(t, cat).String(),
 					},
 				}
 			},
-			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
-				return DeltaPaths{
-					"1": DeltaPath{
+			expectMetadata: func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths {
+				return metadata.DeltaPaths{
+					"1": metadata.DeltaPath{
 						Delta: "delta_url",
 						Path:  idPath1(t, cat).String(),
 					},
-					"2": DeltaPath{
+					"2": metadata.DeltaPath{
 						Delta: "delta_url2",
 						Path:  idPath2(t, cat).String(),
 					},
@@ -1364,25 +1371,25 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 				},
 			},
 			resolver: newMockResolver(container1, container2),
-			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
-				return DeltaPaths{
-					"1": DeltaPath{
+			inputMetadata: func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths {
+				return metadata.DeltaPaths{
+					"1": metadata.DeltaPath{
 						Delta: "old_delta",
 						Path:  oldPath1(t, cat).String(),
 					},
-					"2": DeltaPath{
+					"2": metadata.DeltaPath{
 						Delta: "old_delta",
 						Path:  oldPath2(t, cat).String(),
 					},
 				}
 			},
-			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
-				return DeltaPaths{
-					"1": DeltaPath{
+			expectMetadata: func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths {
+				return metadata.DeltaPaths{
+					"1": metadata.DeltaPath{
 						Delta: "delta_url",
 						Path:  idPath1(t, cat).String(),
 					},
-					"2": DeltaPath{
+					"2": metadata.DeltaPath{
 						Delta: "delta_url2",
 						Path:  idPath2(t, cat).String(),
 					},
@@ -1398,17 +1405,17 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 				},
 			},
 			resolver: newMockResolver(container1, container2),
-			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
-				return DeltaPaths{}
+			inputMetadata: func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths {
+				return metadata.DeltaPaths{}
 			},
 			expectNewColls: 2,
-			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
-				return DeltaPaths{
-					"1": DeltaPath{
+			expectMetadata: func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths {
+				return metadata.DeltaPaths{
+					"1": metadata.DeltaPath{
 						Delta: "delta_url",
 						Path:  idPath1(t, cat).String(),
 					},
-					"2": DeltaPath{
+					"2": metadata.DeltaPath{
 						Delta: "delta_url2",
 						Path:  idPath2(t, cat).String(),
 					},
@@ -1423,9 +1430,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 				},
 			},
 			resolver: newMockResolver(container1),
-			inputMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
-				return DeltaPaths{
-					"2": DeltaPath{
+			inputMetadata: func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths {
+				return metadata.DeltaPaths{
+					"2": metadata.DeltaPath{
 						Delta: "old_delta",
 						Path:  idPath2(t, cat).String(),
 					},
@@ -1433,9 +1440,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 			},
 			expectNewColls: 1,
 			expectDeleted:  1,
-			expectMetadata: func(t *testing.T, cat path.CategoryType) DeltaPaths {
-				return DeltaPaths{
-					"1": DeltaPath{
+			expectMetadata: func(t *testing.T, cat path.CategoryType) metadata.DeltaPaths {
+				return metadata.DeltaPaths{
+					"1": metadata.DeltaPath{
 						Delta: "delta_url",
 						Path:  idPath1(t, cat).String(),
 					},
@@ -1607,7 +1614,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 				}
 				statusUpdater = func(*support.ControllerOperationStatus) {}
 				allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
-				dps           = DeltaPaths{} // incrementals are tested separately
+				dps           = metadata.DeltaPaths{} // incrementals are tested separately
 				container1    = mockContainer{
 					id:          strPtr("1"),
 					displayName: strPtr("display_name_1"),
@@ -1721,7 +1728,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 		name                  string
 		getter                mockGetter
 		resolver              graph.ContainerResolver
-		dps                   DeltaPaths
+		dps                   metadata.DeltaPaths
 		expect                map[string]endState
 		skipWhenForcedNoDelta bool
 	}{
@@ -1738,7 +1745,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 				p:           path.Builder{}.Append("1", "new"),
 				l:           path.Builder{}.Append("1", "new"),
 			}),
-			dps: DeltaPaths{},
+			dps: metadata.DeltaPaths{},
 			expect: map[string]endState{
 				"1": {data.NewState, false},
 			},
@@ -1756,8 +1763,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 				p:           path.Builder{}.Append("1", "not_moved"),
 				l:           path.Builder{}.Append("1", "not_moved"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
+			dps: metadata.DeltaPaths{
+				"1": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "1", "not_moved").String(),
 				},
@@ -1779,8 +1786,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 				p:           path.Builder{}.Append("1", "moved"),
 				l:           path.Builder{}.Append("1", "moved"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
+			dps: metadata.DeltaPaths{
+				"1": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "1", "prev").String(),
 				},
@@ -1795,8 +1802,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 				results: map[string]mockGetterResults{},
 			},
 			resolver: newMockResolver(),
-			dps: DeltaPaths{
-				"1": DeltaPath{
+			dps: metadata.DeltaPaths{
+				"1": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "1", "deleted").String(),
 				},
@@ -1818,8 +1825,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 				p:           path.Builder{}.Append("2", "new"),
 				l:           path.Builder{}.Append("2", "new"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
+			dps: metadata.DeltaPaths{
+				"1": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "1", "deleted").String(),
 				},
@@ -1842,8 +1849,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 				p:           path.Builder{}.Append("2", "same"),
 				l:           path.Builder{}.Append("2", "same"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
+			dps: metadata.DeltaPaths{
+				"1": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "1", "same").String(),
 				},
@@ -1873,10 +1880,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 					displayName: strPtr("prev"),
 					p:           path.Builder{}.Append("2", "prev"),
 					l:           path.Builder{}.Append("2", "prev"),
-				},
-			),
-			dps: DeltaPaths{
-				"1": DeltaPath{
+				}),
+			dps: metadata.DeltaPaths{
+				"1": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "1", "prev").String(),
 				},
@@ -1899,12 +1905,12 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 				p:           path.Builder{}.Append("1", "not_moved"),
 				l:           path.Builder{}.Append("1", "not_moved"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
+			dps: metadata.DeltaPaths{
+				"1": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  "1/fnords/mc/smarfs",
 				},
-				"2": DeltaPath{
+				"2": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  "2/fnords/mc/smarfs",
 				},
@@ -1926,8 +1932,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 				p:           path.Builder{}.Append("1", "same"),
 				l:           path.Builder{}.Append("1", "same"),
 			}),
-			dps: DeltaPaths{
-				"1": DeltaPath{
+			dps: metadata.DeltaPaths{
+				"1": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "1", "same").String(),
 				},
@@ -1972,22 +1978,21 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 					displayName: strPtr("moved"),
 					p:           path.Builder{}.Append("4", "moved"),
 					l:           path.Builder{}.Append("4", "moved"),
-				},
-			),
-			dps: DeltaPaths{
-				"2": DeltaPath{
+				}),
+			dps: metadata.DeltaPaths{
+				"2": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "2", "not_moved").String(),
 				},
-				"3": DeltaPath{
+				"3": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "3", "prev").String(),
 				},
-				"4": DeltaPath{
+				"4": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "4", "prev").String(),
 				},
-				"5": DeltaPath{
+				"5": metadata.DeltaPath{
 					Delta: "old_delta_url",
 					Path:  prevPath(suite.T(), "5", "deleted").String(),
 				},

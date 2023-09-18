@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -14,9 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-const (
-	eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
-)
+const eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/calendars/%s/events/delta"
 
 // ---------------------------------------------------------------------------
 // container pager
@@ -43,7 +42,7 @@ func (c Events) EnumerateContainers(
 		builder = c.Stable.
 			Client().
 			Users().
-			ByUserId(userID).
+			ByUserIdString(userID).
 			Calendars()
 	)
 
@@ -98,7 +97,7 @@ func (c Events) EnumerateContainers(
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.Eventable] = &eventsPageCtrl{}
+var _ Pager[models.Eventable] = &eventsPageCtrl{}
 
 type eventsPageCtrl struct {
 	gs      graph.Servicer
@@ -108,13 +107,13 @@ type eventsPageCtrl struct {
 
 func (c Events) NewEventsPager(
 	userID, containerID string,
+	immutableIDs bool,
 	selectProps ...string,
-) itemPager[models.Eventable] {
+) Pager[models.Eventable] {
 	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
-		QueryParameters: &users.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{
-			// do NOT set Top.  It limits the total items received.
-		},
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		QueryParameters: &users.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{},
+		// do NOT set Top.  It limits the total items received.
 	}
 
 	if len(selectProps) > 0 {
@@ -124,36 +123,35 @@ func (c Events) NewEventsPager(
 	builder := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
-		ByCalendarId(containerID).
+		ByCalendarIdString(containerID).
 		Events()
 
 	return &eventsPageCtrl{c.Stable, builder, options}
 }
 
-//lint:ignore U1000 False Positive
-func (p *eventsPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.Eventable], error) {
+func (p *eventsPageCtrl) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[models.Eventable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
-//lint:ignore U1000 False Positive
-func (p *eventsPageCtrl) setNext(nextLink string) {
+func (p *eventsPageCtrl) SetNextLink(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-//lint:ignore U1000 False Positive
+func (p *eventsPageCtrl) ValidModTimes() bool {
+	return true
+}
+
 func (c Events) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	userID, containerID string,
 ) (map[string]string, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewEventsPager(userID, containerID, eventCollisionKeyProps()...)
+	pager := c.NewEventsPager(userID, containerID, false, eventCollisionKeyProps()...)
 
 	items, err := enumerateItems(ctx, pager)
 	if err != nil {
@@ -169,68 +167,34 @@ func (c Events) GetItemsInContainerByCollisionKey(
 	return m, nil
 }
 
-// ---------------------------------------------------------------------------
-// item ID pager
-// ---------------------------------------------------------------------------
-
-var _ itemIDPager = &eventIDPager{}
-
-type eventIDPager struct {
-	gs      graph.Servicer
-	builder *users.ItemCalendarsItemEventsRequestBuilder
-	options *users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration
-}
-
-func (c Events) NewEventIDsPager(
+func (c Events) GetItemIDsInContainer(
 	ctx context.Context,
 	userID, containerID string,
-	immutableIDs bool,
-) (itemIDPager, error) {
-	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
-		QueryParameters: &users.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{
-			// do NOT set Top.  It limits the total items received.
-		},
-	}
+) (map[string]struct{}, error) {
+	ctx = clues.Add(ctx, "container_id", containerID)
+	pager := c.NewEventsPager(userID, containerID, false, idAnd()...)
 
-	builder := c.Stable.
-		Client().
-		Users().
-		ByUserId(userID).
-		Calendars().
-		ByCalendarId(containerID).
-		Events()
-
-	return &eventIDPager{c.Stable, builder, options}, nil
-}
-
-func (p *eventIDPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
-	resp, err := p.builder.Get(ctx, p.options)
+	items, err := enumerateItems(ctx, pager)
 	if err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, graph.Wrap(ctx, err, "enumerating events")
 	}
 
-	return EmptyDeltaLinker[models.Eventable]{PageLinkValuer: resp}, nil
-}
+	m := map[string]struct{}{}
 
-func (p *eventIDPager) setNext(nextLink string) {
-	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
-}
+	for _, item := range items {
+		m[ptr.Val(item.GetId())] = struct{}{}
+	}
 
-// non delta pagers don't need reset
-func (p *eventIDPager) reset(context.Context) {}
-
-func (p *eventIDPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Eventable](pl)
+	return m, nil
 }
 
 // ---------------------------------------------------------------------------
 // delta item ID pager
 // ---------------------------------------------------------------------------
 
-var _ itemIDPager = &eventDeltaIDPager{}
+var _ DeltaPager[models.Eventable] = &eventDeltaPager{}
 
-type eventDeltaIDPager struct {
+type eventDeltaPager struct {
 	gs          graph.Servicer
 	userID      string
 	containerID string
@@ -238,87 +202,90 @@ type eventDeltaIDPager struct {
 	options     *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (c Events) NewEventDeltaIDsPager(
-	ctx context.Context,
-	userID, containerID, oldDelta string,
-	immutableIDs bool,
-) (itemIDPager, error) {
-	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
-		QueryParameters: &users.ItemCalendarsItemEventsDeltaRequestBuilderGetQueryParameters{
-			// do NOT set Top.  It limits the total items received.
-		},
-	}
-
-	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
-
-	if oldDelta == "" {
-		builder = getEventDeltaBuilder(ctx, c.Stable, userID, containerID, options)
-	} else {
-		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(oldDelta, c.Stable.Adapter())
-	}
-
-	return &eventDeltaIDPager{c.Stable, userID, containerID, builder, options}, nil
-}
-
 func getEventDeltaBuilder(
 	ctx context.Context,
 	gs graph.Servicer,
 	userID, containerID string,
-	options *users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration,
 ) *users.ItemCalendarsItemEventsDeltaRequestBuilder {
-	// Graph SDK only supports delta queries against events on the beta version, so we're
-	// manufacturing use of the beta version url to make the call instead.
-	// See: https://learn.microsoft.com/ko-kr/graph/api/event-delta?view=graph-rest-beta&tabs=http
-	// Note that the delta item body is skeletal compared to the actual event struct.  Lucky
-	// for us, we only need the item ID.  As a result, even though we hacked the version, the
-	// response body parses properly into the v1.0 structs and complies with our wanted interfaces.
-	// Likewise, the NextLink and DeltaLink odata tags carry our hack forward, so the rest of the code
-	// works as intended (until, at least, we want to _not_ call the beta anymore).
 	rawURL := fmt.Sprintf(eventBetaDeltaURLTemplate, userID, containerID)
-	builder := users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, gs.Adapter())
-
-	return builder
+	return users.NewItemCalendarsItemEventsDeltaRequestBuilder(rawURL, gs.Adapter())
 }
 
-func (p *eventDeltaIDPager) getPage(ctx context.Context) (DeltaPageLinker, error) {
-	resp, err := p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
+func (c Events) NewEventsDeltaPager(
+	ctx context.Context,
+	userID, containerID, prevDeltaLink string,
+	immutableIDs bool,
+	selectProps ...string,
+) DeltaPager[models.Eventable] {
+	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
+		// do NOT set Top.  It limits the total items received.
+		QueryParameters: &users.ItemCalendarsItemEventsDeltaRequestBuilderGetQueryParameters{},
+		Headers:         newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
 	}
 
-	return resp, nil
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
+	var builder *users.ItemCalendarsItemEventsDeltaRequestBuilder
+
+	if len(prevDeltaLink) > 0 {
+		builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(prevDeltaLink, c.Stable.Adapter())
+	} else {
+		builder = getEventDeltaBuilder(ctx, c.Stable, userID, containerID)
+	}
+
+	return &eventDeltaPager{c.Stable, userID, containerID, builder, options}
 }
 
-func (p *eventDeltaIDPager) setNext(nextLink string) {
+func (p *eventDeltaPager) GetPage(
+	ctx context.Context,
+) (DeltaLinkValuer[models.Eventable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+func (p *eventDeltaPager) SetNextLink(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsDeltaRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *eventDeltaIDPager) reset(ctx context.Context) {
-	p.builder = getEventDeltaBuilder(ctx, p.gs, p.userID, p.containerID, p.options)
+func (p *eventDeltaPager) Reset(ctx context.Context) {
+	p.builder = getEventDeltaBuilder(ctx, p.gs, p.userID, p.containerID)
 }
 
-func (p *eventDeltaIDPager) valuesIn(pl PageLinker) ([]getIDAndAddtler, error) {
-	return toValues[models.Eventable](pl)
+func (p *eventDeltaPager) ValidModTimes() bool {
+	return false
 }
 
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
-	userID, containerID, oldDelta string,
+	userID, containerID, prevDeltaLink string,
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
-) ([]string, []string, DeltaUpdate, error) {
-	ctx = clues.Add(ctx, "container_id", containerID)
+) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
+	ctx = clues.Add(
+		ctx,
+		"data_category", path.EventsCategory,
+		"container_id", containerID)
 
-	pager, err := c.NewEventIDsPager(ctx, userID, containerID, immutableIDs)
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating non-delta pager")
-	}
+	deltaPager := c.NewEventsDeltaPager(
+		ctx,
+		userID,
+		containerID,
+		prevDeltaLink,
+		immutableIDs,
+		idAnd()...)
+	pager := c.NewEventsPager(
+		userID,
+		containerID,
+		immutableIDs,
+		idAnd(lastModifiedDateTime)...)
 
-	deltaPager, err := c.NewEventDeltaIDsPager(ctx, userID, containerID, oldDelta, immutableIDs)
-	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Wrap(ctx, err, "creating delta pager")
-	}
-
-	return getAddedAndRemovedItemIDs(ctx, c.Stable, pager, deltaPager, oldDelta, canMakeDeltaQueries)
+	return getAddedAndRemovedItemIDs[models.Eventable](
+		ctx,
+		pager,
+		deltaPager,
+		prevDeltaLink,
+		canMakeDeltaQueries,
+		addedAndRemovedByAddtlData[models.Eventable])
 }

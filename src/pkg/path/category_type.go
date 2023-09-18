@@ -26,34 +26,50 @@ const (
 	LibrariesCategory       CategoryType = 6 // libraries
 	PagesCategory           CategoryType = 7 // pages
 	DetailsCategory         CategoryType = 8 // details
-	ChannelMessagesCategory CategoryType = 9 // channel messages
+	ChannelMessagesCategory CategoryType = 9 // channelMessages
 )
 
-func ToCategoryType(category string) CategoryType {
-	cat := strings.ToLower(category)
+var strToCat = map[string]CategoryType{
+	strings.ToLower(EmailCategory.String()):           EmailCategory,
+	strings.ToLower(ContactsCategory.String()):        ContactsCategory,
+	strings.ToLower(EventsCategory.String()):          EventsCategory,
+	strings.ToLower(FilesCategory.String()):           FilesCategory,
+	strings.ToLower(LibrariesCategory.String()):       LibrariesCategory,
+	strings.ToLower(ListsCategory.String()):           ListsCategory,
+	strings.ToLower(PagesCategory.String()):           PagesCategory,
+	strings.ToLower(DetailsCategory.String()):         DetailsCategory,
+	strings.ToLower(ChannelMessagesCategory.String()): ChannelMessagesCategory,
+}
 
-	switch cat {
-	case strings.ToLower(EmailCategory.String()):
-		return EmailCategory
-	case strings.ToLower(ContactsCategory.String()):
-		return ContactsCategory
-	case strings.ToLower(EventsCategory.String()):
-		return EventsCategory
-	case strings.ToLower(FilesCategory.String()):
-		return FilesCategory
-	case strings.ToLower(LibrariesCategory.String()):
-		return LibrariesCategory
-	case strings.ToLower(ListsCategory.String()):
-		return ListsCategory
-	case strings.ToLower(PagesCategory.String()):
-		return PagesCategory
-	case strings.ToLower(DetailsCategory.String()):
-		return DetailsCategory
-	case strings.ToLower(ChannelMessagesCategory.String()):
-		return ChannelMessagesCategory
-	default:
-		return UnknownCategory
+func ToCategoryType(s string) CategoryType {
+	cat, ok := strToCat[strings.ToLower(s)]
+	if ok {
+		return cat
 	}
+
+	return UnknownCategory
+}
+
+var catToHuman = map[CategoryType]string{
+	EmailCategory:           "Emails",
+	ContactsCategory:        "Contacts",
+	EventsCategory:          "Events",
+	FilesCategory:           "Files",
+	LibrariesCategory:       "Libraries",
+	ListsCategory:           "Lists",
+	PagesCategory:           "Pages",
+	DetailsCategory:         "Details",
+	ChannelMessagesCategory: "Messages",
+}
+
+// HumanString produces a more human-readable string version of the category.
+func (cat CategoryType) HumanString() string {
+	hs, ok := catToHuman[cat]
+	if ok {
+		return hs
+	}
+
+	return "Unknown Category"
 }
 
 // ---------------------------------------------------------------------------

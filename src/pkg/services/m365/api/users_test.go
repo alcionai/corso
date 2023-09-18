@@ -4,14 +4,12 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/h2non/gock"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -116,137 +114,39 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 	}
 }
 
-type UsersIntgSuite struct {
-	tester.Suite
-	its intgTesterSetup
-}
-
-func TestUsersIntgSuite(t *testing.T) {
-	suite.Run(t, &UsersIntgSuite{
-		Suite: tester.NewIntegrationSuite(
-			t,
-			[][]string{tconfig.M365AcctCredEnvs}),
-	})
-}
-
-func (suite *UsersIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
-}
-
-func (suite *UsersIntgSuite) TestUsers_GetInfo_errors() {
+func (suite *UsersUnitSuite) TestIsAnyErrMailboxNotFound() {
 	table := []struct {
-		name      string
-		setGocks  func(t *testing.T)
-		expectErr func(t *testing.T, err error)
+		name   string
+		errs   []error
+		expect bool
 	}{
 		{
-			name: "default drive err - mysite not found",
-			setGocks: func(t *testing.T) {
-				interceptV1Path("users", "user", "drive").
-					Reply(400).
-					JSON(parseableToMap(t, odErrMsg("anycode", string(graph.MysiteNotFound))))
-				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
-					Reply(400).
-					JSON(parseableToMap(t, odErr(string(graph.ResourceNotFound))))
-			},
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			name:   "no errors",
+			errs:   nil,
+			expect: false,
 		},
 		{
-			name: "default drive err - no sharepoint license",
-			setGocks: func(t *testing.T) {
-				interceptV1Path("users", "user", "drive").
-					Reply(400).
-					JSON(parseableToMap(t, odErrMsg("anycode", string(graph.NoSPLicense))))
-				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
-					Reply(400).
-					JSON(parseableToMap(t, odErr(string(graph.ResourceNotFound))))
+			name: "mailbox not found error",
+			errs: []error{
+				clues.New("an error"),
+				api.ErrMailBoxNotFound,
+				clues.New("an error"),
 			},
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			expect: true,
 		},
 		{
-			name: "default drive err - other error",
-			setGocks: func(t *testing.T) {
-				interceptV1Path("users", "user", "drive").
-					Reply(400).
-					JSON(parseableToMap(t, odErrMsg("somecode", "somemessage")))
+			name: "other errors",
+			errs: []error{
+				clues.New("an error"),
+				api.ErrMailBoxSettingsAccessDenied,
+				clues.New("an error"),
 			},
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "mail inbox err - user not found",
-			setGocks: func(t *testing.T) {
-				interceptV1Path("users", "user", "drive").
-					Reply(200).
-					JSON(parseableToMap(t, models.NewDrive()))
-				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
-					Reply(400).
-					JSON(parseableToMap(t, odErr(string(graph.RequestResourceNotFound))))
-			},
-			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
-			},
-		},
-		{
-			name: "mail inbox err - user not found",
-			setGocks: func(t *testing.T) {
-				interceptV1Path("users", "user", "drive").
-					Reply(200).
-					JSON(parseableToMap(t, models.NewDrive()))
-				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
-					Reply(400).
-					JSON(parseableToMap(t, odErr(string(graph.MailboxNotEnabledForRESTAPI))))
-			},
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "mail inbox err - authenticationError",
-			setGocks: func(t *testing.T) {
-				interceptV1Path("users", "user", "drive").
-					Reply(200).
-					JSON(parseableToMap(t, models.NewDrive()))
-				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
-					Reply(400).
-					JSON(parseableToMap(t, odErr(string(graph.AuthenticationError))))
-			},
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
-		},
-		{
-			name: "mail inbox err - other error",
-			setGocks: func(t *testing.T) {
-				interceptV1Path("users", "user", "drive").
-					Reply(200).
-					JSON(parseableToMap(t, models.NewDrive()))
-				interceptV1Path("users", "user", "mailFolders", api.MailInbox).
-					Reply(400).
-					JSON(parseableToMap(t, odErrMsg("somecode", "somemessage")))
-			},
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
+			expect: false,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
-			ctx, flush := tester.NewContext(t)
-
-			defer flush()
-			defer gock.Off()
-
-			test.setGocks(t)
-
-			_, err := suite.its.gockAC.Users().GetInfo(ctx, "user")
-			test.expectErr(t, err)
+			assert.Equal(suite.T(), test.expect, api.IsAnyErrMailboxNotFound(test.errs))
 		})
 	}
 }

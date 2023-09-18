@@ -230,7 +230,7 @@ func (m *ItemPagesSitePageItemRequestBuilder) WebPartsById(id string) *ItemPages
 	for idx, item := range m.pathParameters {
 		urlTplParams[idx] = item
 	}
-	if id != "" {
+	if len(id) > 0 {
 		urlTplParams["webPart%2Did"] = id
 	}
 	return NewItemPagesItemWebPartsWebPartItemRequestBuilderInternal(urlTplParams, m.requestAdapter)

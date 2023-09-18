@@ -54,8 +54,7 @@ func TestSharePointCollectionSuite(t *testing.T) {
 	suite.Run(t, &SharePointCollectionSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -184,9 +183,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			item := readItems[0]
 			shareInfo, ok := item.(data.ItemInfo)
 			require.True(t, ok)
-			require.NotNil(t, shareInfo.Info())
-			require.NotNil(t, shareInfo.Info().SharePoint)
-			assert.Equal(t, test.itemName, shareInfo.Info().SharePoint.ItemName)
+
+			info, err := shareInfo.Info()
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.NotNil(t, info)
+			assert.NotNil(t, info.SharePoint)
+			assert.Equal(t, test.itemName, info.SharePoint.ItemName)
 		})
 	}
 }
@@ -221,7 +224,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	// Clean-Up
 	var (
-		builder  = service.Client().Sites().BySiteId(suite.siteID).Lists()
+		builder  = service.Client().Sites().BySiteIdString(suite.siteID).Lists()
 		isFound  bool
 		deleteID string
 	)

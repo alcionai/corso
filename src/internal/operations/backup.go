@@ -202,23 +202,25 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
-	var runnable bool
-
-	// IsBackupRunnable checks if the user has services enabled to run a backup.
-	// it also checks for conditions like mailbox full.
-	runnable, err = op.bp.IsBackupRunnable(ctx, op.Selectors.PathService(), op.ResourceOwner.ID())
+	// Check if the protected resource has the service enabled in order for us
+	// to run a backup.
+	enabled, err := op.bp.IsServiceEnabled(
+		ctx,
+		op.Selectors.PathService(),
+		op.ResourceOwner.ID())
 	if err != nil {
-		logger.CtxErr(ctx, err).Error("verifying backup is runnable")
-		op.Errors.Fail(clues.Wrap(err, "verifying backup is runnable"))
+		logger.CtxErr(ctx, err).Error("verifying service backup is enabled")
+		op.Errors.Fail(clues.Wrap(err, "verifying service backup is enabled"))
 
-		return
+		return err
 	}
 
-	if !runnable {
-		logger.CtxErr(ctx, graph.ErrServiceNotEnabled).Error("checking if backup is enabled")
-		op.Errors.Fail(clues.Wrap(err, "checking if backup is enabled"))
+	if !enabled {
+		// Return named error so that we can check for it in caller.
+		err = clues.Wrap(graph.ErrServiceNotEnabled, "service not enabled for backup")
+		op.Errors.Fail(err)
 
-		return
+		return err
 	}
 
 	// -----
@@ -354,6 +356,7 @@ func (op *BackupOperation) do(
 	mans, mdColls, canUseMetadata, err := produceManifestsAndMetadata(
 		ctx,
 		kbf,
+		op.bp,
 		op.kopia,
 		reasons, fallbackReasons,
 		op.account.ID(),
@@ -363,7 +366,11 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
-	ctx = clues.Add(ctx, "can_use_metadata", canUseMetadata)
+	ctx = clues.Add(
+		ctx,
+		"can_use_metadata", canUseMetadata,
+		"assist_bases", len(mans.UniqueAssistBases()),
+		"merge_bases", len(mans.MergeBases()))
 
 	if canUseMetadata {
 		lastBackupVersion = mans.MinBackupVersion()
@@ -541,7 +548,7 @@ func consumeBackupCollections(
 
 func matchesReason(reasons []identity.Reasoner, p path.Path) bool {
 	for _, reason := range reasons {
-		if p.ResourceOwner() == reason.ProtectedResource() &&
+		if p.ProtectedResource() == reason.ProtectedResource() &&
 			p.Service() == reason.Service() &&
 			p.Category() == reason.Category() {
 			return true
@@ -709,6 +716,7 @@ func mergeDetails(
 
 	// Don't bother loading any of the base details if there's nothing we need to merge.
 	if bases == nil || dataFromBackup == nil || dataFromBackup.ItemsToMerge() == 0 {
+		logger.Ctx(ctx).Info("no base details to merge")
 		return nil
 	}
 
@@ -730,7 +738,7 @@ func mergeDetails(
 	// leaves us in a bit of a pickle if the user has run any concurrent backups
 	// with overlapping Reasons that turn into assist bases, but the modTime check
 	// in DetailsMergeInfoer should handle that.
-	for _, base := range bases.AssistBackups() {
+	for _, base := range bases.UniqueAssistBackups() {
 		added, err := mergeItemsFromBase(
 			ctx,
 			false,

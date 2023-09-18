@@ -40,8 +40,7 @@ func TestListsUnitSuite(t *testing.T) {
 	suite.Run(t, &ListsUnitSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 

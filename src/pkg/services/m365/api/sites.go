@@ -10,11 +10,11 @@ import (
 	"github.com/alcionai/clues"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -36,11 +36,17 @@ type Sites struct {
 // ---------------------------------------------------------------------------
 
 func (c Sites) GetRoot(ctx context.Context) (models.Siteable, error) {
+	options := &sites.SiteItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &sites.SiteItemRequestBuilderGetQueryParameters{
+			Expand: []string{"drive"},
+		},
+	}
+
 	resp, err := c.Stable.
 		Client().
 		Sites().
-		BySiteId("root").
-		Get(ctx, nil)
+		BySiteIdString("root").
+		Get(ctx, options)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting root site")
 	}
@@ -96,14 +102,16 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 	return us, el.Failure()
 }
 
-const uuidRE = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+const uuidRETmpl = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
+var uuidRE = regexp.MustCompile(uuidRETmpl)
 
 // matches a site ID, with or without a doman name.  Ex, either one of:
 // 10rqc2.sharepoint.com,deadbeef-0000-0000-0000-000000000000,beefdead-0000-0000-0000-000000000000
 // deadbeef-0000-0000-0000-000000000000,beefdead-0000-0000-0000-000000000000
-var siteIDRE = regexp.MustCompile(`(.+,)?` + uuidRE + "," + uuidRE)
+var siteIDRE = regexp.MustCompile(`(.+,)?` + uuidRETmpl + "," + uuidRETmpl)
 
-const webURLGetTemplate = "https://graph.microsoft.com/v1.0/sites/%s:/%s"
+const sitesWebURLGetTemplate = "https://graph.microsoft.com/v1.0/sites/%s:/%s?$expand=drive"
 
 // GetByID looks up the site matching the given identifier.  The identifier can be either a
 // canonical site id or a webURL.  Assumes the webURL is complete and well formed;
@@ -117,11 +125,17 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 	ctx = clues.Add(ctx, "given_site_id", identifier)
 
 	if siteIDRE.MatchString(identifier) {
+		options := &sites.SiteItemRequestBuilderGetRequestConfiguration{
+			QueryParameters: &sites.SiteItemRequestBuilderGetQueryParameters{
+				Expand: []string{"drive"},
+			},
+		}
+
 		resp, err = c.Stable.
 			Client().
 			Sites().
-			BySiteId(identifier).
-			Get(ctx, nil)
+			BySiteIdString(identifier).
+			Get(ctx, options)
 		if err != nil {
 			err := graph.Wrap(ctx, err, "getting site by id")
 
@@ -153,7 +167,7 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 
 	// don't construct a path with double leading slashes
 	path := strings.TrimPrefix(u.Path, "/")
-	rawURL := fmt.Sprintf(webURLGetTemplate, u.Host, path)
+	rawURL := fmt.Sprintf(sitesWebURLGetTemplate, u.Host, path)
 
 	resp, err = sites.
 		NewItemSitesSiteItemRequestBuilder(rawURL, c.Stable.Adapter()).
@@ -196,7 +210,7 @@ func (c Sites) GetDefaultDrive(
 	d, err := c.Stable.
 		Client().
 		Sites().
-		BySiteId(site).
+		BySiteIdString(site).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
