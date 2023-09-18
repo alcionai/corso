@@ -16,17 +16,17 @@ import (
 func m365ConfigsFromViper(vpr *viper.Viper) (account.M365Config, error) {
 	var m365 account.M365Config
 
-	m365.AzureClientID = vpr.GetString(AzureClientID)
-	m365.AzureClientSecret = vpr.GetString(AzureSecret)
-	m365.AzureTenantID = vpr.GetString(AzureTenantIDKey)
+	m365.AzureClientID = vpr.GetString(account.AzureClientID)
+	m365.AzureClientSecret = vpr.GetString(account.AzureSecret)
+	m365.AzureTenantID = vpr.GetString(account.AzureTenantIDKey)
 
 	return m365, nil
 }
 
 func m365Overrides(in map[string]string) map[string]string {
 	return map[string]string{
-		account.AzureTenantID:  in[account.AzureTenantID],
-		AccountProviderTypeKey: in[AccountProviderTypeKey],
+		account.AzureTenantID:          in[account.AzureTenantID],
+		account.AccountProviderTypeKey: in[account.AccountProviderTypeKey],
 	}
 }
 
@@ -52,7 +52,7 @@ func configureAccount(
 		}
 
 		if matchFromConfig {
-			providerType := vpr.GetString(AccountProviderTypeKey)
+			providerType := vpr.GetString(account.AccountProviderTypeKey)
 			if providerType != account.ProviderM365.String() {
 				return acct, clues.New("unsupported account provider: " + providerType)
 			}
