@@ -54,7 +54,6 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 
 func NewFilesystemStorage(t tester.TestT) storage.Storage {
 	now := tester.LogTimeOfTest(t)
-	//dir := "filesystem_test" + now
 	repoPath := filepath.Join(t.TempDir(), now)
 
 	err := os.MkdirAll(repoPath, 0700)

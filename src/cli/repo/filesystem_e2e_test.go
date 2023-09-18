@@ -32,13 +32,6 @@ func TestFilesystemE2ESuite(t *testing.T) {
 		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
-// func (suite *FilesystemE2ESuite) cleanup(t *testing.T, repoPath string) {
-// 	// sanity check that we are not deleting wrong directory by accident
-// 	assert.Contains(t, repoPath, os.TempDir())
-// 	err := os.RemoveAll(repoPath)
-// 	require.NoError(t, err, clues.ToCore(err))
-// }
-
 func (suite *FilesystemE2ESuite) TestInitFilesystemCmd() {
 	table := []struct {
 		name          string
@@ -93,8 +86,6 @@ func (suite *FilesystemE2ESuite) TestInitFilesystemCmd() {
 			// a second initialization should result in an error
 			err = cmd.ExecuteContext(ctx)
 			assert.ErrorIs(t, err, repository.ErrorRepoAlreadyExists, clues.ToCore(err))
-
-			// suite.cleanup(t, cfg.Path)
 		})
 	}
 }
@@ -159,8 +150,6 @@ func (suite *FilesystemE2ESuite) TestConnectFilesystemCmd() {
 			// run the command
 			err = cmd.ExecuteContext(ctx)
 			require.NoError(t, err, clues.ToCore(err))
-
-			// suite.cleanup(t, cfg.Path)
 		})
 	}
 }
