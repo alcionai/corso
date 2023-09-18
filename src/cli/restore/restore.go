@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -103,7 +102,10 @@ func runRestore(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, sel.PathService(), repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
+		ctx,
+		cmd,
+		sel.PathService())
 	if err != nil {
 		return Only(ctx, err)
 	}

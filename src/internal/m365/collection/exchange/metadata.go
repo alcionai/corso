@@ -13,18 +13,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// MetadataFileNames produces the category-specific set of filenames used to
-// store graph metadata such as delta tokens and folderID->path references.
-func MetadataFileNames(cat path.CategoryType) []string {
-	switch cat {
-	// TODO: should this include events?
-	case path.EmailCategory, path.ContactsCategory:
-		return []string{metadata.DeltaURLsFileName, metadata.PreviousPathFileName}
-	default:
-		return []string{metadata.PreviousPathFileName}
-	}
-}
-
 // ParseMetadataCollections produces a map of structs holding delta
 // and path lookup maps.
 func ParseMetadataCollections(

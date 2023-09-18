@@ -84,6 +84,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		path.LibrariesCategory,
 		ic,
 		gtdi,
+		nil,
 		grh,
 		true)
 }
@@ -224,7 +225,8 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointAltern
 		suite.its.ac,
 		sel.Selector,
 		suite.its.site,
-		suite.its.secondarySite)
+		suite.its.secondarySite,
+		suite.its.secondarySite.ID)
 }
 
 func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDeletedDrives() {
