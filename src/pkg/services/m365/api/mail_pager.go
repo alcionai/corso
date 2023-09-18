@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -166,6 +167,10 @@ func (p *mailsPageCtrl) SetNextLink(nextLink string) {
 	p.builder = users.NewItemMailFoldersItemMessagesRequestBuilder(nextLink, p.gs.Adapter())
 }
 
+func (p *mailsPageCtrl) ValidModTimes() bool {
+	return true
+}
+
 func (c Mail) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	userID, containerID string,
@@ -279,12 +284,16 @@ func (p *mailDeltaPager) Reset(ctx context.Context) {
 	p.builder = getMailDeltaBuilder(ctx, p.gs, p.userID, p.containerID)
 }
 
+func (p *mailDeltaPager) ValidModTimes() bool {
+	return true
+}
+
 func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
-) ([]string, []string, DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	ctx = clues.Add(
 		ctx,
 		"data_category", path.EmailCategory,
@@ -296,12 +305,12 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		containerID,
 		prevDeltaLink,
 		immutableIDs,
-		idAnd()...)
+		idAnd(lastModifiedDateTime)...)
 	pager := c.NewMailPager(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd()...)
+		idAnd(lastModifiedDateTime)...)
 
 	return getAddedAndRemovedItemIDs[models.Messageable](
 		ctx,
@@ -309,5 +318,5 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		deltaPager,
 		prevDeltaLink,
 		canMakeDeltaQueries,
-		addedAndRemovedByAddtlData)
+		addedAndRemovedByAddtlData[models.Messageable])
 }

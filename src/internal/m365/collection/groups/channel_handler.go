@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -40,7 +41,7 @@ func (bh channelsBackupHandler) getChannelMessageIDs(
 	ctx context.Context,
 	channelID, prevDelta string,
 	canMakeDeltaQueries bool,
-) ([]string, []string, api.DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, api.DeltaUpdate, error) {
 	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, canMakeDeltaQueries)
 }
 

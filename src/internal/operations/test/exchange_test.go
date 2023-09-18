@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -381,12 +382,12 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 		var (
 			err   error
-			items []string
+			items map[string]time.Time
 		)
 
 		switch category {
 		case path.EmailCategory:
-			items, _, _, err = ac.Mail().GetAddedAndRemovedItemIDs(
+			items, _, _, _, err = ac.Mail().GetAddedAndRemovedItemIDs(
 				ctx,
 				uidn.ID(),
 				containerID,
@@ -395,7 +396,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				true)
 
 		case path.EventsCategory:
-			items, _, _, err = ac.Events().GetAddedAndRemovedItemIDs(
+			items, _, _, _, err = ac.Events().GetAddedAndRemovedItemIDs(
 				ctx,
 				uidn.ID(),
 				containerID,
@@ -404,7 +405,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				true)
 
 		case path.ContactsCategory:
-			items, _, _, err = ac.Contacts().GetAddedAndRemovedItemIDs(
+			items, _, _, _, err = ac.Contacts().GetAddedAndRemovedItemIDs(
 				ctx,
 				uidn.ID(),
 				containerID,
@@ -423,7 +424,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		dest := dataset[category].dests[destName]
 		dest.locRef = locRef.String()
 		dest.containerID = containerID
-		dest.itemRefs = items
+		dest.itemRefs = maps.Keys(items)
 		dataset[category].dests[destName] = dest
 
 		// Add the directory and all its ancestors to the cache so we can compare

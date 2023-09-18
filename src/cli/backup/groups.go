@@ -80,6 +80,8 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddAzureCredsFlags(c)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
+		flags.AddDisableIncrementalsFlag(c)
+		flags.AddForceItemDataDownloadFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())

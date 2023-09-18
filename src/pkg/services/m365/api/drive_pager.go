@@ -61,6 +61,10 @@ func (p *driveItemPageCtrl) SetNextLink(nextLink string) {
 	p.builder = drives.NewItemItemsItemChildrenRequestBuilder(nextLink, p.gs.Adapter())
 }
 
+func (p *driveItemPageCtrl) ValidModTimes() bool {
+	return true
+}
+
 type DriveItemIDType struct {
 	ItemID   string
 	IsFolder bool
@@ -185,6 +189,10 @@ func (p *DriveItemDeltaPageCtrl) Reset(context.Context) {
 		Delta()
 }
 
+func (p *DriveItemDeltaPageCtrl) ValidModTimes() bool {
+	return true
+}
+
 // ---------------------------------------------------------------------------
 // user's drives pager
 // ---------------------------------------------------------------------------
@@ -252,6 +260,10 @@ func (p *userDrivePager) SetNextLink(link string) {
 	p.builder = users.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
+func (p *userDrivePager) ValidModTimes() bool {
+	return true
+}
+
 // ---------------------------------------------------------------------------
 // site's libraries pager
 // ---------------------------------------------------------------------------
@@ -301,6 +313,10 @@ func (p *siteDrivePager) GetPage(
 
 func (p *siteDrivePager) SetNextLink(link string) {
 	p.builder = sites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
+}
+
+func (p *siteDrivePager) ValidModTimes() bool {
+	return true
 }
 
 // ---------------------------------------------------------------------------
