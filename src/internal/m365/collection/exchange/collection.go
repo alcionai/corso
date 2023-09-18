@@ -164,7 +164,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.FullPath().Category().String(),
+			col.FullPath().Category().HumanString(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
