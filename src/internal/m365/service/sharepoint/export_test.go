@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type ExportUnitSuite struct {
@@ -78,15 +79,15 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 
 	dii.OneDrive.ItemName = "name1"
 
-	p, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
+	p, err := dpb.ToDataLayerSharePointPath("t", "u", path.LibrariesCategory, false)
 	assert.NoError(t, err, "build path")
 
 	dcs := []data.RestoreCollection{
 		data.FetchRestoreCollection{
 			Collection: dataMock.Collection{
 				Path: p,
-				ItemData: []*dataMock.Item{
-					{
+				ItemData: []data.Item{
+					&dataMock.Item{
 						ItemID:   "id1.data",
 						Reader:   io.NopCloser(bytes.NewBufferString("body1")),
 						ItemInfo: dii,

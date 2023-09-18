@@ -5,8 +5,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -80,8 +78,13 @@ var (
 
 type Collection struct {
 	Path                 path.Path
-	ItemData             []*Item
+	Loc                  *path.Builder
+	ItemData             []data.Item
 	ItemsRecoverableErrs []error
+	CState               data.CollectionState
+
+	// For restore
+	AuxItems map[string]data.Item
 }
 
 func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
@@ -93,8 +96,9 @@ func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item
 		el := errs.Local()
 
 		for _, item := range c.ItemData {
-			if item.ReadErr != nil {
-				el.AddRecoverable(ctx, item.ReadErr)
+			it, ok := item.(*Item)
+			if ok && it.ReadErr != nil {
+				el.AddRecoverable(ctx, it.ReadErr)
 				continue
 			}
 
@@ -114,17 +118,48 @@ func (c Collection) FullPath() path.Path {
 }
 
 func (c Collection) PreviousPath() path.Path {
-	return nil
+	return c.Path
+}
+
+func (c Collection) LocationPath() *path.Builder {
+	return c.Loc
 }
 
 func (c Collection) State() data.CollectionState {
-	return data.NewState
+	return c.CState
 }
 
 func (c Collection) DoNotMergeItems() bool {
-	return true
+	return false
 }
 
-func (c Collection) FetchItemByName(ctx context.Context, name string) (data.Item, error) {
-	return &Item{}, clues.New("not implemented")
+func (c Collection) FetchItemByName(
+	ctx context.Context,
+	name string,
+) (data.Item, error) {
+	res := c.AuxItems[name]
+	if res == nil {
+		return nil, data.ErrNotFound
+	}
+
+	return res, nil
+}
+
+var _ data.RestoreCollection = &RestoreCollection{}
+
+type RestoreCollection struct {
+	data.Collection
+	AuxItems map[string]data.Item
+}
+
+func (rc RestoreCollection) FetchItemByName(
+	ctx context.Context,
+	name string,
+) (data.Item, error) {
+	res := rc.AuxItems[name]
+	if res == nil {
+		return nil, data.ErrNotFound
+	}
+
+	return res, nil
 }

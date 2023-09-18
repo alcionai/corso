@@ -219,7 +219,7 @@ func (m *ItemPagesItemCanvasLayoutVerticalSectionRequestBuilder) WebpartsById(id
 	for idx, item := range m.pathParameters {
 		urlTplParams[idx] = item
 	}
-	if id != "" {
+	if len(id) > 0 {
 		urlTplParams["webPart%2Did"] = id
 	}
 	return NewItemPagesItemCanvasLayoutVerticalSectionWebpartsWebPartItemRequestBuilderInternal(urlTplParams, m.requestAdapter)

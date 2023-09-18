@@ -45,7 +45,9 @@ func locFromRepo(rr path.Path, isItem bool) *path.Builder {
 		loc = loc.Append(strings.TrimSuffix(e, folderSuffix))
 	}
 
-	if rr.Service() == path.OneDriveService || rr.Category() == path.LibrariesCategory {
+	if rr.Service() == path.GroupsService {
+		loc = loc.PopFront().PopFront().PopFront()
+	} else if rr.Service() == path.OneDriveService || rr.Category() == path.LibrariesCategory {
 		loc = loc.PopFront()
 	}
 
@@ -729,6 +731,8 @@ var (
 			},
 		},
 	}
+
+	GroupsRootPath = mustPathRep("tenant-id/groups/group-id/libraries/sites/site-id/drives/foo/root:", false)
 
 	SharePointRootPath    = mustPathRep("tenant-id/sharepoint/site-id/libraries/drives/foo/root:", false)
 	SharePointLibraryPath = SharePointRootPath.MustAppend("library", false)

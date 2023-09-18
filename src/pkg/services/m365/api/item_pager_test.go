@@ -91,7 +91,7 @@ type testIDsPager struct {
 func (p *testIDsPager) GetPage(
 	ctx context.Context,
 ) (NextLinkValuer[any], error) {
-	if p.errorCode != "" {
+	if len(p.errorCode) > 0 {
 		ierr := odataerrors.NewMainError()
 		ierr.SetCode(&p.errorCode)
 
@@ -145,7 +145,7 @@ type testIDsDeltaPager struct {
 func (p *testIDsDeltaPager) GetPage(
 	ctx context.Context,
 ) (DeltaLinkValuer[any], error) {
-	if p.errorCode != "" {
+	if len(p.errorCode) > 0 {
 		ierr := odataerrors.NewMainError()
 		ierr.SetCode(&p.errorCode)
 

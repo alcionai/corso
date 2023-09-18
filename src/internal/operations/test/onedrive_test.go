@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -144,6 +145,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 		path.FilesCategory,
 		ic,
 		gtdi,
+		nil,
 		grh,
 		false)
 }
@@ -155,6 +157,7 @@ func runDriveIncrementalTest(
 	category path.CategoryType,
 	includeContainers func([]string) selectors.Selector,
 	getTestDriveID func(*testing.T, context.Context) string,
+	getTestSiteID func(*testing.T, context.Context) string,
 	getRestoreHandler func(api.Client) drive.RestoreHandler,
 	skipPermissionsTests bool,
 ) {
@@ -173,9 +176,7 @@ func runDriveIncrementalTest(
 		// some drives cannot have `:` in file/folder names
 		now = dttm.FormatNow(dttm.SafeForTesting)
 
-		categories = map[path.CategoryType][]string{
-			category: {bupMD.DeltaURLsFileName, bupMD.PreviousPathFileName},
-		}
+		categories      = map[path.CategoryType][][]string{}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
 		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
 		container3      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 3, now)
@@ -187,6 +188,12 @@ func runDriveIncrementalTest(
 		// during the tests.
 		containers = []string{container1, container2, container3}
 	)
+
+	if service == path.GroupsService && category == path.LibrariesCategory {
+		categories[category] = [][]string{{odConsts.SitesPathDir, bupMD.PreviousPathFileName}}
+	} else {
+		categories[category] = [][]string{{bupMD.DeltaURLsFileName}, {bupMD.PreviousPathFileName}}
+	}
 
 	sel := includeContainers(containers)
 
@@ -202,6 +209,7 @@ func runDriveIncrementalTest(
 	var (
 		atid    = creds.AzureTenantID
 		driveID = getTestDriveID(t, ctx)
+		siteID  = ""
 		fileDBF = func(id, timeStamp, subject, body string) []byte {
 			return []byte(id + subject)
 		}
@@ -210,6 +218,11 @@ func runDriveIncrementalTest(
 			return path.Builder{}.Append(elems...)
 		}
 	)
+
+	// Will only be available for groups
+	if getTestSiteID != nil {
+		siteID = getTestSiteID(t, ctx)
+	}
 
 	rrPfx, err := path.BuildPrefix(atid, roidn.ID(), service, category)
 	require.NoError(t, err, clues.ToCore(err))
@@ -293,7 +306,7 @@ func runDriveIncrementalTest(
 			service,
 			category,
 			sel,
-			atid, roidn.ID(), driveID, destName,
+			atid, roidn.ID(), siteID, driveID, destName,
 			2,
 			// Use an old backup version so we don't need metadata files.
 			0,
@@ -667,7 +680,7 @@ func runDriveIncrementalTest(
 					service,
 					category,
 					sel,
-					atid, roidn.ID(), driveID, container3,
+					atid, roidn.ID(), siteID, driveID, container3,
 					2,
 					0,
 					fileDBF)
@@ -757,6 +770,13 @@ func runDriveIncrementalTest(
 				assertReadWrite     = assert.Equal
 			)
 
+			if service == path.GroupsService && category == path.LibrariesCategory {
+				// Groups SharePoint have an extra metadata file at
+				// /libraries/sites/previouspath
+				expectWrites++
+				expectReads++
+			}
+
 			// Sharepoint can produce a superset of permissions by nature of
 			// its drive type.  Since this counter comparison is a bit hacky
 			// to begin with, it's easiest to assert a <= comparison instead
@@ -791,8 +811,8 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		opts = control.DefaultOptions()
 		mb   = evmock.NewBus()
 
-		categories = map[path.CategoryType][]string{
-			path.FilesCategory: {bupMD.DeltaURLsFileName, bupMD.PreviousPathFileName},
+		categories = map[path.CategoryType][][]string{
+			path.FilesCategory: {{bupMD.DeltaURLsFileName}, {bupMD.PreviousPathFileName}},
 		}
 	)
 
@@ -1264,7 +1284,8 @@ func (suite *OneDriveRestoreNightlyIntgSuite) TestRestore_Run_onedriveAlternateP
 		suite.its.ac,
 		sel.Selector,
 		suite.its.user,
-		suite.its.secondaryUser)
+		suite.its.secondaryUser,
+		suite.its.secondaryUser.ID)
 }
 
 func runDriveRestoreToAlternateProtectedResource(
@@ -1272,7 +1293,8 @@ func runDriveRestoreToAlternateProtectedResource(
 	suite tester.Suite,
 	ac api.Client,
 	sel selectors.Selector, // owner should match 'from', both Restore and Backup types work.
-	from, to ids,
+	driveFrom, driveTo ids,
+	toResource string,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -1301,8 +1323,8 @@ func runDriveRestoreToAlternateProtectedResource(
 	suite.Run("restore original resource", func() {
 		mb = evmock.NewBus()
 		fromCtr := count.New()
-		driveID := from.DriveID
-		rootFolderID := from.DriveRootFolderID
+		driveID := driveFrom.DriveID
+		rootFolderID := driveFrom.DriveRootFolderID
 		restoreCfg.OnCollision = control.Copy
 
 		ro, _ := prepNewTestRestoreOp(
@@ -1339,9 +1361,9 @@ func runDriveRestoreToAlternateProtectedResource(
 	suite.Run("restore to alternate resource", func() {
 		mb = evmock.NewBus()
 		toCtr := count.New()
-		driveID := to.DriveID
-		rootFolderID := to.DriveRootFolderID
-		restoreCfg.ProtectedResource = to.ID
+		driveID := driveTo.DriveID
+		rootFolderID := driveTo.DriveRootFolderID
+		restoreCfg.ProtectedResource = toResource
 
 		ro, _ := prepNewTestRestoreOp(
 			t,

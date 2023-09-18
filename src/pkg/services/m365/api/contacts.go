@@ -141,7 +141,7 @@ func (c Contacts) GetContainerByName(
 	// Return an error if multiple container exist (unlikely) or if no container
 	// is found.
 	if len(gv) != 1 {
-		return nil, clues.New("unexpected number of folders returned").
+		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).
 			With("returned_container_count", len(gv)).
 			WithClues(ctx)
 	}
@@ -254,7 +254,7 @@ func (c Contacts) DeleteItem(
 // ---------------------------------------------------------------------------
 
 func BytesToContactable(bytes []byte) (models.Contactable, error) {
-	v, err := createFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
+	v, err := CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to contact")
 	}

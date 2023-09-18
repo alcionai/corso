@@ -24,7 +24,7 @@ func NewGroupsLocationIDer(
 	pb := path.Builder{}.Append(category.String())
 	prefixElems := 1
 
-	if driveID != "" { // non sp paths don't have driveID
+	if len(driveID) > 0 { // non sp paths don't have driveID
 		pb = pb.Append(driveID)
 
 		prefixElems = 2
@@ -65,7 +65,7 @@ func (i GroupsInfo) Headers() []string {
 	case SharePointLibrary:
 		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
 	case GroupsChannelMessage:
-		return []string{"Message", "Channel", "Replies", "Creator", "Created", "Last Response"}
+		return []string{"Message", "Channel", "Replies", "Creator", "Created", "Last Reply"}
 	}
 
 	return []string{}
@@ -86,13 +86,18 @@ func (i GroupsInfo) Values() []string {
 			dttm.FormatToTabularDisplay(i.Modified),
 		}
 	case GroupsChannelMessage:
+		lastReply := dttm.FormatToTabularDisplay(i.LastReplyAt)
+		if i.LastReplyAt.Equal(time.Time{}) {
+			lastReply = ""
+		}
+
 		return []string{
 			i.MessagePreview,
 			i.ParentPath,
 			strconv.Itoa(i.ReplyCount),
 			i.MessageCreator,
 			dttm.FormatToTabularDisplay(i.Created),
-			dttm.FormatToTabularDisplay(i.Modified),
+			lastReply,
 		}
 	}
 

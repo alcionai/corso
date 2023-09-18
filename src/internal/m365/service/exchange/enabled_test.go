@@ -64,7 +64,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		name      string
 		mock      func(context.Context) getMailInboxer
 		expect    assert.BoolAssertionFunc
-		expectErr func(*testing.T, error)
+		expectErr assert.ErrorAssertionFunc
 	}{
 		{
 			name: "ok",
@@ -73,10 +73,8 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 					mailbox: models.NewMailFolder(),
 				}
 			},
-			expect: assert.True,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			expect:    assert.True,
+			expectErr: assert.NoError,
 		},
 		{
 			name: "user has no mailbox",
@@ -87,10 +85,8 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 					mailboxErr: graph.Stack(ctx, odErr),
 				}
 			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			expect:    assert.False,
+			expectErr: assert.NoError,
 		},
 		{
 			name: "user not found",
@@ -101,10 +97,8 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 					mailboxErr: graph.Stack(ctx, odErr),
 				}
 			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
+			expect:    assert.False,
+			expectErr: assert.Error,
 		},
 		{
 			name: "overlapping resourcenotfound",
@@ -115,10 +109,8 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 					mailboxErr: graph.Stack(ctx, odErr),
 				}
 			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
+			expect:    assert.False,
+			expectErr: assert.Error,
 		},
 		{
 			name: "arbitrary error",
@@ -129,10 +121,8 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 					mailboxErr: graph.Stack(ctx, odErr),
 				}
 			},
-			expect: assert.False,
-			expectErr: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
+			expect:    assert.False,
+			expectErr: assert.Error,
 		},
 	}
 	for _, test := range table {
@@ -146,7 +136,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 
 			ok, err := IsServiceEnabled(ctx, gmi, "resource_id")
 			test.expect(t, ok, "has mailbox flag")
-			test.expectErr(t, err)
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }

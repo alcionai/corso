@@ -161,6 +161,10 @@ func (ctrl *Controller) incrementAwaitingMessages() {
 }
 
 func (ctrl *Controller) CacheItemInfo(dii details.ItemInfo) {
+	if dii.Groups != nil {
+		ctrl.backupDriveIDNames.Add(dii.Groups.DriveID, dii.Groups.DriveName)
+	}
+
 	if dii.SharePoint != nil {
 		ctrl.backupDriveIDNames.Add(dii.SharePoint.DriveID, dii.SharePoint.DriveName)
 	}
