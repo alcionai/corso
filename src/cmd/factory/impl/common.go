@@ -73,7 +73,7 @@ func generateAndRestoreItems(
 			nowLegacy = dttm.FormatToLegacy(time.Now())
 			id        = uuid.NewString()
 			subject   = "automated " + now[:16] + " - " + id[:8]
-			body      = "automated " + cat.String() + " generation for " + userID + " at " + now + " - " + id
+			body      = "automated " + cat.HumanString() + " generation for " + userID + " at " + now + " - " + id
 		)
 
 		items = append(items, item{

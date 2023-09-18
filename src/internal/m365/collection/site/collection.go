@@ -196,7 +196,7 @@ func (sc *Collection) runPopulate(
 	// TODO: Insert correct ID for CollectionProgress
 	colProgress := observe.CollectionProgress(
 		ctx,
-		sc.fullPath.Category().String(),
+		sc.fullPath.Category().HumanString(),
 		sc.fullPath.Folders())
 	defer close(colProgress)
 
