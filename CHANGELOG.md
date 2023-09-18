@@ -8,13 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
-- Groups and Teams service support!  Channel messages and Files are now available for backup and restore in the CLI: `corso backup create groups --group '*'`
+- Groups and Teams service support available as a feature preview!  Channel messages and Files are now available for backup and restore in the CLI: `corso backup create groups --group '*'`
   * The cli commands for "groups" and "teams" can be used interchangably, and will operate on the same backup data.
-  * Channel messages are available for Export, but not Restore.
-  * Groups' SharePoint files are available for Restore, but not Export.
   * New permissions are required to backup Channel messages.  See the [Corso Documentation](https://corsobackup.io/docs/setup/m365-access/#configure-required-permissions) for complete details.
   Even though Channel message restoration is not available, message write permissions are included to cover future integration.
-  * Support is available in an early-access status, and may be subject to breaking changes.
+  * This is a feature preview, and may be subject to breaking changes based on feedback and testing.
 
 ### Changed
 - Switched to Go 1.21
