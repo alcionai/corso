@@ -33,7 +33,7 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 
 	s, err := storage.NewStorage(
 		storage.ProviderS3,
-		storage.S3Config{
+		&storage.S3Config{
 			Bucket: "bckt",
 			Prefix: "prfx",
 		})
