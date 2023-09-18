@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
@@ -352,6 +353,130 @@ func (col *prefetchCollection) streamItems(
 	wg.Wait()
 }
 
+// -----------------------------------------------------------------------------
+// lazyFetchCollection
+// -----------------------------------------------------------------------------
+
+// lazyFetchCollection implements the interface from data.BackupCollection
+// Structure holds data for an Exchange application for a single user. It lazily
+// fetches the data associated with each item when kopia requests it during
+// upload.
+//
+// When accounting for stats, items are marked as successful when the basic
+// information (path and mod time) is handed to kopia. Total bytes across all
+// items is not tracked.
+type lazyFetchCollection struct {
+	baseCollection
+
+	user string
+
+	// added is a list of existing item IDs that were added to a container
+	added map[string]time.Time
+	// removed is a list of item IDs that were deleted from, or moved out, of a container
+	removed map[string]struct{}
+
+	getter itemGetterSerializer
+
+	statusUpdater support.StatusUpdater
+}
+
+// Items utility function to asynchronously execute process to fill data channel with
+// M365 exchange objects and returns the data channel
+func (col *lazyFetchCollection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+	stream := make(chan data.Item, collectionChannelBufferSize)
+	go col.streamItems(ctx, stream, errs)
+
+	return stream
+}
+
+// streamItems is a utility function that uses col.collectionType to be able to
+// serialize all the M365IDs defined in the added field. data channel is closed
+// by this function.
+func (col *lazyFetchCollection) streamItems(
+	ctx context.Context,
+	stream chan<- data.Item,
+	errs *fault.Bus,
+) {
+	var (
+		success     int64
+		totalBytes  int64
+		wg          sync.WaitGroup
+		colProgress chan<- struct{}
+
+		user = col.user
+	)
+
+	defer func() {
+		close(stream)
+		updateStatus(
+			ctx,
+			col.statusUpdater,
+			len(col.added)+len(col.removed),
+			int(success),
+			totalBytes,
+			col.FullPath().Folder(false),
+			errs.Failure())
+	}()
+
+	if len(col.added)+len(col.removed) > 0 {
+		colProgress = observe.CollectionProgress(
+			ctx,
+			col.FullPath().Category().String(),
+			col.LocationPath().Elements())
+		defer close(colProgress)
+	}
+
+	// delete all removed items
+	for id := range col.removed {
+		stream <- &Item{
+			id:      id,
+			modTime: time.Now().UTC(), // removed items have no modTime entry.
+			deleted: true,
+		}
+
+		atomic.AddInt64(&success, 1)
+
+		if colProgress != nil {
+			colProgress <- struct{}{}
+		}
+	}
+
+	parentPath := col.LocationPath().String()
+
+	// add any new items
+	for id, modTime := range col.added {
+		if errs.Failure() != nil {
+			break
+		}
+
+		ictx := clues.Add(
+			ctx,
+			"item_id", id,
+			"parent_path", path.LoggableDir(parentPath),
+			"service", path.ExchangeService.String(),
+			"category", col.FullPath().Category().String())
+
+		stream <- &lazyItem{
+			ctx:          ictx,
+			userID:       user,
+			id:           id,
+			getter:       col.getter,
+			modTime:      modTime,
+			immutableIDs: col.ctrl.ToggleFeatures.ExchangeImmutableIDs,
+			parentPath:   parentPath,
+			errs:         errs,
+		}
+
+		atomic.AddInt64(&success, 1)
+
+		if colProgress != nil {
+			colProgress <- struct{}{}
+		}
+	}
+
+	wg.Wait()
+}
+
 // Item represents a single item retrieved from exchange
 type Item struct {
 	id string
@@ -400,4 +525,89 @@ func NewItem(
 		info:    &detail,
 		modTime: modTime,
 	}
+}
+
+// lazyItem represents a single item retrieved from exchange that lazily fetches
+// the item's data when the first call to ToReader().Read() is made.
+type lazyItem struct {
+	ctx        context.Context
+	userID     string
+	id         string
+	parentPath string
+	getter     itemGetterSerializer
+	errs       *fault.Bus
+
+	modTime time.Time
+	// info holds the Exchnage-specific details information for this item. Store
+	// a pointer in this struct so the golang garbage collector can collect the
+	// Item struct once kopia is done with it. The ExchangeInfo struct needs to
+	// stick around until the end of the backup though as backup details is
+	// written last.
+	info *details.ExchangeInfo
+
+	immutableIDs bool
+
+	delInFlight bool
+}
+
+func (i lazyItem) ID() string {
+	return i.id
+}
+
+func (i *lazyItem) ToReader() io.ReadCloser {
+	return lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+		itemData, info, err := getItemAndInfo(
+			i.ctx,
+			i.getter,
+			i.userID,
+			i.ID(),
+			i.immutableIDs,
+			i.parentPath)
+		if err != nil {
+			// If an item was deleted then return an empty file so we don't fail
+			// the backup and return a sentinel error when asked for ItemInfo so
+			// we don't display the item in the backup.
+			//
+			// The item will be deleted from kopia on the next backup when the
+			// delta token shows it's removed.
+			if graph.IsErrDeletedInFlight(err) {
+				logger.CtxErr(i.ctx, err).Info("item not found")
+
+				i.delInFlight = true
+
+				return io.NopCloser(bytes.NewReader([]byte{})), nil
+			}
+
+			err = clues.Stack(err)
+			i.errs.AddRecoverable(i.ctx, err)
+
+			return nil, err
+		}
+
+		i.info = info
+		// Update the mod time to what we already told kopia about. This is required
+		// for proper details merging.
+		i.info.Modified = i.modTime
+
+		return io.NopCloser(bytes.NewReader(itemData)), nil
+	})
+}
+
+func (i lazyItem) Deleted() bool {
+	return false
+}
+
+func (i lazyItem) Info() (details.ItemInfo, error) {
+	if i.delInFlight {
+		return details.ItemInfo{}, clues.Stack(data.ErrNotFound).WithClues(i.ctx)
+	} else if i.info == nil {
+		return details.ItemInfo{}, clues.New("requesting ItemInfo before data retrieval").
+			WithClues(i.ctx)
+	}
+
+	return details.ItemInfo{Exchange: i.info}, nil
+}
+
+func (i lazyItem) ModTime() time.Time {
+	return i.modTime
 }
