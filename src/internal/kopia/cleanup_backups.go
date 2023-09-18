@@ -287,6 +287,14 @@ var skipKeys = []string{
 	TagBackupCategory,
 }
 
+// transferTags copies (ideally) service and category tags from a snapshot to a
+// backup tag set to make it easier for other code to determine what a backup
+// contains.
+//
+// This function will improperly transfer the protected resource if it's an
+// older backup that used an alternative to the ProtectedResouceID field or the
+// protected resource ID field in the backup doesn't match the protected
+// resource tag on the snapshot.
 func transferTags(snap *manifest.EntryMetadata, bup *backup.Backup) error {
 	tenant, err := decodeElement(snap.Labels[kopiaPathLabel])
 	if err != nil {
