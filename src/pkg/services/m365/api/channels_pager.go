@@ -2,11 +2,11 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -150,8 +150,8 @@ func (c Channels) GetChannelMessageIDs(
 	ctx context.Context,
 	teamID, channelID, prevDeltaLink string,
 	canMakeDeltaQueries bool,
-) ([]string, []string, DeltaUpdate, error) {
-	added, _, removed, du, err := getAddedAndRemovedItemIDs[models.ChatMessageable](
+) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
+	added, validModTimes, removed, du, err := getAddedAndRemovedItemIDs[models.ChatMessageable](
 		ctx,
 		c.NewChannelMessagePager(teamID, channelID),
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
@@ -159,7 +159,7 @@ func (c Channels) GetChannelMessageIDs(
 		canMakeDeltaQueries,
 		addedAndRemovedByDeletedDateTime[models.ChatMessageable])
 
-	return maps.Keys(added), removed, du, clues.Stack(err).OrNil()
+	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
