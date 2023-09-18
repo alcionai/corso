@@ -572,7 +572,7 @@ jobs:
 
       # Setup buildx
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -649,7 +649,7 @@ jobs:
       CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
     steps:
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
