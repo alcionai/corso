@@ -109,6 +109,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
+		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreReleaseCommand())
