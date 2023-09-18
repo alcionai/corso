@@ -32,7 +32,7 @@ func GetAccountAndConnectWithOverrides(
 ) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
 	provider, overrides, err := GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, clues.Stack(err)
 	}
 
 	return GetAccountAndConnect(ctx, pst, provider, overrides)
