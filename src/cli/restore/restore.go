@@ -102,6 +102,10 @@ func runRestore(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
+	if err := utils.ValidateRestoreConfigFlags(urco); err != nil {
+		return Only(ctx, err)
+	}
+
 	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
 		ctx,
 		cmd,
