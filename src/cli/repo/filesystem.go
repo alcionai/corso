@@ -53,10 +53,9 @@ func addFilesystemCommands(cmd *cobra.Command) *cobra.Command {
 // `corso repo init filesystem [<flag>...]`
 func filesystemInitCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   fsProviderCmd,
-		Short: "Initialize a repository on local or network storage.",
-		Long: `Bootstraps a new repository on local or network storage
-		and connects it to your m365 account.`,
+		Use:     fsProviderCmd,
+		Short:   "Initialize a repository on local or network storage.",
+		Long:    `Bootstraps a new repository on local or network storage and connects it to your m365 account.`,
 		RunE:    initFilesystemCmd,
 		Args:    cobra.NoArgs,
 		Example: fsProviderCmdInitExamples,
