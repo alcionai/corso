@@ -187,7 +187,12 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 		storage.Prefix: f.bucketPrefix,
 	}
 
-	repoDetails, err := config.GetConfigRepoDetails(ctx, false, false, overrides)
+	repoDetails, err := config.GetConfigRepoDetails(
+		ctx,
+		storage.ProviderS3,
+		false,
+		false,
+		overrides)
 	if err != nil {
 		return clues.Wrap(err, "getting storage config")
 	}

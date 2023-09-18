@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
@@ -1641,7 +1640,7 @@ func makeMockItem(
 func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
-		tenantID = acct.Config[config.AzureTenantIDKey]
+		tenantID = acct.Config[account.AzureTenantIDKey]
 		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 	)
@@ -1905,7 +1904,7 @@ func selectFilesFromDeets(d details.Details) map[string]details.Entry {
 func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
-		tenantID = acct.Config[config.AzureTenantIDKey]
+		tenantID = acct.Config[account.AzureTenantIDKey]
 		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 		// Default policy used by SDK clients

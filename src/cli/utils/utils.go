@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -21,12 +22,34 @@ import (
 
 var ErrNotYetImplemented = clues.New("not yet implemented")
 
+// GetAccountAndConnectWithOverrides is a wrapper for GetAccountAndConnect
+// that also gets the storage provider and any storage provider specific
+// flag overrides from the command line.
+func GetAccountAndConnectWithOverrides(
+	ctx context.Context,
+	cmd *cobra.Command,
+	pst path.ServiceType,
+) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
+	provider, overrides, err := GetStorageProviderAndOverrides(ctx, cmd)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return GetAccountAndConnect(ctx, pst, provider, overrides)
+}
+
 func GetAccountAndConnect(
 	ctx context.Context,
 	pst path.ServiceType,
+	provider storage.ProviderType,
 	overrides map[string]string,
 ) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
-	cfg, err := config.GetConfigRepoDetails(ctx, true, true, overrides)
+	cfg, err := config.GetConfigRepoDetails(
+		ctx,
+		provider,
+		true,
+		true,
+		overrides)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -54,10 +77,13 @@ func GetAccountAndConnect(
 
 func AccountConnectAndWriteRepoConfig(
 	ctx context.Context,
+	cmd *cobra.Command,
 	pst path.ServiceType,
-	overrides map[string]string,
 ) (repository.Repository, *account.Account, error) {
-	r, stg, acc, opts, err := GetAccountAndConnect(ctx, pst, overrides)
+	r, stg, acc, opts, err := GetAccountAndConnectWithOverrides(
+		ctx,
+		cmd,
+		pst)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err
@@ -202,4 +228,25 @@ func SendStartCorsoEvent(
 
 	bus.SetRepoID(repoID)
 	bus.Event(ctx, events.CorsoStart, data)
+}
+
+// GetStorageProviderAndOverrides returns the storage provider type and
+// any flags specified on the command line which are storage provider specific.
+func GetStorageProviderAndOverrides(
+	ctx context.Context,
+	cmd *cobra.Command,
+) (storage.ProviderType, map[string]string, error) {
+	provider, err := config.GetStorageProviderFromConfigFile(ctx)
+	if err != nil {
+		return provider, nil, clues.Stack(err)
+	}
+
+	overrides := map[string]string{}
+
+	switch provider {
+	case storage.ProviderS3:
+		overrides = flags.S3FlagOverrides(cmd)
+	}
+
+	return provider, overrides, nil
 }
