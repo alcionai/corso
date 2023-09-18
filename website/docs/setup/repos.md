@@ -18,7 +18,7 @@ specified when initializing a repository.
 
 Within a repository, Corso uses
 AES256-GCM-HMAC-SHA256 to encrypt data at rest using keys that are derived from the repository passphrase.
-Data in flight to and from the repositiry is encrypted via TLS.
+Data in flight to and from the repository is encrypted via TLS.
 
 Repositories are supported on the following object storage systems:
 
@@ -30,7 +30,7 @@ Depending on community interest, Corso will add support for other object storage
 
 ## Amazon S3
 
-### Prerequisites
+### S3 Prerequisites
 
 Before setting up your Corso S3 repository, the following prerequisites must be met:
 
@@ -73,7 +73,7 @@ The two most commonly-used options are:
   `AWS_SHARED_CREDENTIALS_FILE`, if not using the default file location. You can learn more about the AWS CLI
   environment variables [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
 
-### Initialize repository
+### Initialize S3 repository
 
 Before first use, you need to initialize a Corso repository with `corso repo init s3`. See the command details
 [here](../../cli/corso-repo-init-s3).
@@ -110,7 +110,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 </TabItem>
 </Tabs>
 
-### Connect to a repository
+### Connect to a S3 repository
 
 If a repository already exists, you can connect to it with `corso repo connect s3`. See the command details
 [here](../../cli/corso-repo-connect-s3).
@@ -168,12 +168,11 @@ Corso supports creating a repository on local or network attached filesystem.
 Filesystem repositories are not S3 compatible.
 :::
 
-[Prerequisites](#filesystem-prerequisites)
-<h3 id="filesystem-prerequisites">Prerequisites</h3>
+### Filesystem storage prerequisites
 
-None
+None.
 
-### Initialize repository
+### Initialize filesystem repository
 
 Before first use, you need to initialize a Corso repository with `corso repo init filesystem`. See the command details
 [here](../../cli/corso-repo-init-filesystem). Corso will create the directory structure if necessary, including any
@@ -211,7 +210,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 </TabItem>
 </Tabs>
 
-### Connect to a repository
+### Connect to a filesystem repository
 
 If a repository already exists, you can connect to it with `corso repo connect filesystem`. See the command details
 [here](../../cli/corso-repo-connect-filesystem).
@@ -246,6 +245,9 @@ docker run --env-file $HOME/.corso/corso.env \\
 </Tabs>
 
 ### Remarks
-* Corso repositories on local/network storage are easy to setup and can be suitable for smaller 
-scale projects or testing environments. However, they don't offer the same level of interoperability as a 
+
+* Corso repositories on local/network storage are quick to setup and can be suitable for smaller
+scale projects or testing environments. However, they don't offer the same level of interoperability as a
 S3 compatible object storage.
+* Repository `--prefix` options are not supported.
+* Repository dirs are created with `0700` permission mode. Files are created with `0600`.
