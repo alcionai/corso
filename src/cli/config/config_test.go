@@ -29,15 +29,15 @@ const (
 ` + BucketNameKey + ` = '%s'
 ` + EndpointKey + ` = 's3.amazonaws.com'
 ` + PrefixKey + ` = 'test-prefix/'
-` + StorageProviderTypeKey + ` = 'S3'
-` + AccountProviderTypeKey + ` = 'M365'
-` + AzureTenantIDKey + ` = '%s'
+` + storage.StorageProviderTypeKey + ` = 'S3'
+` + account.AccountProviderTypeKey + ` = 'M365'
+` + account.AzureTenantIDKey + ` = '%s'
 ` + AccessKey + ` = '%s'
 ` + SecretAccessKey + ` = '%s'
 ` + SessionToken + ` = '%s'
 ` + CorsoPassphrase + ` = '%s'
-` + AzureClientID + ` = '%s'
-` + AzureSecret + ` = '%s'
+` + account.AzureClientID + ` = '%s'
+` + account.AzureSecret + ` = '%s'
 ` + DisableTLSKey + ` = '%s'
 ` + DisableTLSVerificationKey + ` = '%s'
 `
@@ -326,6 +326,7 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 
 	repoDetails, err := getStorageAndAccountWithViper(
 		vpr,
+		storage.ProviderS3,
 		true,
 		false,
 		overrides)
@@ -400,7 +401,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	cfg, err := getStorageAndAccountWithViper(vpr, true, true, nil)
+	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, true, true, nil)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := cfg.Storage.S3Config()
@@ -438,17 +439,17 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 	m365 := account.M365Config{AzureTenantID: tid}
 
 	overrides := map[string]string{
-		account.AzureTenantID:  tid,
-		AccountProviderTypeKey: account.ProviderM365.String(),
-		storage.Bucket:         bkt,
-		storage.Endpoint:       end,
-		storage.Prefix:         pfx,
-		storage.DoNotUseTLS:    "true",
-		storage.DoNotVerifyTLS: "true",
-		StorageProviderTypeKey: storage.ProviderS3.String(),
+		account.AzureTenantID:          tid,
+		account.AccountProviderTypeKey: account.ProviderM365.String(),
+		storage.Bucket:                 bkt,
+		storage.Endpoint:               end,
+		storage.Prefix:                 pfx,
+		storage.DoNotUseTLS:            "true",
+		storage.DoNotVerifyTLS:         "true",
+		storage.StorageProviderTypeKey: storage.ProviderS3.String(),
 	}
 
-	cfg, err := getStorageAndAccountWithViper(vpr, false, true, overrides)
+	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, false, true, overrides)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := cfg.Storage.S3Config()

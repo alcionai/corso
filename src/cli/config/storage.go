@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -40,12 +41,12 @@ func s3CredsFromViper(vpr *viper.Viper, s3Config storage.S3Config) (storage.S3Co
 
 func s3Overrides(in map[string]string) map[string]string {
 	return map[string]string{
-		storage.Bucket:         in[storage.Bucket],
-		storage.Endpoint:       in[storage.Endpoint],
-		storage.Prefix:         in[storage.Prefix],
-		storage.DoNotUseTLS:    in[storage.DoNotUseTLS],
-		storage.DoNotVerifyTLS: in[storage.DoNotVerifyTLS],
-		StorageProviderTypeKey: in[StorageProviderTypeKey],
+		storage.Bucket:                 in[storage.Bucket],
+		storage.Endpoint:               in[storage.Endpoint],
+		storage.Prefix:                 in[storage.Prefix],
+		storage.DoNotUseTLS:            in[storage.DoNotUseTLS],
+		storage.DoNotVerifyTLS:         in[storage.DoNotVerifyTLS],
+		storage.StorageProviderTypeKey: in[storage.StorageProviderTypeKey],
 	}
 }
 
@@ -53,6 +54,7 @@ func s3Overrides(in map[string]string) map[string]string {
 // viper properties and manual overrides.
 func configureStorage(
 	vpr *viper.Viper,
+	provider storage.ProviderType,
 	readConfigFromViper bool,
 	matchFromConfig bool,
 	overrides map[string]string,
@@ -77,7 +79,7 @@ func configureStorage(
 		}
 
 		if matchFromConfig {
-			providerType := vpr.GetString(StorageProviderTypeKey)
+			providerType := vpr.GetString(storage.StorageProviderTypeKey)
 			if providerType != storage.ProviderS3.String() {
 				return store, clues.New("unsupported storage provider: " + providerType)
 			}
@@ -92,7 +94,6 @@ func configureStorage(
 		return store, clues.Wrap(err, "reading s3 configs from corso config file")
 	}
 
-	s3Overrides(overrides)
 	aws := credentials.GetAWS(overrides)
 
 	if len(aws.AccessKey) <= 0 || len(aws.SecretKey) <= 0 {
@@ -152,7 +153,7 @@ func configureStorage(
 	}
 
 	// build the storage
-	store, err = storage.NewStorage(storage.ProviderS3, s3Cfg, cCfg)
+	store, err = storage.NewStorage(provider, s3Cfg, cCfg)
 	if err != nil {
 		return store, clues.Wrap(err, "configuring repository storage")
 	}
@@ -169,4 +170,23 @@ func GetAndInsertCorso(passphase string) credentials.Corso {
 	return credentials.Corso{
 		CorsoPassphrase: corsoPassph,
 	}
+}
+
+// GetStorageProviderFromConfigFile reads the storage provider from the config file.
+// Storage provider can only be sourced from config file with the exception of
+// commands that create or connect to a repo.
+func GetStorageProviderFromConfigFile(ctx context.Context) (storage.ProviderType, error) {
+	vpr := GetViper(ctx)
+
+	err := vpr.ReadInConfig()
+	if err != nil {
+		return storage.ProviderUnknown, clues.Wrap(err, "reading config file")
+	}
+
+	provider := vpr.GetString(storage.StorageProviderTypeKey)
+	if provider != storage.ProviderS3.String() {
+		return storage.ProviderUnknown, clues.New("unsupported storage provider: " + provider)
+	}
+
+	return storage.StringToProviderType[provider], nil
 }
