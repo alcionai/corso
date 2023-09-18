@@ -70,6 +70,7 @@ func (ctrl *Controller) ProduceExportCollections(
 			opts,
 			dcs,
 			ctrl.backupDriveIDNames,
+			ctrl.backupSiteIDWebURL,
 			deets,
 			errs)
 

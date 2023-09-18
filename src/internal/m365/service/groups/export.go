@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	ospath "path"
 
 	"github.com/alcionai/clues"
 
@@ -26,6 +27,7 @@ func ProduceExportCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	backupDriveIDNames idname.Cacher,
+	backupSiteIDWebURL idname.Cacher,
 	deets *details.Builder,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
@@ -64,8 +66,25 @@ func ProduceExportCollections(
 				driveName = drivePath.DriveID
 			}
 
+			folders := restoreColl.FullPath().Folders()
+			siteName := folders[1] // use siteID by fault
+
+			webURL, ok := backupSiteIDWebURL.NameOf(siteName)
+			if !ok {
+				// This should not happen, but just in case
+				logger.Ctx(ctx).With("site_id", folders[1]).Info("site weburl not found, using site id")
+			}
+
+			if len(webURL) != 0 {
+				// We can't use the actual name anyways as it might
+				// contain invalid characters. This should also avoid
+				// possibility of name collisions.
+				siteName = ospath.Base(webURL)
+			}
+
 			baseDir := path.Builder{}.
 				Append("Libraries").
+				Append(siteName).
 				Append(driveName).
 				Append(drivePath.Folders...)
 

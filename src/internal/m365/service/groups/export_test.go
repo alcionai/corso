@@ -104,6 +104,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 		dcs,
 		nil,
 		nil,
+		nil,
 		fault.New(true))
 	assert.NoError(t, err, "export collections error")
 	assert.Len(t, ecs, 1, "num of collections")
@@ -111,7 +112,11 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 	assert.Equal(t, expectedPath, ecs[0].BasePath(), "base dir")
 
 	fitems := []export.Item{}
+
 	for item := range ecs[0].Items(ctx) {
+		// have to nil out body, otherwise assert fails due to
+		// pointer memory location differences
+		item.Body = nil
 		fitems = append(fitems, item)
 	}
 
@@ -125,15 +130,21 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 	defer flush()
 
 	var (
-		driveID   = "driveID1"
-		driveName = "driveName1"
-		exportCfg = control.ExportConfig{}
-		dpb       = odConsts.DriveFolderPrefixBuilder(driveID)
-		cache     = idname.NewCache(
+		siteID          = "siteID1"
+		siteEscapedName = "siteName1"
+		siteWebURL      = "https://site1.sharepoint.com/sites/" + siteEscapedName
+		driveID         = "driveID1"
+		driveName       = "driveName1"
+		exportCfg       = control.ExportConfig{}
+		dpb             = odConsts.DriveFolderPrefixBuilder(driveID)
+		driveNameCache  = idname.NewCache(
 			// Cache check with lowercased ids
 			map[string]string{strings.ToLower(driveID): driveName})
+		siteWebURLCache = idname.NewCache(
+			// Cache check with lowercased ids
+			map[string]string{strings.ToLower(siteID): siteWebURL})
 		dii           = odStub.DriveItemInfo()
-		expectedPath  = "Libraries/" + driveName
+		expectedPath  = "Libraries/" + siteEscapedName + "/" + driveName
 		expectedItems = []export.Item{
 			{
 				ID:   "id1.data",
@@ -145,7 +156,14 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 
 	dii.OneDrive.ItemName = "name1"
 
-	p, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
+	p, err := dpb.ToDataLayerPath(
+		"t",
+		"u",
+		path.GroupsService,
+		path.LibrariesCategory,
+		false,
+		odConsts.SitesPathDir,
+		siteID)
 	assert.NoError(t, err, "build path")
 
 	dcs := []data.RestoreCollection{
@@ -170,7 +188,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 		exportCfg,
 		control.DefaultOptions(),
 		dcs,
-		cache,
+		driveNameCache,
+		siteWebURLCache,
 		nil,
 		fault.New(true))
 	assert.NoError(t, err, "export collections error")
@@ -181,9 +200,6 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 	fitems := []export.Item{}
 
 	for item := range ecs[0].Items(ctx) {
-		// have to nil out body, otherwise assert fails due to
-		// pointer memory location differences
-		item.Body = nil
 		fitems = append(fitems, item)
 	}
 
