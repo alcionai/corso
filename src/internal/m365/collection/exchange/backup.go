@@ -53,7 +53,7 @@ func CreateCollections(
 
 	foldersComplete := observe.MessageWithCompletion(
 		ctx,
-		observe.Bulletf("%s", qp.Category))
+		observe.Bulletf("%s", qp.Category.HumanString()))
 	defer close(foldersComplete)
 
 	rootFolder, cc := handler.NewContainerCache(bpc.ProtectedResource.ID())
