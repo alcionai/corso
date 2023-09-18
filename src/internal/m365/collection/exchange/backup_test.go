@@ -617,8 +617,8 @@ func (suite *BackupIntgSuite) TestDelta() {
 			// a sanity check that the minimum behavior won't break.
 			for _, coll := range collections {
 				if coll.FullPath().Service() != path.ExchangeMetadataService {
-					ec, ok := coll.(*Collection)
-					require.True(t, ok, "collection is *Collection")
+					ec, ok := coll.(*prefetchCollection)
+					require.True(t, ok, "collection is *prefetchCollection")
 					assert.NotNil(t, ec)
 				}
 			}
@@ -697,7 +697,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 }
 
 // TestContactSerializationRegression verifies ability to query contact items
-// and to store contact within Collection. Downloaded contacts are run through
+// and to store contact within prefetchCollection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 	var (
@@ -1176,8 +1176,8 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 						continue
 					}
 
-					exColl, ok := coll.(*Collection)
-					require.True(t, ok, "collection is an *exchange.Collection")
+					exColl, ok := coll.(*prefetchCollection)
+					require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
 					ids := [][]string{
 						make([]string, 0, len(exColl.added)),
@@ -1511,8 +1511,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 							continue
 						}
 
-						exColl, ok := coll.(*Collection)
-						require.True(t, ok, "collection is an *exchange.Collection")
+						exColl, ok := coll.(*prefetchCollection)
+						require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
 						ids := [][]string{
 							make([]string, 0, len(exColl.added)),
@@ -1677,8 +1677,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 					continue
 				}
 
-				exColl, ok := coll.(*Collection)
-				require.True(t, ok, "collection is an *exchange.Collection")
+				exColl, ok := coll.(*prefetchCollection)
+				require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
 				assert.Equal(t, test.expectAdded, exColl.added, "added items")
 				assert.Equal(t, test.expectRemoved, exColl.removed, "removed items")
