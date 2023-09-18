@@ -75,6 +75,8 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 
+				"--" + flags.FormatFN, testdata.FormatType,
+
 				// bool flags
 				"--" + flags.ArchiveFN,
 			})
@@ -95,6 +97,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
 
 			assert.Equal(t, testdata.Archive, opts.ExportCfg.Archive)
+			assert.Equal(t, testdata.FormatType, opts.ExportCfg.Format)
 
 			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
 			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)

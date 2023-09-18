@@ -64,11 +64,12 @@ func (suite *S3CfgSuite) TestStorage_S3Config() {
 	t := suite.T()
 
 	in := goodS3Config
-	s, err := NewStorage(ProviderS3, in)
+	s, err := NewStorage(ProviderS3, &in)
 	assert.NoError(t, err, clues.ToCore(err))
-	out, err := s.S3Config()
+	sc, err := s.StorageConfig()
 	assert.NoError(t, err, clues.ToCore(err))
 
+	out := sc.(*S3Config)
 	assert.Equal(t, in.Bucket, out.Bucket)
 	assert.Equal(t, in.Endpoint, out.Endpoint)
 	assert.Equal(t, in.Prefix, out.Prefix)
@@ -93,7 +94,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			_, err := NewStorage(ProviderUnknown, test.cfg)
+			_, err := NewStorage(ProviderUnknown, &test.cfg)
 			assert.Error(suite.T(), err)
 		})
 	}
@@ -114,10 +115,10 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			st, err := NewStorage(ProviderUnknown, goodS3Config)
+			st, err := NewStorage(ProviderUnknown, &goodS3Config)
 			assert.NoError(t, err, clues.ToCore(err))
 			test.amend(st)
-			_, err = st.S3Config()
+			_, err = st.StorageConfig()
 			assert.Error(t, err)
 		})
 	}
@@ -187,7 +188,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_Normalize() {
 		Bucket: prefixedBkt,
 	}
 
-	result := st.Normalize()
+	result := st.normalize()
 	assert.Equal(suite.T(), normalBkt, result.Bucket)
 	assert.NotEqual(suite.T(), st.Bucket, result.Bucket)
 }

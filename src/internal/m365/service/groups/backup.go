@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
-	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
@@ -56,35 +55,26 @@ func ProduceBackupCollections(
 		"group_id", clues.Hide(bpc.ProtectedResource.ID()),
 		"group_name", clues.Hide(bpc.ProtectedResource.Name()))
 
-	resp, err := ac.Groups().GetByID(ctx, bpc.ProtectedResource.ID())
+	group, err := ac.Groups().GetByID(ctx, bpc.ProtectedResource.ID())
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "getting group").WithClues(ctx)
 	}
 
-	// Not all groups will have associated SharePoint
-	// sites. Distribution channels and Security groups will not
-	// have one. This check is to skip those groups.
-	groupTypes := resp.GetGroupTypes()
-	hasSharePoint := slices.Contains(groupTypes, "Unified")
-
-	// If we don't have SharePoint site, there is nothing here to
-	// backup as of now.
-	if !hasSharePoint {
-		logger.Ctx(ctx).
-			With("group_id", bpc.ProtectedResource.ID()).
-			Infof("No SharePoint site found for group")
-
-		return nil, nil, false, clues.Stack(graph.ErrServiceNotEnabled, err).WithClues(ctx)
-	}
+	isTeam := api.IsTeam(ctx, group)
 
 	for _, scope := range b.Scopes() {
 		if el.Failure() != nil {
 			break
 		}
 
+		catStr := scope.Category().PathType().String()
+		if scope.Category().PathType() == path.ChannelMessagesCategory {
+			catStr = "messages"
+		}
+
 		progressBar := observe.MessageWithCompletion(
 			ctx,
-			observe.Bulletf("%s", scope.Category().PathType()))
+			observe.Bulletf("%s", catStr))
 		defer close(progressBar)
 
 		var dbcs []data.BackupCollection
@@ -143,6 +133,10 @@ func ProduceBackupCollections(
 			}
 
 		case path.ChannelMessagesCategory:
+			if !isTeam {
+				continue
+			}
+
 			dbcs, canUsePreviousBackup, err = groups.CreateCollections(
 				ctx,
 				bpc,

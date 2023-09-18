@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
-	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	exchTD "github.com/alcionai/corso/src/internal/m365/service/exchange/testdata"
@@ -28,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -55,6 +55,18 @@ func (suite *ExchangeBackupIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
+// MetadataFileNames produces the category-specific set of filenames used to
+// store graph metadata such as delta tokens and folderID->path references.
+func MetadataFileNames(cat path.CategoryType) [][]string {
+	switch cat {
+	// TODO: should this include events?
+	case path.EmailCategory, path.ContactsCategory:
+		return [][]string{{metadata.DeltaURLsFileName}, {metadata.PreviousPathFileName}}
+	default:
+		return [][]string{{metadata.PreviousPathFileName}}
+	}
+}
+
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
 func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
@@ -62,7 +74,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		name          string
 		selector      func() *selectors.ExchangeBackup
 		category      path.CategoryType
-		metadataFiles []string
+		metadataFiles [][]string
 	}{
 		// 	{
 		// 		name: "Mail",
@@ -94,7 +106,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				return sel
 			},
 			category:      path.EventsCategory,
-			metadataFiles: exchange.MetadataFileNames(path.EventsCategory),
+			metadataFiles: MetadataFileNames(path.EventsCategory),
 		},
 	}
 	for _, test := range tests {
@@ -141,7 +153,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				m365.AzureTenantID,
 				userID,
 				path.ExchangeService,
-				map[path.CategoryType][]string{test.category: test.metadataFiles})
+				map[path.CategoryType][][]string{test.category: test.metadataFiles})
 
 			_, expectDeets := deeTD.GetDeetsInBackup(
 				t,
@@ -195,7 +207,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				m365.AzureTenantID,
 				userID,
 				path.ExchangeService,
-				map[path.CategoryType][]string{test.category: test.metadataFiles})
+				map[path.CategoryType][][]string{test.category: test.metadataFiles})
 			deeTD.CheckBackupDetails(
 				t,
 				ctx,
@@ -244,9 +256,9 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		mb         = evmock.NewBus()
 		now        = dttm.Now()
 		service    = path.ExchangeService
-		categories = map[path.CategoryType][]string{
-			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
-			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
+		categories = map[path.CategoryType][][]string{
+			path.EmailCategory:    MetadataFileNames(path.EmailCategory),
+			path.ContactsCategory: MetadataFileNames(path.ContactsCategory),
 			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
@@ -440,6 +452,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				creds.AzureTenantID,
 				uidn.ID(),
 				"",
+				"",
 				destName,
 				2,
 				version.Backup,
@@ -578,7 +591,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 						service,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-						creds.AzureTenantID, suite.its.user.ID, "", container3,
+						creds.AzureTenantID, suite.its.user.ID, "", "", container3,
 						2,
 						version.Backup,
 						gen.dbf)

@@ -8,12 +8,24 @@ type ExportConfig struct {
 	// the archive.
 	Archive bool
 
-	// DataFormat decides the format in which we return the data. This is
-	// only useful for outlook exports, for example they can be in eml
-	// or pst for emails.
+	// DataFormat
 	// TODO: Enable once we support outlook exports
 	// DataFormat string
+
+	// Format decides the format in which we return the data.
+	// ex: html vs pst vs other.
+	// Default format is decided on a per-service or per-data basis.
+	Format FormatType
 }
+
+type FormatType string
+
+var (
+	// Follow whatever format is the default for the service or data type.
+	DefaultFormat FormatType
+	// export the data as raw, unmodified json
+	JSONFormat FormatType = "json"
+)
 
 func DefaultExportConfig() ExportConfig {
 	return ExportConfig{

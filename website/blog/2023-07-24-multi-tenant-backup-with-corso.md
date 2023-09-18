@@ -15,8 +15,8 @@ image: ./images/data-center.jpg
 ![A woman engineer holding a laptop in front of a data center](./images/data-center.jpg)
 
 This community-contributed blog post shows how MSPs in the community are using Corso to build out a multi-tenant backup
-solution for their Microsoft 365 customers. If you have questions, come find the author (or us) on
-[Discord](https://www.alcion.ai/discord).
+solution for their Microsoft 365 customers. If you have questions, come find the author (or us) on the
+[Corso Discord](https://discord.gg/63DTTSnuhT).
 
 <!-- truncate -->
 

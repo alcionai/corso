@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
-	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -58,11 +57,6 @@ func CreateCollections(
 	}
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
-
-	catProgress := observe.MessageWithCompletion(
-		ctx,
-		observe.Bulletf("%s", qp.Category))
-	defer close(catProgress)
 
 	channels, err := bh.getChannels(ctx)
 	if err != nil {
