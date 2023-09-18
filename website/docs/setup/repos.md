@@ -159,3 +159,93 @@ need to use the following flag with the initial Corso `repo init` command:
 Corso also supports the use of object storage systems with no TLS certificate or with self-signed
 TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
 [These flags](../../cli/corso-repo-init-s3) should only be used for testing.
+
+## Filesystem Storage
+
+Corso supports creating a repository on local or network attached filesystem.
+
+:::note
+Filesystem repositories are not S3 compatible.
+:::
+
+[Prerequisites](#filesystem-prerequisites)
+<h3 id="filesystem-prerequisites">Prerequisites</h3>
+
+None
+
+### Initialize repository
+
+Before first use, you need to initialize a Corso repository with `corso repo init filesystem`. See the command details
+[here](../../cli/corso-repo-init-filesystem). Corso will create the directory structure if necessary, including any
+missing parent directories.
+
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+  ```powershell
+  # Initialize the Corso Repository
+  $Env:CORSO_PASSPHRASE = 'CHANGE-ME-THIS-IS-INSECURE'
+  .\corso repo init filesystem --path C:\Users\user\corso-test
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+  ```bash
+  # Initialize the Corso Repository
+  export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
+  ./corso repo init filesystem --path $HOME/corso-test
+  ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+<CodeBlock language="bash">{
+`# Initialize the Corso Repository
+export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  repo init filesystem --path /path/in/container`
+}</CodeBlock>
+
+</TabItem>
+</Tabs>
+
+### Connect to a repository
+
+If a repository already exists, you can connect to it with `corso repo connect filesystem`. See the command details
+[here](../../cli/corso-repo-connect-filesystem).
+
+<Tabs groupId="os">
+<TabItem value="win" label="Powershell">
+
+  ```powershell
+  # Connect to the Corso Repository
+  .\corso repo connect filesystem --path C:\Users\user\corso-test
+  ```
+
+</TabItem>
+<TabItem value="unix" label="Linux/macOS">
+
+  ```bash
+  # Connect to the Corso Repository
+  ./corso repo connect filesystem --path $HOME/corso-test
+  ```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+<CodeBlock language="bash">{
+`# Connect to the Corso Repository
+docker run --env-file $HOME/.corso/corso.env \\
+  --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
+  repo connect filesystem --path /path/in/container`
+}</CodeBlock>
+
+</TabItem>
+</Tabs>
+
+### Remarks
+* Corso repositories on local/network storage are easy to setup and can be suitable for smaller 
+scale projects or testing environments. However, they don't offer the same level of interoperability as a 
+S3 compatible object storage.
