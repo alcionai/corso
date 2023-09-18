@@ -165,7 +165,7 @@ TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
 Corso supports creating a repository on local or network attached filesystem.
 
 :::note
-Filesystem repositories are not S3 compatible.
+Filesystem repositories aren't S3 compatible.
 :::
 
 ### Filesystem storage prerequisites
@@ -246,8 +246,8 @@ docker run --env-file $HOME/.corso/corso.env \\
 
 ### Remarks
 
-* Corso repositories on local/network storage are quick to setup and can be suitable for smaller
-scale projects or testing environments. However, they don't offer the same level of interoperability as a
+* Filesystem repositories are quick to setup and can be suitable for smaller scale projects or
+testing environments. However, they don't offer the same level of interoperability as a
 S3 compatible object storage.
-* Repository `--prefix` options are not supported.
-* Repository dirs are created with `0700` permission mode. Files are created with `0600`.
+* Repository `--prefix` options aren't supported.
+* Repository directories are created with `0700` permission mode. Files are created with `0600`.
