@@ -66,7 +66,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkEarlyAccessCommand())
+		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandCreateUseSuffix
@@ -82,7 +82,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddFailFastFlag(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkEarlyAccessCommand())
+		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
@@ -94,7 +94,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkEarlyAccessCommand())
+		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDetailsUseSuffix
@@ -112,7 +112,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkEarlyAccessCommand())
+		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDeleteUseSuffix

@@ -136,9 +136,9 @@ func HasNoFlagsAndShownHelp(cmd *cobra.Command) bool {
 }
 
 type cmdCfg struct {
-	hidden      bool
-	preRelease  bool
-	earlyAccess bool
+	hidden     bool
+	preRelease bool
+	preview    bool
 }
 
 type cmdOpt func(*cmdCfg)
@@ -162,9 +162,9 @@ func MarkPreReleaseCommand() cmdOpt {
 	}
 }
 
-func MarkEarlyAccessCommand() cmdOpt {
+func MarkPreviewCommand() cmdOpt {
 	return func(cc *cmdCfg) {
-		cc.earlyAccess = true
+		cc.preview = true
 	}
 }
 
@@ -185,11 +185,11 @@ func AddCommand(parent, c *cobra.Command, opts ...cmdOpt) (*cobra.Command, *pfla
 			"==================================================================================================\n"
 	}
 
-	if cc.earlyAccess {
+	if cc.preview {
 		// There is a default deprecated message that always shows so we do some terminal magic to overwrite it
 		c.Deprecated = "\n\033[1F\033[K" +
 			"=============================================================================================================\n" +
-			"\tWARNING!!! THIS IS AN EARLY-ACCESS COMMAND THAT MAY NOT FUNCTION PROPERLY, AND MAY BREAK ACROSS RELEASES\n" +
+			"\tWARNING!!! THIS IS A FEATURE PREVIEW THAT MAY NOT FUNCTION PROPERLY AND MAY BREAK ACROSS RELEASES\n" +
 			"=============================================================================================================\n"
 	}
 
