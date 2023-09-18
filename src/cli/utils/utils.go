@@ -97,8 +97,6 @@ func AccountConnectAndWriteRepoConfig(
 		return nil, nil, err
 	}
 
-	s3Config := sc.(*storage.S3Config)
-
 	m365Config, err := acc.M365Config()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting m365 configuration")
@@ -107,7 +105,7 @@ func AccountConnectAndWriteRepoConfig(
 
 	// repo config gets set during repo connect and init.
 	// This call confirms we have the correct values.
-	err = config.WriteRepoConfig(ctx, s3Config, m365Config, opts.Repo, r.GetID())
+	err = config.WriteRepoConfig(ctx, sc, m365Config, opts.Repo, r.GetID())
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("writing to repository configuration")
 		return nil, nil, err
@@ -245,14 +243,14 @@ func GetStorageProviderAndOverrides(
 		return provider, nil, clues.Stack(err)
 	}
 
-	overrides := map[string]string{}
-
 	switch provider {
 	case storage.ProviderS3:
-		overrides = flags.S3FlagOverrides(cmd)
+		return provider, flags.S3FlagOverrides(cmd), nil
+	case storage.ProviderFilesystem:
+		return provider, flags.FilesystemFlagOverrides(cmd), nil
 	}
 
-	return provider, overrides, nil
+	return provider, nil, clues.New("unknown storage provider: " + provider.String())
 }
 
 func MakeAbsoluteFilePath(p string) (string, error) {
