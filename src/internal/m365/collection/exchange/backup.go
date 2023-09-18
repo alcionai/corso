@@ -160,7 +160,7 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, removed, newDelta, err := bh.itemEnumerator().
+		added, _, removed, newDelta, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
@@ -201,7 +201,7 @@ func populateCollections(
 
 		collections[cID] = &edc
 
-		for _, add := range added {
+		for add := range added {
 			edc.added[add] = struct{}{}
 		}
 
