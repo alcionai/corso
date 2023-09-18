@@ -20,10 +20,12 @@ func s3BlobStorage(
 	repoOpts repository.Options,
 	s storage.Storage,
 ) (blob.Storage, error) {
-	cfg, err := s.S3Config()
+	sc, err := s.StorageConfig()
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
+
+	cfg := sc.(*storage.S3Config)
 
 	endpoint := defaultS3Endpoint
 	if len(cfg.Endpoint) > 0 {

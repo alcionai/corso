@@ -32,7 +32,7 @@ func GetAccountAndConnectWithOverrides(
 ) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
 	provider, overrides, err := GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, clues.Stack(err)
 	}
 
 	return GetAccountAndConnect(ctx, pst, provider, overrides)
@@ -89,11 +89,13 @@ func AccountConnectAndWriteRepoConfig(
 		return nil, nil, err
 	}
 
-	s3Config, err := stg.S3Config()
+	sc, err := stg.StorageConfig()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting storage configuration")
 		return nil, nil, err
 	}
+
+	s3Config := sc.(*storage.S3Config)
 
 	m365Config, err := acc.M365Config()
 	if err != nil {

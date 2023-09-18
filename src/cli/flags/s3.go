@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -54,10 +53,9 @@ func S3FlagOverrides(cmd *cobra.Command) map[string]string {
 }
 
 func PopulateS3Flags(flagset PopulatedFlags) map[string]string {
-	s3Overrides := make(map[string]string)
-	// TODO(pandeyabs): Move account overrides out of s3 flags
-	s3Overrides[account.AccountProviderTypeKey] = account.ProviderM365.String()
-	s3Overrides[storage.StorageProviderTypeKey] = storage.ProviderS3.String()
+	s3Overrides := map[string]string{
+		storage.StorageProviderTypeKey: storage.ProviderS3.String(),
+	}
 
 	if _, ok := flagset[AWSAccessKeyFN]; ok {
 		s3Overrides[credentials.AWSAccessKeyID] = AWSAccessKeyFV
