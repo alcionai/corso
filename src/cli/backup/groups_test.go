@@ -66,6 +66,13 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 			groupsDetailsCmd().Short,
 			[]string{
 				flags.BackupFN,
+				flags.LibraryFN,
+				flags.FolderFN,
+				flags.FileFN,
+				flags.FileCreatedAfterFN,
+				flags.FileCreatedBeforeFN,
+				flags.FileModifiedAfterFN,
+				flags.FileModifiedBeforeFN,
 			},
 			detailsGroupsCmd,
 		},
