@@ -1068,6 +1068,8 @@ func traverseBaseDir(
 		if err != nil {
 			return clues.Wrap(err, "traversing base directory").WithClues(ctx)
 		}
+	} else {
+		stats.Inc(statPruned)
 	}
 
 	// We only need to add this base directory to the tree we're building if it

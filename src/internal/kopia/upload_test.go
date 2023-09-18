@@ -3192,8 +3192,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 	}{
 		{
 			// Test that even if files are excluded in the subtree selective subtree
-			// pruning skips traversing the it during hierarchy merging and the file
-			// is properly excluded during upload.
+			// pruning skips traversing, the file is properly excluded during upload.
+			//
+			// It's safe to prune the subtree during merging because the directory
+			// layout hasn't changed. We still require traversal of all directories
+			// during data upload which allows us to exclude the file properly.
 			name: "NoDirectoryChanges ExcludedFile PrunesSubtree",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
 				return []data.BackupCollection{folder4Unchanged}
