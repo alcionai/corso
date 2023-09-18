@@ -158,8 +158,13 @@ func (c *S3Config) ApplyConfigOverrides(
 	if readConfigFromStore {
 		c.s3ConfigsFromStore(kvg)
 
-		overrides[Bucket] = common.NormalizeBucket(overrides[Bucket])
-		overrides[Prefix] = common.NormalizePrefix(overrides[Prefix])
+		if b, ok := overrides[Bucket]; ok {
+			overrides[Bucket] = common.NormalizeBucket(b)
+		}
+
+		if p, ok := overrides[Prefix]; ok {
+			overrides[Prefix] = common.NormalizePrefix(p)
+		}
 
 		if matchFromConfig {
 			providerType := cast.ToString(kvg.Get(StorageProviderTypeKey))
