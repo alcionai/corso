@@ -43,6 +43,8 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 				flags.FetchParallelismFN,
 				flags.SkipReduceFN,
 				flags.NoStatsFN,
+				flags.DisableIncrementalsFN,
+				flags.ForceItemDataDownloadFN,
 			},
 			createGroupsCmd,
 		},
