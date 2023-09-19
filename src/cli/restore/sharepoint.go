@@ -56,11 +56,11 @@ corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
 
 # Restore all files in the folder "Display Templates/Style Sheets" that were created before 2020.
-corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file-created-before 2020-01-01T00:00:00 --folder "Display Templates/Style Sheets"
 
 # Restore all files in the "Documents" library.
-corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --library Documents --folder "Display Templates/Style Sheets" `
 )
 

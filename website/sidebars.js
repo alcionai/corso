@@ -69,6 +69,20 @@ const sidebars = {
         },
         {
           type: 'category',
+          label: 'Groups & Teams',
+          link: {
+            slug: 'cli/groups',
+            description: 'Documentation for commonly-used Corso Groups & Teams CLI commands',
+          },
+          items: [
+            'cli/corso-backup-create-groups',
+            'cli/corso-backup-list-groups',
+            'cli/corso-backup-details-groups',
+            'cli/corso-backup-delete-groups',
+            'cli/corso-restore-groups']
+        },
+        {
+          type: 'category',
           label: 'OneDrive',
           link: {
             slug: 'cli/onedrive',
