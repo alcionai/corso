@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	_ data.BackupCollection = &Collection{}
+	_ data.BackupCollection = &prefetchCollection{}
 	_ data.Item             = &Item{}
 	_ data.ItemInfo         = &Item{}
 	_ data.ItemModTime      = &Item{}
@@ -175,8 +175,8 @@ func NewCollection(
 	user string,
 	items itemGetterSerializer,
 	statusUpdater support.StatusUpdater,
-) Collection {
-	collection := Collection{
+) prefetchCollection {
+	collection := prefetchCollection{
 		baseCollection: bc,
 		user:           user,
 		added:          map[string]struct{}{},
@@ -188,9 +188,9 @@ func NewCollection(
 	return collection
 }
 
-// Collection implements the interface from data.Collection
+// prefetchCollection implements the interface from data.BackupCollection
 // Structure holds data for an Exchange application for a single user
-type Collection struct {
+type prefetchCollection struct {
 	baseCollection
 
 	user string
@@ -207,7 +207,7 @@ type Collection struct {
 
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
-func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+func (col *prefetchCollection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	stream := make(chan data.Item, collectionChannelBufferSize)
 	go col.streamItems(ctx, stream, errs)
 
@@ -216,7 +216,7 @@ func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.I
 
 // streamItems is a utility function that uses col.collectionType to be able to serialize
 // all the M365IDs defined in the added field. data channel is closed by this function
-func (col *Collection) streamItems(
+func (col *prefetchCollection) streamItems(
 	ctx context.Context,
 	stream chan<- data.Item,
 	errs *fault.Bus,
