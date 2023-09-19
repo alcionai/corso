@@ -279,6 +279,10 @@ func genericDeleteCommand(
 		return nil
 	}
 
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
 	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
@@ -309,6 +313,10 @@ func genericListCommand(
 	args []string,
 ) error {
 	ctx := cmd.Context()
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
 
 	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
 		ctx,

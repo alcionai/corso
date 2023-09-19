@@ -163,6 +163,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
 	if err := validateExchangeBackupCreateFlags(flags.UserFV, flags.CategoryDataFV); err != nil {
 		return err
 	}
@@ -273,6 +277,10 @@ func exchangeDetailsCmd() *cobra.Command {
 // selector reduction as a filtering step.
 func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
