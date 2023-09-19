@@ -45,7 +45,7 @@ const (
 	sharePointServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's latest backup (1234abcd...) to /my-exports
 corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef my-exports
 
-# Export files named "ServerRenderTemplate.xsl" in the folder "Display Templates/Style Sheets". as archive to the current directory
+# Export file "ServerRenderTemplate.xsl" in "Display Templates/Style Sheets" as archive to the current directory
 corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets" --archive .
 
