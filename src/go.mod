@@ -32,7 +32,7 @@ require (
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
 	github.com/vbauerster/mpb/v8 v8.1.6
-	go.uber.org/zap v1.25.0
+	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b
 	golang.org/x/time v0.3.0
 	golang.org/x/tools v0.13.0
