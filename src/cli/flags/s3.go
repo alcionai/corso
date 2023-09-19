@@ -11,22 +11,20 @@ import (
 
 // S3 bucket flags
 const (
-	BucketFN          = "bucket"
-	EndpointFN        = "endpoint"
-	PrefixFN          = "prefix"
-	DoNotUseTLSFN     = "disable-tls"
-	DoNotVerifyTLSFN  = "disable-tls-verification"
-	SucceedIfExistsFN = "succeed-if-exists"
+	BucketFN         = "bucket"
+	EndpointFN       = "endpoint"
+	PrefixFN         = "prefix"
+	DoNotUseTLSFN    = "disable-tls"
+	DoNotVerifyTLSFN = "disable-tls-verification"
 )
 
 // S3 bucket flag values
 var (
-	BucketFV          string
-	EndpointFV        string
-	PrefixFV          string
-	DoNotUseTLSFV     bool
-	DoNotVerifyTLSFV  bool
-	SucceedIfExistsFV bool
+	BucketFV         string
+	EndpointFV       string
+	PrefixFV         string
+	DoNotUseTLSFV    bool
+	DoNotVerifyTLSFV bool
 )
 
 // S3 bucket flags

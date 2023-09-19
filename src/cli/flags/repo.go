@@ -12,6 +12,7 @@ const (
 
 	// Corso Flags
 	CorsoPassphraseFN = "passphrase"
+	SucceedIfExistsFN = "succeed-if-exists"
 )
 
 var (
@@ -20,6 +21,7 @@ var (
 	AWSSecretAccessKeyFV string
 	AWSSessionTokenFV    string
 	CorsoPassphraseFV    string
+	SucceedIfExistsFV    bool
 )
 
 // AddBackupIDFlag adds the --backup flag.

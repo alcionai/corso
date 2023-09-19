@@ -95,9 +95,6 @@ func GetStorageProviderFromConfigFile(ctx context.Context) (storage.ProviderType
 	}
 
 	provider := vpr.GetString(storage.StorageProviderTypeKey)
-	if provider != storage.ProviderS3.String() {
-		return storage.ProviderUnknown, clues.New("unsupported storage provider: " + provider)
-	}
 
 	return storage.StringToProviderType[provider], nil
 }
