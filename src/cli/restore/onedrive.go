@@ -54,7 +54,7 @@ corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
 
 # Restore all files and folders in folder "Documents/Finance Reports" that were created before 2020
-corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd 
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
