@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+- Enables local or network-attached storage for Corso repositories.
+
+## [v0.13.0] (beta) - 2023-09-18
+
+### Added
 - Groups and Teams service support available as a feature preview!  Channel messages and Files are now available for backup and restore in the CLI: `corso backup create groups --group '*'`
   * The cli commands for "groups" and "teams" can be used interchangably, and will operate on the same backup data.
   * New permissions are required to backup Channel messages.  See the [Corso Documentation](https://corsobackup.io/docs/setup/m365-access/#configure-required-permissions) for complete details.

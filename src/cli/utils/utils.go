@@ -3,6 +3,8 @@ package utils
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
@@ -95,8 +97,6 @@ func AccountConnectAndWriteRepoConfig(
 		return nil, nil, err
 	}
 
-	s3Config := sc.(*storage.S3Config)
-
 	m365Config, err := acc.M365Config()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting m365 configuration")
@@ -105,7 +105,7 @@ func AccountConnectAndWriteRepoConfig(
 
 	// repo config gets set during repo connect and init.
 	// This call confirms we have the correct values.
-	err = config.WriteRepoConfig(ctx, s3Config, m365Config, opts.Repo, r.GetID())
+	err = config.WriteRepoConfig(ctx, sc, m365Config, opts.Repo, r.GetID())
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("writing to repository configuration")
 		return nil, nil, err
@@ -258,12 +258,40 @@ func GetStorageProviderAndOverrides(
 		return provider, nil, clues.Stack(err)
 	}
 
-	overrides := map[string]string{}
-
 	switch provider {
 	case storage.ProviderS3:
-		overrides = flags.S3FlagOverrides(cmd)
+		return provider, flags.S3FlagOverrides(cmd), nil
+	case storage.ProviderFilesystem:
+		return provider, flags.FilesystemFlagOverrides(cmd), nil
 	}
 
-	return provider, overrides, nil
+	return provider, nil, clues.New("unknown storage provider: " + provider.String())
+}
+
+// MakeAbsoluteFilePath does directory path expansions & conversions, namely:
+// 1. Expands "~" prefix to the user's home directory, and converts to absolute path.
+// 2. Relative paths are converted to absolute paths.
+// 3. Absolute paths are returned as-is.
+// 4. Empty paths are not allowed, an error is returned.
+func MakeAbsoluteFilePath(p string) (string, error) {
+	if len(p) == 0 {
+		return "", clues.New("empty path")
+	}
+
+	// Special case handling for "~". filepath.Abs will not expand it.
+	if p[0] == '~' {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", clues.Wrap(err, "getting user home directory")
+		}
+
+		p = filepath.Join(homeDir, p[1:])
+	}
+
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", clues.Stack(err)
+	}
+
+	return abs, nil
 }
