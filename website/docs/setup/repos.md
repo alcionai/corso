@@ -20,12 +20,12 @@ Within a repository, Corso uses
 AES256-GCM-HMAC-SHA256 to encrypt data at rest using keys that are derived from the repository passphrase.
 Data in flight to and from the repository is encrypted via TLS.
 
-Repositories are supported on the following object storage systems:
+Repositories are supported on the following storage systems:
 
 <TOCInline toc={toc} maxHeadingLevel={2}/><br/>
 
 :::note
-Depending on community interest, Corso will add support for other object storage backends in the future.
+Depending on community interest, Corso will add support for other storage backends in the future.
 :::
 
 ## Amazon S3
@@ -73,7 +73,7 @@ The two most commonly-used options are:
   `AWS_SHARED_CREDENTIALS_FILE`, if not using the default file location. You can learn more about the AWS CLI
   environment variables [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
 
-### Initialize S3 repository
+### Initialize a S3 repository
 
 Before first use, you need to initialize a Corso repository with `corso repo init s3`. See the command details
 [here](../../cli/corso-repo-init-s3).
@@ -84,7 +84,7 @@ Before first use, you need to initialize a Corso repository with `corso repo ini
   ```powershell
   # Initialize the Corso Repository
   $Env:CORSO_PASSPHRASE = 'CHANGE-ME-THIS-IS-INSECURE'
-  .\corso repo init s3 --bucket corso-test
+  .\corso repo init s3 --bucket corso-repo
   ```
 
 </TabItem>
@@ -93,7 +93,7 @@ Before first use, you need to initialize a Corso repository with `corso repo ini
   ```bash
   # Initialize the Corso Repository
   export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
-  ./corso repo init s3 --bucket corso-test
+  ./corso repo init s3 --bucket corso-repo
   ```
 
 </TabItem>
@@ -104,7 +104,7 @@ Before first use, you need to initialize a Corso repository with `corso repo ini
 export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
 docker run --env-file $HOME/.corso/corso.env \\
   --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
-  repo init s3 --bucket corso-test`
+  repo init s3 --bucket corso-repo`
 }</CodeBlock>
 
 </TabItem>
@@ -120,7 +120,7 @@ If a repository already exists, you can connect to it with `corso repo connect s
 
   ```powershell
   # Connect to the Corso Repository
-  .\corso repo connect s3 --bucket corso-test
+  .\corso repo connect s3 --bucket corso-repo
   ```
 
 </TabItem>
@@ -128,7 +128,7 @@ If a repository already exists, you can connect to it with `corso repo connect s
 
   ```bash
   # Connect to the Corso Repository
-  ./corso repo connect s3 --bucket corso-test
+  ./corso repo connect s3 --bucket corso-repo
   ```
 
 </TabItem>
@@ -138,7 +138,7 @@ If a repository already exists, you can connect to it with `corso repo connect s
 `# Connect to the Corso Repository
 docker run --env-file $HOME/.corso/corso.env \\
   --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
-  repo connect s3 --bucket corso-test`
+  repo connect s3 --bucket corso-repo`
 }</CodeBlock>
 
 </TabItem>
@@ -162,17 +162,14 @@ TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
 
 ## Filesystem Storage
 
-Corso supports creating a repository on local or network attached filesystem.
+Corso supports creating a repository on a local or network attached filesystem.
 
 :::note
-Filesystem repositories aren't S3 compatible.
+Filesystem repositories aren't S3 compatible. Copying a local repository directly to S3-compatible object storage or the other way around
+is not supported.
 :::
 
-### Filesystem storage prerequisites
-
-None.
-
-### Initialize filesystem repository
+### Initialize a filesystem repository
 
 Before first use, you need to initialize a Corso repository with `corso repo init filesystem`. See the command details
 [here](../../cli/corso-repo-init-filesystem). Corso will create the directory structure if necessary, including any
@@ -184,7 +181,7 @@ missing parent directories.
   ```powershell
   # Initialize the Corso Repository
   $Env:CORSO_PASSPHRASE = 'CHANGE-ME-THIS-IS-INSECURE'
-  .\corso repo init filesystem --path C:\Users\user\corso-test
+  .\corso repo init filesystem --path C:\Users\user\corso-repo
   ```
 
 </TabItem>
@@ -193,7 +190,7 @@ missing parent directories.
   ```bash
   # Initialize the Corso Repository
   export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
-  ./corso repo init filesystem --path $HOME/corso-test
+  ./corso repo init filesystem --path $HOME/corso-repo
   ```
 
 </TabItem>
@@ -204,7 +201,8 @@ missing parent directories.
 export CORSO_PASSPHRASE="CHANGE-ME-THIS-IS-INSECURE"
 docker run --env-file $HOME/.corso/corso.env \\
   --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
-  repo init filesystem --path /path/in/container`
+  --volume /path/on/host/corso-repo:/path/in/container/corso-repo \\
+  repo init filesystem --path /path/in/container/corso-repo`
 }</CodeBlock>
 
 </TabItem>
@@ -220,7 +218,7 @@ If a repository already exists, you can connect to it with `corso repo connect f
 
   ```powershell
   # Connect to the Corso Repository
-  .\corso repo connect filesystem --path C:\Users\user\corso-test
+  .\corso repo connect filesystem --path C:\Users\user\corso-repo
   ```
 
 </TabItem>
@@ -228,7 +226,7 @@ If a repository already exists, you can connect to it with `corso repo connect f
 
   ```bash
   # Connect to the Corso Repository
-  ./corso repo connect filesystem --path $HOME/corso-test
+  ./corso repo connect filesystem --path $HOME/corso-repo
   ```
 
 </TabItem>
@@ -238,7 +236,8 @@ If a repository already exists, you can connect to it with `corso repo connect f
 `# Connect to the Corso Repository
 docker run --env-file $HOME/.corso/corso.env \\
   --volume $HOME/.corso:/app/corso ghcr.io/alcionai/corso:${Version()} \\
-  repo connect filesystem --path /path/in/container`
+  --volume /path/on/host/corso-repo:/path/in/container/corso-repo \\
+  repo connect filesystem --path /path/in/container/corso-repo`
 }</CodeBlock>
 
 </TabItem>
@@ -246,8 +245,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 
 ### Remarks
 
-* Filesystem repositories are quick to setup and can be suitable for smaller scale projects or
-testing environments. However, they don't offer the same level of interoperability as a
-S3 compatible object storage.
-* Repository `--prefix` options aren't supported.
+* Filesystem repositories can be quickly set up and are well-suited for smaller scale projects or
+testing environments. However, they don't offer the same level of interoperability as an S3 compatible object storage.
+* `--prefix` options aren't supported.
 * Repository directories are created with `0700` permission mode. Files are created with `0600`.
