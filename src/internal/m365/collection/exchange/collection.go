@@ -413,8 +413,6 @@ func (col *lazyFetchCollection) streamItems(
 ) {
 	var (
 		success     int64
-		totalBytes  int64
-		wg          sync.WaitGroup
 		colProgress chan<- struct{}
 
 		user = col.user
@@ -427,7 +425,7 @@ func (col *lazyFetchCollection) streamItems(
 			col.statusUpdater,
 			len(col.added)+len(col.removed),
 			int(success),
-			totalBytes,
+			0,
 			col.FullPath().Folder(false),
 			errs.Failure())
 	}()
@@ -487,8 +485,6 @@ func (col *lazyFetchCollection) streamItems(
 			colProgress <- struct{}{}
 		}
 	}
-
-	wg.Wait()
 }
 
 // Item represents a single item retrieved from exchange
