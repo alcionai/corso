@@ -165,8 +165,8 @@ TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
 Corso supports creating a repository on a local or network attached filesystem.
 
 :::note
-Filesystem repositories aren't S3 compatible. Copying a local repository directly to S3-compatible object storage or the other way around
-isn't supported.
+Filesystem repositories aren't S3 compatible. Copying a local repository directly to S3-compatible object storage
+or the other way around isn't supported.
 :::
 
 ### Initialize a filesystem repository
