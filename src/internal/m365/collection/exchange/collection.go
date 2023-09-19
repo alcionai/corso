@@ -178,16 +178,11 @@ func NewCollection(
 	items itemGetterSerializer,
 	added map[string]time.Time,
 	removed []string,
+	validModTimes bool,
 	statusUpdater support.StatusUpdater,
-) prefetchCollection {
-	collection := prefetchCollection{
-		baseCollection: bc,
-		user:           user,
-		added:          maps.Clone(added),
-		removed:        map[string]struct{}{},
-		getter:         items,
-		statusUpdater:  statusUpdater,
-	}
+) data.BackupCollection {
+	add := maps.Clone(added)
+	remove := make(map[string]struct{}, len(removed))
 
 	// Remove any deleted IDs from the set of added IDs because items that are
 	// deleted and then restored will have a different ID than they did
@@ -196,12 +191,31 @@ func NewCollection(
 	// TODO(ashmrtn): If we switch to immutable IDs then we'll need to handle this
 	// sort of operation in the pager since this would become order-dependent
 	// unless Graph started consolidating the changes into a single delta result.
-	for _, remove := range removed {
-		delete(collection.added, remove)
-		collection.removed[remove] = struct{}{}
+	for _, r := range removed {
+		delete(add, r)
+
+		remove[r] = struct{}{}
 	}
 
-	return collection
+	if !validModTimes {
+		return &Collection{
+			baseCollection: bc,
+			user:           user,
+			added:          add,
+			removed:        remove,
+			getter:         items,
+			statusUpdater:  statusUpdater,
+		}
+	}
+
+	return &lazyFetchCollection{
+		baseCollection: bc,
+		user:           user,
+		added:          add,
+		removed:        remove,
+		getter:         items,
+		statusUpdater:  statusUpdater,
+	}
 }
 
 // prefetchCollection implements the interface from data.BackupCollection
