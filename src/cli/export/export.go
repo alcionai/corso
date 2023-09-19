@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -25,11 +26,12 @@ var exportCommands = []func(cmd *cobra.Command) *cobra.Command{
 
 // AddCommands attaches all `corso export * *` commands to the parent.
 func AddCommands(cmd *cobra.Command) {
-	exportC := exportCmd()
-	cmd.AddCommand(exportC)
+	subCommand := exportCmd()
+	flags.AddAllStorageFlags(subCommand)
+	cmd.AddCommand(subCommand)
 
 	for _, addExportTo := range exportCommands {
-		addExportTo(exportC)
+		addExportTo(subCommand)
 	}
 }
 

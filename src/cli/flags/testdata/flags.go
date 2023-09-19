@@ -1,6 +1,10 @@
 package testdata
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/spf13/cobra"
+)
 
 func FlgInputs(in []string) string { return strings.Join(in, ",") }
 
@@ -81,3 +85,17 @@ var (
 	EnableImmutableID         = true
 	DisableConcurrencyLimiter = true
 )
+
+func WithFlags(
+	cc *cobra.Command,
+	command string,
+	flagSets ...[]string,
+) {
+	args := []string{command}
+
+	for _, sl := range flagSets {
+		args = append(args, sl...)
+	}
+
+	cc.SetArgs(args)
+}

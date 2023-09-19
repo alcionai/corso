@@ -13,8 +13,9 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/cli/utils/testdata"
+	utilsTD "github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
@@ -95,64 +96,49 @@ func (suite *SharePointUnitSuite) TestBackupCreateFlags() {
 
 	cmd := &cobra.Command{Use: createCommand}
 
-	// normally a persistent flag from the root.
-	// required to ensure a dry run.
+	// global flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
+	flags.AddAllProviderFlags(cmd)
+	flags.AddAllStorageFlags(cmd)
 
 	c := addSharePointCommands(cmd)
 	require.NotNil(t, c)
 
-	// Test arg parsing for few args
-	cmd.SetArgs([]string{
+	flagsTD.WithFlags(
+		cmd,
 		sharePointServiceCommand,
-		"--" + flags.RunModeFN, flags.RunModeFlagTest,
-
-		"--" + flags.SiteIDFN, testdata.FlgInputs(testdata.SiteIDInput),
-		"--" + flags.SiteFN, testdata.FlgInputs(testdata.WebURLInput),
-		"--" + flags.CategoryDataFN, testdata.FlgInputs(testdata.SharepointCategoryDataInput),
-
-		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-
-		// bool flags
-		"--" + flags.FailFastFN,
-		"--" + flags.DisableIncrementalsFN,
-		"--" + flags.ForceItemDataDownloadFN,
-	})
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.SiteIDFN, flagsTD.FlgInputs(flagsTD.SiteIDInput),
+			"--" + flags.SiteFN, flagsTD.FlgInputs(flagsTD.WebURLInput),
+			"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.SharepointCategoryDataInput),
+			"--" + flags.FailFastFN,
+			"--" + flags.DisableIncrementalsFN,
+			"--" + flags.ForceItemDataDownloadFN,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
 
 	cmd.SetOut(new(bytes.Buffer)) // drop output
 	cmd.SetErr(new(bytes.Buffer)) // drop output
+
 	err := cmd.Execute()
 	assert.NoError(t, err, clues.ToCore(err))
 
 	opts := utils.MakeSharePointOpts(cmd)
 	co := utils.Control()
 
-	assert.ElementsMatch(t, []string{strings.Join(testdata.SiteIDInput, ",")}, opts.SiteID)
-	assert.ElementsMatch(t, testdata.WebURLInput, opts.WebURL)
+	assert.ElementsMatch(t, []string{strings.Join(flagsTD.SiteIDInput, ",")}, opts.SiteID)
+	assert.ElementsMatch(t, flagsTD.WebURLInput, opts.WebURL)
 	// no assertion for category data input
-
-	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 
 	// bool flags
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }
 
 func (suite *SharePointUnitSuite) TestBackupListFlags() {
@@ -160,55 +146,36 @@ func (suite *SharePointUnitSuite) TestBackupListFlags() {
 
 	cmd := &cobra.Command{Use: listCommand}
 
-	// normally a persistent flag from the root.
-	// required to ensure a dry run.
+	// global flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
+	flags.AddAllProviderFlags(cmd)
+	flags.AddAllStorageFlags(cmd)
 
 	c := addSharePointCommands(cmd)
 	require.NotNil(t, c)
 
-	// Test arg parsing for few args
-	cmd.SetArgs([]string{
+	flagsTD.WithFlags(
+		cmd,
 		sharePointServiceCommand,
-		"--" + flags.RunModeFN, flags.RunModeFlagTest,
-		"--" + flags.BackupFN, testdata.BackupInput,
-
-		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-
-		// bool flags
-		"--" + flags.FailedItemsFN, "show",
-		"--" + flags.SkippedItemsFN, "show",
-		"--" + flags.RecoveredErrorsFN, "show",
-	})
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedBackupListFlags(),
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
 
 	cmd.SetOut(new(bytes.Buffer)) // drop output
 	cmd.SetErr(new(bytes.Buffer)) // drop output
+
 	err := cmd.Execute()
 	assert.NoError(t, err, clues.ToCore(err))
 
-	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
 
-	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
-
-	assert.Equal(t, flags.ListFailedItemsFV, "show")
-	assert.Equal(t, flags.ListSkippedItemsFV, "show")
-	assert.Equal(t, flags.ListRecoveredErrorsFV, "show")
+	flagsTD.AssertBackupListFlags(t, cmd)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }
 
 func (suite *SharePointUnitSuite) TestBackupDetailsFlags() {
@@ -216,53 +183,39 @@ func (suite *SharePointUnitSuite) TestBackupDetailsFlags() {
 
 	cmd := &cobra.Command{Use: detailsCommand}
 
-	// normally a persistent flag from the root.
-	// required to ensure a dry run.
+	// global flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
+	flags.AddAllProviderFlags(cmd)
+	flags.AddAllStorageFlags(cmd)
 
 	c := addSharePointCommands(cmd)
 	require.NotNil(t, c)
 
-	// Test arg parsing for few args
-	cmd.SetArgs([]string{
+	flagsTD.WithFlags(
+		cmd,
 		sharePointServiceCommand,
-		"--" + flags.RunModeFN, flags.RunModeFlagTest,
-		"--" + flags.BackupFN, testdata.BackupInput,
-
-		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-
-		// bool flags
-		"--" + flags.SkipReduceFN,
-	})
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+			"--" + flags.SkipReduceFN,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
 
 	cmd.SetOut(new(bytes.Buffer)) // drop output
 	cmd.SetErr(new(bytes.Buffer)) // drop output
+
 	err := cmd.Execute()
 	assert.NoError(t, err, clues.ToCore(err))
 
 	co := utils.Control()
 
-	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
-
-	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
 
 	assert.True(t, co.SkipReduce)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }
 
 func (suite *SharePointUnitSuite) TestBackupDeleteFlags() {
@@ -270,46 +223,34 @@ func (suite *SharePointUnitSuite) TestBackupDeleteFlags() {
 
 	cmd := &cobra.Command{Use: deleteCommand}
 
-	// normally a persistent flag from the root.
-	// required to ensure a dry run.
+	// global flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
+	flags.AddAllProviderFlags(cmd)
+	flags.AddAllStorageFlags(cmd)
 
 	c := addSharePointCommands(cmd)
 	require.NotNil(t, c)
 
-	// Test arg parsing for few args
-	cmd.SetArgs([]string{
+	flagsTD.WithFlags(
+		cmd,
 		sharePointServiceCommand,
-		"--" + flags.RunModeFN, flags.RunModeFlagTest,
-		"--" + flags.BackupFN, testdata.BackupInput,
-
-		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-	})
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
 
 	cmd.SetOut(new(bytes.Buffer)) // drop output
 	cmd.SetErr(new(bytes.Buffer)) // drop output
+
 	err := cmd.Execute()
 	assert.NoError(t, err, clues.ToCore(err))
 
-	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
 
-	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }
 
 func (suite *SharePointUnitSuite) TestValidateSharePointBackupCreateFlags() {
@@ -446,14 +387,14 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 func (suite *SharePointUnitSuite) TestSharePointBackupDetailsSelectors() {
 	for v := 0; v <= version.Backup; v++ {
 		suite.Run(fmt.Sprintf("version%d", v), func() {
-			for _, test := range testdata.SharePointOptionDetailLookups {
+			for _, test := range utilsTD.SharePointOptionDetailLookups {
 				suite.Run(test.Name, func() {
 					t := suite.T()
 
 					ctx, flush := tester.NewContext(t)
 					defer flush()
 
-					bg := testdata.VersionedBackupGetter{
+					bg := utilsTD.VersionedBackupGetter{
 						Details: dtd.GetDetailsSetForVersion(t, v),
 					}
 
@@ -472,7 +413,7 @@ func (suite *SharePointUnitSuite) TestSharePointBackupDetailsSelectors() {
 }
 
 func (suite *SharePointUnitSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
-	for _, test := range testdata.BadSharePointOptionsFormats {
+	for _, test := range utilsTD.BadSharePointOptionsFormats {
 		suite.Run(test.Name, func() {
 			t := suite.T()
 

@@ -24,11 +24,13 @@ var restoreCommands = []func(cmd *cobra.Command) *cobra.Command{
 
 // AddCommands attaches all `corso restore * *` commands to the parent.
 func AddCommands(cmd *cobra.Command) {
-	restoreC := restoreCmd()
-	cmd.AddCommand(restoreC)
+	subCommand := restoreCmd()
+	flags.AddAllProviderFlags(subCommand)
+	flags.AddAllStorageFlags(subCommand)
+	cmd.AddCommand(subCommand)
 
 	for _, addRestoreTo := range restoreCommands {
-		addRestoreTo(restoreC)
+		addRestoreTo(subCommand)
 	}
 }
 
