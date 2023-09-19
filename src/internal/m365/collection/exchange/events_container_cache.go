@@ -74,6 +74,7 @@ func (ecc *eventContainerCache) Populate(
 		ctx,
 		ecc.userID,
 		"",
+		false,
 		ecc.addFolder,
 		errs)
 	if err != nil {
