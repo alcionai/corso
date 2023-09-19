@@ -18,6 +18,7 @@ RUN apt-get -y update && apt-get -y install gpg curl git make ca-certificates gn
   && tar -xvzf vale_2.20.1_Linux_${arch}.tar.gz -C /usr/bin vale \
   && npm install -g markdownlint-cli@0.32.2 \
   && curl "https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip" -o "awscliv2.zip" \
+  && apt-get -y install unzip \
   && unzip awscliv2.zip && /bin/bash aws/install && rm -rf awscliv2.zip aws
 
 WORKDIR /usr/src
