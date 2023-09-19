@@ -47,7 +47,7 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 			Corso:       GetAndInsertCorso(""),
 			KopiaCfgDir: t.TempDir(),
 		})
-	require.NoError(t, err, "creating storage", clues.ToCore(err))
+	require.NoErrorf(t, err, "creating storage: %+v", clues.ToCore(err))
 
 	return st
 }
@@ -57,7 +57,7 @@ func NewFilesystemStorage(t tester.TestT) storage.Storage {
 	repoPath := filepath.Join(t.TempDir(), now)
 
 	err := os.MkdirAll(repoPath, 0700)
-	require.NoError(t, err, "creating filesystem repo", clues.ToCore(err))
+	require.NoErrorf(t, err, "creating filesystem repo: %+v", clues.ToCore(err))
 
 	t.Logf("testing at filesystem repo [%s]", repoPath)
 

@@ -26,7 +26,7 @@ func filesystemStorage(
 		Path: fsCfg.Path,
 	}
 
-	store, err := filesystem.New(ctx, &opts, false)
+	store, err := filesystem.New(ctx, &opts, true)
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}

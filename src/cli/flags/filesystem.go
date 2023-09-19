@@ -19,6 +19,9 @@ var (
 func AddFilesystemFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
 
+	AddAzureCredsFlags(cmd)
+	AddCorsoPassphaseFlags(cmd)
+
 	fs.StringVar(
 		&FilesystemPathFV,
 		FilesystemPathFN,

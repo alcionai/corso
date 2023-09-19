@@ -253,13 +253,17 @@ func GetStorageProviderAndOverrides(
 	return provider, nil, clues.New("unknown storage provider: " + provider.String())
 }
 
+// MakeAbsoluteFilePath does directory path expansions & conversions, namely:
+// 1. Expands "~" prefix to the user's home directory, and converts to absolute path.
+// 2. Relative paths are converted to absolute paths.
+// 3. Absolute paths are returned as-is.
+// 4. Empty paths are not allowed, an error is returned.
 func MakeAbsoluteFilePath(p string) (string, error) {
 	if len(p) == 0 {
 		return "", clues.New("empty path")
 	}
 
 	// Special case handling for "~". filepath.Abs will not expand it.
-	// If the path starts with "~", expand it to the user's home directory.
 	if p[0] == '~' {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {

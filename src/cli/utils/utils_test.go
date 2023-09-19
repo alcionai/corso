@@ -101,6 +101,12 @@ func (suite *CliUtilsSuite) TestMakeAbsoluteFilePath() {
 			expectedErr: assert.NoError,
 		},
 		{
+			name:        "relative path 2",
+			input:       ".",
+			expected:    currentDir,
+			expectedErr: assert.NoError,
+		},
+		{
 			name:        "home dir",
 			input:       "~/file.txt",
 			expected:    filepath.Join(homeDir, "file.txt"),
