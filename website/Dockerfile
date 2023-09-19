@@ -4,7 +4,7 @@ LABEL MAINTAINER="Niraj Tolia"
 ARG DEBIAN_FRONTEND=noninteractive
 
 # NOTE for lines 17,19: update in CI when updating
-RUN apt-get -y update && apt-get -y install gpg curl git make ca-certificates gnupg \
+RUN apt-get -y update && apt-get -y install gpg curl git make ca-certificates gnupg unzip \
   && mkdir -p /etc/apt/keyrings \
   && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
   && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
@@ -18,7 +18,6 @@ RUN apt-get -y update && apt-get -y install gpg curl git make ca-certificates gn
   && tar -xvzf vale_2.20.1_Linux_${arch}.tar.gz -C /usr/bin vale \
   && npm install -g markdownlint-cli@0.32.2 \
   && curl "https://awscli.amazonaws.com/awscli-exe-linux-$(arch).zip" -o "awscliv2.zip" \
-  && apt-get -y install unzip \
   && unzip awscliv2.zip && /bin/bash aws/install && rm -rf awscliv2.zip aws
 
 WORKDIR /usr/src
