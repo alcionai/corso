@@ -53,7 +53,7 @@ func CreateCollections(
 
 	foldersComplete := observe.MessageWithCompletion(
 		ctx,
-		observe.Bulletf("%s", qp.Category))
+		observe.Bulletf("%s", qp.Category.HumanString()))
 	defer close(foldersComplete)
 
 	rootFolder, cc := handler.NewContainerCache(bpc.ProtectedResource.ID())
@@ -160,7 +160,7 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, removed, newDelta, err := bh.itemEnumerator().
+		added, _, removed, newDelta, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
@@ -189,19 +189,19 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			NewBaseCollection(
+				currPath,
+				prevPath,
+				locPath,
+				ctrlOpts,
+				newDelta.Reset),
 			qp.ProtectedResource.ID(),
-			currPath,
-			prevPath,
-			locPath,
-			category,
 			bh.itemHandler(),
-			statusUpdater,
-			ctrlOpts,
-			newDelta.Reset)
+			statusUpdater)
 
 		collections[cID] = &edc
 
-		for _, add := range added {
+		for add := range added {
 			edc.added[add] = struct{}{}
 		}
 
@@ -251,15 +251,15 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			NewBaseCollection(
+				nil, // marks the collection as deleted
+				prevPath,
+				nil, // tombstones don't need a location
+				ctrlOpts,
+				false),
 			qp.ProtectedResource.ID(),
-			nil, // marks the collection as deleted
-			prevPath,
-			nil, // tombstones don't need a location
-			category,
 			bh.itemHandler(),
-			statusUpdater,
-			ctrlOpts,
-			false)
+			statusUpdater)
 		collections[id] = &edc
 	}
 

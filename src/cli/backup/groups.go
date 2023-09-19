@@ -31,7 +31,7 @@ import (
 const (
 	groupsServiceCommand                 = "groups"
 	teamsServiceCommand                  = "teams"
-	groupsServiceCommandCreateUseSuffix  = "--group <groupsName> | '" + flags.Wildcard + "'"
+	groupsServiceCommandCreateUseSuffix  = "--group <groupName> | '" + flags.Wildcard + "'"
 	groupsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	groupsServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
@@ -66,7 +66,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandCreateUseSuffix
@@ -80,9 +80,11 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddAzureCredsFlags(c)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
+		flags.AddDisableIncrementalsFlag(c)
+		flags.AddForceItemDataDownloadFlag(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
@@ -94,7 +96,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDetailsUseSuffix
@@ -112,7 +114,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDeleteUseSuffix

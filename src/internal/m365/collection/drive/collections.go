@@ -243,7 +243,9 @@ func (c *Collections) Get(
 		driveTombstones[driveID] = struct{}{}
 	}
 
-	progressBar := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
+	progressBar := observe.MessageWithCompletion(
+		ctx,
+		observe.Bulletf(path.FilesCategory.HumanString()))
 	defer close(progressBar)
 
 	// Enumerate drives for the specified resourceOwner
