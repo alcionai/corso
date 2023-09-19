@@ -26,4 +26,10 @@ Below is a list of known Corso issues and limitations:
 
 * Link shares with password protection can't be restored.
 
-* All replies in a Teams Conversation are removed from backup when the root message gets deleted.
+* Teams conversation replies are only backed up if the parent message is available at the time of backup.
+
+* Groups SharePoint files don't support Export. This limitation will be addressed in a follow-up release
+
+* Teams messages don't support Restore due to limited Graph API support for message creation.
+
+* Groups and Teams support is available in an early-access status, and may be subject to breaking changes.

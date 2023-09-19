@@ -339,5 +339,5 @@ See [here](../setup/restore-options) for more restoration options.
 The above tutorial only scratches the surface for Corso's capabilities. We encourage you to dig deeper by:
 
 * Learning about [Corso concepts and setup](../setup/concepts)
-* Explore Corso backup and restore options for Exchange and Onedrive in the [Command Line Reference](../cli/corso)
+* Explore Corso backup and restore options for M365 Applications in the [Command Line Reference](../cli/corso)
 * Leverage Corso's [Advanced Restoration Options](../setup/restore-options)
