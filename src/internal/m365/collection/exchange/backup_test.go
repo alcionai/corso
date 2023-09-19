@@ -600,7 +600,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 
 			// now do another backup with the previous delta tokens,
 			// which should only contain the difference.
-			collections, err = CreateCollections(
+			_, err = CreateCollections(
 				ctx,
 				bpc,
 				handlers,
@@ -610,19 +610,6 @@ func (suite *BackupIntgSuite) TestDelta() {
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
-
-			// TODO(keepers): this isn't a very useful test at the moment.  It needs to
-			// investigate the items in the original and delta collections to at least
-			// assert some minimum assumptions, such as "deltas should retrieve fewer items".
-			// Delta usage is commented out at the moment, anyway.  So this is currently
-			// a sanity check that the minimum behavior won't break.
-			for _, coll := range collections {
-				if coll.FullPath().Service() != path.ExchangeMetadataService {
-					ec, ok := coll.(*prefetchCollection)
-					require.True(t, ok, "collection is *prefetchCollection")
-					assert.NotNil(t, ec)
-				}
-			}
 		})
 	}
 }

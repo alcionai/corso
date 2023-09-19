@@ -198,7 +198,7 @@ func NewCollection(
 	}
 
 	if !validModTimes {
-		return &Collection{
+		return &prefetchCollection{
 			baseCollection: bc,
 			user:           user,
 			added:          add,
