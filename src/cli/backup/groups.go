@@ -80,6 +80,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddAzureCredsFlags(c)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
+		flags.AddDisableDeltaFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
 		flags.AddForceItemDataDownloadFlag(c)
 
@@ -149,6 +150,10 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
@@ -225,6 +230,10 @@ func groupsDetailsCmd() *cobra.Command {
 // processes a groups service backup.
 func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 

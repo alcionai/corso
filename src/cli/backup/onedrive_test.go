@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
@@ -11,10 +12,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	dtd "github.com/alcionai/corso/src/pkg/backup/details/testdata"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 type OneDriveUnitSuite struct {
@@ -33,57 +36,35 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 		use         string
 		expectUse   string
 		expectShort string
-		flags       []string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create onedrive",
-			createCommand,
-			expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
-			oneDriveCreateCmd().Short,
-			[]string{
-				flags.UserFN,
-				flags.DisableIncrementalsFN,
-				flags.FailFastFN,
-			},
-			createOneDriveCmd,
+			name:        "create onedrive",
+			use:         createCommand,
+			expectUse:   expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
+			expectShort: oneDriveCreateCmd().Short,
+			expectRunE:  createOneDriveCmd,
 		},
 		{
-			"list onedrive",
-			listCommand,
-			expectUse,
-			oneDriveListCmd().Short,
-			[]string{
-				flags.BackupFN,
-				flags.FailedItemsFN,
-				flags.SkippedItemsFN,
-				flags.RecoveredErrorsFN,
-			},
-			listOneDriveCmd,
+			name:        "list onedrive",
+			use:         listCommand,
+			expectUse:   expectUse,
+			expectShort: oneDriveListCmd().Short,
+			expectRunE:  listOneDriveCmd,
 		},
 		{
-			"details onedrive",
-			detailsCommand,
-			expectUse + " " + oneDriveServiceCommandDetailsUseSuffix,
-			oneDriveDetailsCmd().Short,
-			[]string{
-				flags.BackupFN,
-				flags.FolderFN,
-				flags.FileFN,
-				flags.FileCreatedAfterFN,
-				flags.FileCreatedBeforeFN,
-				flags.FileModifiedAfterFN,
-				flags.FileModifiedBeforeFN,
-			},
-			detailsOneDriveCmd,
+			name:        "details onedrive",
+			use:         detailsCommand,
+			expectUse:   expectUse + " " + oneDriveServiceCommandDetailsUseSuffix,
+			expectShort: oneDriveDetailsCmd().Short,
+			expectRunE:  detailsOneDriveCmd,
 		},
 		{
-			"delete onedrive",
-			deleteCommand,
-			expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
-			oneDriveDeleteCmd().Short,
-			[]string{flags.BackupFN},
-			deleteOneDriveCmd,
+			name:        "delete onedrive",
+			use:         deleteCommand,
+			expectUse:   expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
+			expectShort: oneDriveDeleteCmd().Short,
+			expectRunE:  deleteOneDriveCmd,
 		},
 	}
 
@@ -103,12 +84,227 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
-
-			for _, f := range test.flags {
-				assert.NotNil(t, c.Flag(f), f+" flag")
-			}
 		})
 	}
+}
+
+func (suite *OneDriveUnitSuite) TestBackupCreateFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: createCommand}
+
+	// normally a persistent flag from the root.
+	// required to ensure a dry run.
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addOneDriveCommands(cmd)
+	require.NotNil(t, c)
+
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		oneDriveServiceCommand,
+		"--" + flags.RunModeFN, flags.RunModeFlagTest,
+
+		"--" + flags.UserFN, testdata.FlgInputs(testdata.UsersInput),
+
+		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+
+		// bool flags
+		"--" + flags.FailFastFN,
+		"--" + flags.DisableIncrementalsFN,
+		"--" + flags.ForceItemDataDownloadFN,
+	})
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	opts := utils.MakeOneDriveOpts(cmd)
+	co := utils.Control()
+
+	assert.ElementsMatch(t, testdata.UsersInput, opts.Users)
+	// no assertion for category data input
+
+	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+
+	// bool flags
+	assert.Equal(t, control.FailFast, co.FailureHandling)
+	assert.True(t, co.ToggleFeatures.DisableIncrementals)
+	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+}
+
+func (suite *OneDriveUnitSuite) TestBackupListFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: listCommand}
+
+	// normally a persistent flag from the root.
+	// required to ensure a dry run.
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addOneDriveCommands(cmd)
+	require.NotNil(t, c)
+
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		oneDriveServiceCommand,
+		"--" + flags.RunModeFN, flags.RunModeFlagTest,
+		"--" + flags.BackupFN, testdata.BackupInput,
+
+		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+
+		// bool flags
+		"--" + flags.FailedItemsFN, "show",
+		"--" + flags.SkippedItemsFN, "show",
+		"--" + flags.RecoveredErrorsFN, "show",
+	})
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+
+	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+
+	assert.Equal(t, flags.ListFailedItemsFV, "show")
+	assert.Equal(t, flags.ListSkippedItemsFV, "show")
+	assert.Equal(t, flags.ListRecoveredErrorsFV, "show")
+}
+
+func (suite *OneDriveUnitSuite) TestBackupDetailsFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: detailsCommand}
+
+	// normally a persistent flag from the root.
+	// required to ensure a dry run.
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addOneDriveCommands(cmd)
+	require.NotNil(t, c)
+
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		oneDriveServiceCommand,
+		"--" + flags.RunModeFN, flags.RunModeFlagTest,
+		"--" + flags.BackupFN, testdata.BackupInput,
+
+		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+
+		// bool flags
+		"--" + flags.SkipReduceFN,
+	})
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	co := utils.Control()
+
+	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+
+	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+
+	assert.True(t, co.SkipReduce)
+}
+
+func (suite *OneDriveUnitSuite) TestBackupDeleteFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: deleteCommand}
+
+	// normally a persistent flag from the root.
+	// required to ensure a dry run.
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addOneDriveCommands(cmd)
+	require.NotNil(t, c)
+
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		oneDriveServiceCommand,
+		"--" + flags.RunModeFN, flags.RunModeFlagTest,
+		"--" + flags.BackupFN, testdata.BackupInput,
+
+		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+	})
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+
+	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 }
 
 func (suite *OneDriveUnitSuite) TestValidateOneDriveBackupCreateFlags() {

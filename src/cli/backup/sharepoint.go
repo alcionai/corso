@@ -154,6 +154,10 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
 	if err := validateSharePointBackupCreateFlags(flags.SiteIDFV, flags.WebURLFV, flags.CategoryDataFV); err != nil {
 		return err
 	}
@@ -315,6 +319,10 @@ func sharePointDetailsCmd() *cobra.Command {
 // lists the history of backup operations
 func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 

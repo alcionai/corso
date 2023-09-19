@@ -144,6 +144,10 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
 	if err := validateOneDriveBackupCreateFlags(flags.UserFV); err != nil {
 		return err
 	}
@@ -231,6 +235,10 @@ func oneDriveDetailsCmd() *cobra.Command {
 // prints the item details for a given backup
 func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 

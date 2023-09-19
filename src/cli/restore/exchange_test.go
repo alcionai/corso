@@ -59,7 +59,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 
 			// Test arg parsing for few args
 			cmd.SetArgs([]string{
-				"exchange",
+				exchangeServiceCommand,
 				"--" + flags.RunModeFN, flags.RunModeFlagTest,
 				"--" + flags.BackupFN, testdata.BackupInput,
 

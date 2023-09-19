@@ -1,7 +1,9 @@
 package backup
 
 import (
+	"bytes"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -11,10 +13,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	dtd "github.com/alcionai/corso/src/pkg/backup/details/testdata"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 type ExchangeUnitSuite struct {
@@ -33,7 +37,6 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 		use         string
 		expectUse   string
 		expectShort string
-		flags       []string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
@@ -41,65 +44,28 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			use:         createCommand,
 			expectUse:   expectUse + " " + exchangeServiceCommandCreateUseSuffix,
 			expectShort: exchangeCreateCmd().Short,
-			flags: []string{
-				flags.UserFN,
-				flags.CategoryDataFN,
-				flags.DisableIncrementalsFN,
-				flags.DisableDeltaFN,
-				flags.FailFastFN,
-				flags.FetchParallelismFN,
-				flags.SkipReduceFN,
-				flags.NoStatsFN,
-				flags.DeltaPageSizeFN,
-			},
-			expectRunE: createExchangeCmd,
+			expectRunE:  createExchangeCmd,
 		},
 		{
 			name:        "list exchange",
 			use:         listCommand,
 			expectUse:   expectUse,
 			expectShort: exchangeListCmd().Short,
-			flags: []string{
-				flags.BackupFN,
-				flags.FailedItemsFN,
-				flags.SkippedItemsFN,
-				flags.RecoveredErrorsFN,
-			},
-			expectRunE: listExchangeCmd,
+			expectRunE:  listExchangeCmd,
 		},
 		{
 			name:        "details exchange",
 			use:         detailsCommand,
 			expectUse:   expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
 			expectShort: exchangeDetailsCmd().Short,
-			flags: []string{
-				flags.BackupFN,
-				flags.ContactFN,
-				flags.ContactFolderFN,
-				flags.ContactNameFN,
-				flags.EmailFN,
-				flags.EmailFolderFN,
-				flags.EmailReceivedAfterFN,
-				flags.EmailReceivedBeforeFN,
-				flags.EmailSenderFN,
-				flags.EmailSubjectFN,
-				flags.EventFN,
-				flags.EventCalendarFN,
-				flags.EventOrganizerFN,
-				flags.EventRecursFN,
-				flags.EventStartsAfterFN,
-				flags.EventStartsBeforeFN,
-				flags.EventSubjectFN,
-			},
-			expectRunE: detailsExchangeCmd,
+			expectRunE:  detailsExchangeCmd,
 		},
 		{
-			"delete exchange",
-			deleteCommand,
-			expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
-			exchangeDeleteCmd().Short,
-			[]string{flags.BackupFN},
-			deleteExchangeCmd,
+			name:        "delete exchange",
+			use:         deleteCommand,
+			expectUse:   expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
+			expectShort: exchangeDeleteCmd().Short,
+			expectRunE:  deleteExchangeCmd,
 		},
 	}
 	for _, test := range table {
@@ -120,6 +86,239 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
 		})
 	}
+}
+
+func (suite *ExchangeUnitSuite) TestBackupCreateFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: createCommand}
+
+	// normally a persistent flag from the root.
+	// required to ensure a dry run.
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addExchangeCommands(cmd)
+	require.NotNil(t, c)
+
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		exchangeServiceCommand,
+		"--" + flags.RunModeFN, flags.RunModeFlagTest,
+
+		"--" + flags.MailBoxFN, testdata.FlgInputs(testdata.MailboxInput),
+		"--" + flags.CategoryDataFN, testdata.FlgInputs(testdata.ExchangeCategoryDataInput),
+
+		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+
+		"--" + flags.FetchParallelismFN, testdata.FetchParallelism,
+		"--" + flags.DeltaPageSizeFN, testdata.DeltaPageSize,
+
+		// bool flags
+		"--" + flags.FailFastFN,
+		"--" + flags.DisableIncrementalsFN,
+		"--" + flags.ForceItemDataDownloadFN,
+		"--" + flags.DisableDeltaFN,
+		"--" + flags.EnableImmutableIDFN,
+		"--" + flags.DisableConcurrencyLimiterFN,
+	})
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	opts := utils.MakeExchangeOpts(cmd)
+	co := utils.Control()
+
+	assert.ElementsMatch(t, testdata.MailboxInput, opts.Users)
+	// no assertion for category data input
+
+	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+
+	assert.Equal(t, testdata.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
+	assert.Equal(t, testdata.DeltaPageSize, strconv.Itoa(int(co.DeltaPageSize)))
+
+	// bool flags
+	assert.Equal(t, control.FailFast, co.FailureHandling)
+	assert.True(t, co.ToggleFeatures.DisableIncrementals)
+	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+	assert.True(t, co.ToggleFeatures.DisableDelta)
+	assert.True(t, co.ToggleFeatures.ExchangeImmutableIDs)
+	assert.True(t, co.ToggleFeatures.DisableConcurrencyLimiter)
+}
+
+func (suite *ExchangeUnitSuite) TestBackupListFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: listCommand}
+
+	// normally a persistent flag from the root.
+	// required to ensure a dry run.
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addExchangeCommands(cmd)
+	require.NotNil(t, c)
+
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		exchangeServiceCommand,
+		"--" + flags.RunModeFN, flags.RunModeFlagTest,
+		"--" + flags.BackupFN, testdata.BackupInput,
+
+		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+
+		// bool flags
+		"--" + flags.FailedItemsFN, "show",
+		"--" + flags.SkippedItemsFN, "show",
+		"--" + flags.RecoveredErrorsFN, "show",
+	})
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+
+	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+
+	assert.Equal(t, flags.ListFailedItemsFV, "show")
+	assert.Equal(t, flags.ListSkippedItemsFV, "show")
+	assert.Equal(t, flags.ListRecoveredErrorsFV, "show")
+}
+
+func (suite *ExchangeUnitSuite) TestBackupDetailsFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: detailsCommand}
+
+	// normally a persistent flag from the root.
+	// required to ensure a dry run.
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addExchangeCommands(cmd)
+	require.NotNil(t, c)
+
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		exchangeServiceCommand,
+		"--" + flags.RunModeFN, flags.RunModeFlagTest,
+		"--" + flags.BackupFN, testdata.BackupInput,
+
+		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+
+		// bool flags
+		"--" + flags.SkipReduceFN,
+	})
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	co := utils.Control()
+
+	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+
+	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+
+	assert.True(t, co.SkipReduce)
+}
+
+func (suite *ExchangeUnitSuite) TestBackupDeleteFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: deleteCommand}
+
+	// normally a persistent flag from the root.
+	// required to ensure a dry run.
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addExchangeCommands(cmd)
+	require.NotNil(t, c)
+
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		exchangeServiceCommand,
+		"--" + flags.RunModeFN, flags.RunModeFlagTest,
+		"--" + flags.BackupFN, testdata.BackupInput,
+
+		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
+		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
+		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+
+		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
+		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
+		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
+
+		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
+	})
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+
+	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
+	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
+	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+
+	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
+	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
+	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
+
+	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 }
 
 func (suite *ExchangeUnitSuite) TestValidateBackupCreateFlags() {
