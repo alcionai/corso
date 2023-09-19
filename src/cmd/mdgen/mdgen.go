@@ -89,7 +89,7 @@ func fatal(err error) {
 // Adapted from https://github.com/spf13/cobra/blob/main/doc/md_docs.go for Corso specific formatting
 func genMarkdownCorso(cmd *cobra.Command, dir string) error {
 	for _, c := range cmd.Commands() {
-		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
+		if !isAvailableCommand(c) || c.IsAdditionalHelpTopicCommand() {
 			continue
 		}
 
@@ -114,6 +114,17 @@ func genMarkdownCorso(cmd *cobra.Command, dir string) error {
 	defer f.Close()
 
 	return genMarkdownCustomCorso(cmd, f)
+}
+
+// adapted from cobra.Command.IsAvailablecommand()
+func isAvailableCommand(cmd *cobra.Command) bool {
+	return cmd.IsAvailableCommand() ||
+		// exception case to the cobra isAvailable:
+		// preview commands hijack the "deprecated"
+		// value, but are not hidden.  In order for
+		// this to work, we'll need to hide any commands
+		// that we deprecate.
+		(len(cmd.Deprecated) > 0 && !cmd.Hidden)
 }
 
 func genMarkdownCustomCorso(cmd *cobra.Command, w io.Writer) error {
