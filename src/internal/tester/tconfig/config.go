@@ -20,6 +20,7 @@ const (
 	TestCfgEndpoint        = "endpoint"
 	TestCfgPrefix          = "prefix"
 	TestCfgStorageProvider = "provider"
+	TestCfgFilesystemPath  = "path"
 
 	// M365 config
 	TestCfgAzureTenantID    = "azure_tenantid"

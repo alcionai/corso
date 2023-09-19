@@ -297,7 +297,12 @@ func getStorageAndAccountWithViper(
 		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
 
-	config.Storage, err = configureStorage(vpr, provider, readConfigFromViper, mustMatchFromConfig, overrides)
+	config.Storage, err = configureStorage(
+		vpr,
+		provider,
+		readConfigFromViper,
+		mustMatchFromConfig,
+		overrides)
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving storage provider details")
 	}
