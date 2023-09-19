@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	fsProviderCmd          = "filesystem"
+	fsProviderCommand      = "filesystem"
 	fsProviderCmdUseSuffix = "--path <path>"
 )
 
@@ -43,8 +43,6 @@ func addFilesystemCommands(cmd *cobra.Command) *cobra.Command {
 	c.Use = c.Use + " " + fsProviderCmdUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
-	flags.AddAzureCredsFlags(c)
-	flags.AddCorsoPassphaseFlags(c)
 	flags.AddFilesystemFlags(c)
 
 	return c
@@ -53,7 +51,7 @@ func addFilesystemCommands(cmd *cobra.Command) *cobra.Command {
 // `corso repo init filesystem [<flag>...]`
 func filesystemInitCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     fsProviderCmd,
+		Use:     fsProviderCommand,
 		Short:   "Initialize a repository on local or network storage.",
 		Long:    `Bootstraps a new repository on local or network storage and connects it to your m365 account.`,
 		RunE:    initFilesystemCmd,
@@ -142,7 +140,7 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 // `corso repo connect filesystem [<flag>...]`
 func filesystemConnectCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     fsProviderCmd,
+		Use:     fsProviderCommand,
 		Short:   "Connect to a repository on local or network storage.",
 		Long:    `Ensures a connection to an existing repository on local or network storage.`,
 		RunE:    connectFilesystemCmd,

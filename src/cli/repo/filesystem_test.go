@@ -20,7 +20,7 @@ func TestFilesystemSuite(t *testing.T) {
 }
 
 func (suite *FilesystemSuite) TestAddFilesystemCommands() {
-	expectUse := fsProviderCmd + " " + fsProviderCmdUseSuffix
+	expectUse := fsProviderCommand + " " + fsProviderCmdUseSuffix
 
 	table := []struct {
 		name        string
