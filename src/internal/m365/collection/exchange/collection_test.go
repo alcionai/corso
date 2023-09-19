@@ -71,7 +71,7 @@ func (suite *CollectionUnitSuite) TestCollection_NewCollection() {
 		folder)
 	require.NoError(t, err, clues.ToCore(err))
 
-	edc := Collection{
+	edc := prefetchCollection{
 		baseCollection: baseCollection{
 			fullPath: fullPath,
 		},
