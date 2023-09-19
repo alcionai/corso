@@ -74,17 +74,12 @@ jobs:
       - name: Set up gotestfmt
         run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
-      # AWS creds
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
-          aws-region: us-east-1
-
       # run the tests
       - name: Integration Tests
         env:
+          # Use long-lived AWS credentials.
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
           AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
           AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
