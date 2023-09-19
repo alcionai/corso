@@ -166,7 +166,7 @@ Corso supports creating a repository on a local or network attached filesystem.
 
 :::note
 Filesystem repositories aren't S3 compatible. Copying a local repository directly to S3-compatible object storage or the other way around
-is not supported.
+isn't supported.
 :::
 
 ### Initialize a filesystem repository
