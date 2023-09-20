@@ -47,7 +47,7 @@ func RestoreCollection(
 
 	colProgress := observe.CollectionProgress(
 		ctx,
-		category.String(),
+		category.HumanString(),
 		fullPath.Folder(false))
 	defer close(colProgress)
 

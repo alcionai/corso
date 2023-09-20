@@ -4,7 +4,7 @@ LABEL MAINTAINER="Niraj Tolia"
 ARG DEBIAN_FRONTEND=noninteractive
 
 # NOTE for lines 17,19: update in CI when updating
-RUN apt-get -y update && apt-get -y install gpg curl git make ca-certificates gnupg \
+RUN apt-get -y update && apt-get -y install gpg curl git make ca-certificates gnupg unzip \
   && mkdir -p /etc/apt/keyrings \
   && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
   && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \

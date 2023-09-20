@@ -113,6 +113,10 @@ func (hw httpWrapper) Request(
 			break
 		}
 
+		if IsErrApplicationThrottled(err) {
+			return nil, Stack(ictx, clues.Stack(ErrApplicationThrottled, err))
+		}
+
 		var http2StreamErr http2.StreamError
 		if !errors.As(err, &http2StreamErr) {
 			return nil, Stack(ictx, err)
