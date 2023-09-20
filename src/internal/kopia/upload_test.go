@@ -2715,11 +2715,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 		folderID2 = "folder2-id"
 		folderID3 = "folder3-id"
 		folderID4 = "folder4-id"
+		folderID5 = "folder5-id"
 
 		folderName1 = "folder1-name"
 		folderName2 = "folder2-name"
 		folderName3 = "folder3-name"
-		folderName4 = "folder4-name"
+		folderName5 = "folder5-name"
 
 		fileName1 = "file1"
 		fileName2 = "file2"
@@ -2764,13 +2765,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 			append(folderPath2.Elements(), folderID3),
 			false)
 
-		folderPath4 = makePath(
+		folderPath5 = makePath(
 			suite.T(),
-			[]string{tenant, service, user, category, folderID4},
+			[]string{tenant, service, user, category, folderID5},
 			false)
-		folderLocPath4 = makePath(
+		folderLocPath5 = makePath(
 			suite.T(),
-			[]string{tenant, service, user, category, folderName4},
+			[]string{tenant, service, user, category, folderName5},
 			false)
 
 		prefixFolders = []string{
@@ -2781,9 +2782,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 		}
 	)
 
-	folder4Unchanged := exchMock.NewCollection(folderPath4, folderLocPath4, 0)
-	folder4Unchanged.PrevPath = folderPath4
-	folder4Unchanged.ColState = data.NotMovedState
+	folder5Unchanged := exchMock.NewCollection(folderPath5, folderLocPath5, 0)
+	folder5Unchanged.PrevPath = folderPath5
+	folder5Unchanged.ColState = data.NotMovedState
 
 	// Must be a function that returns a new instance each time as StreamingFile
 	// can only return its Reader once. Each directory below the prefix directory
@@ -2803,7 +2804,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 	//             - folder3-id
 	//               - file5
 	//               - file6
-	//         - folder4-id
+	//           - folder4-id
+	//         - folder5-id
 	//           - file7
 	//           - file8
 	getBaseSnapshot := func() (fs.Entry, map[string]*int) {
@@ -2846,6 +2848,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 			})
 		counters[folderID2] = count
 
+		folder4, count := newMockStaticDirectory(
+			encodeElements(folderID4)[0],
+			[]fs.Entry{})
+		counters[folderID4] = count
+
 		folder, count = newMockStaticDirectory(
 			encodeElements(folderID1)[0],
 			[]fs.Entry{
@@ -2862,11 +2869,12 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 						serializationVersion,
 						io.NopCloser(bytes.NewReader(fileData2)))),
 				folder,
+				folder4,
 			})
 		counters[folderID1] = count
 
-		folder2, count := newMockStaticDirectory(
-			encodeElements(folderID4)[0],
+		folder5, count := newMockStaticDirectory(
+			encodeElements(folderID5)[0],
 			[]fs.Entry{
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName7)[0],
@@ -2881,13 +2889,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 						serializationVersion,
 						io.NopCloser(bytes.NewReader(fileData8)))),
 			})
-		counters[folderID4] = count
+		counters[folderID5] = count
 
 		return baseWithChildren(
 				prefixFolders,
 				[]fs.Entry{
 					folder,
-					folder2,
+					folder5,
 				}),
 			counters
 	}
@@ -2908,11 +2916,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 			// during data upload which allows us to exclude the file properly.
 			name: "NoDirectoryChanges ExcludedFile PrunesSubtree",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
-				return []data.BackupCollection{folder4Unchanged}
+				return []data.BackupCollection{folder5Unchanged}
 			},
 			inputExcludes: pmMock.NewPrefixMap(map[string]map[string]struct{}{
 				"": {
 					fileName3: {},
+					fileName5: {},
+					fileName6: {},
 				},
 			}),
 			expected: expectedTreeWithChildren(
@@ -2929,17 +2939,16 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 									newExpectedFile(fileName4, fileData4),
 									{
 										name: folderID3,
-										children: []*expectedNode{
-											newExpectedFile(fileName5, fileData5),
-											newExpectedFile(fileName6, fileData6),
-										},
 									},
 								},
+							},
+							{
+								name: folderID4,
 							},
 						},
 					},
 					{
-						name: folderID4,
+						name: folderID5,
 						children: []*expectedNode{
 							newExpectedFile(fileName7, fileData7),
 							newExpectedFile(fileName8, fileData8),
@@ -2950,7 +2959,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				folderID1: 0,
 				folderID2: 0,
 				folderID3: 0,
-				folderID4: 1,
+				folderID4: 0,
+				folderID5: 1,
 			},
 		},
 		{
@@ -2962,13 +2972,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				mc.PrevPath = folderPath1
 				mc.ColState = data.DeletedState
 
-				return []data.BackupCollection{folder4Unchanged, mc}
+				return []data.BackupCollection{folder5Unchanged, mc}
 			},
 			expected: expectedTreeWithChildren(
 				prefixFolders,
 				[]*expectedNode{
 					{
-						name: folderID4,
+						name: folderID5,
 						children: []*expectedNode{
 							newExpectedFile(fileName7, fileData7),
 							newExpectedFile(fileName8, fileData8),
@@ -2980,7 +2990,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				folderID1: 0,
 				folderID2: 0,
 				folderID3: 0,
-				folderID4: 1,
+				folderID4: 0,
+				folderID5: 1,
 			},
 		},
 		{
@@ -3006,7 +3017,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 
 				newMC := exchMock.NewCollection(folderPath2, folderLocPath2, 0)
 
-				return []data.BackupCollection{folder4Unchanged, mc, newMC}
+				return []data.BackupCollection{folder5Unchanged, mc, newMC}
 			},
 			expected: expectedTreeWithChildren(
 				prefixFolders,
@@ -3030,6 +3041,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 									},
 								},
 							},
+							{
+								name: folderID4,
+							},
 						},
 					},
 					{
@@ -3041,7 +3055,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 						},
 					},
 					{
-						name: folderID4,
+						name: folderID5,
 						children: []*expectedNode{
 							newExpectedFile(fileName7, fileData7),
 							newExpectedFile(fileName8, fileData8),
@@ -3052,7 +3066,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				folderID1: 1,
 				folderID2: 0,
 				folderID3: 0,
-				folderID4: 1,
+				folderID4: 0,
+				folderID5: 1,
 			},
 		},
 		{
@@ -3068,7 +3083,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 
 				newMC := exchMock.NewCollection(folderPath2, folderLocPath2, 0)
 
-				return []data.BackupCollection{folder4Unchanged, mc, newMC}
+				return []data.BackupCollection{folder5Unchanged, mc, newMC}
 			},
 			expected: expectedTreeWithChildren(
 				prefixFolders,
@@ -3081,10 +3096,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							{
 								name: folderID2,
 							},
+							{
+								name: folderID4,
+							},
 						},
 					},
 					{
-						name: folderID4,
+						name: folderID5,
 						children: []*expectedNode{
 							newExpectedFile(fileName7, fileData7),
 							newExpectedFile(fileName8, fileData8),
@@ -3096,10 +3114,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				// Deleted collections aren't added to the in-memory tree.
 				folderID2: 0,
 				folderID3: 0,
-				folderID4: 1,
+				// Skipped because it's unchanged.
+				folderID4: 0,
+				folderID5: 1,
 			},
 		},
-		// These tests check that subtree pruning isn't triggered.
+		// These tests check that subtree pruning isn't triggered for some parts of
+		// the hierarchy.
 		{
 			// Test that creating a new directory in an otherwise unchanged subtree
 			// doesn't trigger selective subtree merging for any subtree of the full
@@ -3115,7 +3136,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 
 				newMC := exchMock.NewCollection(newP, newL, 0)
 
-				return []data.BackupCollection{folder4Unchanged, newMC}
+				return []data.BackupCollection{folder5Unchanged, newMC}
 			},
 			expected: expectedTreeWithChildren(
 				prefixFolders,
@@ -3142,10 +3163,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 									},
 								},
 							},
+							{
+								name: folderID4,
+							},
 						},
 					},
 					{
-						name: folderID4,
+						name: folderID5,
 						children: []*expectedNode{
 							newExpectedFile(fileName7, fileData7),
 							newExpectedFile(fileName8, fileData8),
@@ -3157,7 +3181,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				folderID2: 1,
 				// Folder 3 triggers pruning because it has nothing changed under it.
 				folderID3: 0,
-				folderID4: 1,
+				// Folder 4 triggers pruning because it doesn't include foo and hasn't
+				// changed.
+				folderID4: 0,
+				folderID5: 1,
 			},
 		},
 		{
@@ -3176,7 +3203,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				mc.PrevPath = folderPath3
 				mc.ColState = data.MovedState
 
-				return []data.BackupCollection{folder4Unchanged, mc}
+				return []data.BackupCollection{folder5Unchanged, mc}
 			},
 			expected: expectedTreeWithChildren(
 				prefixFolders,
@@ -3200,10 +3227,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 									newExpectedFile(fileName6, fileData6),
 								},
 							},
+							{
+								name: folderID4,
+							},
 						},
 					},
 					{
-						name: folderID4,
+						name: folderID5,
 						children: []*expectedNode{
 							newExpectedFile(fileName7, fileData7),
 							newExpectedFile(fileName8, fileData8),
@@ -3218,7 +3248,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				// Folder 3 can't be pruned because it has a collection associated with
 				// it.
 				folderID3: 1,
-				folderID4: 1,
+				// Folder 4 is pruned because it didn't and still doesn't include
+				// Folder 3 and it hasn't changed.
+				folderID4: 0,
+				folderID5: 1,
 			},
 		},
 		{
@@ -3240,7 +3273,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				mc.PrevPath = folderPath3
 				mc.ColState = data.MovedState
 
-				return []data.BackupCollection{folder4Unchanged, mc}
+				return []data.BackupCollection{folder5Unchanged, mc}
 			},
 			expected: expectedTreeWithChildren(
 				prefixFolders,
@@ -3257,6 +3290,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 									newExpectedFile(fileName4, fileData4),
 								},
 							},
+							{
+								name: folderID4,
+							},
 						},
 					},
 					{
@@ -3267,7 +3303,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 						},
 					},
 					{
-						name: folderID4,
+						name: folderID5,
 						children: []*expectedNode{
 							newExpectedFile(fileName7, fileData7),
 							newExpectedFile(fileName8, fileData8),
@@ -3282,7 +3318,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				// Folder 3 can't be pruned because it has a collection associated with
 				// it.
 				folderID3: 1,
-				folderID4: 1,
+				// Folder 4 is pruned because it didn't and still doesn't include
+				// Folder 3 and it hasn't changed.
+				folderID4: 0,
+				folderID5: 1,
 			},
 		},
 		{
@@ -3295,7 +3334,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				mc.PrevPath = folderPath3
 				mc.ColState = data.DeletedState
 
-				return []data.BackupCollection{folder4Unchanged, mc}
+				return []data.BackupCollection{folder5Unchanged, mc}
 			},
 			expected: expectedTreeWithChildren(
 				prefixFolders,
@@ -3312,10 +3351,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 									newExpectedFile(fileName4, fileData4),
 								},
 							},
+							{
+								name: folderID4,
+							},
 						},
 					},
 					{
-						name: folderID4,
+						name: folderID5,
 						children: []*expectedNode{
 							newExpectedFile(fileName7, fileData7),
 							newExpectedFile(fileName8, fileData8),
@@ -3329,7 +3371,10 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				folderID2: 1,
 				// Folder3 is pruned because there's no changes under it.
 				folderID3: 0,
-				folderID4: 1,
+				// Folder 4 is pruned because it didn't and still doesn't include
+				// Folder 3 and it hasn't changed.
+				folderID4: 0,
+				folderID5: 1,
 			},
 		},
 		{
@@ -3338,14 +3383,14 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 			// includes the moved directory in the current hierarchy.
 			name: "MoveIntoSubtree DoesntPruneSubtree",
 			inputCollections: func(t *testing.T) []data.BackupCollection {
-				newP, err := folderPath1.Append(false, folderID4)
+				newP, err := folderPath1.Append(false, folderID5)
 				require.NoError(t, err, clues.ToCore(err))
 
-				newL, err := folderLocPath1.Append(false, folderName4)
+				newL, err := folderLocPath1.Append(false, folderName5)
 				require.NoError(t, err, clues.ToCore(err))
 
 				mc := exchMock.NewCollection(newP, newL, 0)
-				mc.PrevPath = folderPath4
+				mc.PrevPath = folderPath5
 				mc.ColState = data.MovedState
 
 				return []data.BackupCollection{mc}
@@ -3374,6 +3419,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							},
 							{
 								name: folderID4,
+							},
+							{
+								name: folderID5,
 								children: []*expectedNode{
 									newExpectedFile(fileName7, fileData7),
 									newExpectedFile(fileName8, fileData8),
@@ -3390,9 +3438,147 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				// collection associated with it.
 				folderID2: 0,
 				folderID3: 0,
-				// Folder 4 can't be pruned because it has a collection associated with
+				// Folder 4 is pruned because nothing changes below it and it has no
+				// collection associated with it.
+				folderID4: 0,
+				folderID5: 1,
+			},
+		},
+		// These test check a mix of not pruning and pruning.
+		{
+			// Test that deleting a directory with subdirectories that are re-added to
+			// the tree still results in a proper hierarchy and prunes where possible
+			// for the re-added subdirectories.
+			name: "DeleteSubtree ReaddChildren PrunesWherePossible",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				mc := exchMock.NewCollection(nil, nil, 0)
+				mc.PrevPath = folderPath1
+				mc.ColState = data.DeletedState
+
+				mc2 := exchMock.NewCollection(folderPath2, folderLocPath2, 0)
+				mc2.PrevPath = folderPath2
+				mc2.ColState = data.NotMovedState
+
+				return []data.BackupCollection{folder5Unchanged, mc, mc2}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							{
+								name: folderID2,
+								children: []*expectedNode{
+									newExpectedFile(fileName3, fileData3),
+									newExpectedFile(fileName4, fileData4),
+									{
+										name: folderID3,
+										children: []*expectedNode{
+											newExpectedFile(fileName5, fileData5),
+											newExpectedFile(fileName6, fileData6),
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						name: folderID5,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				}),
+			expectedIterateCounts: map[string]int{
+				// Traversed because it's children still exist.
+				folderID1: 1,
+				// Folder 2 can't be pruned because it has a collection associated with
 				// it.
-				folderID4: 1,
+				folderID2: 1,
+				// Folder3 is pruned because there's no changes under it.
+				folderID3: 0,
+				// Not traversed because it's deleted.
+				folderID4: 0,
+				folderID5: 1,
+			},
+		},
+		{
+			// Test that moving a directory with subdirectories that are themselves
+			// moved back to their original location still results in a proper
+			// hierarchy and prunes where possible for the subdirectories.
+			name: "MoveSubtree ReaddChildren PrunesWherePossible",
+			inputCollections: func(t *testing.T) []data.BackupCollection {
+				newPath := makePath(
+					suite.T(),
+					[]string{tenant, service, user, category, "foo-id"},
+					false)
+				newLoc := makePath(
+					suite.T(),
+					[]string{tenant, service, user, category, "foo"},
+					false)
+
+				mc := exchMock.NewCollection(newPath, newLoc, 0)
+				mc.PrevPath = folderPath1
+				mc.ColState = data.MovedState
+
+				mc2 := exchMock.NewCollection(folderPath2, folderLocPath2, 0)
+				mc2.PrevPath = folderPath2
+				mc2.ColState = data.NotMovedState
+
+				return []data.BackupCollection{folder5Unchanged, mc, mc2}
+			},
+			expected: expectedTreeWithChildren(
+				prefixFolders,
+				[]*expectedNode{
+					{
+						name: "foo-id",
+						children: []*expectedNode{
+							newExpectedFile(fileName1, fileData1),
+							newExpectedFile(fileName2, fileData2),
+							{
+								name: folderID4,
+							},
+						},
+					},
+					{
+						name: folderID1,
+						children: []*expectedNode{
+							{
+								name: folderID2,
+								children: []*expectedNode{
+									newExpectedFile(fileName3, fileData3),
+									newExpectedFile(fileName4, fileData4),
+									{
+										name: folderID3,
+										children: []*expectedNode{
+											newExpectedFile(fileName5, fileData5),
+											newExpectedFile(fileName6, fileData6),
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						name: folderID5,
+						children: []*expectedNode{
+							newExpectedFile(fileName7, fileData7),
+							newExpectedFile(fileName8, fileData8),
+						},
+					},
+				}),
+			expectedIterateCounts: map[string]int{
+				// Traversed because it has a collection associated with it.
+				folderID1: 1,
+				// Traversed because it has a collection associated with it.
+				folderID2: 1,
+				// Folder3 is pruned because there's no changes under it.
+				folderID3: 0,
+				// Folder4 is pruned because there's no changes under it.
+				folderID4: 0,
+				folderID5: 1,
 			},
 		},
 	}

@@ -2,19 +2,27 @@ package exchange
 
 import (
 	"bytes"
+	"context"
+	"io"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -82,6 +90,21 @@ func (suite *CollectionUnitSuite) TestCollection_NewCollection() {
 }
 
 func (suite *CollectionUnitSuite) TestNewCollection_state() {
+	type collectionTypes struct {
+		name          string
+		validModTimes bool
+	}
+
+	colTypes := []collectionTypes{
+		{
+			name: "prefetchCollection",
+		},
+		{
+			name:          "lazyFetchCollection",
+			validModTimes: true,
+		},
+	}
+
 	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
 	require.NoError(suite.T(), err, clues.ToCore(err))
 	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
@@ -122,24 +145,39 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 			expect: data.DeletedState,
 		},
 	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
 
-			c := NewCollection(
-				NewBaseCollection(
-					test.curr,
-					test.prev,
-					test.loc,
-					control.DefaultOptions(),
-					false),
-				"u",
-				mock.DefaultItemGetSerialize(),
-				nil)
-			assert.Equal(t, test.expect, c.State(), "collection state")
-			assert.Equal(t, test.curr, c.fullPath, "full path")
-			assert.Equal(t, test.prev, c.prevPath, "prev path")
-			assert.Equal(t, test.loc, c.locationPath, "location path")
+	for _, colType := range colTypes {
+		suite.Run(colType.name, func() {
+			for _, test := range table {
+				suite.Run(test.name, func() {
+					t := suite.T()
+
+					c := NewCollection(
+						NewBaseCollection(
+							test.curr,
+							test.prev,
+							test.loc,
+							control.DefaultOptions(),
+							false),
+						"u",
+						mock.DefaultItemGetSerialize(),
+						nil,
+						nil,
+						colType.validModTimes,
+						nil)
+					assert.Equal(t, test.expect, c.State(), "collection state")
+					assert.Equal(t, test.curr, c.FullPath(), "full path")
+					assert.Equal(t, test.prev, c.PreviousPath(), "prev path")
+
+					// TODO(ashmrtn): Add LocationPather as part of BackupCollection.
+					require.Implements(t, (*data.LocationPather)(nil), c)
+					assert.Equal(
+						t,
+						test.loc,
+						c.(data.LocationPather).LocationPath(),
+						"location path")
+				})
+			}
 		})
 	}
 }
@@ -192,7 +230,7 @@ func (suite *CollectionUnitSuite) TestGetItemWithRetries() {
 	}
 }
 
-func (suite *CollectionUnitSuite) TestCollection_streamItems() {
+func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 	var (
 		t             = suite.T()
 		start         = time.Now().Add(-time.Second)
@@ -206,43 +244,46 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
-		name    string
-		added   map[string]struct{}
-		removed map[string]struct{}
+		name            string
+		added           map[string]time.Time
+		removed         map[string]struct{}
+		expectItemCount int
 	}{
 		{
-			name:    "no items",
-			added:   map[string]struct{}{},
-			removed: map[string]struct{}{},
+			name: "no items",
 		},
 		{
 			name: "only added items",
-			added: map[string]struct{}{
+			added: map[string]time.Time{
 				"fisher":    {},
 				"flannigan": {},
 				"fitzbog":   {},
 			},
-			removed: map[string]struct{}{},
+			expectItemCount: 3,
 		},
 		{
-			name:  "only removed items",
-			added: map[string]struct{}{},
+			name: "only removed items",
 			removed: map[string]struct{}{
 				"princess": {},
 				"poppy":    {},
 				"petunia":  {},
 			},
+			expectItemCount: 3,
 		},
 		{
-			name:  "added and removed items",
-			added: map[string]struct{}{},
+			name: "added and removed items",
+			added: map[string]time.Time{
+				"general": {},
+			},
 			removed: map[string]struct{}{
 				"general":  {},
 				"goose":    {},
 				"grumbles": {},
 			},
+			expectItemCount: 3,
 		},
 	}
+
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			var (
@@ -263,18 +304,13 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 					false),
 				"",
 				&mock.ItemGetSerialize{},
+				test.added,
+				maps.Keys(test.removed),
+				false,
 				statusUpdater)
-
-			col.added = test.added
-			col.removed = test.removed
 
 			for item := range col.Items(ctx, errs) {
 				itemCount++
-
-				_, aok := test.added[item.ID()]
-				if aok {
-					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
-				}
 
 				_, rok := test.removed[item.ID()]
 				if rok {
@@ -284,15 +320,310 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
 				}
 
+				_, aok := test.added[item.ID()]
+				if !rok && aok {
+					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
+				}
+
 				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
 			}
 
 			assert.NoError(t, errs.Failure())
 			assert.Equal(
 				t,
-				len(test.added)+len(test.removed),
+				test.expectItemCount,
 				itemCount,
 				"should see all expected items")
+		})
+	}
+}
+
+type mockLazyItemGetterSerializer struct {
+	*mock.ItemGetSerialize
+	callIDs []string
+}
+
+func (mlg *mockLazyItemGetterSerializer) GetItem(
+	ctx context.Context,
+	user string,
+	itemID string,
+	immutableIDs bool,
+	errs *fault.Bus,
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	mlg.callIDs = append(mlg.callIDs, itemID)
+	return mlg.ItemGetSerialize.GetItem(ctx, user, itemID, immutableIDs, errs)
+}
+
+func (mlg *mockLazyItemGetterSerializer) check(t *testing.T, expectIDs []string) {
+	assert.ElementsMatch(t, expectIDs, mlg.callIDs)
+}
+
+func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
+	var (
+		t             = suite.T()
+		start         = time.Now().Add(-time.Second)
+		statusUpdater = func(*support.ControllerOperationStatus) {}
+	)
+
+	fullPath, err := path.Build("t", "pr", path.ExchangeService, path.EmailCategory, false, "fnords", "smarf")
+	require.NoError(t, err, clues.ToCore(err))
+
+	locPath, err := path.Build("t", "pr", path.ExchangeService, path.EmailCategory, false, "fnords", "smarf")
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name            string
+		added           map[string]time.Time
+		removed         map[string]struct{}
+		expectItemCount int
+		expectReads     []string
+	}{
+		{
+			name: "no items",
+		},
+		{
+			name: "only added items",
+			added: map[string]time.Time{
+				"fisher":    start.Add(time.Minute),
+				"flannigan": start.Add(2 * time.Minute),
+				"fitzbog":   start.Add(3 * time.Minute),
+			},
+			expectItemCount: 3,
+			expectReads: []string{
+				"fisher",
+				"fitzbog",
+			},
+		},
+		{
+			name: "only removed items",
+			removed: map[string]struct{}{
+				"princess": {},
+				"poppy":    {},
+				"petunia":  {},
+			},
+			expectItemCount: 3,
+		},
+		{
+			name: "added and removed items",
+			added: map[string]time.Time{
+				"general": {},
+			},
+			removed: map[string]struct{}{
+				"general":  {},
+				"goose":    {},
+				"grumbles": {},
+			},
+			expectItemCount: 3,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t         = suite.T()
+				errs      = fault.New(true)
+				itemCount int
+			)
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			mlg := &mockLazyItemGetterSerializer{
+				ItemGetSerialize: &mock.ItemGetSerialize{},
+			}
+			defer mlg.check(t, test.expectReads)
+
+			col := NewCollection(
+				NewBaseCollection(
+					fullPath,
+					nil,
+					locPath.ToBuilder(),
+					control.DefaultOptions(),
+					false),
+				"",
+				mlg,
+				test.added,
+				maps.Keys(test.removed),
+				true,
+				statusUpdater)
+
+			for item := range col.Items(ctx, errs) {
+				itemCount++
+
+				_, rok := test.removed[item.ID()]
+				if rok {
+					assert.True(t, item.Deleted(), "removals should be marked as deleted")
+					dimt, ok := item.(data.ItemModTime)
+					require.True(t, ok, "item implements data.ItemModTime")
+					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
+				}
+
+				modTime, aok := test.added[item.ID()]
+				if !rok && aok {
+					// Item's mod time should be what's passed into the collection
+					// initializer.
+					assert.Implements(t, (*data.ItemModTime)(nil), item)
+					assert.Equal(t, modTime, item.(data.ItemModTime).ModTime(), "item mod time")
+
+					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
+
+					// Check if the test want's us to read the item's data so the lazy
+					// data fetch is executed.
+					if slices.Contains(test.expectReads, item.ID()) {
+						r := item.ToReader()
+
+						_, err := io.ReadAll(r)
+						assert.NoError(t, err, clues.ToCore(err))
+
+						r.Close()
+
+						assert.Implements(t, (*data.ItemInfo)(nil), item)
+						info, err := item.(data.ItemInfo).Info()
+
+						// ItemInfo's mod time should match what was passed into the
+						// collection initializer.
+						assert.NoError(t, err, clues.ToCore(err))
+						assert.Equal(t, modTime, info.Modified(), "ItemInfo mod time")
+					}
+				}
+
+				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
+			}
+
+			assert.NoError(t, errs.Failure())
+			assert.Equal(
+				t,
+				test.expectItemCount,
+				itemCount,
+				"should see all expected items")
+		})
+	}
+}
+
+func (suite *CollectionUnitSuite) TestLazyItem_NoRead_GetInfo_Errors() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	li := lazyItem{ctx: ctx}
+
+	_, err := li.Info()
+	assert.Error(suite.T(), err, "Info without reading data should error")
+}
+
+func (suite *CollectionUnitSuite) TestLazyItem() {
+	var (
+		parentPath = "inbox/private/silly cats"
+		now        = time.Now()
+	)
+
+	table := []struct {
+		name              string
+		modTime           time.Time
+		getErr            error
+		serializeErr      error
+		expectModTime     time.Time
+		expectReadErrType error
+		dataCheck         assert.ValueAssertionFunc
+		expectInfoErr     bool
+		expectInfoErrType error
+	}{
+		{
+			name:              "ReturnsEmptyReaderOnDeletedInFlight",
+			modTime:           now,
+			getErr:            graph.ErrDeletedInFlight,
+			dataCheck:         assert.Empty,
+			expectInfoErr:     true,
+			expectInfoErrType: data.ErrNotFound,
+		},
+		{
+			name:          "ReturnsValidReaderAndInfo",
+			modTime:       now,
+			dataCheck:     assert.NotEmpty,
+			expectModTime: now,
+		},
+		{
+			name:              "ReturnsErrorOnGenericGetError",
+			modTime:           now,
+			getErr:            assert.AnError,
+			expectReadErrType: assert.AnError,
+			dataCheck:         assert.Empty,
+			expectInfoErr:     true,
+		},
+		{
+			name:              "ReturnsErrorOnGenericSerializeError",
+			modTime:           now,
+			serializeErr:      assert.AnError,
+			expectReadErrType: assert.AnError,
+			dataCheck:         assert.Empty,
+			expectInfoErr:     true,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			var testData serialization.Parsable
+
+			if test.getErr == nil {
+				// Exact data type doesn't really matter.
+				item := models.NewMessage()
+				item.SetSubject(ptr.To("hello world"))
+
+				testData = item
+			}
+
+			getter := &mock.ItemGetSerialize{
+				GetData:      testData,
+				GetErr:       test.getErr,
+				SerializeErr: test.serializeErr,
+			}
+
+			li := &lazyItem{
+				ctx:          ctx,
+				userID:       "userID",
+				id:           "itemID",
+				parentPath:   parentPath,
+				getter:       getter,
+				errs:         fault.New(true),
+				modTime:      test.modTime,
+				immutableIDs: false,
+			}
+
+			assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
+			assert.Equal(t, test.modTime, li.ModTime(), "item mod time")
+
+			data, err := io.ReadAll(li.ToReader())
+			if test.expectReadErrType == nil {
+				assert.NoError(t, err, "reading item data: %v", clues.ToCore(err))
+			} else {
+				assert.ErrorIs(t, err, test.expectReadErrType, "read error")
+			}
+
+			test.dataCheck(t, data, "read item data")
+
+			info, err := li.Info()
+
+			// Didn't expect an error getting info, it should be valid.
+			if !test.expectInfoErr {
+				assert.NoError(t, err, "getting item info: %v", clues.ToCore(err))
+				assert.Equal(t, parentPath, info.Exchange.ParentPath)
+				assert.Equal(t, test.expectModTime, info.Modified())
+
+				return
+			}
+
+			// Should get some form of error when trying to get info.
+			assert.Error(t, err, "Info()")
+
+			if test.expectInfoErrType != nil {
+				assert.ErrorIs(t, err, test.expectInfoErrType, "Info() error")
+			}
 		})
 	}
 }
