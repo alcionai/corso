@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
@@ -21,8 +20,10 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/model"
+	opMock "github.com/alcionai/corso/src/internal/operations/inject/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -108,7 +109,7 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 	var (
 		t        = suite.T()
 		acct     = tconfig.NewM365Account(suite.T())
-		tenantID = acct.Config[config.AzureTenantIDKey]
+		tenantID = acct.Config[account.AzureTenantIDKey]
 		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 		// Default policy used by SDK clients
@@ -167,9 +168,7 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)
-			bp := &mockBackupProducer{
-				colls: cs,
-			}
+			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, false)
 
 			opts.FailureHandling = failurePolicy
 
@@ -178,7 +177,7 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 				opts,
 				kw,
 				storer,
-				bp,
+				&bp,
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
