@@ -64,7 +64,7 @@ func NewBaseCollection(
 	doNotMergeItems bool,
 ) BaseCollection {
 	return BaseCollection{
-		ctrl:            ctrlOpts,
+		opts:            ctrlOpts,
 		doNotMergeItems: doNotMergeItems,
 		fullPath:        curr,
 		locationPath:    location,
@@ -79,7 +79,7 @@ func NewBaseCollection(
 //
 // Functionality like how items are fetched is left to the embedding struct.
 type BaseCollection struct {
-	ctrl control.Options
+	opts control.Options
 
 	// FullPath is the current hierarchical path used by this collection.
 	fullPath path.Path
@@ -123,5 +123,5 @@ func (col BaseCollection) DoNotMergeItems() bool {
 }
 
 func (col BaseCollection) Opts() control.Options {
-	return col.ctrl
+	return col.opts
 }
