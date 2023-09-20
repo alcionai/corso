@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Enables local or network-attached storage for Corso repositories.
+- Reduce backup runtime for OneDrive and SharePoint incremental backups that have no file changes.
 
 ## [v0.13.0] (beta) - 2023-09-18
 
