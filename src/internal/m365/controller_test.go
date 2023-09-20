@@ -933,25 +933,25 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 		// {
 		// 	name:    "MultipleEventsSingleCalendar",
 		// 	service: path.ExchangeService,
-		// 	collections: []colInfo{
+		// 	collections: []stub.ColInfo{
 		// 		{
-		// 			pathElements: []string{"Work"},
-		// 			category:     path.EventsCategory,
-		// 			items: []itemInfo{
+		// 			PathElements: []string{"Work"},
+		// 			Category:     path.EventsCategory,
+		// 			Items: []stub.ItemInfo{
 		// 				{
-		// 					name:      "someencodeditemID",
-		// 					data:      exchMock.EventWithSubjectBytes("Ghimley"),
-		// 					lookupKey: "Ghimley",
+		// 					Name:      "someencodeditemID",
+		// 					Data:      exchMock.EventWithSubjectBytes("Ghimley"),
+		// 					LookupKey: "Ghimley",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID2",
-		// 					data:      exchMock.EventWithSubjectBytes("Irgot"),
-		// 					lookupKey: "Irgot",
+		// 					Name:      "someencodeditemID2",
+		// 					Data:      exchMock.EventWithSubjectBytes("Irgot"),
+		// 					LookupKey: "Irgot",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID3",
-		// 					data:      exchMock.EventWithSubjectBytes("Jannes"),
-		// 					lookupKey: "Jannes",
+		// 					Name:      "someencodeditemID3",
+		// 					Data:      exchMock.EventWithSubjectBytes("Jannes"),
+		// 					LookupKey: "Jannes",
 		// 				},
 		// 			},
 		// 		},
@@ -960,41 +960,41 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 		// {
 		// 	name:    "MultipleEventsMultipleCalendars",
 		// 	service: path.ExchangeService,
-		// 	collections: []colInfo{
+		// 	collections: []stub.ColInfo{
 		// 		{
-		// 			pathElements: []string{"Work"},
-		// 			category:     path.EventsCategory,
-		// 			items: []itemInfo{
+		// 			PathElements: []string{"Work"},
+		// 			Category:     path.EventsCategory,
+		// 			Items: []stub.ItemInfo{
 		// 				{
-		// 					name:      "someencodeditemID",
-		// 					data:      exchMock.EventWithSubjectBytes("Ghimley"),
-		// 					lookupKey: "Ghimley",
+		// 					Name:      "someencodeditemID",
+		// 					Data:      exchMock.EventWithSubjectBytes("Ghimley"),
+		// 					LookupKey: "Ghimley",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID2",
-		// 					data:      exchMock.EventWithSubjectBytes("Irgot"),
-		// 					lookupKey: "Irgot",
+		// 					Name:      "someencodeditemID2",
+		// 					Data:      exchMock.EventWithSubjectBytes("Irgot"),
+		// 					LookupKey: "Irgot",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID3",
-		// 					data:      exchMock.EventWithSubjectBytes("Jannes"),
-		// 					lookupKey: "Jannes",
+		// 					Name:      "someencodeditemID3",
+		// 					Data:      exchMock.EventWithSubjectBytes("Jannes"),
+		// 					LookupKey: "Jannes",
 		// 				},
 		// 			},
 		// 		},
 		// 		{
-		// 			pathElements: []string{"Personal"},
-		// 			category:     path.EventsCategory,
-		// 			items: []itemInfo{
+		// 			PathElements: []string{"Personal"},
+		// 			Category:     path.EventsCategory,
+		// 			Items: []stub.ItemInfo{
 		// 				{
-		// 					name:      "someencodeditemID4",
-		// 					data:      exchMock.EventWithSubjectBytes("Argon"),
-		// 					lookupKey: "Argon",
+		// 					Name:      "someencodeditemID4",
+		// 					Data:      exchMock.EventWithSubjectBytes("Argon"),
+		// 					LookupKey: "Argon",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID5",
-		// 					data:      exchMock.EventWithSubjectBytes("Bernard"),
-		// 					lookupKey: "Bernard",
+		// 					Name:      "someencodeditemID5",
+		// 					Data:      exchMock.EventWithSubjectBytes("Bernard"),
+		// 					LookupKey: "Bernard",
 		// 				},
 		// 			},
 		// 		},

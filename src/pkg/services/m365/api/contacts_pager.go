@@ -94,12 +94,9 @@ func (c Contacts) EnumerateContainers(
 			break
 		}
 
-		gcc, ok := c.(graph.CachedContainer)
-		if !ok {
-			el.AddRecoverable(ctx, clues.New("container does not implement graph.CachedContainer"))
-		}
+		gncf := graph.NewCacheFolder(c, nil, nil)
 
-		if err := fn(gcc); err != nil {
+		if err := fn(&gncf); err != nil {
 			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
