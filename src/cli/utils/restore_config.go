@@ -18,20 +18,21 @@ type RestoreCfgOpts struct {
 	// DTTMFormat is the timestamp format appended
 	// to the default folder name.  Defaults to
 	// dttm.HumanReadable.
-	DTTMFormat         dttm.TimeFormat
-	ProtectedResource  string
-	RestorePermissions bool
+	DTTMFormat        dttm.TimeFormat
+	ProtectedResource string
+	// RestorePermissions bool
+	SkipPermissions bool
 
 	Populated flags.PopulatedFlags
 }
 
 func makeRestoreCfgOpts(cmd *cobra.Command) RestoreCfgOpts {
 	return RestoreCfgOpts{
-		Collisions:         flags.CollisionsFV,
-		Destination:        flags.DestinationFV,
-		DTTMFormat:         dttm.HumanReadable,
-		ProtectedResource:  flags.ToResourceFV,
-		RestorePermissions: flags.RestorePermissionsFV,
+		Collisions:        flags.CollisionsFV,
+		Destination:       flags.DestinationFV,
+		DTTMFormat:        dttm.HumanReadable,
+		ProtectedResource: flags.ToResourceFV,
+		SkipPermissions:   flags.SkipPermissionsFV,
 
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate
@@ -72,7 +73,7 @@ func MakeRestoreConfig(
 	}
 
 	restoreCfg.ProtectedResource = opts.ProtectedResource
-	restoreCfg.IncludePermissions = opts.RestorePermissions
+	restoreCfg.IncludePermissions = !opts.SkipPermissions
 
 	Infof(ctx, "Restoring to folder %s", restoreCfg.Location)
 

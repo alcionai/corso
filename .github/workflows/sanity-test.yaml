@@ -251,7 +251,7 @@ jobs:
           service: onedrive
           kind: initial
           backup-args: '--user "${{ env.TEST_USER }}"'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
@@ -274,7 +274,7 @@ jobs:
           service: onedrive
           kind: incremental
           backup-args: '--user "${{ env.TEST_USER }}"'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} --restore-permissions'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
@@ -307,7 +307,7 @@ jobs:
           service: sharepoint
           kind: initial
           backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
@@ -331,7 +331,7 @@ jobs:
           service: sharepoint
           kind: incremental
           backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} --restore-permissions'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true

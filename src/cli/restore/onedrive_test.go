@@ -83,7 +83,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 
 				// bool flags
-				"--" + flags.RestorePermissionsFN,
+				// "--" + flags.RestorePermissionsFN,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -114,7 +114,8 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
 
 			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
-			assert.True(t, flags.RestorePermissionsFV)
+			// it won't always be set now since permissions are restored default now.
+			// assert.True(t, flags.SkipPermissionsFV)
 		})
 	}
 }

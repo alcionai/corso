@@ -88,7 +88,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
 
 				// bool flags
-				"--" + flags.RestorePermissionsFN,
+				// "--" + flags.RestorePermissionsFN,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -128,7 +128,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 
 			// bool flags
-			assert.True(t, flags.RestorePermissionsFV)
+			assert.False(t, flags.SkipPermissionsFV)
 		})
 	}
 }
