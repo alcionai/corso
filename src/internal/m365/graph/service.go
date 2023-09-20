@@ -360,6 +360,10 @@ func (aw *adapterWrap) Send(
 			break
 		}
 
+		if IsErrApplicationThrottled(err) {
+			return nil, clues.Stack(ErrApplicationThrottled, err).WithTrace(1).WithClues(ictx)
+		}
+
 		if !IsErrConnectionReset(err) && !connectionEnded.Compare(err.Error()) {
 			return nil, clues.Stack(err).WithTrace(1).WithClues(ictx)
 		}
