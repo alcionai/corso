@@ -523,9 +523,7 @@ func streamBaseEntries(
 						},
 						nil,
 						globalExcludeSet,
-						progress,
-					),
-				)
+						progress))
 
 				return clues.Wrap(ctr(ctx, e), "executing callback on subdirectory").
 					WithClues(ctx).
