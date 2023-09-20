@@ -557,7 +557,7 @@ func (c Events) PostLargeAttachment(
 // ---------------------------------------------------------------------------
 
 func BytesToEventable(body []byte) (models.Eventable, error) {
-	v, err := createFromBytes(body, models.CreateEventFromDiscriminatorValue)
+	v, err := CreateFromBytes(body, models.CreateEventFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to event")
 	}

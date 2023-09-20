@@ -5,6 +5,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
@@ -72,14 +73,15 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	_ bool,
 	_ bool,
 ) (
-	[]string,
+	map[string]time.Time,
+	bool,
 	[]string,
 	api.DeltaUpdate,
 	error,
 ) {
 	results, ok := mg.results[cID]
 	if !ok {
-		return nil, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
+		return nil, false, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
 	}
 
 	delta := results.newDelta
@@ -87,7 +89,12 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 		delta.URL = ""
 	}
 
-	return results.added, results.removed, delta, results.err
+	resAdded := make(map[string]time.Time, len(results.added))
+	for _, add := range results.added {
+		resAdded[add] = time.Time{}
+	}
+
+	return resAdded, false, results.removed, delta, results.err
 }
 
 var _ graph.ContainerResolver = &mockResolver{}
@@ -610,8 +617,8 @@ func (suite *BackupIntgSuite) TestDelta() {
 			// a sanity check that the minimum behavior won't break.
 			for _, coll := range collections {
 				if coll.FullPath().Service() != path.ExchangeMetadataService {
-					ec, ok := coll.(*Collection)
-					require.True(t, ok, "collection is *Collection")
+					ec, ok := coll.(*prefetchCollection)
+					require.True(t, ok, "collection is *prefetchCollection")
 					assert.NotNil(t, ec)
 				}
 			}
@@ -690,7 +697,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 }
 
 // TestContactSerializationRegression verifies ability to query contact items
-// and to store contact within Collection. Downloaded contacts are run through
+// and to store contact within prefetchCollection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 	var (
@@ -1169,8 +1176,8 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 						continue
 					}
 
-					exColl, ok := coll.(*Collection)
-					require.True(t, ok, "collection is an *exchange.Collection")
+					exColl, ok := coll.(*prefetchCollection)
+					require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
 					ids := [][]string{
 						make([]string, 0, len(exColl.added)),
@@ -1504,8 +1511,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 							continue
 						}
 
-						exColl, ok := coll.(*Collection)
-						require.True(t, ok, "collection is an *exchange.Collection")
+						exColl, ok := coll.(*prefetchCollection)
+						require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
 						ids := [][]string{
 							make([]string, 0, len(exColl.added)),
@@ -1670,8 +1677,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 					continue
 				}
 
-				exColl, ok := coll.(*Collection)
-				require.True(t, ok, "collection is an *exchange.Collection")
+				exColl, ok := coll.(*prefetchCollection)
+				require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
 				assert.Equal(t, test.expectAdded, exColl.added, "added items")
 				assert.Equal(t, test.expectRemoved, exColl.removed, "removed items")

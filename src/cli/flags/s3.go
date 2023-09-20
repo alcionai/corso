@@ -1,25 +1,30 @@
 package flags
 
-import "github.com/spf13/cobra"
+import (
+	"strconv"
+
+	"github.com/spf13/cobra"
+
+	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/storage"
+)
 
 // S3 bucket flags
 const (
-	BucketFN          = "bucket"
-	EndpointFN        = "endpoint"
-	PrefixFN          = "prefix"
-	DoNotUseTLSFN     = "disable-tls"
-	DoNotVerifyTLSFN  = "disable-tls-verification"
-	SucceedIfExistsFN = "succeed-if-exists"
+	BucketFN         = "bucket"
+	EndpointFN       = "endpoint"
+	PrefixFN         = "prefix"
+	DoNotUseTLSFN    = "disable-tls"
+	DoNotVerifyTLSFN = "disable-tls-verification"
 )
 
 // S3 bucket flag values
 var (
-	BucketFV          string
-	EndpointFV        string
-	PrefixFV          string
-	DoNotUseTLSFV     bool
-	DoNotVerifyTLSFV  bool
-	SucceedIfExistsFV bool
+	BucketFV         string
+	EndpointFV       string
+	PrefixFV         string
+	DoNotUseTLSFV    bool
+	DoNotVerifyTLSFV bool
 )
 
 // S3 bucket flags
@@ -38,4 +43,49 @@ func AddS3BucketFlags(cmd *cobra.Command) {
 	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
 	fs.BoolVar(&SucceedIfExistsFV, SucceedIfExistsFN, false, "Exit with success if the repo has already been initialized.")
 	cobra.CheckErr(fs.MarkHidden("succeed-if-exists"))
+}
+
+func S3FlagOverrides(cmd *cobra.Command) map[string]string {
+	fs := GetPopulatedFlags(cmd)
+	return PopulateS3Flags(fs)
+}
+
+func PopulateS3Flags(flagset PopulatedFlags) map[string]string {
+	s3Overrides := map[string]string{
+		storage.StorageProviderTypeKey: storage.ProviderS3.String(),
+	}
+
+	if _, ok := flagset[AWSAccessKeyFN]; ok {
+		s3Overrides[credentials.AWSAccessKeyID] = AWSAccessKeyFV
+	}
+
+	if _, ok := flagset[AWSSecretAccessKeyFN]; ok {
+		s3Overrides[credentials.AWSSecretAccessKey] = AWSSecretAccessKeyFV
+	}
+
+	if _, ok := flagset[AWSSessionTokenFN]; ok {
+		s3Overrides[credentials.AWSSessionToken] = AWSSessionTokenFV
+	}
+
+	if _, ok := flagset[BucketFN]; ok {
+		s3Overrides[storage.Bucket] = BucketFV
+	}
+
+	if _, ok := flagset[PrefixFN]; ok {
+		s3Overrides[storage.Prefix] = PrefixFV
+	}
+
+	if _, ok := flagset[DoNotUseTLSFN]; ok {
+		s3Overrides[storage.DoNotUseTLS] = strconv.FormatBool(DoNotUseTLSFV)
+	}
+
+	if _, ok := flagset[DoNotVerifyTLSFN]; ok {
+		s3Overrides[storage.DoNotVerifyTLS] = strconv.FormatBool(DoNotVerifyTLSFV)
+	}
+
+	if _, ok := flagset[EndpointFN]; ok {
+		s3Overrides[storage.Endpoint] = EndpointFV
+	}
+
+	return s3Overrides
 }

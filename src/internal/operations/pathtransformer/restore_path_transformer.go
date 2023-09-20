@@ -143,7 +143,8 @@ func makeRestorePathsForEntry(
 	//   * Exchange Email/Contacts
 	//   * OneDrive/SharePoint (needs drive information)
 	switch true {
-	case ent.Exchange != nil:
+	case ent.Exchange != nil ||
+		(ent.Groups != nil && ent.Groups.ItemType == details.GroupsChannelMessage):
 		// TODO(ashmrtn): Eventually make Events have it's own function to handle
 		// setting the restore destination properly.
 		res.RestorePath, err = basicLocationPath(repoRef, locRef)

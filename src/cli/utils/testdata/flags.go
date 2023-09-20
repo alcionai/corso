@@ -51,7 +51,8 @@ var (
 
 	DeltaPageSize = "deltaPageSize"
 
-	Archive = true
+	Archive    = true
+	FormatType = "json"
 
 	AzureClientID     = "testAzureClientId"
 	AzureTenantID     = "testAzureTenantId"

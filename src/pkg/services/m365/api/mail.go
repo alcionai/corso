@@ -504,7 +504,7 @@ func (c Mail) PostLargeAttachment(
 // ---------------------------------------------------------------------------
 
 func BytesToMessageable(body []byte) (models.Messageable, error) {
-	v, err := createFromBytes(body, models.CreateMessageFromDiscriminatorValue)
+	v, err := CreateFromBytes(body, models.CreateMessageFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to message")
 	}
