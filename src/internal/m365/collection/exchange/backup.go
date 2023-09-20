@@ -189,7 +189,7 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
-			NewBaseCollection(
+			data.NewBaseCollection(
 				currPath,
 				prevPath,
 				locPath,
@@ -242,7 +242,7 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
-			NewBaseCollection(
+			data.NewBaseCollection(
 				nil, // marks the collection as deleted
 				prevPath,
 				nil, // tombstones don't need a location
