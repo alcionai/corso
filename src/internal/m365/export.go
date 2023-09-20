@@ -69,6 +69,8 @@ func (ctrl *Controller) ProduceExportCollections(
 			exportCfg,
 			opts,
 			dcs,
+			ctrl.backupDriveIDNames,
+			ctrl.backupSiteIDWebURL,
 			deets,
 			errs)
 
