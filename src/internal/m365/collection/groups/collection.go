@@ -142,12 +142,9 @@ func (col Collection) DoNotMergeItems() bool {
 
 // Item represents a single item retrieved from exchange
 type Item struct {
-	id string
-	// TODO: We may need this to be a "oneOf" of `message`, `contact`, etc.
-	// going forward. Using []byte for now but I assume we'll have
-	// some structured type in here (serialization to []byte can be done in `Read`)
+	id      string
 	message []byte
-	info    *details.GroupsInfo // temporary change to bring populate function into directory
+	info    *details.GroupsInfo
 	// TODO(ashmrtn): Can probably eventually be sourced from info as there's a
 	// request to provide modtime in ItemInfo structs.
 	modTime time.Time
@@ -212,7 +209,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.FullPath().Category().String(),
+			col.FullPath().Category().HumanString(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
@@ -220,31 +217,30 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	semaphoreCh := make(chan struct{}, col.ctrl.Parallelism.ItemFetch)
 	defer close(semaphoreCh)
 
-	// TODO: add for v1 with incrementals
 	// delete all removed items
-	// for id := range col.removed {
-	// 	semaphoreCh <- struct{}{}
+	for id := range col.removed {
+		semaphoreCh <- struct{}{}
 
-	// 	wg.Add(1)
+		wg.Add(1)
 
-	// 	go func(id string) {
-	// 		defer wg.Done()
-	// 		defer func() { <-semaphoreCh }()
+		go func(id string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
 
-	// 		col.stream <- &Item{
-	// 			id:      id,
-	// 			modTime: time.Now().UTC(), // removed items have no modTime entry.
-	// 			deleted: true,
-	// 		}
+			col.stream <- &Item{
+				id:      id,
+				modTime: time.Now().UTC(), // removed items have no modTime entry.
+				deleted: true,
+			}
 
-	// 		atomic.AddInt64(&streamedItems, 1)
-	// 		atomic.AddInt64(&totalBytes, 0)
+			atomic.AddInt64(&streamedItems, 1)
+			atomic.AddInt64(&totalBytes, 0)
 
-	// 		if colProgress != nil {
-	// 			colProgress <- struct{}{}
-	// 		}
-	// 	}(id)
-	// }
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
+		}(id)
+	}
 
 	// add any new items
 	for id := range col.added {
@@ -265,7 +261,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			flds := col.fullPath.Folders()
 			parentFolderID := flds[len(flds)-1]
 
-			item, info, err := col.getter.getChannelMessage(
+			item, info, err := col.getter.GetChannelMessage(
 				ctx,
 				col.protectedResource,
 				parentFolderID,

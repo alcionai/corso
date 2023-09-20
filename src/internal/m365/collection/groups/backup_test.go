@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -57,8 +58,14 @@ func (bh mockBackupHandler) getChannelMessageIDs(
 	_ context.Context,
 	_, _ string,
 	_ bool,
-) ([]string, []string, api.DeltaUpdate, error) {
-	return bh.messageIDs, bh.deletedMsgIDs, api.DeltaUpdate{}, bh.messagesErr
+) (map[string]time.Time, bool, []string, api.DeltaUpdate, error) {
+	idRes := make(map[string]time.Time, len(bh.messageIDs))
+
+	for _, id := range bh.messageIDs {
+		idRes[id] = time.Time{}
+	}
+
+	return idRes, true, bh.deletedMsgIDs, api.DeltaUpdate{}, bh.messagesErr
 }
 
 func (bh mockBackupHandler) includeContainer(
@@ -83,7 +90,7 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh mockBackupHandler) getChannelMessage(
+func (bh mockBackupHandler) GetChannelMessage(
 	_ context.Context,
 	_, _, itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {

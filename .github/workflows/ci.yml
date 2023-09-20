@@ -155,7 +155,7 @@ jobs:
 
       # AWS creds
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
@@ -226,7 +226,7 @@ jobs:
 
       # AWS creds
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
@@ -377,7 +377,7 @@ jobs:
 
       # AWS creds
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
@@ -491,7 +491,7 @@ jobs:
 
       # I could not find a way to install tree-grepper without nix
       # https://github.com/BrianHicks/tree-grepper/issues/293
-      - uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v23
       - uses: cachix/cachix-action@v12
         with:
             name: tree-grepper
@@ -501,6 +501,13 @@ jobs:
           # Using `grep .` as the exit codes are always true for correct grammar
           if tree-grepper -q go '(argument_list "," @no-trailing-comma .)' | grep .; then
             echo "No trailing commas for function calls"
+            exit 1
+          fi
+      - name: Check for empty string comparison
+        run: |
+          # Using `grep .` as the exit codes are always true for correct grammar
+          if tree-grepper -q go '((binary_expression (identifier) ["==" "!="] (interpreted_string_literal) @_ri) @exp (#eq? @_ri "\"\""))' | grep .; then
+            echo "Use len check instead of empty string comparison"
             exit 1
           fi
 
@@ -565,13 +572,13 @@ jobs:
 
       # Setup buildx
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       # retrieve credentials for ghcr.io
       - name: Login to Github Packages
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -579,7 +586,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
@@ -589,7 +596,7 @@ jobs:
 
       # deploy the image
       - name: Build image and push to GitHub Container Registry
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./build/Dockerfile
@@ -642,9 +649,9 @@ jobs:
       CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
     steps:
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Validate amd64 container images
         run: |

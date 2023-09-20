@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 // ---------------------------------------------------------------------------
@@ -22,6 +23,13 @@ type Collectioner interface {
 	Items(context.Context) <-chan Item
 }
 
+type itemStreamer func(
+	ctx context.Context,
+	backingColls []data.RestoreCollection,
+	backupVersion int,
+	cfg control.ExportConfig,
+	ch chan<- Item)
+
 // BaseCollection holds the foundational details of an export collection.
 type BaseCollection struct {
 	// BaseDir contains the destination path of the collection.
@@ -34,7 +42,9 @@ type BaseCollection struct {
 	// BackupVersion is the backupVersion of the data source.
 	BackupVersion int
 
-	Stream func(context.Context, []data.RestoreCollection, int, chan<- Item)
+	Cfg control.ExportConfig
+
+	Stream itemStreamer
 }
 
 func (bc BaseCollection) BasePath() string {
@@ -43,7 +53,7 @@ func (bc BaseCollection) BasePath() string {
 
 func (bc BaseCollection) Items(ctx context.Context) <-chan Item {
 	ch := make(chan Item)
-	go bc.Stream(ctx, bc.BackingCollection, bc.BackupVersion, ch)
+	go bc.Stream(ctx, bc.BackingCollection, bc.BackupVersion, bc.Cfg, ch)
 
 	return ch
 }

@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -25,7 +26,7 @@ type backupHandler interface {
 		ctx context.Context,
 		channelID, prevDelta string,
 		canMakeDeltaQueries bool,
-	) ([]string, []string, api.DeltaUpdate, error)
+	) (map[string]time.Time, bool, []string, api.DeltaUpdate, error)
 
 	// includeContainer evaluates whether the channel is included
 	// in the provided scope.
@@ -45,7 +46,7 @@ type backupHandler interface {
 }
 
 type getChannelMessager interface {
-	getChannelMessage(
+	GetChannelMessage(
 		ctx context.Context,
 		teamID, channelID, itemID string,
 	) (models.ChatMessageable, *details.GroupsInfo, error)

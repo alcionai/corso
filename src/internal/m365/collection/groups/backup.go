@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -12,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
-	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -57,11 +57,6 @@ func CreateCollections(
 	}
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
-
-	catProgress := observe.MessageWithCompletion(
-		ctx,
-		observe.Bulletf("%s", qp.Category))
-	defer close(catProgress)
 
 	channels, err := bh.getChannels(ctx)
 	if err != nil {
@@ -159,13 +154,13 @@ func populateCollections(
 		// and will return an error if a delta token is queried.
 		canMakeDeltaQueries := len(ptr.Val(c.GetEmail())) > 0
 
-		add, rem, du, err := bh.getChannelMessageIDs(ctx, cID, prevDelta, canMakeDeltaQueries)
+		add, _, rem, du, err := bh.getChannelMessageIDs(ctx, cID, prevDelta, canMakeDeltaQueries)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
 		}
 
-		added := str.SliceToMap(add)
+		added := str.SliceToMap(maps.Keys(add))
 		removed := str.SliceToMap(rem)
 
 		if len(du.URL) > 0 {

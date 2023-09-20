@@ -5,11 +5,13 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -72,14 +74,15 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	_ bool,
 	_ bool,
 ) (
-	[]string,
+	map[string]time.Time,
+	bool,
 	[]string,
 	api.DeltaUpdate,
 	error,
 ) {
 	results, ok := mg.results[cID]
 	if !ok {
-		return nil, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
+		return nil, false, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
 	}
 
 	delta := results.newDelta
@@ -87,7 +90,12 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 		delta.URL = ""
 	}
 
-	return results.added, results.removed, delta, results.err
+	resAdded := make(map[string]time.Time, len(results.added))
+	for _, add := range results.added {
+		resAdded[add] = time.Time{}
+	}
+
+	return resAdded, false, results.removed, delta, results.err
 }
 
 var _ graph.ContainerResolver = &mockResolver{}
@@ -592,7 +600,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 
 			// now do another backup with the previous delta tokens,
 			// which should only contain the difference.
-			collections, err = CreateCollections(
+			_, err = CreateCollections(
 				ctx,
 				bpc,
 				handlers,
@@ -602,19 +610,6 @@ func (suite *BackupIntgSuite) TestDelta() {
 				func(status *support.ControllerOperationStatus) {},
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
-
-			// TODO(keepers): this isn't a very useful test at the moment.  It needs to
-			// investigate the items in the original and delta collections to at least
-			// assert some minimum assumptions, such as "deltas should retrieve fewer items".
-			// Delta usage is commented out at the moment, anyway.  So this is currently
-			// a sanity check that the minimum behavior won't break.
-			for _, coll := range collections {
-				if coll.FullPath().Service() != path.ExchangeMetadataService {
-					ec, ok := coll.(*Collection)
-					require.True(t, ok, "collection is *Collection")
-					assert.NotNil(t, ec)
-				}
-			}
 		})
 	}
 }
@@ -690,7 +685,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 }
 
 // TestContactSerializationRegression verifies ability to query contact items
-// and to store contact within Collection. Downloaded contacts are run through
+// and to store contact within prefetchCollection. Downloaded contacts are run through
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 	var (
@@ -1169,18 +1164,20 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 						continue
 					}
 
-					exColl, ok := coll.(*Collection)
-					require.True(t, ok, "collection is an *exchange.Collection")
+					exColl, ok := coll.(*prefetchCollection)
+					require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
 					ids := [][]string{
 						make([]string, 0, len(exColl.added)),
 						make([]string, 0, len(exColl.removed)),
 					}
 
-					for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
-						for id := range cIDs {
-							ids[i] = append(ids[i], id)
-						}
+					for id := range exColl.added {
+						ids[0] = append(ids[0], id)
+					}
+
+					for id := range exColl.removed {
+						ids[1] = append(ids[1], id)
 					}
 
 					assert.ElementsMatch(t, expect.added, ids[0], "added items")
@@ -1504,18 +1501,20 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 							continue
 						}
 
-						exColl, ok := coll.(*Collection)
-						require.True(t, ok, "collection is an *exchange.Collection")
+						exColl, ok := coll.(*prefetchCollection)
+						require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
 						ids := [][]string{
 							make([]string, 0, len(exColl.added)),
 							make([]string, 0, len(exColl.removed)),
 						}
 
-						for i, cIDs := range []map[string]struct{}{exColl.added, exColl.removed} {
-							for id := range cIDs {
-								ids[i] = append(ids[i], id)
-							}
+						for id := range exColl.added {
+							ids[0] = append(ids[0], id)
+						}
+
+						for id := range exColl.removed {
+							ids[1] = append(ids[1], id)
 						}
 
 						assert.ElementsMatch(t, expect.added, ids[0], "added items")
@@ -1670,10 +1669,14 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 					continue
 				}
 
-				exColl, ok := coll.(*Collection)
-				require.True(t, ok, "collection is an *exchange.Collection")
+				exColl, ok := coll.(*prefetchCollection)
+				require.True(t, ok, "collection is an *exchange.prefetchCollection")
 
-				assert.Equal(t, test.expectAdded, exColl.added, "added items")
+				assert.ElementsMatch(
+					t,
+					maps.Keys(test.expectAdded),
+					maps.Keys(exColl.added),
+					"added items")
 				assert.Equal(t, test.expectRemoved, exColl.removed, "removed items")
 			}
 		})

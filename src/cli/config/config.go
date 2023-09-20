@@ -20,24 +20,7 @@ import (
 )
 
 const (
-	// S3 config
-	StorageProviderTypeKey    = "provider"
-	BucketNameKey             = "bucket"
-	EndpointKey               = "endpoint"
-	PrefixKey                 = "prefix"
-	DisableTLSKey             = "disable_tls"
-	DisableTLSVerificationKey = "disable_tls_verification"
-	RepoID                    = "repo_id"
-
-	AccessKey       = "aws_access_key_id"
-	SecretAccessKey = "aws_secret_access_key"
-	SessionToken    = "aws_session_token"
-
-	// M365 config
-	AccountProviderTypeKey = "account_provider"
-	AzureTenantIDKey       = "azure_tenantid"
-	AzureClientID          = "azure_client_id"
-	AzureSecret            = "azure_secret"
+	RepoID = "repo_id"
 
 	// Corso passphrase in config
 	CorsoPassphrase = "passphrase"
@@ -118,7 +101,7 @@ func InitFunc(cmd *cobra.Command, args []string) error {
 // struct for testing.
 func initWithViper(vpr *viper.Viper, configFP string) error {
 	// Configure default config file location
-	if configFP == "" || configFP == displayDefaultFP {
+	if len(configFP) == 0 || configFP == displayDefaultFP {
 		// Find home directory.
 		_, err := os.Stat(configDir)
 		if err != nil {
@@ -203,14 +186,14 @@ func Read(ctx context.Context) error {
 // It does not check for conflicts or existing data.
 func WriteRepoConfig(
 	ctx context.Context,
-	s3Config storage.S3Config,
+	wcs storage.WriteConfigToStorer,
 	m365Config account.M365Config,
 	repoOpts repository.Options,
 	repoID string,
 ) error {
 	return writeRepoConfigWithViper(
 		GetViper(ctx),
-		s3Config,
+		wcs,
 		m365Config,
 		repoOpts,
 		repoID)
@@ -220,20 +203,14 @@ func WriteRepoConfig(
 // struct for testing.
 func writeRepoConfigWithViper(
 	vpr *viper.Viper,
-	s3Config storage.S3Config,
+	wcs storage.WriteConfigToStorer,
 	m365Config account.M365Config,
 	repoOpts repository.Options,
 	repoID string,
 ) error {
-	s3Config = s3Config.Normalize()
-	// Rudimentary support for persisting repo config
-	// TODO: Handle conflicts, support other config types
-	vpr.Set(StorageProviderTypeKey, storage.ProviderS3.String())
-	vpr.Set(BucketNameKey, s3Config.Bucket)
-	vpr.Set(EndpointKey, s3Config.Endpoint)
-	vpr.Set(PrefixKey, s3Config.Prefix)
-	vpr.Set(DisableTLSKey, s3Config.DoNotUseTLS)
-	vpr.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
+	// Write storage configuration to viper
+	wcs.WriteConfigToStore(vpr)
+
 	vpr.Set(RepoID, repoID)
 
 	// Need if-checks as Viper will write empty values otherwise.
@@ -245,8 +222,8 @@ func writeRepoConfigWithViper(
 		vpr.Set(CorsoHost, repoOpts.Host)
 	}
 
-	vpr.Set(AccountProviderTypeKey, account.ProviderM365.String())
-	vpr.Set(AzureTenantIDKey, m365Config.AzureTenantID)
+	vpr.Set(account.AccountProviderTypeKey, account.ProviderM365.String())
+	vpr.Set(account.AzureTenantIDKey, m365Config.AzureTenantID)
 
 	if err := vpr.SafeWriteConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileAlreadyExistsError); ok {
@@ -263,6 +240,7 @@ func writeRepoConfigWithViper(
 // data sources (config file, env vars, flag overrides) and the config file.
 func GetConfigRepoDetails(
 	ctx context.Context,
+	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
@@ -270,7 +248,13 @@ func GetConfigRepoDetails(
 	RepoDetails,
 	error,
 ) {
-	config, err := getStorageAndAccountWithViper(GetViper(ctx), readFromFile, mustMatchFromConfig, overrides)
+	config, err := getStorageAndAccountWithViper(
+		GetViper(ctx),
+		provider,
+		readFromFile,
+		mustMatchFromConfig,
+		overrides)
+
 	return config, err
 }
 
@@ -278,6 +262,7 @@ func GetConfigRepoDetails(
 // struct for testing.
 func getStorageAndAccountWithViper(
 	vpr *viper.Viper,
+	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
@@ -312,7 +297,12 @@ func getStorageAndAccountWithViper(
 		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
 
-	config.Storage, err = configureStorage(vpr, readConfigFromViper, mustMatchFromConfig, overrides)
+	config.Storage, err = configureStorage(
+		vpr,
+		provider,
+		readConfigFromViper,
+		mustMatchFromConfig,
+		overrides)
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving storage provider details")
 	}
@@ -336,17 +326,14 @@ func getUserHost(vpr *viper.Viper, readConfigFromViper bool) (string, string) {
 // ---------------------------------------------------------------------------
 
 var constToTomlKeyMap = map[string]string{
-	account.AzureTenantID:  AzureTenantIDKey,
-	AccountProviderTypeKey: AccountProviderTypeKey,
-	storage.Bucket:         BucketNameKey,
-	storage.Endpoint:       EndpointKey,
-	storage.Prefix:         PrefixKey,
-	StorageProviderTypeKey: StorageProviderTypeKey,
+	account.AzureTenantID:          account.AzureTenantIDKey,
+	account.AccountProviderTypeKey: account.AccountProviderTypeKey,
 }
 
 // mustMatchConfig compares the values of each key to their config file value in viper.
 // If any value differs from the viper value, an error is returned.
 // values in m that aren't stored in the config are ignored.
+// TODO(pandeyabs): This code is currently duplicated in 2 places.
 func mustMatchConfig(vpr *viper.Viper, m map[string]string) error {
 	for k, v := range m {
 		if len(v) == 0 {

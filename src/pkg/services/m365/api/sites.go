@@ -102,12 +102,14 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 	return us, el.Failure()
 }
 
-const uuidRE = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+const uuidRETmpl = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
+var uuidRE = regexp.MustCompile(uuidRETmpl)
 
 // matches a site ID, with or without a doman name.  Ex, either one of:
 // 10rqc2.sharepoint.com,deadbeef-0000-0000-0000-000000000000,beefdead-0000-0000-0000-000000000000
 // deadbeef-0000-0000-0000-000000000000,beefdead-0000-0000-0000-000000000000
-var siteIDRE = regexp.MustCompile(`(.+,)?` + uuidRE + "," + uuidRE)
+var siteIDRE = regexp.MustCompile(`(.+,)?` + uuidRETmpl + "," + uuidRETmpl)
 
 const sitesWebURLGetTemplate = "https://graph.microsoft.com/v1.0/sites/%s:/%s?$expand=drive"
 

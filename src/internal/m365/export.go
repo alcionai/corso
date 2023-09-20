@@ -33,7 +33,7 @@ func (ctrl *Controller) ProduceExportCollections(
 	defer end()
 
 	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
-	ctx = clues.Add(ctx, "export_config", exportCfg) // TODO(meain): needs PII control
+	ctx = clues.Add(ctx, "export_config", exportCfg)
 
 	var (
 		expCollections []export.Collectioner
@@ -69,6 +69,8 @@ func (ctrl *Controller) ProduceExportCollections(
 			exportCfg,
 			opts,
 			dcs,
+			ctrl.backupDriveIDNames,
+			ctrl.backupSiteIDWebURL,
 			deets,
 			errs)
 

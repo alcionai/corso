@@ -6,12 +6,60 @@ import (
 
 const DataMessages = "messages"
 
-const GroupFN = "group"
+const (
+	ChannelFN = "channel"
+	GroupFN   = "group"
+	MessageFN = "message"
 
-var GroupFV []string
+	MessageCreatedAfterFN    = "message-created-after"
+	MessageCreatedBeforeFN   = "message-created-before"
+	MessageLastReplyAfterFN  = "message-last-reply-after"
+	MessageLastReplyBeforeFN = "message-last-reply-before"
+)
+
+var (
+	ChannelFV []string
+	GroupFV   []string
+	MessageFV []string
+
+	MessageCreatedAfterFV    string
+	MessageCreatedBeforeFV   string
+	MessageLastReplyAfterFV  string
+	MessageLastReplyBeforeFV string
+)
 
 func AddGroupDetailsAndRestoreFlags(cmd *cobra.Command) {
-	// TODO: implement flags
+	fs := cmd.Flags()
+
+	fs.StringSliceVar(
+		&ChannelFV,
+		ChannelFN, nil,
+		"Select data within a Team's Channel.")
+
+	fs.StringSliceVar(
+		&MessageFV,
+		MessageFN, nil,
+		"Select messages by reference.")
+
+	fs.StringVar(
+		&MessageCreatedAfterFV,
+		MessageCreatedAfterFN, "",
+		"Select messages created after this datetime.")
+
+	fs.StringVar(
+		&MessageCreatedBeforeFV,
+		MessageCreatedBeforeFN, "",
+		"Select messages created before this datetime.")
+
+	fs.StringVar(
+		&MessageLastReplyAfterFV,
+		MessageLastReplyAfterFN, "",
+		"Select messages with replies after this datetime.")
+
+	fs.StringVar(
+		&MessageLastReplyBeforeFV,
+		MessageLastReplyBeforeFN, "",
+		"Select messages with replies before this datetime.")
 }
 
 // AddGroupFlag adds the --group flag, which accepts id or name values.

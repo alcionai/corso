@@ -2492,7 +2492,7 @@ func delItem(
 }
 
 func getDeltaError() error {
-	syncStateNotFound := "SyncStateNotFound" // TODO(meain): export graph.errCodeSyncStateNotFound
+	syncStateNotFound := "SyncStateNotFound"
 	me := odataerrors.NewMainError()
 	me.SetCode(&syncStateNotFound)
 

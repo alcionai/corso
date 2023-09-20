@@ -426,6 +426,26 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 	}
 }
 
+func (suite *PathUnitSuite) TestPrefixOrPathFromDataLayerPath() {
+	t := suite.T()
+	input := fmt.Sprintf(
+		"%s/%s/%s/%s",
+		"tenant",
+		ExchangeService.String(),
+		"user",
+		EmailCategory.String())
+
+	// Check that we can make a valid prefix path.
+	p, err := PrefixOrPathFromDataLayerPath(input, false)
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, input, p.String())
+
+	// Check we can't make a regular path with the same input since it doesn't
+	// have enough segments.
+	_, err = FromDataLayerPath(input, false)
+	assert.Error(t, err)
+}
+
 func (suite *PathUnitSuite) TestBuildPrefix() {
 	table := []struct {
 		name      string
@@ -486,6 +506,71 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 				r.Folders()
 				r.Item()
 			}, "runs Folders() and Item()")
+		})
+	}
+}
+
+func (suite *PathUnitSuite) TestBuildRestorePaths() {
+	type args struct {
+		tenantID          string
+		protectedResource string
+		service           ServiceType
+		category          CategoryType
+		fp                []string
+	}
+
+	tests := []struct {
+		name        string
+		args        args
+		restorePath string
+		storagePath string
+		expectErr   require.ErrorAssertionFunc
+	}{
+		{
+			name: "single",
+			args: args{
+				tenantID:          "tenant",
+				protectedResource: "protectedResource",
+				service:           GroupsService,
+				category:          LibrariesCategory,
+				fp:                []string{"a"},
+			},
+			restorePath: "tenant/groupsMetadata/protectedResource/libraries",
+			storagePath: "tenant/groupsMetadata/protectedResource/libraries/a",
+			expectErr:   require.NoError,
+		},
+		{
+			name: "multi",
+			args: args{
+				tenantID:          "tenant",
+				protectedResource: "protectedResource",
+				service:           GroupsService,
+				category:          LibrariesCategory,
+				fp:                []string{"a", "b"},
+			},
+			restorePath: "tenant/groupsMetadata/protectedResource/libraries/a",
+			storagePath: "tenant/groupsMetadata/protectedResource/libraries/a/b",
+			expectErr:   require.NoError,
+		},
+	}
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			r, err := BuildMetadata(
+				test.args.tenantID,
+				test.args.protectedResource,
+				test.args.service,
+				test.args.category,
+				true,
+				test.args.fp...)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			rdir, err := r.Dir()
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.restorePath, rdir.String(), "restore path")
+			assert.Equal(t, test.storagePath, r.String(), "storage path")
 		})
 	}
 }

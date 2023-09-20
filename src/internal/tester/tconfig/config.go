@@ -20,6 +20,7 @@ const (
 	TestCfgEndpoint        = "endpoint"
 	TestCfgPrefix          = "prefix"
 	TestCfgStorageProvider = "provider"
+	TestCfgFilesystemPath  = "path"
 
 	// M365 config
 	TestCfgAzureTenantID    = "azure_tenantid"
@@ -31,6 +32,7 @@ const (
 	TestCfgUserID           = "m365userid"
 	TestCfgSecondaryUserID  = "secondarym365userid"
 	TestCfgSecondaryGroupID = "secondarym365groupid"
+	TestCfgSecondaryTeamID  = "secondarym365teamid"
 	TestCfgTertiaryUserID   = "tertiarym365userid"
 	TestCfgLoadTestUserID   = "loadtestm365userid"
 	TestCfgLoadTestOrgUsers = "loadtestm365orgusers"
@@ -45,7 +47,9 @@ const (
 	EnvCorsoM365TestSiteID           = "CORSO_M365_TEST_SITE_ID"
 	EnvCorsoM365TestSiteURL          = "CORSO_M365_TEST_SITE_URL"
 	EnvCorsoM365TestTeamID           = "CORSO_M365_TEST_TEAM_ID"
+	EnvCorsoSecondaryM365TestTeamID  = "CORSO_SECONDARY_M365_TEST_TEAM_ID"
 	EnvCorsoM365TestGroupID          = "CORSO_M365_TEST_GROUP_ID"
+	EnvCorsoSecondaryM365TestGroupID = "CORSO_SECONDARY_M365_TEST_GROUP_ID"
 	EnvCorsoM365TestUserID           = "CORSO_M365_TEST_USER_ID"
 	EnvCorsoSecondaryM365TestSiteID  = "CORSO_SECONDARY_M365_TEST_SITE_ID"
 	EnvCorsoSecondaryM365TestUserID  = "CORSO_SECONDARY_M365_TEST_USER_ID"
@@ -163,10 +167,22 @@ func ReadTestConfig() (map[string]string, error) {
 		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0")
 	fallbackTo(
 		testEnv,
+		TestCfgSecondaryTeamID,
+		os.Getenv(EnvCorsoSecondaryM365TestTeamID),
+		vpr.GetString(TestCfgSecondaryTeamID),
+		"20cda3c0-6f9a-4286-9f2f-bb284e1f79c9")
+	fallbackTo(
+		testEnv,
 		TestCfgGroupID,
 		os.Getenv(EnvCorsoM365TestGroupID),
 		vpr.GetString(TestCfgGroupID),
 		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0")
+	fallbackTo(
+		testEnv,
+		TestCfgSecondaryGroupID,
+		os.Getenv(EnvCorsoSecondaryM365TestGroupID),
+		vpr.GetString(TestCfgSecondaryGroupID),
+		"20cda3c0-6f9a-4286-9f2f-bb284e1f79c9")
 	fallbackTo(
 		testEnv,
 		TestCfgSiteURL,

@@ -169,7 +169,7 @@ func (c Mail) GetContainerByName(
 	// Return an error if multiple container exist (unlikely) or if no container
 	// is found.
 	if len(gv) != 1 {
-		return nil, clues.New("unexpected number of folders returned").
+		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).
 			With("returned_container_count", len(gv)).
 			WithClues(ctx)
 	}
@@ -504,7 +504,7 @@ func (c Mail) PostLargeAttachment(
 // ---------------------------------------------------------------------------
 
 func BytesToMessageable(body []byte) (models.Messageable, error) {
-	v, err := createFromBytes(body, models.CreateMessageFromDiscriminatorValue)
+	v, err := CreateFromBytes(body, models.CreateMessageFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to message")
 	}

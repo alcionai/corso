@@ -2,7 +2,6 @@ package restore
 
 import (
 	"context"
-	"os"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -21,9 +19,7 @@ var restoreCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 	addOneDriveCommands,
 	addSharePointCommands,
-	// awaiting release
-	// addGroupsCommands,
-	// addTeamsCommands,
+	addGroupsCommands,
 }
 
 // AddCommands attaches all `corso restore * *` commands to the parent.
@@ -33,11 +29,6 @@ func AddCommands(cmd *cobra.Command) {
 
 	for _, addRestoreTo := range restoreCommands {
 		addRestoreTo(restoreC)
-	}
-
-	// delete after release
-	if len(os.Getenv("CORSO_ENABLE_GROUPS")) > 0 {
-		addGroupsCommands(restoreC)
 	}
 }
 
@@ -103,7 +94,10 @@ func runRestore(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, sel.PathService(), repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
+		ctx,
+		cmd,
+		sel.PathService())
 	if err != nil {
 		return Only(ctx, err)
 	}

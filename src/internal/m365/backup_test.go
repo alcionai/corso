@@ -518,7 +518,6 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewGroupsBackup(groupIDs)
-	// TODO(meain): make use of selectors
 	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
 
 	sel.SetDiscreteOwnerIDName(id, name)

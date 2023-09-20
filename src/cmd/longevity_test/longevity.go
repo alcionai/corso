@@ -16,12 +16,14 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // deleteBackups connects to the repository and deletes all backups for
 // service that are at least deletionDays old. Returns the IDs of all backups
 // that were deleted.
+// Only supported for S3 repos currently.
 func deleteBackups(
 	ctx context.Context,
 	service path.ServiceType,
@@ -29,7 +31,11 @@ func deleteBackups(
 ) ([]string, error) {
 	ctx = clues.Add(ctx, "cutoff_days", deletionDays)
 
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, service, nil)
+	r, _, _, _, err := utils.GetAccountAndConnect(
+		ctx,
+		service,
+		storage.ProviderS3,
+		nil)
 	if err != nil {
 		return nil, clues.Wrap(err, "connecting to account").WithClues(ctx)
 	}
@@ -67,6 +73,7 @@ func deleteBackups(
 // pitrListBackups connects to the repository at the given point in time and
 // lists the backups for service. It then checks the list of backups contains
 // the backups in backupIDs.
+// Only supported for S3 repos currently.
 func pitrListBackups(
 	ctx context.Context,
 	service path.ServiceType,
@@ -87,7 +94,12 @@ func pitrListBackups(
 
 	// TODO(ashmrtn): This may be moved into CLI layer at some point when we add
 	// flags for opening a repo at a point in time.
-	cfg, err := config.GetConfigRepoDetails(ctx, true, true, nil)
+	cfg, err := config.GetConfigRepoDetails(
+		ctx,
+		storage.ProviderS3,
+		true,
+		true,
+		nil)
 	if err != nil {
 		return clues.Wrap(err, "getting config info")
 	}

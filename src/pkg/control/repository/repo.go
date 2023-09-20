@@ -11,6 +11,7 @@ type Options struct {
 	// ViewTimestamp is the time at which the repo should be opened at if
 	// immutable backups are being used. If nil then the current time is used.
 	ViewTimestamp *time.Time `json:"viewTimestamp"`
+	ReadOnly      bool       `json:"readonly,omitempty"`
 }
 
 type Maintenance struct {

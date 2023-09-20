@@ -1,6 +1,8 @@
 package path
 
-import "github.com/alcionai/clues"
+import (
+	"github.com/alcionai/clues"
+)
 
 // TODO: Move this into m365/collection/drive
 // drivePath is used to represent path components
@@ -21,10 +23,19 @@ func ToDrivePath(p Path) (*DrivePath, error) {
 	folders := p.Folders()
 
 	// Must be at least `drives/<driveID>/root:`
-	if len(folders) < 3 {
+	if len(folders) < 3 || (p.Service() == GroupsService && len(folders) < 5) {
 		return nil, clues.
 			New("folder path doesn't match expected format for Drive items").
 			With("path_folders", p.Folder(false))
+	}
+
+	// FIXME(meain): Don't have any service specific code within this
+	// function. Change this to either accept only the fragment of the
+	// path that is the drive path or have a separate function for each
+	// service.
+	if p.Service() == GroupsService {
+		// Groups have an extra /sites/<siteID> in the path
+		return &DrivePath{DriveID: folders[3], Root: folders[4], Folders: folders[5:]}, nil
 	}
 
 	return &DrivePath{DriveID: folders[1], Root: folders[2], Folders: folders[3:]}, nil
@@ -48,4 +59,14 @@ func BuildDriveLocation(
 	unescapedElements ...string,
 ) *Builder {
 	return Builder{}.Append("drives", driveID).Append(unescapedElements...)
+}
+
+// BuildGroupsDriveLocation is same as BuildDriveLocation, but for
+// group drives and thus includes siteID.
+func BuildGroupsDriveLocation(
+	siteID string,
+	driveID string,
+	unescapedElements ...string,
+) *Builder {
+	return Builder{}.Append("sites", siteID, "drives", driveID).Append(unescapedElements...)
 }

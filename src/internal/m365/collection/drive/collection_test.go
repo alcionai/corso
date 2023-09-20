@@ -38,16 +38,16 @@ import (
 // tests
 // ---------------------------------------------------------------------------
 
-type CollectionUnitTestSuite struct {
+type CollectionUnitSuite struct {
 	tester.Suite
 }
 
-func TestCollectionUnitTestSuite(t *testing.T) {
-	suite.Run(t, &CollectionUnitTestSuite{Suite: tester.NewUnitSuite(t)})
+func TestCollectionUnitSuite(t *testing.T) {
+	suite.Run(t, &CollectionUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 // Returns a status update function that signals the specified WaitGroup when it is done
-func (suite *CollectionUnitTestSuite) testStatusUpdater(
+func (suite *CollectionUnitSuite) testStatusUpdater(
 	wg *sync.WaitGroup,
 	statusToUpdate *support.ControllerOperationStatus,
 ) support.StatusUpdater {
@@ -59,7 +59,7 @@ func (suite *CollectionUnitTestSuite) testStatusUpdater(
 	}
 }
 
-func (suite *CollectionUnitTestSuite) TestCollection() {
+func (suite *CollectionUnitSuite) TestCollection() {
 	var (
 		now = time.Now()
 
@@ -281,7 +281,7 @@ func (suite *CollectionUnitTestSuite) TestCollection() {
 	}
 }
 
-func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
+func (suite *CollectionUnitSuite) TestCollectionReadError() {
 	var (
 		t                = suite.T()
 		stubItemID       = "fakeItemID"
@@ -349,7 +349,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadError() {
 	require.Equal(t, 1, collStatus.Metrics.Successes, "TODO: should be 0, but allowing 1 to reduce async management")
 }
 
-func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry() {
+func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 	var (
 		t                = suite.T()
 		stubItemID       = "fakeItemID"
@@ -417,7 +417,7 @@ func (suite *CollectionUnitTestSuite) TestCollectionReadUnauthorizedErrorRetry()
 }
 
 // Ensure metadata file always uses latest time for mod time
-func (suite *CollectionUnitTestSuite) TestCollectionPermissionBackupLatestModTime() {
+func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() {
 	var (
 		t            = suite.T()
 		stubItemID   = "fakeItemID"
@@ -779,7 +779,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 	}
 }
 
-func (suite *CollectionUnitTestSuite) TestItemExtensions() {
+func (suite *CollectionUnitSuite) TestItemExtensions() {
 	type verifyExtensionOutput func(
 		t *testing.T,
 		info details.ItemInfo,

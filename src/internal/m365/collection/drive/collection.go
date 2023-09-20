@@ -198,7 +198,6 @@ func (oc *Collection) Remove(itemID string) bool {
 }
 
 // IsEmpty check if a collection does not contain any items
-// TODO(meain): Should we just have function that returns driveItems?
 func (oc *Collection) IsEmpty() bool {
 	return len(oc.driveItems) == 0
 }
@@ -208,7 +207,7 @@ func (oc *Collection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
 ) <-chan data.Item {
-	go oc.populateItems(ctx, errs)
+	go oc.streamItems(ctx, errs)
 	return oc.data
 }
 
@@ -411,9 +410,9 @@ type driveStats struct {
 	itemsFound int64
 }
 
-// populateItems iterates through items added to the collection
+// streamItems iterates through items added to the collection
 // and uses the collection `itemReader` to read the item
-func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
+func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
 		stats driveStats
 		wg    sync.WaitGroup
@@ -453,7 +452,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 			defer func() { <-semaphoreCh }()
 
 			// Read the item
-			oc.populateDriveItem(
+			oc.streamDriveItem(
 				ctx,
 				parentPath,
 				item,
@@ -470,7 +469,7 @@ func (oc *Collection) populateItems(ctx context.Context, errs *fault.Bus) {
 	oc.reportAsCompleted(ctx, int(stats.itemsFound), int(stats.itemsRead), stats.byteCount)
 }
 
-func (oc *Collection) populateDriveItem(
+func (oc *Collection) streamDriveItem(
 	ctx context.Context,
 	parentPath *path.Builder,
 	item models.DriveItemable,

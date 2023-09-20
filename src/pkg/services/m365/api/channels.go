@@ -108,8 +108,6 @@ func (c Channels) GetChannelMessage(
 	ctx context.Context,
 	teamID, channelID, messageID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
-	var size int64
-
 	message, err := c.Stable.
 		Client().
 		Teams().
@@ -123,7 +121,14 @@ func (c Channels) GetChannelMessage(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	info := ChannelMessageInfo(message, size)
+	replies, err := c.GetChannelMessageReplies(ctx, teamID, channelID, messageID)
+	if err != nil {
+		return nil, nil, graph.Wrap(ctx, err, "retrieving message replies")
+	}
+
+	message.SetReplies(replies)
+
+	info := ChannelMessageInfo(message)
 
 	return message, info, nil
 }
@@ -134,12 +139,11 @@ func (c Channels) GetChannelMessage(
 
 func ChannelMessageInfo(
 	msg models.ChatMessageable,
-	size int64,
 ) *details.GroupsInfo {
 	var (
-		lastReply  time.Time
-		modTime    = ptr.OrNow(msg.GetLastModifiedDateTime())
-		msgCreator string
+		lastReply time.Time
+		modTime   = ptr.OrNow(msg.GetLastModifiedDateTime())
+		content   string
 	)
 
 	for _, r := range msg.GetReplies() {
@@ -156,17 +160,8 @@ func ChannelMessageInfo(
 		modTime = lastReply
 	}
 
-	from := msg.GetFrom()
-
-	switch true {
-	case from == nil:
-		// not all messages have a populated 'from'.  Namely, system messages do not.
-	case from.GetApplication() != nil:
-		msgCreator = ptr.Val(from.GetApplication().GetDisplayName())
-	case from.GetDevice() != nil:
-		msgCreator = ptr.Val(from.GetDevice().GetDisplayName())
-	case from.GetUser() != nil:
-		msgCreator = ptr.Val(from.GetUser().GetDisplayName())
+	if msg.GetBody() != nil {
+		content = ptr.Val(msg.GetBody().GetContent())
 	}
 
 	return &details.GroupsInfo{
@@ -174,10 +169,10 @@ func ChannelMessageInfo(
 		Created:        ptr.Val(msg.GetCreatedDateTime()),
 		LastReplyAt:    lastReply,
 		Modified:       modTime,
-		MessageCreator: msgCreator,
-		MessagePreview: str.Preview(ptr.Val(msg.GetBody().GetContent()), 16),
+		MessageCreator: GetChatMessageFrom(msg),
+		MessagePreview: str.Preview(content, 16),
 		ReplyCount:     len(msg.GetReplies()),
-		Size:           size,
+		Size:           int64(len(content)),
 	}
 }
 
@@ -199,4 +194,21 @@ func CheckIDAndName(c models.Channelable) error {
 	}
 
 	return nil
+}
+
+func GetChatMessageFrom(msg models.ChatMessageable) string {
+	from := msg.GetFrom()
+
+	switch true {
+	case from == nil:
+		return ""
+	case from.GetApplication() != nil:
+		return ptr.Val(from.GetApplication().GetDisplayName())
+	case from.GetDevice() != nil:
+		return ptr.Val(from.GetDevice().GetDisplayName())
+	case from.GetUser() != nil:
+		return ptr.Val(from.GetUser().GetDisplayName())
+	}
+
+	return ""
 }

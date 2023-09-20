@@ -26,6 +26,7 @@ import (
 type errorCode string
 
 const (
+	applicationThrottled errorCode = "ApplicationThrottled"
 	// this auth error is a catch-all used by graph in a variety of cases:
 	// users without licenses, bad jwts, missing account permissions, etc.
 	AuthenticationError errorCode = "AuthenticationError"
@@ -81,6 +82,10 @@ const (
 )
 
 var (
+	// ErrApplicationThrottled occurs if throttling retries are exhausted and completely
+	// fails out.
+	ErrApplicationThrottled = clues.New("application throttled")
+
 	// The folder or item was deleted between the time we identified
 	// it and when we tried to fetch data for it.
 	ErrDeletedInFlight = clues.New("deleted in flight")
@@ -96,6 +101,13 @@ var (
 	// when filenames collide in a @microsoft.graph.conflictBehavior=fail request.
 	ErrItemAlreadyExistsConflict = clues.New("item already exists")
 
+	// ErrMultipleResultsMatchIdentifier describes a situation where we're doing a lookup
+	// in some way other than by canonical url ID (ex: filtering, searching, etc).
+	// This error should only be returned if a unique result is an expected constraint
+	// of the call results.  If it's possible to opportunistically select one of the many
+	// replies, no error should get returned.
+	ErrMultipleResultsMatchIdentifier = clues.New("multiple results match the identifier")
+
 	// ErrServiceNotEnabled identifies that a resource owner does not have
 	// access to a given service.
 	ErrServiceNotEnabled = clues.New("service is not enabled for that resource owner")
@@ -108,6 +120,11 @@ var (
 
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 )
+
+func IsErrApplicationThrottled(err error) bool {
+	return hasErrorCode(err, applicationThrottled) ||
+		errors.Is(err, ErrApplicationThrottled)
+}
 
 func IsErrAuthenticationError(err error) bool {
 	return hasErrorCode(err, AuthenticationError)

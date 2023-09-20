@@ -270,37 +270,44 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 		odname = "od-name"
 		spid   = "sp-id"
 		spname = "sp-name"
+		spsid  = "sp-sid"
+		spurl  = "sp-url"
+		gpid   = "gp-id"
+		gpname = "gp-name"
 		// intentionally declared outside the test loop
 		ctrl = &Controller{
 			wg:                 &sync.WaitGroup{},
 			region:             &trace.Region{},
 			backupDriveIDNames: idname.NewCache(nil),
+			backupSiteIDWebURL: idname.NewCache(nil),
 		}
 	)
 
 	table := []struct {
-		name       string
-		service    path.ServiceType
-		cat        path.CategoryType
-		dii        details.ItemInfo
-		expectID   string
-		expectName string
+		name             string
+		service          path.ServiceType
+		cat              path.CategoryType
+		dii              details.ItemInfo
+		expectDriveID    string
+		expectDriveName  string
+		expectSiteID     string
+		expectSiteWebURL string
 	}{
 		{
 			name: "exchange",
 			dii: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{},
 			},
-			expectID:   "",
-			expectName: "",
+			expectDriveID:   "",
+			expectDriveName: "",
 		},
 		{
 			name: "folder",
 			dii: details.ItemInfo{
 				Folder: &details.FolderInfo{},
 			},
-			expectID:   "",
-			expectName: "",
+			expectDriveID:   "",
+			expectDriveName: "",
 		},
 		{
 			name: "onedrive",
@@ -310,8 +317,8 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 					DriveName: odname,
 				},
 			},
-			expectID:   odid,
-			expectName: odname,
+			expectDriveID:   odid,
+			expectDriveName: odname,
 		},
 		{
 			name: "sharepoint",
@@ -319,10 +326,29 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 				SharePoint: &details.SharePointInfo{
 					DriveID:   spid,
 					DriveName: spname,
+					SiteID:    spsid,
+					WebURL:    spurl,
 				},
 			},
-			expectID:   spid,
-			expectName: spname,
+			expectDriveID:    spid,
+			expectDriveName:  spname,
+			expectSiteID:     spsid,
+			expectSiteWebURL: spurl,
+		},
+		{
+			name: "groups",
+			dii: details.ItemInfo{
+				Groups: &details.GroupsInfo{
+					DriveID:   gpid,
+					DriveName: gpname,
+					SiteID:    spsid,
+					WebURL:    spurl,
+				},
+			},
+			expectDriveID:    gpid,
+			expectDriveName:  gpname,
+			expectSiteID:     spsid,
+			expectSiteWebURL: spurl,
 		},
 	}
 	for _, test := range table {
@@ -331,11 +357,17 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 
 			ctrl.CacheItemInfo(test.dii)
 
-			name, _ := ctrl.backupDriveIDNames.NameOf(test.expectID)
-			assert.Equal(t, test.expectName, name)
+			name, _ := ctrl.backupDriveIDNames.NameOf(test.expectDriveID)
+			assert.Equal(t, test.expectDriveName, name)
 
-			id, _ := ctrl.backupDriveIDNames.IDOf(test.expectName)
-			assert.Equal(t, test.expectID, id)
+			id, _ := ctrl.backupDriveIDNames.IDOf(test.expectDriveName)
+			assert.Equal(t, test.expectDriveID, id)
+
+			url, _ := ctrl.backupSiteIDWebURL.NameOf(test.expectSiteID)
+			assert.Equal(t, test.expectSiteWebURL, url)
+
+			sid, _ := ctrl.backupSiteIDWebURL.IDOf(test.expectSiteWebURL)
+			assert.Equal(t, test.expectSiteID, sid)
 		})
 	}
 }
@@ -421,6 +453,20 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 			col:  []data.RestoreCollection{},
 			sel: selectors.Selector{
 				Service: selectors.ServiceSharePoint,
+			},
+		},
+		{
+			name: "GroupsNil",
+			col:  nil,
+			sel: selectors.Selector{
+				Service: selectors.ServiceGroups,
+			},
+		},
+		{
+			name: "GroupsEmpty",
+			col:  []data.RestoreCollection{},
+			sel: selectors.Selector{
+				Service: selectors.ServiceGroups,
 			},
 		},
 	}
@@ -1249,6 +1295,28 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 				// path.ListsCategory.String(),
 			},
 		},
+		{
+			name:        "Groups",
+			resourceCat: resource.Sites,
+			selectorFunc: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{tconfig.M365TeamID(t)})
+				sel.Include(
+					sel.LibraryFolders([]string{selectors.NoneTgt}),
+					// not yet in use
+					//  sel.Pages([]string{selectors.NoneTgt}),
+					//  sel.Lists([]string{selectors.NoneTgt}),
+				)
+
+				return sel.Selector
+			},
+			service: path.GroupsService,
+			categories: []string{
+				path.LibrariesCategory.String(),
+				// not yet in use
+				// path.PagesCategory.String(),
+				// path.ListsCategory.String(),
+			},
+		},
 	}
 
 	for _, test := range table {
@@ -1381,12 +1449,14 @@ func (suite *DisconnectedUnitSuite) TestController_Status() {
 
 func (suite *DisconnectedUnitSuite) TestVerifyBackupInputs_allServices() {
 	sites := []string{"abc.site.foo", "bar.site.baz"}
+	groups := []string{"123", "456"}
 
 	tests := []struct {
 		name       string
 		excludes   func(t *testing.T) selectors.Selector
 		filters    func(t *testing.T) selectors.Selector
 		includes   func(t *testing.T) selectors.Selector
+		cachedIDs  []string
 		checkError assert.ErrorAssertionFunc
 	}{
 		{
@@ -1433,6 +1503,7 @@ func (suite *DisconnectedUnitSuite) TestVerifyBackupInputs_allServices() {
 		{
 			name:       "valid sites",
 			checkError: assert.NoError,
+			cachedIDs:  sites,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"abc.site.foo", "bar.site.baz"})
 				sel.DiscreteOwner = "abc.site.foo"
@@ -1455,6 +1526,7 @@ func (suite *DisconnectedUnitSuite) TestVerifyBackupInputs_allServices() {
 		{
 			name:       "invalid sites",
 			checkError: assert.Error,
+			cachedIDs:  sites,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"fnords.smarfs.brawnhilda"})
 				sel.Exclude(sel.AllData())
@@ -1471,17 +1543,61 @@ func (suite *DisconnectedUnitSuite) TestVerifyBackupInputs_allServices() {
 				return sel.Selector
 			},
 		},
+
+		{
+			name:       "valid groups",
+			checkError: assert.NoError,
+			cachedIDs:  groups,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"123", "456"})
+				sel.DiscreteOwner = "123"
+				sel.Exclude(sel.AllData())
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"123", "456"})
+				sel.DiscreteOwner = "123"
+				sel.Filter(sel.AllData())
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"123", "456"})
+				sel.DiscreteOwner = "123"
+				sel.Include(sel.AllData())
+				return sel.Selector
+			},
+		},
+		{
+			name:       "invalid groups",
+			checkError: assert.Error,
+			cachedIDs:  groups,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"789"})
+				sel.Exclude(sel.AllData())
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"789"})
+				sel.Filter(sel.AllData())
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"789"})
+				sel.Include(sel.AllData())
+				return sel.Selector
+			},
+		},
 	}
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := verifyBackupInputs(test.excludes(t), sites)
+			err := verifyBackupInputs(test.excludes(t), test.cachedIDs)
 			test.checkError(t, err, clues.ToCore(err))
-			err = verifyBackupInputs(test.filters(t), sites)
+			err = verifyBackupInputs(test.filters(t), test.cachedIDs)
 			test.checkError(t, err, clues.ToCore(err))
-			err = verifyBackupInputs(test.includes(t), sites)
+			err = verifyBackupInputs(test.includes(t), test.cachedIDs)
 			test.checkError(t, err, clues.ToCore(err))
 		})
 	}

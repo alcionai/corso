@@ -46,9 +46,11 @@ func (suite *ContactsAPIUnitSuite) TestContactInfo() {
 					Created:  initial,
 					Modified: initial,
 				}
+
 				return contact, i
 			},
-		}, {
+		},
+		{
 			name: "Only Name",
 			contactAndRP: func() (models.Contactable, *details.ExchangeInfo) {
 				aPerson := "Whole Person"
@@ -56,12 +58,14 @@ func (suite *ContactsAPIUnitSuite) TestContactInfo() {
 				contact.SetCreatedDateTime(&initial)
 				contact.SetLastModifiedDateTime(&initial)
 				contact.SetDisplayName(&aPerson)
+
 				i := &details.ExchangeInfo{
 					ItemType:    details.ExchangeContact,
 					ContactName: aPerson,
 					Created:     initial,
 					Modified:    initial,
 				}
+
 				return contact, i
 			},
 		},
