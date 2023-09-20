@@ -7,9 +7,11 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ItemGetSerialize struct {
+	GetData        serialization.Parsable
 	GetCount       int
 	GetErr         error
 	SerializeCount int
@@ -23,16 +25,21 @@ func (m *ItemGetSerialize) GetItem(
 	*fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	m.GetCount++
-	return nil, &details.ExchangeInfo{}, m.GetErr
+	return m.GetData, &details.ExchangeInfo{}, m.GetErr
 }
 
 func (m *ItemGetSerialize) Serialize(
-	context.Context,
-	serialization.Parsable,
-	string, string,
+	ctx context.Context,
+	p serialization.Parsable,
+	_ string, _ string,
 ) ([]byte, error) {
 	m.SerializeCount++
-	return nil, m.SerializeErr
+
+	if p == nil || m.SerializeErr != nil {
+		return nil, m.SerializeErr
+	}
+
+	return api.Mail{}.Serialize(ctx, p, "", "")
 }
 
 func DefaultItemGetSerialize() *ItemGetSerialize {

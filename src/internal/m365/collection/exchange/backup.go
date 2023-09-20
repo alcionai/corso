@@ -160,7 +160,7 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, _, removed, newDelta, err := bh.itemEnumerator().
+		added, validModTimes, removed, newDelta, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
@@ -197,21 +197,12 @@ func populateCollections(
 				newDelta.Reset),
 			qp.ProtectedResource.ID(),
 			bh.itemHandler(),
+			added,
+			removed,
+			validModTimes,
 			statusUpdater)
 
-		collections[cID] = &edc
-
-		for add := range added {
-			edc.added[add] = struct{}{}
-		}
-
-		// Remove any deleted IDs from the set of added IDs because items that are
-		// deleted and then restored will have a different ID than they did
-		// originally.
-		for _, remove := range removed {
-			delete(edc.added, remove)
-			edc.removed[remove] = struct{}{}
-		}
+		collections[cID] = edc
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
@@ -259,8 +250,11 @@ func populateCollections(
 				false),
 			qp.ProtectedResource.ID(),
 			bh.itemHandler(),
+			nil,
+			nil,
+			false,
 			statusUpdater)
-		collections[id] = &edc
+		collections[id] = edc
 	}
 
 	logger.Ctx(ctx).Infow(
