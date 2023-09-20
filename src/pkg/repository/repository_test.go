@@ -393,6 +393,31 @@ func (suite *RepositoryIntegrationSuite) TestConnect_DisableMetrics() {
 	assert.Equal(t, r.GetID(), r.GetID())
 }
 
+func (suite *RepositoryIntegrationSuite) TestConnect_ReadOnly() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// need to initialize the repository before we can test connecting to it.
+	st := storeTD.NewPrefixedS3Storage(t)
+
+	repo, err := Initialize(
+		ctx,
+		account.Account{},
+		st,
+		control.DefaultOptions(),
+		ctrlRepo.Retention{})
+	require.NoError(t, err)
+
+	// now re-connect
+	r, err := Connect(ctx, account.Account{}, st, repo.GetID(), control.Options{Repo: ctrlRepo.Options{ReadOnly: true}})
+	assert.NoError(t, err)
+
+	// now we have repoID beforehand
+	assert.Equal(t, r.GetID(), r.GetID())
+}
+
 // Test_Options tests that the options are passed through to the repository
 // correctly
 func (suite *RepositoryIntegrationSuite) Test_Options() {

@@ -184,6 +184,7 @@ func (w *conn) commonConnect(
 		ClientOptions: repo.ClientOptions{
 			Username: opts.User,
 			Hostname: opts.Host,
+			ReadOnly: opts.ReadOnly,
 		},
 	}
 
