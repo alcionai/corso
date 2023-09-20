@@ -148,9 +148,9 @@ func (c Mail) NewMailPager(
 	builder := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(containerID).
+		ByMailFolderId(containerID).
 		Messages()
 
 	return &mailsPageCtrl{c.Stable, builder, options}
@@ -234,9 +234,9 @@ func getMailDeltaBuilder(
 ) *users.ItemMailFoldersItemMessagesDeltaRequestBuilder {
 	builder := gs.Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(containerID).
+		ByMailFolderId(containerID).
 		Messages().
 		Delta()
 
