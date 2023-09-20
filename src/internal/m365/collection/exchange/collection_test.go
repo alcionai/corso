@@ -63,32 +63,6 @@ func (suite *CollectionUnitSuite) TestReader_Empty() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
-func (suite *CollectionUnitSuite) TestCollection_NewCollection() {
-	t := suite.T()
-	tenant := "a-tenant"
-	user := "a-user"
-	folder := "a-folder"
-	name := "User"
-
-	fullPath, err := path.Build(
-		tenant,
-		user,
-		path.ExchangeService,
-		path.EmailCategory,
-		false,
-		folder)
-	require.NoError(t, err, clues.ToCore(err))
-
-	edc := prefetchCollection{
-		baseCollection: baseCollection{
-			fullPath: fullPath,
-		},
-		user: name,
-	}
-	assert.Equal(t, name, edc.user)
-	assert.Equal(t, fullPath, edc.FullPath())
-}
-
 func (suite *CollectionUnitSuite) TestNewCollection_state() {
 	type collectionTypes struct {
 		name          string
@@ -153,7 +127,7 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 					t := suite.T()
 
 					c := NewCollection(
-						NewBaseCollection(
+						data.NewBaseCollection(
 							test.curr,
 							test.prev,
 							test.loc,
@@ -296,7 +270,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 			defer flush()
 
 			col := NewCollection(
-				NewBaseCollection(
+				data.NewBaseCollection(
 					fullPath,
 					nil,
 					locPath.ToBuilder(),
@@ -434,7 +408,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 			defer mlg.check(t, test.expectReads)
 
 			col := NewCollection(
-				NewBaseCollection(
+				data.NewBaseCollection(
 					fullPath,
 					nil,
 					locPath.ToBuilder(),

@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -37,71 +36,6 @@ const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
 )
-
-func NewBaseCollection(
-	curr, prev path.Path,
-	location *path.Builder,
-	ctrlOpts control.Options,
-	doNotMergeItems bool,
-) baseCollection {
-	return baseCollection{
-		ctrl:            ctrlOpts,
-		doNotMergeItems: doNotMergeItems,
-		fullPath:        curr,
-		locationPath:    location,
-		prevPath:        prev,
-		state:           data.StateOf(prev, curr),
-	}
-}
-
-// baseCollection contains basic functionality like returning path, location,
-// and state information. It can be embedded in other implementations to provide
-// this functionality.
-//
-// Functionality like how items are fetched is left to the embedding struct.
-type baseCollection struct {
-	ctrl control.Options
-
-	// FullPath is the current hierarchical path used by this collection.
-	fullPath path.Path
-
-	// PrevPath is the previous hierarchical path used by this collection.
-	// It may be the same as fullPath, if the folder was not renamed or
-	// moved.  It will be empty on its first retrieval.
-	prevPath path.Path
-
-	// LocationPath contains the path with human-readable display names.
-	// IE: "/Inbox/Important" instead of "/abcdxyz123/algha=lgkhal=t"
-	locationPath *path.Builder
-
-	state data.CollectionState
-
-	// doNotMergeItems should only be true if the old delta token expired.
-	doNotMergeItems bool
-}
-
-// FullPath returns the baseCollection's fullPath []string
-func (col *baseCollection) FullPath() path.Path {
-	return col.fullPath
-}
-
-// LocationPath produces the baseCollection's full path, but with display names
-// instead of IDs in the folders.  Only populated for Calendars.
-func (col *baseCollection) LocationPath() *path.Builder {
-	return col.locationPath
-}
-
-func (col baseCollection) PreviousPath() path.Path {
-	return col.prevPath
-}
-
-func (col baseCollection) State() data.CollectionState {
-	return col.state
-}
-
-func (col baseCollection) DoNotMergeItems() bool {
-	return col.doNotMergeItems
-}
 
 // updateStatus is a utility function used to send the status update through
 // the channel.
@@ -173,7 +107,7 @@ func getItemAndInfo(
 // If both are populated, then state is either moved (if they differ),
 // or notMoved (if they match).
 func NewCollection(
-	bc baseCollection,
+	bc data.BaseCollection,
 	user string,
 	items itemGetterSerializer,
 	origAdded map[string]time.Time,
@@ -199,7 +133,7 @@ func NewCollection(
 
 	if !validModTimes {
 		return &prefetchCollection{
-			baseCollection: bc,
+			BaseCollection: bc,
 			user:           user,
 			added:          added,
 			removed:        removed,
@@ -209,7 +143,7 @@ func NewCollection(
 	}
 
 	return &lazyFetchCollection{
-		baseCollection: bc,
+		BaseCollection: bc,
 		user:           user,
 		added:          added,
 		removed:        removed,
@@ -221,7 +155,7 @@ func NewCollection(
 // prefetchCollection implements the interface from data.BackupCollection
 // Structure holds data for an Exchange application for a single user
 type prefetchCollection struct {
-	baseCollection
+	data.BaseCollection
 
 	user string
 
@@ -291,7 +225,7 @@ func (col *prefetchCollection) streamItems(
 		defer close(colProgress)
 	}
 
-	semaphoreCh := make(chan struct{}, col.ctrl.Parallelism.ItemFetch)
+	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
 	defer close(semaphoreCh)
 
 	// delete all removed items
@@ -339,7 +273,7 @@ func (col *prefetchCollection) streamItems(
 				col.getter,
 				user,
 				id,
-				col.ctrl.ToggleFeatures.ExchangeImmutableIDs,
+				col.Opts().ToggleFeatures.ExchangeImmutableIDs,
 				parentPath)
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to
@@ -388,7 +322,7 @@ func (col *prefetchCollection) streamItems(
 // information (path and mod time) is handed to kopia. Total bytes across all
 // items is not tracked.
 type lazyFetchCollection struct {
-	baseCollection
+	data.BaseCollection
 
 	user string
 
@@ -489,7 +423,7 @@ func (col *lazyFetchCollection) streamItems(
 			id:           id,
 			getter:       col.getter,
 			modTime:      modTime,
-			immutableIDs: col.ctrl.ToggleFeatures.ExchangeImmutableIDs,
+			immutableIDs: col.Opts().ToggleFeatures.ExchangeImmutableIDs,
 			parentPath:   parentPath,
 			errs:         errs,
 		}
