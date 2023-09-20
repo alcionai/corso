@@ -3099,15 +3099,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					time.Time{},
 					newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData5))),
-				),
+						io.NopCloser(bytes.NewReader(fileData5)))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName6)[0],
 					time.Time{},
 					newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData6))),
-				),
+						io.NopCloser(bytes.NewReader(fileData6)))),
 			})
 		counters[folderID3] = count
 
@@ -3119,15 +3117,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					time.Time{},
 					newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData3))),
-				),
+						io.NopCloser(bytes.NewReader(fileData3)))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName4)[0],
 					time.Time{},
 					newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData4))),
-				),
+						io.NopCloser(bytes.NewReader(fileData4)))),
 				folder,
 			})
 		counters[folderID2] = count
@@ -3140,15 +3136,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					time.Time{},
 					newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData1))),
-				),
+						io.NopCloser(bytes.NewReader(fileData1)))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName2)[0],
 					time.Time{},
 					newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData2))),
-				),
+						io.NopCloser(bytes.NewReader(fileData2)))),
 				folder,
 			})
 		counters[folderID1] = count
@@ -3161,15 +3155,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					time.Time{},
 					newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData7))),
-				),
+						io.NopCloser(bytes.NewReader(fileData7)))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName8)[0],
 					time.Time{},
 					newBackupStreamReader(
 						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData8))),
-				),
+						io.NopCloser(bytes.NewReader(fileData8)))),
 			})
 		counters[folderID4] = count
 
@@ -3178,8 +3170,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				[]fs.Entry{
 					folder,
 					folder2,
-				},
-			),
+				}),
 			counters
 	}
 
@@ -3236,8 +3227,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							newExpectedFile(fileName8, fileData8),
 						},
 					},
-				},
-			),
+				}),
 			expectedIterateCounts: map[string]int{
 				folderID1: 0,
 				folderID2: 0,
@@ -3266,8 +3256,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							newExpectedFile(fileName8, fileData8),
 						},
 					},
-				},
-			),
+				}),
 			expectedIterateCounts: map[string]int{
 				// Deleted collections aren't added to the in-memory tree.
 				folderID1: 0,
@@ -3340,8 +3329,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							newExpectedFile(fileName8, fileData8),
 						},
 					},
-				},
-			),
+				}),
 			expectedIterateCounts: map[string]int{
 				folderID1: 1,
 				folderID2: 0,
@@ -3384,8 +3372,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							newExpectedFile(fileName8, fileData8),
 						},
 					},
-				},
-			),
+				}),
 			expectedIterateCounts: map[string]int{
 				folderID1: 1,
 				// Deleted collections aren't added to the in-memory tree.
@@ -3446,8 +3433,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							newExpectedFile(fileName8, fileData8),
 						},
 					},
-				},
-			),
+				}),
 			expectedIterateCounts: map[string]int{
 				folderID1: 1,
 				folderID2: 1,
@@ -3505,8 +3491,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							newExpectedFile(fileName8, fileData8),
 						},
 					},
-				},
-			),
+				}),
 			expectedIterateCounts: map[string]int{
 				folderID1: 1,
 				// Folder 2 can't be pruned because there's subtree changes under it
@@ -3570,8 +3555,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							newExpectedFile(fileName8, fileData8),
 						},
 					},
-				},
-			),
+				}),
 			expectedIterateCounts: map[string]int{
 				folderID1: 1,
 				// Folder 2 can't be pruned because there's subtree changes under it
@@ -3619,8 +3603,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							newExpectedFile(fileName8, fileData8),
 						},
 					},
-				},
-			),
+				}),
 			expectedIterateCounts: map[string]int{
 				folderID1: 1,
 				// Folder 2 can't be pruned because there's subtree changes under it
@@ -3680,8 +3663,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 							},
 						},
 					},
-				},
-			),
+				}),
 			expectedIterateCounts: map[string]int{
 				// Folder 1 can't be pruned because there's subtree changes under it
 				// (folder4 move).
