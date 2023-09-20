@@ -2,7 +2,7 @@ package groups
 
 import (
 	"context"
-	ospath "path"
+	stdlibpath "path"
 
 	"github.com/alcionai/clues"
 
@@ -67,7 +67,7 @@ func ProduceExportCollections(
 			}
 
 			folders := restoreColl.FullPath().Folders()
-			siteName := folders[1] // use siteID by fault
+			siteName := folders[1] // use siteID by default
 
 			webURL, ok := backupSiteIDWebURL.NameOf(siteName)
 			if !ok {
@@ -79,7 +79,7 @@ func ProduceExportCollections(
 				// We can't use the actual name anyways as it might
 				// contain invalid characters. This should also avoid
 				// possibility of name collisions.
-				siteName = ospath.Base(webURL)
+				siteName = stdlibpath.Base(webURL)
 			}
 
 			baseDir := path.Builder{}.
