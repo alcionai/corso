@@ -44,10 +44,9 @@ var (
 	PageFolderInput = []string{"pageFolder1", "pageFolder2"}
 	PageInput       = []string{"page1", "page2"}
 
-	Collisions  = "collisions"
-	Destination = "destination"
-	ToResource  = "toResource"
-	// RestorePermissions = true
+	Collisions      = "collisions"
+	Destination     = "destination"
+	ToResource      = "toResource"
 	SkipPermissions = false
 
 	DeltaPageSize = "deltaPageSize"

@@ -20,8 +20,7 @@ type RestoreCfgOpts struct {
 	// dttm.HumanReadable.
 	DTTMFormat        dttm.TimeFormat
 	ProtectedResource string
-	// RestorePermissions bool
-	SkipPermissions bool
+	SkipPermissions   bool
 
 	Populated flags.PopulatedFlags
 }

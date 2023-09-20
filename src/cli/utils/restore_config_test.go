@@ -130,7 +130,7 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			},
 		},
 		{
-			name: "with restore permissions",
+			name: "without restore permissions",
 			rco: &RestoreCfgOpts{
 				Collisions:      "collisions",
 				Destination:     "destination",
@@ -143,7 +143,7 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			expect: control.RestoreConfig{
 				OnCollision:        control.CollisionPolicy("collisions"),
 				Location:           "destination",
-				IncludePermissions: true,
+				IncludePermissions: false,
 			},
 		},
 	}
@@ -160,8 +160,6 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			result := MakeRestoreConfig(ctx, opts)
 			assert.Equal(t, test.expect.OnCollision, result.OnCollision)
 			assert.Contains(t, result.Location, test.expect.Location)
-			//  since the default is IncludePermissions=true. It will always won't be set explicitly.
-			// assert.Equal(t, test.expect.IncludePermissions, result.IncludePermissions)
 		})
 	}
 }
