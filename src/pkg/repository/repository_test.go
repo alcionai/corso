@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/kopia/kopia/repo/blob/readonly"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -414,8 +415,13 @@ func (suite *RepositoryIntegrationSuite) TestConnect_ReadOnly() {
 	r, err := Connect(ctx, account.Account{}, st, repo.GetID(), control.Options{Repo: ctrlRepo.Options{ReadOnly: true}})
 	assert.NoError(t, err)
 
-	// now we have repoID beforehand
-	assert.Equal(t, r.GetID(), r.GetID())
+	// Maintenance attempts to write some blobs just to say it was running. Since
+	// we're in readonly mode it should fail with a sentinel error.
+	op, err := r.NewMaintenance(ctx, ctrlRepo.Maintenance{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = op.Run(ctx)
+	assert.ErrorIs(t, err, readonly.ErrReadonly)
 }
 
 // Test_Options tests that the options are passed through to the repository
