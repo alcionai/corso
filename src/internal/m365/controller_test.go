@@ -270,6 +270,8 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 		odname = "od-name"
 		spid   = "sp-id"
 		spname = "sp-name"
+		spsid  = "sp-sid"
+		spurl  = "sp-url"
 		gpid   = "gp-id"
 		gpname = "gp-name"
 		// intentionally declared outside the test loop
@@ -277,32 +279,35 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 			wg:                 &sync.WaitGroup{},
 			region:             &trace.Region{},
 			backupDriveIDNames: idname.NewCache(nil),
+			backupSiteIDWebURL: idname.NewCache(nil),
 		}
 	)
 
 	table := []struct {
-		name       string
-		service    path.ServiceType
-		cat        path.CategoryType
-		dii        details.ItemInfo
-		expectID   string
-		expectName string
+		name             string
+		service          path.ServiceType
+		cat              path.CategoryType
+		dii              details.ItemInfo
+		expectDriveID    string
+		expectDriveName  string
+		expectSiteID     string
+		expectSiteWebURL string
 	}{
 		{
 			name: "exchange",
 			dii: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{},
 			},
-			expectID:   "",
-			expectName: "",
+			expectDriveID:   "",
+			expectDriveName: "",
 		},
 		{
 			name: "folder",
 			dii: details.ItemInfo{
 				Folder: &details.FolderInfo{},
 			},
-			expectID:   "",
-			expectName: "",
+			expectDriveID:   "",
+			expectDriveName: "",
 		},
 		{
 			name: "onedrive",
@@ -312,8 +317,8 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 					DriveName: odname,
 				},
 			},
-			expectID:   odid,
-			expectName: odname,
+			expectDriveID:   odid,
+			expectDriveName: odname,
 		},
 		{
 			name: "sharepoint",
@@ -321,10 +326,14 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 				SharePoint: &details.SharePointInfo{
 					DriveID:   spid,
 					DriveName: spname,
+					SiteID:    spsid,
+					WebURL:    spurl,
 				},
 			},
-			expectID:   spid,
-			expectName: spname,
+			expectDriveID:    spid,
+			expectDriveName:  spname,
+			expectSiteID:     spsid,
+			expectSiteWebURL: spurl,
 		},
 		{
 			name: "groups",
@@ -332,10 +341,14 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 				Groups: &details.GroupsInfo{
 					DriveID:   gpid,
 					DriveName: gpname,
+					SiteID:    spsid,
+					WebURL:    spurl,
 				},
 			},
-			expectID:   gpid,
-			expectName: gpname,
+			expectDriveID:    gpid,
+			expectDriveName:  gpname,
+			expectSiteID:     spsid,
+			expectSiteWebURL: spurl,
 		},
 	}
 	for _, test := range table {
@@ -344,11 +357,17 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 
 			ctrl.CacheItemInfo(test.dii)
 
-			name, _ := ctrl.backupDriveIDNames.NameOf(test.expectID)
-			assert.Equal(t, test.expectName, name)
+			name, _ := ctrl.backupDriveIDNames.NameOf(test.expectDriveID)
+			assert.Equal(t, test.expectDriveName, name)
 
-			id, _ := ctrl.backupDriveIDNames.IDOf(test.expectName)
-			assert.Equal(t, test.expectID, id)
+			id, _ := ctrl.backupDriveIDNames.IDOf(test.expectDriveName)
+			assert.Equal(t, test.expectDriveID, id)
+
+			url, _ := ctrl.backupSiteIDWebURL.NameOf(test.expectSiteID)
+			assert.Equal(t, test.expectSiteWebURL, url)
+
+			sid, _ := ctrl.backupSiteIDWebURL.IDOf(test.expectSiteWebURL)
+			assert.Equal(t, test.expectSiteID, sid)
 		})
 	}
 }

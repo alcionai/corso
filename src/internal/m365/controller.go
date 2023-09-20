@@ -50,10 +50,15 @@ type Controller struct {
 	mu     sync.Mutex
 	status support.ControllerOperationStatus // contains the status of the last run status
 
-	// backupDriveIDNames is populated on restore.  It maps the backup's
-	// drive names to their id. Primarily for use when creating or looking
-	// up a new drive.
+	// backupDriveIDNames is populated on restore and export.  It maps
+	// the backup's drive names to their id. Primarily for use when
+	// creating or looking up a new drive.
 	backupDriveIDNames idname.CacheBuilder
+
+	// backupSiteIDWebURL is populated on restore and export. It maps
+	// the backup's site names to their id. Primarily for use in
+	// exports for groups.
+	backupSiteIDWebURL idname.CacheBuilder
 }
 
 func NewController(
@@ -99,6 +104,7 @@ func NewController(
 		tenant:             acct.ID(),
 		wg:                 &sync.WaitGroup{},
 		backupDriveIDNames: idname.NewCache(nil),
+		backupSiteIDWebURL: idname.NewCache(nil),
 	}
 
 	return &ctrl, nil
@@ -163,10 +169,12 @@ func (ctrl *Controller) incrementAwaitingMessages() {
 func (ctrl *Controller) CacheItemInfo(dii details.ItemInfo) {
 	if dii.Groups != nil {
 		ctrl.backupDriveIDNames.Add(dii.Groups.DriveID, dii.Groups.DriveName)
+		ctrl.backupSiteIDWebURL.Add(dii.Groups.SiteID, dii.Groups.WebURL)
 	}
 
 	if dii.SharePoint != nil {
 		ctrl.backupDriveIDNames.Add(dii.SharePoint.DriveID, dii.SharePoint.DriveName)
+		ctrl.backupSiteIDWebURL.Add(dii.SharePoint.SiteID, dii.SharePoint.WebURL)
 	}
 
 	if dii.OneDrive != nil {
