@@ -62,7 +62,7 @@ func AddFailFastFlag(cmd *cobra.Command) {
 	cobra.CheckErr(fs.MarkHidden(FailFastFN))
 }
 
-// AddSkipPermissionsFlag adds OneDrive flag for restoring permissions
+// AddSkipPermissionsFlag adds OneDrive flag for skipping restoring permissions
 func AddSkipPermissionsFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.BoolVar(&SkipPermissionsFV, SkipPermissionsFN, false, "Skip restoring of permissions for files and folders")

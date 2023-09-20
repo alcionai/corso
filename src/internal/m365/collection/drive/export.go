@@ -76,7 +76,7 @@ func streamItems(
 
 // isMetadataFile is used to determine if a path corresponds to a
 // metadata file.  This is OneDrive specific logic and depends on the
-// version of the backup unlike metadata.IsMetadataFile which only has
+// version of the backup unlike metadata.isMetadataFile which only has
 // to be concerned about the current version.
 func isMetadataFile(id string, backupVersion int) bool {
 	if backupVersion < version.OneDrive1DataAndMetaFiles {
