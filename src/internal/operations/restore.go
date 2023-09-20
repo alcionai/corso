@@ -136,6 +136,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	ctx = count.Embed(ctx, op.Counter)
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.acct.ID()),

@@ -202,6 +202,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	ctx = count.Embed(ctx, op.Counter)
+
 	// Check if the protected resource has the service enabled in order for us
 	// to run a backup.
 	enabled, err := op.bp.IsServiceEnabled(
