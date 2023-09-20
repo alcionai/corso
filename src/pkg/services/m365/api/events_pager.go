@@ -95,7 +95,10 @@ func (c Events) EnumerateContainers(
 			break
 		}
 
-		gncf := graph.NewCacheFolder(CalendarDisplayable{Calendarable: c}, nil, nil)
+		gncf := graph.NewCacheFolder(
+			CalendarDisplayable{Calendarable: c},
+			path.Builder{}.Append(ptr.Val(c.GetId())),
+			path.Builder{}.Append(ptr.Val(c.GetName())))
 
 		if err := fn(&gncf); err != nil {
 			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
