@@ -125,7 +125,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
 
 			// bool flags
-			assert.False(t, flags.SkipPermissionsFV)
+			assert.False(t, flags.NoPermissionsFV)
 		})
 	}
 }

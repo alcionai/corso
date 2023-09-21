@@ -134,7 +134,7 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			rco: &RestoreCfgOpts{
 				Collisions:      "collisions",
 				Destination:     "destination",
-				SkipPermissions: flags.SkipPermissionsFV,
+				SkipPermissions: flags.NoPermissionsFV,
 			},
 			populated: flags.PopulatedFlags{
 				flags.CollisionsFN:  {},

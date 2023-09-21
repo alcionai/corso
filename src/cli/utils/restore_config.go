@@ -31,7 +31,7 @@ func makeRestoreCfgOpts(cmd *cobra.Command) RestoreCfgOpts {
 		Destination:       flags.DestinationFV,
 		DTTMFormat:        dttm.HumanReadable,
 		ProtectedResource: flags.ToResourceFV,
-		SkipPermissions:   flags.SkipPermissionsFV,
+		SkipPermissions:   flags.NoPermissionsFV,
 
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate

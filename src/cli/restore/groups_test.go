@@ -118,7 +118,7 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
 
 			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
-			assert.False(t, flags.SkipPermissionsFV)
+			assert.False(t, flags.NoPermissionsFV)
 		})
 	}
 }

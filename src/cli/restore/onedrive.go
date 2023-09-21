@@ -47,7 +47,7 @@ const (
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
 # Restore the file with ID 98765abcdef without its associated permissions
-corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --skip-permissions
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --no-permissions
 
 # Restore files named "FY2021 Planning.xlsx" in "Documents/Finance Reports"
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
