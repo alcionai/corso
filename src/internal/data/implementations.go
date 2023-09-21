@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -135,4 +136,31 @@ func (col BaseCollection) DoNotMergeItems() bool {
 
 func (col BaseCollection) Opts() control.Options {
 	return col.opts
+}
+
+// -----------------------------------------------------------------------------
+// tombstoneCollection
+// -----------------------------------------------------------------------------
+
+func NewTombstoneCollection(
+	prev path.Path,
+	opts control.Options,
+) *tombstoneCollection {
+	return &tombstoneCollection{
+		BaseCollection: NewBaseCollection(nil, prev, nil, opts, false),
+	}
+}
+
+// tombstoneCollection is a collection that marks a folder (and folders under it
+// if they aren't explicitly noted in other collecteds) as deleted. It doesn't
+// contain any items.
+type tombstoneCollection struct {
+	BaseCollection
+}
+
+func (col *tombstoneCollection) Items(context.Context, *fault.Bus) <-chan Item {
+	res := make(chan Item)
+	defer close(res)
+
+	return res
 }
