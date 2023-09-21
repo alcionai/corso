@@ -65,7 +65,7 @@ func AddFailFastFlag(cmd *cobra.Command) {
 // AddSkipPermissionsFlag adds OneDrive flag for skipping restoring permissions
 func AddSkipPermissionsFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
-	fs.BoolVar(&NoPermissionsFV, NoPermissionsFN, false, "Do not restore file and folder permissions")
+	fs.BoolVar(&NoPermissionsFV, NoPermissionsFN, false, "don't restore file and folder permissions")
 }
 
 // AddSkipReduceFlag adds a hidden flag that allows callers to skip the selector
