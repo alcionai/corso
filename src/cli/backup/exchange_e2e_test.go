@@ -604,7 +604,6 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 
 	err = suite.secondaryBackupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
-
 }
 
 func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {

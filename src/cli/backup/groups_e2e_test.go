@@ -533,7 +533,7 @@ func (suite *BackupDeleteGroupsE2ESuite) SetupSuite() {
 	err = suite.backupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	//secondary backup
+	// secondary backup
 	secondaryBackupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, err, clues.ToCore(err))
 
