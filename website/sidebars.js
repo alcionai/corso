@@ -50,6 +50,8 @@ const sidebars = {
           items: [
             'cli/corso-repo-init-s3',
             'cli/corso-repo-connect-s3',
+            'cli/corso-repo-init-filesystem',
+            'cli/corso-repo-connect-filesystem',
             'cli/corso-repo-maintenance',
             'cli/corso-env']
         },
