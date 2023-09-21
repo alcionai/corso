@@ -42,7 +42,7 @@ func (c Events) EnumerateContainers(
 		builder = c.Stable.
 			Client().
 			Users().
-			ByUserIdString(userID).
+			ByUserId(userID).
 			Calendars()
 	)
 
@@ -123,9 +123,9 @@ func (c Events) NewEventsPager(
 	builder := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
-		ByCalendarIdString(containerID).
+		ByCalendarId(containerID).
 		Events()
 
 	return &eventsPageCtrl{c.Stable, builder, options}

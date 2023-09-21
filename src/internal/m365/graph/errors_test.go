@@ -94,6 +94,40 @@ func (suite *GraphErrorsUnitSuite) TestIsErrConnectionReset() {
 	}
 }
 
+func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "applicationThrottled oDataErr",
+			err:    odErr(string(applicationThrottled)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrApplicationThrottled(test.err))
+		})
+	}
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrAuthenticationError() {
 	table := []struct {
 		name   string

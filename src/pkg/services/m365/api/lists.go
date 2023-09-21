@@ -42,7 +42,7 @@ func (c Lists) PostDrive(
 	builder := c.Stable.
 		Client().
 		Sites().
-		BySiteIdString(siteID).
+		BySiteId(siteID).
 		Lists()
 
 	newList, err := builder.Post(ctx, list, nil)
@@ -56,7 +56,7 @@ func (c Lists) PostDrive(
 
 	// drive information is not returned by the list creation.
 	drive, err := builder.
-		ByListIdString(ptr.Val(newList.GetId())).
+		ByListId(ptr.Val(newList.GetId())).
 		Drive().
 		Get(ctx, nil)
 

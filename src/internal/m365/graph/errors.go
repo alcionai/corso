@@ -26,6 +26,7 @@ import (
 type errorCode string
 
 const (
+	applicationThrottled errorCode = "ApplicationThrottled"
 	// this auth error is a catch-all used by graph in a variety of cases:
 	// users without licenses, bad jwts, missing account permissions, etc.
 	AuthenticationError errorCode = "AuthenticationError"
@@ -81,6 +82,10 @@ const (
 )
 
 var (
+	// ErrApplicationThrottled occurs if throttling retries are exhausted and completely
+	// fails out.
+	ErrApplicationThrottled = clues.New("application throttled")
+
 	// The folder or item was deleted between the time we identified
 	// it and when we tried to fetch data for it.
 	ErrDeletedInFlight = clues.New("deleted in flight")
@@ -115,6 +120,11 @@ var (
 
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 )
+
+func IsErrApplicationThrottled(err error) bool {
+	return hasErrorCode(err, applicationThrottled) ||
+		errors.Is(err, ErrApplicationThrottled)
+}
 
 func IsErrAuthenticationError(err error) bool {
 	return hasErrorCode(err, AuthenticationError)

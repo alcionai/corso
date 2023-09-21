@@ -61,9 +61,9 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 			items, err := suite.its.ac.Stable.
 				Client().
 				Drives().
-				ByDriveIdString(test.driveID).
+				ByDriveId(test.driveID).
 				Items().
-				ByDriveItemIdString(test.rootFolderID).
+				ByDriveItemId(test.rootFolderID).
 				Children().
 				Get(ctx, nil)
 			require.NoError(t, err, clues.ToCore(err))
@@ -135,9 +135,9 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemIDsInContainer() {
 			items, err := suite.its.ac.Stable.
 				Client().
 				Drives().
-				ByDriveIdString(test.driveID).
+				ByDriveId(test.driveID).
 				Items().
-				ByDriveItemIdString(test.rootFolderID).
+				ByDriveItemId(test.rootFolderID).
 				Children().
 				Get(ctx, nil)
 			require.NoError(t, err, clues.ToCore(err))
