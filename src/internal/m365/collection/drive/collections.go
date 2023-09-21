@@ -886,7 +886,9 @@ func (c *Collections) UpdateCollections(
 			}
 
 		default:
-			return nil, clues.New("item is neither folder nor file").WithClues(ictx)
+			el.AddRecoverable(ictx, clues.New("item is neither folder nor file").
+				WithClues(ictx).
+				Label(fault.LabelForceNoBackupCreation))
 		}
 	}
 
