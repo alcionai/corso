@@ -40,7 +40,7 @@ func ProduceExportCollections(
 		var (
 			fp      = restoreColl.FullPath()
 			cat     = fp.Category()
-			folders = []string{cat.String()}
+			folders = []string{cat.HumanString()}
 			coll    export.Collectioner
 		)
 
@@ -66,13 +66,13 @@ func ProduceExportCollections(
 				driveName = drivePath.DriveID
 			}
 
-			folders := restoreColl.FullPath().Folders()
-			siteName := folders[1] // use siteID by default
+			rfds := restoreColl.FullPath().Folders()
+			siteName := rfds[1] // use siteID by default
 
 			webURL, ok := backupSiteIDWebURL.NameOf(siteName)
 			if !ok {
 				// This should not happen, but just in case
-				logger.Ctx(ctx).With("site_id", folders[1]).Info("site weburl not found, using site id")
+				logger.Ctx(ctx).With("site_id", rfds[1]).Info("site weburl not found, using site id")
 			}
 
 			if len(webURL) != 0 {
@@ -83,7 +83,7 @@ func ProduceExportCollections(
 			}
 
 			baseDir := path.Builder{}.
-				Append("Libraries").
+				Append(folders...).
 				Append(siteName).
 				Append(driveName).
 				Append(drivePath.Folders...)
