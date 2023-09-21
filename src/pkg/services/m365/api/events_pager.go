@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -41,7 +42,7 @@ func (c Events) EnumerateContainers(
 		builder = c.Stable.
 			Client().
 			Users().
-			ByUserIdString(userID).
+			ByUserId(userID).
 			Calendars()
 	)
 
@@ -122,9 +123,9 @@ func (c Events) NewEventsPager(
 	builder := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
-		ByCalendarIdString(containerID).
+		ByCalendarId(containerID).
 		Events()
 
 	return &eventsPageCtrl{c.Stable, builder, options}
@@ -139,6 +140,10 @@ func (p *eventsPageCtrl) GetPage(
 
 func (p *eventsPageCtrl) SetNextLink(nextLink string) {
 	p.builder = users.NewItemCalendarsItemEventsRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *eventsPageCtrl) ValidModTimes() bool {
+	return true
 }
 
 func (c Events) GetItemsInContainerByCollisionKey(
@@ -248,12 +253,16 @@ func (p *eventDeltaPager) Reset(ctx context.Context) {
 	p.builder = getEventDeltaBuilder(ctx, p.gs, p.userID, p.containerID)
 }
 
+func (p *eventDeltaPager) ValidModTimes() bool {
+	return false
+}
+
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
-) ([]string, []string, DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	ctx = clues.Add(
 		ctx,
 		"data_category", path.EventsCategory,
@@ -270,7 +279,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd()...)
+		idAnd(lastModifiedDateTime)...)
 
 	return getAddedAndRemovedItemIDs[models.Eventable](
 		ctx,
@@ -278,5 +287,5 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		deltaPager,
 		prevDeltaLink,
 		canMakeDeltaQueries,
-		addedAndRemovedByAddtlData)
+		addedAndRemovedByAddtlData[models.Eventable])
 }

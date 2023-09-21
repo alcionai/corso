@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -153,13 +154,13 @@ func populateCollections(
 		// and will return an error if a delta token is queried.
 		canMakeDeltaQueries := len(ptr.Val(c.GetEmail())) > 0
 
-		add, rem, du, err := bh.getChannelMessageIDs(ctx, cID, prevDelta, canMakeDeltaQueries)
+		add, _, rem, du, err := bh.getChannelMessageIDs(ctx, cID, prevDelta, canMakeDeltaQueries)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
 		}
 
-		added := str.SliceToMap(add)
+		added := str.SliceToMap(maps.Keys(add))
 		removed := str.SliceToMap(rem)
 
 		if len(du.URL) > 0 {
@@ -182,17 +183,17 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			data.NewBaseCollection(
+				currPath,
+				prevPath,
+				path.Builder{}.Append(cName),
+				ctrlOpts,
+				du.Reset),
 			bh,
 			qp.ProtectedResource.ID(),
-			currPath,
-			prevPath,
-			path.Builder{}.Append(cName),
-			qp.Category,
 			added,
 			removed,
-			statusUpdater,
-			ctrlOpts,
-			du.Reset)
+			statusUpdater)
 
 		collections[cID] = &edc
 
@@ -233,17 +234,17 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			data.NewBaseCollection(
+				nil, // marks the collection as deleted
+				prevPath,
+				nil, // tombstones don't need a location
+				ctrlOpts,
+				false),
 			bh,
 			qp.ProtectedResource.ID(),
-			nil, // marks the collection as deleted
-			prevPath,
-			nil, // tombstones don't need a location
-			qp.Category,
 			nil, // no items added
 			nil, // this deletes a directory, so no items deleted either
-			statusUpdater,
-			ctrlOpts,
-			false)
+			statusUpdater)
 
 		collections[id] = &edc
 	}

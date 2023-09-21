@@ -73,7 +73,7 @@ func generateAndRestoreItems(
 			nowLegacy = dttm.FormatToLegacy(time.Now())
 			id        = uuid.NewString()
 			subject   = "automated " + now[:16] + " - " + id[:8]
-			body      = "automated " + cat.String() + " generation for " + userID + " at " + now + " - " + id
+			body      = "automated " + cat.HumanString() + " generation for " + userID + " at " + now + " - " + id
 		)
 
 		items = append(items, item{
@@ -250,7 +250,7 @@ func generateAndRestoreDriveItems(
 		d, err := ctrl.AC.Stable.
 			Client().
 			Sites().
-			BySiteIdString(protectedResource.ID()).
+			BySiteId(protectedResource.ID()).
 			Drive().
 			Get(ctx, nil)
 		if err != nil {
@@ -261,7 +261,7 @@ func generateAndRestoreDriveItems(
 	default:
 		d, err := ctrl.AC.Stable.Client().
 			Users().
-			ByUserIdString(protectedResource.ID()).
+			ByUserId(protectedResource.ID()).
 			Drive().
 			Get(ctx, nil)
 		if err != nil {

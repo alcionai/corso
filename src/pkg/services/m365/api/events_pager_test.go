@@ -45,9 +45,9 @@ func (suite *EventsPagerIntgSuite) TestEvents_GetItemsInContainerByCollisionKey(
 	evts, err := ac.Stable.
 		Client().
 		Users().
-		ByUserIdString(suite.its.user.id).
+		ByUserId(suite.its.user.id).
 		Calendars().
-		ByCalendarIdString(ptr.Val(container.GetId())).
+		ByCalendarId(ptr.Val(container.GetId())).
 		Events().
 		Get(ctx, nil)
 	require.NoError(t, err, clues.ToCore(err))

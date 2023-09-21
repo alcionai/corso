@@ -3,7 +3,6 @@ package export
 import (
 	"context"
 	"errors"
-	"os"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
@@ -21,9 +20,7 @@ import (
 var exportCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addOneDriveCommands,
 	addSharePointCommands,
-	// awaiting release
-	// addGroupsCommands,
-	// addTeamsCommands,
+	addGroupsCommands,
 }
 
 // AddCommands attaches all `corso export * *` commands to the parent.
@@ -33,11 +30,6 @@ func AddCommands(cmd *cobra.Command) {
 
 	for _, addExportTo := range exportCommands {
 		addExportTo(exportC)
-	}
-
-	// delete after release
-	if len(os.Getenv("CORSO_ENABLE_GROUPS")) > 0 {
-		addGroupsCommands(exportC)
 	}
 }
 
@@ -69,6 +61,10 @@ func runExport(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
+	if err := utils.ValidateExportConfigFlags(&ueco); err != nil {
+		return Only(ctx, err)
+	}
+
 	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
 		ctx,
 		cmd,

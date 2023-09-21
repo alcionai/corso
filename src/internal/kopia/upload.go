@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"io"
 	"os"
 	"runtime/trace"
@@ -231,7 +232,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	}
 
 	info, err := d.infoer.Info()
-	if err != nil {
+	if errors.Is(err, data.ErrNotFound) {
+		// The item was deleted between enumeration and trying to get data. Skip
+		// adding it to details since there's no data for it.
+		return
+	} else if err != nil {
 		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "getting ItemInfo").
 			WithClues(ctx).
 			Label(fault.LabelForceNoBackupCreation))
@@ -437,7 +442,9 @@ func collectionEntries(
 			if err != nil {
 				// Kopia's uploader swallows errors in most cases, so if we see
 				// something here it's probably a big issue and we should return.
-				return seen, clues.Wrap(err, "executing callback").WithClues(ctx).With("item_path", itemPath)
+				return seen, clues.Wrap(err, "executing callback").
+					WithClues(ctx).
+					With("item_path", itemPath)
 			}
 		}
 	}
@@ -446,15 +453,13 @@ func collectionEntries(
 func streamBaseEntries(
 	ctx context.Context,
 	ctr func(context.Context, fs.Entry) error,
-	curPath path.Path,
-	prevPath path.Path,
+	params snapshotParams,
 	locationPath *path.Builder,
-	dir fs.Directory,
 	encodedSeen map[string]struct{},
 	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) error {
-	if dir == nil {
+	if params.baseDir == nil {
 		return nil
 	}
 
@@ -464,89 +469,134 @@ func streamBaseEntries(
 	)
 
 	if globalExcludeSet != nil {
-		longest, excludeSet, _ = globalExcludeSet.LongestPrefix(curPath.String())
+		longest, excludeSet, _ = globalExcludeSet.LongestPrefix(
+			params.currentPath.String())
 	}
 
 	ctx = clues.Add(
 		ctx,
-		"current_directory_path", curPath,
+		"current_directory_path", params.currentPath,
 		"longest_prefix", path.LoggableDir(longest))
 
-	err := dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
-		if err := innerCtx.Err(); err != nil {
-			return clues.Stack(err).WithClues(ctx)
-		}
-
-		// Don't walk subdirectories in this function.
-		if _, ok := entry.(fs.Directory); ok {
-			return nil
-		}
-
-		// This entry was either updated or deleted. In either case, the external
-		// service notified us about it and it's already been handled so we should
-		// skip it here.
-		if _, ok := encodedSeen[entry.Name()]; ok {
-			return nil
-		}
-
-		entName, err := decodeElement(entry.Name())
-		if err != nil {
-			return clues.Wrap(err, "decoding entry name").
-				WithClues(ctx).
-				With("entry_name", entry.Name())
-		}
-
-		// This entry was marked as deleted by a service that can't tell us the
-		// previous path of deleted items, only the item ID.
-		if _, ok := excludeSet[entName]; ok {
-			return nil
-		}
-
-		// For now assuming that item IDs don't need escaping.
-		itemPath, err := curPath.AppendItem(entName)
-		if err != nil {
-			return clues.Wrap(err, "getting full item path for base entry").WithClues(ctx)
-		}
-
-		// We need the previous path so we can find this item in the base snapshot's
-		// backup details. If the item moved and we had only the new path, we'd be
-		// unable to find it in the old backup details because we wouldn't know what
-		// to look for.
-		prevItemPath, err := prevPath.AppendItem(entName)
-		if err != nil {
-			return clues.Wrap(err, "getting previous full item path for base entry").WithClues(ctx)
-		}
-
-		// Meta files aren't in backup details since it's the set of items the user
-		// sees.
-		//
-		// TODO(ashmrtn): We may eventually want to make this a function that is
-		// passed in so that we can more easily switch it between different external
-		// service provider implementations.
-		if !metadata.IsMetadataFile(itemPath) {
-			// All items have item info in the base backup. However, we need to make
-			// sure we have enough metadata to find those entries. To do that we add
-			// the item to progress and having progress aggregate everything for
-			// later.
-			d := &itemDetails{
-				repoPath:     itemPath,
-				prevPath:     prevItemPath,
-				locationPath: locationPath,
-				modTime:      ptr.To(entry.ModTime()),
+	err := params.baseDir.IterateEntries(
+		ctx,
+		func(innerCtx context.Context, entry fs.Entry) error {
+			if err := innerCtx.Err(); err != nil {
+				return clues.Stack(err).WithClues(ctx)
 			}
-			progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
-		}
 
-		if err := ctr(ctx, entry); err != nil {
-			return clues.Wrap(err, "executing callback on item").
-				WithClues(ctx).
-				With("item_path", itemPath)
-		}
+			entName, err := decodeElement(entry.Name())
+			if err != nil {
+				return clues.Wrap(err, "decoding entry name").
+					WithClues(ctx).
+					With("entry_name", entry.Name())
+			}
 
-		return nil
-	})
+			if d, ok := entry.(fs.Directory); ok {
+				// Don't walk subdirectories in this function.
+				if !params.streamBaseEnts {
+					return nil
+				}
+
+				// Do walk subdirectories. The previous and current path of the
+				// directory can be generated by appending the directory name onto the
+				// previous and current path of this directory. Since the directory has
+				// no BackupCollection associated with it (part of the criteria for
+				// allowing walking directories in this function) there shouldn't be any
+				// LocationPath information associated with the directory.
+				newP, err := params.currentPath.Append(false, entName)
+				if err != nil {
+					return clues.Wrap(err, "getting current directory path").
+						WithClues(ctx)
+				}
+
+				oldP, err := params.prevPath.Append(false, entName)
+				if err != nil {
+					return clues.Wrap(err, "getting previous directory path").
+						WithClues(ctx)
+				}
+
+				e := virtualfs.NewStreamingDirectory(
+					entry.Name(),
+					getStreamItemFunc(
+						snapshotParams{
+							currentPath:    newP,
+							prevPath:       oldP,
+							collection:     nil,
+							baseDir:        d,
+							streamBaseEnts: params.streamBaseEnts,
+						},
+						nil,
+						globalExcludeSet,
+						progress))
+
+				return clues.Wrap(ctr(ctx, e), "executing callback on subdirectory").
+					WithClues(ctx).
+					With("directory_path", newP).
+					OrNil()
+			}
+
+			// This entry was either updated or deleted. In either case, the external
+			// service notified us about it and it's already been handled so we should
+			// skip it here.
+			if _, ok := encodedSeen[entry.Name()]; ok {
+				return nil
+			}
+
+			// This entry was marked as deleted by a service that can't tell us the
+			// previous path of deleted items, only the item ID.
+			if _, ok := excludeSet[entName]; ok {
+				return nil
+			}
+
+			// For now assuming that item IDs don't need escaping.
+			itemPath, err := params.currentPath.AppendItem(entName)
+			if err != nil {
+				return clues.Wrap(err, "getting full item path for base entry").
+					WithClues(ctx)
+			}
+
+			// We need the previous path so we can find this item in the base snapshot's
+			// backup details. If the item moved and we had only the new path, we'd be
+			// unable to find it in the old backup details because we wouldn't know what
+			// to look for.
+			prevItemPath, err := params.prevPath.AppendItem(entName)
+			if err != nil {
+				return clues.Wrap(err, "getting previous full item path for base entry").
+					WithClues(ctx)
+			}
+
+			// Meta files aren't in backup details since it's the set of items the
+			// user sees.
+			//
+			// TODO(ashmrtn): We may eventually want to make this a function that is
+			// passed in so that we can more easily switch it between different
+			// external service provider implementations.
+			if !metadata.IsMetadataFile(itemPath) {
+				// All items have item info in the base backup. However, we need to make
+				// sure we have enough metadata to find those entries. To do that we add
+				// the item to progress and having progress aggregate everything for
+				// later.
+				d := &itemDetails{
+					repoPath:     itemPath,
+					prevPath:     prevItemPath,
+					locationPath: locationPath,
+					modTime:      ptr.To(entry.ModTime()),
+				}
+				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
+			}
+
+			if err := ctr(ctx, entry); err != nil {
+				return clues.Wrap(err, "executing callback on item").
+					WithClues(ctx).
+					With("item_path", itemPath)
+			}
+
+			return nil
+		})
 	if err != nil {
-		return clues.Wrap(err, "traversing items in base snapshot directory").WithClues(ctx)
+		return clues.Wrap(err, "traversing items in base snapshot directory").
+			WithClues(ctx)
 	}
 
 	return nil
@@ -557,11 +607,8 @@ func streamBaseEntries(
 // kopia callbacks on directory entries. It binds the directory to the given
 // DataCollection.
 func getStreamItemFunc(
-	curPath path.Path,
-	prevPath path.Path,
+	params snapshotParams,
 	staticEnts []fs.Entry,
-	streamedEnts data.BackupCollection,
-	baseDir fs.Directory,
 	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
 ) func(context.Context, func(context.Context, fs.Entry) error) error {
@@ -572,17 +619,18 @@ func getStreamItemFunc(
 		// Return static entries in this directory first.
 		for _, d := range staticEnts {
 			if err := ctr(ctx, d); err != nil {
-				return clues.Wrap(err, "executing callback on static directory").WithClues(ctx)
+				return clues.Wrap(err, "executing callback on static directory").
+					WithClues(ctx)
 			}
 		}
 
 		var locationPath *path.Builder
 
-		if lp, ok := streamedEnts.(data.LocationPather); ok {
+		if lp, ok := params.collection.(data.LocationPather); ok {
 			locationPath = lp.LocationPath()
 		}
 
-		seen, err := collectionEntries(ctx, ctr, streamedEnts, progress)
+		seen, err := collectionEntries(ctx, ctr, params.collection, progress)
 		if err != nil {
 			return clues.Wrap(err, "streaming collection entries")
 		}
@@ -590,10 +638,8 @@ func getStreamItemFunc(
 		if err := streamBaseEntries(
 			ctx,
 			ctr,
-			curPath,
-			prevPath,
+			params,
 			locationPath,
-			baseDir,
 			seen,
 			globalExcludeSet,
 			progress); err != nil {
@@ -626,7 +672,11 @@ func buildKopiaDirs(
 	//     backup's backup details
 
 	for childName, childDir := range dir.childDirs {
-		child, err := buildKopiaDirs(childName, childDir, globalExcludeSet, progress)
+		child, err := buildKopiaDirs(
+			childName,
+			childDir,
+			globalExcludeSet,
+			progress)
 		if err != nil {
 			return nil, err
 		}
@@ -637,16 +687,13 @@ func buildKopiaDirs(
 	return virtualfs.NewStreamingDirectory(
 		encodeAsPath(dirName),
 		getStreamItemFunc(
-			dir.currentPath,
-			dir.prevPath,
+			dir.snapshotParams,
 			childDirs,
-			dir.collection,
-			dir.baseDir,
 			globalExcludeSet,
 			progress)), nil
 }
 
-type treeMap struct {
+type snapshotParams struct {
 	// path.Path representing the node's path. This is passed as a parameter to
 	// the stream item function so that even baseDir directories can properly
 	// generate the full path of items.
@@ -655,8 +702,6 @@ type treeMap struct {
 	// base snapshot.
 	prevPath path.Path
 
-	// Child directories of this directory.
-	childDirs map[string]*treeMap
 	// Reference to data pulled from the external service. Contains only items in
 	// this directory. Does not contain references to subdirectories.
 	collection data.BackupCollection
@@ -667,6 +712,18 @@ type treeMap struct {
 	// be added to childDirs while building the hierarchy. They will be ignored
 	// when iterating through the directory to hand items to kopia.
 	baseDir fs.Directory
+
+	// subtreeChanged denotes whether any directories under this node have been
+	// moved, renamed, deleted, or added. If not then we should return both the
+	// kopia files and the kopia directories in the base entry because we're also
+	// doing selective subtree pruning during hierarchy merging.
+	streamBaseEnts bool
+}
+
+type treeMap struct {
+	snapshotParams
+	// Child directories of this directory.
+	childDirs map[string]*treeMap
 }
 
 func newTreeMap() *treeMap {
@@ -782,7 +839,8 @@ func inflateCollectionTree(
 		switch s.State() {
 		case data.DeletedState:
 			if s.PreviousPath() == nil {
-				return nil, nil, clues.New("nil previous path on deleted collection").WithClues(ictx)
+				return nil, nil, clues.New("nil previous path on deleted collection").
+					WithClues(ictx)
 			}
 
 			changedPaths = append(changedPaths, s.PreviousPath())
@@ -812,7 +870,8 @@ func inflateCollectionTree(
 			// changed via one of the ancestor folders being moved. This catches the
 			// ancestor folder move.
 			if err := addMergeLocation(s, toMerge); err != nil {
-				return nil, nil, clues.Wrap(err, "adding merge location").WithClues(ictx)
+				return nil, nil, clues.Wrap(err, "adding merge location").
+					WithClues(ictx)
 			}
 		case data.NotMovedState:
 			p := s.PreviousPath().String()
@@ -836,7 +895,8 @@ func inflateCollectionTree(
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
 		if node.collection != nil {
-			return nil, nil, clues.New("multiple instances of collection").WithClues(ictx)
+			return nil, nil, clues.New("multiple instances of collection").
+				WithClues(ictx)
 		}
 
 		node.collection = s
@@ -861,6 +921,50 @@ func inflateCollectionTree(
 	}
 
 	return roots, updatedPaths, nil
+}
+
+func subtreeChanged(
+	roots map[string]*treeMap,
+	updatedPaths map[string]path.Path,
+	oldDirPath *path.Builder,
+	currentPath *path.Builder,
+) bool {
+	// Can't combine with the inner if-block because go evaluates the assignment
+	// prior to all conditional checks.
+	if currentPath != nil {
+		// Either there's an input collection for this path or there's some
+		// descendant that has a collection with this path as a prefix.
+		//
+		// The base traversal code is single-threaded and this check is before
+		// processing child base directories so we don't have to worry about
+		// something else creating the in-memory subtree for unchanged things.
+		// Having only one base per Reason also means we haven't added this branch
+		// of the in-memory tree in a base processed before this one.
+		if node := maybeGetTreeNode(roots, currentPath.Elements()); node != nil &&
+			(node.collection != nil || len(node.childDirs) > 0) {
+			return true
+		}
+	}
+
+	oldPath := oldDirPath.String()
+
+	// We only need to check the old paths here because the check on the in-memory
+	// tree above will catch cases where the new path is in the subtree rooted at
+	// currentPath. We're mostly concerned with things being moved out of the
+	// subtree or deleted within the subtree in this block. Renames, moves within,
+	// and moves into the subtree will be caught by the above in-memory tree
+	// check.
+	//
+	// We can ignore exact matches on the old path because they would correspond
+	// to deleting the root of the subtree which we can handle as long as
+	// everything under the subtree root is also deleted.
+	for oldP := range updatedPaths {
+		if strings.HasPrefix(oldP, oldPath) && len(oldP) != len(oldPath) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // traverseBaseDir is an unoptimized function that reads items in a directory
@@ -946,34 +1050,36 @@ func traverseBaseDir(
 
 	ctx = clues.Add(ctx, "new_path", currentPath)
 
-	// TODO(ashmrtn): If we can do prefix matching on elements in updatedPaths and
-	// we know that the tree node for this directory has no collection reference
-	// and no child nodes then we can skip traversing this directory. This will
-	// only work if we know what directory deleted items used to belong in (e.x.
-	// it won't work for OneDrive because we only know the ID of the deleted
-	// item).
+	// Figure out if the subtree rooted at this directory is either unchanged or
+	// completely deleted. We can accomplish this by checking the in-memory tree
+	// and the updatedPaths map.
+	changed := subtreeChanged(roots, updatedPaths, oldDirPath, currentPath)
 
 	var hasItems bool
 
-	err = dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
-		dEntry, ok := entry.(fs.Directory)
-		if !ok {
-			hasItems = true
-			return nil
-		}
+	if changed {
+		err = dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
+			dEntry, ok := entry.(fs.Directory)
+			if !ok {
+				hasItems = true
+				return nil
+			}
 
-		return traverseBaseDir(
-			innerCtx,
-			depth+1,
-			updatedPaths,
-			oldDirPath,
-			currentPath,
-			dEntry,
-			roots,
-			stats)
-	})
-	if err != nil {
-		return clues.Wrap(err, "traversing base directory").WithClues(ctx)
+			return traverseBaseDir(
+				innerCtx,
+				depth+1,
+				updatedPaths,
+				oldDirPath,
+				currentPath,
+				dEntry,
+				roots,
+				stats)
+		})
+		if err != nil {
+			return clues.Wrap(err, "traversing base directory").WithClues(ctx)
+		}
+	} else {
+		stats.Inc(statPruned)
 	}
 
 	// We only need to add this base directory to the tree we're building if it
@@ -981,7 +1087,7 @@ func traverseBaseDir(
 	// subdirectories. This optimization will not be valid if we dynamically
 	// determine the subdirectories this directory has when handing items to
 	// kopia.
-	if currentPath != nil && hasItems {
+	if currentPath != nil && (hasItems || !changed) {
 		// Having this in the if-block has the effect of removing empty directories
 		// from backups that have a base snapshot. If we'd like to preserve empty
 		// directories across incremental backups, move getting the node outside of
@@ -1014,12 +1120,12 @@ func traverseBaseDir(
 			stats.Inc(statRecursiveMove)
 		}
 
-		curP, err := path.FromDataLayerPath(currentPath.String(), false)
+		curP, err := path.PrefixOrPathFromDataLayerPath(currentPath.String(), false)
 		if err != nil {
 			return clues.New("converting current path to path.Path").WithClues(ctx)
 		}
 
-		oldP, err := path.FromDataLayerPath(oldDirPath.String(), false)
+		oldP, err := path.PrefixOrPathFromDataLayerPath(oldDirPath.String(), false)
 		if err != nil {
 			return clues.New("converting old path to path.Path").WithClues(ctx)
 		}
@@ -1027,6 +1133,7 @@ func traverseBaseDir(
 		node.baseDir = dir
 		node.currentPath = curP
 		node.prevPath = oldP
+		node.streamBaseEnts = !changed
 	}
 
 	return nil
@@ -1070,6 +1177,9 @@ const (
 	// statSkipMerge denotes the number of directories that weren't merged because
 	// they were marked either DoNotMerge or New.
 	statSkipMerge = "directories_skipped_merging"
+	// statPruned denotes the number of subtree roots that selective subtree
+	// pruning applied to.
+	statPruned = "subtrees_pruned"
 )
 
 func inflateBaseTree(
@@ -1163,7 +1273,8 @@ func inflateBaseTree(
 			statRecursiveMove, stats.Get(statRecursiveMove),
 			statDel, stats.Get(statDel),
 			statRecursiveDel, stats.Get(statRecursiveDel),
-			statSkipMerge, stats.Get(statSkipMerge))
+			statSkipMerge, stats.Get(statSkipMerge),
+			statPruned, stats.Get(statPruned))
 	}
 
 	return nil

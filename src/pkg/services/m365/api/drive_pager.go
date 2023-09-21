@@ -42,9 +42,9 @@ func (c Drives) NewDriveItemPager(
 	builder := c.Stable.
 		Client().
 		Drives().
-		ByDriveIdString(driveID).
+		ByDriveId(driveID).
 		Items().
-		ByDriveItemIdString(containerID).
+		ByDriveItemId(containerID).
 		Children()
 
 	return &driveItemPageCtrl{c.Stable, builder, options}
@@ -59,6 +59,10 @@ func (p *driveItemPageCtrl) GetPage(
 
 func (p *driveItemPageCtrl) SetNextLink(nextLink string) {
 	p.builder = drives.NewItemItemsItemChildrenRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *driveItemPageCtrl) ValidModTimes() bool {
+	return true
 }
 
 type DriveItemIDType struct {
@@ -152,9 +156,9 @@ func (c Drives) NewDriveItemDeltaPager(
 		builder: c.Stable.
 			Client().
 			Drives().
-			ByDriveIdString(driveID).
+			ByDriveId(driveID).
 			Items().
-			ByDriveItemIdString(onedrive.RootID).
+			ByDriveItemId(onedrive.RootID).
 			Delta(),
 	}
 
@@ -179,10 +183,14 @@ func (p *DriveItemDeltaPageCtrl) SetNextLink(link string) {
 func (p *DriveItemDeltaPageCtrl) Reset(context.Context) {
 	p.builder = p.gs.Client().
 		Drives().
-		ByDriveIdString(p.driveID).
+		ByDriveId(p.driveID).
 		Items().
-		ByDriveItemIdString(onedrive.RootID).
+		ByDriveItemId(onedrive.RootID).
 		Delta()
+}
+
+func (p *DriveItemDeltaPageCtrl) ValidModTimes() bool {
+	return true
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +223,7 @@ func (c Drives) NewUserDrivePager(
 		builder: c.Stable.
 			Client().
 			Users().
-			ByUserIdString(userID).
+			ByUserId(userID).
 			Drives(),
 	}
 
@@ -241,7 +249,7 @@ func (p *userDrivePager) GetPage(
 	d, err := p.gs.
 		Client().
 		Users().
-		ByUserIdString(p.userID).
+		ByUserId(p.userID).
 		Drive().
 		Get(ctx, nil)
 
@@ -250,6 +258,10 @@ func (p *userDrivePager) GetPage(
 
 func (p *userDrivePager) SetNextLink(link string) {
 	p.builder = users.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
+}
+
+func (p *userDrivePager) ValidModTimes() bool {
+	return true
 }
 
 // ---------------------------------------------------------------------------
@@ -285,7 +297,7 @@ func (c Drives) NewSiteDrivePager(
 		builder: c.Stable.
 			Client().
 			Sites().
-			BySiteIdString(siteID).
+			BySiteId(siteID).
 			Drives(),
 	}
 
@@ -301,6 +313,10 @@ func (p *siteDrivePager) GetPage(
 
 func (p *siteDrivePager) SetNextLink(link string) {
 	p.builder = sites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
+}
+
+func (p *siteDrivePager) ValidModTimes() bool {
+	return true
 }
 
 // ---------------------------------------------------------------------------

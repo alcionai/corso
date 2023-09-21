@@ -50,6 +50,8 @@ const sidebars = {
           items: [
             'cli/corso-repo-init-s3',
             'cli/corso-repo-connect-s3',
+            'cli/corso-repo-init-filesystem',
+            'cli/corso-repo-connect-filesystem',
             'cli/corso-repo-maintenance',
             'cli/corso-env']
         },
@@ -66,6 +68,20 @@ const sidebars = {
             'cli/corso-backup-details-exchange',
             'cli/corso-backup-delete-exchange',
             'cli/corso-restore-exchange']
+        },
+        {
+          type: 'category',
+          label: 'Groups & Teams',
+          link: {
+            slug: 'cli/groups',
+            description: 'Documentation for commonly-used Corso Groups & Teams CLI commands',
+          },
+          items: [
+            'cli/corso-backup-create-groups',
+            'cli/corso-backup-list-groups',
+            'cli/corso-backup-details-groups',
+            'cli/corso-backup-delete-groups',
+            'cli/corso-restore-groups']
         },
         {
           type: 'category',

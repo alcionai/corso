@@ -45,7 +45,7 @@ func (c Sites) GetRoot(ctx context.Context) (models.Siteable, error) {
 	resp, err := c.Stable.
 		Client().
 		Sites().
-		BySiteIdString("root").
+		BySiteId("root").
 		Get(ctx, options)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting root site")
@@ -134,7 +134,7 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 		resp, err = c.Stable.
 			Client().
 			Sites().
-			BySiteIdString(identifier).
+			BySiteId(identifier).
 			Get(ctx, options)
 		if err != nil {
 			err := graph.Wrap(ctx, err, "getting site by id")
@@ -210,7 +210,7 @@ func (c Sites) GetDefaultDrive(
 	d, err := c.Stable.
 		Client().
 		Sites().
-		BySiteIdString(site).
+		BySiteId(site).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {

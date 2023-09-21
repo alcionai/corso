@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -39,9 +40,9 @@ func (c Contacts) EnumerateContainers(
 	builder := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(baseContainerID).
+		ByContactFolderId(baseContainerID).
 		ChildFolders()
 
 	for {
@@ -117,9 +118,9 @@ func (c Contacts) NewContactsPager(
 	builder := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(containerID).
+		ByContactFolderId(containerID).
 		Contacts()
 
 	return &contactsPageCtrl{c.Stable, builder, options}
@@ -134,6 +135,10 @@ func (p *contactsPageCtrl) GetPage(
 
 func (p *contactsPageCtrl) SetNextLink(nextLink string) {
 	p.builder = users.NewItemContactFoldersItemContactsRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *contactsPageCtrl) ValidModTimes() bool {
+	return true
 }
 
 func (c Contacts) GetItemsInContainerByCollisionKey(
@@ -199,9 +204,9 @@ func getContactDeltaBuilder(
 ) *users.ItemContactFoldersItemContactsDeltaRequestBuilder {
 	builder := gs.Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(containerID).
+		ByContactFolderId(containerID).
 		Contacts().
 		Delta()
 
@@ -249,12 +254,16 @@ func (p *contactDeltaPager) Reset(ctx context.Context) {
 	p.builder = getContactDeltaBuilder(ctx, p.gs, p.userID, p.containerID)
 }
 
+func (p *contactDeltaPager) ValidModTimes() bool {
+	return true
+}
+
 func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
-) ([]string, []string, DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	ctx = clues.Add(
 		ctx,
 		"data_category", path.ContactsCategory,
@@ -266,12 +275,12 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		containerID,
 		prevDeltaLink,
 		immutableIDs,
-		idAnd()...)
+		idAnd(lastModifiedDateTime)...)
 	pager := c.NewContactsPager(
 		userID,
 		containerID,
 		immutableIDs,
-		idAnd()...)
+		idAnd(lastModifiedDateTime)...)
 
 	return getAddedAndRemovedItemIDs[models.Contactable](
 		ctx,
@@ -279,5 +288,5 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		deltaPager,
 		prevDeltaLink,
 		canMakeDeltaQueries,
-		addedAndRemovedByAddtlData)
+		addedAndRemovedByAddtlData[models.Contactable])
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -35,6 +36,10 @@ func (p *channelMessagePageCtrl) GetPage(
 	return resp, graph.Stack(ctx, err).OrNil()
 }
 
+func (p *channelMessagePageCtrl) ValidModTimes() bool {
+	return true
+}
+
 func (c Channels) NewChannelMessagePager(
 	teamID, channelID string,
 	selectProps ...string,
@@ -42,9 +47,9 @@ func (c Channels) NewChannelMessagePager(
 	builder := c.Stable.
 		Client().
 		Teams().
-		ByTeamIdString(teamID).
+		ByTeamId(teamID).
 		Channels().
-		ByChannelIdString(channelID).
+		ByChannelId(channelID).
 		Messages()
 
 	options := &teams.ItemChannelsItemMessagesRequestBuilderGetRequestConfiguration{
@@ -93,11 +98,15 @@ func (p *channelMessageDeltaPageCtrl) Reset(context.Context) {
 	p.builder = p.gs.
 		Client().
 		Teams().
-		ByTeamIdString(p.resourceID).
+		ByTeamId(p.resourceID).
 		Channels().
-		ByChannelIdString(p.channelID).
+		ByChannelId(p.channelID).
 		Messages().
 		Delta()
+}
+
+func (p *channelMessageDeltaPageCtrl) ValidModTimes() bool {
+	return true
 }
 
 func (c Channels) NewChannelMessageDeltaPager(
@@ -107,9 +116,9 @@ func (c Channels) NewChannelMessageDeltaPager(
 	builder := c.Stable.
 		Client().
 		Teams().
-		ByTeamIdString(teamID).
+		ByTeamId(teamID).
 		Channels().
-		ByChannelIdString(channelID).
+		ByChannelId(channelID).
 		Messages().
 		Delta()
 
@@ -141,16 +150,16 @@ func (c Channels) GetChannelMessageIDs(
 	ctx context.Context,
 	teamID, channelID, prevDeltaLink string,
 	canMakeDeltaQueries bool,
-) ([]string, []string, DeltaUpdate, error) {
-	added, removed, du, err := getAddedAndRemovedItemIDs(
+) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
+	added, validModTimes, removed, du, err := getAddedAndRemovedItemIDs[models.ChatMessageable](
 		ctx,
 		c.NewChannelMessagePager(teamID, channelID),
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
 		prevDeltaLink,
 		canMakeDeltaQueries,
-		addedAndRemovedByDeletedDateTime)
+		addedAndRemovedByDeletedDateTime[models.ChatMessageable])
 
-	return added, removed, du, clues.Stack(err).OrNil()
+	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +189,10 @@ func (p *channelMessageRepliesPageCtrl) GetOdataNextLink() *string {
 	return ptr.To("")
 }
 
+func (p *channelMessageRepliesPageCtrl) ValidModTimes() bool {
+	return true
+}
+
 func (c Channels) NewChannelMessageRepliesPager(
 	teamID, channelID, messageID string,
 	selectProps ...string,
@@ -198,11 +211,11 @@ func (c Channels) NewChannelMessageRepliesPager(
 		builder: c.Stable.
 			Client().
 			Teams().
-			ByTeamIdString(teamID).
+			ByTeamId(teamID).
 			Channels().
-			ByChannelIdString(channelID).
+			ByChannelId(channelID).
 			Messages().
-			ByChatMessageIdString(messageID).
+			ByChatMessageId(messageID).
 			Replies(),
 	}
 
@@ -242,6 +255,10 @@ func (p *channelPageCtrl) GetPage(
 	return resp, graph.Stack(ctx, err).OrNil()
 }
 
+func (p *channelPageCtrl) ValidModTimes() bool {
+	return false
+}
+
 func (c Channels) NewChannelPager(
 	teamID string,
 ) *channelPageCtrl {
@@ -255,7 +272,7 @@ func (c Channels) NewChannelPager(
 		builder: c.Stable.
 			Client().
 			Teams().
-			ByTeamIdString(teamID).
+			ByTeamId(teamID).
 			Channels(),
 	}
 
