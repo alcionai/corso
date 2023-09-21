@@ -121,8 +121,9 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_userNotInTenant() {
 
 type BackupDeleteOneDriveE2ESuite struct {
 	tester.Suite
-	dpnd     dependencies
-	backupOp operations.BackupOperation
+	dpnd              dependencies
+	backupOp          operations.BackupOperation
+	secondaryBackupOp operations.BackupOperation
 }
 
 func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
@@ -158,6 +159,15 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 
 	err = suite.backupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
+
+	// secondary backup
+	secondaryBackupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.secondaryBackupOp = secondaryBackupOp
+
+	err = suite.secondaryBackupOp.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
@@ -173,7 +183,10 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "onedrive",
 		"--config-file", suite.dpnd.configFilePath,
-		"--"+flags.BackupFN, string(suite.backupOp.Results.BackupID))
+		"--"+flags.BackupFN,
+		fmt.Sprintf("%s,%s",
+			string(suite.backupOp.Results.BackupID),
+			string(suite.secondaryBackupOp.Results.BackupID)))
 	cli.BuildCommandTree(cmd)
 	cmd.SetErr(&suite.dpnd.recorder)
 
@@ -187,7 +200,9 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	assert.True(t,
 		strings.HasSuffix(
 			result,
-			fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID))))
+			fmt.Sprintf("Deleted OneDrive backup [%s %s]\n",
+				string(suite.backupOp.Results.BackupID),
+				string(suite.secondaryBackupOp.Results.BackupID))))
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(

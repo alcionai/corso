@@ -132,7 +132,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
 
-		flags.AddBackupIDFlag(c, true)
+		flags.AddDeleteBackupIDFlag(c, true)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
@@ -358,5 +358,5 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.ExchangeService, flags.BackupIDFV, "Exchange", args)
+	return genericDeleteCommand(cmd, path.ExchangeService, "Exchange", flags.DeleteBackupIDFV, args)
 }

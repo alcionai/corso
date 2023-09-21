@@ -17,12 +17,25 @@ const (
 
 var (
 	BackupIDFV           string
+	DeleteBackupIDFV     []string
 	AWSAccessKeyFV       string
 	AWSSecretAccessKeyFV string
 	AWSSessionTokenFV    string
 	CorsoPassphraseFV    string
 	SucceedIfExistsFV    bool
 )
+
+// AddBackupIDFlag adds the --backup flag.
+func AddDeleteBackupIDFlag(cmd *cobra.Command, require bool) {
+	cmd.Flags().StringSliceVar(
+		&DeleteBackupIDFV,
+		BackupFN, nil,
+		"ID of the backup to delete")
+
+	if require {
+		cobra.CheckErr(cmd.MarkFlagRequired(BackupFN))
+	}
+}
 
 // AddBackupIDFlag adds the --backup flag.
 func AddBackupIDFlag(cmd *cobra.Command, require bool) {

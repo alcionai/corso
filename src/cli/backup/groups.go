@@ -120,7 +120,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + groupsServiceCommandDeleteUseSuffix
 		c.Example = groupsServiceCommandDeleteExamples
 
-		flags.AddBackupIDFlag(c, true)
+		flags.AddDeleteBackupIDFlag(c, true)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
@@ -310,7 +310,7 @@ func groupsDeleteCmd() *cobra.Command {
 
 // deletes an groups service backup.
 func deleteGroupsCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.GroupsService, flags.BackupIDFV, "Groups", args)
+	return genericDeleteCommand(cmd, path.GroupsService, "Groups", flags.DeleteBackupIDFV, args)
 }
 
 // ---------------------------------------------------------------------------

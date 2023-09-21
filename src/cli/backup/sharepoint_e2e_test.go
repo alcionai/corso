@@ -84,8 +84,9 @@ func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 
 type BackupDeleteSharePointE2ESuite struct {
 	tester.Suite
-	dpnd     dependencies
-	backupOp operations.BackupOperation
+	dpnd              dependencies
+	backupOp          operations.BackupOperation
+	secondaryBackupOp operations.BackupOperation
 }
 
 func TestBackupDeleteSharePointE2ESuite(t *testing.T) {
@@ -121,6 +122,15 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 
 	err = suite.backupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
+
+	// secondary backup
+	secondaryBackupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.secondaryBackupOp = secondaryBackupOp
+
+	err = suite.secondaryBackupOp.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
@@ -136,7 +146,10 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "sharepoint",
 		"--config-file", suite.dpnd.configFilePath,
-		"--"+flags.BackupFN, string(suite.backupOp.Results.BackupID))
+		"--"+flags.BackupFN,
+		fmt.Sprintf("%s,%s",
+			string(suite.backupOp.Results.BackupID),
+			string(suite.secondaryBackupOp.Results.BackupID)))
 	cli.BuildCommandTree(cmd)
 	cmd.SetErr(&suite.dpnd.recorder)
 
@@ -150,7 +163,9 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 	assert.True(t,
 		strings.HasSuffix(
 			result,
-			fmt.Sprintf("Deleted SharePoint backup %s\n", string(suite.backupOp.Results.BackupID))))
+			fmt.Sprintf("Deleted SharePoint backup [%s %s]\n",
+				string(suite.backupOp.Results.BackupID),
+				string(suite.secondaryBackupOp.Results.BackupID))))
 }
 
 // moved out of the func above to make the linter happy

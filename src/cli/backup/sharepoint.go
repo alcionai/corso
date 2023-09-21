@@ -122,7 +122,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
 
-		flags.AddBackupIDFlag(c, true)
+		flags.AddDeleteBackupIDFlag(c, true)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
@@ -294,7 +294,7 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.SharePointService, flags.BackupIDFV, "SharePoint", args)
+	return genericDeleteCommand(cmd, path.SharePointService, "SharePoint", flags.DeleteBackupIDFV, args)
 }
 
 // ------------------------------------------------------------------------------------------------
