@@ -54,30 +54,6 @@ func (suite *CollectionUnitSuite) TestReader_Empty() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
-func (suite *CollectionUnitSuite) TestCollection_NewCollection() {
-	t := suite.T()
-	tenant := "a-tenant"
-	protectedResource := "a-protectedResource"
-	folder := "a-folder"
-	name := "protectedResource"
-
-	fullPath, err := path.Build(
-		tenant,
-		protectedResource,
-		path.GroupsService,
-		path.ChannelMessagesCategory,
-		false,
-		folder)
-	require.NoError(t, err, clues.ToCore(err))
-
-	edc := Collection{
-		protectedResource: name,
-		fullPath:          fullPath,
-	}
-	assert.Equal(t, name, edc.protectedResource)
-	assert.Equal(t, fullPath, edc.FullPath())
-}
-
 func (suite *CollectionUnitSuite) TestNewCollection_state() {
 	fooP, err := path.Build("t", "u", path.GroupsService, path.ChannelMessagesCategory, false, "foo")
 	require.NoError(suite.T(), err, clues.ToCore(err))
@@ -124,18 +100,20 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 			t := suite.T()
 
 			c := NewCollection(
+				data.NewBaseCollection(
+					test.curr,
+					test.prev,
+					test.loc,
+					control.DefaultOptions(),
+					false),
 				nil,
 				"g",
-				test.curr, test.prev, test.loc,
-				0,
 				nil, nil,
-				nil,
-				control.DefaultOptions(),
-				false)
+				nil)
 			assert.Equal(t, test.expect, c.State(), "collection state")
-			assert.Equal(t, test.curr, c.fullPath, "full path")
-			assert.Equal(t, test.prev, c.prevPath, "prev path")
-			assert.Equal(t, test.loc, c.locationPath, "location path")
+			assert.Equal(t, test.curr, c.FullPath(), "full path")
+			assert.Equal(t, test.prev, c.PreviousPath(), "prev path")
+			assert.Equal(t, test.loc, c.LocationPath(), "location path")
 		})
 	}
 }
@@ -203,13 +181,16 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 			defer flush()
 
 			col := &Collection{
+				BaseCollection: data.NewBaseCollection(
+					fullPath,
+					nil,
+					locPath.ToBuilder(),
+					control.DefaultOptions(),
+					false),
 				added:         test.added,
 				removed:       test.removed,
-				ctrl:          control.DefaultOptions(),
 				getter:        mock.GetChannelMessage{},
 				stream:        make(chan data.Item),
-				fullPath:      fullPath,
-				locationPath:  locPath.ToBuilder(),
 				statusUpdater: statusUpdater,
 			}
 

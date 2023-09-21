@@ -47,9 +47,9 @@ func (c Channels) NewChannelMessagePager(
 	builder := c.Stable.
 		Client().
 		Teams().
-		ByTeamIdString(teamID).
+		ByTeamId(teamID).
 		Channels().
-		ByChannelIdString(channelID).
+		ByChannelId(channelID).
 		Messages()
 
 	options := &teams.ItemChannelsItemMessagesRequestBuilderGetRequestConfiguration{
@@ -98,9 +98,9 @@ func (p *channelMessageDeltaPageCtrl) Reset(context.Context) {
 	p.builder = p.gs.
 		Client().
 		Teams().
-		ByTeamIdString(p.resourceID).
+		ByTeamId(p.resourceID).
 		Channels().
-		ByChannelIdString(p.channelID).
+		ByChannelId(p.channelID).
 		Messages().
 		Delta()
 }
@@ -116,9 +116,9 @@ func (c Channels) NewChannelMessageDeltaPager(
 	builder := c.Stable.
 		Client().
 		Teams().
-		ByTeamIdString(teamID).
+		ByTeamId(teamID).
 		Channels().
-		ByChannelIdString(channelID).
+		ByChannelId(channelID).
 		Messages().
 		Delta()
 
@@ -211,11 +211,11 @@ func (c Channels) NewChannelMessageRepliesPager(
 		builder: c.Stable.
 			Client().
 			Teams().
-			ByTeamIdString(teamID).
+			ByTeamId(teamID).
 			Channels().
-			ByChannelIdString(channelID).
+			ByChannelId(channelID).
 			Messages().
-			ByChatMessageIdString(messageID).
+			ByChatMessageId(messageID).
 			Replies(),
 	}
 
@@ -272,7 +272,7 @@ func (c Channels) NewChannelPager(
 		builder: c.Stable.
 			Client().
 			Teams().
-			ByTeamIdString(teamID).
+			ByTeamId(teamID).
 			Channels(),
 	}
 
