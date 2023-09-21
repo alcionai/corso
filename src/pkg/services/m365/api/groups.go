@@ -119,7 +119,7 @@ func (c Groups) GetByID(
 		group, err = service.
 			Client().
 			Groups().
-			ByGroupIdString(identifier).
+			ByGroupId(identifier).
 			Get(ctx, nil)
 		if err == nil {
 			return group, nil
@@ -165,9 +165,9 @@ func (c Groups) GetRootSite(
 	resp, err := service.
 		Client().
 		Groups().
-		ByGroupIdString(identifier).
+		ByGroupId(identifier).
 		Sites().
-		BySiteIdString("root").
+		BySiteId("root").
 		Get(ctx, nil)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting root site for group")

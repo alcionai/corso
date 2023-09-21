@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
@@ -40,14 +41,13 @@ func makeRestoreCfgOpts(cmd *cobra.Command) RestoreCfgOpts {
 	}
 }
 
-// validateRestoreConfigFlags checks common restore flags for
-// correctness and interdependencies.
-func validateRestoreConfigFlags(fv string, opts RestoreCfgOpts) error {
+// ValidateRestoreConfigFlags checks common restore flags for correctness and interdependencies.
+func ValidateRestoreConfigFlags(opts RestoreCfgOpts) error {
 	_, populated := opts.Populated[flags.CollisionsFN]
-	_, foundInValidSet := control.ValidCollisionPolicies()[control.CollisionPolicy(fv)]
+	isValid := control.IsValidCollisionPolicy(control.CollisionPolicy(opts.Collisions))
 
-	if populated && !foundInValidSet {
-		return clues.New("invalid entry for " + flags.CollisionsFN)
+	if populated && !isValid {
+		return clues.New(fmt.Sprintf("invalid collision policy: %s", flags.CollisionsFN))
 	}
 
 	return nil

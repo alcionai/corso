@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
@@ -575,6 +576,7 @@ func isErrEntryNotFound(err error) bool {
 
 func (w Wrapper) RepoMaintenance(
 	ctx context.Context,
+	storer store.Storer,
 	opts repository.Maintenance,
 ) error {
 	kopiaSafety, err := translateSafety(opts.Safety)
@@ -595,6 +597,22 @@ func (w Wrapper) RepoMaintenance(
 		"kopia_maintenance_mode", mode,
 		"force", opts.Force,
 		"current_local_owner", clues.Hide(currentOwner))
+
+	// Check if we should do additional cleanup prior to running kopia's
+	// maintenance.
+	if opts.Type == repository.CompleteMaintenance {
+		buffer := time.Hour * 24 * 7
+		if opts.CleanupBuffer != nil {
+			buffer = *opts.CleanupBuffer
+		}
+
+		// Even if we fail this we don't want to fail the overall maintenance
+		// operation since there's other useful work we can still do.
+		if err := cleanupOrphanedData(ctx, storer, w.c, buffer, time.Now); err != nil {
+			logger.CtxErr(ctx, err).Info(
+				"cleaning up failed backups, some space may not be freed")
+		}
+	}
 
 	dr, ok := w.c.Repository.(repo.DirectRepository)
 	if !ok {

@@ -55,7 +55,7 @@ func (c Events) CreateContainer(
 	container, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -80,9 +80,9 @@ func (c Events) DeleteContainer(
 
 	err = srv.Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
-		ByCalendarIdString(containerID).
+		ByCalendarId(containerID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
@@ -104,9 +104,9 @@ func (c Events) GetContainerByID(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
-		ByCalendarIdString(containerID).
+		ByCalendarId(containerID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -133,7 +133,7 @@ func (c Events) GetContainerByName(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
 		Get(ctx, options)
 	if err != nil {
@@ -169,9 +169,9 @@ func (c Events) PatchCalendar(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
-		ByCalendarIdString(containerID).
+		ByCalendarId(containerID).
 		Patch(ctx, body, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "patching event calendar")
@@ -381,9 +381,9 @@ func (c Events) GetAttachments(
 	attached, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Events().
-		ByEventIdString(itemID).
+		ByEventId(itemID).
 		Attachments().
 		Get(ctx, config)
 	if err != nil {
@@ -400,13 +400,13 @@ func (c Events) DeleteAttachment(
 	return c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
-		ByCalendarIdString(calendarID).
+		ByCalendarId(calendarID).
 		Events().
-		ByEventIdString(eventID).
+		ByEventId(eventID).
 		Attachments().
-		ByAttachmentIdString(attachmentID).
+		ByAttachmentId(attachmentID).
 		Delete(ctx, nil)
 }
 
@@ -425,9 +425,9 @@ func (c Events) GetItemInstances(
 	events, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Events().
-		ByEventIdString(itemID).
+		ByEventId(itemID).
 		Instances().
 		Get(ctx, config)
 	if err != nil {
@@ -483,9 +483,9 @@ func (c Events) DeleteItem(
 	err = srv.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Events().
-		ByEventIdString(itemID).
+		ByEventId(itemID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting calendar event")
@@ -502,11 +502,11 @@ func (c Events) PostSmallAttachment(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
-		ByCalendarIdString(containerID).
+		ByCalendarId(containerID).
 		Events().
-		ByEventIdString(parentItemID).
+		ByEventId(parentItemID).
 		Attachments().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -528,11 +528,11 @@ func (c Events) PostLargeAttachment(
 	us, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
-		ByCalendarIdString(containerID).
+		ByCalendarId(containerID).
 		Events().
-		ByEventIdString(parentItemID).
+		ByEventId(parentItemID).
 		Attachments().
 		CreateUploadSession().
 		Post(ctx, session, nil)
