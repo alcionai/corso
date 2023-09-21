@@ -39,6 +39,7 @@ func odErr(code string) *odataerrors.ODataError {
 	odErr := odataerrors.NewODataError()
 	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
+	merr.SetMessage(&code) // sdk expect message to be available
 	odErr.SetErrorEscaped(merr)
 
 	return odErr

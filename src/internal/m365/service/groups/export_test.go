@@ -67,7 +67,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 		body          = io.NopCloser(bytes.NewBufferString(
 			`{"displayname": "` + dii.Groups.ItemName + `"}`))
 		exportCfg     = control.ExportConfig{}
-		expectedPath  = path.ChannelMessagesCategory.String() + "/" + containerName
+		expectedPath  = path.ChannelMessagesCategory.HumanString() + "/" + containerName
 		expectedItems = []export.Item{
 			{
 				ID:   itemID,

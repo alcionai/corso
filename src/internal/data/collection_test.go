@@ -149,6 +149,7 @@ func (suite *CollectionSuite) TestNewBaseCollection() {
 			assert.Equal(t, loc, b.LocationPath(), "location path")
 			assert.Equal(t, test.expectState, b.State(), "state")
 			assert.Equal(t, test.expectDoNotMerge, b.DoNotMergeItems(), "do not merge")
+			assert.Equal(t, path.EmailCategory, b.Category(), "category")
 		})
 	}
 }

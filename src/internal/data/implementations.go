@@ -118,6 +118,17 @@ func (col BaseCollection) State() CollectionState {
 	return col.state
 }
 
+func (col BaseCollection) Category() path.CategoryType {
+	switch {
+	case col.FullPath() != nil:
+		return col.FullPath().Category()
+	case col.PreviousPath() != nil:
+		return col.PreviousPath().Category()
+	}
+
+	return path.UnknownCategory
+}
+
 func (col BaseCollection) DoNotMergeItems() bool {
 	return col.doNotMergeItems
 }

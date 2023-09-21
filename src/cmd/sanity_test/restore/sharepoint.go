@@ -19,7 +19,7 @@ func CheckSharePointRestoration(
 ) {
 	drive, err := client.
 		Sites().
-		BySiteIdString(siteID).
+		BySiteId(siteID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
