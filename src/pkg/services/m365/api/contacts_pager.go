@@ -40,9 +40,9 @@ func (c Contacts) EnumerateContainers(
 	builder := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(baseContainerID).
+		ByContactFolderId(baseContainerID).
 		ChildFolders()
 
 	for {
@@ -118,9 +118,9 @@ func (c Contacts) NewContactsPager(
 	builder := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(containerID).
+		ByContactFolderId(containerID).
 		Contacts()
 
 	return &contactsPageCtrl{c.Stable, builder, options}
@@ -204,9 +204,9 @@ func getContactDeltaBuilder(
 ) *users.ItemContactFoldersItemContactsDeltaRequestBuilder {
 	builder := gs.Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(containerID).
+		ByContactFolderId(containerID).
 		Contacts().
 		Delta()
 

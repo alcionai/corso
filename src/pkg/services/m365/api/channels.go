@@ -46,9 +46,9 @@ func (c Channels) GetChannel(
 	resp, err := c.Stable.
 		Client().
 		Teams().
-		ByTeamIdString(teamID).
+		ByTeamId(teamID).
 		Channels().
-		ByChannelIdString(containerID).
+		ByChannelId(containerID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -74,7 +74,7 @@ func (c Channels) GetChannelByName(
 	resp, err := c.Stable.
 		Client().
 		Teams().
-		ByTeamIdString(teamID).
+		ByTeamId(teamID).
 		Channels().
 		Get(ctx, options)
 	if err != nil {
@@ -111,11 +111,11 @@ func (c Channels) GetChannelMessage(
 	message, err := c.Stable.
 		Client().
 		Teams().
-		ByTeamIdString(teamID).
+		ByTeamId(teamID).
 		Channels().
-		ByChannelIdString(channelID).
+		ByChannelId(channelID).
 		Messages().
-		ByChatMessageIdString(messageID).
+		ByChatMessageId(messageID).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
