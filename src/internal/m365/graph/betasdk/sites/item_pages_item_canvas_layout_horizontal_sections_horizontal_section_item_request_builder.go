@@ -75,7 +75,7 @@ func (m *ItemPagesItemCanvasLayoutHorizontalSectionsHorizontalSectionItemRequest
 		urlTplParams[idx] = item
 	}
 
-	if id != "" {
+	if len(id) > 0 {
 		urlTplParams["horizontalSectionColumn%2Did"] = id
 	}
 	//nolint:lll
@@ -114,8 +114,7 @@ func NewItemPagesItemCanvasLayoutHorizontalSectionsHorizontalSectionItemRequestB
 
 	return NewItemPagesItemCanvasLayoutHorizontalSectionsHorizontalSectionItemRequestBuilderInternal(
 		urlParams,
-		requestAdapter,
-	)
+		requestAdapter)
 }
 
 // CreateDeleteRequestInformation delete navigation property horizontalSections for sites

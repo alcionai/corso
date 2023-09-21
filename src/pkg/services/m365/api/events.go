@@ -55,7 +55,7 @@ func (c Events) CreateContainer(
 	container, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -80,9 +80,9 @@ func (c Events) DeleteContainer(
 
 	err = srv.Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
-		ByCalendarId(containerID).
+		ByCalendarIdString(containerID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
@@ -104,9 +104,9 @@ func (c Events) GetContainerByID(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
-		ByCalendarId(containerID).
+		ByCalendarIdString(containerID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -133,7 +133,7 @@ func (c Events) GetContainerByName(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
 		Get(ctx, options)
 	if err != nil {
@@ -169,9 +169,9 @@ func (c Events) PatchCalendar(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
-		ByCalendarId(containerID).
+		ByCalendarIdString(containerID).
 		Patch(ctx, body, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "patching event calendar")
@@ -212,9 +212,10 @@ func (c Events) GetItem(
 	// cancelledOccurrences end up in AdditionalData
 	// https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-beta#properties
 	rawURL := fmt.Sprintf(eventExceptionsBetaURLTemplate, userID, itemID)
-	builder := users.NewItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
 
-	event, err = builder.Get(ctx, config)
+	event, err = users.
+		NewItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter()).
+		Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
 	}
@@ -380,9 +381,9 @@ func (c Events) GetAttachments(
 	attached, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Events().
-		ByEventId(itemID).
+		ByEventIdString(itemID).
 		Attachments().
 		Get(ctx, config)
 	if err != nil {
@@ -399,13 +400,13 @@ func (c Events) DeleteAttachment(
 	return c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
-		ByCalendarId(calendarID).
+		ByCalendarIdString(calendarID).
 		Events().
-		ByEventId(eventID).
+		ByEventIdString(eventID).
 		Attachments().
-		ByAttachmentId(attachmentID).
+		ByAttachmentIdString(attachmentID).
 		Delete(ctx, nil)
 }
 
@@ -424,9 +425,9 @@ func (c Events) GetItemInstances(
 	events, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Events().
-		ByEventId(itemID).
+		ByEventIdString(itemID).
 		Instances().
 		Get(ctx, config)
 	if err != nil {
@@ -482,9 +483,9 @@ func (c Events) DeleteItem(
 	err = srv.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Events().
-		ByEventId(itemID).
+		ByEventIdString(itemID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting calendar event")
@@ -501,11 +502,11 @@ func (c Events) PostSmallAttachment(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
-		ByCalendarId(containerID).
+		ByCalendarIdString(containerID).
 		Events().
-		ByEventId(parentItemID).
+		ByEventIdString(parentItemID).
 		Attachments().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -527,11 +528,11 @@ func (c Events) PostLargeAttachment(
 	us, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Calendars().
-		ByCalendarId(containerID).
+		ByCalendarIdString(containerID).
 		Events().
-		ByEventId(parentItemID).
+		ByEventIdString(parentItemID).
 		Attachments().
 		CreateUploadSession().
 		Post(ctx, session, nil)
@@ -556,7 +557,7 @@ func (c Events) PostLargeAttachment(
 // ---------------------------------------------------------------------------
 
 func BytesToEventable(body []byte) (models.Eventable, error) {
-	v, err := createFromBytes(body, models.CreateEventFromDiscriminatorValue)
+	v, err := CreateFromBytes(body, models.CreateEventFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to event")
 	}

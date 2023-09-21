@@ -69,7 +69,7 @@ func ConsumeRestoreCollections(
 			ictx     = clues.Add(ctx,
 				"category", category,
 				"restore_location", clues.Hide(rcc.RestoreConfig.Location),
-				"resource_owner", clues.Hide(dc.FullPath().ResourceOwner()),
+				"resource_owner", clues.Hide(dc.FullPath().ProtectedResource()),
 				"full_path", dc.FullPath())
 		)
 
@@ -177,7 +177,7 @@ func restoreListItem(
 	newList.SetItems(contents)
 
 	// Restore to List base to M365 back store
-	restoredList, err := service.Client().Sites().BySiteId(siteID).Lists().Post(ctx, newList, nil)
+	restoredList, err := service.Client().Sites().BySiteIdString(siteID).Lists().Post(ctx, newList, nil)
 	if err != nil {
 		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
@@ -188,9 +188,9 @@ func restoreListItem(
 		for _, lItem := range contents {
 			_, err := service.Client().
 				Sites().
-				BySiteId(siteID).
+				BySiteIdString(siteID).
 				Lists().
-				ByListId(ptr.Val(restoredList.GetId())).
+				ByListIdString(ptr.Val(restoredList.GetId())).
 				Items().
 				Post(ctx, lItem, nil)
 			if err != nil {
@@ -219,7 +219,7 @@ func RestoreListCollection(
 	var (
 		metrics   = support.CollectionMetrics{}
 		directory = dc.FullPath()
-		siteID    = directory.ResourceOwner()
+		siteID    = directory.ProtectedResource()
 		items     = dc.Items(ctx, errs)
 		el        = errs.Local()
 	)
@@ -291,7 +291,7 @@ func RestorePageCollection(
 	var (
 		metrics   = support.CollectionMetrics{}
 		directory = dc.FullPath()
-		siteID    = directory.ResourceOwner()
+		siteID    = directory.ProtectedResource()
 	)
 
 	trace.Log(ctx, "m365:sharepoint:restorePageCollection", directory.String())

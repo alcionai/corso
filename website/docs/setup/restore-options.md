@@ -32,7 +32,7 @@ data integrity then this is always the safest option.
     `corso restore onedrive --destination /my-latest-restore --backup a422895c-c20c-4b06-883d-b866db9f86ef`
 }</CodeBlock>
 
-When a destination is manually specified, all restored will appear in that top-level
+When a destination is manually specified, all restored items will appear in that top-level
 folder. In the example above, Corso will restore everything into `my-latest-restore`.
 If that folder doesn't already exist, Corso will automatically create it. If it does
 exist, the restore will use the existing folder, allowing you to restore to the same

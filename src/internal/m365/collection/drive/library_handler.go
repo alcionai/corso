@@ -61,7 +61,7 @@ func (h libraryBackupHandler) PathPrefix(
 func (h libraryBackupHandler) MetadataPathPrefix(
 	tenantID string,
 ) (path.Path, error) {
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenantID,
 		h.siteID,
 		h.service,
@@ -152,7 +152,6 @@ func (h libraryBackupHandler) NewLocationIDer(
 	driveID string,
 	elems ...string,
 ) details.LocationIDer {
-	// TODO(meain): path related changes for groups
 	return details.NewSharePointLocationIDer(driveID, elems...)
 }
 

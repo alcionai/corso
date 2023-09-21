@@ -17,14 +17,11 @@ func AreSameFunc(t *testing.T, expect, have any) {
 		runtime.FuncForPC(
 			reflect.
 				ValueOf(expect).
-				Pointer(),
-		).Name(),
+				Pointer()).Name(),
 		runtime.FuncForPC(
 			reflect.
 				ValueOf(have).
-				Pointer(),
-		).Name(),
-	)
+				Pointer()).Name())
 }
 
 type TestT interface {
@@ -39,7 +36,7 @@ func LogTimeOfTest(t TestT) string {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	name := t.Name()
 
-	if name == "" {
+	if len(name) == 0 {
 		t.Logf("Test run at %s.", now)
 		return now
 	}

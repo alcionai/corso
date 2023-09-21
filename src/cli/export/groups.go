@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 )
 
@@ -19,7 +18,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case exportCommand:
-		c, fs = utils.AddCommand(cmd, groupsExportCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsExportCmd(), utils.MarkPreviewCommand())
 
 		c.Use = c.Use + " " + groupsServiceCommandUseSuffix
 
@@ -28,6 +27,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, true)
+		flags.AddGroupDetailsAndRestoreFlags(c)
 		flags.AddExportConfigFlags(c)
 		flags.AddFailFastFlag(c)
 		flags.AddCorsoPassphaseFlags(c)
@@ -37,30 +37,35 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 	return c
 }
 
-// TODO: correct examples
 const (
 	groupsServiceCommand          = "groups"
+	teamsServiceCommand           = "teams"
 	groupsServiceCommandUseSuffix = "<destination> --backup <backupId>"
 
 	//nolint:lll
-	groupsServiceCommandExportExamples = `# Export file with ID 98765abcdef in Bob's last backup (1234abcd...) to my-exports directory
-corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
+	groupsServiceCommandExportExamples = `# Export a message in Marketing's last backup (1234abcd...) to /my-exports
+corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd --message 98765abcdef
 
-# Export files named "FY2021 Planning.xlsx" in "Documents/Finance Reports" to current directory
+# Export all messages named in channel "Finance Reports" to the current directory
 corso export groups . --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+    --message '*' --channel "Finance Reports"
 
-# Export all files and folders in folder "Documents/Finance Reports" that were created before 2020 to my-exports
+# Export all messages in channel "Finance Reports" that were created before 2020 to /my-exports
 corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd
+    --channel "Finance Reports" --message-created-before 2020-01-01T00:00:00
+
+# Export all files and folders in folder "Documents/Finance Reports" that were created before 2020 to /my-exports
+corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso export groups [<flag>...] <destination>`
 func groupsExportCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   groupsServiceCommand,
-		Short: "Export M365 Groups service data",
-		RunE:  exportGroupsCmd,
+		Use:     groupsServiceCommand,
+		Aliases: []string{teamsServiceCommand},
+		Short:   "Export M365 Groups service data",
+		RunE:    exportGroupsCmd,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.New("missing export destination")
@@ -80,5 +85,18 @@ func exportGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return Only(ctx, utils.ErrNotYetImplemented)
+	opts := utils.MakeGroupsOpts(cmd)
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
+	if err := utils.ValidateGroupsRestoreFlags(flags.BackupIDFV, opts); err != nil {
+		return err
+	}
+
+	sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
+	utils.FilterGroupsRestoreInfoSelectors(sel, opts)
+
+	return runExport(ctx, cmd, args, opts.ExportCfg, sel.Selector, flags.BackupIDFV, "Groups")
 }

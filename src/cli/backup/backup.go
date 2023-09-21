@@ -3,7 +3,6 @@ package backup
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -40,9 +38,7 @@ var serviceCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addExchangeCommands,
 	addOneDriveCommands,
 	addSharePointCommands,
-	// awaiting release
-	// addGroupsCommands,
-	// addTeamsCommands,
+	addGroupsCommands,
 }
 
 // AddCommands attaches all `corso backup * *` commands to the parent.
@@ -56,12 +52,6 @@ func AddCommands(cmd *cobra.Command) {
 
 		for _, addBackupTo := range serviceCommands {
 			addBackupTo(subCommand)
-		}
-
-		// delete after release
-		if len(os.Getenv("CORSO_ENABLE_GROUPS")) > 0 {
-			addGroupsCommands(subCommand)
-			addTeamsCommands(subCommand)
 		}
 	}
 }
@@ -196,7 +186,7 @@ var defaultSelectorConfig = selectors.Config{OnlyMatchItemNames: true}
 func runBackups(
 	ctx context.Context,
 	r repository.Repository,
-	serviceName, resourceOwnerType string,
+	serviceName string,
 	selectorSet []selectors.Selector,
 	ins idname.Cacher,
 ) error {
@@ -229,7 +219,9 @@ func runBackups(
 		err = bo.Run(ictx)
 		if err != nil {
 			if errors.Is(err, graph.ErrServiceNotEnabled) {
-				logger.Ctx(ctx).Infow("service not enabled", "resource_owner_name", bo.ResourceOwner.Name())
+				logger.Ctx(ctx).Infow("service not enabled",
+					"resource_owner_id", bo.ResourceOwner.ID(),
+					"service", serviceName)
 
 				continue
 			}
@@ -289,7 +281,10 @@ func genericDeleteCommand(
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, pst, repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
+		ctx,
+		cmd,
+		pst)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -315,7 +310,10 @@ func genericListCommand(
 ) error {
 	ctx := cmd.Context()
 
-	r, _, _, _, err := utils.GetAccountAndConnect(ctx, service, repo.S3Overrides(cmd))
+	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
+		ctx,
+		cmd,
+		service)
 	if err != nil {
 		return Only(ctx, err)
 	}

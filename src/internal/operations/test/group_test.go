@@ -1,11 +1,13 @@
 package test_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -14,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -23,8 +26,6 @@ type GroupsBackupIntgSuite struct {
 }
 
 func TestGroupsBackupIntgSuite(t *testing.T) {
-	t.Skip("enable when groups e2e v0 backup is complete")
-
 	suite.Run(t, &GroupsBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
@@ -36,9 +37,46 @@ func (suite *GroupsBackupIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-// TODO(v1 backup): Incremental backup
-// TODO(v0,v1 restore): Library restore
 // TODO(v0 export): Channels export
+
+func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
+	sel := selectors.NewGroupsRestore([]string{suite.its.group.ID})
+
+	ic := func(cs []string) selectors.Selector {
+		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))
+		return sel.Selector
+	}
+
+	gtdi := func(
+		t *testing.T,
+		ctx context.Context,
+	) string {
+		return suite.its.group.RootSite.DriveID
+	}
+
+	gtsi := func(
+		t *testing.T,
+		ctx context.Context,
+	) string {
+		return suite.its.group.RootSite.ID
+	}
+
+	grh := func(ac api.Client) drive.RestoreHandler {
+		return drive.NewLibraryRestoreHandler(ac, path.GroupsService)
+	}
+
+	runDriveIncrementalTest(
+		suite,
+		suite.its.group.ID,
+		suite.its.user.ID,
+		path.GroupsService,
+		path.LibrariesCategory,
+		ic,
+		gtdi,
+		gtsi,
+		grh,
+		true)
+}
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	t := suite.T()
@@ -47,14 +85,15 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	defer flush()
 
 	var (
-		mb   = evmock.NewBus()
-		sel  = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
+		opts    = control.DefaultOptions()
+		whatSet = deeTD.CategoryFromRepoRef
 	)
 
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel)) // FIXME: channel backups are not ready
+		selTD.GroupsBackupChannelScope(sel))
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
 	defer bod.close(t, ctx)
@@ -68,7 +107,27 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 		&bo,
 		bod.sel,
 		bod.sel.ID(),
-		path.LibrariesCategory)
+		path.ChannelMessagesCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.GroupsService,
+		whatSet,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		whatSet,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
 }
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
@@ -133,4 +192,52 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 			verifyExtensionData(t, ent.ItemInfo, path.GroupsService)
 		}
 	}
+}
+
+type GroupsRestoreNightlyIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestGroupsRestoreIntgSuite(t *testing.T) {
+	suite.Run(t, &GroupsRestoreNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *GroupsRestoreNightlyIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsWithAdvancedOptions() {
+	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+	sel.Filter(sel.Library("documents"))
+	sel.DiscreteOwner = suite.its.group.ID
+
+	runDriveRestoreWithAdvancedOptions(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.group.RootSite.DriveID,
+		suite.its.group.RootSite.DriveRootFolderID)
+}
+
+func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsAlternateProtectedResource() {
+	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+	sel.Filter(sel.Library("documents"))
+	sel.DiscreteOwner = suite.its.group.ID
+
+	runDriveRestoreToAlternateProtectedResource(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.group.RootSite,
+		suite.its.secondaryGroup.RootSite,
+		suite.its.secondaryGroup.ID)
 }

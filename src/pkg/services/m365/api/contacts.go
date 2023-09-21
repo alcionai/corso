@@ -46,7 +46,7 @@ func (c Contacts) CreateContainer(
 	mdl, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		ContactFolders().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -71,9 +71,9 @@ func (c Contacts) DeleteContainer(
 	err = srv.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		ContactFolders().
-		ByContactFolderId(containerID).
+		ByContactFolderIdString(containerID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
@@ -95,9 +95,9 @@ func (c Contacts) GetContainerByID(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		ContactFolders().
-		ByContactFolderId(containerID).
+		ByContactFolderIdString(containerID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -124,7 +124,7 @@ func (c Contacts) GetContainerByName(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		ContactFolders().
 		Get(ctx, options)
 	if err != nil {
@@ -141,7 +141,7 @@ func (c Contacts) GetContainerByName(
 	// Return an error if multiple container exist (unlikely) or if no container
 	// is found.
 	if len(gv) != 1 {
-		return nil, clues.New("unexpected number of folders returned").
+		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).
 			With("returned_container_count", len(gv)).
 			WithClues(ctx)
 	}
@@ -164,9 +164,9 @@ func (c Contacts) PatchFolder(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		ContactFolders().
-		ByContactFolderId(containerID).
+		ByContactFolderIdString(containerID).
 		Patch(ctx, body, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "patching contact folder")
@@ -193,9 +193,9 @@ func (c Contacts) GetItem(
 	cont, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Contacts().
-		ByContactId(itemID).
+		ByContactIdString(itemID).
 		Get(ctx, options)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
@@ -212,9 +212,9 @@ func (c Contacts) PostItem(
 	itm, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		ContactFolders().
-		ByContactFolderId(containerID).
+		ByContactFolderIdString(containerID).
 		Contacts().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -238,9 +238,9 @@ func (c Contacts) DeleteItem(
 	err = srv.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Contacts().
-		ByContactId(itemID).
+		ByContactIdString(itemID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting contact")
@@ -254,7 +254,7 @@ func (c Contacts) DeleteItem(
 // ---------------------------------------------------------------------------
 
 func BytesToContactable(bytes []byte) (models.Contactable, error) {
-	v, err := createFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
+	v, err := CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to contact")
 	}

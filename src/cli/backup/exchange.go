@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -168,7 +167,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.ExchangeService, repo.S3Overrides(cmd))
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx,
+		cmd,
+		path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -191,7 +193,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	return runBackups(
 		ctx,
 		r,
-		"Exchange", "user",
+		"Exchange",
 		selectorSet,
 		ins)
 }
@@ -277,7 +279,10 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.ExchangeService, repo.S3Overrides(cmd))
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
+		ctx,
+		cmd,
+		path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}

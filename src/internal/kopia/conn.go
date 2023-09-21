@@ -137,8 +137,7 @@ func (w *conn) Initialize(
 		cfg.KopiaCfgDir,
 		bst,
 		cfg.CorsoPassphrase,
-		defaultCompressor,
-	)
+		defaultCompressor)
 	if err != nil {
 		return err
 	}
@@ -171,8 +170,7 @@ func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
 		cfg.KopiaCfgDir,
 		bst,
 		cfg.CorsoPassphrase,
-		defaultCompressor,
-	)
+		defaultCompressor)
 }
 
 func (w *conn) commonConnect(
@@ -186,6 +184,7 @@ func (w *conn) commonConnect(
 		ClientOptions: repo.ClientOptions{
 			Username: opts.User,
 			Hostname: opts.Host,
+			ReadOnly: opts.ReadOnly,
 		},
 	}
 
@@ -205,8 +204,7 @@ func (w *conn) commonConnect(
 		cfgFile,
 		bst,
 		password,
-		kopiaOpts,
-	); err != nil {
+		kopiaOpts); err != nil {
 		return clues.Wrap(err, "connecting to repo").WithClues(ctx)
 	}
 
@@ -225,6 +223,8 @@ func blobStoreByProvider(
 	switch s.Provider {
 	case storage.ProviderS3:
 		return s3BlobStorage(ctx, opts, s)
+	case storage.ProviderFilesystem:
+		return filesystemStorage(ctx, opts, s)
 	default:
 		return nil, clues.New("storage provider details are required").WithClues(ctx)
 	}
@@ -532,8 +532,7 @@ func persistRetentionConfigs(
 	if !opts.ParamsChanged() {
 		return clues.Wrap(
 			dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
-			"persisting storage config",
-		).WithClues(ctx).OrNil()
+			"persisting storage config").WithClues(ctx).OrNil()
 	}
 
 	// Both blob and maintenance changed. A DirectWriteSession is required to
@@ -558,8 +557,7 @@ func persistRetentionConfigs(
 
 			return clues.Wrap(
 				dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
-				"storage config",
-			).WithClues(ctx).OrNil()
+				"storage config").WithClues(ctx).OrNil()
 		})
 
 	return clues.Wrap(err, "persisting config changes").WithClues(ctx).OrNil()

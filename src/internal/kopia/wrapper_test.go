@@ -26,7 +26,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	m365Mock "github.com/alcionai/corso/src/internal/m365/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -140,10 +139,8 @@ func (suite *KopiaUnitSuite) SetupSuite() {
 			path.ExchangeService.String(),
 			testUser,
 			path.EmailCategory.String(),
-			testInboxDir,
-		),
-		false,
-	)
+			testInboxDir),
+		false)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	suite.testPath = tmp
@@ -174,8 +171,7 @@ func TestBasicKopiaIntegrationSuite(t *testing.T) {
 	suite.Run(t, &BasicKopiaIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -398,8 +394,7 @@ func TestRetentionIntegrationSuite(t *testing.T) {
 	suite.Run(t, &RetentionIntegrationSuite{
 		Suite: tester.NewRetentionSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -717,8 +712,7 @@ func TestKopiaIntegrationSuite(t *testing.T) {
 	suite.Run(t, &KopiaIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -811,16 +805,14 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
-			suite.storePath1.ResourceOwner(),
+			suite.storePath1.ProtectedResource(),
 			suite.storePath1.Service(),
-			suite.storePath1.Category(),
-		),
+			suite.storePath1.Category()),
 		NewReason(
 			testTenant,
-			suite.storePath2.ResourceOwner(),
+			suite.storePath2.ProtectedResource(),
 			suite.storePath2.Service(),
-			suite.storePath2.Category(),
-		),
+			suite.storePath2.Category()),
 	}
 
 	expectedTags := map[string]string{}
@@ -929,8 +921,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 					t,
 					details,
 					// 47 file and 2 folder entries.
-					test.expectedUploadedFiles+test.expectedCachedFiles+2,
-				)
+					test.expectedUploadedFiles+test.expectedCachedFiles+2)
 			}
 
 			checkSnapshotTags(
@@ -938,14 +929,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				ctx,
 				suite.w.c,
 				expectedTags,
-				stats.SnapshotID,
-			)
+				stats.SnapshotID)
 
 			snap, err := snapshot.LoadSnapshot(
 				ctx,
 				suite.w.c,
-				manifest.ID(stats.SnapshotID),
-			)
+				manifest.ID(stats.SnapshotID))
 			require.NoError(t, err, clues.ToCore(err))
 
 			res = ManifestEntry{
@@ -1012,7 +1001,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		{
 			name: "Merge Only",
 			baseBackups: func(base ManifestEntry) BackupBases {
-				return NewMockBackupBases().WithMergeBases(base).ClearMockAssistBases()
+				return NewMockBackupBases().WithMergeBases(base).MockDisableAssistBases()
 			},
 			// Pass in empty collections to force a backup. Otherwise we'll skip
 			// actually trying to do anything because we'll see there's nothing that
@@ -1082,7 +1071,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	reasons := []identity.Reasoner{
 		NewReason(
 			testTenant,
-			storePath.ResourceOwner(),
+			storePath.ProtectedResource(),
 			storePath.Service(),
 			storePath.Category()),
 	}
@@ -1136,10 +1125,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					streams = append(streams, ms)
 				}
 
-				mc := &m365Mock.BackupCollection{
-					Path:    storePath,
-					Loc:     locPath,
-					Streams: streams,
+				mc := &dataMock.Collection{
+					Path:     storePath,
+					Loc:      locPath,
+					ItemData: streams,
 				}
 
 				return []data.BackupCollection{mc}
@@ -1163,11 +1152,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					ItemInfo: details.ItemInfo{OneDrive: &info},
 				}
 
-				mc := &m365Mock.BackupCollection{
-					Path:    storePath,
-					Loc:     locPath,
-					Streams: []data.Item{ms},
-					CState:  data.NotMovedState,
+				mc := &dataMock.Collection{
+					Path:     storePath,
+					Loc:      locPath,
+					ItemData: []data.Item{ms},
+					CState:   data.NotMovedState,
 				}
 
 				return []data.BackupCollection{mc}
@@ -1206,8 +1195,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			assert.Len(
 				t,
 				details,
-				test.numDeetsEntries+1,
-			)
+				test.numDeetsEntries+1)
 
 			for _, entry := range details {
 				if test.hasMetaDeets {
@@ -1226,8 +1214,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				suite.ctx,
 				suite.w.c,
 				expectedTags,
-				stats.SnapshotID,
-			)
+				stats.SnapshotID)
 
 			snap, err := snapshot.LoadSnapshot(
 				suite.ctx,
@@ -1239,8 +1226,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				ManifestEntry{
 					Manifest: snap,
 					Reasons:  reasons,
-				},
-			)
+				})
 		})
 	}
 }
@@ -1309,10 +1295,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	collections := []data.BackupCollection{
-		&m365Mock.BackupCollection{
+		&dataMock.Collection{
 			Path: suite.storePath1,
 			Loc:  loc1,
-			Streams: []data.Item{
+			ItemData: []data.Item{
 				&dataMock.Item{
 					ItemID:   testFileName,
 					Reader:   io.NopCloser(bytes.NewReader(testFileData)),
@@ -1325,10 +1311,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 				},
 			},
 		},
-		&m365Mock.BackupCollection{
+		&dataMock.Collection{
 			Path: suite.storePath2,
 			Loc:  loc2,
-			Streams: []data.Item{
+			ItemData: []data.Item{
 				&dataMock.Item{
 					ItemID:   testFileName3,
 					Reader:   io.NopCloser(bytes.NewReader(testFileData3)),
@@ -1353,6 +1339,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 	}
 
+	errs := fault.New(true)
+
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		[]identity.Reasoner{r},
@@ -1361,13 +1349,14 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		nil,
 		true,
-		fault.New(true))
+		errs)
 	require.Error(t, err, clues.ToCore(err))
-	assert.Equal(t, 0, stats.ErrorCount)
-	assert.Equal(t, 5, stats.TotalFileCount)
-	assert.Equal(t, 6, stats.TotalDirectoryCount)
-	assert.Equal(t, 1, stats.IgnoredErrorCount)
-	assert.False(t, stats.Incomplete)
+	assert.Equal(t, 0, stats.ErrorCount, "error count")
+	assert.Equal(t, 5, stats.TotalFileCount, "total files")
+	assert.Equal(t, 6, stats.TotalDirectoryCount, "total directories")
+	assert.Equal(t, 0, stats.IgnoredErrorCount, "ignored errors")
+	assert.Equal(t, 1, len(errs.Errors().Recovered), "recovered errors")
+	assert.False(t, stats.Incomplete, "incomplete")
 	// 5 file and 2 folder entries.
 	assert.Len(t, deets.Details().Entries, 5+2)
 
@@ -1386,7 +1375,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	require.Len(t, dcs, 1, "number of restore collections")
 
-	errs := fault.New(true)
+	errs = fault.New(true)
 	items := dcs[0].Items(suite.ctx, errs)
 
 	// Get all the items from channel
@@ -1464,8 +1453,7 @@ func TestKopiaSimpleRepoIntegrationSuite(t *testing.T) {
 	suite.Run(t, &KopiaSimpleRepoIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -1569,17 +1557,16 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 
 	for _, parent := range []path.Path{suite.testPath1, suite.testPath2} {
 		loc := path.Builder{}.Append(parent.Folders()...)
-		collection := &m365Mock.BackupCollection{Path: parent, Loc: loc}
+		collection := &dataMock.Collection{Path: parent, Loc: loc}
 
 		for _, item := range suite.files[parent.String()] {
-			collection.Streams = append(
-				collection.Streams,
+			collection.ItemData = append(
+				collection.ItemData,
 				&dataMock.Item{
 					ItemID:   item.itemPath.Item(),
 					Reader:   io.NopCloser(bytes.NewReader(item.data)),
 					ItemInfo: exchMock.StubMailInfo(),
-				},
-			)
+				})
 		}
 
 		collections = append(collections, collection)
@@ -1721,8 +1708,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 					ManifestEntry{
 						Manifest: man,
 						Reasons:  []identity.Reasoner{r},
-					},
-				),
+					}),
 				test.cols(),
 				excluded,
 				nil,

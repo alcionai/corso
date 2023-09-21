@@ -239,7 +239,7 @@ func (m *ItemPagesItemCanvasLayoutHorizontalSectionsItemColumnsHorizontalSection
 		urlTplParams[idx] = item
 	}
 
-	if id != "" {
+	if len(id) > 0 {
 		urlTplParams["webPart%2Did"] = id
 	}
 

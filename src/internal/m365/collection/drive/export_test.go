@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -58,7 +59,11 @@ func (suite *ExportUnitSuite) TestIsMetadataFile() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			assert.Equal(suite.T(), test.isMeta, isMetadataFile(test.id, test.backupVersion), "is metadata")
+			assert.Equal(
+				suite.T(),
+				test.isMeta,
+				isMetadataFile(test.id, test.backupVersion),
+				"is metadata")
 		})
 	}
 }
@@ -86,47 +91,47 @@ func (fd finD) FetchItemByName(ctx context.Context, name string) (data.Item, err
 
 func (suite *ExportUnitSuite) TestGetItemName() {
 	table := []struct {
-		tname         string
+		name          string
 		id            string
 		backupVersion int
-		name          string
+		expectName    string
 		fin           data.FetchItemByNamer
-		errFunc       assert.ErrorAssertionFunc
+		expectErr     assert.ErrorAssertionFunc
 	}{
 		{
-			tname:         "legacy",
+			name:          "legacy",
 			id:            "name",
 			backupVersion: version.OneDrive1DataAndMetaFiles,
-			name:          "name",
-			errFunc:       assert.NoError,
+			expectName:    "name",
+			expectErr:     assert.NoError,
 		},
 		{
-			tname:         "name in filename",
+			name:          "name in filename",
 			id:            "name.data",
 			backupVersion: version.OneDrive4DirIncludesPermissions,
-			name:          "name",
-			errFunc:       assert.NoError,
+			expectName:    "name",
+			expectErr:     assert.NoError,
 		},
 		{
-			tname:         "name in metadata",
+			name:          "name in metadata",
 			id:            "id.data",
 			backupVersion: version.Backup,
-			name:          "name",
+			expectName:    "name",
 			fin:           finD{id: "id.meta", name: "name"},
-			errFunc:       assert.NoError,
+			expectErr:     assert.NoError,
 		},
 		{
-			tname:         "name in metadata but error",
+			name:          "name in metadata but error",
 			id:            "id.data",
 			backupVersion: version.Backup,
-			name:          "",
+			expectName:    "",
 			fin:           finD{err: assert.AnError},
-			errFunc:       assert.Error,
+			expectErr:     assert.Error,
 		},
 	}
 
 	for _, test := range table {
-		suite.Run(test.tname, func() {
+		suite.Run(test.name, func() {
 			t := suite.T()
 
 			ctx, flush := tester.NewContext(t)
@@ -137,9 +142,9 @@ func (suite *ExportUnitSuite) TestGetItemName() {
 				test.id,
 				test.backupVersion,
 				test.fin)
-			test.errFunc(t, err)
+			test.expectErr(t, err, clues.ToCore(err))
 
-			assert.Equal(t, test.name, name, "name")
+			assert.Equal(t, test.expectName, name, "name")
 		})
 	}
 }

@@ -16,8 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
-	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
@@ -272,37 +270,44 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 		odname = "od-name"
 		spid   = "sp-id"
 		spname = "sp-name"
+		spsid  = "sp-sid"
+		spurl  = "sp-url"
+		gpid   = "gp-id"
+		gpname = "gp-name"
 		// intentionally declared outside the test loop
 		ctrl = &Controller{
 			wg:                 &sync.WaitGroup{},
 			region:             &trace.Region{},
 			backupDriveIDNames: idname.NewCache(nil),
+			backupSiteIDWebURL: idname.NewCache(nil),
 		}
 	)
 
 	table := []struct {
-		name       string
-		service    path.ServiceType
-		cat        path.CategoryType
-		dii        details.ItemInfo
-		expectID   string
-		expectName string
+		name             string
+		service          path.ServiceType
+		cat              path.CategoryType
+		dii              details.ItemInfo
+		expectDriveID    string
+		expectDriveName  string
+		expectSiteID     string
+		expectSiteWebURL string
 	}{
 		{
 			name: "exchange",
 			dii: details.ItemInfo{
 				Exchange: &details.ExchangeInfo{},
 			},
-			expectID:   "",
-			expectName: "",
+			expectDriveID:   "",
+			expectDriveName: "",
 		},
 		{
 			name: "folder",
 			dii: details.ItemInfo{
 				Folder: &details.FolderInfo{},
 			},
-			expectID:   "",
-			expectName: "",
+			expectDriveID:   "",
+			expectDriveName: "",
 		},
 		{
 			name: "onedrive",
@@ -312,8 +317,8 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 					DriveName: odname,
 				},
 			},
-			expectID:   odid,
-			expectName: odname,
+			expectDriveID:   odid,
+			expectDriveName: odname,
 		},
 		{
 			name: "sharepoint",
@@ -321,10 +326,29 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 				SharePoint: &details.SharePointInfo{
 					DriveID:   spid,
 					DriveName: spname,
+					SiteID:    spsid,
+					WebURL:    spurl,
 				},
 			},
-			expectID:   spid,
-			expectName: spname,
+			expectDriveID:    spid,
+			expectDriveName:  spname,
+			expectSiteID:     spsid,
+			expectSiteWebURL: spurl,
+		},
+		{
+			name: "groups",
+			dii: details.ItemInfo{
+				Groups: &details.GroupsInfo{
+					DriveID:   gpid,
+					DriveName: gpname,
+					SiteID:    spsid,
+					WebURL:    spurl,
+				},
+			},
+			expectDriveID:    gpid,
+			expectDriveName:  gpname,
+			expectSiteID:     spsid,
+			expectSiteWebURL: spurl,
 		},
 	}
 	for _, test := range table {
@@ -333,11 +357,17 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 
 			ctrl.CacheItemInfo(test.dii)
 
-			name, _ := ctrl.backupDriveIDNames.NameOf(test.expectID)
-			assert.Equal(t, test.expectName, name)
+			name, _ := ctrl.backupDriveIDNames.NameOf(test.expectDriveID)
+			assert.Equal(t, test.expectDriveName, name)
 
-			id, _ := ctrl.backupDriveIDNames.IDOf(test.expectName)
-			assert.Equal(t, test.expectID, id)
+			id, _ := ctrl.backupDriveIDNames.IDOf(test.expectDriveName)
+			assert.Equal(t, test.expectDriveID, id)
+
+			url, _ := ctrl.backupSiteIDWebURL.NameOf(test.expectSiteID)
+			assert.Equal(t, test.expectSiteWebURL, url)
+
+			sid, _ := ctrl.backupSiteIDWebURL.IDOf(test.expectSiteWebURL)
+			assert.Equal(t, test.expectSiteID, sid)
 		})
 	}
 }
@@ -357,8 +387,7 @@ func TestControllerIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ControllerIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs},
-		),
+			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -368,49 +397,11 @@ func (suite *ControllerIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.ctrl = newController(ctx, t, resource.Users, path.ExchangeService)
+	suite.ctrl = newController(ctx, t, path.ExchangeService)
 	suite.user = tconfig.M365UserID(t)
 	suite.secondaryUser = tconfig.SecondaryM365UserID(t)
 
 	tester.LogTimeOfTest(t)
-}
-
-func (suite *ControllerIntegrationSuite) TestRestoreFailsBadService() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		restoreCfg = testdata.DefaultRestoreConfig("")
-		sel        = selectors.Selector{
-			Service: selectors.ServiceUnknown,
-		}
-	)
-
-	restoreCfg.IncludePermissions = true
-
-	rcc := inject.RestoreConsumerConfig{
-		BackupVersion:     version.Backup,
-		Options:           control.DefaultOptions(),
-		ProtectedResource: sel,
-		RestoreConfig:     restoreCfg,
-		Selector:          sel,
-	}
-
-	deets, err := suite.ctrl.ConsumeRestoreCollections(
-		ctx,
-		rcc,
-		[]data.RestoreCollection{&dataMock.Collection{}},
-		fault.New(true),
-		count.New())
-	assert.Error(t, err, graph.ErrServiceNotEnabled, clues.ToCore(err))
-	assert.Nil(t, deets)
-
-	status := suite.ctrl.Wait()
-	assert.Equal(t, 0, status.Objects)
-	assert.Equal(t, 0, status.Folders)
-	assert.Equal(t, 0, status.Successes)
 }
 
 func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
@@ -464,6 +455,20 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 				Service: selectors.ServiceSharePoint,
 			},
 		},
+		{
+			name: "GroupsNil",
+			col:  nil,
+			sel: selectors.Selector{
+				Service: selectors.ServiceGroups,
+			},
+		},
+		{
+			name: "GroupsEmpty",
+			col:  []data.RestoreCollection{},
+			sel: selectors.Selector{
+				Service: selectors.ServiceGroups,
+			},
+		},
 	}
 
 	for _, test := range table {
@@ -512,7 +517,7 @@ func runRestore(
 
 	start := time.Now()
 
-	restoreCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
+	restoreCtrl := newController(ctx, t, path.ExchangeService)
 	restoreSel := getSelectorWith(t, sci.Service, sci.ResourceOwners, true)
 
 	rcc := inject.RestoreConsumerConfig{
@@ -581,7 +586,7 @@ func runBackupAndCompare(
 		nameToID[ro] = ro
 	}
 
-	backupCtrl := newController(ctx, t, sci.Resource, path.ExchangeService)
+	backupCtrl := newController(ctx, t, path.ExchangeService)
 	backupCtrl.IDNameLookup = inMock.NewCache(idToName, nameToID)
 
 	backupSel := backupSelectorForExpected(t, sci.Service, expectedDests)
@@ -637,7 +642,6 @@ func runRestoreBackupTest(
 
 	cfg := stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       test.resourceCat,
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
@@ -683,7 +687,6 @@ func runRestoreTestWithVersion(
 
 	cfg := stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       test.resourceCat,
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
@@ -721,7 +724,6 @@ func runRestoreBackupTestVersions(
 
 	cfg := stub.ConfigInfo{
 		Opts:           opts,
-		Resource:       test.resourceCat,
 		Service:        test.service,
 		Tenant:         tenant,
 		ResourceOwners: resourceOwners,
@@ -765,9 +767,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 
 	table := []restoreBackupInfo{
 		{
-			name:        "EmailsWithAttachments",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "EmailsWithAttachments",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{api.MailInbox},
@@ -776,15 +777,13 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 						{
 							Name: "someencodeditemID",
 							Data: exchMock.MessageWithDirectAttachment(
-								subjectText + "-1",
-							),
+								subjectText + "-1"),
 							LookupKey: subjectText + "-1",
 						},
 						{
 							Name: "someencodeditemID2",
 							Data: exchMock.MessageWithTwoAttachments(
-								subjectText + "-2",
-							),
+								subjectText + "-2"),
 							LookupKey: subjectText + "-2",
 						},
 					},
@@ -792,9 +791,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 			},
 		},
 		{
-			name:        "MultipleEmailsMultipleFolders",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "MultipleEmailsMultipleFolders",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{api.MailInbox},
@@ -805,8 +803,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-1",
 								bodyText+" 1.",
-								bodyText+" 1.",
-							),
+								bodyText+" 1."),
 							LookupKey: subjectText + "-1",
 						},
 					},
@@ -820,8 +817,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-2",
 								bodyText+" 2.",
-								bodyText+" 2.",
-							),
+								bodyText+" 2."),
 							LookupKey: subjectText + "-2",
 						},
 						{
@@ -829,8 +825,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-3",
 								bodyText+" 3.",
-								bodyText+" 3.",
-							),
+								bodyText+" 3."),
 							LookupKey: subjectText + "-3",
 						},
 					},
@@ -844,8 +839,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-4",
 								bodyText+" 4.",
-								bodyText+" 4.",
-							),
+								bodyText+" 4."),
 							LookupKey: subjectText + "-4",
 						},
 					},
@@ -859,8 +853,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 							Data: exchMock.MessageWithBodyBytes(
 								subjectText+"-5",
 								bodyText+" 5.",
-								bodyText+" 5.",
-							),
+								bodyText+" 5."),
 							LookupKey: subjectText + "-5",
 						},
 					},
@@ -868,9 +861,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 			},
 		},
 		{
-			name:        "MultipleContactsSingleFolder",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "MultipleContactsSingleFolder",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Contacts"},
@@ -896,9 +888,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 			},
 		},
 		{
-			name:        "MultipleContactsMultipleFolders",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "MultipleContactsMultipleFolders",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Work"},
@@ -1027,9 +1018,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
 		{
-			name:        "Contacts",
-			service:     path.ExchangeService,
-			resourceCat: resource.Users,
+			name:    "Contacts",
+			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
 					PathElements: []string{"Work"},
@@ -1116,8 +1106,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					suite.user,
 					restoreCfg,
 					[]stub.ColInfo{collection},
-					version.Backup,
-				)
+					version.Backup)
 				require.NoError(t, err)
 
 				allItems += totalItems
@@ -1130,10 +1119,9 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					"Restoring %v/%v collections to %s\n",
 					i+1,
 					len(test.collections),
-					restoreCfg.Location,
-				)
+					restoreCfg.Location)
 
-				restoreCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
+				restoreCtrl := newController(ctx, t, path.ExchangeService)
 
 				rcc := inject.RestoreConsumerConfig{
 					BackupVersion:     version.Backup,
@@ -1167,7 +1155,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			// Run a backup and compare its output with what we put in.
 
-			backupCtrl := newController(ctx, t, test.resourceCat, path.ExchangeService)
+			backupCtrl := newController(ctx, t, path.ExchangeService)
 			backupSel := backupSelectorForExpected(t, test.service, expectedDests)
 			t.Log("Selective backup of", backupSel)
 
@@ -1215,9 +1203,8 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 	subjectText := "Test message for restore with large attachment"
 
 	test := restoreBackupInfo{
-		name:        "EmailsWithLargeAttachments",
-		service:     path.ExchangeService,
-		resourceCat: resource.Users,
+		name:    "EmailsWithLargeAttachments",
+		service: path.ExchangeService,
 		collections: []stub.ColInfo{
 			{
 				PathElements: []string{api.MailInbox},
@@ -1308,6 +1295,28 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 				// path.ListsCategory.String(),
 			},
 		},
+		{
+			name:        "Groups",
+			resourceCat: resource.Sites,
+			selectorFunc: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{tconfig.M365TeamID(t)})
+				sel.Include(
+					sel.LibraryFolders([]string{selectors.NoneTgt}),
+					// not yet in use
+					//  sel.Pages([]string{selectors.NoneTgt}),
+					//  sel.Lists([]string{selectors.NoneTgt}),
+				)
+
+				return sel.Selector
+			},
+			service: path.GroupsService,
+			categories: []string{
+				path.LibrariesCategory.String(),
+				// not yet in use
+				// path.PagesCategory.String(),
+				// path.ListsCategory.String(),
+			},
+		},
 	}
 
 	for _, test := range table {
@@ -1318,7 +1327,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			defer flush()
 
 			var (
-				backupCtrl = newController(ctx, t, test.resourceCat, path.ExchangeService)
+				backupCtrl = newController(ctx, t, test.service)
 				backupSel  = test.selectorFunc(t)
 				errs       = fault.New(true)
 				start      = time.Now()
@@ -1440,12 +1449,14 @@ func (suite *DisconnectedUnitSuite) TestController_Status() {
 
 func (suite *DisconnectedUnitSuite) TestVerifyBackupInputs_allServices() {
 	sites := []string{"abc.site.foo", "bar.site.baz"}
+	groups := []string{"123", "456"}
 
 	tests := []struct {
 		name       string
 		excludes   func(t *testing.T) selectors.Selector
 		filters    func(t *testing.T) selectors.Selector
 		includes   func(t *testing.T) selectors.Selector
+		cachedIDs  []string
 		checkError assert.ErrorAssertionFunc
 	}{
 		{
@@ -1492,6 +1503,7 @@ func (suite *DisconnectedUnitSuite) TestVerifyBackupInputs_allServices() {
 		{
 			name:       "valid sites",
 			checkError: assert.NoError,
+			cachedIDs:  sites,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"abc.site.foo", "bar.site.baz"})
 				sel.DiscreteOwner = "abc.site.foo"
@@ -1514,6 +1526,7 @@ func (suite *DisconnectedUnitSuite) TestVerifyBackupInputs_allServices() {
 		{
 			name:       "invalid sites",
 			checkError: assert.Error,
+			cachedIDs:  sites,
 			excludes: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{"fnords.smarfs.brawnhilda"})
 				sel.Exclude(sel.AllData())
@@ -1530,17 +1543,61 @@ func (suite *DisconnectedUnitSuite) TestVerifyBackupInputs_allServices() {
 				return sel.Selector
 			},
 		},
+
+		{
+			name:       "valid groups",
+			checkError: assert.NoError,
+			cachedIDs:  groups,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"123", "456"})
+				sel.DiscreteOwner = "123"
+				sel.Exclude(sel.AllData())
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"123", "456"})
+				sel.DiscreteOwner = "123"
+				sel.Filter(sel.AllData())
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"123", "456"})
+				sel.DiscreteOwner = "123"
+				sel.Include(sel.AllData())
+				return sel.Selector
+			},
+		},
+		{
+			name:       "invalid groups",
+			checkError: assert.Error,
+			cachedIDs:  groups,
+			excludes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"789"})
+				sel.Exclude(sel.AllData())
+				return sel.Selector
+			},
+			filters: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"789"})
+				sel.Filter(sel.AllData())
+				return sel.Selector
+			},
+			includes: func(t *testing.T) selectors.Selector {
+				sel := selectors.NewGroupsBackup([]string{"789"})
+				sel.Include(sel.AllData())
+				return sel.Selector
+			},
+		},
 	}
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := verifyBackupInputs(test.excludes(t), sites)
+			err := verifyBackupInputs(test.excludes(t), test.cachedIDs)
 			test.checkError(t, err, clues.ToCore(err))
-			err = verifyBackupInputs(test.filters(t), sites)
+			err = verifyBackupInputs(test.filters(t), test.cachedIDs)
 			test.checkError(t, err, clues.ToCore(err))
-			err = verifyBackupInputs(test.includes(t), sites)
+			err = verifyBackupInputs(test.includes(t), test.cachedIDs)
 			test.checkError(t, err, clues.ToCore(err))
 		})
 	}

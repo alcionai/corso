@@ -43,6 +43,7 @@ func AddOneDriveDetailsAndRestoreFlags(cmd *cobra.Command) {
 		&FileCreatedAfterFV,
 		FileCreatedAfterFN, "",
 		"Select files created after this datetime.")
+
 	fs.StringVar(
 		&FileCreatedBeforeFV,
 		FileCreatedBeforeFN, "",

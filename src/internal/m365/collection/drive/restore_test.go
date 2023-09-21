@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
@@ -246,7 +247,8 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 					ItemInfo: odStub.DriveItemInfo(),
 				},
 				nil,
-				ctr)
+				ctr,
+				fault.New(true))
 
 			require.NoError(t, err, clues.ToCore(err))
 			test.expectSkipped(t, skip)

@@ -22,6 +22,7 @@ const (
 
 var repoCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addS3Commands,
+	addFilesystemCommands,
 }
 
 // AddCommands attaches all `corso repo * *` commands to the parent.
@@ -121,7 +122,12 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, _, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.UnknownService, S3Overrides(cmd))
+	r, _, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx,
+		cmd,
+		// Need to give it a valid service so it won't error out on us even though
+		// we don't need the graph client.
+		path.OneDriveService)
 	if err != nil {
 		return print.Only(ctx, err)
 	}

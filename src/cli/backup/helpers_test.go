@@ -140,12 +140,14 @@ func prepM365Test(
 		recorder = strings.Builder{}
 	)
 
-	cfg, err := st.S3Config()
+	sc, err := st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
 
+	cfg := sc.(*storage.S3Config)
+
 	force := map[string]string{
-		tconfig.TestCfgAccountProvider: "M365",
-		tconfig.TestCfgStorageProvider: "S3",
+		tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
+		tconfig.TestCfgStorageProvider: storage.ProviderS3.String(),
 		tconfig.TestCfgPrefix:          cfg.Prefix,
 	}
 

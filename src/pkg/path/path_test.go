@@ -291,7 +291,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPathErrors() {
 func (suite *PathUnitSuite) TestFromDataLayerPath() {
 	const (
 		testTenant         = "tenant"
-		testUser           = "user"
+		testResource       = "resource"
 		testElement1       = "folder/"
 		testElementTrimmed = "folder"
 		testElement2       = "folder2"
@@ -331,17 +331,15 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			unescapedPath: fmt.Sprintf(
 				"%s/%%s/%s/%%s/%s/%s/%s",
 				testTenant,
-				testUser,
+				testResource,
 				testElement1,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -351,8 +349,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
 				testElementTrimmed,
-				testElement2,
-			),
+				testElement2),
 			expectedItemSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -363,17 +360,15 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			unescapedPath: fmt.Sprintf(
 				"/%s//%%s//%s//%%s//%s///%s//%s//",
 				testTenant,
-				testUser,
+				testResource,
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -383,8 +378,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
 				testElementTrimmed,
-				testElement2,
-			),
+				testElement2),
 			expectedItemSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -407,7 +401,7 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 							assert.Equal(t, service, p.Service(), "service")
 							assert.Equal(t, cat, p.Category(), "category")
 							assert.Equal(t, testTenant, p.Tenant(), "tenant")
-							assert.Equal(t, testUser, p.ResourceOwner(), "resource owner")
+							assert.Equal(t, testResource, p.ProtectedResource(), "resource owner")
 
 							fld := p.Folder(false)
 							escfld := p.Folder(true)
@@ -430,6 +424,26 @@ func (suite *PathUnitSuite) TestFromDataLayerPath() {
 			}
 		}
 	}
+}
+
+func (suite *PathUnitSuite) TestPrefixOrPathFromDataLayerPath() {
+	t := suite.T()
+	input := fmt.Sprintf(
+		"%s/%s/%s/%s",
+		"tenant",
+		ExchangeService.String(),
+		"user",
+		EmailCategory.String())
+
+	// Check that we can make a valid prefix path.
+	p, err := PrefixOrPathFromDataLayerPath(input, false)
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, input, p.String())
+
+	// Check we can't make a regular path with the same input since it doesn't
+	// have enough segments.
+	_, err = FromDataLayerPath(input, false)
+	assert.Error(t, err)
 }
 
 func (suite *PathUnitSuite) TestBuildPrefix() {
@@ -492,6 +506,71 @@ func (suite *PathUnitSuite) TestBuildPrefix() {
 				r.Folders()
 				r.Item()
 			}, "runs Folders() and Item()")
+		})
+	}
+}
+
+func (suite *PathUnitSuite) TestBuildRestorePaths() {
+	type args struct {
+		tenantID          string
+		protectedResource string
+		service           ServiceType
+		category          CategoryType
+		fp                []string
+	}
+
+	tests := []struct {
+		name        string
+		args        args
+		restorePath string
+		storagePath string
+		expectErr   require.ErrorAssertionFunc
+	}{
+		{
+			name: "single",
+			args: args{
+				tenantID:          "tenant",
+				protectedResource: "protectedResource",
+				service:           GroupsService,
+				category:          LibrariesCategory,
+				fp:                []string{"a"},
+			},
+			restorePath: "tenant/groupsMetadata/protectedResource/libraries",
+			storagePath: "tenant/groupsMetadata/protectedResource/libraries/a",
+			expectErr:   require.NoError,
+		},
+		{
+			name: "multi",
+			args: args{
+				tenantID:          "tenant",
+				protectedResource: "protectedResource",
+				service:           GroupsService,
+				category:          LibrariesCategory,
+				fp:                []string{"a", "b"},
+			},
+			restorePath: "tenant/groupsMetadata/protectedResource/libraries/a",
+			storagePath: "tenant/groupsMetadata/protectedResource/libraries/a/b",
+			expectErr:   require.NoError,
+		},
+	}
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			r, err := BuildMetadata(
+				test.args.tenantID,
+				test.args.protectedResource,
+				test.args.service,
+				test.args.category,
+				true,
+				test.args.fp...)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			rdir, err := r.Dir()
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.restorePath, rdir.String(), "restore path")
+			assert.Equal(t, test.storagePath, r.String(), "storage path")
 		})
 	}
 }

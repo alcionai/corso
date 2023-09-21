@@ -122,7 +122,8 @@ func ctxLimiter(ctx context.Context) *rate.Limiter {
 	}
 
 	switch lc.Service {
-	case path.OneDriveService, path.SharePointService:
+	// FIXME: Handle based on category once we add chat backup
+	case path.OneDriveService, path.SharePointService, path.GroupsService:
 		return driveLimiter
 	default:
 		return defaultLimiter

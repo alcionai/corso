@@ -27,7 +27,7 @@ func CheckOneDriveRestoration(
 ) {
 	drive, err := client.
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -115,9 +115,9 @@ func PopulateDriveDetails(
 
 	response, err := client.
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId("root").
+		ByDriveItemIdString("root").
 		Children().
 		Get(ctx, nil)
 	if err != nil {
@@ -234,7 +234,7 @@ func getOneDriveChildFolder(
 	folderPermission map[string][]common.PermissionInfo,
 	startTime time.Time,
 ) {
-	response, err := client.Drives().ByDriveId(driveID).Items().ByDriveItemId(itemID).Children().Get(ctx, nil)
+	response, err := client.Drives().ByDriveIdString(driveID).Items().ByDriveItemIdString(itemID).Children().Get(ctx, nil)
 	if err != nil {
 		common.Fatal(ctx, "getting child folder", err)
 	}
@@ -283,9 +283,9 @@ func getRestoredDrive(
 ) {
 	restored, err := client.
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(restoreFolderID).
+		ByDriveItemIdString(restoreFolderID).
 		Children().
 		Get(ctx, nil)
 	if err != nil {
@@ -326,9 +326,9 @@ func permissionIn(
 
 	pcr, err := client.
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(itemID).
+		ByDriveItemIdString(itemID).
 		Permissions().
 		Get(ctx, nil)
 	if err != nil {

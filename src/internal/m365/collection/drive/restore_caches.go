@@ -68,9 +68,7 @@ func (rc *restoreCaches) Populate(
 ) error {
 	drives, err := api.GetAllDrives(
 		ctx,
-		gdparf.NewDrivePager(protectedResourceID, nil),
-		true,
-		maxDrivesRetries)
+		gdparf.NewDrivePager(protectedResourceID, nil))
 	if err != nil {
 		return clues.Wrap(err, "getting drives")
 	}

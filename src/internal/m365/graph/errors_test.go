@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -89,6 +90,40 @@ func (suite *GraphErrorsUnitSuite) TestIsErrConnectionReset() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrConnectionReset(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "applicationThrottled oDataErr",
+			err:    odErr(string(applicationThrottled)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrApplicationThrottled(test.err))
 		})
 	}
 }
@@ -198,6 +233,11 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 			expect: assert.False,
 		},
 		{
+			name:   "non-matching oDataErrMsg",
+			err:    odErrMsg("fnords", "deltatoken not supported"),
+			expect: assert.False,
+		},
+		{
 			name:   "resync-required oDataErr",
 			err:    odErr(string(resyncRequired)),
 			expect: assert.True,
@@ -205,6 +245,11 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 		{
 			name:   "sync state invalid oDataErr",
 			err:    odErr(string(syncStateInvalid)),
+			expect: assert.True,
+		},
+		{
+			name:   "deltatoken not supported oDataErrMsg",
+			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive
@@ -466,7 +511,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrFolderExists() {
 			expect: assert.False,
 		},
 		{
-			name:   "matching oDataErr",
+			name:   "matching oDataErr msg",
 			err:    odErr(string(folderExists)),
 			expect: assert.True,
 		},
@@ -485,6 +530,56 @@ func (suite *GraphErrorsUnitSuite) TestIsErrFolderExists() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrFolderExists(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrUsersCannotBeResolved() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErrMsg("InvalidRequest", "cant resolve users"),
+			expect: assert.False,
+		},
+		{
+			name:   "matching oDataErr code",
+			err:    odErrMsg(string(noResolvedUsers), "usersCannotBeResolved"),
+			expect: assert.True,
+		},
+		{
+			name:   "matching oDataErr msg",
+			err:    odErrMsg("InvalidRequest", string(usersCannotBeResolved)),
+			expect: assert.True,
+		},
+		// next two tests are to make sure the checks are case insensitive
+		{
+			name:   "oDataErr uppercase",
+			err:    odErrMsg("InvalidRequest", strings.ToUpper(string(usersCannotBeResolved))),
+			expect: assert.True,
+		},
+		{
+			name:   "oDataErr lowercase",
+			err:    odErrMsg("InvalidRequest", strings.ToLower(string(usersCannotBeResolved))),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrUsersCannotBeResolved(test.err))
 		})
 	}
 }

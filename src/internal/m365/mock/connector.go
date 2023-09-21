@@ -3,9 +3,13 @@ package mock
 import (
 	"context"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/kopia"
+	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -46,7 +50,16 @@ func (ctrl Controller) ProduceBackupCollections(
 	return ctrl.Collections, ctrl.Exclude, ctrl.Err == nil, ctrl.Err
 }
 
-func (ctrl Controller) IsBackupRunnable(
+func (ctrl *Controller) GetMetadataPaths(
+	ctx context.Context,
+	r kinject.RestoreProducer,
+	man kopia.ManifestEntry,
+	errs *fault.Bus,
+) ([]path.RestorePaths, error) {
+	return nil, clues.New("not implemented")
+}
+
+func (ctrl Controller) IsServiceEnabled(
 	_ context.Context,
 	_ path.ServiceType,
 	_ string,
@@ -78,7 +91,7 @@ func (ctrl Controller) ProduceExportCollections(
 	_ control.Options,
 	_ []data.RestoreCollection,
 	_ *fault.Bus,
-) ([]export.Collection, error) {
+) ([]export.Collectioner, error) {
 	return nil, ctrl.Err
 }
 

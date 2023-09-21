@@ -50,16 +50,20 @@ type Controller struct {
 	mu     sync.Mutex
 	status support.ControllerOperationStatus // contains the status of the last run status
 
-	// backupDriveIDNames is populated on restore.  It maps the backup's
-	// drive names to their id. Primarily for use when creating or looking
-	// up a new drive.
+	// backupDriveIDNames is populated on restore and export.  It maps
+	// the backup's drive names to their id. Primarily for use when
+	// creating or looking up a new drive.
 	backupDriveIDNames idname.CacheBuilder
+
+	// backupSiteIDWebURL is populated on restore and export. It maps
+	// the backup's site names to their id. Primarily for use in
+	// exports for groups.
+	backupSiteIDWebURL idname.CacheBuilder
 }
 
 func NewController(
 	ctx context.Context,
 	acct account.Account,
-	rc resource.Category,
 	pst path.ServiceType,
 	co control.Options,
 ) (*Controller, error) {
@@ -73,6 +77,17 @@ func NewController(
 	ac, err := api.NewClient(creds, co)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+	}
+
+	rc := resource.UnknownResource
+
+	switch pst {
+	case path.ExchangeService, path.OneDriveService:
+		rc = resource.Users
+	case path.GroupsService:
+		rc = resource.Groups
+	case path.SharePointService:
+		rc = resource.Sites
 	}
 
 	rCli, err := getResourceClient(rc, ac)
@@ -89,6 +104,7 @@ func NewController(
 		tenant:             acct.ID(),
 		wg:                 &sync.WaitGroup{},
 		backupDriveIDNames: idname.NewCache(nil),
+		backupSiteIDWebURL: idname.NewCache(nil),
 	}
 
 	return &ctrl, nil
@@ -151,8 +167,14 @@ func (ctrl *Controller) incrementAwaitingMessages() {
 }
 
 func (ctrl *Controller) CacheItemInfo(dii details.ItemInfo) {
+	if dii.Groups != nil {
+		ctrl.backupDriveIDNames.Add(dii.Groups.DriveID, dii.Groups.DriveName)
+		ctrl.backupSiteIDWebURL.Add(dii.Groups.SiteID, dii.Groups.WebURL)
+	}
+
 	if dii.SharePoint != nil {
 		ctrl.backupDriveIDNames.Add(dii.SharePoint.DriveID, dii.SharePoint.DriveName)
+		ctrl.backupSiteIDWebURL.Add(dii.SharePoint.SiteID, dii.SharePoint.WebURL)
 	}
 
 	if dii.OneDrive != nil {

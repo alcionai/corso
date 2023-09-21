@@ -121,13 +121,16 @@ func (medc *DataCollection) Items(
 		defer close(res)
 
 		for i := 0; i < medc.messageCount; i++ {
+			info := StubMailInfo()
+			info.Exchange.Modified = medc.ModTimes[i]
+
 			res <- &dataMock.Item{
 				ItemID:       medc.Names[i],
 				Reader:       io.NopCloser(bytes.NewReader(medc.Data[i])),
 				ItemSize:     int64(len(medc.Data[i])),
 				ModifiedTime: medc.ModTimes[i],
 				DeletedFlag:  medc.DeletedItems[i],
-				ItemInfo:     StubMailInfo(),
+				ItemInfo:     info,
 			}
 		}
 	}()

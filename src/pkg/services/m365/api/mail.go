@@ -53,9 +53,9 @@ func (c Mail) CreateContainer(
 	mdl, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(parentContainerID).
+		ByMailFolderIdString(parentContainerID).
 		ChildFolders().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -80,9 +80,9 @@ func (c Mail) DeleteContainer(
 
 	err = srv.Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(containerID).
+		ByMailFolderIdString(containerID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
@@ -104,9 +104,9 @@ func (c Mail) GetContainerByID(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(containerID).
+		ByMailFolderIdString(containerID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -128,7 +128,7 @@ func (c Mail) GetContainerByName(
 		builder = c.Stable.
 			Client().
 			Users().
-			ByUserId(userID).
+			ByUserIdString(userID).
 			MailFolders()
 		resp models.MailFolderCollectionResponseable
 		err  error
@@ -142,7 +142,7 @@ func (c Mail) GetContainerByName(
 		}
 
 		resp, err = builder.
-			ByMailFolderId(parentContainerID).
+			ByMailFolderIdString(parentContainerID).
 			ChildFolders().
 			Get(ctx, options)
 	} else {
@@ -169,7 +169,7 @@ func (c Mail) GetContainerByName(
 	// Return an error if multiple container exist (unlikely) or if no container
 	// is found.
 	if len(gv) != 1 {
-		return nil, clues.New("unexpected number of folders returned").
+		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).
 			With("returned_container_count", len(gv)).
 			WithClues(ctx)
 	}
@@ -192,9 +192,9 @@ func (c Mail) MoveContainer(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(containerID).
+		ByMailFolderIdString(containerID).
 		Move().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -212,9 +212,9 @@ func (c Mail) PatchFolder(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(containerID).
+		ByMailFolderIdString(containerID).
 		Patch(ctx, body, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "patching mail folder")
@@ -246,9 +246,9 @@ func (c Mail) GetItem(
 	mail, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Messages().
-		ByMessageId(itemID).
+		ByMessageIdString(itemID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
@@ -276,9 +276,9 @@ func (c Mail) GetItem(
 	attached, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Messages().
-		ByMessageId(itemID).
+		ByMessageIdString(itemID).
 		Attachments().
 		Get(ctx, attachConfig)
 	if err == nil {
@@ -309,9 +309,9 @@ func (c Mail) GetItem(
 	attachments, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Messages().
-		ByMessageId(itemID).
+		ByMessageIdString(itemID).
 		Attachments().
 		Get(ctx, attachConfig)
 	if err != nil {
@@ -331,11 +331,11 @@ func (c Mail) GetItem(
 		att, err := c.Stable.
 			Client().
 			Users().
-			ByUserId(userID).
+			ByUserIdString(userID).
 			Messages().
-			ByMessageId(itemID).
+			ByMessageIdString(itemID).
 			Attachments().
-			ByAttachmentId(ptr.Val(a.GetId())).
+			ByAttachmentIdString(ptr.Val(a.GetId())).
 			Get(ctx, attachConfig)
 		if err != nil {
 			// CannotOpenFileAttachment errors are not transient and
@@ -346,8 +346,7 @@ func (c Mail) GetItem(
 					With(
 						"skipped_reason", fault.SkipNotFound,
 						"attachment_id", ptr.Val(a.GetId()),
-						"attachment_size", ptr.Val(a.GetSize()),
-					).Info("attachment not found")
+						"attachment_size", ptr.Val(a.GetSize())).Info("attachment not found")
 				// TODO This should use a `AddSkip` once we have
 				// figured out the semantics for skipping
 				// subcomponents of an item
@@ -377,9 +376,9 @@ func (c Mail) PostItem(
 	itm, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(containerID).
+		ByMailFolderIdString(containerID).
 		Messages().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -403,11 +402,11 @@ func (c Mail) MoveItem(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(oldContainerID).
+		ByMailFolderIdString(oldContainerID).
 		Messages().
-		ByMessageId(itemID).
+		ByMessageIdString(itemID).
 		Move().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -431,9 +430,9 @@ func (c Mail) DeleteItem(
 	err = srv.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		Messages().
-		ByMessageId(itemID).
+		ByMessageIdString(itemID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting mail message")
@@ -450,11 +449,11 @@ func (c Mail) PostSmallAttachment(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(containerID).
+		ByMailFolderIdString(containerID).
 		Messages().
-		ByMessageId(parentItemID).
+		ByMessageIdString(parentItemID).
 		Attachments().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -476,11 +475,11 @@ func (c Mail) PostLargeAttachment(
 	us, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserId(userID).
+		ByUserIdString(userID).
 		MailFolders().
-		ByMailFolderId(containerID).
+		ByMailFolderIdString(containerID).
 		Messages().
-		ByMessageId(parentItemID).
+		ByMessageIdString(parentItemID).
 		Attachments().
 		CreateUploadSession().
 		Post(ctx, session, nil)
@@ -505,7 +504,7 @@ func (c Mail) PostLargeAttachment(
 // ---------------------------------------------------------------------------
 
 func BytesToMessageable(body []byte) (models.Messageable, error) {
-	v, err := createFromBytes(body, models.CreateMessageFromDiscriminatorValue)
+	v, err := CreateFromBytes(body, models.CreateMessageFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to message")
 	}

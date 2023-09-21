@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -27,15 +28,15 @@ func (ctrl *Controller) ProduceExportCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
-) ([]export.Collection, error) {
+) ([]export.Collectioner, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:export")
 	defer end()
 
 	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: sels.PathService()})
-	ctx = clues.Add(ctx, "export_config", exportCfg) // TODO(meain): needs PII control
+	ctx = clues.Add(ctx, "export_config", exportCfg)
 
 	var (
-		expCollections []export.Collection
+		expCollections []export.Collectioner
 		status         *support.ControllerOperationStatus
 		deets          = &details.Builder{}
 		err            error
@@ -59,6 +60,17 @@ func (ctrl *Controller) ProduceExportCollections(
 			opts,
 			dcs,
 			ctrl.backupDriveIDNames,
+			deets,
+			errs)
+	case selectors.ServiceGroups:
+		expCollections, err = groups.ProduceExportCollections(
+			ctx,
+			backupVersion,
+			exportCfg,
+			opts,
+			dcs,
+			ctrl.backupDriveIDNames,
+			ctrl.backupSiteIDWebURL,
 			deets,
 			errs)
 

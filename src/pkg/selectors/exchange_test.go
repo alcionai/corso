@@ -81,8 +81,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Contacts() {
 		map[categorizer][]string{
 			ExchangeContactFolder: {folder},
 			ExchangeContact:       {c1, c2},
-		},
-	)
+		})
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Contacts() {
@@ -106,8 +105,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Contacts() {
 		map[categorizer][]string{
 			ExchangeContactFolder: {folder},
 			ExchangeContact:       {c1, c2},
-		},
-	)
+		})
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeContact)
 }
@@ -132,8 +130,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_ContactFolders(
 		map[categorizer][]string{
 			ExchangeContactFolder: {f1, f2},
 			ExchangeContact:       Any(),
-		},
-	)
+		})
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_ContactFolders() {
@@ -156,8 +153,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_ContactFolders(
 		map[categorizer][]string{
 			ExchangeContactFolder: {f1, f2},
 			ExchangeContact:       Any(),
-		},
-	)
+		})
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeContactFolder)
 }
@@ -183,8 +179,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Events() {
 		map[categorizer][]string{
 			ExchangeEventCalendar: {c1},
 			ExchangeEvent:         {e1, e2},
-		},
-	)
+		})
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_EventCalendars() {
@@ -207,8 +202,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_EventCalendars(
 		map[categorizer][]string{
 			ExchangeEventCalendar: {c1, c2},
 			ExchangeEvent:         Any(),
-		},
-	)
+		})
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
@@ -232,8 +226,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Events() {
 		map[categorizer][]string{
 			ExchangeEventCalendar: {c1},
 			ExchangeEvent:         {e1, e2},
-		},
-	)
+		})
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_EventCalendars() {
@@ -256,8 +249,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_EventCalendars(
 		map[categorizer][]string{
 			ExchangeEventCalendar: {c1, c2},
 			ExchangeEvent:         Any(),
-		},
-	)
+		})
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Mails() {
@@ -281,8 +273,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_Mails() {
 		map[categorizer][]string{
 			ExchangeMailFolder: {folder},
 			ExchangeMail:       {m1, m2},
-		},
-	)
+		})
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Mails() {
@@ -306,8 +297,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_Mails() {
 		map[categorizer][]string{
 			ExchangeMailFolder: {folder},
 			ExchangeMail:       {m1, m2},
-		},
-	)
+		})
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeMail)
 }
@@ -332,8 +322,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_MailFolders() {
 		map[categorizer][]string{
 			ExchangeMailFolder: {f1, f2},
 			ExchangeMail:       Any(),
-		},
-	)
+		})
 }
 
 func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_MailFolders() {
@@ -356,8 +345,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_MailFolders() {
 		map[categorizer][]string{
 			ExchangeMailFolder: {f1, f2},
 			ExchangeMail:       Any(),
-		},
-	)
+		})
 
 	assert.Equal(t, sel.Scopes()[0].Category(), ExchangeMailFolder)
 }
@@ -383,8 +371,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_AllData() {
 				map[categorizer][]string{
 					ExchangeContact:       Any(),
 					ExchangeContactFolder: Any(),
-				},
-			)
+				})
 		}
 
 		if sc[scopeKeyCategory].Compare(ExchangeEvent.String()) {
@@ -393,8 +380,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_AllData() {
 				ExchangeScope(sc),
 				map[categorizer][]string{
 					ExchangeEvent: Any(),
-				},
-			)
+				})
 		}
 
 		if sc[scopeKeyCategory].Compare(ExchangeMailFolder.String()) {
@@ -404,8 +390,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Exclude_AllData() {
 				map[categorizer][]string{
 					ExchangeMail:       Any(),
 					ExchangeMailFolder: Any(),
-				},
-			)
+				})
 		}
 	}
 }
@@ -431,8 +416,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_AllData() {
 				map[categorizer][]string{
 					ExchangeContact:       Any(),
 					ExchangeContactFolder: Any(),
-				},
-			)
+				})
 		}
 
 		if sc[scopeKeyCategory].Compare(ExchangeEvent.String()) {
@@ -441,8 +425,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_AllData() {
 				ExchangeScope(sc),
 				map[categorizer][]string{
 					ExchangeEvent: Any(),
-				},
-			)
+				})
 		}
 
 		if sc[scopeKeyCategory].Compare(ExchangeMailFolder.String()) {
@@ -452,8 +435,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeSelector_Include_AllData() {
 				map[categorizer][]string{
 					ExchangeMail:       Any(),
 					ExchangeMailFolder: Any(),
-				},
-			)
+				})
 		}
 	}
 }
@@ -816,7 +798,7 @@ func (suite *ExchangeSelectorSuite) TestExchangeRestore_Reduce() {
 
 		joinedFldrs := strings.Join(newElems, "/")
 
-		return stubRepoRef(p.Service(), p.Category(), p.ResourceOwner(), joinedFldrs, p.Item())
+		return stubRepoRef(p.Service(), p.Category(), p.ProtectedResource(), joinedFldrs, p.Item())
 	}
 
 	makeDeets := func(refs ...path.Path) *details.Details {

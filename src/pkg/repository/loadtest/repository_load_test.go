@@ -348,7 +348,7 @@ func ensureAllUsersInDetails(
 				continue
 			}
 
-			ro := p.ResourceOwner()
+			ro := p.ProtectedResource()
 			if !assert.NotEmpty(t, ro, "resource owner in path: "+rr) {
 				continue
 			}
@@ -419,8 +419,7 @@ func TestLoadExchangeSuite(t *testing.T) {
 	suite.Run(t, &LoadExchangeSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -470,8 +469,7 @@ func TestIndividualLoadExchangeSuite(t *testing.T) {
 	suite.Run(t, &IndividualLoadExchangeSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -524,8 +522,7 @@ func TestLoadOneDriveSuite(t *testing.T) {
 	suite.Run(t, &LoadOneDriveSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -572,8 +569,7 @@ func TestIndividualLoadOneDriveSuite(t *testing.T) {
 	suite.Run(t, &IndividualLoadOneDriveSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -623,8 +619,7 @@ func TestLoadSharePointSuite(t *testing.T) {
 	suite.Run(t, &LoadSharePointSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -671,8 +666,7 @@ func TestIndividualLoadSharePointSuite(t *testing.T) {
 	suite.Run(t, &IndividualLoadSharePointSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 

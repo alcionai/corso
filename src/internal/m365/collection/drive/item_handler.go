@@ -57,7 +57,7 @@ func (h itemBackupHandler) PathPrefix(
 func (h itemBackupHandler) MetadataPathPrefix(
 	tenantID string,
 ) (path.Path, error) {
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenantID,
 		h.userID,
 		path.OneDriveService,

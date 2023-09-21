@@ -19,6 +19,7 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
+	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -120,11 +121,11 @@ func deserializeMetadata(
 				)
 
 				switch item.ID() {
-				case graph.PreviousPathFileName:
-					err = deserializeMap(item.ToReader(), prevFolders)
+				case bupMD.PreviousPathFileName:
+					err = DeserializeMap(item.ToReader(), prevFolders)
 
-				case graph.DeltaURLsFileName:
-					err = deserializeMap(item.ToReader(), prevDeltas)
+				case bupMD.DeltaURLsFileName:
+					err = DeserializeMap(item.ToReader(), prevDeltas)
 
 				default:
 					logger.Ctx(ictx).Infow(
@@ -190,11 +191,11 @@ func deserializeMetadata(
 
 var errExistingMapping = clues.New("mapping already exists for same drive ID")
 
-// deserializeMap takes an reader and a map of already deserialized items and
+// DeserializeMap takes an reader and a map of already deserialized items and
 // adds the newly deserialized items to alreadyFound. Items are only added to
 // alreadyFound if none of the keys in the freshly deserialized map already
 // exist in alreadyFound. reader is closed at the end of this function.
-func deserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) error {
+func DeserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) error {
 	defer reader.Close()
 
 	tmp := map[string]T{}
@@ -242,13 +243,15 @@ func (c *Collections) Get(
 		driveTombstones[driveID] = struct{}{}
 	}
 
-	progressBar := observe.MessageWithCompletion(ctx, observe.Bulletf("files"))
+	progressBar := observe.MessageWithCompletion(
+		ctx,
+		observe.Bulletf(path.FilesCategory.HumanString()))
 	defer close(progressBar)
 
 	// Enumerate drives for the specified resourceOwner
 	pager := c.handler.NewDrivePager(c.resourceOwner, nil)
 
-	drives, err := api.GetAllDrives(ctx, pager, true, maxDrivesRetries)
+	drives, err := api.GetAllDrives(ctx, pager)
 	if err != nil {
 		return nil, false, err
 	}
@@ -449,8 +452,8 @@ func (c *Collections) Get(
 	md, err := graph.MakeMetadataCollection(
 		pathPrefix,
 		[]graph.MetadataCollectionEntry{
-			graph.NewMetadataEntry(graph.PreviousPathFileName, folderPaths),
-			graph.NewMetadataEntry(graph.DeltaURLsFileName, deltaURLs),
+			graph.NewMetadataEntry(bupMD.PreviousPathFileName, folderPaths),
+			graph.NewMetadataEntry(bupMD.DeltaURLsFileName, deltaURLs),
 		},
 		c.statusUpdater)
 
@@ -728,8 +731,7 @@ func (c *Collections) UpdateCollections(
 				isFolder,
 				excluded,
 				itemCollection,
-				invalidPrevDelta,
-			); err != nil {
+				invalidPrevDelta); err != nil {
 				return clues.Stack(err).WithClues(ictx)
 			}
 

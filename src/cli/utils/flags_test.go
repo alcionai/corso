@@ -91,3 +91,65 @@ func (suite *FlagUnitSuite) TestAddCorsoPassphraseFlags() {
 	err := cmd.Execute()
 	require.NoError(t, err, clues.ToCore(err))
 }
+
+func (suite *FlagUnitSuite) TestAddS3BucketFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{
+		Use: "test",
+		Run: func(cmd *cobra.Command, args []string) {
+			assert.Equal(t, "bucket1", flags.BucketFV, flags.BucketFN)
+			assert.Equal(t, "endpoint1", flags.EndpointFV, flags.EndpointFN)
+			assert.Equal(t, "prefix1", flags.PrefixFV, flags.PrefixFN)
+			assert.True(t, flags.DoNotUseTLSFV, flags.DoNotUseTLSFN)
+			assert.True(t, flags.DoNotVerifyTLSFV, flags.DoNotVerifyTLSFN)
+			assert.True(t, flags.SucceedIfExistsFV, flags.SucceedIfExistsFN)
+		},
+	}
+
+	flags.AddS3BucketFlags(cmd)
+	// Test arg parsing for few args
+	cmd.SetArgs([]string{
+		"test",
+		"--" + flags.BucketFN, "bucket1",
+		"--" + flags.EndpointFN, "endpoint1",
+		"--" + flags.PrefixFN, "prefix1",
+		"--" + flags.DoNotUseTLSFN,
+		"--" + flags.DoNotVerifyTLSFN,
+		"--" + flags.SucceedIfExistsFN,
+	})
+
+	err := cmd.Execute()
+	require.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *FlagUnitSuite) TestFilesystemFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{
+		Use: "test",
+		Run: func(cmd *cobra.Command, args []string) {
+			assert.Equal(t, "/tmp/test", flags.FilesystemPathFV, flags.FilesystemPathFN)
+			assert.True(t, flags.SucceedIfExistsFV, flags.SucceedIfExistsFN)
+			assert.Equal(t, "tenantID", flags.AzureClientTenantFV, flags.AzureClientTenantFN)
+			assert.Equal(t, "clientID", flags.AzureClientIDFV, flags.AzureClientIDFN)
+			assert.Equal(t, "secret", flags.AzureClientSecretFV, flags.AzureClientSecretFN)
+			assert.Equal(t, "passphrase", flags.CorsoPassphraseFV, flags.CorsoPassphraseFN)
+		},
+	}
+
+	flags.AddFilesystemFlags(cmd)
+
+	cmd.SetArgs([]string{
+		"test",
+		"--" + flags.FilesystemPathFN, "/tmp/test",
+		"--" + flags.SucceedIfExistsFN,
+		"--" + flags.AzureClientIDFN, "clientID",
+		"--" + flags.AzureClientTenantFN, "tenantID",
+		"--" + flags.AzureClientSecretFN, "secret",
+		"--" + flags.CorsoPassphraseFN, "passphrase",
+	})
+
+	err := cmd.Execute()
+	require.NoError(t, err, clues.ToCore(err))
+}

@@ -9,94 +9,74 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
-var _ export.Collection = &ExportCollection{}
-
-// ExportCollection is the implementation of export.ExportCollection for OneDrive
-type ExportCollection struct {
-	// baseDir contains the path of the collection
-	baseDir string
-
-	// backingCollection is the restore collection from which we will
-	// create the export collection.
-	backingCollection data.RestoreCollection
-
-	// backupVersion is the backupVersion of the backup this collection was part
-	// of. This is required to figure out how to get the name of the
-	// item.
-	backupVersion int
-}
-
 func NewExportCollection(
 	baseDir string,
-	backingCollection data.RestoreCollection,
+	backingCollection []data.RestoreCollection,
 	backupVersion int,
-) ExportCollection {
-	return ExportCollection{
-		baseDir:           baseDir,
-		backingCollection: backingCollection,
-		backupVersion:     backupVersion,
+) export.Collectioner {
+	return export.BaseCollection{
+		BaseDir:           baseDir,
+		BackingCollection: backingCollection,
+		BackupVersion:     backupVersion,
+		Stream:            streamItems,
 	}
 }
 
-func (ec ExportCollection) BasePath() string {
-	return ec.baseDir
-}
-
-func (ec ExportCollection) Items(ctx context.Context) <-chan export.Item {
-	ch := make(chan export.Item)
-	go items(ctx, ec, ch)
-
-	return ch
-}
-
-// items converts items in backing collection to export items
-func items(ctx context.Context, ec ExportCollection, ch chan<- export.Item) {
+// streamItems streams the streamItems in the backingCollection into the export stream chan
+func streamItems(
+	ctx context.Context,
+	drc []data.RestoreCollection,
+	backupVersion int,
+	cec control.ExportConfig,
+	ch chan<- export.Item,
+) {
 	defer close(ch)
 
 	errs := fault.New(false)
 
-	for item := range ec.backingCollection.Items(ctx, errs) {
-		itemUUID := item.ID()
-		if isMetadataFile(itemUUID, ec.backupVersion) {
-			continue
+	for _, rc := range drc {
+		for item := range rc.Items(ctx, errs) {
+			itemUUID := item.ID()
+			if isMetadataFile(itemUUID, backupVersion) {
+				continue
+			}
+
+			name, err := getItemName(ctx, itemUUID, backupVersion, rc)
+
+			ch <- export.Item{
+				ID:    itemUUID,
+				Name:  name,
+				Body:  item.ToReader(),
+				Error: err,
+			}
 		}
 
-		name, err := getItemName(ctx, itemUUID, ec.backupVersion, ec.backingCollection)
+		items, recovered := errs.ItemsAndRecovered()
 
-		ch <- export.Item{
-			ID: itemUUID,
-			Data: export.ItemData{
-				Name: name,
-				Body: item.ToReader(),
-			},
-			Error: err,
+		// Return all the items that we failed to source from the persistence layer
+		for _, err := range items {
+			ch <- export.Item{
+				ID:    err.ID,
+				Error: &err,
+			}
 		}
-	}
 
-	eitems, erecovereable := errs.ItemsAndRecovered()
-
-	// Return all the items that we failed to source from the persistence layer
-	for _, err := range eitems {
-		ch <- export.Item{
-			ID:    err.ID,
-			Error: &err,
-		}
-	}
-
-	for _, ec := range erecovereable {
-		ch <- export.Item{
-			Error: ec,
+		for _, err := range recovered {
+			ch <- export.Item{
+				Error: err,
+			}
 		}
 	}
 }
 
 // isMetadataFile is used to determine if a path corresponds to a
 // metadata file.  This is OneDrive specific logic and depends on the
-// version of the backup unlike metadata.IsMetadataFile which only has
+// version of the backup unlike metadata.isMetadataFile which only has
 // to be concerned about the current version.
 func isMetadataFile(id string, backupVersion int) bool {
 	if backupVersion < version.OneDrive1DataAndMetaFiles {

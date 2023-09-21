@@ -2,6 +2,7 @@ package testdata
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
@@ -38,15 +39,36 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 
 	st, err := storage.NewStorage(
 		storage.ProviderS3,
-		storage.S3Config{
+		&storage.S3Config{
 			Bucket: cfg[tconfig.TestCfgBucket],
 			Prefix: prefix,
 		},
 		storage.CommonConfig{
 			Corso:       GetAndInsertCorso(""),
 			KopiaCfgDir: t.TempDir(),
+		})
+	require.NoErrorf(t, err, "creating storage: %+v", clues.ToCore(err))
+
+	return st
+}
+
+func NewFilesystemStorage(t tester.TestT) storage.Storage {
+	now := tester.LogTimeOfTest(t)
+	repoPath := filepath.Join(t.TempDir(), now)
+
+	err := os.MkdirAll(repoPath, 0700)
+	require.NoErrorf(t, err, "creating filesystem repo: %+v", clues.ToCore(err))
+
+	t.Logf("testing at filesystem repo [%s]", repoPath)
+
+	st, err := storage.NewStorage(
+		storage.ProviderFilesystem,
+		&storage.FilesystemConfig{
+			Path: repoPath,
 		},
-	)
+		storage.CommonConfig{
+			Corso: GetAndInsertCorso(""),
+		})
 	require.NoError(t, err, "creating storage", clues.ToCore(err))
 
 	return st

@@ -26,6 +26,7 @@ import (
 type errorCode string
 
 const (
+	applicationThrottled errorCode = "ApplicationThrottled"
 	// this auth error is a catch-all used by graph in a variety of cases:
 	// users without licenses, bad jwts, missing account permissions, etc.
 	AuthenticationError errorCode = "AuthenticationError"
@@ -49,6 +50,7 @@ const (
 	// nameAlreadyExists occurs when a request with
 	// @microsoft.graph.conflictBehavior=fail finds a conflicting file.
 	nameAlreadyExists       errorCode = "nameAlreadyExists"
+	noResolvedUsers         errorCode = "noResolvedUsers"
 	QuotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
 	// Returned when we try to get the inbox of a user that doesn't exist.
@@ -62,10 +64,12 @@ const (
 type errorMessage string
 
 const (
-	IOErrDuringRead   errorMessage = "IO error during request payload read"
-	MysiteURLNotFound errorMessage = "unable to retrieve user's mysite url"
-	MysiteNotFound    errorMessage = "user's mysite not found"
-	NoSPLicense       errorMessage = "Tenant does not have a SPO license"
+	IOErrDuringRead                 errorMessage = "IO error during request payload read"
+	MysiteURLNotFound               errorMessage = "unable to retrieve user's mysite url"
+	MysiteNotFound                  errorMessage = "user's mysite not found"
+	NoSPLicense                     errorMessage = "Tenant does not have a SPO license"
+	parameterDeltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request"
+	usersCannotBeResolved           errorMessage = "One or more users could not be resolved"
 )
 
 const (
@@ -78,6 +82,10 @@ const (
 )
 
 var (
+	// ErrApplicationThrottled occurs if throttling retries are exhausted and completely
+	// fails out.
+	ErrApplicationThrottled = clues.New("application throttled")
+
 	// The folder or item was deleted between the time we identified
 	// it and when we tried to fetch data for it.
 	ErrDeletedInFlight = clues.New("deleted in flight")
@@ -93,6 +101,13 @@ var (
 	// when filenames collide in a @microsoft.graph.conflictBehavior=fail request.
 	ErrItemAlreadyExistsConflict = clues.New("item already exists")
 
+	// ErrMultipleResultsMatchIdentifier describes a situation where we're doing a lookup
+	// in some way other than by canonical url ID (ex: filtering, searching, etc).
+	// This error should only be returned if a unique result is an expected constraint
+	// of the call results.  If it's possible to opportunistically select one of the many
+	// replies, no error should get returned.
+	ErrMultipleResultsMatchIdentifier = clues.New("multiple results match the identifier")
+
 	// ErrServiceNotEnabled identifies that a resource owner does not have
 	// access to a given service.
 	ErrServiceNotEnabled = clues.New("service is not enabled for that resource owner")
@@ -105,6 +120,11 @@ var (
 
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 )
+
+func IsErrApplicationThrottled(err error) bool {
+	return hasErrorCode(err, applicationThrottled) ||
+		errors.Is(err, ErrApplicationThrottled)
+}
 
 func IsErrAuthenticationError(err error) bool {
 	return hasErrorCode(err, AuthenticationError)
@@ -119,8 +139,7 @@ func IsErrDeletedInFlight(err error) bool {
 		err,
 		errorItemNotFound,
 		itemNotFound,
-		syncFolderNotFound,
-	) {
+		syncFolderNotFound) {
 		return true
 	}
 
@@ -133,6 +152,7 @@ func IsErrItemNotFound(err error) bool {
 
 func IsErrInvalidDelta(err error) bool {
 	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid) ||
+		hasErrorMessage(err, parameterDeltaTokenNotSupported) ||
 		errors.Is(err, ErrInvalidDelta)
 }
 
@@ -226,6 +246,10 @@ func IsErrFolderExists(err error) bool {
 	return hasErrorCode(err, folderExists)
 }
 
+func IsErrUsersCannotBeResolved(err error) bool {
+	return hasErrorCode(err, noResolvedUsers) || hasErrorMessage(err, usersCannotBeResolved)
+}
+
 // ---------------------------------------------------------------------------
 // error parsers
 // ---------------------------------------------------------------------------
@@ -253,6 +277,30 @@ func hasErrorCode(err error, codes ...errorCode) bool {
 	return filters.Equal(cs).Compare(code)
 }
 
+// only use this as a last resort.  Prefer the code or statuscode if possible.
+func hasErrorMessage(err error, msgs ...errorMessage) bool {
+	if err == nil {
+		return false
+	}
+
+	var oDataError odataerrors.ODataErrorable
+	if !errors.As(err, &oDataError) {
+		return false
+	}
+
+	msg, ok := ptr.ValOK(oDataError.GetErrorEscaped().GetMessage())
+	if !ok {
+		return false
+	}
+
+	cs := make([]string, len(msgs))
+	for i, c := range msgs {
+		cs[i] = string(c)
+	}
+
+	return filters.Contains(cs).Compare(msg)
+}
+
 // Wrap is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns the error.
 func Wrap(ctx context.Context, e error, msg string) *clues.Err {
@@ -262,7 +310,7 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 
 	var oDataError odataerrors.ODataErrorable
 	if !errors.As(e, &oDataError) {
-		return clues.Wrap(e, msg).WithClues(ctx)
+		return clues.Wrap(e, msg).WithClues(ctx).WithTrace(1)
 	}
 
 	mainMsg, data, innerMsg := errData(oDataError)
@@ -285,7 +333,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 
 	var oDataError *odataerrors.ODataError
 	if !errors.As(e, &oDataError) {
-		return clues.Stack(e).WithClues(ctx)
+		return clues.Stack(e).WithClues(ctx).WithTrace(1)
 	}
 
 	mainMsg, data, innerMsg := errData(oDataError)

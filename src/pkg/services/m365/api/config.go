@@ -17,22 +17,23 @@ const (
 // get easily misspelled.
 // eg: we don't need a const for "id"
 const (
-	bccRecipients     = "bccRecipients"
-	ccRecipients      = "ccRecipients"
-	createdDateTime   = "createdDateTime"
-	displayName       = "displayName"
-	emailAddresses    = "emailAddresses"
-	givenName         = "givenName"
-	isCancelled       = "isCancelled"
-	isDraft           = "isDraft"
-	mobilePhone       = "mobilePhone"
-	parentFolderID    = "parentFolderId"
-	receivedDateTime  = "receivedDateTime"
-	recurrence        = "recurrence"
-	sentDateTime      = "sentDateTime"
-	surname           = "surname"
-	toRecipients      = "toRecipients"
-	userPrincipalName = "userPrincipalName"
+	bccRecipients        = "bccRecipients"
+	ccRecipients         = "ccRecipients"
+	createdDateTime      = "createdDateTime"
+	displayName          = "displayName"
+	emailAddresses       = "emailAddresses"
+	givenName            = "givenName"
+	isCancelled          = "isCancelled"
+	isDraft              = "isDraft"
+	lastModifiedDateTime = "lastModifiedDateTime"
+	mobilePhone          = "mobilePhone"
+	parentFolderID       = "parentFolderId"
+	receivedDateTime     = "receivedDateTime"
+	recurrence           = "recurrence"
+	sentDateTime         = "sentDateTime"
+	surname              = "surname"
+	toRecipients         = "toRecipients"
+	userPrincipalName    = "userPrincipalName"
 )
 
 // header keys
@@ -87,7 +88,13 @@ func newEventualConsistencyHeaders() *abstractions.RequestHeaders {
 
 // makes a slice with []string{"id", s...}
 func idAnd(ss ...string) []string {
-	return append([]string{"id"}, ss...)
+	id := []string{"id"}
+
+	if len(ss) == 0 {
+		return id
+	}
+
+	return append(id, ss...)
 }
 
 // ---------------------------------------------------------------------------

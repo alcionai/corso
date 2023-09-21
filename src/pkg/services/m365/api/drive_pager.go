@@ -2,8 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -21,7 +19,7 @@ import (
 // non-delta item pager
 // ---------------------------------------------------------------------------
 
-var _ itemPager[models.DriveItemable] = &driveItemPageCtrl{}
+var _ Pager[models.DriveItemable] = &driveItemPageCtrl{}
 
 type driveItemPageCtrl struct {
 	gs      graph.Servicer
@@ -32,7 +30,7 @@ type driveItemPageCtrl struct {
 func (c Drives) NewDriveItemPager(
 	driveID, containerID string,
 	selectProps ...string,
-) itemPager[models.DriveItemable] {
+) Pager[models.DriveItemable] {
 	options := &drives.ItemItemsItemChildrenRequestBuilderGetRequestConfiguration{
 		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{},
 	}
@@ -44,27 +42,27 @@ func (c Drives) NewDriveItemPager(
 	builder := c.Stable.
 		Client().
 		Drives().
-		ByDriveId(driveID).
+		ByDriveIdString(driveID).
 		Items().
-		ByDriveItemId(containerID).
+		ByDriveItemIdString(containerID).
 		Children()
 
 	return &driveItemPageCtrl{c.Stable, builder, options}
 }
 
-//lint:ignore U1000 False Positive
-func (p *driveItemPageCtrl) getPage(ctx context.Context) (PageLinkValuer[models.DriveItemable], error) {
+func (p *driveItemPageCtrl) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[models.DriveItemable], error) {
 	page, err := p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return EmptyDeltaLinker[models.DriveItemable]{PageLinkValuer: page}, nil
+	return page, graph.Stack(ctx, err).OrNil()
 }
 
-//lint:ignore U1000 False Positive
-func (p *driveItemPageCtrl) setNext(nextLink string) {
+func (p *driveItemPageCtrl) SetNextLink(nextLink string) {
 	p.builder = drives.NewItemItemsItemChildrenRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *driveItemPageCtrl) ValidModTimes() bool {
+	return true
 }
 
 type DriveItemIDType struct {
@@ -158,9 +156,9 @@ func (c Drives) NewDriveItemDeltaPager(
 		builder: c.Stable.
 			Client().
 			Drives().
-			ByDriveId(driveID).
+			ByDriveIdString(driveID).
 			Items().
-			ByDriveItemId(onedrive.RootID).
+			ByDriveItemIdString(onedrive.RootID).
 			Delta(),
 	}
 
@@ -171,35 +169,28 @@ func (c Drives) NewDriveItemDeltaPager(
 	return res
 }
 
-func (p *DriveItemDeltaPageCtrl) GetPage(ctx context.Context) (DeltaPageLinker, error) {
-	var (
-		resp DeltaPageLinker
-		err  error
-	)
-
-	resp, err = p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
+func (p *DriveItemDeltaPageCtrl) GetPage(
+	ctx context.Context,
+) (DeltaLinkValuer[models.DriveItemable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
-func (p *DriveItemDeltaPageCtrl) SetNext(link string) {
+func (p *DriveItemDeltaPageCtrl) SetNextLink(link string) {
 	p.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, p.gs.Adapter())
 }
 
 func (p *DriveItemDeltaPageCtrl) Reset(context.Context) {
 	p.builder = p.gs.Client().
 		Drives().
-		ByDriveId(p.driveID).
+		ByDriveIdString(p.driveID).
 		Items().
-		ByDriveItemId(onedrive.RootID).
+		ByDriveItemIdString(onedrive.RootID).
 		Delta()
 }
 
-func (p *DriveItemDeltaPageCtrl) ValuesIn(l PageLinker) ([]models.DriveItemable, error) {
-	return getValues[models.DriveItemable](l)
+func (p *DriveItemDeltaPageCtrl) ValidModTimes() bool {
+	return true
 }
 
 // ---------------------------------------------------------------------------
@@ -232,64 +223,45 @@ func (c Drives) NewUserDrivePager(
 		builder: c.Stable.
 			Client().
 			Users().
-			ByUserId(userID).
+			ByUserIdString(userID).
 			Drives(),
 	}
 
 	return res
 }
 
-type nopUserDrivePageLinker struct {
+type nopUserDrivePage struct {
 	drive models.Driveable
 }
 
-func (nl nopUserDrivePageLinker) GetOdataNextLink() *string { return nil }
+func (nl nopUserDrivePage) GetValue() []models.Driveable {
+	return []models.Driveable{nl.drive}
+}
 
-func (p *userDrivePager) GetPage(ctx context.Context) (PageLinker, error) {
-	var (
-		resp PageLinker
-		err  error
-	)
+func (nl nopUserDrivePage) GetOdataNextLink() *string {
+	return nil
+}
 
+func (p *userDrivePager) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[models.Driveable], error) {
+	// we only ever want to return the user's default drive.
 	d, err := p.gs.
 		Client().
 		Users().
-		ByUserId(p.userID).
+		ByUserIdString(p.userID).
 		Drive().
 		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	resp = &nopUserDrivePageLinker{drive: d}
-
-	// TODO(keepers): turn back on when we can separate drive enumeration
-	// from default drive lookup.
-
-	// resp, err = p.builder.Get(ctx, p.options)
-	// if err != nil {
-	// 	return nil, graph.Stack(ctx, err)
-	// }
-
-	return resp, nil
+	return &nopUserDrivePage{drive: d}, graph.Stack(ctx, err).OrNil()
 }
 
-func (p *userDrivePager) SetNext(link string) {
+func (p *userDrivePager) SetNextLink(link string) {
 	p.builder = users.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *userDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
-	nl, ok := l.(*nopUserDrivePageLinker)
-	if !ok || nl == nil {
-		return nil, clues.New(fmt.Sprintf("improper page linker struct for user drives: %T", l))
-	}
-
-	// TODO(keepers): turn back on when we can separate drive enumeration
-	// from default drive lookup.
-
-	// return getValues[models.Driveable](l)
-
-	return []models.Driveable{nl.drive}, nil
+func (p *userDrivePager) ValidModTimes() bool {
+	return true
 }
 
 // ---------------------------------------------------------------------------
@@ -325,33 +297,26 @@ func (c Drives) NewSiteDrivePager(
 		builder: c.Stable.
 			Client().
 			Sites().
-			BySiteId(siteID).
+			BySiteIdString(siteID).
 			Drives(),
 	}
 
 	return res
 }
 
-func (p *siteDrivePager) GetPage(ctx context.Context) (PageLinker, error) {
-	var (
-		resp PageLinker
-		err  error
-	)
-
-	resp, err = p.builder.Get(ctx, p.options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, nil
+func (p *siteDrivePager) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[models.Driveable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
-func (p *siteDrivePager) SetNext(link string) {
+func (p *siteDrivePager) SetNextLink(link string) {
 	p.builder = sites.NewItemDrivesRequestBuilder(link, p.gs.Adapter())
 }
 
-func (p *siteDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
-	return getValues[models.Driveable](l)
+func (p *siteDrivePager) ValidModTimes() bool {
+	return true
 }
 
 // ---------------------------------------------------------------------------
@@ -362,74 +327,13 @@ func (p *siteDrivePager) ValuesIn(l PageLinker) ([]models.Driveable, error) {
 func GetAllDrives(
 	ctx context.Context,
 	pager Pager[models.Driveable],
-	retry bool,
-	maxRetryCount int,
 ) ([]models.Driveable, error) {
-	ds := []models.Driveable{}
-
-	if !retry {
-		maxRetryCount = 0
+	ds, err := enumerateItems(ctx, pager)
+	if err != nil && (clues.HasLabel(err, graph.LabelsMysiteNotFound) ||
+		clues.HasLabel(err, graph.LabelsNoSharePointLicense)) {
+		logger.CtxErr(ctx, err).Infof("resource owner does not have a drive")
+		return make([]models.Driveable, 0), nil // no license or drives.
 	}
 
-	// Loop through all pages returned by Graph API.
-	for {
-		var (
-			err  error
-			page PageLinker
-		)
-
-		// Retry Loop for Drive retrieval. Request can timeout
-		for i := 0; i <= maxRetryCount; i++ {
-			page, err = pager.GetPage(ctx)
-			if err != nil {
-				if clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-					logger.CtxErr(ctx, err).Infof("resource owner does not have a drive")
-					return make([]models.Driveable, 0), nil // no license or drives.
-				}
-
-				if graph.IsErrTimeout(err) && i < maxRetryCount {
-					time.Sleep(time.Duration(3*(i+1)) * time.Second)
-					continue
-				}
-
-				return nil, graph.Wrap(ctx, err, "retrieving drives")
-			}
-
-			// No error encountered, break the retry loop so we can extract results
-			// and see if there's another page to fetch.
-			break
-		}
-
-		tmp, err := pager.ValuesIn(page)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "extracting drives from response")
-		}
-
-		ds = append(ds, tmp...)
-
-		nextLink := ptr.Val(page.GetOdataNextLink())
-		if len(nextLink) == 0 {
-			break
-		}
-
-		pager.SetNext(nextLink)
-	}
-
-	logger.Ctx(ctx).Debugf("retrieved %d valid drives", len(ds))
-
-	return ds, nil
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-func getValues[T any](l PageLinker) ([]T, error) {
-	page, ok := l.(interface{ GetValue() []T })
-	if !ok {
-		return nil, clues.New("page does not comply with GetValue() interface").
-			With("page_item_type", fmt.Sprintf("%T", l))
-	}
-
-	return page.GetValue(), nil
+	return ds, graph.Stack(ctx, err).OrNil()
 }

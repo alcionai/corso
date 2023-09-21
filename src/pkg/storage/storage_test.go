@@ -28,7 +28,7 @@ func TestStorageSuite(t *testing.T) {
 func (suite *StorageSuite) TestNewStorage() {
 	table := []struct {
 		name     string
-		p        storageProvider
+		p        ProviderType
 		c        testConfig
 		errCheck assert.ErrorAssertionFunc
 	}{

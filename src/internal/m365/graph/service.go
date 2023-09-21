@@ -37,12 +37,6 @@ const (
 	defaultHTTPClientTimeout  = 1 * time.Hour
 )
 
-// AllMetadataFileNames produces the standard set of filenames used to store graph
-// metadata such as delta tokens and folderID->path references.
-func AllMetadataFileNames() []string {
-	return []string{DeltaURLsFileName, PreviousPathFileName}
-}
-
 type QueryParams struct {
 	Category          path.CategoryType
 	ProtectedResource idname.Provider
@@ -142,8 +136,7 @@ func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityA
 
 	auth, err := kauth.NewAzureIdentityAuthenticationProviderWithScopes(
 		cred,
-		[]string{"https://graph.microsoft.com/.default"},
-	)
+		[]string{"https://graph.microsoft.com/.default"})
 	if err != nil {
 		return nil, clues.Wrap(err, "creating azure authentication")
 	}
@@ -363,14 +356,16 @@ func (aw *adapterWrap) Send(
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
 		sp, err = aw.RequestAdapter.Send(ctx, requestInfo, constructor, errorMappings)
-		if err != nil &&
-			!(IsErrConnectionReset(err) ||
-				connectionEnded.Compare(err.Error())) {
-			return nil, Stack(ictx, err)
-		}
-
 		if err == nil {
 			break
+		}
+
+		if IsErrApplicationThrottled(err) {
+			return nil, clues.Stack(ErrApplicationThrottled, err).WithTrace(1).WithClues(ictx)
+		}
+
+		if !IsErrConnectionReset(err) && !connectionEnded.Compare(err.Error()) {
+			return nil, clues.Stack(err).WithTrace(1).WithClues(ictx)
 		}
 
 		logger.Ctx(ictx).Debug("http connection error")

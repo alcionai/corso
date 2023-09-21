@@ -5,6 +5,11 @@ import (
 )
 
 const (
+	DataLibraries = "libraries"
+	DataPages     = "pages"
+)
+
+const (
 	LibraryFN    = "library"
 	ListFolderFN = "list"
 	ListItemFN   = "list-item"

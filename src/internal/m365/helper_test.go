@@ -19,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/resource"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -106,14 +105,12 @@ type restoreBackupInfo struct {
 	name        string
 	service     path.ServiceType
 	collections []m365Stub.ColInfo
-	resourceCat resource.Category
 }
 
 type restoreBackupInfoMultiVersion struct {
 	service             path.ServiceType
 	collectionsLatest   []m365Stub.ColInfo
 	collectionsPrevious []m365Stub.ColInfo
-	resourceCat         resource.Category
 	backupVersion       int
 }
 
@@ -165,8 +162,7 @@ func recipientEqual(
 	// Don't compare names as M365 will override the name if the address is known.
 	return reflect.DeepEqual(
 		ptr.Val(expected.GetEmailAddress().GetAddress()),
-		ptr.Val(got.GetEmailAddress().GetAddress()),
-	)
+		ptr.Val(got.GetEmailAddress().GetAddress()))
 }
 
 func checkMessage(
@@ -225,8 +221,7 @@ func checkMessage(
 		t,
 		ptr.Val(expected.GetIsDeliveryReceiptRequested()),
 		ptr.Val(got.GetIsDeliveryReceiptRequested()),
-		"IsDeliverReceiptRequested",
-	)
+		"IsDeliverReceiptRequested")
 
 	assert.Equal(t, ptr.Val(expected.GetIsDraft()), ptr.Val(got.GetIsDraft()), "IsDraft")
 
@@ -545,8 +540,7 @@ func checkEvent(
 		t,
 		ptr.Val(expected.GetReminderMinutesBeforeStart()),
 		ptr.Val(got.GetReminderMinutesBeforeStart()),
-		"ReminderMinutesBeforeStart",
-	)
+		"ReminderMinutesBeforeStart")
 
 	assert.Equal(
 		t,
@@ -738,16 +732,20 @@ func compareDriveItem(
 
 	if !isMeta {
 		oitem := item.(*drive.Item)
-		info := oitem.Info()
+
+		info, err := oitem.Info()
+		if !assert.NoError(t, err, clues.ToCore(err)) {
+			return true
+		}
 
 		if info.OneDrive != nil {
-			displayName = oitem.Info().OneDrive.ItemName
+			displayName = info.OneDrive.ItemName
 
 			// Don't need to check SharePoint because it was added after we stopped
 			// adding meta files to backup details.
-			assert.False(t, oitem.Info().OneDrive.IsMeta, "meta marker for non meta item %s", name)
+			assert.False(t, info.OneDrive.IsMeta, "meta marker for non meta item %s", name)
 		} else if info.SharePoint != nil {
-			displayName = oitem.Info().SharePoint.ItemName
+			displayName = info.SharePoint.ItemName
 		} else {
 			assert.Fail(t, "ItemInfo is not SharePoint or OneDrive")
 		}
@@ -780,8 +778,7 @@ func compareDriveItem(
 			t,
 			expectedData,
 			"unexpected metadata file with name %s",
-			name,
-		) {
+			name) {
 			return true
 		}
 
@@ -942,7 +939,7 @@ func checkHasCollections(
 
 		p, err := loc.ToDataLayerPath(
 			fp.Tenant(),
-			fp.ResourceOwner(),
+			fp.ProtectedResource(),
 			fp.Service(),
 			fp.Category(),
 			false)
@@ -1060,8 +1057,7 @@ func makeExchangeBackupSel(
 
 			toInclude = append(toInclude, builder(
 				[]string{d.dest},
-				selectors.PrefixMatch(),
-			))
+				selectors.PrefixMatch()))
 		}
 	}
 
@@ -1087,8 +1083,7 @@ func makeOneDriveBackupSel(
 
 		toInclude = append(toInclude, sel.Folders(
 			[]string{d.dest},
-			selectors.PrefixMatch(),
-		))
+			selectors.PrefixMatch()))
 	}
 
 	sel := selectors.NewOneDriveBackup(maps.Keys(resourceOwners))
@@ -1118,8 +1113,7 @@ func makeSharePointBackupSel(
 
 			toInclude = append(toInclude, sel.LibraryFolders(
 				[]string{d.dest},
-				selectors.PrefixMatch(),
-			))
+				selectors.PrefixMatch()))
 		}
 	}
 
@@ -1197,12 +1191,11 @@ func getSelectorWith(
 func newController(
 	ctx context.Context,
 	t *testing.T,
-	r resource.Category,
 	pst path.ServiceType,
 ) *Controller {
 	a := tconfig.NewM365Account(t)
 
-	controller, err := NewController(ctx, a, r, pst, control.Options{})
+	controller, err := NewController(ctx, a, pst, control.Options{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return controller

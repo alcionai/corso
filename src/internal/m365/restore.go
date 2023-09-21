@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
+	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -40,23 +41,11 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 		return nil, clues.New("no data collections to restore")
 	}
 
-	serviceEnabled, _, err := checkServiceEnabled(
-		ctx,
-		ctrl.AC.Users(),
-		rcc.Selector.PathService(),
-		rcc.ProtectedResource.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	if !serviceEnabled {
-		return nil, clues.Stack(graph.ErrServiceNotEnabled).WithClues(ctx)
-	}
-
 	var (
 		service = rcc.Selector.PathService()
 		status  *support.ControllerOperationStatus
 		deets   = &details.Builder{}
+		err     error
 	)
 
 	switch service {
@@ -81,6 +70,16 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 			ctr)
 	case path.SharePointService:
 		status, err = sharepoint.ConsumeRestoreCollections(
+			ctx,
+			rcc,
+			ctrl.AC,
+			ctrl.backupDriveIDNames,
+			dcs,
+			deets,
+			errs,
+			ctr)
+	case path.GroupsService:
+		status, err = groups.ConsumeRestoreCollections(
 			ctx,
 			rcc,
 			ctrl.AC,

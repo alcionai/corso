@@ -50,7 +50,7 @@ jobs:
     ############################################################################
     # setup
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # needed to get latest tag
 
@@ -83,7 +83,7 @@ jobs:
         # Use shorter-lived credentials obtained from assume-role since these
         # runs haven't been taking long.
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
@@ -352,14 +352,14 @@ jobs:
             #   - x - index blobs
             ./s3checker \
               --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
-              --bucket-prefix ${{ env.PREFIX }} \
+              --prefix ${{ env.PREFIX }} \
               --retention-mode ${{ env.RETENTION_MODE }} \
               --live-retention-duration "$((${{ env.RETENTION_DURATION }}-1))h" \
-              --prefix "kopia.blobcfg" \
-              --prefix "kopia.repository" \
-              --prefix "p" \
-              --prefix "q" \
-              --prefix "x"
+              --object-prefix "kopia.blobcfg" \
+              --object-prefix "kopia.repository" \
+              --object-prefix "p" \
+              --object-prefix "q" \
+              --object-prefix "x"
           fi
 
       ##########################################################################

@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -28,8 +29,7 @@ type S3E2ESuite struct {
 func TestS3E2ESuite(t *testing.T) {
 	suite.Run(t, &S3E2ESuite{Suite: tester.NewE2ESuite(
 		t,
-		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs},
-	)})
+		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
 }
 
 func (suite *S3E2ESuite) TestInitS3Cmd() {
@@ -63,8 +63,10 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 			defer flush()
 
 			st := storeTD.NewPrefixedS3Storage(t)
-			cfg, err := st.S3Config()
+
+			sc, err := st.StorageConfig()
 			require.NoError(t, err, clues.ToCore(err))
+			cfg := sc.(*storage.S3Config)
 
 			vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 			if !test.hasConfigFile {
@@ -100,8 +102,10 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
+	sc, err := st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(*storage.S3Config)
 
 	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 
@@ -113,8 +117,7 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 			"--config-file", configFP,
 			"--bucket", cfg.Bucket,
 			"--prefix", cfg.Prefix,
-			"--succeed-if-exists",
-		)
+			"--succeed-if-exists")
 		cli.BuildCommandTree(cmd)
 
 		// run the command
@@ -130,8 +133,11 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
+
+	sc, err := st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(*storage.S3Config)
 
 	force := map[string]string{
 		tconfig.TestCfgBucket: "",
@@ -183,12 +189,13 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			defer flush()
 
 			st := storeTD.NewPrefixedS3Storage(t)
-			cfg, err := st.S3Config()
+			sc, err := st.StorageConfig()
 			require.NoError(t, err, clues.ToCore(err))
+			cfg := sc.(*storage.S3Config)
 
 			force := map[string]string{
-				tconfig.TestCfgAccountProvider: "M365",
-				tconfig.TestCfgStorageProvider: "S3",
+				tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
+				tconfig.TestCfgStorageProvider: storage.ProviderS3.String(),
 				tconfig.TestCfgPrefix:          cfg.Prefix,
 			}
 			vpr, configFP := tconfig.MakeTempTestConfigClone(t, force)
@@ -214,8 +221,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 				"repo", "connect", "s3",
 				"--config-file", configFP,
 				"--bucket", test.bucketPrefix+cfg.Bucket,
-				"--prefix", cfg.Prefix,
-			)
+				"--prefix", cfg.Prefix)
 			cli.BuildCommandTree(cmd)
 
 			// run the command
@@ -232,8 +238,10 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadBucket() {
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
+	sc, err := st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(*storage.S3Config)
 
 	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 
@@ -258,8 +266,10 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
+	sc, err := st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(*storage.S3Config)
 
 	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 

@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
@@ -27,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	opMock "github.com/alcionai/corso/src/internal/operations/inject/mock"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	ssmock "github.com/alcionai/corso/src/internal/streamstore/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -36,6 +36,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/extensions"
@@ -218,7 +219,7 @@ func makeMetadataBasePath(
 ) path.Path {
 	t.Helper()
 
-	p, err := path.Builder{}.ToServiceCategoryMetadataPath(
+	p, err := path.BuildMetadata(
 		tenant,
 		resourceOwner,
 		service,
@@ -295,8 +296,7 @@ func makeDetailsEntry(
 			assert.FailNowf(
 				t,
 				"category %s not supported in helper function",
-				p.Category().String(),
-			)
+				p.Category().String())
 		}
 
 		res.Exchange = &details.ExchangeInfo{
@@ -546,8 +546,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"work",
 				"item1",
 			},
-			true,
-		)
+			true)
 		locationPath1 = path.Builder{}.Append(odConsts.RootPathDir, "work-display-name")
 		itemPath2     = makePath(
 			suite.T(),
@@ -562,8 +561,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"personal",
 				"item2",
 			},
-			true,
-		)
+			true)
 		locationPath2 = path.Builder{}.Append(odConsts.RootPathDir, "personal-display-name")
 		itemPath3     = makePath(
 			suite.T(),
@@ -575,8 +573,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 				"personal",
 				"item3",
 			},
-			true,
-		)
+			true)
 		locationPath3 = path.Builder{}.Append("personal-display-name")
 
 		backup1 = backup.Backup{
@@ -595,12 +592,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 		pathReason1 = kopia.NewReason(
 			"",
-			itemPath1.ResourceOwner(),
+			itemPath1.ProtectedResource(),
 			itemPath1.Service(),
 			itemPath1.Category())
 		pathReason3 = kopia.NewReason(
 			"",
-			itemPath3.ResourceOwner(),
+			itemPath3.ProtectedResource(),
 			itemPath3.Service(),
 			itemPath3.Category())
 
@@ -621,7 +618,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 		exchangeLocationPath1 = path.Builder{}.Append("work-display-name")
 		exchangePathReason1   = kopia.NewReason(
 			"",
-			exchangeItemPath1.ResourceOwner(),
+			exchangeItemPath1.ProtectedResource(),
 			exchangeItemPath1.Service(),
 			exchangeItemPath1.Category())
 	)
@@ -731,12 +728,10 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 										[]string{
 											itemPath1.Tenant(),
 											itemPath1.Service().String(),
-											itemPath1.ResourceOwner(),
+											itemPath1.ProtectedResource(),
 											path.UnknownCategory.String(),
 										},
-										itemPath1.Folders()...,
-									)...,
-								),
+										itemPath1.Folders()...)...),
 								ItemInfo: details.ItemInfo{
 									OneDrive: &details.OneDriveInfo{
 										ItemType:   details.OneDriveItem,
@@ -760,13 +755,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					[]string{
 						itemPath1.Tenant(),
 						path.OneDriveService.String(),
-						itemPath1.ResourceOwner(),
+						itemPath1.ProtectedResource(),
 						path.FilesCategory.String(),
 						"personal",
 						"item1",
 					},
-					true,
-				)
+					true)
 
 				res.add(itemPath1, p, nil)
 
@@ -1275,7 +1269,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 
 		pathReason1 = kopia.NewReason(
 			"",
-			itemPath1.ResourceOwner(),
+			itemPath1.ProtectedResource(),
 			itemPath1.Service(),
 			itemPath1.Category())
 
@@ -1559,38 +1553,6 @@ func (suite *AssistBackupIntegrationSuite) TearDownSuite() {
 	}
 }
 
-var _ inject.BackupProducer = &mockBackupProducer{}
-
-type mockBackupProducer struct {
-	colls                   []data.BackupCollection
-	dcs                     data.CollectionStats
-	injectNonRecoverableErr bool
-}
-
-func (mbp *mockBackupProducer) ProduceBackupCollections(
-	context.Context,
-	inject.BackupProducerConfig,
-	*fault.Bus,
-) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	if mbp.injectNonRecoverableErr {
-		return nil, nil, false, clues.New("non-recoverable error")
-	}
-
-	return mbp.colls, nil, true, nil
-}
-
-func (mbp *mockBackupProducer) IsBackupRunnable(
-	context.Context,
-	path.ServiceType,
-	string,
-) (bool, error) {
-	return true, nil
-}
-
-func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
-	return &mbp.dcs
-}
-
 func makeBackupCollection(
 	p path.Path,
 	locPath *path.Builder,
@@ -1602,10 +1564,10 @@ func makeBackupCollection(
 		streams[i] = &items[i]
 	}
 
-	return &mock.BackupCollection{
-		Path:    p,
-		Loc:     locPath,
-		Streams: streams,
+	return &dataMock.Collection{
+		Path:     p,
+		Loc:      locPath,
+		ItemData: streams,
 	}
 }
 
@@ -1615,17 +1577,15 @@ func makeMetadataCollectionEntries(
 ) []graph.MetadataCollectionEntry {
 	return []graph.MetadataCollectionEntry{
 		graph.NewMetadataEntry(
-			graph.DeltaURLsFileName,
-			map[string]string{driveID: deltaURL},
-		),
+			metadata.DeltaURLsFileName,
+			map[string]string{driveID: deltaURL}),
 		graph.NewMetadataEntry(
-			graph.PreviousPathFileName,
+			metadata.PreviousPathFileName,
 			map[string]map[string]string{
 				driveID: {
 					folderID: p.PlainString(),
 				},
-			},
-		),
+			}),
 	}
 }
 
@@ -1680,7 +1640,7 @@ func makeMockItem(
 func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
-		tenantID = acct.Config[config.AzureTenantIDKey]
+		tenantID = acct.Config[account.AzureTenantIDKey]
 		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 	)
@@ -1871,7 +1831,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			cs := test.collFunc()
 
-			pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
+			pathPrefix, err := path.BuildMetadata(
 				tenantID,
 				userID,
 				path.OneDriveService,
@@ -1886,10 +1846,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)
-			bp := &mockBackupProducer{
-				colls:                   cs,
-				injectNonRecoverableErr: test.injectNonRecoverableErr,
-			}
+			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, test.injectNonRecoverableErr)
 
 			opts.FailureHandling = test.failurePolicy
 
@@ -1898,7 +1855,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				opts,
 				suite.kw,
 				suite.sw,
-				bp,
+				&bp,
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
@@ -1947,7 +1904,7 @@ func selectFilesFromDeets(d details.Details) map[string]details.Entry {
 func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
-		tenantID = acct.Config[config.AzureTenantIDKey]
+		tenantID = acct.Config[account.AzureTenantIDKey]
 		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 		// Default policy used by SDK clients
@@ -2189,7 +2146,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 
 			cs := test.collFunc()
 
-			pathPrefix, err := path.Builder{}.ToServiceCategoryMetadataPath(
+			pathPrefix, err := path.BuildMetadata(
 				tenantID,
 				userID,
 				path.OneDriveService,
@@ -2204,9 +2161,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)
-			bp := &mockBackupProducer{
-				colls: cs,
-			}
+			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, false)
 
 			opts.FailureHandling = failurePolicy
 
@@ -2215,7 +2170,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				opts,
 				suite.kw,
 				suite.sw,
-				bp,
+				&bp,
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},

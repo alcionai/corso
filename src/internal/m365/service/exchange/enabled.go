@@ -64,7 +64,7 @@ func GetMailboxInfo(
 
 		mi.ErrGetMailBoxSetting = append(
 			mi.ErrGetMailBoxSetting,
-			api.ErrMailBoxSettingsNotFound)
+			api.ErrMailBoxNotFound)
 
 		return mi, nil
 	}
@@ -81,8 +81,7 @@ func GetMailboxInfo(
 
 		mi.ErrGetMailBoxSetting = append(
 			mi.ErrGetMailBoxSetting,
-			api.ErrMailBoxSettingsAccessDenied,
-		)
+			api.ErrMailBoxSettingsAccessDenied)
 	} else {
 		mi = api.ParseMailboxSettings(mboxSettings, mi)
 	}

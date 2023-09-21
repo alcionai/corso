@@ -52,36 +52,6 @@ func (fd finD) FetchItemByName(ctx context.Context, name string) (data.Item, err
 	return nil, assert.AnError
 }
 
-type mockRestoreCollection struct {
-	path  path.Path
-	items []*dataMock.Item
-}
-
-func (rc mockRestoreCollection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
-	ch := make(chan data.Item)
-
-	go func() {
-		defer close(ch)
-
-		el := errs.Local()
-
-		for _, item := range rc.items {
-			if item.ReadErr != nil {
-				el.AddRecoverable(ctx, item.ReadErr)
-				continue
-			}
-
-			ch <- item
-		}
-	}()
-
-	return ch
-}
-
-func (rc mockRestoreCollection) FullPath() path.Path {
-	return rc.path
-}
-
 func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	t := suite.T()
 
@@ -95,32 +65,29 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		dpb       = odConsts.DriveFolderPrefixBuilder(driveID)
 		cache     = idname.NewCache(
 			// Cache check with lowercased ids
-			map[string]string{strings.ToLower(driveID): driveName},
-		)
+			map[string]string{strings.ToLower(driveID): driveName})
 		dii           = odStub.DriveItemInfo()
-		expectedPath  = "Libraries/" + driveName
+		expectedPath  = path.LibrariesCategory.HumanString() + "/" + driveName
 		expectedItems = []export.Item{
 			{
-				ID: "id1.data",
-				Data: export.ItemData{
-					Name: "name1",
-					Body: io.NopCloser((bytes.NewBufferString("body1"))),
-				},
+				ID:   "id1.data",
+				Name: "name1",
+				Body: io.NopCloser((bytes.NewBufferString("body1"))),
 			},
 		}
 	)
 
 	dii.OneDrive.ItemName = "name1"
 
-	p, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
+	p, err := dpb.ToDataLayerSharePointPath("t", "u", path.LibrariesCategory, false)
 	assert.NoError(t, err, "build path")
 
 	dcs := []data.RestoreCollection{
 		data.FetchRestoreCollection{
-			Collection: mockRestoreCollection{
-				path: p,
-				items: []*dataMock.Item{
-					{
+			Collection: dataMock.Collection{
+				Path: p,
+				ItemData: []data.Item{
+					&dataMock.Item{
 						ItemID:   "id1.data",
 						Reader:   io.NopCloser(bytes.NewBufferString("body1")),
 						ItemInfo: dii,
