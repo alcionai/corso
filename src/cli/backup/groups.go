@@ -12,7 +12,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
@@ -32,7 +31,7 @@ import (
 const (
 	groupsServiceCommand                 = "groups"
 	teamsServiceCommand                  = "teams"
-	groupsServiceCommandCreateUseSuffix  = "--group <groupsName> | '" + flags.Wildcard + "'"
+	groupsServiceCommandCreateUseSuffix  = "--group <groupName> | '" + flags.Wildcard + "'"
 	groupsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
 	groupsServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
@@ -67,7 +66,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandCreateUseSuffix
@@ -81,9 +80,11 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddAzureCredsFlags(c)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
+		flags.AddDisableIncrementalsFlag(c)
+		flags.AddForceItemDataDownloadFlag(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
@@ -95,7 +96,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		addRecoveredErrorsFN(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDetailsUseSuffix
@@ -110,9 +111,10 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
+		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreReleaseCommand())
+		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDeleteUseSuffix
@@ -154,7 +156,10 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, acct, err := utils.AccountConnectAndWriteRepoConfig(ctx, path.GroupsService, repo.S3Overrides(cmd))
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx,
+		cmd,
+		path.GroupsService)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -226,7 +231,10 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeGroupsOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnect(ctx, path.GroupsService, repo.S3Overrides(cmd))
+	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
+		ctx,
+		cmd,
+		path.GroupsService)
 	if err != nil {
 		return Only(ctx, err)
 	}

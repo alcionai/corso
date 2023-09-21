@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -35,6 +34,7 @@ const (
 )
 
 type Collection struct {
+	data.BaseCollection
 	protectedResource string
 	stream            chan data.Item
 
@@ -47,24 +47,6 @@ type Collection struct {
 
 	category      path.CategoryType
 	statusUpdater support.StatusUpdater
-	ctrl          control.Options
-
-	// FullPath is the current hierarchical path used by this collection.
-	fullPath path.Path
-
-	// PrevPath is the previous hierarchical path used by this collection.
-	// It may be the same as fullPath, if the folder was not renamed or
-	// moved.  It will be empty on its first retrieval.
-	prevPath path.Path
-
-	// LocationPath contains the path with human-readable display names.
-	// IE: "/Inbox/Important" instead of "/abcdxyz123/algha=lgkhal=t"
-	locationPath *path.Builder
-
-	state data.CollectionState
-
-	// doNotMergeItems should only be true if the old delta token expired.
-	doNotMergeItems bool
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection.
@@ -74,28 +56,20 @@ type Collection struct {
 // If both are populated, then state is either moved (if they differ),
 // or notMoved (if they match).
 func NewCollection(
+	baseCol data.BaseCollection,
 	getter getChannelMessager,
 	protectedResource string,
-	curr, prev path.Path,
-	location *path.Builder,
 	category path.CategoryType,
 	added map[string]struct{},
 	removed map[string]struct{},
 	statusUpdater support.StatusUpdater,
-	ctrlOpts control.Options,
-	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
+		BaseCollection:    baseCol,
 		added:             added,
 		category:          category,
-		ctrl:              ctrlOpts,
-		doNotMergeItems:   doNotMergeItems,
-		fullPath:          curr,
 		getter:            getter,
-		locationPath:      location,
-		prevPath:          prev,
 		removed:           removed,
-		state:             data.StateOf(prev, curr),
 		statusUpdater:     statusUpdater,
 		stream:            make(chan data.Item, collectionChannelBufferSize),
 		protectedResource: protectedResource,
@@ -109,31 +83,6 @@ func NewCollection(
 func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	go col.streamItems(ctx, errs)
 	return col.stream
-}
-
-// FullPath returns the Collection's fullPath []string
-func (col *Collection) FullPath() path.Path {
-	return col.fullPath
-}
-
-// LocationPath produces the Collection's full path, but with display names
-// instead of IDs in the folders.  Only populated for Calendars.
-func (col *Collection) LocationPath() *path.Builder {
-	return col.locationPath
-}
-
-// TODO(ashmrtn): Fill in with previous path once the Controller compares old
-// and new folder hierarchies.
-func (col Collection) PreviousPath() path.Path {
-	return col.prevPath
-}
-
-func (col Collection) State() data.CollectionState {
-	return col.state
-}
-
-func (col Collection) DoNotMergeItems() bool {
-	return col.doNotMergeItems
 }
 
 // ---------------------------------------------------------------------------
@@ -209,12 +158,12 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.FullPath().Category().String(),
+			col.FullPath().Category().HumanString(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
 
-	semaphoreCh := make(chan struct{}, col.ctrl.Parallelism.ItemFetch)
+	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
 	defer close(semaphoreCh)
 
 	// delete all removed items
@@ -258,7 +207,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			writer := kjson.NewJsonSerializationWriter()
 			defer writer.Close()
 
-			flds := col.fullPath.Folders()
+			flds := col.FullPath().Folders()
 			parentFolderID := flds[len(flds)-1]
 
 			item, info, err := col.getter.GetChannelMessage(

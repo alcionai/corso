@@ -69,7 +69,7 @@ func ProduceBackupCollections(
 
 		progressBar := observe.MessageWithCompletion(
 			ctx,
-			observe.Bulletf("%s", scope.Category().PathType()))
+			observe.Bulletf("%s", scope.Category().PathType().HumanString()))
 		defer close(progressBar)
 
 		var dbcs []data.BackupCollection

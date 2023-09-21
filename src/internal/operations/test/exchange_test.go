@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -18,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
-	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	exchTD "github.com/alcionai/corso/src/internal/m365/service/exchange/testdata"
@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -52,6 +53,18 @@ func TestExchangeBackupIntgSuite(t *testing.T) {
 
 func (suite *ExchangeBackupIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+// MetadataFileNames produces the category-specific set of filenames used to
+// store graph metadata such as delta tokens and folderID->path references.
+func MetadataFileNames(cat path.CategoryType) [][]string {
+	switch cat {
+	// TODO: should this include events?
+	case path.EmailCategory, path.ContactsCategory:
+		return [][]string{{metadata.DeltaURLsFileName}, {metadata.PreviousPathFileName}}
+	default:
+		return [][]string{{metadata.PreviousPathFileName}}
+	}
 }
 
 // TestBackup_Run ensures that Integration Testing works
@@ -93,7 +106,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				return sel
 			},
 			category:      path.EventsCategory,
-			metadataFiles: exchange.MetadataFileNames(path.EventsCategory),
+			metadataFiles: MetadataFileNames(path.EventsCategory),
 		},
 	}
 	for _, test := range tests {
@@ -244,8 +257,8 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		now        = dttm.Now()
 		service    = path.ExchangeService
 		categories = map[path.CategoryType][][]string{
-			path.EmailCategory:    exchange.MetadataFileNames(path.EmailCategory),
-			path.ContactsCategory: exchange.MetadataFileNames(path.ContactsCategory),
+			path.EmailCategory:    MetadataFileNames(path.EmailCategory),
+			path.ContactsCategory: MetadataFileNames(path.ContactsCategory),
 			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
 		}
 		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
@@ -369,12 +382,12 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 		var (
 			err   error
-			items []string
+			items map[string]time.Time
 		)
 
 		switch category {
 		case path.EmailCategory:
-			items, _, _, err = ac.Mail().GetAddedAndRemovedItemIDs(
+			items, _, _, _, err = ac.Mail().GetAddedAndRemovedItemIDs(
 				ctx,
 				uidn.ID(),
 				containerID,
@@ -383,7 +396,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				true)
 
 		case path.EventsCategory:
-			items, _, _, err = ac.Events().GetAddedAndRemovedItemIDs(
+			items, _, _, _, err = ac.Events().GetAddedAndRemovedItemIDs(
 				ctx,
 				uidn.ID(),
 				containerID,
@@ -392,7 +405,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				true)
 
 		case path.ContactsCategory:
-			items, _, _, err = ac.Contacts().GetAddedAndRemovedItemIDs(
+			items, _, _, _, err = ac.Contacts().GetAddedAndRemovedItemIDs(
 				ctx,
 				uidn.ID(),
 				containerID,
@@ -411,7 +424,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		dest := dataset[category].dests[destName]
 		dest.locRef = locRef.String()
 		dest.containerID = containerID
-		dest.itemRefs = items
+		dest.itemRefs = maps.Keys(items)
 		dataset[category].dests[destName] = dest
 
 		// Add the directory and all its ancestors to the cache so we can compare

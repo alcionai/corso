@@ -3,6 +3,7 @@ package selectors
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/alcionai/clues"
 
@@ -801,6 +802,10 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 	case GroupsInfoChannelMessageCreatedAfter, GroupsInfoChannelMessageCreatedBefore:
 		i = dttm.Format(info.Created)
 	case GroupsInfoChannelMessageLastReplyAfter, GroupsInfoChannelMessageLastReplyBefore:
+		if info.LastReplyAt.Equal(time.Time{}) {
+			return false
+		}
+
 		i = dttm.Format(info.LastReplyAt)
 	}
 

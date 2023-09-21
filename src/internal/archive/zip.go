@@ -15,7 +15,6 @@ import (
 const (
 	// ZipCopyBufferSize is the size of the copy buffer for zip
 	// write operations
-	// TODO(meain): tweak this value
 	ZipCopyBufferSize = 5 * 1024 * 1024
 )
 

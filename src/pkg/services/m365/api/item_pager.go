@@ -52,6 +52,10 @@ type Resetter interface {
 	Reset(context.Context)
 }
 
+type ValidModTimer interface {
+	ValidModTimes() bool
+}
+
 // ---------------------------------------------------------------------------
 // common funcs
 // ---------------------------------------------------------------------------
@@ -76,6 +80,7 @@ func NextAndDeltaLink(pl DeltaLinker) (string, string) {
 type Pager[T any] interface {
 	GetPager[NextLinkValuer[T]]
 	SetNextLinker
+	ValidModTimer
 }
 
 func enumerateItems[T any](
@@ -114,6 +119,7 @@ type DeltaPager[T any] interface {
 	GetPager[DeltaLinkValuer[T]]
 	Resetter
 	SetNextLinker
+	ValidModTimer
 }
 
 func deltaEnumerateItems[T any](
@@ -173,7 +179,7 @@ func deltaEnumerateItems[T any](
 // shared enumeration runner funcs
 // ---------------------------------------------------------------------------
 
-type addedAndRemovedHandler[T any] func(items []T) ([]string, []string, error)
+type addedAndRemovedHandler[T any] func(items []T) (map[string]time.Time, []string, error)
 
 func getAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
@@ -182,16 +188,16 @@ func getAddedAndRemovedItemIDs[T any](
 	prevDeltaLink string,
 	canMakeDeltaQueries bool,
 	aarh addedAndRemovedHandler[T],
-) ([]string, []string, DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := deltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
 		if err != nil && (!graph.IsErrInvalidDelta(err) || len(prevDeltaLink) == 0) {
-			return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+			return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 		}
 
 		if err == nil {
 			a, r, err := aarh(ts)
-			return a, r, du, graph.Stack(ctx, err).OrNil()
+			return a, deltaPager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
 		}
 	}
 
@@ -199,12 +205,12 @@ func getAddedAndRemovedItemIDs[T any](
 
 	ts, err := enumerateItems(ctx, pager)
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+		return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 	}
 
 	a, r, err := aarh(ts)
 
-	return a, r, du, graph.Stack(ctx, err).OrNil()
+	return a, pager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
 }
 
 type getIDer interface {
@@ -218,8 +224,15 @@ type getIDAndAddtler interface {
 	GetAdditionalData() map[string]any
 }
 
-func addedAndRemovedByAddtlData[T any](items []T) ([]string, []string, error) {
-	added, removed := []string{}, []string{}
+type getModTimer interface {
+	GetLastModifiedDateTime() *time.Time
+}
+
+func addedAndRemovedByAddtlData[T any](
+	items []T,
+) (map[string]time.Time, []string, error) {
+	added := map[string]time.Time{}
+	removed := []string{}
 
 	for _, item := range items {
 		giaa, ok := any(item).(getIDAndAddtler)
@@ -232,7 +245,13 @@ func addedAndRemovedByAddtlData[T any](items []T) ([]string, []string, error) {
 		// be 'changed' or 'deleted'.  We don't really care about the cause: both
 		// cases are handled the same way in storage.
 		if giaa.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
-			added = append(added, ptr.Val(giaa.GetId()))
+			var modTime time.Time
+
+			if mt, ok := giaa.(getModTimer); ok {
+				modTime = ptr.Val(mt.GetLastModifiedDateTime())
+			}
+
+			added[ptr.Val(giaa.GetId())] = modTime
 		} else {
 			removed = append(removed, ptr.Val(giaa.GetId()))
 		}
@@ -248,8 +267,11 @@ type getIDAndDeletedDateTimer interface {
 	GetDeletedDateTime() *time.Time
 }
 
-func addedAndRemovedByDeletedDateTime[T any](items []T) ([]string, []string, error) {
-	added, removed := []string{}, []string{}
+func addedAndRemovedByDeletedDateTime[T any](
+	items []T,
+) (map[string]time.Time, []string, error) {
+	added := map[string]time.Time{}
+	removed := []string{}
 
 	for _, item := range items {
 		giaddt, ok := any(item).(getIDAndDeletedDateTimer)
@@ -259,7 +281,13 @@ func addedAndRemovedByDeletedDateTime[T any](items []T) ([]string, []string, err
 		}
 
 		if giaddt.GetDeletedDateTime() == nil {
-			added = append(added, ptr.Val(giaddt.GetId()))
+			var modTime time.Time
+
+			if mt, ok := giaddt.(getModTimer); ok {
+				modTime = ptr.Val(mt.GetLastModifiedDateTime())
+			}
+
+			added[ptr.Val(giaddt.GetId())] = modTime
 		} else {
 			removed = append(removed, ptr.Val(giaddt.GetId()))
 		}

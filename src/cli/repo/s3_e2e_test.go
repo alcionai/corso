@@ -63,8 +63,10 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 			defer flush()
 
 			st := storeTD.NewPrefixedS3Storage(t)
-			cfg, err := st.S3Config()
+
+			sc, err := st.StorageConfig()
 			require.NoError(t, err, clues.ToCore(err))
+			cfg := sc.(*storage.S3Config)
 
 			vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 			if !test.hasConfigFile {
@@ -100,8 +102,10 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
+	sc, err := st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(*storage.S3Config)
 
 	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 
@@ -129,8 +133,11 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
+
+	sc, err := st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(*storage.S3Config)
 
 	force := map[string]string{
 		tconfig.TestCfgBucket: "",
@@ -182,8 +189,9 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			defer flush()
 
 			st := storeTD.NewPrefixedS3Storage(t)
-			cfg, err := st.S3Config()
+			sc, err := st.StorageConfig()
 			require.NoError(t, err, clues.ToCore(err))
+			cfg := sc.(*storage.S3Config)
 
 			force := map[string]string{
 				tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
@@ -230,8 +238,10 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadBucket() {
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
+	sc, err := st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(*storage.S3Config)
 
 	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 
@@ -256,8 +266,10 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	cfg, err := st.S3Config()
+	sc, err := st.StorageConfig()
 	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(*storage.S3Config)
 
 	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 

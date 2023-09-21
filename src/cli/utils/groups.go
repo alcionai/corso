@@ -138,9 +138,7 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts) error {
 		return clues.New("invalid time format for " + flags.MessageLastReplyBeforeFN)
 	}
 
-	// TODO(meain): selectors (refer sharepoint)
-
-	return validateRestoreConfigFlags(flags.CollisionsFV, opts.RestoreCfg)
+	return nil
 }
 
 // AddGroupsFilter adds the scope of the provided values to the selector's

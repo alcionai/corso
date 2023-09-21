@@ -1,9 +1,11 @@
 package storage
 
 import (
+	"os"
 	"strconv"
 
 	"github.com/alcionai/clues"
+	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/str"
@@ -40,7 +42,27 @@ const (
 	DoNotVerifyTLS = "donotverifytls"
 )
 
-func (c S3Config) Normalize() S3Config {
+// config file keys
+const (
+	BucketNameKey             = "bucket"
+	EndpointKey               = "endpoint"
+	PrefixKey                 = "prefix"
+	DisableTLSKey             = "disable_tls"
+	DisableTLSVerificationKey = "disable_tls_verification"
+
+	AccessKey       = "aws_access_key_id"
+	SecretAccessKey = "aws_secret_access_key"
+	SessionToken    = "aws_session_token"
+)
+
+var s3constToTomlKeyMap = map[string]string{
+	Bucket:                 BucketNameKey,
+	Endpoint:               EndpointKey,
+	Prefix:                 PrefixKey,
+	StorageProviderTypeKey: StorageProviderTypeKey,
+}
+
+func (c *S3Config) normalize() S3Config {
 	return S3Config{
 		Bucket:         common.NormalizeBucket(c.Bucket),
 		Endpoint:       c.Endpoint,
@@ -53,8 +75,8 @@ func (c S3Config) Normalize() S3Config {
 // StringConfig transforms a s3Config struct into a plain
 // map[string]string.  All values in the original struct which
 // serialize into the map are expected to be strings.
-func (c S3Config) StringConfig() (map[string]string, error) {
-	cn := c.Normalize()
+func (c *S3Config) StringConfig() (map[string]string, error) {
+	cn := c.normalize()
 	cfg := map[string]string{
 		keyS3AccessKey:      c.AccessKey,
 		keyS3Bucket:         cn.Bucket,
@@ -66,23 +88,22 @@ func (c S3Config) StringConfig() (map[string]string, error) {
 		keyS3DoNotVerifyTLS: strconv.FormatBool(cn.DoNotVerifyTLS),
 	}
 
-	return cfg, c.validate()
+	return cfg, cn.validate()
 }
 
-// S3Config retrieves the S3Config details from the Storage config.
-func (s Storage) S3Config() (S3Config, error) {
-	c := S3Config{}
+func buildS3ConfigFromMap(config map[string]string) (*S3Config, error) {
+	c := &S3Config{}
 
-	if len(s.Config) > 0 {
-		c.AccessKey = orEmptyString(s.Config[keyS3AccessKey])
-		c.SecretKey = orEmptyString(s.Config[keyS3SecretKey])
-		c.SessionToken = orEmptyString(s.Config[keyS3SessionToken])
+	if len(config) > 0 {
+		c.AccessKey = orEmptyString(config[keyS3AccessKey])
+		c.SecretKey = orEmptyString(config[keyS3SecretKey])
+		c.SessionToken = orEmptyString(config[keyS3SessionToken])
 
-		c.Bucket = orEmptyString(s.Config[keyS3Bucket])
-		c.Endpoint = orEmptyString(s.Config[keyS3Endpoint])
-		c.Prefix = orEmptyString(s.Config[keyS3Prefix])
-		c.DoNotUseTLS = str.ParseBool(s.Config[keyS3DoNotUseTLS])
-		c.DoNotVerifyTLS = str.ParseBool(s.Config[keyS3DoNotVerifyTLS])
+		c.Bucket = orEmptyString(config[keyS3Bucket])
+		c.Endpoint = orEmptyString(config[keyS3Endpoint])
+		c.Prefix = orEmptyString(config[keyS3Prefix])
+		c.DoNotUseTLS = str.ParseBool(config[keyS3DoNotUseTLS])
+		c.DoNotVerifyTLS = str.ParseBool(config[keyS3DoNotVerifyTLS])
 	}
 
 	return c, c.validate()
@@ -99,4 +120,108 @@ func (c S3Config) validate() error {
 	}
 
 	return nil
+}
+
+func s3Overrides(in map[string]string) map[string]string {
+	return map[string]string{
+		Bucket:                 in[Bucket],
+		Endpoint:               in[Endpoint],
+		Prefix:                 in[Prefix],
+		DoNotUseTLS:            in[DoNotUseTLS],
+		DoNotVerifyTLS:         in[DoNotVerifyTLS],
+		StorageProviderTypeKey: in[StorageProviderTypeKey],
+	}
+}
+
+func (c *S3Config) s3ConfigsFromStore(kvg Getter) {
+	c.Bucket = cast.ToString(kvg.Get(BucketNameKey))
+	c.Endpoint = cast.ToString(kvg.Get(EndpointKey))
+	c.Prefix = cast.ToString(kvg.Get(PrefixKey))
+	c.DoNotUseTLS = cast.ToBool(kvg.Get(DisableTLSKey))
+	c.DoNotVerifyTLS = cast.ToBool(kvg.Get(DisableTLSVerificationKey))
+}
+
+func (c *S3Config) s3CredsFromStore(kvg Getter) {
+	c.AccessKey = cast.ToString(kvg.Get(AccessKey))
+	c.SecretKey = cast.ToString(kvg.Get(SecretAccessKey))
+	c.SessionToken = cast.ToString(kvg.Get(SessionToken))
+}
+
+var _ Configurer = &S3Config{}
+
+func (c *S3Config) ApplyConfigOverrides(
+	kvg Getter,
+	readConfigFromStore bool,
+	matchFromConfig bool,
+	overrides map[string]string,
+) error {
+	if readConfigFromStore {
+		c.s3ConfigsFromStore(kvg)
+
+		if b, ok := overrides[Bucket]; ok {
+			overrides[Bucket] = common.NormalizeBucket(b)
+		}
+
+		if p, ok := overrides[Prefix]; ok {
+			overrides[Prefix] = common.NormalizePrefix(p)
+		}
+
+		if matchFromConfig {
+			providerType := cast.ToString(kvg.Get(StorageProviderTypeKey))
+			if providerType != ProviderS3.String() {
+				return clues.New("unsupported storage provider: " + providerType)
+			}
+
+			if err := mustMatchConfig(kvg, s3constToTomlKeyMap, s3Overrides(overrides)); err != nil {
+				return clues.Wrap(err, "verifying s3 configs in corso config file")
+			}
+		}
+	}
+
+	c.s3CredsFromStore(kvg)
+
+	aws := credentials.AWS{
+		AccessKey: str.First(
+			overrides[credentials.AWSAccessKeyID],
+			os.Getenv(credentials.AWSAccessKeyID),
+			c.AccessKey),
+		SecretKey: str.First(
+			overrides[credentials.AWSSecretAccessKey],
+			os.Getenv(credentials.AWSSecretAccessKey),
+			c.SecretKey),
+		SessionToken: str.First(
+			overrides[credentials.AWSSessionToken],
+			os.Getenv(credentials.AWSSessionToken),
+			c.SessionToken),
+	}
+
+	c.AWS = aws
+	c.Bucket = str.First(overrides[Bucket], c.Bucket)
+	c.Endpoint = str.First(overrides[Endpoint], c.Endpoint, "s3.amazonaws.com")
+	c.Prefix = str.First(overrides[Prefix], c.Prefix)
+	c.DoNotUseTLS = str.ParseBool(str.First(
+		overrides[DoNotUseTLS],
+		strconv.FormatBool(c.DoNotUseTLS),
+		"false"))
+	c.DoNotVerifyTLS = str.ParseBool(str.First(
+		overrides[DoNotVerifyTLS],
+		strconv.FormatBool(c.DoNotVerifyTLS),
+		"false"))
+
+	return c.validate()
+}
+
+var _ WriteConfigToStorer = &S3Config{}
+
+func (c *S3Config) WriteConfigToStore(
+	kvs Setter,
+) {
+	s3Config := c.normalize()
+
+	kvs.Set(StorageProviderTypeKey, ProviderS3.String())
+	kvs.Set(BucketNameKey, s3Config.Bucket)
+	kvs.Set(EndpointKey, s3Config.Endpoint)
+	kvs.Set(PrefixKey, s3Config.Prefix)
+	kvs.Set(DisableTLSKey, s3Config.DoNotUseTLS)
+	kvs.Set(DisableTLSVerificationKey, s3Config.DoNotVerifyTLS)
 }
