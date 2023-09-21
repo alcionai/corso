@@ -167,10 +167,6 @@ const (
 	// permanently fail any attempts to backup or restore.
 	SkipMalware skipCause = "malware_detected"
 
-	// SkipNotFound identifies that a file was skipped because we could
-	// not find it when trying to download contents
-	SkipNotFound skipCause = "file_not_found"
-
 	// SkipBigOneNote identifies that a file was skipped because it
 	// was big OneNote file and we can only download OneNote files which
 	// are less that 2GB in size.
