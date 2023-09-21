@@ -67,7 +67,7 @@ func ValidateOneDriveRestoreFlags(backupID string, opts OneDriveOpts) error {
 		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
 	}
 
-	return validateRestoreConfigFlags(flags.CollisionsFV, opts.RestoreCfg)
+	return nil
 }
 
 // AddOneDriveFilter adds the scope of the provided values to the selector's

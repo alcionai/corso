@@ -61,6 +61,10 @@ func runExport(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
+	if err := utils.ValidateExportConfigFlags(&ueco); err != nil {
+		return Only(ctx, err)
+	}
+
 	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
 		ctx,
 		cmd,

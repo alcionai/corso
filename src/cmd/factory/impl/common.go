@@ -250,7 +250,7 @@ func generateAndRestoreDriveItems(
 		d, err := ctrl.AC.Stable.
 			Client().
 			Sites().
-			BySiteIdString(protectedResource.ID()).
+			BySiteId(protectedResource.ID()).
 			Drive().
 			Get(ctx, nil)
 		if err != nil {
@@ -261,7 +261,7 @@ func generateAndRestoreDriveItems(
 	default:
 		d, err := ctrl.AC.Stable.Client().
 			Users().
-			ByUserIdString(protectedResource.ID()).
+			ByUserId(protectedResource.ID()).
 			Drive().
 			Get(ctx, nil)
 		if err != nil {
