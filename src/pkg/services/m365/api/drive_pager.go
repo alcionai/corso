@@ -77,7 +77,7 @@ func (c Drives) GetItemsInContainerByCollisionKey(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewDriveItemPager(driveID, containerID, idAnd("name")...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := batchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating drive items")
 	}
@@ -101,7 +101,7 @@ func (c Drives) GetItemIDsInContainer(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewDriveItemPager(driveID, containerID, idAnd("file", "folder")...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := batchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating contacts")
 	}
@@ -197,25 +197,26 @@ func (p *DriveItemDeltaPageCtrl) ValidModTimes() bool {
 	return true
 }
 
-// EnumerateDriveItems will enumerate all items in the specified drive and hand them to the
-// provided `collector` method
+// EnumerateDriveItems will enumerate all items in the specified drive and stream them page
+// by page, along with the delta update and any errors, to the provided channel.
 func (c Drives) EnumerateDriveItemsDelta(
 	ctx context.Context,
+	ch chan<- NextPage[models.DriveItemable],
 	driveID string,
 	prevDeltaLink string,
-) (
-	[]models.DriveItemable,
-	DeltaUpdate,
-	error,
-) {
-	pager := c.newDriveItemDeltaPager(driveID, prevDeltaLink, DefaultDriveItemProps()...)
+) (DeltaUpdate, error) {
+	deltaPager := c.newDriveItemDeltaPager(
+		driveID,
+		prevDeltaLink,
+		DefaultDriveItemProps()...)
 
-	items, du, err := deltaEnumerateItems[models.DriveItemable](ctx, pager, prevDeltaLink)
-	if err != nil {
-		return nil, du, clues.Stack(err)
-	}
+	du, err := deltaEnumerateItems[models.DriveItemable](
+		ctx,
+		deltaPager,
+		ch,
+		prevDeltaLink)
 
-	return items, du, nil
+	return du, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -353,11 +354,17 @@ func GetAllDrives(
 	ctx context.Context,
 	pager Pager[models.Driveable],
 ) ([]models.Driveable, error) {
-	ds, err := enumerateItems(ctx, pager)
-	if err != nil && (clues.HasLabel(err, graph.LabelsMysiteNotFound) ||
-		clues.HasLabel(err, graph.LabelsNoSharePointLicense)) {
+	ds, err := batchEnumerateItems(ctx, pager)
+
+	// no license or drives available.
+	// return a non-error and let the caller assume an empty result set.
+	// TODO: is this the best wayy to handle this?
+	// what about returning a ResourceNotFound error as is standard elsewhere?
+	if err != nil &&
+		(clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense)) {
 		logger.CtxErr(ctx, err).Infof("resource owner does not have a drive")
-		return make([]models.Driveable, 0), nil // no license or drives.
+
+		return make([]models.Driveable, 0), nil
 	}
 
 	return ds, graph.Stack(ctx, err).OrNil()

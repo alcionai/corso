@@ -384,20 +384,20 @@ func (pec printableErrCore) Values() []string {
 // funcs, and the function that spawned the local bus should always
 // return `local.Failure()` to ensure that hard failures are propagated
 // back upstream.
-func (e *Bus) Local() *LocalBus {
-	return &LocalBus{
+func (e *Bus) Local() *localBus {
+	return &localBus{
 		mu:  &sync.Mutex{},
 		bus: e,
 	}
 }
 
-type LocalBus struct {
+type localBus struct {
 	mu      *sync.Mutex
 	bus     *Bus
 	current error
 }
 
-func (e *LocalBus) AddRecoverable(ctx context.Context, err error) {
+func (e *localBus) AddRecoverable(ctx context.Context, err error) {
 	if err == nil {
 		return
 	}
@@ -412,6 +412,10 @@ func (e *LocalBus) AddRecoverable(ctx context.Context, err error) {
 	e.bus.logAndAddRecoverable(ctx, err, 1)
 }
 
+type AddSkipper interface {
+	AddSkip(ctx context.Context, s *Skipped)
+}
+
 // AddSkip appends a record of a Skipped item to the local bus.
 // Importantly, skipped items are not the same as recoverable
 // errors.  An item should only be skipped under the following
@@ -422,7 +426,7 @@ func (e *LocalBus) AddRecoverable(ctx context.Context, err error) {
 // 2. Skipping avoids a permanent and consistent failure.  If
 // the underlying reason is transient or otherwise recoverable,
 // the item should not be skipped.
-func (e *LocalBus) AddSkip(ctx context.Context, s *Skipped) {
+func (e *localBus) AddSkip(ctx context.Context, s *Skipped) {
 	if s == nil {
 		return
 	}
@@ -437,7 +441,7 @@ func (e *LocalBus) AddSkip(ctx context.Context, s *Skipped) {
 // It does not return the underlying bus.Failure(), only the failure
 // that was recorded within the local bus instance.  This error should
 // get returned by any func which created a local bus.
-func (e *LocalBus) Failure() error {
+func (e *localBus) Failure() error {
 	return e.current
 }
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -89,16 +90,29 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 			defer flush()
 
 			var (
-				paths     = map[string]string{}
-				currPaths = map[string]string{}
-				excluded  = map[string]struct{}{}
-				collMap   = map[string]map[string]*drive.Collection{
+				mbh = mock.DefaultSharePointBH(siteID)
+				du  = api.DeltaUpdate{
+					URL:   "notempty",
+					Reset: false,
+				}
+				paths    = map[string]string{}
+				excluded = map[string]struct{}{}
+				collMap  = map[string]map[string]*drive.Collection{
 					driveID: {},
 				}
 			)
 
+			mbh.DriveItemEnumeration = mock.EnumeratesDriveItemsDelta[models.DriveItemable]{
+				Pages: map[string][]api.NextPage[models.DriveItemable]{
+					driveID: {
+						{Items: test.items},
+					},
+				},
+				DeltaUpdate: map[string]api.DeltaUpdate{driveID: du},
+			}
+
 			c := drive.NewCollections(
-				drive.NewLibraryBackupHandler(api.Drives{}, siteID, test.scope, path.SharePointService),
+				mbh,
 				tenantID,
 				siteID,
 				nil,
@@ -106,15 +120,13 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 
 			c.CollectionMap = collMap
 
-			_, err := c.UpdateCollections(
+			_, _, err := c.PopulateDriveCollections(
 				ctx,
 				driveID,
 				"General",
-				test.items,
 				paths,
-				currPaths,
 				excluded,
-				true,
+				"",
 				fault.New(true))
 
 			test.expect(t, err, clues.ToCore(err))
