@@ -191,7 +191,6 @@ func populateCollections(
 				du.Reset),
 			bh,
 			qp.ProtectedResource.ID(),
-			qp.Category,
 			added,
 			removed,
 			statusUpdater)
@@ -243,7 +242,6 @@ func populateCollections(
 				false),
 			bh,
 			qp.ProtectedResource.ID(),
-			qp.Category,
 			nil, // no items added
 			nil, // this deletes a directory, so no items deleted either
 			statusUpdater)

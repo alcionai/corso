@@ -186,24 +186,16 @@ func (col *prefetchCollection) streamItems(
 	errs *fault.Bus,
 ) {
 	var (
-		category    path.CategoryType
 		success     int64
 		totalBytes  int64
 		wg          sync.WaitGroup
 		colProgress chan<- struct{}
 
 		user = col.user
+		log  = logger.Ctx(ctx).With(
+			"service", path.ExchangeService.String(),
+			"category", col.Category().String())
 	)
-
-	if col.FullPath() != nil {
-		category = col.FullPath().Category()
-	} else {
-		category = col.PreviousPath().Category()
-	}
-
-	log := logger.Ctx(ctx).With(
-		"service", path.ExchangeService.String(),
-		"category", category.String())
 
 	defer func() {
 		close(stream)
@@ -220,7 +212,7 @@ func (col *prefetchCollection) streamItems(
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.FullPath().Category().HumanString(),
+			col.Category().HumanString(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
@@ -354,18 +346,11 @@ func (col *lazyFetchCollection) streamItems(
 	errs *fault.Bus,
 ) {
 	var (
-		category    path.CategoryType
 		success     int64
 		colProgress chan<- struct{}
 
 		user = col.user
 	)
-
-	if col.FullPath() != nil {
-		category = col.FullPath().Category()
-	} else {
-		category = col.PreviousPath().Category()
-	}
 
 	defer func() {
 		close(stream)
@@ -382,7 +367,7 @@ func (col *lazyFetchCollection) streamItems(
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.FullPath().Category().String(),
+			col.Category().HumanString(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
@@ -415,7 +400,7 @@ func (col *lazyFetchCollection) streamItems(
 			"item_id", id,
 			"parent_path", path.LoggableDir(parentPath),
 			"service", path.ExchangeService.String(),
-			"category", category.String())
+			"category", col.Category().String())
 
 		stream <- &lazyItem{
 			ctx:          ictx,

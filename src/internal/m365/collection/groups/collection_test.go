@@ -108,7 +108,6 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 					false),
 				nil,
 				"g",
-				0,
 				nil, nil,
 				nil)
 			assert.Equal(t, test.expect, c.State(), "collection state")
