@@ -139,7 +139,7 @@ func ValidateExchangeRestoreFlags(backupID string, opts ExchangeOpts) error {
 		return clues.New("invalid format for event-recurs")
 	}
 
-	return validateRestoreConfigFlags(flags.CollisionsFV, opts.RestoreCfg)
+	return nil
 }
 
 // IncludeExchangeRestoreDataSelectors builds the common data-selector

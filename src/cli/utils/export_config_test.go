@@ -3,6 +3,7 @@ package utils
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -49,6 +50,60 @@ func (suite *ExportCfgUnitSuite) TestMakeExportConfig() {
 
 			result := MakeExportConfig(ctx, opts)
 			assert.Equal(t, test.expect.Archive, result.Archive)
+		})
+	}
+}
+
+func (suite *ExportCfgUnitSuite) TestValidateExportConfigFlags() {
+	table := []struct {
+		name         string
+		input        ExportCfgOpts
+		expectErr    assert.ErrorAssertionFunc
+		expectFormat control.FormatType
+	}{
+		{
+			name: "default",
+			input: ExportCfgOpts{
+				Format:    string(control.DefaultFormat),
+				Populated: flags.PopulatedFlags{flags.FormatFN: struct{}{}},
+			},
+			expectErr:    assert.NoError,
+			expectFormat: control.DefaultFormat,
+		},
+		{
+			name: "json",
+			input: ExportCfgOpts{
+				Format:    string(control.JSONFormat),
+				Populated: flags.PopulatedFlags{flags.FormatFN: struct{}{}},
+			},
+			expectErr:    assert.NoError,
+			expectFormat: control.JSONFormat,
+		},
+		{
+			name: "bad format",
+			input: ExportCfgOpts{
+				Format:    "smurfs",
+				Populated: flags.PopulatedFlags{flags.FormatFN: struct{}{}},
+			},
+			expectErr:    assert.Error,
+			expectFormat: control.DefaultFormat,
+		},
+		{
+			name: "bad format unpopulated",
+			input: ExportCfgOpts{
+				Format: "smurfs",
+			},
+			expectErr:    assert.NoError,
+			expectFormat: control.DefaultFormat,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			err := ValidateExportConfigFlags(&test.input)
+
+			test.expectErr(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expectFormat, control.FormatType(test.input.Format))
 		})
 	}
 }
