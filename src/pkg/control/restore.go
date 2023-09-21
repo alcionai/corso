@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -29,12 +27,13 @@ const (
 	Replace CollisionPolicy = "replace"
 )
 
-func ValidCollisionPolicies() map[CollisionPolicy]struct{} {
-	return map[CollisionPolicy]struct{}{
-		Skip:    {},
-		Copy:    {},
-		Replace: {},
+func IsValidCollisionPolicy(cp CollisionPolicy) bool {
+	switch cp {
+	case Skip, Copy, Replace:
+		return true
 	}
+
+	return false
 }
 
 const RootLocation = "/"
@@ -84,7 +83,7 @@ func EnsureRestoreConfigDefaults(
 	ctx context.Context,
 	rc RestoreConfig,
 ) RestoreConfig {
-	if !slices.Contains(maps.Keys(ValidCollisionPolicies()), rc.OnCollision) {
+	if !IsValidCollisionPolicy(rc.OnCollision) {
 		logger.Ctx(ctx).
 			With(
 				"bad_collision_policy", rc.OnCollision,

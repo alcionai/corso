@@ -2,11 +2,14 @@ package utils
 
 import (
 	"context"
+	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/filters"
 )
 
 type ExportCfgOpts struct {
@@ -38,4 +41,24 @@ func MakeExportConfig(
 	exportCfg.Format = control.FormatType(opts.Format)
 
 	return exportCfg
+}
+
+// ValidateExportConfigFlags ensures all export config flags that utilize
+// enumerated values match a well-known value.
+func ValidateExportConfigFlags(opts *ExportCfgOpts) error {
+	acceptedFormatTypes := []string{
+		string(control.DefaultFormat),
+		string(control.JSONFormat),
+	}
+
+	if _, populated := opts.Populated[flags.FormatFN]; !populated {
+		opts.Format = string(control.DefaultFormat)
+	} else if !filters.Equal(acceptedFormatTypes).Compare(opts.Format) {
+		opts.Format = string(control.DefaultFormat)
+		return clues.New("unrecognized format type: " + opts.Format)
+	}
+
+	opts.Format = strings.ToLower(opts.Format)
+
+	return nil
 }
