@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"io"
 	"os"
 	"runtime/trace"
@@ -231,7 +232,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	}
 
 	info, err := d.infoer.Info()
-	if err != nil {
+	if errors.Is(err, data.ErrNotFound) {
+		// The item was deleted between enumeration and trying to get data. Skip
+		// adding it to details since there's no data for it.
+		return
+	} else if err != nil {
 		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "getting ItemInfo").
 			WithClues(ctx).
 			Label(fault.LabelForceNoBackupCreation))
