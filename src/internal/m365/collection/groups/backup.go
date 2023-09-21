@@ -183,17 +183,18 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			data.NewBaseCollection(
+				currPath,
+				prevPath,
+				path.Builder{}.Append(cName),
+				ctrlOpts,
+				du.Reset),
 			bh,
 			qp.ProtectedResource.ID(),
-			currPath,
-			prevPath,
-			path.Builder{}.Append(cName),
 			qp.Category,
 			added,
 			removed,
-			statusUpdater,
-			ctrlOpts,
-			du.Reset)
+			statusUpdater)
 
 		collections[cID] = &edc
 
@@ -234,17 +235,18 @@ func populateCollections(
 		}
 
 		edc := NewCollection(
+			data.NewBaseCollection(
+				nil, // marks the collection as deleted
+				prevPath,
+				nil, // tombstones don't need a location
+				ctrlOpts,
+				false),
 			bh,
 			qp.ProtectedResource.ID(),
-			nil, // marks the collection as deleted
-			prevPath,
-			nil, // tombstones don't need a location
 			qp.Category,
 			nil, // no items added
 			nil, // this deletes a directory, so no items deleted either
-			statusUpdater,
-			ctrlOpts,
-			false)
+			statusUpdater)
 
 		collections[id] = &edc
 	}
