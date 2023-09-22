@@ -36,31 +36,37 @@ func TestCollectionUnitSuite(t *testing.T) {
 	suite.Run(t, &CollectionUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *CollectionUnitSuite) TestReader_Valid() {
-	m := []byte("test message")
-	description := "aFile"
-	ed := &Item{id: description, message: m}
+func (suite *CollectionUnitSuite) TestPrefetchedItem_Reader() {
+	table := []struct {
+		name     string
+		readData []byte
+	}{
+		{
+			name:     "HasData",
+			readData: []byte("test message"),
+		},
+		{
+			name:     "Empty",
+			readData: []byte{},
+		},
+	}
 
-	buf := &bytes.Buffer{}
-	_, err := buf.ReadFrom(ed.ToReader())
-	assert.NoError(suite.T(), err, clues.ToCore(err))
-	assert.Equal(suite.T(), buf.Bytes(), m)
-	assert.Equal(suite.T(), description, ed.ID())
-}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-func (suite *CollectionUnitSuite) TestReader_Empty() {
-	var (
-		empty    []byte
-		expected int64
-		t        = suite.T()
-	)
+			ed := data.NewPrefetchedItem(
+				io.NopCloser(bytes.NewReader(test.readData)),
+				"itemID",
+				details.ItemInfo{})
 
-	ed := &Item{message: empty}
-	buf := &bytes.Buffer{}
-	received, err := buf.ReadFrom(ed.ToReader())
-
-	assert.Equal(t, expected, received)
-	assert.NoError(t, err, clues.ToCore(err))
+			buf := &bytes.Buffer{}
+			_, err := buf.ReadFrom(ed.ToReader())
+			assert.NoError(t, err, "reading data: %v", clues.ToCore(err))
+			assert.Equal(t, test.readData, buf.Bytes(), "read data")
+			assert.Equal(t, "itemID", ed.ID(), "item ID")
+		})
+	}
 }
 
 func (suite *CollectionUnitSuite) TestNewCollection_state() {
@@ -480,9 +486,15 @@ func (suite *CollectionUnitSuite) TestLazyItem_NoRead_GetInfo_Errors() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	li := lazyItem{ctx: ctx}
+	li := data.NewLazyItem(
+		ctx,
+		nil,
+		"itemID",
+		time.Now(),
+		fault.New(true),
+	)
 
-	_, err := li.Info()
+	_, err := li.(data.ItemInfo).Info()
 	assert.Error(suite.T(), err, "Info without reading data should error")
 }
 
@@ -558,30 +570,38 @@ func (suite *CollectionUnitSuite) TestLazyItem() {
 				SerializeErr: test.serializeErr,
 			}
 
-			li := &lazyItem{
-				ctx:          ctx,
-				userID:       "userID",
-				id:           "itemID",
-				parentPath:   parentPath,
-				getter:       getter,
-				errs:         fault.New(true),
-				modTime:      test.modTime,
-				immutableIDs: false,
-			}
+			li := data.NewLazyItem(
+				ctx,
+				&lazyItemGetter{
+					userID:       "userID",
+					itemID:       "itemID",
+					getter:       getter,
+					modTime:      test.modTime,
+					immutableIDs: false,
+					parentPath:   parentPath,
+				},
+				"itemID",
+				test.modTime,
+				fault.New(true),
+			)
 
 			assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
-			assert.Equal(t, test.modTime, li.ModTime(), "item mod time")
+			assert.Equal(
+				t,
+				test.modTime,
+				li.(data.ItemModTime).ModTime(),
+				"item mod time")
 
-			data, err := io.ReadAll(li.ToReader())
+			readData, err := io.ReadAll(li.ToReader())
 			if test.expectReadErrType == nil {
 				assert.NoError(t, err, "reading item data: %v", clues.ToCore(err))
 			} else {
 				assert.ErrorIs(t, err, test.expectReadErrType, "read error")
 			}
 
-			test.dataCheck(t, data, "read item data")
+			test.dataCheck(t, readData, "read item data")
 
-			info, err := li.Info()
+			info, err := li.(data.ItemInfo).Info()
 
 			// Didn't expect an error getting info, it should be valid.
 			if !test.expectInfoErr {
