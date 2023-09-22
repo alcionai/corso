@@ -158,9 +158,9 @@ type tombstoneCollection struct {
 	BaseCollection
 }
 
+// Items never returns any data for tombstone collections because the collection
+// only denotes the deletion of the current folder and possibly subfolders. All
+// items contained in the deleted folder are also deleted.
 func (col *tombstoneCollection) Items(context.Context, *fault.Bus) <-chan Item {
-	res := make(chan Item)
-	defer close(res)
-
-	return res
+	return nil
 }
