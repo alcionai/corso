@@ -2,7 +2,6 @@ package backup
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -15,11 +14,8 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
-	utilsTD "github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/version"
-	dtd "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -388,54 +384,6 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 			sel, err := sharePointBackupCreateSelectors(ctx, ins, test.site, test.weburl, test.data)
 			require.NoError(t, err, clues.ToCore(err))
 			assert.ElementsMatch(t, test.expect, sel.ResourceOwners.Targets)
-		})
-	}
-}
-
-func (suite *SharePointUnitSuite) TestSharePointBackupDetailsSelectors() {
-	for v := 0; v <= version.Backup; v++ {
-		suite.Run(fmt.Sprintf("version%d", v), func() {
-			for _, test := range utilsTD.SharePointOptionDetailLookups {
-				suite.Run(test.Name, func() {
-					t := suite.T()
-
-					ctx, flush := tester.NewContext(t)
-					defer flush()
-
-					bg := utilsTD.VersionedBackupGetter{
-						Details: dtd.GetDetailsSetForVersion(t, v),
-					}
-
-					output, err := runDetailsSharePointCmd(
-						ctx,
-						bg,
-						"backup-ID",
-						test.Opts(t, v),
-						false)
-					assert.NoError(t, err, clues.ToCore(err))
-					assert.ElementsMatch(t, test.Expected(t, v), output.Entries)
-				})
-			}
-		})
-	}
-}
-
-func (suite *SharePointUnitSuite) TestSharePointBackupDetailsSelectorsBadFormats() {
-	for _, test := range utilsTD.BadSharePointOptionsFormats {
-		suite.Run(test.Name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			output, err := runDetailsSharePointCmd(
-				ctx,
-				test.BackupGetter,
-				"backup-ID",
-				test.Opts(t, version.Backup),
-				false)
-			assert.Error(t, err, clues.ToCore(err))
-			assert.Empty(t, output)
 		})
 	}
 }

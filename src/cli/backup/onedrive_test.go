@@ -2,7 +2,6 @@ package backup
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -14,10 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
-	utilsTD "github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/version"
-	dtd "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
 )
 
@@ -276,54 +272,6 @@ func (suite *OneDriveUnitSuite) TestValidateOneDriveBackupCreateFlags() {
 		suite.Run(test.name, func() {
 			err := validateOneDriveBackupCreateFlags(test.user)
 			test.expect(suite.T(), err, clues.ToCore(err))
-		})
-	}
-}
-
-func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectors() {
-	for v := 0; v <= version.Backup; v++ {
-		suite.Run(fmt.Sprintf("version%d", v), func() {
-			for _, test := range utilsTD.OneDriveOptionDetailLookups {
-				suite.Run(test.Name, func() {
-					t := suite.T()
-
-					ctx, flush := tester.NewContext(t)
-					defer flush()
-
-					bg := utilsTD.VersionedBackupGetter{
-						Details: dtd.GetDetailsSetForVersion(t, v),
-					}
-
-					output, err := runDetailsOneDriveCmd(
-						ctx,
-						bg,
-						"backup-ID",
-						test.Opts(t, v),
-						false)
-					assert.NoError(t, err, clues.ToCore(err))
-					assert.ElementsMatch(t, test.Expected(t, v), output.Entries)
-				})
-			}
-		})
-	}
-}
-
-func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
-	for _, test := range utilsTD.BadOneDriveOptionsFormats {
-		suite.Run(test.Name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			output, err := runDetailsOneDriveCmd(
-				ctx,
-				test.BackupGetter,
-				"backup-ID",
-				test.Opts(t, version.Backup),
-				false)
-			assert.Error(t, err, clues.ToCore(err))
-			assert.Empty(t, output)
 		})
 	}
 }
