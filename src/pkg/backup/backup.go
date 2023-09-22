@@ -90,8 +90,7 @@ func New(
 		skipCount = len(fe.Skipped)
 		failMsg   string
 
-		malware, notFound,
-		invalidONFile, otherSkips int
+		malware, invalidONFile, otherSkips int
 	)
 
 	if fe.Failure != nil {
@@ -103,8 +102,6 @@ func New(
 		switch true {
 		case s.HasCause(fault.SkipMalware):
 			malware++
-		case s.HasCause(fault.SkipNotFound):
-			notFound++
 		case s.HasCause(fault.SkipBigOneNote):
 			invalidONFile++
 		default:
@@ -139,7 +136,6 @@ func New(
 		SkippedCounts: stats.SkippedCounts{
 			TotalSkippedItems:         skipCount,
 			SkippedMalware:            malware,
-			SkippedNotFound:           notFound,
 			SkippedInvalidOneNoteFile: invalidONFile,
 		},
 	}
@@ -234,7 +230,7 @@ func (b Backup) Values() []string {
 	if b.TotalSkippedItems > 0 {
 		status += fmt.Sprintf("%d skipped", b.TotalSkippedItems)
 
-		if b.SkippedMalware+b.SkippedNotFound+b.SkippedInvalidOneNoteFile > 0 {
+		if b.SkippedMalware+b.SkippedInvalidOneNoteFile > 0 {
 			status += ": "
 		}
 	}
@@ -243,10 +239,6 @@ func (b Backup) Values() []string {
 
 	if b.SkippedMalware > 0 {
 		skipped = append(skipped, fmt.Sprintf("%d malware", b.SkippedMalware))
-	}
-
-	if b.SkippedNotFound > 0 {
-		skipped = append(skipped, fmt.Sprintf("%d not found", b.SkippedNotFound))
 	}
 
 	if b.SkippedInvalidOneNoteFile > 0 {
