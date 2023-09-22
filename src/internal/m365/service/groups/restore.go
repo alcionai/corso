@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -103,6 +104,9 @@ func ConsumeRestoreCollections(
 				control.DefaultRestoreContainerName(dttm.HumanReadableDriveItem),
 				errs,
 				ctr)
+		case path.ChannelMessagesCategory:
+			// Message cannot be restored as of now using Graph API.
+			logger.Ctx(ctx).Debug("Skipping restore for channel messages")
 		default:
 			return nil, clues.New("data category not supported").
 				With("category", category).

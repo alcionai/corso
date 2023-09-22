@@ -15,9 +15,10 @@ type Options struct {
 }
 
 type Maintenance struct {
-	Type   MaintenanceType   `json:"type"`
-	Safety MaintenanceSafety `json:"safety"`
-	Force  bool              `json:"force"`
+	Type          MaintenanceType   `json:"type"`
+	Safety        MaintenanceSafety `json:"safety"`
+	Force         bool              `json:"force"`
+	CleanupBuffer *time.Duration
 }
 
 // ---------------------------------------------------------------------------

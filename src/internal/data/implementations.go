@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -118,10 +119,48 @@ func (col BaseCollection) State() CollectionState {
 	return col.state
 }
 
+func (col BaseCollection) Category() path.CategoryType {
+	switch {
+	case col.FullPath() != nil:
+		return col.FullPath().Category()
+	case col.PreviousPath() != nil:
+		return col.PreviousPath().Category()
+	}
+
+	return path.UnknownCategory
+}
+
 func (col BaseCollection) DoNotMergeItems() bool {
 	return col.doNotMergeItems
 }
 
 func (col BaseCollection) Opts() control.Options {
 	return col.opts
+}
+
+// -----------------------------------------------------------------------------
+// tombstoneCollection
+// -----------------------------------------------------------------------------
+
+func NewTombstoneCollection(
+	prev path.Path,
+	opts control.Options,
+) *tombstoneCollection {
+	return &tombstoneCollection{
+		BaseCollection: NewBaseCollection(nil, prev, nil, opts, false),
+	}
+}
+
+// tombstoneCollection is a collection that marks a folder (and folders under it
+// if they aren't explicitly noted in other collecteds) as deleted. It doesn't
+// contain any items.
+type tombstoneCollection struct {
+	BaseCollection
+}
+
+// Items never returns any data for tombstone collections because the collection
+// only denotes the deletion of the current folder and possibly subfolders. All
+// items contained in the deleted folder are also deleted.
+func (col *tombstoneCollection) Items(context.Context, *fault.Bus) <-chan Item {
+	return nil
 }

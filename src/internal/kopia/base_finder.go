@@ -186,8 +186,16 @@ func (b *baseFinder) getBackupModel(
 }
 
 type backupBase struct {
-	backup   BackupEntry
-	manifest ManifestEntry
+	Backup           *backup.Backup
+	ItemDataSnapshot *snapshot.Manifest
+	// Reasons contains the tenant, protected resource and service/categories that
+	// caused this snapshot to be selected as a base. It's possible some
+	// (tenant, protected resources) will have a subset of the categories as
+	// the reason for selecting a snapshot. For example:
+	// 1. backup user1 email,contacts -> B1
+	// 2. backup user1 contacts -> B2 (uses B1 as base)
+	// 3. backup user1 email,contacts,events (uses B1 for email, B2 for contacts)
+	Reasons []identity.Reasoner
 }
 
 // findBasesInSet goes through manifest metadata entries and sees if they're
@@ -267,18 +275,10 @@ func (b *baseFinder) findBasesInSet(
 
 		if b.isAssistBackupModel(ictx, bup) {
 			if assistBase == nil {
-				assistModel := BackupEntry{
-					Backup:  bup,
-					Reasons: []identity.Reasoner{reason},
-				}
-				assistSnap := ManifestEntry{
-					Manifest: man,
-					Reasons:  []identity.Reasoner{reason},
-				}
-
 				assistBase = &backupBase{
-					backup:   assistModel,
-					manifest: assistSnap,
+					Backup:           bup,
+					ItemDataSnapshot: man,
+					Reasons:          []identity.Reasoner{reason},
 				}
 
 				logger.Ctx(ictx).Infow(
@@ -297,19 +297,10 @@ func (b *baseFinder) findBasesInSet(
 			"search_snapshot_id", meta.ID,
 			"ssid", ssid)
 
-		mergeSnap := ManifestEntry{
-			Manifest: man,
-			Reasons:  []identity.Reasoner{reason},
-		}
-
-		mergeModel := BackupEntry{
-			Backup:  bup,
-			Reasons: []identity.Reasoner{reason},
-		}
-
 		mergeBase = &backupBase{
-			backup:   mergeModel,
-			manifest: mergeSnap,
+			Backup:           bup,
+			ItemDataSnapshot: man,
+			Reasons:          []identity.Reasoner{reason},
 		}
 
 		break
@@ -391,14 +382,11 @@ func (b *baseFinder) FindBases(
 	tags map[string]string,
 ) BackupBases {
 	var (
-		// All maps go from ID -> entry. We need to track by ID so we can coalesce
-		// the reason for selecting something. Kopia assisted snapshots also use
-		// ManifestEntry so we have the reasons for selecting them to aid in
-		// debugging.
-		mergeBups   = map[model.StableID]BackupEntry{}
-		assistBups  = map[model.StableID]BackupEntry{}
-		mergeSnaps  = map[manifest.ID]ManifestEntry{}
-		assistSnaps = map[manifest.ID]ManifestEntry{}
+		// Backup models and item data snapshot manifests are 1:1 for bases so just
+		// track things by the backup ID. We need to track by ID so we can coalesce
+		// the reason for selecting something.
+		mergeBases  = map[model.StableID]backupBase{}
+		assistBases = map[model.StableID]backupBase{}
 	)
 
 	for _, searchReason := range reasons {
@@ -408,10 +396,7 @@ func (b *baseFinder) FindBases(
 			"search_category", searchReason.Category().String())
 		logger.Ctx(ictx).Info("searching for previous manifests")
 
-		mergeBase, assistBase, err := b.getBase(
-			ictx,
-			searchReason,
-			tags)
+		mergeBase, assistBase, err := b.getBase(ictx, searchReason, tags)
 		if err != nil {
 			logger.Ctx(ctx).Info(
 				"getting base, falling back to full backup for reason",
@@ -421,60 +406,66 @@ func (b *baseFinder) FindBases(
 		}
 
 		if mergeBase != nil {
-			mergeSnap := mergeBase.manifest
-			mergeBackup := mergeBase.backup
-
-			ms, ok := mergeSnaps[mergeSnap.ID]
+			mb, ok := mergeBases[mergeBase.Backup.ID]
 			if ok {
-				ms.Reasons = append(ms.Reasons, mergeSnap.Reasons...)
+				mb.Reasons = append(mb.Reasons, mergeBase.Reasons...)
 			} else {
-				ms = mergeSnap
+				mb = *mergeBase
 			}
 
-			mergeSnaps[mergeSnap.ID] = ms
-
-			mb, ok := mergeBups[mergeBackup.ID]
-			if ok {
-				mb.Reasons = append(mb.Reasons, mergeSnap.Reasons...)
-			} else {
-				mb = mergeBackup
-			}
-
-			mergeBups[mergeBackup.ID] = mb
+			mergeBases[mergeBase.Backup.ID] = mb
 		}
 
 		if assistBase != nil {
-			assistSnap := assistBase.manifest
-			assistBackup := assistBase.backup
-
-			as, ok := assistSnaps[assistSnap.ID]
+			ab, ok := assistBases[assistBase.Backup.ID]
 			if ok {
-				as.Reasons = append(as.Reasons, assistSnap.Reasons...)
+				ab.Reasons = append(ab.Reasons, assistBase.Reasons...)
 			} else {
-				as = assistSnap
+				ab = *assistBase
 			}
 
-			assistSnaps[assistSnap.ID] = as
-
-			ab, ok := assistBups[assistBackup.ID]
-			if ok {
-				ab.Reasons = append(ab.Reasons, assistBackup.Reasons...)
-			} else {
-				ab = assistBackup
-			}
-
-			assistBups[assistBackup.ID] = ab
+			assistBases[assistBase.Backup.ID] = ab
 		}
 	}
 
-	// TODO(pandeyabs): Fix the terminology used in backupBases to go with
-	// new definitions i.e. mergeSnaps instead of mergeBases, etc.
-	res := &backupBases{
-		backups:       maps.Values(mergeBups),
-		assistBackups: maps.Values(assistBups),
-		mergeBases:    maps.Values(mergeSnaps),
-		assistBases:   maps.Values(assistSnaps),
+	// Convert what we got to the format that backupBases takes right now.
+	// TODO(ashmrtn): Remove when backupBases has consolidated fields.
+	res := &backupBases{}
+	bups := make([]BackupEntry, 0, len(mergeBases))
+	snaps := make([]ManifestEntry, 0, len(mergeBases))
+
+	for _, base := range mergeBases {
+		bups = append(bups, BackupEntry{
+			Backup:  base.Backup,
+			Reasons: base.Reasons,
+		})
+
+		snaps = append(snaps, ManifestEntry{
+			Manifest: base.ItemDataSnapshot,
+			Reasons:  base.Reasons,
+		})
 	}
+
+	res.backups = bups
+	res.mergeBases = snaps
+
+	bups = make([]BackupEntry, 0, len(assistBases))
+	snaps = make([]ManifestEntry, 0, len(assistBases))
+
+	for _, base := range assistBases {
+		bups = append(bups, BackupEntry{
+			Backup:  base.Backup,
+			Reasons: base.Reasons,
+		})
+
+		snaps = append(snaps, ManifestEntry{
+			Manifest: base.ItemDataSnapshot,
+			Reasons:  base.Reasons,
+		})
+	}
+
+	res.assistBackups = bups
+	res.assistBases = snaps
 
 	res.fixupAndVerify(ctx)
 

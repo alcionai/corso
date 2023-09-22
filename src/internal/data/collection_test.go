@@ -149,6 +149,21 @@ func (suite *CollectionSuite) TestNewBaseCollection() {
 			assert.Equal(t, loc, b.LocationPath(), "location path")
 			assert.Equal(t, test.expectState, b.State(), "state")
 			assert.Equal(t, test.expectDoNotMerge, b.DoNotMergeItems(), "do not merge")
+			assert.Equal(t, path.EmailCategory, b.Category(), "category")
 		})
 	}
+}
+
+func (suite *CollectionSuite) TestNewTombstoneCollection() {
+	t := suite.T()
+
+	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
+	require.NoError(t, err, clues.ToCore(err))
+
+	c := NewTombstoneCollection(fooP, control.Options{})
+	assert.Nil(t, c.FullPath(), "full path")
+	assert.Equal(t, fooP, c.PreviousPath(), "previous path")
+	assert.Nil(t, c.LocationPath(), "location path")
+	assert.Equal(t, DeletedState, c.State(), "state")
+	assert.False(t, c.DoNotMergeItems(), "do not merge")
 }

@@ -16,7 +16,7 @@ const (
 	FetchParallelismFN          = "fetch-parallelism"
 	NoStatsFN                   = "no-stats"
 	RecoveredErrorsFN           = "recovered-errors"
-	RestorePermissionsFN        = "restore-permissions"
+	NoPermissionsFN             = "no-permissions"
 	RunModeFN                   = "run-mode"
 	SkippedItemsFN              = "skipped-items"
 	SkipReduceFN                = "skip-reduce"
@@ -37,9 +37,9 @@ var (
 	NoStatsFV                   bool
 	// RunMode describes the type of run, such as:
 	// flagtest, dry, run.  Should default to 'run'.
-	RunModeFV            string
-	RestorePermissionsFV bool
-	SkipReduceFV         bool
+	RunModeFV       string
+	NoPermissionsFV bool
+	SkipReduceFV    bool
 )
 
 // well-known flag values
@@ -62,10 +62,10 @@ func AddFailFastFlag(cmd *cobra.Command) {
 	cobra.CheckErr(fs.MarkHidden(FailFastFN))
 }
 
-// AddRestorePermissionsFlag adds OneDrive flag for restoring permissions
-func AddRestorePermissionsFlag(cmd *cobra.Command) {
+// AddSkipPermissionsFlag adds OneDrive flag for skipping restoring permissions
+func AddSkipPermissionsFlag(cmd *cobra.Command) {
 	fs := cmd.Flags()
-	fs.BoolVar(&RestorePermissionsFV, RestorePermissionsFN, false, "Restore permissions for files and folders")
+	fs.BoolVar(&NoPermissionsFV, NoPermissionsFN, false, "don't restore file and folder permissions")
 }
 
 // AddSkipReduceFlag adds a hidden flag that allows callers to skip the selector
