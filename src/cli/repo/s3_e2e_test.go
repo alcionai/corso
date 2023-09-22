@@ -208,12 +208,15 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			ctx = config.SetViper(ctx, vpr)
 
 			// init the repo first
-			_, err = repository.Initialize(
+			r, err := repository.New(
 				ctx,
 				account.Account{},
 				st,
 				control.DefaultOptions(),
-				ctrlRepo.Retention{})
+				"")
+			require.NoError(t, err, clues.ToCore(err))
+
+			err = r.Initialize(ctx, ctrlRepo.Retention{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it

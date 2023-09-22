@@ -87,7 +87,7 @@ func TestMain(m *testing.M) {
 
 func initM365Repo(t *testing.T) (
 	context.Context,
-	repository.Repository,
+	repository.Repositoryer,
 	account.Account,
 	storage.Storage,
 ) {
@@ -103,10 +103,18 @@ func initM365Repo(t *testing.T) (
 		FailureHandling: control.FailFast,
 	}
 
-	repo, err := repository.Initialize(ctx, ac, st, opts, ctrlRepo.Retention{})
+	r, err := repository.New(
+		ctx,
+		ac,
+		st,
+		opts,
+		"")
 	require.NoError(t, err, clues.ToCore(err))
 
-	return ctx, repo, ac, st
+	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	return ctx, r, ac, st
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -117,7 +125,7 @@ func initM365Repo(t *testing.T) (
 func runLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	prefix, service string,
 	usersUnderTest []string,
 	bupSel, restSel selectors.Selector,
@@ -142,7 +150,7 @@ func runLoadTest(
 func runRestoreLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	prefix, service, backupID string,
 	usersUnderTest []string,
 	restSel selectors.Selector,
@@ -200,7 +208,7 @@ func runBackupLoadTest(
 func runBackupListLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	name, expectID string,
 ) {
 	//revive:enable:context-as-argument
@@ -237,7 +245,7 @@ func runBackupListLoadTest(
 func runBackupDetailsLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	name, backupID string,
 	users []string,
 ) {
@@ -409,7 +417,7 @@ func normalizeCategorySet(t *testing.T, cats map[string]struct{}) []string {
 type LoadExchangeSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
@@ -459,7 +467,7 @@ func (suite *LoadExchangeSuite) TestExchange() {
 type IndividualLoadExchangeSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
@@ -512,7 +520,7 @@ func (suite *IndividualLoadExchangeSuite) TestExchange() {
 type LoadOneDriveSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
@@ -559,7 +567,7 @@ func (suite *LoadOneDriveSuite) TestOneDrive() {
 type IndividualLoadOneDriveSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
@@ -609,7 +617,7 @@ func (suite *IndividualLoadOneDriveSuite) TestOneDrive() {
 type LoadSharePointSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	sitesUnderTest []string
@@ -656,7 +664,7 @@ func (suite *LoadSharePointSuite) TestSharePoint() {
 type IndividualLoadSharePointSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	sitesUnderTest []string

@@ -107,10 +107,17 @@ func pitrListBackups(
 	opts := utils.ControlWithConfig(cfg)
 	opts.Repo.ViewTimestamp = &pitr
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, cfg.RepoID, opts)
+	r, err := repository.New(
+		ctx,
+		cfg.Account,
+		cfg.Storage,
+		opts,
+		cfg.RepoID)
 	if err != nil {
-		return clues.Wrap(err, "connecting to repo").WithClues(ctx)
+		return clues.Wrap(err, "creating a repo").WithClues(ctx)
 	}
+
+	err = r.Connect(ctx)
 
 	defer r.Close(ctx)
 

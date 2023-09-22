@@ -56,7 +56,9 @@ type BackupGetter interface {
 	) (*fault.Errors, *backup.Backup, *fault.Bus)
 }
 
-type Repository interface {
+type Repositoryer interface {
+	Initialize(ctx context.Context, retentionOpts ctrlRepo.Retention) error
+	Connect(ctx context.Context) error
 	GetID() string
 	Close(context.Context) error
 	NewBackup(
@@ -117,6 +119,50 @@ func (r repository) GetID() string {
 	return r.ID
 }
 
+// New constructs a repository that can be used to Initialize or Connect a repo instance.
+func New(
+	ctx context.Context,
+	acct account.Account,
+	s storage.Storage,
+	opts control.Options,
+	configFileRepoID string,
+) (repo *repository, err error) {
+	ctx = clues.Add(
+		ctx,
+		"acct_provider", acct.Provider.String(),
+		"acct_id", clues.Hide(acct.ID()),
+		"storage_provider", s.Provider.String())
+
+	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
+	if err != nil {
+		return nil, clues.Wrap(err, "constructing event bus").WithClues(ctx)
+	}
+
+	repoID := configFileRepoID
+	if len(configFileRepoID) == 0 {
+		repoID = newRepoID(s)
+	}
+
+	bus.SetRepoID(repoID)
+
+	r := repository{
+		ID:      repoID,
+		Version: "v1",
+		Account: acct,
+		Storage: s,
+		Bus:     bus,
+		Opts:    opts,
+	}
+
+	if !r.Opts.DisableMetrics {
+		bus.SetRepoID(r.ID)
+	}
+
+	r.Bus.Event(ctx, events.RepoInit, nil)
+
+	return &r, nil
+}
+
 // Initialize will:
 //   - validate the m365 account & secrets
 //   - connect to the m365 account to ensure communication capability
@@ -125,19 +171,15 @@ func (r repository) GetID() string {
 //   - update maintenance retention parameters as needed
 //   - store the configuration details
 //   - connect to the provider
-//   - return the connected repository
-func Initialize(
+func (r *repository) Initialize(
 	ctx context.Context,
-	acct account.Account,
-	s storage.Storage,
-	opts control.Options,
 	retentionOpts ctrlRepo.Retention,
-) (repo Repository, err error) {
+) (err error) {
 	ctx = clues.Add(
 		ctx,
-		"acct_provider", acct.Provider.String(),
-		"acct_id", clues.Hide(acct.ID()),
-		"storage_provider", s.Provider.String())
+		"acct_provider", r.Account.Provider.String(),
+		"acct_id", clues.Hide(r.Account.ID()),
+		"storage_provider", r.Storage.Provider.String())
 
 	defer func() {
 		if crErr := crash.Recovery(ctx, recover(), "repo init"); crErr != nil {
@@ -145,55 +187,36 @@ func Initialize(
 		}
 	}()
 
-	kopiaRef := kopia.NewConn(s)
-	if err := kopiaRef.Initialize(ctx, opts.Repo, retentionOpts); err != nil {
+	kopiaRef := kopia.NewConn(r.Storage)
+	if err := kopiaRef.Initialize(ctx, r.Opts.Repo, retentionOpts); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
 		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
-			return nil, clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
+			return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
 		}
 
-		return nil, clues.Wrap(err, "initializing kopia")
+		return clues.Wrap(err, "initializing kopia")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
 	defer kopiaRef.Close(ctx)
 
-	w, err := kopia.NewWrapper(kopiaRef)
+	r.dataLayer, err = kopia.NewWrapper(kopiaRef)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return clues.Stack(err).WithClues(ctx)
 	}
 
-	ms, err := kopia.NewModelStore(kopiaRef)
+	r.modelStore, err = kopia.NewModelStore(kopiaRef)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return clues.Stack(err).WithClues(ctx)
 	}
 
-	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
-	if err != nil {
-		return nil, clues.Wrap(err, "constructing event bus")
-	}
-
-	repoID := newRepoID(s)
-	bus.SetRepoID(repoID)
-
-	r := &repository{
-		ID:         repoID,
-		Version:    "v1",
-		Account:    acct,
-		Storage:    s,
-		Bus:        bus,
-		Opts:       opts,
-		dataLayer:  w,
-		modelStore: ms,
-	}
-
-	if err := newRepoModel(ctx, ms, r.ID); err != nil {
-		return nil, clues.New("setting up repository").WithClues(ctx)
+	if err := newRepoModel(ctx, r.modelStore, r.ID); err != nil {
+		return clues.Wrap(err, "setting up repository").WithClues(ctx)
 	}
 
 	r.Bus.Event(ctx, events.RepoInit, nil)
 
-	return r, nil
+	return nil
 }
 
 // Connect will:
@@ -201,18 +224,12 @@ func Initialize(
 //   - connect to the m365 account to ensure communication capability
 //   - connect to the provider storage
 //   - return the connected repository
-func Connect(
-	ctx context.Context,
-	acct account.Account,
-	s storage.Storage,
-	repoid string,
-	opts control.Options,
-) (r Repository, err error) {
+func (r *repository) Connect(ctx context.Context) (err error) {
 	ctx = clues.Add(
 		ctx,
-		"acct_provider", acct.Provider.String(),
-		"acct_id", clues.Hide(acct.ID()),
-		"storage_provider", s.Provider.String())
+		"acct_provider", r.Account.Provider.String(),
+		"acct_id", clues.Hide(r.Account.ID()),
+		"storage_provider", r.Storage.Provider.String())
 
 	defer func() {
 		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
@@ -223,71 +240,36 @@ func Connect(
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer close(progressBar)
 
-	kopiaRef := kopia.NewConn(s)
-	if err := kopiaRef.Connect(ctx, opts.Repo); err != nil {
-		return nil, clues.Wrap(err, "connecting kopia client")
+	kopiaRef := kopia.NewConn(r.Storage)
+	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
+		return clues.Wrap(err, "connecting kopia client")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
 	// to close here.
 	defer kopiaRef.Close(ctx)
 
-	w, err := kopia.NewWrapper(kopiaRef)
+	r.dataLayer, err = kopia.NewWrapper(kopiaRef)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return clues.Stack(err).WithClues(ctx)
 	}
 
-	ms, err := kopia.NewModelStore(kopiaRef)
+	r.modelStore, err = kopia.NewModelStore(kopiaRef)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return clues.Stack(err).WithClues(ctx)
 	}
 
-	bus, err := events.NewBus(ctx, s, acct.ID(), opts)
-	if err != nil {
-		return nil, clues.Wrap(err, "constructing event bus")
-	}
-
-	if repoid == events.RepoIDNotFound {
-		rm, err := getRepoModel(ctx, ms)
+	if r.ID == events.RepoIDNotFound {
+		rm, err := getRepoModel(ctx, r.modelStore)
 		if err != nil {
-			return nil, clues.New("retrieving repo info")
+			return clues.Wrap(err, "retrieving repo model info")
 		}
 
-		repoid = string(rm.ID)
+		r.ID = string(rm.ID)
 	}
 
-	// Do not query repo ID if metrics are disabled
-	if !opts.DisableMetrics {
-		bus.SetRepoID(repoid)
-	}
-
-	// todo: ID and CreatedAt should get retrieved from a stored kopia config.
-	return &repository{
-		ID:         repoid,
-		Version:    "v1",
-		Account:    acct,
-		Storage:    s,
-		Bus:        bus,
-		Opts:       opts,
-		dataLayer:  w,
-		modelStore: ms,
-	}, nil
-}
-
-func ConnectAndSendConnectEvent(ctx context.Context,
-	acct account.Account,
-	s storage.Storage,
-	repoid string,
-	opts control.Options,
-) (Repository, error) {
-	repo, err := Connect(ctx, acct, s, repoid, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	r := repo.(*repository)
 	r.Bus.Event(ctx, events.RepoConnect, nil)
 
-	return r, nil
+	return nil
 }
 
 func (r *repository) Close(ctx context.Context) error {
