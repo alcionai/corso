@@ -31,11 +31,7 @@ func deleteBackups(
 ) ([]string, error) {
 	ctx = clues.Add(ctx, "cutoff_days", deletionDays)
 
-	r, _, _, _, err := utils.GetAccountAndConnect(
-		ctx,
-		service,
-		storage.ProviderS3,
-		nil)
+	r, _, err := utils.GetAccountAndConnectWithOverrides(ctx, service, storage.ProviderS3, nil)
 	if err != nil {
 		return nil, clues.Wrap(err, "connecting to account").WithClues(ctx)
 	}
