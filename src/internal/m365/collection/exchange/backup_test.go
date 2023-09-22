@@ -810,7 +810,8 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 	err := suite.ac.Events().EnumerateContainers(
 		ctx,
 		suite.user,
-		api.DefaultCalendar,
+		"",
+		false,
 		fn,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))

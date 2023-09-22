@@ -19,100 +19,84 @@ import (
 // container pager
 // ---------------------------------------------------------------------------
 
-type mailFolderPager struct {
-	service graph.Servicer
+var _ Pager[models.MailFolderable] = &mailFoldersPageCtrl{}
+
+type mailFoldersPageCtrl struct {
+	gs      graph.Servicer
 	builder *users.ItemMailFoldersRequestBuilder
+	options *users.ItemMailFoldersRequestBuilderGetRequestConfiguration
 }
 
-func (c Mail) NewMailFolderPager(userID string) mailFolderPager {
+func (c Mail) NewMailFoldersPager(
+	userID string,
+	immutableIDs bool,
+	selectProps ...string,
+) Pager[models.MailFolderable] {
+	options := &users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		QueryParameters: &users.ItemMailFoldersRequestBuilderGetQueryParameters{},
+		// do NOT set Top.  It limits the total items received.
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
 	// v1.0 non delta /mailFolders endpoint does not return any of the nested folders
 	rawURL := fmt.Sprintf(mailFoldersBetaURLTemplate, userID)
 	builder := users.NewItemMailFoldersRequestBuilder(rawURL, c.Stable.Adapter())
 
-	return mailFolderPager{c.Stable, builder}
+	return &mailFoldersPageCtrl{c.Stable, builder, options}
 }
 
-func (p *mailFolderPager) getPage(ctx context.Context) (NextLinker, error) {
-	page, err := p.builder.Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return page, nil
+func (p *mailFoldersPageCtrl) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[models.MailFolderable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
-func (p *mailFolderPager) SetNextLink(nextLink string) {
-	p.builder = users.NewItemMailFoldersRequestBuilder(nextLink, p.service.Adapter())
+func (p *mailFoldersPageCtrl) SetNextLink(nextLink string) {
+	p.builder = users.NewItemMailFoldersRequestBuilder(nextLink, p.gs.Adapter())
 }
 
-func (p *mailFolderPager) valuesIn(pl NextLinker) ([]models.MailFolderable, error) {
-	// Ideally this should be `users.ItemMailFoldersResponseable`, but
-	// that is not a thing as stable returns different result
-	page, ok := pl.(models.MailFolderCollectionResponseable)
-	if !ok {
-		return nil, clues.New("converting to ItemMailFoldersResponseable")
-	}
-
-	return page.GetValue(), nil
+func (p *mailFoldersPageCtrl) ValidModTimes() bool {
+	return true
 }
 
 // EnumerateContainers iterates through all of the users current
-// mail folders, converting each to a graph.CacheFolder, and calling
-// fn(cf) on each one.
+// mail folders, transforming each to a graph.CacheFolder, and calling
+// fn(cf).
 // Folder hierarchy is represented in its current state, and does
 // not contain historical data.
 func (c Mail) EnumerateContainers(
 	ctx context.Context,
-	userID, baseContainerID string,
+	userID, _ string, // baseContainerID not needed here
+	immutableIDs bool,
 	fn func(graph.CachedContainer) error,
 	errs *fault.Bus,
 ) error {
-	el := errs.Local()
-	pgr := c.NewMailFolderPager(userID)
+	var (
+		el  = errs.Local()
+		pgr = c.NewMailFoldersPager(userID, immutableIDs)
+	)
 
-	for {
+	containers, err := enumerateItems(ctx, pgr)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	for _, c := range containers {
 		if el.Failure() != nil {
 			break
 		}
 
-		page, err := pgr.getPage(ctx)
-		if err != nil {
-			return graph.Stack(ctx, err)
+		gncf := graph.NewCacheFolder(c, nil, nil)
+
+		if err := fn(&gncf); err != nil {
+			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+			continue
 		}
-
-		resp, err := pgr.valuesIn(page)
-		if err != nil {
-			return graph.Stack(ctx, err)
-		}
-
-		for _, fold := range resp {
-			if el.Failure() != nil {
-				break
-			}
-
-			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
-				errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
-			}
-
-			fctx := clues.Add(
-				ctx,
-				"container_id", ptr.Val(fold.GetId()),
-				"container_name", ptr.Val(fold.GetDisplayName()))
-
-			temp := graph.NewCacheFolder(fold, nil, nil)
-			if err := fn(&temp); err != nil {
-				errs.AddRecoverable(ctx, graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
-			}
-		}
-
-		link, ok := ptr.ValOK(page.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		pgr.SetNextLink(link)
 	}
 
 	return el.Failure()
