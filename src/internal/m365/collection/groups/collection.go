@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
 var (
@@ -45,7 +44,6 @@ type Collection struct {
 
 	getter getChannelMessager
 
-	category      path.CategoryType
 	statusUpdater support.StatusUpdater
 }
 
@@ -59,7 +57,6 @@ func NewCollection(
 	baseCol data.BaseCollection,
 	getter getChannelMessager,
 	protectedResource string,
-	category path.CategoryType,
 	added map[string]struct{},
 	removed map[string]struct{},
 	statusUpdater support.StatusUpdater,
@@ -67,7 +64,6 @@ func NewCollection(
 	collection := Collection{
 		BaseCollection:    baseCol,
 		added:             added,
-		category:          category,
 		getter:            getter,
 		removed:           removed,
 		statusUpdater:     statusUpdater,
@@ -149,7 +145,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		el            = errs.Local()
 	)
 
-	ctx = clues.Add(ctx, "category", col.category.String())
+	ctx = clues.Add(ctx, "category", col.Category().String())
 
 	defer func() {
 		col.finishPopulation(ctx, streamedItems, totalBytes, errs.Failure())
@@ -158,7 +154,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.FullPath().Category().HumanString(),
+			col.Category().HumanString(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
