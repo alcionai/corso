@@ -100,7 +100,13 @@ func (mc *mailContainerCache) Populate(
 		return clues.Wrap(err, "initializing")
 	}
 
-	err := mc.enumer.EnumerateContainers(ctx, mc.userID, "", mc.addFolder, errs)
+	err := mc.enumer.EnumerateContainers(
+		ctx,
+		mc.userID,
+		"",
+		false,
+		mc.addFolder,
+		errs)
 	if err != nil {
 		return clues.Wrap(err, "enumerating containers")
 	}

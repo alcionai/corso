@@ -306,7 +306,8 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 	err = ac.EnumerateContainers(
 		ctx,
 		suite.its.user.id,
-		"Calendar",
+		api.DefaultCalendar,
+		false,
 		findContainer,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
