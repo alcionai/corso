@@ -21,7 +21,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
@@ -162,7 +161,7 @@ func prepM365Test(
 		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = repo.Initialize(ctx, ctrlRepo.Retention{})
+	err = repo.Initialize(ctx, repository.InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return dependencies{

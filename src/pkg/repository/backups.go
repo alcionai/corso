@@ -71,12 +71,12 @@ func (r repository) NewBackupWithLookup(
 	sel selectors.Selector,
 	ins idname.Cacher,
 ) (operations.BackupOperation, error) {
-	ctrl, err := connectToM365(ctx, sel.PathService(), r.Account, r.Opts)
+	err := r.ConnectDataProvider(ctx, sel.PathService())
 	if err != nil {
 		return operations.BackupOperation{}, clues.Wrap(err, "connecting to m365")
 	}
 
-	ownerID, ownerName, err := ctrl.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
+	ownerID, ownerName, err := r.Provider.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, clues.Wrap(err, "resolving resource owner details")
 	}
@@ -89,7 +89,7 @@ func (r repository) NewBackupWithLookup(
 		r.Opts,
 		r.dataLayer,
 		store.NewWrapper(r.modelStore),
-		ctrl,
+		r.Provider,
 		r.Account,
 		sel,
 		sel, // the selector acts as an IDNamer for its discrete resource owner.

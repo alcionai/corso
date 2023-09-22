@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -35,10 +36,16 @@ type Repositoryer interface {
 	BackupGetter
 	Restorer
 	Exporter
-	DataProvider
+	DataProviderConnector
 
-	Initialize(ctx context.Context, retentionOpts ctrlRepo.Retention) error
-	Connect(ctx context.Context) error
+	Initialize(
+		ctx context.Context,
+		cfg InitConfig,
+	) error
+	Connect(
+		ctx context.Context,
+		cfg ConnConfig,
+	) error
 	GetID() string
 	Close(context.Context) error
 
@@ -58,9 +65,10 @@ type repository struct {
 	CreatedAt time.Time
 	Version   string // in case of future breaking changes
 
-	Account account.Account // the user's m365 account connection details
-	Storage storage.Storage // the storage provider details and configuration
-	Opts    control.Options
+	Account  account.Account // the user's m365 account connection details
+	Storage  storage.Storage // the storage provider details and configuration
+	Opts     control.Options
+	Provider DataProvider // the client controller used for external user data CRUD
 
 	Bus        events.Eventer
 	dataLayer  *kopia.Wrapper
@@ -113,6 +121,14 @@ func New(
 	return &r, nil
 }
 
+type InitConfig struct {
+	// tells the data provider which service to
+	// use for its connection pattern.  Leave empty
+	// to skip the provider connection.
+	Service       path.ServiceType
+	RetentionOpts ctrlRepo.Retention
+}
+
 // Initialize will:
 //   - connect to the m365 account to ensure communication capability
 //   - initialize the kopia repo with the provider and retention parameters
@@ -121,7 +137,7 @@ func New(
 //   - connect to the provider
 func (r *repository) Initialize(
 	ctx context.Context,
-	retentionOpts ctrlRepo.Retention,
+	cfg InitConfig,
 ) (err error) {
 	ctx = clues.Add(
 		ctx,
@@ -135,8 +151,14 @@ func (r *repository) Initialize(
 		}
 	}()
 
+	if cfg.Service != path.UnknownService {
+		if err := r.ConnectDataProvider(ctx, cfg.Service); err != nil {
+			return clues.Stack(err)
+		}
+	}
+
 	kopiaRef := kopia.NewConn(r.Storage)
-	if err := kopiaRef.Initialize(ctx, r.Opts.Repo, retentionOpts); err != nil {
+	if err := kopiaRef.Initialize(ctx, r.Opts.Repo, cfg.RetentionOpts); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
 		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
 			return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
@@ -167,11 +189,21 @@ func (r *repository) Initialize(
 	return nil
 }
 
+type ConnConfig struct {
+	// tells the data provider which service to
+	// use for its connection pattern.  Leave empty
+	// to skip the provider connection.
+	Service path.ServiceType
+}
+
 // Connect will:
 //   - connect to the m365 account
 //   - connect to the provider storage
 //   - return the connected repository
-func (r *repository) Connect(ctx context.Context) (err error) {
+func (r *repository) Connect(
+	ctx context.Context,
+	cfg ConnConfig,
+) (err error) {
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", r.Account.Provider.String(),
@@ -184,10 +216,11 @@ func (r *repository) Connect(ctx context.Context) (err error) {
 		}
 	}()
 
-	// ctrl, err = connectToM365(ctx, sel.PathService(), r.Account, r.Opts)
-	// if err != nil {
-	// 	return operations.BackupOperation{}, clues.Wrap(err, "connecting to m365")
-	// }
+	if cfg.Service != path.UnknownService {
+		if err := r.ConnectDataProvider(ctx, cfg.Service); err != nil {
+			return clues.Stack(err)
+		}
+	}
 
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer close(progressBar)

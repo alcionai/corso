@@ -7,48 +7,68 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type DataProvider interface {
-	// ConnectToM365 establishes graph api connections
-	// and initializes api client configurations.
-	ConnectToM365(
+	inject.BackupProducer
+	inject.ExportConsumer
+	inject.RestoreConsumer
+}
+
+type DataProviderConnector interface {
+	// ConnectDataProvider initializes configurations
+	// and establishes the client connection with the
+	// data provider for this operation.
+	ConnectDataProvider(
 		ctx context.Context,
 		pst path.ServiceType,
-	) (*m365.Controller, error)
+	) error
 }
 
-func (r repository) ConnectToM365(
+func (r *repository) ConnectDataProvider(
 	ctx context.Context,
 	pst path.ServiceType,
-) (*m365.Controller, error) {
-	ctrl, err := connectToM365(ctx, pst, r.Account, r.Opts)
-	if err != nil {
-		return nil, clues.Wrap(err, "connecting to m365")
+) error {
+	var (
+		provider DataProvider
+		err      error
+	)
+
+	switch r.Account.Provider {
+	case account.ProviderM365:
+		provider, err = connectToM365(ctx, *r, pst)
+	default:
+		err = clues.New("unrecognized provider")
 	}
 
-	return ctrl, nil
-}
+	r.Provider = provider
 
-var m365nonce bool
+	return clues.Wrap(err, "connecting data provider").
+		WithClues(ctx).
+		OrNil()
+}
 
 func connectToM365(
 	ctx context.Context,
+	r repository,
 	pst path.ServiceType,
-	acct account.Account,
-	co control.Options,
 ) (*m365.Controller, error) {
-	if !m365nonce {
-		m365nonce = true
+	if r.Provider != nil {
+		ctrl, ok := r.Provider.(*m365.Controller)
+		if !ok {
+			return nil, clues.New("Attempted to access multiple repository providers")
+		}
 
-		progressBar := observe.MessageWithCompletion(ctx, "Connecting to M365")
-		defer close(progressBar)
+		return ctrl, nil
 	}
 
-	ctrl, err := m365.NewController(ctx, acct, pst, co)
+	progressBar := observe.MessageWithCompletion(ctx, "Connecting to M365")
+	defer close(progressBar)
+
+	ctrl, err := m365.NewController(ctx, r.Account, pst, r.Opts)
 	if err != nil {
 		return nil, err
 	}

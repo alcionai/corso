@@ -85,7 +85,7 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 
 	opt := utils.ControlWithConfig(cfg)
 	// Retention is not supported for filesystem repos.
-	retention := ctrlRepo.Retention{}
+	retentionOpts := ctrlRepo.Retention{}
 
 	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
 	utils.SendStartCorsoEvent(
@@ -118,7 +118,9 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to construct the repository controller"))
 	}
 
-	if err = r.Initialize(ctx, retention); err != nil {
+	ric := repository.InitConfig{RetentionOpts: retentionOpts}
+
+	if err = r.Initialize(ctx, ric); err != nil {
 		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
 		}
@@ -205,7 +207,7 @@ func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
 	}
 
-	if err := r.Connect(ctx); err != nil {
+	if err := r.Connect(ctx, repository.ConnConfig{}); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the filesystem repository"))
 	}
 

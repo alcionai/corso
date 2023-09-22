@@ -3,8 +3,6 @@ package repository
 import (
 	"context"
 
-	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -28,17 +26,12 @@ func (r repository) NewExport(
 	sel selectors.Selector,
 	exportCfg control.ExportConfig,
 ) (operations.ExportOperation, error) {
-	ctrl, err := connectToM365(ctx, sel.PathService(), r.Account, r.Opts)
-	if err != nil {
-		return operations.ExportOperation{}, clues.Wrap(err, "connecting to m365")
-	}
-
 	return operations.NewExportOperation(
 		ctx,
 		r.Opts,
 		r.dataLayer,
 		store.NewWrapper(r.modelStore),
-		ctrl,
+		r.Provider,
 		r.Account,
 		model.StableID(backupID),
 		sel,
