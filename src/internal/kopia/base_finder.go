@@ -379,44 +379,10 @@ func (b *baseFinder) FindBases(
 		}
 	}
 
-	// Convert what we got to the format that backupBases takes right now.
-	// TODO(ashmrtn): Remove when backupBases has consolidated fields.
-	res := &backupBases{}
-	bups := make([]BackupEntry, 0, len(mergeBases))
-	snaps := make([]ManifestEntry, 0, len(mergeBases))
-
-	for _, base := range mergeBases {
-		bups = append(bups, BackupEntry{
-			Backup:  base.Backup,
-			Reasons: base.Reasons,
-		})
-
-		snaps = append(snaps, ManifestEntry{
-			Manifest: base.ItemDataSnapshot,
-			Reasons:  base.Reasons,
-		})
+	res := &backupBases{
+		mergeBases:  maps.Values(mergeBases),
+		assistBases: maps.Values(assistBases),
 	}
-
-	res.backups = bups
-	res.mergeBases = snaps
-
-	bups = make([]BackupEntry, 0, len(assistBases))
-	snaps = make([]ManifestEntry, 0, len(assistBases))
-
-	for _, base := range assistBases {
-		bups = append(bups, BackupEntry{
-			Backup:  base.Backup,
-			Reasons: base.Reasons,
-		})
-
-		snaps = append(snaps, ManifestEntry{
-			Manifest: base.ItemDataSnapshot,
-			Reasons:  base.Reasons,
-		})
-	}
-
-	res.assistBackups = bups
-	res.assistBases = snaps
 
 	res.fixupAndVerify(ctx)
 
