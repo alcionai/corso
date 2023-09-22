@@ -35,6 +35,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+const NewRepoID = ""
+
 var (
 	ErrorRepoAlreadyExists = clues.New("a repository was already initialized with that configuration")
 	ErrorBackupNotFound    = clues.New("no backup exists with that id")

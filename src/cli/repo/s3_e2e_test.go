@@ -213,7 +213,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 				account.Account{},
 				st,
 				control.DefaultOptions(),
-				"")
+				repository.NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = r.Initialize(ctx, ctrlRepo.Retention{})

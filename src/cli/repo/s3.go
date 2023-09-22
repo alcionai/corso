@@ -136,7 +136,7 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account,
 		cfg.Storage,
 		opt,
-		"")
+		repository.NewRepoID)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to construct the repository controller"))
 	}

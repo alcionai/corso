@@ -108,7 +108,7 @@ func initM365Repo(t *testing.T) (
 		ac,
 		st,
 		opts,
-		"")
+		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = r.Initialize(ctx, ctrlRepo.Retention{})

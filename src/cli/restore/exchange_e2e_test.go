@@ -91,7 +91,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 		suite.acct,
 		suite.st,
 		control.DefaultOptions(),
-		"")
+		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = r.Initialize(ctx, ctrlRepo.Retention{})

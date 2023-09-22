@@ -66,7 +66,7 @@ func (suite *RepositoryUnitSuite) TestInitialize() {
 				test.account,
 				st,
 				control.DefaultOptions(),
-				"")
+				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = r.Initialize(ctx, ctrlRepo.Retention{})
@@ -108,7 +108,7 @@ func (suite *RepositoryUnitSuite) TestConnect() {
 				test.account,
 				st,
 				control.DefaultOptions(),
-				"")
+				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = r.Connect(ctx)
@@ -159,7 +159,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 				test.account,
 				st,
 				control.DefaultOptions(),
-				"")
+				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = r.Initialize(ctx, ctrlRepo.Retention{})
@@ -201,7 +201,7 @@ func (suite *RepositoryIntegrationSuite) TestInitializeWithRole() {
 		account.Account{},
 		st,
 		control.DefaultOptions(),
-		"")
+		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = r.Initialize(ctx, ctrlRepo.Retention{})
@@ -225,7 +225,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 		account.Account{},
 		st,
 		control.DefaultOptions(),
-		"")
+		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = r.Initialize(ctx, ctrlRepo.Retention{})
@@ -249,7 +249,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 		account.Account{},
 		st,
 		control.DefaultOptions(),
-		"")
+		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = r.Initialize(ctx, ctrlRepo.Retention{})
@@ -281,7 +281,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 		acct,
 		st,
 		control.DefaultOptions(),
-		"")
+		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = r.Initialize(ctx, ctrlRepo.Retention{})
@@ -340,7 +340,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackupAndDelete() {
 		acct,
 		st,
 		control.DefaultOptions(),
-		"")
+		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = r.Initialize(ctx, ctrlRepo.Retention{})
@@ -393,7 +393,7 @@ func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
 		acct,
 		st,
 		control.DefaultOptions(),
-		"")
+		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = r.Initialize(ctx, ctrlRepo.Retention{})
@@ -462,7 +462,7 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 				acct,
 				st,
 				test.opts(),
-				"")
+				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = r.Initialize(ctx, ctrlRepo.Retention{})

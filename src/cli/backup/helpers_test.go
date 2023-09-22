@@ -159,7 +159,7 @@ func prepM365Test(
 		acct,
 		st,
 		control.DefaultOptions(),
-		"")
+		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = repo.Initialize(ctx, ctrlRepo.Retention{})
