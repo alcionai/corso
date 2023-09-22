@@ -154,6 +154,23 @@ func (c Groups) GetByID(
 	return group, nil
 }
 
+// GetAllSites gets all the sites that belong to a group. This is
+// necessary as private and shared channels gets their on individual
+// sites. All the other channels make use of the root site.
+func (c Groups) GetAllSites(
+	ctx context.Context,
+	identifier string,
+	errs *fault.Bus,
+) ([]models.Siteable, error) {
+	// TODO(meain): Get all sites belonging to the group
+	root, err := c.GetRootSite(ctx, identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	return []models.Siteable{root}, nil
+}
+
 func (c Groups) GetRootSite(
 	ctx context.Context,
 	identifier string,

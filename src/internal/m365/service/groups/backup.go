@@ -79,10 +79,7 @@ func ProduceBackupCollections(
 
 		switch scope.Category().PathType() {
 		case path.LibrariesCategory:
-			// TODO(meain): Private channels get a separate SharePoint
-			// site. We should also back those up and not just the
-			// default one.
-			resp, err := ac.Groups().GetRootSite(ctx, bpc.ProtectedResource.ID())
+			sites, err := ac.Groups().GetAllSites(ctx, bpc.ProtectedResource.ID(), errs)
 			if err != nil {
 				return nil, nil, false, err
 			}
@@ -95,39 +92,44 @@ func ProduceBackupCollections(
 				siteMetadataCollection[siteID] = append(siteMetadataCollection[siteID], c)
 			}
 
-			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
-			sbpc := inject.BackupProducerConfig{
-				LastBackupVersion:   bpc.LastBackupVersion,
-				Options:             bpc.Options,
-				ProtectedResource:   pr,
-				Selector:            bpc.Selector,
-				MetadataCollections: siteMetadataCollection[ptr.Val(resp.GetId())],
-			}
+			for _, s := range sites {
+				pr := idname.NewProvider(ptr.Val(s.GetId()), ptr.Val(s.GetName()))
+				sbpc := inject.BackupProducerConfig{
+					LastBackupVersion:   bpc.LastBackupVersion,
+					Options:             bpc.Options,
+					ProtectedResource:   pr,
+					Selector:            bpc.Selector,
+					MetadataCollections: siteMetadataCollection[ptr.Val(s.GetId())],
+				}
 
-			bh := drive.NewGroupBackupHandler(
-				bpc.ProtectedResource.ID(),
-				ptr.Val(resp.GetId()),
-				ac.Drives(),
-				scope)
+				bh := drive.NewGroupBackupHandler(
+					bpc.ProtectedResource.ID(),
+					ptr.Val(s.GetId()),
+					ac.Drives(),
+					scope)
 
-			cp, err := bh.SitePathPrefix(creds.AzureTenantID)
-			if err != nil {
-				return nil, nil, false, clues.Wrap(err, "getting canonical path")
-			}
+				cp, err := bh.SitePathPrefix(creds.AzureTenantID)
+				if err != nil {
+					return nil, nil, false, clues.Wrap(err, "getting canonical path")
+				}
 
-			sitesPreviousPaths[ptr.Val(resp.GetId())] = cp.String()
+				sitesPreviousPaths[ptr.Val(s.GetId())] = cp.String()
 
-			dbcs, canUsePreviousBackup, err = site.CollectLibraries(
-				ctx,
-				sbpc,
-				bh,
-				creds.AzureTenantID,
-				ssmb,
-				su,
-				errs)
-			if err != nil {
-				el.AddRecoverable(ctx, err)
-				continue
+				cs, cupb, err := site.CollectLibraries(
+					ctx,
+					sbpc,
+					bh,
+					creds.AzureTenantID,
+					ssmb,
+					su,
+					errs)
+				if err != nil {
+					el.AddRecoverable(ctx, err)
+					continue
+				}
+
+				dbcs = append(dbcs, cs...)
+				canUsePreviousBackup = canUsePreviousBackup || cupb
 			}
 
 		case path.ChannelMessagesCategory:

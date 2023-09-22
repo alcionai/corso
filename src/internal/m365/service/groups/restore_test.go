@@ -52,6 +52,7 @@ func (suite *GroupsUnitSuite) TestConsumeRestoreCollections_noErrorOnGroups() {
 		rcc,
 		api.Client{},
 		idname.NewCache(map[string]string{}),
+		idname.NewCache(map[string]string{}),
 		dcs,
 		nil,
 		fault.New(false),
