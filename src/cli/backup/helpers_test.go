@@ -162,7 +162,7 @@ func prepM365Test(
 		"")
 	require.NoError(t, err, clues.ToCore(err))
 
-	repo.Initialize(ctx, ctrlRepo.Retention{})
+	err = repo.Initialize(ctx, ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return dependencies{
