@@ -126,11 +126,11 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			},
 		},
 		{
-			name: "with restore permissions",
+			name: "without restore permissions",
 			rco: &RestoreCfgOpts{
-				Collisions:         "collisions",
-				Destination:        "destination",
-				RestorePermissions: true,
+				Collisions:      "collisions",
+				Destination:     "destination",
+				SkipPermissions: flags.NoPermissionsFV,
 			},
 			populated: flags.PopulatedFlags{
 				flags.CollisionsFN:  {},
@@ -139,7 +139,7 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			expect: control.RestoreConfig{
 				OnCollision:        control.CollisionPolicy("collisions"),
 				Location:           "destination",
-				IncludePermissions: true,
+				IncludePermissions: false,
 			},
 		},
 	}
@@ -156,7 +156,6 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			result := MakeRestoreConfig(ctx, opts)
 			assert.Equal(t, test.expect.OnCollision, result.OnCollision)
 			assert.Contains(t, result.Location, test.expect.Location)
-			assert.Equal(t, test.expect.IncludePermissions, result.IncludePermissions)
 		})
 	}
 }

@@ -17,6 +17,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -410,6 +411,9 @@ func (mw *MetricsMiddleware) Intercept(
 	if len(xmru) == 0 || e != nil {
 		xmrui = 1
 	}
+
+	countBus := count.Ctx(req.Context())
+	countBus.Add(count.APICallTokensConsumed, int64(xmrui))
 
 	events.IncN(xmrui, events.APICall, xmruHeader)
 
