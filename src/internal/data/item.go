@@ -14,6 +14,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+var (
+	_ Item        = &prefetchedItem{}
+	_ ItemInfo    = &prefetchedItem{}
+	_ ItemModTime = &prefetchedItem{}
+	_ Item        = &lazyItem{}
+	_ ItemInfo    = &lazyItem{}
+	_ ItemModTime = &lazyItem{}
+)
+
 func NewDeletedItem(itemID string) Item {
 	return &prefetchedItem{
 		id:      itemID,
