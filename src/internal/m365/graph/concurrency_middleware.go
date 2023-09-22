@@ -11,6 +11,7 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -317,6 +318,9 @@ func (mw *throttlingMiddleware) Intercept(
 	if seconds < 1 {
 		return resp, nil
 	}
+
+	countBus := count.Ctx(req.Context())
+	countBus.Inc(count.ThrottledAPICalls)
 
 	// if all prior conditions pass, we need to add a fence that blocks
 	// calls, globally, from progressing until the timeout retry-after
