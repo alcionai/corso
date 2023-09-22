@@ -83,7 +83,10 @@ func (i prefetchedItem) ModTime() time.Time {
 }
 
 type ItemDataGetter interface {
-	GetData(context.Context) (io.ReadCloser, *details.ItemInfo, bool, error)
+	GetData(
+		context.Context,
+		*fault.Bus,
+	) (io.ReadCloser, *details.ItemInfo, bool, error)
 }
 
 func NewLazyItem(
@@ -130,12 +133,9 @@ func (i lazyItem) ID() string {
 
 func (i *lazyItem) ToReader() io.ReadCloser {
 	return lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-		reader, info, delInFlight, err := i.itemGetter.GetData(i.ctx)
+		reader, info, delInFlight, err := i.itemGetter.GetData(i.ctx, i.errs)
 		if err != nil {
-			err = clues.Stack(err)
-			i.errs.AddRecoverable(i.ctx, err)
-
-			return nil, err
+			return nil, clues.Stack(err)
 		}
 
 		// If an item was deleted then return an empty file so we don't fail the
