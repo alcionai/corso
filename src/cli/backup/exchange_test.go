@@ -98,7 +98,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			deleteCommand,
 			expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
 			exchangeDeleteCmd().Short,
-			[]string{flags.BackupFN},
+			[]string{flags.BackupIDsFN},
 			deleteExchangeCmd,
 		},
 	}

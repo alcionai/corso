@@ -30,7 +30,7 @@ import (
 const (
 	sharePointServiceCommand                 = "sharepoint"
 	sharePointServiceCommandCreateUseSuffix  = "--site <siteURL> | '" + flags.Wildcard + "'"
-	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	sharePointServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -45,7 +45,7 @@ corso backup create sharepoint --site https://example.com/hr,https://example.com
 corso backup create sharepoint --site '*'`
 
 	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
+corso backup delete sharepoint --backups 1234abcd-12ab-cd34-56de-1234abcd`
 
 	sharePointServiceCommandDetailsExamples = `# Explore items in the HR site's latest backup (1234abcd...)
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -294,7 +294,7 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.SharePointService, "SharePoint", flags.DeleteBackupIDFV, args)
+	return genericDeleteCommand(cmd, path.SharePointService, "SharePoint", flags.BackupIDsFV, args)
 }
 
 // ------------------------------------------------------------------------------------------------

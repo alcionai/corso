@@ -85,7 +85,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			deleteCommand,
 			expectUse + " " + sharePointServiceCommandDeleteUseSuffix,
 			sharePointDeleteCmd().Short,
-			[]string{flags.BackupFN},
+			[]string{flags.BackupIDsFN},
 			deleteSharePointCmd,
 		},
 	}

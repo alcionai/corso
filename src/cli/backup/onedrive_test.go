@@ -82,7 +82,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			deleteCommand,
 			expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
 			oneDriveDeleteCmd().Short,
-			[]string{flags.BackupFN},
+			[]string{flags.BackupIDsFN},
 			deleteOneDriveCmd,
 		},
 	}

@@ -32,7 +32,7 @@ const (
 const (
 	exchangeServiceCommand                 = "exchange"
 	exchangeServiceCommandCreateUseSuffix  = "--mailbox <email> | '" + flags.Wildcard + "'"
-	exchangeServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	exchangeServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	exchangeServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -47,7 +47,7 @@ corso backup create exchange --mailbox alice@example.com,bob@example.com --data 
 corso backup create exchange --mailbox '*'`
 
 	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete exchange --backup 1234abcd-12ab-cd34-56de-1234abcd`
+corso backup delete exchange --backups 1234abcd-12ab-cd34-56de-1234abcd`
 
 	exchangeServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -358,5 +358,5 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.ExchangeService, "Exchange", flags.DeleteBackupIDFV, args)
+	return genericDeleteCommand(cmd, path.ExchangeService, "Exchange", flags.BackupIDsFV, args)
 }

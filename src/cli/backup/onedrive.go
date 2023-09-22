@@ -26,7 +26,7 @@ import (
 const (
 	oneDriveServiceCommand                 = "onedrive"
 	oneDriveServiceCommandCreateUseSuffix  = "--user <email> | '" + flags.Wildcard + "'"
-	oneDriveServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	oneDriveServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	oneDriveServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -41,7 +41,7 @@ corso backup create onedrive --user alice@example.com,bob@example.com
 corso backup create onedrive --user '*'`
 
 	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd`
+corso backup delete onedrive --backups 1234abcd-12ab-cd34-56de-1234abcd`
 
 	oneDriveServiceCommandDetailsExamples = `# Explore items in Bob's latest backup (1234abcd...)
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -313,5 +313,5 @@ func oneDriveDeleteCmd() *cobra.Command {
 
 // deletes a oneDrive service backup.
 func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.OneDriveService, "OneDrive", flags.DeleteBackupIDFV, args)
+	return genericDeleteCommand(cmd, path.OneDriveService, "OneDrive", flags.BackupIDsFV, args)
 }

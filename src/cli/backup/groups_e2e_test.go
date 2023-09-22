@@ -554,7 +554,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "groups",
 		"--config-file", suite.dpnd.configFilePath,
-		"--"+flags.BackupFN,
+		"--"+flags.BackupIDsFN,
 		fmt.Sprintf("%s,%s",
 			string(suite.backupOp.Results.BackupID),
 			string(suite.secondaryBackupOp.Results.BackupID)))
@@ -568,7 +568,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd() {
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "groups",
 		"--config-file", suite.dpnd.configFilePath,
-		"--backup", string(suite.backupOp.Results.BackupID))
+		"--backups", string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	err = cmd.ExecuteContext(ctx)
@@ -586,7 +586,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_UnknownID() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "groups",
 		"--config-file", suite.dpnd.configFilePath,
-		"--"+flags.BackupFN, uuid.NewString())
+		"--"+flags.BackupIDsFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup

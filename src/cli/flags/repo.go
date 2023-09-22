@@ -6,6 +6,7 @@ import (
 
 const (
 	BackupFN             = "backup"
+	BackupIDsFN          = "backups"
 	AWSAccessKeyFN       = "aws-access-key"
 	AWSSecretAccessKeyFN = "aws-secret-access-key"
 	AWSSessionTokenFN    = "aws-session-token"
@@ -17,7 +18,7 @@ const (
 
 var (
 	BackupIDFV           string
-	DeleteBackupIDFV     []string
+	BackupIDsFV          []string
 	AWSAccessKeyFV       string
 	AWSSecretAccessKeyFV string
 	AWSSessionTokenFV    string
@@ -28,12 +29,12 @@ var (
 // AddBackupIDFlag adds the --backup flag.
 func AddDeleteBackupIDFlag(cmd *cobra.Command, require bool) {
 	cmd.Flags().StringSliceVar(
-		&DeleteBackupIDFV,
-		BackupFN, nil,
-		"ID of the backup to delete")
+		&BackupIDsFV,
+		BackupIDsFN, nil,
+		"IDs of the backup to delete")
 
 	if require {
-		cobra.CheckErr(cmd.MarkFlagRequired(BackupFN))
+		cobra.CheckErr(cmd.MarkFlagRequired(BackupIDsFN))
 	}
 }
 

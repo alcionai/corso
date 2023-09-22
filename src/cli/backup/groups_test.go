@@ -83,7 +83,7 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 			deleteCommand,
 			expectUse + " " + groupsServiceCommandDeleteUseSuffix,
 			groupsDeleteCmd().Short,
-			[]string{flags.BackupFN},
+			[]string{flags.BackupIDsFN},
 			deleteGroupsCmd,
 		},
 	}

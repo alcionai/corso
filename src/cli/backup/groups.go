@@ -32,7 +32,7 @@ const (
 	groupsServiceCommand                 = "groups"
 	teamsServiceCommand                  = "teams"
 	groupsServiceCommandCreateUseSuffix  = "--group <groupName> | '" + flags.Wildcard + "'"
-	groupsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	groupsServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	groupsServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -47,7 +47,7 @@ corso backup create groups --group Marketing --data messages
 corso backup create groups --group '*'`
 
 	groupsServiceCommandDeleteExamples = `# Delete Groups backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete groups --backup 1234abcd-12ab-cd34-56de-1234abcd`
+corso backup delete groups --backups 1234abcd-12ab-cd34-56de-1234abcd`
 
 	groupsServiceCommandDetailsExamples = `# Explore items in Marketing's latest backup (1234abcd...)
 corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -310,7 +310,7 @@ func groupsDeleteCmd() *cobra.Command {
 
 // deletes an groups service backup.
 func deleteGroupsCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.GroupsService, "Groups", flags.DeleteBackupIDFV, args)
+	return genericDeleteCommand(cmd, path.GroupsService, "Groups", flags.BackupIDsFV, args)
 }
 
 // ---------------------------------------------------------------------------
