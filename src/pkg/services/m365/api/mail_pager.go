@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -64,42 +63,14 @@ func (p *mailFoldersPageCtrl) ValidModTimes() bool {
 	return true
 }
 
-// EnumerateContainers iterates through all of the users current
-// mail folders, transforming each to a graph.CacheFolder, and calling
-// fn(cf).
-// Folder hierarchy is represented in its current state, and does
-// not contain historical data.
+// EnumerateContainers retrieves all of the users current mail folders.
 func (c Mail) EnumerateContainers(
 	ctx context.Context,
 	userID, _ string, // baseContainerID not needed here
 	immutableIDs bool,
-	fn func(graph.CachedContainer) error,
-	errs *fault.Bus,
-) error {
-	var (
-		el  = errs.Local()
-		pgr = c.NewMailFoldersPager(userID, immutableIDs)
-	)
-
-	containers, err := batchEnumerateItems(ctx, pgr)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	for _, c := range containers {
-		if el.Failure() != nil {
-			break
-		}
-
-		gncf := graph.NewCacheFolder(c, nil, nil)
-
-		if err := fn(&gncf); err != nil {
-			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
-			continue
-		}
-	}
-
-	return el.Failure()
+) ([]models.MailFolderable, error) {
+	containers, err := batchEnumerateItems(ctx, c.NewMailFoldersPager(userID, immutableIDs))
+	return containers, graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

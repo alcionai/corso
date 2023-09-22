@@ -21,9 +21,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-// CreateCollections - utility function that retrieves M365
-// IDs through Microsoft Graph API. The selectors.ExchangeScope
-// determines the type of collections that are retrieved.
 func CreateCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,

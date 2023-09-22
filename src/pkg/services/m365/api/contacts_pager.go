@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -67,42 +66,14 @@ func (p *contactsFoldersPageCtrl) ValidModTimes() bool {
 	return true
 }
 
-// EnumerateContainers iterates through all of the users current
-// contacts folders, transforming each to a graph.CacheFolder, and calling
-// fn(cf).
-// Contact folders are represented in their current state, and do
-// not contain historical data.
+// EnumerateContainers retrieves all of the users current contact folders.
 func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseContainerID string,
 	immutableIDs bool,
-	fn func(graph.CachedContainer) error,
-	errs *fault.Bus,
-) error {
-	var (
-		el  = errs.Local()
-		pgr = c.NewContactFoldersPager(userID, baseContainerID, immutableIDs)
-	)
-
-	containers, err := batchEnumerateItems(ctx, pgr)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	for _, c := range containers {
-		if el.Failure() != nil {
-			break
-		}
-
-		gncf := graph.NewCacheFolder(c, nil, nil)
-
-		if err := fn(&gncf); err != nil {
-			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
-			continue
-		}
-	}
-
-	return el.Failure()
+) ([]models.ContactFolderable, error) {
+	containers, err := batchEnumerateItems(ctx, c.NewContactFoldersPager(userID, baseContainerID, immutableIDs))
+	return containers, graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

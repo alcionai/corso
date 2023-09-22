@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -68,45 +67,14 @@ func (p *eventsCalendarsPageCtrl) ValidModTimes() bool {
 	return true
 }
 
-// EnumerateContainers iterates through all of the users current
-// events calendars, transforming each to a graph.CacheFolder, and calling
-// fn(cf).
-// Calendars are represented in their current state, and do
-// not contain historical data.
+// EnumerateContainers retrieves all of the users current mail folders.
 func (c Events) EnumerateContainers(
 	ctx context.Context,
-	userID, _ string, // baseContainerID not needed
+	userID, _ string, // baseContainerID not needed here
 	immutableIDs bool,
-	fn func(graph.CachedContainer) error,
-	errs *fault.Bus,
-) error {
-	var (
-		el  = errs.Local()
-		pgr = c.NewEventCalendarsPager(userID, immutableIDs)
-	)
-
-	containers, err := batchEnumerateItems(ctx, pgr)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	for _, c := range containers {
-		if el.Failure() != nil {
-			break
-		}
-
-		gncf := graph.NewCacheFolder(
-			CalendarDisplayable{Calendarable: c},
-			path.Builder{}.Append(ptr.Val(c.GetId())),
-			path.Builder{}.Append(ptr.Val(c.GetName())))
-
-		if err := fn(&gncf); err != nil {
-			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
-			continue
-		}
-	}
-
-	return el.Failure()
+) ([]models.Calendarable, error) {
+	containers, err := batchEnumerateItems(ctx, c.NewEventCalendarsPager(userID, immutableIDs))
+	return containers, graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

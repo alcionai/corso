@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -37,9 +38,28 @@ func (r *contactRefresher) refreshContainer(
 
 type contactContainerCache struct {
 	*containerResolver
-	enumer containersEnumerator
+	enumer containersEnumerator[models.ContactFolderable]
 	getter containerGetter
 	userID string
+}
+
+func (cfc *contactContainerCache) init(
+	ctx context.Context,
+	baseNode string,
+	baseContainerPath []string,
+) error {
+	if len(baseNode) == 0 {
+		return clues.New("m365 folderID required for base contact folder").WithClues(ctx)
+	}
+
+	if cfc.containerResolver == nil {
+		cfc.containerResolver = newContainerResolver(&contactRefresher{
+			userID: cfc.userID,
+			getter: cfc.getter,
+		})
+	}
+
+	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)
 }
 
 func (cfc *contactContainerCache) populateContactRoot(
@@ -77,39 +97,35 @@ func (cfc *contactContainerCache) Populate(
 		return clues.Wrap(err, "initializing")
 	}
 
-	err := cfc.enumer.EnumerateContainers(
+	el := errs.Local()
+
+	containers, err := cfc.enumer.EnumerateContainers(
 		ctx,
 		cfc.userID,
 		baseID,
-		false,
-		cfc.addFolder,
-		errs)
+		false)
 	if err != nil {
 		return clues.Wrap(err, "enumerating containers")
+	}
+
+	for _, c := range containers {
+		if el.Failure() != nil {
+			return el.Failure()
+		}
+
+		gncf := graph.NewCacheFolder(c, nil, nil)
+
+		err := cfc.addFolder(&gncf)
+		if err != nil {
+			errs.AddRecoverable(
+				ctx,
+				graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+		}
 	}
 
 	if err := cfc.populatePaths(ctx, errs); err != nil {
 		return clues.Wrap(err, "populating paths")
 	}
 
-	return nil
-}
-
-func (cfc *contactContainerCache) init(
-	ctx context.Context,
-	baseNode string,
-	baseContainerPath []string,
-) error {
-	if len(baseNode) == 0 {
-		return clues.New("m365 folderID required for base contact folder").WithClues(ctx)
-	}
-
-	if cfc.containerResolver == nil {
-		cfc.containerResolver = newContainerResolver(&contactRefresher{
-			userID: cfc.userID,
-			getter: cfc.getter,
-		})
-	}
-
-	return cfc.populateContactRoot(ctx, baseNode, baseContainerPath)
+	return el.Failure()
 }
