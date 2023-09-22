@@ -233,20 +233,7 @@ func populateCollections(
 			continue
 		}
 
-		edc := NewCollection(
-			data.NewBaseCollection(
-				nil, // marks the collection as deleted
-				prevPath,
-				nil, // tombstones don't need a location
-				ctrlOpts,
-				false),
-			bh,
-			qp.ProtectedResource.ID(),
-			nil, // no items added
-			nil, // this deletes a directory, so no items deleted either
-			statusUpdater)
-
-		collections[id] = &edc
+		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts)
 	}
 
 	logger.Ctx(ctx).Infow(
