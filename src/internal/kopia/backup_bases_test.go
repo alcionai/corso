@@ -18,17 +18,67 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func makeManifest(id, incmpl, bID string, reasons ...identity.Reasoner) ManifestEntry {
+func makeManifest(id, incmpl, bID string) *snapshot.Manifest {
 	bIDKey, _ := makeTagKV(TagBackupID)
 
-	return ManifestEntry{
-		Manifest: &snapshot.Manifest{
-			ID:               manifest.ID(id),
-			IncompleteReason: incmpl,
-			Tags:             map[string]string{bIDKey: bID},
-		},
-		Reasons: reasons,
+	return &snapshot.Manifest{
+		ID:               manifest.ID(id),
+		IncompleteReason: incmpl,
+		Tags:             map[string]string{bIDKey: bID},
 	}
+}
+
+type testInput struct {
+	tenant            string
+	protectedResource string
+	id                int
+	cat               []path.CategoryType
+	isAssist          bool
+	incompleteReason  string
+}
+
+func makeBase(ti testInput) BackupBase {
+	baseID := fmt.Sprintf("id%d", ti.id)
+	reasons := make([]identity.Reasoner, 0, len(ti.cat))
+
+	for _, c := range ti.cat {
+		reasons = append(
+			reasons,
+			NewReason(
+				ti.tenant,
+				ti.protectedResource,
+				path.ExchangeService,
+				c))
+	}
+
+	return BackupBase{
+		Backup: &backup.Backup{
+			BaseModel:     model.BaseModel{ID: model.StableID("b" + baseID)},
+			SnapshotID:    baseID,
+			StreamStoreID: "ss" + baseID,
+		},
+		ItemDataSnapshot: makeManifest(baseID, ti.incompleteReason, "b"+baseID),
+		Reasons:          reasons,
+	}
+}
+
+// Make a function so tests can modify things without messing with each other.
+func makeBackupBases(
+	mergeInputs []testInput,
+	assistInputs []testInput,
+) *backupBases {
+	res := &backupBases{}
+
+	for _, i := range mergeInputs {
+		res.mergeBases = append(res.mergeBases, makeBase(i))
+	}
+
+	for _, i := range assistInputs {
+		i.isAssist = true
+		res.assistBases = append(res.assistBases, makeBase(i))
+	}
+
+	return res
 }
 
 type BackupBasesUnitSuite struct {
@@ -254,70 +304,6 @@ func (suite *BackupBasesUnitSuite) TestDisableAssistBases() {
 }
 
 func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
-	ro := "resource_owner"
-
-	type testInput struct {
-		id  int
-		cat []path.CategoryType
-	}
-
-	// Make a function so tests can modify things without messing with each other.
-	makeBackupBases := func(mergeInputs []testInput, assistInputs []testInput) *backupBases {
-		res := &backupBases{}
-
-		for _, i := range mergeInputs {
-			baseID := fmt.Sprintf("id%d", i.id)
-			reasons := make([]identity.Reasoner, 0, len(i.cat))
-
-			for _, c := range i.cat {
-				reasons = append(reasons, identity.NewReason("", ro, path.ExchangeService, c))
-			}
-
-			m := makeManifest(baseID, "", "b"+baseID, reasons...)
-
-			b := BackupEntry{
-				Backup: &backup.Backup{
-					BaseModel:     model.BaseModel{ID: model.StableID("b" + baseID)},
-					SnapshotID:    baseID,
-					StreamStoreID: "ss" + baseID,
-				},
-				Reasons: reasons,
-			}
-
-			res.backups = append(res.backups, b)
-			res.mergeBases = append(res.mergeBases, m)
-		}
-
-		for _, i := range assistInputs {
-			baseID := fmt.Sprintf("id%d", i.id)
-
-			reasons := make([]identity.Reasoner, 0, len(i.cat))
-
-			for _, c := range i.cat {
-				reasons = append(reasons, identity.NewReason("", ro, path.ExchangeService, c))
-			}
-
-			m := makeManifest(baseID, "", "a"+baseID, reasons...)
-
-			b := BackupEntry{
-				Backup: &backup.Backup{
-					BaseModel: model.BaseModel{
-						ID:   model.StableID("a" + baseID),
-						Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
-					},
-					SnapshotID:    baseID,
-					StreamStoreID: "ss" + baseID,
-				},
-				Reasons: reasons,
-			}
-
-			res.assistBackups = append(res.assistBackups, b)
-			res.assistBases = append(res.assistBases, m)
-		}
-
-		return res
-	}
-
 	table := []struct {
 		name        string
 		merge       []testInput
@@ -528,44 +514,25 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 	ro := "resource_owner"
 
-	makeMan := func(pct path.CategoryType, id, incmpl, bID string) ManifestEntry {
-		r := identity.NewReason("", ro, path.ExchangeService, pct)
-		return makeManifest(id, incmpl, bID, r)
-	}
-
 	// Make a function so tests can modify things without messing with each other.
 	validMail1 := func() *backupBases {
-		return &backupBases{
-			backups: []BackupEntry{
+		return makeBackupBases(
+			[]testInput{
 				{
-					Backup: &backup.Backup{
-						BaseModel: model.BaseModel{
-							ID: "bid1",
-						},
-						SnapshotID:    "id1",
-						StreamStoreID: "ssid1",
-					},
+					tenant:            "t",
+					protectedResource: ro,
+					id:                1,
+					cat:               []path.CategoryType{path.EmailCategory},
 				},
 			},
-			mergeBases: []ManifestEntry{
-				makeMan(path.EmailCategory, "id1", "", "bid1"),
-			},
-			assistBackups: []BackupEntry{
+			[]testInput{
 				{
-					Backup: &backup.Backup{
-						BaseModel: model.BaseModel{
-							ID:   "bid2",
-							Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
-						},
-						SnapshotID:    "id2",
-						StreamStoreID: "ssid2",
-					},
+					tenant:            "t",
+					protectedResource: ro,
+					id:                2,
+					cat:               []path.CategoryType{path.EmailCategory},
 				},
-			},
-			assistBases: []ManifestEntry{
-				makeMan(path.EmailCategory, "id2", "", "bid2"),
-			},
-		}
+			})
 	}
 
 	table := []struct {
