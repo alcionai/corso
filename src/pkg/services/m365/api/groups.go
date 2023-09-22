@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -162,13 +163,65 @@ func (c Groups) GetAllSites(
 	identifier string,
 	errs *fault.Bus,
 ) ([]models.Siteable, error) {
-	// TODO(meain): Get all sites belonging to the group
 	root, err := c.GetRootSite(ctx, identifier)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting channels")
+	}
+
+	sites := []models.Siteable{root}
+
+	channels, err := Channels{c.Client}.GetChannels(ctx, identifier)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting channels")
+	}
+
+	service, err := c.Service()
 	if err != nil {
 		return nil, err
 	}
 
-	return []models.Siteable{root}, nil
+	for _, ch := range channels {
+		if ptr.Val(ch.GetMembershipType()) == models.STANDARD_CHANNELMEMBERSHIPTYPE {
+			// Standard channels use root site
+			continue
+		}
+
+		resp, err := service.
+			Client().
+			Teams().
+			ByTeamId(identifier).
+			Channels().
+			ByChannelId(ptr.Val(ch.GetId())).
+			FilesFolder().
+			Get(ctx, nil)
+		if err != nil {
+			return nil, clues.Wrap(err, "getting files folder for channel").
+				With("channel_id", ptr.Val(ch.GetId()))
+		}
+
+		// WebURL returned here is the url to the documents folder, we
+		// have to trim that out to get the actual site's webURL
+		// https://example.sharepoint.com/sites/<site-name>/Shared%20Documents/<channelName>
+		documentWebURL := ptr.Val(resp.GetWebUrl())
+
+		// TODO(meain): is this hacky? is there a better way?
+		dwurlSplits := strings.Split(documentWebURL, "/")
+		siteWebURL := strings.Join(dwurlSplits[:5], "/")
+
+		site, err := Sites{c.Client}.GetByID(ctx, siteWebURL)
+		if err != nil {
+			// TODO(meain): should this be a recoverable error?
+			return nil, clues.Wrap(err, "getting site").
+				With(
+					"channel_id", ptr.Val(ch.GetId()),
+					"document_web_url", documentWebURL,
+					"site_web_url", siteWebURL)
+		}
+
+		sites = append(sites, site)
+	}
+
+	return sites, nil
 }
 
 func (c Groups) GetRootSite(

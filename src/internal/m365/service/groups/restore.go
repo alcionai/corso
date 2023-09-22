@@ -94,8 +94,6 @@ func ConsumeRestoreCollections(
 					continue
 				}
 
-				// `/sites` sends `displayName` as name, but
-				// `/sites/<site-id>` send base of `webURL` as name
 				siteName = ptr.Val(site.GetDisplayName())
 				siteNames[webURL] = siteName
 			}
