@@ -49,22 +49,63 @@ type MockBackupBases struct {
 }
 
 func (bb *MockBackupBases) WithBackups(b ...BackupEntry) *MockBackupBases {
-	bb.backupBases.backups = append(bb.Backups(), b...)
+	bases := make([]BackupBase, 0, len(b))
+	for _, base := range b {
+		bases = append(bases, BackupBase{
+			Backup:  base.Backup,
+			Reasons: base.Reasons,
+		})
+	}
+
+	bb.backupBases.mergeBases = append(bb.NewMergeBases(), bases...)
+
 	return bb
 }
 
 func (bb *MockBackupBases) WithMergeBases(m ...ManifestEntry) *MockBackupBases {
-	bb.backupBases.mergeBases = append(bb.MergeBases(), m...)
+	bases := make([]BackupBase, 0, len(m))
+	for _, base := range m {
+		bases = append(bases, BackupBase{
+			ItemDataSnapshot: base.Manifest,
+			Reasons:          base.Reasons,
+		})
+	}
+
+	bb.backupBases.mergeBases = append(bb.NewMergeBases(), bases...)
+
 	return bb
 }
 
 func (bb *MockBackupBases) WithAssistBackups(b ...BackupEntry) *MockBackupBases {
-	bb.backupBases.assistBackups = append(bb.UniqueAssistBackups(), b...)
+	bases := make([]BackupBase, 0, len(b))
+	for _, base := range b {
+		bases = append(bases, BackupBase{
+			Backup:  base.Backup,
+			Reasons: base.Reasons,
+		})
+	}
+
+	bb.backupBases.assistBases = append(bb.NewUniqueAssistBases(), bases...)
+
 	return bb
 }
 
 func (bb *MockBackupBases) WithAssistBases(m ...ManifestEntry) *MockBackupBases {
-	bb.backupBases.assistBases = append(bb.UniqueAssistBases(), m...)
+	bases := make([]BackupBase, 0, len(m))
+	for _, base := range m {
+		bases = append(bases, BackupBase{
+			ItemDataSnapshot: base.Manifest,
+			Reasons:          base.Reasons,
+		})
+	}
+
+	bb.backupBases.assistBases = append(bb.NewUniqueAssistBases(), bases...)
+
+	return bb
+}
+
+func (bb *MockBackupBases) NewWithMergeBases(b ...BackupBase) *MockBackupBases {
+	bb.backupBases.mergeBases = append(bb.NewMergeBases(), b...)
 	return bb
 }
 
