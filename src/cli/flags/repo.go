@@ -33,6 +33,15 @@ func AddBackupIDFlag(cmd *cobra.Command, require bool) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// storage
+// ---------------------------------------------------------------------------
+
+func AddAllStorageFlags(cmd *cobra.Command) {
+	AddCorsoPassphaseFlags(cmd)
+	AddAWSCredsFlags(cmd)
+}
+
 func AddAWSCredsFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.StringVar(&AWSAccessKeyFV, AWSAccessKeyFN, "", "S3 access key")
@@ -47,4 +56,12 @@ func AddCorsoPassphaseFlags(cmd *cobra.Command) {
 		CorsoPassphraseFN,
 		"",
 		"Passphrase to protect encrypted repository contents")
+}
+
+// ---------------------------------------------------------------------------
+// Provider
+// ---------------------------------------------------------------------------
+
+func AddAllProviderFlags(cmd *cobra.Command) {
+	AddAzureCredsFlags(cmd)
 }

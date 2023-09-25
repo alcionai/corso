@@ -31,9 +31,6 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddSkipPermissionsFlag(c)
 		flags.AddRestoreConfigFlags(c)
 		flags.AddFailFastFlag(c)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 	}
 
 	return c

@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 )
@@ -130,68 +130,68 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 
 	cmd := &cobra.Command{Use: createCommand}
 
-	// normally a persistent flag from the root.
-	// required to ensure a dry run.
+	// global flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
+	flags.AddAllProviderFlags(cmd)
+	flags.AddAllStorageFlags(cmd)
 
 	c := addGroupsCommands(cmd)
 	require.NotNil(t, c)
 
+	flagsTD.WithFlags(
+		cmd,
+		groupsServiceCommand,
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
 	// Test arg parsing for few args
-	cmd.SetArgs([]string{
+	args := []string{
 		groupsServiceCommand,
 		"--" + flags.RunModeFN, flags.RunModeFlagTest,
 
-		"--" + flags.GroupFN, testdata.FlgInputs(testdata.GroupsInput),
-		"--" + flags.CategoryDataFN, testdata.FlgInputs(testdata.GroupsCategoryDataInput),
+		"--" + flags.GroupFN, flagsTD.FlgInputs(flagsTD.GroupsInput),
+		"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.GroupsCategoryDataInput),
 
-		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-
-		"--" + flags.FetchParallelismFN, testdata.FetchParallelism,
+		"--" + flags.FetchParallelismFN, flagsTD.FetchParallelism,
 
 		// bool flags
 		"--" + flags.FailFastFN,
 		"--" + flags.DisableIncrementalsFN,
 		"--" + flags.ForceItemDataDownloadFN,
 		"--" + flags.DisableDeltaFN,
-	})
+	}
+
+	args = append(args, flagsTD.PreparedProviderFlags()...)
+	args = append(args, flagsTD.PreparedStorageFlags()...)
+
+	cmd.SetArgs(args)
 
 	cmd.SetOut(new(bytes.Buffer)) // drop output
 	cmd.SetErr(new(bytes.Buffer)) // drop output
+
 	err := cmd.Execute()
 	assert.NoError(t, err, clues.ToCore(err))
 
 	opts := utils.MakeGroupsOpts(cmd)
 	co := utils.Control()
 
-	assert.ElementsMatch(t, testdata.GroupsInput, opts.Groups)
+	assert.ElementsMatch(t, flagsTD.GroupsInput, opts.Groups)
 	// no assertion for category data input
 
-	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
-
-	assert.Equal(t, testdata.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
+	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
 
 	// bool flags
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
 	assert.True(t, co.ToggleFeatures.DisableDelta)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }
 
 func (suite *GroupsUnitSuite) TestBackupListFlags() {
@@ -199,55 +199,36 @@ func (suite *GroupsUnitSuite) TestBackupListFlags() {
 
 	cmd := &cobra.Command{Use: listCommand}
 
-	// normally a persistent flag from the root.
-	// required to ensure a dry run.
+	// global flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
+	flags.AddAllProviderFlags(cmd)
+	flags.AddAllStorageFlags(cmd)
 
 	c := addGroupsCommands(cmd)
 	require.NotNil(t, c)
 
-	// Test arg parsing for few args
-	cmd.SetArgs([]string{
+	flagsTD.WithFlags(
+		cmd,
 		groupsServiceCommand,
-		"--" + flags.RunModeFN, flags.RunModeFlagTest,
-		"--" + flags.BackupFN, testdata.BackupInput,
-
-		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-
-		// bool flags
-		"--" + flags.FailedItemsFN, "show",
-		"--" + flags.SkippedItemsFN, "show",
-		"--" + flags.RecoveredErrorsFN, "show",
-	})
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedBackupListFlags(),
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
 
 	cmd.SetOut(new(bytes.Buffer)) // drop output
 	cmd.SetErr(new(bytes.Buffer)) // drop output
+
 	err := cmd.Execute()
 	assert.NoError(t, err, clues.ToCore(err))
 
-	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
 
-	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
-
-	assert.Equal(t, flags.ListFailedItemsFV, "show")
-	assert.Equal(t, flags.ListSkippedItemsFV, "show")
-	assert.Equal(t, flags.ListRecoveredErrorsFV, "show")
+	flagsTD.AssertBackupListFlags(t, cmd)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }
 
 func (suite *GroupsUnitSuite) TestBackupDetailsFlags() {
@@ -255,53 +236,39 @@ func (suite *GroupsUnitSuite) TestBackupDetailsFlags() {
 
 	cmd := &cobra.Command{Use: detailsCommand}
 
-	// normally a persistent flag from the root.
-	// required to ensure a dry run.
+	// global flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
+	flags.AddAllProviderFlags(cmd)
+	flags.AddAllStorageFlags(cmd)
 
 	c := addGroupsCommands(cmd)
 	require.NotNil(t, c)
 
-	// Test arg parsing for few args
-	cmd.SetArgs([]string{
+	flagsTD.WithFlags(
+		cmd,
 		groupsServiceCommand,
-		"--" + flags.RunModeFN, flags.RunModeFlagTest,
-		"--" + flags.BackupFN, testdata.BackupInput,
-
-		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-
-		// bool flags
-		"--" + flags.SkipReduceFN,
-	})
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+			"--" + flags.SkipReduceFN,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
 
 	cmd.SetOut(new(bytes.Buffer)) // drop output
 	cmd.SetErr(new(bytes.Buffer)) // drop output
+
 	err := cmd.Execute()
 	assert.NoError(t, err, clues.ToCore(err))
 
 	co := utils.Control()
 
-	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
-
-	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
 
 	assert.True(t, co.SkipReduce)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }
 
 func (suite *GroupsUnitSuite) TestBackupDeleteFlags() {
@@ -309,44 +276,44 @@ func (suite *GroupsUnitSuite) TestBackupDeleteFlags() {
 
 	cmd := &cobra.Command{Use: deleteCommand}
 
-	// normally a persistent flag from the root.
-	// required to ensure a dry run.
+	// global flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
+	flags.AddAllProviderFlags(cmd)
+	flags.AddAllStorageFlags(cmd)
 
 	c := addGroupsCommands(cmd)
 	require.NotNil(t, c)
 
+	flagsTD.WithFlags(
+		cmd,
+		groupsServiceCommand,
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
 	// Test arg parsing for few args
-	cmd.SetArgs([]string{
+	args := []string{
 		groupsServiceCommand,
 		"--" + flags.RunModeFN, flags.RunModeFlagTest,
-		"--" + flags.BackupFN, testdata.BackupInput,
+		"--" + flags.BackupFN, flagsTD.BackupInput,
+	}
 
-		"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-		"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-		"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+	args = append(args, flagsTD.PreparedProviderFlags()...)
+	args = append(args, flagsTD.PreparedStorageFlags()...)
 
-		"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-		"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-		"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-		"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-	})
+	cmd.SetArgs(args)
 
 	cmd.SetOut(new(bytes.Buffer)) // drop output
 	cmd.SetErr(new(bytes.Buffer)) // drop output
+
 	err := cmd.Execute()
 	assert.NoError(t, err, clues.ToCore(err))
 
-	assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
 
-	assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-	assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-	assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-	assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-	assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-	assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-	assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }

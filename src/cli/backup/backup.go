@@ -48,34 +48,14 @@ func AddCommands(cmd *cobra.Command) {
 
 	for _, sc := range subCommandFuncs {
 		subCommand := sc()
+		flags.AddAllProviderFlags(subCommand)
+		flags.AddAllStorageFlags(subCommand)
 		backupC.AddCommand(subCommand)
 
 		for _, addBackupTo := range serviceCommands {
 			addBackupTo(subCommand)
 		}
 	}
-}
-
-// ---------------------------------------------------------------------------
-// common flags and flag attachers for commands
-// ---------------------------------------------------------------------------
-
-func addFailedItemsFN(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
-		&flags.ListFailedItemsFV, flags.FailedItemsFN, "show",
-		"Toggles showing or hiding the list of items that failed.")
-}
-
-func addSkippedItemsFN(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
-		&flags.ListSkippedItemsFV, flags.SkippedItemsFN, "show",
-		"Toggles showing or hiding the list of items that were skipped.")
-}
-
-func addRecoveredErrorsFN(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
-		&flags.ListRecoveredErrorsFV, flags.RecoveredErrorsFN, "show",
-		"Toggles showing or hiding the list of errors which corso recovered from.")
 }
 
 // ---------------------------------------------------------------------------
