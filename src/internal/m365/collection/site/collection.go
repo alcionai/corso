@@ -290,7 +290,7 @@ func (sc *Collection) retrievePages(
 		return metrics, clues.New("beta service required").WithClues(ctx)
 	}
 
-	parent, err := as.GetByID(ctx, sc.fullPath.ProtectedResource())
+	parent, err := as.GetByID(ctx, sc.fullPath.ProtectedResource(), api.CallConfig{})
 	if err != nil {
 		return metrics, err
 	}

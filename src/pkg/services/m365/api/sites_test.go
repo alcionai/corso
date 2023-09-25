@@ -232,7 +232,11 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			site, err := sitesAPI.GetByID(ctx, test.id)
+			cc := api.CallConfig{
+				Expand: []string{"drive"},
+			}
+
+			site, err := sitesAPI.GetByID(ctx, test.id, cc)
 			expectedErr := test.expectErr(t, err)
 
 			if expectedErr {
