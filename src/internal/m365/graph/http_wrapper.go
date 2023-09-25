@@ -82,7 +82,7 @@ func (hw httpWrapper) Request(
 	body io.Reader,
 	headers map[string]string,
 ) (*http.Response, error) {
-	req, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, clues.Wrap(err, "new http request")
 	}
