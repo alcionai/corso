@@ -67,7 +67,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 			// Cache check with lowercased ids
 			map[string]string{strings.ToLower(driveID): driveName})
 		dii           = odStub.DriveItemInfo()
-		expectedPath  = "Libraries/" + driveName
+		expectedPath  = path.LibrariesCategory.HumanString() + "/" + driveName
 		expectedItems = []export.Item{
 			{
 				ID:   "id1.data",

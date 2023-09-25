@@ -46,7 +46,7 @@ func (c Contacts) CreateContainer(
 	mdl, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -71,9 +71,9 @@ func (c Contacts) DeleteContainer(
 	err = srv.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(containerID).
+		ByContactFolderId(containerID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
@@ -95,9 +95,9 @@ func (c Contacts) GetContainerByID(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(containerID).
+		ByContactFolderId(containerID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -124,7 +124,7 @@ func (c Contacts) GetContainerByName(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
 		Get(ctx, options)
 	if err != nil {
@@ -164,9 +164,9 @@ func (c Contacts) PatchFolder(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(containerID).
+		ByContactFolderId(containerID).
 		Patch(ctx, body, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "patching contact folder")
@@ -193,9 +193,9 @@ func (c Contacts) GetItem(
 	cont, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Contacts().
-		ByContactIdString(itemID).
+		ByContactId(itemID).
 		Get(ctx, options)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
@@ -212,9 +212,9 @@ func (c Contacts) PostItem(
 	itm, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		ContactFolders().
-		ByContactFolderIdString(containerID).
+		ByContactFolderId(containerID).
 		Contacts().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -238,9 +238,9 @@ func (c Contacts) DeleteItem(
 	err = srv.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Contacts().
-		ByContactIdString(itemID).
+		ByContactId(itemID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting contact")

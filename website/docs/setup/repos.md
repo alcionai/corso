@@ -162,11 +162,9 @@ TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
 
 ## Filesystem Storage
 
-Corso supports creating a repository on a local or network attached filesystem.
-
 :::note
-Filesystem repositories aren't S3 compatible. Copying a local repository directly to S3-compatible object storage
-or the other way around isn't supported.
+Filesystem repositories are only recommended for testing and pre-production use. They aren't recommended for
+production.
 :::
 
 ### Initialize a filesystem repository
@@ -174,6 +172,10 @@ or the other way around isn't supported.
 Before first use, you need to initialize a Corso repository with `corso repo init filesystem`. See the command details
 [here](../../cli/corso-repo-init-filesystem). Corso will create the directory structure if necessary, including any
 missing parent directories.
+
+Filesystem repositories don't support the `--prefix` option but instead use the `--path` option. Repository directories
+are created with `0700` permission mode and files withing the repository are created with `0600`. Once created, these
+repositories can't be moved to object storage later.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -242,10 +244,3 @@ docker run --env-file $HOME/.corso/corso.env \\
 
 </TabItem>
 </Tabs>
-
-### Remarks
-
-* Filesystem repositories can be quickly set up and are well-suited for smaller scale projects or
-testing environments. However, they don't offer the same level of interoperability as an S3 compatible object storage.
-* `--prefix` options aren't supported.
-* Repository directories are created with `0700` permission mode. Files are created with `0600`.

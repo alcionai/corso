@@ -202,6 +202,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	ctx = count.Embed(ctx, op.Counter)
+
 	// Check if the protected resource has the service enabled in order for us
 	// to run a backup.
 	enabled, err := op.bp.IsServiceEnabled(
@@ -856,11 +858,22 @@ func (op *BackupOperation) createBackupModels(
 	// are generated during the serialization process.
 	errs := fault.New(true)
 
+	// We don't persist a backup if there were non-recoverable errors seen
+	// during the operation, regardless of the failure policy. Unlikely we'd
+	// hit this here as the preceding code should already take care of it.
+	if op.Errors.Failure() != nil {
+		return clues.Wrap(op.Errors.Failure(), "non-recoverable failure").WithClues(ctx)
+	}
+
 	if deets == nil {
 		return clues.New("no backup details to record").WithClues(ctx)
 	}
 
 	ctx = clues.Add(ctx, "details_entry_count", len(deets.Entries))
+
+	if len(snapID) == 0 {
+		return clues.New("no snapshot ID to record").WithClues(ctx)
+	}
 
 	err := sscw.Collect(ctx, streamstore.DetailsCollector(deets))
 	if err != nil {

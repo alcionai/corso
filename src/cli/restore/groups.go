@@ -27,7 +27,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, true)
-		flags.AddRestorePermissionsFlag(c)
+		flags.AddSkipPermissionsFlag(c)
 		flags.AddSharePointDetailsAndRestoreFlags(c) // for sp restores
 		flags.AddSiteIDFlag(c)
 		flags.AddRestoreConfigFlags(c)
@@ -48,8 +48,8 @@ const (
 	groupsServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Marketing's last backup (1234abcd...)
 corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore the file with ID 98765abcdef along with its associated permissions
-corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --restore-permissions
+# Restore the file with ID 98765abcdef without its associated permissions
+corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --skip-permissions
 
 # Restore all files named "FY2021 Planning.xlsx"
 corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file "FY2021 Planning.xlsx"
