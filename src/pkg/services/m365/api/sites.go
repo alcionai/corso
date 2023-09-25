@@ -111,12 +111,16 @@ var uuidRE = regexp.MustCompile(uuidRETmpl)
 // deadbeef-0000-0000-0000-000000000000,beefdead-0000-0000-0000-000000000000
 var siteIDRE = regexp.MustCompile(`(.+,)?` + uuidRETmpl + "," + uuidRETmpl)
 
-const sitesWebURLGetTemplate = "https://graph.microsoft.com/v1.0/sites/%s:/%s?$expand=drive"
+const sitesWebURLGetTemplate = "https://graph.microsoft.com/v1.0/sites/%s:/%s%s"
 
 // GetByID looks up the site matching the given identifier.  The identifier can be either a
 // canonical site id or a webURL.  Assumes the webURL is complete and well formed;
 // eg: https://10rqc2.sharepoint.com/sites/Example
-func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable, error) {
+func (c Sites) GetByID(
+	ctx context.Context,
+	identifier string,
+	cc CallConfig,
+) (models.Siteable, error) {
 	var (
 		resp models.Siteable
 		err  error
@@ -126,9 +130,11 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 
 	if siteIDRE.MatchString(identifier) {
 		options := &sites.SiteItemRequestBuilderGetRequestConfiguration{
-			QueryParameters: &sites.SiteItemRequestBuilderGetQueryParameters{
-				Expand: []string{"drive"},
-			},
+			QueryParameters: &sites.SiteItemRequestBuilderGetQueryParameters{},
+		}
+
+		if len(cc.Expand) > 0 {
+			options.QueryParameters.Expand = cc.Expand
 		}
 
 		resp, err = c.Stable.
@@ -167,7 +173,13 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 
 	// don't construct a path with double leading slashes
 	path := strings.TrimPrefix(u.Path, "/")
-	rawURL := fmt.Sprintf(sitesWebURLGetTemplate, u.Host, path)
+
+	qp := ""
+	if len(cc.Expand) > 0 {
+		qp = "?expand=" + strings.Join(cc.Expand, ",")
+	}
+
+	rawURL := fmt.Sprintf(sitesWebURLGetTemplate, u.Host, path, qp)
 
 	resp, err = sites.
 		NewItemSitesSiteItemRequestBuilder(rawURL, c.Stable.Adapter()).
@@ -190,8 +202,12 @@ func (c Sites) GetByID(ctx context.Context, identifier string) (models.Siteable,
 // GetIDAndName looks up the site matching the given ID, and returns
 // its canonical ID and the webURL as the name.  Accepts an ID or a
 // WebURL as an ID.
-func (c Sites) GetIDAndName(ctx context.Context, siteID string) (string, string, error) {
-	s, err := c.GetByID(ctx, siteID)
+func (c Sites) GetIDAndName(
+	ctx context.Context,
+	siteID string,
+	cc CallConfig,
+) (string, string, error) {
+	s, err := c.GetByID(ctx, siteID, cc)
 	if err != nil {
 		return "", "", err
 	}

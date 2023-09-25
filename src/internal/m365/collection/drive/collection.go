@@ -301,8 +301,11 @@ func (oc *Collection) getDriveItemContent(
 			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
 		}
 
-		logger.CtxErr(ctx, err).Error("downloading item content")
-		errs.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+		errs.AddRecoverable(
+			ctx,
+			clues.Wrap(err, "downloading item content").
+				WithClues(ctx).
+				Label(fault.LabelForceNoBackupCreation))
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
 		// the data consumer that this item is unreadable, regardless of the fault state.
