@@ -491,8 +491,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_NoRead_GetInfo_Errors() {
 		nil,
 		"itemID",
 		time.Now(),
-		fault.New(true),
-	)
+		fault.New(true))
 
 	_, err := li.(data.ItemInfo).Info()
 	assert.Error(suite.T(), err, "Info without reading data should error")
@@ -582,8 +581,7 @@ func (suite *CollectionUnitSuite) TestLazyItem() {
 				},
 				"itemID",
 				test.modTime,
-				fault.New(true),
-			)
+				fault.New(true))
 
 			assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
 			assert.Equal(

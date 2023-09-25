@@ -278,8 +278,7 @@ func (col *prefetchCollection) streamItems(
 			stream <- data.NewPrefetchedItem(
 				io.NopCloser(bytes.NewReader(itemData)),
 				id,
-				details.ItemInfo{Exchange: info},
-			)
+				details.ItemInfo{Exchange: info})
 
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, info.Size)
@@ -402,8 +401,7 @@ func (col *lazyFetchCollection) streamItems(
 			},
 			id,
 			modTime,
-			errs,
-		)
+			errs)
 
 		atomic.AddInt64(&success, 1)
 
