@@ -6,7 +6,7 @@ replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.2023082219
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.3.1
-	github.com/alcionai/clues v0.0.0-20230728164842-7dc4795a43e4
+	github.com/alcionai/clues v0.0.0-20230920212840-728ac1a1d8b8
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/cenkalti/backoff/v4 v4.2.1
@@ -33,7 +33,7 @@ require (
 	github.com/tomlazar/table v0.1.2
 	github.com/vbauerster/mpb/v8 v8.1.6
 	go.uber.org/zap v1.26.0
-	golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/time v0.3.0
 	golang.org/x/tools v0.13.0
 )

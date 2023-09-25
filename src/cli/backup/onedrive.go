@@ -40,7 +40,8 @@ corso backup create onedrive --user alice@example.com,bob@example.com
 # Backup all OneDrive data for all M365 users 
 corso backup create onedrive --user '*'`
 
-	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd and 1234abcd-12ab-cd34-56de-1234abce
+	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
+	and 1234abcd-12ab-cd34-56de-1234abce
 corso backup delete onedrive --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	oneDriveServiceCommandDetailsExamples = `# Explore items in Bob's latest backup (1234abcd...)

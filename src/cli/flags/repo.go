@@ -31,7 +31,7 @@ func AddMultipleBackupIDsFlag(cmd *cobra.Command, require bool) {
 	cmd.Flags().StringSliceVar(
 		&BackupIDsFV,
 		BackupIDsFN, nil,
-		"comman separated IDs of the backup to retrieve")
+		"',' separated IDs of the backup to retrieve")
 
 	if require {
 		cobra.CheckErr(cmd.MarkFlagRequired(BackupIDsFN))

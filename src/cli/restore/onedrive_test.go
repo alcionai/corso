@@ -81,9 +81,6 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
 
 				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-
-				// bool flags
-				"--" + flags.RestorePermissionsFN,
 			})
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
@@ -114,7 +111,6 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
 
 			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
-			assert.True(t, flags.RestorePermissionsFV)
 		})
 	}
 }

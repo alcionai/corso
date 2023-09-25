@@ -44,7 +44,8 @@ corso backup create sharepoint --site https://example.com/hr,https://example.com
 # Backup all SharePoint data for all Sites
 corso backup create sharepoint --site '*'`
 
-	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd and 1234abcd-12ab-cd34-56de-1234abce
+	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
+	and 1234abcd-12ab-cd34-56de-1234abce
 corso backup delete sharepoint --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	sharePointServiceCommandDetailsExamples = `# Explore items in the HR site's latest backup (1234abcd...)
@@ -122,7 +123,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
 
-		flags.AddBackupIDsFlag(c, false)
+		flags.AddMultipleBackupIDsFlag(c, false)
 		flags.AddBackupIDFlag(c, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)

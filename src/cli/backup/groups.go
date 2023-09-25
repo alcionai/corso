@@ -46,7 +46,8 @@ corso backup create groups --group Marketing --data messages
 # Backup all Groups and Teams data for all groups
 corso backup create groups --group '*'`
 
-	groupsServiceCommandDeleteExamples = `# Delete Groups backup with ID 1234abcd-12ab-cd34-56de-1234abcd and 1234abcd-12ab-cd34-56de-1234abce
+	groupsServiceCommandDeleteExamples = `# Delete Groups backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
+	and 1234abcd-12ab-cd34-56de-1234abce
 corso backup delete groups --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	groupsServiceCommandDetailsExamples = `# Explore items in Marketing's latest backup (1234abcd...)

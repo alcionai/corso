@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // MaintenanceOperation wraps an operation with restore-specific props.
@@ -33,17 +34,18 @@ func NewMaintenanceOperation(
 	ctx context.Context,
 	opts control.Options,
 	kw *kopia.Wrapper,
+	storer store.BackupStorer,
 	mOpts repository.Maintenance,
 	bus events.Eventer,
 ) (MaintenanceOperation, error) {
 	op := MaintenanceOperation{
-		operation: newOperation(opts, bus, count.New(), kw, nil),
+		operation: newOperation(opts, bus, count.New(), kw, storer),
 		mOpts:     mOpts,
 	}
 
-	// Don't run validation because we don't populate the model store.
+	err := op.validate()
 
-	return op, nil
+	return op, clues.Stack(err).OrNil()
 }
 
 func (op *MaintenanceOperation) Run(ctx context.Context) (err error) {
@@ -83,7 +85,7 @@ func (op *MaintenanceOperation) do(ctx context.Context) error {
 		op.Results.CompletedAt = time.Now()
 	}()
 
-	err := op.operation.kopia.RepoMaintenance(ctx, op.mOpts)
+	err := op.operation.kopia.RepoMaintenance(ctx, op.store, op.mOpts)
 	if err != nil {
 		op.Status = Failed
 		return clues.Wrap(err, "running maintenance operation")
