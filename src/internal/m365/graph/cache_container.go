@@ -95,7 +95,6 @@ type CacheFolder struct {
 	p *path.Builder
 }
 
-// NewCacheFolder public constructor for struct
 func NewCacheFolder(c Container, pb, lpb *path.Builder) CacheFolder {
 	cf := CacheFolder{
 		Container: c,
