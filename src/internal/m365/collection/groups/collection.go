@@ -212,18 +212,18 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				parentFolderID,
 				id)
 			if err != nil {
-				logger.CtxErr(ctx, err).Info("writing channel message to serializer")
+				el.AddRecoverable(ctx, clues.Wrap(err, "writing channel message to serializer"))
 				return
 			}
 
 			if err := writer.WriteObjectValue("", item); err != nil {
-				logger.CtxErr(ctx, err).Info("writing channel message to serializer")
+				el.AddRecoverable(ctx, clues.Wrap(err, "writing channel message to serializer"))
 				return
 			}
 
 			data, err := writer.GetSerializedContent()
 			if err != nil {
-				logger.CtxErr(ctx, err).Info("serializing channel message")
+				el.AddRecoverable(ctx, clues.Wrap(err, "serializing channel message"))
 				return
 			}
 
