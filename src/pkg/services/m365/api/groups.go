@@ -231,7 +231,11 @@ func IsTeam(ctx context.Context, mg models.Groupable) bool {
 
 // GetIDAndName looks up the group matching the given ID, and returns
 // its canonical ID and the name.
-func (c Groups) GetIDAndName(ctx context.Context, groupID string) (string, string, error) {
+func (c Groups) GetIDAndName(
+	ctx context.Context,
+	groupID string,
+	_ CallConfig, // not currently supported
+) (string, string, error) {
 	s, err := c.GetByID(ctx, groupID)
 	if err != nil {
 		return "", "", err

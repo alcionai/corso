@@ -118,3 +118,11 @@ func (c Client) Get(
 ) (*http.Response, error) {
 	return c.Requester.Request(ctx, http.MethodGet, url, nil, headers)
 }
+
+// ---------------------------------------------------------------------------
+// per-call config
+// ---------------------------------------------------------------------------
+
+type CallConfig struct {
+	Expand []string
+}

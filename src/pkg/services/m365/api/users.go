@@ -131,7 +131,11 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 
 // GetIDAndName looks up the user matching the given ID, and returns
 // its canonical ID and the PrincipalName as the name.
-func (c Users) GetIDAndName(ctx context.Context, userID string) (string, string, error) {
+func (c Users) GetIDAndName(
+	ctx context.Context,
+	userID string,
+	_ CallConfig, // not currently supported
+) (string, string, error) {
 	u, err := c.GetByID(ctx, userID)
 	if err != nil {
 		return "", "", err
