@@ -21,7 +21,7 @@ func NewDeletedItem(itemID string) Item {
 		// TODO(ashmrtn): This really doesn't need to be set since deleted items are
 		// never passed to the actual storage engine. Setting it for now so tests
 		// don't break.
-		modTime: time.Now(),
+		modTime: time.Now().UTC(),
 	}
 }
 
