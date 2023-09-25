@@ -31,7 +31,7 @@ func GetAccountAndConnectWithOverrides(
 	ctx context.Context,
 	cmd *cobra.Command,
 	pst path.ServiceType,
-) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
+) (repository.Repositoryer, *storage.Storage, *account.Account, *control.Options, error) {
 	provider, overrides, err := GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
 		return nil, nil, nil, nil, clues.Stack(err)
@@ -45,7 +45,7 @@ func GetAccountAndConnect(
 	pst path.ServiceType,
 	provider storage.ProviderType,
 	overrides map[string]string,
-) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
+) (repository.Repositoryer, *storage.Storage, *account.Account, *control.Options, error) {
 	cfg, err := config.GetConfigRepoDetails(
 		ctx,
 		provider,
@@ -63,8 +63,17 @@ func GetAccountAndConnect(
 
 	opts := ControlWithConfig(cfg)
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, opts)
+	r, err := repository.New(
+		ctx,
+		cfg.Account,
+		cfg.Storage,
+		opts,
+		repoID)
 	if err != nil {
+		return nil, nil, nil, nil, clues.Wrap(err, "creating a repository controller")
+	}
+
+	if err := r.Connect(ctx); err != nil {
 		return nil, nil, nil, nil, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
 	}
 
@@ -81,7 +90,7 @@ func AccountConnectAndWriteRepoConfig(
 	ctx context.Context,
 	cmd *cobra.Command,
 	pst path.ServiceType,
-) (repository.Repository, *account.Account, error) {
+) (repository.Repositoryer, *account.Account, error) {
 	r, stg, acc, opts, err := GetAccountAndConnectWithOverrides(
 		ctx,
 		cmd,
@@ -115,7 +124,7 @@ func AccountConnectAndWriteRepoConfig(
 }
 
 // CloseRepo handles closing a repo.
-func CloseRepo(ctx context.Context, r repository.Repository) {
+func CloseRepo(ctx context.Context, r repository.Repositoryer) {
 	if err := r.Close(ctx); err != nil {
 		fmt.Print("Error closing repository:", err)
 	}

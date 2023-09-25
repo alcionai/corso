@@ -165,7 +165,7 @@ var defaultSelectorConfig = selectors.Config{OnlyMatchItemNames: true}
 
 func runBackups(
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	serviceName string,
 	selectorSet []selectors.Selector,
 	ins idname.Cacher,
@@ -342,7 +342,7 @@ func ifShow(flag string) bool {
 	return strings.ToLower(strings.TrimSpace(flag)) == "show"
 }
 
-func printBackupStats(ctx context.Context, r repository.Repository, bid string) {
+func printBackupStats(ctx context.Context, r repository.Repositoryer, bid string) {
 	b, err := r.Backup(ctx, bid)
 	if err != nil {
 		logger.CtxErr(ctx, err).Error("finding backup immediately after backup operation completion")
