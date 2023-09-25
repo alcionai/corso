@@ -105,7 +105,7 @@ func (hw httpWrapper) Request(
 	// retry in the event of a `stream error`, which is not
 	// a common expectation.
 	for i := 0; i < hw.config.maxConnectionRetries+1; i++ {
-		ictx := clues.Add(ctx, "request_retry_iter", i)
+		ctx = clues.Add(ctx, "request_retry_iter", i)
 
 		resp, err = hw.client.Do(req)
 
@@ -114,15 +114,15 @@ func (hw httpWrapper) Request(
 		}
 
 		if IsErrApplicationThrottled(err) {
-			return nil, Stack(ictx, clues.Stack(ErrApplicationThrottled, err))
+			return nil, Stack(ctx, clues.Stack(ErrApplicationThrottled, err))
 		}
 
 		var http2StreamErr http2.StreamError
 		if !errors.As(err, &http2StreamErr) {
-			return nil, Stack(ictx, err)
+			return nil, Stack(ctx, err)
 		}
 
-		logger.Ctx(ictx).Debug("http2 stream error")
+		logger.Ctx(ctx).Debug("http2 stream error")
 		events.Inc(events.APICall, "streamerror")
 
 		time.Sleep(3 * time.Second)
@@ -131,6 +131,8 @@ func (hw httpWrapper) Request(
 	if err != nil {
 		return nil, Stack(ctx, err)
 	}
+
+	logResp(ctx, resp)
 
 	return resp, nil
 }
