@@ -47,7 +47,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 	flags.AddDisableIncrementalsFlag(cmd)
 	flags.AddForceItemDataDownloadFlag(cmd)
 	flags.AddDisableDeltaFlag(cmd)
-	flags.AddSkipPermissionsFlag(cmd)
+	flags.AddNoPermissionsFlag(cmd)
 	flags.AddSkipReduceFlag(cmd)
 	flags.AddFetchParallelismFlag(cmd)
 	flags.AddDisableConcurrencyLimiterFlag(cmd)
