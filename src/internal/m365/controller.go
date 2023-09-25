@@ -205,7 +205,11 @@ type resourceClient struct {
 }
 
 type getIDAndNamer interface {
-	GetIDAndName(ctx context.Context, owner string) (
+	GetIDAndName(
+		ctx context.Context,
+		owner string,
+		cc api.CallConfig,
+	) (
 		ownerID string,
 		ownerName string,
 		err error,
@@ -254,7 +258,7 @@ func (r resourceClient) getOwnerIDAndNameFrom(
 		err      error
 	)
 
-	id, name, err = r.getter.GetIDAndName(ctx, owner)
+	id, name, err = r.getter.GetIDAndName(ctx, owner, api.CallConfig{})
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
 			return "", "", clues.Stack(graph.ErrResourceOwnerNotFound, err)
