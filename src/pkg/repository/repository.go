@@ -123,8 +123,7 @@ func New(
 
 type InitConfig struct {
 	// tells the data provider which service to
-	// use for its connection pattern.  Leave empty
-	// to skip the provider connection.
+	// use for its connection pattern.  Optional.
 	Service       path.ServiceType
 	RetentionOpts ctrlRepo.Retention
 }
@@ -151,10 +150,8 @@ func (r *repository) Initialize(
 		}
 	}()
 
-	if cfg.Service != path.UnknownService {
-		if err := r.ConnectDataProvider(ctx, cfg.Service); err != nil {
-			return clues.Stack(err)
-		}
+	if err := r.ConnectDataProvider(ctx, cfg.Service); err != nil {
+		return clues.Stack(err)
 	}
 
 	kopiaRef := kopia.NewConn(r.Storage)
@@ -216,10 +213,8 @@ func (r *repository) Connect(
 		}
 	}()
 
-	if cfg.Service != path.UnknownService {
-		if err := r.ConnectDataProvider(ctx, cfg.Service); err != nil {
-			return clues.Stack(err)
-		}
+	if err := r.ConnectDataProvider(ctx, cfg.Service); err != nil {
+		return clues.Stack(err)
 	}
 
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")

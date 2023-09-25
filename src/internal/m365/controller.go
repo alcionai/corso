@@ -79,20 +79,24 @@ func NewController(
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
-	rc := resource.UnknownResource
+	var rCli *resourceClient
 
-	switch pst {
-	case path.ExchangeService, path.OneDriveService:
-		rc = resource.Users
-	case path.GroupsService:
-		rc = resource.Groups
-	case path.SharePointService:
-		rc = resource.Sites
-	}
+	if pst != path.UnknownService {
+		rc := resource.UnknownResource
 
-	rCli, err := getResourceClient(rc, ac)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
+		switch pst {
+		case path.ExchangeService, path.OneDriveService:
+			rc = resource.Users
+		case path.GroupsService:
+			rc = resource.Groups
+		case path.SharePointService:
+			rc = resource.Sites
+		}
+
+		rCli, err = getResourceClient(rc, ac)
+		if err != nil {
+			return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
+		}
 	}
 
 	ctrl := Controller{
@@ -108,6 +112,10 @@ func NewController(
 	}
 
 	return &ctrl, nil
+}
+
+func (ctrl *Controller) VerifyAccess(ctx context.Context) error {
+	return ctrl.AC.Access().GetToken(ctx)
 }
 
 // ---------------------------------------------------------------------------
@@ -195,7 +203,7 @@ func getResourceClient(rc resource.Category, ac api.Client) (*resourceClient, er
 	case resource.Groups:
 		return &resourceClient{enum: rc, getter: ac.Groups()}, nil
 	default:
-		return nil, clues.New("unrecognized owner resource enum").With("resource_enum", rc)
+		return nil, clues.New("unrecognized owner resource type").With("resource_enum", rc)
 	}
 }
 
