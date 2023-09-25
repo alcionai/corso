@@ -1,15 +1,25 @@
 package testdata
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/spf13/cobra"
+)
 
 func FlgInputs(in []string) string { return strings.Join(in, ",") }
 
 var (
 	BackupInput = "backup-id"
 
-	UsersInput  = []string{"users1", "users2"}
-	SiteIDInput = []string{"siteID1", "siteID2"}
-	WebURLInput = []string{"webURL1", "webURL2"}
+	GroupsInput  = []string{"team1", "group2"}
+	MailboxInput = []string{"mailbox1", "mailbox2"}
+	UsersInput   = []string{"users1", "users2"}
+	SiteIDInput  = []string{"siteID1", "siteID2"}
+	WebURLInput  = []string{"webURL1", "webURL2"}
+
+	ExchangeCategoryDataInput   = []string{"email", "events", "contacts"}
+	SharepointCategoryDataInput = []string{"files", "lists", "pages"}
+	GroupsCategoryDataInput     = []string{"files", "lists", "pages", "messages"}
 
 	ContactInput     = []string{"contact1", "contact2"}
 	ContactFldInput  = []string{"contactFld1", "contactFld2"}
@@ -49,7 +59,7 @@ var (
 	ToResource      = "toResource"
 	SkipPermissions = false
 
-	DeltaPageSize = "deltaPageSize"
+	DeltaPageSize = "7"
 
 	Archive    = true
 	FormatType = "json"
@@ -65,4 +75,27 @@ var (
 	CorsoPassphrase = "testCorsoPassphrase"
 
 	RestoreDestination = "test-restore-destination"
+
+	FetchParallelism = "3"
+
+	FailFast                  = true
+	DisableIncrementals       = true
+	ForceItemDataDownload     = true
+	DisableDelta              = true
+	EnableImmutableID         = true
+	DisableConcurrencyLimiter = true
 )
+
+func WithFlags(
+	cc *cobra.Command,
+	command string,
+	flagSets ...[]string,
+) {
+	args := []string{command}
+
+	for _, sl := range flagSets {
+		args = append(args, sl...)
+	}
+
+	cc.SetArgs(args)
+}

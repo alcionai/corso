@@ -30,8 +30,6 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddOneDriveDetailsAndRestoreFlags(c)
 		flags.AddExportConfigFlags(c)
 		flags.AddFailFastFlag(c)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
 	}
 
 	return c
