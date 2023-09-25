@@ -46,8 +46,8 @@ corso backup create exchange --mailbox alice@example.com,bob@example.com --data 
 # Backup all Exchange data for all M365 users 
 corso backup create exchange --mailbox '*'`
 
-	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete exchange --backups 1234abcd-12ab-cd34-56de-1234abcd`
+	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with IDs 1234abcd-12ab-cd34-56de-1234abcd and 1234abcd-12ab-cd34-56de-1234abce
+corso backup delete exchange --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	exchangeServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -132,7 +132,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
 
-		flags.AddDeleteBackupIDFlag(c, true)
+		flags.AddMultipleBackupIDsFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
@@ -358,5 +359,16 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.ExchangeService, "Exchange", flags.BackupIDsFV, args)
+	backupIDValue := []string{}
+
+	if len(flags.BackupIDsFV) > 0 {
+		backupIDValue = flags.BackupIDsFV
+	} else if len(flags.BackupIDFV) > 0 {
+		backupIDValue[0] = flags.BackupIDFV
+	} else {
+		return clues.New("either --backup or --backups flag is required")
+
+	}
+
+	return genericDeleteCommand(cmd, path.ExchangeService, "Exchange", backupIDValue, args)
 }

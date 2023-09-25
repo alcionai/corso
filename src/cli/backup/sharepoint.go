@@ -44,8 +44,8 @@ corso backup create sharepoint --site https://example.com/hr,https://example.com
 # Backup all SharePoint data for all Sites
 corso backup create sharepoint --site '*'`
 
-	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete sharepoint --backups 1234abcd-12ab-cd34-56de-1234abcd`
+	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd and 1234abcd-12ab-cd34-56de-1234abce
+corso backup delete sharepoint --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	sharePointServiceCommandDetailsExamples = `# Explore items in the HR site's latest backup (1234abcd...)
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -122,7 +122,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
 
-		flags.AddDeleteBackupIDFlag(c, true)
+		flags.AddBackupIDsFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 		flags.AddCorsoPassphaseFlags(c)
 		flags.AddAWSCredsFlags(c)
 		flags.AddAzureCredsFlags(c)
@@ -294,7 +295,17 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.SharePointService, "SharePoint", flags.BackupIDsFV, args)
+	backupIDValue := []string{}
+
+	if len(flags.BackupIDsFV) > 0 {
+		backupIDValue = flags.BackupIDsFV
+	} else if len(flags.BackupIDFV) > 0 {
+		backupIDValue[0] = flags.BackupIDFV
+	} else {
+		return clues.New("either --backup or --backups flag is required")
+	}
+
+	return genericDeleteCommand(cmd, path.SharePointService, "SharePoint", backupIDValue, args)
 }
 
 // ------------------------------------------------------------------------------------------------

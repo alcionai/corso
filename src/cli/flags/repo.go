@@ -26,12 +26,12 @@ var (
 	SucceedIfExistsFV    bool
 )
 
-// AddBackupIDFlag adds the --backup flag.
-func AddDeleteBackupIDFlag(cmd *cobra.Command, require bool) {
+// AddMultipleBackupIDsFlag adds the --backups flag.
+func AddMultipleBackupIDsFlag(cmd *cobra.Command, require bool) {
 	cmd.Flags().StringSliceVar(
 		&BackupIDsFV,
 		BackupIDsFN, nil,
-		"IDs of the backup to delete")
+		"comman separated IDs of the backup to retrieve")
 
 	if require {
 		cobra.CheckErr(cmd.MarkFlagRequired(BackupIDsFN))
