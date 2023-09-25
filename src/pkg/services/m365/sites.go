@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type SiteOwnerType string
@@ -58,7 +59,11 @@ func SiteByID(
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	s, err := ac.Sites().GetByID(ctx, id)
+	cc := api.CallConfig{
+		Expand: []string{"drive"},
+	}
+
+	s, err := ac.Sites().GetByID(ctx, id, cc)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
