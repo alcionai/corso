@@ -33,9 +33,8 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
-	flags.AddAWSCredsFlags(c)
-	flags.AddAzureCredsFlags(c)
 	flags.AddCorsoPassphaseFlags(c)
+	flags.AddAWSCredsFlags(c)
 	flags.AddS3BucketFlags(c)
 
 	return c

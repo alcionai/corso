@@ -18,25 +18,29 @@ import (
 // container pager
 // ---------------------------------------------------------------------------
 
-// EnumerateContainers iterates through all of the users current
-// contacts folders, converting each to a graph.CacheFolder, and calling
-// fn(cf) on each one.
-// Folder hierarchy is represented in its current state, and does
-// not contain historical data.
-// TODO: use enumerateItems for containers
-func (c Contacts) EnumerateContainers(
-	ctx context.Context,
+var _ Pager[models.ContactFolderable] = &contactsFoldersPageCtrl{}
+
+type contactsFoldersPageCtrl struct {
+	gs      graph.Servicer
+	builder *users.ItemContactFoldersItemChildFoldersRequestBuilder
+	options *users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration
+}
+
+func (c Contacts) NewContactFoldersPager(
 	userID, baseContainerID string,
-	fn func(graph.CachedContainer) error,
-	errs *fault.Bus,
-) error {
-	config := &users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.ItemContactFoldersItemChildFoldersRequestBuilderGetQueryParameters{
-			Select: idAnd(displayName, parentFolderID),
-		},
+	immutableIDs bool,
+	selectProps ...string,
+) Pager[models.ContactFolderable] {
+	options := &users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		QueryParameters: &users.ItemContactFoldersItemChildFoldersRequestBuilderGetQueryParameters{},
+		// do NOT set Top.  It limits the total items received.
 	}
 
-	el := errs.Local()
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
 	builder := c.Stable.
 		Client().
 		Users().
@@ -45,44 +49,57 @@ func (c Contacts) EnumerateContainers(
 		ByContactFolderId(baseContainerID).
 		ChildFolders()
 
-	for {
+	return &contactsFoldersPageCtrl{c.Stable, builder, options}
+}
+
+func (p *contactsFoldersPageCtrl) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[models.ContactFolderable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+func (p *contactsFoldersPageCtrl) SetNextLink(nextLink string) {
+	p.builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *contactsFoldersPageCtrl) ValidModTimes() bool {
+	return true
+}
+
+// EnumerateContainers iterates through all of the users current
+// contacts folders, transforming each to a graph.CacheFolder, and calling
+// fn(cf).
+// Contact folders are represented in their current state, and do
+// not contain historical data.
+func (c Contacts) EnumerateContainers(
+	ctx context.Context,
+	userID, baseContainerID string,
+	immutableIDs bool,
+	fn func(graph.CachedContainer) error,
+	errs *fault.Bus,
+) error {
+	var (
+		el  = errs.Local()
+		pgr = c.NewContactFoldersPager(userID, baseContainerID, immutableIDs)
+	)
+
+	containers, err := enumerateItems(ctx, pgr)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	for _, c := range containers {
 		if el.Failure() != nil {
 			break
 		}
 
-		resp, err := builder.Get(ctx, config)
-		if err != nil {
-			return graph.Stack(ctx, err)
+		gncf := graph.NewCacheFolder(c, nil, nil)
+
+		if err := fn(&gncf); err != nil {
+			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+			continue
 		}
-
-		for _, fold := range resp.GetValue() {
-			if el.Failure() != nil {
-				return el.Failure()
-			}
-
-			if err := graph.CheckIDNameAndParentFolderID(fold); err != nil {
-				errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
-			}
-
-			fctx := clues.Add(
-				ctx,
-				"container_id", ptr.Val(fold.GetId()),
-				"container_display_name", ptr.Val(fold.GetDisplayName()))
-
-			temp := graph.NewCacheFolder(fold, nil, nil)
-			if err := fn(&temp); err != nil {
-				errs.AddRecoverable(ctx, graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
-			}
-		}
-
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		builder = users.NewItemContactFoldersItemChildFoldersRequestBuilder(link, c.Stable.Adapter())
 	}
 
 	return el.Failure()

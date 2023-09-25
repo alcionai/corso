@@ -160,7 +160,7 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, validModTimes, removed, newDelta, err := bh.itemEnumerator().
+		added, _, removed, newDelta, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
@@ -199,7 +199,9 @@ func populateCollections(
 			bh.itemHandler(),
 			added,
 			removed,
-			validModTimes,
+			// TODO(ashmrtn): Set to value returned by pager when we have deletion
+			// markers in files.
+			false,
 			statusUpdater)
 
 		collections[cID] = edc
@@ -241,20 +243,7 @@ func populateCollections(
 			continue
 		}
 
-		edc := NewCollection(
-			data.NewBaseCollection(
-				nil, // marks the collection as deleted
-				prevPath,
-				nil, // tombstones don't need a location
-				ctrlOpts,
-				false),
-			qp.ProtectedResource.ID(),
-			bh.itemHandler(),
-			nil,
-			nil,
-			false,
-			statusUpdater)
-		collections[id] = edc
+		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts)
 	}
 
 	logger.Ctx(ctx).Infow(
