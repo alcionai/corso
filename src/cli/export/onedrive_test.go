@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -42,12 +42,15 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 
 			cmd := &cobra.Command{Use: test.use}
 
-			// normally a persistent flag from the root.
-			// required to ensure a dry run.
+			// persistent flags not added by addCommands
 			flags.AddRunModeFlag(cmd, true)
 
 			c := addOneDriveCommands(cmd)
 			require.NotNil(t, c)
+
+			// non-persistent flags not added by addCommands
+			flags.AddAllProviderFlags(c)
+			flags.AddAllStorageFlags(c)
 
 			cmds := cmd.Commands()
 			require.Len(t, cmds, 1)
@@ -57,53 +60,47 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
 
-			cmd.SetArgs([]string{
-				"onedrive",
-				testdata.RestoreDestination,
-				"--" + flags.RunModeFN, flags.RunModeFlagTest,
-				"--" + flags.BackupFN, testdata.BackupInput,
-				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
-				"--" + flags.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
-				"--" + flags.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
-				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
-				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
-				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
+			flagsTD.WithFlags(
+				cmd,
+				oneDriveServiceCommand,
+				[]string{
+					flagsTD.RestoreDestination,
+					"--" + flags.RunModeFN, flags.RunModeFlagTest,
+					"--" + flags.BackupFN, flagsTD.BackupInput,
+					"--" + flags.FileFN, flagsTD.FlgInputs(flagsTD.FileNameInput),
+					"--" + flags.FolderFN, flagsTD.FlgInputs(flagsTD.FolderPathInput),
+					"--" + flags.FileCreatedAfterFN, flagsTD.FileCreatedAfterInput,
+					"--" + flags.FileCreatedBeforeFN, flagsTD.FileCreatedBeforeInput,
+					"--" + flags.FileModifiedAfterFN, flagsTD.FileModifiedAfterInput,
+					"--" + flags.FileModifiedBeforeFN, flagsTD.FileModifiedBeforeInput,
 
-				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
+					"--" + flags.FormatFN, flagsTD.FormatType,
 
-				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-
-				"--" + flags.FormatFN, testdata.FormatType,
-
-				// bool flags
-				"--" + flags.ArchiveFN,
-			})
+					// bool flags
+					"--" + flags.ArchiveFN,
+				},
+				flagsTD.PreparedProviderFlags(),
+				flagsTD.PreparedStorageFlags())
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
 			cmd.SetErr(new(bytes.Buffer)) // drop output
+
 			err := cmd.Execute()
 			assert.NoError(t, err, clues.ToCore(err))
 
 			opts := utils.MakeOneDriveOpts(cmd)
-			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+			assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
 
-			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
-			assert.ElementsMatch(t, testdata.FolderPathInput, opts.FolderPath)
-			assert.Equal(t, testdata.FileCreatedAfterInput, opts.FileCreatedAfter)
-			assert.Equal(t, testdata.FileCreatedBeforeInput, opts.FileCreatedBefore)
-			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
-			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
+			assert.ElementsMatch(t, flagsTD.FileNameInput, opts.FileName)
+			assert.ElementsMatch(t, flagsTD.FolderPathInput, opts.FolderPath)
+			assert.Equal(t, flagsTD.FileCreatedAfterInput, opts.FileCreatedAfter)
+			assert.Equal(t, flagsTD.FileCreatedBeforeInput, opts.FileCreatedBefore)
+			assert.Equal(t, flagsTD.FileModifiedAfterInput, opts.FileModifiedAfter)
+			assert.Equal(t, flagsTD.FileModifiedBeforeInput, opts.FileModifiedBefore)
 
-			assert.Equal(t, testdata.Archive, opts.ExportCfg.Archive)
-			assert.Equal(t, testdata.FormatType, opts.ExportCfg.Format)
+			assert.Equal(t, flagsTD.CorsoPassphrase, flags.CorsoPassphraseFV)
 
-			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+			flagsTD.AssertStorageFlags(t, cmd)
 		})
 	}
 }

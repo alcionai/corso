@@ -1,7 +1,9 @@
 package backup
 
 import (
+	"bytes"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -11,10 +13,13 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/cli/utils/testdata"
+	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
+	"github.com/alcionai/corso/src/cli/utils"
+	utilsTD "github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	dtd "github.com/alcionai/corso/src/pkg/backup/details/testdata"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 type ExchangeUnitSuite struct {
@@ -33,7 +38,6 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 		use         string
 		expectUse   string
 		expectShort string
-		flags       []string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
@@ -41,65 +45,28 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			use:         createCommand,
 			expectUse:   expectUse + " " + exchangeServiceCommandCreateUseSuffix,
 			expectShort: exchangeCreateCmd().Short,
-			flags: []string{
-				flags.UserFN,
-				flags.CategoryDataFN,
-				flags.DisableIncrementalsFN,
-				flags.DisableDeltaFN,
-				flags.FailFastFN,
-				flags.FetchParallelismFN,
-				flags.SkipReduceFN,
-				flags.NoStatsFN,
-				flags.DeltaPageSizeFN,
-			},
-			expectRunE: createExchangeCmd,
+			expectRunE:  createExchangeCmd,
 		},
 		{
 			name:        "list exchange",
 			use:         listCommand,
 			expectUse:   expectUse,
 			expectShort: exchangeListCmd().Short,
-			flags: []string{
-				flags.BackupFN,
-				flags.FailedItemsFN,
-				flags.SkippedItemsFN,
-				flags.RecoveredErrorsFN,
-			},
-			expectRunE: listExchangeCmd,
+			expectRunE:  listExchangeCmd,
 		},
 		{
 			name:        "details exchange",
 			use:         detailsCommand,
 			expectUse:   expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
 			expectShort: exchangeDetailsCmd().Short,
-			flags: []string{
-				flags.BackupFN,
-				flags.ContactFN,
-				flags.ContactFolderFN,
-				flags.ContactNameFN,
-				flags.EmailFN,
-				flags.EmailFolderFN,
-				flags.EmailReceivedAfterFN,
-				flags.EmailReceivedBeforeFN,
-				flags.EmailSenderFN,
-				flags.EmailSubjectFN,
-				flags.EventFN,
-				flags.EventCalendarFN,
-				flags.EventOrganizerFN,
-				flags.EventRecursFN,
-				flags.EventStartsAfterFN,
-				flags.EventStartsBeforeFN,
-				flags.EventSubjectFN,
-			},
-			expectRunE: detailsExchangeCmd,
+			expectRunE:  detailsExchangeCmd,
 		},
 		{
-			"delete exchange",
-			deleteCommand,
-			expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
-			exchangeDeleteCmd().Short,
-			[]string{flags.BackupFN},
-			deleteExchangeCmd,
+			name:        "delete exchange",
+			use:         deleteCommand,
+			expectUse:   expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
+			expectShort: exchangeDeleteCmd().Short,
+			expectRunE:  deleteExchangeCmd,
 		},
 	}
 	for _, test := range table {
@@ -120,6 +87,200 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
 		})
 	}
+}
+
+func (suite *ExchangeUnitSuite) TestBackupCreateFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: createCommand}
+
+	// persistent flags not added by addCommands
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addExchangeCommands(cmd)
+	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
+
+	flagsTD.WithFlags(
+		cmd,
+		exchangeServiceCommand,
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
+	// Test arg parsing for few args
+	args := []string{
+		exchangeServiceCommand,
+		"--" + flags.RunModeFN, flags.RunModeFlagTest,
+
+		"--" + flags.MailBoxFN, flagsTD.FlgInputs(flagsTD.MailboxInput),
+		"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.ExchangeCategoryDataInput),
+
+		"--" + flags.FetchParallelismFN, flagsTD.FetchParallelism,
+		"--" + flags.DeltaPageSizeFN, flagsTD.DeltaPageSize,
+
+		// bool flags
+		"--" + flags.FailFastFN,
+		"--" + flags.DisableIncrementalsFN,
+		"--" + flags.ForceItemDataDownloadFN,
+		"--" + flags.DisableDeltaFN,
+		"--" + flags.EnableImmutableIDFN,
+		"--" + flags.DisableConcurrencyLimiterFN,
+	}
+
+	args = append(args, flagsTD.PreparedProviderFlags()...)
+	args = append(args, flagsTD.PreparedStorageFlags()...)
+
+	cmd.SetArgs(args)
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	opts := utils.MakeExchangeOpts(cmd)
+	co := utils.Control()
+
+	assert.ElementsMatch(t, flagsTD.MailboxInput, opts.Users)
+	// no assertion for category data input
+
+	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
+	assert.Equal(t, flagsTD.DeltaPageSize, strconv.Itoa(int(co.DeltaPageSize)))
+
+	// bool flags
+	assert.Equal(t, control.FailFast, co.FailureHandling)
+	assert.True(t, co.ToggleFeatures.DisableIncrementals)
+	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+	assert.True(t, co.ToggleFeatures.DisableDelta)
+	assert.True(t, co.ToggleFeatures.ExchangeImmutableIDs)
+	assert.True(t, co.ToggleFeatures.DisableConcurrencyLimiter)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *ExchangeUnitSuite) TestBackupListFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: listCommand}
+
+	// persistent flags not added by addCommands
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addExchangeCommands(cmd)
+	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
+
+	flagsTD.WithFlags(
+		cmd,
+		exchangeServiceCommand, []string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedBackupListFlags(),
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+
+	flagsTD.AssertBackupListFlags(t, cmd)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *ExchangeUnitSuite) TestBackupDetailsFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: detailsCommand}
+
+	// persistent flags not added by addCommands
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addExchangeCommands(cmd)
+	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
+
+	flagsTD.WithFlags(
+		cmd,
+		exchangeServiceCommand,
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+			"--" + flags.SkipReduceFN,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	co := utils.Control()
+
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+
+	assert.True(t, co.SkipReduce)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *ExchangeUnitSuite) TestBackupDeleteFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: deleteCommand}
+
+	// persistent flags not added by addCommands
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addExchangeCommands(cmd)
+	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
+
+	flagsTD.WithFlags(
+		cmd,
+		exchangeServiceCommand,
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }
 
 func (suite *ExchangeUnitSuite) TestValidateBackupCreateFlags() {
@@ -277,14 +438,14 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectors() {
 	for v := 0; v <= version.Backup; v++ {
 		suite.Run(fmt.Sprintf("version%d", v), func() {
-			for _, test := range testdata.ExchangeOptionDetailLookups {
+			for _, test := range utilsTD.ExchangeOptionDetailLookups {
 				suite.Run(test.Name, func() {
 					t := suite.T()
 
 					ctx, flush := tester.NewContext(t)
 					defer flush()
 
-					bg := testdata.VersionedBackupGetter{
+					bg := utilsTD.VersionedBackupGetter{
 						Details: dtd.GetDetailsSetForVersion(t, v),
 					}
 
@@ -303,7 +464,7 @@ func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectors() {
 }
 
 func (suite *ExchangeUnitSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
-	for _, test := range testdata.BadExchangeOptionsFormats {
+	for _, test := range utilsTD.BadExchangeOptionsFormats {
 		suite.Run(test.Name, func() {
 			t := suite.T()
 
