@@ -26,7 +26,7 @@ func (suite *EnvSuite) TestAddEnvCommands() {
 	AddCommands(cmd)
 
 	c := envCmd()
-	require.NotNil(t, cmd)
+	require.NotNil(t, c)
 
 	cmds := cmd.Commands()
 	require.Len(t, cmds, 1)
