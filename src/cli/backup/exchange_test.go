@@ -94,13 +94,15 @@ func (suite *ExchangeUnitSuite) TestBackupCreateFlags() {
 
 	cmd := &cobra.Command{Use: createCommand}
 
-	// global flags not added by addCommands
+	// persistent flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
-	flags.AddAllProviderFlags(cmd)
-	flags.AddAllStorageFlags(cmd)
 
 	c := addExchangeCommands(cmd)
 	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
 
 	flagsTD.WithFlags(
 		cmd,
@@ -169,13 +171,15 @@ func (suite *ExchangeUnitSuite) TestBackupListFlags() {
 
 	cmd := &cobra.Command{Use: listCommand}
 
-	// global flags not added by addCommands
+	// persistent flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
-	flags.AddAllProviderFlags(cmd)
-	flags.AddAllStorageFlags(cmd)
 
 	c := addExchangeCommands(cmd)
 	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
 
 	flagsTD.WithFlags(
 		cmd,
@@ -205,13 +209,15 @@ func (suite *ExchangeUnitSuite) TestBackupDetailsFlags() {
 
 	cmd := &cobra.Command{Use: detailsCommand}
 
-	// global flags not added by addCommands
+	// persistent flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
-	flags.AddAllProviderFlags(cmd)
-	flags.AddAllStorageFlags(cmd)
 
 	c := addExchangeCommands(cmd)
 	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
 
 	flagsTD.WithFlags(
 		cmd,
@@ -245,13 +251,15 @@ func (suite *ExchangeUnitSuite) TestBackupDeleteFlags() {
 
 	cmd := &cobra.Command{Use: deleteCommand}
 
-	// global flags not added by addCommands
+	// persistent flags not added by addCommands
 	flags.AddRunModeFlag(cmd, true)
-	flags.AddAllProviderFlags(cmd)
-	flags.AddAllStorageFlags(cmd)
 
 	c := addExchangeCommands(cmd)
 	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
 
 	flagsTD.WithFlags(
 		cmd,

@@ -39,6 +39,7 @@ func AddBackupIDFlag(cmd *cobra.Command, require bool) {
 
 func AddAllStorageFlags(cmd *cobra.Command) {
 	AddCorsoPassphaseFlags(cmd)
+	// AddAzureCredsFlags is added by ProviderFlags
 	AddAWSCredsFlags(cmd)
 }
 

@@ -42,12 +42,15 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 
 			cmd := &cobra.Command{Use: test.use}
 
-			// global flags not added by addCommands
+			// persistent flags not added by addCommands
 			flags.AddRunModeFlag(cmd, true)
-			flags.AddAllStorageFlags(cmd)
 
 			c := addSharePointCommands(cmd)
 			require.NotNil(t, c)
+
+			// non-persistent flags not added by addCommands
+			flags.AddAllProviderFlags(c)
+			flags.AddAllStorageFlags(c)
 
 			cmds := cmd.Commands()
 			require.Len(t, cmds, 1)
