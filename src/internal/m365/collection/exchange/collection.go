@@ -244,11 +244,14 @@ func (col *prefetchCollection) streamItems(
 		}(id)
 	}
 
-	parentPath := col.LocationPath().String()
+	var (
+		parentPath = col.LocationPath().String()
+		el         = errs.Local()
+	)
 
 	// add any new items
 	for id := range col.added {
-		if errs.Failure() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -276,7 +279,7 @@ func (col *prefetchCollection) streamItems(
 					atomic.AddInt64(&success, 1)
 					log.With("err", err).Infow("item not found", clues.InErr(err).Slice()...)
 				} else {
-					errs.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
+					el.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
 				}
 
 				return
