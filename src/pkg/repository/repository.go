@@ -160,8 +160,6 @@ func New(
 		bus.SetRepoID(r.ID)
 	}
 
-	r.Bus.Event(ctx, events.RepoInit, nil)
-
 	return &r, nil
 }
 
