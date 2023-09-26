@@ -47,7 +47,7 @@ corso backup create groups --group Marketing --data messages
 corso backup create groups --group '*'`
 
 	groupsServiceCommandDeleteExamples = `# Delete Groups backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
-	and 1234abcd-12ab-cd34-56de-1234abce
+and 1234abcd-12ab-cd34-56de-1234abce
 corso backup delete groups --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	groupsServiceCommandDetailsExamples = `# Explore items in Marketing's latest backup (1234abcd...)
@@ -312,7 +312,7 @@ func deleteGroupsCmd(cmd *cobra.Command, args []string) error {
 	if len(flags.BackupIDsFV) > 0 {
 		backupIDValue = flags.BackupIDsFV
 	} else if len(flags.BackupIDFV) > 0 {
-		backupIDValue[0] = flags.BackupIDFV
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
 	} else {
 		return clues.New("either --backup or --backups flag is required")
 	}

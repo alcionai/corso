@@ -41,7 +41,7 @@ corso backup create onedrive --user alice@example.com,bob@example.com
 corso backup create onedrive --user '*'`
 
 	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
-	and 1234abcd-12ab-cd34-56de-1234abce
+and 1234abcd-12ab-cd34-56de-1234abce
 corso backup delete onedrive --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	oneDriveServiceCommandDetailsExamples = `# Explore items in Bob's latest backup (1234abcd...)
@@ -313,7 +313,7 @@ func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
 	if len(flags.BackupIDsFV) > 0 {
 		backupIDValue = flags.BackupIDsFV
 	} else if len(flags.BackupIDFV) > 0 {
-		backupIDValue[0] = flags.BackupIDFV
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
 	} else {
 		return clues.New("either --backup or --backups flag is required")
 	}

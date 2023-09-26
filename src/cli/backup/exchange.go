@@ -47,7 +47,7 @@ corso backup create exchange --mailbox alice@example.com,bob@example.com --data 
 corso backup create exchange --mailbox '*'`
 
 	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with IDs 1234abcd-12ab-cd34-56de-1234abcd \
-	and 1234abcd-12ab-cd34-56de-1234abce
+and 1234abcd-12ab-cd34-56de-1234abce
 corso backup delete exchange --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	exchangeServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
@@ -354,12 +354,12 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	backupIDValue := []string{}
+	var backupIDValue []string
 
 	if len(flags.BackupIDsFV) > 0 {
 		backupIDValue = flags.BackupIDsFV
 	} else if len(flags.BackupIDFV) > 0 {
-		backupIDValue[0] = flags.BackupIDFV
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
 	} else {
 		return clues.New("either --backup or --backups flag is required")
 	}

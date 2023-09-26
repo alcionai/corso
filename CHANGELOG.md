@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enables local or network-attached storage for Corso repositories.
 - Reduce backup runtime for OneDrive and SharePoint incremental backups that have no file changes.
 - Increase Exchange backup performance by lazily fetching data only for items whose content changed.
+- Added `--backups` flag to delete multiple backups in `corso backup delete` command.
 
 ## [v0.13.0] (beta) - 2023-09-18
 

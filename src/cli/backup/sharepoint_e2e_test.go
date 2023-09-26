@@ -197,3 +197,21 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_unkno
 	err := cmd.ExecuteContext(ctx)
 	require.Error(t, err, clues.ToCore(err))
 }
+
+func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_NoBackupID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "groups",
+		"--config-file", suite.dpnd.configFilePath)
+	cli.BuildCommandTree(cmd)
+
+	// empty backupIDs should error since no data provided
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}

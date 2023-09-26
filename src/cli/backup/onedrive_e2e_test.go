@@ -215,6 +215,48 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	require.Error(t, err, clues.ToCore(err))
 }
 
+func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_SingleID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	suite.dpnd.recorder.Reset()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "onedrive",
+		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.BackupFN,
+		string(suite.backupOp.Results.BackupID))
+	cli.BuildCommandTree(cmd)
+	cmd.SetErr(&suite.dpnd.recorder)
+
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	result := suite.dpnd.recorder.String()
+	assert.True(t,
+		strings.HasSuffix(
+			result,
+			fmt.Sprintf("Deleted OneDrive backup [%s]\n",
+				string(suite.backupOp.Results.BackupID))))
+
+	// a follow-up details call should fail, due to the backup ID being deleted
+	cmd = cliTD.StubRootCmd(
+		"backup", "details", "onedrive",
+		"--config-file", suite.dpnd.configFilePath,
+		"--backup", string(suite.backupOp.Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
 func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID() {
 	t := suite.T()
 
@@ -230,6 +272,24 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
+func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_NoBackupID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "onedrive",
+		"--config-file", suite.dpnd.configFilePath)
+	cli.BuildCommandTree(cmd)
+
+	// empty backupIDs should error since no data provided
 	err := cmd.ExecuteContext(ctx)
 	require.Error(t, err, clues.ToCore(err))
 }

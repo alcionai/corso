@@ -45,7 +45,7 @@ corso backup create sharepoint --site https://example.com/hr,https://example.com
 corso backup create sharepoint --site '*'`
 
 	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
-	and 1234abcd-12ab-cd34-56de-1234abce
+and 1234abcd-12ab-cd34-56de-1234abce
 corso backup delete sharepoint --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	sharePointServiceCommandDetailsExamples = `# Explore items in the HR site's latest backup (1234abcd...)
@@ -291,7 +291,7 @@ func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
 	if len(flags.BackupIDsFV) > 0 {
 		backupIDValue = flags.BackupIDsFV
 	} else if len(flags.BackupIDFV) > 0 {
-		backupIDValue[0] = flags.BackupIDFV
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
 	} else {
 		return clues.New("either --backup or --backups flag is required")
 	}

@@ -575,6 +575,36 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd() {
 	require.Error(t, err, clues.ToCore(err))
 }
 
+func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_SingleID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "groups",
+		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.BackupFN,
+		string(suite.backupOp.Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// a follow-up details call should fail, due to the backup ID being deleted
+	cmd = cliTD.StubRootCmd(
+		"backup", "details", "groups",
+		"--config-file", suite.dpnd.configFilePath,
+		"--backup", string(suite.backupOp.Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
 func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_UnknownID() {
 	t := suite.T()
 
@@ -590,6 +620,24 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_UnknownID() {
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
+func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_NoBackupID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "groups",
+		"--config-file", suite.dpnd.configFilePath)
+	cli.BuildCommandTree(cmd)
+
+	// empty backupIDs should error since no data provided
 	err := cmd.ExecuteContext(ctx)
 	require.Error(t, err, clues.ToCore(err))
 }
