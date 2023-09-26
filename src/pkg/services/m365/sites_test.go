@@ -61,6 +61,34 @@ func (suite *siteIntegrationSuite) TestSites() {
 	}
 }
 
+func (suite *siteIntegrationSuite) TestSites_GetByID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	acct := tconfig.NewM365Account(t)
+
+	sites, err := Sites(ctx, acct, fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, sites)
+
+	for _, s := range sites {
+		suite.Run("site_"+s.ID, func() {
+			t := suite.T()
+			site, err := SiteByID(ctx, acct, s.ID)
+			assert.NoError(t, err, clues.ToCore(err))
+			assert.NotEmpty(t, site.WebURL)
+			assert.NotEmpty(t, site.ID)
+			assert.NotEmpty(t, site.DisplayName)
+			if site.OwnerType != SiteOwnerUnknown {
+				assert.NotEmpty(t, site.OwnerID)
+				assert.NotEmpty(t, site.OwnerType)
+			}
+		})
+	}
+}
+
 func (suite *siteIntegrationSuite) TestSites_InvalidCredentials() {
 	table := []struct {
 		name string
