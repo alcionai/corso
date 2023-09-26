@@ -2,6 +2,7 @@ package groups
 
 import (
 	"bytes"
+	"io"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/mock"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -27,31 +29,37 @@ func TestCollectionUnitSuite(t *testing.T) {
 	suite.Run(t, &CollectionUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *CollectionUnitSuite) TestReader_Valid() {
-	m := []byte("test message")
-	description := "aFile"
-	ed := &Item{id: description, message: m}
+func (suite *CollectionUnitSuite) TestPrefetchedItem_Reader() {
+	table := []struct {
+		name     string
+		readData []byte
+	}{
+		{
+			name:     "HasData",
+			readData: []byte("test message"),
+		},
+		{
+			name:     "Empty",
+			readData: []byte{},
+		},
+	}
 
-	buf := &bytes.Buffer{}
-	_, err := buf.ReadFrom(ed.ToReader())
-	assert.NoError(suite.T(), err, clues.ToCore(err))
-	assert.Equal(suite.T(), buf.Bytes(), m)
-	assert.Equal(suite.T(), description, ed.ID())
-}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-func (suite *CollectionUnitSuite) TestReader_Empty() {
-	var (
-		empty    []byte
-		expected int64
-		t        = suite.T()
-	)
+			ed := data.NewPrefetchedItem(
+				io.NopCloser(bytes.NewReader(test.readData)),
+				"itemID",
+				details.ItemInfo{})
 
-	ed := &Item{message: empty}
-	buf := &bytes.Buffer{}
-	received, err := buf.ReadFrom(ed.ToReader())
-
-	assert.Equal(t, expected, received)
-	assert.NoError(t, err, clues.ToCore(err))
+			buf := &bytes.Buffer{}
+			_, err := buf.ReadFrom(ed.ToReader())
+			assert.NoError(t, err, "reading data: %v", clues.ToCore(err))
+			assert.Equal(t, test.readData, buf.Bytes(), "read data")
+			assert.Equal(t, "itemID", ed.ID(), "item ID")
+		})
+	}
 }
 
 func (suite *CollectionUnitSuite) TestNewCollection_state() {
