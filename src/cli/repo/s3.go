@@ -33,9 +33,8 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
-	flags.AddAWSCredsFlags(c)
-	flags.AddAzureCredsFlags(c)
 	flags.AddCorsoPassphaseFlags(c)
+	flags.AddAWSCredsFlags(c)
 	flags.AddS3BucketFlags(c)
 
 	return c
@@ -131,13 +130,17 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(
+	r, err := repository.New(
 		ctx,
 		cfg.Account,
 		cfg.Storage,
 		opt,
-		retentionOpts)
+		repository.NewRepoID)
 	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to construct the repository controller"))
+	}
+
+	if err = r.Initialize(ctx, retentionOpts); err != nil {
 		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
 		}
@@ -212,12 +215,12 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.ControlWithConfig(cfg)
 
-	r, err := repository.ConnectAndSendConnectEvent(
+	r, err := repository.New(
 		ctx,
 		cfg.Account,
 		cfg.Storage,
-		repoID,
-		opts)
+		opts,
+		repoID)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}

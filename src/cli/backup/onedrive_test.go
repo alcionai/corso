@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
@@ -11,10 +12,13 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/cli/utils/testdata"
+	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
+	"github.com/alcionai/corso/src/cli/utils"
+	utilsTD "github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	dtd "github.com/alcionai/corso/src/pkg/backup/details/testdata"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 type OneDriveUnitSuite struct {
@@ -33,57 +37,35 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 		use         string
 		expectUse   string
 		expectShort string
-		flags       []string
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create onedrive",
-			createCommand,
-			expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
-			oneDriveCreateCmd().Short,
-			[]string{
-				flags.UserFN,
-				flags.DisableIncrementalsFN,
-				flags.FailFastFN,
-			},
-			createOneDriveCmd,
+			name:        "create onedrive",
+			use:         createCommand,
+			expectUse:   expectUse + " " + oneDriveServiceCommandCreateUseSuffix,
+			expectShort: oneDriveCreateCmd().Short,
+			expectRunE:  createOneDriveCmd,
 		},
 		{
-			"list onedrive",
-			listCommand,
-			expectUse,
-			oneDriveListCmd().Short,
-			[]string{
-				flags.BackupFN,
-				flags.FailedItemsFN,
-				flags.SkippedItemsFN,
-				flags.RecoveredErrorsFN,
-			},
-			listOneDriveCmd,
+			name:        "list onedrive",
+			use:         listCommand,
+			expectUse:   expectUse,
+			expectShort: oneDriveListCmd().Short,
+			expectRunE:  listOneDriveCmd,
 		},
 		{
-			"details onedrive",
-			detailsCommand,
-			expectUse + " " + oneDriveServiceCommandDetailsUseSuffix,
-			oneDriveDetailsCmd().Short,
-			[]string{
-				flags.BackupFN,
-				flags.FolderFN,
-				flags.FileFN,
-				flags.FileCreatedAfterFN,
-				flags.FileCreatedBeforeFN,
-				flags.FileModifiedAfterFN,
-				flags.FileModifiedBeforeFN,
-			},
-			detailsOneDriveCmd,
+			name:        "details onedrive",
+			use:         detailsCommand,
+			expectUse:   expectUse + " " + oneDriveServiceCommandDetailsUseSuffix,
+			expectShort: oneDriveDetailsCmd().Short,
+			expectRunE:  detailsOneDriveCmd,
 		},
 		{
-			"delete onedrive",
-			deleteCommand,
-			expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
-			oneDriveDeleteCmd().Short,
-			[]string{flags.BackupIDsFN},
-			deleteOneDriveCmd,
+			name:        "delete onedrive",
+			use:         deleteCommand,
+			expectUse:   expectUse + " " + oneDriveServiceCommandDeleteUseSuffix,
+			expectShort: oneDriveDeleteCmd().Short,
+			expectRunE:  deleteOneDriveCmd,
 		},
 	}
 
@@ -103,12 +85,175 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, test.expectUse, child.Use)
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
-
-			for _, f := range test.flags {
-				assert.NotNil(t, c.Flag(f), f+" flag")
-			}
 		})
 	}
+}
+
+func (suite *OneDriveUnitSuite) TestBackupCreateFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: createCommand}
+
+	// persistent flags not added by addCommands
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addOneDriveCommands(cmd)
+	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
+
+	flagsTD.WithFlags(
+		cmd,
+		oneDriveServiceCommand,
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.UserFN, flagsTD.FlgInputs(flagsTD.UsersInput),
+			"--" + flags.FailFastFN,
+			"--" + flags.DisableIncrementalsFN,
+			"--" + flags.ForceItemDataDownloadFN,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	opts := utils.MakeOneDriveOpts(cmd)
+	co := utils.Control()
+
+	assert.ElementsMatch(t, flagsTD.UsersInput, opts.Users)
+	// no assertion for category data input
+
+	// bool flags
+	assert.Equal(t, control.FailFast, co.FailureHandling)
+	assert.True(t, co.ToggleFeatures.DisableIncrementals)
+	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *OneDriveUnitSuite) TestBackupListFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: listCommand}
+
+	// persistent flags not added by addCommands
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addOneDriveCommands(cmd)
+	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
+
+	flagsTD.WithFlags(
+		cmd,
+		oneDriveServiceCommand,
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedBackupListFlags(),
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+
+	flagsTD.AssertBackupListFlags(t, cmd)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *OneDriveUnitSuite) TestBackupDetailsFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: detailsCommand}
+
+	// persistent flags not added by addCommands
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addOneDriveCommands(cmd)
+	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
+
+	flagsTD.WithFlags(
+		cmd,
+		oneDriveServiceCommand,
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+			"--" + flags.SkipReduceFN,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	co := utils.Control()
+
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+
+	assert.True(t, co.SkipReduce)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *OneDriveUnitSuite) TestBackupDeleteFlags() {
+	t := suite.T()
+
+	cmd := &cobra.Command{Use: deleteCommand}
+
+	// persistent flags not added by addCommands
+	flags.AddRunModeFlag(cmd, true)
+
+	c := addOneDriveCommands(cmd)
+	require.NotNil(t, c)
+
+	// non-persistent flags not added by addCommands
+	flags.AddAllProviderFlags(c)
+	flags.AddAllStorageFlags(c)
+
+	flagsTD.WithFlags(
+		cmd,
+		oneDriveServiceCommand,
+		[]string{
+			"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			"--" + flags.BackupFN, flagsTD.BackupInput,
+		},
+		flagsTD.PreparedProviderFlags(),
+		flagsTD.PreparedStorageFlags())
+
+	cmd.SetOut(new(bytes.Buffer)) // drop output
+	cmd.SetErr(new(bytes.Buffer)) // drop output
+
+	err := cmd.Execute()
+	assert.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
 }
 
 func (suite *OneDriveUnitSuite) TestValidateOneDriveBackupCreateFlags() {
@@ -138,14 +283,14 @@ func (suite *OneDriveUnitSuite) TestValidateOneDriveBackupCreateFlags() {
 func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectors() {
 	for v := 0; v <= version.Backup; v++ {
 		suite.Run(fmt.Sprintf("version%d", v), func() {
-			for _, test := range testdata.OneDriveOptionDetailLookups {
+			for _, test := range utilsTD.OneDriveOptionDetailLookups {
 				suite.Run(test.Name, func() {
 					t := suite.T()
 
 					ctx, flush := tester.NewContext(t)
 					defer flush()
 
-					bg := testdata.VersionedBackupGetter{
+					bg := utilsTD.VersionedBackupGetter{
 						Details: dtd.GetDetailsSetForVersion(t, v),
 					}
 
@@ -164,7 +309,7 @@ func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectors() {
 }
 
 func (suite *OneDriveUnitSuite) TestOneDriveBackupDetailsSelectorsBadFormats() {
-	for _, test := range testdata.BadOneDriveOptionsFormats {
+	for _, test := range utilsTD.BadOneDriveOptionsFormats {
 		suite.Run(test.Name, func() {
 			t := suite.T()
 

@@ -85,9 +85,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddMailBoxFlag(c)
 		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
@@ -102,12 +99,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
-		addFailedItemsFN(c)
-		addSkippedItemsFN(c)
-		addRecoveredErrorsFN(c)
+		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
@@ -121,9 +113,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddBackupIDFlag(c, true)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddExchangeDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -135,9 +124,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddMultipleBackupIDsFlag(c, false)
 		flags.AddBackupIDFlag(c, false)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 	}
 
 	return c
@@ -162,6 +148,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
@@ -275,6 +265,10 @@ func exchangeDetailsCmd() *cobra.Command {
 // selector reduction as a filtering step.
 func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 

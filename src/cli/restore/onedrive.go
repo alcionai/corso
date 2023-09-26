@@ -28,12 +28,9 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddBackupIDFlag(c, true)
 		flags.AddOneDriveDetailsAndRestoreFlags(c)
-		flags.AddSkipPermissionsFlag(c)
+		flags.AddNoPermissionsFlag(c)
 		flags.AddRestoreConfigFlags(c)
 		flags.AddFailFastFlag(c)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 	}
 
 	return c

@@ -30,8 +30,6 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddGroupDetailsAndRestoreFlags(c)
 		flags.AddExportConfigFlags(c)
 		flags.AddFailFastFlag(c)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
 	}
 
 	return c
