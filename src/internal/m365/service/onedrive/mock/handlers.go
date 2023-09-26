@@ -24,7 +24,7 @@ import (
 type BackupHandler struct {
 	ItemInfo details.ItemInfo
 
-	EDID EnumeratesDriveItemsDelta
+	DriveItemEnumeration EnumeratesDriveItemsDelta
 
 	GI  GetsItem
 	GIP GetsItemPermission
@@ -59,7 +59,7 @@ func DefaultOneDriveBH(resourceOwner string) *BackupHandler {
 			OneDrive:  &details.OneDriveInfo{},
 			Extension: &details.ExtensionData{},
 		},
-		EDID:                 EnumeratesDriveItemsDelta{},
+		DriveItemEnumeration: EnumeratesDriveItemsDelta{},
 		GI:                   GetsItem{Err: clues.New("not defined")},
 		GIP:                  GetsItemPermission{Err: clues.New("not defined")},
 		PathPrefixFn:         defaultOneDrivePathPrefixer,
@@ -157,7 +157,7 @@ func (h BackupHandler) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID, prevDeltaLink string,
 ) ([]models.DriveItemable, api.DeltaUpdate, error) {
-	return h.EDID.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink)
+	return h.DriveItemEnumeration.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink)
 }
 
 func (h BackupHandler) GetItem(ctx context.Context, _, _ string) (models.DriveItemable, error) {

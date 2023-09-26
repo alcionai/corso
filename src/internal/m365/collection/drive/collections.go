@@ -266,7 +266,10 @@ func (c *Collections) Get(
 		var (
 			driveID   = ptr.Val(d.GetId())
 			driveName = ptr.Val(d.GetName())
-			ictx      = clues.Add(ctx, "drive_id", driveID, "drive_name", driveName)
+			ictx      = clues.Add(
+				ctx,
+				"drive_id", driveID,
+				"drive_name", clues.Hide(driveName))
 
 			excludedItemIDs = map[string]struct{}{}
 			oldPrevPaths    = oldPrevPathsByDriveID[driveID]
@@ -775,7 +778,7 @@ func (c *Collections) UpdateCollections(
 				if err != nil {
 					el.AddRecoverable(ctx, clues.Wrap(err, "invalid previous path").
 						WithClues(ictx).
-						With("prev_path_string", prevPathStr))
+						With("prev_path_string", path.LoggableDir(prevPathStr)))
 				}
 			} else if item.GetRoot() != nil {
 				// Root doesn't move or get renamed.
