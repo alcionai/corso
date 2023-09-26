@@ -70,6 +70,7 @@ type BackupResults struct {
 	BackupID model.StableID `json:"backupID"`
 	// keys are found in /pkg/count/keys.go
 	Counts map[string]int64 `json:"counts"`
+	stats.APIStats
 }
 
 // NewBackupOperation constructs and validates a backup operation.
@@ -845,6 +846,10 @@ func (op *BackupOperation) persistResults(
 	}
 
 	op.Results.ItemsRead = opStats.ctrl.Successes
+
+	// API stats
+	apiStats := stats.GetAPIStats(op.Counter)
+	op.Results.TokensConsumed = apiStats.TokensConsumed
 
 	// Only return non-recoverable errors at this point.
 	return op.Errors.Failure()

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -325,6 +326,8 @@ func (mw RetryMiddleware) getRetryDelay(
 // MetricsMiddleware aggregates per-request metrics on the events bus
 type MetricsMiddleware struct{}
 
+var xmCount int64
+
 const xmruHeader = "x-ms-resource-unit"
 
 func (mw *MetricsMiddleware) Intercept(
@@ -361,6 +364,9 @@ func (mw *MetricsMiddleware) Intercept(
 	if len(xmru) == 0 || e != nil {
 		xmrui = 1
 	}
+
+	atomic.AddInt64(&xmCount, int64(xmrui))
+	logger.Ctx(req.Context()).Info("xmcount ", xmCount)
 
 	countBus := count.Ctx(req.Context())
 	countBus.Add(count.APICallTokensConsumed, int64(xmrui))

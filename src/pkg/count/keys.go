@@ -4,7 +4,8 @@ type key string
 
 const (
 	// count of bucket-tokens consumed by api calls.
-	APICallTokensConsumed key = "api-call-tokens-consumed"
+	APICallTokensConsumed   key = "api-call-tokens-consumed"
+	PeakAPITokenUsagePerMin key = "peak-api-token-usage-per-min"
 	// count of api calls that resulted in failure due to throttling.
 	ThrottledAPICalls key = "throttled-api-calls"
 )

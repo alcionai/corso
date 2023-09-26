@@ -214,6 +214,8 @@ func genericCreateCommand(
 			continue
 		}
 
+		logger.Ctx(ictx).Infow("graph api stats", "stats", bo.Results.APIStats)
+
 		bIDs = append(bIDs, string(bo.Results.BackupID))
 
 		if !DisplayJSONFormat() {
