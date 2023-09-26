@@ -6,6 +6,7 @@ import (
 
 const (
 	BackupFN             = "backup"
+	BackupIDsFN          = "backups"
 	AWSAccessKeyFN       = "aws-access-key"
 	AWSSecretAccessKeyFN = "aws-secret-access-key"
 	AWSSessionTokenFN    = "aws-session-token"
@@ -17,12 +18,25 @@ const (
 
 var (
 	BackupIDFV           string
+	BackupIDsFV          []string
 	AWSAccessKeyFV       string
 	AWSSecretAccessKeyFV string
 	AWSSessionTokenFV    string
 	CorsoPassphraseFV    string
 	SucceedIfExistsFV    bool
 )
+
+// AddMultipleBackupIDsFlag adds the --backups flag.
+func AddMultipleBackupIDsFlag(cmd *cobra.Command, require bool) {
+	cmd.Flags().StringSliceVar(
+		&BackupIDsFV,
+		BackupIDsFN, nil,
+		"',' separated IDs of the backup to retrieve")
+
+	if require {
+		cobra.CheckErr(cmd.MarkFlagRequired(BackupIDsFN))
+	}
+}
 
 // AddBackupIDFlag adds the --backup flag.
 func AddBackupIDFlag(cmd *cobra.Command, require bool) {

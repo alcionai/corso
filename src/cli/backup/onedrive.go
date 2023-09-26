@@ -26,7 +26,7 @@ import (
 const (
 	oneDriveServiceCommand                 = "onedrive"
 	oneDriveServiceCommandCreateUseSuffix  = "--user <email> | '" + flags.Wildcard + "'"
-	oneDriveServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	oneDriveServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	oneDriveServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -40,8 +40,9 @@ corso backup create onedrive --user alice@example.com,bob@example.com
 # Backup all OneDrive data for all M365 users 
 corso backup create onedrive --user '*'`
 
-	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd`
+	oneDriveServiceCommandDeleteExamples = `# Delete OneDrive backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
+and 1234abcd-12ab-cd34-56de-1234abce
+corso backup delete onedrive --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	oneDriveServiceCommandDetailsExamples = `# Explore items in Bob's latest backup (1234abcd...)
 corso backup details onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -100,7 +101,8 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
 		c.Example = oneDriveServiceCommandDeleteExamples
 
-		flags.AddBackupIDFlag(c, true)
+		flags.AddMultipleBackupIDsFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 	}
 
 	return c
@@ -306,5 +308,15 @@ func oneDriveDeleteCmd() *cobra.Command {
 
 // deletes a oneDrive service backup.
 func deleteOneDriveCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.OneDriveService, flags.BackupIDFV, "OneDrive", args)
+	backupIDValue := []string{}
+
+	if len(flags.BackupIDsFV) > 0 {
+		backupIDValue = flags.BackupIDsFV
+	} else if len(flags.BackupIDFV) > 0 {
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
+	} else {
+		return clues.New("either --backup or --backups flag is required")
+	}
+
+	return genericDeleteCommand(cmd, path.OneDriveService, "OneDrive", backupIDValue, args)
 }

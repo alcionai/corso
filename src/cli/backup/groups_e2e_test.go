@@ -497,8 +497,9 @@ func runGroupsDetailsCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.
 
 type BackupDeleteGroupsE2ESuite struct {
 	tester.Suite
-	dpnd     dependencies
-	backupOp operations.BackupOperation
+	dpnd              dependencies
+	backupOp          operations.BackupOperation
+	secondaryBackupOp operations.BackupOperation
 }
 
 func TestBackupDeleteGroupsE2ESuite(t *testing.T) {
@@ -531,6 +532,15 @@ func (suite *BackupDeleteGroupsE2ESuite) SetupSuite() {
 
 	err = suite.backupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
+
+	// secondary backup
+	secondaryBackupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.secondaryBackupOp = secondaryBackupOp
+
+	err = suite.secondaryBackupOp.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd() {
@@ -544,7 +554,40 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "groups",
 		"--config-file", suite.dpnd.configFilePath,
-		"--"+flags.BackupFN, string(suite.backupOp.Results.BackupID))
+		"--"+flags.BackupIDsFN,
+		fmt.Sprintf("%s,%s",
+			string(suite.backupOp.Results.BackupID),
+			string(suite.secondaryBackupOp.Results.BackupID)))
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// a follow-up details call should fail, due to the backup ID being deleted
+	cmd = cliTD.StubRootCmd(
+		"backup", "details", "groups",
+		"--config-file", suite.dpnd.configFilePath,
+		"--backups", string(suite.backupOp.Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
+func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_SingleID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "groups",
+		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.BackupFN,
+		string(suite.backupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	// run the command
@@ -573,10 +616,28 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_UnknownID() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "groups",
 		"--config-file", suite.dpnd.configFilePath,
-		"--"+flags.BackupFN, uuid.NewString())
+		"--"+flags.BackupIDsFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
+func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_NoBackupID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "groups",
+		"--config-file", suite.dpnd.configFilePath)
+	cli.BuildCommandTree(cmd)
+
+	// empty backupIDs should error since no data provided
 	err := cmd.ExecuteContext(ctx)
 	require.Error(t, err, clues.ToCore(err))
 }
