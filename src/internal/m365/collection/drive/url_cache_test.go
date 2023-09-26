@@ -506,5 +506,4 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			test.expectedErr(t, err, clues.ToCore(err))
 		})
 	}
-
 }
