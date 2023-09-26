@@ -449,3 +449,62 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 	cache.lastRefreshTime = time.Now()
 	require.False(t, cache.needsRefresh())
 }
+
+func (suite *URLCacheUnitSuite) TestNewURLCache() {
+	table := []struct {
+		name        string
+		driveID     string
+		refreshInt  time.Duration
+		itemPager   EnumerateDriveItemsDeltaer
+		errors      *fault.Bus
+		expectedErr require.ErrorAssertionFunc
+	}{
+		{
+			name:        "invalid driveID",
+			driveID:     "",
+			refreshInt:  1 * time.Hour,
+			itemPager:   &mock.EnumeratesDriveItemsDelta{},
+			errors:      fault.New(true),
+			expectedErr: require.Error,
+		},
+		{
+			name:        "invalid refresh interval",
+			driveID:     "drive1",
+			refreshInt:  100 * time.Millisecond,
+			itemPager:   &mock.EnumeratesDriveItemsDelta{},
+			errors:      fault.New(true),
+			expectedErr: require.Error,
+		},
+		{
+			name:        "invalid item enumerator",
+			driveID:     "drive1",
+			refreshInt:  1 * time.Hour,
+			itemPager:   nil,
+			errors:      fault.New(true),
+			expectedErr: require.Error,
+		},
+		{
+			name:        "valid",
+			driveID:     "drive1",
+			refreshInt:  1 * time.Hour,
+			itemPager:   &mock.EnumeratesDriveItemsDelta{},
+			errors:      fault.New(true),
+			expectedErr: require.NoError,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			_, err := newURLCache(
+				test.driveID,
+				"",
+				test.refreshInt,
+				test.itemPager,
+				test.errors)
+
+			test.expectedErr(t, err, clues.ToCore(err))
+		})
+	}
+
+}

@@ -2184,7 +2184,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.DrivePagerV = mockDrivePager
 			mbh.ItemPagerV = itemPagers
-			mbh.EDID = mock.PagerResultToEDID(test.items)
+			mbh.DriveItemEnumeration = mock.PagerResultToEDID(test.items)
 
 			c := NewCollections(
 				mbh,
