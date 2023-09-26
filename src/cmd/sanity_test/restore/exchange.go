@@ -5,93 +5,102 @@ import (
 	"fmt"
 	stdpath "path"
 	"strings"
-	"time"
 
 	"github.com/alcionai/clues"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // CheckEmailRestoration verifies that the emails count in restored folder is equivalent to
 // emails in actual m365 account
 func CheckEmailRestoration(
 	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	testUser, folderName, dataFolder, baseBackupFolder string,
-	startTime time.Time,
+	ac api.Client,
+	envs common.Envs,
 ) {
 	var (
 		restoreFolder    models.MailFolderable
 		itemCount        = make(map[string]int32)
 		restoreItemCount = make(map[string]int32)
-		builder          = client.Users().ByUserId(testUser).MailFolders()
 	)
 
-	for {
-		result, err := builder.Get(ctx, nil)
-		if err != nil {
-			common.Fatal(ctx, "getting mail folders", err)
-		}
-
-		values := result.GetValue()
-
-		for _, v := range values {
-			itemName := ptr.Val(v.GetDisplayName())
-
-			if itemName == folderName {
-				restoreFolder = v
-				continue
-			}
-
-			if itemName == dataFolder || itemName == baseBackupFolder {
-				// otherwise, recursively aggregate all child folders.
-				getAllMailSubFolders(ctx, client, testUser, v, itemName, dataFolder, itemCount)
-
-				itemCount[itemName] = ptr.Val(v.GetTotalItemCount())
-			}
-		}
-
-		link, ok := ptr.ValOK(result.GetOdataNextLink())
+	fn := func(gcc graph.CachedContainer) error {
+		mmf, ok := gcc.(models.MailFolderable)
 		if !ok {
-			break
+			return clues.New("mail folderable required")
 		}
 
-		builder = users.NewItemMailFoldersRequestBuilder(link, client.GetAdapter())
+		itemName := ptr.Val(mmf.GetDisplayName())
+
+		if itemName == envs.FolderName {
+			restoreFolder = mmf
+			return nil
+		}
+
+		if itemName == envs.DataFolder || itemName == envs.BaseBackupFolder {
+			// otherwise, recursively aggregate all child folders.
+			getAllMailSubFolders(
+				ctx,
+				ac,
+				envs.UserID,
+				mmf,
+				itemName,
+				envs.DataFolder,
+				itemCount)
+
+			itemCount[itemName] = ptr.Val(mmf.GetTotalItemCount())
+		}
+
+		return nil
+	}
+
+	err := ac.Mail().EnumerateContainers(
+		ctx,
+		envs.UserID,
+		"",
+		false,
+		fn,
+		fault.New(true))
+	if err != nil {
+		common.Fatal(ctx, "getting all mail folders", err)
 	}
 
 	folderID := ptr.Val(restoreFolder.GetId())
-	folderName = ptr.Val(restoreFolder.GetDisplayName())
+	folderName := ptr.Val(restoreFolder.GetDisplayName())
 	ctx = clues.Add(
 		ctx,
 		"restore_folder_id", folderID,
 		"restore_folder_name", folderName)
 
-	childFolder, err := client.
-		Users().
-		ByUserId(testUser).
-		MailFolders().
-		ByMailFolderId(folderID).
-		ChildFolders().
-		Get(ctx, nil)
+	childFolders, err := ac.Mail().GetContainerChildren(ctx, envs.UserID, folderID)
 	if err != nil {
 		common.Fatal(ctx, "getting restore folder child folders", err)
 	}
 
-	for _, fld := range childFolder.GetValue() {
+	for _, fld := range childFolders {
 		restoreDisplayName := ptr.Val(fld.GetDisplayName())
 
 		// check if folder is the data folder we loaded or the base backup to verify
 		// the incremental backup worked fine
-		if strings.EqualFold(restoreDisplayName, dataFolder) || strings.EqualFold(restoreDisplayName, baseBackupFolder) {
+		if strings.EqualFold(restoreDisplayName, envs.DataFolder) ||
+			strings.EqualFold(restoreDisplayName, envs.BaseBackupFolder) {
 			count, _ := ptr.ValOK(fld.GetTotalItemCount())
 
 			restoreItemCount[restoreDisplayName] = count
-			checkAllSubFolder(ctx, client, fld, testUser, restoreDisplayName, dataFolder, restoreItemCount)
+			checkAllSubFolder(
+				ctx,
+				ac,
+				fld,
+				envs.UserID,
+				restoreDisplayName,
+				envs.DataFolder,
+				restoreItemCount)
 		}
 	}
 
@@ -115,7 +124,7 @@ func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[
 // email count.
 func getAllMailSubFolders(
 	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
+	ac api.Client,
 	testUser string,
 	r models.MailFolderable,
 	parentFolder,
@@ -123,29 +132,17 @@ func getAllMailSubFolders(
 	messageCount map[string]int32,
 ) {
 	var (
-		folderID       = ptr.Val(r.GetId())
-		count    int32 = 99
-		options        = &users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
-			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
-				Top: &count,
-			},
-		}
+		folderID = ptr.Val(r.GetId())
 	)
 
 	ctx = clues.Add(ctx, "parent_folder_id", folderID)
 
-	childFolder, err := client.
-		Users().
-		ByUserId(testUser).
-		MailFolders().
-		ByMailFolderId(folderID).
-		ChildFolders().
-		Get(ctx, options)
+	childFolders, err := ac.Mail().GetContainerChildren(ctx, testUser, folderID)
 	if err != nil {
 		common.Fatal(ctx, "getting mail subfolders", err)
 	}
 
-	for _, child := range childFolder.GetValue() {
+	for _, child := range childFolders {
 		var (
 			childDisplayName = ptr.Val(child.GetDisplayName())
 			childFolderCount = ptr.Val(child.GetChildFolderCount())
@@ -159,7 +156,14 @@ func getAllMailSubFolders(
 			if childFolderCount > 0 {
 				parentFolder := fullFolderName
 
-				getAllMailSubFolders(ctx, client, testUser, child, parentFolder, dataFolder, messageCount)
+				getAllMailSubFolders(
+					ctx,
+					ac,
+					testUser,
+					child,
+					parentFolder,
+					dataFolder,
+					messageCount)
 			}
 		}
 	}
@@ -169,35 +173,19 @@ func getAllMailSubFolders(
 // verify that data matched in all subfolders
 func checkAllSubFolder(
 	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
+	ac api.Client,
 	r models.MailFolderable,
-	testUser,
-	parentFolder,
-	dataFolder string,
+	testUser, parentFolder, dataFolder string,
 	restoreMessageCount map[string]int32,
 ) {
-	var (
-		folderID       = ptr.Val(r.GetId())
-		count    int32 = 99
-		options        = &users.ItemMailFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
-			QueryParameters: &users.ItemMailFoldersItemChildFoldersRequestBuilderGetQueryParameters{
-				Top: &count,
-			},
-		}
-	)
+	var folderID = ptr.Val(r.GetId())
 
-	childFolder, err := client.
-		Users().
-		ByUserId(testUser).
-		MailFolders().
-		ByMailFolderId(folderID).
-		ChildFolders().
-		Get(ctx, options)
+	childFolders, err := ac.Mail().GetContainerChildren(ctx, testUser, folderID)
 	if err != nil {
 		common.Fatal(ctx, "getting mail subfolders", err)
 	}
 
-	for _, child := range childFolder.GetValue() {
+	for _, child := range childFolders {
 		var (
 			childDisplayName = ptr.Val(child.GetDisplayName())
 			//nolint:forbidigo
@@ -213,7 +201,14 @@ func checkAllSubFolder(
 
 		if childFolderCount > 0 {
 			parentFolder := fullFolderName
-			checkAllSubFolder(ctx, client, child, testUser, parentFolder, dataFolder, restoreMessageCount)
+			checkAllSubFolder(
+				ctx,
+				ac,
+				child,
+				testUser,
+				parentFolder,
+				dataFolder,
+				restoreMessageCount)
 		}
 	}
 }

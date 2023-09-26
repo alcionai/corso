@@ -85,8 +85,8 @@ runs:
         SANITY_TEST_KIND: restore
         SANITY_TEST_FOLDER: ${{ steps.restore.outputs.result }}
         SANITY_TEST_SERVICE: ${{ inputs.service }}
-        TEST_DATA: ${{ inputs.test-folder }}
-        BASE_BACKUP: ${{ inputs.base-backup }}
+        SANITY_TEST_DATA: ${{ inputs.test-folder }}
+        SANITY_BASE_BACKUP: ${{ inputs.base-backup }}
       run: |
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
         ./sanity-test
@@ -116,8 +116,8 @@ runs:
         SANITY_TEST_KIND: export
         SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
         SANITY_TEST_SERVICE: ${{ inputs.service }}
-        TEST_DATA: ${{ inputs.test-folder }}
-        BASE_BACKUP: ${{ inputs.base-backup }}
+        SANITY_TEST_DATA: ${{ inputs.test-folder }}
+        SANITY_BASE_BACKUP: ${{ inputs.base-backup }}
       run: |
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
         ./sanity-test
@@ -150,8 +150,8 @@ runs:
         SANITY_TEST_KIND: export
         SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
         SANITY_TEST_SERVICE: ${{ inputs.service }}
-        TEST_DATA: ${{ inputs.test-folder }}
-        BASE_BACKUP: ${{ inputs.base-backup }}
+        SANITY_TEST_DATA: ${{ inputs.test-folder }}
+        SANITY_BASE_BACKUP: ${{ inputs.base-backup }}
       run: |
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
         ./sanity-test
