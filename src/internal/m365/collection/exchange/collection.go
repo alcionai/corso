@@ -425,6 +425,7 @@ type lazyItemGetter struct {
 
 func (lig *lazyItemGetter) GetData(
 	ctx context.Context,
+	errs *fault.Bus,
 ) (io.ReadCloser, *details.ItemInfo, bool, error) {
 	itemData, info, err := getItemAndInfo(
 		ctx,
@@ -446,6 +447,7 @@ func (lig *lazyItemGetter) GetData(
 		}
 
 		err = clues.Stack(err)
+		errs.AddRecoverable(ctx, err)
 
 		return nil, nil, false, err
 	}
