@@ -32,7 +32,7 @@ const (
 	groupsServiceCommand                 = "groups"
 	teamsServiceCommand                  = "teams"
 	groupsServiceCommandCreateUseSuffix  = "--group <groupName> | '" + flags.Wildcard + "'"
-	groupsServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	groupsServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	groupsServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -46,8 +46,9 @@ corso backup create groups --group Marketing --data messages
 # Backup all Groups and Teams data for all groups
 corso backup create groups --group '*'`
 
-	groupsServiceCommandDeleteExamples = `# Delete Groups backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete groups --backup 1234abcd-12ab-cd34-56de-1234abcd`
+	groupsServiceCommandDeleteExamples = `# Delete Groups backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
+and 1234abcd-12ab-cd34-56de-1234abce
+corso backup delete groups --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	groupsServiceCommandDetailsExamples = `# Explore items in Marketing's latest backup (1234abcd...)
 corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -75,11 +76,9 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		flags.AddGroupFlag(c)
 		flags.AddDataFlag(c, []string{flags.DataLibraries, flags.DataMessages}, false)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
+		flags.AddDisableDeltaFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
 		flags.AddForceItemDataDownloadFlag(c)
 
@@ -88,12 +87,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
-		addFailedItemsFN(c)
-		addSkippedItemsFN(c)
-		addRecoveredErrorsFN(c)
+		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreviewCommand())
@@ -108,9 +102,6 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddBackupIDFlag(c, true)
 		flags.AddGroupDetailsAndRestoreFlags(c)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -120,10 +111,8 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + groupsServiceCommandDeleteUseSuffix
 		c.Example = groupsServiceCommandDeleteExamples
 
-		flags.AddBackupIDFlag(c, true)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
+		flags.AddMultipleBackupIDsFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 	}
 
 	return c
@@ -149,6 +138,10 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
@@ -225,6 +218,10 @@ func groupsDetailsCmd() *cobra.Command {
 // processes a groups service backup.
 func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
@@ -310,7 +307,17 @@ func groupsDeleteCmd() *cobra.Command {
 
 // deletes an groups service backup.
 func deleteGroupsCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.GroupsService, flags.BackupIDFV, "Groups", args)
+	backupIDValue := []string{}
+
+	if len(flags.BackupIDsFV) > 0 {
+		backupIDValue = flags.BackupIDsFV
+	} else if len(flags.BackupIDFV) > 0 {
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
+	} else {
+		return clues.New("either --backup or --backups flag is required")
+	}
+
+	return genericDeleteCommand(cmd, path.GroupsService, "Groups", backupIDValue, args)
 }
 
 // ---------------------------------------------------------------------------

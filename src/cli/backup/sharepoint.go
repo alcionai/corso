@@ -30,7 +30,7 @@ import (
 const (
 	sharePointServiceCommand                 = "sharepoint"
 	sharePointServiceCommandCreateUseSuffix  = "--site <siteURL> | '" + flags.Wildcard + "'"
-	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	sharePointServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -44,8 +44,9 @@ corso backup create sharepoint --site https://example.com/hr,https://example.com
 # Backup all SharePoint data for all Sites
 corso backup create sharepoint --site '*'`
 
-	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
+	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
+and 1234abcd-12ab-cd34-56de-1234abce
+corso backup delete sharepoint --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	sharePointServiceCommandDetailsExamples = `# Explore items in the HR site's latest backup (1234abcd...)
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -81,9 +82,6 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddSiteFlag(c)
 		flags.AddSiteIDFlag(c)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddDataFlag(c, []string{flags.DataLibraries}, true)
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
@@ -94,12 +92,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
-		addFailedItemsFN(c)
-		addSkippedItemsFN(c)
-		addRecoveredErrorsFN(c)
+		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
@@ -110,9 +103,6 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddSkipReduceFlag(c)
 		flags.AddBackupIDFlag(c, true)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -122,10 +112,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
 
-		flags.AddBackupIDFlag(c, true)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
+		flags.AddMultipleBackupIDsFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 	}
 
 	return c
@@ -151,6 +139,10 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
@@ -294,7 +286,17 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.SharePointService, flags.BackupIDFV, "SharePoint", args)
+	backupIDValue := []string{}
+
+	if len(flags.BackupIDsFV) > 0 {
+		backupIDValue = flags.BackupIDsFV
+	} else if len(flags.BackupIDFV) > 0 {
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
+	} else {
+		return clues.New("either --backup or --backups flag is required")
+	}
+
+	return genericDeleteCommand(cmd, path.SharePointService, "SharePoint", backupIDValue, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -315,6 +317,10 @@ func sharePointDetailsCmd() *cobra.Command {
 // lists the history of backup operations
 func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 

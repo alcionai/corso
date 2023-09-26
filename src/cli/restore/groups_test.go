@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -42,12 +42,15 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 
 			cmd := &cobra.Command{Use: test.use}
 
-			// normally a persistent flag from the root.
-			// required to ensure a dry run.
+			// persistent flags not added by addCommands
 			flags.AddRunModeFlag(cmd, true)
 
 			c := addGroupsCommands(cmd)
 			require.NotNil(t, c)
+
+			// non-persistent flags not added by addCommands
+			flags.AddAllProviderFlags(c)
+			flags.AddAllStorageFlags(c)
 
 			cmds := cmd.Commands()
 			require.Len(t, cmds, 1)
@@ -57,68 +60,61 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
 
-			cmd.SetArgs([]string{
-				"groups",
-				"--" + flags.RunModeFN, flags.RunModeFlagTest,
-				"--" + flags.BackupFN, testdata.BackupInput,
+			flagsTD.WithFlags(
+				cmd,
+				groupsServiceCommand,
+				[]string{
+					"--" + flags.RunModeFN, flags.RunModeFlagTest,
+					"--" + flags.BackupFN, flagsTD.BackupInput,
 
-				"--" + flags.LibraryFN, testdata.LibraryInput,
-				"--" + flags.FileFN, testdata.FlgInputs(testdata.FileNameInput),
-				"--" + flags.FolderFN, testdata.FlgInputs(testdata.FolderPathInput),
-				"--" + flags.FileCreatedAfterFN, testdata.FileCreatedAfterInput,
-				"--" + flags.FileCreatedBeforeFN, testdata.FileCreatedBeforeInput,
-				"--" + flags.FileModifiedAfterFN, testdata.FileModifiedAfterInput,
-				"--" + flags.FileModifiedBeforeFN, testdata.FileModifiedBeforeInput,
-				"--" + flags.ListItemFN, testdata.FlgInputs(testdata.ListItemInput),
-				"--" + flags.ListFolderFN, testdata.FlgInputs(testdata.ListFolderInput),
-				"--" + flags.PageFN, testdata.FlgInputs(testdata.PageInput),
-				"--" + flags.PageFolderFN, testdata.FlgInputs(testdata.PageFolderInput),
+					"--" + flags.LibraryFN, flagsTD.LibraryInput,
+					"--" + flags.FileFN, flagsTD.FlgInputs(flagsTD.FileNameInput),
+					"--" + flags.FolderFN, flagsTD.FlgInputs(flagsTD.FolderPathInput),
+					"--" + flags.FileCreatedAfterFN, flagsTD.FileCreatedAfterInput,
+					"--" + flags.FileCreatedBeforeFN, flagsTD.FileCreatedBeforeInput,
+					"--" + flags.FileModifiedAfterFN, flagsTD.FileModifiedAfterInput,
+					"--" + flags.FileModifiedBeforeFN, flagsTD.FileModifiedBeforeInput,
+					"--" + flags.ListItemFN, flagsTD.FlgInputs(flagsTD.ListItemInput),
+					"--" + flags.ListFolderFN, flagsTD.FlgInputs(flagsTD.ListFolderInput),
+					"--" + flags.PageFN, flagsTD.FlgInputs(flagsTD.PageInput),
+					"--" + flags.PageFolderFN, flagsTD.FlgInputs(flagsTD.PageFolderInput),
 
-				"--" + flags.CollisionsFN, testdata.Collisions,
-				"--" + flags.DestinationFN, testdata.Destination,
-				"--" + flags.ToResourceFN, testdata.ToResource,
+					"--" + flags.CollisionsFN, flagsTD.Collisions,
+					"--" + flags.DestinationFN, flagsTD.Destination,
+					"--" + flags.ToResourceFN, flagsTD.ToResource,
 
-				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-				"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-				"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-			})
+					// bool flags
+					"--" + flags.NoPermissionsFN,
+				},
+				flagsTD.PreparedProviderFlags(),
+				flagsTD.PreparedStorageFlags())
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
 			cmd.SetErr(new(bytes.Buffer)) // drop output
+
 			err := cmd.Execute()
 			assert.NoError(t, err, clues.ToCore(err))
 
 			opts := utils.MakeGroupsOpts(cmd)
-			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+			assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
 
-			assert.Equal(t, testdata.LibraryInput, opts.Library)
-			assert.ElementsMatch(t, testdata.FileNameInput, opts.FileName)
-			assert.ElementsMatch(t, testdata.FolderPathInput, opts.FolderPath)
-			assert.Equal(t, testdata.FileCreatedAfterInput, opts.FileCreatedAfter)
-			assert.Equal(t, testdata.FileCreatedBeforeInput, opts.FileCreatedBefore)
-			assert.Equal(t, testdata.FileModifiedAfterInput, opts.FileModifiedAfter)
-			assert.Equal(t, testdata.FileModifiedBeforeInput, opts.FileModifiedBefore)
+			assert.Equal(t, flagsTD.LibraryInput, opts.Library)
+			assert.ElementsMatch(t, flagsTD.FileNameInput, opts.FileName)
+			assert.ElementsMatch(t, flagsTD.FolderPathInput, opts.FolderPath)
+			assert.Equal(t, flagsTD.FileCreatedAfterInput, opts.FileCreatedAfter)
+			assert.Equal(t, flagsTD.FileCreatedBeforeInput, opts.FileCreatedBefore)
+			assert.Equal(t, flagsTD.FileModifiedAfterInput, opts.FileModifiedAfter)
+			assert.Equal(t, flagsTD.FileModifiedBeforeInput, opts.FileModifiedBefore)
 
-			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
-			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
-			assert.Equal(t, testdata.ToResource, opts.RestoreCfg.ProtectedResource)
+			assert.Equal(t, flagsTD.Collisions, opts.RestoreCfg.Collisions)
+			assert.Equal(t, flagsTD.Destination, opts.RestoreCfg.Destination)
+			assert.Equal(t, flagsTD.ToResource, opts.RestoreCfg.ProtectedResource)
 
-			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
+			// bool flags
+			assert.True(t, flags.NoPermissionsFV)
 
-			assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-			assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
-			assert.False(t, flags.NoPermissionsFV)
+			flagsTD.AssertProviderFlags(t, cmd)
+			flagsTD.AssertStorageFlags(t, cmd)
 		})
 	}
 }

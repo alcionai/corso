@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -42,12 +42,15 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 
 			cmd := &cobra.Command{Use: test.use}
 
-			// normally a persistent flag from the root.
-			// required to ensure a dry run.
+			// persistent flags not added by addCommands
 			flags.AddRunModeFlag(cmd, true)
 
 			c := addExchangeCommands(cmd)
 			require.NotNil(t, c)
+
+			// non-persistent flags not added by addCommands
+			flags.AddAllProviderFlags(c)
+			flags.AddAllStorageFlags(c)
 
 			cmds := cmd.Commands()
 			require.Len(t, cmds, 1)
@@ -57,86 +60,73 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 			assert.Equal(t, test.expectShort, child.Short)
 			tester.AreSameFunc(t, test.expectRunE, child.RunE)
 
-			// Test arg parsing for few args
-			cmd.SetArgs([]string{
-				"exchange",
-				"--" + flags.RunModeFN, flags.RunModeFlagTest,
-				"--" + flags.BackupFN, testdata.BackupInput,
+			flagsTD.WithFlags(
+				cmd,
+				exchangeServiceCommand,
+				[]string{
+					"--" + flags.RunModeFN, flags.RunModeFlagTest,
+					"--" + flags.BackupFN, flagsTD.BackupInput,
 
-				"--" + flags.ContactFN, testdata.FlgInputs(testdata.ContactInput),
-				"--" + flags.ContactFolderFN, testdata.FlgInputs(testdata.ContactFldInput),
-				"--" + flags.ContactNameFN, testdata.ContactNameInput,
+					"--" + flags.ContactFN, flagsTD.FlgInputs(flagsTD.ContactInput),
+					"--" + flags.ContactFolderFN, flagsTD.FlgInputs(flagsTD.ContactFldInput),
+					"--" + flags.ContactNameFN, flagsTD.ContactNameInput,
 
-				"--" + flags.EmailFN, testdata.FlgInputs(testdata.EmailInput),
-				"--" + flags.EmailFolderFN, testdata.FlgInputs(testdata.EmailFldInput),
-				"--" + flags.EmailReceivedAfterFN, testdata.EmailReceivedAfterInput,
-				"--" + flags.EmailReceivedBeforeFN, testdata.EmailReceivedBeforeInput,
-				"--" + flags.EmailSenderFN, testdata.EmailSenderInput,
-				"--" + flags.EmailSubjectFN, testdata.EmailSubjectInput,
+					"--" + flags.EmailFN, flagsTD.FlgInputs(flagsTD.EmailInput),
+					"--" + flags.EmailFolderFN, flagsTD.FlgInputs(flagsTD.EmailFldInput),
+					"--" + flags.EmailReceivedAfterFN, flagsTD.EmailReceivedAfterInput,
+					"--" + flags.EmailReceivedBeforeFN, flagsTD.EmailReceivedBeforeInput,
+					"--" + flags.EmailSenderFN, flagsTD.EmailSenderInput,
+					"--" + flags.EmailSubjectFN, flagsTD.EmailSubjectInput,
 
-				"--" + flags.EventFN, testdata.FlgInputs(testdata.EventInput),
-				"--" + flags.EventCalendarFN, testdata.FlgInputs(testdata.EventCalInput),
-				"--" + flags.EventOrganizerFN, testdata.EventOrganizerInput,
-				"--" + flags.EventRecursFN, testdata.EventRecursInput,
-				"--" + flags.EventStartsAfterFN, testdata.EventStartsAfterInput,
-				"--" + flags.EventStartsBeforeFN, testdata.EventStartsBeforeInput,
-				"--" + flags.EventSubjectFN, testdata.EventSubjectInput,
+					"--" + flags.EventFN, flagsTD.FlgInputs(flagsTD.EventInput),
+					"--" + flags.EventCalendarFN, flagsTD.FlgInputs(flagsTD.EventCalInput),
+					"--" + flags.EventOrganizerFN, flagsTD.EventOrganizerInput,
+					"--" + flags.EventRecursFN, flagsTD.EventRecursInput,
+					"--" + flags.EventStartsAfterFN, flagsTD.EventStartsAfterInput,
+					"--" + flags.EventStartsBeforeFN, flagsTD.EventStartsBeforeInput,
+					"--" + flags.EventSubjectFN, flagsTD.EventSubjectInput,
 
-				"--" + flags.CollisionsFN, testdata.Collisions,
-				"--" + flags.DestinationFN, testdata.Destination,
-				"--" + flags.ToResourceFN, testdata.ToResource,
-
-				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-				"--" + flags.AzureClientIDFN, testdata.AzureClientID,
-				"--" + flags.AzureClientTenantFN, testdata.AzureTenantID,
-				"--" + flags.AzureClientSecretFN, testdata.AzureClientSecret,
-
-				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-			})
+					"--" + flags.CollisionsFN, flagsTD.Collisions,
+					"--" + flags.DestinationFN, flagsTD.Destination,
+					"--" + flags.ToResourceFN, flagsTD.ToResource,
+				},
+				flagsTD.PreparedProviderFlags(),
+				flagsTD.PreparedStorageFlags())
 
 			cmd.SetOut(new(bytes.Buffer)) // drop output
 			cmd.SetErr(new(bytes.Buffer)) // drop output
+
 			err := cmd.Execute()
 			assert.NoError(t, err, clues.ToCore(err))
 
 			opts := utils.MakeExchangeOpts(cmd)
-			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
+			assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
 
-			assert.ElementsMatch(t, testdata.ContactInput, opts.Contact)
-			assert.ElementsMatch(t, testdata.ContactFldInput, opts.ContactFolder)
-			assert.Equal(t, testdata.ContactNameInput, opts.ContactName)
+			assert.ElementsMatch(t, flagsTD.ContactInput, opts.Contact)
+			assert.ElementsMatch(t, flagsTD.ContactFldInput, opts.ContactFolder)
+			assert.Equal(t, flagsTD.ContactNameInput, opts.ContactName)
 
-			assert.ElementsMatch(t, testdata.EmailInput, opts.Email)
-			assert.ElementsMatch(t, testdata.EmailFldInput, opts.EmailFolder)
-			assert.Equal(t, testdata.EmailReceivedAfterInput, opts.EmailReceivedAfter)
-			assert.Equal(t, testdata.EmailReceivedBeforeInput, opts.EmailReceivedBefore)
-			assert.Equal(t, testdata.EmailSenderInput, opts.EmailSender)
-			assert.Equal(t, testdata.EmailSubjectInput, opts.EmailSubject)
+			assert.ElementsMatch(t, flagsTD.EmailInput, opts.Email)
+			assert.ElementsMatch(t, flagsTD.EmailFldInput, opts.EmailFolder)
+			assert.Equal(t, flagsTD.EmailReceivedAfterInput, opts.EmailReceivedAfter)
+			assert.Equal(t, flagsTD.EmailReceivedBeforeInput, opts.EmailReceivedBefore)
+			assert.Equal(t, flagsTD.EmailSenderInput, opts.EmailSender)
+			assert.Equal(t, flagsTD.EmailSubjectInput, opts.EmailSubject)
 
-			assert.ElementsMatch(t, testdata.EventInput, opts.Event)
-			assert.ElementsMatch(t, testdata.EventCalInput, opts.EventCalendar)
-			assert.Equal(t, testdata.EventOrganizerInput, opts.EventOrganizer)
-			assert.Equal(t, testdata.EventRecursInput, opts.EventRecurs)
-			assert.Equal(t, testdata.EventStartsAfterInput, opts.EventStartsAfter)
-			assert.Equal(t, testdata.EventStartsBeforeInput, opts.EventStartsBefore)
-			assert.Equal(t, testdata.EventSubjectInput, opts.EventSubject)
+			assert.ElementsMatch(t, flagsTD.EventInput, opts.Event)
+			assert.ElementsMatch(t, flagsTD.EventCalInput, opts.EventCalendar)
+			assert.Equal(t, flagsTD.EventOrganizerInput, opts.EventOrganizer)
+			assert.Equal(t, flagsTD.EventRecursInput, opts.EventRecurs)
+			assert.Equal(t, flagsTD.EventStartsAfterInput, opts.EventStartsAfter)
+			assert.Equal(t, flagsTD.EventStartsBeforeInput, opts.EventStartsBefore)
+			assert.Equal(t, flagsTD.EventSubjectInput, opts.EventSubject)
 
-			assert.Equal(t, testdata.Collisions, opts.RestoreCfg.Collisions)
-			assert.Equal(t, testdata.Destination, opts.RestoreCfg.Destination)
-			assert.Equal(t, testdata.ToResource, opts.RestoreCfg.ProtectedResource)
+			assert.Equal(t, flagsTD.Collisions, opts.RestoreCfg.Collisions)
+			assert.Equal(t, flagsTD.Destination, opts.RestoreCfg.Destination)
+			assert.Equal(t, flagsTD.ToResource, opts.RestoreCfg.ProtectedResource)
 
-			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-			assert.Equal(t, testdata.AzureClientID, flags.AzureClientIDFV)
-			assert.Equal(t, testdata.AzureTenantID, flags.AzureClientTenantFV)
-			assert.Equal(t, testdata.AzureClientSecret, flags.AzureClientSecretFV)
-
-			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+			flagsTD.AssertProviderFlags(t, cmd)
+			flagsTD.AssertStorageFlags(t, cmd)
 		})
 	}
 }

@@ -32,7 +32,7 @@ const (
 const (
 	exchangeServiceCommand                 = "exchange"
 	exchangeServiceCommandCreateUseSuffix  = "--mailbox <email> | '" + flags.Wildcard + "'"
-	exchangeServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	exchangeServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	exchangeServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -46,8 +46,9 @@ corso backup create exchange --mailbox alice@example.com,bob@example.com --data 
 # Backup all Exchange data for all M365 users 
 corso backup create exchange --mailbox '*'`
 
-	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete exchange --backup 1234abcd-12ab-cd34-56de-1234abcd`
+	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with IDs 1234abcd-12ab-cd34-56de-1234abcd \
+and 1234abcd-12ab-cd34-56de-1234abce
+corso backup delete exchange --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	exchangeServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -84,9 +85,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddMailBoxFlag(c)
 		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
@@ -101,12 +99,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
-		addFailedItemsFN(c)
-		addSkippedItemsFN(c)
-		addRecoveredErrorsFN(c)
+		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
@@ -120,9 +113,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddBackupIDFlag(c, true)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddExchangeDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -132,10 +122,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
 
-		flags.AddBackupIDFlag(c, true)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
+		flags.AddMultipleBackupIDsFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 	}
 
 	return c
@@ -160,6 +148,10 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
@@ -276,6 +268,10 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
@@ -358,5 +354,15 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.ExchangeService, flags.BackupIDFV, "Exchange", args)
+	var backupIDValue []string
+
+	if len(flags.BackupIDsFV) > 0 {
+		backupIDValue = flags.BackupIDsFV
+	} else if len(flags.BackupIDFV) > 0 {
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
+	} else {
+		return clues.New("either --backup or --backups flag is required")
+	}
+
+	return genericDeleteCommand(cmd, path.ExchangeService, "Exchange", backupIDValue, args)
 }

@@ -43,7 +43,7 @@ type RestoreExchangeE2ESuite struct {
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
-	repo       repository.Repository
+	repo       repository.Repositoryer
 	m365UserID string
 	backupOps  map[path.CategoryType]operations.BackupOperation
 }
@@ -86,12 +86,15 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	)
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(
+	suite.repo, err = repository.New(
 		ctx,
 		suite.acct,
 		suite.st,
-		control.Options{},
-		ctrlRepo.Retention{})
+		control.DefaultOptions(),
+		repository.NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = suite.repo.Initialize(ctx, ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)

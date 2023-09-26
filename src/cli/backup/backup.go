@@ -48,34 +48,14 @@ func AddCommands(cmd *cobra.Command) {
 
 	for _, sc := range subCommandFuncs {
 		subCommand := sc()
+		flags.AddAllProviderFlags(subCommand)
+		flags.AddAllStorageFlags(subCommand)
 		backupC.AddCommand(subCommand)
 
 		for _, addBackupTo := range serviceCommands {
 			addBackupTo(subCommand)
 		}
 	}
-}
-
-// ---------------------------------------------------------------------------
-// common flags and flag attachers for commands
-// ---------------------------------------------------------------------------
-
-func addFailedItemsFN(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
-		&flags.ListFailedItemsFV, flags.FailedItemsFN, "show",
-		"Toggles showing or hiding the list of items that failed.")
-}
-
-func addSkippedItemsFN(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
-		&flags.ListSkippedItemsFV, flags.SkippedItemsFN, "show",
-		"Toggles showing or hiding the list of items that were skipped.")
-}
-
-func addRecoveredErrorsFN(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
-		&flags.ListRecoveredErrorsFV, flags.RecoveredErrorsFN, "show",
-		"Toggles showing or hiding the list of errors which corso recovered from.")
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +165,7 @@ var defaultSelectorConfig = selectors.Config{OnlyMatchItemNames: true}
 
 func runBackups(
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	serviceName string,
 	selectorSet []selectors.Selector,
 	ins idname.Cacher,
@@ -272,10 +252,14 @@ func runBackups(
 func genericDeleteCommand(
 	cmd *cobra.Command,
 	pst path.ServiceType,
-	bID, designation string,
-	args []string,
+	designation string,
+	bID, args []string,
 ) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
@@ -291,11 +275,11 @@ func genericDeleteCommand(
 
 	defer utils.CloseRepo(ctx, r)
 
-	if err := r.DeleteBackups(ctx, true, bID); err != nil {
-		return Only(ctx, clues.Wrap(err, "Deleting backup "+bID))
+	if err := r.DeleteBackups(ctx, true, bID...); err != nil {
+		return Only(ctx, clues.Wrap(err, fmt.Sprintf("Deleting backup %v", bID)))
 	}
 
-	Infof(ctx, "Deleted %s backup %s", designation, bID)
+	Infof(ctx, "Deleted %s backup %v", designation, bID)
 
 	return nil
 }
@@ -309,6 +293,10 @@ func genericListCommand(
 	args []string,
 ) error {
 	ctx := cmd.Context()
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
 
 	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
 		ctx,
@@ -354,7 +342,7 @@ func ifShow(flag string) bool {
 	return strings.ToLower(strings.TrimSpace(flag)) == "show"
 }
 
-func printBackupStats(ctx context.Context, r repository.Repository, bid string) {
+func printBackupStats(ctx context.Context, r repository.Repositoryer, bid string) {
 	b, err := r.Backup(ctx, bid)
 	if err != nil {
 		logger.CtxErr(ctx, err).Error("finding backup immediately after backup operation completion")
