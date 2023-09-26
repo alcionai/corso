@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type EnabledUnitSuite struct {
@@ -29,7 +30,10 @@ type mockGSR struct {
 	err      error
 }
 
-func (m mockGSR) GetRoot(context.Context) (models.Siteable, error) {
+func (m mockGSR) GetRoot(
+	context.Context,
+	api.CallConfig,
+) (models.Siteable, error) {
 	return m.response, m.err
 }
 

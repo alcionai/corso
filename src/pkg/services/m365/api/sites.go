@@ -35,11 +35,16 @@ type Sites struct {
 // api calls
 // ---------------------------------------------------------------------------
 
-func (c Sites) GetRoot(ctx context.Context) (models.Siteable, error) {
+func (c Sites) GetRoot(
+	ctx context.Context,
+	cc CallConfig,
+) (models.Siteable, error) {
 	options := &sites.SiteItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: &sites.SiteItemRequestBuilderGetQueryParameters{
-			Expand: []string{"drive"},
-		},
+		QueryParameters: &sites.SiteItemRequestBuilderGetQueryParameters{},
+	}
+
+	if len(cc.Expand) > 0 {
+		options.QueryParameters.Expand = cc.Expand
 	}
 
 	resp, err := c.Stable.
@@ -180,6 +185,8 @@ func (c Sites) GetByID(
 	}
 
 	rawURL := fmt.Sprintf(sitesWebURLGetTemplate, u.Host, path, qp)
+
+	fmt.Printf("\n-----\nrawURL %+v\n-----\n", rawURL)
 
 	resp, err = sites.
 		NewItemSitesSiteItemRequestBuilder(rawURL, c.Stable.Adapter()).
