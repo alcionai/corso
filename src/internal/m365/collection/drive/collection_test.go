@@ -981,14 +981,16 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 			ei, ok := collItem.(data.ItemInfo)
 			assert.True(t, ok)
 
-			itemInfo, err := ei.Info()
-			require.NoError(t, err, clues.ToCore(err))
+			r := collItem.ToReader()
 
-			_, err = io.ReadAll(collItem.ToReader())
+			_, err = io.ReadAll(r)
 			test.expectReadErr(t, err, clues.ToCore(err))
 
-			err = collItem.ToReader().Close()
+			err = r.Close()
 			test.expectCloseErr(t, err, clues.ToCore(err))
+
+			itemInfo, err := ei.Info()
+			require.NoError(t, err, clues.ToCore(err))
 
 			// Verify extension data
 			test.expect(t, itemInfo, test.payload)
