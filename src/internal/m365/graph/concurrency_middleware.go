@@ -86,16 +86,16 @@ const (
 	// If the bucket is full, we can push out 200 calls immediately, which brings
 	// the total in the first 10 minutes to 9800.  We can toe that line if we want,
 	// but doing so risks timeouts.  It's better to give the limits breathing room.
-	defaultPerSecond = 200  // 16 * 60 * 10 = 9600
-	defaultMaxCap    = 2000 // real cap is 10k-per-10-minutes
+	defaultPerSecond = 16  // 16 * 60 * 10 = 9600
+	defaultMaxCap    = 200 // real cap is 10k-per-10-minutes
 	// since drive runs on a per-minute, rather than per-10-minute bucket, we have
 	// to keep the max cap equal to the per-second cap.  A large maxCap pool (say,
 	// 1200, similar to the per-minute cap) would allow us to make a flood of 2400
 	// calls in the first minute, putting us over the per-minute limit.  Keeping
 	// the cap at the per-second burst means we only dole out a max of 1240 in one
 	// minute (20 cap + 1200 per minute + one burst of padding).
-	drivePerSecond = 200  // 20 * 60 = 1200
-	driveMaxCap    = 2000 // real cap is 1250-per-minute
+	drivePerSecond = 20 // 20 * 60 = 1200
+	driveMaxCap    = 20 // real cap is 1250-per-minute
 )
 
 var (

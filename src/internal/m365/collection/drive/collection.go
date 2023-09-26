@@ -334,13 +334,14 @@ func downloadContent(
 
 		go func() {
 			defer wg.Done()
-			go GetItemContentNTimes(1000, ctx, iaag, driveID, item)
+			go GetItemContentNTimes(500, ctx, iaag, driveID, item)
 		}()
 
 		logger.Ctx(ctx).Debug("waiting for goroutines to finish")
 		wg.Wait()
 
 		// Reset window such that it doesn't impact GetItem() calls
+		// if they are not made in parallel with item download calls.
 		time.Sleep(10 * time.Second)
 	}
 
