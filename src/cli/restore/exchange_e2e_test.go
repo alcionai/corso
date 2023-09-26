@@ -86,7 +86,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	)
 
 	// init the repo first
-	r, err := repository.New(
+	suite.repo, err = repository.New(
 		ctx,
 		suite.acct,
 		suite.st,
@@ -94,7 +94,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = suite.repo.Initialize(ctx, ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)

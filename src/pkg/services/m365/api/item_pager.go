@@ -138,6 +138,11 @@ func deltaEnumerateItems[T any](
 	// Loop through all pages returned by Graph API.
 	for len(nextLink) > 0 {
 		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
+		if graph.IsErrDeltaNotSupported(err) {
+			logger.Ctx(ctx).Infow("delta queries not supported")
+			return nil, DeltaUpdate{}, clues.Stack(graph.ErrDeltaNotSupported, err)
+		}
+
 		if graph.IsErrInvalidDelta(err) {
 			logger.Ctx(ctx).Infow("invalid previous delta", "delta_link", prevDeltaLink)
 
@@ -191,7 +196,7 @@ func getAddedAndRemovedItemIDs[T any](
 ) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := deltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
-		if err != nil && (!graph.IsErrInvalidDelta(err) || len(prevDeltaLink) == 0) {
+		if err != nil && !graph.IsErrInvalidDelta(err) && !graph.IsErrDeltaNotSupported(err) {
 			return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 		}
 
