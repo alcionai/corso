@@ -131,10 +131,7 @@ func getAllMailSubFolders(
 	dataFolder string,
 	messageCount map[string]int32,
 ) {
-	var (
-		folderID = ptr.Val(r.GetId())
-	)
-
+	folderID := ptr.Val(r.GetId())
 	ctx = clues.Add(ctx, "parent_folder_id", folderID)
 
 	childFolders, err := ac.Mail().GetContainerChildren(ctx, testUser, folderID)
@@ -178,7 +175,7 @@ func checkAllSubFolder(
 	testUser, parentFolder, dataFolder string,
 	restoreMessageCount map[string]int32,
 ) {
-	var folderID = ptr.Val(r.GetId())
+	folderID := ptr.Val(r.GetId())
 
 	childFolders, err := ac.Mail().GetContainerChildren(ctx, testUser, folderID)
 	if err != nil {

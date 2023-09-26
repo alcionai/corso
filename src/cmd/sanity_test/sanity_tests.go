@@ -48,8 +48,21 @@ func main() {
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	root := rootCMD()
-	root.AddCommand(restoreCMD())
-	root.AddCommand(exportCMD())
+
+	restCMD := restoreCMD()
+
+	restCMD.AddCommand(restoreExchangeCMD())
+	restCMD.AddCommand(restoreOneDriveCMD())
+	restCMD.AddCommand(restoreSharePointCMD())
+	restCMD.AddCommand(restoreGroupsCMD())
+	root.AddCommand(restCMD)
+
+	expCMD := exportCMD()
+
+	expCMD.AddCommand(exportOneDriveCMD())
+	expCMD.AddCommand(exportSharePointCMD())
+	expCMD.AddCommand(exportGroupsCMD())
+	root.AddCommand(expCMD)
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
@@ -90,7 +103,7 @@ func sanityTestRestore(cmd *cobra.Command, args []string) error {
 // service commands - export
 // ---------------------------------------------------------------------------
 
-func exportExchangeCMD() *cobra.Command {
+func exportGroupsCMD() *cobra.Command {
 	return &cobra.Command{
 		Use:               "groups",
 		Short:             "run the groups export sanity tests",
