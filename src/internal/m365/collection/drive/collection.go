@@ -314,6 +314,36 @@ func downloadContent(
 	itemID := ptr.Val(item.GetId())
 	ctx = clues.Add(ctx, "item_id", itemID)
 
+	// Run GetItemNTimes & GetItemContentNTimes in parallel
+
+	for i := 0; i < 10; i++ {
+		logger.Ctx(ctx).Debug("-------------------------------------------------------------")
+		logger.Ctx(ctx).Debug("-------------------------------------------------------------")
+
+		var wg sync.WaitGroup
+
+		wg.Add(1)
+
+		// Launch GetItemNTimes as a goroutine
+		go func() {
+			defer wg.Done()
+			GetItemNTimes(100, ctx, iaag, driveID, item)
+		}()
+
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			go GetItemContentNTimes(1000, ctx, iaag, driveID, item)
+		}()
+
+		logger.Ctx(ctx).Debug("waiting for goroutines to finish")
+		wg.Wait()
+
+		// Reset window such that it doesn't impact GetItem() calls
+		time.Sleep(10 * time.Second)
+	}
+
 	content, err := downloadItem(ctx, iaag, item)
 	if err == nil {
 		return content, nil
@@ -347,6 +377,60 @@ func downloadContent(
 	}
 
 	return content, nil
+}
+
+func GetItemNTimes(
+	n int,
+	ctx context.Context,
+	iaag itemAndAPIGetter,
+	driveID string,
+	item models.DriveItemable,
+) {
+	var wg sync.WaitGroup
+
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// arbitrary sleep between 0 to 1 seconds
+			//time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+			_, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
+			if err != nil {
+				logger.CtxErr(ctx, err).Info("Not good. GetItem failing.")
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	logger.Ctx(ctx).Info("GetItemNTimes- done")
+}
+
+func GetItemContentNTimes(
+	n int,
+	ctx context.Context,
+	iaag itemAndAPIGetter,
+	driveID string,
+	item models.DriveItemable,
+) {
+	var wg sync.WaitGroup
+
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := downloadItem(ctx, iaag, item)
+			if err != nil {
+				logger.CtxErr(ctx, err).Info("Expected . GetItemContent failing.")
+			}
+
+		}()
+	}
+
+	wg.Wait()
+
+	logger.Ctx(ctx).Info("GetItemContentNTimes - done")
 }
 
 // readItemContents fetches latest download URL from the cache and attempts to

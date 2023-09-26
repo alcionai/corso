@@ -86,16 +86,16 @@ const (
 	// If the bucket is full, we can push out 200 calls immediately, which brings
 	// the total in the first 10 minutes to 9800.  We can toe that line if we want,
 	// but doing so risks timeouts.  It's better to give the limits breathing room.
-	defaultPerSecond = 16  // 16 * 60 * 10 = 9600
-	defaultMaxCap    = 200 // real cap is 10k-per-10-minutes
+	defaultPerSecond = 200  // 16 * 60 * 10 = 9600
+	defaultMaxCap    = 2000 // real cap is 10k-per-10-minutes
 	// since drive runs on a per-minute, rather than per-10-minute bucket, we have
 	// to keep the max cap equal to the per-second cap.  A large maxCap pool (say,
 	// 1200, similar to the per-minute cap) would allow us to make a flood of 2400
 	// calls in the first minute, putting us over the per-minute limit.  Keeping
 	// the cap at the per-second burst means we only dole out a max of 1240 in one
 	// minute (20 cap + 1200 per minute + one burst of padding).
-	drivePerSecond = 20 // 20 * 60 = 1200
-	driveMaxCap    = 20 // real cap is 1250-per-minute
+	drivePerSecond = 200  // 20 * 60 = 1200
+	driveMaxCap    = 2000 // real cap is 1250-per-minute
 )
 
 var (
@@ -150,7 +150,7 @@ const (
 	// https://learn.microsoft.com/en-us/sharepoint/dev/general-development
 	// /how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#application-throttling
 	defaultLC      = 1
-	driveDefaultLC = 2
+	driveDefaultLC = 1
 	// limit consumption rate for single-item GETs requests,
 	// or delta-based multi-item GETs.
 	SingleGetOrDeltaLC = 1
@@ -183,7 +183,8 @@ func ctxLimiterConsumption(ctx context.Context, defaultConsumption int) int {
 // QueueRequest will allow the request to occur immediately if we're under the
 // calls-per-minute rate.  Otherwise, the call will wait in a queue until
 // the next token set is available.
-func QueueRequest(ctx context.Context) {
+func QueueRequest(req *http.Request) {
+	ctx := req.Context()
 	limiter := ctxLimiter(ctx)
 	defaultConsumed := defaultLC
 
@@ -192,6 +193,11 @@ func QueueRequest(ctx context.Context) {
 	}
 
 	consume := ctxLimiterConsumption(ctx, defaultConsumed)
+
+	dump := getReqDump(req.Context(), req, true)
+	logger.Ctx(req.Context()).Infow("rate limiter middleware",
+		"request", dump,
+		"consumed", consume)
 
 	if err := limiter.WaitN(ctx, consume); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
@@ -206,7 +212,8 @@ func (mw *RateLimiterMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	QueueRequest(req.Context())
+	QueueRequest(req)
+
 	return pipeline.Next(req, middlewareIndex)
 }
 

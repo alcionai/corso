@@ -178,15 +178,15 @@ func defaultTransport() http.RoundTripper {
 
 func internalMiddleware(cc *clientConfig) []khttp.Middleware {
 	mw := []khttp.Middleware{
-		&RetryMiddleware{
-			MaxRetries: cc.maxRetries,
-			Delay:      cc.minDelay,
-		},
-		khttp.NewRetryHandler(),
+		// &RetryMiddleware{
+		// 	MaxRetries: cc.maxRetries,
+		// 	Delay:      cc.minDelay,
+		// },
+		// khttp.NewRetryHandler(),
 		khttp.NewRedirectHandler(),
 		&LoggingMiddleware{},
-		&throttlingMiddleware{newTimedFence()},
-		&RateLimiterMiddleware{},
+		//&throttlingMiddleware{newTimedFence()},
+		//&RateLimiterMiddleware{},
 		&MetricsMiddleware{},
 	}
 

@@ -277,11 +277,11 @@ func kiotaMiddlewares(
 ) []khttp.Middleware {
 	mw := []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),
-		&RetryMiddleware{
-			MaxRetries: cc.maxRetries,
-			Delay:      cc.minDelay,
-		},
-		khttp.NewRetryHandler(),
+		// &RetryMiddleware{
+		// 	MaxRetries: cc.maxRetries,
+		// 	Delay:      cc.minDelay,
+		// },
+		// khttp.NewRetryHandler(),
 		khttp.NewRedirectHandler(),
 		khttp.NewCompressionHandler(),
 		khttp.NewParametersNameDecodingHandler(),
@@ -296,8 +296,8 @@ func kiotaMiddlewares(
 
 	mw = append(
 		mw,
-		&throttlingMiddleware{newTimedFence()},
-		&RateLimiterMiddleware{},
+		//&throttlingMiddleware{newTimedFence()},
+		//&RateLimiterMiddleware{},
 		&MetricsMiddleware{})
 
 	if len(cc.appendMiddleware) > 0 {

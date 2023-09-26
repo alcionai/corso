@@ -188,6 +188,15 @@ func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string 
 	return string(respDump)
 }
 
+func getReqDump(ctx context.Context, req *http.Request, getBody bool) string {
+	respDump, err := httputil.DumpRequest(req, getBody)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("dumping http response")
+	}
+
+	return string(respDump)
+}
+
 // ---------------------------------------------------------------------------
 // Retry & Backoff
 // ---------------------------------------------------------------------------
