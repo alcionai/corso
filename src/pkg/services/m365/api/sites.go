@@ -186,8 +186,6 @@ func (c Sites) GetByID(
 
 	rawURL := fmt.Sprintf(sitesWebURLGetTemplate, u.Host, path, qp)
 
-	fmt.Printf("\n-----\nrawURL %+v\n-----\n", rawURL)
-
 	resp, err = sites.
 		NewItemSitesSiteItemRequestBuilder(rawURL, c.Stable.Adapter()).
 		Get(ctx, nil)
