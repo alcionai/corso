@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    paths:
+      - ".github/workflows/sanity-test.yaml" # ability to create DRAFT PR to test workflow
   workflow_dispatch:
     inputs:
       user:
