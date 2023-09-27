@@ -7,12 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 type CommonCfgSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestCommonCfgSuite(t *testing.T) {

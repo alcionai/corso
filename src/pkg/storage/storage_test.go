@@ -6,6 +6,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 type testConfig struct {
@@ -18,7 +20,7 @@ func (c testConfig) StringConfig() (map[string]string, error) {
 }
 
 type StorageSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestStorageSuite(t *testing.T) {

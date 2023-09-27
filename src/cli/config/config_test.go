@@ -425,6 +425,12 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, repository.Options{}, "repoid")
 	require.NoError(t, err, "writing repo config", clues.ToCore(err))
 
+	require.Equal(
+		t,
+		account.ProviderM365.String(),
+		vpr.GetString(account.AccountProviderTypeKey),
+		"viper should have m365 as the account provider")
+
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 

@@ -9,6 +9,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common"
 )
 
+var ErrVerifyingConfigStorage = clues.New("verifying configs in corso config file")
+
 type ProviderType int
 
 //go:generate stringer -type=ProviderType -linecomment
@@ -102,7 +104,7 @@ func (s Storage) StorageConfig() (Configurer, error) {
 		return buildFilesystemConfigFromMap(s.Config)
 	}
 
-	return nil, clues.New("unsupported storage provider: " + s.Provider.String())
+	return nil, clues.New("unsupported storage provider: [" + s.Provider.String() + "]")
 }
 
 func NewStorageConfig(provider ProviderType) (Configurer, error) {
@@ -113,7 +115,7 @@ func NewStorageConfig(provider ProviderType) (Configurer, error) {
 		return &FilesystemConfig{}, nil
 	}
 
-	return nil, clues.New("unsupported storage provider: " + provider.String())
+	return nil, clues.New("unsupported storage provider: [" + provider.String() + "]")
 }
 
 type Getter interface {
@@ -167,7 +169,8 @@ func mustMatchConfig(
 
 		vv := cast.ToString(g.Get(tomlK))
 		if v != vv {
-			return clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
+			err := clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
+			return clues.Stack(ErrVerifyingConfigStorage, err)
 		}
 	}
 

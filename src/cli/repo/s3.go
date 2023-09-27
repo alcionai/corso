@@ -145,6 +145,8 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
+		err = clues.Stack(ErrInitializingRepo, err)
+
 		return Only(ctx, clues.Wrap(err, "Failed to initialize a new S3 repository"))
 	}
 
@@ -226,6 +228,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := r.Connect(ctx); err != nil {
+		err = clues.Stack(ErrConnectingRepo, err)
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}
 
