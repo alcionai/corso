@@ -228,17 +228,19 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeGroupsOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		path.GroupsService)
+	r, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.GroupsService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	ds, err := runDetailsGroupsCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsGroupsCmd(
+		ctx,
+		r,
+		flags.BackupIDFV,
+		opts,
+		rdao.Opts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}

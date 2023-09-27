@@ -232,17 +232,19 @@ func detailsOneDriveCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeOneDriveOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		path.OneDriveService)
+	r, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.OneDriveService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	ds, err := runDetailsOneDriveCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsOneDriveCmd(
+		ctx,
+		r,
+		flags.BackupIDFV,
+		opts,
+		rdao.Opts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}

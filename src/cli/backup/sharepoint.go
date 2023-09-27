@@ -327,17 +327,19 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		path.SharePointService)
+	r, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.SharePointService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	ds, err := runDetailsSharePointCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsSharePointCmd(
+		ctx,
+		r,
+		flags.BackupIDFV,
+		opts,
+		rdao.Opts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}

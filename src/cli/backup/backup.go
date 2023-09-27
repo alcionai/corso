@@ -265,10 +265,7 @@ func genericDeleteCommand(
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		pst)
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, pst)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -298,10 +295,7 @@ func genericListCommand(
 		return nil
 	}
 
-	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		service)
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, service)
 	if err != nil {
 		return Only(ctx, err)
 	}
