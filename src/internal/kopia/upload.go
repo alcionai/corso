@@ -594,6 +594,7 @@ func streamBaseEntries(
 			logger.Ctx(ctx).Debugw(
 				"uploading base item",
 				"item_size", entry.Size(),
+				"item_mod_time", entry.ModTime(),
 				"item_repo_ref", itemPath)
 
 			if err := ctr(ctx, entry); err != nil {
