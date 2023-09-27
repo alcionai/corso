@@ -289,7 +289,15 @@ func addedAndRemovedByDeletedDateTime[T any](
 			var modTime time.Time
 
 			if mt, ok := giaddt.(getModTimer); ok {
-				modTime = ptr.Val(mt.GetLastModifiedDateTime())
+				// Make sure to get a non-zero mod time if the item doesn't have one for
+				// some reason. Otherwise we can hit an issue where kopia has a
+				// different mod time for the file than the details does. This occurs
+				// due to a conversion kopia does on the time from
+				// time.Time -> nanoseconds for serialization. During incremental
+				// backups, kopia goes from nanoseconds -> time.Time but there's an
+				// overflow which yields a different timestamp.
+				// https://github.com/gohugoio/hugo/issues/6161#issuecomment-725915786
+				modTime = ptr.OrNow(mt.GetLastModifiedDateTime())
 			}
 
 			added[ptr.Val(giaddt.GetId())] = modTime
