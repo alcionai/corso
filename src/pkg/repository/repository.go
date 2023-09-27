@@ -237,8 +237,7 @@ func (r *repository) Connect(ctx context.Context) (err error) {
 		}
 	}()
 
-	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
-	defer close(progressBar)
+	observe.Message(ctx, "Connecting to repository")
 
 	kopiaRef := kopia.NewConn(r.Storage)
 	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
