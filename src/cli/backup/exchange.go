@@ -275,17 +275,19 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeExchangeOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		path.ExchangeService)
+	r, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	ds, err := runDetailsExchangeCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsExchangeCmd(
+		ctx,
+		r,
+		flags.BackupIDFV,
+		opts,
+		rdao.Opts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}
