@@ -497,9 +497,10 @@ func runGroupsDetailsCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.
 
 type BackupDeleteGroupsE2ESuite struct {
 	tester.Suite
-	dpnd              dependencies
-	backupOp          operations.BackupOperation
-	secondaryBackupOp operations.BackupOperation
+	dpnd           dependencies
+	backupOp       operations.BackupOperation
+	secondBackupOp operations.BackupOperation
+	thirdBackupOp  operations.BackupOperation
 }
 
 func TestBackupDeleteGroupsE2ESuite(t *testing.T) {
@@ -533,13 +534,22 @@ func (suite *BackupDeleteGroupsE2ESuite) SetupSuite() {
 	err = suite.backupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	// secondary backup
-	secondaryBackupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
+	// second backup
+	secondBackupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.secondaryBackupOp = secondaryBackupOp
+	suite.secondBackupOp = secondBackupOp
 
-	err = suite.secondaryBackupOp.Run(ctx)
+	err = suite.secondBackupOp.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// third backup
+	thirdBackupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.thirdBackupOp = thirdBackupOp
+
+	err = suite.thirdBackupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -557,7 +567,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd() {
 		"--"+flags.BackupIDsFN,
 		fmt.Sprintf("%s,%s",
 			string(suite.backupOp.Results.BackupID),
-			string(suite.secondaryBackupOp.Results.BackupID)))
+			string(suite.secondBackupOp.Results.BackupID)))
 	cli.BuildCommandTree(cmd)
 
 	// run the command
@@ -587,7 +597,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_SingleID() {
 		"backup", "delete", "groups",
 		"--config-file", suite.dpnd.configFilePath,
 		"--"+flags.BackupFN,
-		string(suite.backupOp.Results.BackupID))
+		string(suite.thirdBackupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	// run the command
@@ -598,7 +608,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_SingleID() {
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "groups",
 		"--config-file", suite.dpnd.configFilePath,
-		"--backup", string(suite.backupOp.Results.BackupID))
+		"--backup", string(suite.thirdBackupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	err = cmd.ExecuteContext(ctx)

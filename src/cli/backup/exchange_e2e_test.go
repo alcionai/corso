@@ -561,9 +561,10 @@ func runExchangeDetailsCmdTest(suite *PreparedBackupExchangeE2ESuite, category p
 
 type BackupDeleteExchangeE2ESuite struct {
 	tester.Suite
-	dpnd              dependencies
-	backupOp          operations.BackupOperation
-	secondaryBackupOp operations.BackupOperation
+	dpnd           dependencies
+	backupOp       operations.BackupOperation
+	secondBackupOp operations.BackupOperation
+	thirdBackupOp  operations.BackupOperation
 }
 
 func TestBackupDeleteExchangeE2ESuite(t *testing.T) {
@@ -597,12 +598,20 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	err = suite.backupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	backupOp2, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
+	secondBackupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.secondaryBackupOp = backupOp2
+	suite.secondBackupOp = secondBackupOp
 
-	err = suite.secondaryBackupOp.Run(ctx)
+	err = suite.secondBackupOp.Run(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	thirdBackupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
+	require.NoError(t, err, clues.ToCore(err))
+
+	suite.thirdBackupOp = thirdBackupOp
+
+	err = suite.thirdBackupOp.Run(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -620,7 +629,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 		"--"+flags.BackupIDsFN,
 		fmt.Sprintf("%s,%s",
 			string(suite.backupOp.Results.BackupID),
-			string(suite.secondaryBackupOp.Results.BackupID)))
+			string(suite.secondBackupOp.Results.BackupID)))
 	cli.BuildCommandTree(cmd)
 
 	// run the command
@@ -641,7 +650,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "exchange",
 		"--config-file", suite.dpnd.configFilePath,
-		"--backup", string(suite.secondaryBackupOp.Results.BackupID))
+		"--backup", string(suite.secondBackupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	err = cmd.ExecuteContext(ctx)
@@ -660,7 +669,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_SingleID(
 		"backup", "delete", "exchange",
 		"--config-file", suite.dpnd.configFilePath,
 		"--"+flags.BackupFN,
-		string(suite.backupOp.Results.BackupID))
+		string(suite.thirdBackupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	// run the command
@@ -671,7 +680,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_SingleID(
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "exchange",
 		"--config-file", suite.dpnd.configFilePath,
-		"--backup", string(suite.secondaryBackupOp.Results.BackupID))
+		"--backup", string(suite.thirdBackupOp.Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	err = cmd.ExecuteContext(ctx)
