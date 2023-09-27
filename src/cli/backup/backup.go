@@ -48,12 +48,12 @@ func AddCommands(cmd *cobra.Command) {
 
 	for _, sc := range subCommandFuncs {
 		subCommand := sc()
-		flags.AddAllProviderFlags(subCommand)
-		flags.AddAllStorageFlags(subCommand)
 		backupC.AddCommand(subCommand)
 
 		for _, addBackupTo := range serviceCommands {
-			addBackupTo(subCommand)
+			sc := addBackupTo(subCommand)
+			flags.AddAllProviderFlags(sc)
+			flags.AddAllStorageFlags(sc)
 		}
 	}
 }
