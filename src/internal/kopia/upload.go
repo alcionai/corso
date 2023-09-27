@@ -591,6 +591,11 @@ func streamBaseEntries(
 				progress.put(encodeAsPath(itemPath.PopFront().Elements()...), d)
 			}
 
+			logger.Ctx(ctx).Debugw(
+				"uploading base item",
+				"item_size", entry.Size(),
+				"item_repo_ref", itemPath)
+
 			if err := ctr(ctx, entry); err != nil {
 				return clues.Wrap(err, "executing callback on item").
 					WithClues(ctx).
