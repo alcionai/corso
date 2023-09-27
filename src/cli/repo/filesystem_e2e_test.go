@@ -56,9 +56,8 @@ func (suite *FilesystemE2ESuite) TestInitFilesystemCmd() {
 
 			st := storeTD.NewFilesystemStorage(t)
 
-			sc, err := st.StorageConfig()
+			cfg, err := st.ToFilesystemConfig()
 			require.NoError(t, err, clues.ToCore(err))
-			cfg := sc.(*storage.FilesystemConfig)
 
 			force := map[string]string{
 				tconfig.TestCfgStorageProvider: storage.ProviderFilesystem.String(),
@@ -113,9 +112,8 @@ func (suite *FilesystemE2ESuite) TestConnectFilesystemCmd() {
 			defer flush()
 
 			st := storeTD.NewFilesystemStorage(t)
-			sc, err := st.StorageConfig()
+			cfg, err := st.ToFilesystemConfig()
 			require.NoError(t, err, clues.ToCore(err))
-			cfg := sc.(*storage.FilesystemConfig)
 
 			force := map[string]string{
 				tconfig.TestCfgAccountProvider: account.ProviderM365.String(),

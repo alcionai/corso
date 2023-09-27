@@ -62,6 +62,28 @@ var s3constToTomlKeyMap = map[string]string{
 	StorageProviderTypeKey: StorageProviderTypeKey,
 }
 
+func (s Storage) ToS3Config() (*S3Config, error) {
+	return buildS3ConfigFromMap(s.Config)
+}
+
+func buildS3ConfigFromMap(config map[string]string) (*S3Config, error) {
+	c := &S3Config{}
+
+	if len(config) > 0 {
+		c.AccessKey = orEmptyString(config[keyS3AccessKey])
+		c.SecretKey = orEmptyString(config[keyS3SecretKey])
+		c.SessionToken = orEmptyString(config[keyS3SessionToken])
+
+		c.Bucket = orEmptyString(config[keyS3Bucket])
+		c.Endpoint = orEmptyString(config[keyS3Endpoint])
+		c.Prefix = orEmptyString(config[keyS3Prefix])
+		c.DoNotUseTLS = str.ParseBool(config[keyS3DoNotUseTLS])
+		c.DoNotVerifyTLS = str.ParseBool(config[keyS3DoNotVerifyTLS])
+	}
+
+	return c, c.validate()
+}
+
 func (c *S3Config) normalize() S3Config {
 	return S3Config{
 		Bucket:         common.NormalizeBucket(c.Bucket),
@@ -89,24 +111,6 @@ func (c *S3Config) StringConfig() (map[string]string, error) {
 	}
 
 	return cfg, cn.validate()
-}
-
-func buildS3ConfigFromMap(config map[string]string) (*S3Config, error) {
-	c := &S3Config{}
-
-	if len(config) > 0 {
-		c.AccessKey = orEmptyString(config[keyS3AccessKey])
-		c.SecretKey = orEmptyString(config[keyS3SecretKey])
-		c.SessionToken = orEmptyString(config[keyS3SessionToken])
-
-		c.Bucket = orEmptyString(config[keyS3Bucket])
-		c.Endpoint = orEmptyString(config[keyS3Endpoint])
-		c.Prefix = orEmptyString(config[keyS3Prefix])
-		c.DoNotUseTLS = str.ParseBool(config[keyS3DoNotUseTLS])
-		c.DoNotVerifyTLS = str.ParseBool(config[keyS3DoNotVerifyTLS])
-	}
-
-	return c, c.validate()
 }
 
 func (c S3Config) validate() error {
@@ -169,11 +173,11 @@ func (c *S3Config) ApplyConfigOverrides(
 		if matchFromConfig {
 			providerType := cast.ToString(kvg.Get(StorageProviderTypeKey))
 			if providerType != ProviderS3.String() {
-				return clues.New("unsupported storage provider: " + providerType)
+				return clues.New("unsupported storage provider: [" + providerType + "]")
 			}
 
 			if err := mustMatchConfig(kvg, s3constToTomlKeyMap, s3Overrides(overrides)); err != nil {
-				return clues.Wrap(err, "verifying s3 configs in corso config file")
+				return clues.Stack(err)
 			}
 		}
 	}

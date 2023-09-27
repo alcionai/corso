@@ -140,10 +140,8 @@ func prepM365Test(
 		recorder = strings.Builder{}
 	)
 
-	sc, err := st.StorageConfig()
+	cfg, err := st.ToS3Config()
 	require.NoError(t, err, clues.ToCore(err))
-
-	cfg := sc.(*storage.S3Config)
 
 	force := map[string]string{
 		tconfig.TestCfgAccountProvider: account.ProviderM365.String(),

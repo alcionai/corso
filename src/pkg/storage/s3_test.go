@@ -8,11 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
 type S3CfgSuite struct {
-	suite.Suite
+	tester.Suite
 }
 
 func TestS3CfgSuite(t *testing.T) {
@@ -62,14 +63,14 @@ func (suite *S3CfgSuite) TestS3Config_Config() {
 
 func (suite *S3CfgSuite) TestStorage_S3Config() {
 	t := suite.T()
-
 	in := goodS3Config
+
 	s, err := NewStorage(ProviderS3, &in)
 	assert.NoError(t, err, clues.ToCore(err))
-	sc, err := s.StorageConfig()
+
+	out, err := s.ToS3Config()
 	assert.NoError(t, err, clues.ToCore(err))
 
-	out := sc.(*S3Config)
 	assert.Equal(t, in.Bucket, out.Bucket)
 	assert.Equal(t, in.Endpoint, out.Endpoint)
 	assert.Equal(t, in.Prefix, out.Prefix)
@@ -118,8 +119,9 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 			st, err := NewStorage(ProviderUnknown, &goodS3Config)
 			assert.NoError(t, err, clues.ToCore(err))
 			test.amend(st)
-			_, err = st.StorageConfig()
-			assert.Error(t, err)
+
+			_, err = st.ToS3Config()
+			assert.Error(t, err, clues.ToCore(err))
 		})
 	}
 }
