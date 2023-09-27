@@ -187,6 +187,8 @@ func (r *repository) Initialize(
 		}
 	}()
 
+	observe.Message(ctx, "Initializing repository")
+
 	kopiaRef := kopia.NewConn(r.Storage)
 	if err := kopiaRef.Initialize(ctx, r.Opts.Repo, retentionOpts); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
