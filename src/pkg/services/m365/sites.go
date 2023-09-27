@@ -114,22 +114,26 @@ func ParseSite(item models.Siteable) *Site {
 
 	if item.GetDrive() != nil &&
 		item.GetDrive().GetOwner() != nil &&
-		item.GetDrive().GetOwner().GetUser() != nil {
+		item.GetDrive().GetOwner().GetUser() != nil &&
+		// some users might come back with a nil ID
+		// most likely in the case of deleted users
+		item.GetDrive().GetOwner().GetUser().GetId() != nil {
 		s.OwnerType = SiteOwnerUser
 		s.OwnerID = ptr.Val(item.GetDrive().GetOwner().GetUser().GetId())
-	}
+	} else if item.GetDrive() != nil && item.GetDrive().GetOwner() != nil {
+		ownerItem := item.GetDrive().GetOwner()
+		if _, ok := ownerItem.GetAdditionalData()["group"]; ok {
+			s.OwnerType = SiteOwnerGroup
 
-	if _, ok := item.GetAdditionalData()["group"]; ok {
-		s.OwnerType = SiteOwnerGroup
+			group, err := tform.AnyValueToT[map[string]any]("group", ownerItem.GetAdditionalData())
+			if err != nil {
+				return s
+			}
 
-		group, err := tform.AnyValueToT[map[string]any]("group", item.GetAdditionalData())
-		if err != nil {
-			return s
-		}
-
-		s.OwnerID, err = str.AnyValueToString("id", group)
-		if err != nil {
-			return s
+			s.OwnerID, err = str.AnyValueToString("id", group)
+			if err != nil {
+				return s
+			}
 		}
 	}
 
