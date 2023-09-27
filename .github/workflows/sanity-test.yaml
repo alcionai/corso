@@ -411,7 +411,7 @@ jobs:
           retention-days: 14
 
       - name: Notify failure in slack
-        if: failure()
+        if: failure() &&  github.ref == 'refs/heads/main'
         uses: ./.github/actions/slack-message
         with:
           msg: "[FAILED] Sanity Tests"
