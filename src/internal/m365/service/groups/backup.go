@@ -129,6 +129,9 @@ func ProduceBackupCollections(
 				}
 
 				dbcs = append(dbcs, cs...)
+
+				// FIXME(meain): This can cause incorrect backup
+				// https://github.com/alcionai/corso/issues/4371
 				canUsePreviousBackup = canUsePreviousBackup || cupb
 			}
 

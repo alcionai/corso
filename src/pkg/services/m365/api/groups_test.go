@@ -110,6 +110,33 @@ func (suite *GroupsIntgSuite) TestGetAll() {
 	require.NotZero(t, len(groups), "must have at least one group")
 }
 
+func (suite *GroupsIntgSuite) TestGetAllSites() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	channels, err := suite.its.ac.
+		Channels().GetChannels(ctx, suite.its.group.id)
+	require.NoError(t, err, "getting channels")
+	require.NotZero(t, len(channels), "must have at least one channel")
+
+	siteCount := 1
+
+	for _, c := range channels {
+		if ptr.Val(c.GetMembershipType()) != models.STANDARD_CHANNELMEMBERSHIPTYPE {
+			siteCount++
+		}
+	}
+
+	sites, err := suite.its.ac.
+		Groups().
+		GetAllSites(ctx, suite.its.group.id, fault.New(true))
+	require.NoError(t, err)
+	require.NotZero(t, len(sites), "must have at least one site")
+	require.Equal(t, siteCount, len(sites), "incorrect number of sites")
+}
+
 func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 	t := suite.T()
 

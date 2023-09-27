@@ -165,12 +165,12 @@ func (c Groups) GetAllSites(
 ) ([]models.Siteable, error) {
 	root, err := c.GetRootSite(ctx, identifier)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting channels")
+		return nil, clues.Wrap(err, "getting root site")
 	}
 
 	sites := []models.Siteable{root}
 
-	channels, err := Channels{c.Client}.GetChannels(ctx, identifier)
+	channels, err := Channels(c).GetChannels(ctx, identifier)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting channels")
 	}
@@ -208,7 +208,7 @@ func (c Groups) GetAllSites(
 		dwurlSplits := strings.Split(documentWebURL, "/")
 		siteWebURL := strings.Join(dwurlSplits[:5], "/")
 
-		site, err := Sites{c.Client}.GetByID(ctx, siteWebURL)
+		site, err := Sites(c).GetByID(ctx, siteWebURL, CallConfig{})
 		if err != nil {
 			// TODO(meain): should this be a recoverable error?
 			return nil, clues.Wrap(err, "getting site").
