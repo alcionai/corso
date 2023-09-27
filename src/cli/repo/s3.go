@@ -222,6 +222,10 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		opts,
 		repoID)
 	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
+	}
+
+	if err := r.Connect(ctx); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
 	}
 
