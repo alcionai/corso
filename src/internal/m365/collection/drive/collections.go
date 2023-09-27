@@ -274,6 +274,13 @@ func (c *Collections) Get(
 			excludedItemIDs = map[string]struct{}{}
 			oldPrevPaths    = oldPrevPathsByDriveID[driveID]
 			prevDeltaLink   = prevDriveIDToDelta[driveID]
+
+			// itemCollection is used to identify which collection a
+			// file belongs to. This is useful to delete a file from the
+			// collection it was previously in, in case it was moved to a
+			// different collection within the same delta query
+			// item ID -> item ID
+			itemCollection = map[string]string{}
 		)
 
 		delete(driveTombstones, driveID)
@@ -313,7 +320,7 @@ func (c *Collections) Get(
 			driveName,
 			items,
 			oldPrevPaths,
-			driveIDToPrevPaths[driveID],
+			itemCollection,
 			excludedItemIDs,
 			du.Reset,
 			errs)
