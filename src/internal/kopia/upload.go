@@ -217,6 +217,11 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		cp.mu.Lock()
 		defer cp.mu.Unlock()
 
+		logger.Ctx(ctx).Debugw(
+			"adding merger entry",
+			"item_mod_time", d.modTime,
+			"item_prev_path", d.prevPath)
+
 		err := cp.toMerge.addRepoRef(
 			d.prevPath.ToBuilder(),
 			d.modTime,

@@ -635,6 +635,13 @@ func mergeItemsFromBase(
 				With("repo_ref", path.LoggableDir(entry.RepoRef))
 		}
 
+		ictx := clues.Add(
+			ctx,
+			"item_repo_ref",
+			rr,
+			"item_mod_time",
+			entry.Modified())
+
 		// Although this base has an entry it may not be the most recent. Check
 		// the reasons a snapshot was returned to ensure we only choose the recent
 		// entries.
@@ -645,15 +652,15 @@ func mergeItemsFromBase(
 		// with overlapping reasons that then turn into assist bases, but the
 		// modTime check in DetailsMergeInfoer should handle that.
 		if checkReason && !matchesReason(baseBackup.Reasons, rr) {
+			logger.Ctx(ictx).Debug("reason match failure")
 			continue
 		}
 
 		// Skip items that were already found in a previous base backup.
 		if _, ok := alreadySeenItems[rr.ShortRef()]; ok {
+			logger.Ctx(ictx).Debug("already seen")
 			continue
 		}
-
-		ictx := clues.Add(ctx, "repo_ref", rr)
 
 		newPath, newLoc, err := getNewPathRefs(
 			dataFromBackup,
@@ -667,8 +674,11 @@ func mergeItemsFromBase(
 
 		// This entry isn't merged.
 		if newPath == nil {
+			logger.Ctx(ictx).Debug("no new path")
 			continue
 		}
+
+		logger.Ctx(ictx).Debug("merged")
 
 		// Fixup paths in the item.
 		item := entry.ItemInfo
@@ -741,8 +751,10 @@ func mergeDetails(
 	// with overlapping Reasons that turn into assist bases, but the modTime check
 	// in DetailsMergeInfoer should handle that.
 	for _, base := range bases.UniqueAssistBackups() {
+		ictx := clues.Add(ctx, "base_type", "assist")
+
 		added, err := mergeItemsFromBase(
-			ctx,
+			ictx,
 			false,
 			base,
 			detailsStore,
@@ -766,8 +778,10 @@ func mergeDetails(
 	// explicitly control which subtrees from the merge base backup are grafted
 	// onto the hierarchy for the currently running backup.
 	for _, base := range bases.Backups() {
+		ictx := clues.Add(ctx, "base_type", "assist")
+
 		added, err := mergeItemsFromBase(
-			ctx,
+			ictx,
 			true,
 			base,
 			detailsStore,
