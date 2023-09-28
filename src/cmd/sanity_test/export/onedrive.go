@@ -31,7 +31,7 @@ func CheckOneDriveExport(
 
 	err = filepath.Walk(
 		envs.FolderName,
-		common.FilepathWalker(envs.FolderName, exportFileSizes, envs.StartTime))
+		common.FilepathWalker(envs.FolderName, exportFileSizes, startTime))
 	if err != nil {
 		fmt.Println("Error walking the path:", err)
 	}
