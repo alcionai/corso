@@ -121,7 +121,7 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 		groupsAPI = suite.its.ac.Groups()
 	)
 
-	grp, err := groupsAPI.GetByID(ctx, groupID)
+	grp, err := groupsAPI.GetByID(ctx, groupID, api.CallConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
@@ -157,7 +157,7 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := groupsAPI.GetByID(ctx, test.id)
+			_, err := groupsAPI.GetByID(ctx, test.id, api.CallConfig{})
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
