@@ -147,7 +147,11 @@ func deserializeMetadata(
 				// these cases. We can make the logic for deciding when to continue vs.
 				// when to fail less strict in the future if needed.
 				if err != nil {
-					return nil, nil, false, clues.Stack(err).WithClues(ictx)
+					errs.Fail(clues.Stack(err).WithClues(ictx))
+
+					breakLoop = true
+
+					break
 				}
 			}
 		}
