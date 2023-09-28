@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -110,6 +111,7 @@ func NewLazyItem(
 // made.
 type lazyItem struct {
 	ctx        context.Context
+	mu         sync.Mutex
 	id         string
 	errs       *fault.Bus
 	itemGetter ItemDataGetter
@@ -127,12 +129,18 @@ type lazyItem struct {
 	delInFlight bool
 }
 
-func (i lazyItem) ID() string {
+func (i *lazyItem) ID() string {
 	return i.id
 }
 
 func (i *lazyItem) ToReader() io.ReadCloser {
 	return lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+		// Don't allow getting Item info while trying to initialize said info.
+		// GetData could be a long running call, but in theory nothing should happen
+		// with the item until a reader is returned anyway.
+		i.mu.Lock()
+		defer i.mu.Unlock()
+
 		reader, info, delInFlight, err := i.itemGetter.GetData(i.ctx, i.errs)
 		if err != nil {
 			return nil, clues.Stack(err)
@@ -159,11 +167,14 @@ func (i *lazyItem) ToReader() io.ReadCloser {
 	})
 }
 
-func (i lazyItem) Deleted() bool {
+func (i *lazyItem) Deleted() bool {
 	return false
 }
 
-func (i lazyItem) Info() (details.ItemInfo, error) {
+func (i *lazyItem) Info() (details.ItemInfo, error) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
 	if i.delInFlight {
 		return details.ItemInfo{}, clues.Stack(ErrNotFound).WithClues(i.ctx)
 	} else if i.info == nil {
@@ -174,6 +185,6 @@ func (i lazyItem) Info() (details.ItemInfo, error) {
 	return *i.info, nil
 }
 
-func (i lazyItem) ModTime() time.Time {
+func (i *lazyItem) ModTime() time.Time {
 	return i.modTime
 }
