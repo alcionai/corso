@@ -289,3 +289,80 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
 	err = cmd.ExecuteContext(ctx)
 	require.Error(t, err, clues.ToCore(err))
 }
+
+func (suite *S3E2ESuite) TestUpdateS3Cmd() {
+	t := suite.T()
+	ctx, flush := tester.NewContext(t)
+
+	defer flush()
+
+	st := storeTD.NewPrefixedS3Storage(t)
+	sc, err := st.StorageConfig()
+	require.NoError(t, err, clues.ToCore(err))
+
+	cfg := sc.(*storage.S3Config)
+
+	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
+
+	ctx = config.SetViper(ctx, vpr)
+
+	cmd := cliTD.StubRootCmd(
+		"repo", "init", "s3",
+		"--config-file", configFP,
+		"--prefix", cfg.Prefix)
+
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err = cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// connect with old passphrase
+	cmd = cliTD.StubRootCmd(
+		"repo", "connect", "s3",
+		"--config-file", configFP,
+		"--bucket", cfg.Bucket,
+		"--prefix", cfg.Prefix)
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err = cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	cmd = cliTD.StubRootCmd(
+		"repo", "update", "s3",
+		"--config-file", configFP,
+		"--bucket", cfg.Bucket,
+		"--prefix", cfg.Prefix,
+		"--update-passphrase", "newpass")
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err = cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// connect again with new passphrase
+	cmd = cliTD.StubRootCmd(
+		"repo", "connect", "s3",
+		"--config-file", configFP,
+		"--bucket", cfg.Bucket,
+		"--prefix", cfg.Prefix,
+		"--passphrase", "newpass")
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err = cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// connect with old passphrase - it will fail
+	cmd = cliTD.StubRootCmd(
+		"repo", "connect", "s3",
+		"--config-file", configFP,
+		"--bucket", cfg.Bucket,
+		"--prefix", cfg.Prefix)
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}

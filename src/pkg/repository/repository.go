@@ -295,16 +295,14 @@ func (r *repository) UpdatePassword(ctx context.Context, password string) (err e
 		return clues.Wrap(err, "connecting kopia client")
 	}
 
+	defer kopiaRef.Close(ctx)
+
 	repository := kopiaRef.Repository.(repo.DirectRepository)
 	err = repository.FormatManager().ChangePassword(ctx, password)
 
 	if err != nil {
 		return errors.Wrap(err, "unable to update password")
 	}
-
-	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
-	// to close here.
-	defer kopiaRef.Close(ctx)
 
 	r.Bus.Event(ctx, events.RepoUpdate, nil)
 
