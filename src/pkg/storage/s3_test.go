@@ -12,12 +12,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
-type S3CfgSuite struct {
+type S3CfgUnitSuite struct {
 	tester.Suite
 }
 
-func TestS3CfgSuite(t *testing.T) {
-	suite.Run(t, new(S3CfgSuite))
+func TestS3CfgUnitSuite(t *testing.T) {
+	suite.Run(t, &S3CfgUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 var (
@@ -42,7 +42,7 @@ var (
 	}
 )
 
-func (suite *S3CfgSuite) TestS3Config_Config() {
+func (suite *S3CfgUnitSuite) TestS3Config_Config() {
 	s3 := goodS3Config
 
 	c, err := s3.StringConfig()
@@ -61,7 +61,7 @@ func (suite *S3CfgSuite) TestS3Config_Config() {
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config() {
+func (suite *S3CfgUnitSuite) TestStorage_S3Config() {
 	t := suite.T()
 	in := goodS3Config
 
@@ -85,7 +85,7 @@ func makeTestS3Cfg(bkt, end, pre, access, secret, session string) S3Config {
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
+func (suite *S3CfgUnitSuite) TestStorage_S3Config_invalidCases() {
 	// missing required properties
 	table := []struct {
 		name string
@@ -126,7 +126,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
+func (suite *S3CfgUnitSuite) TestStorage_S3Config_StringConfig() {
 	table := []struct {
 		name   string
 		input  S3Config
@@ -180,7 +180,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config_Normalize() {
+func (suite *S3CfgUnitSuite) TestStorage_S3Config_Normalize() {
 	const (
 		prefixedBkt = "s3://bkt"
 		normalBkt   = "bkt"

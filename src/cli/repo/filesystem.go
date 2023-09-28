@@ -121,7 +121,7 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return Only(ctx, clues.Wrap(err, "Failed to initialize a new filesystem repository"))
+		return Only(ctx, clues.Stack(ErrInitializingRepo, err))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -208,7 +208,7 @@ func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := r.Connect(ctx); err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the filesystem repository"))
+		return Only(ctx, clues.Stack(ErrConnectingRepo, err))
 	}
 
 	defer utils.CloseRepo(ctx, r)

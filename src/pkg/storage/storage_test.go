@@ -19,15 +19,15 @@ func (c testConfig) StringConfig() (map[string]string, error) {
 	return map[string]string{"expect": c.expect}, c.err
 }
 
-type StorageSuite struct {
+type StorageUnitSuite struct {
 	tester.Suite
 }
 
-func TestStorageSuite(t *testing.T) {
-	suite.Run(t, new(StorageSuite))
+func TestStorageUnitSuite(t *testing.T) {
+	suite.Run(t, &StorageUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *StorageSuite) TestNewStorage() {
+func (suite *StorageUnitSuite) TestNewStorage() {
 	table := []struct {
 		name     string
 		p        ProviderType
