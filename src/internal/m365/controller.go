@@ -81,6 +81,11 @@ func NewController(
 
 	var rCli *resourceClient
 
+	// no failure for unknown service.
+	// In that case we create a controller that doesn't attempt to look up any resource
+	// data.  This case helps avoid unnecessary service calls when the end user is running
+	// repo init and connect commands via the CLI.  All other callers should be expected
+	// to pass in a known service, or else expect downstream failures.
 	if pst != path.UnknownService {
 		rc := resource.UnknownResource
 

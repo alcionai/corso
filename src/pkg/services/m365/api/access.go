@@ -24,10 +24,16 @@ type Access struct {
 	Client
 }
 
+// GetToken retrieves a m365 application auth token using client id and secret credentials.
+// This token is not normally needed in order for corso to function, and is implemented
+// primarily as a way to exercise the validity of those credentials without need of specific
+// permissions.
 func (c Access) GetToken(
 	ctx context.Context,
 ) error {
 	var (
+		//nolint:lll
+		// https://learn.microsoft.com/en-us/graph/connecting-external-content-connectors-api-postman#step-5-get-an-authentication-token
 		rawURL = fmt.Sprintf(
 			"https://login.microsoftonline.com/%s/oauth2/v2.0/token",
 			c.Credentials.AzureTenantID)
