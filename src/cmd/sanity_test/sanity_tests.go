@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/alcionai/clues"
@@ -25,6 +26,9 @@ func rootCMD() *cobra.Command {
 		Short:             "run the sanity tests",
 		DisableAutoGenTag: true,
 		RunE:              sanityTestRoot,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			fmt.Println("running", cmd.UseLine())
+		},
 	}
 }
 

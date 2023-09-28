@@ -3,17 +3,12 @@ package restore
 import (
 	"context"
 	"fmt"
-	stdpath "path"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -25,86 +20,26 @@ func CheckEmailRestoration(
 	envs common.Envs,
 ) {
 	var (
-		restoreFolder    models.MailFolderable
-		itemCount        = make(map[string]int32)
-		restoreItemCount = make(map[string]int32)
+		folderNameToItemCount        = make(map[string]int32)
+		folderNameToRestoreItemCount = make(map[string]int32)
 	)
 
-	fn := func(gcc graph.CachedContainer) error {
-		mmf, ok := gcc.(models.MailFolderable)
-		if !ok {
-			return clues.New("mail folderable required")
-		}
+	restoredTree := buildSanitree(ctx, ac, envs.UserID, envs.FolderName)
+	dataTree := buildSanitree(ctx, ac, envs.UserID, envs.DataFolder)
 
-		itemName := ptr.Val(mmf.GetDisplayName())
-
-		if itemName == envs.FolderName {
-			restoreFolder = mmf
-			return nil
-		}
-
-		if itemName == envs.DataFolder || itemName == envs.BaseBackupFolder {
-			// otherwise, recursively aggregate all child folders.
-			getAllMailSubFolders(
-				ctx,
-				ac,
-				envs.UserID,
-				mmf,
-				itemName,
-				envs.DataFolder,
-				itemCount)
-
-			itemCount[itemName] = ptr.Val(mmf.GetTotalItemCount())
-		}
-
-		return nil
-	}
-
-	err := ac.Mail().EnumerateContainers(
-		ctx,
-		envs.UserID,
-		"",
-		false,
-		fn,
-		fault.New(true))
-	if err != nil {
-		common.Fatal(ctx, "getting all mail folders", err)
-	}
-
-	folderID := ptr.Val(restoreFolder.GetId())
-	folderName := ptr.Val(restoreFolder.GetDisplayName())
 	ctx = clues.Add(
 		ctx,
-		"restore_folder_id", folderID,
-		"restore_folder_name", folderName)
+		"restore_folder_id", restoredTree.ContainerID,
+		"restore_folder_name", restoredTree.ContainerName,
+		"original_folder_id", dataTree.ContainerID,
+		"original_folder_name", dataTree.ContainerName)
 
-	childFolders, err := ac.Mail().GetContainerChildren(ctx, envs.UserID, folderID)
-	if err != nil {
-		common.Fatal(ctx, "getting restore folder child folders", err)
-	}
+	verifyEmailData(ctx, folderNameToRestoreItemCount, folderNameToItemCount)
 
-	for _, fld := range childFolders {
-		restoreDisplayName := ptr.Val(fld.GetDisplayName())
-
-		// check if folder is the data folder we loaded or the base backup to verify
-		// the incremental backup worked fine
-		if strings.EqualFold(restoreDisplayName, envs.DataFolder) ||
-			strings.EqualFold(restoreDisplayName, envs.BaseBackupFolder) {
-			count, _ := ptr.ValOK(fld.GetTotalItemCount())
-
-			restoreItemCount[restoreDisplayName] = count
-			checkAllSubFolder(
-				ctx,
-				ac,
-				fld,
-				envs.UserID,
-				restoreDisplayName,
-				envs.DataFolder,
-				restoreItemCount)
-		}
-	}
-
-	verifyEmailData(ctx, restoreItemCount, itemCount)
+	common.AssertEqualTrees[models.MailFolderable](
+		ctx,
+		dataTree,
+		restoredTree.Children[envs.DataFolder])
 }
 
 func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[string]int32) {
@@ -120,92 +55,71 @@ func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[
 	}
 }
 
-// getAllSubFolder will recursively check for all subfolders and get the corresponding
-// email count.
-func getAllMailSubFolders(
+func buildSanitree(
 	ctx context.Context,
 	ac api.Client,
-	testUser string,
-	r models.MailFolderable,
-	parentFolder,
-	dataFolder string,
-	messageCount map[string]int32,
-) {
-	folderID := ptr.Val(r.GetId())
-	ctx = clues.Add(ctx, "parent_folder_id", folderID)
-
-	childFolders, err := ac.Mail().GetContainerChildren(ctx, testUser, folderID)
+	userID, folderName string,
+) *common.Sanitree[models.MailFolderable] {
+	gcc, err := ac.Mail().GetContainerByName(
+		ctx,
+		userID,
+		api.MsgFolderRoot,
+		folderName)
 	if err != nil {
-		common.Fatal(ctx, "getting mail subfolders", err)
+		common.Fatal(
+			ctx,
+			fmt.Sprintf("finding folder by name %q", folderName),
+			err)
 	}
 
-	for _, child := range childFolders {
-		var (
-			childDisplayName = ptr.Val(child.GetDisplayName())
-			childFolderCount = ptr.Val(child.GetChildFolderCount())
-			//nolint:forbidigo
-			fullFolderName = stdpath.Join(parentFolder, childDisplayName)
-		)
-
-		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
-			messageCount[fullFolderName] = ptr.Val(child.GetTotalItemCount())
-			// recursively check for subfolders
-			if childFolderCount > 0 {
-				parentFolder := fullFolderName
-
-				getAllMailSubFolders(
-					ctx,
-					ac,
-					testUser,
-					child,
-					parentFolder,
-					dataFolder,
-					messageCount)
-			}
-		}
+	mmf, ok := gcc.(models.MailFolderable)
+	if !ok {
+		common.Fatal(
+			ctx,
+			"mail folderable required",
+			clues.New("casting "+*gcc.GetDisplayName()+" to models.MailFolderable"))
 	}
+
+	root := &common.Sanitree[models.MailFolderable]{
+		Container:     mmf,
+		ContainerID:   ptr.Val(mmf.GetId()),
+		ContainerName: ptr.Val(mmf.GetDisplayName()),
+		ContainsItems: int(ptr.Val(mmf.GetTotalItemCount())),
+		Children:      map[string]*common.Sanitree[models.MailFolderable]{},
+	}
+
+	recurseSubfolders(ctx, ac, root, userID)
+
+	return root
 }
 
-// checkAllSubFolder will recursively traverse inside the restore folder and
-// verify that data matched in all subfolders
-func checkAllSubFolder(
+func recurseSubfolders(
 	ctx context.Context,
 	ac api.Client,
-	r models.MailFolderable,
-	testUser, parentFolder, dataFolder string,
-	restoreMessageCount map[string]int32,
+	parent *common.Sanitree[models.MailFolderable],
+	userID string,
 ) {
-	folderID := ptr.Val(r.GetId())
-
-	childFolders, err := ac.Mail().GetContainerChildren(ctx, testUser, folderID)
+	childFolders, err := ac.Mail().GetContainerChildren(
+		ctx,
+		userID,
+		parent.ContainerID)
 	if err != nil {
-		common.Fatal(ctx, "getting mail subfolders", err)
+		common.Fatal(ctx, "getting subfolders", err)
 	}
 
 	for _, child := range childFolders {
-		var (
-			childDisplayName = ptr.Val(child.GetDisplayName())
-			//nolint:forbidigo
-			fullFolderName = stdpath.Join(parentFolder, childDisplayName)
-		)
-
-		if filters.PathContains([]string{dataFolder}).Compare(fullFolderName) {
-			childTotalCount, _ := ptr.ValOK(child.GetTotalItemCount())
-			restoreMessageCount[fullFolderName] = childTotalCount
+		c := &common.Sanitree[models.MailFolderable]{
+			Container:     child,
+			ContainerID:   ptr.Val(child.GetId()),
+			ContainerName: ptr.Val(child.GetDisplayName()),
+			ContainsItems: int(ptr.Val(child.GetTotalItemCount())),
+			Children:      map[string]*common.Sanitree[models.MailFolderable]{},
 		}
 
-		childFolderCount := ptr.Val(child.GetChildFolderCount())
+		parent.Children[c.ContainerName] = c
 
-		if childFolderCount > 0 {
-			parentFolder := fullFolderName
-			checkAllSubFolder(
-				ctx,
-				ac,
-				child,
-				testUser,
-				parentFolder,
-				dataFolder,
-				restoreMessageCount)
+		if ptr.Val(child.GetChildFolderCount()) > 0 {
+			recurseSubfolders(ctx, ac, c, userID)
 		}
 	}
 }

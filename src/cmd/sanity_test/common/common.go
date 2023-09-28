@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -49,6 +50,8 @@ func EnvVars(ctx context.Context) Envs {
 		StartTime:        startTime,
 		UserID:           tconfig.GetM365UserID(ctx),
 	}
+
+	fmt.Printf("\n-----\nenvs %+v\n-----\n", e)
 
 	logger.Ctx(ctx).Info("envs", e)
 
