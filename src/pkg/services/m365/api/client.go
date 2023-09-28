@@ -126,3 +126,15 @@ func (c Client) Get(
 type CallConfig struct {
 	Expand []string
 }
+
+// ---------------------------------------------------------------------------
+// common interfaces
+// ---------------------------------------------------------------------------
+
+type GetByIDer[T any] interface {
+	GetByID(
+		ctx context.Context,
+		identifier string,
+		cc CallConfig,
+	) (T, error)
+}

@@ -28,6 +28,27 @@ type Group struct {
 	IsTeam bool
 }
 
+// GroupByID retrieves a specific group.
+func GroupByID(
+	ctx context.Context,
+	acct account.Account,
+	id string,
+) (*Group, error) {
+	ac, err := makeAC(ctx, acct, path.GroupsService)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	cc := api.CallConfig{}
+
+	g, err := ac.Groups().GetByID(ctx, id, cc)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	return parseGroup(ctx, g)
+}
+
 // GroupsCompat returns a list of groups in the specified M365 tenant.
 func GroupsCompat(ctx context.Context, acct account.Account) ([]*Group, error) {
 	errs := fault.New(true)
