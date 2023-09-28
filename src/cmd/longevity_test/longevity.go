@@ -31,11 +31,7 @@ func deleteBackups(
 ) ([]string, error) {
 	ctx = clues.Add(ctx, "cutoff_days", deletionDays)
 
-	r, _, _, _, err := utils.GetAccountAndConnect(
-		ctx,
-		service,
-		storage.ProviderS3,
-		nil)
+	r, _, err := utils.GetAccountAndConnectWithOverrides(ctx, service, storage.ProviderS3, nil)
 	if err != nil {
 		return nil, clues.Wrap(err, "connecting to account").WithClues(ctx)
 	}
@@ -107,9 +103,19 @@ func pitrListBackups(
 	opts := utils.ControlWithConfig(cfg)
 	opts.Repo.ViewTimestamp = &pitr
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, cfg.RepoID, opts)
+	r, err := repository.New(
+		ctx,
+		cfg.Account,
+		cfg.Storage,
+		opts,
+		cfg.RepoID)
 	if err != nil {
-		return clues.Wrap(err, "connecting to repo").WithClues(ctx)
+		return clues.Wrap(err, "creating a repo")
+	}
+
+	err = r.Connect(ctx)
+	if err != nil {
+		return clues.Wrap(err, "connecting to the repository")
 	}
 
 	defer r.Close(ctx)

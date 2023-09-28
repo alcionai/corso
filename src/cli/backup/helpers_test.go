@@ -124,7 +124,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 type dependencies struct {
 	st             storage.Storage
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	vpr            *viper.Viper
 	recorder       strings.Builder
 	configFilePath string
@@ -154,12 +154,15 @@ func prepM365Test(
 	vpr, cfgFP := tconfig.MakeTempTestConfigClone(t, force)
 	ctx = config.SetViper(ctx, vpr)
 
-	repo, err := repository.Initialize(
+	repo, err := repository.New(
 		ctx,
 		acct,
 		st,
 		control.DefaultOptions(),
-		ctrlRepo.Retention{})
+		repository.NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = repo.Initialize(ctx, ctrlRepo.Retention{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return dependencies{

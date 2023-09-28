@@ -146,9 +146,15 @@ func (mid *mockItemDataGetter) check(t *testing.T, expectCalled bool) {
 }
 
 func (mid *mockItemDataGetter) GetData(
-	context.Context,
+	ctx context.Context,
+	errs *fault.Bus,
 ) (io.ReadCloser, *details.ItemInfo, bool, error) {
 	mid.getCalled = true
+
+	if mid.err != nil {
+		errs.AddRecoverable(ctx, mid.err)
+	}
+
 	return mid.reader, mid.info, mid.delInFlight, mid.err
 }
 

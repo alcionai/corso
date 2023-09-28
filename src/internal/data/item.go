@@ -14,6 +14,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+var (
+	_ Item        = &prefetchedItem{}
+	_ ItemInfo    = &prefetchedItem{}
+	_ ItemModTime = &prefetchedItem{}
+	_ Item        = &lazyItem{}
+	_ ItemInfo    = &lazyItem{}
+	_ ItemModTime = &lazyItem{}
+)
+
 func NewDeletedItem(itemID string) Item {
 	return &prefetchedItem{
 		id:      itemID,
@@ -21,7 +30,7 @@ func NewDeletedItem(itemID string) Item {
 		// TODO(ashmrtn): This really doesn't need to be set since deleted items are
 		// never passed to the actual storage engine. Setting it for now so tests
 		// don't break.
-		modTime: time.Now(),
+		modTime: time.Now().UTC(),
 	}
 }
 
@@ -74,7 +83,10 @@ func (i prefetchedItem) ModTime() time.Time {
 }
 
 type ItemDataGetter interface {
-	GetData(context.Context) (io.ReadCloser, *details.ItemInfo, bool, error)
+	GetData(
+		context.Context,
+		*fault.Bus,
+	) (io.ReadCloser, *details.ItemInfo, bool, error)
 }
 
 func NewLazyItem(
@@ -121,12 +133,9 @@ func (i lazyItem) ID() string {
 
 func (i *lazyItem) ToReader() io.ReadCloser {
 	return lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-		reader, info, delInFlight, err := i.itemGetter.GetData(i.ctx)
+		reader, info, delInFlight, err := i.itemGetter.GetData(i.ctx, i.errs)
 		if err != nil {
-			err = clues.Stack(err)
-			i.errs.AddRecoverable(i.ctx, err)
-
-			return nil, err
+			return nil, clues.Stack(err)
 		}
 
 		// If an item was deleted then return an empty file so we don't fail the

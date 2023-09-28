@@ -17,7 +17,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
@@ -731,7 +730,7 @@ func compareDriveItem(
 	)
 
 	if !isMeta {
-		oitem := item.(*drive.Item)
+		oitem := item.(data.ItemInfo)
 
 		info, err := oitem.Info()
 		if !assert.NoError(t, err, clues.ToCore(err)) {
