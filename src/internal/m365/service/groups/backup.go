@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -35,19 +36,18 @@ func ProduceBackupCollections(
 	creds account.M365Config,
 	su support.StatusUpdater,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	b, err := bpc.Selector.ToGroupsBackup()
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "groupsDataCollection: parsing selector")
+		return nil, nil, clues.Wrap(err, "groupsDataCollection: parsing selector")
 	}
 
 	var (
-		el                   = errs.Local()
-		collections          = []data.BackupCollection{}
-		categories           = map[path.CategoryType]struct{}{}
-		ssmb                 = prefixmatcher.NewStringSetBuilder()
-		canUsePreviousBackup bool
-		sitesPreviousPaths   = map[string]string{}
+		el                 = errs.Local()
+		collections        = []data.BackupCollection{}
+		categories         = map[path.CategoryType]struct{}{}
+		ssmb               = prefixmatcher.NewStringSetBuilder()
+		sitesPreviousPaths = map[string]string{}
 	)
 
 	ctx = clues.Add(
@@ -60,7 +60,7 @@ func ProduceBackupCollections(
 		bpc.ProtectedResource.ID(),
 		api.CallConfig{})
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "getting group").WithClues(ctx)
+		return nil, nil, clues.Wrap(err, "getting group").WithClues(ctx)
 	}
 
 	isTeam := api.IsTeam(ctx, group)
@@ -81,7 +81,7 @@ func ProduceBackupCollections(
 		case path.LibrariesCategory:
 			sites, err := ac.Groups().GetAllSites(ctx, bpc.ProtectedResource.ID(), errs)
 			if err != nil {
-				return nil, nil, false, err
+				return nil, nil, err
 			}
 
 			siteMetadataCollection := map[string][]data.RestoreCollection{}
@@ -108,14 +108,14 @@ func ProduceBackupCollections(
 					ac.Drives(),
 					scope)
 
-				cp, err := bh.SitePathPrefix(creds.AzureTenantID)
+				sp, err := bh.SitePathPrefix(creds.AzureTenantID)
 				if err != nil {
-					return nil, nil, false, clues.Wrap(err, "getting canonical path")
+					return nil, nil, clues.Wrap(err, "getting site path")
 				}
 
-				sitesPreviousPaths[ptr.Val(s.GetId())] = cp.String()
+				sitesPreviousPaths[ptr.Val(s.GetId())] = sp.String()
 
-				cs, cupb, err := site.CollectLibraries(
+				cs, canUsePreviousBackup, err := site.CollectLibraries(
 					ctx,
 					sbpc,
 					bh,
@@ -128,11 +128,11 @@ func ProduceBackupCollections(
 					continue
 				}
 
-				dbcs = append(dbcs, cs...)
+				if !canUsePreviousBackup {
+					dbcs = append(dbcs, data.NewTombstoneCollection(sp, control.Options{}))
+				}
 
-				// FIXME(meain): This can cause incorrect backup
-				// https://github.com/alcionai/corso/issues/4371
-				canUsePreviousBackup = canUsePreviousBackup || cupb
+				dbcs = append(dbcs, cs...)
 			}
 
 		case path.ChannelMessagesCategory:
@@ -140,10 +140,12 @@ func ProduceBackupCollections(
 				continue
 			}
 
-			dbcs, canUsePreviousBackup, err = groups.CreateCollections(
+			bh := groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels())
+
+			cs, canUsePreviousBackup, err := groups.CreateCollections(
 				ctx,
 				bpc,
-				groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels()),
+				bh,
 				creds.AzureTenantID,
 				scope,
 				su,
@@ -152,6 +154,17 @@ func ProduceBackupCollections(
 				el.AddRecoverable(ctx, err)
 				continue
 			}
+
+			if !canUsePreviousBackup {
+				tp, err := bh.MessagePathPrefix(creds.AzureTenantID)
+				if err != nil {
+					return nil, nil, clues.Wrap(err, "getting message path")
+				}
+
+				dbcs = append(dbcs, data.NewTombstoneCollection(tp, control.Options{}))
+			}
+
+			dbcs = append(dbcs, cs...)
 		}
 
 		collections = append(collections, dbcs...)
@@ -170,7 +183,7 @@ func ProduceBackupCollections(
 			su,
 			errs)
 		if err != nil {
-			return nil, nil, false, err
+			return nil, nil, err
 		}
 
 		collections = append(collections, baseCols...)
@@ -183,12 +196,12 @@ func ProduceBackupCollections(
 		sitesPreviousPaths,
 		su)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, err
 	}
 
 	collections = append(collections, md)
 
-	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
+	return collections, ssmb.ToReader(), el.Failure()
 }
 
 func getSitesMetadataCollection(
