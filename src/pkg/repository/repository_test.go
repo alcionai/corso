@@ -69,7 +69,7 @@ func (suite *RepositoryUnitSuite) TestInitialize() {
 				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, InitConfig{})
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -111,7 +111,7 @@ func (suite *RepositoryUnitSuite) TestConnect() {
 				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Connect(ctx)
+			err = r.Connect(ctx, ConnConfig{})
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -162,7 +162,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, InitConfig{})
 			if err == nil {
 				defer func() {
 					err := r.Close(ctx)
@@ -204,7 +204,7 @@ func (suite *RepositoryIntegrationSuite) TestInitializeWithRole() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err)
 
 	defer func() {
@@ -228,11 +228,11 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
-	err = r.Connect(ctx)
+	err = r.Connect(ctx, ConnConfig{})
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
@@ -252,7 +252,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	oldID := r.GetID()
@@ -261,7 +261,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
-	err = r.Connect(ctx)
+	err = r.Connect(ctx, ConnConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, oldID, r.GetID())
 }
@@ -284,7 +284,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userID := tconfig.M365UserID(t)
@@ -313,7 +313,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 		"")
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := r.NewRestore(
@@ -343,7 +343,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackupAndDelete() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userID := tconfig.M365UserID(t)
@@ -396,7 +396,7 @@ func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	mo, err := r.NewMaintenance(ctx, ctrlRepo.Maintenance{})
@@ -465,11 +465,11 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, InitConfig{})
 			require.NoError(t, err)
 			assert.Equal(t, test.expectedLen, len(r.Opts.ItemExtensionFactory))
 
-			err = r.Connect(ctx)
+			err = r.Connect(ctx, ConnConfig{})
 			assert.NoError(t, err)
 			assert.Equal(t, test.expectedLen, len(r.Opts.ItemExtensionFactory))
 		})
