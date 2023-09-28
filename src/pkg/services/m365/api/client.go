@@ -24,7 +24,7 @@ import (
 type Client struct {
 	Credentials account.M365Config
 
-	// The Stable service is re-usable for any non-paged request.
+	// The Stable service is re-usable for any request.
 	// This allows us to maintain performance across async requests.
 	Stable graph.Servicer
 
