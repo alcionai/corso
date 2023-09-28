@@ -46,7 +46,7 @@ const (
 corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
 # Restore the file with ID 98765abcdef without its associated permissions
-corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --skip-permissions
+corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --no-permissions
 
 # Restore all files named "FY2021 Planning.xlsx"
 corso restore groups --backup 1234abcd-12ab-cd34-56de-1234abcd --file "FY2021 Planning.xlsx"

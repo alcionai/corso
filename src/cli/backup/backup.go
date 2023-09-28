@@ -252,8 +252,8 @@ func runBackups(
 func genericDeleteCommand(
 	cmd *cobra.Command,
 	pst path.ServiceType,
-	bID, designation string,
-	args []string,
+	designation string,
+	bID, args []string,
 ) error {
 	if utils.HasNoFlagsAndShownHelp(cmd) {
 		return nil
@@ -265,21 +265,18 @@ func genericDeleteCommand(
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		pst)
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, pst)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	if err := r.DeleteBackups(ctx, true, bID); err != nil {
-		return Only(ctx, clues.Wrap(err, "Deleting backup "+bID))
+	if err := r.DeleteBackups(ctx, true, bID...); err != nil {
+		return Only(ctx, clues.Wrap(err, fmt.Sprintf("Deleting backup %v", bID)))
 	}
 
-	Infof(ctx, "Deleted %s backup %s", designation, bID)
+	Infof(ctx, "Deleted %s backup %v", designation, bID)
 
 	return nil
 }
@@ -298,10 +295,7 @@ func genericListCommand(
 		return nil
 	}
 
-	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		service)
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, service)
 	if err != nil {
 		return Only(ctx, err)
 	}
