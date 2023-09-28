@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - 3988-sanity-yml-fix
   workflow_dispatch:
     inputs:
       user:
