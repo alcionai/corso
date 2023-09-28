@@ -54,6 +54,24 @@ func Groups(
 	return getAllGroups(ctx, ac.Groups())
 }
 
+func GroupByID(
+	ctx context.Context,
+	acct account.Account,
+	id string,
+) (*Group, error) {
+	ac, err := makeAC(ctx, acct, path.SharePointService)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	group, err := ac.Groups().GetByID(ctx, id)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	return parseGroup(ctx, group)
+}
+
 func getAllGroups(
 	ctx context.Context,
 	ga getAller[models.Groupable],
