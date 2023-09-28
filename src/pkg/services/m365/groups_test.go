@@ -41,6 +41,24 @@ func (suite *GroupsIntgSuite) SetupSuite() {
 	suite.acct = tconfig.NewM365Account(t)
 }
 
+func (suite *GroupsIntgSuite) TestGroupByID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	gid := tconfig.M365TeamID(t)
+
+	group, err := m365.GroupByID(ctx, suite.acct, gid)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, group)
+
+	assert.Equal(t, gid, group.ID, "must match expected id")
+	assert.NotEmpty(t, group.DisplayName)
+}
+
 func (suite *GroupsIntgSuite) TestGroups() {
 	t := suite.T()
 
