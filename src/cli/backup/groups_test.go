@@ -1,7 +1,6 @@
 package backup
 
 import (
-	"bytes"
 	"strconv"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -128,70 +128,38 @@ func (suite *GroupsUnitSuite) TestValidateGroupsBackupCreateFlags() {
 func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 	t := suite.T()
 
-	cmd := &cobra.Command{Use: createCommand}
-
-	// persistent flags not added by addCommands
-	flags.AddRunModeFlag(cmd, true)
-
-	c := addGroupsCommands(cmd)
-	require.NotNil(t, c)
-
-	// non-persistent flags not added by addCommands
-	flags.AddAllProviderFlags(c)
-	flags.AddAllStorageFlags(c)
-
-	flagsTD.WithFlags(
-		cmd,
-		groupsServiceCommand,
-		[]string{
-			"--" + flags.RunModeFN, flags.RunModeFlagTest,
-			"--" + flags.BackupFN, flagsTD.BackupInput,
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: createCommand},
+		addGroupsCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
 		},
-		flagsTD.PreparedProviderFlags(),
-		flagsTD.PreparedStorageFlags())
-
-	// Test arg parsing for few args
-	args := []string{
-		groupsServiceCommand,
-		"--" + flags.RunModeFN, flags.RunModeFlagTest,
-
-		"--" + flags.GroupFN, flagsTD.FlgInputs(flagsTD.GroupsInput),
-		"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.GroupsCategoryDataInput),
-
-		"--" + flags.FetchParallelismFN, flagsTD.FetchParallelism,
-
-		// bool flags
-		"--" + flags.FailFastFN,
-		"--" + flags.DisableIncrementalsFN,
-		"--" + flags.ForceItemDataDownloadFN,
-		"--" + flags.DisableDeltaFN,
-	}
-
-	args = append(args, flagsTD.PreparedProviderFlags()...)
-	args = append(args, flagsTD.PreparedStorageFlags()...)
-
-	cmd.SetArgs(args)
-
-	cmd.SetOut(new(bytes.Buffer)) // drop output
-	cmd.SetErr(new(bytes.Buffer)) // drop output
-
-	err := cmd.Execute()
-	assert.NoError(t, err, clues.ToCore(err))
+		flagsTD.WithFlags(
+			groupsServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.GroupFN, flagsTD.FlgInputs(flagsTD.GroupsInput),
+				"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.GroupsCategoryDataInput),
+				"--" + flags.FetchParallelismFN, flagsTD.FetchParallelism,
+				"--" + flags.FailFastFN,
+				"--" + flags.DisableIncrementalsFN,
+				"--" + flags.ForceItemDataDownloadFN,
+				"--" + flags.DisableDeltaFN,
+			},
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
 
 	opts := utils.MakeGroupsOpts(cmd)
 	co := utils.Control()
 
 	assert.ElementsMatch(t, flagsTD.GroupsInput, opts.Groups)
-	// no assertion for category data input
-
 	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
-
-	// bool flags
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
 	assert.True(t, co.ToggleFeatures.DisableDelta)
-
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
 }
@@ -199,37 +167,25 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 func (suite *GroupsUnitSuite) TestBackupListFlags() {
 	t := suite.T()
 
-	cmd := &cobra.Command{Use: listCommand}
-
-	// persistent flags not added by addCommands
-	flags.AddRunModeFlag(cmd, true)
-
-	c := addGroupsCommands(cmd)
-	require.NotNil(t, c)
-
-	// non-persistent flags not added by addCommands
-	flags.AddAllProviderFlags(c)
-	flags.AddAllStorageFlags(c)
-
-	flagsTD.WithFlags(
-		cmd,
-		groupsServiceCommand,
-		[]string{
-			"--" + flags.RunModeFN, flags.RunModeFlagTest,
-			"--" + flags.BackupFN, flagsTD.BackupInput,
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: listCommand},
+		addGroupsCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
 		},
-		flagsTD.PreparedBackupListFlags(),
-		flagsTD.PreparedProviderFlags(),
-		flagsTD.PreparedStorageFlags())
-
-	cmd.SetOut(new(bytes.Buffer)) // drop output
-	cmd.SetErr(new(bytes.Buffer)) // drop output
-
-	err := cmd.Execute()
-	assert.NoError(t, err, clues.ToCore(err))
+		flagsTD.WithFlags(
+			groupsServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, flagsTD.BackupInput,
+			},
+			flagsTD.PreparedBackupListFlags(),
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
 
 	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
-
 	flagsTD.AssertBackupListFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
@@ -238,41 +194,28 @@ func (suite *GroupsUnitSuite) TestBackupListFlags() {
 func (suite *GroupsUnitSuite) TestBackupDetailsFlags() {
 	t := suite.T()
 
-	cmd := &cobra.Command{Use: detailsCommand}
-
-	// persistent flags not added by addCommands
-	flags.AddRunModeFlag(cmd, true)
-
-	c := addGroupsCommands(cmd)
-	require.NotNil(t, c)
-
-	// non-persistent flags not added by addCommands
-	flags.AddAllProviderFlags(c)
-	flags.AddAllStorageFlags(c)
-
-	flagsTD.WithFlags(
-		cmd,
-		groupsServiceCommand,
-		[]string{
-			"--" + flags.RunModeFN, flags.RunModeFlagTest,
-			"--" + flags.BackupFN, flagsTD.BackupInput,
-			"--" + flags.SkipReduceFN,
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: detailsCommand},
+		addGroupsCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
 		},
-		flagsTD.PreparedProviderFlags(),
-		flagsTD.PreparedStorageFlags())
-
-	cmd.SetOut(new(bytes.Buffer)) // drop output
-	cmd.SetErr(new(bytes.Buffer)) // drop output
-
-	err := cmd.Execute()
-	assert.NoError(t, err, clues.ToCore(err))
+		flagsTD.WithFlags(
+			groupsServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, flagsTD.BackupInput,
+				"--" + flags.SkipReduceFN,
+			},
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
 
 	co := utils.Control()
 
 	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
-
 	assert.True(t, co.SkipReduce)
-
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
 }
@@ -280,48 +223,24 @@ func (suite *GroupsUnitSuite) TestBackupDetailsFlags() {
 func (suite *GroupsUnitSuite) TestBackupDeleteFlags() {
 	t := suite.T()
 
-	cmd := &cobra.Command{Use: deleteCommand}
-
-	// persistent flags not added by addCommands
-	flags.AddRunModeFlag(cmd, true)
-
-	c := addGroupsCommands(cmd)
-	require.NotNil(t, c)
-
-	// non-persistent flags not added by addCommands
-	flags.AddAllProviderFlags(c)
-	flags.AddAllStorageFlags(c)
-
-	flagsTD.WithFlags(
-		cmd,
-		groupsServiceCommand,
-		[]string{
-			"--" + flags.RunModeFN, flags.RunModeFlagTest,
-			"--" + flags.BackupFN, flagsTD.BackupInput,
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: deleteCommand},
+		addGroupsCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
 		},
-		flagsTD.PreparedProviderFlags(),
-		flagsTD.PreparedStorageFlags())
-
-	// Test arg parsing for few args
-	args := []string{
-		groupsServiceCommand,
-		"--" + flags.RunModeFN, flags.RunModeFlagTest,
-		"--" + flags.BackupFN, flagsTD.BackupInput,
-	}
-
-	args = append(args, flagsTD.PreparedProviderFlags()...)
-	args = append(args, flagsTD.PreparedStorageFlags()...)
-
-	cmd.SetArgs(args)
-
-	cmd.SetOut(new(bytes.Buffer)) // drop output
-	cmd.SetErr(new(bytes.Buffer)) // drop output
-
-	err := cmd.Execute()
-	assert.NoError(t, err, clues.ToCore(err))
+		flagsTD.WithFlags(
+			groupsServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, flagsTD.BackupInput,
+			},
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
 
 	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
-
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
 }

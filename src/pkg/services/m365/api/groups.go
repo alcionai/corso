@@ -102,6 +102,7 @@ const filterGroupByDisplayNameQueryTmpl = "displayName eq '%s'"
 func (c Groups) GetByID(
 	ctx context.Context,
 	identifier string,
+	_ CallConfig, // matching standards
 ) (models.Groupable, error) {
 	service, err := c.Service()
 	if err != nil {
@@ -234,9 +235,9 @@ func IsTeam(ctx context.Context, mg models.Groupable) bool {
 func (c Groups) GetIDAndName(
 	ctx context.Context,
 	groupID string,
-	_ CallConfig, // not currently supported
+	cc CallConfig,
 ) (string, string, error) {
-	s, err := c.GetByID(ctx, groupID)
+	s, err := c.GetByID(ctx, groupID, cc)
 	if err != nil {
 		return "", "", err
 	}
