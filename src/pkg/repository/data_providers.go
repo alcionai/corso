@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -16,6 +17,8 @@ type DataProvider interface {
 	inject.BackupProducer
 	inject.ExportConsumer
 	inject.RestoreConsumer
+
+	VerifyAccess(ctx context.Context) error
 }
 
 type DataProviderConnector interface {
@@ -41,14 +44,20 @@ func (r *repository) ConnectDataProvider(
 	case account.ProviderM365:
 		provider, err = connectToM365(ctx, *r, pst)
 	default:
-		err = clues.New("unrecognized provider")
+		err = clues.New("unrecognized provider").WithClues(ctx)
+	}
+
+	if err != nil {
+		return clues.Wrap(err, "connecting data provider")
+	}
+
+	if err := provider.VerifyAccess(ctx); err != nil {
+		return clues.Wrap(err, fmt.Sprintf("verifying %s account connection", r.Account.Provider))
 	}
 
 	r.Provider = provider
 
-	return clues.Wrap(err, "connecting data provider").
-		WithClues(ctx).
-		OrNil()
+	return nil
 }
 
 func connectToM365(
@@ -72,7 +81,7 @@ func connectToM365(
 
 	ctrl, err := m365.NewController(ctx, r.Account, pst, r.Opts)
 	if err != nil {
-		return nil, err
+		return nil, clues.Wrap(err, "creating m365 client controller")
 	}
 
 	return ctrl, nil

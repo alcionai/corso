@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"net/http"
 
 	"github.com/alcionai/clues"
@@ -117,6 +118,16 @@ func (c Client) Get(
 	headers map[string]string,
 ) (*http.Response, error) {
 	return c.Requester.Request(ctx, http.MethodGet, url, nil, headers)
+}
+
+// Get performs an ad-hoc get request using its graph.Requester
+func (c Client) Post(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+	body io.Reader,
+) (*http.Response, error) {
+	return c.Requester.Request(ctx, http.MethodGet, url, body, headers)
 }
 
 // ---------------------------------------------------------------------------
