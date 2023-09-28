@@ -20,6 +20,10 @@ type FilesystemConfig struct {
 	Path string
 }
 
+func (s Storage) ToFilesystemConfig() (*FilesystemConfig, error) {
+	return buildFilesystemConfigFromMap(s.Config)
+}
+
 func buildFilesystemConfigFromMap(config map[string]string) (*FilesystemConfig, error) {
 	c := &FilesystemConfig{}
 
@@ -69,7 +73,7 @@ func (c *FilesystemConfig) ApplyConfigOverrides(
 		if matchFromConfig {
 			providerType := cast.ToString(g.Get(StorageProviderTypeKey))
 			if providerType != ProviderFilesystem.String() {
-				return clues.New("unsupported storage provider in config file: " + providerType)
+				return clues.New("unsupported storage provider in config file: [" + providerType + "]")
 			}
 
 			// This is matching override values from config file.
