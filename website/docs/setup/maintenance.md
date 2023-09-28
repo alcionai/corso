@@ -43,3 +43,15 @@ may not result in a reduction of objects in the storage service Corso is backing
 Deletion of old objects in the storage service depends on both wall-clock time and running maintenance.
 
 Later maintenance runs on the repository will remove the data.
+
+## Maintenance guidelines
+
+For the best experience, the recommendation is to run metadata maintenance every
+20&ndash;30 backups. Complete maintenance should be run every 1&ndash;2 weeks
+depending on how many backups are deleted from the repo. More backup deletions
+means that complete maintenance should be run more often so that unneeded blobs
+in storage get deleted.
+
+Not running maintenance exactly according to the recommendations won't impact
+the correctness of the data in the repo, but could result in decreased
+performance.
