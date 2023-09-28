@@ -150,10 +150,12 @@ const (
 	// https://learn.microsoft.com/en-us/sharepoint/dev/general-development
 	// /how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#application-throttling
 	defaultLC      = 1
-	driveDefaultLC = 2
+	driveDefaultLC = 1
 	// limit consumption rate for single-item GETs requests,
-	// or delta-based multi-item GETs.
+	// or delta-based multi-item GETs, or item content download requests.
 	SingleGetOrDeltaLC = 1
+	// delta queries without a delta token cost 2 units
+	DeltaNoTokenLC = 2
 	// limit consumption rate for anything permissions related
 	PermissionsLC = 5
 )
