@@ -59,7 +59,9 @@ func connectToM365(
 	if r.Provider != nil {
 		ctrl, ok := r.Provider.(*m365.Controller)
 		if !ok {
-			return nil, clues.New("Attempted to access multiple repository providers")
+			// if the provider is initialized to a non-m365 controller, we should not
+			// attempt to connnect to m365 afterward.
+			return nil, clues.New("Attempted to connect to multiple data providers")
 		}
 
 		return ctrl, nil

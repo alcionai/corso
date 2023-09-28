@@ -14,6 +14,10 @@ var ErrorUnknownService = clues.New("unknown service string")
 //
 // Metadata services are not considered valid service types for resource paths
 // though they can be used for metadata paths.
+//
+// The string representaton of each enum _must remain the same_.  In case of
+// changes to those values, we'll need migration code to handle transitions
+// across states else we'll get marshalling/unmarshalling errors.
 type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
