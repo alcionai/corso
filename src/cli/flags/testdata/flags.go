@@ -86,7 +86,7 @@ var (
 	DisableConcurrencyLimiter = true
 )
 
-func WithFlags(
+func WithFlags2(
 	cc *cobra.Command,
 	command string,
 	flagSets ...[]string,
@@ -98,4 +98,19 @@ func WithFlags(
 	}
 
 	cc.SetArgs(args)
+}
+
+func WithFlags(
+	command string,
+	flagSets ...[]string,
+) func(*cobra.Command) {
+	return func(cc *cobra.Command) {
+		args := []string{command}
+
+		for _, sl := range flagSets {
+			args = append(args, sl...)
+		}
+
+		cc.SetArgs(args)
+	}
 }
