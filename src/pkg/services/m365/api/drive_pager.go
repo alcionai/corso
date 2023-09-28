@@ -210,7 +210,7 @@ func (c Drives) EnumerateDriveItemsDelta(
 ) {
 	pager := c.newDriveItemDeltaPager(driveID, prevDeltaLink, DefaultDriveItemProps()...)
 
-	items, du, err := deltaEnumerateItems(ctx, pager, prevDeltaLink)
+	items, du, err := deltaEnumerateItems[models.DriveItemable](ctx, pager, prevDeltaLink)
 	if err != nil {
 		return nil, du, clues.Stack(err)
 	}
