@@ -21,7 +21,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -111,7 +110,7 @@ func initM365Repo(t *testing.T) (
 		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, repository.InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return ctx, r, ac, st
