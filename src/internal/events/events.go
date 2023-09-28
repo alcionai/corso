@@ -31,6 +31,7 @@ const (
 	CorsoStart       = "Corso Start"
 	RepoInit         = "Repo Init"
 	RepoConnect      = "Repo Connect"
+	RepoUpdate       = "Repo Update"
 	BackupStart      = "Backup Start"
 	BackupEnd        = "Backup End"
 	RestoreStart     = "Restore Start"

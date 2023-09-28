@@ -17,6 +17,7 @@ import (
 const (
 	initCommand        = "init"
 	connectCommand     = "connect"
+	updateCommand      = "update"
 	maintenanceCommand = "maintenance"
 )
 
@@ -34,12 +35,14 @@ func AddCommands(cmd *cobra.Command) {
 		initCmd        = initCmd()
 		connectCmd     = connectCmd()
 		maintenanceCmd = maintenanceCmd()
+		updateCmd      = updateCmd()
 	)
 
 	cmd.AddCommand(repoCmd)
 	repoCmd.AddCommand(initCmd)
 	repoCmd.AddCommand(connectCmd)
 	repoCmd.AddCommand(maintenanceCmd)
+	repoCmd.AddCommand(updateCmd)
 
 	flags.AddMaintenanceModeFlag(maintenanceCmd)
 	flags.AddForceMaintenanceFlag(maintenanceCmd)
@@ -50,6 +53,8 @@ func AddCommands(cmd *cobra.Command) {
 		addRepoTo(initCmd)
 		addRepoTo(connectCmd)
 	}
+
+	addS3Commands(updateCmd)
 }
 
 // The repo category of commands.
@@ -58,7 +63,7 @@ func repoCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "repo",
 		Short: "Manage your repositories",
-		Long:  `Initialize, configure, and connect to your account backup repositories.`,
+		Long:  `Initialize, configure, connect and update to your account backup repositories.`,
 		RunE:  handleRepoCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -169,4 +174,21 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 	}
 
 	return res, nil
+}
+
+// The repo update subcommand.
+// `corso repo update <repository> [<flag>...]`
+func updateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   updateCommand,
+		Short: "Update a repository.",
+		Long:  `Update a existing repository to store your backups.`,
+		RunE:  handleUpdateCmd,
+		Args:  cobra.NoArgs,
+	}
+}
+
+// Handler for calls to `corso repo init`.
+func handleUpdateCmd(cmd *cobra.Command, args []string) error {
+	return cmd.Help()
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
@@ -268,6 +269,44 @@ func (r *repository) Connect(ctx context.Context) (err error) {
 	}
 
 	r.Bus.Event(ctx, events.RepoConnect, nil)
+
+	return nil
+}
+
+// UpdatePassword updates Kopia password
+func (r *repository) UpdatePassword(ctx context.Context, password string) (err error) {
+	ctx = clues.Add(
+		ctx,
+		"acct_provider", r.Account.Provider.String(),
+		"acct_id", clues.Hide(r.Account.ID()),
+		"storage_provider", r.Storage.Provider.String())
+
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
+			err = crErr
+		}
+	}()
+
+	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
+	defer close(progressBar)
+
+	kopiaRef := kopia.NewConn(r.Storage)
+	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
+		return clues.Wrap(err, "connecting kopia client")
+	}
+
+	repository := kopiaRef.Repository.(repo.DirectRepository)
+	err = repository.FormatManager().ChangePassword(ctx, password)
+
+	if err != nil {
+		return errors.Wrap(err, "unable to update password")
+	}
+
+	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
+	// to close here.
+	defer kopiaRef.Close(ctx)
+
+	r.Bus.Event(ctx, events.RepoUpdate, nil)
 
 	return nil
 }

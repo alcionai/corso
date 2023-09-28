@@ -11,17 +11,19 @@ const (
 	AWSSessionTokenFN    = "aws-session-token"
 
 	// Corso Flags
-	CorsoPassphraseFN = "passphrase"
-	SucceedIfExistsFN = "succeed-if-exists"
+	CorsoPassphraseFN       = "passphrase"
+	UpdateCorsoPassphraseFN = "update-passphrase"
+	SucceedIfExistsFN       = "succeed-if-exists"
 )
 
 var (
-	BackupIDFV           string
-	AWSAccessKeyFV       string
-	AWSSecretAccessKeyFV string
-	AWSSessionTokenFV    string
-	CorsoPassphraseFV    string
-	SucceedIfExistsFV    bool
+	BackupIDFV               string
+	AWSAccessKeyFV           string
+	AWSSecretAccessKeyFV     string
+	AWSSessionTokenFV        string
+	CorsoPassphraseFV        string
+	UpdateCorsoPhasephraseFV string
+	SucceedIfExistsFV        bool
 )
 
 // AddBackupIDFlag adds the --backup flag.
@@ -57,6 +59,15 @@ func AddCorsoPassphaseFlags(cmd *cobra.Command) {
 		CorsoPassphraseFN,
 		"",
 		"Passphrase to protect encrypted repository contents")
+}
+
+// M365 flags
+func AddCorsoUpdatePassphraseFlags(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.StringVar(&UpdateCorsoPhasephraseFV,
+		UpdateCorsoPassphraseFN,
+		"",
+		"update kopia passphrase for repo")
 }
 
 // ---------------------------------------------------------------------------
