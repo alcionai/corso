@@ -3,10 +3,10 @@ package api_test
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -32,7 +32,6 @@ func (suite *AccessAPIIntgSuite) SetupSuite() {
 }
 
 func (suite *AccessAPIIntgSuite) TestGetToken() {
-
 	tests := []struct {
 		name      string
 		creds     func() account.M365Config
