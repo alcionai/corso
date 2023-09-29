@@ -1,9 +1,11 @@
 package graph
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
@@ -11,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -63,10 +66,18 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		len(itemData),
 		"Requires same number of items and data")
 
-	items := []MetadataItem{}
+	items := []metadataItem{}
 
 	for i := 0; i < len(itemNames); i++ {
-		items = append(items, NewMetadataItem(itemNames[i], itemData[i]))
+		items = append(
+			items,
+			metadataItem{
+				Item: data.NewUnindexedPrefetchedItem(
+					io.NopCloser(bytes.NewReader(itemData[i])),
+					itemNames[i],
+					time.Time{}),
+				size: int64(len(itemData[i])),
+			})
 	}
 
 	p, err := path.Build(

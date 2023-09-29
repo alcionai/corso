@@ -1,7 +1,6 @@
 package backup
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
 	utilsTD "github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -94,51 +94,36 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 func (suite *SharePointUnitSuite) TestBackupCreateFlags() {
 	t := suite.T()
 
-	cmd := &cobra.Command{Use: createCommand}
-
-	// persistent flags not added by addCommands
-	flags.AddRunModeFlag(cmd, true)
-
-	c := addSharePointCommands(cmd)
-	require.NotNil(t, c)
-
-	// non-persistent flags not added by addCommands
-	flags.AddAllProviderFlags(c)
-	flags.AddAllStorageFlags(c)
-
-	flagsTD.WithFlags(
-		cmd,
-		sharePointServiceCommand,
-		[]string{
-			"--" + flags.RunModeFN, flags.RunModeFlagTest,
-			"--" + flags.SiteIDFN, flagsTD.FlgInputs(flagsTD.SiteIDInput),
-			"--" + flags.SiteFN, flagsTD.FlgInputs(flagsTD.WebURLInput),
-			"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.SharepointCategoryDataInput),
-			"--" + flags.FailFastFN,
-			"--" + flags.DisableIncrementalsFN,
-			"--" + flags.ForceItemDataDownloadFN,
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: createCommand},
+		addSharePointCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
 		},
-		flagsTD.PreparedProviderFlags(),
-		flagsTD.PreparedStorageFlags())
-
-	cmd.SetOut(new(bytes.Buffer)) // drop output
-	cmd.SetErr(new(bytes.Buffer)) // drop output
-
-	err := cmd.Execute()
-	assert.NoError(t, err, clues.ToCore(err))
+		flagsTD.WithFlags(
+			sharePointServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.SiteIDFN, flagsTD.FlgInputs(flagsTD.SiteIDInput),
+				"--" + flags.SiteFN, flagsTD.FlgInputs(flagsTD.WebURLInput),
+				"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.SharepointCategoryDataInput),
+				"--" + flags.FailFastFN,
+				"--" + flags.DisableIncrementalsFN,
+				"--" + flags.ForceItemDataDownloadFN,
+			},
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
 
 	opts := utils.MakeSharePointOpts(cmd)
 	co := utils.Control()
 
 	assert.ElementsMatch(t, []string{strings.Join(flagsTD.SiteIDInput, ",")}, opts.SiteID)
 	assert.ElementsMatch(t, flagsTD.WebURLInput, opts.WebURL)
-	// no assertion for category data input
-
-	// bool flags
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
-
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
 }
@@ -146,37 +131,25 @@ func (suite *SharePointUnitSuite) TestBackupCreateFlags() {
 func (suite *SharePointUnitSuite) TestBackupListFlags() {
 	t := suite.T()
 
-	cmd := &cobra.Command{Use: listCommand}
-
-	// persistent flags not added by addCommands
-	flags.AddRunModeFlag(cmd, true)
-
-	c := addSharePointCommands(cmd)
-	require.NotNil(t, c)
-
-	// non-persistent flags not added by addCommands
-	flags.AddAllProviderFlags(c)
-	flags.AddAllStorageFlags(c)
-
-	flagsTD.WithFlags(
-		cmd,
-		sharePointServiceCommand,
-		[]string{
-			"--" + flags.RunModeFN, flags.RunModeFlagTest,
-			"--" + flags.BackupFN, flagsTD.BackupInput,
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: listCommand},
+		addSharePointCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
 		},
-		flagsTD.PreparedBackupListFlags(),
-		flagsTD.PreparedProviderFlags(),
-		flagsTD.PreparedStorageFlags())
-
-	cmd.SetOut(new(bytes.Buffer)) // drop output
-	cmd.SetErr(new(bytes.Buffer)) // drop output
-
-	err := cmd.Execute()
-	assert.NoError(t, err, clues.ToCore(err))
+		flagsTD.WithFlags(
+			sharePointServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, flagsTD.BackupInput,
+			},
+			flagsTD.PreparedBackupListFlags(),
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
 
 	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
-
 	flagsTD.AssertBackupListFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
@@ -185,41 +158,28 @@ func (suite *SharePointUnitSuite) TestBackupListFlags() {
 func (suite *SharePointUnitSuite) TestBackupDetailsFlags() {
 	t := suite.T()
 
-	cmd := &cobra.Command{Use: detailsCommand}
-
-	// persistent flags not added by addCommands
-	flags.AddRunModeFlag(cmd, true)
-
-	c := addSharePointCommands(cmd)
-	require.NotNil(t, c)
-
-	// non-persistent flags not added by addCommands
-	flags.AddAllProviderFlags(c)
-	flags.AddAllStorageFlags(c)
-
-	flagsTD.WithFlags(
-		cmd,
-		sharePointServiceCommand,
-		[]string{
-			"--" + flags.RunModeFN, flags.RunModeFlagTest,
-			"--" + flags.BackupFN, flagsTD.BackupInput,
-			"--" + flags.SkipReduceFN,
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: detailsCommand},
+		addSharePointCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
 		},
-		flagsTD.PreparedProviderFlags(),
-		flagsTD.PreparedStorageFlags())
-
-	cmd.SetOut(new(bytes.Buffer)) // drop output
-	cmd.SetErr(new(bytes.Buffer)) // drop output
-
-	err := cmd.Execute()
-	assert.NoError(t, err, clues.ToCore(err))
+		flagsTD.WithFlags(
+			sharePointServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, flagsTD.BackupInput,
+				"--" + flags.SkipReduceFN,
+			},
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
 
 	co := utils.Control()
 
 	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
-
 	assert.True(t, co.SkipReduce)
-
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
 }
@@ -227,36 +187,24 @@ func (suite *SharePointUnitSuite) TestBackupDetailsFlags() {
 func (suite *SharePointUnitSuite) TestBackupDeleteFlags() {
 	t := suite.T()
 
-	cmd := &cobra.Command{Use: deleteCommand}
-
-	// persistent flags not added by addCommands
-	flags.AddRunModeFlag(cmd, true)
-
-	c := addSharePointCommands(cmd)
-	require.NotNil(t, c)
-
-	// non-persistent flags not added by addCommands
-	flags.AddAllProviderFlags(c)
-	flags.AddAllStorageFlags(c)
-
-	flagsTD.WithFlags(
-		cmd,
-		sharePointServiceCommand,
-		[]string{
-			"--" + flags.RunModeFN, flags.RunModeFlagTest,
-			"--" + flags.BackupFN, flagsTD.BackupInput,
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: deleteCommand},
+		addSharePointCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
 		},
-		flagsTD.PreparedProviderFlags(),
-		flagsTD.PreparedStorageFlags())
-
-	cmd.SetOut(new(bytes.Buffer)) // drop output
-	cmd.SetErr(new(bytes.Buffer)) // drop output
-
-	err := cmd.Execute()
-	assert.NoError(t, err, clues.ToCore(err))
+		flagsTD.WithFlags(
+			sharePointServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, flagsTD.BackupInput,
+			},
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
 
 	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
-
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
 }

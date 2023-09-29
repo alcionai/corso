@@ -7,18 +7,15 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
-
-type getByIDer interface {
-	GetByID(ctx context.Context, identifier string) (models.Groupable, error)
-}
 
 func IsServiceEnabled(
 	ctx context.Context,
-	gbi getByIDer,
+	gbi api.GetByIDer[models.Groupable],
 	resource string,
 ) (bool, error) {
-	resp, err := gbi.GetByID(ctx, resource)
+	resp, err := gbi.GetByID(ctx, resource, api.CallConfig{})
 	if err != nil {
 		return false, clues.Wrap(err, "getting group").WithClues(ctx)
 	}

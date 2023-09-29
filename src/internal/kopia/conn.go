@@ -205,7 +205,7 @@ func (w *conn) commonConnect(
 		bst,
 		password,
 		kopiaOpts); err != nil {
-		return clues.Wrap(err, "connecting to repo").WithClues(ctx)
+		return clues.Wrap(err, "connecting to kopia repo").WithClues(ctx)
 	}
 
 	if err := w.open(ctx, cfgFile, password); err != nil {

@@ -3,28 +3,21 @@ package export
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/alcionai/clues"
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/restore"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 func CheckSharePointExport(
 	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	siteID, folderName, dataFolder string,
+	ac api.Client,
+	envs common.Envs,
 ) {
-	drive, err := client.
-		Sites().
-		BySiteId(siteID).
-		Drive().
-		Get(ctx, nil)
+	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
 	if err != nil {
 		common.Fatal(ctx, "getting the drive:", err)
 	}
@@ -36,37 +29,19 @@ func CheckSharePointExport(
 		startTime       = time.Now()
 	)
 
-	err = filepath.Walk(folderName, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return clues.Stack(err)
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(folderName, path)
-		if err != nil {
-			return clues.Stack(err)
-		}
-
-		exportFileSizes[relPath] = info.Size()
-		if startTime.After(info.ModTime()) {
-			startTime = info.ModTime()
-		}
-
-		return nil
-	})
+	err = filepath.Walk(
+		envs.FolderName,
+		common.FilepathWalker(envs.FolderName, exportFileSizes, startTime))
 	if err != nil {
 		fmt.Println("Error walking the path:", err)
 	}
 
 	_ = restore.PopulateDriveDetails(
 		ctx,
-		client,
+		ac,
 		ptr.Val(drive.GetId()),
-		folderName,
-		dataFolder,
+		envs.FolderName,
+		envs.DataFolder,
 		fileSizes,
 		map[string][]common.PermissionInfo{},
 		startTime)
