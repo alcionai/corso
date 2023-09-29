@@ -356,10 +356,9 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 
 	m365Config, _ := repoDetails.Account.M365Config()
 
-	sc, err := repoDetails.Storage.StorageConfig()
+	s3Cfg, err := repoDetails.Storage.ToS3Config()
 	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
 
-	s3Cfg := sc.(*storage.S3Config)
 	commonConfig, _ := repoDetails.Storage.CommonConfig()
 	pass := commonConfig.Corso.CorsoPassphrase
 
@@ -425,16 +424,20 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, repository.Options{}, "repoid")
 	require.NoError(t, err, "writing repo config", clues.ToCore(err))
 
+	require.Equal(
+		t,
+		account.ProviderM365.String(),
+		vpr.GetString(account.AccountProviderTypeKey),
+		"viper should have m365 as the account provider")
+
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
 	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, true, true, nil)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
-	sc, err := cfg.Storage.StorageConfig()
+	readS3Cfg, err := cfg.Storage.ToS3Config()
 	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
-
-	readS3Cfg := sc.(*storage.S3Config)
 
 	assert.Equal(t, readS3Cfg.Bucket, s3Cfg.Bucket)
 	assert.Equal(t, readS3Cfg.Endpoint, s3Cfg.Endpoint)
@@ -482,10 +485,8 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, false, true, overrides)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
-	sc, err := cfg.Storage.StorageConfig()
+	readS3Cfg, err := cfg.Storage.ToS3Config()
 	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
-
-	readS3Cfg := sc.(*storage.S3Config)
 
 	assert.Equal(t, readS3Cfg.Bucket, bkt)
 	assert.Equal(t, cfg.RepoID, "")
