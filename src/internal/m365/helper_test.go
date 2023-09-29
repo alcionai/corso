@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
@@ -573,7 +574,12 @@ func compareExchangeEmail(
 	expected map[string][]byte,
 	item data.Item,
 ) {
-	itemData, err := io.ReadAll(item.ToReader())
+	rr := versionedReadWrapper(t, item.ToReader())
+	if rr == nil {
+		return
+	}
+
+	itemData, err := io.ReadAll(rr)
 	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
@@ -600,7 +606,12 @@ func compareExchangeContact(
 	expected map[string][]byte,
 	item data.Item,
 ) {
-	itemData, err := io.ReadAll(item.ToReader())
+	rr := versionedReadWrapper(t, item.ToReader())
+	if rr == nil {
+		return
+	}
+
+	itemData, err := io.ReadAll(rr)
 	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
@@ -628,7 +639,12 @@ func compareExchangeEvent(
 	expected map[string][]byte,
 	item data.Item,
 ) {
-	itemData, err := io.ReadAll(item.ToReader())
+	rr := versionedReadWrapper(t, item.ToReader())
+	if rr == nil {
+		return
+	}
+
+	itemData, err := io.ReadAll(rr)
 	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
@@ -718,7 +734,12 @@ func compareDriveItem(
 		return false
 	}
 
-	buf, err := io.ReadAll(item.ToReader())
+	rr := versionedReadWrapper(t, item.ToReader())
+	if rr == nil {
+		return true
+	}
+
+	buf, err := io.ReadAll(rr)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		return true
 	}
@@ -848,6 +869,29 @@ func compareDriveItem(
 	assert.Equal(t, fileData.FileName, displayName+metadata.DataFileSuffix)
 
 	return true
+}
+
+// versionedReaderWrapper strips out the version format header and checks it
+// meets the current standard for all service types. If it doesn't meet the
+// standard, returns nil. Else returns the versionedRestoreReader.
+func versionedReadWrapper(
+	t *testing.T,
+	reader io.ReadCloser,
+) io.ReadCloser {
+	rr, err := readers.NewVersionedRestoreReader(reader)
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		return nil
+	}
+
+	if !assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version) {
+		return nil
+	}
+
+	if !assert.False(t, rr.Format().DelInFlight) {
+		return nil
+	}
+
+	return rr
 }
 
 // compareItem compares the data returned by backup with the expected data.
