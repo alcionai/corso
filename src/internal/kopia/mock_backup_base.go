@@ -197,3 +197,63 @@ func (bb *MockBackupBases) MockDisableMergeBases() *MockBackupBases {
 	bb.DisableMergeBases()
 	return bb
 }
+
+// -----------------------------------------------------------------------------
+// Functions for BackupBase creation
+// -----------------------------------------------------------------------------
+
+func NewBackupBaseBuilder(idPrefix string, id int) *BackupBaseBuilder {
+	bIDKey, _ := makeTagKV(TagBackupID)
+	baseID := fmt.Sprintf("%sID%d", idPrefix, id)
+
+	return &BackupBaseBuilder{
+		b: &BackupBase{
+			Backup: &backup.Backup{
+				BaseModel: model.BaseModel{
+					ID: model.StableID(baseID + "-backup"),
+				},
+				SnapshotID:    baseID + "-item-data",
+				StreamStoreID: baseID + "-stream-store",
+			},
+			ItemDataSnapshot: &snapshot.Manifest{
+				ID:   manifest.ID(baseID + "-item-data"),
+				Tags: map[string]string{bIDKey: baseID + "-backup"},
+			},
+			Reasons: []identity.Reasoner{
+				NewReason(
+					"tenant",
+					"protected_resource",
+					path.ExchangeService,
+					path.EmailCategory),
+			},
+		},
+	}
+}
+
+type BackupBaseBuilder struct {
+	b *BackupBase
+}
+
+func (bbb *BackupBaseBuilder) Build() BackupBase {
+	return *bbb.b
+}
+
+func (bbb *BackupBaseBuilder) MarkAssistBase() *BackupBaseBuilder {
+	if bbb.b.Backup.Tags == nil {
+		bbb.b.Backup.Tags = map[string]string{}
+	}
+
+	bbb.b.Backup.Tags[model.BackupTypeTag] = model.AssistBackup
+
+	return bbb
+}
+
+func (bbb *BackupBaseBuilder) WithReasons(reasons ...identity.Reasoner) *BackupBaseBuilder {
+	bbb.b.Reasons = reasons
+	return bbb
+}
+
+func (bbb *BackupBaseBuilder) AppendReasons(reasons ...identity.Reasoner) *BackupBaseBuilder {
+	bbb.b.Reasons = append(bbb.b.Reasons, reasons...)
+	return bbb
+}
