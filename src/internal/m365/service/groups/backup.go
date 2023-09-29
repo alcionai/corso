@@ -55,7 +55,10 @@ func ProduceBackupCollections(
 		"group_id", clues.Hide(bpc.ProtectedResource.ID()),
 		"group_name", clues.Hide(bpc.ProtectedResource.Name()))
 
-	group, err := ac.Groups().GetByID(ctx, bpc.ProtectedResource.ID())
+	group, err := ac.Groups().GetByID(
+		ctx,
+		bpc.ProtectedResource.ID(),
+		api.CallConfig{})
 	if err != nil {
 		return nil, nil, false, clues.Wrap(err, "getting group").WithClues(ctx)
 	}

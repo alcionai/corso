@@ -8,7 +8,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -136,7 +135,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 	expectedStatePath := getExpectedStatePathGenerator(suite.T(), bh, tenant, testBaseDrivePath)
 
 	tests := []struct {
-		testCase               string
+		name                   string
 		items                  []models.DriveItemable
 		inputFolderMap         map[string]string
 		scope                  selectors.OneDriveScope
@@ -146,11 +145,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 		expectedContainerCount int
 		expectedFileCount      int
 		expectedSkippedCount   int
-		expectedMetadataPaths  map[string]string
+		expectedPrevPaths      map[string]string
 		expectedExcludes       map[string]struct{}
 	}{
 		{
-			testCase: "Invalid item",
+			name: "Invalid item",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("item", "item", testBaseDrivePath, "root", false, false, false),
@@ -162,13 +161,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 				"root": expectedStatePath(data.NotMovedState, ""),
 			},
 			expectedContainerCount: 1,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root": expectedPath(""),
 			},
 			expectedExcludes: map[string]struct{}{},
 		},
 		{
-			testCase: "Single File",
+			name: "Single File",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("file", "file", testBaseDrivePath, "root", true, false, false),
@@ -183,13 +182,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			// Root folder is skipped since it's always present.
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root": expectedPath(""),
 			},
 			expectedExcludes: getDelList("file"),
 		},
 		{
-			testCase: "Single Folder",
+			name: "Single Folder",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
@@ -201,7 +200,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 				"root":   expectedStatePath(data.NotMovedState, ""),
 				"folder": expectedStatePath(data.NewState, folder),
 			},
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":   expectedPath(""),
 				"folder": expectedPath("/folder"),
 			},
@@ -210,7 +209,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes:       map[string]struct{}{},
 		},
 		{
-			testCase: "Single Package",
+			name: "Single Package",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("package", "package", testBaseDrivePath, "root", false, false, true),
@@ -222,7 +221,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 				"root":    expectedStatePath(data.NotMovedState, ""),
 				"package": expectedStatePath(data.NewState, pkg),
 			},
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":    expectedPath(""),
 				"package": expectedPath("/package"),
 			},
@@ -231,7 +230,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes:       map[string]struct{}{},
 		},
 		{
-			testCase: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
+			name: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
@@ -251,7 +250,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      5,
 			expectedFileCount:      3,
 			expectedContainerCount: 3,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":    expectedPath(""),
 				"folder":  expectedPath("/folder"),
 				"package": expectedPath("/package"),
@@ -259,7 +258,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes: getDelList("fileInRoot", "fileInFolder", "fileInPackage"),
 		},
 		{
-			testCase: "contains folder selector",
+			name: "contains folder selector",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
@@ -284,7 +283,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedContainerCount: 3,
 			// just "folder" isn't added here because the include check is done on the
 			// parent path since we only check later if something is a folder or not.
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"folder":    expectedPath(folder),
 				"subfolder": expectedPath(folderSub),
 				"folder2":   expectedPath(folderSub + folder),
@@ -292,7 +291,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes: getDelList("fileInFolder", "fileInFolder2"),
 		},
 		{
-			testCase: "prefix subfolder selector",
+			name: "prefix subfolder selector",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
@@ -315,14 +314,14 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      3,
 			expectedFileCount:      1,
 			expectedContainerCount: 2,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"subfolder": expectedPath(folderSub),
 				"folder2":   expectedPath(folderSub + folder),
 			},
 			expectedExcludes: getDelList("fileInFolder2"),
 		},
 		{
-			testCase: "match subfolder selector",
+			name: "match subfolder selector",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
@@ -343,13 +342,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			// No child folders for subfolder so nothing here.
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"subfolder": expectedPath(folderSub),
 			},
 			expectedExcludes: getDelList("fileInSubfolder"),
 		},
 		{
-			testCase: "not moved folder tree",
+			name: "not moved folder tree",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
@@ -367,7 +366,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      1,
 			expectedFileCount:      0,
 			expectedContainerCount: 2,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":      expectedPath(""),
 				"folder":    expectedPath(folder),
 				"subfolder": expectedPath(folderSub),
@@ -375,7 +374,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes: map[string]struct{}{},
 		},
 		{
-			testCase: "moved folder tree",
+			name: "moved folder tree",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
@@ -393,7 +392,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      1,
 			expectedFileCount:      0,
 			expectedContainerCount: 2,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":      expectedPath(""),
 				"folder":    expectedPath(folder),
 				"subfolder": expectedPath(folderSub),
@@ -401,7 +400,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes: map[string]struct{}{},
 		},
 		{
-			testCase: "moved folder tree with file no previous",
+			name: "moved folder tree with file no previous",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
@@ -418,14 +417,14 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      2,
 			expectedFileCount:      1,
 			expectedContainerCount: 2,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":   expectedPath(""),
 				"folder": expectedPath("/folder2"),
 			},
 			expectedExcludes: getDelList("file"),
 		},
 		{
-			testCase: "moved folder tree with file no previous 1",
+			name: "moved folder tree with file no previous 1",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
@@ -441,14 +440,14 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      2,
 			expectedFileCount:      1,
 			expectedContainerCount: 2,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":   expectedPath(""),
 				"folder": expectedPath(folder),
 			},
 			expectedExcludes: getDelList("file"),
 		},
 		{
-			testCase: "moved folder tree and subfolder 1",
+			name: "moved folder tree and subfolder 1",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
@@ -468,7 +467,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      2,
 			expectedFileCount:      0,
 			expectedContainerCount: 3,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":      expectedPath(""),
 				"folder":    expectedPath(folder),
 				"subfolder": expectedPath("/subfolder"),
@@ -476,7 +475,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes: map[string]struct{}{},
 		},
 		{
-			testCase: "moved folder tree and subfolder 2",
+			name: "moved folder tree and subfolder 2",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("subfolder", "subfolder", testBaseDrivePath, "root", false, true, false),
@@ -496,7 +495,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      2,
 			expectedFileCount:      0,
 			expectedContainerCount: 3,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":      expectedPath(""),
 				"folder":    expectedPath(folder),
 				"subfolder": expectedPath("/subfolder"),
@@ -504,7 +503,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes: map[string]struct{}{},
 		},
 		{
-			testCase: "move subfolder when moving parent",
+			name: "move subfolder when moving parent",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("folder2", "folder2", testBaseDrivePath, "root", false, true, false),
@@ -538,7 +537,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      5,
 			expectedFileCount:      2,
 			expectedContainerCount: 4,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":      expectedPath(""),
 				"folder":    expectedPath("/folder"),
 				"folder2":   expectedPath("/folder2"),
@@ -547,7 +546,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes: getDelList("itemInSubfolder", "itemInFolder2"),
 		},
 		{
-			testCase: "moved folder tree multiple times",
+			name: "moved folder tree multiple times",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("folder", "folder", testBaseDrivePath, "root", false, true, false),
@@ -567,7 +566,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      2,
 			expectedFileCount:      1,
 			expectedContainerCount: 2,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":      expectedPath(""),
 				"folder":    expectedPath("/folder2"),
 				"subfolder": expectedPath("/folder2/subfolder"),
@@ -575,7 +574,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedExcludes: getDelList("file"),
 		},
 		{
-			testCase: "deleted folder and package",
+			name: "deleted folder and package",
 			items: []models.DriveItemable{
 				driveRootItem("root"), // root is always present, but not necessary here
 				delItem("folder", testBaseDrivePath, "root", false, true, false),
@@ -596,13 +595,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      0,
 			expectedFileCount:      0,
 			expectedContainerCount: 1,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root": expectedPath(""),
 			},
 			expectedExcludes: map[string]struct{}{},
 		},
 		{
-			testCase: "delete folder without previous",
+			name: "delete folder without previous",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				delItem("folder", testBaseDrivePath, "root", false, true, false),
@@ -618,13 +617,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      0,
 			expectedFileCount:      0,
 			expectedContainerCount: 1,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root": expectedPath(""),
 			},
 			expectedExcludes: map[string]struct{}{},
 		},
 		{
-			testCase: "delete folder tree move subfolder",
+			name: "delete folder tree move subfolder",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				delItem("folder", testBaseDrivePath, "root", false, true, false),
@@ -645,14 +644,14 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      1,
 			expectedFileCount:      0,
 			expectedContainerCount: 2,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":      expectedPath(""),
 				"subfolder": expectedPath("/subfolder"),
 			},
 			expectedExcludes: map[string]struct{}{},
 		},
 		{
-			testCase: "delete file",
+			name: "delete file",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				delItem("item", testBaseDrivePath, "root", true, false, false),
@@ -668,13 +667,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      1,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root": expectedPath(""),
 			},
 			expectedExcludes: getDelList("item"),
 		},
 		{
-			testCase: "item before parent errors",
+			name: "item before parent errors",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("file", "file", testBaseDrivePath+"/folder", "folder", true, false, false),
@@ -689,13 +688,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedItemCount:      0,
 			expectedFileCount:      0,
 			expectedContainerCount: 1,
-			expectedMetadataPaths: map[string]string{
-				"root": expectedPath(""),
-			},
-			expectedExcludes: map[string]struct{}{},
+			expectedPrevPaths:      nil,
+			expectedExcludes:       map[string]struct{}{},
 		},
 		{
-			testCase: "1 root file, 1 folder, 1 package, 1 good file, 1 malware",
+			name: "1 root file, 1 folder, 1 package, 1 good file, 1 malware",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
 				driveItem("fileInRoot", "fileInRoot", testBaseDrivePath, "root", true, false, false),
@@ -716,7 +713,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			expectedFileCount:      2,
 			expectedContainerCount: 3,
 			expectedSkippedCount:   1,
-			expectedMetadataPaths: map[string]string{
+			expectedPrevPaths: map[string]string{
 				"root":    expectedPath(""),
 				"folder":  expectedPath("/folder"),
 				"package": expectedPath("/package"),
@@ -725,26 +722,23 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 		},
 	}
 
-	for _, tt := range tests {
-		suite.Run(tt.testCase, func() {
+	for _, test := range tests {
+		suite.Run(test.name, func() {
 			t := suite.T()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				excludes        = map[string]struct{}{}
-				outputFolderMap = map[string]string{}
-				itemCollection  = map[string]map[string]string{
-					driveID: {},
-				}
-				errs = fault.New(true)
+				excludes      = map[string]struct{}{}
+				currPrevPaths = map[string]string{}
+				errs          = fault.New(true)
 			)
 
-			maps.Copy(outputFolderMap, tt.inputFolderMap)
+			maps.Copy(currPrevPaths, test.inputFolderMap)
 
 			c := NewCollections(
-				&itemBackupHandler{api.Drives{}, user, tt.scope},
+				&itemBackupHandler{api.Drives{}, user, test.scope},
 				tenant,
 				user,
 				nil,
@@ -752,25 +746,24 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 
 			c.CollectionMap[driveID] = map[string]*Collection{}
 
-			err := c.UpdateCollections(
+			newPrevPaths, err := c.UpdateCollections(
 				ctx,
 				driveID,
 				"General",
-				tt.items,
-				tt.inputFolderMap,
-				outputFolderMap,
+				test.items,
+				test.inputFolderMap,
+				currPrevPaths,
 				excludes,
-				itemCollection,
 				false,
 				errs)
-			tt.expect(t, err, clues.ToCore(err))
-			assert.Equal(t, len(tt.expectedCollectionIDs), len(c.CollectionMap[driveID]), "total collections")
-			assert.Equal(t, tt.expectedItemCount, c.NumItems, "item count")
-			assert.Equal(t, tt.expectedFileCount, c.NumFiles, "file count")
-			assert.Equal(t, tt.expectedContainerCount, c.NumContainers, "container count")
-			assert.Equal(t, tt.expectedSkippedCount, len(errs.Skipped()), "skipped items")
+			test.expect(t, err, clues.ToCore(err))
+			assert.Equal(t, len(test.expectedCollectionIDs), len(c.CollectionMap[driveID]), "total collections")
+			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
+			assert.Equal(t, test.expectedFileCount, c.NumFiles, "file count")
+			assert.Equal(t, test.expectedContainerCount, c.NumContainers, "container count")
+			assert.Equal(t, test.expectedSkippedCount, len(errs.Skipped()), "skipped items")
 
-			for id, sp := range tt.expectedCollectionIDs {
+			for id, sp := range test.expectedCollectionIDs {
 				if !assert.Containsf(t, c.CollectionMap[driveID], id, "missing collection with id %s", id) {
 					// Skip collections we don't find so we don't get an NPE.
 					continue
@@ -781,8 +774,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 				assert.Equalf(t, sp.prevPath, c.CollectionMap[driveID][id].PreviousPath(), "prev path for collection %s", id)
 			}
 
-			assert.Equal(t, tt.expectedMetadataPaths, outputFolderMap, "metadata paths")
-			assert.Equal(t, tt.expectedExcludes, excludes, "exclude list")
+			assert.Equal(t, test.expectedPrevPaths, newPrevPaths, "metadata paths")
+			assert.Equal(t, test.expectedExcludes, excludes, "exclude list")
 		})
 	}
 }
@@ -1300,7 +1293,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1338,7 +1332,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 							driveItem("file", "file2", driveBasePath1+"/folder", "folder", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1415,7 +1410,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
-						DeltaLink: &empty, // probably will never happen with graph
+						DeltaLink:  &empty, // probably will never happen with graph
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1452,7 +1448,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
-						NextLink: &next,
+						NextLink:   &next,
+						ResetDelta: true,
 					},
 					{
 						Values: []models.DriveItemable{
@@ -1460,7 +1457,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file2", "file2", driveBasePath1+"/folder", "folder", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1502,7 +1500,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 				driveID2: {
@@ -1512,7 +1511,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder2", "folder", driveBasePath2, "root2", false, true, false),
 							driveItem("file2", "file", driveBasePath2+"/folder", "folder2", true, false, false),
 						},
-						DeltaLink: &delta2,
+						DeltaLink:  &delta2,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1564,7 +1564,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 				driveID2: {
@@ -1574,7 +1575,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath2, "root", false, true, false),
 							driveItem("file2", "file", driveBasePath2+"/folder", "folder", true, false, false),
 						},
-						DeltaLink: &delta2,
+						DeltaLink:  &delta2,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1633,87 +1635,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			expectedDelList:     nil,
 		},
 		{
-			name:   "OneDrive_OneItemPage_DeltaError",
-			drives: []models.Driveable{drive1},
-			items: map[string][]apiMock.PagerResult[models.DriveItemable]{
-				driveID1: {
-					{
-						Err: getDeltaError(),
-					},
-					{
-						Values: []models.DriveItemable{
-							driveRootItem("root"),
-							driveItem("file", "file", driveBasePath1, "root", true, false, false),
-						},
-						DeltaLink: &delta,
-					},
-				},
-			},
-			canUsePreviousBackup: true,
-			errCheck:             assert.NoError,
-			expectedCollections: map[string]map[data.CollectionState][]string{
-				rootFolderPath1: {data.NotMovedState: {"file"}},
-			},
-			expectedDeltaURLs: map[string]string{
-				driveID1: delta,
-			},
-			expectedFolderPaths: map[string]map[string]string{
-				driveID1: {
-					"root": rootFolderPath1,
-				},
-			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
-			doNotMergeItems: map[string]bool{
-				rootFolderPath1: true,
-			},
-		},
-		{
-			name:   "OneDrive_TwoItemPage_DeltaError",
-			drives: []models.Driveable{drive1},
-			items: map[string][]apiMock.PagerResult[models.DriveItemable]{
-				driveID1: {
-					{
-						Err: getDeltaError(),
-					},
-					{
-						Values: []models.DriveItemable{
-							driveRootItem("root"),
-							driveItem("file", "file", driveBasePath1, "root", true, false, false),
-						},
-						NextLink: &next,
-					},
-					{
-						Values: []models.DriveItemable{
-							driveRootItem("root"),
-							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
-							driveItem("file2", "file", driveBasePath1+"/folder", "folder", true, false, false),
-						},
-						DeltaLink: &delta,
-					},
-				},
-			},
-			canUsePreviousBackup: true,
-			errCheck:             assert.NoError,
-			expectedCollections: map[string]map[data.CollectionState][]string{
-				rootFolderPath1:          {data.NotMovedState: {"file"}},
-				expectedPath1("/folder"): {data.NewState: {"folder", "file2"}},
-			},
-			expectedDeltaURLs: map[string]string{
-				driveID1: delta,
-			},
-			expectedFolderPaths: map[string]map[string]string{
-				driveID1: {
-					"root":   rootFolderPath1,
-					"folder": folderPath1,
-				},
-			},
-			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
-			doNotMergeItems: map[string]bool{
-				rootFolderPath1: true,
-				folderPath1:     true,
-			},
-		},
-		{
 			name:   "OneDrive_TwoItemPage_NoDeltaError",
 			drives: []models.Driveable{drive1},
 			items: map[string][]apiMock.PagerResult[models.DriveItemable]{
@@ -1766,15 +1687,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			items: map[string][]apiMock.PagerResult[models.DriveItemable]{
 				driveID1: {
 					{
-						Err: getDeltaError(),
-					},
-					{
 						Values: []models.DriveItemable{
 							driveRootItem("root"),
 							driveItem("folder2", "folder2", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder2", "folder2", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1813,15 +1732,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			items: map[string][]apiMock.PagerResult[models.DriveItemable]{
 				driveID1: {
 					{
-						Err: getDeltaError(),
-					},
-					{
 						Values: []models.DriveItemable{
 							driveRootItem("root"),
 							driveItem("folder2", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder2", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1878,7 +1795,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("file2", "file2", driveBasePath1+"/folder", "folder", true, false, false),
 							malwareItem("malware2", "malware2", driveBasePath1+"/folder", "folder", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1908,13 +1826,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			expectedSkippedCount: 2,
 		},
 		{
-			name:   "One Drive Delta Error Deleted Folder In New Results",
+			name:   "One Drive Deleted Folder In New Results",
 			drives: []models.Driveable{drive1},
 			items: map[string][]apiMock.PagerResult[models.DriveItemable]{
 				driveID1: {
-					{
-						Err: getDeltaError(),
-					},
 					{
 						Values: []models.DriveItemable{
 							driveRootItem("root"),
@@ -1931,7 +1846,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							delItem("folder2", driveBasePath1, "root", false, true, false),
 							delItem("file2", driveBasePath1, "root", true, false, false),
 						},
-						DeltaLink: &delta2,
+						DeltaLink:  &delta2,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -1966,19 +1882,17 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Delta Error Random Folder Delete",
+			name:   "One Drive Random Folder Delete",
 			drives: []models.Driveable{drive1},
 			items: map[string][]apiMock.PagerResult[models.DriveItemable]{
 				driveID1: {
-					{
-						Err: getDeltaError(),
-					},
 					{
 						Values: []models.DriveItemable{
 							driveRootItem("root"),
 							delItem("folder", driveBasePath1, "root", false, true, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -2009,19 +1923,17 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Delta Error Random Item Delete",
+			name:   "One Drive Random Item Delete",
 			drives: []models.Driveable{drive1},
 			items: map[string][]apiMock.PagerResult[models.DriveItemable]{
 				driveID1: {
-					{
-						Err: getDeltaError(),
-					},
 					{
 						Values: []models.DriveItemable{
 							driveRootItem("root"),
 							delItem("file", driveBasePath1, "root", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -2067,7 +1979,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							delItem("folder", driveBasePath1, "root", false, true, false),
 							delItem("file", driveBasePath1, "root", true, false, false),
 						},
-						DeltaLink: &delta2,
+						DeltaLink:  &delta2,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -2110,7 +2023,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveRootItem("root"),
 							delItem("file", driveBasePath1, "root", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -2148,7 +2062,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveRootItem("root"),
 							delItem("folder", driveBasePath1, "root", false, true, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -2183,7 +2098,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveRootItem("root"),
 							delItem("file", driveBasePath1, "root", true, false, false),
 						},
-						DeltaLink: &delta,
+						DeltaLink:  &delta,
+						ResetDelta: true,
 					},
 				},
 			},
@@ -2265,6 +2181,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.DrivePagerV = mockDrivePager
 			mbh.ItemPagerV = itemPagers
+			mbh.DriveItemEnumeration = mock.PagerResultToEDID(test.items)
 
 			c := NewCollections(
 				mbh,
@@ -2489,121 +2406,6 @@ func delItem(
 	}
 
 	return item
-}
-
-func getDeltaError() error {
-	syncStateNotFound := "SyncStateNotFound"
-	me := odataerrors.NewMainError()
-	me.SetCode(&syncStateNotFound)
-
-	deltaError := odataerrors.NewODataError()
-	deltaError.SetErrorEscaped(me)
-
-	return deltaError
-}
-
-func (suite *OneDriveCollectionsUnitSuite) TestCollectItems() {
-	next := "next"
-	delta := "delta"
-	prevDelta := "prev-delta"
-
-	table := []struct {
-		name             string
-		items            []apiMock.PagerResult[models.DriveItemable]
-		deltaURL         string
-		prevDeltaSuccess bool
-		prevDelta        string
-		err              error
-	}{
-		{
-			name:     "delta on first run",
-			deltaURL: delta,
-			items: []apiMock.PagerResult[models.DriveItemable]{
-				{DeltaLink: &delta},
-			},
-			prevDeltaSuccess: true,
-			prevDelta:        prevDelta,
-		},
-		{
-			name:     "empty prev delta",
-			deltaURL: delta,
-			items: []apiMock.PagerResult[models.DriveItemable]{
-				{DeltaLink: &delta},
-			},
-			prevDeltaSuccess: false,
-			prevDelta:        "",
-		},
-		{
-			name:     "next then delta",
-			deltaURL: delta,
-			items: []apiMock.PagerResult[models.DriveItemable]{
-				{NextLink: &next},
-				{DeltaLink: &delta},
-			},
-			prevDeltaSuccess: true,
-			prevDelta:        prevDelta,
-		},
-		{
-			name:     "invalid prev delta",
-			deltaURL: delta,
-			items: []apiMock.PagerResult[models.DriveItemable]{
-				{Err: getDeltaError()},
-				{DeltaLink: &delta}, // works on retry
-			},
-			prevDelta:        prevDelta,
-			prevDeltaSuccess: false,
-		},
-		{
-			name: "fail a normal delta query",
-			items: []apiMock.PagerResult[models.DriveItemable]{
-				{NextLink: &next},
-				{Err: assert.AnError},
-			},
-			prevDelta:        prevDelta,
-			prevDeltaSuccess: true,
-			err:              assert.AnError,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			itemPager := &apiMock.DeltaPager[models.DriveItemable]{
-				ToReturn: test.items,
-			}
-
-			collectorFunc := func(
-				ctx context.Context,
-				driveID, driveName string,
-				driveItems []models.DriveItemable,
-				oldPaths map[string]string,
-				newPaths map[string]string,
-				excluded map[string]struct{},
-				itemCollection map[string]map[string]string,
-				doNotMergeItems bool,
-				errs *fault.Bus,
-			) error {
-				return nil
-			}
-
-			delta, _, _, err := collectItems(
-				ctx,
-				itemPager,
-				"",
-				"General",
-				collectorFunc,
-				map[string]string{},
-				test.prevDelta,
-				fault.New(true))
-
-			require.ErrorIs(t, err, test.err, "delta fetch err", clues.ToCore(err))
-			require.Equal(t, test.deltaURL, delta.URL, "delta url")
-			require.Equal(t, !test.prevDeltaSuccess, delta.Reset, "delta reset")
-		})
-	}
 }
 
 func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {

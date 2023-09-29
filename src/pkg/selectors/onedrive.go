@@ -484,7 +484,7 @@ func (s OneDriveScope) Matches(cat oneDriveCategory, target string) bool {
 // returns true if the category is included in the scope's data type,
 // and the value is set to Any().
 func (s OneDriveScope) IsAny(cat oneDriveCategory) bool {
-	return isAnyTarget(s, cat)
+	return IsAnyTarget(s, cat)
 }
 
 // Get returns the data category in the scope.  If the scope

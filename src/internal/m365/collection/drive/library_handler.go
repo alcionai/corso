@@ -92,13 +92,6 @@ func (h libraryBackupHandler) NewDrivePager(
 	return h.ac.NewSiteDrivePager(resourceOwner, fields)
 }
 
-func (h libraryBackupHandler) NewItemPager(
-	driveID, link string,
-	fields []string,
-) api.DeltaPager[models.DriveItemable] {
-	return h.ac.NewDriveItemDeltaPager(driveID, link, fields)
-}
-
 func (h libraryBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	item models.DriveItemable,
@@ -175,6 +168,13 @@ func (h libraryBackupHandler) IsAllPass() bool {
 
 func (h libraryBackupHandler) IncludesDir(dir string) bool {
 	return h.scope.Matches(selectors.SharePointLibraryFolder, dir)
+}
+
+func (h libraryBackupHandler) EnumerateDriveItemsDelta(
+	ctx context.Context,
+	driveID, prevDeltaLink string,
+) ([]models.DriveItemable, api.DeltaUpdate, error) {
+	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink)
 }
 
 // ---------------------------------------------------------------------------

@@ -24,7 +24,7 @@ import (
 type Client struct {
 	Credentials account.M365Config
 
-	// The Stable service is re-usable for any non-paged request.
+	// The Stable service is re-usable for any request.
 	// This allows us to maintain performance across async requests.
 	Stable graph.Servicer
 
@@ -125,4 +125,16 @@ func (c Client) Get(
 
 type CallConfig struct {
 	Expand []string
+}
+
+// ---------------------------------------------------------------------------
+// common interfaces
+// ---------------------------------------------------------------------------
+
+type GetByIDer[T any] interface {
+	GetByID(
+		ctx context.Context,
+		identifier string,
+		cc CallConfig,
+	) (T, error)
 }
