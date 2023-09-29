@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -121,25 +122,35 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 	)
 
 	// Needs to be a function so the readers get refreshed each time.
-	getLayout := func() fs.Directory {
+	getLayout := func(t *testing.T) fs.Directory {
+		format := readers.SerializationFormat{
+			Version: readers.DefaultSerializationVersion,
+		}
+
+		r1, err := readers.NewVersionedBackupReader(
+			format,
+			io.NopCloser(bytes.NewReader(files[0].data)))
+		require.NoError(t, err, clues.ToCore(err))
+
+		r2, err := readers.NewVersionedBackupReader(
+			format,
+			io.NopCloser(bytes.NewReader(files[1].data)))
+		require.NoError(t, err, clues.ToCore(err))
+
 		return virtualfs.NewStaticDirectory(encodeAsPath("foo"), []fs.Entry{
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(files[0].uuid),
 					nil),
-				r: newBackupStreamReader(
-					serializationVersion,
-					io.NopCloser(bytes.NewReader(files[0].data))),
-				size: int64(len(files[0].data) + versionSize),
+				r:    r1,
+				size: int64(len(files[0].data) + readers.VersionFormatSize),
 			},
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(files[1].uuid),
 					nil),
-				r: newBackupStreamReader(
-					serializationVersion,
-					io.NopCloser(bytes.NewReader(files[1].data))),
-				size: int64(len(files[1].data) + versionSize),
+				r:    r2,
+				size: int64(len(files[1].data) + readers.VersionFormatSize),
 			},
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
@@ -224,10 +235,10 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
 			}
 
 			c := kopiaDataCollection{
-				dir:             getLayout(),
+				dir:             getLayout(t),
 				path:            nil,
 				items:           items,
-				expectedVersion: serializationVersion,
+				expectedVersion: readers.DefaultSerializationVersion,
 			}
 
 			var (
@@ -291,23 +302,34 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 
 	// Needs to be a function so we can switch the serialization version as
 	// needed.
-	getLayout := func(serVersion uint32) fs.Directory {
+	getLayout := func(
+		t *testing.T,
+		serVersion readers.SerializationVersion,
+	) fs.Directory {
+		format := readers.SerializationFormat{Version: serVersion}
+
+		r1, err := readers.NewVersionedBackupReader(
+			format,
+			io.NopCloser(bytes.NewReader([]byte(noErrFileData))))
+		require.NoError(t, err, clues.ToCore(err))
+
+		r2, err := readers.NewVersionedBackupReader(
+			format,
+			errReader.ToReader())
+		require.NoError(t, err, clues.ToCore(err))
+
 		return virtualfs.NewStaticDirectory(encodeAsPath(folder2), []fs.Entry{
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(noErrFileName),
 					nil),
-				r: newBackupStreamReader(
-					serVersion,
-					io.NopCloser(bytes.NewReader([]byte(noErrFileData)))),
+				r: r1,
 			},
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
 					encodeAsPath(errFileName),
 					nil),
-				r: newBackupStreamReader(
-					serVersion,
-					errReader.ToReader()),
+				r: r2,
 			},
 			&mockFile{
 				StreamingFile: virtualfs.StreamingFileFromReader(
@@ -330,7 +352,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 	table := []struct {
 		name                      string
 		inputName                 string
-		inputSerializationVersion uint32
+		inputSerializationVersion readers.SerializationVersion
 		expectedData              []byte
 		lookupErr                 assert.ErrorAssertionFunc
 		readErr                   assert.ErrorAssertionFunc
@@ -339,7 +361,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 		{
 			name:                      "FileFound_NoError",
 			inputName:                 noErrFileName,
-			inputSerializationVersion: serializationVersion,
+			inputSerializationVersion: readers.DefaultSerializationVersion,
 			expectedData:              []byte(noErrFileData),
 			lookupErr:                 assert.NoError,
 			readErr:                   assert.NoError,
@@ -347,21 +369,20 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 		{
 			name:                      "FileFound_ReadError",
 			inputName:                 errFileName,
-			inputSerializationVersion: serializationVersion,
+			inputSerializationVersion: readers.DefaultSerializationVersion,
 			lookupErr:                 assert.NoError,
 			readErr:                   assert.Error,
 		},
 		{
 			name:                      "FileFound_VersionError",
 			inputName:                 noErrFileName,
-			inputSerializationVersion: serializationVersion + 1,
-			lookupErr:                 assert.NoError,
-			readErr:                   assert.Error,
+			inputSerializationVersion: readers.DefaultSerializationVersion + 1,
+			lookupErr:                 assert.Error,
 		},
 		{
 			name:                      "FileNotFound",
 			inputName:                 "foo",
-			inputSerializationVersion: serializationVersion + 1,
+			inputSerializationVersion: readers.DefaultSerializationVersion + 1,
 			lookupErr:                 assert.Error,
 			notFoundErr:               true,
 		},
@@ -373,14 +394,14 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			root := getLayout(test.inputSerializationVersion)
+			root := getLayout(t, test.inputSerializationVersion)
 			c := &i64counter{}
 
 			col := &kopiaDataCollection{
 				path:            pth,
 				dir:             root,
 				counter:         c,
-				expectedVersion: serializationVersion,
+				expectedVersion: readers.DefaultSerializationVersion,
 			}
 
 			s, err := col.FetchItemByName(ctx, test.inputName)

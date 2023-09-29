@@ -436,7 +436,7 @@ func collectionEntries(
 			entry := virtualfs.StreamingFileWithModTimeFromReader(
 				encodedName,
 				modTime,
-				newBackupStreamReader(serializationVersion, e.ToReader()))
+				e.ToReader())
 
 			err = ctr(ctx, entry)
 			if err != nil {
