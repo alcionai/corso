@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/m365/collection/site"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
@@ -108,9 +109,10 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 	//nolint:lll
 	byteArray := spMock.Page("Byte Test")
 
-	pageData := site.NewItem(
+	pageData := data.NewUnindexedPrefetchedItem(
+		io.NopCloser(bytes.NewReader(byteArray)),
 		testName,
-		io.NopCloser(bytes.NewReader(byteArray)))
+		time.Now())
 
 	info, err := api.RestoreSitePage(
 		ctx,
