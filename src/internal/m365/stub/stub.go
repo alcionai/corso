@@ -168,8 +168,9 @@ func backupOutputPathFromRestore(
 	base := []string{restoreCfg.Location}
 	folders := inputPath.Folders()
 
+	switch inputPath.Service() {
 	// OneDrive has leading information like the drive ID.
-	if inputPath.Service() == path.OneDriveService || inputPath.Service() == path.SharePointService {
+	case path.OneDriveService, path.SharePointService:
 		p, err := path.ToDrivePath(inputPath)
 		if err != nil {
 			return nil, clues.Stack(err)
@@ -179,6 +180,12 @@ func backupOutputPathFromRestore(
 		folders = p.Folders
 		// Re-add root, but it needs to be in front of the restore folder.
 		base = append([]string{p.Root}, base...)
+
+	// Currently contacts restore doesn't have nested folders.
+	case path.ExchangeService:
+		if inputPath.Category() == path.ContactsCategory {
+			folders = nil
+		}
 	}
 
 	return path.Builder{}.Append(append(base, folders...)...), nil

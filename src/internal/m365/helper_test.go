@@ -925,7 +925,6 @@ func checkHasCollections(
 
 		loc := g.(data.LocationPather).LocationPath()
 
-
 		gotNames = append(gotNames, loc.String())
 	}
 

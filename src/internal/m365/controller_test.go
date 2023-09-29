@@ -860,6 +860,33 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 				},
 			},
 		},
+		{
+			name:    "MultipleContactsInRestoreFolder",
+			service: path.ExchangeService,
+			collections: []stub.ColInfo{
+				{
+					PathElements: []string{"Contacts"},
+					Category:     path.ContactsCategory,
+					Items: []stub.ItemInfo{
+						{
+							Name:      "someencodeditemID",
+							Data:      exchMock.ContactBytes("Ghimley"),
+							LookupKey: "Ghimley",
+						},
+						{
+							Name:      "someencodeditemID2",
+							Data:      exchMock.ContactBytes("Irgot"),
+							LookupKey: "Irgot",
+						},
+						{
+							Name:      "someencodeditemID3",
+							Data:      exchMock.ContactBytes("Jannes"),
+							LookupKey: "Jannes",
+						},
+					},
+				},
+			},
+		},
 		//{
 		//	name:    "MultipleContactsSingleFolder",
 		//	service: path.ExchangeService,
