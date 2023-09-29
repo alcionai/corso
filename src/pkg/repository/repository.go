@@ -272,7 +272,9 @@ func (r *repository) Connect(ctx context.Context) (err error) {
 	return nil
 }
 
-// UpdatePassword updates Kopia password
+// UpdatePassword will-
+// - connect to the provider storage using existing password
+// - update the repo with new password
 func (r *repository) UpdatePassword(ctx context.Context, password string) (err error) {
 	ctx = clues.Add(
 		ctx,

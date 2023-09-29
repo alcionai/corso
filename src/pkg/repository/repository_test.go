@@ -236,7 +236,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
-func (suite *RepositoryIntegrationSuite) TestUpdate() {
+func (suite *RepositoryIntegrationSuite) TestRepository_UpdatePassword() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
