@@ -37,7 +37,7 @@ type SerializationVersion uint16
 // their own version numbers separate from other services.
 const DefaultSerializationVersion SerializationVersion = 1
 
-var (
+const (
 	versionFormatSize                               = int(unsafe.Sizeof(persistedSerializationVersion(0)))
 	delInFlightMask   persistedSerializationVersion = 1 << ((versionFormatSize * 8) - 1)
 )
@@ -49,6 +49,9 @@ type SerializationFormat struct {
 	DelInFlight bool
 }
 
+// NewVersionedBackupReader creates a reader that injects format into the first
+// bytes of the returned data. After format has been returned, data is returned
+// from baseReaders in the order they're passed in.
 func NewVersionedBackupReader(
 	format SerializationFormat,
 	baseReaders ...io.ReadCloser,
@@ -130,6 +133,9 @@ func (vbr *versionedBackupReader) Close() error {
 	return errs.OrNil()
 }
 
+// NewVersionedRestoreReader wraps baseReader and provides easy access to the
+// SerializationFormat info in the first bytes of the data contained in
+// baseReader.
 func NewVersionedRestoreReader(
 	baseReader io.ReadCloser,
 ) (*VersionedRestoreReader, error) {
