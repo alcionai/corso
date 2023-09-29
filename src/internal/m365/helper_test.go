@@ -751,10 +751,6 @@ func compareDriveItem(
 	}
 
 	if isMeta {
-		var itemType *metadata.Item
-
-		assert.IsType(t, itemType, item)
-
 		var (
 			itemMeta     metadata.Metadata
 			expectedMeta metadata.Metadata

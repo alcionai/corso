@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -58,21 +59,6 @@ func TestSharePointCollectionSuite(t *testing.T) {
 	})
 }
 
-func (suite *SharePointCollectionSuite) TestCollection_Item_Read() {
-	t := suite.T()
-	m := []byte("test message")
-	name := "aFile"
-	sc := &Item{
-		id:   name,
-		data: io.NopCloser(bytes.NewReader(m)),
-	}
-	readData, err := io.ReadAll(sc.ToReader())
-	require.NoError(t, err, clues.ToCore(err))
-
-	assert.Equal(t, name, sc.id)
-	assert.Equal(t, readData, m)
-}
-
 // TestListCollection tests basic functionality to create
 // SharePoint collection and to use the data stream channel.
 func (suite *SharePointCollectionSuite) TestCollection_Items() {
@@ -88,7 +74,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 		name, itemName string
 		scope          selectors.SharePointScope
 		getDir         func(t *testing.T) path.Path
-		getItem        func(t *testing.T, itemName string) *Item
+		getItem        func(t *testing.T, itemName string) data.Item
 	}{
 		{
 			name:     "List",
@@ -106,7 +92,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 				return dir
 			},
-			getItem: func(t *testing.T, name string) *Item {
+			getItem: func(t *testing.T, name string) data.Item {
 				ow := kioser.NewJsonSerializationWriter()
 				listing := spMock.ListDefault(name)
 				listing.SetDisplayName(&name)
@@ -117,11 +103,10 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				byteArray, err := ow.GetSerializedContent()
 				require.NoError(t, err, clues.ToCore(err))
 
-				data := &Item{
-					id:   name,
-					data: io.NopCloser(bytes.NewReader(byteArray)),
-					info: ListToSPInfo(listing, int64(len(byteArray))),
-				}
+				data := data.NewPrefetchedItem(
+					io.NopCloser(bytes.NewReader(byteArray)),
+					name,
+					details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
 
 				return data
 			},
@@ -142,16 +127,15 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 				return dir
 			},
-			getItem: func(t *testing.T, itemName string) *Item {
+			getItem: func(t *testing.T, itemName string) data.Item {
 				byteArray := spMock.Page(itemName)
 				page, err := betaAPI.CreatePageFromBytes(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 
-				data := &Item{
-					id:   itemName,
-					data: io.NopCloser(bytes.NewReader(byteArray)),
-					info: betaAPI.PageInfo(page, int64(len(byteArray))),
-				}
+				data := data.NewPrefetchedItem(
+					io.NopCloser(bytes.NewReader(byteArray)),
+					itemName,
+					details.ItemInfo{SharePoint: betaAPI.PageInfo(page, int64(len(byteArray)))})
 
 				return data
 			},
@@ -210,11 +194,10 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	byteArray, err := service.Serialize(listing)
 	require.NoError(t, err, clues.ToCore(err))
 
-	listData := &Item{
-		id:   testName,
-		data: io.NopCloser(bytes.NewReader(byteArray)),
-		info: ListToSPInfo(listing, int64(len(byteArray))),
-	}
+	listData := data.NewPrefetchedItem(
+		io.NopCloser(bytes.NewReader(byteArray)),
+		testName,
+		details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
 
 	destName := testdata.DefaultRestoreConfig("").Location
 

@@ -49,6 +49,31 @@ func TestItemUnitSuite(t *testing.T) {
 	suite.Run(t, &ItemUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+func (suite *ItemUnitSuite) TestUnindexedPrefetchedItem() {
+	prefetch := data.NewUnindexedPrefetchedItem(
+		io.NopCloser(bytes.NewReader([]byte{})),
+		"foo",
+		time.Time{})
+	_, ok := prefetch.(data.ItemInfo)
+	assert.False(suite.T(), ok, "unindexedPrefetchedItem implements Info()")
+}
+
+func (suite *ItemUnitSuite) TestUnindexedLazyItem() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	lazy := data.NewUnindexedLazyItem(
+		ctx,
+		nil,
+		"foo",
+		time.Time{},
+		fault.New(true))
+	_, ok := lazy.(data.ItemInfo)
+	assert.False(t, ok, "unindexedLazyItem implements Info()")
+}
+
 func (suite *ItemUnitSuite) TestDeletedItem() {
 	var (
 		t = suite.T()
