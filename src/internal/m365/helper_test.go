@@ -946,16 +946,16 @@ func checkCollections(
 
 	for _, returned := range got {
 		var (
-			expectedColData map[string][]byte
-			hasItems        bool
-			service         = returned.FullPath().Service()
-			category        = returned.FullPath().Category()
-			folders         = returned.FullPath().Elements()
-			rootDir         = folders[len(folders)-1] == mci.RestoreCfg.Location
+			expectedColDataByLoc map[string][]byte
+			hasItems             bool
+			service              = returned.FullPath().Service()
+			category             = returned.FullPath().Category()
+			folders              = returned.FullPath().Elements()
+			rootDir              = folders[len(folders)-1] == mci.RestoreCfg.Location
 		)
 
 		if p, ok := returned.(data.LocationPather); ok {
-			expectedColData = expected[p.LocationPath().String()]
+			expectedColDataByLoc = expected[p.LocationPath().String()]
 		}
 
 		// Need to iterate through all items even if we don't expect to find a match
@@ -977,14 +977,14 @@ func checkCollections(
 			hasItems = true
 			gotItems++
 
-			if expectedColData == nil {
+			if expectedColDataByLoc == nil {
 				continue
 			}
 
 			if !compareItem(
 				t,
 				returned.FullPath(),
-				expectedColData,
+				expectedColDataByLoc,
 				service,
 				category,
 				item,

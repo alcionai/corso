@@ -887,6 +887,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 				},
 			},
 		},
+		// TODO(ashmrtn): Re-enable when we can restore contacts to nested folders.
 		//{
 		//	name:    "MultipleContactsSingleFolder",
 		//	service: path.ExchangeService,
@@ -1044,6 +1045,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 
 func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
+		// TODO(ashmrtn): Re-enable when we can restore contacts to nested folders.
 		//{
 		//	name:    "Contacts",
 		//	service: path.ExchangeService,
