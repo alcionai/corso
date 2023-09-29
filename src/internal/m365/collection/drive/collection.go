@@ -33,11 +33,7 @@ const (
 	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
 
-var (
-	_ data.BackupCollection = &Collection{}
-	_ data.Item             = &metadata.Item{}
-	_ data.ItemModTime      = &metadata.Item{}
-)
+var _ data.BackupCollection = &Collection{}
 
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
@@ -588,13 +584,15 @@ func (oc *Collection) streamDriveItem(
 		return progReader, nil
 	})
 
-	oc.data <- &metadata.Item{
-		ItemID: metaFileName + metaSuffix,
-		Data:   metaReader,
+	// We wrap the reader with a lazy reader so that the progress bar is only
+	// initialized if the file is read. Since we're not actually lazily reading
+	// data just use the eager item implementation.
+	oc.data <- data.NewUnindexedPrefetchedItem(
+		metaReader,
+		metaFileName+metaSuffix,
 		// Metadata file should always use the latest time as
 		// permissions change does not update mod time.
-		Mod: time.Now(),
-	}
+		time.Now())
 
 	// Item read successfully, add to collection
 	if isFile {
