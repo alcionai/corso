@@ -135,11 +135,6 @@ func deserializeMetadata(
 					continue
 				}
 
-				if err == nil {
-					// Successful decode.
-					continue
-				}
-
 				// This is conservative, but report an error if either any of the items
 				// for any of the deserialized maps have duplicate drive IDs or there's
 				// some other problem deserializing things. This will cause the entire
@@ -149,9 +144,7 @@ func deserializeMetadata(
 				if err != nil {
 					errs.Fail(clues.Stack(err).WithClues(ictx))
 
-					breakLoop = true
-
-					break
+					return map[string]string{}, map[string]map[string]string{}, false, nil
 				}
 			}
 		}

@@ -156,7 +156,7 @@ func ProduceBackupCollections(
 			}
 
 			if !canUsePreviousBackup {
-				tp, err := bh.MessagePathPrefix(creds.AzureTenantID)
+				tp, err := bh.PathPrefix(creds.AzureTenantID)
 				if err != nil {
 					return nil, nil, clues.Wrap(err, "getting message path")
 				}

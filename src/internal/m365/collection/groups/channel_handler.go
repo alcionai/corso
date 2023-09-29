@@ -67,7 +67,7 @@ func (bh channelsBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh channelsBackupHandler) MessagePathPrefix(tenantID string) (path.Path, error) {
+func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
 	return path.Build(
 		tenantID,
 		bh.protectedResource,
