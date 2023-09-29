@@ -85,12 +85,12 @@ func (suite *RepositoryUnitSuite) TestConnect() {
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
-			storage.ProviderUnknown.String(),
-			func() (storage.Storage, error) {
+			name: storage.ProviderUnknown.String(),
+			storage: func() (storage.Storage, error) {
 				return storage.NewStorage(storage.ProviderUnknown)
 			},
-			account.Account{},
-			assert.Error,
+			account:  account.Account{},
+			errCheck: assert.Error,
 		},
 	}
 	for _, test := range table {
@@ -218,11 +218,13 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	acct := tconfig.NewM365Account(t)
+
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 	r, err := New(
 		ctx,
-		account.Account{},
+		acct,
 		st,
 		control.DefaultOptions(),
 		NewRepoID)
@@ -242,11 +244,13 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	acct := tconfig.NewM365Account(t)
+
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 	r, err := New(
 		ctx,
-		account.Account{},
+		acct,
 		st,
 		control.DefaultOptions(),
 		NewRepoID)
