@@ -33,7 +33,6 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 		update := s3UpdateCmd()
 		flags.AddCorsoUpdatePassphraseFlags(update)
 		c, _ = utils.AddCommand(cmd, update)
-
 	}
 
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
@@ -266,6 +265,7 @@ func s3UpdateCmd() *cobra.Command {
 // currently just updating Kopia password
 func updateS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
+
 	cfg, err := config.GetConfigRepoDetails(
 		ctx,
 		storage.ProviderS3,
@@ -296,6 +296,8 @@ func updateS3Cmd(cmd *cobra.Command, args []string) error {
 	if err := r.UpdatePassword(ctx, flags.UpdateCorsoPhasephraseFV); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to update s3"))
 	}
+
+	Infof(ctx, "Updated repo password.")
 
 	return nil
 }

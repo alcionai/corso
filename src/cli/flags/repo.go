@@ -67,7 +67,7 @@ func AddCorsoUpdatePassphraseFlags(cmd *cobra.Command) {
 	fs.StringVar(&UpdateCorsoPhasephraseFV,
 		UpdateCorsoPassphraseFN,
 		"",
-		"update kopia passphrase for repo")
+		"update Corso passphrase for repo")
 }
 
 // ---------------------------------------------------------------------------

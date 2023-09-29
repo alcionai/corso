@@ -182,7 +182,7 @@ func updateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   updateCommand,
 		Short: "Update a repository.",
-		Long:  `Update a existing repository to store your backups.`,
+		Long:  `Update repository configuration and behavior.`,
 		RunE:  handleUpdateCmd,
 		Args:  cobra.NoArgs,
 	}

@@ -578,3 +578,17 @@ func (w *conn) LoadSnapshot(
 func (w *conn) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
 	return snapshotfs.SnapshotRoot(w.Repository, man)
 }
+
+func (w *conn) UpdatePassword(ctx context.Context, password string, opts repository.Options) error {
+	kopiaRef := NewConn(w.storage)
+	if err := kopiaRef.Connect(ctx, opts); err != nil {
+		return clues.Wrap(err, "connecting kopia client")
+	}
+
+	defer kopiaRef.Close(ctx)
+
+	repository := kopiaRef.Repository.(repo.DirectRepository)
+	err := repository.FormatManager().ChangePassword(ctx, password)
+
+	return errors.Wrap(err, "unable to update password")
+}

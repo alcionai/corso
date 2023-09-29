@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
@@ -129,7 +128,7 @@ func New(
 	s storage.Storage,
 	opts control.Options,
 	configFileRepoID string,
-) (repo *repository, err error) {
+) (singleRepo *repository, err error) {
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
@@ -295,14 +294,11 @@ func (r *repository) UpdatePassword(ctx context.Context, password string) (err e
 		return clues.Wrap(err, "connecting kopia client")
 	}
 
-	defer kopiaRef.Close(ctx)
-
-	repository := kopiaRef.Repository.(repo.DirectRepository)
-	err = repository.FormatManager().ChangePassword(ctx, password)
-
-	if err != nil {
-		return errors.Wrap(err, "unable to update password")
+	if err := kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo); err != nil {
+		return clues.Wrap(err, "updating on kopia")
 	}
+
+	defer kopiaRef.Close(ctx)
 
 	r.Bus.Event(ctx, events.RepoUpdate, nil)
 
