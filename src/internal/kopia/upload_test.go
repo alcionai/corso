@@ -124,12 +124,6 @@ func expectFileData(
 		return
 	}
 
-	// Need to wrap with a restore stream reader to remove the version.
-	r = &restoreStreamReader{
-		ReadCloser:      io.NopCloser(r),
-		expectedVersion: serializationVersion,
-	}
-
 	got, err := io.ReadAll(r)
 	if !assert.NoError(t, err, "reading data in file", name, clues.ToCore(err)) {
 		return
@@ -2420,9 +2414,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
 									// Wrap with a backup reader so it gets the version injected.
-									newBackupStreamReader(
-										serializationVersion,
-										io.NopCloser(bytes.NewReader(inboxFileData1v2)))),
+									io.NopCloser(bytes.NewReader(inboxFileData1v2))),
 							}),
 					}),
 				virtualfs.NewStaticDirectory(
@@ -2582,9 +2574,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
-									newBackupStreamReader(
-										serializationVersion,
-										io.NopCloser(bytes.NewReader(inboxFileData1)))),
+									io.NopCloser(bytes.NewReader(inboxFileData1))),
 							}),
 					}),
 				virtualfs.NewStaticDirectory(
@@ -2596,9 +2586,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(contactsFileName1)[0],
 									time.Time{},
-									newBackupStreamReader(
-										serializationVersion,
-										io.NopCloser(bytes.NewReader(contactsFileData1)))),
+									io.NopCloser(bytes.NewReader(contactsFileData1))),
 							}),
 					}),
 			})
@@ -2817,15 +2805,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName5)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData5)))),
+					io.NopCloser(bytes.NewReader(fileData5))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName6)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData6)))),
+					io.NopCloser(bytes.NewReader(fileData6))),
 			})
 		counters[folderID3] = count
 
@@ -2835,15 +2819,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName3)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData3)))),
+					io.NopCloser(bytes.NewReader(fileData3))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName4)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData4)))),
+					io.NopCloser(bytes.NewReader(fileData4))),
 				folder,
 			})
 		counters[folderID2] = count
@@ -2859,15 +2839,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName1)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData1)))),
+					io.NopCloser(bytes.NewReader(fileData1))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName2)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData2)))),
+					io.NopCloser(bytes.NewReader(fileData2))),
 				folder,
 				folder4,
 			})
@@ -2879,15 +2855,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName7)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData7)))),
+					io.NopCloser(bytes.NewReader(fileData7))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName8)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData8)))),
+					io.NopCloser(bytes.NewReader(fileData8))),
 			})
 		counters[folderID5] = count
 
