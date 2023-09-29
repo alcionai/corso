@@ -38,8 +38,8 @@ type SerializationVersion uint16
 const DefaultSerializationVersion SerializationVersion = 1
 
 const (
-	versionFormatSize                               = int(unsafe.Sizeof(persistedSerializationVersion(0)))
-	delInFlightMask   persistedSerializationVersion = 1 << ((versionFormatSize * 8) - 1)
+	VersionFormatSize                               = int(unsafe.Sizeof(persistedSerializationVersion(0)))
+	delInFlightMask   persistedSerializationVersion = 1 << ((VersionFormatSize * 8) - 1)
 )
 
 // SerializationFormat is a struct describing serialization format versions and

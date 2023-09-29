@@ -1,7 +1,6 @@
 package data
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"sync"
@@ -10,6 +9,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -46,12 +46,19 @@ func NewUnindexedPrefetchedItem(
 	reader io.ReadCloser,
 	itemID string,
 	modTime time.Time,
-) Item {
+) (*unindexedPrefetchedItem, error) {
+	r, err := readers.NewVersionedBackupReader(
+		readers.SerializationFormat{Version: readers.DefaultSerializationVersion},
+		reader)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
 	return &unindexedPrefetchedItem{
 		id:      itemID,
-		reader:  reader,
+		reader:  r,
 		modTime: modTime,
-	}
+	}, nil
 }
 
 // unindexedPrefetchedItem represents a single item retrieved from the remote
@@ -92,15 +99,16 @@ func NewPrefetchedItem(
 	reader io.ReadCloser,
 	itemID string,
 	info details.ItemInfo,
-) Item {
-	return &prefetchedItem{
-		unindexedPrefetchedItem: unindexedPrefetchedItem{
-			id:      itemID,
-			reader:  reader,
-			modTime: info.Modified(),
-		},
-		info: info,
+) (*prefetchedItem, error) {
+	inner, err := NewUnindexedPrefetchedItem(reader, itemID, info.Modified())
+	if err != nil {
+		return nil, clues.Stack(err)
 	}
+
+	return &prefetchedItem{
+		unindexedPrefetchedItem: inner,
+		info:                    info,
+	}, nil
 }
 
 // prefetchedItem represents a single item retrieved from the remote service.
@@ -108,7 +116,7 @@ func NewPrefetchedItem(
 // This item implements ItemInfo so it should be used for things that need to
 // appear in backup details.
 type prefetchedItem struct {
-	unindexedPrefetchedItem
+	*unindexedPrefetchedItem
 	info details.ItemInfo
 }
 
@@ -129,7 +137,7 @@ func NewUnindexedLazyItem(
 	itemID string,
 	modTime time.Time,
 	errs *fault.Bus,
-) Item {
+) *unindexedLazyItem {
 	return &unindexedLazyItem{
 		ctx:        ctx,
 		id:         itemID,
@@ -182,6 +190,10 @@ func (i *unindexedLazyItem) ToReader() io.ReadCloser {
 			return nil, clues.Stack(err)
 		}
 
+		format := readers.SerializationFormat{
+			Version: readers.DefaultSerializationVersion,
+		}
+
 		// If an item was deleted then return an empty file so we don't fail the
 		// backup and return a sentinel error when asked for ItemInfo so we don't
 		// display the item in the backup.
@@ -193,13 +205,17 @@ func (i *unindexedLazyItem) ToReader() io.ReadCloser {
 			logger.Ctx(i.ctx).Info("item not found")
 
 			i.delInFlight = true
+			format.DelInFlight = true
+			r, err := readers.NewVersionedBackupReader(format)
 
-			return io.NopCloser(bytes.NewReader([]byte{})), nil
+			return r, clues.Stack(err).OrNil()
 		}
 
 		i.info = info
 
-		return reader, nil
+		r, err := readers.NewVersionedBackupReader(format, reader)
+
+		return r, clues.Stack(err).OrNil()
 	})
 }
 
@@ -217,15 +233,14 @@ func NewLazyItem(
 	itemID string,
 	modTime time.Time,
 	errs *fault.Bus,
-) Item {
+) *lazyItem {
 	return &lazyItem{
-		unindexedLazyItem: unindexedLazyItem{
-			ctx:        ctx,
-			id:         itemID,
-			itemGetter: itemGetter,
-			modTime:    modTime,
-			errs:       errs,
-		},
+		unindexedLazyItem: NewUnindexedLazyItem(
+			ctx,
+			itemGetter,
+			itemID,
+			modTime,
+			errs),
 	}
 }
 
@@ -236,7 +251,7 @@ func NewLazyItem(
 // This item implements ItemInfo so it should be used for things that need to
 // appear in backup details.
 type lazyItem struct {
-	unindexedLazyItem
+	*unindexedLazyItem
 }
 
 func (i *lazyItem) Info() (details.ItemInfo, error) {
