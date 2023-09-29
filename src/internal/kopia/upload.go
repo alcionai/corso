@@ -1,13 +1,9 @@
 package kopia
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/binary"
 	"errors"
-	"io"
-	"os"
 	"runtime/trace"
 	"strings"
 	"sync"
@@ -23,7 +19,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -36,101 +31,6 @@ import (
 )
 
 const maxInflateTraversalDepth = 500
-
-var versionSize = readers.VersionFormatSize
-
-func newBackupStreamReader(version uint32, reader io.ReadCloser) *backupStreamReader {
-	buf := make([]byte, versionSize)
-	binary.BigEndian.PutUint32(buf, version)
-	bufReader := io.NopCloser(bytes.NewReader(buf))
-
-	return &backupStreamReader{
-		readers:  []io.ReadCloser{bufReader, reader},
-		combined: io.NopCloser(io.MultiReader(bufReader, reader)),
-	}
-}
-
-// backupStreamReader is a wrapper around the io.Reader that other Corso
-// components return when backing up information. It injects a version number at
-// the start of the data stream. Future versions of Corso may not need this if
-// they use more complex serialization logic as serialization/version injection
-// will be handled by other components.
-type backupStreamReader struct {
-	readers  []io.ReadCloser
-	combined io.ReadCloser
-}
-
-func (rw *backupStreamReader) Read(p []byte) (n int, err error) {
-	if rw.combined == nil {
-		return 0, os.ErrClosed
-	}
-
-	return rw.combined.Read(p)
-}
-
-func (rw *backupStreamReader) Close() error {
-	if rw.combined == nil {
-		return nil
-	}
-
-	rw.combined = nil
-
-	var errs *clues.Err
-
-	for _, r := range rw.readers {
-		err := r.Close()
-		if err != nil {
-			errs = clues.Stack(clues.Wrap(err, "closing reader"), errs)
-		}
-	}
-
-	return errs.OrNil()
-}
-
-// restoreStreamReader is a wrapper around the io.Reader that kopia returns when
-// reading data from an item. It examines and strips off the version number of
-// the restored data. Future versions of Corso may not need this if they use
-// more complex serialization logic as version checking/deserialization will be
-// handled by other components. A reader that returns a version error is no
-// longer valid and should not be used once the version error is returned.
-type restoreStreamReader struct {
-	io.ReadCloser
-	expectedVersion uint32
-	readVersion     bool
-}
-
-func (rw *restoreStreamReader) checkVersion() error {
-	versionBuf := make([]byte, versionSize)
-
-	for newlyRead := 0; newlyRead < versionSize; {
-		n, err := rw.ReadCloser.Read(versionBuf[newlyRead:])
-		if err != nil {
-			return clues.Wrap(err, "reading data format version")
-		}
-
-		newlyRead += n
-	}
-
-	version := binary.BigEndian.Uint32(versionBuf)
-
-	if version != rw.expectedVersion {
-		return clues.New("unexpected data format").With("read_version", version)
-	}
-
-	return nil
-}
-
-func (rw *restoreStreamReader) Read(p []byte) (n int, err error) {
-	if !rw.readVersion {
-		rw.readVersion = true
-
-		if err := rw.checkVersion(); err != nil {
-			return 0, err
-		}
-	}
-
-	return rw.ReadCloser.Read(p)
-}
 
 type itemDetails struct {
 	infoer       data.ItemInfo
