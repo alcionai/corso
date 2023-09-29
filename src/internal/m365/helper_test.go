@@ -923,30 +923,10 @@ func checkHasCollections(
 			continue
 		}
 
-		fp := g.FullPath()
 		loc := g.(data.LocationPather).LocationPath()
 
-		if fp.Service() == path.OneDriveService ||
-			(fp.Service() == path.SharePointService && fp.Category() == path.LibrariesCategory) {
-			dp, err := path.ToDrivePath(fp)
-			if !assert.NoError(t, err, clues.ToCore(err)) {
-				continue
-			}
 
-			loc = path.BuildDriveLocation(dp.DriveID, loc.Elements()...)
-		}
-
-		p, err := loc.ToDataLayerPath(
-			fp.Tenant(),
-			fp.ProtectedResource(),
-			fp.Service(),
-			fp.Category(),
-			false)
-		if !assert.NoError(t, err, clues.ToCore(err)) {
-			continue
-		}
-
-		gotNames = append(gotNames, p.String())
+		gotNames = append(gotNames, loc.String())
 	}
 
 	assert.ElementsMatch(t, expectedNames, gotNames, "returned collections")
@@ -967,13 +947,17 @@ func checkCollections(
 
 	for _, returned := range got {
 		var (
+			expectedColData map[string][]byte
 			hasItems        bool
 			service         = returned.FullPath().Service()
 			category        = returned.FullPath().Category()
-			expectedColData = expected[returned.FullPath().String()]
 			folders         = returned.FullPath().Elements()
 			rootDir         = folders[len(folders)-1] == mci.RestoreCfg.Location
 		)
+
+		if p, ok := returned.(data.LocationPather); ok {
+			expectedColData = expected[p.LocationPath().String()]
+		}
 
 		// Need to iterate through all items even if we don't expect to find a match
 		// because otherwise we'll deadlock waiting for the status. Unexpected or
