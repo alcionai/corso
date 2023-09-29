@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
@@ -163,28 +164,29 @@ func CollectionsForInfo(
 func backupOutputPathFromRestore(
 	restoreCfg control.RestoreConfig,
 	inputPath path.Path,
-) (path.Path, error) {
+) (*path.Builder, error) {
 	base := []string{restoreCfg.Location}
+	folders := inputPath.Folders()
 
+	switch inputPath.Service() {
 	// OneDrive has leading information like the drive ID.
-	if inputPath.Service() == path.OneDriveService || inputPath.Service() == path.SharePointService {
-		folders := inputPath.Folders()
-		base = append(append([]string{}, folders[:3]...), restoreCfg.Location)
+	case path.OneDriveService, path.SharePointService:
+		p, err := path.ToDrivePath(inputPath)
+		if err != nil {
+			return nil, clues.Stack(err)
+		}
 
-		if len(folders) > 3 {
-			base = append(base, folders[3:]...)
+		// Remove driveID, root, etc.
+		folders = p.Folders
+		// Re-add root, but it needs to be in front of the restore folder.
+		base = append([]string{p.Root}, base...)
+
+	// Currently contacts restore doesn't have nested folders.
+	case path.ExchangeService:
+		if inputPath.Category() == path.ContactsCategory {
+			folders = nil
 		}
 	}
 
-	if inputPath.Service() == path.ExchangeService && inputPath.Category() == path.EmailCategory {
-		base = append(base, inputPath.Folders()...)
-	}
-
-	return path.Build(
-		inputPath.Tenant(),
-		inputPath.ProtectedResource(),
-		inputPath.Service(),
-		inputPath.Category(),
-		false,
-		base...)
+	return path.Builder{}.Append(append(base, folders...)...), nil
 }

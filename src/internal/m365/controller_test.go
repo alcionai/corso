@@ -861,7 +861,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 			},
 		},
 		{
-			name:    "MultipleContactsSingleFolder",
+			name:    "MultipleContactsInRestoreFolder",
 			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
@@ -887,49 +887,77 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 				},
 			},
 		},
-		{
-			name:    "MultipleContactsMultipleFolders",
-			service: path.ExchangeService,
-			collections: []stub.ColInfo{
-				{
-					PathElements: []string{"Work"},
-					Category:     path.ContactsCategory,
-					Items: []stub.ItemInfo{
-						{
-							Name:      "someencodeditemID",
-							Data:      exchMock.ContactBytes("Ghimley"),
-							LookupKey: "Ghimley",
-						},
-						{
-							Name:      "someencodeditemID2",
-							Data:      exchMock.ContactBytes("Irgot"),
-							LookupKey: "Irgot",
-						},
-						{
-							Name:      "someencodeditemID3",
-							Data:      exchMock.ContactBytes("Jannes"),
-							LookupKey: "Jannes",
-						},
-					},
-				},
-				{
-					PathElements: []string{"Personal"},
-					Category:     path.ContactsCategory,
-					Items: []stub.ItemInfo{
-						{
-							Name:      "someencodeditemID4",
-							Data:      exchMock.ContactBytes("Argon"),
-							LookupKey: "Argon",
-						},
-						{
-							Name:      "someencodeditemID5",
-							Data:      exchMock.ContactBytes("Bernard"),
-							LookupKey: "Bernard",
-						},
-					},
-				},
-			},
-		},
+		// TODO(ashmrtn): Re-enable when we can restore contacts to nested folders.
+		//{
+		//	name:    "MultipleContactsSingleFolder",
+		//	service: path.ExchangeService,
+		//	collections: []stub.ColInfo{
+		//		{
+		//			PathElements: []string{"Contacts"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID",
+		//					Data:      exchMock.ContactBytes("Ghimley"),
+		//					LookupKey: "Ghimley",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID2",
+		//					Data:      exchMock.ContactBytes("Irgot"),
+		//					LookupKey: "Irgot",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID3",
+		//					Data:      exchMock.ContactBytes("Jannes"),
+		//					LookupKey: "Jannes",
+		//				},
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:    "MultipleContactsMultipleFolders",
+		//	service: path.ExchangeService,
+		//	collections: []stub.ColInfo{
+		//		{
+		//			PathElements: []string{"Work"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID",
+		//					Data:      exchMock.ContactBytes("Ghimley"),
+		//					LookupKey: "Ghimley",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID2",
+		//					Data:      exchMock.ContactBytes("Irgot"),
+		//					LookupKey: "Irgot",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID3",
+		//					Data:      exchMock.ContactBytes("Jannes"),
+		//					LookupKey: "Jannes",
+		//				},
+		//			},
+		//		},
+		//		{
+		//			PathElements: []string{"Personal"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID4",
+		//					Data:      exchMock.ContactBytes("Argon"),
+		//					LookupKey: "Argon",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID5",
+		//					Data:      exchMock.ContactBytes("Bernard"),
+		//					LookupKey: "Bernard",
+		//				},
+		//			},
+		//		},
+		//	},
+		//},
 		// {
 		// 	name:    "MultipleEventsSingleCalendar",
 		// 	service: path.ExchangeService,
@@ -1017,34 +1045,35 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 
 func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
-		{
-			name:    "Contacts",
-			service: path.ExchangeService,
-			collections: []stub.ColInfo{
-				{
-					PathElements: []string{"Work"},
-					Category:     path.ContactsCategory,
-					Items: []stub.ItemInfo{
-						{
-							Name:      "someencodeditemID",
-							Data:      exchMock.ContactBytes("Ghimley"),
-							LookupKey: "Ghimley",
-						},
-					},
-				},
-				{
-					PathElements: []string{"Personal"},
-					Category:     path.ContactsCategory,
-					Items: []stub.ItemInfo{
-						{
-							Name:      "someencodeditemID2",
-							Data:      exchMock.ContactBytes("Irgot"),
-							LookupKey: "Irgot",
-						},
-					},
-				},
-			},
-		},
+		// TODO(ashmrtn): Re-enable when we can restore contacts to nested folders.
+		//{
+		//	name:    "Contacts",
+		//	service: path.ExchangeService,
+		//	collections: []stub.ColInfo{
+		//		{
+		//			PathElements: []string{"Work"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID",
+		//					Data:      exchMock.ContactBytes("Ghimley"),
+		//					LookupKey: "Ghimley",
+		//				},
+		//			},
+		//		},
+		//		{
+		//			PathElements: []string{"Personal"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID2",
+		//					Data:      exchMock.ContactBytes("Irgot"),
+		//					LookupKey: "Irgot",
+		//				},
+		//			},
+		//		},
+		//	},
+		//},
 		// {
 		// 	name:    "Events",
 		// 	service: path.ExchangeService,

@@ -458,9 +458,8 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		for item := range collection.Items(ctx, fault.New(true)) {
 			t.Log("File: " + item.ID())
 
-			bs, err := io.ReadAll(item.ToReader())
+			_, err := io.ReadAll(item.ToReader())
 			require.NoError(t, err, clues.ToCore(err))
-			t.Log(string(bs))
 		}
 	}
 }
