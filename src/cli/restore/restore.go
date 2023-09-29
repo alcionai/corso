@@ -100,10 +100,7 @@ func runRestore(
 		return Only(ctx, err)
 	}
 
-	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		sel.PathService())
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, sel.PathService())
 	if err != nil {
 		return Only(ctx, err)
 	}

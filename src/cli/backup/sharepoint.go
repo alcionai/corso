@@ -30,7 +30,7 @@ import (
 const (
 	sharePointServiceCommand                 = "sharepoint"
 	sharePointServiceCommandCreateUseSuffix  = "--site <siteURL> | '" + flags.Wildcard + "'"
-	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	sharePointServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -44,8 +44,9 @@ corso backup create sharepoint --site https://example.com/hr,https://example.com
 # Backup all SharePoint data for all Sites
 corso backup create sharepoint --site '*'`
 
-	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
+	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
+and 1234abcd-12ab-cd34-56de-1234abce
+corso backup delete sharepoint --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	sharePointServiceCommandDetailsExamples = `# Explore items in the HR site's latest backup (1234abcd...)
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -111,7 +112,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
 
-		flags.AddBackupIDFlag(c, true)
+		flags.AddMultipleBackupIDsFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 	}
 
 	return c
@@ -284,7 +286,17 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.SharePointService, flags.BackupIDFV, "SharePoint", args)
+	backupIDValue := []string{}
+
+	if len(flags.BackupIDsFV) > 0 {
+		backupIDValue = flags.BackupIDsFV
+	} else if len(flags.BackupIDFV) > 0 {
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
+	} else {
+		return clues.New("either --backup or --backups flag is required")
+	}
+
+	return genericDeleteCommand(cmd, path.SharePointService, "SharePoint", backupIDValue, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -315,17 +327,19 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		path.SharePointService)
+	r, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.SharePointService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	ds, err := runDetailsSharePointCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
+	ds, err := runDetailsSharePointCmd(
+		ctx,
+		r,
+		flags.BackupIDFV,
+		opts,
+		rdao.Opts.SkipReduce)
 	if err != nil {
 		return Only(ctx, err)
 	}

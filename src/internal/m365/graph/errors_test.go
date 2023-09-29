@@ -247,11 +247,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 			err:    odErr(string(syncStateInvalid)),
 			expect: assert.True,
 		},
-		{
-			name:   "deltatoken not supported oDataErrMsg",
-			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)),
-			expect: assert.True,
-		},
 		// next two tests are to make sure the checks are case insensitive
 		{
 			name:   "resync-required oDataErr camelcase",
@@ -267,6 +262,55 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrInvalidDelta(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrDeltaNotSupported() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "as",
+			err:    ErrDeltaNotSupported,
+			expect: assert.True,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErrMsg",
+			err:    odErrMsg("fnords", "deltatoken not supported"),
+			expect: assert.False,
+		},
+		{
+			name:   "deltatoken not supported oDataErrMsg",
+			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)),
+			expect: assert.True,
+		},
+		{
+			name:   "deltatoken not supported oDataErrMsg with punctuation",
+			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)+"."),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrDeltaNotSupported(test.err))
 		})
 	}
 }

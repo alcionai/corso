@@ -138,6 +138,11 @@ func deltaEnumerateItems[T any](
 	// Loop through all pages returned by Graph API.
 	for len(nextLink) > 0 {
 		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
+		if graph.IsErrDeltaNotSupported(err) {
+			logger.Ctx(ctx).Infow("delta queries not supported")
+			return nil, DeltaUpdate{}, clues.Stack(graph.ErrDeltaNotSupported, err)
+		}
+
 		if graph.IsErrInvalidDelta(err) {
 			logger.Ctx(ctx).Infow("invalid previous delta", "delta_link", prevDeltaLink)
 
@@ -191,7 +196,7 @@ func getAddedAndRemovedItemIDs[T any](
 ) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := deltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
-		if err != nil && (!graph.IsErrInvalidDelta(err) || len(prevDeltaLink) == 0) {
+		if err != nil && !graph.IsErrInvalidDelta(err) && !graph.IsErrDeltaNotSupported(err) {
 			return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 		}
 
@@ -284,7 +289,15 @@ func addedAndRemovedByDeletedDateTime[T any](
 			var modTime time.Time
 
 			if mt, ok := giaddt.(getModTimer); ok {
-				modTime = ptr.Val(mt.GetLastModifiedDateTime())
+				// Make sure to get a non-zero mod time if the item doesn't have one for
+				// some reason. Otherwise we can hit an issue where kopia has a
+				// different mod time for the file than the details does. This occurs
+				// due to a conversion kopia does on the time from
+				// time.Time -> nanoseconds for serialization. During incremental
+				// backups, kopia goes from nanoseconds -> time.Time but there's an
+				// overflow which yields a different timestamp.
+				// https://github.com/gohugoio/hugo/issues/6161#issuecomment-725915786
+				modTime = ptr.OrNow(mt.GetLastModifiedDateTime())
 			}
 
 			added[ptr.Val(giaddt.GetId())] = modTime

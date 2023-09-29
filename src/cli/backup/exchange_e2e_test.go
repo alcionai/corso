@@ -561,8 +561,8 @@ func runExchangeDetailsCmdTest(suite *PreparedBackupExchangeE2ESuite, category p
 
 type BackupDeleteExchangeE2ESuite struct {
 	tester.Suite
-	dpnd     dependencies
-	backupOp operations.BackupOperation
+	dpnd      dependencies
+	backupOps [3]operations.BackupOperation
 }
 
 func TestBackupDeleteExchangeE2ESuite(t *testing.T) {
@@ -588,13 +588,15 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	sel := selectors.NewExchangeBackup(users)
 	sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
-	backupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
-	require.NoError(t, err, clues.ToCore(err))
+	for i := 0; i < cap(suite.backupOps); i++ {
+		backupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
+		require.NoError(t, err, clues.ToCore(err))
 
-	suite.backupOp = backupOp
+		suite.backupOps[i] = backupOp
 
-	err = suite.backupOp.Run(ctx)
-	require.NoError(t, err, clues.ToCore(err))
+		err = suite.backupOps[i].Run(ctx)
+		require.NoError(t, err, clues.ToCore(err))
+	}
 }
 
 func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
@@ -608,7 +610,10 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "exchange",
 		"--config-file", suite.dpnd.configFilePath,
-		"--"+flags.BackupFN, string(suite.backupOp.Results.BackupID))
+		"--"+flags.BackupIDsFN,
+		fmt.Sprintf("%s,%s",
+			string(suite.backupOps[0].Results.BackupID),
+			string(suite.backupOps[1].Results.BackupID)))
 	cli.BuildCommandTree(cmd)
 
 	// run the command
@@ -619,7 +624,47 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "exchange",
 		"--config-file", suite.dpnd.configFilePath,
-		"--backup", string(suite.backupOp.Results.BackupID))
+		"--backup", string(suite.backupOps[0].Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+
+	// a follow-up details call should fail, due to the backup ID being deleted
+	cmd = cliTD.StubRootCmd(
+		"backup", "details", "exchange",
+		"--config-file", suite.dpnd.configFilePath,
+		"--backup", string(suite.backupOps[1].Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
+func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_SingleID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "exchange",
+		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.BackupFN,
+		string(suite.backupOps[2].Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// a follow-up details call should fail, due to the backup ID being deleted
+	cmd = cliTD.StubRootCmd(
+		"backup", "details", "exchange",
+		"--config-file", suite.dpnd.configFilePath,
+		"--backup", string(suite.backupOps[2].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	err = cmd.ExecuteContext(ctx)
@@ -637,10 +682,28 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_UnknownID
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "exchange",
 		"--config-file", suite.dpnd.configFilePath,
-		"--"+flags.BackupFN, uuid.NewString())
+		"--"+flags.BackupIDsFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
+func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_NoBackupID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "exchange",
+		"--config-file", suite.dpnd.configFilePath)
+	cli.BuildCommandTree(cmd)
+
+	// empty backupIDs should error since no data provided
 	err := cmd.ExecuteContext(ctx)
 	require.Error(t, err, clues.ToCore(err))
 }
