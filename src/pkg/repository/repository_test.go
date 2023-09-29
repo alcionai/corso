@@ -236,6 +236,37 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
+func (suite *RepositoryIntegrationSuite) TestRepository_UpdatePassword() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// need to initialize the repository before we can test connecting to it.
+	st := storeTD.NewPrefixedS3Storage(t)
+	r, err := New(
+		ctx,
+		account.Account{},
+		st,
+		control.DefaultOptions(),
+		NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	// now re-connect
+	err = r.Connect(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
+
+	err = r.UpdatePassword(ctx, "newpass")
+	require.NoError(t, err, clues.ToCore(err))
+
+	// now reconnect with new pass
+	err = r.Connect(ctx)
+	assert.Error(t, err, clues.ToCore(err))
+}
+
 func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	t := suite.T()
 
