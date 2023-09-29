@@ -247,7 +247,7 @@ func (op *ExportOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	expCollections, err := exportRestoreCollections(
+	expCollections, err := produceExportCollections(
 		ctx,
 		op.ec,
 		bup.Version,
@@ -314,7 +314,7 @@ func (op *ExportOperation) finalizeMetrics(
 // Exporter funcs
 // ---------------------------------------------------------------------------
 
-func exportRestoreCollections(
+func produceExportCollections(
 	ctx context.Context,
 	ec inject.ExportConsumer,
 	backupVersion int,
