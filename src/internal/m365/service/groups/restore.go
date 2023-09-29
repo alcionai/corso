@@ -78,7 +78,7 @@ func ConsumeRestoreCollections(
 			// deleted, skip that site with a warning.
 			siteName, ok := siteNames[webURL]
 			if !ok {
-				site, err := ac.Sites().GetByID(ctx, webURL, api.CallConfig{})
+				site, err := ac.Sites().GetByID(ctx, siteID, api.CallConfig{})
 				if err != nil {
 					siteNames[webURL] = ""
 
