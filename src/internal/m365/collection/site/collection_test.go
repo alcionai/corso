@@ -103,10 +103,11 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				byteArray, err := ow.GetSerializedContent()
 				require.NoError(t, err, clues.ToCore(err))
 
-				data := data.NewPrefetchedItem(
+				data, err := data.NewPrefetchedItem(
 					io.NopCloser(bytes.NewReader(byteArray)),
 					name,
 					details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
+				require.NoError(t, err, clues.ToCore(err))
 
 				return data
 			},
@@ -132,10 +133,11 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				page, err := betaAPI.CreatePageFromBytes(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 
-				data := data.NewPrefetchedItem(
+				data, err := data.NewPrefetchedItem(
 					io.NopCloser(bytes.NewReader(byteArray)),
 					itemName,
 					details.ItemInfo{SharePoint: betaAPI.PageInfo(page, int64(len(byteArray)))})
+				require.NoError(t, err, clues.ToCore(err))
 
 				return data
 			},
@@ -194,10 +196,11 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	byteArray, err := service.Serialize(listing)
 	require.NoError(t, err, clues.ToCore(err))
 
-	listData := data.NewPrefetchedItem(
+	listData, err := data.NewPrefetchedItem(
 		io.NopCloser(bytes.NewReader(byteArray)),
 		testName,
 		details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
+	require.NoError(t, err, clues.ToCore(err))
 
 	destName := testdata.DefaultRestoreConfig("").Location
 

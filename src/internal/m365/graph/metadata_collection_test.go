@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -69,13 +70,16 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 	items := []metadataItem{}
 
 	for i := 0; i < len(itemNames); i++ {
+		item, err := data.NewUnindexedPrefetchedItem(
+			io.NopCloser(bytes.NewReader(itemData[i])),
+			itemNames[i],
+			time.Time{})
+		require.NoError(t, err, clues.ToCore(err))
+
 		items = append(
 			items,
 			metadataItem{
-				Item: data.NewUnindexedPrefetchedItem(
-					io.NopCloser(bytes.NewReader(itemData[i])),
-					itemNames[i],
-					time.Time{}),
+				Item: item,
 				size: int64(len(itemData[i])),
 			})
 	}
@@ -103,7 +107,13 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 	for s := range c.Items(ctx, fault.New(true)) {
 		gotNames = append(gotNames, s.ID())
 
-		buf, err := io.ReadAll(s.ToReader())
+		rr, err := readers.NewVersionedRestoreReader(s.ToReader())
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+		assert.False(t, rr.Format().DelInFlight)
+
+		buf, err := io.ReadAll(rr)
 		if !assert.NoError(t, err, clues.ToCore(err)) {
 			continue
 		}
@@ -204,11 +214,17 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 			for item := range col.Items(ctx, fault.New(true)) {
 				assert.Equal(t, test.metadata.fileName, item.ID())
 
+				rr, err := readers.NewVersionedRestoreReader(item.ToReader())
+				require.NoError(t, err, clues.ToCore(err))
+
+				assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+				assert.False(t, rr.Format().DelInFlight)
+
 				gotMap := map[string]string{}
-				decoder := json.NewDecoder(item.ToReader())
+				decoder := json.NewDecoder(rr)
 				itemCount++
 
-				err := decoder.Decode(&gotMap)
+				err = decoder.Decode(&gotMap)
 				if !assert.NoError(t, err, clues.ToCore(err)) {
 					continue
 				}

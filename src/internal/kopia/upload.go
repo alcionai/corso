@@ -13,7 +13,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
@@ -24,6 +23,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -37,7 +37,7 @@ import (
 
 const maxInflateTraversalDepth = 500
 
-var versionSize = int(unsafe.Sizeof(serializationVersion))
+var versionSize = readers.VersionFormatSize
 
 func newBackupStreamReader(version uint32, reader io.ReadCloser) *backupStreamReader {
 	buf := make([]byte, versionSize)
@@ -436,7 +436,7 @@ func collectionEntries(
 			entry := virtualfs.StreamingFileWithModTimeFromReader(
 				encodedName,
 				modTime,
-				newBackupStreamReader(serializationVersion, e.ToReader()))
+				e.ToReader())
 
 			err = ctr(ctx, entry)
 			if err != nil {

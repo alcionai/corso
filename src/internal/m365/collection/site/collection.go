@@ -211,11 +211,17 @@ func (sc *Collection) retrieveLists(
 			metrics.Bytes += size
 
 			metrics.Successes++
-			sc.data <- data.NewPrefetchedItem(
+
+			item, err := data.NewPrefetchedItem(
 				io.NopCloser(bytes.NewReader(byteArray)),
 				ptr.Val(lst.GetId()),
 				details.ItemInfo{SharePoint: ListToSPInfo(lst, size)})
+			if err != nil {
+				el.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+				continue
+			}
 
+			sc.data <- item
 			progress <- struct{}{}
 		}
 	}
@@ -272,11 +278,17 @@ func (sc *Collection) retrievePages(
 		if size > 0 {
 			metrics.Bytes += size
 			metrics.Successes++
-			sc.data <- data.NewPrefetchedItem(
+
+			item, err := data.NewPrefetchedItem(
 				io.NopCloser(bytes.NewReader(byteArray)),
 				ptr.Val(pg.GetId()),
 				details.ItemInfo{SharePoint: pageToSPInfo(pg, root, size)})
+			if err != nil {
+				el.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+				continue
+			}
 
+			sc.data <- item
 			progress <- struct{}{}
 		}
 	}

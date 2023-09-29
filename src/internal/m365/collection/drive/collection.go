@@ -584,15 +584,24 @@ func (oc *Collection) streamDriveItem(
 		return progReader, nil
 	})
 
-	// We wrap the reader with a lazy reader so that the progress bar is only
-	// initialized if the file is read. Since we're not actually lazily reading
-	// data just use the eager item implementation.
-	oc.data <- data.NewUnindexedPrefetchedItem(
+	storeItem, err := data.NewUnindexedPrefetchedItem(
 		metaReader,
 		metaFileName+metaSuffix,
 		// Metadata file should always use the latest time as
 		// permissions change does not update mod time.
 		time.Now())
+	if err != nil {
+		errs.AddRecoverable(ctx, clues.Stack(err).
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation))
+
+		return
+	}
+
+	// We wrap the reader with a lazy reader so that the progress bar is only
+	// initialized if the file is read. Since we're not actually lazily reading
+	// data just use the eager item implementation.
+	oc.data <- storeItem
 
 	// Item read successfully, add to collection
 	if isFile {

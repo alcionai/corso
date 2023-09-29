@@ -38,8 +38,8 @@ type SerializationVersion uint16
 const DefaultSerializationVersion SerializationVersion = 1
 
 const (
-	versionFormatSize                               = int(unsafe.Sizeof(persistedSerializationVersion(0)))
-	delInFlightMask   persistedSerializationVersion = 1 << ((versionFormatSize * 8) - 1)
+	VersionFormatSize                               = int(unsafe.Sizeof(persistedSerializationVersion(0)))
+	delInFlightMask   persistedSerializationVersion = 1 << ((VersionFormatSize * 8) - 1)
 )
 
 // SerializationFormat is a struct describing serialization format versions and
@@ -68,7 +68,7 @@ func NewVersionedBackupReader(
 		formattedVersion |= delInFlightMask
 	}
 
-	formattedBuf := make([]byte, versionFormatSize)
+	formattedBuf := make([]byte, VersionFormatSize)
 	binary.BigEndian.PutUint32(formattedBuf, formattedVersion)
 
 	versionReader := io.NopCloser(bytes.NewReader(formattedBuf))
@@ -139,10 +139,10 @@ func (vbr *versionedBackupReader) Close() error {
 func NewVersionedRestoreReader(
 	baseReader io.ReadCloser,
 ) (*VersionedRestoreReader, error) {
-	versionBuf := make([]byte, versionFormatSize)
+	versionBuf := make([]byte, VersionFormatSize)
 
 	// Loop to account for the unlikely case where we get a short read.
-	for read := 0; read < versionFormatSize; {
+	for read := 0; read < VersionFormatSize; {
 		n, err := baseReader.Read(versionBuf[read:])
 		if err != nil {
 			return nil, clues.Wrap(err, "reading serialization version")
