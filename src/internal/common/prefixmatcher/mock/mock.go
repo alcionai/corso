@@ -27,7 +27,7 @@ func NewPrefixMap(m map[string]map[string]struct{}) *PrefixMap {
 
 func (pm PrefixMap) AssertEqual(t *testing.T, r prefixmatcher.StringSetReader) {
 	if pm.Empty() {
-		require.True(t, r.Empty(), "result prefixMap should be empty but contains keys: %+v", r.Keys())
+		require.True(t, r.Empty(), "both prefix maps are empty")
 		return
 	}
 

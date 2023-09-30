@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -526,6 +527,8 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 
 				require.NotEmpty(t, c.FullPath().Folder(false))
 
+				fmt.Printf("\n-----\nfolder %+v\n-----\n", c.FullPath().Folder(false))
+
 				// TODO(ashmrtn): Remove when LocationPath is made part of BackupCollection
 				// interface.
 				if !assert.Implements(t, (*data.LocationPather)(nil), c) {
@@ -533,6 +536,8 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 				}
 
 				loc := c.(data.LocationPather).LocationPath().String()
+
+				fmt.Printf("\n-----\nloc %+v\n-----\n", c.(data.LocationPather).LocationPath().String())
 
 				require.NotEmpty(t, loc)
 

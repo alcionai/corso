@@ -36,7 +36,6 @@ type BackupHandler interface {
 	GetItemPermissioner
 	GetItemer
 	NewDrivePagerer
-	EnumerateDriveItemsDeltaer
 
 	// PathPrefix constructs the service and category specific path prefix for
 	// the given values.
@@ -51,7 +50,7 @@ type BackupHandler interface {
 
 	// ServiceCat returns the service and category used by this implementation.
 	ServiceCat() (path.ServiceType, path.CategoryType)
-
+	NewItemPager(driveID, link string, fields []string) api.DeltaPager[models.DriveItemable]
 	// FormatDisplayPath creates a human-readable string to represent the
 	// provided path.
 	FormatDisplayPath(driveName string, parentPath *path.Builder) string
@@ -78,17 +77,6 @@ type GetItemer interface {
 		ctx context.Context,
 		driveID, itemID string,
 	) (models.DriveItemable, error)
-}
-
-type EnumerateDriveItemsDeltaer interface {
-	EnumerateDriveItemsDelta(
-		ctx context.Context,
-		driveID, prevDeltaLink string,
-	) (
-		[]models.DriveItemable,
-		api.DeltaUpdate,
-		error,
-	)
 }
 
 // ---------------------------------------------------------------------------
