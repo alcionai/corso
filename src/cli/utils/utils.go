@@ -78,14 +78,8 @@ func GetAccountAndConnectWithOverrides(
 		return nil, RepoDetailsAndOpts{}, clues.Wrap(err, "creating a repository controller")
 	}
 
-	if err := r.Connect(ctx); err != nil {
+	if err := r.Connect(ctx, repository.ConnConfig{Service: pst}); err != nil {
 		return nil, RepoDetailsAndOpts{}, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
-	}
-
-	// this initializes our graph api client configurations,
-	// including control options such as concurency limitations.
-	if _, err := r.ConnectToM365(ctx, pst); err != nil {
-		return nil, RepoDetailsAndOpts{}, clues.Wrap(err, "connecting to m365")
 	}
 
 	rdao := RepoDetailsAndOpts{
