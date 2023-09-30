@@ -136,7 +136,7 @@ func (c Client) Post(
 
 type CallConfig struct {
 	Expand []string
-	Props  []string
+	Select []string
 }
 
 // ---------------------------------------------------------------------------
