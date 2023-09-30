@@ -85,6 +85,7 @@ type GetItemer interface {
 type EnumerateDriveItemsDeltaer interface {
 	EnumerateDriveItemsDelta(
 		ctx context.Context,
+		ch chan<- api.NextPage[models.DriveItemable],
 		driveID, prevDeltaLink string,
 	) api.NextPageResulter[models.DriveItemable]
 }

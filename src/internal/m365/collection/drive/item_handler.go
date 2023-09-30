@@ -136,6 +136,7 @@ func (h itemBackupHandler) IncludesDir(dir string) bool {
 
 func (h itemBackupHandler) EnumerateDriveItemsDelta(
 	ctx context.Context,
+	ch chan<- api.NextPage[models.DriveItemable],
 	driveID, prevDeltaLink string,
 	selectProps []string,
 ) (api.NextPageResulter[models.DriveItemable], error) {
