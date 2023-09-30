@@ -292,8 +292,8 @@ func (m GetsItem) GetItem(
 // Enumerates Drive Items
 // ---------------------------------------------------------------------------
 
-type NextPage[T any] struct {
-	Items []T
+type NextPage struct {
+	Items []models.DriveItemable
 	Reset bool
 }
 
@@ -305,7 +305,7 @@ var _ api.NextPageResulter[models.DriveItemable] = &DriveItemsDeltaPager{}
 
 type DriveItemsDeltaPager struct {
 	Idx         int
-	Pages       []NextPage[models.DriveItemable]
+	Pages       []NextPage
 	DeltaUpdate api.DeltaUpdate
 	Err         error
 }
