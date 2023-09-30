@@ -17,6 +17,7 @@ import (
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/extensions"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -136,12 +137,13 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	table := []struct {
 		name     string
-		account  account.Account
+		account  func(*testing.T) account.Account
 		storage  func(tester.TestT) storage.Storage
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
 			name:     "success",
+			account:  tconfig.NewM365Account,
 			storage:  storeTD.NewPrefixedS3Storage,
 			errCheck: assert.NoError,
 		},
@@ -156,7 +158,7 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 			st := test.storage(t)
 			r, err := New(
 				ctx,
-				test.account,
+				test.account(t),
 				st,
 				control.DefaultOptions(),
 				NewRepoID)
@@ -288,7 +290,8 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, InitConfig{})
+	// service doesn't matter here, we just need a valid value.
+	err = r.Initialize(ctx, InitConfig{Service: path.ExchangeService})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userID := tconfig.M365UserID(t)
@@ -347,7 +350,8 @@ func (suite *RepositoryIntegrationSuite) TestNewBackupAndDelete() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, InitConfig{})
+	// service doesn't matter here, we just need a valid value.
+	err = r.Initialize(ctx, InitConfig{Service: path.ExchangeService})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userID := tconfig.M365UserID(t)
