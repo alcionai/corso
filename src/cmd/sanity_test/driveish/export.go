@@ -32,8 +32,7 @@ func CheckExport(
 	root := populateSanitree(
 		ctx,
 		ac,
-		driveID,
-		envs.StartTime)
+		driveID)
 
 	dataTree, ok := root.Children[envs.DataFolder]
 	common.Assert(
@@ -47,8 +46,8 @@ func CheckExport(
 
 	comparator := func(
 		ctx context.Context,
-		expect *common.Sanitree[models.DriveItemable],
-		result *common.Sanitree[fs.FileInfo],
+		expect *common.Sanitree[models.DriveItemable, models.DriveItemable],
+		result *common.Sanitree[fs.FileInfo, fs.FileInfo],
 	) {
 		common.CompareLeaves(ctx, expect.Leaves, result.Leaves, nil)
 	}

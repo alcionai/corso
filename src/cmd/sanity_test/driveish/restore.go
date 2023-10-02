@@ -46,7 +46,7 @@ func CheckRestoration(
 		"drive_id", driveID,
 		"drive_name", driveName)
 
-	root := populateSanitree(ctx, ac, driveID, envs.StartTime)
+	root := populateSanitree(ctx, ac, driveID)
 
 	dataTree, ok := root.Children[envs.DataFolder]
 	common.Assert(
@@ -64,7 +64,10 @@ func CheckRestoration(
 		envs.FolderName,
 		"not found")
 
-	var permissionCheck common.ContainerComparatorFn[models.DriveItemable, models.DriveItemable]
+	var permissionCheck common.ContainerComparatorFn[
+		models.DriveItemable, models.DriveItemable,
+		models.DriveItemable, models.DriveItemable]
+
 	if permissionsComparator != nil {
 		permissionCheck = checkRestoredDriveItemPermissions(permissionsComparator)
 	}
@@ -127,7 +130,10 @@ func permissionIn(
 
 func checkRestoredDriveItemPermissions(
 	comparator func(expect, result []common.PermissionInfo) func() bool,
-) common.ContainerComparatorFn[models.DriveItemable, models.DriveItemable] {
+) common.ContainerComparatorFn[
+	models.DriveItemable, models.DriveItemable,
+	models.DriveItemable, models.DriveItemable,
+] {
 	/**
 		TODO: replace this check with testElementsMatch
 		from internal/connecter/graph_connector_helper_test.go
@@ -135,7 +141,7 @@ func checkRestoredDriveItemPermissions(
 
 	return func(
 		ctx context.Context,
-		expect, result *common.Sanitree[models.DriveItemable],
+		expect, result *common.Sanitree[models.DriveItemable, models.DriveItemable],
 	) {
 		expectPerms, err := tform.AnyValueToT[[]common.PermissionInfo](
 			expandPermissions,

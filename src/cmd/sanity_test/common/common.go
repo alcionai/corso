@@ -30,6 +30,7 @@ type Envs struct {
 	BaseBackupFolder string
 	DataFolder       string
 	FolderName       string
+	GroupID          string
 	Service          string
 	SiteID           string
 	StartTime        time.Time
@@ -44,6 +45,7 @@ func EnvVars(ctx context.Context) Envs {
 		BaseBackupFolder: os.Getenv(sanityBaseBackup),
 		DataFolder:       os.Getenv(sanityTestData),
 		FolderName:       folder,
+		GroupID:          tconfig.GetM365TeamID(ctx),
 		SiteID:           tconfig.GetM365SiteID(ctx),
 		Service:          os.Getenv(sanityTestService),
 		StartTime:        startTime,

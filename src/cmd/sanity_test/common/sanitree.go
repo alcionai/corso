@@ -9,9 +9,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type Sanileaf[T any] struct {
-	Parent *Sanitree[T]
-	Self   T
+type Sanileaf[T, L any] struct {
+	Parent *Sanitree[T, L]
+	Self   L
 	ID     string
 	Name   string
 	Size   int64
@@ -24,8 +24,8 @@ type Sanileaf[T any] struct {
 // Sanitree is used to build out a hierarchical tree of items
 // for comparison against each other.  Primarily so that a restore
 // can compare two subtrees easily.
-type Sanitree[T any] struct {
-	Parent *Sanitree[T]
+type Sanitree[T, L any] struct {
+	Parent *Sanitree[T, L]
 
 	Self T
 	ID   string
@@ -38,17 +38,17 @@ type Sanitree[T any] struct {
 	// leaves are non-container child items.  Used by services
 	// that need more than just a count of items.
 	// name (or equivalent) -> leaf
-	Leaves map[string]*Sanileaf[T]
+	Leaves map[string]*Sanileaf[T, L]
 	// Children holds all child containers
 	// name -> node
-	Children map[string]*Sanitree[T]
+	Children map[string]*Sanitree[T, L]
 
 	// Expand is an arbitrary k:v map of any data that is
 	// uniquely scrutinized by a given service.
 	Expand map[string]any
 }
 
-func (s *Sanitree[T]) Path() path.Elements {
+func (s *Sanitree[T, L]) Path() path.Elements {
 	if s.Parent == nil {
 		return path.NewElements(s.Name)
 	}
@@ -58,10 +58,10 @@ func (s *Sanitree[T]) Path() path.Elements {
 	return append(fp, s.Name)
 }
 
-func (s *Sanitree[T]) NodeAt(
+func (s *Sanitree[T, L]) NodeAt(
 	ctx context.Context,
 	elems []string,
-) *Sanitree[T] {
+) *Sanitree[T, L] {
 	node := s
 
 	for _, e := range elems {
@@ -85,22 +85,22 @@ func (s *Sanitree[T]) NodeAt(
 // ---------------------------------------------------------------------------
 
 type (
-	ContainerComparatorFn[T, R any] func(
+	ContainerComparatorFn[ET, EL, RT, RL any] func(
 		ctx context.Context,
-		expect *Sanitree[T],
-		result *Sanitree[R])
-	LeafComparatorFn[T, R any] func(
+		expect *Sanitree[ET, EL],
+		result *Sanitree[RT, RL])
+	LeafComparatorFn[ET, EL, RT, RL any] func(
 		ctx context.Context,
-		expect *Sanileaf[T],
-		result *Sanileaf[R])
+		expect *Sanileaf[ET, EL],
+		result *Sanileaf[RT, RL])
 )
 
-func AssertEqualTrees[T, R any](
+func AssertEqualTrees[ET, EL, RT, RL any](
 	ctx context.Context,
-	expect *Sanitree[T],
-	result *Sanitree[R],
-	customContainerCheck ContainerComparatorFn[T, R],
-	customLeafCheck LeafComparatorFn[T, R],
+	expect *Sanitree[ET, EL],
+	result *Sanitree[RT, RL],
+	customContainerCheck ContainerComparatorFn[ET, EL, RT, RL],
+	customLeafCheck LeafComparatorFn[ET, EL, RT, RL],
 ) {
 	if expect == nil && result == nil {
 		return
@@ -113,7 +113,7 @@ func AssertEqualTrees[T, R any](
 		customContainerCheck(ctx, expect, result)
 	}
 
-	CompareLeaves[T, R](
+	CompareLeaves[ET, EL, RT, RL](
 		ctx,
 		expect.Leaves,
 		result.Leaves,
@@ -137,10 +137,10 @@ func AssertEqualTrees[T, R any](
 // Comparing differently typed trees.
 // ---------------------------------------------------------------------------
 
-type NodeComparator[T, R any] func(
+type NodeComparator[ET, EL, RT, RL any] func(
 	ctx context.Context,
-	expect *Sanitree[T],
-	result *Sanitree[R],
+	expect *Sanitree[ET, EL],
+	result *Sanitree[RT, RL],
 )
 
 // CompareDiffTrees recursively compares two sanitrees that have
@@ -149,11 +149,11 @@ type NodeComparator[T, R any] func(
 //
 // Additional comparisons besides the tre hierarchy are optionally
 // left to the caller by population of the NodeComparator func.
-func CompareDiffTrees[T, R any](
+func CompareDiffTrees[ET, EL, RT, RL any](
 	ctx context.Context,
-	expect *Sanitree[T],
-	result *Sanitree[R],
-	comparator NodeComparator[T, R],
+	expect *Sanitree[ET, EL],
+	result *Sanitree[RT, RL],
+	comparator NodeComparator[ET, EL, RT, RL],
 ) {
 	if expect == nil && result == nil {
 		return
@@ -184,10 +184,10 @@ func CompareDiffTrees[T, R any](
 // Checking hierarcy likeness
 // ---------------------------------------------------------------------------
 
-func checkChildrenAndLeaves[T, R any](
+func checkChildrenAndLeaves[ET, EL, RT, RL any](
 	ctx context.Context,
-	expect *Sanitree[T],
-	result *Sanitree[R],
+	expect *Sanitree[ET, EL],
+	result *Sanitree[RT, RL],
 ) {
 	Assert(
 		ctx,
@@ -227,11 +227,11 @@ func checkChildrenAndLeaves[T, R any](
 		len(result.Children))
 }
 
-func CompareLeaves[T, R any](
+func CompareLeaves[ET, EL, RT, RL any](
 	ctx context.Context,
-	expect map[string]*Sanileaf[T],
-	result map[string]*Sanileaf[R],
-	customLeafCheck LeafComparatorFn[T, R],
+	expect map[string]*Sanileaf[ET, EL],
+	result map[string]*Sanileaf[RT, RL],
+	customLeafCheck LeafComparatorFn[ET, EL, RT, RL],
 ) {
 	for name, l := range expect {
 		ictx := clues.Add(ctx, "leaf_name", l.Name)

@@ -12,8 +12,8 @@ import (
 func BuildFilepathSanitree(
 	ctx context.Context,
 	rootDir string,
-) *Sanitree[fs.FileInfo] {
-	var root *Sanitree[fs.FileInfo]
+) *Sanitree[fs.FileInfo, fs.FileInfo] {
+	var root *Sanitree[fs.FileInfo, fs.FileInfo]
 
 	walker := func(
 		p string,
@@ -34,12 +34,12 @@ func BuildFilepathSanitree(
 		}
 
 		if root == nil {
-			root = &Sanitree[fs.FileInfo]{
+			root = &Sanitree[fs.FileInfo, fs.FileInfo]{
 				Self:     info,
 				ID:       info.Name(),
 				Name:     info.Name(),
-				Leaves:   map[string]*Sanileaf[fs.FileInfo]{},
-				Children: map[string]*Sanitree[fs.FileInfo]{},
+				Leaves:   map[string]*Sanileaf[fs.FileInfo, fs.FileInfo]{},
+				Children: map[string]*Sanitree[fs.FileInfo, fs.FileInfo]{},
 			}
 
 			return nil
@@ -49,16 +49,16 @@ func BuildFilepathSanitree(
 		node := root.NodeAt(ctx, elems[:len(elems)-1])
 
 		if info.IsDir() {
-			node.Children[info.Name()] = &Sanitree[fs.FileInfo]{
+			node.Children[info.Name()] = &Sanitree[fs.FileInfo, fs.FileInfo]{
 				Parent:   node,
 				Self:     info,
 				ID:       info.Name(),
 				Name:     info.Name(),
-				Leaves:   map[string]*Sanileaf[fs.FileInfo]{},
-				Children: map[string]*Sanitree[fs.FileInfo]{},
+				Leaves:   map[string]*Sanileaf[fs.FileInfo, fs.FileInfo]{},
+				Children: map[string]*Sanitree[fs.FileInfo, fs.FileInfo]{},
 			}
 		} else {
-			node.Leaves[info.Name()] = &Sanileaf[fs.FileInfo]{
+			node.Leaves[info.Name()] = &Sanileaf[fs.FileInfo, fs.FileInfo]{
 				Parent: node,
 				Self:   info,
 				ID:     info.Name(),
