@@ -36,11 +36,11 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		restoreMetrics support.CollectionMetrics
-		caches         = drive.NewRestoreCaches(backupDriveIDNames)
-		lrh            = drive.NewLibraryRestoreHandler(ac, rcc.Selector.PathService())
-		el             = errs.Local()
-		siteNames      = map[string]string{}
+		restoreMetrics    support.CollectionMetrics
+		caches            = drive.NewRestoreCaches(backupDriveIDNames)
+		lrh               = drive.NewLibraryRestoreHandler(ac, rcc.Selector.PathService())
+		el                = errs.Local()
+		webURLToSiteNames = map[string]string{}
 	)
 
 	// Reorder collections so that the parents directories are created
@@ -76,13 +76,13 @@ func ConsumeRestoreCollections(
 
 			// In case a site that we had previously backed up was
 			// deleted, skip that site with a warning.
-			siteName, ok := siteNames[webURL]
+			siteName, ok := webURLToSiteNames[webURL]
 			if !ok {
 				site, err := ac.Sites().GetByID(ctx, siteID, api.CallConfig{})
 				if err != nil {
-					siteNames[webURL] = ""
+					webURLToSiteNames[webURL] = ""
 
-					if graph.IsErrSiteCouldNotBeFound(err) {
+					if graph.IsErrSiteNotFound(err) {
 						// TODO(meain): Should we surface this to the user somehow?
 						logger.Ctx(ctx).With("web_url", webURL, "site_id", siteID).
 							Info("Site does not exist, skipping restore.")
@@ -95,10 +95,8 @@ func ConsumeRestoreCollections(
 				}
 
 				siteName = ptr.Val(site.GetDisplayName())
-				siteNames[webURL] = siteName
-			}
-
-			if ok && len(siteName) == 0 {
+				webURLToSiteNames[webURL] = siteName
+			} else if len(siteName) == 0 {
 				// We have previously seen it but the site was
 				// unavailable
 				continue

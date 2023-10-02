@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -163,9 +164,12 @@ func (c Groups) GetAllSites(
 	identifier string,
 	errs *fault.Bus,
 ) ([]models.Siteable, error) {
+	el := errs.Local()
+
 	root, err := c.GetRootSite(ctx, identifier)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting root site")
+		return nil, clues.Wrap(err, "getting root site").
+			With("group_id", identifier)
 	}
 
 	sites := []models.Siteable{root}
@@ -177,7 +181,7 @@ func (c Groups) GetAllSites(
 
 	service, err := c.Service()
 	if err != nil {
-		return nil, err
+		return nil, graph.Stack(ctx, err)
 	}
 
 	for _, ch := range channels {
@@ -186,6 +190,13 @@ func (c Groups) GetAllSites(
 			continue
 		}
 
+		ictx := clues.Add(
+			ctx,
+			"channel_id",
+			ptr.Val(ch.GetId()),
+			"channel_name",
+			clues.Hide(ptr.Val(ch.GetDisplayName())))
+
 		resp, err := service.
 			Client().
 			Teams().
@@ -193,10 +204,10 @@ func (c Groups) GetAllSites(
 			Channels().
 			ByChannelId(ptr.Val(ch.GetId())).
 			FilesFolder().
-			Get(ctx, nil)
+			Get(ictx, nil)
 		if err != nil {
 			return nil, clues.Wrap(err, "getting files folder for channel").
-				With("channel_id", ptr.Val(ch.GetId()))
+				WithClues(ictx)
 		}
 
 		// WebURL returned here is the url to the documents folder, we
@@ -204,24 +215,27 @@ func (c Groups) GetAllSites(
 		// https://example.sharepoint.com/sites/<site-name>/Shared%20Documents/<channelName>
 		documentWebURL := ptr.Val(resp.GetWebUrl())
 
-		// TODO(meain): is this hacky? is there a better way?
-		dwurlSplits := strings.Split(documentWebURL, "/")
-		siteWebURL := strings.Join(dwurlSplits[:5], "/")
-
-		site, err := Sites(c).GetByID(ctx, siteWebURL, CallConfig{})
+		u, err := url.Parse(documentWebURL)
 		if err != nil {
-			// TODO(meain): should this be a recoverable error?
-			return nil, clues.Wrap(err, "getting site").
-				With(
-					"channel_id", ptr.Val(ch.GetId()),
-					"document_web_url", documentWebURL,
-					"site_web_url", siteWebURL)
+			return nil, clues.Wrap(err, "parsing document web url").
+				WithClues(ictx)
+		}
+
+		pathSegments := strings.Split(u.Path, "/") // pathSegments[0] == ""
+		siteWebURL := fmt.Sprintf("%s://%s/%s/%s", u.Scheme, u.Host, pathSegments[1], pathSegments[2])
+
+		ictx = clues.Add(ictx, "document_web_url", documentWebURL, "site_web_url", siteWebURL)
+
+		site, err := Sites(c).GetByID(ictx, siteWebURL, CallConfig{})
+		if err != nil {
+			el.AddRecoverable(ctx, clues.Wrap(err, "getting site"))
+			continue
 		}
 
 		sites = append(sites, site)
 	}
 
-	return sites, nil
+	return sites, el.Failure()
 }
 
 func (c Groups) GetRootSite(
@@ -241,7 +255,7 @@ func (c Groups) GetRootSite(
 		BySiteId("root").
 		Get(ctx, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting root site for group")
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, graph.Stack(ctx, err).OrNil()

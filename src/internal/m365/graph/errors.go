@@ -70,7 +70,7 @@ const (
 	NoSPLicense                     errorMessage = "Tenant does not have a SPO license"
 	parameterDeltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request"
 	usersCannotBeResolved           errorMessage = "One or more users could not be resolved"
-	siteCouldNotBeFound             errorMessage = "Requested site could not be found"
+	requestedSiteCouldNotBeFound    errorMessage = "Requested site could not be found"
 )
 
 const (
@@ -260,8 +260,8 @@ func IsErrUsersCannotBeResolved(err error) bool {
 	return hasErrorCode(err, noResolvedUsers) || hasErrorMessage(err, usersCannotBeResolved)
 }
 
-func IsErrSiteCouldNotBeFound(err error) bool {
-	return hasErrorMessage(err, siteCouldNotBeFound)
+func IsErrSiteNotFound(err error) bool {
+	return hasErrorMessage(err, requestedSiteCouldNotBeFound)
 }
 
 // ---------------------------------------------------------------------------

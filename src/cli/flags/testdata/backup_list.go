@@ -3,9 +3,10 @@ package testdata
 import (
 	"testing"
 
-	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
+
+	"github.com/alcionai/corso/src/cli/flags"
 )
 
 func PreparedBackupListFlags() []string {

@@ -651,24 +651,24 @@ func (suite *GraphErrorsUnitSuite) TestIsErrSiteCouldNotBeFound() {
 		},
 		{
 			name:   "matching oDataErr msg",
-			err:    odErrMsg("InvalidRequest", string(siteCouldNotBeFound)),
+			err:    odErrMsg("InvalidRequest", string(requestedSiteCouldNotBeFound)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive
 		{
 			name:   "oDataErr uppercase",
-			err:    odErrMsg("InvalidRequest", strings.ToUpper(string(siteCouldNotBeFound))),
+			err:    odErrMsg("InvalidRequest", strings.ToUpper(string(requestedSiteCouldNotBeFound))),
 			expect: assert.True,
 		},
 		{
 			name:   "oDataErr lowercase",
-			err:    odErrMsg("InvalidRequest", strings.ToLower(string(siteCouldNotBeFound))),
+			err:    odErrMsg("InvalidRequest", strings.ToLower(string(requestedSiteCouldNotBeFound))),
 			expect: assert.True,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrSiteCouldNotBeFound(test.err))
+			test.expect(suite.T(), IsErrSiteNotFound(test.err))
 		})
 	}
 }
