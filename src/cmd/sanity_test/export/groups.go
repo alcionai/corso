@@ -48,7 +48,7 @@ func checkChannelMessagesExport(
 		ac,
 		envs.GroupID)
 
-	fpTree := common.BuildFilepathSanitree(ctx, envs.FolderName)
+	fpTree := common.BuildFilepathSanitree(ctx, envs.RestoreContainer)
 
 	comparator := func(
 		ctx context.Context,
