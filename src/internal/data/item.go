@@ -16,23 +16,23 @@ import (
 )
 
 var (
-	_ Item        = &unindexedPrefetchedItem{}
-	_ ItemModTime = &unindexedPrefetchedItem{}
-
 	_ Item        = &prefetchedItem{}
-	_ ItemInfo    = &prefetchedItem{}
 	_ ItemModTime = &prefetchedItem{}
 
-	_ Item        = &unindexedLazyItem{}
-	_ ItemModTime = &unindexedLazyItem{}
+	_ Item        = &prefetchedItemWithInfo{}
+	_ ItemInfo    = &prefetchedItemWithInfo{}
+	_ ItemModTime = &prefetchedItemWithInfo{}
 
 	_ Item        = &lazyItem{}
-	_ ItemInfo    = &lazyItem{}
 	_ ItemModTime = &lazyItem{}
+
+	_ Item        = &lazyItemWithInfo{}
+	_ ItemInfo    = &lazyItemWithInfo{}
+	_ ItemModTime = &lazyItemWithInfo{}
 )
 
 func NewDeletedItem(itemID string) Item {
-	return &unindexedPrefetchedItem{
+	return &prefetchedItem{
 		id:      itemID,
 		deleted: true,
 		// TODO(ashmrtn): This really doesn't need to be set since deleted items are
@@ -42,11 +42,11 @@ func NewDeletedItem(itemID string) Item {
 	}
 }
 
-func NewUnindexedPrefetchedItem(
+func NewPrefetchedItem(
 	reader io.ReadCloser,
 	itemID string,
 	modTime time.Time,
-) (*unindexedPrefetchedItem, error) {
+) (*prefetchedItem, error) {
 	r, err := readers.NewVersionedBackupReader(
 		readers.SerializationFormat{Version: readers.DefaultSerializationVersion},
 		reader)
@@ -54,19 +54,18 @@ func NewUnindexedPrefetchedItem(
 		return nil, clues.Stack(err)
 	}
 
-	return &unindexedPrefetchedItem{
+	return &prefetchedItem{
 		id:      itemID,
 		reader:  r,
 		modTime: modTime,
 	}, nil
 }
 
-// unindexedPrefetchedItem represents a single item retrieved from the remote
-// service.
+// prefetchedItem represents a single item retrieved from the remote service.
 //
 // This item doesn't implement ItemInfo so it's safe to use for items like
 // metadata that shouldn't appear in backup details.
-type unindexedPrefetchedItem struct {
+type prefetchedItem struct {
 	id     string
 	reader io.ReadCloser
 	// modTime is the modified time of the item. It should match the modTime in
@@ -79,48 +78,49 @@ type unindexedPrefetchedItem struct {
 	deleted bool
 }
 
-func (i unindexedPrefetchedItem) ID() string {
+func (i prefetchedItem) ID() string {
 	return i.id
 }
 
-func (i *unindexedPrefetchedItem) ToReader() io.ReadCloser {
+func (i *prefetchedItem) ToReader() io.ReadCloser {
 	return i.reader
 }
 
-func (i unindexedPrefetchedItem) Deleted() bool {
+func (i prefetchedItem) Deleted() bool {
 	return i.deleted
 }
 
-func (i unindexedPrefetchedItem) ModTime() time.Time {
+func (i prefetchedItem) ModTime() time.Time {
 	return i.modTime
 }
 
-func NewPrefetchedItem(
+func NewPrefetchedItemWithInfo(
 	reader io.ReadCloser,
 	itemID string,
 	info details.ItemInfo,
-) (*prefetchedItem, error) {
-	inner, err := NewUnindexedPrefetchedItem(reader, itemID, info.Modified())
+) (*prefetchedItemWithInfo, error) {
+	inner, err := NewPrefetchedItem(reader, itemID, info.Modified())
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
 
-	return &prefetchedItem{
-		unindexedPrefetchedItem: inner,
-		info:                    info,
+	return &prefetchedItemWithInfo{
+		prefetchedItem: inner,
+		info:           info,
 	}, nil
 }
 
-// prefetchedItem represents a single item retrieved from the remote service.
+// prefetchedItemWithInfo represents a single item retrieved from the remote
+// service.
 //
 // This item implements ItemInfo so it should be used for things that need to
 // appear in backup details.
-type prefetchedItem struct {
-	*unindexedPrefetchedItem
+type prefetchedItemWithInfo struct {
+	*prefetchedItem
 	info details.ItemInfo
 }
 
-func (i prefetchedItem) Info() (details.ItemInfo, error) {
+func (i prefetchedItemWithInfo) Info() (details.ItemInfo, error) {
 	return i.info, nil
 }
 
@@ -131,14 +131,14 @@ type ItemDataGetter interface {
 	) (io.ReadCloser, *details.ItemInfo, bool, error)
 }
 
-func NewUnindexedLazyItem(
+func NewLazyItem(
 	ctx context.Context,
 	itemGetter ItemDataGetter,
 	itemID string,
 	modTime time.Time,
 	errs *fault.Bus,
-) *unindexedLazyItem {
-	return &unindexedLazyItem{
+) *lazyItem {
+	return &lazyItem{
 		ctx:        ctx,
 		id:         itemID,
 		itemGetter: itemGetter,
@@ -147,13 +147,13 @@ func NewUnindexedLazyItem(
 	}
 }
 
-// unindexedLazyItem represents a single item retrieved from the remote service.
-// It lazily fetches the item's data when the first call to ToReader().Read() is
+// lazyItem represents a single item retrieved from the remote service. It
+// lazily fetches the item's data when the first call to ToReader().Read() is
 // made.
 //
 // This item doesn't implement ItemInfo so it's safe to use for items like
 // metadata that shouldn't appear in backup details.
-type unindexedLazyItem struct {
+type lazyItem struct {
 	ctx        context.Context
 	mu         sync.Mutex
 	id         string
@@ -165,19 +165,19 @@ type unindexedLazyItem struct {
 	// struct so we can tell if it's been set already or not.
 	//
 	// This also helps with garbage collection because now the golang garbage
-	// collector can collect the lazyItem struct once the storage engine is done
-	// with it. The ItemInfo struct needs to stick around until the end of the
-	// backup though as backup details is written last.
+	// collector can collect the lazyItemWithInfo struct once the storage engine
+	// is done with it. The ItemInfo struct needs to stick around until the end of
+	// the backup though as backup details is written last.
 	info *details.ItemInfo
 
 	delInFlight bool
 }
 
-func (i *unindexedLazyItem) ID() string {
+func (i *lazyItem) ID() string {
 	return i.id
 }
 
-func (i *unindexedLazyItem) ToReader() io.ReadCloser {
+func (i *lazyItem) ToReader() io.ReadCloser {
 	return lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
 		// Don't allow getting Item info while trying to initialize said info.
 		// GetData could be a long running call, but in theory nothing should happen
@@ -219,23 +219,23 @@ func (i *unindexedLazyItem) ToReader() io.ReadCloser {
 	})
 }
 
-func (i *unindexedLazyItem) Deleted() bool {
+func (i *lazyItem) Deleted() bool {
 	return false
 }
 
-func (i *unindexedLazyItem) ModTime() time.Time {
+func (i *lazyItem) ModTime() time.Time {
 	return i.modTime
 }
 
-func NewLazyItem(
+func NewLazyItemWithInfo(
 	ctx context.Context,
 	itemGetter ItemDataGetter,
 	itemID string,
 	modTime time.Time,
 	errs *fault.Bus,
-) *lazyItem {
-	return &lazyItem{
-		unindexedLazyItem: NewUnindexedLazyItem(
+) *lazyItemWithInfo {
+	return &lazyItemWithInfo{
+		lazyItem: NewLazyItem(
 			ctx,
 			itemGetter,
 			itemID,
@@ -244,17 +244,17 @@ func NewLazyItem(
 	}
 }
 
-// lazyItem represents a single item retrieved from the remote service. It
-// lazily fetches the item's data when the first call to ToReader().Read() is
+// lazyItemWithInfo represents a single item retrieved from the remote service.
+// It lazily fetches the item's data when the first call to ToReader().Read() is
 // made.
 //
 // This item implements ItemInfo so it should be used for things that need to
 // appear in backup details.
-type lazyItem struct {
-	*unindexedLazyItem
+type lazyItemWithInfo struct {
+	*lazyItem
 }
 
-func (i *lazyItem) Info() (details.ItemInfo, error) {
+func (i *lazyItemWithInfo) Info() (details.ItemInfo, error) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 
