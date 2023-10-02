@@ -22,6 +22,20 @@ import (
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
+func openLocalKopiaRepo(
+	t tester.TestT,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) (*conn, error) {
+	st := storeTD.NewFilesystemStorage(t)
+
+	k := NewConn(st)
+	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}); err != nil {
+		return nil, err
+	}
+
+	return k, nil
+}
+
 func openKopiaRepo(
 	t tester.TestT,
 	ctx context.Context, //revive:disable-line:context-as-argument
@@ -81,7 +95,7 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	st := storeTD.NewPrefixedS3Storage(t)
+	st := storeTD.NewFilesystemStorage(t)
 	k := NewConn(st)
 
 	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
@@ -101,7 +115,7 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	st := storeTD.NewPrefixedS3Storage(t)
+	st := storeTD.NewFilesystemStorage(t)
 	st.Provider = storage.ProviderUnknown
 	k := NewConn(st)
 
@@ -115,7 +129,7 @@ func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	st := storeTD.NewPrefixedS3Storage(t)
+	st := storeTD.NewFilesystemStorage(t)
 	k := NewConn(st)
 
 	err := k.Connect(ctx, repository.Options{})
@@ -408,7 +422,7 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 		Host: "bar",
 	}
 
-	st := storeTD.NewPrefixedS3Storage(t)
+	st := storeTD.NewFilesystemStorage(t)
 	k := NewConn(st)
 
 	err := k.Initialize(ctx, opts, repository.Retention{})
