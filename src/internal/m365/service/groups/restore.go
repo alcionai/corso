@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -55,6 +56,7 @@ func ConsumeRestoreCollections(
 
 		var (
 			err      error
+			siteName string
 			category = dc.FullPath().Category()
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
@@ -74,31 +76,13 @@ func ConsumeRestoreCollections(
 				logger.Ctx(ctx).With("site_id", siteID).Info("site weburl not found, using site id")
 			}
 
-			// In case a site that we had previously backed up was
-			// deleted, skip that site with a warning.
-			siteName, ok := webURLToSiteNames[webURL]
-			if !ok {
-				site, err := ac.Sites().GetByID(ctx, siteID, api.CallConfig{})
-				if err != nil {
-					webURLToSiteNames[webURL] = ""
-
-					if graph.IsErrSiteNotFound(err) {
-						// TODO(meain): Should we surface this to the user somehow?
-						logger.Ctx(ctx).With("web_url", webURL, "site_id", siteID).
-							Info("Site does not exist, skipping restore.")
-					} else {
-						el.AddRecoverable(ctx, clues.Wrap(err, "getting site").
-							With("web_url", webURL, "site_id", siteID))
-					}
-
-					continue
-				}
-
-				siteName = ptr.Val(site.GetDisplayName())
-				webURLToSiteNames[webURL] = siteName
+			siteName, err = getSiteName(ctx, siteID, webURL, ac.Sites(), webURLToSiteNames)
+			if err != nil {
+				el.AddRecoverable(ctx, clues.Wrap(err, "getting site").
+					With("web_url", webURL, "site_id", siteID))
 			} else if len(siteName) == 0 {
-				// We have previously seen it but the site was
-				// unavailable
+				// Site was deleted in between and restore and is not
+				// available anymore.
 				continue
 			}
 
@@ -154,4 +138,37 @@ func ConsumeRestoreCollections(
 		rcc.RestoreConfig.Location)
 
 	return status, el.Failure()
+}
+
+func getSiteName(
+	ctx context.Context,
+	siteID string,
+	webURL string,
+	ac api.GetByIDer[models.Siteable],
+	webURLToSiteNames map[string]string,
+) (string, error) {
+	// In case a site that we had previously backed up was
+	// deleted, skip that site with a warning.
+	siteName, ok := webURLToSiteNames[webURL]
+	if !ok {
+		site, err := ac.GetByID(ctx, siteID, api.CallConfig{})
+		if err != nil {
+			webURLToSiteNames[webURL] = ""
+
+			if graph.IsErrSiteNotFound(err) {
+				// TODO(meain): Should we surface this to the user somehow?
+				logger.Ctx(ctx).With("web_url", webURL, "site_id", siteID).
+					Info("Site does not exist, skipping restore.")
+
+				return "", nil
+			}
+
+			return "", err
+		}
+
+		siteName = ptr.Val(site.GetDisplayName())
+		webURLToSiteNames[webURL] = siteName
+	}
+
+	return siteName, nil
 }
