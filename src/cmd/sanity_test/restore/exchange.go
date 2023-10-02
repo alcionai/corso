@@ -29,17 +29,19 @@ func CheckEmailRestoration(
 
 	ctx = clues.Add(
 		ctx,
-		"restore_folder_id", restoredTree.ContainerID,
-		"restore_folder_name", restoredTree.ContainerName,
-		"original_folder_id", dataTree.ContainerID,
-		"original_folder_name", dataTree.ContainerName)
+		"restore_folder_id", restoredTree.ID,
+		"restore_folder_name", restoredTree.Name,
+		"original_folder_id", dataTree.ID,
+		"original_folder_name", dataTree.Name)
 
 	verifyEmailData(ctx, folderNameToRestoreItemCount, folderNameToItemCount)
 
 	common.AssertEqualTrees[models.MailFolderable](
 		ctx,
 		dataTree,
-		restoredTree.Children[envs.DataFolder])
+		restoredTree.Children[envs.DataFolder],
+		nil,
+		nil)
 }
 
 func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[string]int32) {
@@ -81,11 +83,11 @@ func buildSanitree(
 	}
 
 	root := &common.Sanitree[models.MailFolderable]{
-		Container:     mmf,
-		ContainerID:   ptr.Val(mmf.GetId()),
-		ContainerName: ptr.Val(mmf.GetDisplayName()),
-		ContainsItems: int(ptr.Val(mmf.GetTotalItemCount())),
-		Children:      map[string]*common.Sanitree[models.MailFolderable]{},
+		Self:        mmf,
+		ID:          ptr.Val(mmf.GetId()),
+		Name:        ptr.Val(mmf.GetDisplayName()),
+		CountLeaves: int(ptr.Val(mmf.GetTotalItemCount())),
+		Children:    map[string]*common.Sanitree[models.MailFolderable]{},
 	}
 
 	recurseSubfolders(ctx, ac, root, userID)
@@ -102,21 +104,22 @@ func recurseSubfolders(
 	childFolders, err := ac.Mail().GetContainerChildren(
 		ctx,
 		userID,
-		parent.ContainerID)
+		parent.ID)
 	if err != nil {
 		common.Fatal(ctx, "getting subfolders", err)
 	}
 
 	for _, child := range childFolders {
 		c := &common.Sanitree[models.MailFolderable]{
-			Container:     child,
-			ContainerID:   ptr.Val(child.GetId()),
-			ContainerName: ptr.Val(child.GetDisplayName()),
-			ContainsItems: int(ptr.Val(child.GetTotalItemCount())),
-			Children:      map[string]*common.Sanitree[models.MailFolderable]{},
+			Parent:      parent,
+			Self:        child,
+			ID:          ptr.Val(child.GetId()),
+			Name:        ptr.Val(child.GetDisplayName()),
+			CountLeaves: int(ptr.Val(child.GetTotalItemCount())),
+			Children:    map[string]*common.Sanitree[models.MailFolderable]{},
 		}
 
-		parent.Children[c.ContainerName] = c
+		parent.Children[c.Name] = c
 
 		if ptr.Val(child.GetChildFolderCount()) > 0 {
 			recurseSubfolders(ctx, ac, c, userID)
