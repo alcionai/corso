@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/exp/slices"
@@ -13,12 +12,9 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365"
 )
@@ -179,7 +175,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
-	return runBackups(
+	return genericCreateCommand(
 		ctx,
 		r,
 		"SharePoint",
@@ -303,7 +299,7 @@ func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
 // backup details
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup details onedrive [<flag>...]`
+// `corso backup details SharePoint [<flag>...]`
 func sharePointDetailsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     sharePointServiceCommand,
@@ -324,70 +320,27 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	return runDetailsSharePointCmd(cmd)
+}
+
+func runDetailsSharePointCmd(cmd *cobra.Command) error {
 	ctx := cmd.Context()
 	opts := utils.MakeSharePointOpts(cmd)
 
-	r, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.SharePointService)
+	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
+	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
+
+	ds, err := genericDetailsCommand(cmd, flags.BackupIDFV, sel.Selector)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	defer utils.CloseRepo(ctx, r)
-
-	ds, err := runDetailsSharePointCmd(
-		ctx,
-		r,
-		flags.BackupIDFV,
-		opts,
-		rdao.Opts.SkipReduce)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	if len(ds.Entries) == 0 {
+	if len(ds.Entries) > 0 {
+		ds.PrintEntries(ctx)
+	} else {
 		Info(ctx, selectors.ErrorNoMatchingItems)
-		return nil
 	}
-
-	ds.PrintEntries(ctx)
 
 	return nil
-}
-
-// runDetailsSharePointCmd actually performs the lookup in backup details.
-// the fault.Errors return is always non-nil.  Callers should check if
-// errs.Failure() == nil.
-func runDetailsSharePointCmd(
-	ctx context.Context,
-	r repository.BackupGetter,
-	backupID string,
-	opts utils.SharePointOpts,
-	skipReduce bool,
-) (*details.Details, error) {
-	if err := utils.ValidateSharePointRestoreFlags(backupID, opts); err != nil {
-		return nil, err
-	}
-
-	ctx = clues.Add(ctx, "backup_id", backupID)
-
-	d, _, errs := r.GetBackupDetails(ctx, backupID)
-	// TODO: log/track recoverable errors
-	if errs.Failure() != nil {
-		if errors.Is(errs.Failure(), data.ErrNotFound) {
-			return nil, clues.New("no backup exists with the id " + backupID)
-		}
-
-		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
-	}
-
-	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
-
-	if !skipReduce {
-		sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
-		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
-		utils.FilterSharePointRestoreInfoSelectors(sel, opts)
-		d = sel.Reduce(ctx, d, errs)
-	}
-
-	return d, nil
 }

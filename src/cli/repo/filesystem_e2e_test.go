@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -138,7 +137,7 @@ func (suite *FilesystemE2ESuite) TestConnectFilesystemCmd() {
 				repository.NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, repository.InitConfig{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it

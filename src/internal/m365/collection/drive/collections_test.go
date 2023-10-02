@@ -985,7 +985,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 		{
 			// Bad formats are logged but skip adding entries to the maps and don't
 			// return an error.
-			name: "BadFormat",
+			name:           "BadFormat",
+			expectedDeltas: map[string]string{},
+			expectedPaths:  map[string]map[string]string{},
 			cols: []func() []graph.MetadataCollectionEntry{
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
@@ -996,7 +998,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				},
 			},
 			canUsePreviousBackup: false,
-			errCheck:             assert.Error,
+			errCheck:             assert.NoError,
 		},
 		{
 			// Unexpected files are logged and skipped. They don't cause an error to
@@ -1061,10 +1063,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas:       nil,
-			expectedPaths:        nil,
+			expectedDeltas:       map[string]string{},
+			expectedPaths:        map[string]map[string]string{},
 			canUsePreviousBackup: false,
-			errCheck:             assert.Error,
+			errCheck:             assert.NoError,
 		},
 		{
 			name: "DriveAlreadyFound_Deltas",
@@ -1091,10 +1093,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas:       nil,
-			expectedPaths:        nil,
+			expectedDeltas:       map[string]string{},
+			expectedPaths:        map[string]map[string]string{},
 			canUsePreviousBackup: false,
-			errCheck:             assert.Error,
+			errCheck:             assert.NoError,
 		},
 	}
 
