@@ -33,11 +33,11 @@ func CheckExport(
 		ac,
 		driveID)
 
-	dataTree, ok := root.Children[envs.SourceContainer]
+	sourceTree, ok := root.Children[envs.SourceContainer]
 	common.Assert(
 		ctx,
 		func() bool { return ok },
-		"should find root-level data folder",
+		"should find root-level source data folder",
 		envs.SourceContainer,
 		"not found")
 
@@ -53,7 +53,7 @@ func CheckExport(
 
 	common.CompareDiffTrees(
 		ctx,
-		dataTree,
+		sourceTree,
 		fpTree.Children[envs.SourceContainer],
 		comparator)
 

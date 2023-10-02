@@ -20,18 +20,18 @@ func CheckEmailRestoration(
 	envs common.Envs,
 ) {
 	restoredTree := buildSanitree(ctx, ac, envs.UserID, envs.RestoreContainer)
-	dataTree := buildSanitree(ctx, ac, envs.UserID, envs.SourceContainer)
+	sourceTree := buildSanitree(ctx, ac, envs.UserID, envs.SourceContainer)
 
 	ctx = clues.Add(
 		ctx,
-		"restore_folder_id", restoredTree.ID,
-		"restore_folder_name", restoredTree.Name,
-		"original_folder_id", dataTree.ID,
-		"original_folder_name", dataTree.Name)
+		"restore_container_id", restoredTree.ID,
+		"restore_container_name", restoredTree.Name,
+		"source_container_id", sourceTree.ID,
+		"source_container_name", sourceTree.Name)
 
 	common.AssertEqualTrees[models.MailFolderable, any](
 		ctx,
-		dataTree,
+		sourceTree,
 		restoredTree.Children[envs.SourceContainer],
 		nil,
 		nil)

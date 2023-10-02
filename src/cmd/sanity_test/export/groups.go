@@ -43,7 +43,7 @@ func checkChannelMessagesExport(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	dataTree := populateMessagesSanitree(
+	sourceTree := populateMessagesSanitree(
 		ctx,
 		ac,
 		envs.GroupID)
@@ -60,7 +60,7 @@ func checkChannelMessagesExport(
 
 	common.CompareDiffTrees(
 		ctx,
-		dataTree,
+		sourceTree,
 		fpTree.Children["Messages"],
 		comparator)
 
