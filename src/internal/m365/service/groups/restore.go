@@ -147,28 +147,30 @@ func getSiteName(
 	ac api.GetByIDer[models.Siteable],
 	webURLToSiteNames map[string]string,
 ) (string, error) {
-	// In case a site that we had previously backed up was
-	// deleted, skip that site with a warning.
 	siteName, ok := webURLToSiteNames[webURL]
-	if !ok {
-		site, err := ac.GetByID(ctx, siteID, api.CallConfig{})
-		if err != nil {
-			webURLToSiteNames[webURL] = ""
+	if ok {
+		return siteName, nil
+	}
 
-			if graph.IsErrSiteNotFound(err) {
-				// TODO(meain): Should we surface this to the user somehow?
-				logger.Ctx(ctx).With("web_url", webURL, "site_id", siteID).
-					Info("Site does not exist, skipping restore.")
+	site, err := ac.GetByID(ctx, siteID, api.CallConfig{})
+	if err != nil {
+		webURLToSiteNames[webURL] = ""
 
-				return "", nil
-			}
+		if graph.IsErrSiteNotFound(err) {
+			// TODO(meain): Should we surface this to the user somehow?
+			// In case a site that we had previously backed up was
+			// deleted, skip that site with a warning.
+			logger.Ctx(ctx).With("web_url", webURL, "site_id", siteID).
+				Info("Site does not exist, skipping restore.")
 
-			return "", err
+			return "", nil
 		}
 
-		siteName = ptr.Val(site.GetDisplayName())
-		webURLToSiteNames[webURL] = siteName
+		return "", err
 	}
+
+	siteName = ptr.Val(site.GetDisplayName())
+	webURLToSiteNames[webURL] = siteName
 
 	return siteName, nil
 }
