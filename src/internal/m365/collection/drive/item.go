@@ -10,11 +10,14 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common"
+	jwt "github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	onedrive "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -112,6 +115,26 @@ func (dg *downloadWithRetries) Get(
 	return resp.Body, nil
 }
 
+// isURLExpired inspects the jwt token embed in the item download url
+// and returns true if it is expired.
+func isURLExpired(
+	ctx context.Context,
+	url string,
+) (bool, error) {
+	// Extract the raw JWT string from the download url.
+	rawJWT, err := common.GetQueryParamFromURL(url, onedrive.JWTQueryParam)
+	if err != nil {
+		return false, clues.Stack(err)
+	}
+
+	expired, err := jwt.IsJWTExpired(rawJWT)
+	if err != nil {
+		return false, clues.Stack(err)
+	}
+
+	return expired, nil
+}
+
 func downloadFile(
 	ctx context.Context,
 	ag api.Getter,
@@ -119,6 +142,18 @@ func downloadFile(
 ) (io.ReadCloser, error) {
 	if len(url) == 0 {
 		return nil, clues.New("empty file url").WithClues(ctx)
+	}
+
+	// Precheck for url expiry before we make a call to graph to download the
+	// file. If the url is expired, we can return early and save a call to graph.
+	//
+	// Ignore all errors encountered during the check. We can rely on graph to
+	// return errors on malformed urls. Ignoring errors also future proofs against
+	// any sudden graph changes, for e.g. if graph decides to emb the token under a
+	// different query param.
+	expired, err := isURLExpired(ctx, url)
+	if err == nil && expired {
+		return nil, graph.ErrTokenExpired
 	}
 
 	rc, err := readers.NewResetRetryHandler(

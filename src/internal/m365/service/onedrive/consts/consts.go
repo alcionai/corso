@@ -12,6 +12,10 @@ const (
 	RootPathDir = "root:"
 	// root id for drive items
 	RootID = "root"
+
+	// JWTQueryParam represents the query param embed in graph download URLs.
+	// It holds the JWT token.
+	JWTQueryParam = "tempauth"
 )
 
 func DriveFolderPrefixBuilder(driveID string) *path.Builder {
