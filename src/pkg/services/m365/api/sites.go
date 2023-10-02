@@ -142,6 +142,8 @@ func (c Sites) GetByID(
 			options.QueryParameters.Expand = cc.Expand
 		}
 
+		// NOTE: `/sites` sends `displayName` as name, but
+		// `/sites/<site-id>` send base of `webURL` as name
 		resp, err = c.Stable.
 			Client().
 			Sites().
