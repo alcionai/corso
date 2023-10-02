@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	onedrive "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -115,26 +116,6 @@ func (dg *downloadWithRetries) Get(
 	return resp.Body, nil
 }
 
-// isURLExpired inspects the jwt token embed in the item download url
-// and returns true if it is expired.
-func isURLExpired(
-	ctx context.Context,
-	url string,
-) (bool, error) {
-	// Extract the raw JWT string from the download url.
-	rawJWT, err := common.GetQueryParamFromURL(url, onedrive.JWTQueryParam)
-	if err != nil {
-		return false, clues.Stack(err)
-	}
-
-	expired, err := jwt.IsJWTExpired(rawJWT)
-	if err != nil {
-		return false, clues.Stack(err)
-	}
-
-	return expired, nil
-}
-
 func downloadFile(
 	ctx context.Context,
 	ag api.Getter,
@@ -153,6 +134,7 @@ func downloadFile(
 	// different query param.
 	expired, err := isURLExpired(ctx, url)
 	if err == nil && expired {
+		logger.Ctx(ctx).Debug("expired item download url")
 		return nil, graph.ErrTokenExpired
 	}
 
@@ -227,4 +209,27 @@ func setName(orig models.ItemReferenceable, driveName string) models.ItemReferen
 	orig.SetName(&driveName)
 
 	return orig
+}
+
+// isURLExpired inspects the jwt token embed in the item download url
+// and returns true if it is expired.
+func isURLExpired(
+	ctx context.Context,
+	url string,
+) (bool, error) {
+	// Extract the raw JWT string from the download url.
+	rawJWT, err := common.GetQueryParamFromURL(url, onedrive.JWTQueryParam)
+	if err != nil {
+		logger.CtxErr(ctx, err).Infow("query param not found",
+			"query_param", onedrive.JWTQueryParam)
+		return false, clues.Stack(err)
+	}
+
+	expired, err := jwt.IsJWTExpired(rawJWT)
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("checking jwt expiry")
+		return false, clues.Stack(err)
+	}
+
+	return expired, nil
 }

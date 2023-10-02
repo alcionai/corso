@@ -16,6 +16,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -49,6 +51,8 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	suite.service = loadTestService(t)
 	suite.user = tconfig.SecondaryM365UserID(t)
 
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	pager := suite.service.ac.Drives().NewUserDrivePager(suite.user, nil)
 
 	odDrives, err := api.GetAllDrives(ctx, pager)
@@ -60,19 +64,13 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	suite.userDriveID = ptr.Val(odDrives[0].GetId())
 }
 
-// TestItemReader is an integration test that makes a few assumptions
-// about the test environment
-// 1) It assumes the test user has a drive
-// 2) It assumes the drive has a file it can use to test `driveItemReader`
-// The test checks these in below
-func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
+func getOneDriveItem(
+	ctx context.Context,
+	t *testing.T,
+	ac api.Client,
+	driveID string,
+) models.DriveItemable {
 	var driveItem models.DriveItemable
-	// This item collector tries to find "a" drive item that is a non-empty
 	// file to test the reader function
 	itemCollector := func(
 		_ context.Context,
@@ -99,14 +97,14 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		return nil
 	}
 
-	ip := suite.service.ac.
+	ip := ac.
 		Drives().
-		NewDriveItemDeltaPager(suite.userDriveID, "", api.DriveItemSelectDefault())
+		NewDriveItemDeltaPager(driveID, "", api.DriveItemSelectDefault())
 
 	_, _, _, err := collectItems(
 		ctx,
 		ip,
-		suite.userDriveID,
+		driveID,
 		"General",
 		itemCollector,
 		map[string]string{},
@@ -114,6 +112,21 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
+	return driveItem
+}
+
+// TestItemReader is an integration test that makes a few assumptions
+// about the test environment
+// 1) It assumes the test user has a drive
+// 2) It assumes the drive has a file it can use to test `driveItemReader`
+// The test checks these in below
+func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	driveItem := getOneDriveItem(ctx, t, suite.service.ac, suite.userDriveID)
 	// Test Requirement 2: Need a file
 	require.NotEmpty(
 		t,
@@ -135,6 +148,39 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	size, err := io.Copy(io.Discard, itemData)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotZero(t, size)
+}
+
+// In prod we consider any errors in isURLExpired as non-fatal and
+// continue with the download. This is a regression test to make sure
+// we keep track of any graph changes to the download url format, including
+// how graph embeds the jwt token.
+func (suite *ItemIntegrationSuite) TestIsURLExpired() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	driveItem := getOneDriveItem(ctx, t, suite.service.ac, suite.userDriveID)
+	require.NotEmpty(
+		t,
+		driveItem,
+		"no file item found for user %s drive %s",
+		suite.user,
+		suite.userDriveID)
+
+	var url string
+
+	for _, key := range downloadURLKeys {
+		if v, err := str.AnyValueToString(key, driveItem.GetAdditionalData()); err == nil {
+			url = v
+			break
+		}
+	}
+
+	expired, err := isURLExpired(ctx, url)
+	require.NoError(t, err, clues.ToCore(err))
+
+	require.False(t, expired)
 }
 
 // TestItemWriter is an integration test for uploading data to OneDrive
