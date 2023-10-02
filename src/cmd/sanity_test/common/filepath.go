@@ -1,38 +1,72 @@
 package common
 
 import (
+	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
-
-	"github.com/alcionai/clues"
 )
 
-func FilepathWalker(
-	folderName string,
-	exportFileSizes map[string]int64,
-	startTime time.Time,
-) filepath.WalkFunc {
-	return func(path string, info os.FileInfo, err error) error {
+func BuildFilepathSanitree(
+	ctx context.Context,
+	rootDir string,
+) *Sanitree[fs.FileInfo] {
+	var root *Sanitree[fs.FileInfo]
+
+	walker := func(
+		path string,
+		info os.FileInfo,
+		err error,
+	) error {
 		if err != nil {
-			return clues.Stack(err)
+			Fatal(ctx, "param in filepath walker", err)
 		}
 
-		if info.IsDir() {
+		relPath, err := filepath.Rel(rootDir, path)
+		if err != nil {
+			Fatal(ctx, "getting relative filepath", err)
+		}
+
+		if root == nil {
+			root = &Sanitree[fs.FileInfo]{
+				Self:     info,
+				ID:       info.Name(),
+				Name:     info.Name(),
+				Leaves:   map[string]*Sanileaf[fs.FileInfo]{},
+				Children: map[string]*Sanitree[fs.FileInfo]{},
+			}
+
 			return nil
 		}
 
-		relPath, err := filepath.Rel(folderName, path)
-		if err != nil {
-			return clues.Stack(err)
-		}
+		node := root.NodeAt(ctx, relPath)
 
-		exportFileSizes[relPath] = info.Size()
-
-		if startTime.After(info.ModTime()) {
-			startTime = info.ModTime()
+		if info.IsDir() {
+			node.Children[info.Name()] = &Sanitree[fs.FileInfo]{
+				Parent:   node,
+				Self:     info,
+				ID:       info.Name(),
+				Name:     info.Name(),
+				Leaves:   map[string]*Sanileaf[fs.FileInfo]{},
+				Children: map[string]*Sanitree[fs.FileInfo]{},
+			}
+		} else {
+			node.Leaves[info.Name()] = &Sanileaf[fs.FileInfo]{
+				Parent: node,
+				Self:   info,
+				ID:     info.Name(),
+				Name:   info.Name(),
+				Size:   info.Size(),
+			}
 		}
 
 		return nil
 	}
+
+	err := filepath.Walk(rootDir, walker)
+	if err != nil {
+		Fatal(ctx, "walking filepath", err)
+	}
+
+	return root
 }
