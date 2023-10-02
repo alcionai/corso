@@ -31,6 +31,16 @@ func createJWTToken(
 	return token.SignedString([]byte(""))
 }
 
+const (
+	// Raw test token valid for 100 years.
+	rawToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9." +
+		"eyJuYmYiOiIxNjkxODE5NTc5IiwiZXhwIjoiMzk0NTUyOTE3OSIsImVuZHBvaW50dXJsTGVuZ3RoIjoiMTYw" +
+		"IiwiaXNsb29wYmFjayI6IlRydWUiLCJ2ZXIiOiJoYXNoZWRwcm9vZnRva2VuIiwicm9sZXMiOiJhbGxmaWxl" +
+		"cy53cml0ZSBhbGxzaXRlcy5mdWxsY29udHJvbCBhbGxwcm9maWxlcy5yZWFkIiwidHQiOiIxIiwiYWxnIjoi" +
+		"SFMyNTYifQ" +
+		".signature"
+)
+
 func (suite *JWTUnitSuite) TestIsJWTExpired() {
 	table := []struct {
 		name      string
@@ -60,6 +70,15 @@ func (suite *JWTUnitSuite) TestIsJWTExpired() {
 					})
 			},
 			expect:    true,
+			expectErr: assert.NoError,
+		},
+		// Test with a raw token which is not generated with go-jwt lib.
+		{
+			name: "raw token",
+			getToken: func() (string, error) {
+				return rawToken, nil
+			},
+			expect:    false,
 			expectErr: assert.NoError,
 		},
 		{
