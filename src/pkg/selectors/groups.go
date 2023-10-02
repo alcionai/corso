@@ -699,7 +699,7 @@ func (s GroupsScope) IncludesCategory(cat groupsCategory) bool {
 // returns true if the category is included in the scope's data type,
 // and the value is set to Any().
 func (s GroupsScope) IsAny(cat groupsCategory) bool {
-	return IsAnyTarget(s, cat)
+	return isAnyTarget(s, cat)
 }
 
 // Get returns the data category in the scope.  If the scope
