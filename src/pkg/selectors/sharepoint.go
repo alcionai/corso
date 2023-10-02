@@ -625,7 +625,7 @@ func (s SharePointScope) IncludesCategory(cat sharePointCategory) bool {
 // returns true if the category is included in the scope's data type,
 // and the value is set to Any().
 func (s SharePointScope) IsAny(cat sharePointCategory) bool {
-	return IsAnyTarget(s, cat)
+	return isAnyTarget(s, cat)
 }
 
 // Get returns the data category in the scope.  If the scope

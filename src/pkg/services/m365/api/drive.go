@@ -351,10 +351,6 @@ func (c Drives) PostItemLinkShareUpdate(
 	return itm, nil
 }
 
-// ---------------------------------------------------------------------------
-// helper funcs
-// ---------------------------------------------------------------------------
-
 // DriveItemCollisionKeyy constructs a key from the item name.
 // collision keys are used to identify duplicate item conflicts for handling advanced restoration config.
 func DriveItemCollisionKey(item models.DriveItemable) string {
@@ -363,18 +359,4 @@ func DriveItemCollisionKey(item models.DriveItemable) string {
 	}
 
 	return ptr.Val(item.GetName())
-}
-
-// NewDriveItem initializes a `models.DriveItemable` with either a folder or file entry.
-func NewDriveItem(name string, folder bool) *models.DriveItem {
-	itemToCreate := models.NewDriveItem()
-	itemToCreate.SetName(&name)
-
-	if folder {
-		itemToCreate.SetFolder(models.NewFolder())
-	} else {
-		itemToCreate.SetFile(models.NewFile())
-	}
-
-	return itemToCreate
 }
