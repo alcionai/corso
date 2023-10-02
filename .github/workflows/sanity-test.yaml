@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - sanity-refactor-for-gropus
+      - add-groups-sanity-tests
   workflow_dispatch:
     inputs:
       user:
