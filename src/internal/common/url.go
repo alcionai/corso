@@ -7,7 +7,7 @@ import (
 )
 
 // GetQueryParamFromURL parses an URL and returns value of the specified
-// query parameter.
+// query parameter. In case of multiple occurrences, first one is returned.
 func GetQueryParamFromURL(
 	rawURL, queryParam string,
 ) (string, error) {

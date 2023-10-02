@@ -220,14 +220,15 @@ func isURLExpired(
 	// Extract the raw JWT string from the download url.
 	rawJWT, err := common.GetQueryParamFromURL(url, onedrive.JWTQueryParam)
 	if err != nil {
-		logger.CtxErr(ctx, err).Infow("query param not found",
-			"query_param", onedrive.JWTQueryParam)
+		logger.CtxErr(ctx, err).Info("query param not found")
+
 		return false, clues.Stack(err)
 	}
 
 	expired, err := jwt.IsJWTExpired(rawJWT)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("checking jwt expiry")
+
 		return false, clues.Stack(err)
 	}
 
