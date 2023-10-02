@@ -17,8 +17,8 @@ func IsJWTExpired(
 	p := jwt.NewParser()
 
 	// Note: Call to ParseUnverified is intentional since token verification is
-	// not our objective. We assume the token signature is valid & verified
-	// by caller stack. We only care about the embed claims in the token.
+	// not our objective. We only care about the embed claims in the token.
+	// We assume the token signature is valid & verified by caller stack.
 	token, _, err := p.ParseUnverified(rawToken, &jwt.RegisteredClaims{})
 	if err != nil {
 		return false, clues.Wrap(err, "invalid jwt")

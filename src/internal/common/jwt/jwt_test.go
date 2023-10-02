@@ -22,7 +22,6 @@ func TestJWTUnitSuite(t *testing.T) {
 
 // createJWTToken creates a JWT token with the specified expiration time.
 func createJWTToken(
-	expiration time.Time,
 	claims jwt.MapClaims,
 ) (string, error) {
 	// build claims from map
@@ -52,7 +51,6 @@ func (suite *JWTUnitSuite) TestIsJWTExpired() {
 			name: "alive token",
 			getToken: func() (string, error) {
 				return createJWTToken(
-					time.Now().Add(time.Hour),
 					jwt.MapClaims{
 						"exp": time.Now().Add(time.Hour).Unix(),
 					})
@@ -64,7 +62,6 @@ func (suite *JWTUnitSuite) TestIsJWTExpired() {
 			name: "expired token",
 			getToken: func() (string, error) {
 				return createJWTToken(
-					time.Now().Add(time.Hour),
 					jwt.MapClaims{
 						"exp": time.Now().Add(-time.Hour).Unix(),
 					})
@@ -74,7 +71,7 @@ func (suite *JWTUnitSuite) TestIsJWTExpired() {
 		},
 		// Test with a raw token which is not generated with go-jwt lib.
 		{
-			name: "raw token",
+			name: "alive raw token",
 			getToken: func() (string, error) {
 				return rawToken, nil
 			},
@@ -84,7 +81,7 @@ func (suite *JWTUnitSuite) TestIsJWTExpired() {
 		{
 			name: "alive token, missing exp claim",
 			getToken: func() (string, error) {
-				return createJWTToken(time.Now().Add(time.Hour), jwt.MapClaims{})
+				return createJWTToken(jwt.MapClaims{})
 			},
 			expect:    false,
 			expectErr: assert.NoError,
