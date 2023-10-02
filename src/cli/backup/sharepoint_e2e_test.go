@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -46,7 +47,7 @@ func (suite *NoBackupSharePointE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.SharePointService)
 }
 
 func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
@@ -103,7 +104,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.SharePointService)
 
 	var (
 		m365SiteID = tconfig.M365SiteID(t)
