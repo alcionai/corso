@@ -55,7 +55,7 @@ func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
 	defer flush()
 
 	suite.its = newIntegrationTesterSetup(t)
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.ExchangeService)
 }
 
 func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupListCmd_noBackups() {
@@ -109,7 +109,7 @@ func (suite *BackupExchangeE2ESuite) SetupSuite() {
 	defer flush()
 
 	suite.its = newIntegrationTesterSetup(t)
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.ExchangeService)
 }
 
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_email() {
@@ -336,7 +336,7 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 	defer flush()
 
 	suite.its = newIntegrationTesterSetup(t)
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.ExchangeService)
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
@@ -579,7 +579,7 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.ExchangeService)
 
 	m365UserID := tconfig.M365UserID(t)
 	users := []string{m365UserID}
