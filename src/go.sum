@@ -71,8 +71,8 @@ github.com/armon/go-metrics v0.4.1 h1:hR91U9KYmb6bLBYLQjyM+3j+rcd/UhE+G78SFnF8gJ
 github.com/armon/go-metrics v0.4.1/go.mod h1:E6amYzXo6aW1tqzoZGT755KkbgrJsSdpwZ+3JqfkOG4=
 github.com/aws/aws-sdk-go v1.45.0 h1:qoVOQHuLacxJMO71T49KeE70zm+Tk3vtrl7XO4VUPZc=
 github.com/aws/aws-sdk-go v1.45.0/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
-github.com/aws/aws-xray-sdk-go v1.8.1 h1:O4pXV+hnCskaamGsZnFpzHyAmgPGusBMN6i7nnsy0Fo=
-github.com/aws/aws-xray-sdk-go v1.8.1/go.mod h1:wMmVYzej3sykAttNBkXQHK/+clAPWTOrPiajEk7Cp3A=
+github.com/aws/aws-xray-sdk-go v1.8.2 h1:PVxNWnQG+rAYjxsmhEN97DTO57Dipg6VS0wsu6bXUB0=
+github.com/aws/aws-xray-sdk-go v1.8.2/go.mod h1:wMmVYzej3sykAttNBkXQHK/+clAPWTOrPiajEk7Cp3A=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
