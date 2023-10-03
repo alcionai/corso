@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
@@ -458,9 +461,8 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		for item := range collection.Items(ctx, fault.New(true)) {
 			t.Log("File: " + item.ID())
 
-			bs, err := io.ReadAll(item.ToReader())
+			_, err := io.ReadAll(item.ToReader())
 			require.NoError(t, err, clues.ToCore(err))
-			t.Log(string(bs))
 		}
 	}
 }
@@ -570,6 +572,126 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	}
 
 	assert.True(t, foundSitesMetadata, "missing sites metadata")
+
+	status := ctrl.Wait()
+	assert.NotZero(t, status.Successes)
+	t.Log(status.String())
+}
+
+func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_InvalidMetadata() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		groupID  = tconfig.M365GroupID(t)
+		ctrl     = newController(ctx, t, path.GroupsService)
+		groupIDs = []string{groupID}
+	)
+
+	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sel := selectors.NewGroupsBackup(groupIDs)
+	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+
+	sel.SetDiscreteOwnerIDName(id, name)
+
+	site, err := suite.connector.AC.Groups().GetRootSite(ctx, groupID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	pth, err := path.Build(
+		suite.tenantID,
+		groupID,
+		path.GroupsService,
+		path.LibrariesCategory,
+		true,
+		odConsts.SitesPathDir,
+		ptr.Val(site.GetId()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	mmc := []data.RestoreCollection{
+		mock.Collection{
+			Path: pth,
+			ItemData: []data.Item{
+				&mock.Item{
+					ItemID: "previouspath",
+					Reader: io.NopCloser(bytes.NewReader([]byte("invalid"))),
+				},
+			},
+		},
+	}
+
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion:   version.NoBackup,
+		Options:             control.DefaultOptions(),
+		ProtectedResource:   inMock.NewProvider(id, name),
+		Selector:            sel.Selector,
+		MetadataCollections: mmc,
+	}
+
+	collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
+		ctx,
+		bpc,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, canUsePreviousBackup, "can use previous backup")
+	// No excludes yet as this isn't an incremental backup.
+	assert.True(t, excludes.Empty())
+
+	// we don't know an exact count of drives this will produce,
+	// but it should be more than one.
+	assert.Greater(t, len(collections), 1)
+
+	p, err := path.BuildMetadata(
+		suite.tenantID,
+		groupID,
+		path.GroupsService,
+		path.LibrariesCategory,
+		false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	p, err = p.Append(false, odConsts.SitesPathDir)
+	require.NoError(t, err, clues.ToCore(err))
+
+	foundSitesMetadata := false
+	foundRootTombstone := false
+
+	sp, err := path.BuildPrefix(
+		suite.tenantID,
+		groupID,
+		path.GroupsService,
+		path.LibrariesCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sp, err = sp.Append(false, odConsts.SitesPathDir, ptr.Val(site.GetId()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	for _, coll := range collections {
+		if coll.State() == data.DeletedState {
+			if coll.PreviousPath() != nil && coll.PreviousPath().String() == sp.String() {
+				foundRootTombstone = true
+			}
+
+			continue
+		}
+
+		sitesMetadataCollection := coll.FullPath().String() == p.String()
+
+		for object := range coll.Items(ctx, fault.New(true)) {
+			if object.ID() == "previouspath" && sitesMetadataCollection {
+				foundSitesMetadata = true
+			}
+
+			buf := &bytes.Buffer{}
+			_, err := buf.ReadFrom(object.ToReader())
+			assert.NoError(t, err, "reading item", clues.ToCore(err))
+		}
+	}
+
+	assert.True(t, foundSitesMetadata, "missing sites metadata")
+	assert.True(t, foundRootTombstone, "missing root tombstone")
 
 	status := ctrl.Wait()
 	assert.NotZero(t, status.Successes)

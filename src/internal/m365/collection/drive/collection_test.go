@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	metaTD "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata/testdata"
@@ -256,7 +257,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			mt := readItem.(data.ItemModTime)
 			assert.Equal(t, now, mt.ModTime())
 
-			readData, err := io.ReadAll(readItem.ToReader())
+			rr, err := readers.NewVersionedRestoreReader(readItem.ToReader())
 			test.expectErr(t, err)
 
 			if err != nil {
@@ -267,13 +268,25 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				return
 			}
 
+			assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+			assert.False(t, rr.Format().DelInFlight)
+
+			readData, err := io.ReadAll(rr)
+			require.NoError(t, err, clues.ToCore(err))
+
 			assert.Equal(t, stubItemContent, readData)
 
 			readItemMeta := readItems[1]
 			assert.Equal(t, stubItemID+metadata.MetaFileSuffix, readItemMeta.ID())
 
+			rr, err = readers.NewVersionedRestoreReader(readItemMeta.ToReader())
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+			assert.False(t, rr.Format().DelInFlight)
+
 			readMeta := metadata.Metadata{}
-			err = json.NewDecoder(readItemMeta.ToReader()).Decode(&readMeta)
+			err = json.NewDecoder(rr).Decode(&readMeta)
 			require.NoError(t, err, clues.ToCore(err))
 
 			metaTD.AssertMetadataEqual(t, stubMeta, readMeta)
@@ -485,12 +498,18 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 
 	for _, i := range readItems {
 		if strings.HasSuffix(i.ID(), metadata.MetaFileSuffix) {
-			content, err := io.ReadAll(i.ToReader())
+			rr, err := readers.NewVersionedRestoreReader(i.ToReader())
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+			assert.False(t, rr.Format().DelInFlight)
+
+			content, err := io.ReadAll(rr)
 			require.NoError(t, err, clues.ToCore(err))
 			require.Equal(t, `{"filename":"Fake Item","permissionMode":1}`, string(content))
 
 			im, ok := i.(data.ItemModTime)
-			require.Equal(t, ok, true, "modtime interface")
+			require.True(t, ok, "modtime interface")
 			require.Greater(t, im.ModTime(), mtime, "permissions time greater than mod time")
 		}
 	}

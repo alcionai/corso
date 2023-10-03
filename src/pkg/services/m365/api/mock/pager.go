@@ -32,11 +32,10 @@ func (dnl *DeltaNextLinkValues[T]) GetOdataDeltaLink() *string {
 }
 
 type PagerResult[T any] struct {
-	Values     []T
-	NextLink   *string
-	DeltaLink  *string
-	ResetDelta bool
-	Err        error
+	Values    []T
+	NextLink  *string
+	DeltaLink *string
+	Err       error
 }
 
 // ---------------------------------------------------------------------------

@@ -1268,7 +1268,10 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		ctx,
 		[]identity.Reasoner{r},
 		nil,
-		[]data.BackupCollection{dc1, dc2},
+		[]data.BackupCollection{
+			dataMock.NewVersionedBackupCollection(t, dc1),
+			dataMock.NewVersionedBackupCollection(t, dc2),
+		},
 		nil,
 		nil,
 		true,
@@ -1577,12 +1580,15 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 				})
 		}
 
-		collections = append(collections, collection)
+		collections = append(
+			collections,
+			dataMock.NewVersionedBackupCollection(t, collection))
 	}
 
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
-	stats, deets, _, err := suite.w.ConsumeBackupCollections(
+	// Other tests check basic things about deets so not doing that again here.
+	stats, _, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		[]identity.Reasoner{r},
 		nil,
@@ -1597,8 +1603,6 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.Equal(t, stats.TotalDirectoryCount, expectedDirs)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
-	// 6 file and 2 folder entries.
-	assert.Len(t, deets.Details().Entries, expectedFiles+2)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }
@@ -1629,7 +1633,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 		excludePrefix         bool
 		expectedCachedItems   int
 		expectedUncachedItems int
-		cols                  func() []data.BackupCollection
+		cols                  func(t *testing.T) []data.BackupCollection
 		backupIDCheck         require.ValueAssertionFunc
 		restoreCheck          assert.ErrorAssertionFunc
 	}{
@@ -1638,7 +1642,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			excludeItem:           true,
 			expectedCachedItems:   len(suite.filesByPath) - 1,
 			expectedUncachedItems: 0,
-			cols: func() []data.BackupCollection {
+			cols: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
 			backupIDCheck: require.NotEmpty,
@@ -1650,7 +1654,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			excludePrefix:         true,
 			expectedCachedItems:   len(suite.filesByPath) - 1,
 			expectedUncachedItems: 0,
-			cols: func() []data.BackupCollection {
+			cols: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
 			backupIDCheck: require.NotEmpty,
@@ -1661,7 +1665,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			// No snapshot should be made since there were no changes.
 			expectedCachedItems:   0,
 			expectedUncachedItems: 0,
-			cols: func() []data.BackupCollection {
+			cols: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
 			// Backup doesn't run.
@@ -1671,7 +1675,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			name:                  "NoExcludeItemWithChanges",
 			expectedCachedItems:   len(suite.filesByPath),
 			expectedUncachedItems: 1,
-			cols: func() []data.BackupCollection {
+			cols: func(t *testing.T) []data.BackupCollection {
 				c := exchMock.NewCollection(
 					suite.testPath1,
 					suite.testPath1,
@@ -1679,7 +1683,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				c.ColState = data.NotMovedState
 				c.PrevPath = suite.testPath1
 
-				return []data.BackupCollection{c}
+				return []data.BackupCollection{
+					dataMock.NewVersionedBackupCollection(t, c),
+				}
 			},
 			backupIDCheck: require.NotEmpty,
 			restoreCheck:  assert.NoError,
@@ -1717,7 +1723,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 						Manifest: man,
 						Reasons:  []identity.Reasoner{r},
 					}),
-				test.cols(),
+				test.cols(t),
 				excluded,
 				nil,
 				true,

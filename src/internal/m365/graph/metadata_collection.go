@@ -57,11 +57,16 @@ func (mce MetadataCollectionEntry) toMetadataItem() (metadataItem, error) {
 		return metadataItem{}, clues.Wrap(err, "serializing metadata")
 	}
 
+	item, err := data.NewUnindexedPrefetchedItem(
+		io.NopCloser(buf),
+		mce.fileName,
+		time.Now())
+	if err != nil {
+		return metadataItem{}, clues.Stack(err)
+	}
+
 	return metadataItem{
-		Item: data.NewUnindexedPrefetchedItem(
-			io.NopCloser(buf),
-			mce.fileName,
-			time.Now()),
+		Item: item,
 		size: int64(buf.Len()),
 	}, nil
 }

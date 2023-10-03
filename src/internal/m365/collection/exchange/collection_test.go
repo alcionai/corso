@@ -17,6 +17,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -55,13 +56,20 @@ func (suite *CollectionUnitSuite) TestPrefetchedItem_Reader() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ed := data.NewPrefetchedItem(
+			ed, err := data.NewPrefetchedItem(
 				io.NopCloser(bytes.NewReader(test.readData)),
 				"itemID",
 				details.ItemInfo{})
+			require.NoError(t, err, clues.ToCore(err))
+
+			r, err := readers.NewVersionedRestoreReader(ed.ToReader())
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+			assert.False(t, r.Format().DelInFlight)
 
 			buf := &bytes.Buffer{}
-			_, err := buf.ReadFrom(ed.ToReader())
+			_, err = buf.ReadFrom(r)
 			assert.NoError(t, err, "reading data: %v", clues.ToCore(err))
 			assert.Equal(t, test.readData, buf.Bytes(), "read data")
 			assert.Equal(t, "itemID", ed.ID(), "item ID")
@@ -493,11 +501,11 @@ func (suite *CollectionUnitSuite) TestLazyItem_NoRead_GetInfo_Errors() {
 		time.Now(),
 		fault.New(true))
 
-	_, err := li.(data.ItemInfo).Info()
+	_, err := li.Info()
 	assert.Error(suite.T(), err, "Info without reading data should error")
 }
 
-func (suite *CollectionUnitSuite) TestLazyItem() {
+func (suite *CollectionUnitSuite) TestLazyItem_GetDataErrors() {
 	var (
 		parentPath = "inbox/private/silly cats"
 		now        = time.Now()
@@ -505,44 +513,19 @@ func (suite *CollectionUnitSuite) TestLazyItem() {
 
 	table := []struct {
 		name              string
-		modTime           time.Time
 		getErr            error
 		serializeErr      error
-		expectModTime     time.Time
 		expectReadErrType error
-		dataCheck         assert.ValueAssertionFunc
-		expectInfoErr     bool
-		expectInfoErrType error
 	}{
 		{
-			name:              "ReturnsEmptyReaderOnDeletedInFlight",
-			modTime:           now,
-			getErr:            graph.ErrDeletedInFlight,
-			dataCheck:         assert.Empty,
-			expectInfoErr:     true,
-			expectInfoErrType: data.ErrNotFound,
-		},
-		{
-			name:          "ReturnsValidReaderAndInfo",
-			modTime:       now,
-			dataCheck:     assert.NotEmpty,
-			expectModTime: now,
-		},
-		{
 			name:              "ReturnsErrorOnGenericGetError",
-			modTime:           now,
 			getErr:            assert.AnError,
 			expectReadErrType: assert.AnError,
-			dataCheck:         assert.Empty,
-			expectInfoErr:     true,
 		},
 		{
 			name:              "ReturnsErrorOnGenericSerializeError",
-			modTime:           now,
 			serializeErr:      assert.AnError,
 			expectReadErrType: assert.AnError,
-			dataCheck:         assert.Empty,
-			expectInfoErr:     true,
 		},
 	}
 
@@ -575,47 +558,128 @@ func (suite *CollectionUnitSuite) TestLazyItem() {
 					userID:       "userID",
 					itemID:       "itemID",
 					getter:       getter,
-					modTime:      test.modTime,
+					modTime:      now,
 					immutableIDs: false,
 					parentPath:   parentPath,
 				},
 				"itemID",
-				test.modTime,
+				now,
 				fault.New(true))
 
 			assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
-			assert.Equal(
-				t,
-				test.modTime,
-				li.(data.ItemModTime).ModTime(),
-				"item mod time")
+			assert.Equal(t, now, li.ModTime(), "item mod time")
 
-			readData, err := io.ReadAll(li.ToReader())
-			if test.expectReadErrType == nil {
-				assert.NoError(t, err, "reading item data: %v", clues.ToCore(err))
-			} else {
-				assert.ErrorIs(t, err, test.expectReadErrType, "read error")
-			}
-
-			test.dataCheck(t, readData, "read item data")
-
-			info, err := li.(data.ItemInfo).Info()
-
-			// Didn't expect an error getting info, it should be valid.
-			if !test.expectInfoErr {
-				assert.NoError(t, err, "getting item info: %v", clues.ToCore(err))
-				assert.Equal(t, parentPath, info.Exchange.ParentPath)
-				assert.Equal(t, test.expectModTime, info.Modified())
-
-				return
-			}
+			_, err := readers.NewVersionedRestoreReader(li.ToReader())
+			assert.ErrorIs(t, err, test.expectReadErrType)
 
 			// Should get some form of error when trying to get info.
+			_, err = li.Info()
 			assert.Error(t, err, "Info()")
-
-			if test.expectInfoErrType != nil {
-				assert.ErrorIs(t, err, test.expectInfoErrType, "Info() error")
-			}
 		})
 	}
+}
+
+func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlight() {
+	var (
+		t = suite.T()
+
+		parentPath = "inbox/private/silly cats"
+		now        = time.Now()
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	getter := &mock.ItemGetSerialize{GetErr: graph.ErrDeletedInFlight}
+
+	li := data.NewLazyItem(
+		ctx,
+		&lazyItemGetter{
+			userID:       "userID",
+			itemID:       "itemID",
+			getter:       getter,
+			modTime:      now,
+			immutableIDs: false,
+			parentPath:   parentPath,
+		},
+		"itemID",
+		now,
+		fault.New(true))
+
+	assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
+	assert.Equal(
+		t,
+		now,
+		li.ModTime(),
+		"item mod time")
+
+	r, err := readers.NewVersionedRestoreReader(li.ToReader())
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+	assert.True(t, r.Format().DelInFlight)
+
+	readData, err := io.ReadAll(r)
+	assert.NoError(t, err, "reading item data: %v", clues.ToCore(err))
+
+	assert.Empty(t, readData, "read item data")
+
+	_, err = li.Info()
+	assert.ErrorIs(t, err, data.ErrNotFound, "Info() error")
+}
+
+func (suite *CollectionUnitSuite) TestLazyItem() {
+	var (
+		t = suite.T()
+
+		parentPath = "inbox/private/silly cats"
+		now        = time.Now()
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// Exact data type doesn't really matter.
+	testData := models.NewMessage()
+	testData.SetSubject(ptr.To("hello world"))
+
+	getter := &mock.ItemGetSerialize{GetData: testData}
+
+	li := data.NewLazyItem(
+		ctx,
+		&lazyItemGetter{
+			userID:       "userID",
+			itemID:       "itemID",
+			getter:       getter,
+			modTime:      now,
+			immutableIDs: false,
+			parentPath:   parentPath,
+		},
+		"itemID",
+		now,
+		fault.New(true))
+
+	assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
+	assert.Equal(
+		t,
+		now,
+		li.ModTime(),
+		"item mod time")
+
+	r, err := readers.NewVersionedRestoreReader(li.ToReader())
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+	assert.False(t, r.Format().DelInFlight)
+
+	readData, err := io.ReadAll(r)
+	assert.NoError(t, err, "reading item data: %v", clues.ToCore(err))
+
+	assert.NotEmpty(t, readData, "read item data")
+
+	info, err := li.Info()
+	assert.NoError(t, err, "getting item info: %v", clues.ToCore(err))
+
+	assert.Equal(t, parentPath, info.Exchange.ParentPath)
+	assert.Equal(t, now, info.Modified())
 }
