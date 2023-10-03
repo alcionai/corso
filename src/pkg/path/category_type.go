@@ -96,14 +96,10 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		ChannelMessagesCategory: {},
 		LibrariesCategory:       {},
 	},
-	TeamsService: {
-		ChannelMessagesCategory: {},
-		LibrariesCategory:       {},
-	},
 }
 
 func validateServiceAndCategoryStrings(s, c string) (ServiceType, CategoryType, error) {
-	service := toServiceType(s)
+	service := ToServiceType(s)
 	if service == UnknownService {
 		return UnknownService, UnknownCategory, clues.Stack(ErrorUnknownService).With("service", fmt.Sprintf("%q", s))
 	}
