@@ -592,7 +592,9 @@ func (w *conn) UpdatePassword(ctx context.Context, password string, opts reposit
 	defer kopiaRef.Close(ctx)
 
 	kopiaRepo := kopiaRef.Repository.(repo.DirectRepository)
-	err := kopiaRepo.FormatManager().ChangePassword(ctx, password)
+	if err := kopiaRepo.FormatManager().ChangePassword(ctx, password); err != nil {
+		return clues.Wrap(err, "unable to update password")
+	}
 
-	return clues.Wrap(err, "unable to update password")
+	return nil
 }

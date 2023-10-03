@@ -277,7 +277,8 @@ func (r *repository) UpdatePassword(ctx context.Context, password string) (err e
 		return clues.Wrap(err, "connecting kopia client")
 	}
 
-	if err := kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo); err != nil {
+	err = kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo)
+	if err != nil {
 		return clues.Wrap(err, "updating on kopia")
 	}
 

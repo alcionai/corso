@@ -246,11 +246,13 @@ func (suite *RepositoryIntegrationSuite) TestRepository_UpdatePassword() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	acct := tconfig.NewM365Account(t)
+
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 	r, err := New(
 		ctx,
-		account.Account{},
+		acct,
 		st,
 		control.DefaultOptions(),
 		NewRepoID)
