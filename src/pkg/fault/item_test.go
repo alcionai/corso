@@ -256,3 +256,72 @@ func (suite *ItemUnitSuite) TestSkipped_HeadersValues() {
 		})
 	}
 }
+
+func (suite *ItemUnitSuite) TestAlert_String() {
+	var (
+		t = suite.T()
+		a Alert
+	)
+
+	assert.Contains(t, a.String(), "Alert: <nil>")
+
+	a = Alert{
+		Item:    Item{},
+		Message: "",
+	}
+	assert.Contains(t, a.String(), "Alert: <nil>")
+
+	a = Alert{
+		Item: Item{
+			ID: "item_id",
+		},
+		Message: "msg",
+	}
+	assert.NotContains(t, a.String(), "item_id")
+	assert.Contains(t, a.String(), "Alert: msg")
+}
+
+func (suite *ItemUnitSuite) TestNewAlert() {
+	t := suite.T()
+	addtl := map[string]any{"foo": "bar"}
+	a := NewAlert("message-to-show", "ns", "item_id", "item_name", addtl)
+
+	expect := Alert{
+		Item: Item{
+			Namespace:  "ns",
+			ID:         "item_id",
+			Name:       "item_name",
+			Additional: addtl,
+		},
+		Message: "message-to-show",
+	}
+
+	assert.Equal(t, expect, *a)
+}
+
+func (suite *ItemUnitSuite) TestAlert_HeadersValues() {
+	addtl := map[string]any{
+		AddtlContainerID:   "cid",
+		AddtlContainerName: "cname",
+	}
+
+	table := []struct {
+		name   string
+		alert  *Alert
+		expect []string
+	}{
+		{
+			name:   "new alert",
+			alert:  NewAlert("message-to-show", "ns", "id", "name", addtl),
+			expect: []string{"Alert", "message-to-show", "cname", "name", "id"},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			assert.Equal(t, []string{"Action", "Message", "Container", "Name", "ID"}, test.alert.Headers())
+			assert.Equal(t, test.expect, test.alert.Values())
+		})
+	}
+}
