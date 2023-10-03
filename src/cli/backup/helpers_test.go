@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
@@ -132,6 +133,7 @@ type dependencies struct {
 func prepM365Test(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
+	pst path.ServiceType,
 ) dependencies {
 	var (
 		acct     = tconfig.NewM365Account(t)
@@ -159,7 +161,9 @@ func prepM365Test(
 		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = repo.Initialize(ctx, repository.InitConfig{})
+	err = repo.Initialize(ctx, repository.InitConfig{
+		Service: pst,
+	})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return dependencies{

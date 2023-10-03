@@ -207,7 +207,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			// init the repo first
 			r, err := repository.New(
 				ctx,
-				account.Account{},
+				tconfig.NewM365Account(t),
 				st,
 				control.DefaultOptions(),
 				repository.NewRepoID)
