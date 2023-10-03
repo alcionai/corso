@@ -15,8 +15,21 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+// temporary hack identifier
+// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
+// TODO: https://github.com/alcionai/corso/issues/4003
+const LabelForceNoBackupCreation = "label_forces_no_backup_creations"
+
 type Bus struct {
 	mu *sync.Mutex
+
+	// When creating a local bus, the parent property retains a pointer
+	// to the root Bus.  Even in the case of multiple chained creations of
+	// local busses, the parent reference remains the original root bus,
+	// and does not create a linked list of lineage.  Any errors and failures
+	// created by a local instance will get fielded to the parent.  But only
+	// local errors will returned by property getter funcs.
+	parent *Bus
 
 	// Failure probably identifies errors that were added to the bus
 	// or localBus via AddRecoverable, but which were promoted
@@ -65,6 +78,8 @@ func (e *Bus) FailFast() bool {
 
 // Failure returns the primary error.  If not nil, this
 // indicates the operation exited prior to completion.
+// If the bus is a local instance, this only returns the
+// local failure, and will not return parent data.
 func (e *Bus) Failure() error {
 	return e.failure
 }
@@ -73,29 +88,16 @@ func (e *Bus) Failure() error {
 // recoverable points of processing.  This is often during
 // iteration where a single failure (ex: retrieving an item),
 // doesn't require the entire process to end.
+// If the bus is a local instance, this only returns the
+// local recovered errors, and will not return parent data.
 func (e *Bus) Recovered() []error {
 	return slices.Clone(e.recoverable)
-}
-
-// Skipped returns the slice of items that were permanently
-// skipped during processing.
-func (e *Bus) Skipped() []Skipped {
-	return slices.Clone(e.skipped)
-}
-
-// Alerts returns the slice of alerts generated during runtime.
-func (e *Bus) Alerts() []Alert {
-	return slices.Clone(e.alerts)
 }
 
 // Fail sets the non-recoverable error (ie: bus.failure)
 // in the bus.  If a failure error is already present,
 // the error gets added to the recoverable slice for
 // purposes of tracking.
-//
-// TODO: Return Data, not Bus.  The consumers of a failure
-// should care about the state of data, not the communication
-// pattern.
 func (e *Bus) Fail(err error) *Bus {
 	if err == nil {
 		return e
@@ -112,13 +114,16 @@ func (e *Bus) Fail(err error) *Bus {
 func (e *Bus) setFailure(err error) *Bus {
 	if e.failure == nil {
 		e.failure = err
-		return e
+	} else {
+		// technically not a recoverable error: we're using the
+		// recoverable slice as an overflow container here to
+		// ensure everything is tracked.
+		e.recoverable = append(e.recoverable, err)
 	}
 
-	// technically not a recoverable error: we're using the
-	// recoverable slice as an overflow container here to
-	// ensure everything is tracked.
-	e.recoverable = append(e.recoverable, err)
+	if e.parent != nil {
+		e.parent.setFailure(err)
+	}
 
 	return e
 }
@@ -127,9 +132,6 @@ func (e *Bus) setFailure(err error) *Bus {
 // errors (ie: bus.recoverable).  If failFast is true, the first
 // added error will get copied to bus.failure, causing the bus
 // to identify as non-recoverably failed.
-//
-// TODO: nil return, not Bus, since we don't want people to return
-// from errors.AddRecoverable().
 func (e *Bus) AddRecoverable(ctx context.Context, err error) {
 	if err == nil {
 		return
@@ -168,70 +170,12 @@ func (e *Bus) addRecoverableErr(err error) bool {
 
 	e.recoverable = append(e.recoverable, err)
 
+	// local bus instances must promote errors to the root bus.
+	if e.parent != nil {
+		e.parent.addRecoverableErr(err)
+	}
+
 	return isFail
-}
-
-// AddSkip appends a record of a Skipped item to the fault bus.
-// Importantly, skipped items are not the same as recoverable
-// errors.  An item should only be skipped under the following
-// conditions.  All other cases should be handled as errors.
-// 1. The conditions for skipping the item are well-known and
-// well-documented.  End users need to be able to understand
-// both the conditions and identifications of skips.
-// 2. Skipping avoids a permanent and consistent failure.  If
-// the underlying reason is transient or otherwise recoverable,
-// the item should not be skipped.
-func (e *Bus) AddSkip(ctx context.Context, s *Skipped) {
-	if s == nil {
-		return
-	}
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.logAndAddSkip(ctx, s, 1)
-}
-
-// logs the error and adds a skipped item.
-func (e *Bus) logAndAddSkip(ctx context.Context, s *Skipped, trace int) {
-	logger.CtxStack(ctx, trace+1).
-		With("skipped", s).
-		Info("skipped item")
-	e.addSkip(s)
-}
-
-func (e *Bus) addSkip(s *Skipped) *Bus {
-	e.skipped = append(e.skipped, *s)
-	return e
-}
-
-// AddAlert appends a record of an Alert message to the fault bus.
-// Importantly, alerts are not errors, exceptions, or skipped items.
-// An alert should only be generated if no other fault functionality
-// is in use, but that we still want the end user to clearly and
-// plainly receive a notification about a runtime event.
-func (e *Bus) AddAlert(ctx context.Context, a *Alert) {
-	if a == nil {
-		return
-	}
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.logAndAddAlert(ctx, a, 1)
-}
-
-// logs the error and adds an alert.
-func (e *Bus) logAndAddAlert(ctx context.Context, a *Alert, trace int) {
-	logger.CtxStack(ctx, trace+1).
-		With("alert", a).
-		Info("alert: " + a.Message)
-	e.addAlert(a)
-}
-
-func (e *Bus) addAlert(a *Alert) *Bus {
-	e.alerts = append(e.alerts, *a)
-	return e
 }
 
 // Errors returns the plain record of errors that were aggregated
@@ -435,68 +379,21 @@ func (pec printableErrCore) Values() []string {
 // Local aggregator
 // ---------------------------------------------------------------------------
 
-// Local constructs a new local bus to handle error aggregation in a
-// constrained scope.  Local busses shouldn't be passed down  to other
-// funcs, and the function that spawned the local bus should always
-// return `local.Failure()` to ensure that hard failures are propagated
-// back upstream.
-func (e *Bus) Local() *LocalBus {
-	return &LocalBus{
-		mu:  &sync.Mutex{},
-		bus: e,
-	}
-}
+// Local constructs a new bus with a local reference to handle error aggregation
+// in a constrained scope.  This allows the caller to review recoverable errors and
+// failures within only the current codespace, as opposed to the global set of errors.
+// The function that spawned the local bus should always return `bus.Failure()` to
+// ensure that hard failures are propagated back upstream.
+func (e *Bus) Local() *Bus {
+	parent := e
 
-type LocalBus struct {
-	mu      *sync.Mutex
-	bus     *Bus
-	current error
-}
-
-func (e *LocalBus) AddRecoverable(ctx context.Context, err error) {
-	if err == nil {
-		return
+	// always use the root bus reference, if e is not the root.
+	if e.parent != nil {
+		e = e.parent
 	}
 
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if e.current == nil && e.bus.failFast {
-		e.current = err
+	return &Bus{
+		mu:     &sync.Mutex{},
+		parent: parent,
 	}
-
-	e.bus.logAndAddRecoverable(ctx, err, 1)
 }
-
-// AddSkip appends a record of a Skipped item to the local bus.
-// Importantly, skipped items are not the same as recoverable
-// errors.  An item should only be skipped under the following
-// conditions.  All other cases should be handled as errors.
-// 1. The conditions for skipping the item are well-known and
-// well-documented.  End users need to be able to understand
-// both the conditions and identifications of skips.
-// 2. Skipping avoids a permanent and consistent failure.  If
-// the underlying reason is transient or otherwise recoverable,
-// the item should not be skipped.
-func (e *LocalBus) AddSkip(ctx context.Context, s *Skipped) {
-	if s == nil {
-		return
-	}
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.bus.logAndAddSkip(ctx, s, 1)
-}
-
-// Failure returns the failure that happened within the local bus.
-// It does not return the underlying bus.Failure(), only the failure
-// that was recorded within the local bus instance.  This error should
-// get returned by any func which created a local bus.
-func (e *LocalBus) Failure() error {
-	return e.current
-}
-
-// temporary hack identifier
-// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
-const LabelForceNoBackupCreation = "label_forces_no_backup_creations"
