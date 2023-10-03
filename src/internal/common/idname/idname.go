@@ -1,6 +1,7 @@
 package idname
 
 import (
+	"context"
 	"strings"
 
 	"golang.org/x/exp/maps"
@@ -19,6 +20,14 @@ type Provider interface {
 	ID() string
 	// the human-readable name of the thing.
 	Name() string
+}
+
+type GetResourceIDAndNamer interface {
+	GetResourceIDAndNameFrom(
+		ctx context.Context,
+		owner string,
+		cacher Cacher,
+	) (Provider, error)
 }
 
 var _ Provider = &is{}

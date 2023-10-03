@@ -380,18 +380,18 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
+	site, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.LibraryFolders([]string{"foo"}, selectors.PrefixMatch()))
 
-	sel.SetDiscreteOwnerIDName(id, name)
+	sel.SetDiscreteOwnerIDName(site.ID(), site.Name())
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: inMock.NewProvider(id, name),
+		ProtectedResource: site,
 		Selector:          sel.Selector,
 	}
 
@@ -430,18 +430,18 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
+	site, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Lists(selectors.Any()))
 
-	sel.SetDiscreteOwnerIDName(id, name)
+	sel.SetDiscreteOwnerIDName(site.ID(), site.Name())
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: inMock.NewProvider(id, name),
+		ProtectedResource: site,
 		Selector:          sel.Selector,
 	}
 
@@ -516,18 +516,18 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 		groupIDs = []string{groupID}
 	)
 
-	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
+	group, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewGroupsBackup(groupIDs)
 	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
 
-	sel.SetDiscreteOwnerIDName(id, name)
+	sel.SetDiscreteOwnerIDName(group.ID(), group.Name())
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: inMock.NewProvider(id, name),
+		ProtectedResource: group,
 		Selector:          sel.Selector,
 	}
 
@@ -590,13 +590,13 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 		groupIDs = []string{groupID}
 	)
 
-	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
+	group, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewGroupsBackup(groupIDs)
 	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
 
-	sel.SetDiscreteOwnerIDName(id, name)
+	sel.SetDiscreteOwnerIDName(group.ID(), group.Name())
 
 	site, err := suite.connector.AC.Groups().GetRootSite(ctx, groupID)
 	require.NoError(t, err, clues.ToCore(err))
@@ -626,7 +626,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion:   version.NoBackup,
 		Options:             control.DefaultOptions(),
-		ProtectedResource:   inMock.NewProvider(id, name),
+		ProtectedResource:   group,
 		Selector:            sel.Selector,
 		MetadataCollections: mmc,
 	}

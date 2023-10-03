@@ -120,7 +120,7 @@ func generateAndRestoreItems(
 
 func getControllerAndVerifyResourceOwner(
 	ctx context.Context,
-	resourceOwner string,
+	protectedResource string,
 	pst path.ServiceType,
 ) (
 	*m365.Controller,
@@ -150,12 +150,12 @@ func getControllerAndVerifyResourceOwner(
 		return nil, account.Account{}, nil, clues.Wrap(err, "connecting to graph api")
 	}
 
-	id, _, err := ctrl.PopulateProtectedResourceIDAndName(ctx, resourceOwner, nil)
+	pr, err := ctrl.PopulateProtectedResourceIDAndName(ctx, protectedResource, nil)
 	if err != nil {
 		return nil, account.Account{}, nil, clues.Wrap(err, "verifying user")
 	}
 
-	return ctrl, acct, ctrl.IDNameLookup.ProviderForID(id), nil
+	return ctrl, acct, pr, nil
 }
 
 type item struct {

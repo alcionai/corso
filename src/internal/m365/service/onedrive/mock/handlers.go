@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -34,9 +35,9 @@ type BackupHandler struct {
 	CanonPathFn  canonPather
 	CanonPathErr error
 
-	ResourceOwner string
-	Service       path.ServiceType
-	Category      path.CategoryType
+	ProtectedResource idname.Provider
+	Service           path.ServiceType
+	Category          path.CategoryType
 
 	DrivePagerV api.Pager[models.Driveable]
 	// driveID -> itemPager
@@ -60,7 +61,7 @@ func DefaultOneDriveBH(resourceOwner string) *BackupHandler {
 		PathPrefixFn:         defaultOneDrivePathPrefixer,
 		MetadataPathPrefixFn: defaultOneDriveMetadataPathPrefixer,
 		CanonPathFn:          defaultOneDriveCanonPather,
-		ResourceOwner:        resourceOwner,
+		ProtectedResource:    idname.NewProvider(resourceOwner, resourceOwner),
 		Service:              path.OneDriveService,
 		Category:             path.FilesCategory,
 		LocationIDFn:         defaultOneDriveLocationIDer,
@@ -80,7 +81,7 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler {
 		PathPrefixFn:         defaultSharePointPathPrefixer,
 		MetadataPathPrefixFn: defaultSharePointMetadataPathPrefixer,
 		CanonPathFn:          defaultSharePointCanonPather,
-		ResourceOwner:        resourceOwner,
+		ProtectedResource:    idname.NewProvider(resourceOwner, resourceOwner),
 		Service:              path.SharePointService,
 		Category:             path.LibrariesCategory,
 		LocationIDFn:         defaultSharePointLocationIDer,
@@ -90,7 +91,7 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler {
 }
 
 func (h BackupHandler) PathPrefix(tID, driveID string) (path.Path, error) {
-	pp, err := h.PathPrefixFn(tID, h.ResourceOwner, driveID)
+	pp, err := h.PathPrefixFn(tID, h.ProtectedResource.ID(), driveID)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +100,7 @@ func (h BackupHandler) PathPrefix(tID, driveID string) (path.Path, error) {
 }
 
 func (h BackupHandler) MetadataPathPrefix(tID string) (path.Path, error) {
-	pp, err := h.MetadataPathPrefixFn(tID, h.ResourceOwner)
+	pp, err := h.MetadataPathPrefixFn(tID, h.ProtectedResource.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +109,7 @@ func (h BackupHandler) MetadataPathPrefix(tID string) (path.Path, error) {
 }
 
 func (h BackupHandler) CanonicalPath(pb *path.Builder, tID string) (path.Path, error) {
-	cp, err := h.CanonPathFn(pb, tID, h.ResourceOwner)
+	cp, err := h.CanonPathFn(pb, tID, h.ProtectedResource.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +137,13 @@ func (h BackupHandler) NewLocationIDer(driveID string, elems ...string) details.
 	return h.LocationIDFn(driveID, elems...)
 }
 
-func (h BackupHandler) AugmentItemInfo(details.ItemInfo, models.DriveItemable, int64, *path.Builder) details.ItemInfo {
+func (h BackupHandler) AugmentItemInfo(
+	details.ItemInfo,
+	idname.Provider,
+	models.DriveItemable,
+	int64,
+	*path.Builder,
+) details.ItemInfo {
 	return h.ItemInfo
 }
 
@@ -308,6 +315,7 @@ func (h RestoreHandler) NewDrivePager(string, []string) api.Pager[models.Driveab
 
 func (h *RestoreHandler) AugmentItemInfo(
 	details.ItemInfo,
+	idname.Provider,
 	models.DriveItemable,
 	int64,
 	*path.Builder,
