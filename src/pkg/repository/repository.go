@@ -303,8 +303,6 @@ func (r *repository) UpdatePassword(ctx context.Context, password string) (err e
 
 	defer kopiaRef.Close(ctx)
 
-	r.Bus.Event(ctx, events.RepoUpdate, nil)
-
 	return nil
 }
 

@@ -591,8 +591,8 @@ func (w *conn) UpdatePassword(ctx context.Context, password string, opts reposit
 
 	defer kopiaRef.Close(ctx)
 
-	repo := kopiaRef.Repository.(repo.DirectRepository)
-	err := repo.FormatManager().ChangePassword(ctx, password)
+	kopiaRepo := kopiaRef.Repository.(repo.DirectRepository)
+	err := kopiaRepo.FormatManager().ChangePassword(ctx, password)
 
 	return clues.Wrap(err, "unable to update password")
 }
