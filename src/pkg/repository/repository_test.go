@@ -256,18 +256,18 @@ func (suite *RepositoryIntegrationSuite) TestRepository_UpdatePassword() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
-	err = r.Connect(ctx)
+	err = r.Connect(ctx, ConnConfig{})
 	assert.NoError(t, err, clues.ToCore(err))
 
 	err = r.UpdatePassword(ctx, "newpass")
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now reconnect with new pass
-	err = r.Connect(ctx)
+	err = r.Connect(ctx, ConnConfig{})
 	assert.Error(t, err, clues.ToCore(err))
 }
 
