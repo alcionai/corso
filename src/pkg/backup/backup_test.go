@@ -1,4 +1,4 @@
-package backup_test
+package backup
 
 import (
 	"strconv"
@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -26,11 +25,11 @@ func TestBackupUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {
+func stubBackup(t time.Time, ownerID, ownerName string) Backup {
 	sel := selectors.NewExchangeBackup([]string{"test"})
 	sel.Include(sel.AllData())
 
-	return backup.Backup{
+	return Backup{
 		BaseModel: model.BaseModel{
 			ID: model.StableID("id"),
 			Tags: map[string]string{
@@ -134,17 +133,17 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues_onlyResourceOwners() {
 func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 	table := []struct {
 		name   string
-		bup    backup.Backup
+		bup    Backup
 		expect string
 	}{
 		{
 			name:   "no extras",
-			bup:    backup.Backup{Status: "test"},
+			bup:    Backup{Status: "test"},
 			expect: "test",
 		},
 		{
 			name: "errors",
-			bup: backup.Backup{
+			bup: Backup{
 				Status:     "test",
 				ErrorCount: 42,
 			},
@@ -152,7 +151,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 		},
 		{
 			name: "malware",
-			bup: backup.Backup{
+			bup: Backup{
 				Status: "test",
 				SkippedCounts: stats.SkippedCounts{
 					TotalSkippedItems: 2,
@@ -163,7 +162,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 		},
 		{
 			name: "errors and malware",
-			bup: backup.Backup{
+			bup: Backup{
 				Status:     "test",
 				ErrorCount: 42,
 				SkippedCounts: stats.SkippedCounts{
@@ -175,7 +174,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 		},
 		{
 			name: "errors and skipped",
-			bup: backup.Backup{
+			bup: Backup{
 				Status:     "test",
 				ErrorCount: 42,
 				SkippedCounts: stats.SkippedCounts{
@@ -186,7 +185,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 		},
 		{
 			name: "errors and invalid OneNote",
-			bup: backup.Backup{
+			bup: Backup{
 				Status:     "test",
 				ErrorCount: 42,
 				SkippedCounts: stats.SkippedCounts{
@@ -198,7 +197,7 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 		},
 		{
 			name: "errors, malware, notFound, invalid OneNote",
-			bup: backup.Backup{
+			bup: Backup{
 				Status:     "test",
 				ErrorCount: 42,
 				SkippedCounts: stats.SkippedCounts{
@@ -224,7 +223,7 @@ func (suite *BackupUnitSuite) TestBackup_MinimumPrintable() {
 	b := stubBackup(now, "id", "name")
 
 	resultIface := b.MinimumPrintable()
-	result, ok := resultIface.(backup.Printable)
+	result, ok := resultIface.(Printable)
 	require.True(t, ok)
 
 	assert.Equal(t, b.ID, result.ID, "id")
