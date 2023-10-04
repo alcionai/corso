@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -56,9 +55,8 @@ func (suite *FilesystemE2ESuite) TestInitFilesystemCmd() {
 
 			st := storeTD.NewFilesystemStorage(t)
 
-			sc, err := st.StorageConfig()
+			cfg, err := st.ToFilesystemConfig()
 			require.NoError(t, err, clues.ToCore(err))
-			cfg := sc.(*storage.FilesystemConfig)
 
 			force := map[string]string{
 				tconfig.TestCfgStorageProvider: storage.ProviderFilesystem.String(),
@@ -113,9 +111,8 @@ func (suite *FilesystemE2ESuite) TestConnectFilesystemCmd() {
 			defer flush()
 
 			st := storeTD.NewFilesystemStorage(t)
-			sc, err := st.StorageConfig()
+			cfg, err := st.ToFilesystemConfig()
 			require.NoError(t, err, clues.ToCore(err))
-			cfg := sc.(*storage.FilesystemConfig)
 
 			force := map[string]string{
 				tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
@@ -134,13 +131,13 @@ func (suite *FilesystemE2ESuite) TestConnectFilesystemCmd() {
 			// init the repo first
 			r, err := repository.New(
 				ctx,
-				account.Account{},
+				tconfig.NewM365Account(t),
 				st,
 				control.DefaultOptions(),
 				repository.NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, repository.InitConfig{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it

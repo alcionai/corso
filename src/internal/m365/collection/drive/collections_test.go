@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
@@ -984,7 +985,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 		{
 			// Bad formats are logged but skip adding entries to the maps and don't
 			// return an error.
-			name: "BadFormat",
+			name:           "BadFormat",
+			expectedDeltas: map[string]string{},
+			expectedPaths:  map[string]map[string]string{},
 			cols: []func() []graph.MetadataCollectionEntry{
 				func() []graph.MetadataCollectionEntry {
 					return []graph.MetadataCollectionEntry{
@@ -995,7 +998,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 				},
 			},
 			canUsePreviousBackup: false,
-			errCheck:             assert.Error,
+			errCheck:             assert.NoError,
 		},
 		{
 			// Unexpected files are logged and skipped. They don't cause an error to
@@ -1060,10 +1063,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas:       nil,
-			expectedPaths:        nil,
+			expectedDeltas:       map[string]string{},
+			expectedPaths:        map[string]map[string]string{},
 			canUsePreviousBackup: false,
-			errCheck:             assert.Error,
+			errCheck:             assert.NoError,
 		},
 		{
 			name: "DriveAlreadyFound_Deltas",
@@ -1090,10 +1093,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas:       nil,
-			expectedPaths:        nil,
+			expectedDeltas:       map[string]string{},
+			expectedPaths:        map[string]map[string]string{},
 			canUsePreviousBackup: false,
-			errCheck:             assert.Error,
+			errCheck:             assert.NoError,
 		},
 	}
 
@@ -1121,7 +1124,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					func(*support.ControllerOperationStatus) {})
 				require.NoError(t, err, clues.ToCore(err))
 
-				cols = append(cols, data.NoFetchRestoreCollection{Collection: mc})
+				cols = append(cols, dataMock.NewUnversionedRestoreCollection(
+					t,
+					data.NoFetchRestoreCollection{Collection: mc}))
 			}
 
 			deltas, paths, canUsePreviousBackup, err := deserializeMetadata(ctx, cols)
@@ -2294,7 +2299,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				func(*support.ControllerOperationStatus) {})
 			assert.NoError(t, err, "creating metadata collection", clues.ToCore(err))
 
-			prevMetadata := []data.RestoreCollection{data.NoFetchRestoreCollection{Collection: mc}}
+			prevMetadata := []data.RestoreCollection{
+				dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: mc}),
+			}
 			errs := fault.New(true)
 
 			delList := prefixmatcher.NewStringSetBuilder()
@@ -2321,7 +2328,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					deltas, paths, _, err := deserializeMetadata(
 						ctx,
 						[]data.RestoreCollection{
-							data.NoFetchRestoreCollection{Collection: baseCol},
+							dataMock.NewUnversionedRestoreCollection(
+								t,
+								data.NoFetchRestoreCollection{Collection: baseCol}),
 						})
 					if !assert.NoError(t, err, "deserializing metadata", clues.ToCore(err)) {
 						continue

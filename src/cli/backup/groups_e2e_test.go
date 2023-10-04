@@ -56,7 +56,7 @@ func (suite *NoBackupGroupsE2ESuite) SetupSuite() {
 	defer flush()
 
 	suite.its = newIntegrationTesterSetup(t)
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.GroupsService)
 }
 
 func (suite *NoBackupGroupsE2ESuite) TestGroupsBackupListCmd_noBackups() {
@@ -110,7 +110,7 @@ func (suite *BackupGroupsE2ESuite) SetupSuite() {
 	defer flush()
 
 	suite.its = newIntegrationTesterSetup(t)
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.GroupsService)
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_channelMessages() {
@@ -287,7 +287,7 @@ func (suite *PreparedBackupGroupsE2ESuite) SetupSuite() {
 	defer flush()
 
 	suite.its = newIntegrationTesterSetup(t)
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.GroupsService)
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
@@ -515,7 +515,7 @@ func (suite *BackupDeleteGroupsE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.GroupsService)
 
 	m365GroupID := tconfig.M365GroupID(t)
 	groups := []string{m365GroupID}

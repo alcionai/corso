@@ -8,15 +8,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/cli/config"
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -64,9 +65,8 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 
 			st := storeTD.NewPrefixedS3Storage(t)
 
-			sc, err := st.StorageConfig()
+			cfg, err := st.ToS3Config()
 			require.NoError(t, err, clues.ToCore(err))
-			cfg := sc.(*storage.S3Config)
 
 			vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 			if !test.hasConfigFile {
@@ -102,10 +102,9 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 	defer flush()
 
 	st := storeTD.NewPrefixedS3Storage(t)
-	sc, err := st.StorageConfig()
-	require.NoError(t, err, clues.ToCore(err))
 
-	cfg := sc.(*storage.S3Config)
+	cfg, err := st.ToS3Config()
+	require.NoError(t, err, clues.ToCore(err))
 
 	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
 
@@ -134,10 +133,8 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 
 	st := storeTD.NewPrefixedS3Storage(t)
 
-	sc, err := st.StorageConfig()
+	cfg, err := st.ToS3Config()
 	require.NoError(t, err, clues.ToCore(err))
-
-	cfg := sc.(*storage.S3Config)
 
 	force := map[string]string{
 		tconfig.TestCfgBucket: "",
@@ -189,9 +186,9 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			defer flush()
 
 			st := storeTD.NewPrefixedS3Storage(t)
-			sc, err := st.StorageConfig()
+
+			cfg, err := st.ToS3Config()
 			require.NoError(t, err, clues.ToCore(err))
-			cfg := sc.(*storage.S3Config)
 
 			force := map[string]string{
 				tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
@@ -210,13 +207,13 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			// init the repo first
 			r, err := repository.New(
 				ctx,
-				account.Account{},
+				tconfig.NewM365Account(t),
 				st,
 				control.DefaultOptions(),
 				repository.NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, repository.InitConfig{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it
@@ -234,60 +231,65 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 	}
 }
 
-func (suite *S3E2ESuite) TestConnectS3Cmd_BadBucket() {
-	t := suite.T()
-	ctx, flush := tester.NewContext(t)
+func (suite *S3E2ESuite) TestConnectS3Cmd_badInputs() {
+	table := []struct {
+		name      string
+		bucket    string
+		prefix    string
+		expectErr func(t *testing.T, err error)
+	}{
+		{
+			name:   "bucket",
+			bucket: "wrong",
+			expectErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, storage.ErrVerifyingConfigStorage, clues.ToCore(err))
+			},
+		},
+		{
+			name:   "prefix",
+			prefix: "wrong",
+			expectErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, storage.ErrVerifyingConfigStorage, clues.ToCore(err))
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	defer flush()
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-	st := storeTD.NewPrefixedS3Storage(t)
-	sc, err := st.StorageConfig()
-	require.NoError(t, err, clues.ToCore(err))
+			st := storeTD.NewPrefixedS3Storage(t)
+			cfg, err := st.ToS3Config()
+			require.NoError(t, err, clues.ToCore(err))
 
-	cfg := sc.(*storage.S3Config)
+			bucket := str.First(test.bucket, cfg.Bucket)
+			prefix := str.First(test.prefix, cfg.Prefix)
 
-	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
+			over := map[string]string{}
+			acct := tconfig.NewM365Account(t)
 
-	ctx = config.SetViper(ctx, vpr)
+			maps.Copy(over, acct.Config)
+			over[account.AccountProviderTypeKey] = account.ProviderM365.String()
+			over[storage.StorageProviderTypeKey] = storage.ProviderS3.String()
 
-	cmd := cliTD.StubRootCmd(
-		"repo", "connect", "s3",
-		"--config-file", configFP,
-		"--bucket", "wrong",
-		"--prefix", cfg.Prefix)
-	cli.BuildCommandTree(cmd)
+			vpr, configFP := tconfig.MakeTempTestConfigClone(t, over)
+			ctx = config.SetViper(ctx, vpr)
 
-	// run the command
-	err = cmd.ExecuteContext(ctx)
-	require.Error(t, err, clues.ToCore(err))
-}
+			cmd := cliTD.StubRootCmd(
+				"repo", "connect", "s3",
+				"--config-file", configFP,
+				"--bucket", bucket,
+				"--prefix", prefix)
+			cli.BuildCommandTree(cmd)
 
-func (suite *S3E2ESuite) TestConnectS3Cmd_BadPrefix() {
-	t := suite.T()
-	ctx, flush := tester.NewContext(t)
-
-	defer flush()
-
-	st := storeTD.NewPrefixedS3Storage(t)
-	sc, err := st.StorageConfig()
-	require.NoError(t, err, clues.ToCore(err))
-
-	cfg := sc.(*storage.S3Config)
-
-	vpr, configFP := tconfig.MakeTempTestConfigClone(t, nil)
-
-	ctx = config.SetViper(ctx, vpr)
-
-	cmd := cliTD.StubRootCmd(
-		"repo", "connect", "s3",
-		"--config-file", configFP,
-		"--bucket", cfg.Bucket,
-		"--prefix", "wrong")
-	cli.BuildCommandTree(cmd)
-
-	// run the command
-	err = cmd.ExecuteContext(ctx)
-	require.Error(t, err, clues.ToCore(err))
+			// run the command
+			err = cmd.ExecuteContext(ctx)
+			require.Error(t, err, clues.ToCore(err))
+			test.expectErr(t, err)
+		})
+	}
 }
 
 func (suite *S3E2ESuite) TestUpdateS3Cmd() {

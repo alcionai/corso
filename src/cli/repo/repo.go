@@ -21,6 +21,11 @@ const (
 	maintenanceCommand = "maintenance"
 )
 
+var (
+	ErrConnectingRepo   = clues.New("connecting repository")
+	ErrInitializingRepo = clues.New("initializing repository")
+)
+
 var repoCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addS3Commands,
 	addFilesystemCommands,

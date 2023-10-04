@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -66,10 +65,8 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	suite.acct = tconfig.NewM365Account(t)
 	suite.st = storeTD.NewPrefixedS3Storage(t)
 
-	sc, err := suite.st.StorageConfig()
+	cfg, err := suite.st.ToS3Config()
 	require.NoError(t, err, clues.ToCore(err))
-
-	cfg := sc.(*storage.S3Config)
 
 	force := map[string]string{
 		tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
@@ -94,7 +91,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = suite.repo.Initialize(ctx, ctrlRepo.Retention{})
+	err = suite.repo.Initialize(ctx, repository.InitConfig{Service: path.ExchangeService})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)

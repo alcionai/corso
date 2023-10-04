@@ -150,27 +150,47 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				parentFolderID,
 				id)
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "writing channel message to serializer"))
+				el.AddRecoverable(
+					ctx,
+					clues.Wrap(err, "writing channel message to serializer").Label(fault.LabelForceNoBackupCreation))
+
 				return
 			}
 
 			if err := writer.WriteObjectValue("", item); err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "writing channel message to serializer"))
+				el.AddRecoverable(
+					ctx,
+					clues.Wrap(err, "writing channel message to serializer").Label(fault.LabelForceNoBackupCreation))
+
 				return
 			}
 
 			itemData, err := writer.GetSerializedContent()
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "serializing channel message"))
+				el.AddRecoverable(
+					ctx,
+					clues.Wrap(err, "serializing channel message").Label(fault.LabelForceNoBackupCreation))
+
 				return
 			}
 
 			info.ParentPath = col.LocationPath().String()
 
-			col.stream <- data.NewPrefetchedItem(
+			storeItem, err := data.NewPrefetchedItem(
 				io.NopCloser(bytes.NewReader(itemData)),
 				id,
 				details.ItemInfo{Groups: info})
+			if err != nil {
+				el.AddRecoverable(
+					ctx,
+					clues.Stack(err).
+						WithClues(ctx).
+						Label(fault.LabelForceNoBackupCreation))
+
+				return
+			}
+
+			col.stream <- storeItem
 
 			atomic.AddInt64(&streamedItems, 1)
 			atomic.AddInt64(&totalBytes, info.Size)

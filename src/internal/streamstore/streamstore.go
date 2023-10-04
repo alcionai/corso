@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"time"
 
 	"github.com/alcionai/clues"
 
@@ -128,7 +129,7 @@ type streamCollection struct {
 	// folderPath indicates what level in the hierarchy this collection
 	// represents
 	folderPath path.Path
-	item       *streamItem
+	item       data.Item
 }
 
 func (dc *streamCollection) FullPath() path.Path {
@@ -158,27 +159,6 @@ func (dc *streamCollection) Items(context.Context, *fault.Bus) <-chan data.Item 
 }
 
 // ---------------------------------------------------------------------------
-// item
-// ---------------------------------------------------------------------------
-
-type streamItem struct {
-	name string
-	data []byte
-}
-
-func (di *streamItem) ID() string {
-	return di.name
-}
-
-func (di *streamItem) ToReader() io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(di.data))
-}
-
-func (di *streamItem) Deleted() bool {
-	return false
-}
-
-// ---------------------------------------------------------------------------
 // common reader/writer/deleter
 // ---------------------------------------------------------------------------
 
@@ -202,12 +182,17 @@ func collect(
 		return nil, clues.Wrap(err, "marshalling body").WithClues(ctx)
 	}
 
+	item, err := data.NewUnindexedPrefetchedItem(
+		io.NopCloser(bytes.NewReader(bs)),
+		col.itemName,
+		time.Now())
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
 	dc := streamCollection{
 		folderPath: p,
-		item: &streamItem{
-			name: col.itemName,
-			data: bs,
-		},
+		item:       item,
 	}
 
 	return &dc, nil

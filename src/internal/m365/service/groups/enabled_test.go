@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type EnabledUnitSuite struct {
@@ -22,14 +23,18 @@ func TestEnabledUnitSuite(t *testing.T) {
 	suite.Run(t, &EnabledUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-var _ getByIDer = mockGBI{}
+var _ api.GetByIDer[models.Groupable] = mockGBI{}
 
 type mockGBI struct {
 	group models.Groupable
 	err   error
 }
 
-func (m mockGBI) GetByID(ctx context.Context, identifier string) (models.Groupable, error) {
+func (m mockGBI) GetByID(
+	ctx context.Context,
+	identifier string,
+	_ api.CallConfig,
+) (models.Groupable, error) {
 	return m.group, m.err
 }
 
@@ -56,13 +61,13 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 
 	table := []struct {
 		name      string
-		mock      func(context.Context) getByIDer
+		mock      func(context.Context) api.GetByIDer[models.Groupable]
 		expect    assert.BoolAssertionFunc
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
 			name: "ok",
-			mock: func(ctx context.Context) getByIDer {
+			mock: func(ctx context.Context) api.GetByIDer[models.Groupable] {
 				return mockGBI{
 					group: unified,
 				}
@@ -72,7 +77,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		},
 		{
 			name: "non-unified group",
-			mock: func(ctx context.Context) getByIDer {
+			mock: func(ctx context.Context) api.GetByIDer[models.Groupable] {
 				return mockGBI{
 					group: nonUnified,
 				}
@@ -82,7 +87,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		},
 		{
 			name: "group not found",
-			mock: func(ctx context.Context) getByIDer {
+			mock: func(ctx context.Context) api.GetByIDer[models.Groupable] {
 				return mockGBI{
 					err: graph.Stack(ctx, odErrMsg(string(graph.RequestResourceNotFound), "message")),
 				}
@@ -92,7 +97,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		},
 		{
 			name: "arbitrary error",
-			mock: func(ctx context.Context) getByIDer {
+			mock: func(ctx context.Context) api.GetByIDer[models.Groupable] {
 				return mockGBI{
 					err: assert.AnError,
 				}

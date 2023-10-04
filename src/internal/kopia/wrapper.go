@@ -18,6 +18,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -36,8 +37,6 @@ const (
 	// possibly corresponding to who is making the backup.
 	corsoHost = "corso-host"
 	corsoUser = "corso"
-
-	serializationVersion uint32 = 1
 )
 
 // common manifest tags
@@ -447,7 +446,7 @@ func loadDirsAndItems(
 				dir:             dir,
 				items:           dirItems.items,
 				counter:         bcounter,
-				expectedVersion: serializationVersion,
+				expectedVersion: readers.DefaultSerializationVersion,
 			}
 
 			if err := mergeCol.addCollection(dirItems.dir.String(), dc); err != nil {
