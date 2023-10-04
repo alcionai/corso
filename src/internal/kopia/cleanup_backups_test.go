@@ -369,13 +369,6 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		return &res
 	}
 
-	backupWithLegacyResource := func(protectedResource string, b *backup.Backup) *backup.Backup {
-		res := *b
-		res.ResourceOwnerID = protectedResource
-
-		return &res
-	}
-
 	table := []struct {
 		name             string
 		snapshots        []*manifest.EntryMetadata
@@ -711,6 +704,9 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			// not ideal, but some older versions of corso didn't even populate the
 			// resource owner ID.
 			//
+			// The old version of corso does not populated the ProtectedResourceID
+			// field in the backup model.
+			//
 			// Worst case, the assist base will be cleaned up when the user upgrades
 			// corso and generates either a new assist base or merge base with the
 			// same reason.
@@ -730,7 +726,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			},
 			backups: []backupRes{
 				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupWithLegacyResource("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithTime(baseTime.Add(time.Second), bupCurrent2())},
 			},
 			time:      baseTime.Add(48 * time.Hour),
 			buffer:    24 * time.Hour,
@@ -741,6 +737,9 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			// base but the merge base is from an older version of corso for some
 			// reason and an even newer merge base from a current version of corso
 			// causes the assist base to be garbage collected.
+			//
+			// The old version of corso does not populated the ProtectedResourceID
+			// field in the backup model.
 			//
 			// This also tests that bases without a merge or assist tag are not
 			// garbage collected as an assist base.
@@ -766,7 +765,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			},
 			backups: []backupRes{
 				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupWithLegacyResource("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: backupWithTime(baseTime.Add(time.Second), bupCurrent2())},
 				{bup: backupWithResource("ro", false, backupWithTime(baseTime.Add(time.Minute), bupCurrent3()))},
 			},
 			time:   baseTime.Add(48 * time.Hour),
