@@ -74,7 +74,7 @@ func restoreCmd() *cobra.Command {
 		Short:   "Restore your service data",
 		Long:    `Restore the data stored in one of your M365 services.`,
 		RunE:    handleRestoreCmd,
-		Args:    cobra.NoArgs,
+		Args:    utils.SubcommandsRequiredWithSuggestions,
 		Example: restoreCommandExamples,
 	}
 }

@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -12,9 +13,11 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/color"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -72,7 +75,7 @@ func backupCmd() *cobra.Command {
 		Short: "Backup your service data",
 		Long:  `Backup the data stored in one of your M365 services.`,
 		RunE:  handleBackupCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -91,7 +94,7 @@ func createCmd() *cobra.Command {
 		Use:   createCommand,
 		Short: "Backup an M365 Service",
 		RunE:  handleCreateCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -110,7 +113,7 @@ func listCmd() *cobra.Command {
 		Use:   listCommand,
 		Short: "List the history of backups",
 		RunE:  handleListCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -129,7 +132,7 @@ func detailsCmd() *cobra.Command {
 		Use:   detailsCommand,
 		Short: "Shows the details of a backup",
 		RunE:  handleDetailsCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -148,7 +151,7 @@ func deleteCmd() *cobra.Command {
 		Use:   deleteCommand,
 		Short: "Deletes a backup",
 		RunE:  handleDeleteCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -187,8 +190,10 @@ func genericCreateCommand(
 
 		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
 		if err != nil {
-			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
-			Errf(ictx, "%v\n", err)
+			cerr := clues.Wrap(err, owner).WithClues(ictx)
+			errs = append(errs, cerr)
+			clj, _ := json.Marshal(cerr.Core().Values)
+			Errf(ictx, color.Red("ERROR: Unable to complete backup")+" \nMessage: %v\nMetadata: %s\n", err, clj)
 
 			continue
 		}
@@ -208,8 +213,10 @@ func genericCreateCommand(
 				continue
 			}
 
-			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
-			Errf(ictx, "%v\n", err)
+			cerr := clues.Wrap(err, owner).WithClues(ictx)
+			errs = append(errs, cerr)
+			clj, _ := json.Marshal(cerr.Core().Values)
+			Errf(ictx, color.Red("ERROR: Unable to complete backup")+" \nMessage: %v\nMetadata: %s\n", err, clj)
 
 			continue
 		}
@@ -217,10 +224,10 @@ func genericCreateCommand(
 		bIDs = append(bIDs, string(bo.Results.BackupID))
 
 		if !DisplayJSONFormat() {
-			Infof(ctx, "Done\n")
+			Infof(ctx, fmt.Sprintf("Backup complete %s %s", observe.Bullet, color.Blue(bo.Results.BackupID)))
 			printBackupStats(ctx, r, string(bo.Results.BackupID))
 		} else {
-			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+			Infof(ctx, "Backup complete - ID: %v\n", bo.Results.BackupID)
 		}
 	}
 
@@ -231,9 +238,8 @@ func genericCreateCommand(
 
 	if len(bups) > 0 {
 		Info(ctx, "Completed Backups:")
+		backup.PrintAll(ctx, bups)
 	}
-
-	backup.PrintAll(ctx, bups)
 
 	if len(errs) > 0 {
 		sb := fmt.Sprintf("%d of %d backups failed:\n", len(errs), len(selectorSet))

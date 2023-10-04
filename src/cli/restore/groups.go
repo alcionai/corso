@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -26,8 +27,8 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		flags.AddBackupIDFlag(c, true)
-		flags.AddSiteFlag(c, false)
+		flags.AddBackupIDFlag(c, true, utils.BackupIDCompletionFunc(path.GroupsService))
+		flags.AddSiteFlag(c, false, utils.SitesCompletionFunc())
 		flags.AddSiteIDFlag(c, false)
 		flags.AddNoPermissionsFlag(c)
 		flags.AddSharePointDetailsAndRestoreFlags(c)

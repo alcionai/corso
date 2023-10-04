@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
-	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -50,11 +49,6 @@ func ProduceBackupCollections(
 			break
 		}
 
-		progressBar := observe.MessageWithCompletion(
-			ctx,
-			observe.Bulletf("%s", scope.Category().PathType().HumanString()))
-		defer close(progressBar)
-
 		var spcs []data.BackupCollection
 
 		switch scope.Category().PathType() {
@@ -88,6 +82,7 @@ func ProduceBackupCollections(
 				creds.AzureTenantID,
 				ssmb,
 				su,
+				path.SharePointService,
 				errs)
 			if err != nil {
 				el.AddRecoverable(ctx, err)

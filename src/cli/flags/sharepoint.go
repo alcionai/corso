@@ -112,11 +112,17 @@ func AddSiteIDFlag(cmd *cobra.Command, multiple bool) {
 }
 
 // AddSiteFlag adds the --site flag, which accepts webURL values.
-func AddSiteFlag(cmd *cobra.Command, multiple bool) {
+func AddSiteFlag(
+	cmd *cobra.Command,
+	multiple bool,
+	completionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective),
+) {
 	message := "Web URL of the site to operate on"
 	if multiple {
 		message += "; accepts '" + Wildcard + "' to select all sites."
 	}
 
 	cmd.Flags().StringSliceVar(&WebURLFV, SiteFN, nil, message)
+
+	_ = cmd.RegisterFlagCompletionFunc(SiteFN, completionFunc)
 }

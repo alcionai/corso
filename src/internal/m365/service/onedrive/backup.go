@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -54,6 +56,12 @@ func ProduceBackupCollections(
 			bpc.ProtectedResource,
 			su,
 			bpc.Options)
+
+		progressBar := observe.SubMessageWithCompletionAndTip(
+			ctx,
+			path.FilesCategory.HumanString(),
+			func() string { return fmt.Sprintf("(found %d files)", nc.NumFiles) })
+		defer close(progressBar)
 
 		odcs, canUsePreviousBackup, err = nc.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 		if err != nil {

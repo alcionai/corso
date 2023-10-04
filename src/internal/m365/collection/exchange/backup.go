@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -44,6 +45,8 @@ func CreateCollections(
 			ProtectedResource: bpc.ProtectedResource,
 			TenantID:          tenantID,
 		}
+		collections map[string]data.BackupCollection
+		err         error
 	)
 
 	handler, ok := handlers[category]
@@ -51,9 +54,10 @@ func CreateCollections(
 		return nil, clues.New("unsupported backup category type").WithClues(ctx)
 	}
 
-	foldersComplete := observe.MessageWithCompletion(
+	foldersComplete := observe.SubMessageWithCompletionAndTip(
 		ctx,
-		observe.Bulletf("%s", qp.Category.HumanString()))
+		qp.Category.HumanString(),
+		func() string { return fmt.Sprintf("(found %d folders)", len(collections)) })
 	defer close(foldersComplete)
 
 	rootFolder, cc := handler.NewContainerCache(bpc.ProtectedResource.ID())
@@ -62,7 +66,7 @@ func CreateCollections(
 		return nil, clues.Wrap(err, "populating container cache")
 	}
 
-	collections, err := populateCollections(
+	collections, err = populateCollections(
 		ctx,
 		qp,
 		handler,

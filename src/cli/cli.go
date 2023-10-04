@@ -53,7 +53,19 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	avoidTheseCommands := []string{
-		"corso", "env", "help", "backup", "details", "list", "restore", "export", "delete", "repo", "init", "connect",
+		"corso",
+		"env",
+		"help",
+		"backup",
+		"details",
+		"list",
+		"restore",
+		"export",
+		"delete",
+		"repo",
+		"init",
+		"connect",
+		"completion [bash|zsh|fish|powershell]",
 	}
 
 	if len(logger.ResolvedLogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
@@ -72,12 +84,12 @@ func preRun(cc *cobra.Command, args []string) error {
 
 func handleMailBoxFlag(ctx context.Context, c *cobra.Command, flagNames []string) {
 	if !slices.Contains(flagNames, "user") && !slices.Contains(flagNames, "mailbox") {
-		print.Errf(ctx, "either --user or --mailbox flag is required")
+		print.Errf(ctx, "Error: either --user or --mailbox flag is required")
 		os.Exit(1)
 	}
 
 	if slices.Contains(flagNames, "user") && slices.Contains(flagNames, "mailbox") {
-		print.Err(ctx, "cannot use both [mailbox, user] flags in the same command")
+		print.Errf(ctx, "Error: cannot use both [mailbox, user] flags in the same command")
 		os.Exit(1)
 	}
 }
@@ -119,7 +131,8 @@ func BuildCommandTree(cmd *cobra.Command) {
 	flags.AddGlobalOperationFlags(cmd)
 	cmd.SetUsageTemplate(indentExamplesTemplate(corsoCmd.UsageTemplate()))
 
-	cmd.CompletionOptions.DisableDefaultCmd = true
+	cmd.CompletionOptions.HiddenDefaultCmd = true
+	cmd.SuggestionsMinimumDistance = 2 // default
 
 	repo.AddCommands(cmd)
 	backup.AddCommands(cmd)

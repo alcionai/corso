@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/utils"
 )
 
 // AddCommands attaches all `corso env * *` commands to the parent.
@@ -19,7 +20,7 @@ func envCmd() *cobra.Command {
 		Short: "env var guide",
 		Long:  `A guide to using environment variables in Corso.`,
 		RunE:  handleEnvCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 	envCmd.SetHelpFunc(envGuide)
 

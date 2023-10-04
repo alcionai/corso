@@ -68,9 +68,14 @@ func AddGroupDetailsAndRestoreFlags(cmd *cobra.Command) {
 // Mail is most accurate, MailNickame is accurate and shorter, but the end user
 // may not see either one visibly.
 // https://learn.microsoft.com/en-us/graph/api/group-list?view=graph-rest-1.0&tabs=http
-func AddGroupFlag(cmd *cobra.Command) {
+func AddGroupFlag(
+	cmd *cobra.Command,
+	completionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective),
+) {
 	cmd.Flags().StringSliceVar(
 		&GroupFV,
 		GroupFN, nil,
 		"Backup data by group; accepts '"+Wildcard+"' to select all groups.")
+
+	_ = cmd.RegisterFlagCompletionFunc(GroupFN, completionFunc)
 }

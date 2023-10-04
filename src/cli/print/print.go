@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/tidwall/pretty"
@@ -83,16 +84,14 @@ func Only(ctx context.Context, e error) error {
 
 // Err prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-// Prepends the message with "Error: "
 func Err(ctx context.Context, s ...any) {
 	out(ctx, getRootCmd(ctx).ErrOrStderr(), s...)
 }
 
 // Errf prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-// Prepends the message with "Error: "
 func Errf(ctx context.Context, tmpl string, s ...any) {
-	outf(ctx, getRootCmd(ctx).ErrOrStderr(), "\nError: \n\t"+tmpl+"\n", s...)
+	outf(ctx, getRootCmd(ctx).ErrOrStderr(), tmpl, s...)
 }
 
 // Out prints the params to cobra's output writer (stdOut by default)
@@ -186,7 +185,8 @@ func printItem(w io.Writer, p Printable) {
 		return
 	}
 
-	outputTable(w, []Printable{p})
+	// If only a one line, tabular format is an overkill
+	outputOneLine(w, []Printable{p})
 }
 
 // All prints the slice of printable items,
@@ -280,4 +280,34 @@ func printJSON(w io.Writer, a any) {
 	}
 
 	fmt.Fprintln(w, string(pretty.Pretty(bs)))
+}
+
+// -------------------------------------------------------------------------------------------
+// One line
+// -------------------------------------------------------------------------------------------
+
+// Output in the following format:
+// Bytes Uploaded: 401 kB | Items Uploaded: 59 | Items Skipped: 0 | Errors: 0
+func outputOneLine(w io.Writer, ps []Printable) {
+	headers := ps[0].Headers()
+	rows := [][]string{}
+
+	for _, p := range ps {
+		rows = append(rows, p.Values())
+	}
+
+	printables := []string{}
+
+	for _, row := range rows {
+		for i, col := range row {
+			// TODO(meain): What would be the simplest non hacky way to drop ID column?
+			if headers[i] == "ID" {
+				continue
+			}
+
+			printables = append(printables, fmt.Sprintf("%s: %s", headers[i], col))
+		}
+	}
+
+	fmt.Fprintln(w, strings.Join(printables, " | "))
 }

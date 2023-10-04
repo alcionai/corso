@@ -101,6 +101,16 @@ func AddLoggingFlags(cmd *cobra.Command) {
 
 	addFlags(fs, "corso-<timestamp>.log")
 
+	_ = cmd.RegisterFlagCompletionFunc(LogLevelFN, cobra.FixedCompletions(
+		[]string{string(LLDebug), string(LLInfo), string(LLWarn), string(LLError), string(LLDisabled)},
+		cobra.ShellCompDirectiveNoFileComp))
+	_ = cmd.RegisterFlagCompletionFunc(LogFormatFN, cobra.FixedCompletions(
+		[]string{string(LFText), string(LFJSON)},
+		cobra.ShellCompDirectiveNoFileComp))
+	_ = cmd.RegisterFlagCompletionFunc(MaskSensitiveDataFN, cobra.FixedCompletions(
+		[]string{string(PIIPlainText), string(PIIMask), string(PIIHash)},
+		cobra.ShellCompDirectiveNoFileComp))
+
 	//nolint:errcheck
 	fs.MarkHidden(ReadableLogsFN)
 }

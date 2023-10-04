@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/maaslalani/confetty/confetti"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -146,6 +148,11 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, opt.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
+
+	// Just for fun, not really gonna keep it around
+	model := confetti.InitialModel()
+	p := tea.NewProgram(model, tea.WithAltScreen())
+	_ = p.Start()
 
 	return nil
 }

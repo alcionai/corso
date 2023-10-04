@@ -76,7 +76,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
 
-		flags.AddSiteFlag(c, true)
+		flags.AddSiteFlag(c, true, utils.SitesCompletionFunc())
 		flags.AddSiteIDFlag(c, true)
 		flags.AddDataFlag(c, []string{flags.DataLibraries}, true)
 		flags.AddFailFastFlag(c)
@@ -87,7 +87,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, sharePointListCmd())
 		fs.SortFlags = false
 
-		flags.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false, utils.BackupIDCompletionFunc(path.SharePointService))
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
@@ -98,7 +98,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = sharePointServiceCommandDetailsExamples
 
 		flags.AddSkipReduceFlag(c)
-		flags.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true, utils.BackupIDCompletionFunc(path.SharePointService))
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -109,7 +109,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = sharePointServiceCommandDeleteExamples
 
 		flags.AddMultipleBackupIDsFlag(c, false)
-		flags.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false, utils.BackupIDCompletionFunc(path.SharePointService))
 	}
 
 	return c

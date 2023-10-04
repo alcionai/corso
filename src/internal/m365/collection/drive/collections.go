@@ -3,7 +3,6 @@ package drive
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
-	"github.com/alcionai/corso/src/internal/observe"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -241,11 +239,6 @@ func (c *Collections) Get(
 		driveTombstones[driveID] = struct{}{}
 	}
 
-	progressBar := observe.MessageWithCompletion(
-		ctx,
-		observe.Bulletf(path.FilesCategory.HumanString()))
-	defer close(progressBar)
-
 	// Enumerate drives for the specified resourceOwner
 	pager := c.handler.NewDrivePager(c.protectedResource.ID(), nil)
 
@@ -394,8 +387,6 @@ func (c *Collections) Get(
 			c.CollectionMap[driveID][fldID] = col
 		}
 	}
-
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
 
 	collections := []data.BackupCollection{}
 

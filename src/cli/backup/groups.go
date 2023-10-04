@@ -70,7 +70,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = groupsServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		flags.AddGroupFlag(c)
+		flags.AddGroupFlag(c, utils.GroupsCompletionFunc())
 		flags.AddDataFlag(c, []string{flags.DataLibraries, flags.DataMessages}, false)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddFailFastFlag(c)
@@ -82,7 +82,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())
 		fs.SortFlags = false
 
-		flags.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false, utils.BackupIDCompletionFunc(path.GroupsService))
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
@@ -96,7 +96,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		flags.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true, utils.BackupIDCompletionFunc(path.GroupsService))
 		flags.AddGroupDetailsAndRestoreFlags(c)
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
@@ -108,7 +108,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = groupsServiceCommandDeleteExamples
 
 		flags.AddMultipleBackupIDsFlag(c, false)
-		flags.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false, utils.BackupIDCompletionFunc(path.GroupsService))
 	}
 
 	return c

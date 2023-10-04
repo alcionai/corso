@@ -46,7 +46,7 @@ func exportCmd() *cobra.Command {
 		Short: "Export your service data",
 		Long:  `Export the data stored in one of your M365 services.`,
 		RunE:  handleExportCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 

@@ -219,7 +219,8 @@ func (r *repository) Connect(
 		return clues.Stack(err)
 	}
 
-	observe.Message(ctx, "Connecting to repository")
+	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
+	defer close(progressBar)
 
 	kopiaRef := kopia.NewConn(r.Storage)
 	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
