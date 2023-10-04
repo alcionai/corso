@@ -355,7 +355,7 @@ func (op *BackupOperation) do(
 		return nil, clues.Stack(err)
 	}
 
-	mans, mdColls, canUseMetadata, err := produceManifestsAndMetadata(
+	bases, mdColls, canUseMetadata, err := produceManifestsAndMetadata(
 		ctx,
 		kbf,
 		op.bp,
@@ -371,11 +371,11 @@ func (op *BackupOperation) do(
 	ctx = clues.Add(
 		ctx,
 		"can_use_metadata", canUseMetadata,
-		"assist_bases", len(mans.UniqueAssistBases()),
-		"merge_bases", len(mans.MergeBases()))
+		"assist_bases", len(bases.UniqueAssistBases()),
+		"merge_bases", len(bases.MergeBases()))
 
 	if canUseMetadata {
-		lastBackupVersion = mans.MinBackupVersion()
+		lastBackupVersion = bases.MinBackupVersion()
 	}
 
 	// TODO(ashmrtn): This should probably just return a collection that deletes
@@ -405,7 +405,7 @@ func (op *BackupOperation) do(
 		op.kopia,
 		op.account.ID(),
 		reasons,
-		mans,
+		bases,
 		cs,
 		ssmb,
 		backupID,
@@ -422,7 +422,7 @@ func (op *BackupOperation) do(
 	err = mergeDetails(
 		ctx,
 		detailsStore,
-		mans,
+		bases,
 		toMerge,
 		deets,
 		writeStats,
