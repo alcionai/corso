@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/dustin/go-humanize"
 
 	"github.com/alcionai/corso/src/cli/print"
@@ -14,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -178,6 +180,66 @@ func New(
 	}
 
 	return b
+}
+
+// PersistedBaseSet contains information extracted from the backup model
+// relating to its lineage. It only contains the backup ID and Reasons each
+// base was selected instead of the full set of information contained in other
+// structs like BackupBases.
+type PersistedBaseSet struct {
+	Merge  map[model.StableID][]identity.Reasoner
+	Assist map[model.StableID][]identity.Reasoner
+}
+
+func (b Backup) Bases() (PersistedBaseSet, error) {
+	res := PersistedBaseSet{
+		Merge:  map[model.StableID][]identity.Reasoner{},
+		Assist: map[model.StableID][]identity.Reasoner{},
+	}
+
+	for id, reasons := range b.MergeBases {
+		for _, reason := range reasons {
+			service, cat, err := serviceCatStringToTypes(reason)
+			if err != nil {
+				return res, clues.Wrap(err, "getting Reason info").With(
+					"base_type", "merge",
+					"base_backup_id", id,
+					"input_string", reason)
+			}
+
+			res.Merge[id] = append(res.Merge[id], identity.NewReason(
+				// Tenant ID not currently stored in backup model.
+				"",
+				str.First(
+					b.ProtectedResourceID,
+					b.Selector.DiscreteOwner),
+				service,
+				cat))
+		}
+	}
+
+	for id, reasons := range b.AssistBases {
+		for _, reason := range reasons {
+			service, cat, err := serviceCatStringToTypes(reason)
+			if err != nil {
+				return res, clues.Wrap(err, "getting Reason info").With(
+					"base_type", "assist",
+					"base_backup_id", id,
+					"input_string", reason)
+			}
+
+			res.Assist[id] = append(res.Assist[id], identity.NewReason(
+				// Tenant ID not currently stored in backup model.
+				"",
+				str.First(
+					b.ProtectedResourceID,
+					b.Selector.DiscreteOwner),
+				service,
+				cat))
+		}
+	}
+
+	return res, nil
 }
 
 // --------------------------------------------------------------------------------

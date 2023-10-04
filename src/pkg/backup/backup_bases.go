@@ -2,7 +2,9 @@ package backup
 
 import (
 	"context"
+	"strings"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 
@@ -38,6 +40,41 @@ func serviceCatString(
 	category path.CategoryType,
 ) string {
 	return serviceCatPrefix + service.String() + separator + category.String()
+}
+
+func serviceCatStringToTypes(
+	input string,
+) (path.ServiceType, path.CategoryType, error) {
+	trimmed := strings.TrimPrefix(input, serviceCatPrefix)
+	// No prefix found -> unexpected format.
+	if trimmed == input {
+		return path.UnknownService,
+			path.UnknownCategory,
+			clues.New("missing tag prefix")
+	}
+
+	parts := strings.Split(trimmed, separator)
+	if len(parts) != 2 {
+		return path.UnknownService,
+			path.UnknownCategory,
+			clues.New("missing tag separator")
+	}
+
+	cat := path.ToCategoryType(parts[1])
+	if cat == path.UnknownCategory {
+		return path.UnknownService,
+			path.UnknownCategory,
+			clues.New("parsing category").With("input_category", parts[1])
+	}
+
+	service := path.ToServiceType(parts[0])
+	if service == path.UnknownService {
+		return path.UnknownService,
+			path.UnknownCategory,
+			clues.New("parsing service").With("input_service", parts[0])
+	}
+
+	return service, cat, nil
 }
 
 // reasonTags returns the set of key-value pairs that can be used as tags to
