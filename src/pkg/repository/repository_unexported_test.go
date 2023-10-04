@@ -822,6 +822,7 @@ func writeBackup(
 		ownerID, ownerName,
 		stats.ReadWrites{},
 		stats.StartAndEndTime{},
+		nil,
 		fe,
 		tags)
 

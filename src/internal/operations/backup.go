@@ -278,7 +278,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	observe.Message(ctx, "Backing Up", observe.Bullet, clues.Hide(op.ResourceOwner.Name()))
 
-	deets, err := op.do(
+	bases, deets, err := op.do(
 		ctx,
 		&opStats,
 		sstore,
@@ -304,6 +304,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	err = op.createBackupModels(
 		ctx,
 		sstore,
+		bases,
 		opStats,
 		op.Results.BackupID,
 		op.BackupVersion,
@@ -329,17 +330,17 @@ func (op *BackupOperation) do(
 	opStats *backupStats,
 	detailsStore streamstore.Streamer,
 	backupID model.StableID,
-) (*details.Builder, error) {
+) (backup.BackupBases, *details.Builder, error) {
 	lastBackupVersion := version.NoBackup
 
 	reasons, err := op.Selectors.Reasons(op.account.ID(), false)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting reasons")
+		return nil, nil, clues.Wrap(err, "getting reasons")
 	}
 
 	fallbackReasons, err := makeFallbackReasons(op.account.ID(), op.Selectors)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting fallback reasons")
+		return nil, nil, clues.Wrap(err, "getting fallback reasons")
 	}
 
 	logger.Ctx(ctx).With(
@@ -352,7 +353,7 @@ func (op *BackupOperation) do(
 
 	kbf, err := op.kopia.NewBaseFinder(op.store)
 	if err != nil {
-		return nil, clues.Stack(err)
+		return nil, nil, clues.Stack(err)
 	}
 
 	bases, mdColls, canUseMetadata, err := produceManifestsAndMetadata(
@@ -365,7 +366,7 @@ func (op *BackupOperation) do(
 		op.incremental,
 		op.disableAssistBackup)
 	if err != nil {
-		return nil, clues.Wrap(err, "producing manifests and metadata")
+		return nil, nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
 	ctx = clues.Add(
@@ -392,7 +393,7 @@ func (op *BackupOperation) do(
 		op.Options,
 		op.Errors)
 	if err != nil {
-		return nil, clues.Wrap(err, "producing backup data collections")
+		return nil, nil, clues.Wrap(err, "producing backup data collections")
 	}
 
 	ctx = clues.Add(
@@ -412,7 +413,7 @@ func (op *BackupOperation) do(
 		op.incremental && canUseMetadata && canUsePreviousBackup,
 		op.Errors)
 	if err != nil {
-		return nil, clues.Wrap(err, "persisting collection backups")
+		return nil, nil, clues.Wrap(err, "persisting collection backups")
 	}
 
 	opStats.hasNewDetailEntries = (deets != nil && !deets.Empty()) ||
@@ -429,14 +430,14 @@ func (op *BackupOperation) do(
 		op.Selectors.PathService(),
 		op.Errors)
 	if err != nil {
-		return nil, clues.Wrap(err, "merging details")
+		return nil, nil, clues.Wrap(err, "merging details")
 	}
 
 	opStats.ctrl = op.bp.Wait()
 
 	logger.Ctx(ctx).Debug(opStats.ctrl)
 
-	return deets, nil
+	return bases, deets, nil
 }
 
 func makeFallbackReasons(tenant string, sel selectors.Selector) ([]identity.Reasoner, error) {
@@ -929,6 +930,7 @@ func (op *BackupOperation) createBackupModels(
 		op.ResourceOwner.Name(),
 		op.Results.ReadWrites,
 		op.Results.StartAndEndTime,
+		bases,
 		op.Errors.Errors(),
 		tags)
 
