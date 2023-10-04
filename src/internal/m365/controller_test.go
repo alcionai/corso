@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
@@ -29,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"

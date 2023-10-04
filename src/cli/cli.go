@@ -38,7 +38,7 @@ var corsoCmd = &cobra.Command{
 }
 
 func preRun(cc *cobra.Command, args []string) error {
-	if err := config.InitFunc(cc, args); err != nil {
+	if err := config.InitCmd(cc, args); err != nil {
 		return err
 	}
 

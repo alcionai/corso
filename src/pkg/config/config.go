@@ -33,10 +33,10 @@ const (
 )
 
 var (
-	configFilePath     string
-	configFilePathFlag string
-	configDir          string
-	displayDefaultFP   = filepath.Join("$HOME", ".corso.toml")
+	defaultConfigFilePath string
+	configFilePathFlag    string
+	configDir             string
+	displayDefaultFP      = filepath.Join("$HOME", ".corso.toml")
 )
 
 // RepoDetails holds the repository configuration retrieved from
@@ -58,7 +58,7 @@ func init() {
 			Infof(context.Background(), "cannot stat CORSO_CONFIG_DIR [%s]: %v", envDir, err)
 		} else {
 			configDir = envDir
-			configFilePath = filepath.Join(configDir, ".corso.toml")
+			defaultConfigFilePath = filepath.Join(configDir, ".corso.toml")
 		}
 	}
 
@@ -69,7 +69,7 @@ func init() {
 
 	if len(configDir) == 0 {
 		configDir = homeDir
-		configFilePath = filepath.Join(configDir, ".corso.toml")
+		defaultConfigFilePath = filepath.Join(configDir, ".corso.toml")
 	}
 }
 
@@ -85,24 +85,36 @@ func AddConfigFlags(cmd *cobra.Command) {
 // Initialization & Storage
 // ---------------------------------------------------------------------------------------------------------
 
-// InitFunc provides a func that lazily initializes viper and
+// InitCmd provides a func that lazily initializes viper and
 // verifies that the configuration was able to read a file.
-func InitFunc(cmd *cobra.Command, args []string) error {
-	fp := configFilePathFlag
-	if len(fp) == 0 || fp == displayDefaultFP {
-		fp = configFilePath
-	}
+func InitCmd(cmd *cobra.Command, args []string) error {
+	_, err := commonInit(cmd.Context(), configFilePathFlag)
+	return clues.Stack(err).OrNil()
+}
 
-	ctx := cmd.Context()
+// InitConfig allows sdk consumers to initialize viper.
+func InitConfig(
+	ctx context.Context,
+	userDefinedConfigFile string,
+) (context.Context, error) {
+	return commonInit(ctx, userDefinedConfigFile)
+}
+
+func commonInit(
+	ctx context.Context,
+	userDefinedConfigFile string,
+) (context.Context, error) {
+	fp := userDefinedConfigFile
+	if len(fp) == 0 || fp == displayDefaultFP {
+		fp = defaultConfigFilePath
+	}
 
 	vpr := GetViper(ctx)
 	if err := initWithViper(ctx, vpr, fp); err != nil {
-		return err
+		return ctx, err
 	}
 
-	ctx = SetViper(ctx, vpr)
-
-	return Read(ctx)
+	return SetViper(ctx, vpr), clues.Stack(Read(ctx)).OrNil()
 }
 
 // initWithViper implements InitConfig, but takes in a viper
@@ -112,12 +124,16 @@ func initWithViper(
 	vpr *viper.Viper,
 	configFP string,
 ) error {
+	logger.Ctx(ctx).Debugw("initializing viper", "config_file_path", configFP)
+
 	defer func() {
-		logger.Ctx(ctx).Debugw("initialized config with viper", "config_file_path", configFP)
+		logger.Ctx(ctx).Debugw("initialized config", "config_file_path", configFP)
 	}()
 
 	// Configure default config file location
 	if len(configFP) == 0 || configFP == displayDefaultFP {
+		configFP = defaultConfigFilePath
+
 		// Find home directory.
 		_, err := os.Stat(configDir)
 		if err != nil {
@@ -288,6 +304,9 @@ func getStorageAndAccountWithViper(
 
 	// possibly read the prior config from a .corso file
 	if readFromFile {
+		ctx = clues.Add(ctx, "viper_config_file", vpr.ConfigFileUsed())
+		logger.Ctx(ctx).Debug("reading config from file")
+
 		if err := vpr.ReadInConfig(); err != nil {
 			configNotSet := errors.As(err, &viper.ConfigFileNotFoundError{})
 			configNotFound := errors.Is(err, fs.ErrNotExist)
@@ -295,6 +314,8 @@ func getStorageAndAccountWithViper(
 			if !configNotSet && !configNotFound {
 				return config, clues.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}
+
+			logger.Ctx(ctx).Info("config file not found")
 
 			readConfigFromViper = false
 		}

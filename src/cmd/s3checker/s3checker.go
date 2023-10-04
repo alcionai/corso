@@ -175,7 +175,7 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 
 	fmt.Printf("Checking objects with prefix(es) %v\n", f.prefixes)
 
-	if err := config.InitFunc(cmd, args); err != nil {
+	if err := config.InitCmd(cmd, args); err != nil {
 		return clues.Wrap(err, "setting viper")
 	}
 
