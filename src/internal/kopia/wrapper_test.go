@@ -812,12 +812,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	}
 
 	reasons := []identity.Reasoner{
-		NewReason(
+		identity.NewReason(
 			testTenant,
 			suite.storePath1.ProtectedResource(),
 			suite.storePath1.Service(),
 			suite.storePath1.Category()),
-		NewReason(
+		identity.NewReason(
 			testTenant,
 			suite.storePath2.ProtectedResource(),
 			suite.storePath2.Service(),
@@ -1078,7 +1078,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	}
 
 	reasons := []identity.Reasoner{
-		NewReason(
+		identity.NewReason(
 			testTenant,
 			storePath.ProtectedResource(),
 			storePath.Service(),
@@ -1254,7 +1254,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	w := &Wrapper{k}
 
-	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	dc1 := exchMock.NewCollection(suite.storePath1, suite.locPath1, 1)
 	dc2 := exchMock.NewCollection(suite.storePath2, suite.locPath2, 1)
@@ -1304,7 +1304,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	loc1 := path.Builder{}.Append(suite.storePath1.Folders()...)
 	loc2 := path.Builder{}.Append(suite.storePath2.Folders()...)
-	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	collections := []data.BackupCollection{
 		&dataMock.Collection{
@@ -1586,7 +1586,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 			dataMock.NewVersionedBackupCollection(t, collection))
 	}
 
-	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	// Other tests check basic things about deets so not doing that again here.
 	stats, _, _, err := suite.w.ConsumeBackupCollections(
@@ -1623,7 +1623,7 @@ func (c *i64counter) Count(i int64) {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
-	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	man, err := suite.w.c.LoadSnapshot(suite.ctx, suite.snapshotID)
 	require.NoError(suite.T(), err, "getting base snapshot: %v", clues.ToCore(err))

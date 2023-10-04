@@ -275,7 +275,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			reasons := make([]identity.Reasoner, 0, len(i.cat))
 
 			for _, c := range i.cat {
-				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
+				reasons = append(reasons, identity.NewReason("", ro, path.ExchangeService, c))
 			}
 
 			m := makeManifest(baseID, "", "b"+baseID, reasons...)
@@ -299,7 +299,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 			reasons := make([]identity.Reasoner, 0, len(i.cat))
 
 			for _, c := range i.cat {
-				reasons = append(reasons, NewReason("", ro, path.ExchangeService, c))
+				reasons = append(reasons, identity.NewReason("", ro, path.ExchangeService, c))
 			}
 
 			m := makeManifest(baseID, "", "a"+baseID, reasons...)
@@ -538,7 +538,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 		id, incmpl,
 		bID string,
 	) backup.ManifestEntry {
-		r := NewReason("", ro, path.ExchangeService, pct)
+		r := identity.NewReason("", ro, path.ExchangeService, pct)
 		return makeManifest(id, incmpl, bID, r)
 	}
 
@@ -736,11 +736,11 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					identity.NewReason("", ro, path.ExchangeService, path.ContactsCategory))
 
 				res.assistBases[0].Reasons = append(
 					res.assistBases[0].Reasons,
-					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					identity.NewReason("", ro, path.ExchangeService, path.ContactsCategory))
 
 				return res
 			}(),
@@ -748,11 +748,11 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					identity.NewReason("", ro, path.ExchangeService, path.ContactsCategory))
 
 				res.assistBases[0].Reasons = append(
 					res.assistBases[0].Reasons,
-					NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					identity.NewReason("", ro, path.ExchangeService, path.ContactsCategory))
 
 				return res
 			}(),

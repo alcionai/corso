@@ -453,12 +453,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		tenant        = "a-tenant"
 		resourceOwner = "a-user"
 
-		emailReason = kopia.NewReason(
+		emailReason = identity.NewReason(
 			tenant,
 			resourceOwner,
 			path.ExchangeService,
 			path.EmailCategory)
-		contactsReason = kopia.NewReason(
+		contactsReason = identity.NewReason(
 			tenant,
 			resourceOwner,
 			path.ExchangeService,
@@ -590,12 +590,12 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			DetailsID: "did2",
 		}
 
-		pathReason1 = kopia.NewReason(
+		pathReason1 = identity.NewReason(
 			"",
 			itemPath1.ProtectedResource(),
 			itemPath1.Service(),
 			itemPath1.Category())
-		pathReason3 = kopia.NewReason(
+		pathReason3 = identity.NewReason(
 			"",
 			itemPath3.ProtectedResource(),
 			itemPath3.Service(),
@@ -616,7 +616,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			},
 			true)
 		exchangeLocationPath1 = path.Builder{}.Append("work-display-name")
-		exchangePathReason1   = kopia.NewReason(
+		exchangePathReason1   = identity.NewReason(
 			"",
 			exchangeItemPath1.ProtectedResource(),
 			exchangeItemPath1.Service(),
@@ -1267,7 +1267,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 
 		locPath1 = path.Builder{}.Append(itemPath1.Folders()...)
 
-		pathReason1 = kopia.NewReason(
+		pathReason1 = identity.NewReason(
 			"",
 			itemPath1.ProtectedResource(),
 			itemPath1.Service(),

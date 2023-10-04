@@ -884,7 +884,7 @@ func makeManifestEntry(
 	var reasons []identity.Reasoner
 
 	for _, c := range categories {
-		reasons = append(reasons, NewReason(tenant, resourceOwner, service, c))
+		reasons = append(reasons, identity.NewReason(tenant, resourceOwner, service, c))
 	}
 
 	return backup.ManifestEntry{
