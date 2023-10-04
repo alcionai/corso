@@ -5,15 +5,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/dustin/go-humanize"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -61,6 +65,221 @@ func stubBackup(t time.Time, ownerID, ownerName string) Backup {
 			TotalSkippedItems: 1,
 			SkippedMalware:    1,
 		},
+	}
+}
+
+func (suite *BackupUnitSuite) TestBackup_Bases() {
+	const (
+		mergeID  model.StableID = "merge-backup-id"
+		assistID model.StableID = "assist-backup-id"
+		userID                  = "user-id"
+	)
+
+	stub := stubBackup(time.Now(), userID, "user-name")
+
+	defaultEmailReason := identity.NewReason(
+		"",
+		stub.ProtectedResourceID,
+		path.ExchangeService,
+		path.EmailCategory)
+	defaultContactsReason := identity.NewReason(
+		"",
+		stub.ProtectedResourceID,
+		path.ExchangeService,
+		path.ContactsCategory)
+
+	table := []struct {
+		name         string
+		getBackup    func() *Backup
+		expectErr    assert.ErrorAssertionFunc
+		expectMerge  map[model.StableID][]identity.Reasoner
+		expectAssist map[model.StableID][]identity.Reasoner
+	}{
+		{
+			name: "MergeAndAssist SameReasonEach",
+			getBackup: func() *Backup {
+				res := stub
+				res.MergeBases = map[model.StableID][]string{}
+				res.AssistBases = map[model.StableID][]string{}
+
+				res.MergeBases[mergeID] = []string{
+					serviceCatString(
+						defaultEmailReason.Service(),
+						defaultEmailReason.Category()),
+				}
+
+				res.AssistBases[assistID] = []string{
+					serviceCatString(
+						defaultEmailReason.Service(),
+						defaultEmailReason.Category()),
+				}
+
+				return &res
+			},
+			expectErr: assert.NoError,
+			expectMerge: map[model.StableID][]identity.Reasoner{
+				mergeID: {defaultEmailReason},
+			},
+			expectAssist: map[model.StableID][]identity.Reasoner{
+				assistID: {defaultEmailReason},
+			},
+		},
+		{
+			name: "MergeAndAssist DifferentReasonEach",
+			getBackup: func() *Backup {
+				res := stub
+				res.MergeBases = map[model.StableID][]string{}
+				res.AssistBases = map[model.StableID][]string{}
+
+				res.MergeBases[mergeID] = []string{
+					serviceCatString(
+						defaultEmailReason.Service(),
+						defaultEmailReason.Category()),
+				}
+
+				res.AssistBases[assistID] = []string{
+					serviceCatString(
+						defaultContactsReason.Service(),
+						defaultContactsReason.Category()),
+				}
+
+				return &res
+			},
+			expectErr: assert.NoError,
+			expectMerge: map[model.StableID][]identity.Reasoner{
+				mergeID: {defaultEmailReason},
+			},
+			expectAssist: map[model.StableID][]identity.Reasoner{
+				assistID: {defaultContactsReason},
+			},
+		},
+		{
+			name: "MergeAndAssist MultipleReasonsEach",
+			getBackup: func() *Backup {
+				res := stub
+				res.MergeBases = map[model.StableID][]string{}
+				res.AssistBases = map[model.StableID][]string{}
+
+				res.MergeBases[mergeID] = []string{
+					serviceCatString(
+						defaultEmailReason.Service(),
+						defaultEmailReason.Category()),
+					serviceCatString(
+						defaultContactsReason.Service(),
+						defaultContactsReason.Category()),
+				}
+
+				res.AssistBases[assistID] = []string{
+					serviceCatString(
+						defaultEmailReason.Service(),
+						defaultEmailReason.Category()),
+					serviceCatString(
+						defaultContactsReason.Service(),
+						defaultContactsReason.Category()),
+				}
+
+				return &res
+			},
+			expectErr: assert.NoError,
+			expectMerge: map[model.StableID][]identity.Reasoner{
+				mergeID: {
+					defaultEmailReason,
+					defaultContactsReason,
+				},
+			},
+			expectAssist: map[model.StableID][]identity.Reasoner{
+				assistID: {
+					defaultEmailReason,
+					defaultContactsReason,
+				},
+			},
+		},
+		{
+			name: "OnlyMerge SingleReason",
+			getBackup: func() *Backup {
+				res := stub
+				res.MergeBases = map[model.StableID][]string{}
+
+				res.MergeBases[mergeID] = []string{
+					serviceCatString(
+						defaultEmailReason.Service(),
+						defaultEmailReason.Category()),
+				}
+
+				return &res
+			},
+			expectErr: assert.NoError,
+			expectMerge: map[model.StableID][]identity.Reasoner{
+				mergeID: {defaultEmailReason},
+			},
+		},
+		{
+			name: "OnlyAssist SingleReason",
+			getBackup: func() *Backup {
+				res := stub
+				res.AssistBases = map[model.StableID][]string{}
+
+				res.AssistBases[mergeID] = []string{
+					serviceCatString(
+						defaultEmailReason.Service(),
+						defaultEmailReason.Category()),
+				}
+
+				return &res
+			},
+			expectErr: assert.NoError,
+			expectAssist: map[model.StableID][]identity.Reasoner{
+				mergeID: {defaultEmailReason},
+			},
+		},
+		{
+			name: "BadReasonFormat",
+			getBackup: func() *Backup {
+				res := stub
+				res.AssistBases = map[model.StableID][]string{}
+
+				res.AssistBases[mergeID] = []string{"foo"}
+
+				return &res
+			},
+			expectErr: assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			bup := test.getBackup()
+
+			got, err := bup.Bases()
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			// Since the result contains a slice of Reasons directly calling Equals
+			// will fail because we want ElementsMatch on the internal slices.
+			assert.ElementsMatch(
+				t,
+				maps.Keys(test.expectMerge),
+				maps.Keys(got.Merge),
+				"merge base keys")
+			assert.ElementsMatch(
+				t,
+				maps.Keys(test.expectAssist),
+				maps.Keys(got.Assist),
+				"assist base keys")
+
+			for id, e := range test.expectMerge {
+				assert.ElementsMatch(t, e, got.Merge[id], "merge bases")
+			}
+
+			for id, e := range test.expectAssist {
+				assert.ElementsMatch(t, e, got.Assist[id], "assist bases")
+			}
+		})
 	}
 }
 
