@@ -36,10 +36,12 @@ type Backup struct {
 	// Selector used in this operation
 	Selector selectors.Selector `json:"selectors"`
 
-	// TODO: in process of gaining support, most cases will still use
-	// ResourceOwner and ResourceOwnerName.
-	ProtectedResourceID   string `json:"protectedResourceID,omitempty"`
-	ProtectedResourceName string `json:"protectedResourceName,omitempty"`
+	// ** DO NOT CHANGE JSON TAG NAMES **
+	// These are in-memory only variable renames of previously persisted fields.
+	// ** CHANGING THE JSON TAGS WILL BREAK THINGS BECAUSE THE MODEL WON'T **
+	// ** DESERIALIZE PROPERLY **
+	ProtectedResourceID   string `json:"resourceOwnerID,omitempty"`
+	ProtectedResourceName string `json:"resourceOwnerName,omitempty"`
 
 	// Version represents the version of the backup format
 	Version int `json:"version"`
@@ -61,10 +63,6 @@ type Backup struct {
 	// Reference to the backup details storage location.
 	// Used to read backup.Details from the streamstore.
 	DetailsID string `json:"detailsID"`
-
-	// prefer protectedResource
-	ResourceOwnerID   string `json:"resourceOwnerID,omitempty"`
-	ResourceOwnerName string `json:"resourceOwnerName,omitempty"`
 }
 
 // interface compliance checks
@@ -115,8 +113,8 @@ func New(
 			Tags: tags,
 		},
 
-		ResourceOwnerID:   ownerID,
-		ResourceOwnerName: ownerName,
+		ProtectedResourceID:   ownerID,
+		ProtectedResourceName: ownerName,
 
 		Version:       version,
 		SnapshotID:    snapshotID,
@@ -253,9 +251,7 @@ func (b Backup) Values() []string {
 
 	name := str.First(
 		b.ProtectedResourceName,
-		b.ResourceOwnerName,
 		b.ProtectedResourceID,
-		b.ResourceOwnerID,
 		b.Selector.Name())
 
 	bs := b.toStats()
