@@ -88,16 +88,16 @@ func AddConfigFlags(cmd *cobra.Command) {
 // InitFunc provides a func that lazily initializes viper and
 // verifies that the configuration was able to read a file.
 func InitFunc(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
 	fp := configFilePathFlag
 	if len(fp) == 0 || fp == displayDefaultFP {
 		fp = configFilePath
 	}
 
-	vpr := GetViper(ctx)
+	ctx := clues.Add(cmd.Context(), "config_file_path", fp)
+	logger.Ctx(ctx).Debugw("initializing viper")
 
-	if err := initWithViper(vpr, fp); err != nil {
+	vpr := GetViper(ctx)
+	if err := initWithViper(ctx, vpr, fp); err != nil {
 		return err
 	}
 
@@ -108,7 +108,15 @@ func InitFunc(cmd *cobra.Command, args []string) error {
 
 // initWithViper implements InitConfig, but takes in a viper
 // struct for testing.
-func initWithViper(vpr *viper.Viper, configFP string) error {
+func initWithViper(
+	ctx context.Context,
+	vpr *viper.Viper,
+	configFP string,
+) error {
+	defer func() {
+		logger.Ctx(ctx).Debugw("initialized config with viper", "config_file_path", configFP)
+	}()
+
 	// Configure default config file location
 	if len(configFP) == 0 || configFP == displayDefaultFP {
 		// Find home directory.
@@ -242,19 +250,17 @@ func writeRepoConfigWithViper(
 	return nil
 }
 
-// GetStorageAndAccount creates a storage and account instance by mediating all the possible
+// ReadCorsoConfig creates a storage and account instance by mediating all the possible
 // data sources (config file, env vars, flag overrides) and the config file.
-func GetConfigRepoDetails(
+func ReadCorsoConfig(
 	ctx context.Context,
 	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
-) (
-	RepoDetails,
-	error,
-) {
+) (RepoDetails, error) {
 	config, err := getStorageAndAccountWithViper(
+		ctx,
 		GetViper(ctx),
 		provider,
 		readFromFile,
@@ -267,15 +273,13 @@ func GetConfigRepoDetails(
 // getSorageAndAccountWithViper implements GetSorageAndAccount, but takes in a viper
 // struct for testing.
 func getStorageAndAccountWithViper(
+	ctx context.Context,
 	vpr *viper.Viper,
 	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
-) (
-	RepoDetails,
-	error,
-) {
+) (RepoDetails, error) {
 	var (
 		config RepoDetails
 		err    error
@@ -304,6 +308,8 @@ func getStorageAndAccountWithViper(
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
+
+	logger.Ctx(ctx).Warn("I SHOULD SEE THIS")
 
 	config.Storage, err = configureStorage(
 		vpr,

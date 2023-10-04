@@ -10,7 +10,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/backup"
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/debug"
 	"github.com/alcionai/corso/src/cli/export"
 	"github.com/alcionai/corso/src/cli/flags"
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/cli/restore"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 

@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -51,7 +51,7 @@ func GetAccountAndConnectWithOverrides(
 	provider storage.ProviderType,
 	overrides map[string]string,
 ) (repository.Repositoryer, RepoDetailsAndOpts, error) {
-	cfg, err := config.GetConfigRepoDetails(
+	cfg, err := config.ReadCorsoConfig(
 		ctx,
 		provider,
 		true,
