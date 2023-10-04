@@ -218,6 +218,29 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				expectDeets,
 				false)
 
+			// Incremental backup should have the initial backup as a merge base in
+			// the lineage information.
+			bup, err := bod.sw.GetBackup(ctx, incBO.Results.BackupID)
+			require.NoError(t, err, clues.ToCore(err))
+
+			lineage, err := bup.Bases()
+			require.NoError(t, err, clues.ToCore(err))
+
+			// No assist bases.
+			assert.Empty(t, lineage.Assist)
+			// Expect one merge base with Reason we're testing. Right now tenant isn't
+			// populated and protected resource ID may be incorrect due to inputs to
+			// the test. Just compare service/category.
+			require.Len(t, lineage.Merge[bo.Results.BackupID], 1)
+			assert.Equal(
+				t,
+				path.ExchangeService,
+				lineage.Merge[bo.Results.BackupID][0].Service())
+			assert.Equal(
+				t,
+				test.category,
+				lineage.Merge[bo.Results.BackupID][0].Category())
+
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
 			assert.Greater(t, bo.Results.ItemsRead, incBO.Results.ItemsRead, "incremental items read")
