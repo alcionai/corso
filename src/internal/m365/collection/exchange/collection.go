@@ -278,10 +278,21 @@ func (col *prefetchCollection) streamItems(
 				return
 			}
 
-			stream <- data.NewPrefetchedItem(
+			item, err := data.NewPrefetchedItem(
 				io.NopCloser(bytes.NewReader(itemData)),
 				id,
 				details.ItemInfo{Exchange: info})
+			if err != nil {
+				el.AddRecoverable(
+					ctx,
+					clues.Stack(err).
+						WithClues(ctx).
+						Label(fault.LabelForceNoBackupCreation))
+
+				return
+			}
+
+			stream <- item
 
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, info.Size)

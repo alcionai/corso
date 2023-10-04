@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"context"
 	"errors"
 	"io"
 	"math/rand"
@@ -17,18 +18,14 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
-
-// ---------------------------------------------------------------------------
-// integration
-// ---------------------------------------------------------------------------
 
 type URLCacheIntegrationSuite struct {
 	tester.Suite
@@ -71,10 +68,11 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 // url cache
 func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	var (
-		t             = suite.T()
-		ac            = suite.ac.Drives()
-		driveID       = suite.driveID
-		newFolderName = testdata.DefaultRestoreConfig("folder").Location
+		t              = suite.T()
+		ac             = suite.ac.Drives()
+		driveID        = suite.driveID
+		newFolderName  = testdata.DefaultRestoreConfig("folder").Location
+		driveItemPager = suite.ac.Drives().NewDriveItemDeltaPager(driveID, "", api.DriveItemSelectDefault())
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -84,11 +82,11 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	root, err := ac.GetRootFolder(ctx, driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	newFolder, err := ac.PostItemInContainer(
+	newFolder, err := ac.Drives().PostItemInContainer(
 		ctx,
 		driveID,
 		ptr.Val(root.GetId()),
-		api.NewDriveItem(newFolderName, true),
+		newItem(newFolderName, true),
 		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -96,10 +94,33 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 	nfid := ptr.Val(newFolder.GetId())
 
+	collectorFunc := func(
+		context.Context,
+		string,
+		string,
+		[]models.DriveItemable,
+		map[string]string,
+		map[string]string,
+		map[string]struct{},
+		map[string]map[string]string,
+		bool,
+		*fault.Bus,
+	) error {
+		return nil
+	}
+
 	// Get the previous delta to feed into url cache
-	_, du, err := ac.EnumerateDriveItemsDelta(ctx, suite.driveID, "")
+	prevDelta, _, _, err := collectItems(
+		ctx,
+		suite.ac.Drives().NewDriveItemDeltaPager(driveID, "", api.DriveItemSelectURLCache()),
+		suite.driveID,
+		"drive-name",
+		collectorFunc,
+		map[string]string{},
+		"",
+		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, du.URL)
+	require.NotNil(t, prevDelta.URL)
 
 	// Create a bunch of files in the new folder
 	var items []models.DriveItemable
@@ -107,11 +128,11 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	for i := 0; i < 5; i++ {
 		newItemName := "test_url_cache_basic_" + dttm.FormatNow(dttm.SafeForTesting)
 
-		item, err := ac.PostItemInContainer(
+		item, err := ac.Drives().PostItemInContainer(
 			ctx,
 			driveID,
 			nfid,
-			api.NewDriveItem(newItemName, false),
+			newItem(newItemName, false),
 			control.Copy)
 		require.NoError(t, err, clues.ToCore(err))
 
@@ -121,9 +142,9 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	// Create a new URL cache with a long TTL
 	uc, err := newURLCache(
 		suite.driveID,
-		du.URL,
+		prevDelta.URL,
 		1*time.Hour,
-		suite.ac.Drives(),
+		driveItemPager,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -174,10 +195,6 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	require.Equal(t, 1, uc.deltaQueryCount)
 }
 
-// ---------------------------------------------------------------------------
-// unit
-// ---------------------------------------------------------------------------
-
 type URLCacheUnitSuite struct {
 	tester.Suite
 }
@@ -188,20 +205,27 @@ func TestURLCacheUnitSuite(t *testing.T) {
 
 func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 	deltaString := "delta"
+	next := "next"
 	driveID := "drive1"
 
 	table := []struct {
 		name              string
-		pagerItems        map[string][]models.DriveItemable
-		pagerErr          map[string]error
+		pagerResult       map[string][]apiMock.PagerResult[models.DriveItemable]
 		expectedItemProps map[string]itemProps
 		expectedErr       require.ErrorAssertionFunc
 		cacheAssert       func(*urlCache, time.Time)
 	}{
 		{
 			name: "single item in cache",
-			pagerItems: map[string][]models.DriveItemable{
-				driveID: {fileItem("1", "file1", "root", "root", "https://dummy1.com", false)},
+			pagerResult: map[string][]apiMock.PagerResult[models.DriveItemable]{
+				driveID: {
+					{
+						Values: []models.DriveItemable{
+							fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+						},
+						DeltaLink: &deltaString,
+					},
+				},
 			},
 			expectedItemProps: map[string]itemProps{
 				"1": {
@@ -218,13 +242,18 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "multiple items in cache",
-			pagerItems: map[string][]models.DriveItemable{
+			pagerResult: map[string][]apiMock.PagerResult[models.DriveItemable]{
 				driveID: {
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-					fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
-					fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
-					fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
+					{
+						Values: []models.DriveItemable{
+							fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+							fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
+							fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
+							fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
+							fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
+						},
+						DeltaLink: &deltaString,
+					},
 				},
 			},
 			expectedItemProps: map[string]itemProps{
@@ -258,13 +287,18 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "duplicate items with potentially new urls",
-			pagerItems: map[string][]models.DriveItemable{
+			pagerResult: map[string][]apiMock.PagerResult[models.DriveItemable]{
 				driveID: {
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-					fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
-					fileItem("1", "file1", "root", "root", "https://test1.com", false),
-					fileItem("2", "file2", "root", "root", "https://test2.com", false),
+					{
+						Values: []models.DriveItemable{
+							fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+							fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
+							fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
+							fileItem("1", "file1", "root", "root", "https://test1.com", false),
+							fileItem("2", "file2", "root", "root", "https://test2.com", false),
+						},
+						DeltaLink: &deltaString,
+					},
 				},
 			},
 			expectedItemProps: map[string]itemProps{
@@ -290,11 +324,16 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "deleted items",
-			pagerItems: map[string][]models.DriveItemable{
+			pagerResult: map[string][]apiMock.PagerResult[models.DriveItemable]{
 				driveID: {
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", true),
+					{
+						Values: []models.DriveItemable{
+							fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+							fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
+							fileItem("1", "file1", "root", "root", "https://dummy1.com", true),
+						},
+						DeltaLink: &deltaString,
+					},
 				},
 			},
 			expectedItemProps: map[string]itemProps{
@@ -316,8 +355,15 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "item not found in cache",
-			pagerItems: map[string][]models.DriveItemable{
-				driveID: {fileItem("1", "file1", "root", "root", "https://dummy1.com", false)},
+			pagerResult: map[string][]apiMock.PagerResult[models.DriveItemable]{
+				driveID: {
+					{
+						Values: []models.DriveItemable{
+							fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+						},
+						DeltaLink: &deltaString,
+					},
+				},
 			},
 			expectedItemProps: map[string]itemProps{
 				"2": {},
@@ -330,10 +376,23 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			},
 		},
 		{
-			name:       "delta query error",
-			pagerItems: map[string][]models.DriveItemable{},
-			pagerErr: map[string]error{
-				driveID: errors.New("delta query error"),
+			name: "multi-page delta query error",
+			pagerResult: map[string][]apiMock.PagerResult[models.DriveItemable]{
+				driveID: {
+					{
+						Values: []models.DriveItemable{
+							fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+						},
+						NextLink: &next,
+					},
+					{
+						Values: []models.DriveItemable{
+							fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
+						},
+						DeltaLink: &deltaString,
+						Err:       errors.New("delta query error"),
+					},
+				},
 			},
 			expectedItemProps: map[string]itemProps{
 				"1": {},
@@ -349,10 +408,15 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 
 		{
 			name: "folder item",
-			pagerItems: map[string][]models.DriveItemable{
+			pagerResult: map[string][]apiMock.PagerResult[models.DriveItemable]{
 				driveID: {
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					driveItem("2", "folder2", "root", "root", false, true, false),
+					{
+						Values: []models.DriveItemable{
+							fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+							driveItem("2", "folder2", "root", "root", false, true, false),
+						},
+						DeltaLink: &deltaString,
+					},
 				},
 			},
 			expectedItemProps: map[string]itemProps{
@@ -373,17 +437,15 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			medi := mock.EnumeratesDriveItemsDelta{
-				Items:       test.pagerItems,
-				Err:         test.pagerErr,
-				DeltaUpdate: map[string]api.DeltaUpdate{driveID: {URL: deltaString}},
+			itemPager := &apiMock.DeltaPager[models.DriveItemable]{
+				ToReturn: test.pagerResult[driveID],
 			}
 
 			cache, err := newURLCache(
 				driveID,
 				"",
 				1*time.Hour,
-				&medi,
+				itemPager,
 				fault.New(true))
 
 			require.NoError(suite.T(), err, clues.ToCore(err))
@@ -418,17 +480,15 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 
 // Test needsRefresh
 func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
-	var (
-		t               = suite.T()
-		driveID         = "drive1"
-		refreshInterval = 1 * time.Second
-	)
+	driveID := "drive1"
+	t := suite.T()
+	refreshInterval := 1 * time.Second
 
 	cache, err := newURLCache(
 		driveID,
 		"",
 		refreshInterval,
-		&mock.EnumeratesDriveItemsDelta{},
+		&apiMock.DeltaPager[models.DriveItemable]{},
 		fault.New(true))
 
 	require.NoError(t, err, clues.ToCore(err))
@@ -450,12 +510,14 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 	require.False(t, cache.needsRefresh())
 }
 
+// Test newURLCache
 func (suite *URLCacheUnitSuite) TestNewURLCache() {
+	// table driven tests
 	table := []struct {
 		name        string
 		driveID     string
 		refreshInt  time.Duration
-		itemPager   EnumerateDriveItemsDeltaer
+		itemPager   api.DeltaPager[models.DriveItemable]
 		errors      *fault.Bus
 		expectedErr require.ErrorAssertionFunc
 	}{
@@ -463,7 +525,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			name:        "invalid driveID",
 			driveID:     "",
 			refreshInt:  1 * time.Hour,
-			itemPager:   &mock.EnumeratesDriveItemsDelta{},
+			itemPager:   &apiMock.DeltaPager[models.DriveItemable]{},
 			errors:      fault.New(true),
 			expectedErr: require.Error,
 		},
@@ -471,12 +533,12 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			name:        "invalid refresh interval",
 			driveID:     "drive1",
 			refreshInt:  100 * time.Millisecond,
-			itemPager:   &mock.EnumeratesDriveItemsDelta{},
+			itemPager:   &apiMock.DeltaPager[models.DriveItemable]{},
 			errors:      fault.New(true),
 			expectedErr: require.Error,
 		},
 		{
-			name:        "invalid item enumerator",
+			name:        "invalid itemPager",
 			driveID:     "drive1",
 			refreshInt:  1 * time.Hour,
 			itemPager:   nil,
@@ -487,7 +549,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			name:        "valid",
 			driveID:     "drive1",
 			refreshInt:  1 * time.Hour,
-			itemPager:   &mock.EnumeratesDriveItemsDelta{},
+			itemPager:   &apiMock.DeltaPager[models.DriveItemable]{},
 			errors:      fault.New(true),
 			expectedErr: require.NoError,
 		},

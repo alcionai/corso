@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/mock"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -48,13 +49,20 @@ func (suite *CollectionUnitSuite) TestPrefetchedItem_Reader() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ed := data.NewPrefetchedItem(
+			ed, err := data.NewPrefetchedItem(
 				io.NopCloser(bytes.NewReader(test.readData)),
 				"itemID",
 				details.ItemInfo{})
+			require.NoError(t, err, clues.ToCore(err))
+
+			r, err := readers.NewVersionedRestoreReader(ed.ToReader())
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+			assert.False(t, r.Format().DelInFlight)
 
 			buf := &bytes.Buffer{}
-			_, err := buf.ReadFrom(ed.ToReader())
+			_, err = buf.ReadFrom(r)
 			assert.NoError(t, err, "reading data: %v", clues.ToCore(err))
 			assert.Equal(t, test.readData, buf.Bytes(), "read data")
 			assert.Equal(t, "itemID", ed.ID(), "item ID")

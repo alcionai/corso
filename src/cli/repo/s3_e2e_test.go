@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -208,13 +207,13 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			// init the repo first
 			r, err := repository.New(
 				ctx,
-				account.Account{},
+				tconfig.NewM365Account(t),
 				st,
 				control.DefaultOptions(),
 				repository.NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, repository.InitConfig{})
 			require.NoError(t, err, clues.ToCore(err))
 
 			// then test it

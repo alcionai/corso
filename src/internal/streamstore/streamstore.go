@@ -182,12 +182,17 @@ func collect(
 		return nil, clues.Wrap(err, "marshalling body").WithClues(ctx)
 	}
 
+	item, err := data.NewUnindexedPrefetchedItem(
+		io.NopCloser(bytes.NewReader(bs)),
+		col.itemName,
+		time.Now())
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
 	dc := streamCollection{
 		folderPath: p,
-		item: data.NewUnindexedPrefetchedItem(
-			io.NopCloser(bytes.NewReader(bs)),
-			col.itemName,
-			time.Now()),
+		item:       item,
 	}
 
 	return &dc, nil

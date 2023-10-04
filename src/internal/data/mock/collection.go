@@ -3,8 +3,13 @@ package mock
 import (
 	"context"
 	"io"
+	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
+	"github.com/stretchr/testify/require"
+
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -162,4 +167,107 @@ func (rc RestoreCollection) FetchItemByName(
 	}
 
 	return res, nil
+}
+
+var (
+	_ data.BackupCollection  = &versionedBackupCollection{}
+	_ data.RestoreCollection = &unversionedRestoreCollection{}
+	_ data.Item              = &itemWrapper{}
+)
+
+type itemWrapper struct {
+	data.Item
+	reader io.ReadCloser
+}
+
+func (i *itemWrapper) ToReader() io.ReadCloser {
+	return i.reader
+}
+
+func NewUnversionedRestoreCollection(
+	t *testing.T,
+	col data.RestoreCollection,
+) *unversionedRestoreCollection {
+	return &unversionedRestoreCollection{
+		RestoreCollection: col,
+		t:                 t,
+	}
+}
+
+// unversionedRestoreCollection strips out version format headers on all items.
+//
+// Wrap data.RestoreCollections in this type if you don't need access to the
+// version format header during tests and you know the item readers can't return
+// an error.
+type unversionedRestoreCollection struct {
+	data.RestoreCollection
+	t *testing.T
+}
+
+func (c *unversionedRestoreCollection) Items(
+	ctx context.Context,
+	errs *fault.Bus,
+) <-chan data.Item {
+	res := make(chan data.Item)
+	go func() {
+		defer close(res)
+
+		for item := range c.RestoreCollection.Items(ctx, errs) {
+			r, err := readers.NewVersionedRestoreReader(item.ToReader())
+			require.NoError(c.t, err, clues.ToCore(err))
+
+			res <- &itemWrapper{
+				Item:   item,
+				reader: r,
+			}
+		}
+	}()
+
+	return res
+}
+
+func NewVersionedBackupCollection(
+	t *testing.T,
+	col data.BackupCollection,
+) *versionedBackupCollection {
+	return &versionedBackupCollection{
+		BackupCollection: col,
+		t:                t,
+	}
+}
+
+// versionedBackupCollection injects basic version information on all items.
+//
+// Wrap data.BackupCollections in this type if you don't need to explicitly set
+// the version format header during tests, aren't trying to check reader errors
+// cases, and aren't populating backup details.
+type versionedBackupCollection struct {
+	data.BackupCollection
+	t *testing.T
+}
+
+func (c *versionedBackupCollection) Items(
+	ctx context.Context,
+	errs *fault.Bus,
+) <-chan data.Item {
+	res := make(chan data.Item)
+	go func() {
+		defer close(res)
+
+		for item := range c.BackupCollection.Items(ctx, errs) {
+			r, err := readers.NewVersionedBackupReader(
+				readers.SerializationFormat{
+					Version: readers.DefaultSerializationVersion,
+				},
+				item.ToReader())
+			require.NoError(c.t, err, clues.ToCore(err))
+
+			res <- &itemWrapper{
+				Item:   item,
+				reader: r,
+			}
+		}
+	}()
+
+	return res
 }

@@ -580,6 +580,10 @@ func (w *conn) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
 }
 
 func (w *conn) UpdatePassword(ctx context.Context, password string, opts repository.Options) error {
+	if len(password) <= 0 {
+		return clues.New("empty password provided")
+	}
+
 	kopiaRef := NewConn(w.storage)
 	if err := kopiaRef.Connect(ctx, opts); err != nil {
 		return clues.Wrap(err, "connecting kopia client")
@@ -587,8 +591,10 @@ func (w *conn) UpdatePassword(ctx context.Context, password string, opts reposit
 
 	defer kopiaRef.Close(ctx)
 
-	repository := kopiaRef.Repository.(repo.DirectRepository)
-	err := repository.FormatManager().ChangePassword(ctx, password)
+	kopiaRepo := kopiaRef.Repository.(repo.DirectRepository)
+	if err := kopiaRepo.FormatManager().ChangePassword(ctx, password); err != nil {
+		return clues.Wrap(err, "unable to update password")
+	}
 
-	return errors.Wrap(err, "unable to update password")
+	return nil
 }

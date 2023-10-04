@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
@@ -573,7 +574,12 @@ func compareExchangeEmail(
 	expected map[string][]byte,
 	item data.Item,
 ) {
-	itemData, err := io.ReadAll(item.ToReader())
+	rr := versionedReadWrapper(t, item.ToReader())
+	if rr == nil {
+		return
+	}
+
+	itemData, err := io.ReadAll(rr)
 	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
@@ -600,7 +606,12 @@ func compareExchangeContact(
 	expected map[string][]byte,
 	item data.Item,
 ) {
-	itemData, err := io.ReadAll(item.ToReader())
+	rr := versionedReadWrapper(t, item.ToReader())
+	if rr == nil {
+		return
+	}
+
+	itemData, err := io.ReadAll(rr)
 	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
@@ -628,7 +639,12 @@ func compareExchangeEvent(
 	expected map[string][]byte,
 	item data.Item,
 ) {
-	itemData, err := io.ReadAll(item.ToReader())
+	rr := versionedReadWrapper(t, item.ToReader())
+	if rr == nil {
+		return
+	}
+
+	itemData, err := io.ReadAll(rr)
 	if !assert.NoError(t, err, "reading collection item", item.ID(), clues.ToCore(err)) {
 		return
 	}
@@ -718,7 +734,12 @@ func compareDriveItem(
 		return false
 	}
 
-	buf, err := io.ReadAll(item.ToReader())
+	rr := versionedReadWrapper(t, item.ToReader())
+	if rr == nil {
+		return true
+	}
+
+	buf, err := io.ReadAll(rr)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		return true
 	}
@@ -850,6 +871,29 @@ func compareDriveItem(
 	return true
 }
 
+// versionedReaderWrapper strips out the version format header and checks it
+// meets the current standard for all service types. If it doesn't meet the
+// standard, returns nil. Else returns the versionedRestoreReader.
+func versionedReadWrapper(
+	t *testing.T,
+	reader io.ReadCloser,
+) io.ReadCloser {
+	rr, err := readers.NewVersionedRestoreReader(reader)
+	if !assert.NoError(t, err, clues.ToCore(err)) {
+		return nil
+	}
+
+	if !assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version) {
+		return nil
+	}
+
+	if !assert.False(t, rr.Format().DelInFlight) {
+		return nil
+	}
+
+	return rr
+}
+
 // compareItem compares the data returned by backup with the expected data.
 // Returns true if a comparison was done else false. Bool return is mostly used
 // to exclude OneDrive permissions for the root right now.
@@ -919,30 +963,9 @@ func checkHasCollections(
 			continue
 		}
 
-		fp := g.FullPath()
 		loc := g.(data.LocationPather).LocationPath()
 
-		if fp.Service() == path.OneDriveService ||
-			(fp.Service() == path.SharePointService && fp.Category() == path.LibrariesCategory) {
-			dp, err := path.ToDrivePath(fp)
-			if !assert.NoError(t, err, clues.ToCore(err)) {
-				continue
-			}
-
-			loc = path.BuildDriveLocation(dp.DriveID, loc.Elements()...)
-		}
-
-		p, err := loc.ToDataLayerPath(
-			fp.Tenant(),
-			fp.ProtectedResource(),
-			fp.Service(),
-			fp.Category(),
-			false)
-		if !assert.NoError(t, err, clues.ToCore(err)) {
-			continue
-		}
-
-		gotNames = append(gotNames, p.String())
+		gotNames = append(gotNames, loc.String())
 	}
 
 	assert.ElementsMatch(t, expectedNames, gotNames, "returned collections")
@@ -963,13 +986,17 @@ func checkCollections(
 
 	for _, returned := range got {
 		var (
-			hasItems        bool
-			service         = returned.FullPath().Service()
-			category        = returned.FullPath().Category()
-			expectedColData = expected[returned.FullPath().String()]
-			folders         = returned.FullPath().Elements()
-			rootDir         = folders[len(folders)-1] == mci.RestoreCfg.Location
+			expectedColDataByLoc map[string][]byte
+			hasItems             bool
+			service              = returned.FullPath().Service()
+			category             = returned.FullPath().Category()
+			folders              = returned.FullPath().Elements()
+			rootDir              = folders[len(folders)-1] == mci.RestoreCfg.Location
 		)
+
+		if p, ok := returned.(data.LocationPather); ok {
+			expectedColDataByLoc = expected[p.LocationPath().String()]
+		}
 
 		// Need to iterate through all items even if we don't expect to find a match
 		// because otherwise we'll deadlock waiting for the status. Unexpected or
@@ -990,14 +1017,14 @@ func checkCollections(
 			hasItems = true
 			gotItems++
 
-			if expectedColData == nil {
+			if expectedColDataByLoc == nil {
 				continue
 			}
 
 			if !compareItem(
 				t,
 				returned.FullPath(),
-				expectedColData,
+				expectedColDataByLoc,
 				service,
 				category,
 				item,

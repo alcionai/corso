@@ -100,7 +100,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		}
 
 	case path.GroupsService:
-		colls, ssmb, canUsePreviousBackup, err = groups.ProduceBackupCollections(
+		colls, ssmb, err = groups.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
@@ -110,6 +110,10 @@ func (ctrl *Controller) ProduceBackupCollections(
 		if err != nil {
 			return nil, nil, false, err
 		}
+
+		// canUsePreviousBacukp can be always returned true for groups as we
+		// return a tombstone collection in case the metadata read fails
+		canUsePreviousBackup = true
 
 	default:
 		return nil, nil, false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
