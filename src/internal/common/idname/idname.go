@@ -2,8 +2,10 @@ package idname
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
+	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 )
 
@@ -30,7 +32,10 @@ type GetResourceIDAndNamer interface {
 	) (Provider, error)
 }
 
-var _ Provider = &is{}
+var (
+	_ Provider        = &is{}
+	_ clues.Concealer = &is{}
+)
 
 type is struct {
 	id   string
@@ -43,6 +48,24 @@ func NewProvider(id, name string) *is {
 
 func (is is) ID() string   { return is.id }
 func (is is) Name() string { return is.name }
+
+const isStringTmpl = "{id:%s, name:%s}"
+
+func (is is) PlainString() string {
+	return fmt.Sprintf(isStringTmpl, clues.Hide(is.id), clues.Hide(is.name))
+}
+
+func (is is) Conceal() string {
+	return fmt.Sprintf(isStringTmpl, clues.Hide(is.id), clues.Hide(is.name))
+}
+
+func (is is) String() string {
+	return is.Conceal()
+}
+
+func (is is) Format(fs fmt.State, _ rune) {
+	fmt.Fprint(fs, is.Conceal())
+}
 
 type Cacher interface {
 	IDOf(name string) (string, bool)

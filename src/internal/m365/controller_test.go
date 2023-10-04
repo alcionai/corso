@@ -72,6 +72,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 		expectID          string
 		expectName        string
 		expectErr         require.ErrorAssertionFunc
+		expectNil         require.ValueAssertionFunc
 	}{
 		{
 			name:              "nil ins",
@@ -80,6 +81,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          id,
 			expectName:        name,
 			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
 			name:              "nil ins no lookup",
@@ -88,6 +90,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          "",
 			expectName:        "",
 			expectErr:         require.Error,
+			expectNil:         require.Nil,
 		},
 		{
 			name:              "only id map with owner id",
@@ -97,6 +100,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          id,
 			expectName:        name,
 			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
 			name:              "only name map with owner id",
@@ -106,6 +110,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          "",
 			expectName:        "",
 			expectErr:         require.Error,
+			expectNil:         require.Nil,
 		},
 		{
 			name:              "only name map with owner id and lookup",
@@ -115,6 +120,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          id,
 			expectName:        name,
 			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
 			name:              "only id map with owner name",
@@ -124,6 +130,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          id,
 			expectName:        name,
 			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
 			name:              "only name map with owner name",
@@ -133,6 +140,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          id,
 			expectName:        name,
 			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
 			name:              "only id map with owner name",
@@ -142,6 +150,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          "",
 			expectName:        "",
 			expectErr:         require.Error,
+			expectNil:         require.Nil,
 		},
 		{
 			name:              "only id map with owner name and lookup",
@@ -151,6 +160,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          id,
 			expectName:        name,
 			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
 			name:              "both maps with owner id",
@@ -160,6 +170,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          id,
 			expectName:        name,
 			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
 			name:              "both maps with owner name",
@@ -169,6 +180,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:          id,
 			expectName:        name,
 			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
 			name:              "non-matching maps with owner id",
@@ -180,6 +192,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
+			expectNil:  require.Nil,
 		},
 		{
 			name:              "non-matching with owner name",
@@ -191,6 +204,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
+			expectNil:  require.Nil,
 		},
 		{
 			name:              "non-matching maps with owner id and lookup",
@@ -202,6 +216,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
+			expectNil:  require.NotNil,
 		},
 		{
 			name:              "non-matching with owner name and lookup",
@@ -213,6 +228,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
+			expectNil:  require.NotNil,
 		},
 	}
 	for _, test := range table {
@@ -226,6 +242,12 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 
 			resource, err := ctrl.PopulateProtectedResourceIDAndName(ctx, test.protectedResource, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
+			test.expectNil(t, resource)
+
+			if err != nil {
+				return
+			}
+
 			assert.Equal(t, test.expectID, resource.ID(), "id")
 			assert.Equal(t, test.expectName, resource.Name(), "name")
 		})

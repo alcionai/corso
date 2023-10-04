@@ -120,7 +120,7 @@ func (rc RestoreConfig) marshal() string {
 func (rc RestoreConfig) concealed() RestoreConfig {
 	return RestoreConfig{
 		OnCollision:        rc.OnCollision,
-		ProtectedResource:  rc.ProtectedResource,
+		ProtectedResource:  clues.Conceal(rc.ProtectedResource),
 		Location:           path.LoggableDir(rc.Location),
 		Drive:              clues.Conceal(rc.Drive),
 		IncludePermissions: rc.IncludePermissions,
