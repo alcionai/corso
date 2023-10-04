@@ -240,6 +240,44 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
+func (suite *RepositoryIntegrationSuite) TestRepository_UpdatePassword() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	acct := tconfig.NewM365Account(t)
+
+	// need to initialize the repository before we can test connecting to it.
+	st := storeTD.NewPrefixedS3Storage(t)
+	r, err := New(
+		ctx,
+		acct,
+		st,
+		control.DefaultOptions(),
+		NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = r.Initialize(ctx, InitConfig{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	// now re-connect
+	err = r.Connect(ctx, ConnConfig{})
+	assert.NoError(t, err, clues.ToCore(err))
+
+	err = r.UpdatePassword(ctx, "newpass")
+	require.NoError(t, err, clues.ToCore(err))
+
+	tmp := st.Config["common_corsoPassphrase"]
+	st.Config["common_corsoPassphrase"] = "newpass"
+
+	// now reconnect with new pass
+	err = r.Connect(ctx, ConnConfig{})
+	assert.NoError(t, err, clues.ToCore(err))
+
+	st.Config["common_corsoPassphrase"] = tmp
+}
+
 func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	t := suite.T()
 
