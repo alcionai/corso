@@ -121,7 +121,7 @@ func checkPaths(t *testing.T, expected, got []path.Path) {
 type mockBackupConsumer struct {
 	checkFunc func(
 		backupReasons []identity.Reasoner,
-		bases kopia.BackupBases,
+		bases backup.BackupBases,
 		cs []data.BackupCollection,
 		tags map[string]string,
 		buildTreeWithBase bool)
@@ -130,7 +130,7 @@ type mockBackupConsumer struct {
 func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	ctx context.Context,
 	backupReasons []identity.Reasoner,
-	bases kopia.BackupBases,
+	bases backup.BackupBases,
 	cs []data.BackupCollection,
 	excluded prefixmatcher.StringSetReader,
 	tags map[string]string,
@@ -477,13 +477,13 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		}
 
 		bases = kopia.NewMockBackupBases().WithMergeBases(
-			kopia.ManifestEntry{
+			backup.ManifestEntry{
 				Manifest: manifest1,
 				Reasons: []identity.Reasoner{
 					emailReason,
 				},
 			}).WithAssistBases(
-			kopia.ManifestEntry{
+			backup.ManifestEntry{
 				Manifest: manifest2,
 				Reasons: []identity.Reasoner{
 					contactsReason,
@@ -500,7 +500,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 	mbu := &mockBackupConsumer{
 		checkFunc: func(
 			backupReasons []identity.Reasoner,
-			gotBases kopia.BackupBases,
+			gotBases backup.BackupBases,
 			cs []data.BackupCollection,
 			gotTags map[string]string,
 			buildTreeWithBase bool,
@@ -631,8 +631,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 	table := []struct {
 		name               string
 		populatedDetails   map[string]*details.Details
-		inputBackups       []kopia.BackupEntry
-		inputAssistBackups []kopia.BackupEntry
+		inputBackups       []backup.BackupEntry
+		inputAssistBackups []backup.BackupEntry
 		mdm                *mockDetailsMergeInfoer
 
 		errCheck        assert.ErrorAssertionFunc
@@ -659,7 +659,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup.Backup{
 						BaseModel: model.BaseModel{
@@ -683,7 +683,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -710,7 +710,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -766,7 +766,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -793,7 +793,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -823,7 +823,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -853,7 +853,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -883,7 +883,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -914,7 +914,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -945,7 +945,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -993,7 +993,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -1002,7 +1002,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					},
 				},
 			},
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []backup.BackupEntry{
 				{Backup: &backup2},
 			},
 			populatedDetails: map[string]*details.Details{
@@ -1037,7 +1037,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []backup.BackupEntry{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -1045,7 +1045,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					},
 				},
 			},
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []backup.BackupEntry{
 				{Backup: &backup2},
 			},
 			populatedDetails: map[string]*details.Details{
@@ -1077,7 +1077,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []backup.BackupEntry{
 				{Backup: &backup1},
 				{Backup: &backup2},
 			},
@@ -1110,7 +1110,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []backup.BackupEntry{
 				{Backup: &backup1},
 				{Backup: &backup2},
 			},
@@ -1143,7 +1143,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []backup.BackupEntry{
 				{Backup: &backup1},
 				{Backup: &backup2},
 			},
@@ -1173,7 +1173,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			mdm: func() *mockDetailsMergeInfoer {
 				return newMockDetailsMergeInfoer()
 			}(),
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []backup.BackupEntry{
 				{Backup: &backup1},
 			},
 			populatedDetails: map[string]*details.Details{
@@ -1273,7 +1273,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			itemPath1.Service(),
 			itemPath1.Category())
 
-		backup1 = kopia.BackupEntry{
+		backup1 = backup.BackupEntry{
 			Backup: &backup.Backup{
 				BaseModel: model.BaseModel{
 					ID: "bid1",

@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -139,7 +140,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 func (w Wrapper) ConsumeBackupCollections(
 	ctx context.Context,
 	backupReasons []identity.Reasoner,
-	bases BackupBases,
+	bases backup.BackupBases,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,
 	additionalTags map[string]string,
@@ -169,8 +170,8 @@ func (w Wrapper) ConsumeBackupCollections(
 	// snapshot bases into inflateDirTree so that the new snapshot
 	// includes historical data.
 	var (
-		mergeBase  []ManifestEntry
-		assistBase []ManifestEntry
+		mergeBase  []backup.ManifestEntry
+		assistBase []backup.ManifestEntry
 	)
 
 	if bases != nil {
@@ -220,7 +221,7 @@ func (w Wrapper) ConsumeBackupCollections(
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
-	prevSnapEntries []ManifestEntry,
+	prevSnapEntries []backup.ManifestEntry,
 	root fs.Directory,
 	addlTags map[string]string,
 	progress *corsoProgress,
@@ -253,7 +254,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 	tags := map[string]string{}
 
 	for k, v := range addlTags {
-		mk, mv := makeTagKV(k)
+		mk, mv := backup.MakeTagKV(k)
 
 		if len(v) == 0 {
 			v = mv

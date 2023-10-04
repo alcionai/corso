@@ -86,7 +86,7 @@ func normalizeTagKVs(tags map[string]string) map[string]string {
 	t2 := make(map[string]string, len(tags))
 
 	for k, v := range tags {
-		mk, mv := makeTagKV(k)
+		mk, mv := backup.MakeTagKV(k)
 
 		if len(v) == 0 {
 			v = mv
@@ -125,7 +125,7 @@ func (b *baseFinder) getBackupModel(
 	ctx context.Context,
 	man *snapshot.Manifest,
 ) (*backup.Backup, error) {
-	k, _ := makeTagKV(TagBackupID)
+	k, _ := backup.MakeTagKV(TagBackupID)
 	bID := man.Tags[k]
 
 	ctx = clues.Add(ctx, "search_backup_id", bID)
@@ -333,7 +333,7 @@ func (b *baseFinder) FindBases(
 	ctx context.Context,
 	reasons []identity.Reasoner,
 	tags map[string]string,
-) BackupBases {
+) backup.BackupBases {
 	var (
 		// Backup models and item data snapshot manifests are 1:1 for bases so just
 		// track things by the backup ID. We need to track by ID so we can coalesce
@@ -384,16 +384,16 @@ func (b *baseFinder) FindBases(
 	// Convert what we got to the format that backupBases takes right now.
 	// TODO(ashmrtn): Remove when backupBases has consolidated fields.
 	res := &backupBases{}
-	bups := make([]BackupEntry, 0, len(mergeBases))
-	snaps := make([]ManifestEntry, 0, len(mergeBases))
+	bups := make([]backup.BackupEntry, 0, len(mergeBases))
+	snaps := make([]backup.ManifestEntry, 0, len(mergeBases))
 
 	for _, base := range mergeBases {
-		bups = append(bups, BackupEntry{
+		bups = append(bups, backup.BackupEntry{
 			Backup:  base.Backup,
 			Reasons: base.Reasons,
 		})
 
-		snaps = append(snaps, ManifestEntry{
+		snaps = append(snaps, backup.ManifestEntry{
 			Manifest: base.ItemDataSnapshot,
 			Reasons:  base.Reasons,
 		})
@@ -402,16 +402,16 @@ func (b *baseFinder) FindBases(
 	res.backups = bups
 	res.mergeBases = snaps
 
-	bups = make([]BackupEntry, 0, len(assistBases))
-	snaps = make([]ManifestEntry, 0, len(assistBases))
+	bups = make([]backup.BackupEntry, 0, len(assistBases))
+	snaps = make([]backup.ManifestEntry, 0, len(assistBases))
 
 	for _, base := range assistBases {
-		bups = append(bups, BackupEntry{
+		bups = append(bups, backup.BackupEntry{
 			Backup:  base.Backup,
 			Reasons: base.Reasons,
 		})
 
-		snaps = append(snaps, ManifestEntry{
+		snaps = append(snaps, backup.ManifestEntry{
 			Manifest: base.ItemDataSnapshot,
 			Reasons:  base.Reasons,
 		})

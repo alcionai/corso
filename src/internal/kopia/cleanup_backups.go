@@ -99,7 +99,7 @@ func cleanupOrphanedData(
 
 		toDelete[snap.ID] = struct{}{}
 
-		k, _ := makeTagKV(TagBackupCategory)
+		k, _ := backup.MakeTagKV(TagBackupCategory)
 		if _, ok := snap.Labels[k]; ok {
 			dataSnaps[snap.ID] = snap
 			continue
@@ -315,7 +315,7 @@ func transferTags(snap *manifest.EntryMetadata, bup *backup.Backup) error {
 	skipTags := map[string]struct{}{}
 
 	for _, k := range skipKeys {
-		key, _ := makeTagKV(k)
+		key, _ := backup.MakeTagKV(k)
 		skipTags[key] = struct{}{}
 	}
 
@@ -324,7 +324,7 @@ func transferTags(snap *manifest.EntryMetadata, bup *backup.Backup) error {
 	// backups.
 	roid := bup.ProtectedResourceID
 
-	roidK, _ := makeTagKV(roid)
+	roidK, _ := backup.MakeTagKV(roid)
 	skipTags[roidK] = struct{}{}
 
 	// This is hacky, but right now we don't have a good way to get only the
@@ -336,11 +336,11 @@ func transferTags(snap *manifest.EntryMetadata, bup *backup.Backup) error {
 	// Convert them to the newer format that we'd like to have where the
 	// service/category tags have the form "sc-<service><category>".
 	for tag := range snap.Labels {
-		if _, ok := skipTags[tag]; ok || !strings.HasPrefix(tag, userTagPrefix) {
+		if _, ok := skipTags[tag]; ok || !strings.HasPrefix(tag, backup.LegacyUserTagPrefix) {
 			continue
 		}
 
-		bup.Tags[strings.Replace(tag, userTagPrefix, serviceCatTagPrefix, 1)] = "0"
+		bup.Tags[strings.Replace(tag, backup.LegacyUserTagPrefix, serviceCatTagPrefix, 1)] = "0"
 	}
 
 	return nil

@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -879,14 +880,14 @@ func makeManifestEntry(
 	id, tenant, resourceOwner string,
 	service path.ServiceType,
 	categories ...path.CategoryType,
-) ManifestEntry {
+) backup.ManifestEntry {
 	var reasons []identity.Reasoner
 
 	for _, c := range categories {
 		reasons = append(reasons, NewReason(tenant, resourceOwner, service, c))
 	}
 
-	return ManifestEntry{
+	return backup.ManifestEntry{
 		Manifest: &snapshot.Manifest{
 			ID: manifest.ID(id),
 		},
@@ -1198,7 +1199,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]ManifestEntry{
+				[]backup.ManifestEntry{
 					makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(),
@@ -1913,7 +1914,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]ManifestEntry{
+				[]backup.ManifestEntry{
 					makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
@@ -2057,7 +2058,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
+		[]backup.ManifestEntry{
 			makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
@@ -2157,7 +2158,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
+		[]backup.ManifestEntry{
 			makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
@@ -2373,7 +2374,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
+		[]backup.ManifestEntry{
 			makeManifestEntry("id1", testTenant, testUser, path.ExchangeService, path.ContactsCategory),
 			makeManifestEntry("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
@@ -2526,7 +2527,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
+		[]backup.ManifestEntry{
 			makeManifestEntry("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
 		},
 		[]data.BackupCollection{mce, mcc},
@@ -3451,7 +3452,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]ManifestEntry{
+				[]backup.ManifestEntry{
 					makeManifestEntry("", tenant, user, path.OneDriveService, path.FilesCategory),
 				},
 				test.inputCollections(t),

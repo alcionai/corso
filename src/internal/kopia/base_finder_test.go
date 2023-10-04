@@ -121,7 +121,7 @@ func newManifestInfo(
 	structTags := make(map[string]string, len(tags))
 
 	for _, t := range tags {
-		tk, _ := makeTagKV(t)
+		tk, _ := backup.MakeTagKV(t)
 		structTags[tk] = ""
 	}
 
@@ -141,7 +141,7 @@ func newManifestInfo(
 	}
 
 	if len(backupID) > 0 {
-		k, _ := makeTagKV(TagBackupID)
+		k, _ := backup.MakeTagKV(TagBackupID)
 		res.metadata.Labels[k] = backupID
 		res.man.Tags[k] = backupID
 	}
@@ -1078,7 +1078,7 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 
 func checkManifestEntriesMatch(
 	t *testing.T,
-	retSnaps []ManifestEntry,
+	retSnaps []backup.ManifestEntry,
 	allExpected []manifestInfo,
 	expectedIdxsAndReasons map[int][]identity.Reasoner,
 ) {
@@ -1119,7 +1119,7 @@ func checkManifestEntriesMatch(
 
 func checkBackupEntriesMatch(
 	t *testing.T,
-	retBups []BackupEntry,
+	retBups []backup.BackupEntry,
 	allExpected []backupInfo,
 	expectedIdxsAndReasons map[int][]identity.Reasoner,
 ) {

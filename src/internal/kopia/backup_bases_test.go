@@ -18,10 +18,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func makeManifest(id, incmpl, bID string, reasons ...identity.Reasoner) ManifestEntry {
-	bIDKey, _ := makeTagKV(TagBackupID)
+func makeManifest(
+	id,
+	incmpl,
+	bID string,
+	reasons ...identity.Reasoner,
+) backup.ManifestEntry {
+	bIDKey, _ := backup.MakeTagKV(TagBackupID)
 
-	return ManifestEntry{
+	return backup.ManifestEntry{
 		Manifest: &snapshot.Manifest{
 			ID:               manifest.ID(id),
 			IncompleteReason: incmpl,
@@ -57,7 +62,7 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 		{
 			name: "Unsorted Backups",
 			bb: &backupBases{
-				backups: []BackupEntry{
+				backups: []backup.BackupEntry{
 					{
 						Backup: &backup.Backup{
 							Version: 4,
@@ -86,13 +91,13 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 }
 
 func (suite *BackupBasesUnitSuite) TestConvertToAssistBase() {
-	backups := []BackupEntry{
+	backups := []backup.BackupEntry{
 		{Backup: &backup.Backup{SnapshotID: "1"}},
 		{Backup: &backup.Backup{SnapshotID: "2"}},
 		{Backup: &backup.Backup{SnapshotID: "3"}},
 	}
 
-	merges := []ManifestEntry{
+	merges := []backup.ManifestEntry{
 		makeManifest("1", "", ""),
 		makeManifest("2", "", ""),
 		makeManifest("3", "", ""),
@@ -185,8 +190,8 @@ func (suite *BackupBasesUnitSuite) TestConvertToAssistBase() {
 			}
 
 			expected := &backupBases{
-				backups:    []BackupEntry{backups[0], backups[1]},
-				mergeBases: []ManifestEntry{merges[0], merges[1]},
+				backups:    []backup.BackupEntry{backups[0], backups[1]},
+				mergeBases: []backup.ManifestEntry{merges[0], merges[1]},
 			}
 
 			for _, i := range test.expectAssist {
@@ -203,20 +208,20 @@ func (suite *BackupBasesUnitSuite) TestConvertToAssistBase() {
 func (suite *BackupBasesUnitSuite) TestDisableMergeBases() {
 	t := suite.T()
 
-	merge := []BackupEntry{
+	merge := []backup.BackupEntry{
 		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "m1"}}},
 		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "m2"}}},
 	}
-	assist := []BackupEntry{
+	assist := []backup.BackupEntry{
 		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "a1"}}},
 		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "a2"}}},
 	}
 
 	bb := &backupBases{
 		backups:       slices.Clone(merge),
-		mergeBases:    make([]ManifestEntry, 2),
+		mergeBases:    make([]backup.ManifestEntry, 2),
 		assistBackups: slices.Clone(assist),
-		assistBases:   make([]ManifestEntry, 2),
+		assistBases:   make([]backup.ManifestEntry, 2),
 	}
 
 	bb.DisableMergeBases()
@@ -237,10 +242,10 @@ func (suite *BackupBasesUnitSuite) TestDisableMergeBases() {
 func (suite *BackupBasesUnitSuite) TestDisableAssistBases() {
 	t := suite.T()
 	bb := &backupBases{
-		backups:       make([]BackupEntry, 2),
-		mergeBases:    make([]ManifestEntry, 2),
-		assistBases:   make([]ManifestEntry, 2),
-		assistBackups: make([]BackupEntry, 2),
+		backups:       make([]backup.BackupEntry, 2),
+		mergeBases:    make([]backup.ManifestEntry, 2),
+		assistBases:   make([]backup.ManifestEntry, 2),
+		assistBackups: make([]backup.BackupEntry, 2),
 	}
 
 	bb.DisableAssistBases()
@@ -275,7 +280,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 
 			m := makeManifest(baseID, "", "b"+baseID, reasons...)
 
-			b := BackupEntry{
+			b := backup.BackupEntry{
 				Backup: &backup.Backup{
 					BaseModel:     model.BaseModel{ID: model.StableID("b" + baseID)},
 					SnapshotID:    baseID,
@@ -299,7 +304,7 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 
 			m := makeManifest(baseID, "", "a"+baseID, reasons...)
 
-			b := BackupEntry{
+			b := backup.BackupEntry{
 				Backup: &backup.Backup{
 					BaseModel: model.BaseModel{
 						ID:   model.StableID("a" + baseID),
@@ -528,7 +533,11 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 	ro := "resource_owner"
 
-	makeMan := func(pct path.CategoryType, id, incmpl, bID string) ManifestEntry {
+	makeMan := func(
+		pct path.CategoryType,
+		id, incmpl,
+		bID string,
+	) backup.ManifestEntry {
 		r := NewReason("", ro, path.ExchangeService, pct)
 		return makeManifest(id, incmpl, bID, r)
 	}
@@ -536,7 +545,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 	// Make a function so tests can modify things without messing with each other.
 	validMail1 := func() *backupBases {
 		return &backupBases{
-			backups: []BackupEntry{
+			backups: []backup.BackupEntry{
 				{
 					Backup: &backup.Backup{
 						BaseModel: model.BaseModel{
@@ -547,10 +556,10 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 					},
 				},
 			},
-			mergeBases: []ManifestEntry{
+			mergeBases: []backup.ManifestEntry{
 				makeMan(path.EmailCategory, "id1", "", "bid1"),
 			},
-			assistBackups: []BackupEntry{
+			assistBackups: []backup.BackupEntry{
 				{
 					Backup: &backup.Backup{
 						BaseModel: model.BaseModel{
@@ -562,7 +571,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 					},
 				},
 			},
-			assistBases: []ManifestEntry{
+			assistBases: []backup.ManifestEntry{
 				makeMan(path.EmailCategory, "id2", "", "bid2"),
 			},
 		}
@@ -571,7 +580,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 	table := []struct {
 		name   string
 		bb     *backupBases
-		expect BackupBases
+		expect backup.BackupBases
 	}{
 		{
 			name: "empty BaseBackups",
@@ -769,14 +778,14 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.backups = append(
 					res.backups,
-					BackupEntry{
+					backup.BackupEntry{
 						Backup: &backup.Backup{
 							BaseModel: model.BaseModel{
 								ID: "bid3",
 							},
 						},
 					},
-					BackupEntry{
+					backup.BackupEntry{
 						Backup: &backup.Backup{
 							BaseModel: model.BaseModel{
 								ID: "bid4",
@@ -796,7 +805,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.backups = append(
 					res.backups,
-					BackupEntry{
+					backup.BackupEntry{
 						Backup: &backup.Backup{
 							BaseModel: model.BaseModel{
 								ID: "bid4",
@@ -818,7 +827,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.assistBackups = append(
 					res.assistBackups,
-					BackupEntry{
+					backup.BackupEntry{
 						Backup: &backup.Backup{
 							BaseModel: model.BaseModel{
 								ID:   "bid3",
@@ -826,7 +835,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 							},
 						},
 					},
-					BackupEntry{
+					backup.BackupEntry{
 						Backup: &backup.Backup{
 							BaseModel: model.BaseModel{
 								ID:   "bid4",
@@ -847,7 +856,7 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.assistBackups = append(
 					res.assistBackups,
-					BackupEntry{
+					backup.BackupEntry{
 						Backup: &backup.Backup{
 							BaseModel: model.BaseModel{
 								ID:   "bid4",

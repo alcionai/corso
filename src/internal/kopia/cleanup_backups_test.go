@@ -136,7 +136,7 @@ type backupRes struct {
 }
 
 func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
-	backupTag, _ := makeTagKV(TagBackupCategory)
+	backupTag, _ := backup.MakeTagKV(TagBackupCategory)
 
 	// Current backup and snapshots.
 	bupCurrent := func() *backup.Backup {
@@ -331,13 +331,13 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		// Add the given reasons.
 		for _, r := range reasons {
 			for _, k := range tagKeys(r) {
-				key, _ := makeTagKV(k)
+				key, _ := backup.MakeTagKV(k)
 				res.Labels[key] = "0"
 			}
 		}
 
 		// Also add other common reasons on item data snapshots.
-		k, _ := makeTagKV(TagBackupCategory)
+		k, _ := backup.MakeTagKV(TagBackupCategory)
 		res.Labels[k] = "0"
 
 		return &res

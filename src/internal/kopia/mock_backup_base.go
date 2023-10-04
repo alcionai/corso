@@ -4,9 +4,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/alcionai/corso/src/pkg/backup"
 )
 
-func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
+var _ backup.BackupBases = &MockBackupBases{}
+
+func AssertBackupBasesEqual(t *testing.T, expect, got backup.BackupBases) {
 	if expect == nil && got == nil {
 		return
 	}
@@ -48,22 +52,22 @@ type MockBackupBases struct {
 	*backupBases
 }
 
-func (bb *MockBackupBases) WithBackups(b ...BackupEntry) *MockBackupBases {
+func (bb *MockBackupBases) WithBackups(b ...backup.BackupEntry) *MockBackupBases {
 	bb.backupBases.backups = append(bb.Backups(), b...)
 	return bb
 }
 
-func (bb *MockBackupBases) WithMergeBases(m ...ManifestEntry) *MockBackupBases {
+func (bb *MockBackupBases) WithMergeBases(m ...backup.ManifestEntry) *MockBackupBases {
 	bb.backupBases.mergeBases = append(bb.MergeBases(), m...)
 	return bb
 }
 
-func (bb *MockBackupBases) WithAssistBackups(b ...BackupEntry) *MockBackupBases {
+func (bb *MockBackupBases) WithAssistBackups(b ...backup.BackupEntry) *MockBackupBases {
 	bb.backupBases.assistBackups = append(bb.UniqueAssistBackups(), b...)
 	return bb
 }
 
-func (bb *MockBackupBases) WithAssistBases(m ...ManifestEntry) *MockBackupBases {
+func (bb *MockBackupBases) WithAssistBases(m ...backup.ManifestEntry) *MockBackupBases {
 	bb.backupBases.assistBases = append(bb.UniqueAssistBases(), m...)
 	return bb
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
 	oinject "github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -23,7 +24,7 @@ func produceManifestsAndMetadata(
 	reasons, fallbackReasons []identity.Reasoner,
 	tenantID string,
 	getMetadata, dropAssistBases bool,
-) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
+) (backup.BackupBases, []data.RestoreCollection, bool, error) {
 	bb, meta, useMergeBases, err := getManifestsAndMetadata(
 		ctx,
 		bf,
@@ -62,7 +63,7 @@ func getManifestsAndMetadata(
 	reasons, fallbackReasons []identity.Reasoner,
 	tenantID string,
 	getMetadata bool,
-) (kopia.BackupBases, []data.RestoreCollection, bool, error) {
+) (backup.BackupBases, []data.RestoreCollection, bool, error) {
 	var (
 		tags        = map[string]string{kopia.TagBackupCategory: ""}
 		collections []data.RestoreCollection

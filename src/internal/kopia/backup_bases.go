@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -17,17 +18,17 @@ var _ backup.BackupBases = &backupBases{}
 type backupBases struct {
 	// backups and mergeBases should be modified together as they relate similar
 	// data.
-	backups       []BackupEntry
-	mergeBases    []ManifestEntry
-	assistBackups []BackupEntry
-	assistBases   []ManifestEntry
+	backups       []backup.BackupEntry
+	mergeBases    []backup.ManifestEntry
+	assistBackups []backup.BackupEntry
+	assistBases   []backup.ManifestEntry
 
 	// disableAssistBases denote whether any assist bases should be returned to
 	// kopia during snapshot operation.
 	disableAssistBases bool
 }
 
-func (bb *backupBases) SnapshotAssistBases() []ManifestEntry {
+func (bb *backupBases) SnapshotAssistBases() []backup.ManifestEntry {
 	if bb.disableAssistBases {
 		return nil
 	}
@@ -39,14 +40,14 @@ func (bb *backupBases) SnapshotAssistBases() []ManifestEntry {
 
 func (bb *backupBases) ConvertToAssistBase(manifestID manifest.ID) {
 	var (
-		snapshotMan ManifestEntry
-		base        BackupEntry
+		snapshotMan backup.ManifestEntry
+		base        backup.BackupEntry
 		snapFound   bool
 	)
 
 	idx := slices.IndexFunc(
 		bb.mergeBases,
-		func(man ManifestEntry) bool {
+		func(man backup.ManifestEntry) bool {
 			return man.ID == manifestID
 		})
 	if idx >= 0 {
@@ -57,7 +58,7 @@ func (bb *backupBases) ConvertToAssistBase(manifestID manifest.ID) {
 
 	idx = slices.IndexFunc(
 		bb.backups,
-		func(bup BackupEntry) bool {
+		func(bup backup.BackupEntry) bool {
 			return bup.SnapshotID == string(manifestID)
 		})
 	if idx >= 0 {
@@ -72,11 +73,11 @@ func (bb *backupBases) ConvertToAssistBase(manifestID manifest.ID) {
 	}
 }
 
-func (bb backupBases) Backups() []BackupEntry {
+func (bb backupBases) Backups() []backup.BackupEntry {
 	return slices.Clone(bb.backups)
 }
 
-func (bb backupBases) UniqueAssistBackups() []BackupEntry {
+func (bb backupBases) UniqueAssistBackups() []backup.BackupEntry {
 	if bb.disableAssistBases {
 		return nil
 	}
@@ -100,7 +101,7 @@ func (bb *backupBases) MinBackupVersion() int {
 	return min
 }
 
-func (bb backupBases) MergeBases() []ManifestEntry {
+func (bb backupBases) MergeBases() []backup.ManifestEntry {
 	return slices.Clone(bb.mergeBases)
 }
 
@@ -117,7 +118,7 @@ func (bb *backupBases) DisableMergeBases() {
 	bb.backups = nil
 }
 
-func (bb backupBases) UniqueAssistBases() []ManifestEntry {
+func (bb backupBases) UniqueAssistBases() []backup.ManifestEntry {
 	if bb.disableAssistBases {
 		return nil
 	}
@@ -152,9 +153,9 @@ func (bb *backupBases) DisableAssistBases() {
 //     MergeBase in the other BackupBases.
 func (bb *backupBases) MergeBackupBases(
 	ctx context.Context,
-	other BackupBases,
+	other backup.BackupBases,
 	reasonToKey func(reason identity.Reasoner) string,
-) BackupBases {
+) backup.BackupBases {
 	if other == nil || (len(other.MergeBases()) == 0 && len(other.UniqueAssistBases()) == 0) {
 		return bb
 	}
@@ -183,7 +184,7 @@ func (bb *backupBases) MergeBackupBases(
 		}
 	}
 
-	var toAdd []ManifestEntry
+	var toAdd []backup.ManifestEntry
 
 	// Calculate the set of mergeBases to pull from other into this one.
 	for _, m := range other.MergeBases() {
@@ -244,10 +245,10 @@ func (bb *backupBases) MergeBackupBases(
 
 func findNonUniqueManifests(
 	ctx context.Context,
-	manifests []ManifestEntry,
+	manifests []backup.ManifestEntry,
 ) map[manifest.ID]struct{} {
 	// ReasonKey -> manifests with that reason.
-	reasons := map[string][]ManifestEntry{}
+	reasons := map[string][]backup.ManifestEntry{}
 	toDrop := map[manifest.ID]struct{}{}
 
 	for _, man := range manifests {
@@ -300,17 +301,20 @@ func findNonUniqueManifests(
 	return toDrop
 }
 
-func getBackupByID(backups []BackupEntry, bID string) (BackupEntry, bool) {
+func getBackupByID(
+	backups []backup.BackupEntry,
+	bID string,
+) (backup.BackupEntry, bool) {
 	if len(bID) == 0 {
-		return BackupEntry{}, false
+		return backup.BackupEntry{}, false
 	}
 
-	idx := slices.IndexFunc(backups, func(b BackupEntry) bool {
+	idx := slices.IndexFunc(backups, func(b backup.BackupEntry) bool {
 		return string(b.ID) == bID
 	})
 
 	if idx < 0 || idx >= len(backups) {
-		return BackupEntry{}, false
+		return backup.BackupEntry{}, false
 	}
 
 	return backups[idx], true
@@ -333,10 +337,10 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 	toDrop := findNonUniqueManifests(ctx, bb.mergeBases)
 
 	var (
-		backupsToKeep       []BackupEntry
-		assistBackupsToKeep []BackupEntry
-		mergeToKeep         []ManifestEntry
-		assistToKeep        []ManifestEntry
+		backupsToKeep       []backup.BackupEntry
+		assistBackupsToKeep []backup.BackupEntry
+		mergeToKeep         []backup.ManifestEntry
+		assistToKeep        []backup.ManifestEntry
 	)
 
 	for _, man := range bb.mergeBases {

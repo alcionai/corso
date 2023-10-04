@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -17,7 +18,7 @@ type (
 		ConsumeBackupCollections(
 			ctx context.Context,
 			backupReasons []identity.Reasoner,
-			bases kopia.BackupBases,
+			bases backup.BackupBases,
 			cs []data.BackupCollection,
 			pmr prefixmatcher.StringSetReader,
 			tags map[string]string,
@@ -41,6 +42,6 @@ type (
 			ctx context.Context,
 			reasons []identity.Reasoner,
 			tags map[string]string,
-		) kopia.BackupBases
+		) backup.BackupBases
 	}
 )

@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -837,7 +838,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 	type testCase struct {
 		name                  string
-		baseBackups           func(base ManifestEntry) BackupBases
+		baseBackups           func(base backup.ManifestEntry) backup.BackupBases
 		collections           []data.BackupCollection
 		expectedUploadedFiles int
 		expectedCachedFiles   int
@@ -862,7 +863,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	// Initial backup. All files should be considered new by kopia.
 	baseBackupCase := testCase{
 		name: "Uncached",
-		baseBackups: func(ManifestEntry) BackupBases {
+		baseBackups: func(backup.ManifestEntry) backup.BackupBases {
 			return NewMockBackupBases()
 		},
 		collections:           collections,
@@ -873,8 +874,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		uploadedBytes:         []int64{8000, 10000},
 	}
 
-	runAndTestBackup := func(test testCase, base ManifestEntry) ManifestEntry {
-		var res ManifestEntry
+	runAndTestBackup := func(test testCase, base backup.ManifestEntry) backup.ManifestEntry {
+		var res backup.ManifestEntry
 
 		suite.Run(test.name, func() {
 			t := suite.T()
@@ -945,7 +946,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				manifest.ID(stats.SnapshotID))
 			require.NoError(t, err, clues.ToCore(err))
 
-			res = ManifestEntry{
+			res = backup.ManifestEntry{
 				Manifest: snap,
 				Reasons:  reasons,
 			}
@@ -954,12 +955,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		return res
 	}
 
-	base := runAndTestBackup(baseBackupCase, ManifestEntry{})
+	base := runAndTestBackup(baseBackupCase, backup.ManifestEntry{})
 
 	table := []testCase{
 		{
 			name: "Kopia Assist And Merge All Files Changed",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base backup.ManifestEntry) backup.BackupBases {
 				return NewMockBackupBases().WithMergeBases(base)
 			},
 			collections:           collections,
@@ -973,7 +974,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 		{
 			name: "Kopia Assist And Merge No Files Changed",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base backup.ManifestEntry) backup.BackupBases {
 				return NewMockBackupBases().WithMergeBases(base)
 			},
 			// Pass in empty collections to force a backup. Otherwise we'll skip
@@ -995,7 +996,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 		{
 			name: "Kopia Assist Only",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base backup.ManifestEntry) backup.BackupBases {
 				return NewMockBackupBases().WithAssistBases(base)
 			},
 			collections:           collections,
@@ -1008,7 +1009,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 		{
 			name: "Merge Only",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base backup.ManifestEntry) backup.BackupBases {
 				return NewMockBackupBases().WithMergeBases(base).MockDisableAssistBases()
 			},
 			// Pass in empty collections to force a backup. Otherwise we'll skip
@@ -1028,7 +1029,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 		{
 			name: "Content Hash Only",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base backup.ManifestEntry) backup.BackupBases {
 				return NewMockBackupBases()
 			},
 			collections:           collections,
@@ -1231,7 +1232,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			prevSnaps.WithMergeBases(
-				ManifestEntry{
+				backup.ManifestEntry{
 					Manifest: snap,
 					Reasons:  reasons,
 				})
@@ -1719,7 +1720,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				suite.ctx,
 				[]identity.Reasoner{r},
 				NewMockBackupBases().WithMergeBases(
-					ManifestEntry{
+					backup.ManifestEntry{
 						Manifest: man,
 						Reasons:  []identity.Reasoner{r},
 					}),

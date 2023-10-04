@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/graph/metadata"
+	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -1039,7 +1040,7 @@ func traverseBaseDir(
 	return nil
 }
 
-func logBaseInfo(ctx context.Context, m ManifestEntry) {
+func logBaseInfo(ctx context.Context, m backup.ManifestEntry) {
 	svcs := map[string]struct{}{}
 	cats := map[string]struct{}{}
 
@@ -1085,7 +1086,7 @@ const (
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	snap ManifestEntry,
+	snap backup.ManifestEntry,
 	updatedPaths map[string]path.Path,
 	roots map[string]*treeMap,
 ) error {
@@ -1196,7 +1197,7 @@ func inflateBaseTree(
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	baseSnaps []ManifestEntry,
+	baseSnaps []backup.ManifestEntry,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,

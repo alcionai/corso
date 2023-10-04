@@ -494,7 +494,7 @@ func consumeBackupCollections(
 	bc kinject.BackupConsumer,
 	tenantID string,
 	reasons []identity.Reasoner,
-	bbs kopia.BackupBases,
+	bbs backup.BackupBases,
 	cs []data.BackupCollection,
 	pmr prefixmatcher.StringSetReader,
 	backupID model.StableID,
@@ -598,7 +598,7 @@ func getNewPathRefs(
 func mergeItemsFromBase(
 	ctx context.Context,
 	checkReason bool,
-	baseBackup kopia.BackupEntry,
+	baseBackup backup.BackupEntry,
 	detailsStore streamstore.Streamer,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
@@ -702,7 +702,7 @@ func mergeItemsFromBase(
 func mergeDetails(
 	ctx context.Context,
 	detailsStore streamstore.Streamer,
-	bases kopia.BackupBases,
+	bases backup.BackupBases,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
 	writeStats *kopia.BackupStats,
@@ -843,6 +843,7 @@ func (op *BackupOperation) persistResults(
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
 	sscw streamstore.CollectorWriter,
+	bases backup.BackupBases,
 	opStats backupStats,
 	backupID model.StableID,
 	backupVersion int,
