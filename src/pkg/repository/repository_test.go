@@ -268,9 +268,14 @@ func (suite *RepositoryIntegrationSuite) TestRepository_UpdatePassword() {
 	err = r.UpdatePassword(ctx, "newpass")
 	require.NoError(t, err, clues.ToCore(err))
 
+	tmp := st.Config["common_corsoPassphrase"]
+	st.Config["common_corsoPassphrase"] = "newpass"
+
 	// now reconnect with new pass
 	err = r.Connect(ctx, ConnConfig{})
-	assert.Error(t, err, clues.ToCore(err))
+	assert.NoError(t, err, clues.ToCore(err))
+
+	st.Config["common_corsoPassphrase"] = tmp
 }
 
 func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
