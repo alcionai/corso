@@ -31,6 +31,7 @@ func (suite *FilesystemSuite) TestAddFilesystemCommands() {
 	}{
 		{"init filesystem", initCommand, expectUse, filesystemInitCmd().Short, initFilesystemCmd},
 		{"connect filesystem", connectCommand, expectUse, filesystemConnectCmd().Short, connectFilesystemCmd},
+		{"update filesystem", updateCommand, expectUse, filesystemUpdateCmd().Short, updateFilesystemCmd},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {

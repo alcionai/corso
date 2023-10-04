@@ -295,6 +295,8 @@ func updateS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to update s3"))
 	}
 
+	defer utils.CloseRepo(ctx, r)
+
 	Infof(ctx, "Updated repo password.")
 
 	return nil

@@ -57,9 +57,8 @@ func AddCommands(cmd *cobra.Command) {
 	for _, addRepoTo := range repoCommands {
 		addRepoTo(initCmd)
 		addRepoTo(connectCmd)
+		addRepoTo(updateCmd)
 	}
-
-	addS3Commands(updateCmd)
 }
 
 // The repo category of commands.

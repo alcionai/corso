@@ -38,6 +38,11 @@ func addFilesystemCommands(cmd *cobra.Command) *cobra.Command {
 
 	case connectCommand:
 		c, _ = utils.AddCommand(cmd, filesystemConnectCmd())
+
+	case updateCommand:
+		update := filesystemUpdateCmd()
+		flags.AddCorsoUpdatePassphraseFlags(update)
+		c, _ = utils.AddCommand(cmd, update)
 	}
 
 	c.Use = c.Use + " " + fsProviderCmdUseSuffix
@@ -226,6 +231,68 @@ func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
+
+	return nil
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Update
+// ---------------------------------------------------------------------------------------------------------
+
+// `corso repo update filesystem [<flag>...]`
+func filesystemUpdateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     fsProviderCommand,
+		Short:   "Update to a filesystem repository",
+		Long:    `Update to an existing repository on local or network storage.`,
+		RunE:    updateFilesystemCmd,
+		Args:    cobra.NoArgs,
+		Example: fsProviderCmdConnectExamples,
+	}
+}
+
+// updates to an existing filesystem repo.
+func updateFilesystemCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	overrides := flags.FilesystemFlagOverrides(cmd)
+
+	// TODO(pandeyabs): Move filepath conversion to FilesystemConfig scope.
+	abs, err := utils.MakeAbsoluteFilePath(overrides[flags.FilesystemPathFN])
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "getting absolute repo path"))
+	}
+
+	overrides[flags.FilesystemPathFN] = abs
+
+	cfg, err := config.GetConfigRepoDetails(
+		ctx,
+		storage.ProviderFilesystem,
+		true,
+		true,
+		overrides)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	opts := utils.ControlWithConfig(cfg)
+
+	r, err := repository.New(
+		ctx,
+		cfg.Account,
+		cfg.Storage,
+		opts,
+		cfg.RepoID)
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
+	}
+
+	if err := r.UpdatePassword(ctx, flags.UpdateCorsoPhasephraseFV); err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to update s3"))
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	Infof(ctx, "Updated repo password.")
 
 	return nil
 }

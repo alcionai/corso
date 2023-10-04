@@ -153,3 +153,81 @@ func (suite *FilesystemE2ESuite) TestConnectFilesystemCmd() {
 		})
 	}
 }
+
+func (suite *FilesystemE2ESuite) TestUpdateFilesystemCmd() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	st := storeTD.NewFilesystemStorage(t)
+	cfg, err := st.ToFilesystemConfig()
+	require.NoError(t, err, clues.ToCore(err))
+
+	force := map[string]string{
+		tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
+		tconfig.TestCfgStorageProvider: storage.ProviderFilesystem.String(),
+		tconfig.TestCfgFilesystemPath:  cfg.Path,
+	}
+	vpr, configFP := tconfig.MakeTempTestConfigClone(t, force)
+
+	ctx = config.SetViper(ctx, vpr)
+
+	// init the repo first
+	r, err := repository.New(
+		ctx,
+		tconfig.NewM365Account(t),
+		st,
+		control.DefaultOptions(),
+		repository.NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = r.Initialize(ctx, repository.InitConfig{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	// then connect it
+	cmd := cliTD.StubRootCmd(
+		"repo", "connect", "filesystem",
+		"--config-file", configFP,
+		"--path", cfg.Path)
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err = cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// test update
+	cmd = cliTD.StubRootCmd(
+		"repo", "update", "filesystem",
+		"--config-file", configFP,
+		"--path", cfg.Path,
+		"--update-passphrase", "newpass")
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err = cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// try connecting with new password
+	cmd = cliTD.StubRootCmd(
+		"repo", "connect", "filesystem",
+		"--config-file", configFP,
+		"--path", cfg.Path,
+		"--passphrase", "newpass")
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err = cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// try connecting with old password
+	cmd = cliTD.StubRootCmd(
+		"repo", "connect", "filesystem",
+		"--config-file", configFP,
+		"--path", cfg.Path)
+	cli.BuildCommandTree(cmd)
+
+	// run the command
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
