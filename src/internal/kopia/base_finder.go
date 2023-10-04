@@ -17,55 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-func NewReason(
-	tenant, resource string,
-	service path.ServiceType,
-	category path.CategoryType,
-) identity.Reasoner {
-	return reason{
-		tenant:   tenant,
-		resource: resource,
-		service:  service,
-		category: category,
-	}
-}
-
-type reason struct {
-	// tenant appears here so that when this is moved to an inject package nothing
-	// needs changed. However, kopia itself is blind to the fields in the reason
-	// struct and relies on helper functions to get the information it needs.
-	tenant   string
-	resource string
-	service  path.ServiceType
-	category path.CategoryType
-}
-
-func (r reason) Tenant() string {
-	return r.tenant
-}
-
-func (r reason) ProtectedResource() string {
-	return r.resource
-}
-
-func (r reason) Service() path.ServiceType {
-	return r.service
-}
-
-func (r reason) Category() path.CategoryType {
-	return r.category
-}
-
-func (r reason) SubtreePath() (path.Path, error) {
-	p, err := path.BuildPrefix(
-		r.Tenant(),
-		r.ProtectedResource(),
-		r.Service(),
-		r.Category())
-
-	return p, clues.Wrap(err, "building path").OrNil()
-}
-
 func tagKeys(r identity.Reasoner) []string {
 	return []string{
 		r.ProtectedResource(),
