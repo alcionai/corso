@@ -2553,12 +2553,13 @@ type mockStaticDirectory struct {
 	iterateCount int
 }
 
-func (msd *mockStaticDirectory) IterateEntries(
+func (msd *mockStaticDirectory) Iterate(
 	ctx context.Context,
-	callback func(context.Context, fs.Entry) error,
-) error {
+) (fs.DirectoryIterator, error) {
 	msd.iterateCount++
-	return msd.Directory.IterateEntries(ctx, callback)
+	iter, err := msd.Directory.Iterate(ctx)
+
+	return iter, clues.Stack(err).OrNil()
 }
 
 func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreePruning() {
