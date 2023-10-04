@@ -12,30 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-// TODO(ashmrtn): Move this into some inject package. Here to avoid import
-// cycles.
-type BackupBases interface {
-	// ConvertToAssistBase converts the base with the given item data snapshot ID
-	// from a merge base to an assist base.
-	ConvertToAssistBase(manifestID manifest.ID)
-	Backups() []BackupEntry
-	UniqueAssistBackups() []BackupEntry
-	MinBackupVersion() int
-	MergeBases() []ManifestEntry
-	DisableMergeBases()
-	UniqueAssistBases() []ManifestEntry
-	DisableAssistBases()
-	MergeBackupBases(
-		ctx context.Context,
-		other BackupBases,
-		reasonToKey func(identity.Reasoner) string,
-	) BackupBases
-	// SnapshotAssistBases returns the set of bases to use for kopia assisted
-	// incremental snapshot operations. It consists of the union of merge bases
-	// and assist bases. If DisableAssistBases has been called then it returns
-	// nil.
-	SnapshotAssistBases() []ManifestEntry
-}
+var _ backup.BackupBases = &backupBases{}
 
 type backupBases struct {
 	// backups and mergeBases should be modified together as they relate similar
