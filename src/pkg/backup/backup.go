@@ -59,6 +59,15 @@ type Backup struct {
 	stats.StartAndEndTime
 	stats.SkippedCounts
 
+	// MergeBases records the set of merge bases used for this backup and the
+	// Reason(s) each merge base was selected. Reasons are serialized the same
+	// way that Reason tags are serialized.
+	MergeBases map[model.StableID][]string `json:"mergeBases,omitempty"`
+	// AssistBases records the set of assist bases used for this backup and the
+	// Reason(s) each assist base was selected. Reasons are serialized the same
+	// way that Reason tags are serialized.
+	AssistBases map[model.StableID][]string `json:"assistBases,omitempty"`
+
 	// **Deprecated**
 	// Reference to the backup details storage location.
 	// Used to read backup.Details from the streamstore.
@@ -76,6 +85,7 @@ func New(
 	ownerID, ownerName string,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
+	bases BackupBases,
 	fe *fault.Errors,
 	tags map[string]string,
 ) *Backup {
@@ -107,7 +117,7 @@ func New(
 		}
 	}
 
-	return &Backup{
+	b := &Backup{
 		BaseModel: model.BaseModel{
 			ID:   id,
 			Tags: tags,
@@ -137,6 +147,37 @@ func New(
 			SkippedInvalidOneNoteFile: invalidONFile,
 		},
 	}
+
+	if bases != nil {
+		mergeBases := map[model.StableID][]string{}
+		assistBases := map[model.StableID][]string{}
+
+		for _, backup := range bases.Backups() {
+			for _, reason := range backup.Reasons {
+				mergeBases[backup.ID] = append(
+					mergeBases[backup.ID],
+					serviceCatString(reason.Service(), reason.Category()))
+			}
+		}
+
+		for _, backup := range bases.UniqueAssistBackups() {
+			for _, reason := range backup.Reasons {
+				assistBases[backup.ID] = append(
+					assistBases[backup.ID],
+					serviceCatString(reason.Service(), reason.Category()))
+			}
+		}
+
+		if len(mergeBases) > 0 {
+			b.MergeBases = mergeBases
+		}
+
+		if len(assistBases) > 0 {
+			b.AssistBases = assistBases
+		}
+	}
+
+	return b
 }
 
 // --------------------------------------------------------------------------------
