@@ -25,6 +25,7 @@ const (
 	tenantIDKey      = "tenant"
 	resourceIDKey    = "resource"
 	serviceCatPrefix = "sc-"
+	separator        = "_"
 
 	// Sentinel value for tags. Could technically be empty but we'll store
 	// something for now.
@@ -36,7 +37,7 @@ func serviceCatString(
 	service path.ServiceType,
 	category path.CategoryType,
 ) string {
-	return serviceCatPrefix + service.String() + category.String()
+	return serviceCatPrefix + service.String() + separator + category.String()
 }
 
 // reasonTags returns the set of key-value pairs that can be used as tags to
