@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
@@ -625,7 +626,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 	assert.Empty(t, readData, "read item data")
 
 	_, err = li.Info()
-	assert.ErrorIs(t, err, data.ErrNotFound, "Info() error")
+	assert.ErrorIs(t, err, errs.NotFound, "Info() error")
 }
 
 func (suite *CollectionUnitSuite) TestLazyItem() {

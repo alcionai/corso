@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -74,7 +75,7 @@ func (kdc kopiaDataCollection) FullPath() path.Path {
 }
 
 // Fetch returns the file with the given name from the collection as a
-// data.Item. Returns a data.ErrNotFound error if the file isn't in the
+// data.Item. Returns a errs.NotFound error if the file isn't in the
 // collection.
 func (kdc kopiaDataCollection) FetchItemByName(
 	ctx context.Context,
@@ -93,7 +94,7 @@ func (kdc kopiaDataCollection) FetchItemByName(
 	e, err := kdc.dir.Child(ctx, encodeAsPath(name))
 	if err != nil {
 		if isErrEntryNotFound(err) {
-			err = clues.Stack(data.ErrNotFound, err)
+			err = clues.Stack(errs.NotFound, err)
 		}
 
 		return nil, clues.Wrap(err, "getting item").WithClues(ctx)

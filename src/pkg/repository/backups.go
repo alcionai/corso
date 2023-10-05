@@ -7,8 +7,8 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/model"
@@ -330,7 +330,7 @@ func deleteBackups(
 	for _, id := range ids {
 		b, err := sw.GetBackup(ctx, model.StableID(id))
 		if err != nil {
-			if !failOnMissing && errors.Is(err, data.ErrNotFound) {
+			if !failOnMissing && errors.Is(err, errs.NotFound) {
 				continue
 			}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -259,7 +260,7 @@ func (i *lazyItem) Info() (details.ItemInfo, error) {
 	defer i.mu.Unlock()
 
 	if i.delInFlight {
-		return details.ItemInfo{}, clues.Stack(ErrNotFound).WithClues(i.ctx)
+		return details.ItemInfo{}, clues.Stack(errs.NotFound).WithClues(i.ctx)
 	} else if i.info == nil {
 		return details.ItemInfo{}, clues.New("requesting ItemInfo before data retrieval").
 			WithClues(i.ctx)

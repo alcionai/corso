@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -376,7 +377,7 @@ func (suite *ItemUnitSuite) TestLazyItem_DeletedInFlight() {
 	assert.Empty(t, readData, "read data")
 
 	_, err = item.Info()
-	assert.ErrorIs(t, err, data.ErrNotFound, "Info() error")
+	assert.ErrorIs(t, err, errs.NotFound, "Info() error")
 
 	e := errs.Errors()
 

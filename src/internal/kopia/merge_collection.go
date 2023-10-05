@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -92,7 +93,7 @@ func (mc *mergeCollection) Items(
 }
 
 // Fetch goes through all the collections in this one and returns the first
-// match found or the first error that is not data.ErrNotFound. If multiple
+// match found or the first error that is not errs.NotFound. If multiple
 // collections have the requested item, the instance in the collection with the
 // lexicographically smallest storage path is returned.
 func (mc *mergeCollection) FetchItemByName(
@@ -113,11 +114,11 @@ func (mc *mergeCollection) FetchItemByName(
 		s, err := c.FetchItemByName(ictx, name)
 		if err == nil {
 			return s, nil
-		} else if err != nil && !errors.Is(err, data.ErrNotFound) {
+		} else if err != nil && !errors.Is(err, errs.NotFound) {
 			return nil, clues.Wrap(err, "fetching from merged collection").
 				WithClues(ictx)
 		}
 	}
 
-	return nil, clues.Wrap(data.ErrNotFound, "merged collection fetch")
+	return nil, clues.Wrap(errs.NotFound, "merged collection fetch")
 }

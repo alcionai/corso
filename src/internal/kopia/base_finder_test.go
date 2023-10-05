@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -91,7 +91,7 @@ func (mg mockEmptyModelGetter) GetBackup(
 	context.Context,
 	model.StableID,
 ) (*backup.Backup, error) {
-	return nil, data.ErrNotFound
+	return nil, errs.NotFound
 }
 
 // -----------------------------------------------------------------------------
@@ -269,7 +269,7 @@ func (mg mockModelGetter) GetBackup(
 		return &res, nil
 	}
 
-	return nil, data.ErrNotFound
+	return nil, errs.NotFound
 }
 
 // -----------------------------------------------------------------------------

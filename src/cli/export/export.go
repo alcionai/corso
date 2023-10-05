@@ -11,7 +11,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
@@ -93,7 +93,7 @@ func runExport(
 
 	expColl, err := eo.Run(ctx)
 	if err != nil {
-		if errors.Is(err, data.ErrNotFound) {
+		if errors.Is(err, errs.NotFound) {
 			return Only(ctx, clues.New("Backup or backup details missing for id "+backupID))
 		}
 

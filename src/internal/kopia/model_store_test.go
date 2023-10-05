@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -381,10 +381,10 @@ func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
 	t := suite.T()
 
 	err := suite.m.Get(suite.ctx, model.BackupOpSchema, "baz", nil)
-	assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
+	assert.ErrorIs(t, err, errs.NotFound, clues.ToCore(err))
 
 	err = suite.m.GetWithModelStoreID(suite.ctx, model.BackupOpSchema, "baz", nil)
-	assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
+	assert.ErrorIs(t, err, errs.NotFound, clues.ToCore(err))
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutGetOfTypeBadVersion() {
@@ -670,7 +670,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			}
 
 			err = m.GetWithModelStoreID(ctx, theModelType, oldModelID, nil)
-			assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
+			assert.ErrorIs(t, err, errs.NotFound, clues.ToCore(err))
 		})
 	}
 }
@@ -737,7 +737,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete() {
 
 	returned := &fooModel{}
 	err = suite.m.GetWithModelStoreID(suite.ctx, theModelType, foo.ModelStoreID, returned)
-	assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
+	assert.ErrorIs(t, err, errs.NotFound, clues.ToCore(err))
 }
 
 func (suite *ModelStoreIntegrationSuite) TestPutDeleteBatch() {
@@ -760,7 +760,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutDeleteBatch() {
 	for _, id := range ids {
 		returned := &fooModel{}
 		err := suite.m.GetWithModelStoreID(suite.ctx, theModelType, id, returned)
-		assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
+		assert.ErrorIs(t, err, errs.NotFound, clues.ToCore(err))
 	}
 }
 
@@ -843,7 +843,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 	assert.ErrorIs(t, err, assert.AnError, clues.ToCore(err))
 
 	err = m.GetWithModelStoreID(ctx, theModelType, newID, nil)
-	assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
+	assert.ErrorIs(t, err, errs.NotFound, clues.ToCore(err))
 
 	returned := &fooModel{}
 

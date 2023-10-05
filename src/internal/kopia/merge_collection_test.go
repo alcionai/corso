@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
@@ -292,7 +293,7 @@ func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 
 			if err != nil {
 				if test.notFoundErr {
-					assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
+					assert.ErrorIs(t, err, errs.NotFound, clues.ToCore(err))
 				}
 
 				return

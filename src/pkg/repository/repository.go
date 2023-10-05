@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -385,7 +385,7 @@ func newRepoID(s storage.Storage) string {
 // ---------------------------------------------------------------------------
 
 func errWrapper(err error) error {
-	if errors.Is(err, data.ErrNotFound) {
+	if errors.Is(err, errs.NotFound) {
 		return clues.Stack(ErrorBackupNotFound, err)
 	}
 

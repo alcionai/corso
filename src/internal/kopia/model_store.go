@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -292,7 +292,7 @@ func (ms *ModelStore) getModelStoreID(
 	}
 
 	if len(metadata) == 0 {
-		return "", clues.Wrap(data.ErrNotFound, "getting ModelStoreID").WithClues(ctx)
+		return "", clues.Wrap(errs.NotFound, "getting ModelStoreID").WithClues(ctx)
 	}
 
 	if len(metadata) != 1 {
@@ -347,7 +347,7 @@ func (ms *ModelStore) GetWithModelStoreID(
 	metadata, err := ms.c.GetManifest(ctx, id, m)
 	if err != nil {
 		if errors.Is(err, manifest.ErrNotFound) {
-			err = data.ErrNotFound
+			err = errs.NotFound
 		}
 
 		return clues.Wrap(err, "getting model data").WithClues(ctx)
@@ -490,7 +490,7 @@ func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.Stabl
 
 	latest, err := ms.getModelStoreID(ctx, s, id)
 	if err != nil {
-		if errors.Is(err, data.ErrNotFound) {
+		if errors.Is(err, errs.NotFound) {
 			return nil
 		}
 

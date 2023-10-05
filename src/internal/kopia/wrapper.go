@@ -17,6 +17,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotmaintenance"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
@@ -370,7 +371,7 @@ func getDir(
 		encodeElements(dirPath.PopFront().Elements()...))
 	if err != nil {
 		if isErrEntryNotFound(err) {
-			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)
+			err = clues.Stack(errs.NotFound, err).WithClues(ctx)
 		}
 
 		return nil, clues.Wrap(err, "getting nested object handle").WithClues(ctx)

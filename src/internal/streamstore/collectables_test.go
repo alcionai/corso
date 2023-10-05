@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -207,7 +207,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 					snapid,
 					DetailsReader(details.UnmarshalTo(&readDeets)),
 					fault.New(true))
-				assert.ErrorIs(t, err, data.ErrNotFound)
+				assert.ErrorIs(t, err, errs.NotFound)
 				assert.Empty(t, readDeets)
 			}
 
@@ -229,7 +229,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 					snapid,
 					FaultErrorsReader(fault.UnmarshalErrorsTo(&readErrs)),
 					fault.New(true))
-				assert.ErrorIs(t, err, data.ErrNotFound)
+				assert.ErrorIs(t, err, errs.NotFound)
 				assert.Empty(t, readErrs)
 			}
 		})

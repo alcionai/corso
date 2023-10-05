@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
@@ -128,7 +129,7 @@ func getManifestsAndMetadata(
 		// should be safe to leave this manifest in the AssistBases set, though we
 		// could remove it there too if we want to be conservative. That can be done
 		// by finding the manifest ID.
-		if err != nil && !errors.Is(err, data.ErrNotFound) {
+		if err != nil && !errors.Is(err, errs.NotFound) {
 			// prior metadata isn't guaranteed to exist.
 			// if it doesn't, we'll just have to do a
 			// full backup for that data.

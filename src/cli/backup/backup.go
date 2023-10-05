@@ -12,8 +12,8 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -307,7 +307,7 @@ func genericListCommand(
 	if len(bID) > 0 {
 		fe, b, errs := r.GetBackupErrors(ctx, bID)
 		if errs.Failure() != nil {
-			if errors.Is(errs.Failure(), data.ErrNotFound) {
+			if errors.Is(errs.Failure(), errs.NotFound) {
 				return Only(ctx, clues.New("No backup exists with the id "+bID))
 			}
 
@@ -370,7 +370,7 @@ func genericDetailsCore(
 	d, _, errs := bg.GetBackupDetails(ctx, backupID)
 	// TODO: log/track recoverable errors
 	if errs.Failure() != nil {
-		if errors.Is(errs.Failure(), data.ErrNotFound) {
+		if errors.Is(errs.Failure(), errs.NotFound) {
 			return nil, clues.New("no backup exists with the id " + backupID)
 		}
 

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -116,7 +116,7 @@ func (ms mockStorer) GetWithModelStoreID(
 		}
 	}
 
-	return clues.Stack(data.ErrNotFound)
+	return clues.Stack(errs.NotFound)
 }
 
 func (ms mockStorer) DeleteWithModelStoreIDs(
@@ -518,11 +518,11 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				{bup: bupCurrent()},
 				{
 					bup: bupLegacy(),
-					err: data.ErrNotFound,
+					err: errs.NotFound,
 				},
 				{
 					bup: bupNoDetails(),
-					err: data.ErrNotFound,
+					err: errs.NotFound,
 				},
 			},
 			// Backup IDs are still included in here because they're added to the
@@ -623,7 +623,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			backups: []backupRes{
 				{
 					bup: backupWithTime(baseTime, bupCurrent()),
-					err: data.ErrNotFound,
+					err: errs.NotFound,
 				},
 			},
 			time:      baseTime,

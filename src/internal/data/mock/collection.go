@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -144,7 +145,7 @@ func (c Collection) FetchItemByName(
 ) (data.Item, error) {
 	res := c.AuxItems[name]
 	if res == nil {
-		return nil, data.ErrNotFound
+		return nil, errs.NotFound
 	}
 
 	return res, nil
@@ -163,7 +164,7 @@ func (rc RestoreCollection) FetchItemByName(
 ) (data.Item, error) {
 	res := rc.AuxItems[name]
 	if res == nil {
-		return nil, data.ErrNotFound
+		return nil, errs.NotFound
 	}
 
 	return res, nil

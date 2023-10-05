@@ -12,7 +12,7 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -160,7 +160,7 @@ func cleanupOrphanedData(
 			model.BackupSchema,
 			bup.ModelStoreID,
 			&bm); err != nil {
-			if !errors.Is(err, data.ErrNotFound) {
+			if !errors.Is(err, errs.NotFound) {
 				return clues.Wrap(err, "getting backup model").
 					With("search_backup_id", bup.ID)
 			}

@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -1398,7 +1399,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
-	assert.ErrorIs(t, errs.Failure(), data.ErrNotFound, "errored file is restorable", clues.ToCore(err))
+	assert.ErrorIs(t, errs.Failure(), errs.NotFound, "errored file is restorable", clues.ToCore(err))
 }
 
 type backedupFile struct {

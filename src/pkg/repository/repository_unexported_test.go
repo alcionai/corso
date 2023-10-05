@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
@@ -107,11 +107,11 @@ func (suite *RepositoryBackupsUnitSuite) TestGetBackup() {
 			name: "get error",
 			sw: mock.BackupWrapper{
 				Backup:    bup,
-				GetErr:    data.ErrNotFound,
+				GetErr:    errs.NotFound,
 				DeleteErr: nil,
 			},
 			expectErr: func(t *testing.T, result error) {
-				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
+				assert.ErrorIs(t, result, errs.NotFound, clues.ToCore(result))
 				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
 			},
 			expectID: bup.ID,
@@ -446,14 +446,14 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 				bup.ID,
 			},
 			gets: []getRes{
-				{err: data.ErrNotFound},
+				{err: errs.NotFound},
 			},
 			expectGets: []model.StableID{
 				bup.ID,
 			},
 			failOnMissing: true,
 			expectErr: func(t *testing.T, result error) {
-				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
+				assert.ErrorIs(t, result, errs.NotFound, clues.ToCore(result))
 				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
 			},
 		},
@@ -598,7 +598,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 				{bup: bup},
 				{bup: bupLegacy},
 				{bup: bupNoSnapshot},
-				{err: data.ErrNotFound},
+				{err: errs.NotFound},
 			},
 			expectGets: []model.StableID{
 				bup.ID,
@@ -608,7 +608,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 			},
 			failOnMissing: true,
 			expectErr: func(t *testing.T, result error) {
-				assert.ErrorIs(t, result, data.ErrNotFound, clues.ToCore(result))
+				assert.ErrorIs(t, result, errs.NotFound, clues.ToCore(result))
 				assert.ErrorIs(t, result, ErrorBackupNotFound, clues.ToCore(result))
 			},
 		},
@@ -622,7 +622,7 @@ func (suite *RepositoryBackupsUnitSuite) TestDeleteBackups() {
 			},
 			gets: []getRes{
 				{bup: bup},
-				{err: data.ErrNotFound},
+				{err: errs.NotFound},
 				{bup: bupNoSnapshot},
 				{bup: bupNoDetails},
 			},

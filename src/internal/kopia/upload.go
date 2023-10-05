@@ -17,6 +17,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -133,7 +134,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	}
 
 	info, err := d.infoer.Info()
-	if errors.Is(err, data.ErrNotFound) {
+	if errors.Is(err, errs.NotFound) {
 		// The item was deleted between enumeration and trying to get data. Skip
 		// adding it to details since there's no data for it.
 		return

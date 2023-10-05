@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -23,13 +24,13 @@ type FetchRestoreCollection struct {
 }
 
 // NoFetchRestoreCollection is a wrapper for a Collection that returns
-// ErrNotFound for all Fetch calls.
+// errs.NotFound for all Fetch calls.
 type NoFetchRestoreCollection struct {
 	Collection
 }
 
 func (c NoFetchRestoreCollection) FetchItemByName(context.Context, string) (Item, error) {
-	return nil, ErrNotFound
+	return nil, errs.NotFound
 }
 
 // StateOf lets us figure out the state of the collection from the
