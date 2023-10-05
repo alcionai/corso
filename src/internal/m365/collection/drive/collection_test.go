@@ -565,7 +565,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 			colScope: CollectionScopePackage,
 			itemSize: 10,
 			err:      clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
+			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
 			name:     "big OneNote file",
