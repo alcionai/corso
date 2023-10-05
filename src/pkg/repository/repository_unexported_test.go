@@ -823,6 +823,7 @@ func writeBackup(
 		stats.ReadWrites{},
 		stats.StartAndEndTime{},
 		nil,
+		nil,
 		fe,
 		tags)
 
