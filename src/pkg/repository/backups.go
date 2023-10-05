@@ -76,13 +76,13 @@ func (r repository) NewBackupWithLookup(
 		return operations.BackupOperation{}, clues.Wrap(err, "connecting to m365")
 	}
 
-	ownerID, ownerName, err := r.Provider.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
+	resource, err := r.Provider.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
 	if err != nil {
 		return operations.BackupOperation{}, clues.Wrap(err, "resolving resource owner details")
 	}
 
 	// TODO: retrieve display name from gc
-	sel = sel.SetDiscreteOwnerIDName(ownerID, ownerName)
+	sel = sel.SetDiscreteOwnerIDName(resource.ID(), resource.Name())
 
 	return operations.NewBackupOperation(
 		ctx,

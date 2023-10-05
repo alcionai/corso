@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/data"
@@ -747,7 +748,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			c := NewCollections(
 				&itemBackupHandler{api.Drives{}, user, tt.scope},
 				tenant,
-				user,
+				idname.NewProvider(user, user),
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}})
 
@@ -2274,7 +2275,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			c := NewCollections(
 				mbh,
 				tenant,
-				user,
+				idname.NewProvider(user, user),
 				func(*support.ControllerOperationStatus) {},
 				control.Options{ToggleFeatures: control.Toggles{}})
 
@@ -2648,7 +2649,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			c := NewCollections(
 				mbh,
 				"test-tenant",
-				"test-user",
+				idname.NewProvider("test-user", "test-user"),
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}})
 
@@ -2660,6 +2661,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			for i := 0; i < collCount; i++ {
 				coll, err := NewCollection(
 					&itemBackupHandler{api.Drives{}, "test-user", anyFolder},
+					idname.NewProvider("", ""),
 					nil,
 					nil,
 					driveID,

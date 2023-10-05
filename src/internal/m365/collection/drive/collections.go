@@ -11,6 +11,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -48,8 +49,8 @@ const restrictedDirectory = "Site Pages"
 type Collections struct {
 	handler BackupHandler
 
-	tenantID      string
-	resourceOwner string
+	tenantID          string
+	protectedResource idname.Provider
 
 	statusUpdater support.StatusUpdater
 
@@ -69,17 +70,17 @@ type Collections struct {
 func NewCollections(
 	bh BackupHandler,
 	tenantID string,
-	resourceOwner string,
+	protectedResource idname.Provider,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
-		handler:       bh,
-		tenantID:      tenantID,
-		resourceOwner: resourceOwner,
-		CollectionMap: map[string]map[string]*Collection{},
-		statusUpdater: statusUpdater,
-		ctrl:          ctrlOpts,
+		handler:           bh,
+		tenantID:          tenantID,
+		protectedResource: protectedResource,
+		CollectionMap:     map[string]map[string]*Collection{},
+		statusUpdater:     statusUpdater,
+		ctrl:              ctrlOpts,
 	}
 }
 
@@ -246,7 +247,7 @@ func (c *Collections) Get(
 	defer close(progressBar)
 
 	// Enumerate drives for the specified resourceOwner
-	pager := c.handler.NewDrivePager(c.resourceOwner, nil)
+	pager := c.handler.NewDrivePager(c.protectedResource.ID(), nil)
 
 	drives, err := api.GetAllDrives(ctx, pager)
 	if err != nil {
@@ -384,6 +385,7 @@ func (c *Collections) Get(
 
 			col, err := NewCollection(
 				c.handler,
+				c.protectedResource,
 				nil, // delete the folder
 				prevPath,
 				driveID,
@@ -420,6 +422,7 @@ func (c *Collections) Get(
 
 		coll, err := NewCollection(
 			c.handler,
+			c.protectedResource,
 			nil, // delete the drive
 			prevDrivePath,
 			driveID,
@@ -605,6 +608,7 @@ func (c *Collections) handleDelete(
 
 	col, err := NewCollection(
 		c.handler,
+		c.protectedResource,
 		nil, // deletes the collection
 		prevPath,
 		driveID,
@@ -789,6 +793,7 @@ func (c *Collections) UpdateCollections(
 
 			col, err := NewCollection(
 				c.handler,
+				c.protectedResource,
 				collectionPath,
 				prevPath,
 				driveID,
