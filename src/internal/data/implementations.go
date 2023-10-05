@@ -3,14 +3,10 @@ package data
 import (
 	"context"
 
-	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
-
-var ErrNotFound = clues.New("not found")
 
 type CollectionState int
 
