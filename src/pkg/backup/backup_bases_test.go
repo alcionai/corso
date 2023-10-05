@@ -20,7 +20,7 @@ func TestBackupBasesUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupBasesUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *BackupBasesUnitSuite) TestReasonSerialization() {
+func (suite *BackupBasesUnitSuite) TestServiceCategorySerialization() {
 	table := []struct {
 		name           string
 		input          string

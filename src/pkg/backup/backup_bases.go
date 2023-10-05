@@ -25,7 +25,7 @@ const (
 	LegacyUserTagPrefix = "tag:"
 
 	tenantIDKey      = "tenant"
-	resourceIDKey    = "resource"
+	resourceIDKey    = "protectedResource"
 	serviceCatPrefix = "sc-"
 	separator        = "_"
 
@@ -34,6 +34,8 @@ const (
 	//nolint
 	defaultTagValue = "1"
 )
+
+var errMissingPrefix = clues.New("missing tag prefix")
 
 func serviceCatString(
 	service path.ServiceType,
@@ -50,7 +52,9 @@ func serviceCatStringToTypes(
 	if trimmed == input {
 		return path.UnknownService,
 			path.UnknownCategory,
-			clues.New("missing tag prefix")
+			clues.Stack(errMissingPrefix).With(
+				"expected_prefix", serviceCatPrefix,
+				"input", input)
 	}
 
 	parts := strings.Split(trimmed, separator)
