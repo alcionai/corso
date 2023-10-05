@@ -31,11 +31,11 @@ type kopiaDataCollection struct {
 
 func (kdc *kopiaDataCollection) Items(
 	ctx context.Context,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) <-chan data.Item {
 	var (
 		res       = make(chan data.Item)
-		el        = errs.Local()
+		el        = bus.Local()
 		loadCount = 0
 	)
 

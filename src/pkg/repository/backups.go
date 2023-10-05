@@ -120,7 +120,7 @@ func getBackup(
 func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup, *fault.Bus) {
 	var (
 		bups []*backup.Backup
-		errs = fault.New(false)
+		bus  = fault.New(false)
 		sw   = store.NewWrapper(r.modelStore)
 	)
 
@@ -129,13 +129,13 @@ func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup
 
 		b, err := sw.GetBackup(ictx, model.StableID(id))
 		if err != nil {
-			errs.AddRecoverable(ctx, errWrapper(err))
+			bus.AddRecoverable(ctx, errWrapper(err))
 		}
 
 		bups = append(bups, b)
 	}
 
-	return bups, errs
+	return bups, bus
 }
 
 // BackupsByTag lists all backups in a repository that contain all the tags
@@ -177,7 +177,7 @@ func (r repository) GetBackupDetails(
 	ctx context.Context,
 	backupID string,
 ) (*details.Details, *backup.Backup, *fault.Bus) {
-	errs := fault.New(false)
+	bus := fault.New(false)
 
 	deets, bup, err := getBackupDetails(
 		ctx,
@@ -185,9 +185,9 @@ func (r repository) GetBackupDetails(
 		r.Account.ID(),
 		r.dataLayer,
 		store.NewWrapper(r.modelStore),
-		errs)
+		bus)
 
-	return deets, bup, errs.Fail(err)
+	return deets, bup, bus.Fail(err)
 }
 
 // getBackupDetails handles the processing for GetBackupDetails.
@@ -196,7 +196,7 @@ func getBackupDetails(
 	backupID, tenantID string,
 	kw *kopia.Wrapper,
 	sw store.BackupGetter,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) (*details.Details, *backup.Backup, error) {
 	b, err := sw.GetBackup(ctx, model.StableID(backupID))
 	if err != nil {
@@ -221,7 +221,7 @@ func getBackupDetails(
 		ctx,
 		ssid,
 		streamstore.DetailsReader(details.UnmarshalTo(&deets)),
-		errs)
+		bus)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -247,7 +247,7 @@ func (r repository) GetBackupErrors(
 	ctx context.Context,
 	backupID string,
 ) (*fault.Errors, *backup.Backup, *fault.Bus) {
-	errs := fault.New(false)
+	bus := fault.New(false)
 
 	fe, bup, err := getBackupErrors(
 		ctx,
@@ -255,9 +255,9 @@ func (r repository) GetBackupErrors(
 		r.Account.ID(),
 		r.dataLayer,
 		store.NewWrapper(r.modelStore),
-		errs)
+		bus)
 
-	return fe, bup, errs.Fail(err)
+	return fe, bup, bus.Fail(err)
 }
 
 // getBackupErrors handles the processing for GetBackupErrors.
@@ -266,7 +266,7 @@ func getBackupErrors(
 	backupID, tenantID string,
 	kw *kopia.Wrapper,
 	sw store.BackupGetter,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) (*fault.Errors, *backup.Backup, error) {
 	b, err := sw.GetBackup(ctx, model.StableID(backupID))
 	if err != nil {
@@ -287,7 +287,7 @@ func getBackupErrors(
 		ctx,
 		ssid,
 		streamstore.FaultErrorsReader(fault.UnmarshalErrorsTo(&fe)),
-		errs)
+		bus)
 	if err != nil {
 		return nil, nil, err
 	}

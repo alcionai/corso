@@ -146,7 +146,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	globalExcludeSet prefixmatcher.StringSetReader,
 	additionalTags map[string]string,
 	buildTreeWithBase bool,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) (*BackupStats, *details.Builder, DetailsMergeInfoer, error) {
 	if w.c == nil {
 		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
@@ -164,7 +164,7 @@ func (w Wrapper) ConsumeBackupCollections(
 		pending: map[string]*itemDetails{},
 		deets:   &details.Builder{},
 		toMerge: newMergeDetails(),
-		errs:    errs,
+		bus:     bus,
 	}
 
 	// When running an incremental backup, we need to pass the prior
@@ -217,7 +217,7 @@ func (w Wrapper) ConsumeBackupCollections(
 		return nil, nil, nil, err
 	}
 
-	return s, progress.deets, progress.toMerge, progress.errs.Failure()
+	return s, progress.deets, progress.toMerge, progress.bus.Failure()
 }
 
 func (w Wrapper) makeSnapshotWithRoot(
@@ -476,7 +476,7 @@ func (w Wrapper) ProduceRestoreCollections(
 	snapshotID string,
 	paths []path.RestorePaths,
 	bcounter ByteCounter,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) ([]data.RestoreCollection, error) {
 	ctx, end := diagnostics.Span(ctx, "kopia:produceRestoreCollections")
 	defer end()
@@ -497,7 +497,7 @@ func (w Wrapper) ProduceRestoreCollections(
 		// RestorePath -> []StoragePath directory -> set of items to load from the
 		// directory.
 		dirsToItems = map[string]*restoreCollection{}
-		el          = errs.Local()
+		el          = bus.Local()
 	)
 
 	for _, itemPaths := range paths {
@@ -552,7 +552,7 @@ func (w Wrapper) ProduceRestoreCollections(
 
 	// Now that we've grouped everything, go through and load each directory and
 	// then load the items from the directory.
-	res, err := loadDirsAndItems(ctx, snapshotRoot, bcounter, dirsToItems, errs)
+	res, err := loadDirsAndItems(ctx, snapshotRoot, bcounter, dirsToItems, bus)
 	if err != nil {
 		return nil, clues.Wrap(err, "loading items").WithClues(ctx)
 	}

@@ -277,7 +277,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 		suite.Run(test.name, func() {
 			var (
 				t         = suite.T()
-				errs      = fault.New(true)
+				bus       = fault.New(true)
 				itemCount int
 			)
 
@@ -298,7 +298,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 				false,
 				statusUpdater)
 
-			for item := range col.Items(ctx, errs) {
+			for item := range col.Items(ctx, bus) {
 				itemCount++
 
 				_, rok := test.removed[item.ID()]
@@ -317,7 +317,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
 			}
 
-			assert.NoError(t, errs.Failure())
+			assert.NoError(t, bus.Failure())
 			assert.Equal(
 				t,
 				test.expectItemCount,
@@ -337,10 +337,10 @@ func (mlg *mockLazyItemGetterSerializer) GetItem(
 	user string,
 	itemID string,
 	immutableIDs bool,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	mlg.callIDs = append(mlg.callIDs, itemID)
-	return mlg.ItemGetSerialize.GetItem(ctx, user, itemID, immutableIDs, errs)
+	return mlg.ItemGetSerialize.GetItem(ctx, user, itemID, immutableIDs, bus)
 }
 
 func (mlg *mockLazyItemGetterSerializer) check(t *testing.T, expectIDs []string) {
@@ -410,7 +410,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 		suite.Run(test.name, func() {
 			var (
 				t         = suite.T()
-				errs      = fault.New(true)
+				bus       = fault.New(true)
 				itemCount int
 			)
 
@@ -436,7 +436,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 				true,
 				statusUpdater)
 
-			for item := range col.Items(ctx, errs) {
+			for item := range col.Items(ctx, bus) {
 				itemCount++
 
 				_, rok := test.removed[item.ID()]
@@ -479,7 +479,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
 			}
 
-			assert.NoError(t, errs.Failure())
+			assert.NoError(t, bus.Failure())
 			assert.Equal(
 				t,
 				test.expectItemCount,

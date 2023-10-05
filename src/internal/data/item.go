@@ -137,14 +137,14 @@ func NewUnindexedLazyItem(
 	itemGetter ItemDataGetter,
 	itemID string,
 	modTime time.Time,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) *unindexedLazyItem {
 	return &unindexedLazyItem{
 		ctx:        ctx,
 		id:         itemID,
 		itemGetter: itemGetter,
 		modTime:    modTime,
-		errs:       errs,
+		bus:        bus,
 	}
 }
 
@@ -158,7 +158,7 @@ type unindexedLazyItem struct {
 	ctx        context.Context
 	mu         sync.Mutex
 	id         string
-	errs       *fault.Bus
+	bus        *fault.Bus
 	itemGetter ItemDataGetter
 
 	modTime time.Time
@@ -186,7 +186,7 @@ func (i *unindexedLazyItem) ToReader() io.ReadCloser {
 		i.mu.Lock()
 		defer i.mu.Unlock()
 
-		reader, info, delInFlight, err := i.itemGetter.GetData(i.ctx, i.errs)
+		reader, info, delInFlight, err := i.itemGetter.GetData(i.ctx, i.bus)
 		if err != nil {
 			return nil, clues.Stack(err)
 		}
@@ -233,7 +233,7 @@ func NewLazyItem(
 	itemGetter ItemDataGetter,
 	itemID string,
 	modTime time.Time,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) *lazyItem {
 	return &lazyItem{
 		unindexedLazyItem: NewUnindexedLazyItem(
@@ -241,7 +241,7 @@ func NewLazyItem(
 			itemGetter,
 			itemID,
 			modTime,
-			errs),
+			bus),
 	}
 }
 

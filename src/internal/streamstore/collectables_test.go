@@ -76,13 +76,13 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 	table := []struct {
 		name      string
 		deets     func(*testing.T) *details.Details
-		errs      func(context.Context) *fault.Errors
+		bus       func(context.Context) *fault.Errors
 		hasSnapID assert.ValueAssertionFunc
 	}{
 		{
 			name:      "none",
 			deets:     func(*testing.T) *details.Details { return nil },
-			errs:      func(context.Context) *fault.Errors { return nil },
+			bus:       func(context.Context) *fault.Errors { return nil },
 			hasSnapID: assert.Empty,
 		},
 		{
@@ -100,13 +100,13 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 					}))
 				return deetsBuilder.Details()
 			},
-			errs:      func(context.Context) *fault.Errors { return nil },
+			bus:       func(context.Context) *fault.Errors { return nil },
 			hasSnapID: assert.NotEmpty,
 		},
 		{
 			name:  "errors",
 			deets: func(*testing.T) *details.Details { return nil },
-			errs: func(ctx context.Context) *fault.Errors {
+			bus: func(ctx context.Context) *fault.Errors {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
 				bus.AddRecoverable(ctx, clues.New("bar"))
@@ -136,7 +136,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 
 				return deetsBuilder.Details()
 			},
-			errs: func(ctx context.Context) *fault.Errors {
+			bus: func(ctx context.Context) *fault.Errors {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
 				bus.AddRecoverable(ctx, clues.New("bar"))
@@ -169,9 +169,9 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				require.NoError(t, err)
 			}
 
-			errs := test.errs(ctx)
-			if errs != nil {
-				err = ss.Collect(ctx, FaultErrorsCollector(errs))
+			bus := test.bus(ctx)
+			if bus != nil {
+				err = ss.Collect(ctx, FaultErrorsCollector(bus))
 				require.NoError(t, err)
 			}
 
@@ -212,7 +212,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 			}
 
 			var readErrs fault.Errors
-			if errs != nil {
+			if bus != nil {
 				err = ss.Read(
 					ctx,
 					snapid,
@@ -221,8 +221,8 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				require.NoError(t, err)
 				require.NotEmpty(t, readErrs)
 
-				assert.ElementsMatch(t, errs.Skipped, readErrs.Skipped)
-				assert.ElementsMatch(t, errs.Recovered, readErrs.Recovered)
+				assert.ElementsMatch(t, bus.Skipped, readErrs.Skipped)
+				assert.ElementsMatch(t, bus.Recovered, readErrs.Recovered)
 			} else {
 				err := ss.Read(
 					ctx,

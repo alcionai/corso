@@ -93,13 +93,13 @@ type Collection struct {
 	AuxItems map[string]data.Item
 }
 
-func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+func (c Collection) Items(ctx context.Context, bus *fault.Bus) <-chan data.Item {
 	ch := make(chan data.Item)
 
 	go func() {
 		defer close(ch)
 
-		el := errs.Local()
+		el := bus.Local()
 
 		for _, item := range c.ItemData {
 			it, ok := item.(*Item)
@@ -113,7 +113,7 @@ func (c Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item
 	}()
 
 	for _, err := range c.ItemsRecoverableErrs {
-		errs.AddRecoverable(ctx, err)
+		bus.AddRecoverable(ctx, err)
 	}
 
 	return ch
@@ -207,13 +207,13 @@ type unversionedRestoreCollection struct {
 
 func (c *unversionedRestoreCollection) Items(
 	ctx context.Context,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) <-chan data.Item {
 	res := make(chan data.Item)
 	go func() {
 		defer close(res)
 
-		for item := range c.RestoreCollection.Items(ctx, errs) {
+		for item := range c.RestoreCollection.Items(ctx, bus) {
 			r, err := readers.NewVersionedRestoreReader(item.ToReader())
 			require.NoError(c.t, err, clues.ToCore(err))
 
@@ -249,13 +249,13 @@ type versionedBackupCollection struct {
 
 func (c *versionedBackupCollection) Items(
 	ctx context.Context,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) <-chan data.Item {
 	res := make(chan data.Item)
 	go func() {
 		defer close(res)
 
-		for item := range c.BackupCollection.Items(ctx, errs) {
+		for item := range c.BackupCollection.Items(ctx, bus) {
 			r, err := readers.NewVersionedBackupReader(
 				readers.SerializationFormat{
 					Version: readers.DefaultSerializationVersion,

@@ -60,7 +60,7 @@ type corsoProgress struct {
 	toMerge    *mergeDetails
 	mu         sync.RWMutex
 	totalBytes int64
-	errs       *fault.Bus
+	bus        *fault.Bus
 	// expectedIgnoredErrors is a count of error cases caught in the Error wrapper
 	// which are well known and actually ignorable.  At the end of a run, if the
 	// manifest ignored error count is equal to this count, then everything is good.
@@ -109,7 +109,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// never had to materialize their details in-memory.
 	if d.infoer == nil || d.cached {
 		if d.prevPath == nil {
-			cp.errs.AddRecoverable(ctx, clues.New("finished file sourced from previous backup with no previous path").
+			cp.bus.AddRecoverable(ctx, clues.New("finished file sourced from previous backup with no previous path").
 				WithClues(ctx).
 				Label(fault.LabelForceNoBackupCreation))
 
@@ -125,7 +125,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 			d.repoPath,
 			d.locationPath)
 		if err != nil {
-			cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to merge list").
+			cp.bus.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to merge list").
 				WithClues(ctx).
 				Label(fault.LabelForceNoBackupCreation))
 		}
@@ -139,13 +139,13 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		// adding it to details since there's no data for it.
 		return
 	} else if err != nil {
-		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "getting ItemInfo").
+		cp.bus.AddRecoverable(ctx, clues.Wrap(err, "getting ItemInfo").
 			WithClues(ctx).
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
 	} else if !ptr.Val(d.modTime).Equal(info.Modified()) {
-		cp.errs.AddRecoverable(ctx, clues.New("item modTime mismatch").
+		cp.bus.AddRecoverable(ctx, clues.New("item modTime mismatch").
 			WithClues(ctx).
 			Label(fault.LabelForceNoBackupCreation))
 
@@ -154,7 +154,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	err = cp.deets.Add(d.repoPath, d.locationPath, info)
 	if err != nil {
-		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to details").
+		cp.bus.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to details").
 			WithClues(ctx).
 			Label(fault.LabelForceNoBackupCreation))
 
@@ -218,7 +218,7 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 
 	defer cp.UploadProgress.Error(relpath, err, isIgnored)
 
-	cp.errs.AddRecoverable(cp.ctx, clues.Wrap(err, "kopia reported error").
+	cp.bus.AddRecoverable(cp.ctx, clues.Wrap(err, "kopia reported error").
 		With("is_ignored", isIgnored, "relative_path", relpath).
 		Label(fault.LabelForceNoBackupCreation))
 }
@@ -252,7 +252,7 @@ func collectionEntries(
 		// Track which items have already been seen so we can skip them if we see
 		// them again in the data from the base snapshot.
 		seen  = map[string]struct{}{}
-		items = streamedEnts.Items(ctx, progress.errs)
+		items = streamedEnts.Items(ctx, progress.bus)
 	)
 
 	if lp, ok := streamedEnts.(data.LocationPather); ok {
@@ -290,7 +290,7 @@ func collectionEntries(
 			itemPath, err := streamedEnts.FullPath().AppendItem(e.ID())
 			if err != nil {
 				err = clues.Wrap(err, "getting full item path")
-				progress.errs.AddRecoverable(ctx, err)
+				progress.bus.AddRecoverable(ctx, err)
 
 				logger.CtxErr(ctx, err).Error("getting full item path")
 

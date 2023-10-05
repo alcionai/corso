@@ -64,7 +64,7 @@ func (mc mergeCollection) FullPath() path.Path {
 
 func (mc *mergeCollection) Items(
 	ctx context.Context,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) <-chan data.Item {
 	res := make(chan data.Item)
 
@@ -83,7 +83,7 @@ func (mc *mergeCollection) Items(
 				"merged_collection_storage_path", path.LoggableDir(c.storagePath))
 			logger.Ctx(ictx).Debug("sending items from merged collection")
 
-			for item := range c.Items(ictx, errs) {
+			for item := range c.Items(ictx, bus) {
 				res <- item
 			}
 		}

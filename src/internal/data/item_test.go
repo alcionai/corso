@@ -192,12 +192,12 @@ func (mid *mockItemDataGetter) check(t *testing.T, expectCalled bool) {
 
 func (mid *mockItemDataGetter) GetData(
 	ctx context.Context,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) (io.ReadCloser, *details.ItemInfo, bool, error) {
 	mid.getCalled = true
 
 	if mid.err != nil {
-		errs.AddRecoverable(ctx, mid.err)
+		bus.AddRecoverable(ctx, mid.err)
 	}
 
 	return mid.reader, mid.info, mid.delInFlight, mid.err
@@ -288,7 +288,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			errs := fault.New(true)
+			bus := fault.New(true)
 
 			defer test.mid.check(t, true)
 
@@ -297,7 +297,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 				test.mid,
 				id,
 				now,
-				errs)
+				bus)
 
 			assert.Equal(t, id, item.ID(), "ID")
 			assert.False(t, item.Deleted(), "deleted")
@@ -325,7 +325,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 			_, err = item.Info()
 			test.infoErr(t, err, "Info(): %v", clues.ToCore(err))
 
-			e := errs.Errors()
+			e := bus.Errors()
 
 			if !test.expectBusErr {
 				assert.Nil(t, e.Failure, "hard failure")
@@ -350,12 +350,12 @@ func (suite *ItemUnitSuite) TestLazyItem_DeletedInFlight() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	errs := fault.New(true)
+	bus := fault.New(true)
 
 	mid := &mockItemDataGetter{delInFlight: true}
 	defer mid.check(t, true)
 
-	item := data.NewLazyItem(ctx, mid, id, now, errs)
+	item := data.NewLazyItem(ctx, mid, id, now, bus)
 
 	assert.Equal(t, id, item.ID(), "ID")
 	assert.False(t, item.Deleted(), "deleted")
@@ -379,7 +379,7 @@ func (suite *ItemUnitSuite) TestLazyItem_DeletedInFlight() {
 	_, err = item.Info()
 	assert.ErrorIs(t, err, errs.NotFound, "Info() error")
 
-	e := errs.Errors()
+	e := bus.Errors()
 
 	assert.Nil(t, e.Failure, "hard failure")
 	assert.Empty(t, e.Recovered, "recovered")
@@ -396,12 +396,12 @@ func (suite *ItemUnitSuite) TestLazyItem_InfoBeforeReadErrors() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	errs := fault.New(true)
+	bus := fault.New(true)
 
 	mid := &mockItemDataGetter{}
 	defer mid.check(t, false)
 
-	item := data.NewLazyItem(ctx, mid, id, now, errs)
+	item := data.NewLazyItem(ctx, mid, id, now, bus)
 
 	assert.Equal(t, id, item.ID(), "ID")
 	assert.False(t, item.Deleted(), "deleted")

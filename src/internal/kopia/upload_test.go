@@ -378,7 +378,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFile() {
 						deets:          bd,
 						toMerge:        newMergeDetails(),
 						pending:        map[string]*itemDetails{},
-						errs:           fault.New(true),
+						bus:            fault.New(true),
 					}
 
 					ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
@@ -476,7 +476,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 		UploadProgress: &snapshotfs.NullUploadProgress{},
 		deets:          bd,
 		pending:        map[string]*itemDetails{},
-		errs:           fault.New(true),
+		bus:            fault.New(true),
 	}
 
 	for k, v := range cachedItems {
@@ -492,7 +492,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileCachedNoPrevPathErrors() {
 
 	assert.Empty(t, cp.pending)
 	assert.Empty(t, bd.Details().Entries)
-	assert.Error(t, cp.errs.Failure(), clues.ToCore(cp.errs.Failure()))
+	assert.Error(t, cp.bus.Failure(), clues.ToCore(cp.bus.Failure()))
 }
 
 func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarchy() {
@@ -527,7 +527,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedFileBaseItemDoesntBuildHierarch
 		deets:          db,
 		pending:        map[string]*itemDetails{},
 		toMerge:        newMergeDetails(),
-		errs:           fault.New(true),
+		bus:            fault.New(true),
 	}
 
 	deets := &itemDetails{
@@ -569,7 +569,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 				UploadProgress: &snapshotfs.NullUploadProgress{},
 				deets:          bd,
 				pending:        map[string]*itemDetails{},
-				errs:           fault.New(true),
+				bus:            fault.New(true),
 			}
 
 			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
@@ -632,7 +632,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree() {
 		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
-		errs:    fault.New(true),
+		bus:     fault.New(true),
 	}
 
 	collections := []data.BackupCollection{
@@ -752,7 +752,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_MixedDirectory() 
 				ctx:     ctx,
 				pending: map[string]*itemDetails{},
 				toMerge: newMergeDetails(),
-				errs:    fault.New(true),
+				bus:     fault.New(true),
 			}
 
 			dirTree, err := inflateDirTree(ctx, nil, nil, test.layout, pmMock.NewPrefixMap(nil), progress)
@@ -859,7 +859,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_Fails() {
 			progress := &corsoProgress{
 				ctx:     ctx,
 				toMerge: newMergeDetails(),
-				errs:    fault.New(true),
+				bus:     fault.New(true),
 			}
 
 			_, err := inflateDirTree(ctx, nil, nil, test.layout, pmMock.NewPrefixMap(nil), progress)
@@ -958,7 +958,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeErrors() {
 				ctx:     ctx,
 				pending: map[string]*itemDetails{},
 				toMerge: newMergeDetails(),
-				errs:    fault.New(true),
+				bus:     fault.New(true),
 			}
 
 			cols := []data.BackupCollection{}
@@ -1190,7 +1190,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 				ctx:     ctx,
 				pending: map[string]*itemDetails{},
 				toMerge: newMergeDetails(),
-				errs:    fault.New(true),
+				bus:     fault.New(true),
 			}
 			msw := &mockSnapshotWalker{
 				snapshotRoot: getBaseSnapshot(),
@@ -1900,7 +1900,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 				ctx:     ctx,
 				pending: map[string]*itemDetails{},
 				toMerge: newMergeDetails(),
-				errs:    fault.New(true),
+				bus:     fault.New(true),
 			}
 			msw := &mockSnapshotWalker{
 				snapshotRoot: getBaseSnapshot(),
@@ -2034,7 +2034,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
-		errs:    fault.New(true),
+		bus:     fault.New(true),
 	}
 	mc := exchMock.NewCollection(suite.testStoragePath, suite.testStoragePath, 1)
 	mc.PrevPath = mc.FullPath()
@@ -2131,7 +2131,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
-		errs:    fault.New(true),
+		bus:     fault.New(true),
 	}
 	mc := exchMock.NewCollection(archiveStorePath, archiveLocPath, 1)
 	mc.ColState = data.NewState
@@ -2353,7 +2353,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
-		errs:    fault.New(true),
+		bus:     fault.New(true),
 	}
 
 	mc := exchMock.NewCollection(inboxPath, inboxPath, 1)
@@ -2509,7 +2509,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 		ctx:     ctx,
 		pending: map[string]*itemDetails{},
 		toMerge: newMergeDetails(),
-		errs:    fault.New(true),
+		bus:     fault.New(true),
 	}
 
 	mce := exchMock.NewCollection(newPrefixPathEmail, nil, 0)
@@ -3437,7 +3437,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				ctx:     ctx,
 				pending: map[string]*itemDetails{},
 				toMerge: newMergeDetails(),
-				errs:    fault.New(true),
+				bus:     fault.New(true),
 			}
 			snapshotRoot, counters := getBaseSnapshot()
 			msw := &mockSnapshotWalker{

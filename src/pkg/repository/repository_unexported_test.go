@@ -793,7 +793,7 @@ func writeBackup(
 	ownerID, ownerName string,
 	deets *details.Details,
 	fe *fault.Errors,
-	errs *fault.Bus,
+	bus *fault.Bus,
 ) *backup.Backup {
 	var (
 		serv   = sel.PathService()
@@ -806,7 +806,7 @@ func writeBackup(
 	err = sstore.Collect(ctx, streamstore.FaultErrorsCollector(fe))
 	require.NoError(t, err, "collecting errors in streamstore")
 
-	ssid, err := sstore.Write(ctx, errs)
+	ssid, err := sstore.Write(ctx, bus)
 	require.NoError(t, err, "writing to streamstore")
 
 	tags := map[string]string{

@@ -1352,7 +1352,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		},
 	}
 
-	errs := fault.New(true)
+	bus := fault.New(true)
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
@@ -1362,13 +1362,13 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		nil,
 		true,
-		errs)
+		bus)
 	require.Error(t, err, clues.ToCore(err))
 	assert.Equal(t, 0, stats.ErrorCount, "error count")
 	assert.Equal(t, 5, stats.TotalFileCount, "total files")
 	assert.Equal(t, 6, stats.TotalDirectoryCount, "total directories")
 	assert.Equal(t, 0, stats.IgnoredErrorCount, "ignored errors")
-	assert.Equal(t, 1, len(errs.Errors().Recovered), "recovered errors")
+	assert.Equal(t, 1, len(bus.Errors().Recovered), "recovered errors")
 	assert.False(t, stats.Incomplete, "incomplete")
 	// 5 file and 2 folder entries.
 	assert.Len(t, deets.Details().Entries, 5+2)
@@ -1388,8 +1388,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	require.Len(t, dcs, 1, "number of restore collections")
 
-	errs = fault.New(true)
-	items := dcs[0].Items(suite.ctx, errs)
+	bus = fault.New(true)
+	items := dcs[0].Items(suite.ctx, bus)
 
 	// Get all the items from channel
 	//nolint:revive
@@ -1399,7 +1399,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
-	assert.ErrorIs(t, errs.Failure(), errs.NotFound, "errored file is restorable", clues.ToCore(err))
+	assert.ErrorIs(t, bus.Failure(), errs.NotFound, "errored file is restorable", clues.ToCore(err))
 }
 
 type backedupFile struct {
@@ -1752,15 +1752,15 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			assert.NoError(t, err, "errors producing collection", clues.ToCore(err))
 			require.Len(t, dcs, 1, "unexpected number of restore collections")
 
-			errs := fault.New(true)
-			items := dcs[0].Items(suite.ctx, errs)
+			bus := fault.New(true)
+			items := dcs[0].Items(suite.ctx, bus)
 
 			// Get all the items from channel
 			//nolint:revive
 			for range items {
 			}
 
-			test.restoreCheck(t, errs.Failure(), errs)
+			test.restoreCheck(t, bus.Failure(), bus)
 		})
 	}
 }
@@ -1873,19 +1873,19 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				return
 			}
 
-			errs := fault.New(true)
+			bus := fault.New(true)
 
 			for _, dc := range result {
 				// Get all the items from channel
-				items := dc.Items(suite.ctx, errs)
+				items := dc.Items(suite.ctx, bus)
 				//nolint:revive
 				for range items {
 				}
 			}
 
-			test.expectedErr(t, errs.Failure(), errs.Failure(), "getting items")
+			test.expectedErr(t, bus.Failure(), bus.Failure(), "getting items")
 
-			if errs.Failure() != nil {
+			if bus.Failure() != nil {
 				return
 			}
 

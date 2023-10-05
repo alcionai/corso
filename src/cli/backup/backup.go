@@ -174,7 +174,7 @@ func genericCreateCommand(
 ) error {
 	var (
 		bIDs []string
-		errs = []error{}
+		bus  = []error{}
 	)
 
 	for _, discSel := range selectorSet {
@@ -187,7 +187,7 @@ func genericCreateCommand(
 
 		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
 		if err != nil {
-			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
+			bus = append(bus, clues.Wrap(err, owner).WithClues(ictx))
 			Errf(ictx, "%v\n", err)
 
 			continue
@@ -208,7 +208,7 @@ func genericCreateCommand(
 				continue
 			}
 
-			errs = append(errs, clues.Wrap(err, owner).WithClues(ictx))
+			bus = append(bus, clues.Wrap(err, owner).WithClues(ictx))
 			Errf(ictx, "%v\n", err)
 
 			continue
@@ -235,10 +235,10 @@ func genericCreateCommand(
 
 	backup.PrintAll(ctx, bups)
 
-	if len(errs) > 0 {
-		sb := fmt.Sprintf("%d of %d backups failed:\n", len(errs), len(selectorSet))
+	if len(bus) > 0 {
+		sb := fmt.Sprintf("%d of %d backups failed:\n", len(bus), len(selectorSet))
 
-		for i, e := range errs {
+		for i, e := range bus {
 			logger.CtxErr(ctx, e).Errorf("Backup %d of %d failed", i+1, len(selectorSet))
 			sb += "∙ " + e.Error() + "\n"
 		}
@@ -305,13 +305,13 @@ func genericListCommand(
 	defer utils.CloseRepo(ctx, r)
 
 	if len(bID) > 0 {
-		fe, b, errs := r.GetBackupErrors(ctx, bID)
-		if errs.Failure() != nil {
-			if errors.Is(errs.Failure(), errs.NotFound) {
+		fe, b, bus := r.GetBackupErrors(ctx, bID)
+		if bus.Failure() != nil {
+			if errors.Is(bus.Failure(), errs.NotFound) {
 				return Only(ctx, clues.New("No backup exists with the id "+bID))
 			}
 
-			return Only(ctx, clues.Wrap(errs.Failure(), "Failed to list backup id "+bID))
+			return Only(ctx, clues.Wrap(bus.Failure(), "Failed to list backup id "+bID))
 		}
 
 		b.Print(ctx)
@@ -367,21 +367,21 @@ func genericDetailsCore(
 
 	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 
-	d, _, errs := bg.GetBackupDetails(ctx, backupID)
+	d, _, bus := bg.GetBackupDetails(ctx, backupID)
 	// TODO: log/track recoverable errors
-	if errs.Failure() != nil {
-		if errors.Is(errs.Failure(), errs.NotFound) {
+	if bus.Failure() != nil {
+		if errors.Is(bus.Failure(), errs.NotFound) {
 			return nil, clues.New("no backup exists with the id " + backupID)
 		}
 
-		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
+		return nil, clues.Wrap(bus.Failure(), "Failed to get backup details in the repository")
 	}
 
 	if opts.SkipReduce {
 		return d, nil
 	}
 
-	d, err := sel.Reduce(ctx, d, errs)
+	d, err := sel.Reduce(ctx, d, bus)
 	if err != nil {
 		return nil, clues.Wrap(err, "filtering backup details to selection")
 	}
