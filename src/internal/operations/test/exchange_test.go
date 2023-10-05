@@ -182,6 +182,13 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			assert.Empty(t, bup.MergeBases, "base backup merge base lineage")
 			assert.Empty(t, bup.AssistBases, "base backup assist base lineage")
 
+			// Reason for backup should have Exchange and the category.
+			reasons, err := bup.Reasons()
+			require.NoError(t, err, clues.ToCore(err))
+			require.Len(t, reasons, 1, "number of reasons for backup")
+			assert.Equal(t, path.ExchangeService, reasons[0].Service())
+			assert.Equal(t, test.category, reasons[0].Category())
+
 			// Basic, happy path incremental test.  No changes are dictated or expected.
 			// This only tests that an incremental backup is runnable at all, and that it
 			// produces fewer results than the last backup.
@@ -247,6 +254,13 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				t,
 				test.category,
 				lineage.Merge[bo.Results.BackupID][0].Category())
+
+			// Reason for backup should have Exchange and the category.
+			reasons, err = bup.Reasons()
+			require.NoError(t, err, clues.ToCore(err))
+			require.Len(t, reasons, 1, "number of reasons for backup")
+			assert.Equal(t, path.ExchangeService, reasons[0].Service())
+			assert.Equal(t, test.category, reasons[0].Category())
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
 			assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
