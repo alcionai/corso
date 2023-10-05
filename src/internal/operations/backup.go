@@ -257,6 +257,21 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		})
 
 	defer func() {
+		if op.Errors.Failure() != nil {
+			op.bus.Event(
+				ctx,
+				events.CorsoError,
+				map[string]any{
+					events.Resources:     op.ResourceOwner.ID(),
+					events.ResourcesName: op.ResourceOwner.Name(),
+					events.Service:       op.Selectors.PathService().String(),
+					events.StartTime:     dttm.Format(op.Results.StartedAt),
+					events.Status:        op.Status.String(),
+					events.BackupID:      op.Results.BackupID,
+					events.Command:       "Backup",
+				})
+		}
+
 		op.bus.Event(
 			ctx,
 			events.BackupEnd,

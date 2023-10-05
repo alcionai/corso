@@ -146,6 +146,19 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		"destination_container", clues.Hide(op.RestoreCfg.Location))
 
 	defer func() {
+		if op.Errors.Failure() != nil {
+			op.bus.Event(
+				ctx,
+				events.CorsoError,
+				map[string]any{
+					events.Service:   op.Selectors.PathService().String(),
+					events.StartTime: dttm.Format(op.Results.StartedAt),
+					events.Status:    op.Status.String(),
+					events.BackupID:  op.BackupID,
+					events.Command:   "Restore",
+				})
+		}
+
 		op.bus.Event(
 			ctx,
 			events.RestoreEnd,

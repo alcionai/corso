@@ -141,6 +141,19 @@ func (op *ExportOperation) Run(ctx context.Context) (
 		"service", op.Selectors.Service)
 
 	defer func() {
+		if op.Errors.Failure() != nil {
+			op.bus.Event(
+				ctx,
+				events.CorsoError,
+				map[string]any{
+					events.Service:   op.Selectors.PathService().String(),
+					events.StartTime: dttm.Format(op.Results.StartedAt),
+					events.Status:    op.Status.String(),
+					events.BackupID:  op.BackupID,
+					events.Command:   "Export",
+				})
+		}
+
 		op.bus.Event(
 			ctx,
 			events.ExportEnd,

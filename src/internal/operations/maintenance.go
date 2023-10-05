@@ -65,6 +65,18 @@ func (op *MaintenanceOperation) Run(ctx context.Context) (err error) {
 		})
 
 	defer func() {
+		if op.Errors.Failure() != nil {
+			op.bus.Event(
+				ctx,
+				events.CorsoError,
+				map[string]any{
+					events.Resources: op.mOpts.Type.String(),
+					events.StartTime: dttm.Format(op.Results.StartedAt),
+					events.Status:    op.Status.String(),
+					events.Command:   "Maintenance",
+				})
+		}
+
 		op.bus.Event(
 			ctx,
 			events.MaintenanceEnd,

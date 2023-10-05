@@ -227,6 +227,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
 			assert.Empty(t, incBO.Errors.Recovered(), "count incremental recoverable/iteration errors")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
+			assert.Equal(t, 0, incMB.TimesCalled[events.CorsoError], "corso error events")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 			assert.Equal(t,
 				incMB.CalledWith[events.BackupStart][0][events.BackupID],

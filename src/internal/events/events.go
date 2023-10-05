@@ -33,6 +33,7 @@ const (
 	RepoConnect      = "Repo Connect"
 	BackupStart      = "Backup Start"
 	BackupEnd        = "Backup End"
+	CorsoError       = "Corso Error"
 	RestoreStart     = "Restore Start"
 	RestoreEnd       = "Restore End"
 	ExportStart      = "Export Start"
@@ -50,11 +51,13 @@ const (
 	ItemsRead        = "items_read"
 	ItemsWritten     = "items_written"
 	Resources        = "resources"
+	ResourcesName    = "resources_name"
 	RestoreID        = "restore_id"
 	ExportID         = "export_id"
 	Service          = "service"
 	StartTime        = "start_time"
 	Status           = "status"
+	Command          = "command"
 
 	// default values for keys
 	RepoIDNotFound = "not_found"
