@@ -13,6 +13,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -279,6 +280,156 @@ func (suite *BackupUnitSuite) TestBackup_Bases() {
 			for id, e := range test.expectAssist {
 				assert.ElementsMatch(t, e, got.Assist[id], "assist bases")
 			}
+		})
+	}
+}
+
+func (suite *BackupUnitSuite) TestBackup_Tenant() {
+	const tenant = "tenant-id"
+
+	stub := stubBackup(time.Now(), "user-id", "user-name")
+
+	table := []struct {
+		name       string
+		inputKey   string
+		inputValue string
+		expectErr  assert.ErrorAssertionFunc
+		expect     string
+	}{
+		{
+			name:       "ProperlyFormatted",
+			inputKey:   tenantIDKey,
+			inputValue: tenant,
+			expectErr:  assert.NoError,
+			expect:     tenant,
+		},
+		{
+			name:       "WrongKey",
+			inputKey:   "foo",
+			inputValue: tenant,
+			expectErr:  assert.Error,
+		},
+		{
+			name:       "EmptyValue",
+			inputKey:   tenantIDKey,
+			inputValue: "",
+			expectErr:  assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			b := stub
+			b.Tags = map[string]string{test.inputKey: test.inputValue}
+
+			gotTenant, err := b.Tenant()
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				assert.ErrorIs(t, err, errs.NotFound)
+				return
+			}
+
+			assert.Equal(t, test.expect, gotTenant)
+		})
+	}
+}
+
+func (suite *BackupUnitSuite) TestBackup_Reasons() {
+	const (
+		tenantID = "tenant-id"
+		userID   = "user-id"
+	)
+
+	stub := stubBackup(time.Now(), userID, "user-name")
+
+	defaultEmailReason := identity.NewReason(
+		tenantID,
+		stub.ProtectedResourceID,
+		path.ExchangeService,
+		path.EmailCategory)
+	defaultContactsReason := identity.NewReason(
+		tenantID,
+		stub.ProtectedResourceID,
+		path.ExchangeService,
+		path.ContactsCategory)
+
+	table := []struct {
+		name      string
+		getBackup func() *Backup
+		expectErr assert.ErrorAssertionFunc
+		expect    []identity.Reasoner
+	}{
+		{
+			name: "SingleReason",
+			getBackup: func() *Backup {
+				res := stub
+				res.Tags = map[string]string{}
+
+				for k, v := range reasonTags(defaultEmailReason) {
+					res.Tags[k] = v
+				}
+
+				return &res
+			},
+			expectErr: assert.NoError,
+			expect:    []identity.Reasoner{defaultEmailReason},
+		},
+		{
+			name: "MultipleReasons",
+			getBackup: func() *Backup {
+				res := stub
+				res.Tags = map[string]string{}
+
+				for _, reason := range []identity.Reasoner{defaultEmailReason, defaultContactsReason} {
+					for k, v := range reasonTags(reason) {
+						res.Tags[k] = v
+					}
+				}
+
+				return &res
+			},
+			expectErr: assert.NoError,
+			expect: []identity.Reasoner{
+				defaultEmailReason,
+				defaultContactsReason,
+			},
+		},
+		{
+			name: "SingleReason OtherTags",
+			getBackup: func() *Backup {
+				res := stub
+				res.Tags = map[string]string{}
+
+				for k, v := range reasonTags(defaultEmailReason) {
+					res.Tags[k] = v
+				}
+
+				res.Tags["foo"] = "bar"
+
+				return &res
+			},
+			expectErr: assert.NoError,
+			expect:    []identity.Reasoner{defaultEmailReason},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			bup := test.getBackup()
+
+			got, err := bup.Reasons()
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			assert.ElementsMatch(t, test.expect, got)
 		})
 	}
 }

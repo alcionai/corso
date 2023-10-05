@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
@@ -237,6 +239,48 @@ func (b Backup) Bases() (PersistedBaseSet, error) {
 				service,
 				cat))
 		}
+	}
+
+	return res, nil
+}
+
+func (b Backup) Tenant() (string, error) {
+	t := b.Tags[tenantIDKey]
+	if len(t) == 0 {
+		return "", clues.Wrap(errs.NotFound, "getting tenant")
+	}
+
+	return t, nil
+}
+
+// Reasons returns the set of services and categories this backup encompassed
+// for the tenant and protected resource.
+func (b Backup) Reasons() ([]identity.Reasoner, error) {
+	tenant, err := b.Tenant()
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	var res []identity.Reasoner
+
+	for tag := range b.Tags {
+		service, cat, err := serviceCatStringToTypes(tag)
+		if err != nil {
+			// Assume it's just not one of the Reason tags.
+			if errors.Is(err, errMissingPrefix) {
+				continue
+			}
+
+			return nil, clues.Wrap(err, "parsing reasons")
+		}
+
+		res = append(
+			res,
+			identity.NewReason(
+				tenant,
+				str.First(b.ProtectedResourceID, b.Selector.DiscreteOwner),
+				service,
+				cat))
 	}
 
 	return res, nil
