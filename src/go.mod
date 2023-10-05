@@ -8,7 +8,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.3.1
 	github.com/alcionai/clues v0.0.0-20230920212840-728ac1a1d8b8
 	github.com/armon/go-metrics v0.4.1
-	github.com/aws/aws-xray-sdk-go v1.8.1
+	github.com/aws/aws-xray-sdk-go v1.8.2
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/google/uuid v1.3.1
 	github.com/h2non/gock v1.2.0
