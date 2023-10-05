@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/dustin/go-humanize"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -89,6 +90,7 @@ func New(
 	ownerID, ownerName string,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
+	reasons []identity.Reasoner,
 	bases BackupBases,
 	fe *fault.Errors,
 	tags map[string]string,
@@ -121,10 +123,15 @@ func New(
 		}
 	}
 
+	// maps.Clone throws an NPE if passed nil on Mac for some reason.
+	if tags == nil {
+		tags = map[string]string{}
+	}
+
 	b := &Backup{
 		BaseModel: model.BaseModel{
 			ID:   id,
-			Tags: tags,
+			Tags: maps.Clone(tags),
 		},
 
 		ProtectedResourceID:   ownerID,
@@ -178,6 +185,12 @@ func New(
 
 		if len(assistBases) > 0 {
 			b.AssistBases = assistBases
+		}
+	}
+
+	for _, reason := range reasons {
+		for k, v := range reasonTags(reason) {
+			b.Tags[k] = v
 		}
 	}
 
