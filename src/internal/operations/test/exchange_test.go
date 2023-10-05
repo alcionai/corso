@@ -175,6 +175,13 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				expectDeets,
 				false)
 
+			// Lineage for the initial backup should be empty.
+			bup, err := bod.sw.GetBackup(ctx, bo.Results.BackupID)
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Empty(t, bup.MergeBases, "base backup merge base lineage")
+			assert.Empty(t, bup.AssistBases, "base backup assist base lineage")
+
 			// Basic, happy path incremental test.  No changes are dictated or expected.
 			// This only tests that an incremental backup is runnable at all, and that it
 			// produces fewer results than the last backup.
@@ -220,7 +227,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 
 			// Incremental backup should have the initial backup as a merge base in
 			// the lineage information.
-			bup, err := bod.sw.GetBackup(ctx, incBO.Results.BackupID)
+			bup, err = bod.sw.GetBackup(ctx, incBO.Results.BackupID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			lineage, err := bup.Bases()
