@@ -165,14 +165,15 @@ var token int64 = 0
 
 func RegisterRLMetrics(ctx context.Context) {
 	twonce.Do(func() {
+		rlg := events.CreateGauge(ctx, events.RLTokens)
 		cb := func(ctx context.Context, o metric.Observer) error {
 			token += int64(ctxLimiter(ctx).Tokens())
-			o.ObserveInt64(events.RLGauge, token)
+			o.ObserveInt64(rlg, token)
 
 			return nil
 		}
 
-		events.RegisterGauge(ctx, events.RLTokens, cb)
+		events.RegisterGauge(ctx, rlg, cb)
 	})
 }
 

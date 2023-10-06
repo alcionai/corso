@@ -20,7 +20,6 @@ import (
 
 var Ctr metric.Int64Counter
 var AsyncCtr metric.Int64ObservableCounter
-var RLGauge metric.Int64ObservableCounter
 
 var token int64
 
@@ -76,12 +75,19 @@ func NewCollector(mp metric.MeterProvider) {
 
 }
 
-func RegisterGauge(ctx context.Context, name string, cb func(_ context.Context, o metric.Observer) error) {
+func CreateGauge(ctx context.Context, name string) metric.Int64ObservableCounter {
 	RLGauge, _ := globalMeter.Int64ObservableCounter(name)
 
+	return RLGauge
+}
+
+func RegisterGauge(
+	ctx context.Context,
+	rlg metric.Int64ObservableCounter,
+	cb func(_ context.Context, o metric.Observer) error) {
 	_, err := globalMeter.RegisterCallback(
 		cb,
-		RLGauge,
+		rlg,
 	)
 
 	if err != nil {
