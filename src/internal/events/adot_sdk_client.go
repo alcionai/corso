@@ -49,6 +49,10 @@ func NewCollector(mp metric.MeterProvider) {
 	for _, key := range metricKeys {
 		data[key], _ = rmc.meter.Int64Counter(key)
 	}
+
+	// // Create a new guage
+	// g, _ := rmc.meter.Int64ObservableGauge(RLTokens)
+
 }
 
 func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
@@ -61,13 +65,13 @@ func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 // Inc increments the given category by 1.
 func Inc(ctx context.Context, cat string) {
 	ctr := data[cat]
-	ctr.Add(context.Background(), 1)
+	ctr.Add(ctx, 1)
 }
 
 // IncN increments the given category by N.
 func IncN(ctx context.Context, n int, cat string) {
 	ctr := data[cat]
-	ctr.Add(context.Background(), int64(n))
+	ctr.Add(ctx, int64(n))
 }
 
 // func (rmc *collector) RegisterMetricsClient(ctx context.Context) {

@@ -12,8 +12,10 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -138,6 +140,9 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 	if err := validateOneDriveBackupCreateFlags(flags.UserFV); err != nil {
 		return err
 	}
+
+	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
+	defer flushMetrics()
 
 	r, acct, err := utils.AccountConnectAndWriteRepoConfig(
 		ctx,

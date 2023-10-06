@@ -199,8 +199,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		end()
 	}()
 
-	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
-	defer flushMetrics()
+	// ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
+	// defer flushMetrics()
 
 	ctx = count.Embed(ctx, op.Counter)
 
