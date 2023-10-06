@@ -95,7 +95,9 @@ func StartClient(ctx context.Context) *metricSdk.MeterProvider {
 		ctx,
 		otlpmetricgrpc.WithInsecure(),
 		otlpmetricgrpc.WithEndpoint("0.0.0.0:4317"),
-		otlpmetricgrpc.WithDialOption(grpc.WithBlock()))
+		otlpmetricgrpc.WithDialOption(grpc.WithBlock()),
+		otlpmetricgrpc.WithTemporalitySelector(metricSdk.DefaultTemporalitySelector),
+	)
 	if err != nil {
 		log.Fatalf("failed to create new OTLP metric exporter: %v", err)
 	}
@@ -109,3 +111,18 @@ func StartClient(ctx context.Context) *metricSdk.MeterProvider {
 
 	return meterProvider
 }
+
+// func deltaSelector(kind metricSdk.InstrumentKind) metricdata.Temporality {
+// 	switch kind {
+// 	case metricSdk.InstrumentKindCounter,
+// 		metricSdk.InstrumentKindHistogram,
+// 		metricSdk.InstrumentKindObservableGauge,
+// 		metricSdk.InstrumentKindObservableCounter:
+// 		return metricdata.DeltaTemporality
+// 	case metricSdk.InstrumentKindUpDownCounter,
+// 		metricSdk.InstrumentKindObservableUpDownCounter:
+// 		return metricdata.CumulativeTemporality
+// 	}
+
+// 	panic("unknown instrument kind")
+// }
