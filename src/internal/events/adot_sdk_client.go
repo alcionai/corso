@@ -32,7 +32,7 @@ type randomMetricCollector struct {
 
 func NewRandomMetricCollector(mp metric.MeterProvider) randomMetricCollector {
 	rmc := randomMetricCollector{}
-	rmc.meter = mp.Meter("corso-meters")
+	rmc.meter = mp.Meter("corso-collection")
 	rmc.registerCounter()
 	// rmc.registerCpuUsage()
 	return rmc
@@ -110,7 +110,7 @@ func StartClient(ctx context.Context) (func(context.Context) error, error) {
 	}
 	res := resource.NewWithAttributes(
 		semconv.SchemaURL,
-		semconv.ServiceName("corso-metrics"),
+		semconv.ServiceName("go-sample-app"),
 	)
 	if _, present := os.LookupEnv("OTEL_RESOURCE_ATTRIBUTES"); present {
 		envResource, err := resource.New(ctx, resource.WithFromEnv())
