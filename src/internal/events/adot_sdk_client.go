@@ -20,6 +20,7 @@ import (
 
 var Ctr metric.Int64Counter
 var AsyncCtr metric.Int64ObservableCounter
+var token int64
 
 type collector struct {
 	meter metric.Meter
@@ -48,11 +49,11 @@ func (rmc *collector) registerCounter() {
 	Ctr, _ = rmc.meter.Int64Counter(growCounter)
 	AsyncCtr, _ = rmc.meter.Int64ObservableCounter("async_counter")
 
-	var token int64
-
 	cb := func(_ context.Context, o metric.Observer) error {
-		token++
+		logger.Ctx(context.Background()).Infow("Async counter callback")
+		token += 100
 		o.ObserveInt64(AsyncCtr, token)
+
 		return nil
 	}
 
@@ -90,16 +91,11 @@ func StartClient(ctx context.Context) *metricSdk.MeterProvider {
 		res = envResource
 	}
 
-	// Setup trace related
-	// tp, err := setupTraceProvider(ctx, res)
-	// if err != nil {
-	// 	return nil
-	// }
-
-	// otel.SetTracerProvider(tp)
-	// otel.SetTextMapPropagator(xray.Propagator{}) // Set AWS X-Ray propagator
-
-	exp, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithInsecure(), otlpmetricgrpc.WithEndpoint("0.0.0.0:4317"), otlpmetricgrpc.WithDialOption(grpc.WithBlock()))
+	exp, err := otlpmetricgrpc.New(
+		ctx,
+		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithEndpoint("0.0.0.0:4317"),
+		otlpmetricgrpc.WithDialOption(grpc.WithBlock()))
 	if err != nil {
 		log.Fatalf("failed to create new OTLP metric exporter: %v", err)
 	}
@@ -113,28 +109,3 @@ func StartClient(ctx context.Context) *metricSdk.MeterProvider {
 
 	return meterProvider
 }
-
-// // setupTraceProvider configures a trace exporter and an AWS X-Ray ID Generator.
-// func setupTraceProvider(ctx context.Context, res *resource.Resource) (*sdktrace.TracerProvider, error) {
-// 	// INSECURE !! NOT TO BE USED FOR ANYTHING IN PRODUCTION
-// 	// traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithInsecure())
-// 	// Create and start new OTLP trace exporter
-// 	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithInsecure(), otlptracegrpc.WithEndpoint("0.0.0.0:4317"), otlptracegrpc.WithDialOption(grpc.WithBlock()))
-// 	if err != nil {
-// 		log.Fatalf("failed to create new OTLP trace exporter: %v", err)
-// 	}
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	idg := xray.NewIDGenerator()
-
-// 	tp := sdktrace.NewTracerProvider(
-// 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-// 		sdktrace.WithBatcher(traceExporter),
-// 		sdktrace.WithResource(res),
-// 		sdktrace.WithIDGenerator(idg),
-// 	)
-// 	return tp, nil
-// }
