@@ -90,6 +90,19 @@ func (s Stats) MinimumPrintable() any {
 // for printing out to a terminal in a columnar display.
 func (s Stats) Headers() []string {
 	switch {
+	case s.Exchange != nil:
+		return []string{
+			"EmailsAdded",
+			"EmailsDeleted",
+			"EmailFolders",
+			"ContactsAdded",
+			"ContactsDeleted",
+			"ContactFolders",
+			"EventsAdded",
+			"EventsDeleted",
+			"EventFolders",
+		}
+
 	case s.OneDrive != nil:
 		return []string{
 			"Folders",
@@ -105,6 +118,19 @@ func (s Stats) Headers() []string {
 // out to a terminal in a columnar display.
 func (s Stats) Values() []string {
 	switch {
+	case s.Exchange != nil:
+		return []string{
+			strconv.Itoa(s.Exchange.EmailsAdded),
+			strconv.Itoa(s.Exchange.EmailsDeleted),
+			strconv.Itoa(s.Exchange.EmailFolders),
+			strconv.Itoa(s.Exchange.ContactsAdded),
+			strconv.Itoa(s.Exchange.ContactsDeleted),
+			strconv.Itoa(s.Exchange.ContactFolders),
+			strconv.Itoa(s.Exchange.EventsAdded),
+			strconv.Itoa(s.Exchange.EventsDeleted),
+			strconv.Itoa(s.Exchange.EventFolders),
+		}
+
 	case s.OneDrive != nil:
 		return []string{
 			strconv.Itoa(s.OneDrive.Folders),
