@@ -24,20 +24,20 @@ const (
 	// [1] https://github.com/kopia/kopia/blob/05e729a7858a6e86cb48ba29fb53cb6045efce2b/cli/command_snapshot_create.go#L169
 	LegacyUserTagPrefix = "tag:"
 
-	tenantIDKey      = "tenant"
-	resourceIDKey    = "protectedResource"
+	TenantIDKey      = "tenant"
+	ResourceIDKey    = "protectedResource"
 	serviceCatPrefix = "sc-"
 	separator        = "_"
 
 	// Sentinel value for tags. Could technically be empty but we'll store
 	// something for now.
 	//nolint
-	defaultTagValue = "1"
+	DefaultTagValue = "1"
 )
 
 var errMissingPrefix = clues.New("missing tag prefix")
 
-func serviceCatString(
+func ServiceCatString(
 	service path.ServiceType,
 	category path.CategoryType,
 ) string {
@@ -86,9 +86,9 @@ func serviceCatStringToTypes(
 // nolint
 func reasonTags(r identity.Reasoner) map[string]string {
 	return map[string]string{
-		tenantIDKey:   r.Tenant(),
-		resourceIDKey: r.ProtectedResource(),
-		serviceCatString(r.Service(), r.Category()): defaultTagValue,
+		TenantIDKey:   r.Tenant(),
+		ResourceIDKey: r.ProtectedResource(),
+		ServiceCatString(r.Service(), r.Category()): DefaultTagValue,
 	}
 }
 

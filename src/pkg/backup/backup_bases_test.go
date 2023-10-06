@@ -30,7 +30,7 @@ func (suite *BackupBasesUnitSuite) TestServiceCategorySerialization() {
 	}{
 		{
 			name:           "ProperFormat",
-			input:          serviceCatString(path.ExchangeService, path.EmailCategory),
+			input:          ServiceCatString(path.ExchangeService, path.EmailCategory),
 			expectErr:      assert.NoError,
 			expectService:  path.ExchangeService,
 			expectCategory: path.EmailCategory,
@@ -38,14 +38,14 @@ func (suite *BackupBasesUnitSuite) TestServiceCategorySerialization() {
 		{
 			name: "MissingPrefix",
 			input: strings.TrimPrefix(
-				serviceCatString(path.ExchangeService, path.EmailCategory),
+				ServiceCatString(path.ExchangeService, path.EmailCategory),
 				serviceCatPrefix),
 			expectErr: assert.Error,
 		},
 		{
 			name: "MissingSeparator",
 			input: strings.ReplaceAll(
-				serviceCatString(path.ExchangeService, path.EmailCategory),
+				ServiceCatString(path.ExchangeService, path.EmailCategory),
 				separator,
 				""),
 			expectErr: assert.Error,

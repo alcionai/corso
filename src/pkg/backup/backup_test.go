@@ -104,13 +104,13 @@ func (suite *BackupUnitSuite) TestBackup_Bases() {
 				res.AssistBases = map[model.StableID][]string{}
 
 				res.MergeBases[mergeID] = []string{
-					serviceCatString(
+					ServiceCatString(
 						defaultEmailReason.Service(),
 						defaultEmailReason.Category()),
 				}
 
 				res.AssistBases[assistID] = []string{
-					serviceCatString(
+					ServiceCatString(
 						defaultEmailReason.Service(),
 						defaultEmailReason.Category()),
 				}
@@ -133,13 +133,13 @@ func (suite *BackupUnitSuite) TestBackup_Bases() {
 				res.AssistBases = map[model.StableID][]string{}
 
 				res.MergeBases[mergeID] = []string{
-					serviceCatString(
+					ServiceCatString(
 						defaultEmailReason.Service(),
 						defaultEmailReason.Category()),
 				}
 
 				res.AssistBases[assistID] = []string{
-					serviceCatString(
+					ServiceCatString(
 						defaultContactsReason.Service(),
 						defaultContactsReason.Category()),
 				}
@@ -162,19 +162,19 @@ func (suite *BackupUnitSuite) TestBackup_Bases() {
 				res.AssistBases = map[model.StableID][]string{}
 
 				res.MergeBases[mergeID] = []string{
-					serviceCatString(
+					ServiceCatString(
 						defaultEmailReason.Service(),
 						defaultEmailReason.Category()),
-					serviceCatString(
+					ServiceCatString(
 						defaultContactsReason.Service(),
 						defaultContactsReason.Category()),
 				}
 
 				res.AssistBases[assistID] = []string{
-					serviceCatString(
+					ServiceCatString(
 						defaultEmailReason.Service(),
 						defaultEmailReason.Category()),
-					serviceCatString(
+					ServiceCatString(
 						defaultContactsReason.Service(),
 						defaultContactsReason.Category()),
 				}
@@ -202,7 +202,7 @@ func (suite *BackupUnitSuite) TestBackup_Bases() {
 				res.MergeBases = map[model.StableID][]string{}
 
 				res.MergeBases[mergeID] = []string{
-					serviceCatString(
+					ServiceCatString(
 						defaultEmailReason.Service(),
 						defaultEmailReason.Category()),
 				}
@@ -221,7 +221,7 @@ func (suite *BackupUnitSuite) TestBackup_Bases() {
 				res.AssistBases = map[model.StableID][]string{}
 
 				res.AssistBases[mergeID] = []string{
-					serviceCatString(
+					ServiceCatString(
 						defaultEmailReason.Service(),
 						defaultEmailReason.Category()),
 				}
@@ -298,7 +298,7 @@ func (suite *BackupUnitSuite) TestBackup_Tenant() {
 	}{
 		{
 			name:       "ProperlyFormatted",
-			inputKey:   tenantIDKey,
+			inputKey:   TenantIDKey,
 			inputValue: tenant,
 			expectErr:  assert.NoError,
 			expect:     tenant,
@@ -311,7 +311,7 @@ func (suite *BackupUnitSuite) TestBackup_Tenant() {
 		},
 		{
 			name:       "EmptyValue",
-			inputKey:   tenantIDKey,
+			inputKey:   TenantIDKey,
 			inputValue: "",
 			expectErr:  assert.Error,
 		},

@@ -167,7 +167,7 @@ func New(
 			for _, reason := range backup.Reasons {
 				mergeBases[backup.ID] = append(
 					mergeBases[backup.ID],
-					serviceCatString(reason.Service(), reason.Category()))
+					ServiceCatString(reason.Service(), reason.Category()))
 			}
 		}
 
@@ -175,7 +175,7 @@ func New(
 			for _, reason := range backup.Reasons {
 				assistBases[backup.ID] = append(
 					assistBases[backup.ID],
-					serviceCatString(reason.Service(), reason.Category()))
+					ServiceCatString(reason.Service(), reason.Category()))
 			}
 		}
 
@@ -258,7 +258,7 @@ func (b Backup) Bases() (PersistedBaseSet, error) {
 }
 
 func (b Backup) Tenant() (string, error) {
-	t := b.Tags[tenantIDKey]
+	t := b.Tags[TenantIDKey]
 	if len(t) == 0 {
 		return "", clues.Wrap(errs.NotFound, "getting tenant")
 	}
