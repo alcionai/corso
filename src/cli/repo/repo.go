@@ -25,6 +25,7 @@ const (
 	initCommand        = "init"
 	connectCommand     = "connect"
 	maintenanceCommand = "maintenance"
+	lineageCommand     = "lineage"
 )
 
 var (
@@ -46,12 +47,14 @@ func AddCommands(cmd *cobra.Command) {
 		initCmd        = initCmd()
 		connectCmd     = connectCmd()
 		maintenanceCmd = maintenanceCmd()
+		lineageCmd     = lineageCmd()
 	)
 
 	cmd.AddCommand(repoCmd)
 	repoCmd.AddCommand(initCmd)
 	repoCmd.AddCommand(connectCmd)
 	repoCmd.AddCommand(maintenanceCmd)
+	repoCmd.AddCommand(lineageCmd)
 
 	flags.AddMaintenanceModeFlag(maintenanceCmd)
 	flags.AddForceMaintenanceFlag(maintenanceCmd)
@@ -181,6 +184,47 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 	}
 
 	return res, nil
+}
+
+func lineageCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   lineageCommand,
+		Short: "Run maintenance on an existing repository",
+		Long:  `Run maintenance on an existing repository to optimize performance and storage use`,
+		RunE:  handleLineageCmd,
+		Args:  cobra.NoArgs,
+	}
+}
+
+func handleLineageCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	r, acct, err := utils.GetAccountAndConnect(ctx, cmd, path.UnknownService)
+	if err != nil {
+		return print.Only(ctx, err)
+	}
+
+	roots, err := r.BackupLineage(
+		ctx,
+		acct.Repo.Account.ID(),
+		"c8006e42-5b84-4d37-a027-14f3d09fe6c7",
+		path.UnknownService,
+		path.UnknownCategory,
+	)
+	if err != nil {
+		return print.Only(ctx, err)
+	}
+
+	for _, root := range roots {
+		fmt.Printf("Tree rooted with %v\n", root.Label)
+		printTree(root, 0)
+	}
+
+	if err := drawTree(ctx, roots); err != nil {
+		return print.Only(ctx, err)
+	}
+
+	return nil
 }
 
 func printTree(root *repo.BackupNode, ident int) {
