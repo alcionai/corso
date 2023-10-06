@@ -34,4 +34,4 @@ Below is a list of known Corso issues and limitations:
 
 * Groups and Teams support is available in an early-access status, and may be subject to breaking changes.
 
-* Restoring the data into a different Group from the one it was backed up from is not currently supported
+* Restoring the data into a different Group from the one it was backed up from isn't currently supported
