@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/clues"
 	khttp "github.com/microsoft/kiota-http-go"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/time/rate"
 
 	"github.com/alcionai/corso/src/internal/events"
@@ -159,6 +160,19 @@ const (
 	PermissionsLC = 5
 )
 
+var twonce sync.Once
+
+func RegisterRLMetrics(ctx context.Context) {
+	twonce.Do(func() {
+		cb := func(_ context.Context, o metric.Observer) error {
+			o.ObserveInt64(events.RLGauge, int64(ctxLimiter(ctx).Tokens()))
+			return nil
+		}
+
+		events.RegisterGauge(ctx, events.RLTokens, cb)
+	})
+}
+
 // ConsumeNTokens ensures any calls using this context will consume
 // n rate-limiter tokens.  Default is 1, and this value does not need
 // to be established in the context to consume the default tokens.
@@ -192,8 +206,7 @@ func QueueRequest(ctx context.Context) {
 		defaultConsumed = driveDefaultLC
 	}
 
-	t := limiter.Tokens()
-	events.IncN(ctx, int(t), events.RLTokens)
+	// events.IncN(ctx, int(t), events.RLTokens)
 
 	consume := ctxLimiterConsumption(ctx, defaultConsumed)
 
@@ -210,7 +223,9 @@ func (mw *RateLimiterMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
+	RegisterRLMetrics(req.Context())
 	QueueRequest(req.Context())
+
 	return pipeline.Next(req, middlewareIndex)
 }
 

@@ -19,6 +19,7 @@ import (
 
 var Ctr metric.Int64Counter
 var AsyncCtr metric.Int64ObservableCounter
+var RLGauge metric.Int64ObservableGauge
 var token int64
 
 type collector struct {
@@ -35,11 +36,13 @@ const (
 var metricKeys = []string{
 	APITokens,
 	GrowCounter,
-	RLTokens,
+	// RLTokens,
 }
 
 // Map of metricsCategory to metric.Int64Counter
-var data = map[string]metric.Int64Counter{}
+var counter = map[string]metric.Int64Counter{}
+
+//var guages = map[string]metric.Int64ObservableGauge{}
 
 func NewCollector(mp metric.MeterProvider) {
 	rmc := collector{}
@@ -47,12 +50,22 @@ func NewCollector(mp metric.MeterProvider) {
 	rmc.meter = mp.Meter("corso-meter")
 
 	for _, key := range metricKeys {
-		data[key], _ = rmc.meter.Int64Counter(key)
+		counter[key], _ = rmc.meter.Int64Counter(key)
 	}
 
-	// // Create a new guage
-	// g, _ := rmc.meter.Int64ObservableGauge(RLTokens)
+}
 
+func RegisterGauge(ctx context.Context, name string, cb func(_ context.Context, o metric.Observer) error) {
+	RLGauge, _ := otel.Meter("corso-meter").Int64ObservableGauge(name)
+
+	_, err := otel.Meter("corso-meter").RegisterCallback(
+		cb,
+		RLGauge,
+	)
+
+	if err != nil {
+		logger.CtxErr(ctx, err).Errorw("failed to register callback")
+	}
 }
 
 func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
@@ -64,13 +77,13 @@ func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 
 // Inc increments the given category by 1.
 func Inc(ctx context.Context, cat string) {
-	ctr := data[cat]
+	ctr := counter[cat]
 	ctr.Add(ctx, 1)
 }
 
 // IncN increments the given category by N.
 func IncN(ctx context.Context, n int, cat string) {
-	ctr := data[cat]
+	ctr := counter[cat]
 	ctr.Add(ctx, int64(n))
 }
 
