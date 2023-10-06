@@ -5,13 +5,11 @@ import (
 	"crypto/md5"
 	"crypto/sha256"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/armon/go-metrics"
 	analytics "github.com/rudderlabs/analytics-go"
 
 	"github.com/alcionai/corso/src/internal/version"
@@ -196,44 +194,10 @@ func tenantHash(tenID string) string {
 // metrics aggregation
 // ---------------------------------------------------------------------------
 
-type metricsCategory string
+// metrics collection buckets
 
-// metrics collection bucket
-const (
-	APICall     = "api_call"
-	growCounter = "grow_counter"
-)
-
-// configurations
-const (
-// reportInterval    = 1 * time.Minute
-// retentionDuration = 2 * time.Minute
-)
-
-func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
-	mp := StartClient(ctx)
-
-	//mpx := otel.GetMeterProvider()
-	rmc := Newcollector(mp)
-	rmc.RegisterMetricsClient(ctx, Config{})
-
-	return ctx, func() {}
-}
-
-// Inc increments the given category by 1.
-func Inc(cat metricsCategory, keys ...string) {
-	cats := append([]string{string(cat)}, keys...)
-	metrics.IncrCounter(cats, 1)
-}
-
-// IncN increments the given category by N.
-func IncN(n int, cat metricsCategory, keys ...string) {
-	cats := append([]string{string(cat)}, keys...)
-	metrics.IncrCounter(cats, float32(n))
-}
-
-// Since records the duration between the provided time and now, in millis.
-func Since(start time.Time, cat metricsCategory, keys ...string) {
-	cats := append([]string{string(cat)}, keys...)
-	metrics.MeasureSince(cats, start)
-}
+// // Since records the duration between the provided time and now, in millis.
+// func Since(start time.Time, cat metricsCategory, keys ...string) {
+// 	cats := append([]string{string(cat)}, keys...)
+// 	metrics.MeasureSince(cats, start)
+// }

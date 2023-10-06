@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/http2"
 
-	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -123,7 +122,7 @@ func (hw httpWrapper) Request(
 		}
 
 		logger.Ctx(ctx).Debug("http2 stream error")
-		events.Inc(events.APICall, "streamerror")
+		//events.Inc(events.APICall, "streamerror")
 
 		time.Sleep(3 * time.Second)
 	}

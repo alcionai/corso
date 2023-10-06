@@ -11,6 +11,7 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -190,6 +191,9 @@ func QueueRequest(ctx context.Context) {
 	if limiter == driveLimiter {
 		defaultConsumed = driveDefaultLC
 	}
+
+	t := limiter.Tokens()
+	events.IncN(ctx, int(t), events.RLTokens)
 
 	consume := ctxLimiterConsumption(ctx, defaultConsumed)
 

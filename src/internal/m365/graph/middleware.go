@@ -333,23 +333,23 @@ func (mw *MetricsMiddleware) Intercept(
 	req *http.Request,
 ) (*http.Response, error) {
 	var (
-		start     = time.Now()
+		//start     = time.Now()
 		resp, err = pipeline.Next(req, middlewareIndex)
-		status    = "nil-resp"
+		//status    = "nil-resp"
 	)
 
 	if resp == nil {
 		return resp, err
 	}
 
-	if resp != nil {
-		status = resp.Status
-	}
+	// if resp != nil {
+	// 	status = resp.Status
+	// }
 
-	events.Inc(events.APICall)
-	events.Inc(events.APICall, status)
-	events.Since(start, events.APICall)
-	events.Since(start, events.APICall, status)
+	//events.Inc(events.APICall)
+	//events.Inc(events.APICall, status)
+	// events.Since(start, events.APICall)
+	// events.Since(start, events.APICall, status)
 
 	// track the graph "resource cost" for each call (if not provided, assume 1)
 
@@ -365,7 +365,7 @@ func (mw *MetricsMiddleware) Intercept(
 	countBus := count.Ctx(req.Context())
 	countBus.Add(count.APICallTokensConsumed, int64(xmrui))
 
-	events.IncN(xmrui, events.APICall, xmruHeader)
+	events.IncN(req.Context(), xmrui, events.APITokens)
 
 	return resp, err
 }

@@ -16,7 +16,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -366,7 +365,7 @@ func (aw *adapterWrap) Send(
 		}
 
 		logger.Ctx(ictx).Debug("http connection error")
-		events.Inc(events.APICall, "connectionerror")
+		//events.Inc(events.APICall, "connectionerror")
 
 		time.Sleep(3 * time.Second)
 	}

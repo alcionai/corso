@@ -2,9 +2,8 @@ package events
 
 import (
 	"context"
-	"log"
+	"io"
 	"os"
-	"time"
 
 	"github.com/alcionai/corso/src/pkg/logger"
 	"go.opentelemetry.io/otel"
@@ -26,57 +25,88 @@ type collector struct {
 	meter metric.Meter
 }
 
-func Newcollector(mp metric.MeterProvider) collector {
+const (
+	APITokens   = "api_tokens"
+	GrowCounter = "grow_counter"
+	RLTokens    = "rate_limit_tokens"
+)
+
+// Array of metric keys
+var metricKeys = []string{
+	APITokens,
+	GrowCounter,
+	RLTokens,
+}
+
+// Map of metricsCategory to metric.Int64Counter
+var data = map[string]metric.Int64Counter{}
+
+func NewCollector(mp metric.MeterProvider) {
 	rmc := collector{}
 
 	rmc.meter = mp.Meter("corso-meter")
-	rmc.registerCounter()
 
-	return rmc
-}
-
-func (rmc *collector) RegisterMetricsClient(ctx context.Context, cfg Config) {
-	go func() {
-		for {
-			rmc.updateCounter(ctx)
-			time.Sleep(time.Second * 1)
-		}
-	}()
-
-}
-
-func (rmc *collector) registerCounter() {
-	Ctr, _ = rmc.meter.Int64Counter(growCounter)
-	AsyncCtr, _ = rmc.meter.Int64ObservableCounter("async_counter")
-
-	cb := func(_ context.Context, o metric.Observer) error {
-		logger.Ctx(context.Background()).Infow("Async counter callback")
-		token += 100
-		o.ObserveInt64(AsyncCtr, token)
-
-		return nil
-	}
-
-	_, err := rmc.meter.RegisterCallback(
-		cb,
-		AsyncCtr,
-	)
-
-	if err != nil {
-		log.Fatalf("failed to register callback: %v", err)
+	for _, key := range metricKeys {
+		data[key], _ = rmc.meter.Int64Counter(key)
 	}
 }
 
-func (rmc *collector) updateCounter(ctx context.Context) {
-	logger.Ctx(ctx).Infow("updateCounter")
+func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
+	mp := StartClient(ctx)
+	NewCollector(mp)
 
-	Ctr.Add(ctx, 20)
+	return ctx, func() {}
 }
 
-type Config struct {
-	Host string
-	Port string
+// Inc increments the given category by 1.
+func Inc(ctx context.Context, cat string) {
+	ctr := data[cat]
+	ctr.Add(context.Background(), 1)
 }
+
+// IncN increments the given category by N.
+func IncN(ctx context.Context, n int, cat string) {
+	ctr := data[cat]
+	ctr.Add(context.Background(), int64(n))
+}
+
+// func (rmc *collector) RegisterMetricsClient(ctx context.Context) {
+// 	go func() {
+// 		for {
+// 			rmc.updateCounter(ctx)
+// 			time.Sleep(time.Second * 1)
+// 		}
+// 	}()
+
+// }
+
+// func (rmc *collector) registerCounter() {
+// 	Ctr, _ = rmc.meter.Int64Counter(growCounter)
+// 	AsyncCtr, _ = rmc.meter.Int64ObservableCounter("async_counter")
+
+// 	cb := func(_ context.Context, o metric.Observer) error {
+// 		logger.Ctx(context.Background()).Infow("Async counter callback")
+// 		token += 100
+// 		o.ObserveInt64(AsyncCtr, token)
+
+// 		return nil
+// 	}
+
+// 	_, err := rmc.meter.RegisterCallback(
+// 		cb,
+// 		AsyncCtr,
+// 	)
+
+// 	if err != nil {
+// 		log.Fatalf("failed to register callback: %v", err)
+// 	}
+// }
+
+// func (rmc *collector) updateCounter(ctx context.Context) {
+// 	logger.Ctx(ctx).Infow("updateCounter")
+
+// 	Ctr.Add(ctx, 20)
+// }
 
 func StartClient(ctx context.Context) *metricSdk.MeterProvider {
 	res := resource.NewWithAttributes(
@@ -99,7 +129,7 @@ func StartClient(ctx context.Context) *metricSdk.MeterProvider {
 		otlpmetricgrpc.WithTemporalitySelector(metricSdk.DefaultTemporalitySelector),
 	)
 	if err != nil {
-		log.Fatalf("failed to create new OTLP metric exporter: %v", err)
+		logger.CtxErr(ctx, err).Error("creating metrics exporter")
 	}
 
 	meterProvider := metricSdk.NewMeterProvider(
@@ -111,18 +141,3 @@ func StartClient(ctx context.Context) *metricSdk.MeterProvider {
 
 	return meterProvider
 }
-
-// func deltaSelector(kind metricSdk.InstrumentKind) metricdata.Temporality {
-// 	switch kind {
-// 	case metricSdk.InstrumentKindCounter,
-// 		metricSdk.InstrumentKindHistogram,
-// 		metricSdk.InstrumentKindObservableGauge,
-// 		metricSdk.InstrumentKindObservableCounter:
-// 		return metricdata.DeltaTemporality
-// 	case metricSdk.InstrumentKindUpDownCounter,
-// 		metricSdk.InstrumentKindObservableUpDownCounter:
-// 		return metricdata.CumulativeTemporality
-// 	}
-
-// 	panic("unknown instrument kind")
-// }
