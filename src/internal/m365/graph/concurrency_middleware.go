@@ -161,14 +161,16 @@ const (
 )
 
 var twonce sync.Once
-var token int64 = 0
+
+//var token int64 = 0
 
 func RegisterRLMetrics(ctx context.Context) {
 	twonce.Do(func() {
 		rlg := events.CreateGauge(ctx, events.RLTokens)
-		cb := func(ctx context.Context, o metric.Observer) error {
-			token += int64(ctxLimiter(ctx).Tokens())
-			o.ObserveInt64(rlg, token)
+		cb := func(_ context.Context, o metric.Observer) error {
+			//token += int64(driveLimiter.Tokens())
+			//o.ObserveInt64(rlg, token)
+			o.ObserveInt64(rlg, int64(driveLimiter.Tokens()))
 
 			return nil
 		}

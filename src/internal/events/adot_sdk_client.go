@@ -75,15 +75,15 @@ func NewCollector(mp metric.MeterProvider) {
 
 }
 
-func CreateGauge(ctx context.Context, name string) metric.Int64ObservableCounter {
-	RLGauge, _ := globalMeter.Int64ObservableCounter(name)
+func CreateGauge(ctx context.Context, name string) metric.Int64ObservableGauge {
+	rlg, _ := globalMeter.Int64ObservableGauge(name)
 
-	return RLGauge
+	return rlg
 }
 
 func RegisterGauge(
 	ctx context.Context,
-	rlg metric.Int64ObservableCounter,
+	rlg metric.Int64ObservableGauge,
 	cb func(_ context.Context, o metric.Observer) error) {
 	_, err := globalMeter.RegisterCallback(
 		cb,
