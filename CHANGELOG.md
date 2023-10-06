@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Fixed
 - Teams Channels that cannot support delta tokens (those without messages) fall back to non-delta enumeration and no longer fail a backup.
 
+### Known issues
+- Restoring the data into a different Group from the one it was backed up from is not currently supported
+
 ## [v0.13.0] (beta) - 2023-09-18
 
 ### Added
