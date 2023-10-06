@@ -165,7 +165,7 @@ var token int64 = 0
 
 func RegisterRLMetrics(ctx context.Context) {
 	twonce.Do(func() {
-		cb := func(_ context.Context, o metric.Observer) error {
+		cb := func(ctx context.Context, o metric.Observer) error {
 			token += int64(ctxLimiter(ctx).Tokens())
 			o.ObserveInt64(events.RLGauge, token)
 
