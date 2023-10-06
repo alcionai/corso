@@ -67,6 +67,7 @@ type BackupOperation struct {
 type BackupResults struct {
 	stats.ReadWrites
 	stats.StartAndEndTime
+	inject.Stats
 	BackupID model.StableID `json:"backupID"`
 }
 
@@ -291,6 +292,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
 
+	// Don't persist any results for a dry-run operation
+	if op.Options.DryRun {
+		return nil
+	}
+
 	// -----
 	// Persistence
 	// -----
@@ -382,7 +388,7 @@ func (op *BackupOperation) do(
 	// the entire subtree instead of returning an additional bool. That way base
 	// selection is controlled completely by flags and merging is controlled
 	// completely by collections.
-	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
+	producerResults, err := produceBackupDataCollections(
 		ctx,
 		op.bp,
 		op.ResourceOwner,
@@ -397,8 +403,14 @@ func (op *BackupOperation) do(
 
 	ctx = clues.Add(
 		ctx,
-		"can_use_previous_backup", canUsePreviousBackup,
-		"collection_count", len(cs))
+		"can_use_previous_backup", producerResults.CanUsePreviousBackup,
+		"collection_count", len(producerResults.Collections))
+
+	// Do nothing with the data collections
+	if op.Options.DryRun {
+		op.Results.Stats = producerResults.DiscoveredItems
+		return nil, nil
+	}
 
 	writeStats, deets, toMerge, err := consumeBackupCollections(
 		ctx,
@@ -406,10 +418,10 @@ func (op *BackupOperation) do(
 		op.account.ID(),
 		reasons,
 		mans,
-		cs,
-		ssmb,
+		producerResults.Collections,
+		producerResults.Excludes,
 		backupID,
-		op.incremental && canUseMetadata && canUsePreviousBackup,
+		op.incremental && canUseMetadata && producerResults.CanUsePreviousBackup,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "persisting collection backups")
@@ -438,6 +450,33 @@ func (op *BackupOperation) do(
 
 	return deets, nil
 }
+
+// func summarizeBackupCollections(ctx context.Context, results inject.BackupProducerResults) (stats.BackupItems, error) {
+// 	collStats := stats.BackupItems{}
+// 	bus := fault.New(false)
+
+// 	for _, c := range cs {
+// 		switch c.State() {
+// 		case data.NewState:
+// 			logger.Ctx(ctx).Infow("New Folder:", c.FullPath())
+// 			collStats.NewFolders++
+// 		case data.NotMovedState, data.MovedState:
+// 			logger.Ctx(ctx).Infow("Modified Folder:", c.FullPath())
+// 			collStats.ModifiedFolders++
+// 		case data.DeletedState:
+// 			logger.Ctx(ctx).Infow("Deleted Folder:", c.FullPath())
+// 			collStats.DeletedFolders++
+// 		}
+
+// 		for i := range c.Items(ctx, bus) {
+// 			logger.Ctx(ctx).Infow("Item", i.ID())
+// 			collStats.Items++
+// 		}
+// 	}
+
+// 	return collStats, nil
+
+// }
 
 func makeFallbackReasons(tenant string, sel selectors.Selector) ([]identity.Reasoner, error) {
 	if sel.PathService() != path.SharePointService &&
@@ -469,7 +508,7 @@ func produceBackupDataCollections(
 	lastBackupVersion int,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
+) (inject.BackupProducerResults, error) {
 	progressBar := observe.MessageWithCompletion(ctx, "Discovering items to backup")
 	defer close(progressBar)
 

@@ -33,7 +33,7 @@ func CreateCollections(
 	dps metadata.DeltaPaths,
 	su support.StatusUpdater,
 	errs *fault.Bus,
-) ([]data.BackupCollection, error) {
+) ([]data.BackupCollection, inject.ExchangeStats, error) {
 	ctx = clues.Add(ctx, "category", scope.Category().PathType())
 
 	var (
@@ -48,7 +48,7 @@ func CreateCollections(
 
 	handler, ok := handlers[category]
 	if !ok {
-		return nil, clues.New("unsupported backup category type").WithClues(ctx)
+		return nil, inject.ExchangeStats{}, clues.New("unsupported backup category type").WithClues(ctx)
 	}
 
 	foldersComplete := observe.MessageWithCompletion(
@@ -59,10 +59,10 @@ func CreateCollections(
 	rootFolder, cc := handler.NewContainerCache(bpc.ProtectedResource.ID())
 
 	if err := cc.Populate(ctx, errs, rootFolder); err != nil {
-		return nil, clues.Wrap(err, "populating container cache")
+		return nil, inject.ExchangeStats{}, clues.Wrap(err, "populating container cache")
 	}
 
-	collections, err := populateCollections(
+	collections, stats, err := populateCollections(
 		ctx,
 		qp,
 		handler,
@@ -73,14 +73,14 @@ func CreateCollections(
 		bpc.Options,
 		errs)
 	if err != nil {
-		return nil, clues.Wrap(err, "filling collections")
+		return nil, stats, clues.Wrap(err, "filling collections")
 	}
 
 	for _, coll := range collections {
 		allCollections = append(allCollections, coll)
 	}
 
-	return allCollections, nil
+	return allCollections, stats, nil
 }
 
 // populateCollections is a utility function
@@ -102,7 +102,7 @@ func populateCollections(
 	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
 	errs *fault.Bus,
-) (map[string]data.BackupCollection, error) {
+) (map[string]data.BackupCollection, inject.ExchangeStats, error) {
 	var (
 		// folder ID -> BackupCollection.
 		collections = map[string]data.BackupCollection{}
@@ -113,6 +113,7 @@ func populateCollections(
 		// deleted from this map, leaving only the deleted folders behind
 		tombstones = makeTombstones(dps)
 		category   = qp.Category
+		stats      = inject.ExchangeStats{}
 	)
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
@@ -121,7 +122,7 @@ func populateCollections(
 
 	for _, c := range resolver.Items() {
 		if el.Failure() != nil {
-			return nil, el.Failure()
+			return nil, stats, el.Failure()
 		}
 
 		cID := ptr.Val(c.GetId())
@@ -209,6 +210,21 @@ func populateCollections(
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
 		currPaths[cID] = currPath.String()
+
+		switch category {
+		case path.EmailCategory:
+			stats.EmailFolders++
+			stats.EmailsAdded += len(added)
+			stats.EmailsDeleted += len(removed)
+		case path.ContactsCategory:
+			stats.ContactFolders++
+			stats.ContactsAdded += len(added)
+			stats.ContactsDeleted += len(removed)
+		case path.EventsCategory:
+			stats.EventFolders++
+			stats.EventsAdded += len(added)
+			stats.EventsDeleted += len(removed)
+		}
 	}
 
 	// A tombstone is a folder that needs to be marked for deletion.
@@ -217,7 +233,7 @@ func populateCollections(
 	// resolver (which contains all the resource owners' current containers).
 	for id, p := range tombstones {
 		if el.Failure() != nil {
-			return nil, el.Failure()
+			return nil, stats, el.Failure()
 		}
 
 		var (
@@ -258,7 +274,7 @@ func populateCollections(
 		qp.Category,
 		false)
 	if err != nil {
-		return nil, clues.Wrap(err, "making metadata path")
+		return nil, stats, clues.Wrap(err, "making metadata path")
 	}
 
 	col, err := graph.MakeMetadataCollection(
@@ -269,12 +285,12 @@ func populateCollections(
 		},
 		statusUpdater)
 	if err != nil {
-		return nil, clues.Wrap(err, "making metadata collection")
+		return nil, stats, clues.Wrap(err, "making metadata collection")
 	}
 
 	collections["metadata"] = col
 
-	return collections, el.Failure()
+	return collections, stats, el.Failure()
 }
 
 // produces a set of id:path pairs from the deltapaths map.

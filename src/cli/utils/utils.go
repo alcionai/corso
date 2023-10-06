@@ -68,6 +68,11 @@ func GetAccountAndConnectWithOverrides(
 
 	opts := ControlWithConfig(cfg)
 
+	if opts.DryRun {
+		logger.CtxErr(ctx, err).Info("--dry-run is set")
+		opts.Repo.ReadOnly = true
+	}
+
 	r, err := repository.New(
 		ctx,
 		cfg.Account,

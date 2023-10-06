@@ -17,6 +17,7 @@ type Options struct {
 	Repo                 repository.Options                 `json:"repo"`
 	SkipReduce           bool                               `json:"skipReduce"`
 	ToggleFeatures       Toggles                            `json:"toggleFeatures"`
+	DryRun               bool                               `json:"dryRun"`
 }
 
 type Parallelism struct {

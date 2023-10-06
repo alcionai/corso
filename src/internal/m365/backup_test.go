@@ -248,14 +248,14 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 				ProtectedResource: test.getSelector(t),
 			}
 
-			collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
+			results, err := ctrl.ProduceBackupCollections(
 				ctx,
 				bpc,
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
-			assert.False(t, canUsePreviousBackup, "can use previous backup")
-			assert.Empty(t, collections)
-			assert.Nil(t, excludes)
+			assert.False(t, results.CanUsePreviousBackup, "can use previous backup")
+			assert.Empty(t, results.Collections)
+			assert.Nil(t, results.Excludes)
 		})
 	}
 }
@@ -395,27 +395,27 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		Selector:          sel.Selector,
 	}
 
-	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
+	results, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
-	assert.True(t, canUsePreviousBackup, "can use previous backup")
-	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
+	assert.True(t, results.CanUsePreviousBackup, "can use previous backup")
+	require.Len(t, results.Collections, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
 	// No excludes yet as this isn't an incremental backup.
-	assert.True(t, excludes.Empty())
+	assert.True(t, results.Excludes.Empty())
 
-	t.Logf("cols[0] Path: %s\n", cols[0].FullPath().String())
+	t.Logf("cols[0] Path: %s\n", results.Collections[0].FullPath().String())
 	assert.Equal(
 		t,
 		path.SharePointMetadataService.String(),
-		cols[0].FullPath().Service().String())
+		results.Collections[0].FullPath().Service().String())
 
-	t.Logf("cols[1] Path: %s\n", cols[1].FullPath().String())
+	t.Logf("cols[1] Path: %s\n", results.Collections[1].FullPath().String())
 	assert.Equal(
 		t,
 		path.SharePointService.String(),
-		cols[1].FullPath().Service().String())
+		results.Collections[1].FullPath().Service().String())
 }
 
 func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
@@ -445,17 +445,17 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		Selector:          sel.Selector,
 	}
 
-	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
+	results, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
-	assert.True(t, canUsePreviousBackup, "can use previous backup")
-	assert.Less(t, 0, len(cols))
+	assert.True(t, results.CanUsePreviousBackup, "can use previous backup")
+	assert.Less(t, 0, len(results.Collections))
 	// No excludes yet as this isn't an incremental backup.
-	assert.True(t, excludes.Empty())
+	assert.True(t, results.Excludes.Empty())
 
-	for _, collection := range cols {
+	for _, collection := range results.Collections {
 		t.Logf("Path: %s\n", collection.FullPath().String())
 
 		for item := range collection.Items(ctx, fault.New(true)) {
@@ -531,18 +531,18 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 		Selector:          sel.Selector,
 	}
 
-	collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
+	results, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
-	assert.True(t, canUsePreviousBackup, "can use previous backup")
+	assert.True(t, results.CanUsePreviousBackup, "can use previous backup")
 	// No excludes yet as this isn't an incremental backup.
-	assert.True(t, excludes.Empty())
+	assert.True(t, results.Excludes.Empty())
 
 	// we don't know an exact count of drives this will produce,
 	// but it should be more than one.
-	assert.Greater(t, len(collections), 1)
+	assert.Greater(t, len(results.Collections), 1)
 
 	p, err := path.BuildMetadata(
 		suite.tenantID,
@@ -557,7 +557,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 
 	foundSitesMetadata := false
 
-	for _, coll := range collections {
+	for _, coll := range results.Collections {
 		sitesMetadataCollection := coll.FullPath().String() == p.String()
 
 		for object := range coll.Items(ctx, fault.New(true)) {
@@ -631,18 +631,18 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 		MetadataCollections: mmc,
 	}
 
-	collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
+	results, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
-	assert.True(t, canUsePreviousBackup, "can use previous backup")
+	assert.True(t, results.CanUsePreviousBackup, "can use previous backup")
 	// No excludes yet as this isn't an incremental backup.
-	assert.True(t, excludes.Empty())
+	assert.True(t, results.Excludes.Empty())
 
 	// we don't know an exact count of drives this will produce,
 	// but it should be more than one.
-	assert.Greater(t, len(collections), 1)
+	assert.Greater(t, len(results.Collections), 1)
 
 	p, err := path.BuildMetadata(
 		suite.tenantID,
@@ -668,7 +668,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 	sp, err = sp.Append(false, odConsts.SitesPathDir, ptr.Val(site.GetId()))
 	require.NoError(t, err, clues.ToCore(err))
 
-	for _, coll := range collections {
+	for _, coll := range results.Collections {
 		if coll.State() == data.DeletedState {
 			if coll.PreviousPath() != nil && coll.PreviousPath().String() == sp.String() {
 				foundRootTombstone = true

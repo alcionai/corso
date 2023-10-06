@@ -19,6 +19,7 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -226,10 +227,10 @@ func (c *Collections) Get(
 	prevMetadata []data.RestoreCollection,
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
-) ([]data.BackupCollection, bool, error) {
+) ([]data.BackupCollection, bool, inject.OneDriveStats, error) {
 	prevDeltas, oldPathsByDriveID, canUsePreviousBackup, err := deserializeMetadata(ctx, prevMetadata)
 	if err != nil {
-		return nil, false, err
+		return nil, false, inject.OneDriveStats{}, err
 	}
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
@@ -250,7 +251,7 @@ func (c *Collections) Get(
 
 	drives, err := api.GetAllDrives(ctx, pager)
 	if err != nil {
-		return nil, false, err
+		return nil, false, inject.OneDriveStats{}, err
 	}
 
 	var (
@@ -259,6 +260,7 @@ func (c *Collections) Get(
 		// Drive ID -> folder ID -> folder path
 		folderPaths  = map[string]map[string]string{}
 		numPrevItems = 0
+		stats        = inject.OneDriveStats{}
 	)
 
 	for _, d := range drives {
@@ -296,7 +298,7 @@ func (c *Collections) Get(
 			prevDelta,
 			errs)
 		if err != nil {
-			return nil, false, err
+			return nil, false, inject.OneDriveStats{}, err
 		}
 
 		// Used for logging below.
@@ -338,7 +340,7 @@ func (c *Collections) Get(
 				prevDelta,
 				errs)
 			if err != nil {
-				return nil, false, err
+				return nil, false, inject.OneDriveStats{}, err
 			}
 		}
 
@@ -351,7 +353,7 @@ func (c *Collections) Get(
 
 			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
 			if err != nil {
-				return nil, false, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
+				return nil, false, inject.OneDriveStats{}, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
 			}
 
 			ssmb.Add(p.String(), excluded)
@@ -379,7 +381,7 @@ func (c *Collections) Get(
 			prevPath, err := path.FromDataLayerPath(p, false)
 			if err != nil {
 				err = clues.Wrap(err, "invalid previous path").WithClues(ictx).With("deleted_path", p)
-				return nil, false, err
+				return nil, false, inject.OneDriveStats{}, err
 			}
 
 			col, err := NewCollection(
@@ -393,14 +395,19 @@ func (c *Collections) Get(
 				true,
 				nil)
 			if err != nil {
-				return nil, false, clues.Wrap(err, "making collection").WithClues(ictx)
+				return nil, false, inject.OneDriveStats{}, clues.Wrap(err, "making collection").WithClues(ictx)
 			}
 
 			c.CollectionMap[driveID][fldID] = col
 		}
 	}
 
+	stats.Folders += c.NumContainers
+	stats.Items += c.NumFiles
+
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
+	observe.Message(ctx, fmt.Sprintf("Discovered %d stats to backup", stats.Items))
+	observe.Message(ctx, fmt.Sprintf("Discovered %d folder stats to backup", stats.Folders))
 
 	collections := []data.BackupCollection{}
 
@@ -415,7 +422,7 @@ func (c *Collections) Get(
 	for driveID := range driveTombstones {
 		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, driveID)
 		if err != nil {
-			return nil, false, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
+			return nil, false, inject.OneDriveStats{}, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
 		}
 
 		coll, err := NewCollection(
@@ -429,7 +436,7 @@ func (c *Collections) Get(
 			true,
 			nil)
 		if err != nil {
-			return nil, false, clues.Wrap(err, "making drive tombstone").WithClues(ctx)
+			return nil, false, inject.OneDriveStats{}, clues.Wrap(err, "making drive tombstone").WithClues(ctx)
 		}
 
 		collections = append(collections, coll)
@@ -443,7 +450,7 @@ func (c *Collections) Get(
 		// empty/missing and default to a full backup.
 		logger.CtxErr(ctx, err).Info("making metadata collection path prefixes")
 
-		return collections, canUsePreviousBackup, nil
+		return collections, canUsePreviousBackup, inject.OneDriveStats{}, nil
 	}
 
 	md, err := graph.MakeMetadataCollection(
@@ -463,7 +470,7 @@ func (c *Collections) Get(
 		collections = append(collections, md)
 	}
 
-	return collections, canUsePreviousBackup, nil
+	return collections, canUsePreviousBackup, stats, nil
 }
 
 // addURLCacheToDriveCollections adds an URL cache to all collections belonging to

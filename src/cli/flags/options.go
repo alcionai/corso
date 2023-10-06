@@ -45,6 +45,7 @@ var (
 // well-known flag values
 const (
 	RunModeFlagTest = "flag-test"
+	RunModeDryRun   = "dry"
 	RunModeRun      = "run"
 )
 

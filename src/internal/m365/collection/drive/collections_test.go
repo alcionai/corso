@@ -2306,7 +2306,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 
 			delList := prefixmatcher.NewStringSetBuilder()
 
-			cols, canUsePreviousBackup, err := c.Get(ctx, prevMetadata, delList, errs)
+			cols, canUsePreviousBackup, _, err := c.Get(ctx, prevMetadata, delList, errs)
 			test.errCheck(t, err)
 			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 			assert.Equal(t, test.expectedSkippedCount, len(errs.Skipped()))

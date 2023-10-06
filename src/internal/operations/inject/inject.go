@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
@@ -24,7 +23,7 @@ type (
 			ctx context.Context,
 			bpc BackupProducerConfig,
 			errs *fault.Bus,
-		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
+		) (BackupProducerResults, error)
 
 		IsServiceEnableder
 

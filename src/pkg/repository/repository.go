@@ -192,7 +192,8 @@ type ConnConfig struct {
 	// tells the data provider which service to
 	// use for its connection pattern.  Leave empty
 	// to skip the provider connection.
-	Service path.ServiceType
+	Service  path.ServiceType
+	ReadOnly bool
 }
 
 // Connect will:

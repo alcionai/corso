@@ -25,10 +25,10 @@ func ProduceBackupCollections(
 	tenant string,
 	su support.StatusUpdater,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
+) (inject.BackupProducerResults, error) {
 	odb, err := bpc.Selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "parsing selector").WithClues(ctx)
+		return inject.BackupProducerResults{}, clues.Wrap(err, "parsing selector").WithClues(ctx)
 	}
 
 	var (
@@ -38,6 +38,7 @@ func ProduceBackupCollections(
 		ssmb                 = prefixmatcher.NewStringSetBuilder()
 		odcs                 []data.BackupCollection
 		canUsePreviousBackup bool
+		stats                = inject.OneDriveStats{}
 	)
 
 	// for each scope that includes oneDrive items, get all
@@ -55,7 +56,7 @@ func ProduceBackupCollections(
 			su,
 			bpc.Options)
 
-		odcs, canUsePreviousBackup, err = nc.Get(ctx, bpc.MetadataCollections, ssmb, errs)
+		odcs, canUsePreviousBackup, stats, err = nc.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 		}
@@ -67,7 +68,7 @@ func ProduceBackupCollections(
 
 	mcs, err := migrationCollections(bpc, tenant, su)
 	if err != nil {
-		return nil, nil, false, err
+		return inject.BackupProducerResults{}, err
 	}
 
 	collections = append(collections, mcs...)
@@ -83,13 +84,13 @@ func ProduceBackupCollections(
 			su,
 			errs)
 		if err != nil {
-			return nil, nil, false, err
+			return inject.BackupProducerResults{}, err
 		}
 
 		collections = append(collections, baseCols...)
 	}
 
-	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
+	return inject.BackupProducerResults{Collections: collections, Excludes: ssmb.ToReader(), CanUsePreviousBackup: canUsePreviousBackup, DiscoveredItems: inject.Stats{OneDrive: &stats}}, el.Failure()
 }
 
 // adds data migrations to the collection set.

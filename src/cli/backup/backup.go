@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	"github.com/alcionai/corso/src/cli/print"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -214,6 +215,12 @@ func genericCreateCommand(
 			continue
 		}
 
+		if bo.Options.DryRun {
+			// Print backup stats results here
+			print.All(ctx, bo.Results.Stats)
+			continue
+		}
+
 		bIDs = append(bIDs, string(bo.Results.BackupID))
 
 		if !DisplayJSONFormat() {
@@ -401,6 +408,7 @@ func printBackupStats(ctx context.Context, r repository.Repositoryer, bid string
 	b, err := r.Backup(ctx, bid)
 	if err != nil {
 		logger.CtxErr(ctx, err).Error("finding backup immediately after backup operation completion")
+		return
 	}
 
 	b.ToPrintable().Stats.Print(ctx)

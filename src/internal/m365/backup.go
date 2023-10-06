@@ -36,7 +36,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	errs *fault.Bus,
-) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
+) (inject.BackupProducerResults, error) {
 	service := bpc.Selector.PathService()
 
 	ctx, end := diagnostics.Span(
@@ -53,18 +53,19 @@ func (ctrl *Controller) ProduceBackupCollections(
 
 	err := verifyBackupInputs(bpc.Selector, ctrl.IDNameLookup.IDs())
 	if err != nil {
-		return nil, nil, false, clues.Stack(err).WithClues(ctx)
+		return inject.BackupProducerResults{}, clues.Stack(err).WithClues(ctx)
 	}
 
 	var (
 		colls                []data.BackupCollection
 		ssmb                 *prefixmatcher.StringSetMatcher
 		canUsePreviousBackup bool
+		results              inject.BackupProducerResults
 	)
 
 	switch service {
 	case path.ExchangeService:
-		colls, ssmb, canUsePreviousBackup, err = exchange.ProduceBackupCollections(
+		results, err = exchange.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
@@ -72,11 +73,11 @@ func (ctrl *Controller) ProduceBackupCollections(
 			ctrl.UpdateStatus,
 			errs)
 		if err != nil {
-			return nil, nil, false, err
+			return inject.BackupProducerResults{}, err
 		}
 
 	case path.OneDriveService:
-		colls, ssmb, canUsePreviousBackup, err = onedrive.ProduceBackupCollections(
+		results, err = onedrive.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
@@ -84,7 +85,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 			ctrl.UpdateStatus,
 			errs)
 		if err != nil {
-			return nil, nil, false, err
+			return inject.BackupProducerResults{}, err
 		}
 
 	case path.SharePointService:
@@ -96,8 +97,9 @@ func (ctrl *Controller) ProduceBackupCollections(
 			ctrl.UpdateStatus,
 			errs)
 		if err != nil {
-			return nil, nil, false, err
+			return inject.BackupProducerResults{}, err
 		}
+		results = inject.BackupProducerResults{Collections: colls, Excludes: ssmb, CanUsePreviousBackup: canUsePreviousBackup}
 
 	case path.GroupsService:
 		colls, ssmb, err = groups.ProduceBackupCollections(
@@ -108,15 +110,15 @@ func (ctrl *Controller) ProduceBackupCollections(
 			ctrl.UpdateStatus,
 			errs)
 		if err != nil {
-			return nil, nil, false, err
+			return inject.BackupProducerResults{}, err
 		}
 
 		// canUsePreviousBacukp can be always returned true for groups as we
 		// return a tombstone collection in case the metadata read fails
 		canUsePreviousBackup = true
-
+		results = inject.BackupProducerResults{Collections: colls, Excludes: ssmb, CanUsePreviousBackup: canUsePreviousBackup}
 	default:
-		return nil, nil, false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
+		return inject.BackupProducerResults{}, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
 	}
 
 	for _, c := range colls {
@@ -131,7 +133,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		}
 	}
 
-	return colls, ssmb, canUsePreviousBackup, nil
+	return results, nil
 }
 
 func (ctrl *Controller) IsServiceEnabled(

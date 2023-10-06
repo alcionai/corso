@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
@@ -39,12 +38,12 @@ func (mbp *mockBackupProducer) ProduceBackupCollections(
 	context.Context,
 	inject.BackupProducerConfig,
 	*fault.Bus,
-) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
+) (inject.BackupProducerResults, error) {
 	if mbp.injectNonRecoverableErr {
-		return nil, nil, false, clues.New("non-recoverable error")
+		return inject.BackupProducerResults{}, clues.New("non-recoverable error")
 	}
 
-	return mbp.colls, nil, true, nil
+	return inject.BackupProducerResults{Collections: mbp.colls, Excludes: nil, CanUsePreviousBackup: true}, nil
 }
 
 func (mbp *mockBackupProducer) IsServiceEnabled(

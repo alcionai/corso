@@ -600,14 +600,14 @@ func runBackupAndCompare(
 	}
 
 	start := time.Now()
-	dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
+	results, err := backupCtrl.ProduceBackupCollections(
 		ctx,
 		bpc,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
-	assert.True(t, canUsePreviousBackup, "can use previous backup")
+	assert.True(t, results.CanUsePreviousBackup, "can use previous backup")
 	// No excludes yet because this isn't an incremental backup.
-	assert.True(t, excludes.Empty())
+	assert.True(t, results.Excludes.Empty())
 
 	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
@@ -618,7 +618,7 @@ func runBackupAndCompare(
 		ctx,
 		totalKopiaItems,
 		expectedData,
-		dcs,
+		results.Collections,
 		sci)
 
 	status := backupCtrl.Wait()
@@ -1195,14 +1195,14 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 				Selector:          backupSel,
 			}
 
-			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
+			results, err := backupCtrl.ProduceBackupCollections(
 				ctx,
 				bpc,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
-			assert.True(t, canUsePreviousBackup, "can use previous backup")
+			assert.True(t, results.CanUsePreviousBackup, "can use previous backup")
 			// No excludes yet because this isn't an incremental backup.
-			assert.True(t, excludes.Empty())
+			assert.True(t, results.Excludes.Empty())
 
 			t.Log("Backup enumeration complete")
 
@@ -1217,7 +1217,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			// Pull the data prior to waiting for the status as otherwise it will
 			// deadlock.
-			skipped := checkCollections(t, ctx, allItems, allExpectedData, dcs, ci)
+			skipped := checkCollections(t, ctx, allItems, allExpectedData, results.Collections, ci)
 
 			status := backupCtrl.Wait()
 			assert.Equal(t, allItems+skipped, status.Objects, "status.Objects")
@@ -1374,20 +1374,20 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 				Selector:          backupSel,
 			}
 
-			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
+			results, err := backupCtrl.ProduceBackupCollections(
 				ctx,
 				bpc,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
-			assert.True(t, canUsePreviousBackup, "can use previous backup")
+			assert.True(t, results.CanUsePreviousBackup, "can use previous backup")
 			// No excludes yet because this isn't an incremental backup.
-			assert.True(t, excludes.Empty())
+			assert.True(t, results.Excludes.Empty())
 
 			t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
 			// Use a map to find duplicates.
 			foundCategories := []string{}
-			for _, col := range dcs {
+			for _, col := range results.Collections {
 				// TODO(ashmrtn): We should be able to remove the below if we change how
 				// status updates are done. Ideally we shouldn't have to fetch items in
 				// these collections to avoid deadlocking.

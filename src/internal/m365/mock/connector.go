@@ -42,12 +42,10 @@ func (ctrl Controller) ProduceBackupCollections(
 	_ inject.BackupProducerConfig,
 	_ *fault.Bus,
 ) (
-	[]data.BackupCollection,
-	prefixmatcher.StringSetReader,
-	bool,
+	inject.BackupProducerResults,
 	error,
 ) {
-	return ctrl.Collections, ctrl.Exclude, ctrl.Err == nil, ctrl.Err
+	return inject.BackupProducerResults{Collections: ctrl.Collections, Excludes: ctrl.Exclude, CanUsePreviousBackup: ctrl.Err == nil}, ctrl.Err
 }
 
 func (ctrl *Controller) GetMetadataPaths(
