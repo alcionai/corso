@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/armon/go-metrics"
 	analytics "github.com/rudderlabs/analytics-go"
-	"go.opentelemetry.io/otel"
 
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -212,13 +211,9 @@ const (
 )
 
 func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
-	_, err := StartClient(ctx)
-	if err != nil {
-		logger.CtxErr(ctx, err).Error("metrics bus constructor")
-		return ctx, func() {}
-	}
+	mp := StartClient(ctx)
 
-	mp := otel.GetMeterProvider()
+	//mpx := otel.GetMeterProvider()
 	rmc := Newcollector(mp)
 	rmc.RegisterMetricsClient(ctx, Config{})
 
