@@ -32,7 +32,7 @@ type randomMetricCollector struct {
 
 func NewRandomMetricCollector(mp metric.MeterProvider) randomMetricCollector {
 	rmc := randomMetricCollector{}
-	rmc.meter = mp.Meter("corso-collection")
+	rmc.meter = mp.Meter("corso-meters")
 	rmc.registerCounter()
 	// rmc.registerCpuUsage()
 	return rmc
@@ -61,6 +61,7 @@ func (rmc *randomMetricCollector) registerCounter() {
 
 func (rmc *randomMetricCollector) updateCounter(ctx context.Context) {
 	logger.Ctx(ctx).Info("updateCounter")
+
 	rmc.growCounter.Add(ctx, 1)
 }
 
@@ -87,13 +88,6 @@ const totalBytesSent = "total_bytes_sent"
 const totalApiRequests = "total_api_requests"
 const latencyTime = "latency_time"
 
-// Common attributes for traces and metrics (random, request)
-var requestMetricCommonLabels = []attribute.KeyValue{
-	attribute.String("signal", "metric"),
-	attribute.String("language", serviceName),
-	attribute.String("metricType", "request"),
-}
-
 var randomMetricCommonLabels = []attribute.KeyValue{
 	attribute.String("signal", "metric"),
 	attribute.String("language", serviceName),
@@ -116,7 +110,7 @@ func StartClient(ctx context.Context) (func(context.Context) error, error) {
 	}
 	res := resource.NewWithAttributes(
 		semconv.SchemaURL,
-		semconv.ServiceName("go-sample-app"),
+		semconv.ServiceName("corso-metrics"),
 	)
 	if _, present := os.LookupEnv("OTEL_RESOURCE_ATTRIBUTES"); present {
 		envResource, err := resource.New(ctx, resource.WithFromEnv())
