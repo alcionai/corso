@@ -19,6 +19,7 @@ import (
 )
 
 var Ctr metric.Int64Counter
+var AsyncCtr metric.Int64ObservableCounter
 
 type collector struct {
 	meter metric.Meter
@@ -40,10 +41,29 @@ func (rmc *collector) RegisterMetricsClient(ctx context.Context, cfg Config) {
 			time.Sleep(time.Second * 1)
 		}
 	}()
+
 }
 
 func (rmc *collector) registerCounter() {
 	Ctr, _ = rmc.meter.Int64Counter(growCounter)
+	AsyncCtr, _ = rmc.meter.Int64ObservableCounter("async_counter")
+
+	var token int64
+
+	cb := func(_ context.Context, o metric.Observer) error {
+		token++
+		o.ObserveInt64(AsyncCtr, token)
+		return nil
+	}
+
+	_, err := rmc.meter.RegisterCallback(
+		cb,
+		AsyncCtr,
+	)
+
+	if err != nil {
+		log.Fatalf("failed to register callback: %v", err)
+	}
 }
 
 func (rmc *collector) updateCounter(ctx context.Context) {
