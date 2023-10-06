@@ -217,7 +217,8 @@ func genericCreateCommand(
 
 		if bo.Options.DryRun {
 			// Print backup stats results here
-			print.All(ctx, bo.Results.Stats)
+			Info(ctx, "Discovered data:")
+			print.Item(ctx, bo.Results.Stats)
 			continue
 		}
 
@@ -229,6 +230,10 @@ func genericCreateCommand(
 		} else {
 			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
 		}
+	}
+
+	if flags.RunModeFV == flags.RunModeDryRun {
+		return nil
 	}
 
 	bups, berrs := r.Backups(ctx, bIDs)

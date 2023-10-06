@@ -406,8 +406,6 @@ func (c *Collections) Get(
 	stats.Items += c.NumFiles
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items to backup", c.NumItems))
-	observe.Message(ctx, fmt.Sprintf("Discovered %d stats to backup", stats.Items))
-	observe.Message(ctx, fmt.Sprintf("Discovered %d folder stats to backup", stats.Folders))
 
 	collections := []data.BackupCollection{}
 

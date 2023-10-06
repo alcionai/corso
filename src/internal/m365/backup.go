@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -57,10 +56,10 @@ func (ctrl *Controller) ProduceBackupCollections(
 	}
 
 	var (
-		colls                []data.BackupCollection
-		ssmb                 *prefixmatcher.StringSetMatcher
-		canUsePreviousBackup bool
-		results              inject.BackupProducerResults
+		// colls                []data.BackupCollection
+		// ssmb                 *prefixmatcher.StringSetMatcher
+		// canUsePreviousBackup bool
+		results inject.BackupProducerResults
 	)
 
 	switch service {
@@ -89,7 +88,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		}
 
 	case path.SharePointService:
-		colls, ssmb, canUsePreviousBackup, err = sharepoint.ProduceBackupCollections(
+		colls, ssmb, canUsePreviousBackup, err := sharepoint.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
@@ -102,7 +101,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		results = inject.BackupProducerResults{Collections: colls, Excludes: ssmb, CanUsePreviousBackup: canUsePreviousBackup}
 
 	case path.GroupsService:
-		colls, ssmb, err = groups.ProduceBackupCollections(
+		colls, ssmb, err := groups.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
@@ -115,13 +114,12 @@ func (ctrl *Controller) ProduceBackupCollections(
 
 		// canUsePreviousBacukp can be always returned true for groups as we
 		// return a tombstone collection in case the metadata read fails
-		canUsePreviousBackup = true
-		results = inject.BackupProducerResults{Collections: colls, Excludes: ssmb, CanUsePreviousBackup: canUsePreviousBackup}
+		results = inject.BackupProducerResults{Collections: colls, Excludes: ssmb, CanUsePreviousBackup: true}
 	default:
 		return inject.BackupProducerResults{}, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
 	}
 
-	for _, c := range colls {
+	for _, c := range results.Collections {
 		// kopia doesn't stream Items() from deleted collections,
 		// and so they never end up calling the UpdateStatus closer.
 		// This is a brittle workaround, since changes in consumer
