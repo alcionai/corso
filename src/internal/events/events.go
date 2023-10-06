@@ -201,7 +201,8 @@ type metricsCategory string
 
 // metrics collection bucket
 const (
-	APICall metricsCategory = "api_call"
+	APICall     = "api_call"
+	growCounter = "grow_counter"
 )
 
 // configurations
@@ -218,7 +219,7 @@ func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 	}
 
 	mp := otel.GetMeterProvider()
-	rmc := NewRandomMetricCollector(mp)
+	rmc := Newcollector(mp)
 	rmc.RegisterMetricsClient(ctx, Config{})
 
 	return ctx, func() {}

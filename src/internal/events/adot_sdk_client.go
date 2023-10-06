@@ -10,7 +10,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"go.opentelemetry.io/contrib/propagators/aws/xray"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
@@ -23,46 +22,46 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-type randomMetricCollector struct {
-	// cpuUsage      metric.Int64ObservableGauge
-	// totalHeapSize metric.Int64ObservableUpDownCounter
+type collector struct {
 	growCounter metric.Int64Counter
 	meter       metric.Meter
 }
 
-func NewRandomMetricCollector(mp metric.MeterProvider) randomMetricCollector {
-	rmc := randomMetricCollector{}
-	rmc.meter = mp.Meter("corso-collection")
+func Newcollector(mp metric.MeterProvider) collector {
+	rmc := collector{}
+
+	rmc.meter = mp.Meter("corso-meter")
 	rmc.registerCounter()
-	// rmc.registerCpuUsage()
+
 	return rmc
 }
 
-func (rmc *randomMetricCollector) RegisterMetricsClient(ctx context.Context, cfg Config) {
+func (rmc *collector) RegisterMetricsClient(ctx context.Context, cfg Config) {
 	go func() {
 		for {
 			rmc.updateCounter(ctx)
-			time.Sleep(time.Second)
+			time.Sleep(time.Second * 10)
 		}
 	}()
 }
 
-func (rmc *randomMetricCollector) registerCounter() {
+func (rmc *collector) registerCounter() {
 	ctr, err := rmc.meter.Int64Counter(
-		growCounter+testingId,
-		metric.WithDescription("Evergrowing ctr"),
+		growCounter,
+		metric.WithDescription("counter"),
 		metric.WithUnit("count"),
 	)
 	if err != nil {
 		fmt.Println(err)
 	}
+
 	rmc.growCounter = ctr
 }
 
-func (rmc *randomMetricCollector) updateCounter(ctx context.Context) {
-	logger.Ctx(ctx).Info("updateCounter")
+func (rmc *collector) updateCounter(ctx context.Context) {
+	logger.Ctx(ctx).Infow("updateCounter")
 
-	rmc.growCounter.Add(ctx, 1)
+	rmc.growCounter.Add(ctx, 20)
 }
 
 type Config struct {
@@ -70,47 +69,10 @@ type Config struct {
 	Port string
 }
 
-var cfg = Config{}
-
-const serviceName = "go"
-
-var testingId = ""
-
-var tracer = otel.Tracer("corso-tracer")
-
-// Names for metric instruments
-const growCounter = "grow_counter"
-const timeAlive = "time_alive"
-const cpuUsage = "cpu_usage"
-const totalHeapSize = "total_heap_size"
-const threadsActive = "threads_active"
-const totalBytesSent = "total_bytes_sent"
-const totalApiRequests = "total_api_requests"
-const latencyTime = "latency_time"
-
-var randomMetricCommonLabels = []attribute.KeyValue{
-	attribute.String("signal", "metric"),
-	attribute.String("language", serviceName),
-	attribute.String("metricType", "random"),
-}
-
-var traceCommonLabels = []attribute.KeyValue{
-	attribute.String("signal", "trace"),
-	attribute.String("language", serviceName),
-	attribute.String("host", cfg.Host),
-	attribute.String("port", cfg.Port),
-}
-
-// StartClient starts the traces and metrics providers which periodically collects signals and exports them.
-// Trace exporter and Metric exporter are both configured.
 func StartClient(ctx context.Context) (func(context.Context) error, error) {
-
-	if id, present := os.LookupEnv("INSTANCE_ID"); present {
-		testingId = "_" + id
-	}
 	res := resource.NewWithAttributes(
 		semconv.SchemaURL,
-		semconv.ServiceName("go-sample-app"),
+		semconv.ServiceName("corso"),
 	)
 	if _, present := os.LookupEnv("OTEL_RESOURCE_ATTRIBUTES"); present {
 		envResource, err := resource.New(ctx, resource.WithFromEnv())
@@ -129,18 +91,12 @@ func StartClient(ctx context.Context) (func(context.Context) error, error) {
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(xray.Propagator{}) // Set AWS X-Ray propagator
 
-	// exp, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithInsecure())
 	exp, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithInsecure(), otlpmetricgrpc.WithEndpoint("0.0.0.0:4317"), otlpmetricgrpc.WithDialOption(grpc.WithBlock()))
 	if err != nil {
 		log.Fatalf("failed to create new OTLP metric exporter: %v", err)
 	}
 
-	meterProvider := metricSdk.NewMeterProvider(metricSdk.WithResource(res), metricSdk.WithReader(metricSdk.NewPeriodicReader(exp)), metricSdk.WithView(metricSdk.NewView(
-		metricSdk.Instrument{Name: "mp_histogram"},
-		metricSdk.Stream{Aggregation: metricSdk.AggregationExplicitBucketHistogram{
-			Boundaries: []float64{100, 300, 500},
-		}},
-	)))
+	meterProvider := metricSdk.NewMeterProvider(metricSdk.WithResource(res), metricSdk.WithReader(metricSdk.NewPeriodicReader(exp)))
 
 	otel.SetMeterProvider(meterProvider)
 
