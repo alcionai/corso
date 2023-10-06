@@ -6,6 +6,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -20,6 +21,7 @@ type ItemInfoAugmenter interface {
 	// and kiota drops any SetSize update.
 	AugmentItemInfo(
 		dii details.ItemInfo,
+		resource idname.Provider,
 		item models.DriveItemable,
 		size int64,
 		parentPath *path.Builder,

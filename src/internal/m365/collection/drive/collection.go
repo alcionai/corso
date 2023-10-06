@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
@@ -38,6 +39,9 @@ var _ data.BackupCollection = &Collection{}
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	handler BackupHandler
+
+	// the protected resource represented in this collection.
+	protectedResource idname.Provider
 
 	// data is used to share data streams with the collection consumer
 	data chan data.Item
@@ -98,6 +102,7 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 // NewCollection creates a Collection
 func NewCollection(
 	handler BackupHandler,
+	resource idname.Provider,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -123,6 +128,7 @@ func NewCollection(
 
 	c := newColl(
 		handler,
+		resource,
 		currPath,
 		prevPath,
 		driveID,
@@ -140,6 +146,7 @@ func NewCollection(
 
 func newColl(
 	handler BackupHandler,
+	resource idname.Provider,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -150,18 +157,19 @@ func newColl(
 	urlCache getItemPropertyer,
 ) *Collection {
 	c := &Collection{
-		handler:         handler,
-		folderPath:      currPath,
-		prevPath:        prevPath,
-		driveItems:      map[string]models.DriveItemable{},
-		driveID:         driveID,
-		data:            make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
-		statusUpdater:   statusUpdater,
-		ctrl:            ctrlOpts,
-		state:           data.StateOf(prevPath, currPath),
-		scope:           colScope,
-		doNotMergeItems: doNotMergeItems,
-		urlCache:        urlCache,
+		handler:           handler,
+		protectedResource: resource,
+		folderPath:        currPath,
+		prevPath:          prevPath,
+		driveItems:        map[string]models.DriveItemable{},
+		driveID:           driveID,
+		data:              make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
+		statusUpdater:     statusUpdater,
+		ctrl:              ctrlOpts,
+		state:             data.StateOf(prevPath, currPath),
+		scope:             colScope,
+		doNotMergeItems:   doNotMergeItems,
+		urlCache:          urlCache,
 	}
 
 	return c
@@ -551,7 +559,12 @@ func (oc *Collection) streamDriveItem(
 		return
 	}
 
-	itemInfo = oc.handler.AugmentItemInfo(itemInfo, item, itemSize, parentPath)
+	itemInfo = oc.handler.AugmentItemInfo(
+		itemInfo,
+		oc.protectedResource,
+		item,
+		itemSize,
+		parentPath)
 
 	ctx = clues.Add(ctx, "item_info", itemInfo)
 
