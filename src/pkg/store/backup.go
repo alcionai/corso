@@ -37,6 +37,24 @@ func Service(pst path.ServiceType) FilterOption {
 	}
 }
 
+func Reason(service path.ServiceType, category path.CategoryType) FilterOption {
+	return func(qf *queryFilters) {
+		qf.tags[backup.ServiceCatString(service, category)] = backup.DefaultTagValue
+	}
+}
+
+func Tenant(tenant string) FilterOption {
+	return func(qf *queryFilters) {
+		qf.tags[backup.TenantIDKey] = tenant
+	}
+}
+
+func ProtectedResource(resourceID string) FilterOption {
+	return func(qf *queryFilters) {
+		qf.tags[backup.ResourceIDKey] = resourceID
+	}
+}
+
 type (
 	BackupWrapper interface {
 		BackupGetterDeleter
