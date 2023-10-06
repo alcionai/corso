@@ -1,9 +1,14 @@
 package repo
 
 import (
+	"context"
+	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/alcionai/clues"
+	"github.com/goccy/go-graphviz"
+	"github.com/goccy/go-graphviz/cgraph"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/maps"
 
@@ -11,7 +16,9 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	repo "github.com/alcionai/corso/src/pkg/repository"
 )
 
 const (
@@ -174,4 +181,202 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 	}
 
 	return res, nil
+}
+
+func printTree(root *repo.BackupNode, ident int) {
+	if root == nil {
+		return
+	}
+
+	fmt.Printf(strings.Repeat("\t", ident)+"%+v\n", root)
+
+	for _, child := range root.Children {
+		printTree(child.BackupNode, ident+1)
+	}
+}
+
+func drawTree(ctx context.Context, roots []*repo.BackupNode) error {
+	const port = ":6060"
+
+	g := graphviz.New()
+
+	graph, err := g.Graph()
+	if err != nil {
+		return clues.Wrap(err, "getting graph")
+	}
+
+	defer func() {
+		graph.Close()
+		g.Close()
+	}()
+
+	graph.SetRankDir(cgraph.LRRank)
+
+	for _, root := range roots {
+		if err := buildGraph(ctx, graph, root); err != nil {
+			return clues.Wrap(err, "building graph")
+		}
+	}
+
+	fmt.Printf("starting http server on port %s", port)
+
+	// Start an http server that has the redered image.
+	http.HandleFunc(
+		"/",
+		func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "image/svg+xml")
+
+			if err := g.Render(graph, graphviz.SVG, w); err != nil {
+				logger.CtxErr(ctx, err).Info("sending svg to server")
+			}
+		},
+	)
+
+	return clues.Stack(http.ListenAndServe(port, nil)).OrNil()
+}
+
+func buildGraph(
+	ctx context.Context,
+	graph *cgraph.Graph,
+	root *repo.BackupNode,
+) error {
+	// Add all nodes to the map and track them by ID. The root is just mapped as
+	// "root" and has the resource ID.
+	allNodes := map[string]*cgraph.Node{}
+
+	if err := addNodes(graph, root, allNodes); err != nil {
+		return clues.Stack(err)
+	}
+
+	// To keep from adding edges multiple times, track which nodes we've already
+	// processed. This is required because there can be multiple paths to a node.
+	visitedNodes := map[string]struct{}{}
+
+	if err := addEdges(graph, root, allNodes, visitedNodes); err != nil {
+		return clues.Stack(err)
+	}
+
+	// Go through and add edges between all nodes. The edge info will be based
+	// on the Reason contained in the edge struct.
+	return nil
+}
+
+func addNodes(
+	graph *cgraph.Graph,
+	node *repo.BackupNode,
+	allNodes map[string]*cgraph.Node,
+) error {
+	if node == nil {
+		return nil
+	}
+
+	if _, ok := allNodes[node.Label]; ok {
+		return nil
+	}
+
+	// Need unique keys for nodes so use the backupID.
+	n, err := graph.CreateNode(node.Label)
+	if err != nil {
+		return clues.Wrap(err, "creating node").With("backup_id", node.Label)
+	}
+
+	// Set tooltip info to have Reasons for backup and backup type.
+	var toolTip string
+
+	if node.Deleted {
+		toolTip += "This backup was deleted, Reasons are a best guess!\n"
+	}
+
+	toolTip += "BackupID: " + node.Label + "\n"
+
+	switch node.Type {
+	case repo.MergeNode:
+		toolTip += "Base Type: merge\n"
+
+	case repo.AssistNode:
+		toolTip += "Base Type: assist\n"
+	}
+
+	toolTip += fmt.Sprintf("Created At: %v\n", node.Created)
+
+	var reasonStrings []string
+
+	for _, reason := range node.Reasons {
+		reasonStrings = append(
+			reasonStrings,
+			fmt.Sprintf("%s/%s", reason.Service(), reason.Category()),
+		)
+	}
+
+	n.
+		SetLabel(strings.Join(reasonStrings, "\n")).
+		SetTooltip(toolTip).
+		SetStyle(cgraph.FilledNodeStyle).
+		SetFillColor("white")
+
+	if node.Deleted {
+		n.SetFillColor("indianred")
+	}
+
+	if node.Type == repo.AssistNode {
+		n.SetFillColor("grey")
+	}
+
+	allNodes[node.Label] = n
+
+	for _, child := range node.Children {
+		if err := addNodes(graph, child.BackupNode, allNodes); err != nil {
+			return clues.Stack(err)
+		}
+	}
+
+	return nil
+}
+
+func addEdges(
+	graph *cgraph.Graph,
+	node *repo.BackupNode,
+	allNodes map[string]*cgraph.Node,
+	visitedNodes map[string]struct{},
+) error {
+	if node == nil {
+		return nil
+	}
+
+	if _, ok := visitedNodes[node.Label]; ok {
+		return nil
+	}
+
+	visitedNodes[node.Label] = struct{}{}
+
+	n := allNodes[node.Label]
+
+	for _, child := range node.Children {
+		var edgeReasons []string
+
+		for _, reason := range child.Reasons {
+			edgeReasons = append(
+				edgeReasons,
+				fmt.Sprintf("%s/%s", reason.Service(), reason.Category()),
+			)
+		}
+
+		edgeLabel := strings.Join(edgeReasons, ",\n")
+
+		e, err := graph.CreateEdge(edgeLabel, n, allNodes[child.Label])
+		if err != nil {
+			return clues.Wrap(err, "adding edge").With(
+				"parent", node.Label,
+				"child", child.Label,
+			)
+		}
+
+		e.SetDir(cgraph.ForwardDir).SetLabel(edgeLabel).SetTooltip(" ")
+
+		if err := addEdges(graph, child.BackupNode, allNodes, visitedNodes); err != nil {
+			return clues.Stack(err)
+		}
+	}
+
+	return nil
 }
