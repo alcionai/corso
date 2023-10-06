@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"io"
+	"log"
 	"os"
 
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -21,7 +22,7 @@ var Ctr metric.Int64Counter
 var AsyncCtr metric.Int64ObservableCounter
 var RLGauge metric.Int64ObservableCounter
 
-// var token int64
+var token int64
 
 type collector struct {
 	meter metric.Meter
@@ -40,26 +41,45 @@ var metricKeys = []string{
 	// RLTokens,
 }
 
+var globalMeter metric.Meter
+
 // Map of metricsCategory to metric.Int64Counter
 var counter = map[string]metric.Int64Counter{}
-
-//var guages = map[string]metric.Int64ObservableGauge{}
 
 func NewCollector(mp metric.MeterProvider) {
 	rmc := collector{}
 
 	rmc.meter = mp.Meter("corso-meter")
+	globalMeter = rmc.meter
 
 	for _, key := range metricKeys {
 		counter[key], _ = rmc.meter.Int64Counter(key)
 	}
 
+	AsyncCtr, _ = rmc.meter.Int64ObservableCounter("async_counter")
+
+	cb := func(_ context.Context, o metric.Observer) error {
+		logger.Ctx(context.Background()).Infow("Async counter callback")
+		token += 100
+		o.ObserveInt64(AsyncCtr, token)
+
+		return nil
+	}
+
+	_, err := rmc.meter.RegisterCallback(
+		cb,
+		AsyncCtr,
+	)
+	if err != nil {
+		log.Fatalf("failed to register callback: %v", err)
+	}
+
 }
 
 func RegisterGauge(ctx context.Context, name string, cb func(_ context.Context, o metric.Observer) error) {
-	RLGauge, _ := otel.Meter("corso-meter").Int64ObservableCounter(name)
+	RLGauge, _ := globalMeter.Int64ObservableCounter(name)
 
-	_, err := otel.Meter("corso-meter").RegisterCallback(
+	_, err := globalMeter.RegisterCallback(
 		cb,
 		RLGauge,
 	)
