@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -30,6 +31,29 @@ var (
 	ErrorRepoAlreadyExists = clues.New("a repository was already initialized with that configuration")
 	ErrorBackupNotFound    = clues.New("no backup exists with that id")
 )
+
+type NodeType int
+
+const (
+	UnknownNode NodeType = iota
+	RootNode
+	MergeNode
+	AssistNode
+)
+
+type BackupEdge struct {
+	Reasons []identity.Reasoner
+	*BackupNode
+}
+
+type BackupNode struct {
+	Type     NodeType
+	Deleted  bool
+	Reasons  []identity.Reasoner
+	Created  time.Time
+	Label    string
+	Children []*BackupEdge
+}
 
 type Repositoryer interface {
 	Backuper
@@ -57,6 +81,23 @@ type Repositoryer interface {
 		ctx context.Context,
 		rcOpts ctrlRepo.Retention,
 	) (operations.RetentionConfigOperation, error)
+
+	// BackupLineage returns all backups for the given tenant and
+	// protectedResourceID. If one or more backupIDs are given then filters the
+	// lineage down to include only those backups that either match the given IDs
+	// or are reachable from the backups with the given IDs.
+	//
+	// The root node representing the tenant/protectedResourceID is returned. All
+	// discovered backups in the lineage are reachable by traversing the tree
+	// starting with the returned node.
+	BackupLineage(
+		ctx context.Context,
+		teantID string,
+		protectedResourceID string,
+		service path.ServiceType,
+		category path.CategoryType,
+		backupIDs ...string,
+	) ([]*BackupNode, error)
 }
 
 // Repository contains storage provider information.

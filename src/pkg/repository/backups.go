@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/errs"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -17,7 +18,9 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -136,6 +139,253 @@ func (r repository) Backups(ctx context.Context, ids []string) ([]*backup.Backup
 	}
 
 	return bups, bus
+}
+
+func addBackup(
+	bup *lineageNode,
+	seen map[model.StableID]*lineageNode,
+	allNodes map[model.StableID]*lineageNode,
+) {
+	if bup == nil {
+		return
+	}
+
+	if _, ok := seen[bup.ID]; ok {
+		// We've already traversed this node.
+		return
+	}
+
+	for baseID := range bup.MergeBases {
+		addBackup(allNodes[baseID], seen, allNodes)
+	}
+
+	for baseID := range bup.AssistBases {
+		addBackup(allNodes[baseID], seen, allNodes)
+	}
+
+	seen[bup.ID] = bup
+
+	for _, descendent := range bup.children {
+		addBackup(allNodes[descendent.ID], seen, allNodes)
+	}
+}
+
+func filterLineages(
+	bups map[model.StableID]*lineageNode,
+	backupIDs ...string,
+) map[model.StableID]*lineageNode {
+	if len(backupIDs) == 0 {
+		return bups
+	}
+
+	res := map[model.StableID]*lineageNode{}
+
+	// For each backup we're interested in, traverse up and down the hierarchy.
+	// Going down the hierarchy is more difficult because backups only have
+	// backpointers to their ancestors.
+	for _, id := range backupIDs {
+		addBackup(bups[model.StableID(id)], res, bups)
+	}
+
+	return res
+}
+
+func addBase(
+	baseID model.StableID,
+	baseReasons []identity.Reasoner,
+	current *BackupNode,
+	allNodes map[model.StableID]*BackupNode,
+	bups map[model.StableID]*lineageNode,
+) {
+	parent, parentOK := allNodes[baseID]
+	if !parentOK {
+		parent = &BackupNode{}
+		allNodes[baseID] = parent
+	}
+
+	parent.Label = string(baseID)
+
+	// If the parent isn't in the set of backups passed in it must have been
+	// deleted.
+	if p, ok := bups[baseID]; !ok || p.deleted {
+		parent.Deleted = true
+
+		// If the backup was deleted we should also attempt to recreate the
+		// set of Reasons which it encompassed. We can get partial info on this
+		// by collecting all the Reasons it was a base.
+		for _, reason := range baseReasons {
+			if !slices.ContainsFunc(
+				parent.Reasons,
+				func(other identity.Reasoner) bool {
+					return other.Service() == reason.Service() &&
+						other.Category() == reason.Category()
+				}) {
+				parent.Reasons = append(parent.Reasons, reason)
+			}
+		}
+	}
+
+	parent.Children = append(
+		parent.Children,
+		&BackupEdge{
+			BackupNode: current,
+			Reasons:    baseReasons,
+		})
+}
+
+func buildOutput(bups map[model.StableID]*lineageNode) ([]*BackupNode, error) {
+	var roots []*BackupNode
+
+	allNodes := map[model.StableID]*BackupNode{}
+
+	for _, bup := range bups {
+		node := allNodes[bup.ID]
+		if node == nil {
+			node = &BackupNode{}
+			allNodes[bup.ID] = node
+		}
+
+		node.Label = string(bup.ID)
+		node.Type = MergeNode
+		node.Created = bup.CreationTime
+
+		if bup.Tags[model.BackupTypeTag] == model.AssistBackup {
+			node.Type = AssistNode
+		}
+
+		topLevel := true
+
+		if !bup.deleted {
+			reasons, err := bup.Reasons()
+			if err != nil {
+				return nil, clues.Wrap(err, "getting reasons").With("backup_id", bup.ID)
+			}
+
+			node.Reasons = reasons
+
+			bases, err := bup.Bases()
+			if err != nil {
+				return nil, clues.Wrap(err, "getting bases").With("backup_id", bup.ID)
+			}
+
+			for baseID, baseReasons := range bases.Merge {
+				topLevel = false
+
+				addBase(baseID, baseReasons, node, allNodes, bups)
+			}
+
+			for baseID, baseReasons := range bases.Assist {
+				topLevel = false
+
+				addBase(baseID, baseReasons, node, allNodes, bups)
+			}
+		}
+
+		// If this node has no ancestors then add it directly to the root.
+		if bup.deleted || topLevel {
+			roots = append(roots, node)
+		}
+	}
+
+	return roots, nil
+}
+
+// lineageNode is a small in-memory wrapper around *backup.Backup that provides
+// information about children. This just makes it easier to traverse lineages
+// during filtering.
+type lineageNode struct {
+	*backup.Backup
+	children []*lineageNode
+	deleted  bool
+}
+
+func (r repository) BackupLineage(
+	ctx context.Context,
+	tenantID string,
+	protectedResourceID string,
+	service path.ServiceType,
+	category path.CategoryType,
+	backupIDs ...string,
+) ([]*BackupNode, error) {
+	sw := store.NewWrapper(r.modelStore)
+
+	fs := []store.FilterOption{
+		store.Tenant(tenantID),
+		//store.ProtectedResource(protectedResourceID),
+		//store.Reason(service, category),
+	}
+
+	bs, err := sw.GetBackups(ctx, fs...)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	if len(bs) == 0 {
+		return nil, clues.Stack(errs.NotFound)
+	}
+
+	// Put all the backups in a map so we can access them easier when building the
+	// graph.
+	bups := make(map[model.StableID]*lineageNode, len(bs))
+
+	for _, b := range bs {
+		current := bups[b.ID]
+
+		if current == nil {
+			current = &lineageNode{}
+		}
+
+		current.Backup = b
+		current.deleted = false
+		bups[b.ID] = current
+
+		for id := range b.MergeBases {
+			parent := bups[id]
+			if parent == nil {
+				// Populate the ID so we don't NPE on it when building the tree if
+				// something was deleted.
+				parent = &lineageNode{
+					Backup: &backup.Backup{
+						BaseModel: model.BaseModel{
+							ID: id,
+						},
+					},
+					deleted: true,
+				}
+			}
+
+			parent.children = append(parent.children, current)
+			bups[id] = parent
+		}
+
+		for id := range b.AssistBases {
+			parent := bups[id]
+			if parent == nil {
+				// Populate the ID so we don't NPE on it when building the tree if
+				// something was deleted.
+				parent = &lineageNode{
+					Backup: &backup.Backup{
+						BaseModel: model.BaseModel{
+							ID: id,
+						},
+					},
+					deleted: true,
+				}
+			}
+
+			parent.children = append(parent.children, current)
+			bups[id] = parent
+		}
+	}
+
+	// Filter the map of backups to just those in the lineages we're interested
+	// about.
+	filtered := filterLineages(bups, backupIDs...)
+
+	// Build the output graph.
+	res, err := buildOutput(filtered)
+
+	return res, clues.Stack(err).OrNil()
 }
 
 // BackupsByTag lists all backups in a repository that contain all the tags
