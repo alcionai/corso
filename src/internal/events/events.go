@@ -267,18 +267,18 @@ func NewMetrics(ctx context.Context, w io.Writer) (context.Context, func()) {
 // it to dump metrics to the provided writer (which should be the logger).
 // Expectation is for users to call this in a goroutine.  Any signal or close() on the stop chan
 // will exit the loop.
-func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSignal) {
-	tock := time.NewTicker(reportInterval)
+// func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSignal) {
+// 	tock := time.NewTicker(reportInterval)
 
-	for {
-		select {
-		case <-tock.C:
-			signalDump(ctx)
-		case <-stop:
-			return
-		}
-	}
-}
+// 	for {
+// 		select {
+// 		case <-tock.C:
+// 			signalDump(ctx)
+// 		case <-stop:
+// 			return
+// 		}
+// 	}
+// }
 
 // Inc increments the given category by 1.
 func Inc(cat metricsCategory, keys ...string) {
