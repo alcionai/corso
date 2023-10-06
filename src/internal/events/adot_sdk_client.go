@@ -19,8 +19,9 @@ import (
 
 var Ctr metric.Int64Counter
 var AsyncCtr metric.Int64ObservableCounter
-var RLGauge metric.Int64ObservableGauge
-var token int64
+var RLGauge metric.Int64ObservableCounter
+
+// var token int64
 
 type collector struct {
 	meter metric.Meter
@@ -56,7 +57,7 @@ func NewCollector(mp metric.MeterProvider) {
 }
 
 func RegisterGauge(ctx context.Context, name string, cb func(_ context.Context, o metric.Observer) error) {
-	RLGauge, _ := otel.Meter("corso-meter").Int64ObservableGauge(name)
+	RLGauge, _ := otel.Meter("corso-meter").Int64ObservableCounter(name)
 
 	_, err := otel.Meter("corso-meter").RegisterCallback(
 		cb,
@@ -86,44 +87,6 @@ func IncN(ctx context.Context, n int, cat string) {
 	ctr := counter[cat]
 	ctr.Add(ctx, int64(n))
 }
-
-// func (rmc *collector) RegisterMetricsClient(ctx context.Context) {
-// 	go func() {
-// 		for {
-// 			rmc.updateCounter(ctx)
-// 			time.Sleep(time.Second * 1)
-// 		}
-// 	}()
-
-// }
-
-// func (rmc *collector) registerCounter() {
-// 	Ctr, _ = rmc.meter.Int64Counter(growCounter)
-// 	AsyncCtr, _ = rmc.meter.Int64ObservableCounter("async_counter")
-
-// 	cb := func(_ context.Context, o metric.Observer) error {
-// 		logger.Ctx(context.Background()).Infow("Async counter callback")
-// 		token += 100
-// 		o.ObserveInt64(AsyncCtr, token)
-
-// 		return nil
-// 	}
-
-// 	_, err := rmc.meter.RegisterCallback(
-// 		cb,
-// 		AsyncCtr,
-// 	)
-
-// 	if err != nil {
-// 		log.Fatalf("failed to register callback: %v", err)
-// 	}
-// }
-
-// func (rmc *collector) updateCounter(ctx context.Context) {
-// 	logger.Ctx(ctx).Infow("updateCounter")
-
-// 	Ctr.Add(ctx, 20)
-// }
 
 func StartClient(ctx context.Context) *metricSdk.MeterProvider {
 	res := resource.NewWithAttributes(
