@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.14.0] (beta) - 2023-10-07
+
 ### Added
 - Enables local or network-attached storage for Corso repositories.
 - Reduce backup runtime for OneDrive and SharePoint incremental backups that have no file changes.
@@ -19,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known issues
 - Restoring the data into a different Group from the one it was backed up from is not currently supported
+
+### Other
+- Groups and Teams service support is still in feature preview
 
 ## [v0.13.0] (beta) - 2023-09-18
 
