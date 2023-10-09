@@ -8,6 +8,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -87,13 +88,21 @@ func (h itemBackupHandler) NewDrivePager(
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 
+func (h itemBackupHandler) NewItemPager(
+	driveID, link string,
+	fields []string,
+) api.DeltaPager[models.DriveItemable] {
+	return h.ac.NewDriveItemDeltaPager(driveID, link, fields)
+}
+
 func (h itemBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
+	resource idname.Provider,
 	item models.DriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentItemInfo(dii, path.OneDriveService, item, size, parentPath)
+	return augmentItemInfo(dii, resource, path.OneDriveService, item, size, parentPath)
 }
 
 func (h itemBackupHandler) FormatDisplayPath(
@@ -132,13 +141,6 @@ func (h itemBackupHandler) IncludesDir(dir string) bool {
 	return h.scope.Matches(selectors.OneDriveFolder, dir)
 }
 
-func (h itemBackupHandler) EnumerateDriveItemsDelta(
-	ctx context.Context,
-	driveID, prevDeltaLink string,
-) ([]models.DriveItemable, api.DeltaUpdate, error) {
-	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink)
-}
-
 // ---------------------------------------------------------------------------
 // Restore
 // ---------------------------------------------------------------------------
@@ -173,11 +175,12 @@ func (h itemRestoreHandler) NewDrivePager(
 // and kiota drops any SetSize update.
 func (h itemRestoreHandler) AugmentItemInfo(
 	dii details.ItemInfo,
+	resource idname.Provider,
 	item models.DriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentItemInfo(dii, path.OneDriveService, item, size, parentPath)
+	return augmentItemInfo(dii, resource, path.OneDriveService, item, size, parentPath)
 }
 
 func (h itemRestoreHandler) DeleteItem(

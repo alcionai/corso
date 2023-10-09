@@ -16,10 +16,14 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -47,6 +51,8 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 	suite.service = loadTestService(t)
 	suite.user = tconfig.SecondaryM365UserID(t)
 
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	pager := suite.service.ac.Drives().NewUserDrivePager(suite.user, nil)
 
 	odDrives, err := api.GetAllDrives(ctx, pager)
@@ -56,6 +62,125 @@ func (suite *ItemIntegrationSuite) SetupSuite() {
 
 	// Pick the first drive
 	suite.userDriveID = ptr.Val(odDrives[0].GetId())
+}
+
+func getOneDriveItem(
+	ctx context.Context,
+	t *testing.T,
+	ac api.Client,
+	driveID string,
+) models.DriveItemable {
+	var driveItem models.DriveItemable
+	// file to test the reader function
+	itemCollector := func(
+		_ context.Context,
+		_, _ string,
+		items []models.DriveItemable,
+		_ map[string]string,
+		_ map[string]string,
+		_ map[string]struct{},
+		_ map[string]map[string]string,
+		_ bool,
+		_ *fault.Bus,
+	) error {
+		if driveItem != nil {
+			return nil
+		}
+
+		for _, item := range items {
+			if item.GetFile() != nil && ptr.Val(item.GetSize()) > 0 {
+				driveItem = item
+				break
+			}
+		}
+
+		return nil
+	}
+
+	ip := ac.
+		Drives().
+		NewDriveItemDeltaPager(driveID, "", api.DriveItemSelectDefault())
+
+	_, _, _, err := collectItems(
+		ctx,
+		ip,
+		driveID,
+		"General",
+		itemCollector,
+		map[string]string{},
+		"",
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	return driveItem
+}
+
+// TestItemReader is an integration test that makes a few assumptions
+// about the test environment
+// 1) It assumes the test user has a drive
+// 2) It assumes the drive has a file it can use to test `driveItemReader`
+// The test checks these in below
+func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	driveItem := getOneDriveItem(ctx, t, suite.service.ac, suite.userDriveID)
+	// Test Requirement 2: Need a file
+	require.NotEmpty(
+		t,
+		driveItem,
+		"no file item found for user %s drive %s",
+		suite.user,
+		suite.userDriveID)
+
+	bh := itemBackupHandler{
+		suite.service.ac.Drives(),
+		suite.user,
+		(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0],
+	}
+
+	// Read data for the file
+	itemData, err := downloadItem(ctx, bh, driveItem)
+	require.NoError(t, err, clues.ToCore(err))
+
+	size, err := io.Copy(io.Discard, itemData)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotZero(t, size)
+}
+
+// In prod we consider any errors in isURLExpired as non-fatal and carry on
+// with the download. This is a regression test to make sure we keep track
+// of any graph changes to the download url scheme, including how graph
+// embeds the jwt token.
+func (suite *ItemIntegrationSuite) TestIsURLExpired() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	driveItem := getOneDriveItem(ctx, t, suite.service.ac, suite.userDriveID)
+	require.NotEmpty(
+		t,
+		driveItem,
+		"no file item found for user %s drive %s",
+		suite.user,
+		suite.userDriveID)
+
+	var url string
+
+	for _, key := range downloadURLKeys {
+		if v, err := str.AnyValueToString(key, driveItem.GetAdditionalData()); err == nil {
+			url = v
+			break
+		}
+	}
+
+	expired, err := isURLExpired(ctx, url)
+	require.NoError(t, err, clues.ToCore(err))
+
+	require.False(t, expired)
 }
 
 // TestItemWriter is an integration test for uploading data to OneDrive
@@ -92,7 +217,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 				ctx,
 				test.driveID,
 				ptr.Val(root.GetId()),
-				api.NewDriveItem(newFolderName, true),
+				newItem(newFolderName, true),
 				control.Copy)
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newFolder.GetId())
@@ -104,7 +229,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 				ctx,
 				test.driveID,
 				ptr.Val(newFolder.GetId()),
-				api.NewDriveItem(newItemName, false),
+				newItem(newItemName, false),
 				control.Copy)
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, newItem.GetId())
@@ -238,7 +363,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 		{
 			name: "success",
 			itemFunc: func() models.DriveItemable {
-				di := api.NewDriveItem("test", false)
+				di := newItem("test", false)
 				di.SetAdditionalData(map[string]any{
 					"@microsoft.graph.downloadUrl": url,
 				})
@@ -257,7 +382,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 		{
 			name: "success, content url set instead of download url",
 			itemFunc: func() models.DriveItemable {
-				di := api.NewDriveItem("test", false)
+				di := newItem("test", false)
 				di.SetAdditionalData(map[string]any{
 					"@content.downloadUrl": url,
 				})
@@ -276,7 +401,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 		{
 			name: "api getter returns error",
 			itemFunc: func() models.DriveItemable {
-				di := api.NewDriveItem("test", false)
+				di := newItem("test", false)
 				di.SetAdditionalData(map[string]any{
 					"@microsoft.graph.downloadUrl": url,
 				})
@@ -292,7 +417,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 		{
 			name: "download url is empty",
 			itemFunc: func() models.DriveItemable {
-				di := api.NewDriveItem("test", false)
+				di := newItem("test", false)
 				return di
 			},
 			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
@@ -307,7 +432,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 		{
 			name: "malware",
 			itemFunc: func() models.DriveItemable {
-				di := api.NewDriveItem("test", false)
+				di := newItem("test", false)
 				di.SetAdditionalData(map[string]any{
 					"@microsoft.graph.downloadUrl": url,
 				})
@@ -329,7 +454,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 		{
 			name: "non-2xx http response",
 			itemFunc: func() models.DriveItemable {
-				di := api.NewDriveItem("test", false)
+				di := newItem("test", false)
 				di.SetAdditionalData(map[string]any{
 					"@microsoft.graph.downloadUrl": url,
 				})
@@ -378,7 +503,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem_ConnectionResetErrorOnFirstRead
 		url      = "https://example.com"
 
 		itemFunc = func() models.DriveItemable {
-			di := api.NewDriveItem("test", false)
+			di := newItem("test", false)
 			di.SetAdditionalData(map[string]any{
 				"@microsoft.graph.downloadUrl": url,
 			})

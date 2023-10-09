@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
@@ -377,18 +380,18 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
+	site, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.LibraryFolders([]string{"foo"}, selectors.PrefixMatch()))
 
-	sel.SetDiscreteOwnerIDName(id, name)
+	sel.SetDiscreteOwnerIDName(site.ID(), site.Name())
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: inMock.NewProvider(id, name),
+		ProtectedResource: site,
 		Selector:          sel.Selector,
 	}
 
@@ -427,18 +430,18 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 		siteIDs = []string{siteID}
 	)
 
-	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
+	site, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Lists(selectors.Any()))
 
-	sel.SetDiscreteOwnerIDName(id, name)
+	sel.SetDiscreteOwnerIDName(site.ID(), site.Name())
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: inMock.NewProvider(id, name),
+		ProtectedResource: site,
 		Selector:          sel.Selector,
 	}
 
@@ -513,18 +516,18 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 		groupIDs = []string{groupID}
 	)
 
-	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
+	group, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
 	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewGroupsBackup(groupIDs)
 	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
 
-	sel.SetDiscreteOwnerIDName(id, name)
+	sel.SetDiscreteOwnerIDName(group.ID(), group.Name())
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: inMock.NewProvider(id, name),
+		ProtectedResource: group,
 		Selector:          sel.Selector,
 	}
 
@@ -569,6 +572,126 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	}
 
 	assert.True(t, foundSitesMetadata, "missing sites metadata")
+
+	status := ctrl.Wait()
+	assert.NotZero(t, status.Successes)
+	t.Log(status.String())
+}
+
+func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_InvalidMetadata() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		groupID  = tconfig.M365GroupID(t)
+		ctrl     = newController(ctx, t, path.GroupsService)
+		groupIDs = []string{groupID}
+	)
+
+	group, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sel := selectors.NewGroupsBackup(groupIDs)
+	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
+
+	sel.SetDiscreteOwnerIDName(group.ID(), group.Name())
+
+	site, err := suite.connector.AC.Groups().GetRootSite(ctx, groupID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	pth, err := path.Build(
+		suite.tenantID,
+		groupID,
+		path.GroupsService,
+		path.LibrariesCategory,
+		true,
+		odConsts.SitesPathDir,
+		ptr.Val(site.GetId()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	mmc := []data.RestoreCollection{
+		mock.Collection{
+			Path: pth,
+			ItemData: []data.Item{
+				&mock.Item{
+					ItemID: "previouspath",
+					Reader: io.NopCloser(bytes.NewReader([]byte("invalid"))),
+				},
+			},
+		},
+	}
+
+	bpc := inject.BackupProducerConfig{
+		LastBackupVersion:   version.NoBackup,
+		Options:             control.DefaultOptions(),
+		ProtectedResource:   group,
+		Selector:            sel.Selector,
+		MetadataCollections: mmc,
+	}
+
+	collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
+		ctx,
+		bpc,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	assert.True(t, canUsePreviousBackup, "can use previous backup")
+	// No excludes yet as this isn't an incremental backup.
+	assert.True(t, excludes.Empty())
+
+	// we don't know an exact count of drives this will produce,
+	// but it should be more than one.
+	assert.Greater(t, len(collections), 1)
+
+	p, err := path.BuildMetadata(
+		suite.tenantID,
+		groupID,
+		path.GroupsService,
+		path.LibrariesCategory,
+		false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	p, err = p.Append(false, odConsts.SitesPathDir)
+	require.NoError(t, err, clues.ToCore(err))
+
+	foundSitesMetadata := false
+	foundRootTombstone := false
+
+	sp, err := path.BuildPrefix(
+		suite.tenantID,
+		groupID,
+		path.GroupsService,
+		path.LibrariesCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	sp, err = sp.Append(false, odConsts.SitesPathDir, ptr.Val(site.GetId()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	for _, coll := range collections {
+		if coll.State() == data.DeletedState {
+			if coll.PreviousPath() != nil && coll.PreviousPath().String() == sp.String() {
+				foundRootTombstone = true
+			}
+
+			continue
+		}
+
+		sitesMetadataCollection := coll.FullPath().String() == p.String()
+
+		for object := range coll.Items(ctx, fault.New(true)) {
+			if object.ID() == "previouspath" && sitesMetadataCollection {
+				foundSitesMetadata = true
+			}
+
+			buf := &bytes.Buffer{}
+			_, err := buf.ReadFrom(object.ToReader())
+			assert.NoError(t, err, "reading item", clues.ToCore(err))
+		}
+	}
+
+	assert.True(t, foundSitesMetadata, "missing sites metadata")
+	assert.True(t, foundRootTombstone, "missing root tombstone")
 
 	status := ctrl.Wait()
 	assert.NotZero(t, status.Successes)

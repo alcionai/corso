@@ -8,13 +8,12 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 // ---------------------------------------------------------------------------
@@ -23,8 +22,6 @@ import (
 
 type BackupHandler struct {
 	ItemInfo details.ItemInfo
-
-	DriveItemEnumeration EnumeratesDriveItemsDelta
 
 	GI  GetsItem
 	GIP GetsItemPermission
@@ -38,9 +35,9 @@ type BackupHandler struct {
 	CanonPathFn  canonPather
 	CanonPathErr error
 
-	ResourceOwner string
-	Service       path.ServiceType
-	Category      path.CategoryType
+	ProtectedResource idname.Provider
+	Service           path.ServiceType
+	Category          path.CategoryType
 
 	DrivePagerV api.Pager[models.Driveable]
 	// driveID -> itemPager
@@ -59,13 +56,12 @@ func DefaultOneDriveBH(resourceOwner string) *BackupHandler {
 			OneDrive:  &details.OneDriveInfo{},
 			Extension: &details.ExtensionData{},
 		},
-		DriveItemEnumeration: EnumeratesDriveItemsDelta{},
 		GI:                   GetsItem{Err: clues.New("not defined")},
 		GIP:                  GetsItemPermission{Err: clues.New("not defined")},
 		PathPrefixFn:         defaultOneDrivePathPrefixer,
 		MetadataPathPrefixFn: defaultOneDriveMetadataPathPrefixer,
 		CanonPathFn:          defaultOneDriveCanonPather,
-		ResourceOwner:        resourceOwner,
+		ProtectedResource:    idname.NewProvider(resourceOwner, resourceOwner),
 		Service:              path.OneDriveService,
 		Category:             path.FilesCategory,
 		LocationIDFn:         defaultOneDriveLocationIDer,
@@ -85,7 +81,7 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler {
 		PathPrefixFn:         defaultSharePointPathPrefixer,
 		MetadataPathPrefixFn: defaultSharePointMetadataPathPrefixer,
 		CanonPathFn:          defaultSharePointCanonPather,
-		ResourceOwner:        resourceOwner,
+		ProtectedResource:    idname.NewProvider(resourceOwner, resourceOwner),
 		Service:              path.SharePointService,
 		Category:             path.LibrariesCategory,
 		LocationIDFn:         defaultSharePointLocationIDer,
@@ -95,7 +91,7 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler {
 }
 
 func (h BackupHandler) PathPrefix(tID, driveID string) (path.Path, error) {
-	pp, err := h.PathPrefixFn(tID, h.ResourceOwner, driveID)
+	pp, err := h.PathPrefixFn(tID, h.ProtectedResource.ID(), driveID)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +100,7 @@ func (h BackupHandler) PathPrefix(tID, driveID string) (path.Path, error) {
 }
 
 func (h BackupHandler) MetadataPathPrefix(tID string) (path.Path, error) {
-	pp, err := h.MetadataPathPrefixFn(tID, h.ResourceOwner)
+	pp, err := h.MetadataPathPrefixFn(tID, h.ProtectedResource.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +109,7 @@ func (h BackupHandler) MetadataPathPrefix(tID string) (path.Path, error) {
 }
 
 func (h BackupHandler) CanonicalPath(pb *path.Builder, tID string) (path.Path, error) {
-	cp, err := h.CanonPathFn(pb, tID, h.ResourceOwner)
+	cp, err := h.CanonPathFn(pb, tID, h.ProtectedResource.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -129,6 +125,10 @@ func (h BackupHandler) NewDrivePager(string, []string) api.Pager[models.Driveabl
 	return h.DrivePagerV
 }
 
+func (h BackupHandler) NewItemPager(driveID string, _ string, _ []string) api.DeltaPager[models.DriveItemable] {
+	return h.ItemPagerV[driveID]
+}
+
 func (h BackupHandler) FormatDisplayPath(_ string, pb *path.Builder) string {
 	return "/" + pb.String()
 }
@@ -137,7 +137,13 @@ func (h BackupHandler) NewLocationIDer(driveID string, elems ...string) details.
 	return h.LocationIDFn(driveID, elems...)
 }
 
-func (h BackupHandler) AugmentItemInfo(details.ItemInfo, models.DriveItemable, int64, *path.Builder) details.ItemInfo {
+func (h BackupHandler) AugmentItemInfo(
+	details.ItemInfo,
+	idname.Provider,
+	models.DriveItemable,
+	int64,
+	*path.Builder,
+) details.ItemInfo {
 	return h.ItemInfo
 }
 
@@ -151,13 +157,6 @@ func (h *BackupHandler) Get(context.Context, string, map[string]string) (*http.R
 	}
 
 	return h.GetResps[c], h.GetErrs[c]
-}
-
-func (h BackupHandler) EnumerateDriveItemsDelta(
-	ctx context.Context,
-	driveID, prevDeltaLink string,
-) ([]models.DriveItemable, api.DeltaUpdate, error) {
-	return h.DriveItemEnumeration.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink)
 }
 
 func (h BackupHandler) GetItem(ctx context.Context, _, _ string) (models.DriveItemable, error) {
@@ -263,65 +262,6 @@ func (m GetsItem) GetItem(
 }
 
 // ---------------------------------------------------------------------------
-// Enumerates Drive Items
-// ---------------------------------------------------------------------------
-
-type EnumeratesDriveItemsDelta struct {
-	Items       map[string][]models.DriveItemable
-	DeltaUpdate map[string]api.DeltaUpdate
-	Err         map[string]error
-}
-
-func (edi EnumeratesDriveItemsDelta) EnumerateDriveItemsDelta(
-	_ context.Context,
-	driveID, _ string,
-) (
-	[]models.DriveItemable,
-	api.DeltaUpdate,
-	error,
-) {
-	return edi.Items[driveID], edi.DeltaUpdate[driveID], edi.Err[driveID]
-}
-
-func PagerResultToEDID(
-	m map[string][]apiMock.PagerResult[models.DriveItemable],
-) EnumeratesDriveItemsDelta {
-	edi := EnumeratesDriveItemsDelta{
-		Items:       map[string][]models.DriveItemable{},
-		DeltaUpdate: map[string]api.DeltaUpdate{},
-		Err:         map[string]error{},
-	}
-
-	for driveID, results := range m {
-		var (
-			err         error
-			items       = []models.DriveItemable{}
-			deltaUpdate api.DeltaUpdate
-		)
-
-		for _, pr := range results {
-			items = append(items, pr.Values...)
-
-			if pr.DeltaLink != nil {
-				deltaUpdate = api.DeltaUpdate{URL: ptr.Val(pr.DeltaLink)}
-			}
-
-			if pr.Err != nil {
-				err = pr.Err
-			}
-
-			deltaUpdate.Reset = deltaUpdate.Reset || pr.ResetDelta
-		}
-
-		edi.Items[driveID] = items
-		edi.Err[driveID] = err
-		edi.DeltaUpdate[driveID] = deltaUpdate
-	}
-
-	return edi
-}
-
-// ---------------------------------------------------------------------------
 // Get Item Permissioner
 // ---------------------------------------------------------------------------
 
@@ -375,6 +315,7 @@ func (h RestoreHandler) NewDrivePager(string, []string) api.Pager[models.Driveab
 
 func (h *RestoreHandler) AugmentItemInfo(
 	details.ItemInfo,
+	idname.Provider,
 	models.DriveItemable,
 	int64,
 	*path.Builder,

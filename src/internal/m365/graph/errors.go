@@ -70,6 +70,7 @@ const (
 	NoSPLicense                     errorMessage = "Tenant does not have a SPO license"
 	parameterDeltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request"
 	usersCannotBeResolved           errorMessage = "One or more users could not be resolved"
+	requestedSiteCouldNotBeFound    errorMessage = "Requested site could not be found"
 )
 
 const (
@@ -123,6 +124,8 @@ var (
 	ErrTimeout = clues.New("communication timeout")
 
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
+
+	ErrTokenExpired = clues.New("jwt token expired")
 )
 
 func IsErrApplicationThrottled(err error) bool {
@@ -223,7 +226,8 @@ func IsErrUnauthorized(err error) bool {
 	// TODO: refine this investigation.  We don't currently know if
 	// a specific item download url expired, or if the full connection
 	// auth expired.
-	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized))
+	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
+		errors.Is(err, ErrTokenExpired)
 }
 
 func IsErrItemAlreadyExistsConflict(err error) bool {
@@ -257,6 +261,10 @@ func IsErrFolderExists(err error) bool {
 
 func IsErrUsersCannotBeResolved(err error) bool {
 	return hasErrorCode(err, noResolvedUsers) || hasErrorMessage(err, usersCannotBeResolved)
+}
+
+func IsErrSiteNotFound(err error) bool {
+	return hasErrorMessage(err, requestedSiteCouldNotBeFound)
 }
 
 // ---------------------------------------------------------------------------

@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -92,7 +91,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = suite.repo.Initialize(ctx, ctrlRepo.Retention{})
+	err = suite.repo.Initialize(ctx, repository.InitConfig{Service: path.ExchangeService})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)

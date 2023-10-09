@@ -207,6 +207,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 
 			coll, err := NewCollection(
 				mbh,
+				mbh.ProtectedResource,
 				folderPath,
 				nil,
 				"drive-id",
@@ -328,6 +329,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 
 	coll, err := NewCollection(
 		mbh,
+		mbh.ProtectedResource,
 		folderPath,
 		nil,
 		"fakeDriveID",
@@ -405,6 +407,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 
 	coll, err := NewCollection(
 		mbh,
+		mbh.ProtectedResource,
 		folderPath,
 		nil,
 		"fakeDriveID",
@@ -460,6 +463,7 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 
 	coll, err := NewCollection(
 		mbh,
+		mbh.ProtectedResource,
 		folderPath,
 		nil,
 		"drive-id",
@@ -565,7 +569,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 			colScope: CollectionScopePackage,
 			itemSize: 10,
 			err:      clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
+			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
 			name:     "big OneNote file",
@@ -971,6 +975,7 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 
 			coll, err := NewCollection(
 				mbh,
+				mbh.ProtectedResource,
 				folderPath,
 				nil,
 				driveID,

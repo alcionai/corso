@@ -102,15 +102,6 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, err)
 	}
 
-	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
-	utils.SendStartCorsoEvent(
-		ctx,
-		cfg.Storage,
-		cfg.Account.ID(),
-		map[string]any{"command": "init repo"},
-		cfg.Account.ID(),
-		opt)
-
 	s3Cfg, err := cfg.Storage.ToS3Config()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
@@ -138,7 +129,9 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to construct the repository controller"))
 	}
 
-	if err = r.Initialize(ctx, retentionOpts); err != nil {
+	ric := repository.InitConfig{RetentionOpts: retentionOpts}
+
+	if err = r.Initialize(ctx, ric); err != nil {
 		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
 		}
@@ -221,7 +214,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
 	}
 
-	if err := r.Connect(ctx); err != nil {
+	if err := r.Connect(ctx, repository.ConnConfig{}); err != nil {
 		return Only(ctx, clues.Stack(ErrConnectingRepo, err))
 	}
 

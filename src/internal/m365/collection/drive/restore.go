@@ -271,7 +271,7 @@ func restoreItem(
 		itemInfo, err := restoreV0File(
 			ctx,
 			rh,
-			rcc.RestoreConfig,
+			rcc,
 			drivePath,
 			fibn,
 			restoreFolderID,
@@ -377,7 +377,7 @@ func restoreItem(
 func restoreV0File(
 	ctx context.Context,
 	rh RestoreHandler,
-	restoreCfg control.RestoreConfig,
+	rcc inject.RestoreConsumerConfig,
 	drivePath *path.DrivePath,
 	fibn data.FetchItemByNamer,
 	restoreFolderID string,
@@ -388,7 +388,7 @@ func restoreV0File(
 ) (details.ItemInfo, error) {
 	_, itemInfo, err := restoreFile(
 		ctx,
-		restoreCfg,
+		rcc,
 		rh,
 		fibn,
 		itemData.ID(),
@@ -423,7 +423,7 @@ func restoreV1File(
 
 	itemID, itemInfo, err := restoreFile(
 		ctx,
-		rcc.RestoreConfig,
+		rcc,
 		rh,
 		fibn,
 		trimmedName,
@@ -509,7 +509,7 @@ func restoreV6File(
 
 	itemID, itemInfo, err := restoreFile(
 		ctx,
-		rcc.RestoreConfig,
+		rcc,
 		rh,
 		fibn,
 		meta.FileName,
@@ -671,7 +671,7 @@ func createFolder(
 		ctx,
 		driveID,
 		parentFolderID,
-		api.NewDriveItem(folderName, true),
+		newItem(folderName, true),
 		control.Replace)
 
 	// ErrItemAlreadyExistsConflict can only occur for folders if the
@@ -692,7 +692,7 @@ func createFolder(
 		ctx,
 		driveID,
 		parentFolderID,
-		api.NewDriveItem(folderName, true),
+		newItem(folderName, true),
 		control.Copy)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating folder")
@@ -711,7 +711,7 @@ type itemRestorer interface {
 // restoreFile will create a new item in the specified `parentFolderID` and upload the data.Item
 func restoreFile(
 	ctx context.Context,
-	restoreCfg control.RestoreConfig,
+	rcc inject.RestoreConsumerConfig,
 	ir itemRestorer,
 	fibn data.FetchItemByNamer,
 	name string,
@@ -733,7 +733,7 @@ func restoreFile(
 	}
 
 	var (
-		item                 = api.NewDriveItem(name, false)
+		item                 = newItem(name, false)
 		collisionKey         = api.DriveItemCollisionKey(item)
 		collision            api.DriveItemIDType
 		shouldDeleteOriginal bool
@@ -743,7 +743,7 @@ func restoreFile(
 		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
 		log.Debug("item collision")
 
-		if restoreCfg.OnCollision == control.Skip {
+		if rcc.RestoreConfig.OnCollision == control.Skip {
 			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
@@ -751,7 +751,7 @@ func restoreFile(
 		}
 
 		collision = dci
-		shouldDeleteOriginal = restoreCfg.OnCollision == control.Replace && !dci.IsFolder
+		shouldDeleteOriginal = rcc.RestoreConfig.OnCollision == control.Replace && !dci.IsFolder
 	}
 
 	// drive items do not support PUT requests on the drive item data, so
@@ -850,7 +850,12 @@ func restoreFile(
 
 	defer closeProgressBar()
 
-	dii := ir.AugmentItemInfo(details.ItemInfo{}, newItem, written, nil)
+	dii := ir.AugmentItemInfo(
+		details.ItemInfo{},
+		rcc.ProtectedResource,
+		newItem,
+		written,
+		nil)
 
 	if shouldDeleteOriginal {
 		ctr.Inc(count.CollisionReplace)

@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -35,19 +36,18 @@ func ProduceBackupCollections(
 	creds account.M365Config,
 	su support.StatusUpdater,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	b, err := bpc.Selector.ToGroupsBackup()
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "groupsDataCollection: parsing selector")
+		return nil, nil, clues.Wrap(err, "groupsDataCollection: parsing selector")
 	}
 
 	var (
-		el                   = errs.Local()
-		collections          = []data.BackupCollection{}
-		categories           = map[path.CategoryType]struct{}{}
-		ssmb                 = prefixmatcher.NewStringSetBuilder()
-		canUsePreviousBackup bool
-		sitesPreviousPaths   = map[string]string{}
+		el                 = errs.Local()
+		collections        = []data.BackupCollection{}
+		categories         = map[path.CategoryType]struct{}{}
+		ssmb               = prefixmatcher.NewStringSetBuilder()
+		sitesPreviousPaths = map[string]string{}
 	)
 
 	ctx = clues.Add(
@@ -60,7 +60,7 @@ func ProduceBackupCollections(
 		bpc.ProtectedResource.ID(),
 		api.CallConfig{})
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "getting group").WithClues(ctx)
+		return nil, nil, clues.Wrap(err, "getting group").WithClues(ctx)
 	}
 
 	isTeam := api.IsTeam(ctx, group)
@@ -79,12 +79,9 @@ func ProduceBackupCollections(
 
 		switch scope.Category().PathType() {
 		case path.LibrariesCategory:
-			// TODO(meain): Private channels get a separate SharePoint
-			// site. We should also back those up and not just the
-			// default one.
-			resp, err := ac.Groups().GetRootSite(ctx, bpc.ProtectedResource.ID())
+			sites, err := ac.Groups().GetAllSites(ctx, bpc.ProtectedResource.ID(), errs)
 			if err != nil {
-				return nil, nil, false, err
+				return nil, nil, err
 			}
 
 			siteMetadataCollection := map[string][]data.RestoreCollection{}
@@ -95,39 +92,47 @@ func ProduceBackupCollections(
 				siteMetadataCollection[siteID] = append(siteMetadataCollection[siteID], c)
 			}
 
-			pr := idname.NewProvider(ptr.Val(resp.GetId()), ptr.Val(resp.GetName()))
-			sbpc := inject.BackupProducerConfig{
-				LastBackupVersion:   bpc.LastBackupVersion,
-				Options:             bpc.Options,
-				ProtectedResource:   pr,
-				Selector:            bpc.Selector,
-				MetadataCollections: siteMetadataCollection[ptr.Val(resp.GetId())],
-			}
+			for _, s := range sites {
+				pr := idname.NewProvider(ptr.Val(s.GetId()), ptr.Val(s.GetWebUrl()))
+				sbpc := inject.BackupProducerConfig{
+					LastBackupVersion:   bpc.LastBackupVersion,
+					Options:             bpc.Options,
+					ProtectedResource:   pr,
+					Selector:            bpc.Selector,
+					MetadataCollections: siteMetadataCollection[ptr.Val(s.GetId())],
+				}
 
-			bh := drive.NewGroupBackupHandler(
-				bpc.ProtectedResource.ID(),
-				ptr.Val(resp.GetId()),
-				ac.Drives(),
-				scope)
+				bh := drive.NewGroupBackupHandler(
+					bpc.ProtectedResource.ID(),
+					ptr.Val(s.GetId()),
+					ac.Drives(),
+					scope)
 
-			cp, err := bh.SitePathPrefix(creds.AzureTenantID)
-			if err != nil {
-				return nil, nil, false, clues.Wrap(err, "getting canonical path")
-			}
+				sp, err := bh.SitePathPrefix(creds.AzureTenantID)
+				if err != nil {
+					return nil, nil, clues.Wrap(err, "getting site path")
+				}
 
-			sitesPreviousPaths[ptr.Val(resp.GetId())] = cp.String()
+				sitesPreviousPaths[ptr.Val(s.GetId())] = sp.String()
 
-			dbcs, canUsePreviousBackup, err = site.CollectLibraries(
-				ctx,
-				sbpc,
-				bh,
-				creds.AzureTenantID,
-				ssmb,
-				su,
-				errs)
-			if err != nil {
-				el.AddRecoverable(ctx, err)
-				continue
+				cs, canUsePreviousBackup, err := site.CollectLibraries(
+					ctx,
+					sbpc,
+					bh,
+					creds.AzureTenantID,
+					ssmb,
+					su,
+					errs)
+				if err != nil {
+					el.AddRecoverable(ctx, err)
+					continue
+				}
+
+				if !canUsePreviousBackup {
+					dbcs = append(dbcs, data.NewTombstoneCollection(sp, control.Options{}))
+				}
+
+				dbcs = append(dbcs, cs...)
 			}
 
 		case path.ChannelMessagesCategory:
@@ -135,10 +140,12 @@ func ProduceBackupCollections(
 				continue
 			}
 
-			dbcs, canUsePreviousBackup, err = groups.CreateCollections(
+			bh := groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels())
+
+			cs, canUsePreviousBackup, err := groups.CreateCollections(
 				ctx,
 				bpc,
-				groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels()),
+				bh,
 				creds.AzureTenantID,
 				scope,
 				su,
@@ -147,6 +154,17 @@ func ProduceBackupCollections(
 				el.AddRecoverable(ctx, err)
 				continue
 			}
+
+			if !canUsePreviousBackup {
+				tp, err := bh.PathPrefix(creds.AzureTenantID)
+				if err != nil {
+					return nil, nil, clues.Wrap(err, "getting message path")
+				}
+
+				dbcs = append(dbcs, data.NewTombstoneCollection(tp, control.Options{}))
+			}
+
+			dbcs = append(dbcs, cs...)
 		}
 
 		collections = append(collections, dbcs...)
@@ -165,7 +183,7 @@ func ProduceBackupCollections(
 			su,
 			errs)
 		if err != nil {
-			return nil, nil, false, err
+			return nil, nil, err
 		}
 
 		collections = append(collections, baseCols...)
@@ -178,12 +196,12 @@ func ProduceBackupCollections(
 		sitesPreviousPaths,
 		su)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, err
 	}
 
 	collections = append(collections, md)
 
-	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
+	return collections, ssmb.ToReader(), el.Failure()
 }
 
 func getSitesMetadataCollection(
