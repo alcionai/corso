@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -267,7 +268,7 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			colls := NewCollections(
 				&itemBackupHandler{suite.ac.Drives(), test.user, scope},
 				creds.AzureTenantID,
-				test.user,
+				idname.NewProvider(test.user, test.user),
 				service.updateStatus,
 				control.Options{
 					ToggleFeatures: control.Toggles{},
