@@ -91,12 +91,9 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 
 			var (
 				paths     = map[string]string{}
-				newPaths  = map[string]string{}
+				currPaths = map[string]string{}
 				excluded  = map[string]struct{}{}
-				itemColls = map[string]map[string]string{
-					driveID: {},
-				}
-				collMap = map[string]map[string]*drive.Collection{
+				collMap   = map[string]map[string]*drive.Collection{
 					driveID: {},
 				}
 			)
@@ -110,15 +107,14 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 
 			c.CollectionMap = collMap
 
-			err := c.UpdateCollections(
+			_, err := c.UpdateCollections(
 				ctx,
 				driveID,
 				"General",
 				test.items,
 				paths,
-				newPaths,
+				currPaths,
 				excluded,
-				itemColls,
 				true,
 				fault.New(true))
 

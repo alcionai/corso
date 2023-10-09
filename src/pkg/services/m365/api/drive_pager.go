@@ -15,6 +15,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
+type DriveItemIDType struct {
+	ItemID   string
+	IsFolder bool
+}
+
 // ---------------------------------------------------------------------------
 // non-delta item pager
 // ---------------------------------------------------------------------------
@@ -63,11 +68,6 @@ func (p *driveItemPageCtrl) SetNextLink(nextLink string) {
 
 func (p *driveItemPageCtrl) ValidModTimes() bool {
 	return true
-}
-
-type DriveItemIDType struct {
-	ItemID   string
-	IsFolder bool
 }
 
 func (c Drives) GetItemsInContainerByCollisionKey(
@@ -131,9 +131,9 @@ type DriveItemDeltaPageCtrl struct {
 	options *drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration
 }
 
-func (c Drives) NewDriveItemDeltaPager(
-	driveID, link string,
-	selectFields []string,
+func (c Drives) newDriveItemDeltaPager(
+	driveID, prevDeltaLink string,
+	selectProps ...string,
 ) *DriveItemDeltaPageCtrl {
 	preferHeaderItems := []string{
 		"deltashowremovedasdeleted",
@@ -142,28 +142,32 @@ func (c Drives) NewDriveItemDeltaPager(
 		"hierarchicalsharing",
 	}
 
-	requestConfig := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferHeaderItems...),
-		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
-			Select: selectFields,
-		},
+	options := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
+		Headers:         newPreferHeaders(preferHeaderItems...),
+		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{},
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
+	builder := c.Stable.
+		Client().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(onedrive.RootID).
+		Delta()
+
+	if len(prevDeltaLink) > 0 {
+		builder = drives.NewItemItemsItemDeltaRequestBuilder(prevDeltaLink, c.Stable.Adapter())
 	}
 
 	res := &DriveItemDeltaPageCtrl{
 		gs:      c.Stable,
 		driveID: driveID,
-		options: requestConfig,
-		builder: c.Stable.
-			Client().
-			Drives().
-			ByDriveId(driveID).
-			Items().
-			ByDriveItemId(onedrive.RootID).
-			Delta(),
-	}
-
-	if len(link) > 0 {
-		res.builder = drives.NewItemItemsItemDeltaRequestBuilder(link, c.Stable.Adapter())
+		options: options,
+		builder: builder,
 	}
 
 	return res
@@ -191,6 +195,27 @@ func (p *DriveItemDeltaPageCtrl) Reset(context.Context) {
 
 func (p *DriveItemDeltaPageCtrl) ValidModTimes() bool {
 	return true
+}
+
+// EnumerateDriveItems will enumerate all items in the specified drive and hand them to the
+// provided `collector` method
+func (c Drives) EnumerateDriveItemsDelta(
+	ctx context.Context,
+	driveID string,
+	prevDeltaLink string,
+) (
+	[]models.DriveItemable,
+	DeltaUpdate,
+	error,
+) {
+	pager := c.newDriveItemDeltaPager(driveID, prevDeltaLink, DefaultDriveItemProps()...)
+
+	items, du, err := deltaEnumerateItems[models.DriveItemable](ctx, pager, prevDeltaLink)
+	if err != nil {
+		return nil, du, clues.Stack(err)
+	}
+
+	return items, du, nil
 }
 
 // ---------------------------------------------------------------------------

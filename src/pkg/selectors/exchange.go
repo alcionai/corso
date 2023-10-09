@@ -697,7 +697,7 @@ func (s ExchangeScope) IncludesCategory(cat exchangeCategory) bool {
 // returns true if the category is included in the scope's data type,
 // and the value is set to Any().
 func (s ExchangeScope) IsAny(cat exchangeCategory) bool {
-	return isAnyTarget(s, cat)
+	return IsAnyTarget(s, cat)
 }
 
 // Get returns the data category in the scope.  If the scope
