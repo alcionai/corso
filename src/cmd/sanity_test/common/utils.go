@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -16,7 +18,7 @@ func Assert(
 	ctx context.Context,
 	passes func() bool,
 	header string,
-	expect, current any,
+	expect, have any,
 ) {
 	if passes() {
 		return
@@ -24,7 +26,7 @@ func Assert(
 
 	header = "TEST FAILURE: " + header
 	expected := fmt.Sprintf("* Expected: %+v", expect)
-	got := fmt.Sprintf("* Current: %+v", current)
+	got := fmt.Sprintf("* Have: %+v", have)
 
 	logger.Ctx(ctx).Info(strings.Join([]string{header, expected, got}, " "))
 
@@ -41,6 +43,7 @@ func Fatal(ctx context.Context, msg string, err error) {
 	logger.CtxErr(ctx, err).Error("test failure: " + msg)
 	fmt.Println("=========================")
 	fmt.Println("TEST FAILURE: "+msg+": ", err)
+	fmt.Println(clues.ToCore(err))
 	fmt.Println("=========================")
 	os.Exit(1)
 }
@@ -54,7 +57,11 @@ func MustGetTimeFromName(ctx context.Context, name string) (time.Time, bool) {
 	return t, !errors.Is(err, dttm.ErrNoTimeString)
 }
 
-func IsWithinTimeBound(ctx context.Context, bound, check time.Time, hasTime bool) bool {
+func IsWithinTimeBound(
+	ctx context.Context,
+	bound, check time.Time,
+	hasTime bool,
+) bool {
 	if hasTime {
 		if bound.Before(check) {
 			logger.Ctx(ctx).
