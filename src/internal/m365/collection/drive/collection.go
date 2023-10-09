@@ -575,7 +575,7 @@ func (oc *Collection) streamDriveItem(
 		// This ensures that downloads won't be attempted unless that consumer
 		// attempts to read bytes.  Assumption is that kopia will check things
 		// like file modtimes before attempting to read.
-		oc.data <- data.NewLazyItem(
+		oc.data <- data.NewLazyItemWithInfo(
 			ctx,
 			&lazyItemGetter{
 				info:                 &itemInfo,
@@ -600,7 +600,7 @@ func (oc *Collection) streamDriveItem(
 		return progReader, nil
 	})
 
-	storeItem, err := data.NewUnindexedPrefetchedItem(
+	storeItem, err := data.NewPrefetchedItem(
 		metaReader,
 		metaFileName+metaSuffix,
 		// Metadata file should always use the latest time as
