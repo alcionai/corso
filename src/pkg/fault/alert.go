@@ -1,55 +1,8 @@
 package fault
 
 import (
-	"context"
-
-	"golang.org/x/exp/slices"
-
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
-
-// Alerts returns the slice of alerts generated during runtime.
-// If the bus is a local alerts, this only returns the
-// local failure, and will not return parent data.
-func (e *Bus) Alerts() []Alert {
-	return slices.Clone(e.alerts)
-}
-
-// AddAlert appends a record of an Alert message to the fault bus.
-// Importantly, alerts are not errors, exceptions, or skipped items.
-// An alert should only be generated if no other fault functionality
-// is in use, but that we still want the end user to clearly and
-// plainly receive a notification about a runtime event.
-func (e *Bus) AddAlert(ctx context.Context, a *Alert) {
-	if a == nil {
-		return
-	}
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.logAndAddAlert(ctx, a, 1)
-}
-
-// logs the error and adds an alert.
-func (e *Bus) logAndAddAlert(ctx context.Context, a *Alert, trace int) {
-	logger.CtxStack(ctx, trace+1).
-		With("skipped", a).
-		Info("recoverable error")
-	e.addAlert(a)
-}
-
-func (e *Bus) addAlert(a *Alert) *Bus {
-	e.alerts = append(e.alerts, *a)
-
-	// local bus instances must promote alerts to the root bus.
-	if e.parent != nil {
-		e.parent.addAlert(a)
-	}
-
-	return e
-}
 
 var _ print.Printable = &Alert{}
 

@@ -71,27 +71,28 @@ func New(failFast bool) *Bus {
 	}
 }
 
+// Local constructs a new bus with a local reference to handle error aggregation
+// in a constrained scope.  This allows the caller to review recoverable errors and
+// failures within only the current codespace, as opposed to the global set of errors.
+// The function that spawned the local bus should always return `bus.Failure()` to
+// ensure that hard failures are propagated back upstream.
+func (e *Bus) Local() *Bus {
+	parent := e
+
+	// always use the root bus reference, if e is not the root.
+	if parent.parent != nil {
+		parent = parent.parent
+	}
+
+	return &Bus{
+		mu:     &sync.Mutex{},
+		parent: parent,
+	}
+}
+
 // FailFast returns the failFast flag in the bus.
 func (e *Bus) FailFast() bool {
 	return e.failFast
-}
-
-// Failure returns the primary error.  If not nil, this
-// indicates the operation exited prior to completion.
-// If the bus is a local instance, this only returns the
-// local failure, and will not return parent data.
-func (e *Bus) Failure() error {
-	return e.failure
-}
-
-// Recovered returns the slice of errors that occurred in
-// recoverable points of processing.  This is often during
-// iteration where a single failure (ex: retrieving an item),
-// doesn't require the entire process to end.
-// If the bus is a local instance, this only returns the
-// local recovered errors, and will not return parent data.
-func (e *Bus) Recovered() []error {
-	return slices.Clone(e.recoverable)
 }
 
 // Fail sets the non-recoverable error (ie: bus.failure)
@@ -103,15 +104,15 @@ func (e *Bus) Fail(err error) *Bus {
 		return e
 	}
 
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	return e.setFailure(err)
 }
 
 // setErr handles setting bus.failure.  Sync locking gets
 // handled upstream of this call.
 func (e *Bus) setFailure(err error) *Bus {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	if e.failure == nil {
 		e.failure = err
 	} else {
@@ -137,9 +138,6 @@ func (e *Bus) AddRecoverable(ctx context.Context, err error) {
 		return
 	}
 
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	e.logAndAddRecoverable(ctx, err, 1)
 }
 
@@ -160,6 +158,9 @@ func (e *Bus) logAndAddRecoverable(ctx context.Context, err error, skip int) {
 // gets handled upstream of this call.  Returns true if the
 // error is a failure, false otherwise.
 func (e *Bus) addRecoverableErr(err error) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	var isFail bool
 
 	if e.failure == nil && e.failFast {
@@ -178,6 +179,89 @@ func (e *Bus) addRecoverableErr(err error) bool {
 	return isFail
 }
 
+// ---------------------------------------------------------------------------
+// Non-error adders
+// ---------------------------------------------------------------------------
+
+// AddAlert appends a record of an Alert message to the fault bus.
+// Importantly, alerts are not errors, exceptions, or skipped items.
+// An alert should only be generated if no other fault functionality
+// is in use, but that we still want the end user to clearly and
+// plainly receive a notification about a runtime event.
+func (e *Bus) AddAlert(ctx context.Context, a *Alert) {
+	if a == nil {
+		return
+	}
+
+	e.logAndAddAlert(ctx, a, 1)
+}
+
+// logs the error and adds an alert.
+func (e *Bus) logAndAddAlert(ctx context.Context, a *Alert, trace int) {
+	logger.CtxStack(ctx, trace+1).
+		With("skipped", a).
+		Info("recoverable error")
+	e.addAlert(a)
+}
+
+func (e *Bus) addAlert(a *Alert) *Bus {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.alerts = append(e.alerts, *a)
+
+	// local bus instances must promote alerts to the root bus.
+	if e.parent != nil {
+		e.parent.addAlert(a)
+	}
+
+	return e
+}
+
+// AddSkip appends a record of a Skipped item to the fault bus.
+// Importantly, skipped items are not the same as recoverable
+// errors.  An item should only be skipped under the following
+// conditions.  All other cases should be handled as errors.
+// 1. The conditions for skipping the item are well-known and
+// well-documented.  End users need to be able to understand
+// both the conditions and identifications of skips.
+// 2. Skipping avoids a permanent and consistent failure.  If
+// the underlying reason is transient or otherwise recoverable,
+// the item should not be skipped.
+func (e *Bus) AddSkip(ctx context.Context, s *Skipped) {
+	if s == nil {
+		return
+	}
+
+	e.logAndAddSkip(ctx, s, 1)
+}
+
+// logs the error and adds a skipped item.
+func (e *Bus) logAndAddSkip(ctx context.Context, s *Skipped, trace int) {
+	logger.CtxStack(ctx, trace+1).
+		With("skipped", s).
+		Info("recoverable error")
+	e.addSkip(s)
+}
+
+func (e *Bus) addSkip(s *Skipped) *Bus {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.skipped = append(e.skipped, *s)
+
+	// local bus instances must promote skipped items to the root bus.
+	if e.parent != nil {
+		e.parent.addSkip(s)
+	}
+
+	return e
+}
+
+// ---------------------------------------------------------------------------
+// Results
+// ---------------------------------------------------------------------------
+
 // Errors returns the plain record of errors that were aggregated
 // within a fult Bus.
 func (e *Bus) Errors() *Errors {
@@ -191,6 +275,39 @@ func (e *Bus) Errors() *Errors {
 		Alerts:    slices.Clone(e.alerts),
 		FailFast:  e.failFast,
 	}
+}
+
+// Failure returns the primary error.  If not nil, this
+// indicates the operation exited prior to completion.
+// If the bus is a local instance, this only returns the
+// local failure, and will not return parent data.
+func (e *Bus) Failure() error {
+	return e.failure
+}
+
+// Recovered returns the slice of errors that occurred in
+// recoverable points of processing.  This is often during
+// iteration where a single failure (ex: retrieving an item),
+// doesn't require the entire process to end.
+// If the bus is a local instance, this only returns the
+// local recovered errors, and will not return parent data.
+func (e *Bus) Recovered() []error {
+	return slices.Clone(e.recoverable)
+}
+
+// Skipped returns the slice of items that were permanently
+// skipped during processing.
+// If the bus is a local instance, this only returns the
+// local skipped items, and will not return parent data.
+func (e *Bus) Skipped() []Skipped {
+	return slices.Clone(e.skipped)
+}
+
+// Alerts returns the slice of alerts generated during runtime.
+// If the bus is a local alerts, this only returns the
+// local failure, and will not return parent data.
+func (e *Bus) Alerts() []Alert {
+	return slices.Clone(e.alerts)
 }
 
 // ItemsAndRecovered returns the items that failed along with other
@@ -218,10 +335,6 @@ func (e *Bus) ItemsAndRecovered() ([]Item, []error) {
 
 	return maps.Values(is), non
 }
-
-// ---------------------------------------------------------------------------
-// Errors Data
-// ---------------------------------------------------------------------------
 
 // Errors provides the errors data alone, without sync controls
 // or adders/setters.  Expected to get called at the end of processing,
@@ -304,6 +417,10 @@ func UnmarshalErrorsTo(e *Errors) func(io.ReadCloser) error {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Print compatibility
+// ---------------------------------------------------------------------------
+
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
 func (e *Errors) PrintItems(
@@ -373,27 +490,4 @@ func (pec printableErrCore) Values() []string {
 	}
 
 	return []string{pec.Msg}
-}
-
-// ---------------------------------------------------------------------------
-// Local aggregator
-// ---------------------------------------------------------------------------
-
-// Local constructs a new bus with a local reference to handle error aggregation
-// in a constrained scope.  This allows the caller to review recoverable errors and
-// failures within only the current codespace, as opposed to the global set of errors.
-// The function that spawned the local bus should always return `bus.Failure()` to
-// ensure that hard failures are propagated back upstream.
-func (e *Bus) Local() *Bus {
-	parent := e
-
-	// always use the root bus reference, if e is not the root.
-	if e.parent != nil {
-		e = e.parent
-	}
-
-	return &Bus{
-		mu:     &sync.Mutex{},
-		parent: parent,
-	}
 }

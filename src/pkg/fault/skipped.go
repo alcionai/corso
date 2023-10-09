@@ -1,12 +1,7 @@
 package fault
 
 import (
-	"context"
-
-	"golang.org/x/exp/slices"
-
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 // skipCause identifies the well-known conditions to Skip an item.  It is
@@ -30,54 +25,6 @@ const (
 	// https://support.microsoft.com/en-us/office/restrictions-and-limitations-in-onedrive-and-sharepoint-64883a5d-228e-48f5-b3d2-eb39e07630fa#onenotenotebooks
 	SkipBigOneNote skipCause = "big_one_note_file"
 )
-
-// Skipped returns the slice of items that were permanently
-// skipped during processing.
-// If the bus is a local instance, this only returns the
-// local skipped items, and will not return parent data.
-func (e *Bus) Skipped() []Skipped {
-	return slices.Clone(e.skipped)
-}
-
-// AddSkip appends a record of a Skipped item to the fault bus.
-// Importantly, skipped items are not the same as recoverable
-// errors.  An item should only be skipped under the following
-// conditions.  All other cases should be handled as errors.
-// 1. The conditions for skipping the item are well-known and
-// well-documented.  End users need to be able to understand
-// both the conditions and identifications of skips.
-// 2. Skipping avoids a permanent and consistent failure.  If
-// the underlying reason is transient or otherwise recoverable,
-// the item should not be skipped.
-func (e *Bus) AddSkip(ctx context.Context, s *Skipped) {
-	if s == nil {
-		return
-	}
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.logAndAddSkip(ctx, s, 1)
-}
-
-// logs the error and adds a skipped item.
-func (e *Bus) logAndAddSkip(ctx context.Context, s *Skipped, trace int) {
-	logger.CtxStack(ctx, trace+1).
-		With("skipped", s).
-		Info("recoverable error")
-	e.addSkip(s)
-}
-
-func (e *Bus) addSkip(s *Skipped) *Bus {
-	e.skipped = append(e.skipped, *s)
-
-	// local bus instances must promote skipped items to the root bus.
-	if e.parent != nil {
-		e.parent.addSkip(s)
-	}
-
-	return e
-}
 
 var _ print.Printable = &Skipped{}
 
