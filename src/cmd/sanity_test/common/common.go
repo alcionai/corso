@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/credentials"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -25,6 +23,7 @@ const (
 	sanityTestData    = "SANITY_TEST_DATA"
 	sanityTestFolder  = "SANITY_TEST_FOLDER"
 	sanityTestService = "SANITY_TEST_SERVICE"
+	sanityTestUser    = "SANITY_TEST_USER"
 )
 
 type Envs struct {
@@ -51,9 +50,11 @@ func EnvVars(ctx context.Context) Envs {
 		UserID:           tconfig.GetM365UserID(ctx),
 	}
 
-	fmt.Printf("\n-----\nenvs %+v\n-----\n", e)
+	if len(os.Getenv(sanityTestUser)) > 0 {
+		e.UserID = os.Getenv(sanityTestUser)
+	}
 
-	logger.Ctx(ctx).Info("envs", e)
+	Infof(ctx, "test env vars: %+v", e)
 
 	return e
 }

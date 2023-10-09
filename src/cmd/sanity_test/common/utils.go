@@ -28,16 +28,20 @@ func Assert(
 
 	logger.Ctx(ctx).Info(strings.Join([]string{header, expected, got}, " "))
 
+	fmt.Println("=========================")
 	fmt.Println(header)
 	fmt.Println(expected)
 	fmt.Println(got)
+	fmt.Println("=========================")
 
 	os.Exit(1)
 }
 
 func Fatal(ctx context.Context, msg string, err error) {
 	logger.CtxErr(ctx, err).Error("test failure: " + msg)
+	fmt.Println("=========================")
 	fmt.Println("TEST FAILURE: "+msg+": ", err)
+	fmt.Println("=========================")
 	os.Exit(1)
 }
 
@@ -76,7 +80,34 @@ func FilterSlice(sl []string, remove string) []string {
 	return r
 }
 
-func LogAndPrint(ctx context.Context, tmpl string, vs ...any) {
+func Infof(ctx context.Context, tmpl string, vs ...any) {
+	logger.Ctx(ctx).Infof(tmpl, vs...)
+	fmt.Printf(tmpl+"\n", vs...)
+}
+
+type debugKey string
+
+const ctxDebugKey debugKey = "ctx_debug"
+
+func SetDebug(ctx context.Context) context.Context {
+	if len(os.Getenv("SANITY_TEST_DEBUG")) == 0 {
+		return ctx
+	}
+
+	return context.WithValue(ctx, ctxDebugKey, true)
+}
+
+func isDebug(ctx context.Context) bool {
+	cdk := ctx.Value(ctxDebugKey)
+
+	return cdk != nil && cdk.(bool)
+}
+
+func Debugf(ctx context.Context, tmpl string, vs ...any) {
+	if !isDebug(ctx) {
+		return
+	}
+
 	logger.Ctx(ctx).Infof(tmpl, vs...)
 	fmt.Printf(tmpl+"\n", vs...)
 }

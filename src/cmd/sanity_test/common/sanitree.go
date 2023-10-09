@@ -3,9 +3,9 @@ package common
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -60,21 +60,11 @@ func (s *Sanitree[T]) Path() path.Elements {
 
 func (s *Sanitree[T]) NodeAt(
 	ctx context.Context,
-	relPath string,
+	elems []string,
 ) *Sanitree[T] {
-	var (
-		elems = path.Split(relPath)
-		node  = s
-	)
+	node := s
 
-	Assert(
-		ctx,
-		func() bool { return elems[0] == s.Name },
-		"relative path root should match initial sanitree node",
-		relPath,
-		s.Name)
-
-	for _, e := range elems[1:] {
+	for _, e := range elems {
 		child, ok := node.Children[e]
 
 		Assert(

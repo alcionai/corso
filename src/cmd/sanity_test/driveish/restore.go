@@ -46,11 +46,7 @@ func CheckRestoration(
 		"drive_id", driveID,
 		"drive_name", driveName)
 
-	root := populateSanitree(
-		ctx,
-		ac,
-		driveID,
-		envs.StartTime)
+	root := populateSanitree(ctx, ac, driveID, envs.StartTime)
 
 	dataTree, ok := root.Children[envs.DataFolder]
 	common.Assert(
@@ -162,7 +158,7 @@ func checkRestoredDriveItemPermissions(
 			err)
 
 		if len(expectPerms) == 0 {
-			common.LogAndPrint(ctx, "no permissions found in folder: %s", expect.Name)
+			common.Infof(ctx, "no permissions found in folder: %s", expect.Name)
 			return
 		}
 

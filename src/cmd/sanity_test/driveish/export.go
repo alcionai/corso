@@ -56,7 +56,7 @@ func CheckExport(
 	common.CompareDiffTrees(
 		ctx,
 		dataTree,
-		fpTree,
+		fpTree.Children[envs.DataFolder],
 		comparator)
 
 	fmt.Println("Success")
