@@ -745,6 +745,38 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		},
 		{
 			// Test that an assist base that has the same Reasons as a newer merge
+			// base but the merge base is from an older version of corso that doesn't
+			// add merge or assist base tags for some reason causes the assist base to
+			// be garbage collected.
+			name: "AssistAndLegacyMergeBases NotYoungest Noops",
+			snapshots: []*manifest.EntryMetadata{
+				manifestWithReasons(
+					manifestWithTime(baseTime, snapCurrent()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime, deetsCurrent()),
+
+				manifestWithReasons(
+					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
+					"tenant1",
+					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
+			},
+			backups: []backupRes{
+				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
+				{bup: backupWithLegacyResource("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+			},
+			time:   baseTime.Add(48 * time.Hour),
+			buffer: 24 * time.Hour,
+			expectDeleteIDs: []manifest.ID{
+				snapCurrent().ID,
+				deetsCurrent().ID,
+				manifest.ID(bupCurrent().ModelStoreID),
+			},
+			expectErr: assert.NoError,
+		},
+		{
+			// Test that an assist base that has the same Reasons as a newer merge
 			// base but the merge base is from an older version of corso for some
 			// reason and an even newer merge base from a current version of corso
 			// causes the assist base to be garbage collected.
