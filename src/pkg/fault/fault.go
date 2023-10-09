@@ -199,8 +199,8 @@ func (e *Bus) AddAlert(ctx context.Context, a *Alert) {
 // logs the error and adds an alert.
 func (e *Bus) logAndAddAlert(ctx context.Context, a *Alert, trace int) {
 	logger.CtxStack(ctx, trace+1).
-		With("skipped", a).
-		Info("recoverable error")
+		With("alert", a).
+		Info("alert: " + a.Message)
 	e.addAlert(a)
 }
 
@@ -240,7 +240,7 @@ func (e *Bus) AddSkip(ctx context.Context, s *Skipped) {
 func (e *Bus) logAndAddSkip(ctx context.Context, s *Skipped, trace int) {
 	logger.CtxStack(ctx, trace+1).
 		With("skipped", s).
-		Info("recoverable error")
+		Info("skipped an item")
 	e.addSkip(s)
 }
 
