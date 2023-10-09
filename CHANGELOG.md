@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Skips graph calls for expired item download URLs.
+
 ## [v0.14.0] (beta) - 2023-10-09
 
 ### Added
@@ -16,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `--backups` flag to delete multiple backups in `corso backup delete` command.
 - Backup now includes all sites that belongs to a team, not just the root site.
 
-## Fixed
+### Fixed
 - Teams Channels that cannot support delta tokens (those without messages) fall back to non-delta enumeration and no longer fail a backup.
 
 ### Known issues
