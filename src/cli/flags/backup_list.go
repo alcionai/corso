@@ -32,5 +32,5 @@ func AddRecoveredErrorsFN(cmd *cobra.Command) {
 func AddAlertsFN(cmd *cobra.Command) {
 	cmd.Flags().StringVar(
 		&ListAlertsFV, AlertsFN, Show,
-		"Toggles showing or hiding the list of Alerts produced during the operation.")
+		"Toggles showing or hiding the list of alerts produced during the operation.")
 }

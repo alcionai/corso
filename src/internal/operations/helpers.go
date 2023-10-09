@@ -75,6 +75,6 @@ func LogFaultErrors(ctx context.Context, fe *fault.Errors, prefix string) {
 	}
 
 	for i, alert := range fe.Alerts {
-		log.With("alert", alert).Infof("%s alert %d of %d: %s", i+1, la, alert.Message)
+		log.With("alert", alert).Infof("%s alert %d of %d: %s", pfxMsg, i+1, la, alert.Message)
 	}
 }
