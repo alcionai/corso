@@ -225,7 +225,7 @@ func (e *Bus) AddAlert(ctx context.Context, a *Alert) {
 func (e *Bus) logAndAddAlert(ctx context.Context, a *Alert, trace int) {
 	logger.CtxStack(ctx, trace+1).
 		With("alert", a).
-		Info("informational alert: " + a.Message)
+		Info("alert: " + a.Message)
 	e.addAlert(a)
 }
 
