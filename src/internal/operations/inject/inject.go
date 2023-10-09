@@ -109,10 +109,7 @@ type (
 			ctx context.Context,
 			owner string, // input value, can be either id or name
 			ins idname.Cacher,
-		) (
-			id, name string,
-			err error,
-		)
+		) (idname.Provider, error)
 	}
 
 	RepoMaintenancer interface {

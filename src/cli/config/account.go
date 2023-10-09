@@ -54,7 +54,7 @@ func configureAccount(
 		if matchFromConfig {
 			providerType := vpr.GetString(account.AccountProviderTypeKey)
 			if providerType != account.ProviderM365.String() {
-				return acct, clues.New("unsupported account provider: " + providerType)
+				return acct, clues.New("unsupported account provider: [" + providerType + "]")
 			}
 
 			if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {

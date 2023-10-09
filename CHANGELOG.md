@@ -12,9 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reduce backup runtime for OneDrive and SharePoint incremental backups that have no file changes.
 - Increase Exchange backup performance by lazily fetching data only for items whose content changed.
 - Added `--backups` flag to delete multiple backups in `corso backup delete` command.
+- Backup now includes all sites that belongs to a team, not just the root site.
 
 ## Fixed
 - Teams Channels that cannot support delta tokens (those without messages) fall back to non-delta enumeration and no longer fail a backup.
+
+### Known issues
+- Restoring the data into a different Group from the one it was backed up from is not currently supported
 
 ## [v0.13.0] (beta) - 2023-09-18
 

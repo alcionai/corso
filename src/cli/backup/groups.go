@@ -2,7 +2,6 @@ package backup
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/alcionai/clues"
@@ -14,12 +13,9 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365"
 )
@@ -174,7 +170,7 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
-	return runBackups(
+	return genericCreateCommand(
 		ctx,
 		r,
 		"Group",
@@ -225,70 +221,29 @@ func detailsGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	return runDetailsGroupsCmd(cmd)
+}
+
+func runDetailsGroupsCmd(cmd *cobra.Command) error {
 	ctx := cmd.Context()
 	opts := utils.MakeGroupsOpts(cmd)
 
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		path.GroupsService)
+	sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
+	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+	utils.FilterGroupsRestoreInfoSelectors(sel, opts)
+
+	ds, err := genericDetailsCommand(cmd, flags.BackupIDFV, sel.Selector)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	defer utils.CloseRepo(ctx, r)
-
-	ds, err := runDetailsGroupsCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	if len(ds.Entries) == 0 {
+	if len(ds.Entries) > 0 {
+		ds.PrintEntries(ctx)
+	} else {
 		Info(ctx, selectors.ErrorNoMatchingItems)
-		return nil
 	}
-
-	ds.PrintEntries(ctx)
 
 	return nil
-}
-
-// runDetailsGroupsCmd actually performs the lookup in backup details.
-// the fault.Errors return is always non-nil.  Callers should check if
-// errs.Failure() == nil.
-func runDetailsGroupsCmd(
-	ctx context.Context,
-	r repository.BackupGetter,
-	backupID string,
-	opts utils.GroupsOpts,
-	skipReduce bool,
-) (*details.Details, error) {
-	if err := utils.ValidateGroupsRestoreFlags(backupID, opts); err != nil {
-		return nil, err
-	}
-
-	ctx = clues.Add(ctx, "backup_id", backupID)
-
-	d, _, errs := r.GetBackupDetails(ctx, backupID)
-	// TODO: log/track recoverable errors
-	if errs.Failure() != nil {
-		if errors.Is(errs.Failure(), data.ErrNotFound) {
-			return nil, clues.New("no backup exists with the id " + backupID)
-		}
-
-		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
-	}
-
-	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
-
-	if !skipReduce {
-		sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
-		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
-		utils.FilterGroupsRestoreInfoSelectors(sel, opts)
-		d = sel.Reduce(ctx, d, errs)
-	}
-
-	return d, nil
 }
 
 // ------------------------------------------------------------------------------------------------

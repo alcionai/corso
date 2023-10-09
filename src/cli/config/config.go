@@ -279,8 +279,7 @@ func getStorageAndAccountWithViper(
 
 	// possibly read the prior config from a .corso file
 	if readFromFile {
-		err = vpr.ReadInConfig()
-		if err != nil {
+		if err := vpr.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 				return config, clues.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}

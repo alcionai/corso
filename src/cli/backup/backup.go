@@ -16,6 +16,8 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -48,12 +50,12 @@ func AddCommands(cmd *cobra.Command) {
 
 	for _, sc := range subCommandFuncs {
 		subCommand := sc()
-		flags.AddAllProviderFlags(subCommand)
-		flags.AddAllStorageFlags(subCommand)
 		backupC.AddCommand(subCommand)
 
 		for _, addBackupTo := range serviceCommands {
-			addBackupTo(subCommand)
+			sc := addBackupTo(subCommand)
+			flags.AddAllProviderFlags(sc)
+			flags.AddAllStorageFlags(sc)
 		}
 	}
 }
@@ -163,7 +165,7 @@ func handleDeleteCmd(cmd *cobra.Command, args []string) error {
 // standard set of selector behavior that we want used in the cli
 var defaultSelectorConfig = selectors.Config{OnlyMatchItemNames: true}
 
-func runBackups(
+func genericCreateCommand(
 	ctx context.Context,
 	r repository.Repositoryer,
 	serviceName string,
@@ -265,10 +267,7 @@ func genericDeleteCommand(
 
 	ctx := clues.Add(cmd.Context(), "delete_backup_id", bID)
 
-	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		pst)
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, pst)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -298,10 +297,7 @@ func genericListCommand(
 		return nil
 	}
 
-	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		service)
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, service)
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -337,6 +333,65 @@ func genericListCommand(
 
 	return nil
 }
+
+func genericDetailsCommand(
+	cmd *cobra.Command,
+	backupID string,
+	sel selectors.Selector,
+) (*details.Details, error) {
+	ctx := cmd.Context()
+
+	r, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.OneDriveService)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	return genericDetailsCore(
+		ctx,
+		r,
+		backupID,
+		sel,
+		rdao.Opts)
+}
+
+func genericDetailsCore(
+	ctx context.Context,
+	bg repository.BackupGetter,
+	backupID string,
+	sel selectors.Selector,
+	opts control.Options,
+) (*details.Details, error) {
+	ctx = clues.Add(ctx, "backup_id", backupID)
+
+	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+
+	d, _, errs := bg.GetBackupDetails(ctx, backupID)
+	// TODO: log/track recoverable errors
+	if errs.Failure() != nil {
+		if errors.Is(errs.Failure(), data.ErrNotFound) {
+			return nil, clues.New("no backup exists with the id " + backupID)
+		}
+
+		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
+	}
+
+	if opts.SkipReduce {
+		return d, nil
+	}
+
+	d, err := sel.Reduce(ctx, d, errs)
+	if err != nil {
+		return nil, clues.Wrap(err, "filtering backup details to selection")
+	}
+
+	return d, nil
+}
+
+// ---------------------------------------------------------------------------
+// helper funcs
+// ---------------------------------------------------------------------------
 
 func ifShow(flag string) bool {
 	return strings.ToLower(strings.TrimSpace(flag)) == "show"

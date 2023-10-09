@@ -85,7 +85,7 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 
 	opt := utils.ControlWithConfig(cfg)
 	// Retention is not supported for filesystem repos.
-	retention := ctrlRepo.Retention{}
+	retentionOpts := ctrlRepo.Retention{}
 
 	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
 	utils.SendStartCorsoEvent(
@@ -96,12 +96,10 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		opt)
 
-	sc, err := cfg.Storage.StorageConfig()
+	storageCfg, err := cfg.Storage.ToFilesystemConfig()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving filesystem configuration"))
 	}
-
-	storageCfg := sc.(*storage.FilesystemConfig)
 
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
@@ -118,19 +116,27 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to construct the repository controller"))
 	}
 
-	if err = r.Initialize(ctx, retention); err != nil {
+	ric := repository.InitConfig{RetentionOpts: retentionOpts}
+
+	if err = r.Initialize(ctx, ric); err != nil {
 		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
 		}
 
-		return Only(ctx, clues.Wrap(err, "Failed to initialize a new filesystem repository"))
+		return Only(ctx, clues.Stack(ErrInitializingRepo, err))
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
 	Infof(ctx, "Initialized a repository at path %s", storageCfg.Path)
 
-	if err = config.WriteRepoConfig(ctx, sc, m365, opt.Repo, r.GetID()); err != nil {
+	err = config.WriteRepoConfig(
+		ctx,
+		storageCfg,
+		m365,
+		opt.Repo,
+		r.GetID())
+	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 
@@ -181,12 +187,10 @@ func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 		repoID = events.RepoIDNotFound
 	}
 
-	sc, err := cfg.Storage.StorageConfig()
+	storageCfg, err := cfg.Storage.ToFilesystemConfig()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving filesystem configuration"))
 	}
-
-	storageCfg := sc.(*storage.FilesystemConfig)
 
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
@@ -205,15 +209,21 @@ func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
 	}
 
-	if err := r.Connect(ctx); err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the filesystem repository"))
+	if err := r.Connect(ctx, repository.ConnConfig{}); err != nil {
+		return Only(ctx, clues.Stack(ErrConnectingRepo, err))
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
 	Infof(ctx, "Connected to repository at path %s", storageCfg.Path)
 
-	if err = config.WriteRepoConfig(ctx, sc, m365, opts.Repo, r.GetID()); err != nil {
+	err = config.WriteRepoConfig(
+		ctx,
+		storageCfg,
+		m365,
+		opts.Repo,
+		r.GetID())
+	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 

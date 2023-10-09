@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -40,12 +39,7 @@ const (
 	Pages   DataCategory = 2
 )
 
-var (
-	_ data.BackupCollection = &Collection{}
-	_ data.Item             = &Item{}
-	_ data.ItemInfo         = &Item{}
-	_ data.ItemModTime      = &Item{}
-)
+var _ data.BackupCollection = &Collection{}
 
 // Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
 // by the oneDrive.Collection as the calls are identical for populating the Collection
@@ -118,43 +112,6 @@ func (sc *Collection) Items(
 ) <-chan data.Item {
 	go sc.populate(ctx, errs)
 	return sc.data
-}
-
-type Item struct {
-	id      string
-	data    io.ReadCloser
-	info    *details.SharePointInfo
-	modTime time.Time
-
-	// true if the item was marked by graph as deleted.
-	deleted bool
-}
-
-func NewItem(name string, d io.ReadCloser) *Item {
-	return &Item{
-		id:   name,
-		data: d,
-	}
-}
-
-func (sd *Item) ID() string {
-	return sd.id
-}
-
-func (sd *Item) ToReader() io.ReadCloser {
-	return sd.data
-}
-
-func (sd Item) Deleted() bool {
-	return sd.deleted
-}
-
-func (sd *Item) Info() (details.ItemInfo, error) {
-	return details.ItemInfo{SharePoint: sd.info}, nil
-}
-
-func (sd *Item) ModTime() time.Time {
-	return sd.modTime
 }
 
 func (sc *Collection) finishPopulation(
@@ -251,21 +208,20 @@ func (sc *Collection) retrieveLists(
 		size := int64(len(byteArray))
 
 		if size > 0 {
-			t := time.Now()
-			if t1 := lst.GetLastModifiedDateTime(); t1 != nil {
-				t = *t1
-			}
-
 			metrics.Bytes += size
 
 			metrics.Successes++
-			sc.data <- &Item{
-				id:      ptr.Val(lst.GetId()),
-				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    ListToSPInfo(lst, size),
-				modTime: t,
+
+			item, err := data.NewPrefetchedItem(
+				io.NopCloser(bytes.NewReader(byteArray)),
+				ptr.Val(lst.GetId()),
+				details.ItemInfo{SharePoint: ListToSPInfo(lst, size)})
+			if err != nil {
+				el.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+				continue
 			}
 
+			sc.data <- item
 			progress <- struct{}{}
 		}
 	}
@@ -322,13 +278,17 @@ func (sc *Collection) retrievePages(
 		if size > 0 {
 			metrics.Bytes += size
 			metrics.Successes++
-			sc.data <- &Item{
-				id:      ptr.Val(pg.GetId()),
-				data:    io.NopCloser(bytes.NewReader(byteArray)),
-				info:    pageToSPInfo(pg, root, size),
-				modTime: ptr.OrNow(pg.GetLastModifiedDateTime()),
+
+			item, err := data.NewPrefetchedItem(
+				io.NopCloser(bytes.NewReader(byteArray)),
+				ptr.Val(pg.GetId()),
+				details.ItemInfo{SharePoint: pageToSPInfo(pg, root, size)})
+			if err != nil {
+				el.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+				continue
 			}
 
+			sc.data <- item
 			progress <- struct{}{}
 		}
 	}

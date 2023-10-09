@@ -17,6 +17,7 @@ import (
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/extensions"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -69,7 +70,7 @@ func (suite *RepositoryUnitSuite) TestInitialize() {
 				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, InitConfig{})
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -85,12 +86,12 @@ func (suite *RepositoryUnitSuite) TestConnect() {
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
-			storage.ProviderUnknown.String(),
-			func() (storage.Storage, error) {
+			name: storage.ProviderUnknown.String(),
+			storage: func() (storage.Storage, error) {
 				return storage.NewStorage(storage.ProviderUnknown)
 			},
-			account.Account{},
-			assert.Error,
+			account:  account.Account{},
+			errCheck: assert.Error,
 		},
 	}
 	for _, test := range table {
@@ -111,7 +112,7 @@ func (suite *RepositoryUnitSuite) TestConnect() {
 				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Connect(ctx)
+			err = r.Connect(ctx, ConnConfig{})
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -136,12 +137,13 @@ func TestRepositoryIntegrationSuite(t *testing.T) {
 func (suite *RepositoryIntegrationSuite) TestInitialize() {
 	table := []struct {
 		name     string
-		account  account.Account
+		account  func(*testing.T) account.Account
 		storage  func(tester.TestT) storage.Storage
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{
 			name:     "success",
+			account:  tconfig.NewM365Account,
 			storage:  storeTD.NewPrefixedS3Storage,
 			errCheck: assert.NoError,
 		},
@@ -156,13 +158,13 @@ func (suite *RepositoryIntegrationSuite) TestInitialize() {
 			st := test.storage(t)
 			r, err := New(
 				ctx,
-				test.account,
+				test.account(t),
 				st,
 				control.DefaultOptions(),
 				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, InitConfig{})
 			if err == nil {
 				defer func() {
 					err := r.Close(ctx)
@@ -204,7 +206,7 @@ func (suite *RepositoryIntegrationSuite) TestInitializeWithRole() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err)
 
 	defer func() {
@@ -218,22 +220,62 @@ func (suite *RepositoryIntegrationSuite) TestConnect() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	acct := tconfig.NewM365Account(t)
+
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 	r, err := New(
 		ctx,
-		account.Account{},
+		acct,
 		st,
 		control.DefaultOptions(),
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
-	err = r.Connect(ctx)
+	err = r.Connect(ctx, ConnConfig{})
 	assert.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *RepositoryIntegrationSuite) TestRepository_UpdatePassword() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	acct := tconfig.NewM365Account(t)
+
+	// need to initialize the repository before we can test connecting to it.
+	st := storeTD.NewPrefixedS3Storage(t)
+	r, err := New(
+		ctx,
+		acct,
+		st,
+		control.DefaultOptions(),
+		NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = r.Initialize(ctx, InitConfig{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	// now re-connect
+	err = r.Connect(ctx, ConnConfig{})
+	assert.NoError(t, err, clues.ToCore(err))
+
+	err = r.UpdatePassword(ctx, "newpass")
+	require.NoError(t, err, clues.ToCore(err))
+
+	tmp := st.Config["common_corsoPassphrase"]
+	st.Config["common_corsoPassphrase"] = "newpass"
+
+	// now reconnect with new pass
+	err = r.Connect(ctx, ConnConfig{})
+	assert.NoError(t, err, clues.ToCore(err))
+
+	st.Config["common_corsoPassphrase"] = tmp
 }
 
 func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
@@ -242,17 +284,19 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	acct := tconfig.NewM365Account(t)
+
 	// need to initialize the repository before we can test connecting to it.
 	st := storeTD.NewPrefixedS3Storage(t)
 	r, err := New(
 		ctx,
-		account.Account{},
+		acct,
 		st,
 		control.DefaultOptions(),
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	oldID := r.GetID()
@@ -261,7 +305,7 @@ func (suite *RepositoryIntegrationSuite) TestConnect_sameID() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// now re-connect
-	err = r.Connect(ctx)
+	err = r.Connect(ctx, ConnConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, oldID, r.GetID())
 }
@@ -284,7 +328,8 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	// service doesn't matter here, we just need a valid value.
+	err = r.Initialize(ctx, InitConfig{Service: path.ExchangeService})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userID := tconfig.M365UserID(t)
@@ -313,7 +358,7 @@ func (suite *RepositoryIntegrationSuite) TestNewRestore() {
 		"")
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := r.NewRestore(
@@ -343,7 +388,8 @@ func (suite *RepositoryIntegrationSuite) TestNewBackupAndDelete() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	// service doesn't matter here, we just need a valid value.
+	err = r.Initialize(ctx, InitConfig{Service: path.ExchangeService})
 	require.NoError(t, err, clues.ToCore(err))
 
 	userID := tconfig.M365UserID(t)
@@ -396,7 +442,7 @@ func (suite *RepositoryIntegrationSuite) TestNewMaintenance() {
 		NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = r.Initialize(ctx, ctrlRepo.Retention{})
+	err = r.Initialize(ctx, InitConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	mo, err := r.NewMaintenance(ctx, ctrlRepo.Maintenance{})
@@ -465,11 +511,11 @@ func (suite *RepositoryIntegrationSuite) Test_Options() {
 				NewRepoID)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = r.Initialize(ctx, ctrlRepo.Retention{})
+			err = r.Initialize(ctx, InitConfig{})
 			require.NoError(t, err)
 			assert.Equal(t, test.expectedLen, len(r.Opts.ItemExtensionFactory))
 
-			err = r.Connect(ctx)
+			err = r.Connect(ctx, ConnConfig{})
 			assert.NoError(t, err)
 			assert.Equal(t, test.expectedLen, len(r.Opts.ItemExtensionFactory))
 		})

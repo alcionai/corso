@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"time"
 
 	"github.com/alcionai/clues"
 
@@ -16,7 +17,7 @@ import (
 
 var (
 	_ data.BackupCollection = &MetadataCollection{}
-	_ data.Item             = &MetadataItem{}
+	_ data.Item             = &metadataItem{}
 )
 
 // MetadataCollection in a simple collection that assumes all items to be
@@ -24,7 +25,7 @@ var (
 // created. This collection has no logic for lazily fetching item data.
 type MetadataCollection struct {
 	fullPath      path.Path
-	items         []MetadataItem
+	items         []metadataItem
 	statusUpdater support.StatusUpdater
 }
 
@@ -40,23 +41,34 @@ func NewMetadataEntry(fileName string, mData any) MetadataCollectionEntry {
 	return MetadataCollectionEntry{fileName, mData}
 }
 
-func (mce MetadataCollectionEntry) toMetadataItem() (MetadataItem, error) {
+func (mce MetadataCollectionEntry) toMetadataItem() (metadataItem, error) {
 	if len(mce.fileName) == 0 {
-		return MetadataItem{}, clues.New("missing metadata filename")
+		return metadataItem{}, clues.New("missing metadata filename")
 	}
 
 	if mce.data == nil {
-		return MetadataItem{}, clues.New("missing metadata")
+		return metadataItem{}, clues.New("missing metadata")
 	}
 
 	buf := &bytes.Buffer{}
 	encoder := json.NewEncoder(buf)
 
 	if err := encoder.Encode(mce.data); err != nil {
-		return MetadataItem{}, clues.Wrap(err, "serializing metadata")
+		return metadataItem{}, clues.Wrap(err, "serializing metadata")
 	}
 
-	return NewMetadataItem(mce.fileName, buf.Bytes()), nil
+	item, err := data.NewUnindexedPrefetchedItem(
+		io.NopCloser(buf),
+		mce.fileName,
+		time.Now())
+	if err != nil {
+		return metadataItem{}, clues.Stack(err)
+	}
+
+	return metadataItem{
+		Item: item,
+		size: int64(buf.Len()),
+	}, nil
 }
 
 // MakeMetadataCollection creates a metadata collection that has a file
@@ -71,7 +83,7 @@ func MakeMetadataCollection(
 		return nil, nil
 	}
 
-	items := make([]MetadataItem, 0, len(metadata))
+	items := make([]metadataItem, 0, len(metadata))
 
 	for _, md := range metadata {
 		item, err := md.toMetadataItem()
@@ -89,7 +101,7 @@ func MakeMetadataCollection(
 
 func NewMetadataCollection(
 	p path.Path,
-	items []MetadataItem,
+	items []metadataItem,
 	statusUpdater support.StatusUpdater,
 ) *MetadataCollection {
 	return &MetadataCollection{
@@ -148,7 +160,7 @@ func (md MetadataCollection) Items(
 		defer close(res)
 
 		for _, item := range md.items {
-			totalBytes += int64(len(item.data))
+			totalBytes += item.size
 			res <- item
 		}
 	}()
@@ -156,36 +168,7 @@ func (md MetadataCollection) Items(
 	return res
 }
 
-// MetadataItem is an in-memory data.Item implementation. MetadataItem does
-// not implement additional interfaces like data.ItemInfo, so it should only
-// be used for items with a small amount of content that don't need to be added
-// to backup details.
-//
-// Currently the expected use-case for this struct are storing metadata for a
-// backup like delta tokens or a mapping of container IDs to container paths.
-type MetadataItem struct {
-	// uuid is an ID that can be used to refer to the item.
-	uuid string
-	// data is a buffer of data that the item refers to.
-	data []byte
-}
-
-func NewMetadataItem(uuid string, itemData []byte) MetadataItem {
-	return MetadataItem{
-		uuid: uuid,
-		data: itemData,
-	}
-}
-
-func (mi MetadataItem) ID() string {
-	return mi.uuid
-}
-
-// TODO(ashmrtn): Fill in once we know how to handle this.
-func (mi MetadataItem) Deleted() bool {
-	return false
-}
-
-func (mi MetadataItem) ToReader() io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(mi.data))
+type metadataItem struct {
+	data.Item
+	size int64
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -48,7 +49,7 @@ func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.OneDriveService)
 }
 
 func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
@@ -121,9 +122,8 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_userNotInTenant() {
 
 type BackupDeleteOneDriveE2ESuite struct {
 	tester.Suite
-	dpnd              dependencies
-	backupOp          operations.BackupOperation
-	secondaryBackupOp operations.BackupOperation
+	dpnd      dependencies
+	backupOps [3]operations.BackupOperation
 }
 
 func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
@@ -140,7 +140,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.dpnd = prepM365Test(t, ctx)
+	suite.dpnd = prepM365Test(t, ctx, path.OneDriveService)
 
 	var (
 		m365UserID = tconfig.M365UserID(t)
@@ -152,22 +152,15 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	sel := selectors.NewOneDriveBackup(users)
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 
-	backupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
-	require.NoError(t, err, clues.ToCore(err))
+	for i := 0; i < cap(suite.backupOps); i++ {
+		backupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+		require.NoError(t, err, clues.ToCore(err))
 
-	suite.backupOp = backupOp
+		suite.backupOps[i] = backupOp
 
-	err = suite.backupOp.Run(ctx)
-	require.NoError(t, err, clues.ToCore(err))
-
-	// secondary backup
-	secondaryBackupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.secondaryBackupOp = secondaryBackupOp
-
-	err = suite.secondaryBackupOp.Run(ctx)
-	require.NoError(t, err, clues.ToCore(err))
+		err = suite.backupOps[i].Run(ctx)
+		require.NoError(t, err, clues.ToCore(err))
+	}
 }
 
 func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
@@ -185,8 +178,8 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 		"--config-file", suite.dpnd.configFilePath,
 		"--"+flags.BackupIDsFN,
 		fmt.Sprintf("%s,%s",
-			string(suite.backupOp.Results.BackupID),
-			string(suite.secondaryBackupOp.Results.BackupID)))
+			string(suite.backupOps[0].Results.BackupID),
+			string(suite.backupOps[1].Results.BackupID)))
 	cli.BuildCommandTree(cmd)
 	cmd.SetErr(&suite.dpnd.recorder)
 
@@ -201,14 +194,14 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 		strings.HasSuffix(
 			result,
 			fmt.Sprintf("Deleted OneDrive backup [%s %s]\n",
-				string(suite.backupOp.Results.BackupID),
-				string(suite.secondaryBackupOp.Results.BackupID))))
+				string(suite.backupOps[0].Results.BackupID),
+				string(suite.backupOps[1].Results.BackupID))))
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "onedrive",
 		"--config-file", suite.dpnd.configFilePath,
-		"--backups", string(suite.backupOp.Results.BackupID))
+		"--backups", string(suite.backupOps[0].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	err = cmd.ExecuteContext(ctx)
@@ -229,7 +222,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_SingleID(
 		"backup", "delete", "onedrive",
 		"--config-file", suite.dpnd.configFilePath,
 		"--"+flags.BackupFN,
-		string(suite.backupOp.Results.BackupID))
+		string(suite.backupOps[2].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 	cmd.SetErr(&suite.dpnd.recorder)
 
@@ -244,13 +237,13 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_SingleID(
 		strings.HasSuffix(
 			result,
 			fmt.Sprintf("Deleted OneDrive backup [%s]\n",
-				string(suite.backupOp.Results.BackupID))))
+				string(suite.backupOps[2].Results.BackupID))))
 
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "onedrive",
 		"--config-file", suite.dpnd.configFilePath,
-		"--backup", string(suite.backupOp.Results.BackupID))
+		"--backup", string(suite.backupOps[0].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	err = cmd.ExecuteContext(ctx)

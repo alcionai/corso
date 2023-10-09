@@ -223,6 +223,26 @@ func (c Mail) PatchFolder(
 	return nil
 }
 
+// TODO: needs pager implementation for completion
+func (c Mail) GetContainerChildren(
+	ctx context.Context,
+	userID, containerID string,
+) ([]models.MailFolderable, error) {
+	resp, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		ChildFolders().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting container child folders")
+	}
+
+	return resp.GetValue(), nil
+}
+
 // ---------------------------------------------------------------------------
 // items
 // ---------------------------------------------------------------------------

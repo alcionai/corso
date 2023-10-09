@@ -11,6 +11,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -48,8 +49,8 @@ const restrictedDirectory = "Site Pages"
 type Collections struct {
 	handler BackupHandler
 
-	tenantID      string
-	resourceOwner string
+	tenantID          string
+	protectedResource idname.Provider
 
 	statusUpdater support.StatusUpdater
 
@@ -69,17 +70,17 @@ type Collections struct {
 func NewCollections(
 	bh BackupHandler,
 	tenantID string,
-	resourceOwner string,
+	protectedResource idname.Provider,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 ) *Collections {
 	return &Collections{
-		handler:       bh,
-		tenantID:      tenantID,
-		resourceOwner: resourceOwner,
-		CollectionMap: map[string]map[string]*Collection{},
-		statusUpdater: statusUpdater,
-		ctrl:          ctrlOpts,
+		handler:           bh,
+		tenantID:          tenantID,
+		protectedResource: protectedResource,
+		CollectionMap:     map[string]map[string]*Collection{},
+		statusUpdater:     statusUpdater,
+		ctrl:              ctrlOpts,
 	}
 }
 
@@ -135,11 +136,6 @@ func deserializeMetadata(
 					continue
 				}
 
-				if err == nil {
-					// Successful decode.
-					continue
-				}
-
 				// This is conservative, but report an error if either any of the items
 				// for any of the deserialized maps have duplicate drive IDs or there's
 				// some other problem deserializing things. This will cause the entire
@@ -147,7 +143,9 @@ func deserializeMetadata(
 				// these cases. We can make the logic for deciding when to continue vs.
 				// when to fail less strict in the future if needed.
 				if err != nil {
-					return nil, nil, false, clues.Stack(err).WithClues(ictx)
+					errs.Fail(clues.Stack(err).WithClues(ictx))
+
+					return map[string]string{}, map[string]map[string]string{}, false, nil
 				}
 			}
 		}
@@ -249,7 +247,7 @@ func (c *Collections) Get(
 	defer close(progressBar)
 
 	// Enumerate drives for the specified resourceOwner
-	pager := c.handler.NewDrivePager(c.resourceOwner, nil)
+	pager := c.handler.NewDrivePager(c.protectedResource.ID(), nil)
 
 	drives, err := api.GetAllDrives(ctx, pager)
 	if err != nil {
@@ -387,6 +385,7 @@ func (c *Collections) Get(
 
 			col, err := NewCollection(
 				c.handler,
+				c.protectedResource,
 				nil, // delete the folder
 				prevPath,
 				driveID,
@@ -423,6 +422,7 @@ func (c *Collections) Get(
 
 		coll, err := NewCollection(
 			c.handler,
+			c.protectedResource,
 			nil, // delete the drive
 			prevDrivePath,
 			driveID,
@@ -608,6 +608,7 @@ func (c *Collections) handleDelete(
 
 	col, err := NewCollection(
 		c.handler,
+		c.protectedResource,
 		nil, // deletes the collection
 		prevPath,
 		driveID,
@@ -792,6 +793,7 @@ func (c *Collections) UpdateCollections(
 
 			col, err := NewCollection(
 				c.handler,
+				c.protectedResource,
 				collectionPath,
 				prevPath,
 				driveID,

@@ -762,11 +762,10 @@ func runDriveIncrementalTest(
 				true)
 
 			// do some additional checks to ensure the incremental dealt with fewer items.
-			// +2 on read/writes to account for metadata: 1 delta and 1 path.
 			var (
-				expectWrites        = test.itemsWritten + 2
+				expectWrites        = test.itemsWritten
 				expectNonMetaWrites = test.nonMetaItemsWritten
-				expectReads         = test.itemsRead + 2
+				expectReads         = test.itemsRead
 				assertReadWrite     = assert.Equal
 			)
 
@@ -775,6 +774,17 @@ func runDriveIncrementalTest(
 				// /libraries/sites/previouspath
 				expectWrites++
 				expectReads++
+
+				// +2 on read/writes to account for metadata: 1 delta and 1 path (for each site)
+				sites, err := ac.Groups().GetAllSites(ctx, owner, fault.New(true))
+				require.NoError(t, err, clues.ToCore(err))
+
+				expectWrites += len(sites) * 2
+				expectReads += len(sites) * 2
+			} else {
+				// +2 on read/writes to account for metadata: 1 delta and 1 path.
+				expectWrites += 2
+				expectReads += 2
 			}
 
 			// Sharepoint can produce a superset of permissions by nature of

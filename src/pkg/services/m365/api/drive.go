@@ -84,6 +84,26 @@ func (c Drives) GetRootFolder(
 	return root, nil
 }
 
+// TODO: pagination controller needed for completion.
+func (c Drives) GetFolderChildren(
+	ctx context.Context,
+	driveID, folderID string,
+) ([]models.DriveItemable, error) {
+	response, err := c.Stable.
+		Client().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(folderID).
+		Children().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting folder children")
+	}
+
+	return response.GetValue(), nil
+}
+
 // ---------------------------------------------------------------------------
 // Items
 // ---------------------------------------------------------------------------

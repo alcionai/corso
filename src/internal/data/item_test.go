@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -47,6 +48,38 @@ type ItemUnitSuite struct {
 
 func TestItemUnitSuite(t *testing.T) {
 	suite.Run(t, &ItemUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *ItemUnitSuite) TestUnindexedPrefetchedItem() {
+	prefetch, err := data.NewUnindexedPrefetchedItem(
+		io.NopCloser(bytes.NewReader([]byte{})),
+		"foo",
+		time.Time{})
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	var item data.Item = prefetch
+
+	_, ok := item.(data.ItemInfo)
+	assert.False(suite.T(), ok, "unindexedPrefetchedItem implements Info()")
+}
+
+func (suite *ItemUnitSuite) TestUnindexedLazyItem() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	lazy := data.NewUnindexedLazyItem(
+		ctx,
+		nil,
+		"foo",
+		time.Time{},
+		fault.New(true))
+
+	var item data.Item = lazy
+
+	_, ok := item.(data.ItemInfo)
+	assert.False(t, ok, "unindexedLazyItem implements Info()")
 }
 
 func (suite *ItemUnitSuite) TestDeletedItem() {
@@ -115,18 +148,29 @@ func (suite *ItemUnitSuite) TestPrefetchedItem() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			item := data.NewPrefetchedItem(test.reader, id, test.info)
+			item, err := data.NewPrefetchedItem(test.reader, id, test.info)
+			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, id, item.ID(), "ID")
 			assert.False(t, item.Deleted(), "deleted")
 			assert.Equal(
 				t,
 				test.info.Modified(),
-				item.(data.ItemModTime).ModTime(),
+				item.ModTime(),
 				"mod time")
 
-			readData, err := io.ReadAll(item.ToReader())
-			test.readErr(t, err, clues.ToCore(err), "read error")
+			r, err := readers.NewVersionedRestoreReader(item.ToReader())
+			require.NoError(t, err, "version error: %v", clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+			assert.False(t, r.Format().DelInFlight)
+
+			readData, err := io.ReadAll(r)
+			test.readErr(t, err, "read error: %v", clues.ToCore(err))
 			assert.Equal(t, test.expectData, readData, "read data")
 		})
 	}
@@ -169,6 +213,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 	table := []struct {
 		name         string
 		mid          *mockItemDataGetter
+		versionErr   assert.ErrorAssertionFunc
 		readErr      assert.ErrorAssertionFunc
 		infoErr      assert.ErrorAssertionFunc
 		expectData   []byte
@@ -180,6 +225,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 				reader: io.NopCloser(bytes.NewReader([]byte{})),
 				info:   &details.ItemInfo{Exchange: &details.ExchangeInfo{Modified: now}},
 			},
+			versionErr: assert.NoError,
 			readErr:    assert.NoError,
 			infoErr:    assert.NoError,
 			expectData: []byte{},
@@ -190,6 +236,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 				reader: io.NopCloser(bytes.NewReader(baseData)),
 				info:   &details.ItemInfo{Exchange: &details.ExchangeInfo{Modified: now}},
 			},
+			versionErr: assert.NoError,
 			readErr:    assert.NoError,
 			infoErr:    assert.NoError,
 			expectData: baseData,
@@ -200,6 +247,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 				reader: io.NopCloser(bytes.NewReader(baseData)),
 				info:   &details.ItemInfo{OneDrive: &details.OneDriveInfo{Modified: now}},
 			},
+			versionErr: assert.NoError,
 			readErr:    assert.NoError,
 			infoErr:    assert.NoError,
 			expectData: baseData,
@@ -209,6 +257,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 			mid: &mockItemDataGetter{
 				err: assert.AnError,
 			},
+			versionErr:   assert.Error,
 			readErr:      assert.Error,
 			infoErr:      assert.Error,
 			expectData:   []byte{},
@@ -224,6 +273,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 				},
 				info: &details.ItemInfo{OneDrive: &details.OneDriveInfo{Modified: now}},
 			},
+			versionErr: assert.NoError,
 			readErr:    assert.Error,
 			infoErr:    assert.NoError,
 			expectData: baseData[:5],
@@ -253,15 +303,25 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 			assert.Equal(
 				t,
 				now,
-				item.(data.ItemModTime).ModTime(),
+				item.ModTime(),
 				"mod time")
 
 			// Read data to execute lazy reader.
-			readData, err := io.ReadAll(item.ToReader())
+			r, err := readers.NewVersionedRestoreReader(item.ToReader())
+			test.versionErr(t, err, "version error: %v", clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+			assert.False(t, r.Format().DelInFlight)
+
+			readData, err := io.ReadAll(r)
 			test.readErr(t, err, clues.ToCore(err), "read error")
 			assert.Equal(t, test.expectData, readData, "read data")
 
-			_, err = item.(data.ItemInfo).Info()
+			_, err = item.Info()
 			test.infoErr(t, err, "Info(): %v", clues.ToCore(err))
 
 			e := errs.Errors()
@@ -301,15 +361,21 @@ func (suite *ItemUnitSuite) TestLazyItem_DeletedInFlight() {
 	assert.Equal(
 		t,
 		now,
-		item.(data.ItemModTime).ModTime(),
+		item.ModTime(),
 		"mod time")
 
 	// Read data to execute lazy reader.
-	readData, err := io.ReadAll(item.ToReader())
+	r, err := readers.NewVersionedRestoreReader(item.ToReader())
+	require.NoError(t, err, "version error: %v", clues.ToCore(err))
+
+	assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+	assert.True(t, r.Format().DelInFlight)
+
+	readData, err := io.ReadAll(r)
 	require.NoError(t, err, clues.ToCore(err), "read error")
 	assert.Empty(t, readData, "read data")
 
-	_, err = item.(data.ItemInfo).Info()
+	_, err = item.Info()
 	assert.ErrorIs(t, err, data.ErrNotFound, "Info() error")
 
 	e := errs.Errors()
@@ -341,9 +407,9 @@ func (suite *ItemUnitSuite) TestLazyItem_InfoBeforeReadErrors() {
 	assert.Equal(
 		t,
 		now,
-		item.(data.ItemModTime).ModTime(),
+		item.ModTime(),
 		"mod time")
 
-	_, err := item.(data.ItemInfo).Info()
+	_, err := item.Info()
 	assert.Error(t, err, "Info() error")
 }

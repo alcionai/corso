@@ -2,38 +2,31 @@ package restore
 
 import (
 	"context"
-	"time"
-
-	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 func CheckSharePointRestoration(
 	ctx context.Context,
-	client *msgraphsdk.GraphServiceClient,
-	siteID, userID, folderName, dataFolder string,
-	startTime time.Time,
+	ac api.Client,
+	envs common.Envs,
 ) {
-	drive, err := client.
-		Sites().
-		BySiteId(siteID).
-		Drive().
-		Get(ctx, nil)
+	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
 	if err != nil {
 		common.Fatal(ctx, "getting the drive:", err)
 	}
 
 	checkDriveRestoration(
 		ctx,
-		client,
+		ac,
 		path.SharePointService,
-		folderName,
+		envs.FolderName,
 		ptr.Val(drive.GetId()),
 		ptr.Val(drive.GetName()),
-		dataFolder,
-		startTime,
+		envs.DataFolder,
+		envs.StartTime,
 		true)
 }

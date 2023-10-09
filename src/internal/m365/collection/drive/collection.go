@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
@@ -33,15 +34,14 @@ const (
 	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
 
-var (
-	_ data.BackupCollection = &Collection{}
-	_ data.Item             = &metadata.Item{}
-	_ data.ItemModTime      = &metadata.Item{}
-)
+var _ data.BackupCollection = &Collection{}
 
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	handler BackupHandler
+
+	// the protected resource represented in this collection.
+	protectedResource idname.Provider
 
 	// data is used to share data streams with the collection consumer
 	data chan data.Item
@@ -102,6 +102,7 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 // NewCollection creates a Collection
 func NewCollection(
 	handler BackupHandler,
+	resource idname.Provider,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -127,6 +128,7 @@ func NewCollection(
 
 	c := newColl(
 		handler,
+		resource,
 		currPath,
 		prevPath,
 		driveID,
@@ -144,6 +146,7 @@ func NewCollection(
 
 func newColl(
 	handler BackupHandler,
+	resource idname.Provider,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -154,18 +157,19 @@ func newColl(
 	urlCache getItemPropertyer,
 ) *Collection {
 	c := &Collection{
-		handler:         handler,
-		folderPath:      currPath,
-		prevPath:        prevPath,
-		driveItems:      map[string]models.DriveItemable{},
-		driveID:         driveID,
-		data:            make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
-		statusUpdater:   statusUpdater,
-		ctrl:            ctrlOpts,
-		state:           data.StateOf(prevPath, currPath),
-		scope:           colScope,
-		doNotMergeItems: doNotMergeItems,
-		urlCache:        urlCache,
+		handler:           handler,
+		protectedResource: resource,
+		folderPath:        currPath,
+		prevPath:          prevPath,
+		driveItems:        map[string]models.DriveItemable{},
+		driveID:           driveID,
+		data:              make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
+		statusUpdater:     statusUpdater,
+		ctrl:              ctrlOpts,
+		state:             data.StateOf(prevPath, currPath),
+		scope:             colScope,
+		doNotMergeItems:   doNotMergeItems,
+		urlCache:          urlCache,
 	}
 
 	return c
@@ -269,7 +273,10 @@ func (oc *Collection) getDriveItemContent(
 
 		// Skip big OneNote files as they can't be downloaded
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
-			oc.scope == CollectionScopePackage && *item.GetSize() >= MaxOneNoteFileSize {
+			// TODO: We've removed the file size check because it looks like we've seen persistent
+			// 503's with smaller OneNote files also.
+			// oc.scope == CollectionScopePackage && *item.GetSize() >= MaxOneNoteFileSize {
+			oc.scope == CollectionScopePackage {
 			// FIXME: It is possible that in case of a OneNote file we
 			// will end up just backing up the `onetoc2` file without
 			// the one file which is the important part of the OneNote
@@ -552,7 +559,12 @@ func (oc *Collection) streamDriveItem(
 		return
 	}
 
-	itemInfo = oc.handler.AugmentItemInfo(itemInfo, item, itemSize, parentPath)
+	itemInfo = oc.handler.AugmentItemInfo(
+		itemInfo,
+		oc.protectedResource,
+		item,
+		itemSize,
+		parentPath)
 
 	ctx = clues.Add(ctx, "item_info", itemInfo)
 
@@ -588,13 +600,24 @@ func (oc *Collection) streamDriveItem(
 		return progReader, nil
 	})
 
-	oc.data <- &metadata.Item{
-		ItemID: metaFileName + metaSuffix,
-		Data:   metaReader,
+	storeItem, err := data.NewUnindexedPrefetchedItem(
+		metaReader,
+		metaFileName+metaSuffix,
 		// Metadata file should always use the latest time as
 		// permissions change does not update mod time.
-		Mod: time.Now(),
+		time.Now())
+	if err != nil {
+		errs.AddRecoverable(ctx, clues.Stack(err).
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation))
+
+		return
 	}
+
+	// We wrap the reader with a lazy reader so that the progress bar is only
+	// initialized if the file is read. Since we're not actually lazily reading
+	// data just use the eager item implementation.
+	oc.data <- storeItem
 
 	// Item read successfully, add to collection
 	if isFile {

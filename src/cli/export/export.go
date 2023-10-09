@@ -27,11 +27,11 @@ var exportCommands = []func(cmd *cobra.Command) *cobra.Command{
 // AddCommands attaches all `corso export * *` commands to the parent.
 func AddCommands(cmd *cobra.Command) {
 	subCommand := exportCmd()
-	flags.AddAllStorageFlags(subCommand)
 	cmd.AddCommand(subCommand)
 
 	for _, addExportTo := range exportCommands {
-		addExportTo(subCommand)
+		sc := addExportTo(subCommand)
+		flags.AddAllStorageFlags(sc)
 	}
 }
 
@@ -67,10 +67,7 @@ func runExport(
 		return Only(ctx, err)
 	}
 
-	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		sel.PathService())
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, sel.PathService())
 	if err != nil {
 		return Only(ctx, err)
 	}

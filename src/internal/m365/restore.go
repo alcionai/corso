@@ -84,6 +84,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 			rcc,
 			ctrl.AC,
 			ctrl.backupDriveIDNames,
+			ctrl.backupSiteIDWebURL,
 			dcs,
 			deets,
 			errs,

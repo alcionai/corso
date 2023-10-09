@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"io"
 	"time"
 )
 
@@ -41,17 +40,3 @@ type Metadata struct {
 	Permissions []Permission `json:"permissions,omitempty"`
 	LinkShares  []LinkShare  `json:"linkShares,omitempty"`
 }
-
-type Item struct {
-	ItemID string
-	Data   io.ReadCloser
-	Mod    time.Time
-}
-
-// Deleted implements an interface function. However, OneDrive items are marked
-// as deleted by adding them to the exclude list so this can always return
-// false.
-func (i *Item) Deleted() bool           { return false }
-func (i *Item) ID() string              { return i.ItemID }
-func (i *Item) ToReader() io.ReadCloser { return i.Data }
-func (i *Item) ModTime() time.Time      { return i.Mod }

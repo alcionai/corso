@@ -197,12 +197,10 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 		return clues.Wrap(err, "getting storage config")
 	}
 
-	sc, err := repoDetails.Storage.StorageConfig()
+	cfg, err := repoDetails.Storage.ToS3Config()
 	if err != nil {
 		return clues.Wrap(err, "getting S3 config")
 	}
-
-	cfg := sc.(*storage.S3Config)
 
 	endpoint := defaultS3Endpoint
 	if len(cfg.Endpoint) > 0 {
