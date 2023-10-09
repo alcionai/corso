@@ -86,7 +86,7 @@ func New(
 	st storage.Storage,
 	opts control.Options,
 	configFileRepoID string,
-) (repo *repository, err error) {
+) (singleRepo *repository, err error) {
 	ctx = clues.Add(
 		ctx,
 		"acct_provider", acct.Provider.String(),
@@ -249,6 +249,40 @@ func (r *repository) Connect(
 	}
 
 	r.Bus.Event(ctx, events.RepoConnect, nil)
+
+	return nil
+}
+
+// UpdatePassword will-
+// - connect to the provider storage using existing password
+// - update the repo with new password
+func (r *repository) UpdatePassword(ctx context.Context, password string) (err error) {
+	ctx = clues.Add(
+		ctx,
+		"acct_provider", r.Account.Provider.String(),
+		"acct_id", clues.Hide(r.Account.ID()),
+		"storage_provider", r.Storage.Provider.String())
+
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
+			err = crErr
+		}
+	}()
+
+	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
+	defer close(progressBar)
+
+	kopiaRef := kopia.NewConn(r.Storage)
+	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
+		return clues.Wrap(err, "connecting kopia client")
+	}
+
+	err = kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo)
+	if err != nil {
+		return clues.Wrap(err, "updating on kopia")
+	}
+
+	defer kopiaRef.Close(ctx)
 
 	return nil
 }
