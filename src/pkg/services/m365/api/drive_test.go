@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type DriveAPIIntgSuite struct {
@@ -50,20 +51,6 @@ func (suite *DriveAPIIntgSuite) TestDrives_CreatePagerAndGetPage() {
 	assert.NotNil(t, a)
 }
 
-// newItem initializes a `models.DriveItemable` that can be used as input to `createItem`
-func newItem(name string, folder bool) *models.DriveItem {
-	itemToCreate := models.NewDriveItem()
-	itemToCreate.SetName(&name)
-
-	if folder {
-		itemToCreate.SetFolder(models.NewFolder())
-	} else {
-		itemToCreate.SetFile(models.NewFile())
-	}
-
-	return itemToCreate
-}
-
 func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	t := suite.T()
 
@@ -78,12 +65,12 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 		ctx,
 		suite.its.user.driveID,
 		suite.its.user.driveRootFolderID,
-		newItem(rc.Location, true),
+		api.NewDriveItem(rc.Location, true),
 		control.Replace)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate a folder to use for collision testing
-	folder := newItem("collision", true)
+	folder := api.NewDriveItem("collision", true)
 	origFolder, err := acd.PostItemInContainer(
 		ctx,
 		suite.its.user.driveID,
@@ -93,7 +80,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate an item to use for collision testing
-	file := newItem("collision.txt", false)
+	file := api.NewDriveItem("collision.txt", false)
 	origFile, err := acd.PostItemInContainer(
 		ctx,
 		suite.its.user.driveID,
@@ -241,7 +228,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 		ctx,
 		suite.its.user.driveID,
 		suite.its.user.driveRootFolderID,
-		newItem(rc.Location, true),
+		api.NewDriveItem(rc.Location, true),
 		// skip instead of replace here to get
 		// an ErrItemAlreadyExistsConflict, just in case.
 		control.Skip)
@@ -249,7 +236,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 
 	// generate items within that folder
 	for i := 0; i < 5; i++ {
-		file := newItem(fmt.Sprintf("collision_%d.txt", i), false)
+		file := api.NewDriveItem(fmt.Sprintf("collision_%d.txt", i), false)
 		f, err := acd.PostItemInContainer(
 			ctx,
 			suite.its.user.driveID,
@@ -265,7 +252,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 		ctx,
 		suite.its.user.driveID,
 		ptr.Val(folder.GetParentReference().GetId()),
-		newItem(rc.Location, true),
+		api.NewDriveItem(rc.Location, true),
 		control.Replace)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, ptr.Val(resultFolder.GetId()))
