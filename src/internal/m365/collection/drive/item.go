@@ -10,17 +10,24 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common"
+	jwt "github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 const (
 	acceptHeaderKey   = "Accept"
 	acceptHeaderValue = "*/*"
+
+	// JWTQueryParam is a query param embed in graph download URLs which holds
+	// JWT token.
+	JWTQueryParam = "tempauth"
 )
 
 // downloadUrlKeys is used to find the download URL in a DriveItem response.
@@ -121,6 +128,19 @@ func downloadFile(
 		return nil, clues.New("empty file url").WithClues(ctx)
 	}
 
+	// Precheck for url expiry before we make a call to graph to download the
+	// file. If the url is expired, we can return early and save a call to graph.
+	//
+	// Ignore all errors encountered during the check. We can rely on graph to
+	// return errors on malformed urls. Ignoring errors also future proofs against
+	// any sudden graph changes, for e.g. if graph decides to embed the token in a
+	// new query param.
+	expired, err := isURLExpired(ctx, url)
+	if err == nil && expired {
+		logger.Ctx(ctx).Debug("expired item download url")
+		return nil, graph.ErrTokenExpired
+	}
+
 	rc, err := readers.NewResetRetryHandler(
 		ctx,
 		&downloadWithRetries{
@@ -192,4 +212,28 @@ func setName(orig models.ItemReferenceable, driveName string) models.ItemReferen
 	orig.SetName(&driveName)
 
 	return orig
+}
+
+// isURLExpired inspects the jwt token embed in the item download url
+// and returns true if it is expired.
+func isURLExpired(
+	ctx context.Context,
+	url string,
+) (bool, error) {
+	// Extract the raw JWT string from the download url.
+	rawJWT, err := common.GetQueryParamFromURL(url, JWTQueryParam)
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("query param not found")
+
+		return false, clues.Stack(err).WithClues(ctx)
+	}
+
+	expired, err := jwt.IsJWTExpired(rawJWT)
+	if err != nil {
+		logger.CtxErr(ctx, err).Info("checking jwt expiry")
+
+		return false, clues.Stack(err).WithClues(ctx)
+	}
+
+	return expired, nil
 }

@@ -157,7 +157,7 @@ func (suite *ServiceCategoryUnitSuite) TestToServiceType() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, test.expected, toServiceType(test.service))
+			assert.Equal(t, test.expected, ToServiceType(test.service))
 		})
 	}
 }

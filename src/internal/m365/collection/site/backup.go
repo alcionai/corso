@@ -38,7 +38,7 @@ func CollectLibraries(
 		colls       = drive.NewCollections(
 			bh,
 			tenantID,
-			bpc.ProtectedResource.ID(),
+			bpc.ProtectedResource,
 			su,
 			bpc.Options)
 	)

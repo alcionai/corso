@@ -184,7 +184,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	w := &Wrapper{k}
@@ -204,7 +204,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	w := &Wrapper{k}
@@ -241,7 +241,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	w := &Wrapper{k}
@@ -754,7 +754,7 @@ func (suite *KopiaIntegrationSuite) SetupTest() {
 	t := suite.T()
 	suite.ctx, suite.flush = tester.NewContext(t)
 
-	c, err := openKopiaRepo(t, suite.ctx)
+	c, err := openLocalKopiaRepo(t, suite.ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.w = &Wrapper{c}
@@ -1245,7 +1245,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Compression(ctx, "s2-default")
@@ -1559,7 +1559,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	//nolint:forbidigo
 	suite.ctx, _ = logger.CtxOrSeed(context.Background(), ls)
 
-	c, err := openKopiaRepo(t, suite.ctx)
+	c, err := openLocalKopiaRepo(t, suite.ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.w = &Wrapper{c}

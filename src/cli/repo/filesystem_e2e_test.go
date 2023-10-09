@@ -131,7 +131,7 @@ func (suite *FilesystemE2ESuite) TestConnectFilesystemCmd() {
 			// init the repo first
 			r, err := repository.New(
 				ctx,
-				account.Account{},
+				tconfig.NewM365Account(t),
 				st,
 				control.DefaultOptions(),
 				repository.NewRepoID)
