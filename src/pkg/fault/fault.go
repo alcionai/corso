@@ -36,6 +36,12 @@ type Bus struct {
 	// inability to process an item, due to a well-known cause.
 	skipped []Skipped
 
+	// alerts contain purely informational messages and data.  They
+	// represent situations where the end user should be aware of some
+	// occurrence that is not an error, exception, skipped data, or
+	// other runtime/persistence impacting issue.
+	alerts []Alert
+
 	// if failFast is true, the first errs addition will
 	// get promoted to the err value.  This signifies a
 	// non-recoverable processing state, causing any running
@@ -75,6 +81,11 @@ func (e *Bus) Recovered() []error {
 // skipped during processing.
 func (e *Bus) Skipped() []Skipped {
 	return slices.Clone(e.skipped)
+}
+
+// Alerts returns the slice of alerts generated during runtime.
+func (e *Bus) Alerts() []Alert {
+	return slices.Clone(e.alerts)
 }
 
 // Fail sets the non-recoverable error (ie: bus.failure)
@@ -182,15 +193,44 @@ func (e *Bus) AddSkip(ctx context.Context, s *Skipped) {
 }
 
 // logs the error and adds a skipped item.
-func (e *Bus) logAndAddSkip(ctx context.Context, s *Skipped, skip int) {
-	logger.CtxStack(ctx, skip+1).
+func (e *Bus) logAndAddSkip(ctx context.Context, s *Skipped, trace int) {
+	logger.CtxStack(ctx, trace+1).
 		With("skipped", s).
-		Info("recoverable error")
+		Info("skipped item")
 	e.addSkip(s)
 }
 
 func (e *Bus) addSkip(s *Skipped) *Bus {
 	e.skipped = append(e.skipped, *s)
+	return e
+}
+
+// AddAlert appends a record of an Alert message to the fault bus.
+// Importantly, alerts are not errors, exceptions, or skipped items.
+// An alert should only be generated if no other fault functionality
+// is in use, but that we still want the end user to clearly and
+// plainly receive a notification about a runtime event.
+func (e *Bus) AddAlert(ctx context.Context, a *Alert) {
+	if a == nil {
+		return
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.logAndAddAlert(ctx, a, 1)
+}
+
+// logs the error and adds an alert.
+func (e *Bus) logAndAddAlert(ctx context.Context, a *Alert, trace int) {
+	logger.CtxStack(ctx, trace+1).
+		With("alert", a).
+		Info("alert: " + a.Message)
+	e.addAlert(a)
+}
+
+func (e *Bus) addAlert(a *Alert) *Bus {
+	e.alerts = append(e.alerts, *a)
 	return e
 }
 
@@ -204,6 +244,7 @@ func (e *Bus) Errors() *Errors {
 		Recovered: nonItems,
 		Items:     items,
 		Skipped:   slices.Clone(e.skipped),
+		Alerts:    slices.Clone(e.alerts),
 		FailFast:  e.failFast,
 	}
 }
@@ -265,6 +306,12 @@ type Errors struct {
 	// inability to process an item, due to a well-known cause.
 	Skipped []Skipped `json:"skipped"`
 
+	// Alerts contain purely informational messages and data.  They
+	// represent situations where the end user should be aware of some
+	// occurrence that is not an error, exception, skipped data, or
+	// other runtime/persistence impacting issue.
+	Alerts []Alert
+
 	// If FailFast is true, then the first Recoverable error will
 	// promote to the Failure spot, causing processing to exit.
 	FailFast bool `json:"failFast"`
@@ -315,13 +362,22 @@ func UnmarshalErrorsTo(e *Errors) func(io.ReadCloser) error {
 
 // Print writes the DetailModel Entries to StdOut, in the format
 // requested by the caller.
-func (e *Errors) PrintItems(ctx context.Context, ignoreErrors, ignoreSkips, ignoreRecovered bool) {
-	if len(e.Items)+len(e.Skipped)+len(e.Recovered) == 0 ||
-		ignoreErrors && ignoreSkips && ignoreRecovered {
+func (e *Errors) PrintItems(
+	ctx context.Context,
+	ignoreAlerts, ignoreErrors, ignoreSkips, ignoreRecovered bool,
+) {
+	if len(e.Alerts)+len(e.Items)+len(e.Skipped)+len(e.Recovered) == 0 ||
+		(ignoreAlerts && ignoreErrors && ignoreSkips && ignoreRecovered) {
 		return
 	}
 
 	sl := make([]print.Printable, 0)
+
+	if !ignoreAlerts {
+		for _, a := range e.Alerts {
+			sl = append(sl, print.Printable(a))
+		}
+	}
 
 	if !ignoreSkips {
 		for _, s := range e.Skipped {

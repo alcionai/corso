@@ -11,6 +11,7 @@ import (
 
 func PreparedBackupListFlags() []string {
 	return []string{
+		"--" + flags.AlertsFN, flags.Show,
 		"--" + flags.FailedItemsFN, flags.Show,
 		"--" + flags.SkippedItemsFN, flags.Show,
 		"--" + flags.RecoveredErrorsFN, flags.Show,
@@ -18,6 +19,7 @@ func PreparedBackupListFlags() []string {
 }
 
 func AssertBackupListFlags(t *testing.T, cmd *cobra.Command) {
+	assert.Equal(t, flags.Show, flags.ListAlertsFV)
 	assert.Equal(t, flags.Show, flags.ListFailedItemsFV)
 	assert.Equal(t, flags.Show, flags.ListSkippedItemsFV)
 	assert.Equal(t, flags.Show, flags.ListRecoveredErrorsFV)
