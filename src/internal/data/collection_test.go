@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -69,4 +70,100 @@ func (suite *CollectionSuite) TestStateOf() {
 			assert.Equal(suite.T(), test.expect, state)
 		})
 	}
+}
+
+func (suite *CollectionSuite) TestNewBaseCollection() {
+	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
+	require.NoError(suite.T(), err, clues.ToCore(err))
+	barP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "bar")
+	require.NoError(suite.T(), err, clues.ToCore(err))
+	preP, err := path.Build("_t", "_u", path.ExchangeService, path.EmailCategory, false, "foo")
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	loc := path.Builder{}.Append("foo")
+
+	table := []struct {
+		name       string
+		current    path.Path
+		previous   path.Path
+		doNotMerge bool
+
+		expectCurrent    path.Path
+		expectPrev       path.Path
+		expectState      CollectionState
+		expectDoNotMerge bool
+	}{
+		{
+			name:             "NotMoved DoNotMerge",
+			current:          fooP,
+			previous:         fooP,
+			doNotMerge:       true,
+			expectCurrent:    fooP,
+			expectPrev:       fooP,
+			expectState:      NotMovedState,
+			expectDoNotMerge: true,
+		},
+		{
+			name:          "Moved",
+			current:       fooP,
+			previous:      barP,
+			expectCurrent: fooP,
+			expectPrev:    barP,
+			expectState:   MovedState,
+		},
+		{
+			name:          "PrefixMoved",
+			current:       fooP,
+			previous:      preP,
+			expectCurrent: fooP,
+			expectPrev:    preP,
+			expectState:   MovedState,
+		},
+		{
+			name:          "New",
+			current:       fooP,
+			expectCurrent: fooP,
+			expectState:   NewState,
+		},
+		{
+			name:        "Deleted",
+			previous:    fooP,
+			expectPrev:  fooP,
+			expectState: DeletedState,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			b := NewBaseCollection(
+				test.current,
+				test.previous,
+				loc,
+				control.Options{},
+				test.doNotMerge)
+
+			assert.Equal(t, test.expectCurrent, b.FullPath(), "full path")
+			assert.Equal(t, test.expectPrev, b.PreviousPath(), "previous path")
+			assert.Equal(t, loc, b.LocationPath(), "location path")
+			assert.Equal(t, test.expectState, b.State(), "state")
+			assert.Equal(t, test.expectDoNotMerge, b.DoNotMergeItems(), "do not merge")
+			assert.Equal(t, path.EmailCategory, b.Category(), "category")
+		})
+	}
+}
+
+func (suite *CollectionSuite) TestNewTombstoneCollection() {
+	t := suite.T()
+
+	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
+	require.NoError(t, err, clues.ToCore(err))
+
+	c := NewTombstoneCollection(fooP, control.Options{})
+	assert.Nil(t, c.FullPath(), "full path")
+	assert.Equal(t, fooP, c.PreviousPath(), "previous path")
+	assert.Nil(t, c.LocationPath(), "location path")
+	assert.Equal(t, DeletedState, c.State(), "state")
+	assert.False(t, c.DoNotMergeItems(), "do not merge")
 }

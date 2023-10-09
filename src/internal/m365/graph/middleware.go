@@ -4,8 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"net/http/httputil"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +15,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -114,9 +113,6 @@ func LoggableURL(url string) pii.SafeURL {
 	}
 }
 
-// 1 MB
-const logMBLimit = 1 * 1048576
-
 func (mw *LoggingMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
@@ -137,54 +133,9 @@ func (mw *LoggingMiddleware) Intercept(
 		"resp_status_code", resp.StatusCode,
 		"resp_content_len", resp.ContentLength)
 
-	var (
-		log       = logger.Ctx(ctx)
-		respClass = resp.StatusCode / 100
-
-		// special cases where we always dump the response body, since the response
-		// details might be critical to understanding the response when debugging.
-		logBody = logger.DebugAPIFV ||
-			os.Getenv(logGraphRequestsEnvKey) != "" ||
-			resp.StatusCode == http.StatusBadRequest ||
-			resp.StatusCode == http.StatusForbidden ||
-			resp.StatusCode == http.StatusConflict
-	)
-
-	// special case: always info-level status 429 logs
-	if resp.StatusCode == http.StatusTooManyRequests {
-		log.With("response", getRespDump(ctx, resp, logBody)).
-			Info("graph api throttling")
-
-		return resp, err
-	}
-
-	// Log api calls according to api debugging configurations.
-	switch respClass {
-	case 2:
-		if logBody {
-			// only dump the body if it's under a size limit.  We don't want to copy gigs into memory for a log.
-			dump := getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != "" && resp.ContentLength < logMBLimit)
-			log.Infow("2xx graph api resp", "response", dump)
-		}
-	case 3:
-		log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader))).
-			With("response", getRespDump(ctx, resp, false)).
-			Info("graph api redirect: " + resp.Status)
-	default:
-		log.With("response", getRespDump(ctx, resp, logBody)).
-			Error("graph api error: " + resp.Status)
-	}
+	logResp(ctx, resp)
 
 	return resp, err
-}
-
-func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string {
-	respDump, err := httputil.DumpResponse(resp, getBody)
-	if err != nil {
-		logger.CtxErr(ctx, err).Error("dumping http response")
-	}
-
-	return string(respDump)
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +361,9 @@ func (mw *MetricsMiddleware) Intercept(
 	if len(xmru) == 0 || e != nil {
 		xmrui = 1
 	}
+
+	countBus := count.Ctx(req.Context())
+	countBus.Add(count.APICallTokensConsumed, int64(xmrui))
 
 	events.IncN(xmrui, events.APICall, xmruHeader)
 

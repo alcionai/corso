@@ -232,7 +232,11 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			site, err := sitesAPI.GetByID(ctx, test.id)
+			cc := api.CallConfig{
+				Expand: []string{"drive"},
+			}
+
+			site, err := sitesAPI.GetByID(ctx, test.id, cc)
 			expectedErr := test.expectErr(t, err)
 
 			if expectedErr {
@@ -252,7 +256,7 @@ func (suite *SitesIntgSuite) TestGetRoot() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	result, err := suite.its.ac.Sites().GetRoot(ctx)
+	result, err := suite.its.ac.Sites().GetRoot(ctx, api.CallConfig{Expand: []string{"drive"}})
 	require.NoError(t, err)
 	require.NotNil(t, result, "must find the root site")
 	require.NotEmpty(t, ptr.Val(result.GetId()), "must have an id")

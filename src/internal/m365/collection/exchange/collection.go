@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
@@ -20,7 +19,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -28,80 +26,13 @@ import (
 
 var (
 	_ data.BackupCollection = &prefetchCollection{}
-	_ data.Item             = &Item{}
-	_ data.ItemInfo         = &Item{}
-	_ data.ItemModTime      = &Item{}
+	_ data.BackupCollection = &lazyFetchCollection{}
 )
 
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
 )
-
-func NewBaseCollection(
-	curr, prev path.Path,
-	location *path.Builder,
-	ctrlOpts control.Options,
-	doNotMergeItems bool,
-) baseCollection {
-	return baseCollection{
-		ctrl:            ctrlOpts,
-		doNotMergeItems: doNotMergeItems,
-		fullPath:        curr,
-		locationPath:    location,
-		prevPath:        prev,
-		state:           data.StateOf(prev, curr),
-	}
-}
-
-// baseCollection contains basic functionality like returning path, location,
-// and state information. It can be embedded in other implementations to provide
-// this functionality.
-//
-// Functionality like how items are fetched is left to the embedding struct.
-type baseCollection struct {
-	ctrl control.Options
-
-	// FullPath is the current hierarchical path used by this collection.
-	fullPath path.Path
-
-	// PrevPath is the previous hierarchical path used by this collection.
-	// It may be the same as fullPath, if the folder was not renamed or
-	// moved.  It will be empty on its first retrieval.
-	prevPath path.Path
-
-	// LocationPath contains the path with human-readable display names.
-	// IE: "/Inbox/Important" instead of "/abcdxyz123/algha=lgkhal=t"
-	locationPath *path.Builder
-
-	state data.CollectionState
-
-	// doNotMergeItems should only be true if the old delta token expired.
-	doNotMergeItems bool
-}
-
-// FullPath returns the baseCollection's fullPath []string
-func (col *baseCollection) FullPath() path.Path {
-	return col.fullPath
-}
-
-// LocationPath produces the baseCollection's full path, but with display names
-// instead of IDs in the folders.  Only populated for Calendars.
-func (col *baseCollection) LocationPath() *path.Builder {
-	return col.locationPath
-}
-
-func (col baseCollection) PreviousPath() path.Path {
-	return col.prevPath
-}
-
-func (col baseCollection) State() data.CollectionState {
-	return col.state
-}
-
-func (col baseCollection) DoNotMergeItems() bool {
-	return col.doNotMergeItems
-}
 
 // updateStatus is a utility function used to send the status update through
 // the channel.
@@ -173,7 +104,7 @@ func getItemAndInfo(
 // If both are populated, then state is either moved (if they differ),
 // or notMoved (if they match).
 func NewCollection(
-	bc baseCollection,
+	bc data.BaseCollection,
 	user string,
 	items itemGetterSerializer,
 	origAdded map[string]time.Time,
@@ -199,7 +130,7 @@ func NewCollection(
 
 	if !validModTimes {
 		return &prefetchCollection{
-			baseCollection: bc,
+			BaseCollection: bc,
 			user:           user,
 			added:          added,
 			removed:        removed,
@@ -209,7 +140,7 @@ func NewCollection(
 	}
 
 	return &lazyFetchCollection{
-		baseCollection: bc,
+		BaseCollection: bc,
 		user:           user,
 		added:          added,
 		removed:        removed,
@@ -221,7 +152,7 @@ func NewCollection(
 // prefetchCollection implements the interface from data.BackupCollection
 // Structure holds data for an Exchange application for a single user
 type prefetchCollection struct {
-	baseCollection
+	data.BaseCollection
 
 	user string
 
@@ -260,7 +191,7 @@ func (col *prefetchCollection) streamItems(
 		user = col.user
 		log  = logger.Ctx(ctx).With(
 			"service", path.ExchangeService.String(),
-			"category", col.FullPath().Category().String())
+			"category", col.Category().String())
 	)
 
 	defer func() {
@@ -278,12 +209,12 @@ func (col *prefetchCollection) streamItems(
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.FullPath().Category().HumanString(),
+			col.Category().HumanString(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
 
-	semaphoreCh := make(chan struct{}, col.ctrl.Parallelism.ItemFetch)
+	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
 	defer close(semaphoreCh)
 
 	// delete all removed items
@@ -296,11 +227,7 @@ func (col *prefetchCollection) streamItems(
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			stream <- &Item{
-				id:      id,
-				modTime: time.Now().UTC(), // removed items have no modTime entry.
-				deleted: true,
-			}
+			stream <- data.NewDeletedItem(id)
 
 			atomic.AddInt64(&success, 1)
 
@@ -310,11 +237,14 @@ func (col *prefetchCollection) streamItems(
 		}(id)
 	}
 
-	parentPath := col.LocationPath().String()
+	var (
+		parentPath = col.LocationPath().String()
+		el         = errs.Local()
+	)
 
 	// add any new items
 	for id := range col.added {
-		if errs.Failure() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -331,7 +261,7 @@ func (col *prefetchCollection) streamItems(
 				col.getter,
 				user,
 				id,
-				col.ctrl.ToggleFeatures.ExchangeImmutableIDs,
+				col.Opts().ToggleFeatures.ExchangeImmutableIDs,
 				parentPath)
 			if err != nil {
 				// Don't report errors for deleted items as there's no way for us to
@@ -342,18 +272,27 @@ func (col *prefetchCollection) streamItems(
 					atomic.AddInt64(&success, 1)
 					log.With("err", err).Infow("item not found", clues.InErr(err).Slice()...)
 				} else {
-					errs.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
+					el.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
 				}
 
 				return
 			}
 
-			stream <- &Item{
-				id:      id,
-				message: itemData,
-				info:    info,
-				modTime: info.Modified,
+			item, err := data.NewPrefetchedItem(
+				io.NopCloser(bytes.NewReader(itemData)),
+				id,
+				details.ItemInfo{Exchange: info})
+			if err != nil {
+				el.AddRecoverable(
+					ctx,
+					clues.Stack(err).
+						WithClues(ctx).
+						Label(fault.LabelForceNoBackupCreation))
+
+				return
 			}
+
+			stream <- item
 
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, info.Size)
@@ -380,7 +319,7 @@ func (col *prefetchCollection) streamItems(
 // information (path and mod time) is handed to kopia. Total bytes across all
 // items is not tracked.
 type lazyFetchCollection struct {
-	baseCollection
+	data.BaseCollection
 
 	user string
 
@@ -433,18 +372,14 @@ func (col *lazyFetchCollection) streamItems(
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.FullPath().Category().String(),
+			col.Category().HumanString(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
 
 	// delete all removed items
 	for id := range col.removed {
-		stream <- &Item{
-			id:      id,
-			modTime: time.Now().UTC(), // removed items have no modTime entry.
-			deleted: true,
-		}
+		stream <- data.NewDeletedItem(id)
 
 		atomic.AddInt64(&success, 1)
 
@@ -466,18 +401,21 @@ func (col *lazyFetchCollection) streamItems(
 			"item_id", id,
 			"parent_path", path.LoggableDir(parentPath),
 			"service", path.ExchangeService.String(),
-			"category", col.FullPath().Category().String())
+			"category", col.Category().String())
 
-		stream <- &lazyItem{
-			ctx:          ictx,
-			userID:       user,
-			id:           id,
-			getter:       col.getter,
-			modTime:      modTime,
-			immutableIDs: col.ctrl.ToggleFeatures.ExchangeImmutableIDs,
-			parentPath:   parentPath,
-			errs:         errs,
-		}
+		stream <- data.NewLazyItem(
+			ictx,
+			&lazyItemGetter{
+				userID:       user,
+				itemID:       id,
+				getter:       col.getter,
+				modTime:      modTime,
+				immutableIDs: col.Opts().ToggleFeatures.ExchangeImmutableIDs,
+				parentPath:   parentPath,
+			},
+			id,
+			modTime,
+			errs)
 
 		atomic.AddInt64(&success, 1)
 
@@ -487,137 +425,50 @@ func (col *lazyFetchCollection) streamItems(
 	}
 }
 
-// Item represents a single item retrieved from exchange
-type Item struct {
-	id string
-	// TODO: We may need this to be a "oneOf" of `message`, `contact`, etc.
-	// going forward. Using []byte for now but I assume we'll have
-	// some structured type in here (serialization to []byte can be done in `Read`)
-	message []byte
-	info    *details.ExchangeInfo // temporary change to bring populate function into directory
-	// TODO(ashmrtn): Can probably eventually be sourced from info as there's a
-	// request to provide modtime in ItemInfo structs.
-	modTime time.Time
-
-	// true if the item was marked by graph as deleted.
-	deleted bool
-}
-
-func (i *Item) ID() string {
-	return i.id
-}
-
-func (i *Item) ToReader() io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(i.message))
-}
-
-func (i Item) Deleted() bool {
-	return i.deleted
-}
-
-func (i *Item) Info() (details.ItemInfo, error) {
-	return details.ItemInfo{Exchange: i.info}, nil
-}
-
-func (i *Item) ModTime() time.Time {
-	return i.modTime
-}
-
-func NewItem(
-	identifier string,
-	dataBytes []byte,
-	detail details.ExchangeInfo,
-	modTime time.Time,
-) Item {
-	return Item{
-		id:      identifier,
-		message: dataBytes,
-		info:    &detail,
-		modTime: modTime,
-	}
-}
-
-// lazyItem represents a single item retrieved from exchange that lazily fetches
-// the item's data when the first call to ToReader().Read() is made.
-type lazyItem struct {
-	ctx        context.Context
-	userID     string
-	id         string
-	parentPath string
-	getter     itemGetterSerializer
-	errs       *fault.Bus
-
-	modTime time.Time
-	// info holds the Exchnage-specific details information for this item. Store
-	// a pointer in this struct so the golang garbage collector can collect the
-	// Item struct once kopia is done with it. The ExchangeInfo struct needs to
-	// stick around until the end of the backup though as backup details is
-	// written last.
-	info *details.ExchangeInfo
-
+type lazyItemGetter struct {
+	getter       itemGetterSerializer
+	userID       string
+	itemID       string
+	parentPath   string
+	modTime      time.Time
 	immutableIDs bool
-
-	delInFlight bool
 }
 
-func (i lazyItem) ID() string {
-	return i.id
-}
-
-func (i *lazyItem) ToReader() io.ReadCloser {
-	return lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-		itemData, info, err := getItemAndInfo(
-			i.ctx,
-			i.getter,
-			i.userID,
-			i.ID(),
-			i.immutableIDs,
-			i.parentPath)
-		if err != nil {
-			// If an item was deleted then return an empty file so we don't fail
-			// the backup and return a sentinel error when asked for ItemInfo so
-			// we don't display the item in the backup.
-			//
-			// The item will be deleted from kopia on the next backup when the
-			// delta token shows it's removed.
-			if graph.IsErrDeletedInFlight(err) {
-				logger.CtxErr(i.ctx, err).Info("item not found")
-
-				i.delInFlight = true
-
-				return io.NopCloser(bytes.NewReader([]byte{})), nil
-			}
-
-			err = clues.Stack(err)
-			i.errs.AddRecoverable(i.ctx, err)
-
-			return nil, err
+func (lig *lazyItemGetter) GetData(
+	ctx context.Context,
+	errs *fault.Bus,
+) (io.ReadCloser, *details.ItemInfo, bool, error) {
+	itemData, info, err := getItemAndInfo(
+		ctx,
+		lig.getter,
+		lig.userID,
+		lig.itemID,
+		lig.immutableIDs,
+		lig.parentPath)
+	if err != nil {
+		// If an item was deleted then return an empty file so we don't fail
+		// the backup and return a sentinel error when asked for ItemInfo so
+		// we don't display the item in the backup.
+		//
+		// The item will be deleted from kopia on the next backup when the
+		// delta token shows it's removed.
+		if graph.IsErrDeletedInFlight(err) {
+			logger.CtxErr(ctx, err).Info("item not found")
+			return nil, nil, true, nil
 		}
 
-		i.info = info
-		// Update the mod time to what we already told kopia about. This is required
-		// for proper details merging.
-		i.info.Modified = i.modTime
+		err = clues.Stack(err)
+		errs.AddRecoverable(ctx, err)
 
-		return io.NopCloser(bytes.NewReader(itemData)), nil
-	})
-}
-
-func (i lazyItem) Deleted() bool {
-	return false
-}
-
-func (i lazyItem) Info() (details.ItemInfo, error) {
-	if i.delInFlight {
-		return details.ItemInfo{}, clues.Stack(data.ErrNotFound).WithClues(i.ctx)
-	} else if i.info == nil {
-		return details.ItemInfo{}, clues.New("requesting ItemInfo before data retrieval").
-			WithClues(i.ctx)
+		return nil, nil, false, err
 	}
 
-	return details.ItemInfo{Exchange: i.info}, nil
-}
+	// Update the mod time to what we already told kopia about. This is required
+	// for proper details merging.
+	info.Modified = lig.modTime
 
-func (i lazyItem) ModTime() time.Time {
-	return i.modTime
+	return io.NopCloser(bytes.NewReader(itemData)),
+		&details.ItemInfo{Exchange: info},
+		false,
+		nil
 }

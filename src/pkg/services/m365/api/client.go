@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"net/http"
 
 	"github.com/alcionai/clues"
@@ -24,7 +25,7 @@ import (
 type Client struct {
 	Credentials account.M365Config
 
-	// The Stable service is re-usable for any non-paged request.
+	// The Stable service is re-usable for any request.
 	// This allows us to maintain performance across async requests.
 	Stable graph.Servicer
 
@@ -117,4 +118,34 @@ func (c Client) Get(
 	headers map[string]string,
 ) (*http.Response, error) {
 	return c.Requester.Request(ctx, http.MethodGet, url, nil, headers)
+}
+
+// Get performs an ad-hoc get request using its graph.Requester
+func (c Client) Post(
+	ctx context.Context,
+	url string,
+	headers map[string]string,
+	body io.Reader,
+) (*http.Response, error) {
+	return c.Requester.Request(ctx, http.MethodGet, url, body, headers)
+}
+
+// ---------------------------------------------------------------------------
+// per-call config
+// ---------------------------------------------------------------------------
+
+type CallConfig struct {
+	Expand []string
+}
+
+// ---------------------------------------------------------------------------
+// common interfaces
+// ---------------------------------------------------------------------------
+
+type GetByIDer[T any] interface {
+	GetByID(
+		ctx context.Context,
+		identifier string,
+		cc CallConfig,
+	) (T, error)
 }

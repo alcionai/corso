@@ -32,7 +32,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 			assert.True(t, flags.ForceItemDataDownloadFV, flags.ForceItemDataDownloadFN)
 			assert.True(t, flags.DisableDeltaFV, flags.DisableDeltaFN)
 			assert.True(t, flags.NoStatsFV, flags.NoStatsFN)
-			assert.True(t, flags.RestorePermissionsFV, flags.RestorePermissionsFN)
+			assert.True(t, flags.NoPermissionsFV, flags.NoPermissionsFN)
 			assert.True(t, flags.SkipReduceFV, flags.SkipReduceFN)
 			assert.Equal(t, 2, flags.FetchParallelismFV, flags.FetchParallelismFN)
 			assert.True(t, flags.DisableConcurrencyLimiterFV, flags.DisableConcurrencyLimiterFN)
@@ -47,7 +47,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 	flags.AddDisableIncrementalsFlag(cmd)
 	flags.AddForceItemDataDownloadFlag(cmd)
 	flags.AddDisableDeltaFlag(cmd)
-	flags.AddRestorePermissionsFlag(cmd)
+	flags.AddNoPermissionsFlag(cmd)
 	flags.AddSkipReduceFlag(cmd)
 	flags.AddFetchParallelismFlag(cmd)
 	flags.AddDisableConcurrencyLimiterFlag(cmd)
@@ -61,7 +61,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 		"--" + flags.ForceItemDataDownloadFN,
 		"--" + flags.DisableDeltaFN,
 		"--" + flags.NoStatsFN,
-		"--" + flags.RestorePermissionsFN,
+		"--" + flags.NoPermissionsFN,
 		"--" + flags.SkipReduceFN,
 		"--" + flags.FetchParallelismFN, "2",
 		"--" + flags.DisableConcurrencyLimiterFN,

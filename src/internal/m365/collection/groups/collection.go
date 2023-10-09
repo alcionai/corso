@@ -6,28 +6,19 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/alcionai/clues"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var (
-	_ data.BackupCollection = &Collection{}
-	_ data.Item             = &Item{}
-	_ data.ItemInfo         = &Item{}
-	_ data.ItemModTime      = &Item{}
-)
+var _ data.BackupCollection = &Collection{}
 
 const (
 	collectionChannelBufferSize = 1000
@@ -35,6 +26,7 @@ const (
 )
 
 type Collection struct {
+	data.BaseCollection
 	protectedResource string
 	stream            chan data.Item
 
@@ -45,26 +37,7 @@ type Collection struct {
 
 	getter getChannelMessager
 
-	category      path.CategoryType
 	statusUpdater support.StatusUpdater
-	ctrl          control.Options
-
-	// FullPath is the current hierarchical path used by this collection.
-	fullPath path.Path
-
-	// PrevPath is the previous hierarchical path used by this collection.
-	// It may be the same as fullPath, if the folder was not renamed or
-	// moved.  It will be empty on its first retrieval.
-	prevPath path.Path
-
-	// LocationPath contains the path with human-readable display names.
-	// IE: "/Inbox/Important" instead of "/abcdxyz123/algha=lgkhal=t"
-	locationPath *path.Builder
-
-	state data.CollectionState
-
-	// doNotMergeItems should only be true if the old delta token expired.
-	doNotMergeItems bool
 }
 
 // NewExchangeDataCollection creates an ExchangeDataCollection.
@@ -74,28 +47,18 @@ type Collection struct {
 // If both are populated, then state is either moved (if they differ),
 // or notMoved (if they match).
 func NewCollection(
+	baseCol data.BaseCollection,
 	getter getChannelMessager,
 	protectedResource string,
-	curr, prev path.Path,
-	location *path.Builder,
-	category path.CategoryType,
 	added map[string]struct{},
 	removed map[string]struct{},
 	statusUpdater support.StatusUpdater,
-	ctrlOpts control.Options,
-	doNotMergeItems bool,
 ) Collection {
 	collection := Collection{
+		BaseCollection:    baseCol,
 		added:             added,
-		category:          category,
-		ctrl:              ctrlOpts,
-		doNotMergeItems:   doNotMergeItems,
-		fullPath:          curr,
 		getter:            getter,
-		locationPath:      location,
-		prevPath:          prev,
 		removed:           removed,
-		state:             data.StateOf(prev, curr),
 		statusUpdater:     statusUpdater,
 		stream:            make(chan data.Item, collectionChannelBufferSize),
 		protectedResource: protectedResource,
@@ -111,82 +74,6 @@ func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.I
 	return col.stream
 }
 
-// FullPath returns the Collection's fullPath []string
-func (col *Collection) FullPath() path.Path {
-	return col.fullPath
-}
-
-// LocationPath produces the Collection's full path, but with display names
-// instead of IDs in the folders.  Only populated for Calendars.
-func (col *Collection) LocationPath() *path.Builder {
-	return col.locationPath
-}
-
-// TODO(ashmrtn): Fill in with previous path once the Controller compares old
-// and new folder hierarchies.
-func (col Collection) PreviousPath() path.Path {
-	return col.prevPath
-}
-
-func (col Collection) State() data.CollectionState {
-	return col.state
-}
-
-func (col Collection) DoNotMergeItems() bool {
-	return col.doNotMergeItems
-}
-
-// ---------------------------------------------------------------------------
-// items
-// ---------------------------------------------------------------------------
-
-// Item represents a single item retrieved from exchange
-type Item struct {
-	id      string
-	message []byte
-	info    *details.GroupsInfo
-	// TODO(ashmrtn): Can probably eventually be sourced from info as there's a
-	// request to provide modtime in ItemInfo structs.
-	modTime time.Time
-
-	// true if the item was marked by graph as deleted.
-	deleted bool
-}
-
-func (i *Item) ID() string {
-	return i.id
-}
-
-func (i *Item) ToReader() io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(i.message))
-}
-
-func (i Item) Deleted() bool {
-	return i.deleted
-}
-
-func (i *Item) Info() (details.ItemInfo, error) {
-	return details.ItemInfo{Groups: i.info}, nil
-}
-
-func (i *Item) ModTime() time.Time {
-	return i.modTime
-}
-
-func NewItem(
-	identifier string,
-	dataBytes []byte,
-	detail details.GroupsInfo,
-	modTime time.Time,
-) Item {
-	return Item{
-		id:      identifier,
-		message: dataBytes,
-		info:    &detail,
-		modTime: modTime,
-	}
-}
-
 // ---------------------------------------------------------------------------
 // items() production
 // ---------------------------------------------------------------------------
@@ -200,7 +87,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		el            = errs.Local()
 	)
 
-	ctx = clues.Add(ctx, "category", col.category.String())
+	ctx = clues.Add(ctx, "category", col.Category().String())
 
 	defer func() {
 		col.finishPopulation(ctx, streamedItems, totalBytes, errs.Failure())
@@ -209,12 +96,12 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	if len(col.added)+len(col.removed) > 0 {
 		colProgress = observe.CollectionProgress(
 			ctx,
-			col.FullPath().Category().HumanString(),
+			col.Category().HumanString(),
 			col.LocationPath().Elements())
 		defer close(colProgress)
 	}
 
-	semaphoreCh := make(chan struct{}, col.ctrl.Parallelism.ItemFetch)
+	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
 	defer close(semaphoreCh)
 
 	// delete all removed items
@@ -227,11 +114,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			col.stream <- &Item{
-				id:      id,
-				modTime: time.Now().UTC(), // removed items have no modTime entry.
-				deleted: true,
-			}
+			col.stream <- data.NewDeletedItem(id)
 
 			atomic.AddInt64(&streamedItems, 1)
 			atomic.AddInt64(&totalBytes, 0)
@@ -258,7 +141,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			writer := kjson.NewJsonSerializationWriter()
 			defer writer.Close()
 
-			flds := col.fullPath.Folders()
+			flds := col.FullPath().Folders()
 			parentFolderID := flds[len(flds)-1]
 
 			item, info, err := col.getter.GetChannelMessage(
@@ -267,29 +150,47 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				parentFolderID,
 				id)
 			if err != nil {
-				logger.CtxErr(ctx, err).Info("writing channel message to serializer")
+				el.AddRecoverable(
+					ctx,
+					clues.Wrap(err, "writing channel message to serializer").Label(fault.LabelForceNoBackupCreation))
+
 				return
 			}
 
 			if err := writer.WriteObjectValue("", item); err != nil {
-				logger.CtxErr(ctx, err).Info("writing channel message to serializer")
+				el.AddRecoverable(
+					ctx,
+					clues.Wrap(err, "writing channel message to serializer").Label(fault.LabelForceNoBackupCreation))
+
 				return
 			}
 
-			data, err := writer.GetSerializedContent()
+			itemData, err := writer.GetSerializedContent()
 			if err != nil {
-				logger.CtxErr(ctx, err).Info("serializing channel message")
+				el.AddRecoverable(
+					ctx,
+					clues.Wrap(err, "serializing channel message").Label(fault.LabelForceNoBackupCreation))
+
 				return
 			}
 
 			info.ParentPath = col.LocationPath().String()
 
-			col.stream <- &Item{
-				id:      ptr.Val(item.GetId()),
-				message: data,
-				info:    info,
-				modTime: info.Modified,
+			storeItem, err := data.NewPrefetchedItem(
+				io.NopCloser(bytes.NewReader(itemData)),
+				id,
+				details.ItemInfo{Groups: info})
+			if err != nil {
+				el.AddRecoverable(
+					ctx,
+					clues.Stack(err).
+						WithClues(ctx).
+						Label(fault.LabelForceNoBackupCreation))
+
+				return
 			}
+
+			col.stream <- storeItem
 
 			atomic.AddInt64(&streamedItems, 1)
 			atomic.AddInt64(&totalBytes, info.Size)

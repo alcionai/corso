@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/alcionai/clues"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -102,6 +104,7 @@ const filterGroupByDisplayNameQueryTmpl = "displayName eq '%s'"
 func (c Groups) GetByID(
 	ctx context.Context,
 	identifier string,
+	_ CallConfig, // matching standards
 ) (models.Groupable, error) {
 	service, err := c.Service()
 	if err != nil {
@@ -119,7 +122,7 @@ func (c Groups) GetByID(
 		group, err = service.
 			Client().
 			Groups().
-			ByGroupIdString(identifier).
+			ByGroupId(identifier).
 			Get(ctx, nil)
 		if err == nil {
 			return group, nil
@@ -153,6 +156,88 @@ func (c Groups) GetByID(
 	return group, nil
 }
 
+// GetAllSites gets all the sites that belong to a group. This is
+// necessary as private and shared channels gets their on individual
+// sites. All the other channels make use of the root site.
+func (c Groups) GetAllSites(
+	ctx context.Context,
+	identifier string,
+	errs *fault.Bus,
+) ([]models.Siteable, error) {
+	el := errs.Local()
+
+	root, err := c.GetRootSite(ctx, identifier)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting root site").
+			With("group_id", identifier)
+	}
+
+	sites := []models.Siteable{root}
+
+	channels, err := Channels(c).GetChannels(ctx, identifier)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting channels")
+	}
+
+	service, err := c.Service()
+	if err != nil {
+		return nil, graph.Stack(ctx, err)
+	}
+
+	for _, ch := range channels {
+		if ptr.Val(ch.GetMembershipType()) == models.STANDARD_CHANNELMEMBERSHIPTYPE {
+			// Standard channels use root site
+			continue
+		}
+
+		ictx := clues.Add(
+			ctx,
+			"channel_id",
+			ptr.Val(ch.GetId()),
+			"channel_name",
+			clues.Hide(ptr.Val(ch.GetDisplayName())))
+
+		resp, err := service.
+			Client().
+			Teams().
+			ByTeamId(identifier).
+			Channels().
+			ByChannelId(ptr.Val(ch.GetId())).
+			FilesFolder().
+			Get(ictx, nil)
+		if err != nil {
+			return nil, clues.Wrap(err, "getting files folder for channel").
+				WithClues(ictx)
+		}
+
+		// WebURL returned here is the url to the documents folder, we
+		// have to trim that out to get the actual site's webURL
+		// https://example.sharepoint.com/sites/<site-name>/Shared%20Documents/<channelName>
+		documentWebURL := ptr.Val(resp.GetWebUrl())
+
+		u, err := url.Parse(documentWebURL)
+		if err != nil {
+			return nil, clues.Wrap(err, "parsing document web url").
+				WithClues(ictx)
+		}
+
+		pathSegments := strings.Split(u.Path, "/") // pathSegments[0] == ""
+		siteWebURL := fmt.Sprintf("%s://%s/%s/%s", u.Scheme, u.Host, pathSegments[1], pathSegments[2])
+
+		ictx = clues.Add(ictx, "document_web_url", documentWebURL, "site_web_url", siteWebURL)
+
+		site, err := Sites(c).GetByID(ictx, siteWebURL, CallConfig{})
+		if err != nil {
+			el.AddRecoverable(ctx, clues.Wrap(err, "getting site"))
+			continue
+		}
+
+		sites = append(sites, site)
+	}
+
+	return sites, el.Failure()
+}
+
 func (c Groups) GetRootSite(
 	ctx context.Context,
 	identifier string,
@@ -165,12 +250,12 @@ func (c Groups) GetRootSite(
 	resp, err := service.
 		Client().
 		Groups().
-		ByGroupIdString(identifier).
+		ByGroupId(identifier).
 		Sites().
-		BySiteIdString("root").
+		BySiteId("root").
 		Get(ctx, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting root site for group")
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, graph.Stack(ctx, err).OrNil()
@@ -231,8 +316,12 @@ func IsTeam(ctx context.Context, mg models.Groupable) bool {
 
 // GetIDAndName looks up the group matching the given ID, and returns
 // its canonical ID and the name.
-func (c Groups) GetIDAndName(ctx context.Context, groupID string) (string, string, error) {
-	s, err := c.GetByID(ctx, groupID)
+func (c Groups) GetIDAndName(
+	ctx context.Context,
+	groupID string,
+	cc CallConfig,
+) (string, string, error) {
+	s, err := c.GetByID(ctx, groupID, cc)
 	if err != nil {
 		return "", "", err
 	}

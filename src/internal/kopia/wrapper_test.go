@@ -184,7 +184,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	w := &Wrapper{k}
@@ -194,7 +194,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 		Type:   repository.MetadataMaintenance,
 	}
 
-	err = w.RepoMaintenance(ctx, opts)
+	err = w.RepoMaintenance(ctx, nil, opts)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -204,7 +204,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	w := &Wrapper{k}
@@ -215,7 +215,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 	}
 
 	// This will set the user.
-	err = w.RepoMaintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -231,7 +231,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 
 	var notOwnedErr maintenance.NotOwnedError
 
-	err = w.RepoMaintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts)
 	assert.ErrorAs(t, err, &notOwnedErr, clues.ToCore(err))
 }
 
@@ -241,7 +241,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	w := &Wrapper{k}
@@ -252,7 +252,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	}
 
 	// This will set the user.
-	err = w.RepoMaintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -269,13 +269,13 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	mOpts.Force = true
 
 	// This will set the user.
-	err = w.RepoMaintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	mOpts.Force = false
 
 	// Running without force should succeed now.
-	err = w.RepoMaintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -546,7 +546,7 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	// This will set common maintenance config parameters. There's some interplay
 	// between the maintenance schedule and retention period that we want to check
 	// below.
-	err = w.RepoMaintenance(ctx, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Enable retention.
@@ -640,6 +640,9 @@ func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunM
 
 			w := &Wrapper{k}
 
+			ms, err := NewModelStore(k)
+			require.NoError(t, err, "getting model store: %s", clues.ToCore(err))
+
 			mOpts := repository.Maintenance{
 				Safety: repository.FullMaintenanceSafety,
 				Type:   repository.CompleteMaintenance,
@@ -648,7 +651,7 @@ func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunM
 			// This will set common maintenance config parameters. There's some interplay
 			// between the maintenance schedule and retention period that we want to check
 			// below.
-			err = w.RepoMaintenance(ctx, mOpts)
+			err = w.RepoMaintenance(ctx, ms, mOpts)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Enable retention.
@@ -667,9 +670,14 @@ func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunM
 				time.Hour*48,
 				assert.True)
 
+			err = ms.Close(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
 			if test.reopen {
 				mustReopen(t, ctx, w)
 			}
+
+			ms.c = w.c
 
 			// Change retention duration without updating mode.
 			err = w.SetRetentionParameters(ctx, repository.Retention{
@@ -687,7 +695,7 @@ func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunM
 
 			// Run full maintenance again. This should extend object locks for things if
 			// they exist.
-			err = w.RepoMaintenance(ctx, mOpts)
+			err = w.RepoMaintenance(ctx, ms, mOpts)
 			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
@@ -746,7 +754,7 @@ func (suite *KopiaIntegrationSuite) SetupTest() {
 	t := suite.T()
 	suite.ctx, suite.flush = tester.NewContext(t)
 
-	c, err := openKopiaRepo(t, suite.ctx)
+	c, err := openLocalKopiaRepo(t, suite.ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.w = &Wrapper{c}
@@ -1237,7 +1245,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	k, err := openKopiaRepo(t, ctx)
+	k, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Compression(ctx, "s2-default")
@@ -1260,7 +1268,10 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		ctx,
 		[]identity.Reasoner{r},
 		nil,
-		[]data.BackupCollection{dc1, dc2},
+		[]data.BackupCollection{
+			dataMock.NewVersionedBackupCollection(t, dc1),
+			dataMock.NewVersionedBackupCollection(t, dc2),
+		},
 		nil,
 		nil,
 		true,
@@ -1548,7 +1559,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	//nolint:forbidigo
 	suite.ctx, _ = logger.CtxOrSeed(context.Background(), ls)
 
-	c, err := openKopiaRepo(t, suite.ctx)
+	c, err := openLocalKopiaRepo(t, suite.ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.w = &Wrapper{c}
@@ -1569,12 +1580,15 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 				})
 		}
 
-		collections = append(collections, collection)
+		collections = append(
+			collections,
+			dataMock.NewVersionedBackupCollection(t, collection))
 	}
 
 	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
-	stats, deets, _, err := suite.w.ConsumeBackupCollections(
+	// Other tests check basic things about deets so not doing that again here.
+	stats, _, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
 		[]identity.Reasoner{r},
 		nil,
@@ -1589,8 +1603,6 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	require.Equal(t, stats.TotalDirectoryCount, expectedDirs)
 	require.Equal(t, stats.IgnoredErrorCount, 0)
 	require.False(t, stats.Incomplete)
-	// 6 file and 2 folder entries.
-	assert.Len(t, deets.Details().Entries, expectedFiles+2)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
 }
@@ -1621,7 +1633,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 		excludePrefix         bool
 		expectedCachedItems   int
 		expectedUncachedItems int
-		cols                  func() []data.BackupCollection
+		cols                  func(t *testing.T) []data.BackupCollection
 		backupIDCheck         require.ValueAssertionFunc
 		restoreCheck          assert.ErrorAssertionFunc
 	}{
@@ -1630,7 +1642,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			excludeItem:           true,
 			expectedCachedItems:   len(suite.filesByPath) - 1,
 			expectedUncachedItems: 0,
-			cols: func() []data.BackupCollection {
+			cols: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
 			backupIDCheck: require.NotEmpty,
@@ -1642,7 +1654,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			excludePrefix:         true,
 			expectedCachedItems:   len(suite.filesByPath) - 1,
 			expectedUncachedItems: 0,
-			cols: func() []data.BackupCollection {
+			cols: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
 			backupIDCheck: require.NotEmpty,
@@ -1653,7 +1665,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			// No snapshot should be made since there were no changes.
 			expectedCachedItems:   0,
 			expectedUncachedItems: 0,
-			cols: func() []data.BackupCollection {
+			cols: func(t *testing.T) []data.BackupCollection {
 				return nil
 			},
 			// Backup doesn't run.
@@ -1663,7 +1675,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 			name:                  "NoExcludeItemWithChanges",
 			expectedCachedItems:   len(suite.filesByPath),
 			expectedUncachedItems: 1,
-			cols: func() []data.BackupCollection {
+			cols: func(t *testing.T) []data.BackupCollection {
 				c := exchMock.NewCollection(
 					suite.testPath1,
 					suite.testPath1,
@@ -1671,7 +1683,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				c.ColState = data.NotMovedState
 				c.PrevPath = suite.testPath1
 
-				return []data.BackupCollection{c}
+				return []data.BackupCollection{
+					dataMock.NewVersionedBackupCollection(t, c),
+				}
 			},
 			backupIDCheck: require.NotEmpty,
 			restoreCheck:  assert.NoError,
@@ -1709,7 +1723,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 						Manifest: man,
 						Reasons:  []identity.Reasoner{r},
 					}),
-				test.cols(),
+				test.cols(t),
 				excluded,
 				nil,
 				true,

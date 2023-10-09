@@ -28,11 +28,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddBackupIDFlag(c, true)
 		flags.AddExchangeDetailsAndRestoreFlags(c)
-		flags.AddRestoreConfigFlags(c)
+		flags.AddRestoreConfigFlags(c, true)
 		flags.AddFailFastFlag(c)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 	}
 
 	return c

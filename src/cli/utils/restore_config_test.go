@@ -23,13 +23,11 @@ func TestRestoreCfgUnitSuite(t *testing.T) {
 func (suite *RestoreCfgUnitSuite) TestValidateRestoreConfigFlags() {
 	table := []struct {
 		name   string
-		fv     string
 		opts   RestoreCfgOpts
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name: "no error",
-			fv:   string(control.Skip),
 			opts: RestoreCfgOpts{
 				Collisions: string(control.Skip),
 				Populated: flags.PopulatedFlags{
@@ -40,7 +38,6 @@ func (suite *RestoreCfgUnitSuite) TestValidateRestoreConfigFlags() {
 		},
 		{
 			name: "bad but not populated",
-			fv:   "foo",
 			opts: RestoreCfgOpts{
 				Collisions: "foo",
 				Populated:  flags.PopulatedFlags{},
@@ -49,7 +46,6 @@ func (suite *RestoreCfgUnitSuite) TestValidateRestoreConfigFlags() {
 		},
 		{
 			name: "error",
-			fv:   "foo",
 			opts: RestoreCfgOpts{
 				Collisions: "foo",
 				Populated: flags.PopulatedFlags{
@@ -61,7 +57,7 @@ func (suite *RestoreCfgUnitSuite) TestValidateRestoreConfigFlags() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			err := validateRestoreConfigFlags(test.fv, test.opts)
+			err := ValidateRestoreConfigFlags(test.opts)
 			test.expect(suite.T(), err, clues.ToCore(err))
 		})
 	}
@@ -130,11 +126,11 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			},
 		},
 		{
-			name: "with restore permissions",
+			name: "without restore permissions",
 			rco: &RestoreCfgOpts{
-				Collisions:         "collisions",
-				Destination:        "destination",
-				RestorePermissions: true,
+				Collisions:      "collisions",
+				Destination:     "destination",
+				SkipPermissions: flags.NoPermissionsFV,
 			},
 			populated: flags.PopulatedFlags{
 				flags.CollisionsFN:  {},
@@ -143,7 +139,7 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			expect: control.RestoreConfig{
 				OnCollision:        control.CollisionPolicy("collisions"),
 				Location:           "destination",
-				IncludePermissions: true,
+				IncludePermissions: false,
 			},
 		},
 	}
@@ -160,7 +156,6 @@ func (suite *RestoreCfgUnitSuite) TestMakeRestoreConfig() {
 			result := MakeRestoreConfig(ctx, opts)
 			assert.Equal(t, test.expect.OnCollision, result.OnCollision)
 			assert.Contains(t, result.Location, test.expect.Location)
-			assert.Equal(t, test.expect.IncludePermissions, result.IncludePermissions)
 		})
 	}
 }

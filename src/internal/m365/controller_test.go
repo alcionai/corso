@@ -65,114 +65,126 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	)
 
 	table := []struct {
-		name       string
-		owner      string
-		ins        inMock.Cache
-		rc         *resourceClient
-		expectID   string
-		expectName string
-		expectErr  require.ErrorAssertionFunc
+		name              string
+		protectedResource string
+		ins               inMock.Cache
+		rc                *resourceClient
+		expectID          string
+		expectName        string
+		expectErr         require.ErrorAssertionFunc
+		expectNil         require.ValueAssertionFunc
 	}{
 		{
-			name:       "nil ins",
-			owner:      id,
-			rc:         lookup,
-			expectID:   id,
-			expectName: name,
-			expectErr:  require.NoError,
+			name:              "nil ins",
+			protectedResource: id,
+			rc:                lookup,
+			expectID:          id,
+			expectName:        name,
+			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
-			name:       "nil ins no lookup",
-			owner:      id,
-			rc:         noLookup,
-			expectID:   "",
-			expectName: "",
-			expectErr:  require.Error,
+			name:              "nil ins no lookup",
+			protectedResource: id,
+			rc:                noLookup,
+			expectID:          "",
+			expectName:        "",
+			expectErr:         require.Error,
+			expectNil:         require.Nil,
 		},
 		{
-			name:       "only id map with owner id",
-			owner:      id,
-			ins:        inMock.NewCache(itn, nil),
-			rc:         noLookup,
-			expectID:   id,
-			expectName: name,
-			expectErr:  require.NoError,
+			name:              "only id map with owner id",
+			protectedResource: id,
+			ins:               inMock.NewCache(itn, nil),
+			rc:                noLookup,
+			expectID:          id,
+			expectName:        name,
+			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
-			name:       "only name map with owner id",
-			owner:      id,
-			ins:        inMock.NewCache(nil, nti),
-			rc:         noLookup,
-			expectID:   "",
-			expectName: "",
-			expectErr:  require.Error,
+			name:              "only name map with owner id",
+			protectedResource: id,
+			ins:               inMock.NewCache(nil, nti),
+			rc:                noLookup,
+			expectID:          "",
+			expectName:        "",
+			expectErr:         require.Error,
+			expectNil:         require.Nil,
 		},
 		{
-			name:       "only name map with owner id and lookup",
-			owner:      id,
-			ins:        inMock.NewCache(nil, nti),
-			rc:         lookup,
-			expectID:   id,
-			expectName: name,
-			expectErr:  require.NoError,
+			name:              "only name map with owner id and lookup",
+			protectedResource: id,
+			ins:               inMock.NewCache(nil, nti),
+			rc:                lookup,
+			expectID:          id,
+			expectName:        name,
+			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
-			name:       "only id map with owner name",
-			owner:      name,
-			ins:        inMock.NewCache(itn, nil),
-			rc:         lookup,
-			expectID:   id,
-			expectName: name,
-			expectErr:  require.NoError,
+			name:              "only id map with owner name",
+			protectedResource: name,
+			ins:               inMock.NewCache(itn, nil),
+			rc:                lookup,
+			expectID:          id,
+			expectName:        name,
+			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
-			name:       "only name map with owner name",
-			owner:      name,
-			ins:        inMock.NewCache(nil, nti),
-			rc:         noLookup,
-			expectID:   id,
-			expectName: name,
-			expectErr:  require.NoError,
+			name:              "only name map with owner name",
+			protectedResource: name,
+			ins:               inMock.NewCache(nil, nti),
+			rc:                noLookup,
+			expectID:          id,
+			expectName:        name,
+			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
-			name:       "only id map with owner name",
-			owner:      name,
-			ins:        inMock.NewCache(itn, nil),
-			rc:         noLookup,
-			expectID:   "",
-			expectName: "",
-			expectErr:  require.Error,
+			name:              "only id map with owner name",
+			protectedResource: name,
+			ins:               inMock.NewCache(itn, nil),
+			rc:                noLookup,
+			expectID:          "",
+			expectName:        "",
+			expectErr:         require.Error,
+			expectNil:         require.Nil,
 		},
 		{
-			name:       "only id map with owner name and lookup",
-			owner:      name,
-			ins:        inMock.NewCache(itn, nil),
-			rc:         lookup,
-			expectID:   id,
-			expectName: name,
-			expectErr:  require.NoError,
+			name:              "only id map with owner name and lookup",
+			protectedResource: name,
+			ins:               inMock.NewCache(itn, nil),
+			rc:                lookup,
+			expectID:          id,
+			expectName:        name,
+			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
-			name:       "both maps with owner id",
-			owner:      id,
-			ins:        inMock.NewCache(itn, nti),
-			rc:         noLookup,
-			expectID:   id,
-			expectName: name,
-			expectErr:  require.NoError,
+			name:              "both maps with owner id",
+			protectedResource: id,
+			ins:               inMock.NewCache(itn, nti),
+			rc:                noLookup,
+			expectID:          id,
+			expectName:        name,
+			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
-			name:       "both maps with owner name",
-			owner:      name,
-			ins:        inMock.NewCache(itn, nti),
-			rc:         noLookup,
-			expectID:   id,
-			expectName: name,
-			expectErr:  require.NoError,
+			name:              "both maps with owner name",
+			protectedResource: name,
+			ins:               inMock.NewCache(itn, nti),
+			rc:                noLookup,
+			expectID:          id,
+			expectName:        name,
+			expectErr:         require.NoError,
+			expectNil:         require.NotNil,
 		},
 		{
-			name:  "non-matching maps with owner id",
-			owner: id,
+			name:              "non-matching maps with owner id",
+			protectedResource: id,
 			ins: inMock.NewCache(
 				map[string]string{"foo": "bar"},
 				map[string]string{"fnords": "smarf"}),
@@ -180,10 +192,11 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
+			expectNil:  require.Nil,
 		},
 		{
-			name:  "non-matching with owner name",
-			owner: name,
+			name:              "non-matching with owner name",
+			protectedResource: name,
 			ins: inMock.NewCache(
 				map[string]string{"foo": "bar"},
 				map[string]string{"fnords": "smarf"}),
@@ -191,10 +204,11 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   "",
 			expectName: "",
 			expectErr:  require.Error,
+			expectNil:  require.Nil,
 		},
 		{
-			name:  "non-matching maps with owner id and lookup",
-			owner: id,
+			name:              "non-matching maps with owner id and lookup",
+			protectedResource: id,
 			ins: inMock.NewCache(
 				map[string]string{"foo": "bar"},
 				map[string]string{"fnords": "smarf"}),
@@ -202,10 +216,11 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
+			expectNil:  require.NotNil,
 		},
 		{
-			name:  "non-matching with owner name and lookup",
-			owner: name,
+			name:              "non-matching with owner name and lookup",
+			protectedResource: name,
 			ins: inMock.NewCache(
 				map[string]string{"foo": "bar"},
 				map[string]string{"fnords": "smarf"}),
@@ -213,6 +228,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			expectID:   id,
 			expectName: name,
 			expectErr:  require.NoError,
+			expectNil:  require.NotNil,
 		},
 	}
 	for _, test := range table {
@@ -224,10 +240,16 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 
 			ctrl := &Controller{ownerLookup: test.rc}
 
-			rID, rName, err := ctrl.PopulateProtectedResourceIDAndName(ctx, test.owner, test.ins)
+			resource, err := ctrl.PopulateProtectedResourceIDAndName(ctx, test.protectedResource, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expectID, rID, "id")
-			assert.Equal(t, test.expectName, rName, "name")
+			test.expectNil(t, resource)
+
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, test.expectID, resource.ID(), "id")
+			assert.Equal(t, test.expectName, resource.Name(), "name")
 		})
 	}
 }
@@ -861,7 +883,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 			},
 		},
 		{
-			name:    "MultipleContactsSingleFolder",
+			name:    "MultipleContactsInRestoreFolder",
 			service: path.ExchangeService,
 			collections: []stub.ColInfo{
 				{
@@ -887,71 +909,99 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 				},
 			},
 		},
-		{
-			name:    "MultipleContactsMultipleFolders",
-			service: path.ExchangeService,
-			collections: []stub.ColInfo{
-				{
-					PathElements: []string{"Work"},
-					Category:     path.ContactsCategory,
-					Items: []stub.ItemInfo{
-						{
-							Name:      "someencodeditemID",
-							Data:      exchMock.ContactBytes("Ghimley"),
-							LookupKey: "Ghimley",
-						},
-						{
-							Name:      "someencodeditemID2",
-							Data:      exchMock.ContactBytes("Irgot"),
-							LookupKey: "Irgot",
-						},
-						{
-							Name:      "someencodeditemID3",
-							Data:      exchMock.ContactBytes("Jannes"),
-							LookupKey: "Jannes",
-						},
-					},
-				},
-				{
-					PathElements: []string{"Personal"},
-					Category:     path.ContactsCategory,
-					Items: []stub.ItemInfo{
-						{
-							Name:      "someencodeditemID4",
-							Data:      exchMock.ContactBytes("Argon"),
-							LookupKey: "Argon",
-						},
-						{
-							Name:      "someencodeditemID5",
-							Data:      exchMock.ContactBytes("Bernard"),
-							LookupKey: "Bernard",
-						},
-					},
-				},
-			},
-		},
+		// TODO(ashmrtn): Re-enable when we can restore contacts to nested folders.
+		//{
+		//	name:    "MultipleContactsSingleFolder",
+		//	service: path.ExchangeService,
+		//	collections: []stub.ColInfo{
+		//		{
+		//			PathElements: []string{"Contacts"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID",
+		//					Data:      exchMock.ContactBytes("Ghimley"),
+		//					LookupKey: "Ghimley",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID2",
+		//					Data:      exchMock.ContactBytes("Irgot"),
+		//					LookupKey: "Irgot",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID3",
+		//					Data:      exchMock.ContactBytes("Jannes"),
+		//					LookupKey: "Jannes",
+		//				},
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:    "MultipleContactsMultipleFolders",
+		//	service: path.ExchangeService,
+		//	collections: []stub.ColInfo{
+		//		{
+		//			PathElements: []string{"Work"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID",
+		//					Data:      exchMock.ContactBytes("Ghimley"),
+		//					LookupKey: "Ghimley",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID2",
+		//					Data:      exchMock.ContactBytes("Irgot"),
+		//					LookupKey: "Irgot",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID3",
+		//					Data:      exchMock.ContactBytes("Jannes"),
+		//					LookupKey: "Jannes",
+		//				},
+		//			},
+		//		},
+		//		{
+		//			PathElements: []string{"Personal"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID4",
+		//					Data:      exchMock.ContactBytes("Argon"),
+		//					LookupKey: "Argon",
+		//				},
+		//				{
+		//					Name:      "someencodeditemID5",
+		//					Data:      exchMock.ContactBytes("Bernard"),
+		//					LookupKey: "Bernard",
+		//				},
+		//			},
+		//		},
+		//	},
+		//},
 		// {
 		// 	name:    "MultipleEventsSingleCalendar",
 		// 	service: path.ExchangeService,
-		// 	collections: []colInfo{
+		// 	collections: []stub.ColInfo{
 		// 		{
-		// 			pathElements: []string{"Work"},
-		// 			category:     path.EventsCategory,
-		// 			items: []itemInfo{
+		// 			PathElements: []string{"Work"},
+		// 			Category:     path.EventsCategory,
+		// 			Items: []stub.ItemInfo{
 		// 				{
-		// 					name:      "someencodeditemID",
-		// 					data:      exchMock.EventWithSubjectBytes("Ghimley"),
-		// 					lookupKey: "Ghimley",
+		// 					Name:      "someencodeditemID",
+		// 					Data:      exchMock.EventWithSubjectBytes("Ghimley"),
+		// 					LookupKey: "Ghimley",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID2",
-		// 					data:      exchMock.EventWithSubjectBytes("Irgot"),
-		// 					lookupKey: "Irgot",
+		// 					Name:      "someencodeditemID2",
+		// 					Data:      exchMock.EventWithSubjectBytes("Irgot"),
+		// 					LookupKey: "Irgot",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID3",
-		// 					data:      exchMock.EventWithSubjectBytes("Jannes"),
-		// 					lookupKey: "Jannes",
+		// 					Name:      "someencodeditemID3",
+		// 					Data:      exchMock.EventWithSubjectBytes("Jannes"),
+		// 					LookupKey: "Jannes",
 		// 				},
 		// 			},
 		// 		},
@@ -960,41 +1010,41 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 		// {
 		// 	name:    "MultipleEventsMultipleCalendars",
 		// 	service: path.ExchangeService,
-		// 	collections: []colInfo{
+		// 	collections: []stub.ColInfo{
 		// 		{
-		// 			pathElements: []string{"Work"},
-		// 			category:     path.EventsCategory,
-		// 			items: []itemInfo{
+		// 			PathElements: []string{"Work"},
+		// 			Category:     path.EventsCategory,
+		// 			Items: []stub.ItemInfo{
 		// 				{
-		// 					name:      "someencodeditemID",
-		// 					data:      exchMock.EventWithSubjectBytes("Ghimley"),
-		// 					lookupKey: "Ghimley",
+		// 					Name:      "someencodeditemID",
+		// 					Data:      exchMock.EventWithSubjectBytes("Ghimley"),
+		// 					LookupKey: "Ghimley",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID2",
-		// 					data:      exchMock.EventWithSubjectBytes("Irgot"),
-		// 					lookupKey: "Irgot",
+		// 					Name:      "someencodeditemID2",
+		// 					Data:      exchMock.EventWithSubjectBytes("Irgot"),
+		// 					LookupKey: "Irgot",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID3",
-		// 					data:      exchMock.EventWithSubjectBytes("Jannes"),
-		// 					lookupKey: "Jannes",
+		// 					Name:      "someencodeditemID3",
+		// 					Data:      exchMock.EventWithSubjectBytes("Jannes"),
+		// 					LookupKey: "Jannes",
 		// 				},
 		// 			},
 		// 		},
 		// 		{
-		// 			pathElements: []string{"Personal"},
-		// 			category:     path.EventsCategory,
-		// 			items: []itemInfo{
+		// 			PathElements: []string{"Personal"},
+		// 			Category:     path.EventsCategory,
+		// 			Items: []stub.ItemInfo{
 		// 				{
-		// 					name:      "someencodeditemID4",
-		// 					data:      exchMock.EventWithSubjectBytes("Argon"),
-		// 					lookupKey: "Argon",
+		// 					Name:      "someencodeditemID4",
+		// 					Data:      exchMock.EventWithSubjectBytes("Argon"),
+		// 					LookupKey: "Argon",
 		// 				},
 		// 				{
-		// 					name:      "someencodeditemID5",
-		// 					data:      exchMock.EventWithSubjectBytes("Bernard"),
-		// 					lookupKey: "Bernard",
+		// 					Name:      "someencodeditemID5",
+		// 					Data:      exchMock.EventWithSubjectBytes("Bernard"),
+		// 					LookupKey: "Bernard",
 		// 				},
 		// 			},
 		// 		},
@@ -1017,34 +1067,35 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 
 func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 	table := []restoreBackupInfo{
-		{
-			name:    "Contacts",
-			service: path.ExchangeService,
-			collections: []stub.ColInfo{
-				{
-					PathElements: []string{"Work"},
-					Category:     path.ContactsCategory,
-					Items: []stub.ItemInfo{
-						{
-							Name:      "someencodeditemID",
-							Data:      exchMock.ContactBytes("Ghimley"),
-							LookupKey: "Ghimley",
-						},
-					},
-				},
-				{
-					PathElements: []string{"Personal"},
-					Category:     path.ContactsCategory,
-					Items: []stub.ItemInfo{
-						{
-							Name:      "someencodeditemID2",
-							Data:      exchMock.ContactBytes("Irgot"),
-							LookupKey: "Irgot",
-						},
-					},
-				},
-			},
-		},
+		// TODO(ashmrtn): Re-enable when we can restore contacts to nested folders.
+		//{
+		//	name:    "Contacts",
+		//	service: path.ExchangeService,
+		//	collections: []stub.ColInfo{
+		//		{
+		//			PathElements: []string{"Work"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID",
+		//					Data:      exchMock.ContactBytes("Ghimley"),
+		//					LookupKey: "Ghimley",
+		//				},
+		//			},
+		//		},
+		//		{
+		//			PathElements: []string{"Personal"},
+		//			Category:     path.ContactsCategory,
+		//			Items: []stub.ItemInfo{
+		//				{
+		//					Name:      "someencodeditemID2",
+		//					Data:      exchMock.ContactBytes("Irgot"),
+		//					LookupKey: "Irgot",
+		//				},
+		//			},
+		//		},
+		//	},
+		//},
 		// {
 		// 	name:    "Events",
 		// 	service: path.ExchangeService,
@@ -1333,15 +1384,15 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 				start      = time.Now()
 			)
 
-			id, name, err := backupCtrl.PopulateProtectedResourceIDAndName(ctx, backupSel.DiscreteOwner, nil)
+			resource, err := backupCtrl.PopulateProtectedResourceIDAndName(ctx, backupSel.DiscreteOwner, nil)
 			require.NoError(t, err, clues.ToCore(err))
 
-			backupSel.SetDiscreteOwnerIDName(id, name)
+			backupSel.SetDiscreteOwnerIDName(resource.ID(), resource.Name())
 
 			bpc := inject.BackupProducerConfig{
 				LastBackupVersion: version.NoBackup,
 				Options:           control.DefaultOptions(),
-				ProtectedResource: inMock.NewProvider(id, name),
+				ProtectedResource: resource,
 				Selector:          backupSel,
 			}
 

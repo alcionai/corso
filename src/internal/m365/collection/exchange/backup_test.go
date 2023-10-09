@@ -15,7 +15,9 @@ import (
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -322,7 +324,7 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			cdps, canUsePreviousBackup, err := ParseMetadataCollections(ctx, []data.RestoreCollection{
-				data.NoFetchRestoreCollection{Collection: coll},
+				dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: coll}),
 			})
 			test.expectError(t, err, clues.ToCore(err))
 
@@ -591,7 +593,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 			require.NotNil(t, metadata, "collections contains a metadata collection")
 
 			cdps, canUsePreviousBackup, err := ParseMetadataCollections(ctx, []data.RestoreCollection{
-				data.NoFetchRestoreCollection{Collection: metadata},
+				dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: metadata}),
 			})
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -666,7 +668,12 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 			for stream := range streamChannel {
 				buf := &bytes.Buffer{}
 
-				read, err := buf.ReadFrom(stream.ToReader())
+				rr, err := readers.NewVersionedRestoreReader(stream.ToReader())
+				require.NoError(t, err, clues.ToCore(err))
+
+				assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+
+				read, err := buf.ReadFrom(rr)
 				assert.NoError(t, err, clues.ToCore(err))
 				assert.NotZero(t, read)
 
@@ -744,7 +751,13 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 
 				for stream := range edc.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
-					read, err := buf.ReadFrom(stream.ToReader())
+
+					rr, err := readers.NewVersionedRestoreReader(stream.ToReader())
+					require.NoError(t, err, clues.ToCore(err))
+
+					assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+
+					read, err := buf.ReadFrom(rr)
 					assert.NoError(t, err, clues.ToCore(err))
 					assert.NotZero(t, read)
 
@@ -810,7 +823,8 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 	err := suite.ac.Events().EnumerateContainers(
 		ctx,
 		suite.user,
-		api.DefaultCalendar,
+		"",
+		false,
 		fn,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -877,7 +891,12 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 				for item := range edc.Items(ctx, fault.New(true)) {
 					buf := &bytes.Buffer{}
 
-					read, err := buf.ReadFrom(item.ToReader())
+					rr, err := readers.NewVersionedRestoreReader(item.ToReader())
+					require.NoError(t, err, clues.ToCore(err))
+
+					assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+
+					read, err := buf.ReadFrom(rr)
 					assert.NoError(t, err, clues.ToCore(err))
 					assert.NotZero(t, read)
 
@@ -1197,7 +1216,9 @@ func checkMetadata(
 ) {
 	catPaths, _, err := ParseMetadataCollections(
 		ctx,
-		[]data.RestoreCollection{data.NoFetchRestoreCollection{Collection: c}})
+		[]data.RestoreCollection{
+			dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: c}),
+		})
 	if !assert.NoError(t, err, "getting metadata", clues.ToCore(err)) {
 		return
 	}

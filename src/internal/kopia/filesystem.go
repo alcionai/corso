@@ -16,12 +16,11 @@ func filesystemStorage(
 	repoOpts repository.Options,
 	s storage.Storage,
 ) (blob.Storage, error) {
-	cfg, err := s.StorageConfig()
+	fsCfg, err := s.ToFilesystemConfig()
 	if err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
-	fsCfg := cfg.(*storage.FilesystemConfig)
 	opts := filesystem.Options{
 		Path: fsCfg.Path,
 	}

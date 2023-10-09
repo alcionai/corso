@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -43,7 +42,7 @@ type RestoreExchangeE2ESuite struct {
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
-	repo       repository.Repository
+	repo       repository.Repositoryer
 	m365UserID string
 	backupOps  map[path.CategoryType]operations.BackupOperation
 }
@@ -66,10 +65,8 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	suite.acct = tconfig.NewM365Account(t)
 	suite.st = storeTD.NewPrefixedS3Storage(t)
 
-	sc, err := suite.st.StorageConfig()
+	cfg, err := suite.st.ToS3Config()
 	require.NoError(t, err, clues.ToCore(err))
-
-	cfg := sc.(*storage.S3Config)
 
 	force := map[string]string{
 		tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
@@ -86,12 +83,15 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	)
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(
+	suite.repo, err = repository.New(
 		ctx,
 		suite.acct,
 		suite.st,
-		control.Options{},
-		ctrlRepo.Retention{})
+		control.DefaultOptions(),
+		repository.NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = suite.repo.Initialize(ctx, repository.InitConfig{Service: path.ExchangeService})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)

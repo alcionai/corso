@@ -67,6 +67,15 @@ func (bh channelsBackupHandler) canonicalPath(
 			false)
 }
 
+func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
+	return path.Build(
+		tenantID,
+		bh.protectedResource,
+		path.GroupsService,
+		path.ChannelMessagesCategory,
+		false)
+}
+
 func (bh channelsBackupHandler) GetChannelMessage(
 	ctx context.Context,
 	teamID, channelID, itemID string,

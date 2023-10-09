@@ -120,7 +120,7 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 		err  error
 	)
 
-	resp, err = c.Stable.Client().Users().ByUserIdString(identifier).Get(ctx, nil)
+	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
 
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting user")
@@ -131,7 +131,11 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 
 // GetIDAndName looks up the user matching the given ID, and returns
 // its canonical ID and the PrincipalName as the name.
-func (c Users) GetIDAndName(ctx context.Context, userID string) (string, string, error) {
+func (c Users) GetIDAndName(
+	ctx context.Context,
+	userID string,
+	_ CallConfig, // not currently supported
+) (string, string, error) {
 	u, err := c.GetByID(ctx, userID)
 	if err != nil {
 		return "", "", err
@@ -222,9 +226,9 @@ func (c Users) GetMailInbox(
 	inbox, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(MailInbox).
+		ByMailFolderId(MailInbox).
 		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting MailFolders")
@@ -240,7 +244,7 @@ func (c Users) GetDefaultDrive(
 	d, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Drive().
 		Get(ctx, nil)
 	if err != nil {
@@ -269,9 +273,9 @@ func (c Users) GetFirstInboxMessage(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(inboxID).
+		ByMailFolderId(inboxID).
 		Messages().
 		Delta().
 		Get(ctx, config)

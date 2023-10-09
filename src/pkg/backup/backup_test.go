@@ -167,17 +167,6 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 			expect: "test (2 skipped: 1 malware)",
 		},
 		{
-			name: "not found",
-			bup: backup.Backup{
-				Status: "test",
-				SkippedCounts: stats.SkippedCounts{
-					TotalSkippedItems: 2,
-					SkippedNotFound:   1,
-				},
-			},
-			expect: "test (2 skipped: 1 not found)",
-		},
-		{
 			name: "errors and malware",
 			bup: backup.Backup{
 				Status:     "test",
@@ -190,16 +179,15 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 			expect: "test (42 errors, 1 skipped: 1 malware)",
 		},
 		{
-			name: "errors and not found",
+			name: "errors and skipped",
 			bup: backup.Backup{
 				Status:     "test",
 				ErrorCount: 42,
 				SkippedCounts: stats.SkippedCounts{
 					TotalSkippedItems: 1,
-					SkippedNotFound:   1,
 				},
 			},
-			expect: "test (42 errors, 1 skipped: 1 not found)",
+			expect: "test (42 errors, 1 skipped)",
 		},
 		{
 			name: "errors and invalid OneNote",
@@ -221,11 +209,10 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 				SkippedCounts: stats.SkippedCounts{
 					TotalSkippedItems:         1,
 					SkippedMalware:            1,
-					SkippedNotFound:           1,
 					SkippedInvalidOneNoteFile: 1,
 				},
 			},
-			expect: "test (42 errors, 1 skipped: 1 malware, 1 not found, 1 invalid OneNote file)",
+			expect: "test (42 errors, 1 skipped: 1 malware, 1 invalid OneNote file)",
 		},
 	}
 	for _, test := range table {

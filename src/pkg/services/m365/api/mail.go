@@ -53,9 +53,9 @@ func (c Mail) CreateContainer(
 	mdl, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(parentContainerID).
+		ByMailFolderId(parentContainerID).
 		ChildFolders().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -80,9 +80,9 @@ func (c Mail) DeleteContainer(
 
 	err = srv.Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(containerID).
+		ByMailFolderId(containerID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Stack(ctx, err)
@@ -104,9 +104,9 @@ func (c Mail) GetContainerByID(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(containerID).
+		ByMailFolderId(containerID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
@@ -128,7 +128,7 @@ func (c Mail) GetContainerByName(
 		builder = c.Stable.
 			Client().
 			Users().
-			ByUserIdString(userID).
+			ByUserId(userID).
 			MailFolders()
 		resp models.MailFolderCollectionResponseable
 		err  error
@@ -142,7 +142,7 @@ func (c Mail) GetContainerByName(
 		}
 
 		resp, err = builder.
-			ByMailFolderIdString(parentContainerID).
+			ByMailFolderId(parentContainerID).
 			ChildFolders().
 			Get(ctx, options)
 	} else {
@@ -192,9 +192,9 @@ func (c Mail) MoveContainer(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(containerID).
+		ByMailFolderId(containerID).
 		Move().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -212,15 +212,35 @@ func (c Mail) PatchFolder(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(containerID).
+		ByMailFolderId(containerID).
 		Patch(ctx, body, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "patching mail folder")
 	}
 
 	return nil
+}
+
+// TODO: needs pager implementation for completion
+func (c Mail) GetContainerChildren(
+	ctx context.Context,
+	userID, containerID string,
+) ([]models.MailFolderable, error) {
+	resp, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		MailFolders().
+		ByMailFolderId(containerID).
+		ChildFolders().
+		Get(ctx, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting container child folders")
+	}
+
+	return resp.GetValue(), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -246,9 +266,9 @@ func (c Mail) GetItem(
 	mail, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Messages().
-		ByMessageIdString(itemID).
+		ByMessageId(itemID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
@@ -276,9 +296,9 @@ func (c Mail) GetItem(
 	attached, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Messages().
-		ByMessageIdString(itemID).
+		ByMessageId(itemID).
 		Attachments().
 		Get(ctx, attachConfig)
 	if err == nil {
@@ -309,9 +329,9 @@ func (c Mail) GetItem(
 	attachments, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Messages().
-		ByMessageIdString(itemID).
+		ByMessageId(itemID).
 		Attachments().
 		Get(ctx, attachConfig)
 	if err != nil {
@@ -331,11 +351,11 @@ func (c Mail) GetItem(
 		att, err := c.Stable.
 			Client().
 			Users().
-			ByUserIdString(userID).
+			ByUserId(userID).
 			Messages().
-			ByMessageIdString(itemID).
+			ByMessageId(itemID).
 			Attachments().
-			ByAttachmentIdString(ptr.Val(a.GetId())).
+			ByAttachmentId(ptr.Val(a.GetId())).
 			Get(ctx, attachConfig)
 		if err != nil {
 			// CannotOpenFileAttachment errors are not transient and
@@ -344,9 +364,9 @@ func (c Mail) GetItem(
 			if graph.IsErrCannotOpenFileAttachment(err) {
 				logger.CtxErr(ctx, err).
 					With(
-						"skipped_reason", fault.SkipNotFound,
 						"attachment_id", ptr.Val(a.GetId()),
-						"attachment_size", ptr.Val(a.GetSize())).Info("attachment not found")
+						"attachment_size", ptr.Val(a.GetSize())).
+					Info("attachment not found")
 				// TODO This should use a `AddSkip` once we have
 				// figured out the semantics for skipping
 				// subcomponents of an item
@@ -376,9 +396,9 @@ func (c Mail) PostItem(
 	itm, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(containerID).
+		ByMailFolderId(containerID).
 		Messages().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -402,11 +422,11 @@ func (c Mail) MoveItem(
 	resp, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(oldContainerID).
+		ByMailFolderId(oldContainerID).
 		Messages().
-		ByMessageIdString(itemID).
+		ByMessageId(itemID).
 		Move().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -430,9 +450,9 @@ func (c Mail) DeleteItem(
 	err = srv.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Messages().
-		ByMessageIdString(itemID).
+		ByMessageId(itemID).
 		Delete(ctx, nil)
 	if err != nil {
 		return graph.Wrap(ctx, err, "deleting mail message")
@@ -449,11 +469,11 @@ func (c Mail) PostSmallAttachment(
 	_, err := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(containerID).
+		ByMailFolderId(containerID).
 		Messages().
-		ByMessageIdString(parentItemID).
+		ByMessageId(parentItemID).
 		Attachments().
 		Post(ctx, body, nil)
 	if err != nil {
@@ -475,11 +495,11 @@ func (c Mail) PostLargeAttachment(
 	us, err := c.LargeItem.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		MailFolders().
-		ByMailFolderIdString(containerID).
+		ByMailFolderId(containerID).
 		Messages().
-		ByMessageIdString(parentItemID).
+		ByMessageId(parentItemID).
 		Attachments().
 		CreateUploadSession().
 		Post(ctx, session, nil)

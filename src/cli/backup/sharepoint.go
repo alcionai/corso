@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/exp/slices"
@@ -13,12 +12,9 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365"
 )
@@ -30,7 +26,7 @@ import (
 const (
 	sharePointServiceCommand                 = "sharepoint"
 	sharePointServiceCommandCreateUseSuffix  = "--site <siteURL> | '" + flags.Wildcard + "'"
-	sharePointServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	sharePointServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	sharePointServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
@@ -44,8 +40,9 @@ corso backup create sharepoint --site https://example.com/hr,https://example.com
 # Backup all SharePoint data for all Sites
 corso backup create sharepoint --site '*'`
 
-	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd`
+	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
+and 1234abcd-12ab-cd34-56de-1234abce
+corso backup delete sharepoint --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
 	sharePointServiceCommandDetailsExamples = `# Explore items in the HR site's latest backup (1234abcd...)
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd
@@ -81,9 +78,6 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddSiteFlag(c)
 		flags.AddSiteIDFlag(c)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddDataFlag(c, []string{flags.DataLibraries}, true)
 		flags.AddFailFastFlag(c)
 		flags.AddDisableIncrementalsFlag(c)
@@ -94,12 +88,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
-		addFailedItemsFN(c)
-		addSkippedItemsFN(c)
-		addRecoveredErrorsFN(c)
+		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
@@ -110,9 +99,6 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddSkipReduceFlag(c)
 		flags.AddBackupIDFlag(c, true)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -122,10 +108,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples
 
-		flags.AddBackupIDFlag(c, true)
-		flags.AddCorsoPassphaseFlags(c)
-		flags.AddAWSCredsFlags(c)
-		flags.AddAzureCredsFlags(c)
+		flags.AddMultipleBackupIDsFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 	}
 
 	return c
@@ -151,6 +135,10 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	if utils.HasNoFlagsAndShownHelp(cmd) {
+		return nil
+	}
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
@@ -187,7 +175,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
-	return runBackups(
+	return genericCreateCommand(
 		ctx,
 		r,
 		"SharePoint",
@@ -294,14 +282,24 @@ func sharePointDeleteCmd() *cobra.Command {
 
 // deletes a sharePoint service backup.
 func deleteSharePointCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, path.SharePointService, flags.BackupIDFV, "SharePoint", args)
+	backupIDValue := []string{}
+
+	if len(flags.BackupIDsFV) > 0 {
+		backupIDValue = flags.BackupIDsFV
+	} else if len(flags.BackupIDFV) > 0 {
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
+	} else {
+		return clues.New("either --backup or --backups flag is required")
+	}
+
+	return genericDeleteCommand(cmd, path.SharePointService, "SharePoint", backupIDValue, args)
 }
 
 // ------------------------------------------------------------------------------------------------
 // backup details
 // ------------------------------------------------------------------------------------------------
 
-// `corso backup details onedrive [<flag>...]`
+// `corso backup details SharePoint [<flag>...]`
 func sharePointDetailsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     sharePointServiceCommand,
@@ -318,68 +316,31 @@ func detailsSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctx := cmd.Context()
-	opts := utils.MakeSharePointOpts(cmd)
-
-	r, _, _, ctrlOpts, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		path.SharePointService)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	ds, err := runDetailsSharePointCmd(ctx, r, flags.BackupIDFV, opts, ctrlOpts.SkipReduce)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	if len(ds.Entries) == 0 {
-		Info(ctx, selectors.ErrorNoMatchingItems)
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
-	ds.PrintEntries(ctx)
-
-	return nil
+	return runDetailsSharePointCmd(cmd)
 }
 
-// runDetailsSharePointCmd actually performs the lookup in backup details.
-// the fault.Errors return is always non-nil.  Callers should check if
-// errs.Failure() == nil.
-func runDetailsSharePointCmd(
-	ctx context.Context,
-	r repository.BackupGetter,
-	backupID string,
-	opts utils.SharePointOpts,
-	skipReduce bool,
-) (*details.Details, error) {
-	if err := utils.ValidateSharePointRestoreFlags(backupID, opts); err != nil {
-		return nil, err
+func runDetailsSharePointCmd(cmd *cobra.Command) error {
+	ctx := cmd.Context()
+	opts := utils.MakeSharePointOpts(cmd)
+
+	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
+	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
+
+	ds, err := genericDetailsCommand(cmd, flags.BackupIDFV, sel.Selector)
+	if err != nil {
+		return Only(ctx, err)
 	}
 
-	ctx = clues.Add(ctx, "backup_id", backupID)
-
-	d, _, errs := r.GetBackupDetails(ctx, backupID)
-	// TODO: log/track recoverable errors
-	if errs.Failure() != nil {
-		if errors.Is(errs.Failure(), data.ErrNotFound) {
-			return nil, clues.New("no backup exists with the id " + backupID)
-		}
-
-		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
+	if len(ds.Entries) > 0 {
+		ds.PrintEntries(ctx)
+	} else {
+		Info(ctx, selectors.ErrorNoMatchingItems)
 	}
 
-	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
-
-	if !skipReduce {
-		sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
-		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
-		utils.FilterSharePointRestoreInfoSelectors(sel, opts)
-		d = sel.Reduce(ctx, d, errs)
-	}
-
-	return d, nil
+	return nil
 }

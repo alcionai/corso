@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -16,6 +17,7 @@ import (
 var (
 	_ data.RestoreCollection = &kopiaDataCollection{}
 	_ data.Item              = &kopiaDataStream{}
+	_ data.ItemSize          = &kopiaDataStream{}
 )
 
 type kopiaDataCollection struct {
@@ -23,7 +25,7 @@ type kopiaDataCollection struct {
 	dir             fs.Directory
 	items           []string
 	counter         ByteCounter
-	expectedVersion uint32
+	expectedVersion readers.SerializationVersion
 }
 
 func (kdc *kopiaDataCollection) Items(
@@ -102,7 +104,7 @@ func (kdc kopiaDataCollection) FetchItemByName(
 		return nil, clues.New("object is not a file").WithClues(ctx)
 	}
 
-	size := f.Size() - int64(versionSize)
+	size := f.Size() - int64(readers.VersionFormatSize)
 	if size < 0 {
 		logger.Ctx(ctx).Infow("negative file size; resetting to 0", "file_size", size)
 
@@ -118,13 +120,32 @@ func (kdc kopiaDataCollection) FetchItemByName(
 		return nil, clues.Wrap(err, "opening file").WithClues(ctx)
 	}
 
+	// TODO(ashmrtn): Remove this when individual services implement checks for
+	// version and deleted items.
+	rr, err := readers.NewVersionedRestoreReader(r)
+	if err != nil {
+		return nil, clues.Stack(err).WithClues(ctx)
+	}
+
+	if rr.Format().Version != kdc.expectedVersion {
+		return nil, clues.New("unexpected data format").
+			WithClues(ctx).
+			With(
+				"read_version", rr.Format().Version,
+				"expected_version", kdc.expectedVersion)
+	}
+
+	// This is a conservative check, but we shouldn't be seeing items that were
+	// deleted in flight during restores because there's no way to select them.
+	if rr.Format().DelInFlight {
+		return nil, clues.New("selected item marked as deleted in flight").
+			WithClues(ctx)
+	}
+
 	return &kopiaDataStream{
-		id: name,
-		reader: &restoreStreamReader{
-			ReadCloser:      r,
-			expectedVersion: kdc.expectedVersion,
-		},
-		size: size,
+		id:     name,
+		reader: rr,
+		size:   size,
 	}, nil
 }
 

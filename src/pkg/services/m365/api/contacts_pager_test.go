@@ -45,9 +45,9 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollision
 	conts, err := ac.Stable.
 		Client().
 		Users().
-		ByUserIdString(suite.its.user.id).
+		ByUserId(suite.its.user.id).
 		ContactFolders().
-		ByContactFolderIdString(ptr.Val(container.GetId())).
+		ByContactFolderId(ptr.Val(container.GetId())).
 		Contacts().
 		Get(ctx, nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -97,9 +97,9 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsIDsInContainer() {
 	msgs, err := ac.Stable.
 		Client().
 		Users().
-		ByUserIdString(suite.its.user.id).
+		ByUserId(suite.its.user.id).
 		ContactFolders().
-		ByContactFolderIdString(ptr.Val(container.GetId())).
+		ByContactFolderId(ptr.Val(container.GetId())).
 		Contacts().
 		Get(ctx, nil)
 	require.NoError(t, err, clues.ToCore(err))

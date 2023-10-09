@@ -21,73 +21,89 @@ const eventBetaDeltaURLTemplate = "https://graph.microsoft.com/beta/users/%s/cal
 // container pager
 // ---------------------------------------------------------------------------
 
+var _ Pager[models.Calendarable] = &eventsCalendarsPageCtrl{}
+
+type eventsCalendarsPageCtrl struct {
+	gs      graph.Servicer
+	builder *users.ItemCalendarsRequestBuilder
+	options *users.ItemCalendarsRequestBuilderGetRequestConfiguration
+}
+
+func (c Events) NewEventCalendarsPager(
+	userID string,
+	immutableIDs bool,
+	selectProps ...string,
+) Pager[models.Calendarable] {
+	options := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{},
+		// do NOT set Top.  It limits the total items received.
+	}
+
+	if len(selectProps) > 0 {
+		options.QueryParameters.Select = selectProps
+	}
+
+	builder := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Calendars()
+
+	return &eventsCalendarsPageCtrl{c.Stable, builder, options}
+}
+
+func (p *eventsCalendarsPageCtrl) GetPage(
+	ctx context.Context,
+) (NextLinkValuer[models.Calendarable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+func (p *eventsCalendarsPageCtrl) SetNextLink(nextLink string) {
+	p.builder = users.NewItemCalendarsRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *eventsCalendarsPageCtrl) ValidModTimes() bool {
+	return true
+}
+
 // EnumerateContainers iterates through all of the users current
-// calendars, converting each to a graph.CacheFolder, and
-// calling fn(cf) on each one.
-// Folder hierarchy is represented in its current state, and does
+// events calendars, transforming each to a graph.CacheFolder, and calling
+// fn(cf).
+// Calendars are represented in their current state, and do
 // not contain historical data.
 func (c Events) EnumerateContainers(
 	ctx context.Context,
-	userID, baseContainerID string,
+	userID, _ string, // baseContainerID not needed
+	immutableIDs bool,
 	fn func(graph.CachedContainer) error,
 	errs *fault.Bus,
 ) error {
 	var (
-		el     = errs.Local()
-		config = &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
-			QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{
-				Select: idAnd("name"),
-			},
-		}
-		builder = c.Stable.
-			Client().
-			Users().
-			ByUserIdString(userID).
-			Calendars()
+		el  = errs.Local()
+		pgr = c.NewEventCalendarsPager(userID, immutableIDs)
 	)
 
-	for {
+	containers, err := enumerateItems(ctx, pgr)
+	if err != nil {
+		return graph.Stack(ctx, err)
+	}
+
+	for _, c := range containers {
 		if el.Failure() != nil {
 			break
 		}
 
-		resp, err := builder.Get(ctx, config)
-		if err != nil {
-			return graph.Stack(ctx, err)
+		gncf := graph.NewCacheFolder(
+			CalendarDisplayable{Calendarable: c},
+			path.Builder{}.Append(ptr.Val(c.GetId())),
+			path.Builder{}.Append(ptr.Val(c.GetName())))
+
+		if err := fn(&gncf); err != nil {
+			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+			continue
 		}
-
-		for _, cal := range resp.GetValue() {
-			if el.Failure() != nil {
-				break
-			}
-
-			cd := CalendarDisplayable{Calendarable: cal}
-			if err := graph.CheckIDAndName(cd); err != nil {
-				errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
-			}
-
-			fctx := clues.Add(
-				ctx,
-				"container_id", ptr.Val(cal.GetId()),
-				"container_name", ptr.Val(cal.GetName()))
-
-			temp := graph.NewCacheFolder(
-				cd,
-				path.Builder{}.Append(ptr.Val(cd.GetId())),          // storage path
-				path.Builder{}.Append(ptr.Val(cd.GetDisplayName()))) // display location
-			if err := fn(&temp); err != nil {
-				errs.AddRecoverable(ctx, graph.Stack(fctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
-			}
-		}
-
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		builder = users.NewItemCalendarsRequestBuilder(link, c.Stable.Adapter())
 	}
 
 	return el.Failure()
@@ -123,9 +139,9 @@ func (c Events) NewEventsPager(
 	builder := c.Stable.
 		Client().
 		Users().
-		ByUserIdString(userID).
+		ByUserId(userID).
 		Calendars().
-		ByCalendarIdString(containerID).
+		ByCalendarId(containerID).
 		Events()
 
 	return &eventsPageCtrl{c.Stable, builder, options}

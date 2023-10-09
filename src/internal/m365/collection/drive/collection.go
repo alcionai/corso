@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
@@ -33,18 +34,14 @@ const (
 	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
 )
 
-var (
-	_ data.BackupCollection = &Collection{}
-	_ data.Item             = &Item{}
-	_ data.ItemInfo         = &Item{}
-	_ data.ItemModTime      = &Item{}
-	_ data.Item             = &metadata.Item{}
-	_ data.ItemModTime      = &metadata.Item{}
-)
+var _ data.BackupCollection = &Collection{}
 
 // Collection represents a set of OneDrive objects retrieved from M365
 type Collection struct {
 	handler BackupHandler
+
+	// the protected resource represented in this collection.
+	protectedResource idname.Provider
 
 	// data is used to share data streams with the collection consumer
 	data chan data.Item
@@ -105,6 +102,7 @@ func pathToLocation(p path.Path) (*path.Builder, error) {
 // NewCollection creates a Collection
 func NewCollection(
 	handler BackupHandler,
+	resource idname.Provider,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -130,6 +128,7 @@ func NewCollection(
 
 	c := newColl(
 		handler,
+		resource,
 		currPath,
 		prevPath,
 		driveID,
@@ -147,6 +146,7 @@ func NewCollection(
 
 func newColl(
 	handler BackupHandler,
+	resource idname.Provider,
 	currPath path.Path,
 	prevPath path.Path,
 	driveID string,
@@ -157,18 +157,19 @@ func newColl(
 	urlCache getItemPropertyer,
 ) *Collection {
 	c := &Collection{
-		handler:         handler,
-		folderPath:      currPath,
-		prevPath:        prevPath,
-		driveItems:      map[string]models.DriveItemable{},
-		driveID:         driveID,
-		data:            make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
-		statusUpdater:   statusUpdater,
-		ctrl:            ctrlOpts,
-		state:           data.StateOf(prevPath, currPath),
-		scope:           colScope,
-		doNotMergeItems: doNotMergeItems,
-		urlCache:        urlCache,
+		handler:           handler,
+		protectedResource: resource,
+		folderPath:        currPath,
+		prevPath:          prevPath,
+		driveItems:        map[string]models.DriveItemable{},
+		driveID:           driveID,
+		data:              make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
+		statusUpdater:     statusUpdater,
+		ctrl:              ctrlOpts,
+		state:             data.StateOf(prevPath, currPath),
+		scope:             colScope,
+		doNotMergeItems:   doNotMergeItems,
+		urlCache:          urlCache,
 	}
 
 	return c
@@ -244,22 +245,6 @@ func (oc Collection) DoNotMergeItems() bool {
 	return oc.doNotMergeItems
 }
 
-// Item represents a single item retrieved from OneDrive
-type Item struct {
-	id   string
-	data io.ReadCloser
-	info details.ItemInfo
-}
-
-// Deleted implements an interface function. However, OneDrive items are marked
-// as deleted by adding them to the exclude list so this can always return
-// false.
-func (i Item) Deleted() bool                    { return false }
-func (i *Item) ID() string                      { return i.id }
-func (i *Item) ToReader() io.ReadCloser         { return i.data }
-func (i *Item) Info() (details.ItemInfo, error) { return i.info, nil }
-func (i *Item) ModTime() time.Time              { return i.info.Modified() }
-
 // getDriveItemContent fetch drive item's contents with retries
 func (oc *Collection) getDriveItemContent(
 	ctx context.Context,
@@ -282,15 +267,16 @@ func (oc *Collection) getDriveItemContent(
 		}
 
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
-			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipNotFound).Info("item not found")
-			errs.AddSkip(ctx, fault.FileSkip(fault.SkipNotFound, driveID, itemID, itemName, graph.ItemInfo(item)))
-
+			logger.CtxErr(ctx, err).Info("item not found, probably deleted in flight")
 			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
 
 		// Skip big OneNote files as they can't be downloaded
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
-			oc.scope == CollectionScopePackage && *item.GetSize() >= MaxOneNoteFileSize {
+			// TODO: We've removed the file size check because it looks like we've seen persistent
+			// 503's with smaller OneNote files also.
+			// oc.scope == CollectionScopePackage && *item.GetSize() >= MaxOneNoteFileSize {
+			oc.scope == CollectionScopePackage {
 			// FIXME: It is possible that in case of a OneNote file we
 			// will end up just backing up the `onetoc2` file without
 			// the one file which is the important part of the OneNote
@@ -303,8 +289,11 @@ func (oc *Collection) getDriveItemContent(
 			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
 		}
 
-		logger.CtxErr(ctx, err).Error("downloading item content")
-		errs.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+		errs.AddRecoverable(
+			ctx,
+			clues.Wrap(err, "downloading item content").
+				WithClues(ctx).
+				Label(fault.LabelForceNoBackupCreation))
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
 		// the data consumer that this item is unreadable, regardless of the fault state.
@@ -469,6 +458,54 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	oc.reportAsCompleted(ctx, int(stats.itemsFound), int(stats.itemsRead), stats.byteCount)
 }
 
+type lazyItemGetter struct {
+	info                 *details.ItemInfo
+	item                 models.DriveItemable
+	driveID              string
+	suffix               string
+	itemExtensionFactory []extensions.CreateItemExtensioner
+	contentGetter        func(
+		ctx context.Context,
+		driveID string,
+		item models.DriveItemable,
+		errs *fault.Bus) (io.ReadCloser, error)
+}
+
+func (lig *lazyItemGetter) GetData(
+	ctx context.Context,
+	errs *fault.Bus,
+) (io.ReadCloser, *details.ItemInfo, bool, error) {
+	rc, err := lig.contentGetter(ctx, lig.driveID, lig.item, errs)
+	if err != nil {
+		return nil, nil, false, clues.Stack(err)
+	}
+
+	extRc, extData, err := extensions.AddItemExtensions(
+		ctx,
+		rc,
+		*lig.info,
+		lig.itemExtensionFactory)
+	if err != nil {
+		err := clues.Wrap(err, "adding extensions").
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation)
+
+		return nil, nil, false, err
+	}
+
+	lig.info.Extension.Data = extData.Data
+
+	// display/log the item download
+	progReader, _ := observe.ItemProgress(
+		ctx,
+		extRc,
+		observe.ItemBackupMsg,
+		clues.Hide(ptr.Val(lig.item.GetName())+lig.suffix),
+		ptr.Val(lig.item.GetSize()))
+
+	return progReader, lig.info, false, nil
+}
+
 func (oc *Collection) streamDriveItem(
 	ctx context.Context,
 	parentPath *path.Builder,
@@ -522,52 +559,35 @@ func (oc *Collection) streamDriveItem(
 		return
 	}
 
-	itemInfo = oc.handler.AugmentItemInfo(itemInfo, item, itemSize, parentPath)
+	itemInfo = oc.handler.AugmentItemInfo(
+		itemInfo,
+		oc.protectedResource,
+		item,
+		itemSize,
+		parentPath)
 
 	ctx = clues.Add(ctx, "item_info", itemInfo)
 
 	if isFile {
 		dataSuffix := metadata.DataFileSuffix
 
-		// Construct a new lazy readCloser to feed to the collection consumer.
+		// Use a LazyItem to feed to the collection consumer.
 		// This ensures that downloads won't be attempted unless that consumer
 		// attempts to read bytes.  Assumption is that kopia will check things
 		// like file modtimes before attempting to read.
-		itemReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-			rc, err := oc.getDriveItemContent(ctx, oc.driveID, item, errs)
-			if err != nil {
-				return nil, err
-			}
-
-			extRc, extData, err := extensions.AddItemExtensions(
-				ctx,
-				rc,
-				itemInfo,
-				itemExtensionFactory)
-			if err != nil {
-				err := clues.Wrap(err, "adding extensions").Label(fault.LabelForceNoBackupCreation)
-				errs.AddRecoverable(ctx, err)
-				return nil, err
-			}
-
-			itemInfo.Extension.Data = extData.Data
-
-			// display/log the item download
-			progReader, _ := observe.ItemProgress(
-				ctx,
-				extRc,
-				observe.ItemBackupMsg,
-				clues.Hide(itemName+dataSuffix),
-				itemSize)
-
-			return progReader, nil
-		})
-
-		oc.data <- &Item{
-			id:   itemID + dataSuffix,
-			data: itemReader,
-			info: itemInfo,
-		}
+		oc.data <- data.NewLazyItem(
+			ctx,
+			&lazyItemGetter{
+				info:                 &itemInfo,
+				item:                 item,
+				driveID:              oc.driveID,
+				itemExtensionFactory: itemExtensionFactory,
+				contentGetter:        oc.getDriveItemContent,
+				suffix:               dataSuffix,
+			},
+			itemID+dataSuffix,
+			itemInfo.Modified(),
+			errs)
 	}
 
 	metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
@@ -580,13 +600,24 @@ func (oc *Collection) streamDriveItem(
 		return progReader, nil
 	})
 
-	oc.data <- &metadata.Item{
-		ItemID: metaFileName + metaSuffix,
-		Data:   metaReader,
+	storeItem, err := data.NewUnindexedPrefetchedItem(
+		metaReader,
+		metaFileName+metaSuffix,
 		// Metadata file should always use the latest time as
 		// permissions change does not update mod time.
-		Mod: time.Now(),
+		time.Now())
+	if err != nil {
+		errs.AddRecoverable(ctx, clues.Stack(err).
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation))
+
+		return
 	}
+
+	// We wrap the reader with a lazy reader so that the progress bar is only
+	// initialized if the file is read. Since we're not actually lazily reading
+	// data just use the eager item implementation.
+	oc.data <- storeItem
 
 	// Item read successfully, add to collection
 	if isFile {

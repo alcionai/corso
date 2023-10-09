@@ -7,16 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-type CommonCfgSuite struct {
-	suite.Suite
+type CommonCfgUnitSuite struct {
+	tester.Suite
 }
 
-func TestCommonCfgSuite(t *testing.T) {
-	suite.Run(t, new(CommonCfgSuite))
+func TestCommonCfgUnitSuite(t *testing.T) {
+	suite.Run(t, &CommonCfgUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 var goodCommonConfig = storage.CommonConfig{
@@ -25,7 +26,7 @@ var goodCommonConfig = storage.CommonConfig{
 	},
 }
 
-func (suite *CommonCfgSuite) TestCommonConfig_Config() {
+func (suite *CommonCfgUnitSuite) TestCommonConfig_Config() {
 	cfg := goodCommonConfig
 	c, err := cfg.StringConfig()
 	assert.NoError(suite.T(), err, clues.ToCore(err))
@@ -43,7 +44,7 @@ func (suite *CommonCfgSuite) TestCommonConfig_Config() {
 	}
 }
 
-func (suite *CommonCfgSuite) TestStorage_CommonConfig() {
+func (suite *CommonCfgUnitSuite) TestStorage_CommonConfig() {
 	t := suite.T()
 
 	in := goodCommonConfig
@@ -55,7 +56,7 @@ func (suite *CommonCfgSuite) TestStorage_CommonConfig() {
 	assert.Equal(t, in.CorsoPassphrase, out.CorsoPassphrase)
 }
 
-func (suite *CommonCfgSuite) TestStorage_CommonConfig_InvalidCases() {
+func (suite *CommonCfgUnitSuite) TestStorage_CommonConfig_InvalidCases() {
 	// missing required properties
 	table := []struct {
 		name string

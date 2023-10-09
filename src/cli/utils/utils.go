@@ -22,30 +22,35 @@ import (
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
+type RepoDetailsAndOpts struct {
+	Repo config.RepoDetails
+	Opts control.Options
+}
+
 var ErrNotYetImplemented = clues.New("not yet implemented")
 
-// GetAccountAndConnectWithOverrides is a wrapper for GetAccountAndConnect
-// that also gets the storage provider and any storage provider specific
+// GetAccountAndConnect is a wrapper for GetAccountAndConnectWithOverrides
+// that automatically gets the storage provider and any storage provider specific
 // flag overrides from the command line.
-func GetAccountAndConnectWithOverrides(
+func GetAccountAndConnect(
 	ctx context.Context,
 	cmd *cobra.Command,
 	pst path.ServiceType,
-) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
+) (repository.Repositoryer, RepoDetailsAndOpts, error) {
 	provider, overrides, err := GetStorageProviderAndOverrides(ctx, cmd)
 	if err != nil {
-		return nil, nil, nil, nil, clues.Stack(err)
+		return nil, RepoDetailsAndOpts{}, clues.Stack(err)
 	}
 
-	return GetAccountAndConnect(ctx, pst, provider, overrides)
+	return GetAccountAndConnectWithOverrides(ctx, pst, provider, overrides)
 }
 
-func GetAccountAndConnect(
+func GetAccountAndConnectWithOverrides(
 	ctx context.Context,
 	pst path.ServiceType,
 	provider storage.ProviderType,
 	overrides map[string]string,
-) (repository.Repository, *storage.Storage, *account.Account, *control.Options, error) {
+) (repository.Repositoryer, RepoDetailsAndOpts, error) {
 	cfg, err := config.GetConfigRepoDetails(
 		ctx,
 		provider,
@@ -53,7 +58,7 @@ func GetAccountAndConnect(
 		true,
 		overrides)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, RepoDetailsAndOpts{}, err
 	}
 
 	repoID := cfg.RepoID
@@ -63,41 +68,46 @@ func GetAccountAndConnect(
 
 	opts := ControlWithConfig(cfg)
 
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, repoID, opts)
+	r, err := repository.New(
+		ctx,
+		cfg.Account,
+		cfg.Storage,
+		opts,
+		repoID)
 	if err != nil {
-		return nil, nil, nil, nil, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
+		return nil, RepoDetailsAndOpts{}, clues.Wrap(err, "creating a repository controller")
 	}
 
-	// this initializes our graph api client configurations,
-	// including control options such as concurency limitations.
-	if _, err := r.ConnectToM365(ctx, pst); err != nil {
-		return nil, nil, nil, nil, clues.Wrap(err, "connecting to m365")
+	if err := r.Connect(ctx, repository.ConnConfig{Service: pst}); err != nil {
+		return nil, RepoDetailsAndOpts{}, clues.Wrap(err, "connecting to the "+cfg.Storage.Provider.String()+" repository")
 	}
 
-	return r, &cfg.Storage, &cfg.Account, &opts, nil
+	rdao := RepoDetailsAndOpts{
+		Repo: cfg,
+		Opts: opts,
+	}
+
+	return r, rdao, nil
 }
 
 func AccountConnectAndWriteRepoConfig(
 	ctx context.Context,
 	cmd *cobra.Command,
 	pst path.ServiceType,
-) (repository.Repository, *account.Account, error) {
-	r, stg, acc, opts, err := GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		pst)
+) (repository.Repositoryer, *account.Account, error) {
+	r, rdao, err := GetAccountAndConnect(ctx, cmd, pst)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting and connecting account")
 		return nil, nil, err
 	}
 
-	sc, err := stg.StorageConfig()
+	sc, err := rdao.Repo.Storage.StorageConfig()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting storage configuration")
 		return nil, nil, err
 	}
 
-	m365Config, err := acc.M365Config()
+	m365Config, err := rdao.Repo.Account.M365Config()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting m365 configuration")
 		return nil, nil, err
@@ -105,17 +115,17 @@ func AccountConnectAndWriteRepoConfig(
 
 	// repo config gets set during repo connect and init.
 	// This call confirms we have the correct values.
-	err = config.WriteRepoConfig(ctx, sc, m365Config, opts.Repo, r.GetID())
+	err = config.WriteRepoConfig(ctx, sc, m365Config, rdao.Opts.Repo, r.GetID())
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("writing to repository configuration")
 		return nil, nil, err
 	}
 
-	return r, acc, nil
+	return r, &rdao.Repo.Account, nil
 }
 
 // CloseRepo handles closing a repo.
-func CloseRepo(ctx context.Context, r repository.Repository) {
+func CloseRepo(ctx context.Context, r repository.Repositoryer) {
 	if err := r.Close(ctx); err != nil {
 		fmt.Print("Error closing repository:", err)
 	}

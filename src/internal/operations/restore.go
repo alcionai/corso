@@ -136,6 +136,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	ctx = count.Embed(ctx, op.Counter)
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.acct.ID()),
@@ -360,12 +362,12 @@ func chooseRestoreResource(
 		return orig, nil
 	}
 
-	id, name, err := pprian.PopulateProtectedResourceIDAndName(
+	resource, err := pprian.PopulateProtectedResourceIDAndName(
 		ctx,
 		restoreCfg.ProtectedResource,
 		nil)
 
-	return idname.NewProvider(id, name), clues.Stack(err).OrNil()
+	return resource, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

@@ -56,7 +56,7 @@ func NewFilesystemStorage(t tester.TestT) storage.Storage {
 	now := tester.LogTimeOfTest(t)
 	repoPath := filepath.Join(t.TempDir(), now)
 
-	err := os.MkdirAll(repoPath, 0700)
+	err := os.MkdirAll(repoPath, 0o700)
 	require.NoErrorf(t, err, "creating filesystem repo: %+v", clues.ToCore(err))
 
 	t.Logf("testing at filesystem repo [%s]", repoPath)
@@ -68,6 +68,9 @@ func NewFilesystemStorage(t tester.TestT) storage.Storage {
 		},
 		storage.CommonConfig{
 			Corso: GetAndInsertCorso(""),
+			// Use separate kopia configs for each instance. Place in a new folder to
+			// avoid mixing data.
+			KopiaCfgDir: t.TempDir(),
 		})
 	require.NoError(t, err, "creating storage", clues.ToCore(err))
 

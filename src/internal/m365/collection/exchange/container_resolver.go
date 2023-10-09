@@ -27,6 +27,7 @@ type containersEnumerator interface {
 	EnumerateContainers(
 		ctx context.Context,
 		userID, baseDirID string,
+		immutableIDs bool,
 		fn func(graph.CachedContainer) error,
 		errs *fault.Bus,
 	) error
@@ -332,15 +333,17 @@ func (cr *containerResolver) LocationInCache(pathString string) (string, bool) {
 // addFolder adds a folder to the cache with the given ID. If the item is
 // already in the cache does nothing. The path for the item is not modified.
 func (cr *containerResolver) addFolder(cf graph.CachedContainer) error {
+	var err error
+
 	// Only require a non-nil non-empty parent if the path isn't already populated.
 	if cf.Path() != nil {
-		if err := checkIDAndName(cf); err != nil {
-			return clues.Wrap(err, "adding item to cache")
-		}
+		err = checkIDAndName(cf)
 	} else {
-		if err := checkRequiredValues(cf); err != nil {
-			return clues.Wrap(err, "adding item to cache")
-		}
+		err = checkRequiredValues(cf)
+	}
+
+	if err != nil {
+		return clues.Wrap(err, "validating container for cache")
 	}
 
 	if _, ok := cr.cache[ptr.Val(cf.GetId())]; ok {

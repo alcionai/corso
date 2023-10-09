@@ -24,11 +24,13 @@ var restoreCommands = []func(cmd *cobra.Command) *cobra.Command{
 
 // AddCommands attaches all `corso restore * *` commands to the parent.
 func AddCommands(cmd *cobra.Command) {
-	restoreC := restoreCmd()
-	cmd.AddCommand(restoreC)
+	subCommand := restoreCmd()
+	cmd.AddCommand(subCommand)
 
 	for _, addRestoreTo := range restoreCommands {
-		addRestoreTo(restoreC)
+		sc := addRestoreTo(subCommand)
+		flags.AddAllProviderFlags(sc)
+		flags.AddAllStorageFlags(sc)
 	}
 }
 
@@ -94,10 +96,11 @@ func runRestore(
 	sel selectors.Selector,
 	backupID, serviceName string,
 ) error {
-	r, _, _, _, err := utils.GetAccountAndConnectWithOverrides(
-		ctx,
-		cmd,
-		sel.PathService())
+	if err := utils.ValidateRestoreConfigFlags(urco); err != nil {
+		return Only(ctx, err)
+	}
+
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, sel.PathService())
 	if err != nil {
 		return Only(ctx, err)
 	}

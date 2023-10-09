@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -150,20 +151,27 @@ func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	// Needs to be a function so the readers get refreshed each time.
-	layouts := []func() fs.Directory{
+	layouts := []func(t *testing.T) fs.Directory{
 		// Has the following;
 		//   - file1: data[0]
 		//   - errOpen: (error opening file)
-		func() fs.Directory {
+		func(t *testing.T) fs.Directory {
+			format := readers.SerializationFormat{
+				Version: readers.DefaultSerializationVersion,
+			}
+
+			r1, err := readers.NewVersionedBackupReader(
+				format,
+				io.NopCloser(bytes.NewReader(fileData1)))
+			require.NoError(t, err, clues.ToCore(err))
+
 			return virtualfs.NewStaticDirectory(encodeAsPath(colPaths[0]), []fs.Entry{
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
 						encodeAsPath(fileName1),
 						nil),
-					r: newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData1))),
-					size: int64(len(fileData1) + versionSize),
+					r:    r1,
+					size: int64(len(fileData1) + readers.VersionFormatSize),
 				},
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
@@ -178,34 +186,47 @@ func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 		//   - file1: data[1]
 		//   - file2: data[0]
 		//   - errOpen: data[2]
-		func() fs.Directory {
+		func(t *testing.T) fs.Directory {
+			format := readers.SerializationFormat{
+				Version: readers.DefaultSerializationVersion,
+			}
+
+			r1, err := readers.NewVersionedBackupReader(
+				format,
+				io.NopCloser(bytes.NewReader(fileData2)))
+			require.NoError(t, err, clues.ToCore(err))
+
+			r2, err := readers.NewVersionedBackupReader(
+				format,
+				io.NopCloser(bytes.NewReader(fileData1)))
+			require.NoError(t, err, clues.ToCore(err))
+
+			r3, err := readers.NewVersionedBackupReader(
+				format,
+				io.NopCloser(bytes.NewReader(fileData3)))
+			require.NoError(t, err, clues.ToCore(err))
+
 			return virtualfs.NewStaticDirectory(encodeAsPath(colPaths[1]), []fs.Entry{
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
 						encodeAsPath(fileName1),
 						nil),
-					r: newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData2))),
-					size: int64(len(fileData2) + versionSize),
+					r:    r1,
+					size: int64(len(fileData2) + readers.VersionFormatSize),
 				},
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
 						encodeAsPath(fileName2),
 						nil),
-					r: newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData1))),
-					size: int64(len(fileData1) + versionSize),
+					r:    r2,
+					size: int64(len(fileData1) + readers.VersionFormatSize),
 				},
 				&mockFile{
 					StreamingFile: virtualfs.StreamingFileFromReader(
 						encodeAsPath(fileOpenErrName),
 						nil),
-					r: newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData3))),
-					size: int64(len(fileData3) + versionSize),
+					r:    r3,
+					size: int64(len(fileData3) + readers.VersionFormatSize),
 				},
 			})
 		},
@@ -257,9 +278,9 @@ func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 			for i, layout := range layouts {
 				col := &kopiaDataCollection{
 					path:            pth,
-					dir:             layout(),
+					dir:             layout(t),
 					counter:         c,
-					expectedVersion: serializationVersion,
+					expectedVersion: readers.DefaultSerializationVersion,
 				}
 
 				err := dc.addCollection(colPaths[i], col)

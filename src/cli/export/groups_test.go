@@ -1,18 +1,16 @@
 package export
 
 import (
-	"bytes"
 	"testing"
 
-	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -39,58 +37,42 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			parent := &cobra.Command{Use: exportCommand}
 
-			cmd := &cobra.Command{Use: test.use}
+			cmd := cliTD.SetUpCmdHasFlags(
+				t,
+				parent,
+				addGroupsCommands,
+				[]cliTD.UseCobraCommandFn{
+					flags.AddAllProviderFlags,
+					flags.AddAllStorageFlags,
+				},
+				flagsTD.WithFlags(
+					groupsServiceCommand,
+					[]string{
+						flagsTD.RestoreDestination,
+						"--" + flags.RunModeFN, flags.RunModeFlagTest,
+						"--" + flags.BackupFN, flagsTD.BackupInput,
+						"--" + flags.FormatFN, flagsTD.FormatType,
+						"--" + flags.ArchiveFN,
+					},
+					flagsTD.PreparedProviderFlags(),
+					flagsTD.PreparedStorageFlags()))
 
-			// normally a persistent flag from the root.
-			// required to ensure a dry run.
-			flags.AddRunModeFlag(cmd, true)
-
-			c := addGroupsCommands(cmd)
-			require.NotNil(t, c)
-
-			cmds := cmd.Commands()
-			require.Len(t, cmds, 1)
-
-			child := cmds[0]
-			assert.Equal(t, test.expectUse, child.Use)
-			assert.Equal(t, test.expectShort, child.Short)
-			tester.AreSameFunc(t, test.expectRunE, child.RunE)
-
-			cmd.SetArgs([]string{
-				"groups",
-				testdata.RestoreDestination,
-				"--" + flags.RunModeFN, flags.RunModeFlagTest,
-				"--" + flags.BackupFN, testdata.BackupInput,
-
-				"--" + flags.AWSAccessKeyFN, testdata.AWSAccessKeyID,
-				"--" + flags.AWSSecretAccessKeyFN, testdata.AWSSecretAccessKey,
-				"--" + flags.AWSSessionTokenFN, testdata.AWSSessionToken,
-
-				"--" + flags.CorsoPassphraseFN, testdata.CorsoPassphrase,
-
-				"--" + flags.FormatFN, testdata.FormatType,
-
-				// bool flags
-				"--" + flags.ArchiveFN,
-			})
-
-			cmd.SetOut(new(bytes.Buffer)) // drop output
-			cmd.SetErr(new(bytes.Buffer)) // drop output
-			err := cmd.Execute()
-			assert.NoError(t, err, clues.ToCore(err))
+			cliTD.CheckCmdChild(
+				t,
+				parent,
+				3,
+				test.expectUse,
+				test.expectShort,
+				test.expectRunE)
 
 			opts := utils.MakeGroupsOpts(cmd)
-			assert.Equal(t, testdata.BackupInput, flags.BackupIDFV)
 
-			assert.Equal(t, testdata.Archive, opts.ExportCfg.Archive)
-			assert.Equal(t, testdata.FormatType, opts.ExportCfg.Format)
-
-			assert.Equal(t, testdata.AWSAccessKeyID, flags.AWSAccessKeyFV)
-			assert.Equal(t, testdata.AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
-			assert.Equal(t, testdata.AWSSessionToken, flags.AWSSessionTokenFV)
-
-			assert.Equal(t, testdata.CorsoPassphrase, flags.CorsoPassphraseFV)
+			assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+			assert.Equal(t, flagsTD.Archive, opts.ExportCfg.Archive)
+			assert.Equal(t, flagsTD.FormatType, opts.ExportCfg.Format)
+			flagsTD.AssertStorageFlags(t, cmd)
 		})
 	}
 }

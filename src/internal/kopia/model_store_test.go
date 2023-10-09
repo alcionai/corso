@@ -29,7 +29,7 @@ type fooModel struct {
 
 //revive:disable-next-line:context-as-argument
 func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
-	c, err := openKopiaRepo(t, ctx)
+	c, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return &ModelStore{c: c, modelVersion: globalModelVersion}
@@ -856,7 +856,7 @@ func openConnAndModelStore(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, *ModelStore) {
-	st := storeTD.NewPrefixedS3Storage(t)
+	st := storeTD.NewFilesystemStorage(t)
 	c := NewConn(st)
 
 	err := c.Initialize(ctx, repository.Options{}, repository.Retention{})

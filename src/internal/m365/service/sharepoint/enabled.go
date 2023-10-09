@@ -7,10 +7,11 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type getSiteRooter interface {
-	GetRoot(ctx context.Context) (models.Siteable, error)
+	GetRoot(ctx context.Context, cc api.CallConfig) (models.Siteable, error)
 }
 
 func IsServiceEnabled(
@@ -18,7 +19,7 @@ func IsServiceEnabled(
 	gsr getSiteRooter,
 	resource string,
 ) (bool, error) {
-	_, err := gsr.GetRoot(ctx)
+	_, err := gsr.GetRoot(ctx, api.CallConfig{})
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
 			return false, nil

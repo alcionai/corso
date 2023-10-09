@@ -33,9 +33,8 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
-	flags.AddAWSCredsFlags(c)
-	flags.AddAzureCredsFlags(c)
 	flags.AddCorsoPassphaseFlags(c)
+	flags.AddAWSCredsFlags(c)
 	flags.AddS3BucketFlags(c)
 
 	return c
@@ -112,12 +111,10 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		cfg.Account.ID(),
 		opt)
 
-	sc, err := cfg.Storage.StorageConfig()
+	s3Cfg, err := cfg.Storage.ToS3Config()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
-
-	s3Cfg := sc.(*storage.S3Config)
 
 	if strings.HasPrefix(s3Cfg.Endpoint, "http://") || strings.HasPrefix(s3Cfg.Endpoint, "https://") {
 		invalidEndpointErr := "endpoint doesn't support specifying protocol. " +
@@ -131,18 +128,24 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(
+	r, err := repository.New(
 		ctx,
 		cfg.Account,
 		cfg.Storage,
 		opt,
-		retentionOpts)
+		repository.NewRepoID)
 	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to construct the repository controller"))
+	}
+
+	ric := repository.InitConfig{RetentionOpts: retentionOpts}
+
+	if err = r.Initialize(ctx, ric); err != nil {
 		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
 		}
 
-		return Only(ctx, clues.Wrap(err, "Failed to initialize a new S3 repository"))
+		return Only(ctx, clues.Stack(ErrInitializingRepo, err))
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -191,12 +194,10 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		repoID = events.RepoIDNotFound
 	}
 
-	sc, err := cfg.Storage.StorageConfig()
+	s3Cfg, err := cfg.Storage.ToS3Config()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
-
-	s3Cfg := sc.(*storage.S3Config)
 
 	m365, err := cfg.Account.M365Config()
 	if err != nil {
@@ -212,14 +213,18 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 
 	opts := utils.ControlWithConfig(cfg)
 
-	r, err := repository.ConnectAndSendConnectEvent(
+	r, err := repository.New(
 		ctx,
 		cfg.Account,
 		cfg.Storage,
-		repoID,
-		opts)
+		opts,
+		repoID)
 	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
+		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
+	}
+
+	if err := r.Connect(ctx, repository.ConnConfig{}); err != nil {
+		return Only(ctx, clues.Stack(ErrConnectingRepo, err))
 	}
 
 	defer utils.CloseRepo(ctx, r)

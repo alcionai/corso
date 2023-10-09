@@ -22,7 +22,7 @@ func Assert(
 		return
 	}
 
-	header = "Error: " + header
+	header = "TEST FAILURE: " + header
 	expected := fmt.Sprintf("* Expected: %+v", expect)
 	got := fmt.Sprintf("* Current: %+v", current)
 
@@ -37,7 +37,7 @@ func Assert(
 
 func Fatal(ctx context.Context, msg string, err error) {
 	logger.CtxErr(ctx, err).Error("test failure: " + msg)
-	fmt.Println(msg+": ", err)
+	fmt.Println("TEST FAILURE: "+msg+": ", err)
 	os.Exit(1)
 }
 

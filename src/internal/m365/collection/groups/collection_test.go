@@ -2,6 +2,7 @@ package groups
 
 import (
 	"bytes"
+	"io"
 	"testing"
 	"time"
 
@@ -10,10 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/mock"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -27,55 +30,44 @@ func TestCollectionUnitSuite(t *testing.T) {
 	suite.Run(t, &CollectionUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *CollectionUnitSuite) TestReader_Valid() {
-	m := []byte("test message")
-	description := "aFile"
-	ed := &Item{id: description, message: m}
-
-	buf := &bytes.Buffer{}
-	_, err := buf.ReadFrom(ed.ToReader())
-	assert.NoError(suite.T(), err, clues.ToCore(err))
-	assert.Equal(suite.T(), buf.Bytes(), m)
-	assert.Equal(suite.T(), description, ed.ID())
-}
-
-func (suite *CollectionUnitSuite) TestReader_Empty() {
-	var (
-		empty    []byte
-		expected int64
-		t        = suite.T()
-	)
-
-	ed := &Item{message: empty}
-	buf := &bytes.Buffer{}
-	received, err := buf.ReadFrom(ed.ToReader())
-
-	assert.Equal(t, expected, received)
-	assert.NoError(t, err, clues.ToCore(err))
-}
-
-func (suite *CollectionUnitSuite) TestCollection_NewCollection() {
-	t := suite.T()
-	tenant := "a-tenant"
-	protectedResource := "a-protectedResource"
-	folder := "a-folder"
-	name := "protectedResource"
-
-	fullPath, err := path.Build(
-		tenant,
-		protectedResource,
-		path.GroupsService,
-		path.ChannelMessagesCategory,
-		false,
-		folder)
-	require.NoError(t, err, clues.ToCore(err))
-
-	edc := Collection{
-		protectedResource: name,
-		fullPath:          fullPath,
+func (suite *CollectionUnitSuite) TestPrefetchedItem_Reader() {
+	table := []struct {
+		name     string
+		readData []byte
+	}{
+		{
+			name:     "HasData",
+			readData: []byte("test message"),
+		},
+		{
+			name:     "Empty",
+			readData: []byte{},
+		},
 	}
-	assert.Equal(t, name, edc.protectedResource)
-	assert.Equal(t, fullPath, edc.FullPath())
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ed, err := data.NewPrefetchedItem(
+				io.NopCloser(bytes.NewReader(test.readData)),
+				"itemID",
+				details.ItemInfo{})
+			require.NoError(t, err, clues.ToCore(err))
+
+			r, err := readers.NewVersionedRestoreReader(ed.ToReader())
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+			assert.False(t, r.Format().DelInFlight)
+
+			buf := &bytes.Buffer{}
+			_, err = buf.ReadFrom(r)
+			assert.NoError(t, err, "reading data: %v", clues.ToCore(err))
+			assert.Equal(t, test.readData, buf.Bytes(), "read data")
+			assert.Equal(t, "itemID", ed.ID(), "item ID")
+		})
+	}
 }
 
 func (suite *CollectionUnitSuite) TestNewCollection_state() {
@@ -124,18 +116,20 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 			t := suite.T()
 
 			c := NewCollection(
+				data.NewBaseCollection(
+					test.curr,
+					test.prev,
+					test.loc,
+					control.DefaultOptions(),
+					false),
 				nil,
 				"g",
-				test.curr, test.prev, test.loc,
-				0,
 				nil, nil,
-				nil,
-				control.DefaultOptions(),
-				false)
+				nil)
 			assert.Equal(t, test.expect, c.State(), "collection state")
-			assert.Equal(t, test.curr, c.fullPath, "full path")
-			assert.Equal(t, test.prev, c.prevPath, "prev path")
-			assert.Equal(t, test.loc, c.locationPath, "location path")
+			assert.Equal(t, test.curr, c.FullPath(), "full path")
+			assert.Equal(t, test.prev, c.PreviousPath(), "prev path")
+			assert.Equal(t, test.loc, c.LocationPath(), "location path")
 		})
 	}
 }
@@ -203,13 +197,16 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 			defer flush()
 
 			col := &Collection{
+				BaseCollection: data.NewBaseCollection(
+					fullPath,
+					nil,
+					locPath.ToBuilder(),
+					control.DefaultOptions(),
+					false),
 				added:         test.added,
 				removed:       test.removed,
-				ctrl:          control.DefaultOptions(),
 				getter:        mock.GetChannelMessage{},
 				stream:        make(chan data.Item),
-				fullPath:      fullPath,
-				locationPath:  locPath.ToBuilder(),
 				statusUpdater: statusUpdater,
 			}
 

@@ -14,7 +14,6 @@ import (
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -124,12 +123,6 @@ func expectFileData(
 		return
 	}
 
-	// Need to wrap with a restore stream reader to remove the version.
-	r = &restoreStreamReader{
-		ReadCloser:      io.NopCloser(r),
-		expectedVersion: serializationVersion,
-	}
-
 	got, err := io.ReadAll(r)
 	if !assert.NoError(t, err, "reading data in file", name, clues.ToCore(err)) {
 		return
@@ -226,135 +219,6 @@ func getDirEntriesForEntry(
 // ---------------
 // unit tests
 // ---------------
-type limitedRangeReader struct {
-	readLen int
-	io.ReadCloser
-}
-
-func (lrr *limitedRangeReader) Read(p []byte) (int, error) {
-	if len(p) == 0 {
-		// Not well specified behavior, defer to underlying reader.
-		return lrr.ReadCloser.Read(p)
-	}
-
-	toRead := lrr.readLen
-	if len(p) < toRead {
-		toRead = len(p)
-	}
-
-	return lrr.ReadCloser.Read(p[:toRead])
-}
-
-type VersionReadersUnitSuite struct {
-	tester.Suite
-}
-
-func TestVersionReadersUnitSuite(t *testing.T) {
-	suite.Run(t, &VersionReadersUnitSuite{Suite: tester.NewUnitSuite(t)})
-}
-
-func (suite *VersionReadersUnitSuite) TestWriteAndRead() {
-	inputData := []byte("This is some data for the reader to test with")
-	table := []struct {
-		name         string
-		readVersion  uint32
-		writeVersion uint32
-		check        assert.ErrorAssertionFunc
-	}{
-		{
-			name:         "SameVersionSucceeds",
-			readVersion:  42,
-			writeVersion: 42,
-			check:        assert.NoError,
-		},
-		{
-			name:         "DifferentVersionsFail",
-			readVersion:  7,
-			writeVersion: 42,
-			check:        assert.Error,
-		},
-	}
-
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			baseReader := bytes.NewReader(inputData)
-
-			reversible := &restoreStreamReader{
-				expectedVersion: test.readVersion,
-				ReadCloser: newBackupStreamReader(
-					test.writeVersion,
-					io.NopCloser(baseReader)),
-			}
-
-			defer reversible.Close()
-
-			allData, err := io.ReadAll(reversible)
-			test.check(t, err, clues.ToCore(err))
-
-			if err != nil {
-				return
-			}
-
-			assert.Equal(t, inputData, allData)
-		})
-	}
-}
-
-func readAllInParts(
-	t *testing.T,
-	partLen int,
-	reader io.ReadCloser,
-) ([]byte, int) {
-	res := []byte{}
-	read := 0
-	tmp := make([]byte, partLen)
-
-	for {
-		n, err := reader.Read(tmp)
-		if errors.Is(err, io.EOF) {
-			break
-		}
-
-		require.NoError(t, err, clues.ToCore(err))
-
-		read += n
-		res = append(res, tmp[:n]...)
-	}
-
-	return res, read
-}
-
-func (suite *VersionReadersUnitSuite) TestWriteHandlesShortReads() {
-	t := suite.T()
-	inputData := []byte("This is some data for the reader to test with")
-	version := uint32(42)
-	baseReader := bytes.NewReader(inputData)
-	versioner := newBackupStreamReader(version, io.NopCloser(baseReader))
-	expectedToWrite := len(inputData) + int(versionSize)
-
-	// "Write" all the data.
-	versionedData, writtenLen := readAllInParts(t, 1, versioner)
-	assert.Equal(t, expectedToWrite, writtenLen)
-
-	// Read all of the data back.
-	baseReader = bytes.NewReader(versionedData)
-	reader := &restoreStreamReader{
-		expectedVersion: version,
-		// Be adversarial and only allow reads of length 1 from the byte reader.
-		ReadCloser: &limitedRangeReader{
-			readLen:    1,
-			ReadCloser: io.NopCloser(baseReader),
-		},
-	}
-	readData, readLen := readAllInParts(t, 1, reader)
-	// This reports the bytes read and returned to the user, excluding the version
-	// that is stripped off at the start.
-	assert.Equal(t, len(inputData), readLen)
-	assert.Equal(t, inputData, readData)
-}
-
 type CorsoProgressUnitSuite struct {
 	tester.Suite
 	targetFilePath path.Path
@@ -2420,9 +2284,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
 									// Wrap with a backup reader so it gets the version injected.
-									newBackupStreamReader(
-										serializationVersion,
-										io.NopCloser(bytes.NewReader(inboxFileData1v2)))),
+									io.NopCloser(bytes.NewReader(inboxFileData1v2))),
 							}),
 					}),
 				virtualfs.NewStaticDirectory(
@@ -2582,9 +2444,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(inboxFileName1)[0],
 									time.Time{},
-									newBackupStreamReader(
-										serializationVersion,
-										io.NopCloser(bytes.NewReader(inboxFileData1)))),
+									io.NopCloser(bytes.NewReader(inboxFileData1))),
 							}),
 					}),
 				virtualfs.NewStaticDirectory(
@@ -2596,9 +2456,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 								virtualfs.StreamingFileWithModTimeFromReader(
 									encodeElements(contactsFileName1)[0],
 									time.Time{},
-									newBackupStreamReader(
-										serializationVersion,
-										io.NopCloser(bytes.NewReader(contactsFileData1)))),
+									io.NopCloser(bytes.NewReader(contactsFileData1))),
 							}),
 					}),
 			})
@@ -2817,15 +2675,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName5)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData5)))),
+					io.NopCloser(bytes.NewReader(fileData5))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName6)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData6)))),
+					io.NopCloser(bytes.NewReader(fileData6))),
 			})
 		counters[folderID3] = count
 
@@ -2835,15 +2689,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName3)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData3)))),
+					io.NopCloser(bytes.NewReader(fileData3))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName4)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData4)))),
+					io.NopCloser(bytes.NewReader(fileData4))),
 				folder,
 			})
 		counters[folderID2] = count
@@ -2859,15 +2709,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName1)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData1)))),
+					io.NopCloser(bytes.NewReader(fileData1))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName2)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData2)))),
+					io.NopCloser(bytes.NewReader(fileData2))),
 				folder,
 				folder4,
 			})
@@ -2879,15 +2725,11 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName7)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData7)))),
+					io.NopCloser(bytes.NewReader(fileData7))),
 				virtualfs.StreamingFileWithModTimeFromReader(
 					encodeElements(fileName8)[0],
 					time.Time{},
-					newBackupStreamReader(
-						serializationVersion,
-						io.NopCloser(bytes.NewReader(fileData8)))),
+					io.NopCloser(bytes.NewReader(fileData8))),
 			})
 		counters[folderID5] = count
 

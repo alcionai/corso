@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	metaTD "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata/testdata"
@@ -206,6 +207,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 
 			coll, err := NewCollection(
 				mbh,
+				mbh.ProtectedResource,
 				folderPath,
 				nil,
 				"drive-id",
@@ -256,7 +258,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			mt := readItem.(data.ItemModTime)
 			assert.Equal(t, now, mt.ModTime())
 
-			readData, err := io.ReadAll(readItem.ToReader())
+			rr, err := readers.NewVersionedRestoreReader(readItem.ToReader())
 			test.expectErr(t, err)
 
 			if err != nil {
@@ -267,13 +269,25 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				return
 			}
 
+			assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+			assert.False(t, rr.Format().DelInFlight)
+
+			readData, err := io.ReadAll(rr)
+			require.NoError(t, err, clues.ToCore(err))
+
 			assert.Equal(t, stubItemContent, readData)
 
 			readItemMeta := readItems[1]
 			assert.Equal(t, stubItemID+metadata.MetaFileSuffix, readItemMeta.ID())
 
+			rr, err = readers.NewVersionedRestoreReader(readItemMeta.ToReader())
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+			assert.False(t, rr.Format().DelInFlight)
+
 			readMeta := metadata.Metadata{}
-			err = json.NewDecoder(readItemMeta.ToReader()).Decode(&readMeta)
+			err = json.NewDecoder(rr).Decode(&readMeta)
 			require.NoError(t, err, clues.ToCore(err))
 
 			metaTD.AssertMetadataEqual(t, stubMeta, readMeta)
@@ -315,6 +329,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 
 	coll, err := NewCollection(
 		mbh,
+		mbh.ProtectedResource,
 		folderPath,
 		nil,
 		"fakeDriveID",
@@ -392,6 +407,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 
 	coll, err := NewCollection(
 		mbh,
+		mbh.ProtectedResource,
 		folderPath,
 		nil,
 		"fakeDriveID",
@@ -447,6 +463,7 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 
 	coll, err := NewCollection(
 		mbh,
+		mbh.ProtectedResource,
 		folderPath,
 		nil,
 		"drive-id",
@@ -485,12 +502,18 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 
 	for _, i := range readItems {
 		if strings.HasSuffix(i.ID(), metadata.MetaFileSuffix) {
-			content, err := io.ReadAll(i.ToReader())
+			rr, err := readers.NewVersionedRestoreReader(i.ToReader())
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
+			assert.False(t, rr.Format().DelInFlight)
+
+			content, err := io.ReadAll(rr)
 			require.NoError(t, err, clues.ToCore(err))
 			require.Equal(t, `{"filename":"Fake Item","permissionMode":1}`, string(content))
 
 			im, ok := i.(data.ItemModTime)
-			require.Equal(t, ok, true, "modtime interface")
+			require.True(t, ok, "modtime interface")
 			require.Greater(t, im.ModTime(), mtime, "permissions time greater than mod time")
 		}
 	}
@@ -546,7 +569,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 			colScope: CollectionScopePackage,
 			itemSize: 10,
 			err:      clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
+			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
 			name:     "big OneNote file",
@@ -952,6 +975,7 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 
 			coll, err := NewCollection(
 				mbh,
+				mbh.ProtectedResource,
 				folderPath,
 				nil,
 				driveID,
@@ -981,14 +1005,16 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 			ei, ok := collItem.(data.ItemInfo)
 			assert.True(t, ok)
 
-			itemInfo, err := ei.Info()
-			require.NoError(t, err, clues.ToCore(err))
+			r := collItem.ToReader()
 
-			_, err = io.ReadAll(collItem.ToReader())
+			_, err = io.ReadAll(r)
 			test.expectReadErr(t, err, clues.ToCore(err))
 
-			err = collItem.ToReader().Close()
+			err = r.Close()
 			test.expectCloseErr(t, err, clues.ToCore(err))
+
+			itemInfo, err := ei.Info()
+			require.NoError(t, err, clues.ToCore(err))
 
 			// Verify extension data
 			test.expect(t, itemInfo, test.payload)

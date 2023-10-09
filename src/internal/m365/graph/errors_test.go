@@ -247,11 +247,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 			err:    odErr(string(syncStateInvalid)),
 			expect: assert.True,
 		},
-		{
-			name:   "deltatoken not supported oDataErrMsg",
-			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)),
-			expect: assert.True,
-		},
 		// next two tests are to make sure the checks are case insensitive
 		{
 			name:   "resync-required oDataErr camelcase",
@@ -267,6 +262,55 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrInvalidDelta(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrDeltaNotSupported() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "as",
+			err:    ErrDeltaNotSupported,
+			expect: assert.True,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErrMsg",
+			err:    odErrMsg("fnords", "deltatoken not supported"),
+			expect: assert.False,
+		},
+		{
+			name:   "deltatoken not supported oDataErrMsg",
+			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)),
+			expect: assert.True,
+		},
+		{
+			name:   "deltatoken not supported oDataErrMsg with punctuation",
+			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)+"."),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrDeltaNotSupported(test.err))
 		})
 	}
 }
@@ -434,9 +478,14 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 			expect: assert.False,
 		},
 		{
-			name: "as",
+			name: "graph 401",
 			err: clues.Stack(assert.AnError).
 				Label(LabelStatus(http.StatusUnauthorized)),
+			expect: assert.True,
+		},
+		{
+			name:   "token expired",
+			err:    clues.Stack(assert.AnError, ErrTokenExpired),
 			expect: assert.True,
 		},
 	}
@@ -580,6 +629,51 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUsersCannotBeResolved() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrUsersCannotBeResolved(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrSiteCouldNotBeFound() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErrMsg("InvalidRequest", "cant resolve sites"),
+			expect: assert.False,
+		},
+		{
+			name:   "matching oDataErr msg",
+			err:    odErrMsg("InvalidRequest", string(requestedSiteCouldNotBeFound)),
+			expect: assert.True,
+		},
+		// next two tests are to make sure the checks are case insensitive
+		{
+			name:   "oDataErr uppercase",
+			err:    odErrMsg("InvalidRequest", strings.ToUpper(string(requestedSiteCouldNotBeFound))),
+			expect: assert.True,
+		},
+		{
+			name:   "oDataErr lowercase",
+			err:    odErrMsg("InvalidRequest", strings.ToLower(string(requestedSiteCouldNotBeFound))),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrSiteNotFound(test.err))
 		})
 	}
 }

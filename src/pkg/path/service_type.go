@@ -15,27 +15,25 @@ var ErrorUnknownService = clues.New("unknown service string")
 // Metadata services are not considered valid service types for resource paths
 // though they can be used for metadata paths.
 //
-// The order of the enums below can be changed, but the string representation of
-// each enum must remain the same or migration code needs to be added to handle
-// changes to the string format.
+// The string representaton of each enum _must remain the same_.  In case of
+// changes to those values, we'll need migration code to handle transitions
+// across states else we'll get marshalling/unmarshalling errors.
 type ServiceType int
 
 //go:generate stringer -type=ServiceType -linecomment
 const (
 	UnknownService            ServiceType = 0
-	ExchangeService           ServiceType = 1  // exchange
-	OneDriveService           ServiceType = 2  // onedrive
-	SharePointService         ServiceType = 3  // sharepoint
-	ExchangeMetadataService   ServiceType = 4  // exchangeMetadata
-	OneDriveMetadataService   ServiceType = 5  // onedriveMetadata
-	SharePointMetadataService ServiceType = 6  // sharepointMetadata
-	GroupsService             ServiceType = 7  // groups
-	GroupsMetadataService     ServiceType = 8  // groupsMetadata
-	TeamsService              ServiceType = 9  // teams
-	TeamsMetadataService      ServiceType = 10 // teamsMetadata
+	ExchangeService           ServiceType = 1 // exchange
+	OneDriveService           ServiceType = 2 // onedrive
+	SharePointService         ServiceType = 3 // sharepoint
+	ExchangeMetadataService   ServiceType = 4 // exchangeMetadata
+	OneDriveMetadataService   ServiceType = 5 // onedriveMetadata
+	SharePointMetadataService ServiceType = 6 // sharepointMetadata
+	GroupsService             ServiceType = 7 // groups
+	GroupsMetadataService     ServiceType = 8 // groupsMetadata
 )
 
-func toServiceType(service string) ServiceType {
+func ToServiceType(service string) ServiceType {
 	s := strings.ToLower(service)
 
 	switch s {
@@ -47,8 +45,6 @@ func toServiceType(service string) ServiceType {
 		return SharePointService
 	case strings.ToLower(GroupsService.String()):
 		return GroupsService
-	case strings.ToLower(TeamsService.String()):
-		return TeamsService
 	case strings.ToLower(ExchangeMetadataService.String()):
 		return ExchangeMetadataService
 	case strings.ToLower(OneDriveMetadataService.String()):
@@ -57,8 +53,6 @@ func toServiceType(service string) ServiceType {
 		return SharePointMetadataService
 	case strings.ToLower(GroupsMetadataService.String()):
 		return GroupsMetadataService
-	case strings.ToLower(TeamsMetadataService.String()):
-		return TeamsMetadataService
 	default:
 		return UnknownService
 	}

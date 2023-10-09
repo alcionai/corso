@@ -21,7 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
@@ -124,7 +124,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 type dependencies struct {
 	st             storage.Storage
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	vpr            *viper.Viper
 	recorder       strings.Builder
 	configFilePath string
@@ -133,6 +133,7 @@ type dependencies struct {
 func prepM365Test(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
+	pst path.ServiceType,
 ) dependencies {
 	var (
 		acct     = tconfig.NewM365Account(t)
@@ -140,10 +141,8 @@ func prepM365Test(
 		recorder = strings.Builder{}
 	)
 
-	sc, err := st.StorageConfig()
+	cfg, err := st.ToS3Config()
 	require.NoError(t, err, clues.ToCore(err))
-
-	cfg := sc.(*storage.S3Config)
 
 	force := map[string]string{
 		tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
@@ -154,12 +153,17 @@ func prepM365Test(
 	vpr, cfgFP := tconfig.MakeTempTestConfigClone(t, force)
 	ctx = config.SetViper(ctx, vpr)
 
-	repo, err := repository.Initialize(
+	repo, err := repository.New(
 		ctx,
 		acct,
 		st,
 		control.DefaultOptions(),
-		ctrlRepo.Retention{})
+		repository.NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = repo.Initialize(ctx, repository.InitConfig{
+		Service: pst,
+	})
 	require.NoError(t, err, clues.ToCore(err))
 
 	return dependencies{

@@ -23,18 +23,15 @@ import (
 )
 
 const (
-	logGraphRequestsEnvKey    = "LOG_GRAPH_REQUESTS"
-	log2xxGraphRequestsEnvKey = "LOG_2XX_GRAPH_REQUESTS"
-	log2xxGraphResponseEnvKey = "LOG_2XX_GRAPH_RESPONSES"
-	defaultMaxRetries         = 3
-	defaultDelay              = 3 * time.Second
-	locationHeader            = "Location"
-	rateLimitHeader           = "RateLimit-Limit"
-	rateRemainingHeader       = "RateLimit-Remaining"
-	rateResetHeader           = "RateLimit-Reset"
-	retryAfterHeader          = "Retry-After"
-	retryAttemptHeader        = "Retry-Attempt"
-	defaultHTTPClientTimeout  = 1 * time.Hour
+	defaultMaxRetries        = 3
+	defaultDelay             = 3 * time.Second
+	locationHeader           = "Location"
+	rateLimitHeader          = "RateLimit-Limit"
+	rateRemainingHeader      = "RateLimit-Remaining"
+	rateResetHeader          = "RateLimit-Reset"
+	retryAfterHeader         = "Retry-After"
+	retryAttemptHeader       = "Retry-Attempt"
+	defaultHTTPClientTimeout = 1 * time.Hour
 )
 
 type QueryParams struct {
