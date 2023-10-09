@@ -150,10 +150,10 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	require.NotZero(t, size)
 }
 
-// In prod we consider any errors in isURLExpired as non-fatal and
-// continue with the download. This is a regression test to make sure
-// we keep track of any graph changes to the download url format, including
-// how graph embeds the jwt token.
+// In prod we consider any errors in isURLExpired as non-fatal and carry on
+// with the download. This is a regression test to make sure we keep track
+// of any graph changes to the download url scheme, including how graph
+// embeds the jwt token.
 func (suite *ItemIntegrationSuite) TestIsURLExpired() {
 	t := suite.T()
 
