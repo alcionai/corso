@@ -29,10 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Groups and Teams service support available as a feature preview!  Channel messages and Files are now available for backup and restore in the CLI: `corso backup create groups --group '*'`
-  * The cli commands for "groups" and "teams" can be used interchangably, and will operate on the same backup data.
-  * New permissions are required to backup Channel messages.  See the [Corso Documentation](https://corsobackup.io/docs/setup/m365-access/#configure-required-permissions) for complete details.
+  - The cli commands for "groups" and "teams" can be used interchangeably, and will operate on the same backup data.
+  - New permissions are required to backup Channel messages.  See the [Corso Documentation](https://corsobackup.io/docs/setup/m365-access/#configure-required-permissions) for complete details.
   Even though Channel message restoration is not available, message write permissions are included to cover future integration.
-  * This is a feature preview, and may be subject to breaking changes based on feedback and testing.
+  - This is a feature preview, and may be subject to breaking changes based on feedback and testing.
 
 ### Changed
 - Switched to Go 1.21
@@ -387,7 +387,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.14.0...HEAD
+[v0.14.0]: https://github.com/alcionai/corso/compare/v0.13.0...v0.14.0
+[v0.13.0]: https://github.com/alcionai/corso/compare/v0.12.0...v0.13.0
+[v0.12.0]: https://github.com/alcionai/corso/compare/v0.11.1...v0.12.0
 [v0.11.1]: https://github.com/alcionai/corso/compare/v0.11.0...v0.11.1
 [v0.11.0]: https://github.com/alcionai/corso/compare/v0.10.0...v0.11.0
 [v0.10.0]: https://github.com/alcionai/corso/compare/v0.9.0...v0.10.0
