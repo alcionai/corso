@@ -371,7 +371,7 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 
 	backupWithLegacyResource := func(protectedResource string, b *backup.Backup) *backup.Backup {
 		res := *b
-		res.ResourceOwnerID = protectedResource
+		res.ProtectedResourceID = protectedResource
 
 		return &res
 	}
@@ -706,15 +706,14 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 		},
 		{
 			// Test that an assist base that has the same Reasons as a newer merge
-			// base but the merge base is from an older version of corso for some
+			// base but the merge base is missing the protected resource ID for some
 			// reason doesn't cause the assist base to be garbage collected. This is
-			// not ideal, but some older versions of corso didn't even populate the
-			// resource owner ID.
+			// not ideal, but at least we're not accidentally removing assist bases
+			// that could be useful later on.
 			//
-			// Worst case, the assist base will be cleaned up when the user upgrades
-			// corso and generates either a new assist base or merge base with the
-			// same reason.
-			name: "AssistAndLegacyMergeBases NotYoungest Noops",
+			// Worst case, the assist base will be cleaned up when there's a  merge
+			// base that does populated the protected resource ID field.
+			name: "AssistAndMergeMissingResourceIDBases NotYoungest Noops",
 			snapshots: []*manifest.EntryMetadata{
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
@@ -730,7 +729,15 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 			},
 			backups: []backupRes{
 				{bup: backupWithResource("ro", true, backupWithTime(baseTime, bupCurrent()))},
-				{bup: backupWithLegacyResource("ro", backupWithTime(baseTime.Add(time.Second), bupCurrent2()))},
+				{bup: func() *backup.Backup {
+					res := backupWithResource(
+						"ro",
+						false,
+						backupWithTime(baseTime.Add(time.Second), bupCurrent2()))
+					res.ProtectedResourceID = ""
+
+					return res
+				}()},
 			},
 			time:      baseTime.Add(48 * time.Hour),
 			buffer:    24 * time.Hour,
