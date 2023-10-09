@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
-## [v0.14.0] (beta) - 2023-10-07
+## [v0.14.0] (beta) - 2023-10-09
 
 ### Added
 - Enables local or network-attached storage for Corso repositories.
