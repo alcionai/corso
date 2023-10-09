@@ -124,6 +124,8 @@ var (
 	ErrTimeout = clues.New("communication timeout")
 
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
+
+	ErrTokenExpired = clues.New("jwt token expired")
 )
 
 func IsErrApplicationThrottled(err error) bool {
@@ -224,7 +226,8 @@ func IsErrUnauthorized(err error) bool {
 	// TODO: refine this investigation.  We don't currently know if
 	// a specific item download url expired, or if the full connection
 	// auth expired.
-	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized))
+	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
+		errors.Is(err, ErrTokenExpired)
 }
 
 func IsErrItemAlreadyExistsConflict(err error) bool {
