@@ -51,7 +51,7 @@ func TestItemUnitSuite(t *testing.T) {
 }
 
 func (suite *ItemUnitSuite) TestUnindexedPrefetchedItem() {
-	prefetch, err := data.NewUnindexedPrefetchedItem(
+	prefetch, err := data.NewPrefetchedItem(
 		io.NopCloser(bytes.NewReader([]byte{})),
 		"foo",
 		time.Time{})
@@ -69,7 +69,7 @@ func (suite *ItemUnitSuite) TestUnindexedLazyItem() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	lazy := data.NewUnindexedLazyItem(
+	lazy := data.NewLazyItem(
 		ctx,
 		nil,
 		"foo",
@@ -148,7 +148,7 @@ func (suite *ItemUnitSuite) TestPrefetchedItem() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			item, err := data.NewPrefetchedItem(test.reader, id, test.info)
+			item, err := data.NewPrefetchedItemWithInfo(test.reader, id, test.info)
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, id, item.ID(), "ID")
@@ -291,7 +291,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 
 			defer test.mid.check(t, true)
 
-			item := data.NewLazyItem(
+			item := data.NewLazyItemWithInfo(
 				ctx,
 				test.mid,
 				id,
@@ -354,7 +354,7 @@ func (suite *ItemUnitSuite) TestLazyItem_DeletedInFlight() {
 	mid := &mockItemDataGetter{delInFlight: true}
 	defer mid.check(t, true)
 
-	item := data.NewLazyItem(ctx, mid, id, now, errs)
+	item := data.NewLazyItemWithInfo(ctx, mid, id, now, errs)
 
 	assert.Equal(t, id, item.ID(), "ID")
 	assert.False(t, item.Deleted(), "deleted")
@@ -400,7 +400,7 @@ func (suite *ItemUnitSuite) TestLazyItem_InfoBeforeReadErrors() {
 	mid := &mockItemDataGetter{}
 	defer mid.check(t, false)
 
-	item := data.NewLazyItem(ctx, mid, id, now, errs)
+	item := data.NewLazyItemWithInfo(ctx, mid, id, now, errs)
 
 	assert.Equal(t, id, item.ID(), "ID")
 	assert.False(t, item.Deleted(), "deleted")
