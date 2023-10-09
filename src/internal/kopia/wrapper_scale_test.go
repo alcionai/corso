@@ -58,8 +58,7 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 		col := exchMock.NewCollection(
 			storePath,
 			storePath,
-			collectionItemsLimit,
-		)
+			collectionItemsLimit)
 
 		for j := 0; j < collectionItemsLimit; j++ {
 			itemName := fmt.Sprintf("item%d", j)
@@ -75,8 +74,7 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 			testTenant,
 			baseStorePath.ProtectedResource(),
 			baseStorePath.Service(),
-			baseStorePath.Category(),
-		),
+			baseStorePath.Category()),
 	}
 
 	type testCase struct {
@@ -120,8 +118,7 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 		snap, err := snapshot.LoadSnapshot(
 			ctx,
 			w.c,
-			manifest.ID(stats.SnapshotID),
-		)
+			manifest.ID(stats.SnapshotID))
 		require.NoError(t, err, clues.ToCore(err))
 
 		return ManifestEntry{
