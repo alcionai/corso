@@ -48,9 +48,6 @@ type SkippedCounts struct {
 
 type APIStats struct {
 	TokensConsumed int64 `json:"tokensConsumed"`
-	// PeakTokenUsage is the maximum number of tokens used during a
-	// rolling 1 minute window.
-	PeakTokenUsagePerMin int64 `json:"peakTokenUsage"`
 }
 
 func GetAPIStats(
@@ -59,7 +56,6 @@ func GetAPIStats(
 	s := APIStats{}
 
 	s.TokensConsumed = ctr.Total(count.APICallTokensConsumed)
-	s.PeakTokenUsagePerMin = ctr.Get(count.PeakAPITokenUsagePerMin)
 
 	return s
 }

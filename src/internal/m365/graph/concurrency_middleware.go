@@ -191,8 +191,6 @@ func QueueRequest(ctx context.Context) {
 	if err := limiter.WaitN(ctx, consume); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
 	}
-
-	// Add to the count bus
 }
 
 // RateLimiterMiddleware is used to ensure we don't overstep per-min request limits.
