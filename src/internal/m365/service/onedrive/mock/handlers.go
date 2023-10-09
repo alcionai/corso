@@ -288,11 +288,7 @@ func (edi EnumeratesDriveItemsDelta) EnumerateDriveItemsDelta(
 	_ context.Context,
 	driveID, _ string,
 	_ []string,
-) (
-	[]models.DriveItemable,
-	api.DeltaUpdate,
-	error,
-) {
+) api.NextPageResulter[models.DriveItemable] {
 	return edi.Items[driveID], edi.DeltaUpdate[driveID], edi.Err[driveID]
 }
 

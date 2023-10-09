@@ -141,7 +141,7 @@ func (h libraryBackupHandler) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID, prevDeltaLink string,
 	selectProps []string,
-) ([]models.DriveItemable, api.DeltaUpdate, error) {
+) api.NextPageResulter[models.DriveItemable] {
 	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, selectProps)
 }
 

@@ -27,13 +27,55 @@ type DeltaUpdate struct {
 	Reset bool
 }
 
-type NextPage[T any] struct {
-	Items []T
-	// Reset is only true on the iteration where the delta pager's Reset()
+type NextPager[T any] interface {
+	NextPage() (items []T, reset, done bool)
+}
+
+type nextPage[T any] struct {
+	items []T
+	// reset is only true on the iteration where the delta pager's Reset()
 	// is called.  Callers can use it to reset any data aggregation they
 	// currently use.  After that loop, it will be false again, though the
 	// DeltaUpdate will still contain the expected value.
-	Reset bool
+	reset bool
+}
+
+type NextPageResulter[T any] interface {
+	NextPager[T]
+
+	Results() (DeltaUpdate, error)
+}
+
+var _ NextPageResulter[any] = &nextPageResults[any]{}
+
+type nextPageResults[T any] struct {
+	pages chan nextPage[T]
+	du    DeltaUpdate
+	err   error
+}
+
+func (npr *nextPageResults[T]) NextPage() ([]T, bool, bool) {
+	if npr.pages == nil {
+		return nil, false, true
+	}
+
+	np := <-npr.pages
+
+	return np.items, np.reset, false
+}
+
+func (npr *nextPageResults[T]) Results() (DeltaUpdate, error) {
+	// if the pager hasn't closed yet, drain out the pages iterator
+	// to avoid leaking routines, and to ensure we get results.
+	for npr.pages != nil {
+		<-npr.pages
+	}
+
+	return npr.du, npr.err
+}
+
+func (npr *nextPageResults[T]) close() {
+	npr.pages = nil
 }
 
 // ---------------------------------------------------------------------------
@@ -109,9 +151,9 @@ type Pager[T any] interface {
 func enumerateItems[T any](
 	ctx context.Context,
 	pager Pager[T],
-	ch chan<- NextPage[T],
-) error {
-	defer close(ch)
+	npr *nextPageResults[T],
+) {
+	defer npr.close()
 
 	var (
 		result = make([]T, 0)
@@ -123,10 +165,11 @@ func enumerateItems[T any](
 		// get the next page of data, check for standard errors
 		page, err := pager.GetPage(ctx)
 		if err != nil {
-			return graph.Stack(ctx, err)
+			npr.err = graph.Stack(ctx, err)
+			return
 		}
 
-		ch <- NextPage[T]{Items: page.GetValue()}
+		npr.pages <- nextPage[T]{items: page.GetValue()}
 
 		nextLink = NextLink(page)
 
@@ -134,8 +177,6 @@ func enumerateItems[T any](
 	}
 
 	logger.Ctx(ctx).Infow("completed delta item enumeration", "result_count", len(result))
-
-	return nil
 }
 
 func batchEnumerateItems[T any](
@@ -143,19 +184,21 @@ func batchEnumerateItems[T any](
 	pager Pager[T],
 ) ([]T, error) {
 	var (
-		ch      = make(chan NextPage[T])
-		results = []T{}
+		npr = nextPageResults[T]{
+			pages: make(chan nextPage[T]),
+		}
+		items = []T{}
 	)
 
-	go func() {
-		for np := range ch {
-			results = append(results, np.Items...)
-		}
-	}()
+	go enumerateItems[T](ctx, pager, &npr)
 
-	err := enumerateItems[T](ctx, pager, ch)
+	for is, _, done := npr.NextPage(); !done; {
+		items = append(items, is...)
+	}
 
-	return results, clues.Stack(err).OrNil()
+	_, err := npr.Results()
+
+	return items, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -177,10 +220,10 @@ type DeltaPager[T any] interface {
 func deltaEnumerateItems[T any](
 	ctx context.Context,
 	pager DeltaPager[T],
-	ch chan<- NextPage[T],
+	npr *nextPageResults[T],
 	prevDeltaLink string,
-) (DeltaUpdate, error) {
-	defer close(ch)
+) {
+	defer npr.close()
 
 	var (
 		result = make([]T, 0)
@@ -203,9 +246,10 @@ func deltaEnumerateItems[T any](
 			logger.Ctx(ctx).Infow("delta queries not supported")
 
 			pager.Reset(ctx)
-			ch <- NextPage[T]{Reset: true}
+			npr.pages <- nextPage[T]{reset: true}
+			npr.err = clues.Stack(err)
 
-			return DeltaUpdate{}, clues.Stack(err)
+			return
 		}
 
 		if graph.IsErrInvalidDelta(err) {
@@ -218,16 +262,17 @@ func deltaEnumerateItems[T any](
 
 			// Reset tells the pager to try again after ditching its delta history.
 			pager.Reset(ctx)
-			ch <- NextPage[T]{Reset: true}
+			npr.pages <- nextPage[T]{reset: true}
 
 			continue
 		}
 
 		if err != nil {
-			return DeltaUpdate{}, clues.Stack(err)
+			npr.err = clues.Stack(err)
+			return
 		}
 
-		ch <- NextPage[T]{Items: page.GetValue()}
+		npr.pages <- nextPage[T]{items: page.GetValue()}
 
 		nl, deltaLink := NextAndDeltaLink(page)
 		if len(deltaLink) > 0 {
@@ -240,12 +285,10 @@ func deltaEnumerateItems[T any](
 
 	logger.Ctx(ctx).Debugw("completed delta item enumeration", "result_count", len(result))
 
-	du := DeltaUpdate{
+	npr.du = DeltaUpdate{
 		URL:   newDeltaLink,
 		Reset: invalidPrevDelta,
 	}
-
-	return du, nil
 }
 
 func batchDeltaEnumerateItems[T any](
@@ -254,21 +297,23 @@ func batchDeltaEnumerateItems[T any](
 	prevDeltaLink string,
 ) ([]T, DeltaUpdate, error) {
 	var (
-		ch      = make(chan NextPage[T])
+		npr = nextPageResults[T]{
+			pages: make(chan nextPage[T]),
+		}
 		results = []T{}
 	)
 
-	go func() {
-		for np := range ch {
-			if np.Reset {
-				results = []T{}
-			}
+	go deltaEnumerateItems[T](ctx, pager, &npr, prevDeltaLink)
 
-			results = append(results, np.Items...)
+	for is, reset, done := npr.NextPage(); !done; {
+		if reset {
+			results = []T{}
 		}
-	}()
 
-	du, err := deltaEnumerateItems[T](ctx, pager, ch, prevDeltaLink)
+		results = append(results, is...)
+	}
+
+	du, err := npr.Results()
 
 	return results, du, clues.Stack(err).OrNil()
 }

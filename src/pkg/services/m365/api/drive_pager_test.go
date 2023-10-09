@@ -186,21 +186,22 @@ func (suite *DrivePagerIntgSuite) TestEnumerateDriveItems() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	ch := make(chan api.NextPage[models.DriveItemable], 1)
 	items := []models.DriveItemable{}
 
-	go func() {
-		for np := range ch {
-			items = append(items, np.Items...)
-			assert.False(t, np.Reset, "should not reset")
-		}
-	}()
-
-	du, err := suite.its.
+	pager := suite.its.
 		ac.
 		Drives().
 		EnumerateDriveItemsDelta(ctx, suite.its.user.driveID, "", api.DefaultDriveItemProps())
+
+	for page, reset, done := pager.NextPage(); !done; {
+		items = append(items, page...)
+
+		assert.False(t, reset, "should not reset")
+	}
+
+	du, err := pager.Results()
+
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, items, "no items found in user's drive")
+	require.NotEmpty(t, items, "should find items in user's drive")
 	assert.NotEmpty(t, du.URL, "should have a delta link")
 }

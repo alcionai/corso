@@ -201,23 +201,29 @@ func (p *DriveItemDeltaPageCtrl) ValidModTimes() bool {
 // by page, along with the delta update and any errors, to the provided channel.
 func (c Drives) EnumerateDriveItemsDelta(
 	ctx context.Context,
-	ch chan<- NextPage[models.DriveItemable],
 	driveID string,
 	prevDeltaLink string,
 	selectProps []string,
-) (DeltaUpdate, error) {
+) NextPageResulter[models.DriveItemable] {
 	deltaPager := c.newDriveItemDeltaPager(
 		driveID,
 		prevDeltaLink,
 		selectProps...)
 
-	du, err := deltaEnumerateItems[models.DriveItemable](
+	npr := &nextPageResults[models.DriveItemable]{
+		pages: make(chan nextPage[models.DriveItemable]),
+	}
+
+	// asynchronously enumerate pages on the caller's behalf.
+	// they only need to consume the pager and call Results at
+	// the end.
+	go deltaEnumerateItems[models.DriveItemable](
 		ctx,
 		deltaPager,
-		ch,
+		npr,
 		prevDeltaLink)
 
-	return du, clues.Stack(err).OrNil()
+	return npr
 }
 
 // ---------------------------------------------------------------------------
