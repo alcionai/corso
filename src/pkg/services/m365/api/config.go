@@ -101,7 +101,7 @@ func idAnd(ss ...string) []string {
 // exported
 // ---------------------------------------------------------------------------
 
-func DriveItemSelectDefault() []string {
+func DefaultDriveItemProps() []string {
 	return idAnd(
 		"content.downloadUrl",
 		"createdBy",

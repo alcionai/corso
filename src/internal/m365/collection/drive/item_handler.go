@@ -88,13 +88,6 @@ func (h itemBackupHandler) NewDrivePager(
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 
-func (h itemBackupHandler) NewItemPager(
-	driveID, link string,
-	fields []string,
-) api.DeltaPager[models.DriveItemable] {
-	return h.ac.NewDriveItemDeltaPager(driveID, link, fields)
-}
-
 func (h itemBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	resource idname.Provider,
@@ -139,6 +132,13 @@ func (h itemBackupHandler) IsAllPass() bool {
 
 func (h itemBackupHandler) IncludesDir(dir string) bool {
 	return h.scope.Matches(selectors.OneDriveFolder, dir)
+}
+
+func (h itemBackupHandler) EnumerateDriveItemsDelta(
+	ctx context.Context,
+	driveID, prevDeltaLink string,
+) ([]models.DriveItemable, api.DeltaUpdate, error) {
+	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink)
 }
 
 // ---------------------------------------------------------------------------

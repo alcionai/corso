@@ -57,7 +57,7 @@ func (mce MetadataCollectionEntry) toMetadataItem() (metadataItem, error) {
 		return metadataItem{}, clues.Wrap(err, "serializing metadata")
 	}
 
-	item, err := data.NewUnindexedPrefetchedItem(
+	item, err := data.NewPrefetchedItem(
 		io.NopCloser(buf),
 		mce.fileName,
 		time.Now())

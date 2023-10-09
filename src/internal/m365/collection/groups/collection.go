@@ -176,7 +176,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 			info.ParentPath = col.LocationPath().String()
 
-			storeItem, err := data.NewPrefetchedItem(
+			storeItem, err := data.NewPrefetchedItemWithInfo(
 				io.NopCloser(bytes.NewReader(itemData)),
 				id,
 				details.ItemInfo{Groups: info})
