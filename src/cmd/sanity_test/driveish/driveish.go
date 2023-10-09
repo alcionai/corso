@@ -22,6 +22,8 @@ func populateSanitree(
 	driveID string,
 	startTime time.Time,
 ) *common.Sanitree[models.DriveItemable] {
+	common.Infof(ctx, "building sanitree for drive: %s", driveID)
+
 	root, err := ac.Drives().GetRootFolder(ctx, driveID)
 	if err != nil {
 		common.Fatal(ctx, "getting drive root folder", err)
@@ -39,6 +41,7 @@ func populateSanitree(
 		ctx,
 		ac,
 		driveID,
+		stree.Name+"/",
 		stree,
 		startTime)
 
@@ -48,11 +51,13 @@ func populateSanitree(
 func recursivelyBuildTree(
 	ctx context.Context,
 	ac api.Client,
-	driveID string,
+	driveID, location string,
 	stree *common.Sanitree[models.DriveItemable],
 	startTime time.Time,
 ) {
-	children, err := ac.Drives().GetFolderChildren(ctx, driveID, "root")
+	common.Debugf(ctx, "adding: %s", location)
+
+	children, err := ac.Drives().GetFolderChildren(ctx, driveID, stree.ID)
 	if err != nil {
 		common.Fatal(ctx, "getting drive children by id", err)
 	}
@@ -64,19 +69,14 @@ func recursivelyBuildTree(
 		)
 
 		if driveItem.GetFolder() != nil {
-			if driveItem.GetPackageEscaped() == nil {
-				common.LogAndPrint(ctx, "skipped unescaped package: %s", itemName)
-				continue
-			}
-
 			// currently we don't restore blank folders.
 			// skip permission check for empty folders
 			if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-				common.LogAndPrint(ctx, "skipped empty folder: %s", itemName)
+				common.Infof(ctx, "skipped empty folder: %s/%s", location, itemName)
 				continue
 			}
 
-			stree.Children[itemName] = &common.Sanitree[models.DriveItemable]{
+			branch := &common.Sanitree[models.DriveItemable]{
 				Parent: stree,
 				Self:   driveItem,
 				ID:     itemID,
@@ -84,22 +84,28 @@ func recursivelyBuildTree(
 				Expand: map[string]any{
 					expandPermissions: permissionIn(ctx, ac, driveID, itemID),
 				},
+				Leaves:   map[string]*common.Sanileaf[models.DriveItemable]{},
+				Children: map[string]*common.Sanitree[models.DriveItemable]{},
 			}
+
+			stree.Children[itemName] = branch
 
 			recursivelyBuildTree(
 				ctx,
 				ac,
 				driveID,
-				stree,
+				location+branch.Name+"/",
+				branch,
 				startTime)
 		}
 
 		if driveItem.GetFile() != nil {
 			stree.Leaves[itemName] = &common.Sanileaf[models.DriveItemable]{
-				Self: driveItem,
-				ID:   itemID,
-				Name: itemName,
-				Size: ptr.Val(driveItem.GetSize()),
+				Parent: stree,
+				Self:   driveItem,
+				ID:     itemID,
+				Name:   itemName,
+				Size:   ptr.Val(driveItem.GetSize()),
 			}
 		}
 	}

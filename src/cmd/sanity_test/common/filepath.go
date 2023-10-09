@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 func BuildFilepathSanitree(
@@ -14,17 +16,21 @@ func BuildFilepathSanitree(
 	var root *Sanitree[fs.FileInfo]
 
 	walker := func(
-		path string,
+		p string,
 		info os.FileInfo,
 		err error,
 	) error {
 		if err != nil {
-			Fatal(ctx, "param in filepath walker", err)
+			Fatal(ctx, "error passed to filepath walker", err)
 		}
 
-		relPath, err := filepath.Rel(rootDir, path)
+		relPath, err := filepath.Rel(rootDir, p)
 		if err != nil {
 			Fatal(ctx, "getting relative filepath", err)
+		}
+
+		if info != nil {
+			Debugf(ctx, "adding: %s", relPath)
 		}
 
 		if root == nil {
@@ -39,7 +45,8 @@ func BuildFilepathSanitree(
 			return nil
 		}
 
-		node := root.NodeAt(ctx, relPath)
+		elems := path.Split(relPath)
+		node := root.NodeAt(ctx, elems[:len(elems)-1])
 
 		if info.IsDir() {
 			node.Children[info.Name()] = &Sanitree[fs.FileInfo]{
