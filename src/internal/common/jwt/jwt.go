@@ -33,7 +33,7 @@ func IsJWTExpired(
 		return false, nil
 	}
 
-	expired := t.Time.Unix() < time.Now().Unix()
+	expired := t.Before(time.Now())
 
 	return expired, nil
 }
