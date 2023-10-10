@@ -6,9 +6,11 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -58,4 +60,13 @@ func getDetailsFromBackup(
 	}
 
 	return &deets, nil
+}
+
+func getAPIStats(
+	ctr *count.Bus,
+) stats.APIStats {
+	s := stats.APIStats{}
+	s.APITokensConsumed = ctr.Total(count.APICallTokensConsumed)
+
+	return s
 }

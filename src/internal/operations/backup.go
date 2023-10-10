@@ -848,8 +848,8 @@ func (op *BackupOperation) persistResults(
 	op.Results.ItemsRead = opStats.ctrl.Successes
 
 	// API stats
-	apiStats := stats.GetAPIStats(op.Counter)
-	op.Results.TokensConsumed = apiStats.TokensConsumed
+	apiStats := getAPIStats(op.Counter)
+	op.Results.APITokensConsumed = apiStats.APITokensConsumed
 
 	// Only return non-recoverable errors at this point.
 	return op.Errors.Failure()

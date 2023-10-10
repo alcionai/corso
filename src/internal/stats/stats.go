@@ -3,8 +3,6 @@ package stats
 import (
 	"sync/atomic"
 	"time"
-
-	"github.com/alcionai/corso/src/pkg/count"
 )
 
 // ReadWrites tracks the total count of reads and writes.  ItemsRead
@@ -47,15 +45,5 @@ type SkippedCounts struct {
 }
 
 type APIStats struct {
-	TokensConsumed int64 `json:"tokensConsumed"`
-}
-
-func GetAPIStats(
-	ctr *count.Bus,
-) APIStats {
-	s := APIStats{}
-
-	s.TokensConsumed = ctr.Total(count.APICallTokensConsumed)
-
-	return s
+	APITokensConsumed int64 `json:"apiTokensConsumed"`
 }
