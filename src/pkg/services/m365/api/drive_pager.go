@@ -203,12 +203,13 @@ func (c Drives) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID string,
 	prevDeltaLink string,
+	selectProps []string,
 ) (
 	[]models.DriveItemable,
 	DeltaUpdate,
 	error,
 ) {
-	pager := c.newDriveItemDeltaPager(driveID, prevDeltaLink, DefaultDriveItemProps()...)
+	pager := c.newDriveItemDeltaPager(driveID, prevDeltaLink, selectProps...)
 
 	items, du, err := deltaEnumerateItems[models.DriveItemable](ctx, pager, prevDeltaLink)
 	if err != nil {
