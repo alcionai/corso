@@ -298,7 +298,8 @@ func (c *Collections) Get(
 		items, du, err := c.handler.EnumerateDriveItemsDelta(
 			ictx,
 			driveID,
-			prevDeltaLink)
+			prevDeltaLink,
+			api.DefaultDriveItemProps())
 		if err != nil {
 			return nil, false, err
 		}
