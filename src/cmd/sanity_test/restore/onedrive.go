@@ -8,8 +8,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-const ()
-
 func CheckOneDriveRestoration(
 	ctx context.Context,
 	ac api.Client,

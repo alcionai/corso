@@ -127,17 +127,16 @@ func permissionIn(
 	return pi
 }
 
+/*
+TODO: replace this check with testElementsMatch
+from internal/connecter/graph_connector_helper_test.go
+*/
 func checkRestoredDriveItemPermissions(
 	comparator func(expect, result []common.PermissionInfo) func() bool,
 ) common.ContainerComparatorFn[
 	models.DriveItemable, models.DriveItemable,
 	models.DriveItemable, models.DriveItemable,
 ] {
-	/**
-		TODO: replace this check with testElementsMatch
-		from internal/connecter/graph_connector_helper_test.go
-	**/
-
 	return func(
 		ctx context.Context,
 		expect, result *common.Sanitree[models.DriveItemable, models.DriveItemable],
