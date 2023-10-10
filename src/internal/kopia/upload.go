@@ -1122,26 +1122,41 @@ func traverseBaseDir(
 	var hasItems bool
 
 	if changed {
-		err = fs.IterateEntries(
-			ctx,
-			dir,
-			func(innerCtx context.Context, entry fs.Entry) error {
-				dEntry, ok := entry.(fs.Directory)
-				if !ok {
-					hasItems = true
-					return nil
-				}
+		iter, err := dir.Iterate(ctx)
+		if err != nil {
+			return clues.Wrap(err, "getting directory iterator").WithClues(ctx)
+		}
 
-				return traverseBaseDir(
-					innerCtx,
-					depth+1,
-					updatedPaths,
-					oldDirPath,
-					currentPath,
-					dEntry,
-					roots,
-					stats)
-			})
+		// Need to keep err for the check after the loop as well so we also need to
+		// declare entry.
+		var entry fs.Entry
+
+		for entry, err = iter.Next(ctx); entry != nil && err == nil; entry, err = iter.Next(ctx) {
+			dEntry, ok := entry.(fs.Directory)
+			if !ok {
+				hasItems = true
+				continue
+			}
+
+			err = traverseBaseDir(
+				ctx,
+				depth+1,
+				updatedPaths,
+				oldDirPath,
+				currentPath,
+				dEntry,
+				roots,
+				stats)
+			if err != nil {
+				// Break here instead of just returning so we can close the iterator.
+				// The error will be returned below.
+				err = clues.Wrap(err, "traversing child directory").WithClues(ctx)
+				break
+			}
+		}
+
+		iter.Close()
+
 		if err != nil {
 			return clues.WrapWC(ctx, err, "traversing base directory")
 		}
