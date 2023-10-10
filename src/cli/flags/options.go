@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	AlertsFN                    = "alerts"
 	DeltaPageSizeFN             = "delta-page-size"
 	DisableConcurrencyLimiterFN = "disable-concurrency-limiter"
 	DisableDeltaFN              = "disable-delta"
@@ -31,6 +32,7 @@ var (
 	EnableImmutableIDFV         bool
 	FailFastFV                  bool
 	FetchParallelismFV          int
+	ListAlertsFV                string
 	ListFailedItemsFV           string
 	ListSkippedItemsFV          string
 	ListRecoveredErrorsFV       string

@@ -212,7 +212,7 @@ func (sc *Collection) retrieveLists(
 
 			metrics.Successes++
 
-			item, err := data.NewPrefetchedItem(
+			item, err := data.NewPrefetchedItemWithInfo(
 				io.NopCloser(bytes.NewReader(byteArray)),
 				ptr.Val(lst.GetId()),
 				details.ItemInfo{SharePoint: ListToSPInfo(lst, size)})
@@ -279,7 +279,7 @@ func (sc *Collection) retrievePages(
 			metrics.Bytes += size
 			metrics.Successes++
 
-			item, err := data.NewPrefetchedItem(
+			item, err := data.NewPrefetchedItemWithInfo(
 				io.NopCloser(bytes.NewReader(byteArray)),
 				ptr.Val(pg.GetId()),
 				details.ItemInfo{SharePoint: pageToSPInfo(pg, root, size)})

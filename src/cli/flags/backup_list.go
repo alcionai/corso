@@ -8,6 +8,7 @@ func AddAllBackupListFlags(cmd *cobra.Command) {
 	AddFailedItemsFN(cmd)
 	AddSkippedItemsFN(cmd)
 	AddRecoveredErrorsFN(cmd)
+	AddAlertsFN(cmd)
 }
 
 func AddFailedItemsFN(cmd *cobra.Command) {
@@ -26,4 +27,10 @@ func AddRecoveredErrorsFN(cmd *cobra.Command) {
 	cmd.Flags().StringVar(
 		&ListRecoveredErrorsFV, RecoveredErrorsFN, Show,
 		"Toggles showing or hiding the list of errors which Corso recovered from.")
+}
+
+func AddAlertsFN(cmd *cobra.Command) {
+	cmd.Flags().StringVar(
+		&ListAlertsFV, AlertsFN, Show,
+		"Toggles showing or hiding the list of alerts produced during the operation.")
 }

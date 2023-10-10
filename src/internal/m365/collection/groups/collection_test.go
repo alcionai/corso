@@ -49,7 +49,7 @@ func (suite *CollectionUnitSuite) TestPrefetchedItem_Reader() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ed, err := data.NewPrefetchedItem(
+			ed, err := data.NewPrefetchedItemWithInfo(
 				io.NopCloser(bytes.NewReader(test.readData)),
 				"itemID",
 				details.ItemInfo{})

@@ -30,7 +30,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddNoPermissionsFlag(c)
 		flags.AddSharePointDetailsAndRestoreFlags(c) // for sp restores
 		flags.AddSiteIDFlag(c)
-		flags.AddRestoreConfigFlags(c)
+		flags.AddRestoreConfigFlags(c, false)
 		flags.AddFailFastFlag(c)
 	}
 

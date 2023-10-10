@@ -56,7 +56,7 @@ func (suite *CollectionUnitSuite) TestPrefetchedItem_Reader() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ed, err := data.NewPrefetchedItem(
+			ed, err := data.NewPrefetchedItemWithInfo(
 				io.NopCloser(bytes.NewReader(test.readData)),
 				"itemID",
 				details.ItemInfo{})
@@ -494,7 +494,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_NoRead_GetInfo_Errors() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	li := data.NewLazyItem(
+	li := data.NewLazyItemWithInfo(
 		ctx,
 		nil,
 		"itemID",
@@ -552,7 +552,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_GetDataErrors() {
 				SerializeErr: test.serializeErr,
 			}
 
-			li := data.NewLazyItem(
+			li := data.NewLazyItemWithInfo(
 				ctx,
 				&lazyItemGetter{
 					userID:       "userID",
@@ -592,7 +592,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 
 	getter := &mock.ItemGetSerialize{GetErr: graph.ErrDeletedInFlight}
 
-	li := data.NewLazyItem(
+	li := data.NewLazyItemWithInfo(
 		ctx,
 		&lazyItemGetter{
 			userID:       "userID",
@@ -645,7 +645,7 @@ func (suite *CollectionUnitSuite) TestLazyItem() {
 
 	getter := &mock.ItemGetSerialize{GetData: testData}
 
-	li := data.NewLazyItem(
+	li := data.NewLazyItemWithInfo(
 		ctx,
 		&lazyItemGetter{
 			userID:       "userID",

@@ -278,7 +278,7 @@ func (col *prefetchCollection) streamItems(
 				return
 			}
 
-			item, err := data.NewPrefetchedItem(
+			item, err := data.NewPrefetchedItemWithInfo(
 				io.NopCloser(bytes.NewReader(itemData)),
 				id,
 				details.ItemInfo{Exchange: info})
@@ -403,7 +403,7 @@ func (col *lazyFetchCollection) streamItems(
 			"service", path.ExchangeService.String(),
 			"category", col.Category().String())
 
-		stream <- data.NewLazyItem(
+		stream <- data.NewLazyItemWithInfo(
 			ictx,
 			&lazyItemGetter{
 				userID:       user,

@@ -65,7 +65,7 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 						"--" + flags.PageFolderFN, flagsTD.FlgInputs(flagsTD.PageFolderInput),
 						"--" + flags.CollisionsFN, flagsTD.Collisions,
 						"--" + flags.DestinationFN, flagsTD.Destination,
-						"--" + flags.ToResourceFN, flagsTD.ToResource,
+						// "--" + flags.ToResourceFN, flagsTD.ToResource,
 						"--" + flags.NoPermissionsFN,
 					},
 					flagsTD.PreparedProviderFlags(),
@@ -91,7 +91,7 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 			assert.Equal(t, flagsTD.FileModifiedBeforeInput, opts.FileModifiedBefore)
 			assert.Equal(t, flagsTD.Collisions, opts.RestoreCfg.Collisions)
 			assert.Equal(t, flagsTD.Destination, opts.RestoreCfg.Destination)
-			assert.Equal(t, flagsTD.ToResource, opts.RestoreCfg.ProtectedResource)
+			// assert.Equal(t, flagsTD.ToResource, opts.RestoreCfg.ProtectedResource)
 			assert.True(t, flags.NoPermissionsFV)
 			flagsTD.AssertProviderFlags(t, cmd)
 			flagsTD.AssertStorageFlags(t, cmd)

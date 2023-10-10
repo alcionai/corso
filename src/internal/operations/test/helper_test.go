@@ -546,7 +546,7 @@ func ControllerWithSelector(
 		t.FailNow()
 	}
 
-	id, name, err := ctrl.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
+	resource, err := ctrl.PopulateProtectedResourceIDAndName(ctx, sel.DiscreteOwner, ins)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)
@@ -555,7 +555,7 @@ func ControllerWithSelector(
 		t.FailNow()
 	}
 
-	sel = sel.SetDiscreteOwnerIDName(id, name)
+	sel = sel.SetDiscreteOwnerIDName(resource.ID(), resource.Name())
 
 	return ctrl, sel
 }

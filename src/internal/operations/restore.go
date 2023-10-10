@@ -352,12 +352,12 @@ func chooseRestoreResource(
 		return orig, nil
 	}
 
-	id, name, err := pprian.PopulateProtectedResourceIDAndName(
+	resource, err := pprian.PopulateProtectedResourceIDAndName(
 		ctx,
 		restoreCfg.ProtectedResource,
 		nil)
 
-	return idname.NewProvider(id, name), clues.Stack(err).OrNil()
+	return resource, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
