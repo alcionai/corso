@@ -186,9 +186,7 @@ func ctxLimiterConsumption(ctx context.Context, defaultConsumption int) int {
 // the next token set is available.
 func QueueRequest(ctx context.Context) {
 	limiter := ctxLimiter(ctx)
-
-	defaultConsumed := defaultLC
-	consume := ctxLimiterConsumption(ctx, defaultConsumed)
+	consume := ctxLimiterConsumption(ctx, defaultLC)
 
 	if err := limiter.WaitN(ctx, consume); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
