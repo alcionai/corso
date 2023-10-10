@@ -365,7 +365,7 @@ func GetAllDrives(
 
 	// no license or drives available.
 	// return a non-error and let the caller assume an empty result set.
-	// TODO: is this the best wayy to handle this?
+	// TODO: is this the best way to handle this?
 	// what about returning a ResourceNotFound error as is standard elsewhere?
 	if err != nil &&
 		(clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense)) {
