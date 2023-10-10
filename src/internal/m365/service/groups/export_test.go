@@ -98,7 +98,6 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 		},
 	}
 
-	// TODO(meain)
 	stats := data.ExportStats{}
 
 	ecs, err := ProduceExportCollections(

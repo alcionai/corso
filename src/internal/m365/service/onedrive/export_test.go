@@ -247,16 +247,32 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			stats := data.ExportStats{}
 			ec := drive.NewExportCollection(
 				"",
 				[]data.RestoreCollection{test.backingCollection},
 				test.version,
-				&data.ExportStats{})
+				&stats)
 
 			items := ec.Items(ctx)
 
+			count := 0
+			size := 0
 			fitems := []export.Item{}
+
 			for item := range items {
+				if item.Error == nil {
+					count++
+				}
+
+				if item.Body != nil {
+					b, err := io.ReadAll(item.Body)
+					assert.NoError(t, err, clues.ToCore(err))
+
+					size += len(b)
+					item.Body = io.NopCloser(bytes.NewBuffer(b))
+				}
+
 				fitems = append(fitems, item)
 			}
 
@@ -271,6 +287,19 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				assert.Equal(t, test.expectedItems[i].Body, item.Body, "body")
 				assert.ErrorIs(t, item.Error, test.expectedItems[i].Error)
 			}
+
+			var expectedStats data.ExportStats
+
+			if size+count > 0 { // it is only initialized if we have something
+				expectedStats = data.ExportStats{}
+				expectedStats.UpdateBytes(details.OneDriveItem, int64(size))
+
+				for i := 0; i < count; i++ {
+					expectedStats.UpdateResourceCount(details.OneDriveItem)
+				}
+			}
+
+			assert.Equal(t, expectedStats, stats, "stats")
 		})
 	}
 }

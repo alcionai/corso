@@ -51,6 +51,14 @@ func streamItems(
 			}
 
 			name, err := getItemName(ctx, itemUUID, backupVersion, rc)
+			if err != nil {
+				ch <- export.Item{
+					ID:    itemUUID,
+					Error: err,
+				}
+
+				continue
+			}
 
 			stats.UpdateResourceCount(details.OneDriveItem)
 			body := data.ReaderWithStats(item.ToReader(), details.OneDriveItem, stats)

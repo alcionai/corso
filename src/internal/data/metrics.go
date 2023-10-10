@@ -82,6 +82,10 @@ func ReaderWithStats(
 	kind details.ItemType,
 	stats *ExportStats,
 ) io.ReadCloser {
+	if reader == nil {
+		return nil
+	}
+
 	return &statsReader{
 		reader: reader,
 		kind:   kind,
