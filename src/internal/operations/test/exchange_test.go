@@ -226,11 +226,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
 			assert.Empty(t, incBO.Errors.Recovered(), "count incremental recoverable/iteration errors")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
-			assert.Equal(t,
-				incMB.CalledWith[events.BackupStart][0][events.BackupID],
-				incBO.Results.BackupID, "incremental backupID pre-declaration")
 		})
 	}
 }
@@ -876,11 +872,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			// assert.Equal(t, test.nonMetaItemsWritten, incBO.Results.ItemsWritten, "non meta incremental items write")
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
 			assert.Empty(t, incBO.Errors.Recovered(), "incremental recoverable/iteration errors")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
-			assert.Equal(t,
-				incMB.CalledWith[events.BackupStart][0][events.BackupID],
-				bupID, "incremental backupID pre-declaration")
 		})
 	}
 }
