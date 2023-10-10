@@ -1120,23 +1120,26 @@ func traverseBaseDir(
 	var hasItems bool
 
 	if changed {
-		err = dir.IterateEntries(ctx, func(innerCtx context.Context, entry fs.Entry) error {
-			dEntry, ok := entry.(fs.Directory)
-			if !ok {
-				hasItems = true
-				return nil
-			}
+		err = fs.IterateEntries(
+			ctx,
+			dir,
+			func(innerCtx context.Context, entry fs.Entry) error {
+				dEntry, ok := entry.(fs.Directory)
+				if !ok {
+					hasItems = true
+					return nil
+				}
 
-			return traverseBaseDir(
-				innerCtx,
-				depth+1,
-				updatedPaths,
-				oldDirPath,
-				currentPath,
-				dEntry,
-				roots,
-				stats)
-		})
+				return traverseBaseDir(
+					innerCtx,
+					depth+1,
+					updatedPaths,
+					oldDirPath,
+					currentPath,
+					dEntry,
+					roots,
+					stats)
+			})
 		if err != nil {
 			return clues.WrapWC(ctx, err, "traversing base directory")
 		}
