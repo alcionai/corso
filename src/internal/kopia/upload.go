@@ -678,53 +678,6 @@ func (d *corsoDirectoryIterator) nextBaseEnt(
 	return nil, clues.Stack(err).OrNil()
 }
 
-// getStreamItemFunc returns a function that can be used by kopia's
-// virtualfs.StreamingDirectory to iterate through directory entries and call
-// kopia callbacks on directory entries. It binds the directory to the given
-// DataCollection.
-func getStreamItemFunc(
-	params snapshotParams,
-	staticEnts []fs.Entry,
-	globalExcludeSet prefixmatcher.StringSetReader,
-	progress *corsoProgress,
-) func(context.Context, func(context.Context, fs.Entry) error) error {
-	return func(ctx context.Context, ctr func(context.Context, fs.Entry) error) error {
-		ctx, end := diagnostics.Span(ctx, "kopia:getStreamItemFunc")
-		defer end()
-
-		// Return static entries in this directory first.
-		for _, d := range staticEnts {
-			if err := ctr(ctx, d); err != nil {
-				return clues.WrapWC(ctx, err, "executing callback on static directory")
-			}
-		}
-
-		var locationPath *path.Builder
-
-		if lp, ok := params.collection.(data.LocationPather); ok {
-			locationPath = lp.LocationPath()
-		}
-
-		seen, err := collectionEntries(ctx, ctr, params.collection, progress)
-		if err != nil {
-			return clues.Wrap(err, "streaming collection entries")
-		}
-
-		if err := streamBaseEntries(
-			ctx,
-			ctr,
-			params,
-			locationPath,
-			seen,
-			globalExcludeSet,
-			progress); err != nil {
-			return clues.Wrap(err, "streaming base snapshot entries")
-		}
-
-		return nil
-	}
-}
-
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
 // Returned directories are virtualfs.StreamingDirectory.
 func buildKopiaDirs(
