@@ -681,6 +681,7 @@ func (d *corsoDirectoryIterator) nextBaseEnt(
 // buildKopiaDirs recursively builds a directory hierarchy from the roots up.
 // Returned directories are virtualfs.StreamingDirectory.
 func buildKopiaDirs(
+	ctx context.Context,
 	dirName string,
 	dir *treeMap,
 	globalExcludeSet prefixmatcher.StringSetReader,
@@ -701,6 +702,7 @@ func buildKopiaDirs(
 
 	for childName, childDir := range dir.childDirs {
 		child, err := buildKopiaDirs(
+			ctx,
 			childName,
 			childDir,
 			globalExcludeSet,
@@ -714,11 +716,13 @@ func buildKopiaDirs(
 
 	return virtualfs.NewStreamingDirectory(
 		encodeAsPath(dirName),
-		getStreamItemFunc(
-			dir.snapshotParams,
-			childDirs,
-			globalExcludeSet,
-			progress)), nil
+		&corsoDirectoryIterator{
+			ctx:              ctx,
+			params:           dir.snapshotParams,
+			staticEnts:       childDirs,
+			globalExcludeSet: globalExcludeSet,
+			progress:         progress,
+		}), nil
 }
 
 type snapshotParams struct {
@@ -1389,7 +1393,7 @@ func inflateDirTree(
 	var res fs.Directory
 
 	for dirName, dir := range roots {
-		tmp, err := buildKopiaDirs(dirName, dir, globalExcludeSet, progress)
+		tmp, err := buildKopiaDirs(ctx, dirName, dir, globalExcludeSet, progress)
 		if err != nil {
 			return nil, err
 		}
