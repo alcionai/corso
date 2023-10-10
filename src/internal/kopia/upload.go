@@ -244,6 +244,211 @@ func (cp *corsoProgress) get(k string) *itemDetails {
 	return cp.pending[k]
 }
 
+// These define a small state machine as to which source to return an entry from
+// next. Since these are in-memory only values we can use iota. Phases are
+// traversed in the order defined unless the underlying data source isn't
+// present. If an underlying data source is missing, the non-pre/post phase
+// associated with that data source is skipped.
+//
+// Since some phases require initialization of the underlying data source we
+// insert additional phases to allow that. Once initialization is completed the
+// phase should be updated to the next phase.
+//
+// A similar tactic can be used to handle tearing down resources for underlying
+// data sources if needed.
+const (
+	initPhase = iota
+	staticEntsPhase
+	preStreamEntsPhase
+	streamEntsPhase
+	postStreamEntsPhase
+	preBaseDirEntsPhase
+	baseDirEntsPhase
+	postBaseDirEntsPhase
+	terminationPhase
+)
+
+type corsoDirectoryIterator struct {
+	ctx    context.Context
+	params snapshotParams
+	// staticEnts is the set of fs.StreamingDirectory child directories that we've
+	// generated based on the collections passed in. These entries may or may not
+	// contain an underlying data.BackupCollection (depending on what was passed
+	// in) and may or may not contain an fs.Directory (depending on hierarchy
+	// merging).
+	staticEnts       []fs.Entry
+	globalExcludeSet prefixmatcher.StringSetReader
+	progress         *corsoProgress
+
+	// endSpan is the callback to stop diagnostic span collection for iteration.
+	endSpan func()
+
+	// seenEnts contains the encoded names of entries that we've already streamed
+	// so we can skip returning them again when looking at base entries.
+	seenEnts map[string]struct{}
+	// locationPath contains the human-readable location of the underlying
+	// collection.
+	locationPath *path.Builder
+
+	// excludeSet is the individual exclude set to use for the longest prefix for
+	// this iterator.
+	excludeSet map[string]struct{}
+
+	// traversalPhase is the current state in the state machine.
+	traversalPhase int
+
+	// streamItemsChan contains the channel for the backing collection if there is
+	// one. Once the backing collection has been traversed this is set to nil.
+	streamItemsChan <-chan data.Item
+	// staticEntsIdx contains the index in staticEnts of the next item to be
+	// returned. Once all static entries have been traversed this is set to
+	// len(staticEnts).
+	staticEntsIdx int
+	// baseDirIter contains the handle to the iterator for the base directory
+	// found during hierarchy merging. Once all base directory entries have been
+	// traversed this is set to nil.
+	baseDirIter fs.DirectoryIterator
+}
+
+// Close releases any remaining resources the iterator may have at the end of
+// iteration.
+func (d *corsoDirectoryIterator) Close() {
+	if d.endSpan != nil {
+		d.endSpan()
+	}
+}
+
+func (d *corsoDirectoryIterator) Next(ctx context.Context) (fs.Entry, error) {
+	// Execute the state machine until either:
+	//   * we get an entry to return
+	//   * we exhaust all underlying data sources (end of iteration)
+	//
+	// Multiple executions of the state machine may be required for things like
+	// setting up underlying data sources or finding that there's no more entries
+	// in the current data source and needing to switch to the next one.
+	//
+	// Returned entries are handled with inline return statements.
+	//
+	// When an error is encountered it's added to the fault.Bus. We can't return
+	// these errors since doing so will result in kopia stopping iteration of the
+	// directory. Since these errors are recorded we won't lose track of them at
+	// the end of the backup.
+	for d.traversalPhase != terminationPhase {
+		switch d.traversalPhase {
+		case initPhase:
+			d.ctx, d.endSpan = diagnostics.Span(d.ctx, "kopia:DirectoryIterator")
+			d.traversalPhase = staticEntsPhase
+
+		case staticEntsPhase:
+			if d.staticEntsIdx < len(d.staticEnts) {
+				ent := d.staticEnts[d.staticEntsIdx]
+				d.staticEntsIdx++
+
+				return ent, nil
+			}
+
+			d.traversalPhase = preStreamEntsPhase
+
+		case preStreamEntsPhase:
+			if d.params.collection == nil {
+				d.traversalPhase = preBaseDirEntsPhase
+				break
+			}
+
+			if lp, ok := d.params.collection.(data.LocationPather); ok {
+				d.locationPath = lp.LocationPath()
+			}
+
+			d.streamItemsChan = d.params.collection.Items(d.ctx, d.progress.errs)
+			d.seenEnts = map[string]struct{}{}
+			d.traversalPhase = streamEntsPhase
+
+		case streamEntsPhase:
+			ent, err := d.nextStreamEnt(d.ctx)
+			if ent != nil {
+				return ent, nil
+			}
+
+			// This assumes that once we hit an error we won't generate any more valid
+			// entries. Record the error in progress but don't return it to kopia
+			// since doing so will terminate iteration.
+			if err != nil {
+				d.progress.errs.AddRecoverable(d.ctx, clues.Stack(err))
+			}
+
+			// Done iterating through stream entries, advance the state machine state.
+			d.traversalPhase = postStreamEntsPhase
+
+		case postStreamEntsPhase:
+			d.streamItemsChan = nil
+			d.traversalPhase = preBaseDirEntsPhase
+
+		case preBaseDirEntsPhase:
+			// We have no iterator from which to pull entries, switch to the next
+			// state machine state.
+			if d.params.baseDir == nil {
+				d.traversalPhase = postBaseDirEntsPhase
+				break
+			}
+
+			var err error
+
+			d.baseDirIter, err = d.params.baseDir.Iterate(d.ctx)
+			if err != nil {
+				// We have no iterator from which to pull entries, switch to the next
+				// state machine state.
+				d.traversalPhase = postBaseDirEntsPhase
+				d.progress.errs.AddRecoverable(
+					d.ctx,
+					clues.Wrap(err, "getting base directory iterator"))
+
+				break
+			}
+
+			if d.globalExcludeSet != nil {
+				longest, excludeSet, _ := d.globalExcludeSet.LongestPrefix(
+					d.params.currentPath.String())
+				d.excludeSet = excludeSet
+
+				logger.Ctx(d.ctx).Debugw("found exclude set", "set_prefix", longest)
+			}
+
+			d.traversalPhase = baseDirEntsPhase
+
+		case baseDirEntsPhase:
+			ent, err := d.nextBaseEnt(d.ctx)
+			if ent != nil {
+				return ent, nil
+			}
+
+			// This assumes that once we hit an error we won't generate any more valid
+			// entries. Record the error in progress but don't return it to kopia
+			// since doing so will terminate iteration.
+			if err != nil {
+				d.progress.errs.AddRecoverable(d.ctx, clues.Stack(err))
+			}
+
+			// Done iterating through base entries, advance the state machine state.
+			d.traversalPhase = postBaseDirEntsPhase
+
+		case postBaseDirEntsPhase:
+			// Making a separate phase so adding additional phases after this one is
+			// less error prone if we ever need to do that.
+			if d.baseDirIter != nil {
+				d.baseDirIter.Close()
+				d.baseDirIter = nil
+			}
+
+			d.seenEnts = nil
+			d.excludeSet = nil
+
+			d.traversalPhase = terminationPhase
+		}
+	}
+
+	return nil, nil
+}
+
 func collectionEntries(
 	ctx context.Context,
 	ctr func(context.Context, fs.Entry) error,
