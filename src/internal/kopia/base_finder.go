@@ -42,16 +42,12 @@ func reasonKey(r identity.Reasoner) string {
 	return r.ProtectedResource() + r.Service().String() + r.Category().String()
 }
 
-type BackupEntry struct {
-	*backup.Backup
-	Reasons []identity.Reasoner
-}
-
-type ManifestEntry struct {
-	*snapshot.Manifest
-	// Reasons contains the ResourceOwners and Service/Categories that caused this
-	// snapshot to be selected as a base. We can't reuse OwnersCats here because
-	// it's possible some ResourceOwners will have a subset of the Categories as
+type BackupBase struct {
+	Backup           *backup.Backup
+	ItemDataSnapshot *snapshot.Manifest
+	// Reasons contains the tenant, protected resource and service/categories that
+	// caused this snapshot to be selected as a base. It's possible some
+	// (tenant, protected resources will have a subset of the categories as
 	// the reason for selecting a snapshot. For example:
 	// 1. backup user1 email,contacts -> B1
 	// 2. backup user1 contacts -> B2 (uses B1 as base)
@@ -59,9 +55,9 @@ type ManifestEntry struct {
 	Reasons []identity.Reasoner
 }
 
-func (me ManifestEntry) GetTag(key string) (string, bool) {
+func (bb BackupBase) GetSnapshotTag(key string) (string, bool) {
 	k, _ := makeTagKV(key)
-	v, ok := me.Tags[k]
+	v, ok := bb.ItemDataSnapshot.Tags[k]
 
 	return v, ok
 }
@@ -134,19 +130,6 @@ func (b *baseFinder) getBackupModel(
 	}
 
 	return bup, nil
-}
-
-type BackupBase struct {
-	Backup           *backup.Backup
-	ItemDataSnapshot *snapshot.Manifest
-	// Reasons contains the tenant, protected resource and service/categories that
-	// caused this snapshot to be selected as a base. It's possible some
-	// (tenant, protected resources) will have a subset of the categories as
-	// the reason for selecting a snapshot. For example:
-	// 1. backup user1 email,contacts -> B1
-	// 2. backup user1 contacts -> B2 (uses B1 as base)
-	// 3. backup user1 email,contacts,events (uses B1 for email, B2 for contacts)
-	Reasons []identity.Reasoner
 }
 
 // findBasesInSet goes through manifest metadata entries and sees if they're
