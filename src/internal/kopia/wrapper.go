@@ -179,8 +179,8 @@ func (w Wrapper) ConsumeBackupCollections(
 	// snapshot bases into inflateDirTree so that the new snapshot
 	// includes historical data.
 	var (
-		mergeBase  []ManifestEntry
-		assistBase []ManifestEntry
+		mergeBase  []BackupBase
+		assistBase []BackupBase
 	)
 
 	if bases != nil {
@@ -230,7 +230,7 @@ func (w Wrapper) ConsumeBackupCollections(
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
-	prevSnapEntries []ManifestEntry,
+	prevSnapEntries []BackupBase,
 	root fs.Directory,
 	addlTags map[string]string,
 	progress *corsoProgress,
@@ -248,8 +248,8 @@ func (w Wrapper) makeSnapshotWithRoot(
 	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
 
 	for _, ent := range prevSnapEntries {
-		prevSnaps = append(prevSnaps, ent.Manifest)
-		snapIDs = append(snapIDs, ent.ID)
+		prevSnaps = append(prevSnaps, ent.ItemDataSnapshot)
+		snapIDs = append(snapIDs, ent.ItemDataSnapshot.ID)
 	}
 
 	ctx = clues.Add(
