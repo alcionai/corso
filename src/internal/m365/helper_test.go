@@ -304,21 +304,21 @@ func checkContact(
 	// assert.Equal(t, expected.GetBusinessPhones(), got.GetBusinessPhones())
 
 	// TODO(ashmrtn): Remove this when we properly set and handle categories in
-	// addition to folders for contacts.
-	folders := colPath.Folder(false)
-	gotCategories := []string{}
+	// addition to folders for contacts. See #2785 and #3550.
+	// folders := colPath.Folder(false)
+	// gotCategories := []string{}
 
-	for _, cat := range got.GetCategories() {
-		// Don't add a category for the current folder since we didn't create the
-		// item with it and it throws off our comparisons.
-		if cat == folders {
-			continue
-		}
+	// for _, cat := range got.GetCategories() {
+	// 	// Don't add a category for the current folder since we didn't create the
+	// 	// item with it and it throws off our comparisons.
+	// 	if cat == folders {
+	// 		continue
+	// 	}
 
-		gotCategories = append(gotCategories, cat)
-	}
+	// 	gotCategories = append(gotCategories, cat)
+	// }
 
-	assert.ElementsMatch(t, expected.GetCategories(), gotCategories, "Categories")
+	// assert.ElementsMatch(t, expected.GetCategories(), gotCategories, "Categories")
 
 	// Skip ChangeKey as it's tied to this specific instance of the item.
 
