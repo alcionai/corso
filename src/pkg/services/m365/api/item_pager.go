@@ -83,9 +83,9 @@ func (npr *nextPageResults[T]) NextPage() ([]T, bool, bool) {
 		return nil, false, true
 	}
 
-	np := <-npr.pages
+	np, ok := <-npr.pages
 
-	return np.items, np.reset, false
+	return np.items, np.reset, !ok
 }
 
 func (npr *nextPageResults[T]) Results() (DeltaUpdate, error) {
@@ -101,8 +101,9 @@ func (npr *nextPageResults[T]) Results() (DeltaUpdate, error) {
 }
 
 func (npr *nextPageResults[T]) close() {
-	close(npr.pages)
-	npr.pages = nil
+	if npr.pages != nil {
+		close(npr.pages)
+	}
 }
 
 // ---------------------------------------------------------------------------
