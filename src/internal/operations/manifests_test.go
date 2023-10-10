@@ -384,8 +384,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 					ro: kopia.NewMockBackupBases().
 						WithMergeBases(baseBuilder(1).AppendReasons(
 							kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)).
-							Build(),
-						),
+							Build()),
 				},
 			},
 			rp: mockRestoreProducer{
@@ -422,8 +421,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			expectMans: kopia.NewMockBackupBases().
 				WithMergeBases(baseBuilder(1).AppendReasons(
 					kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)).
-					Build(),
-				),
+					Build()),
 		},
 		{
 			name: "one valid man, extra incomplete man",
@@ -505,8 +503,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				baseBuilder(2).
 					WithReasons(
 						identity.NewReason(tid, ro, path.ExchangeService, path.EventsCategory)).
-					Build(),
-			),
+					Build()),
 		},
 		{
 			name: "error collecting metadata",
