@@ -24,6 +24,7 @@ func NewExportCollection(
 	backingCollections []data.RestoreCollection,
 	backupVersion int,
 	cec control.ExportConfig,
+	stats *data.ExportStats,
 ) export.Collectioner {
 	return export.BaseCollection{
 		BaseDir:           baseDir,
@@ -31,6 +32,7 @@ func NewExportCollection(
 		BackupVersion:     backupVersion,
 		Cfg:               cec,
 		Stream:            streamItems,
+		Stats:             stats,
 	}
 }
 

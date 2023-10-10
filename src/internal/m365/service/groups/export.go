@@ -53,7 +53,8 @@ func ProduceExportCollections(
 				path.Builder{}.Append(folders...).String(),
 				[]data.RestoreCollection{restoreColl},
 				backupVersion,
-				exportCfg)
+				exportCfg,
+				stats)
 		case path.LibrariesCategory:
 			drivePath, err := path.ToDrivePath(restoreColl.FullPath())
 			if err != nil {
