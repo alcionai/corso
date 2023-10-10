@@ -32,7 +32,7 @@ type Bus struct {
 	parent *Bus
 
 	// Failure probably identifies errors that were added to the bus
-	// or localBus via AddRecoverable, but which were promoted
+	// or a local Bus via AddRecoverable, but which were promoted
 	// to the failure position due to failFast=true configuration.
 	// Alternatively, the process controller might have set failure
 	// by calling Fail(err).
@@ -77,16 +77,17 @@ func New(failFast bool) *Bus {
 // The function that spawned the local bus should always return `bus.Failure()` to
 // ensure that hard failures are propagated back upstream.
 func (e *Bus) Local() *Bus {
-	parent := e
+	parent := e.parent
 
-	// always use the root bus reference, if e is not the root.
-	if parent.parent != nil {
-		parent = parent.parent
+	// only use e if it is already the root instance
+	if parent == nil {
+		parent = e
 	}
 
 	return &Bus{
-		mu:     &sync.Mutex{},
-		parent: parent,
+		mu:       &sync.Mutex{},
+		parent:   parent,
+		failFast: parent.failFast,
 	}
 }
 
@@ -164,7 +165,18 @@ func (e *Bus) addRecoverableErr(err error) bool {
 	var isFail bool
 
 	if e.failure == nil && e.failFast {
-		e.setFailure(err)
+		if e.failure == nil {
+			e.failure = err
+		} else {
+			// technically not a recoverable error: we're using the
+			// recoverable slice as an overflow container here to
+			// ensure everything is tracked.
+			e.recoverable = append(e.recoverable, err)
+		}
+
+		if e.parent != nil {
+			e.parent.setFailure(err)
+		}
 
 		isFail = true
 	}

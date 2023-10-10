@@ -24,13 +24,13 @@ func (suite *AlertUnitSuite) TestAlert_String() {
 		a fault.Alert
 	)
 
-	assert.Contains(t, a.String(), "Alert: <nil>")
+	assert.Contains(t, a.String(), "Alert: <missing>")
 
 	a = fault.Alert{
 		Item:    fault.Item{},
 		Message: "",
 	}
-	assert.Contains(t, a.String(), "Alert: <nil>")
+	assert.Contains(t, a.String(), "Alert: <missing>")
 
 	a = fault.Alert{
 		Item: fault.Item{
