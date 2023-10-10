@@ -229,16 +229,6 @@ func (op *ExportOperation) do(
 		"backup_snapshot_id", bup.SnapshotID,
 		"backup_version", bup.Version)
 
-	op.bus.Event(
-		ctx,
-		events.ExportStart,
-		map[string]any{
-			events.StartTime:        start,
-			events.BackupID:         op.BackupID,
-			events.BackupCreateTime: bup.CreationTime,
-			events.ExportID:         opStats.exportID,
-		})
-
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to export", len(paths), op.BackupID))
 
 	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
