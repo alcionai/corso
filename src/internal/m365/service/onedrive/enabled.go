@@ -30,6 +30,10 @@ func IsServiceEnabled(
 			return false, clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
+		if graph.IsErrResourceLocked(err) {
+			return false, clues.Stack(graph.ErrResourceLocked, err)
+		}
+
 		return false, clues.Stack(err)
 	}
 

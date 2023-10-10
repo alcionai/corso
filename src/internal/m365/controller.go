@@ -263,6 +263,10 @@ func (r resourceClient) GetResourceIDAndNameFrom(
 			return nil, clues.Stack(graph.ErrResourceOwnerNotFound, err)
 		}
 
+		if graph.IsErrResourceLocked(err) {
+			return nil, clues.Stack(graph.ErrResourceLocked, err)
+		}
+
 		return nil, err
 	}
 
