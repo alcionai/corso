@@ -147,13 +147,12 @@ func deltaEnumerateItems[T any](
 		newDeltaLink     = ""
 		invalidPrevDelta = len(prevDeltaLink) == 0
 		nextLink         = "do-while"
-		consume          = graph.DeltaNoTokenLC
+		consume          = graph.SingleGetOrDeltaLC
 	)
 
-	if !invalidPrevDelta {
-		// Delta queries with a valid delta token cost lower than queries with
-		// no token.
-		consume = graph.SingleGetOrDeltaLC
+	if invalidPrevDelta {
+		// Delta queries with no previous token cost more.
+		consume = graph.DeltaNoTokenLC
 	}
 
 	// Loop through all pages returned by Graph API.
