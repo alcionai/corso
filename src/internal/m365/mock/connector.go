@@ -99,8 +99,7 @@ func (ctrl Controller) PopulateProtectedResourceIDAndName(
 	ctx context.Context,
 	protectedResource string, // input value, can be either id or name
 	ins idname.Cacher,
-) (string, string, error) {
-	return ctrl.ProtectedResourceID,
-		ctrl.ProtectedResourceName,
+) (idname.Provider, error) {
+	return idname.NewProvider(ctrl.ProtectedResourceID, ctrl.ProtectedResourceName),
 		ctrl.ProtectedResourceErr
 }

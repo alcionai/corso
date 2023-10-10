@@ -478,9 +478,14 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 			expect: assert.False,
 		},
 		{
-			name: "as",
+			name: "graph 401",
 			err: clues.Stack(assert.AnError).
 				Label(LabelStatus(http.StatusUnauthorized)),
+			expect: assert.True,
+		},
+		{
+			name:   "token expired",
+			err:    clues.Stack(assert.AnError, ErrTokenExpired),
 			expect: assert.True,
 		},
 	}

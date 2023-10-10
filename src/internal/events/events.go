@@ -28,7 +28,6 @@ const (
 	tenantIDDeprecated = "m365_tenant_hash_deprecated"
 
 	// Event Keys
-	CorsoStart       = "Corso Start"
 	RepoInit         = "Repo Init"
 	RepoConnect      = "Repo Connect"
 	RepoUpdate       = "Repo Update"
