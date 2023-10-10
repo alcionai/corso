@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/alcionai/clues"
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/flags"
@@ -13,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -108,6 +110,30 @@ func runExport(
 	err = export.ConsumeExportCollections(ctx, exportLocation, expColl, eo.Errors)
 	if err != nil {
 		return Only(ctx, err)
+	}
+
+	stats := eo.GetStats()
+	if len(stats) > 0 {
+		Infof(ctx, "\nExport details")
+	}
+
+	for k, s := range stats {
+		kind := ""
+
+		switch k {
+		case details.OneDriveItem:
+			kind = "Files"
+		case details.GroupsChannelMessage:
+			kind = "Messages"
+		case details.ExchangeContact:
+			kind = "Contacts"
+		case details.ExchangeEvent:
+			kind = "Events"
+		case details.ExchangeMail:
+			kind = "Emails"
+		}
+
+		Infof(ctx, "%s: %d items (%s)", kind, s.ResourceCount, humanize.Bytes(uint64(s.BytesRead)))
 	}
 
 	return nil

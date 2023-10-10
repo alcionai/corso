@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -40,6 +41,7 @@ func streamItems(
 	backupVersion int,
 	cec control.ExportConfig,
 	ch chan<- export.Item,
+	stats *data.ExportStats,
 ) {
 	defer close(ch)
 
@@ -54,6 +56,9 @@ func streamItems(
 					Error: err,
 				}
 			} else {
+				stats.UpdateResourceCount(details.GroupsChannelMessage)
+				body = data.ReaderWithStats(body, details.GroupsChannelMessage, stats)
+
 				ch <- export.Item{
 					ID: item.ID(),
 					// channel message items have no name

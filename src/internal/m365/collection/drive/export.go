@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -18,12 +19,14 @@ func NewExportCollection(
 	baseDir string,
 	backingCollection []data.RestoreCollection,
 	backupVersion int,
+	stats *data.ExportStats,
 ) export.Collectioner {
 	return export.BaseCollection{
 		BaseDir:           baseDir,
 		BackingCollection: backingCollection,
 		BackupVersion:     backupVersion,
 		Stream:            streamItems,
+		Stats:             stats,
 	}
 }
 
@@ -34,6 +37,7 @@ func streamItems(
 	backupVersion int,
 	cec control.ExportConfig,
 	ch chan<- export.Item,
+	stats *data.ExportStats,
 ) {
 	defer close(ch)
 
@@ -48,10 +52,13 @@ func streamItems(
 
 			name, err := getItemName(ctx, itemUUID, backupVersion, rc)
 
+			stats.UpdateResourceCount(details.OneDriveItem)
+			body := data.ReaderWithStats(item.ToReader(), details.OneDriveItem, stats)
+
 			ch <- export.Item{
 				ID:    itemUUID,
 				Name:  name,
-				Body:  item.ToReader(),
+				Body:  body,
 				Error: err,
 			}
 		}

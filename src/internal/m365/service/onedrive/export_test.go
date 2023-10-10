@@ -248,7 +248,8 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			ec := drive.NewExportCollection(
 				"",
 				[]data.RestoreCollection{test.backingCollection},
-				test.version)
+				test.version,
+				&data.ExportStats{})
 
 			items := ec.Items(ctx)
 

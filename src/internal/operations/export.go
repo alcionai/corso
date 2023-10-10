@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/export"
@@ -46,6 +47,7 @@ type ExportOperation struct {
 	Selectors selectors.Selector
 	ExportCfg control.ExportConfig
 	Version   string
+	stats     data.ExportStats
 
 	acct account.Account
 	ec   inject.ExportConsumer
@@ -72,6 +74,7 @@ func NewExportOperation(
 		Selectors: sel,
 		Version:   "v0",
 		ec:        ec,
+		stats:     data.ExportStats{},
 	}
 	if err := op.validate(); err != nil {
 		return ExportOperation{}, err
@@ -255,6 +258,9 @@ func (op *ExportOperation) do(
 		op.ExportCfg,
 		op.Options,
 		dcs,
+		// We also have opStats, but that tracks different data.
+		// Maybe we can look into merging them some time in the future.
+		&op.stats,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Stack(err)
@@ -310,6 +316,22 @@ func (op *ExportOperation) finalizeMetrics(
 	return op.Errors.Failure()
 }
 
+// GetStats returns the stats of the export operation. You should only
+// be calling this once the export collections have been read and process
+// as the data that will be available here will be the data that was read
+// and processed.
+// TODO(meain): Should we convert the data to a different format?
+// Something like below:
+//
+//	type ExportStats struct {
+//	    Files    data.KindStats
+//	    Contacts data.KindStats
+//	    ...
+//	}
+func (op *ExportOperation) GetStats() map[details.ItemType]data.KindStats {
+	return op.stats.GetStats()
+}
+
 // ---------------------------------------------------------------------------
 // Exporter funcs
 // ---------------------------------------------------------------------------
@@ -322,6 +344,7 @@ func produceExportCollections(
 	exportCfg control.ExportConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
+	exportStats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	complete := observe.MessageWithCompletion(ctx, "Preparing export")
@@ -337,6 +360,7 @@ func produceExportCollections(
 		exportCfg,
 		opts,
 		dcs,
+		exportStats,
 		errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "exporting collections")
