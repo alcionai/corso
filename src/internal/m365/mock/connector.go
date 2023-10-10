@@ -53,7 +53,7 @@ func (ctrl Controller) ProduceBackupCollections(
 func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
+	man kopia.BackupBase,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	return nil, clues.New("not implemented")

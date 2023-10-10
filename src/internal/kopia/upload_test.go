@@ -878,19 +878,19 @@ func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error
 	return msw.snapshotRoot, nil
 }
 
-func makeManifestEntry(
+func makeBackupBase(
 	id, tenant, resourceOwner string,
 	service path.ServiceType,
 	categories ...path.CategoryType,
-) ManifestEntry {
+) BackupBase {
 	var reasons []identity.Reasoner
 
 	for _, c := range categories {
 		reasons = append(reasons, identity.NewReason(tenant, resourceOwner, service, c))
 	}
 
-	return ManifestEntry{
-		Manifest: &snapshot.Manifest{
+	return BackupBase{
+		ItemDataSnapshot: &snapshot.Manifest{
 			ID: manifest.ID(id),
 		},
 		Reasons: reasons,
@@ -1201,8 +1201,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]ManifestEntry{
-					makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				[]BackupBase{
+					makeBackupBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(),
 				pmMock.NewPrefixMap(nil),
@@ -1916,8 +1916,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]ManifestEntry{
-					makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				[]BackupBase{
+					makeBackupBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
 				ie,
@@ -2060,8 +2060,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
-			makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		[]BackupBase{
+			makeBackupBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		pmMock.NewPrefixMap(nil),
@@ -2160,8 +2160,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
-			makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		[]BackupBase{
+			makeBackupBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		pmMock.NewPrefixMap(nil),
@@ -2376,9 +2376,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
-			makeManifestEntry("id1", testTenant, testUser, path.ExchangeService, path.ContactsCategory),
-			makeManifestEntry("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		[]BackupBase{
+			makeBackupBase("id1", testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			makeBackupBase("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		pmMock.NewPrefixMap(nil),
@@ -2529,8 +2529,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
-			makeManifestEntry("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
+		[]BackupBase{
+			makeBackupBase("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
 		},
 		[]data.BackupCollection{mce, mcc},
 		pmMock.NewPrefixMap(nil),
@@ -3454,8 +3454,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]ManifestEntry{
-					makeManifestEntry("", tenant, user, path.OneDriveService, path.FilesCategory),
+				[]BackupBase{
+					makeBackupBase(
+						"id1",
+						tenant,
+						user,
+						path.OneDriveService,
+						path.FilesCategory),
 				},
 				test.inputCollections(t),
 				ie,

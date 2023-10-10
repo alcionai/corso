@@ -839,7 +839,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 
 	type testCase struct {
 		name                  string
-		baseBackups           func(base ManifestEntry) BackupBases
+		baseBackups           func(base BackupBase) BackupBases
 		collections           []data.BackupCollection
 		expectedUploadedFiles int
 		expectedCachedFiles   int
@@ -864,7 +864,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	// Initial backup. All files should be considered new by kopia.
 	baseBackupCase := testCase{
 		name: "Uncached",
-		baseBackups: func(ManifestEntry) BackupBases {
+		baseBackups: func(BackupBase) BackupBases {
 			return NewMockBackupBases()
 		},
 		collections:           collections,
@@ -875,8 +875,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		uploadedBytes:         []int64{8000, 10000},
 	}
 
-	runAndTestBackup := func(test testCase, base ManifestEntry) ManifestEntry {
-		var res ManifestEntry
+	runAndTestBackup := func(test testCase, base BackupBase) BackupBase {
+		var man *snapshot.Manifest
 
 		suite.Run(test.name, func() {
 			t := suite.T()
@@ -966,21 +966,22 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				manifest.ID(stats.SnapshotID))
 			require.NoError(t, err, clues.ToCore(err))
 
-			res = ManifestEntry{
-				Manifest: snap,
-				Reasons:  reasons,
-			}
+			man = snap
 		})
 
-		return res
+		return BackupBase{
+			ItemDataSnapshot: man,
+			Reasons:          reasons,
+		}
 	}
 
-	base := runAndTestBackup(baseBackupCase, ManifestEntry{})
+	base := runAndTestBackup(baseBackupCase, BackupBase{})
+	require.NotNil(suite.T(), base.ItemDataSnapshot)
 
 	table := []testCase{
 		{
 			name: "Kopia Assist And Merge All Files Changed",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base BackupBase) BackupBases {
 				return NewMockBackupBases().WithMergeBases(base)
 			},
 			collections:           collections,
@@ -994,7 +995,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 		{
 			name: "Kopia Assist And Merge No Files Changed",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base BackupBase) BackupBases {
 				return NewMockBackupBases().WithMergeBases(base)
 			},
 			// Pass in empty collections to force a backup. Otherwise we'll skip
@@ -1016,7 +1017,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 		{
 			name: "Kopia Assist Only",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base BackupBase) BackupBases {
 				return NewMockBackupBases().WithAssistBases(base)
 			},
 			collections:           collections,
@@ -1029,7 +1030,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 		{
 			name: "Merge Only",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base BackupBase) BackupBases {
 				return NewMockBackupBases().WithMergeBases(base).MockDisableAssistBases()
 			},
 			// Pass in empty collections to force a backup. Otherwise we'll skip
@@ -1049,7 +1050,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 		},
 		{
 			name: "Content Hash Only",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base BackupBase) BackupBases {
 				return NewMockBackupBases()
 			},
 			collections:           collections,
@@ -1265,9 +1266,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			prevSnaps.WithMergeBases(
-				ManifestEntry{
-					Manifest: snap,
-					Reasons:  reasons,
+				BackupBase{
+					ItemDataSnapshot: snap,
+					Reasons:          reasons,
 				})
 		})
 	}
@@ -1777,9 +1778,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				suite.ctx,
 				[]identity.Reasoner{r},
 				NewMockBackupBases().WithMergeBases(
-					ManifestEntry{
-						Manifest: man,
-						Reasons:  []identity.Reasoner{r},
+					BackupBase{
+						ItemDataSnapshot: man,
+						Reasons:          []identity.Reasoner{r},
 					}),
 				test.cols(t),
 				excluded,
