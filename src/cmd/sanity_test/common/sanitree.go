@@ -106,6 +106,8 @@ func AssertEqualTrees[ET, EL, RT, RL any](
 		return
 	}
 
+	Debugf(ctx, "comparing trees at path: %+v", expect.Path())
+
 	checkChildrenAndLeaves(ctx, expect, result)
 	ctx = clues.Add(ctx, "container_name", expect.Name)
 
@@ -159,6 +161,8 @@ func CompareDiffTrees[ET, EL, RT, RL any](
 		return
 	}
 
+	Debugf(ctx, "comparing tree at path: %+v", expect.Path())
+
 	checkChildrenAndLeaves(ctx, expect, result)
 	ctx = clues.Add(ctx, "container_name", expect.Name)
 
@@ -181,7 +185,7 @@ func CompareDiffTrees[ET, EL, RT, RL any](
 }
 
 // ---------------------------------------------------------------------------
-// Checking hierarcy likeness
+// Checking hierarchy likeness
 // ---------------------------------------------------------------------------
 
 func checkChildrenAndLeaves[ET, EL, RT, RL any](
@@ -191,9 +195,16 @@ func checkChildrenAndLeaves[ET, EL, RT, RL any](
 ) {
 	Assert(
 		ctx,
-		func() bool { return expect != nil && result != nil },
-		"non nil nodes",
-		expect,
+		func() bool { return expect != nil },
+		"expected stree is nil",
+		"not nil",
+		expect)
+
+	Assert(
+		ctx,
+		func() bool { return result != nil },
+		"result stree is nil",
+		"not nil",
 		result)
 
 	ctx = clues.Add(ctx, "container_name", expect.Name)

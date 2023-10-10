@@ -2,7 +2,6 @@ package driveish
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 
 	"github.com/alcionai/clues"
@@ -58,5 +57,5 @@ func CheckExport(
 		fpTree.Children[envs.DataFolder],
 		comparator)
 
-	fmt.Println("Success")
+	common.Infof(ctx, "Success")
 }

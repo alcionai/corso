@@ -2,7 +2,6 @@ package export
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -65,7 +64,7 @@ func checkChannelMessagesExport(
 		fpTree.Children["Messages"],
 		comparator)
 
-	fmt.Println("Success")
+	common.Infof(ctx, "Success")
 }
 
 func populateMessagesSanitree(

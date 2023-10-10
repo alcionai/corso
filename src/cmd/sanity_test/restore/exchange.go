@@ -19,11 +19,6 @@ func CheckEmailRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	var (
-		folderNameToItemCount        = make(map[string]int32)
-		folderNameToRestoreItemCount = make(map[string]int32)
-	)
-
 	restoredTree := buildSanitree(ctx, ac, envs.UserID, envs.FolderName)
 	dataTree := buildSanitree(ctx, ac, envs.UserID, envs.DataFolder)
 
@@ -34,27 +29,14 @@ func CheckEmailRestoration(
 		"original_folder_id", dataTree.ID,
 		"original_folder_name", dataTree.Name)
 
-	verifyEmailData(ctx, folderNameToRestoreItemCount, folderNameToItemCount)
-
 	common.AssertEqualTrees[models.MailFolderable, any](
 		ctx,
 		dataTree,
 		restoredTree.Children[envs.DataFolder],
 		nil,
 		nil)
-}
 
-func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[string]int32) {
-	for fldName, expected := range messageCount {
-		got := restoreMessageCount[fldName]
-
-		common.Assert(
-			ctx,
-			func() bool { return expected == got },
-			fmt.Sprintf("Restore item counts do not match: %s", fldName),
-			expected,
-			got)
-	}
+	common.Infof(ctx, "Success")
 }
 
 func buildSanitree(
@@ -90,28 +72,30 @@ func buildSanitree(
 		Children:    map[string]*common.Sanitree[models.MailFolderable, any]{},
 	}
 
-	recurseSubfolders(ctx, ac, root, userID)
+	recursivelyBuildTree(ctx, ac, root, userID, root.Name+"/")
 
 	return root
 }
 
-func recurseSubfolders(
+func recursivelyBuildTree(
 	ctx context.Context,
 	ac api.Client,
-	parent *common.Sanitree[models.MailFolderable, any],
-	userID string,
+	stree *common.Sanitree[models.MailFolderable, any],
+	userID, location string,
 ) {
+	common.Debugf(ctx, "adding: %s", location)
+
 	childFolders, err := ac.Mail().GetContainerChildren(
 		ctx,
 		userID,
-		parent.ID)
+		stree.ID)
 	if err != nil {
-		common.Fatal(ctx, "getting subfolders", err)
+		common.Fatal(ctx, "getting child containers", err)
 	}
 
 	for _, child := range childFolders {
 		c := &common.Sanitree[models.MailFolderable, any]{
-			Parent:      parent,
+			Parent:      stree,
 			Self:        child,
 			ID:          ptr.Val(child.GetId()),
 			Name:        ptr.Val(child.GetDisplayName()),
@@ -119,10 +103,8 @@ func recurseSubfolders(
 			Children:    map[string]*common.Sanitree[models.MailFolderable, any]{},
 		}
 
-		parent.Children[c.Name] = c
+		stree.Children[c.Name] = c
 
-		if ptr.Val(child.GetChildFolderCount()) > 0 {
-			recurseSubfolders(ctx, ac, c, userID)
-		}
+		recursivelyBuildTree(ctx, ac, c, userID, location+c.Name+"/")
 	}
 }

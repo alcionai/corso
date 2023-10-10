@@ -2,7 +2,6 @@ package driveish
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -79,7 +78,7 @@ func CheckRestoration(
 		permissionCheck,
 		nil)
 
-	fmt.Println("Success")
+	common.Infof(ctx, "Success")
 }
 
 func permissionIn(
