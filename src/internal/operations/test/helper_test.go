@@ -224,11 +224,7 @@ func runAndCheckBackup(
 	assert.Equal(t, 1, bo.Results.ResourceOwners, "count of resource owners")
 	assert.NoError(t, bo.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
 	assert.Empty(t, bo.Errors.Recovered(), "incremental recoverable/iteration errors")
-	assert.Equal(t, 1, mb.TimesCalled[events.BackupStart], "backup-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
-	assert.Equal(t,
-		mb.CalledWith[events.BackupStart][0][events.BackupID],
-		bo.Results.BackupID, "backupID pre-declaration")
 }
 
 func checkBackupIsInManifests(

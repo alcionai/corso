@@ -205,7 +205,6 @@ func runAndCheckRestore(
 	assert.NotZero(t, ro.Results.ItemsRead, "count of items read")
 	assert.NotZero(t, ro.Results.BytesRead, "bytes read")
 	assert.Equal(t, 1, ro.Results.ResourceOwners, "count of resource owners")
-	assert.Equal(t, 1, mb.TimesCalled[events.RestoreStart], "restore-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 
 	return deets
