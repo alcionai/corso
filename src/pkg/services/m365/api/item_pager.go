@@ -147,11 +147,17 @@ func deltaEnumerateItems[T any](
 		newDeltaLink     = ""
 		invalidPrevDelta = len(prevDeltaLink) == 0
 		nextLink         = "do-while"
+		consume          = graph.SingleGetOrDeltaLC
 	)
+
+	if invalidPrevDelta {
+		// Delta queries with no previous token cost more.
+		consume = graph.DeltaNoTokenLC
+	}
 
 	// Loop through all pages returned by Graph API.
 	for len(nextLink) > 0 {
-		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, graph.SingleGetOrDeltaLC))
+		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, consume))
 		if graph.IsErrDeltaNotSupported(err) {
 			logger.Ctx(ctx).Infow("delta queries not supported")
 			return nil, DeltaUpdate{}, clues.Stack(graph.ErrDeltaNotSupported, err)
@@ -161,6 +167,8 @@ func deltaEnumerateItems[T any](
 			logger.Ctx(ctx).Infow("invalid previous delta", "delta_link", prevDeltaLink)
 
 			invalidPrevDelta = true
+			// Reset limiter consumption since we don't have a valid delta token.
+			consume = graph.DeltaNoTokenLC
 			result = make([]T, 0)
 
 			// Reset tells the pager to try again after ditching its delta history.
