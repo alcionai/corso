@@ -68,6 +68,9 @@ corso repo connect s3 --bucket my-bucket --prefix my-prefix
 
 # Connect to a Corso repo in an S3 compliant storage provider
 corso repo connect s3 --bucket my-bucket --endpoint my-s3-server-endpoint`
+
+	s3ProviderCommandUpdatePhasephraseExamples = `# Update passphrase to a Corso repo in AWS S3 bucket named "my-bucket"
+corso repo update-passphrase s3 --bucket my-bucket --new-passphrase 'newpass'`
 )
 
 // ---------------------------------------------------------------------------------------------------------
@@ -238,7 +241,7 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 // Update Password
 // ---------------------------------------------------------------------------------------------------------
 
-// `corso repo update s3 [<flag>...]`
+// `corso repo update-passphrase s3 [<flag>...]`
 func s3UpdateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     s3ProviderCommand,
@@ -246,7 +249,7 @@ func s3UpdateCmd() *cobra.Command {
 		Long:    `Update to an existing S3 repository.`,
 		RunE:    updateS3Cmd,
 		Args:    cobra.NoArgs,
-		Example: s3ProviderCommandConnectExamples,
+		Example: s3ProviderCommandUpdatePhasephraseExamples,
 	}
 }
 

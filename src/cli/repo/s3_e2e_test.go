@@ -332,11 +332,11 @@ func (suite *S3E2ESuite) TestUpdateS3Cmd() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	cmd = cliTD.StubRootCmd(
-		"repo", "update", "s3",
+		"repo", "update-passphrase", "s3",
 		"--config-file", configFP,
 		"--bucket", cfg.Bucket,
 		"--prefix", cfg.Prefix,
-		"--update-passphrase", "newpass")
+		"--new-passphrase", "newpass")
 	cli.BuildCommandTree(cmd)
 
 	// run the command

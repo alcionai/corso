@@ -17,7 +17,7 @@ import (
 const (
 	initCommand        = "init"
 	connectCommand     = "connect"
-	updateCommand      = "update"
+	updateCommand      = "update-passphrase"
 	maintenanceCommand = "maintenance"
 )
 
@@ -182,7 +182,7 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 }
 
 // The repo update subcommand.
-// `corso repo update <repository> [<flag>...]`
+// `corso repo update-passphrase <repository> [<flag>...]`
 func updateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   updateCommand,

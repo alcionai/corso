@@ -13,7 +13,7 @@ const (
 
 	// Corso Flags
 	CorsoPassphraseFN       = "passphrase"
-	UpdateCorsoPassphraseFN = "update-passphrase"
+	UpdateCorsoPassphraseFN = "new-passphrase"
 	SucceedIfExistsFN       = "succeed-if-exists"
 )
 
