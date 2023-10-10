@@ -133,7 +133,7 @@ type DriveItemDeltaPageCtrl struct {
 
 func (c Drives) newDriveItemDeltaPager(
 	driveID, prevDeltaLink string,
-	selectProps ...string,
+	cc CallConfig,
 ) *DriveItemDeltaPageCtrl {
 	preferHeaderItems := []string{
 		"deltashowremovedasdeleted",
@@ -147,8 +147,8 @@ func (c Drives) newDriveItemDeltaPager(
 		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{},
 	}
 
-	if len(selectProps) > 0 {
-		options.QueryParameters.Select = selectProps
+	if len(cc.Select) > 0 {
+		options.QueryParameters.Select = cc.Select
 	}
 
 	builder := c.Stable.
@@ -203,12 +203,12 @@ func (c Drives) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID string,
 	prevDeltaLink string,
-	selectProps []string,
+	cc CallConfig,
 ) NextPageResulter[models.DriveItemable] {
 	deltaPager := c.newDriveItemDeltaPager(
 		driveID,
 		prevDeltaLink,
-		selectProps...)
+		cc)
 
 	npr := &nextPageResults[models.DriveItemable]{
 		pages: make(chan nextPage[models.DriveItemable]),

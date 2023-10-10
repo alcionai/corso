@@ -157,45 +157,30 @@ func (uc *urlCache) refreshCache(
 	// Issue a delta query to graph
 	logger.Ctx(ctx).Info("refreshing url cache")
 
-	var (
-		ch       = make(chan api.NextPage[models.DriveItemable], 1)
-		cacheErr error
-		wg       = sync.WaitGroup{}
-	)
+	pager := uc.enumerator.EnumerateDriveItemsDelta(
+		ctx,
+		uc.driveID,
+		uc.prevDelta,
+		api.CallConfig{
+			Select: api.URLCacheDriveItemProps(),
+		})
 
-	go func() {
-		defer wg.Done()
+	for page, reset, done := pager.NextPage(); !done; {
+		uc.deltaQueryCount++
 
-		for pg := range ch {
-			if cacheErr != nil {
-				continue
-			}
-
-			uc.deltaQueryCount++
-
-			err := uc.updateCache(
-				ctx,
-				pg.Items,
-				pg.Reset,
-				uc.errs)
-			if err != nil {
-				cacheErr = clues.Wrap(err, "updating cache")
-			}
+		err := uc.updateCache(
+			ctx,
+			page,
+			reset,
+			uc.errs)
+		if err != nil {
+			return clues.Wrap(err, "updating cache")
 		}
-	}()
-
-	wg.Add(1)
-
-	du, err := uc.enumerator.EnumerateDriveItemsDelta(ctx, ch, uc.driveID, uc.prevDelta)
-	if err != nil {
-		uc.idToProps = make(map[string]itemProps)
-		return clues.Stack(err)
 	}
 
-	wg.Wait()
-
-	if cacheErr != nil {
-		return clues.Stack(cacheErr)
+	du, err := pager.Results()
+	if err != nil {
+		return clues.Stack(err)
 	}
 
 	logger.Ctx(ctx).Info("url cache refreshed")

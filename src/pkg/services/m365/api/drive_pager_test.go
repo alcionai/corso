@@ -191,7 +191,13 @@ func (suite *DrivePagerIntgSuite) TestEnumerateDriveItems() {
 	pager := suite.its.
 		ac.
 		Drives().
-		EnumerateDriveItemsDelta(ctx, suite.its.user.driveID, "", api.DefaultDriveItemProps())
+		EnumerateDriveItemsDelta(
+			ctx,
+			suite.its.user.driveID,
+			"",
+			api.CallConfig{
+				Select: api.DefaultDriveItemProps(),
+			})
 
 	for page, reset, done := pager.NextPage(); !done; {
 		items = append(items, page...)

@@ -9,7 +9,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -28,7 +27,7 @@ type BackupHandler[T any] struct {
 	// and plug in the selector scope there.
 	Sel selectors.Selector
 
-	DriveItemEnumeration EnumeratesDriveItemsDelta[T]
+	DriveItemEnumeration EnumerateItemsDeltaByDrive
 
 	GI  GetsItem
 	GIP GetsItemPermission
@@ -67,7 +66,7 @@ func DefaultOneDriveBH(resourceOwner string) *BackupHandler[models.DriveItemable
 			Extension: &details.ExtensionData{},
 		},
 		Sel:                  sel.Selector,
-		DriveItemEnumeration: EnumeratesDriveItemsDelta[models.DriveItemable]{},
+		DriveItemEnumeration: EnumerateItemsDeltaByDrive{},
 		GI:                   GetsItem{Err: clues.New("not defined")},
 		GIP:                  GetsItemPermission{Err: clues.New("not defined")},
 		PathPrefixFn:         defaultOneDrivePathPrefixer,
@@ -107,7 +106,7 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler[models.DriveItemab
 }
 
 func (h BackupHandler[T]) PathPrefix(tID, driveID string) (path.Path, error) {
-	pp, err := h.PathPrefixFn(tID, h.ResourceOwner, driveID)
+	pp, err := h.PathPrefixFn(tID, h.ProtectedResource.ID(), driveID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +115,7 @@ func (h BackupHandler[T]) PathPrefix(tID, driveID string) (path.Path, error) {
 }
 
 func (h BackupHandler[T]) MetadataPathPrefix(tID string) (path.Path, error) {
-	pp, err := h.MetadataPathPrefixFn(tID, h.ResourceOwner)
+	pp, err := h.MetadataPathPrefixFn(tID, h.ProtectedResource.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +124,7 @@ func (h BackupHandler[T]) MetadataPathPrefix(tID string) (path.Path, error) {
 }
 
 func (h BackupHandler[T]) CanonicalPath(pb *path.Builder, tID string) (path.Path, error) {
-	cp, err := h.CanonPathFn(pb, tID, h.ProtectedResource)
+	cp, err := h.CanonPathFn(pb, tID, h.ProtectedResource.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +148,7 @@ func (h BackupHandler[T]) NewLocationIDer(driveID string, elems ...string) detai
 	return h.LocationIDFn(driveID, elems...)
 }
 
-func (h BackupHandler) AugmentItemInfo(
+func (h BackupHandler[T]) AugmentItemInfo(
 	details.ItemInfo,
 	idname.Provider,
 	models.DriveItemable,
@@ -173,15 +172,14 @@ func (h *BackupHandler[T]) Get(context.Context, string, map[string]string) (*htt
 
 func (h BackupHandler[T]) EnumerateDriveItemsDelta(
 	ctx context.Context,
-	ch chan<- api.NextPage[T],
 	driveID, prevDeltaLink string,
-	selectProps []string,
-) ([]models.DriveItemable, api.DeltaUpdate, error) {
+	cc api.CallConfig,
+) api.NextPageResulter[models.DriveItemable] {
 	return h.DriveItemEnumeration.EnumerateDriveItemsDelta(
 		ctx,
 		driveID,
 		prevDeltaLink,
-		selectProps)
+		cc)
 }
 
 func (h BackupHandler[T]) GetItem(ctx context.Context, _, _ string) (models.DriveItemable, error) {
@@ -294,26 +292,46 @@ func (m GetsItem) GetItem(
 // Enumerates Drive Items
 // ---------------------------------------------------------------------------
 
-type EnumeratesDriveItemsDelta[T any] struct {
-	Pages       map[string][]api.NextPage[T]
-	DeltaUpdate map[string]api.DeltaUpdate
-	Err         map[string]error
+type NextPage[T any] struct {
+	Items []T
+	Reset bool
 }
 
-func (edi EnumeratesDriveItemsDelta[T]) EnumerateDriveItemsDelta(
+type EnumerateItemsDeltaByDrive struct {
+	DrivePagers map[string]DriveItemsDeltaPager
+}
+
+var _ api.NextPageResulter[models.DriveItemable] = &DriveItemsDeltaPager{}
+
+type DriveItemsDeltaPager struct {
+	Idx         int
+	Pages       []NextPage[models.DriveItemable]
+	DeltaUpdate api.DeltaUpdate
+	Err         error
+}
+
+func (edibd EnumerateItemsDeltaByDrive) EnumerateDriveItemsDelta(
 	_ context.Context,
-	ch chan<- api.NextPage[T],
 	driveID, _ string,
-	_ []string,
+	_ api.CallConfig,
 ) api.NextPageResulter[models.DriveItemable] {
-	return edi.Items[driveID], edi.DeltaUpdate[driveID], edi.Err[driveID]
+	didp := edibd.DrivePagers[driveID]
+	return &didp
 }
 
-	for _, page := range edi.Pages[driveID] {
-		ch <- page
+func (edi *DriveItemsDeltaPager) NextPage() ([]models.DriveItemable, bool, bool) {
+	if edi.Idx >= len(edi.Pages) {
+		return nil, false, true
 	}
 
-	return edi.DeltaUpdate[driveID], edi.Err[driveID]
+	np := edi.Pages[edi.Idx]
+	edi.Idx++
+
+	return np.Items, np.Reset, false
+}
+
+func (edi *DriveItemsDeltaPager) Results() (api.DeltaUpdate, error) {
+	return edi.DeltaUpdate, edi.Err
 }
 
 // ---------------------------------------------------------------------------
