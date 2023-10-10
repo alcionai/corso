@@ -648,13 +648,13 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
@@ -675,19 +675,19 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Minute), snapCurrent3()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
 			},
 			backups: []backupRes{
@@ -719,13 +719,13 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
@@ -749,19 +749,19 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Minute), snapCurrent3()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
 			},
 			backups: []backupRes{
@@ -786,19 +786,19 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Minute), snapCurrent2()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent2()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Second), snapCurrent3()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent3()),
 			},
 			backups: []backupRes{
@@ -823,14 +823,14 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory),
-					NewReason("", "ro", path.ExchangeService, path.ContactsCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory),
+					identity.NewReason("", "ro", path.ExchangeService, path.ContactsCategory)),
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
@@ -851,13 +851,13 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
 					"tenant1",
-					NewReason("", "ro1", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro1", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
 					"tenant1",
-					NewReason("", "ro2", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro2", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
@@ -878,13 +878,13 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
 					"tenant2",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 			},
 			backups: []backupRes{
@@ -905,19 +905,19 @@ func (suite *BackupCleanupUnitSuite) TestCleanupOrphanedData() {
 				manifestWithReasons(
 					manifestWithTime(baseTime, snapCurrent()),
 					"",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime, deetsCurrent()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Second), snapCurrent2()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Second), deetsCurrent2()),
 
 				manifestWithReasons(
 					manifestWithTime(baseTime.Add(time.Minute), snapCurrent3()),
 					"tenant1",
-					NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
+					identity.NewReason("", "ro", path.ExchangeService, path.EmailCategory)),
 				manifestWithTime(baseTime.Add(time.Minute), deetsCurrent3()),
 			},
 			backups: []backupRes{
