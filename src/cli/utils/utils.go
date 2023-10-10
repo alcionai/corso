@@ -239,24 +239,6 @@ func splitFoldersIntoContainsAndPrefix(folders []string) ([]string, []string) {
 	return containsFolders, prefixFolders
 }
 
-// SendStartCorsoEvent utility sends corso start event at start of each action
-func SendStartCorsoEvent(
-	ctx context.Context,
-	s storage.Storage,
-	tenID string,
-	data map[string]any,
-	repoID string,
-	opts control.Options,
-) {
-	bus, err := events.NewBus(ctx, s, tenID, opts)
-	if err != nil {
-		logger.CtxErr(ctx, err).Info("sending start event")
-	}
-
-	bus.SetRepoID(repoID)
-	bus.Event(ctx, events.CorsoStart, data)
-}
-
 // GetStorageProviderAndOverrides returns the storage provider type and
 // any flags specified on the command line which are storage provider specific.
 func GetStorageProviderAndOverrides(

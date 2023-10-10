@@ -229,7 +229,7 @@ elseif (![string]::IsNullOrEmpty($Site)) {
     }
 }
 else {
-    Write-Host "User (for OneDrvie) or Site (for Sharpeoint) is required"
+    Write-Host "User (for OneDrive) or Site (for Sharepoint) is required"
     Exit
 }
 

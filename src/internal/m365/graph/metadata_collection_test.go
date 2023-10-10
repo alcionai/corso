@@ -70,7 +70,7 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 	items := []metadataItem{}
 
 	for i := 0; i < len(itemNames); i++ {
-		item, err := data.NewUnindexedPrefetchedItem(
+		item, err := data.NewPrefetchedItem(
 			io.NopCloser(bytes.NewReader(itemData[i])),
 			itemNames[i],
 			time.Time{})

@@ -125,14 +125,14 @@ func (suite *SelectorScopesSuite) TestGetCatValue() {
 func (suite *SelectorScopesSuite) TestIsAnyTarget() {
 	t := suite.T()
 	stub := stubScope("")
-	assert.True(t, isAnyTarget(stub, rootCatStub))
-	assert.True(t, isAnyTarget(stub, leafCatStub))
-	assert.False(t, isAnyTarget(stub, mockCategorizer("smarf")))
+	assert.True(t, IsAnyTarget(stub, rootCatStub))
+	assert.True(t, IsAnyTarget(stub, leafCatStub))
+	assert.False(t, IsAnyTarget(stub, mockCategorizer("smarf")))
 
 	stub = stubScope("none")
-	assert.False(t, isAnyTarget(stub, rootCatStub))
-	assert.False(t, isAnyTarget(stub, leafCatStub))
-	assert.False(t, isAnyTarget(stub, mockCategorizer("smarf")))
+	assert.False(t, IsAnyTarget(stub, rootCatStub))
+	assert.False(t, IsAnyTarget(stub, leafCatStub))
+	assert.False(t, IsAnyTarget(stub, mockCategorizer("smarf")))
 }
 
 var reduceTestTable = []struct {

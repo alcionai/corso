@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/restore"
-	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -59,43 +58,6 @@ func preRun(cc *cobra.Command, args []string) error {
 
 	if len(logger.ResolvedLogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
 		print.Infof(ctx, "Logging to file: %s", logger.ResolvedLogFile)
-	}
-
-	avoidTheseDescription := []string{
-		"Initialize a repository.",
-		"Initialize a S3 repository",
-		"Connect to a S3 repository",
-		"Initialize a repository on local or network storage.",
-		"Connect to a repository on local or network storage.",
-		"Help about any command",
-		"Free, Secure, Open-Source Backup for M365.",
-		"env var guide",
-	}
-
-	if !slices.Contains(avoidTheseDescription, cc.Short) {
-		provider, overrides, err := utils.GetStorageProviderAndOverrides(ctx, cc)
-		if err != nil {
-			return err
-		}
-
-		cfg, err := config.GetConfigRepoDetails(
-			ctx,
-			provider,
-			true,
-			false,
-			overrides)
-		if err != nil {
-			log.Error("Error while getting config info to run command: ", cc.Use)
-			return err
-		}
-
-		utils.SendStartCorsoEvent(
-			ctx,
-			cfg.Storage,
-			cfg.Account.ID(),
-			map[string]any{"command": cc.CommandPath()},
-			cfg.RepoID,
-			utils.Control())
 	}
 
 	// handle deprecated user flag in Backup exchange command
