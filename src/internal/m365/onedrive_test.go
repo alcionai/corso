@@ -186,15 +186,15 @@ func (suite *SharePointIntegrationSuite) SetupSuite() {
 	si := NewSuiteInfoImpl(suite.T(), ctx, tconfig.M365SiteID(suite.T()), path.SharePointService)
 
 	// users needed for permissions
-	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
+	user, err := si.controller.AC.Users().IsLicenseReconciliationNeeded(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.controller.AC.Users().IsLicenseReconciliationNeeded(ctx, si.secondaryUser)
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser)
+	tertiaryUser, err := si.controller.AC.Users().IsLicenseReconciliationNeeded(ctx, si.tertiaryUser)
 	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
@@ -255,15 +255,15 @@ func (suite *OneDriveIntegrationSuite) SetupSuite() {
 
 	si := NewSuiteInfoImpl(t, ctx, tconfig.M365UserID(t), path.OneDriveService)
 
-	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
+	user, err := si.controller.AC.Users().IsLicenseReconciliationNeeded(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.controller.AC.Users().IsLicenseReconciliationNeeded(ctx, si.secondaryUser)
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser)
+	tertiaryUser, err := si.controller.AC.Users().IsLicenseReconciliationNeeded(ctx, si.tertiaryUser)
 	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
@@ -319,15 +319,15 @@ func (suite *OneDriveNightlySuite) SetupSuite() {
 
 	si := NewSuiteInfoImpl(t, ctx, tconfig.M365UserID(t), path.OneDriveService)
 
-	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
+	user, err := si.controller.AC.Users().IsLicenseReconciliationNeeded(ctx, si.user)
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.controller.AC.Users().IsLicenseReconciliationNeeded(ctx, si.secondaryUser)
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser)
+	tertiaryUser, err := si.controller.AC.Users().IsLicenseReconciliationNeeded(ctx, si.tertiaryUser)
 	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 

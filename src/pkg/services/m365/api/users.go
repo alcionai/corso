@@ -112,15 +112,42 @@ func (c Users) GetAll(
 	return us, el.Failure()
 }
 
-// GetByID looks up the user matching the given identifier.  The identifier can be either a
+// IsLicenseReconciliationNeeded looks up the user matching the given identifier.  The identifier can be either a
 // canonical user id or a princpalName.
-func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable, error) {
+func (c Users) IsLicenseReconciliationNeeded(ctx context.Context, identifier string) (models.Userable, error) {
 	var (
 		resp models.Userable
 		err  error
 	)
 
-	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
+	options := &users.UserItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.UserItemRequestBuilderGetQueryParameters{},
+	}
+
+	options.QueryParameters.Select = []string{"isLicenseReconciliationNeeded"}
+
+	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, options)
+
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting user")
+	}
+
+	return resp, err
+}
+
+func (c Users) AssignedPlans(ctx context.Context, identifier string) (models.Userable, error) {
+	var (
+		resp models.Userable
+		err  error
+	)
+
+	options := &users.UserItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.UserItemRequestBuilderGetQueryParameters{},
+	}
+
+	options.QueryParameters.Select = []string{"assignedPlans"}
+
+	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, options)
 
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting user")
@@ -136,7 +163,7 @@ func (c Users) GetIDAndName(
 	userID string,
 	_ CallConfig, // not currently supported
 ) (string, string, error) {
-	u, err := c.GetByID(ctx, userID)
+	u, err := c.IsLicenseReconciliationNeeded(ctx, userID)
 	if err != nil {
 		return "", "", err
 	}

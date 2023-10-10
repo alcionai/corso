@@ -832,7 +832,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
-	userable, err := ctrl.AC.Users().GetByID(ctx, suite.its.user.ID)
+	userable, err := ctrl.AC.Users().IsLicenseReconciliationNeeded(ctx, suite.its.user.ID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	uid := ptr.Val(userable.GetId())
