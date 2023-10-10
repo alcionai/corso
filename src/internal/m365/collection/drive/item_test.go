@@ -71,7 +71,7 @@ func getOneDriveItem(
 ) models.DriveItemable {
 	var driveItem models.DriveItemable
 	// file to test the reader function
-	items, _, err := ac.Drives().EnumerateDriveItemsDelta(ctx, driveID, "")
+	items, _, err := ac.Drives().EnumerateDriveItemsDelta(ctx, driveID, "", api.DefaultDriveItemProps())
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Return a file item
