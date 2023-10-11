@@ -23,6 +23,7 @@ func ProduceExportCollections(
 	opts control.Options,
 	dcs []data.RestoreCollection,
 	deets *details.Builder,
+	stats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	var (
@@ -43,7 +44,8 @@ func ProduceExportCollections(
 			drive.NewExportCollection(
 				baseDir.String(),
 				[]data.RestoreCollection{dc},
-				backupVersion))
+				backupVersion,
+				stats))
 	}
 
 	return ec, el.Failure()

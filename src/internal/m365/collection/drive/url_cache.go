@@ -47,7 +47,7 @@ type urlCache struct {
 	refreshMu       sync.Mutex
 	deltaQueryCount int
 
-	itemPager api.DeltaPager[models.DriveItemable]
+	edid EnumerateDriveItemsDeltaer
 
 	errs *fault.Bus
 }
@@ -56,13 +56,10 @@ type urlCache struct {
 func newURLCache(
 	driveID, prevDelta string,
 	refreshInterval time.Duration,
-	itemPager api.DeltaPager[models.DriveItemable],
+	edid EnumerateDriveItemsDeltaer,
 	errs *fault.Bus,
 ) (*urlCache, error) {
-	err := validateCacheParams(
-		driveID,
-		refreshInterval,
-		itemPager)
+	err := validateCacheParams(driveID, refreshInterval, edid)
 	if err != nil {
 		return nil, clues.Wrap(err, "cache params")
 	}
@@ -71,9 +68,9 @@ func newURLCache(
 			idToProps:       make(map[string]itemProps),
 			lastRefreshTime: time.Time{},
 			driveID:         driveID,
+			edid:            edid,
 			prevDelta:       prevDelta,
 			refreshInterval: refreshInterval,
-			itemPager:       itemPager,
 			errs:            errs,
 		},
 		nil
@@ -83,7 +80,7 @@ func newURLCache(
 func validateCacheParams(
 	driveID string,
 	refreshInterval time.Duration,
-	itemPager api.DeltaPager[models.DriveItemable],
+	edid EnumerateDriveItemsDeltaer,
 ) error {
 	if len(driveID) == 0 {
 		return clues.New("drive id is empty")
@@ -93,8 +90,8 @@ func validateCacheParams(
 		return clues.New("invalid refresh interval")
 	}
 
-	if itemPager == nil {
-		return clues.New("nil item pager")
+	if edid == nil {
+		return clues.New("nil item enumerator")
 	}
 
 	return nil
@@ -160,44 +157,27 @@ func (uc *urlCache) refreshCache(
 	// Issue a delta query to graph
 	logger.Ctx(ctx).Info("refreshing url cache")
 
-	err := uc.deltaQuery(ctx)
+	items, du, err := uc.edid.EnumerateDriveItemsDelta(
+		ctx,
+		uc.driveID,
+		uc.prevDelta,
+		api.URLCacheDriveItemProps())
 	if err != nil {
-		// clear cache
 		uc.idToProps = make(map[string]itemProps)
+		return clues.Stack(err)
+	}
 
-		return err
+	uc.deltaQueryCount++
+
+	if err := uc.updateCache(ctx, items, uc.errs); err != nil {
+		return clues.Stack(err)
 	}
 
 	logger.Ctx(ctx).Info("url cache refreshed")
 
 	// Update last refresh time
 	uc.lastRefreshTime = time.Now()
-
-	return nil
-}
-
-// deltaQuery performs a delta query on the drive and update the cache
-func (uc *urlCache) deltaQuery(
-	ctx context.Context,
-) error {
-	logger.Ctx(ctx).Debug("starting delta query")
-	// Reset item pager to remove any previous state
-	uc.itemPager.Reset(ctx)
-
-	_, _, _, err := collectItems(
-		ctx,
-		uc.itemPager,
-		uc.driveID,
-		"",
-		uc.updateCache,
-		map[string]string{},
-		uc.prevDelta,
-		uc.errs)
-	if err != nil {
-		return clues.Wrap(err, "delta query")
-	}
-
-	uc.deltaQueryCount++
+	uc.prevDelta = du.URL
 
 	return nil
 }
@@ -224,13 +204,7 @@ func (uc *urlCache) readCache(
 // It assumes that cacheMu is held by caller in write mode
 func (uc *urlCache) updateCache(
 	ctx context.Context,
-	_, _ string,
 	items []models.DriveItemable,
-	_ map[string]string,
-	_ map[string]string,
-	_ map[string]struct{},
-	_ map[string]map[string]string,
-	_ bool,
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()

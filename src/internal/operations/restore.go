@@ -279,16 +279,6 @@ func (op *RestoreOperation) do(
 		"backup_snapshot_id", bup.SnapshotID,
 		"backup_version", bup.Version)
 
-	op.bus.Event(
-		ctx,
-		events.RestoreStart,
-		map[string]any{
-			events.StartTime:        start,
-			events.BackupID:         op.BackupID,
-			events.BackupCreateTime: bup.CreationTime,
-			events.RestoreID:        opStats.restoreID,
-		})
-
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 
 	progressBar := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
@@ -375,12 +365,12 @@ func chooseRestoreResource(
 		return orig, nil
 	}
 
-	id, name, err := pprian.PopulateProtectedResourceIDAndName(
+	resource, err := pprian.PopulateProtectedResourceIDAndName(
 		ctx,
 		restoreCfg.ProtectedResource,
 		nil)
 
-	return idname.NewProvider(id, name), clues.Stack(err).OrNil()
+	return resource, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

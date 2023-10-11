@@ -184,6 +184,10 @@ func EvaluateMailboxError(err error) error {
 		return clues.Stack(graph.ErrResourceOwnerNotFound, err)
 	}
 
+	if graph.IsErrResourceLocked(err) {
+		return clues.Stack(graph.ErrResourceLocked, err)
+	}
+
 	if graph.IsErrExchangeMailFolderNotFound(err) || graph.IsErrAuthenticationError(err) {
 		return nil
 	}

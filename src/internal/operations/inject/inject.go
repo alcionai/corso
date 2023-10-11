@@ -88,6 +88,7 @@ type (
 			exportCfg control.ExportConfig,
 			opts control.Options,
 			dcs []data.RestoreCollection,
+			stats *data.ExportStats,
 			errs *fault.Bus,
 		) ([]export.Collectioner, error)
 
@@ -109,10 +110,7 @@ type (
 			ctx context.Context,
 			owner string, // input value, can be either id or name
 			ins idname.Cacher,
-		) (
-			id, name string,
-			err error,
-		)
+		) (idname.Provider, error)
 	}
 
 	RepoMaintenancer interface {

@@ -247,15 +247,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"incremental", op.incremental,
 		"disable_assist_backup", op.disableAssistBackup)
 
-	op.bus.Event(
-		ctx,
-		events.BackupStart,
-		map[string]any{
-			events.StartTime: startTime,
-			events.Service:   op.Selectors.Service.String(),
-			events.BackupID:  op.Results.BackupID,
-		})
-
 	defer func() {
 		if op.Errors.Failure() != nil {
 			op.bus.Event(

@@ -57,13 +57,6 @@ func (op *MaintenanceOperation) Run(ctx context.Context) (err error) {
 
 	op.Results.StartedAt = time.Now()
 
-	op.bus.Event(
-		ctx,
-		events.MaintenanceStart,
-		map[string]any{
-			events.StartTime: op.Results.StartedAt,
-		})
-
 	defer func() {
 		if op.Errors.Failure() != nil {
 			op.bus.Event(

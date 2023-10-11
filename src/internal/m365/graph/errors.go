@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 )
@@ -50,6 +51,7 @@ const (
 	// nameAlreadyExists occurs when a request with
 	// @microsoft.graph.conflictBehavior=fail finds a conflicting file.
 	nameAlreadyExists       errorCode = "nameAlreadyExists"
+	NotAllowed              errorCode = "notAllowed"
 	noResolvedUsers         errorCode = "noResolvedUsers"
 	QuotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
@@ -59,6 +61,11 @@ const (
 	syncFolderNotFound errorCode = "ErrorSyncFolderNotFound"
 	syncStateInvalid   errorCode = "SyncStateInvalid"
 	syncStateNotFound  errorCode = "SyncStateNotFound"
+)
+
+// inner error codes
+const (
+	ResourceLocked errorCode = "resourceLocked"
 )
 
 type errorMessage string
@@ -113,6 +120,11 @@ var (
 	// replies, no error should get returned.
 	ErrMultipleResultsMatchIdentifier = clues.New("multiple results match the identifier")
 
+	// ErrResourceLocked occurs when a resource has had its access locked.
+	// Example case: https://learn.microsoft.com/en-us/sharepoint/manage-lock-status
+	// This makes the resource inaccessible for any Corso operations.
+	ErrResourceLocked = clues.New("resource has been locked and must be unlocked by an administrator")
+
 	// ErrServiceNotEnabled identifies that a resource owner does not have
 	// access to a given service.
 	ErrServiceNotEnabled = clues.New("service is not enabled for that resource owner")
@@ -124,6 +136,8 @@ var (
 	ErrTimeout = clues.New("communication timeout")
 
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
+
+	ErrTokenExpired = clues.New("jwt token expired")
 )
 
 func IsErrApplicationThrottled(err error) bool {
@@ -224,7 +238,8 @@ func IsErrUnauthorized(err error) bool {
 	// TODO: refine this investigation.  We don't currently know if
 	// a specific item download url expired, or if the full connection
 	// auth expired.
-	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized))
+	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
+		errors.Is(err, ErrTokenExpired)
 }
 
 func IsErrItemAlreadyExistsConflict(err error) bool {
@@ -264,6 +279,12 @@ func IsErrSiteNotFound(err error) bool {
 	return hasErrorMessage(err, requestedSiteCouldNotBeFound)
 }
 
+func IsErrResourceLocked(err error) bool {
+	return errors.Is(err, ErrResourceLocked) ||
+		hasInnerErrorCode(err, ResourceLocked) ||
+		hasErrorCode(err, NotAllowed)
+}
+
 // ---------------------------------------------------------------------------
 // error parsers
 // ---------------------------------------------------------------------------
@@ -280,6 +301,34 @@ func hasErrorCode(err error, codes ...errorCode) bool {
 
 	code, ok := ptr.ValOK(oDataError.GetErrorEscaped().GetCode())
 	if !ok {
+		return false
+	}
+
+	cs := make([]string, len(codes))
+	for i, c := range codes {
+		cs[i] = string(c)
+	}
+
+	return filters.Equal(cs).Compare(code)
+}
+
+func hasInnerErrorCode(err error, codes ...errorCode) bool {
+	if err == nil {
+		return false
+	}
+
+	var oDataError odataerrors.ODataErrorable
+	if !errors.As(err, &oDataError) {
+		return false
+	}
+
+	inner := oDataError.GetErrorEscaped().GetInnerError()
+	if inner == nil {
+		return false
+	}
+
+	code, err := str.AnyValueToString("code", inner.GetAdditionalData())
+	if err != nil {
 		return false
 	}
 

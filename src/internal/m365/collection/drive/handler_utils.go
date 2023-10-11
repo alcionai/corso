@@ -5,6 +5,7 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -12,12 +13,13 @@ import (
 
 func augmentItemInfo(
 	dii details.ItemInfo,
+	resource idname.Provider,
 	service path.ServiceType,
 	item models.DriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	var driveName, siteID, driveID, weburl, creatorEmail string
+	var driveName, driveID, creatorEmail string
 
 	// TODO: we rely on this info for details/restore lookups,
 	// so if it's nil we have an issue, and will need an alternative
@@ -35,19 +37,6 @@ func augmentItemInfo(
 
 		if ed != nil {
 			creatorEmail = *ed.(*string)
-		}
-	}
-
-	if service == path.SharePointService ||
-		service == path.GroupsService {
-		gsi := item.GetSharepointIds()
-		if gsi != nil {
-			siteID = ptr.Val(gsi.GetSiteId())
-			weburl = ptr.Val(gsi.GetSiteUrl())
-
-			if len(weburl) == 0 {
-				weburl = constructWebURL(item.GetAdditionalData())
-			}
 		}
 	}
 
@@ -84,9 +73,9 @@ func augmentItemInfo(
 			Modified:   ptr.Val(item.GetLastModifiedDateTime()),
 			Owner:      creatorEmail,
 			ParentPath: pps,
-			SiteID:     siteID,
+			SiteID:     resource.ID(),
 			Size:       size,
-			WebURL:     weburl,
+			WebURL:     resource.Name(),
 		}
 
 	case path.GroupsService:
@@ -99,9 +88,9 @@ func augmentItemInfo(
 			Modified:   ptr.Val(item.GetLastModifiedDateTime()),
 			Owner:      creatorEmail,
 			ParentPath: pps,
-			SiteID:     siteID,
+			SiteID:     resource.ID(),
 			Size:       size,
-			WebURL:     weburl,
+			WebURL:     resource.Name(),
 		}
 	}
 

@@ -1,4 +1,4 @@
-package fault
+package fault_test
 
 import (
 	"testing"
@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 )
 
 type ItemUnitSuite struct {
@@ -21,28 +22,28 @@ func TestItemUnitSuite(t *testing.T) {
 func (suite *ItemUnitSuite) TestItem_Error() {
 	var (
 		t = suite.T()
-		i *Item
+		i *fault.Item
 	)
 
 	assert.Contains(t, i.Error(), "nil")
 
-	i = &Item{}
+	i = &fault.Item{}
 	assert.Contains(t, i.Error(), "unknown type")
 
-	i = &Item{Type: FileType}
-	assert.Contains(t, i.Error(), FileType)
+	i = &fault.Item{Type: fault.FileType}
+	assert.Contains(t, i.Error(), fault.FileType)
 }
 
 func (suite *ItemUnitSuite) TestContainerErr() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := ContainerErr(clues.New("foo"), "ns", "id", "name", addtl)
+	i := fault.ContainerErr(clues.New("foo"), "ns", "id", "name", addtl)
 
-	expect := Item{
+	expect := fault.Item{
 		Namespace:  "ns",
 		ID:         "id",
 		Name:       "name",
-		Type:       ContainerType,
+		Type:       fault.ContainerType,
 		Cause:      "foo",
 		Additional: addtl,
 	}
@@ -53,13 +54,13 @@ func (suite *ItemUnitSuite) TestContainerErr() {
 func (suite *ItemUnitSuite) TestFileErr() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := FileErr(clues.New("foo"), "ns", "id", "name", addtl)
+	i := fault.FileErr(clues.New("foo"), "ns", "id", "name", addtl)
 
-	expect := Item{
+	expect := fault.Item{
 		Namespace:  "ns",
 		ID:         "id",
 		Name:       "name",
-		Type:       FileType,
+		Type:       fault.FileType,
 		Cause:      "foo",
 		Additional: addtl,
 	}
@@ -70,13 +71,13 @@ func (suite *ItemUnitSuite) TestFileErr() {
 func (suite *ItemUnitSuite) TestOwnerErr() {
 	t := suite.T()
 	addtl := map[string]any{"foo": "bar"}
-	i := OwnerErr(clues.New("foo"), "ns", "id", "name", addtl)
+	i := fault.OwnerErr(clues.New("foo"), "ns", "id", "name", addtl)
 
-	expect := Item{
+	expect := fault.Item{
 		Namespace:  "ns",
 		ID:         "id",
 		Name:       "name",
-		Type:       ResourceOwnerType,
+		Type:       fault.ResourceOwnerType,
 		Cause:      "foo",
 		Additional: addtl,
 	}
@@ -86,23 +87,23 @@ func (suite *ItemUnitSuite) TestOwnerErr() {
 
 func (suite *ItemUnitSuite) TestItemType_Printable() {
 	table := []struct {
-		t      itemType
+		t      fault.ItemType
 		expect string
 	}{
 		{
-			t:      FileType,
+			t:      fault.FileType,
 			expect: "File",
 		},
 		{
-			t:      ContainerType,
+			t:      fault.ContainerType,
 			expect: "Container",
 		},
 		{
-			t:      ResourceOwnerType,
+			t:      fault.ResourceOwnerType,
 			expect: "Resource Owner",
 		},
 		{
-			t:      itemType("foo"),
+			t:      fault.ItemType("foo"),
 			expect: "Unknown",
 		},
 	}
@@ -118,30 +119,30 @@ func (suite *ItemUnitSuite) TestItem_HeadersValues() {
 		err   = assert.AnError
 		cause = err.Error()
 		addtl = map[string]any{
-			AddtlContainerID:   "cid",
-			AddtlContainerName: "cname",
+			fault.AddtlContainerID:   "cid",
+			fault.AddtlContainerName: "cname",
 		}
 	)
 
 	table := []struct {
 		name   string
-		item   *Item
+		item   *fault.Item
 		expect []string
 	}{
 		{
 			name:   "file",
-			item:   FileErr(assert.AnError, "ns", "id", "name", addtl),
-			expect: []string{"Error", FileType.Printable(), "name", "cname", cause},
+			item:   fault.FileErr(assert.AnError, "ns", "id", "name", addtl),
+			expect: []string{"Error", fault.FileType.Printable(), "name", "cname", cause},
 		},
 		{
 			name:   "container",
-			item:   ContainerErr(assert.AnError, "ns", "id", "name", addtl),
-			expect: []string{"Error", ContainerType.Printable(), "name", "cname", cause},
+			item:   fault.ContainerErr(assert.AnError, "ns", "id", "name", addtl),
+			expect: []string{"Error", fault.ContainerType.Printable(), "name", "cname", cause},
 		},
 		{
 			name:   "owner",
-			item:   OwnerErr(assert.AnError, "ns", "id", "name", nil),
-			expect: []string{"Error", ResourceOwnerType.Printable(), "name", "", cause},
+			item:   fault.OwnerErr(assert.AnError, "ns", "id", "name", nil),
+			expect: []string{"Error", fault.ResourceOwnerType.Printable(), "name", "", cause},
 		},
 	}
 	for _, test := range table {
@@ -150,109 +151,6 @@ func (suite *ItemUnitSuite) TestItem_HeadersValues() {
 
 			assert.Equal(t, []string{"Action", "Type", "Name", "Container", "Cause"}, test.item.Headers())
 			assert.Equal(t, test.expect, test.item.Values())
-		})
-	}
-}
-
-func (suite *ItemUnitSuite) TestSkipped_String() {
-	var (
-		t = suite.T()
-		i *Skipped
-	)
-
-	assert.Contains(t, i.String(), "nil")
-
-	i = &Skipped{Item{}}
-	assert.Contains(t, i.String(), "unknown type")
-
-	i = &Skipped{Item{Type: FileType}}
-	assert.Contains(t, i.Item.Error(), FileType)
-}
-
-func (suite *ItemUnitSuite) TestContainerSkip() {
-	t := suite.T()
-	addtl := map[string]any{"foo": "bar"}
-	i := ContainerSkip(SkipMalware, "ns", "id", "name", addtl)
-
-	expect := Item{
-		Namespace:  "ns",
-		ID:         "id",
-		Name:       "name",
-		Type:       ContainerType,
-		Cause:      string(SkipMalware),
-		Additional: addtl,
-	}
-
-	assert.Equal(t, Skipped{expect}, *i)
-}
-
-func (suite *ItemUnitSuite) TestFileSkip() {
-	t := suite.T()
-	addtl := map[string]any{"foo": "bar"}
-	i := FileSkip(SkipMalware, "ns", "id", "name", addtl)
-
-	expect := Item{
-		Namespace:  "ns",
-		ID:         "id",
-		Name:       "name",
-		Type:       FileType,
-		Cause:      string(SkipMalware),
-		Additional: addtl,
-	}
-
-	assert.Equal(t, Skipped{expect}, *i)
-}
-
-func (suite *ItemUnitSuite) TestOwnerSkip() {
-	t := suite.T()
-	addtl := map[string]any{"foo": "bar"}
-	i := OwnerSkip(SkipMalware, "ns", "id", "name", addtl)
-
-	expect := Item{
-		Namespace:  "ns",
-		ID:         "id",
-		Name:       "name",
-		Type:       ResourceOwnerType,
-		Cause:      string(SkipMalware),
-		Additional: addtl,
-	}
-
-	assert.Equal(t, Skipped{expect}, *i)
-}
-
-func (suite *ItemUnitSuite) TestSkipped_HeadersValues() {
-	addtl := map[string]any{
-		AddtlContainerID:   "cid",
-		AddtlContainerName: "cname",
-	}
-
-	table := []struct {
-		name   string
-		skip   *Skipped
-		expect []string
-	}{
-		{
-			name:   "file",
-			skip:   FileSkip(SkipMalware, "ns", "id", "name", addtl),
-			expect: []string{"Skip", FileType.Printable(), "name", "cname", string(SkipMalware)},
-		},
-		{
-			name:   "container",
-			skip:   ContainerSkip(SkipMalware, "ns", "id", "name", addtl),
-			expect: []string{"Skip", ContainerType.Printable(), "name", "cname", string(SkipMalware)},
-		},
-		{
-			name:   "owner",
-			skip:   OwnerSkip(SkipMalware, "ns", "id", "name", nil),
-			expect: []string{"Skip", ResourceOwnerType.Printable(), "name", "", string(SkipMalware)},
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			assert.Equal(t, []string{"Action", "Type", "Name", "Container", "Cause"}, test.skip.Headers())
-			assert.Equal(t, test.expect, test.skip.Values())
 		})
 	}
 }

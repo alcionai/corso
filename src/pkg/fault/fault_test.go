@@ -189,25 +189,6 @@ func (suite *FaultErrorsUnitSuite) TestAdd() {
 	assert.Len(t, n.Recovered(), 2)
 }
 
-func (suite *FaultErrorsUnitSuite) TestAddSkip() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	n := fault.New(true)
-	require.NotNil(t, n)
-
-	n.Fail(assert.AnError)
-	assert.Len(t, n.Skipped(), 0)
-
-	n.AddRecoverable(ctx, assert.AnError)
-	assert.Len(t, n.Skipped(), 0)
-
-	n.AddSkip(ctx, fault.OwnerSkip(fault.SkipMalware, "ns", "id", "name", nil))
-	assert.Len(t, n.Skipped(), 1)
-}
-
 func (suite *FaultErrorsUnitSuite) TestErrors() {
 	t := suite.T()
 

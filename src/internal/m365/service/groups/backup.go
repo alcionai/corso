@@ -93,7 +93,7 @@ func ProduceBackupCollections(
 			}
 
 			for _, s := range sites {
-				pr := idname.NewProvider(ptr.Val(s.GetId()), ptr.Val(s.GetName()))
+				pr := idname.NewProvider(ptr.Val(s.GetId()), ptr.Val(s.GetWebUrl()))
 				sbpc := inject.BackupProducerConfig{
 					LastBackupVersion:   bpc.LastBackupVersion,
 					Options:             bpc.Options,

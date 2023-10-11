@@ -3,13 +3,12 @@ package drive
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -92,53 +91,14 @@ func (h libraryBackupHandler) NewDrivePager(
 	return h.ac.NewSiteDrivePager(resourceOwner, fields)
 }
 
-func (h libraryBackupHandler) NewItemPager(
-	driveID, link string,
-	fields []string,
-) api.DeltaPager[models.DriveItemable] {
-	return h.ac.NewDriveItemDeltaPager(driveID, link, fields)
-}
-
 func (h libraryBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
+	resource idname.Provider,
 	item models.DriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentItemInfo(dii, h.service, item, size, parentPath)
-}
-
-// constructWebURL is a helper function for recreating the webURL
-// for the originating SharePoint site. Uses the additionalData map
-// from a models.DriveItemable that possesses a downloadURL within the map.
-// Returns "" if the map is nil or key is not present.
-func constructWebURL(adtl map[string]any) string {
-	var (
-		desiredKey = "@microsoft.graph.downloadUrl"
-		sep        = `/_layouts`
-		url        string
-	)
-
-	if adtl == nil {
-		return url
-	}
-
-	r := adtl[desiredKey]
-	point, ok := r.(*string)
-
-	if !ok {
-		return url
-	}
-
-	value := ptr.Val(point)
-	if len(value) == 0 {
-		return url
-	}
-
-	temp := strings.Split(value, sep)
-	url = temp[0]
-
-	return url
+	return augmentItemInfo(dii, resource, h.service, item, size, parentPath)
 }
 
 func (h libraryBackupHandler) FormatDisplayPath(
@@ -177,6 +137,14 @@ func (h libraryBackupHandler) IncludesDir(dir string) bool {
 	return h.scope.Matches(selectors.SharePointLibraryFolder, dir)
 }
 
+func (h libraryBackupHandler) EnumerateDriveItemsDelta(
+	ctx context.Context,
+	driveID, prevDeltaLink string,
+	selectProps []string,
+) ([]models.DriveItemable, api.DeltaUpdate, error) {
+	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, selectProps)
+}
+
 // ---------------------------------------------------------------------------
 // Restore
 // ---------------------------------------------------------------------------
@@ -208,11 +176,12 @@ func (h libraryRestoreHandler) NewDrivePager(
 
 func (h libraryRestoreHandler) AugmentItemInfo(
 	dii details.ItemInfo,
+	resource idname.Provider,
 	item models.DriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
-	return augmentItemInfo(dii, h.service, item, size, parentPath)
+	return augmentItemInfo(dii, resource, h.service, item, size, parentPath)
 }
 
 func (h libraryRestoreHandler) DeleteItem(

@@ -149,11 +149,12 @@ const limiterConsumptionCtxKey limiterConsumptionKey = "corsoGraphRateLimiterCon
 const (
 	// https://learn.microsoft.com/en-us/sharepoint/dev/general-development
 	// /how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#application-throttling
-	defaultLC      = 1
-	driveDefaultLC = 2
+	defaultLC = 1
 	// limit consumption rate for single-item GETs requests,
-	// or delta-based multi-item GETs.
+	// or delta-based multi-item GETs, or item content download requests.
 	SingleGetOrDeltaLC = 1
+	// delta queries without a delta token cost 2 units
+	DeltaNoTokenLC = 2
 	// limit consumption rate for anything permissions related
 	PermissionsLC = 5
 )
@@ -185,13 +186,7 @@ func ctxLimiterConsumption(ctx context.Context, defaultConsumption int) int {
 // the next token set is available.
 func QueueRequest(ctx context.Context) {
 	limiter := ctxLimiter(ctx)
-	defaultConsumed := defaultLC
-
-	if limiter == driveLimiter {
-		defaultConsumed = driveDefaultLC
-	}
-
-	consume := ctxLimiterConsumption(ctx, defaultConsumed)
+	consume := ctxLimiterConsumption(ctx, defaultLC)
 
 	if err := limiter.WaitN(ctx, consume); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")

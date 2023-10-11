@@ -28,18 +28,13 @@ const (
 	tenantIDDeprecated = "m365_tenant_hash_deprecated"
 
 	// Event Keys
-	CorsoStart       = "Corso Start"
-	RepoInit         = "Repo Init"
-	RepoConnect      = "Repo Connect"
-	BackupStart      = "Backup Start"
-	BackupEnd        = "Backup End"
-	CorsoError       = "Corso Error"
-	RestoreStart     = "Restore Start"
-	RestoreEnd       = "Restore End"
-	ExportStart      = "Export Start"
-	ExportEnd        = "Export End"
-	MaintenanceStart = "Maintenance Start"
-	MaintenanceEnd   = "Maintenance End"
+	RepoInit       = "Repo Init"
+	RepoConnect    = "Repo Connect"
+	BackupEnd      = "Backup End"
+	RestoreEnd     = "Restore End"
+	CorsoError     = "Corso Error"
+	ExportEnd      = "Export End"
+	MaintenanceEnd = "Maintenance End"
 
 	// Event Data Keys
 	BackupCreateTime = "backup_creation_time"

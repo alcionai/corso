@@ -694,7 +694,7 @@ func matchesPathValues[T scopeT, C categoryT](
 			return false
 		}
 
-		if isAnyTarget(sc, cc) {
+		if IsAnyTarget(sc, cc) {
 			// continue, not return: all path keys must match the entry to succeed
 			continue
 		}
@@ -795,7 +795,7 @@ func isNoneTarget[T scopeT, C categoryT](s T, cat C) bool {
 
 // returns true if the category is included in the scope's category type,
 // and the value is set to Any().
-func isAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
+func IsAnyTarget[T scopeT, C categoryT](s T, cat C) bool {
 	if !typeAndCategoryMatches(cat, s.categorizer()) {
 		return false
 	}

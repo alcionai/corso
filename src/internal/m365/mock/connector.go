@@ -90,6 +90,7 @@ func (ctrl Controller) ProduceExportCollections(
 	_ control.ExportConfig,
 	_ control.Options,
 	_ []data.RestoreCollection,
+	_ *data.ExportStats,
 	_ *fault.Bus,
 ) ([]export.Collectioner, error) {
 	return nil, ctrl.Err
@@ -99,8 +100,7 @@ func (ctrl Controller) PopulateProtectedResourceIDAndName(
 	ctx context.Context,
 	protectedResource string, // input value, can be either id or name
 	ins idname.Cacher,
-) (string, string, error) {
-	return ctrl.ProtectedResourceID,
-		ctrl.ProtectedResourceName,
+) (idname.Provider, error) {
+	return idname.NewProvider(ctrl.ProtectedResourceID, ctrl.ProtectedResourceName),
 		ctrl.ProtectedResourceErr
 }
