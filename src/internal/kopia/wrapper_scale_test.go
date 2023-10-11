@@ -70,7 +70,7 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 	}
 
 	reasons := []identity.Reasoner{
-		NewReason(
+		identity.NewReason(
 			testTenant,
 			baseStorePath.ProtectedResource(),
 			baseStorePath.Service(),
