@@ -36,7 +36,7 @@ jobs:
       CORSO_LOG_DIR: ${{ github.workspace }}/src/testlog
       CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-longevity.log
       RESTORE_DEST_PFX: Corso_Test_Longevity_
-      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || vars.CORSO_M365_TEST_USER_ID }}
       PREFIX: 'longevity'
 
       # Options for retention.
@@ -195,7 +195,7 @@ jobs:
           ./corso backup create sharepoint \
           --no-stats \
           --hide-progress \
-          --site "${{ secrets.CORSO_M365_TEST_SITE_URL }}" \
+          --site "${{ vars.CORSO_M365_TEST_SITE_URL }}" \
           --json \
           2>&1 | tee ${{ env.CORSO_LOG_DIR }}/backup_sharepoint.txt 
 

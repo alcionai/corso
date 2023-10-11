@@ -28,7 +28,8 @@ type itemStreamer func(
 	backingColls []data.RestoreCollection,
 	backupVersion int,
 	cfg control.ExportConfig,
-	ch chan<- Item)
+	ch chan<- Item,
+	stats *data.ExportStats)
 
 // BaseCollection holds the foundational details of an export collection.
 type BaseCollection struct {
@@ -45,6 +46,8 @@ type BaseCollection struct {
 	Cfg control.ExportConfig
 
 	Stream itemStreamer
+
+	Stats *data.ExportStats
 }
 
 func (bc BaseCollection) BasePath() string {
@@ -53,7 +56,7 @@ func (bc BaseCollection) BasePath() string {
 
 func (bc BaseCollection) Items(ctx context.Context) <-chan Item {
 	ch := make(chan Item)
-	go bc.Stream(ctx, bc.BackingCollection, bc.BackupVersion, bc.Cfg, ch)
+	go bc.Stream(ctx, bc.BackingCollection, bc.BackupVersion, bc.Cfg, ch, bc.Stats)
 
 	return ch
 }

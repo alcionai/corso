@@ -90,6 +90,7 @@ func (ctrl Controller) ProduceExportCollections(
 	_ control.ExportConfig,
 	_ control.Options,
 	_ []data.RestoreCollection,
+	_ *data.ExportStats,
 	_ *fault.Bus,
 ) ([]export.Collectioner, error) {
 	return nil, ctrl.Err
