@@ -32,7 +32,6 @@ const (
 	RepoConnect    = "Repo Connect"
 	BackupEnd      = "Backup End"
 	RestoreEnd     = "Restore End"
-	CorsoError     = "Corso Error"
 	ExportEnd      = "Export End"
 	MaintenanceEnd = "Maintenance End"
 
@@ -53,6 +52,7 @@ const (
 	StartTime        = "start_time"
 	Status           = "status"
 	Command          = "command"
+	ErrorMessage     = "error"
 
 	// default values for keys
 	RepoIDNotFound = "not_found"

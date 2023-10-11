@@ -144,35 +144,28 @@ func (op *ExportOperation) Run(ctx context.Context) (
 		"service", op.Selectors.Service)
 
 	defer func() {
+		data := map[string]any{
+			events.BackupID:      op.BackupID,
+			events.DataRetrieved: op.Results.BytesRead,
+			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.EndTime:       dttm.Format(op.Results.CompletedAt),
+			events.ItemsRead:     op.Results.ItemsRead,
+			events.ItemsWritten:  op.Results.ItemsWritten,
+			events.Resources:     op.Results.ResourceOwners,
+			events.ExportID:      opStats.exportID,
+			events.Service:       op.Selectors.Service.String(),
+			events.StartTime:     dttm.Format(op.Results.StartedAt),
+			events.Status:        op.Status.String(),
+		}
+
 		if op.Errors.Failure() != nil {
-			op.bus.Event(
-				ctx,
-				events.CorsoError,
-				map[string]any{
-					events.Service:   op.Selectors.PathService().String(),
-					events.StartTime: dttm.Format(op.Results.StartedAt),
-					events.Status:    op.Status.String(),
-					events.BackupID:  op.BackupID,
-					events.Command:   "Export",
-				})
+			data[events.ErrorMessage] = op.Errors.Errors()
 		}
 
 		op.bus.Event(
 			ctx,
 			events.ExportEnd,
-			map[string]any{
-				events.BackupID:      op.BackupID,
-				events.DataRetrieved: op.Results.BytesRead,
-				events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
-				events.EndTime:       dttm.Format(op.Results.CompletedAt),
-				events.ItemsRead:     op.Results.ItemsRead,
-				events.ItemsWritten:  op.Results.ItemsWritten,
-				events.Resources:     op.Results.ResourceOwners,
-				events.ExportID:      opStats.exportID,
-				events.Service:       op.Selectors.Service.String(),
-				events.StartTime:     dttm.Format(op.Results.StartedAt),
-				events.Status:        op.Status.String(),
-			})
+			data)
 	}()
 
 	// -----

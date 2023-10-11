@@ -146,35 +146,28 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 		"destination_container", clues.Hide(op.RestoreCfg.Location))
 
 	defer func() {
+		data := map[string]any{
+			events.BackupID:      op.BackupID,
+			events.DataRetrieved: op.Results.BytesRead,
+			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.EndTime:       dttm.Format(op.Results.CompletedAt),
+			events.ItemsRead:     op.Results.ItemsRead,
+			events.ItemsWritten:  op.Results.ItemsWritten,
+			events.Resources:     op.Results.ResourceOwners,
+			events.RestoreID:     opStats.restoreID,
+			events.Service:       op.Selectors.Service.String(),
+			events.StartTime:     dttm.Format(op.Results.StartedAt),
+			events.Status:        op.Status.String(),
+		}
+
 		if op.Errors.Failure() != nil {
-			op.bus.Event(
-				ctx,
-				events.CorsoError,
-				map[string]any{
-					events.Service:   op.Selectors.PathService().String(),
-					events.StartTime: dttm.Format(op.Results.StartedAt),
-					events.Status:    op.Status.String(),
-					events.BackupID:  op.BackupID,
-					events.Command:   "Restore",
-				})
+			data[events.ErrorMessage] = op.Errors.Errors()
 		}
 
 		op.bus.Event(
 			ctx,
 			events.RestoreEnd,
-			map[string]any{
-				events.BackupID:      op.BackupID,
-				events.DataRetrieved: op.Results.BytesRead,
-				events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
-				events.EndTime:       dttm.Format(op.Results.CompletedAt),
-				events.ItemsRead:     op.Results.ItemsRead,
-				events.ItemsWritten:  op.Results.ItemsWritten,
-				events.Resources:     op.Results.ResourceOwners,
-				events.RestoreID:     opStats.restoreID,
-				events.Service:       op.Selectors.Service.String(),
-				events.StartTime:     dttm.Format(op.Results.StartedAt),
-				events.Status:        op.Status.String(),
-			})
+			data)
 	}()
 
 	// -----
