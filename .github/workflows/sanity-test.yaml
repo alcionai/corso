@@ -374,7 +374,7 @@ jobs:
         working-directory: ./src/cmd/factory
         run: |
           go run . sharepoint files  \
-            --site ${{ secrets.CORSO_M365_TEST_GROUPS_SITE_URL }} \
+            --site ${{ env.CORSO_M365_TEST_GROUPS_SITE_URL }} \
             --user ${{ env.TEST_USER }} \
             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
@@ -387,7 +387,7 @@ jobs:
         with:
           service: groups
           kind: incremental
-          backup-args: '--site "${{ secrets.CORSO_M365_TEST_GROUPS_SITE_URL }}"'
+          backup-args: '--site "${{ env.CORSO_M365_TEST_GROUPS_SITE_URL }}"'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
