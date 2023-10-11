@@ -133,7 +133,7 @@ func UserAssignedPlansCount(ctx context.Context, acct account.Account, userID st
 		return 0, clues.Stack(err).WithClues(ctx)
 	}
 
-	us, err := ac.Users().AssignedPlans(ctx, userID)
+	us, err := ac.Users().AssignedPlansAndLicenses(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -143,6 +143,24 @@ func UserAssignedPlansCount(ctx context.Context, acct account.Account, userID st
 	}
 
 	return 0, clues.New("user missing assigned plans")
+}
+
+func UserAssignedLicenses(ctx context.Context, acct account.Account, userID string) (int, error) {
+	ac, err := makeAC(ctx, acct, path.UnknownService)
+	if err != nil {
+		return 0, clues.Stack(err).WithClues(ctx)
+	}
+
+	us, err := ac.Users().AssignedPlansAndLicenses(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	if us.GetAssignedLicenses() != nil {
+		return len(us.GetAssignedLicenses()), nil
+	}
+
+	return 0, clues.New("user missing assigned licenses")
 }
 
 // parseUser extracts information from `models.Userable` we care about

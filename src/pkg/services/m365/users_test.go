@@ -222,8 +222,12 @@ func (suite *userIntegrationSuite) TestUser_GetByID() {
 			assert.NoError(t, err, clues.ToCore(err))
 			plans, err := UserAssignedPlansCount(ctx, acct, s.ID)
 			assert.NoError(t, err, clues.ToCore(err))
+
+			lic, err := UserAssignedLicenses(ctx, acct, s.ID)
+			assert.NoError(t, err, clues.ToCore(err))
 			fmt.Printf("user: %v \n", reconciliationNeeded)
-			fmt.Printf("user: %v \n", plans)
+			fmt.Printf("plans: %v \n", plans)
+			fmt.Printf("lic: %v \n", lic)
 		})
 	}
 }

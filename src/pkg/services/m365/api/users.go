@@ -135,7 +135,7 @@ func (c Users) IsLicenseReconciliationNeeded(ctx context.Context, identifier str
 	return resp, err
 }
 
-func (c Users) AssignedPlans(ctx context.Context, identifier string) (models.Userable, error) {
+func (c Users) AssignedPlansAndLicenses(ctx context.Context, identifier string) (models.Userable, error) {
 	var (
 		resp models.Userable
 		err  error
@@ -145,7 +145,7 @@ func (c Users) AssignedPlans(ctx context.Context, identifier string) (models.Use
 		QueryParameters: &users.UserItemRequestBuilderGetQueryParameters{},
 	}
 
-	options.QueryParameters.Select = []string{"assignedPlans"}
+	options.QueryParameters.Select = []string{"assignedPlans", "assignedLicenses"}
 
 	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, options)
 
