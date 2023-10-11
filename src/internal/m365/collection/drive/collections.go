@@ -672,11 +672,8 @@ func (c *Collections) getCollectionPath(
 
 // PopulateDriveCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder.
-// oldPrevPaths is the unchanged data that was loaded from the metadata file.
-// This map is not modified during the call.
-// currPrevPaths starts as a copy of oldPaths and is updated as changes are found in
-// the returned results.  Items are added to this collection throughout the call.
-// newPrevPaths, ie: the items added during this call, get returned as a map.
+// Along with populating the collection items and updating the excluded item IDs, this func
+// returns the current DeltaUpdate and PreviousPaths for metadata records.
 func (c *Collections) PopulateDriveCollections(
 	ctx context.Context,
 	driveID, driveName string,

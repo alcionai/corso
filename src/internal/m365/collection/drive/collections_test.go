@@ -1519,7 +1519,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_TwoItemPages_WithReset",
 			drives: []models.Driveable{drive1},
-
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					driveID1: {
@@ -1529,6 +1528,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 									driveRootItem("root"),
 									driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 									driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+									driveItem("file3", "file3", driveBasePath1+"/folder", "folder", true, false, false),
 								},
 							},
 							{
