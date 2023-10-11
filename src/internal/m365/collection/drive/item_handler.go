@@ -27,7 +27,8 @@ type baseItemHandler struct {
 }
 
 func (h baseItemHandler) NewDrivePager(
-	resourceOwner string, fields []string,
+	resourceOwner string,
+	fields []string,
 ) api.Pager[models.Driveable] {
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }

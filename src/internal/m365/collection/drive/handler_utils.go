@@ -26,6 +26,7 @@ func getItemCreator(item models.DriveItemable) string {
 		return ""
 	}
 
+	// TODO(ashmrtn): Replace with str package with fallbacks.
 	return *ed.(*string)
 }
 
