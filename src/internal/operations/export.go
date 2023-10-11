@@ -320,14 +320,6 @@ func (op *ExportOperation) finalizeMetrics(
 // be calling this once the export collections have been read and process
 // as the data that will be available here will be the data that was read
 // and processed.
-// TODO(meain): Should we convert the data to a different format?
-// Something like below:
-//
-//	type ExportStats struct {
-//	    Files    data.KindStats
-//	    Contacts data.KindStats
-//	    ...
-//	}
 func (op *ExportOperation) GetStats() map[path.CategoryType]data.KindStats {
 	return op.stats.GetStats()
 }
