@@ -83,7 +83,7 @@ func (c Channels) GetChannelMessages(
 ) ([]models.ChatMessageable, error) {
 	ctx = clues.Add(ctx, "channel_id", channelID)
 	pager := c.NewChannelMessagePager(teamID, channelID, cc)
-	items, err := enumerateItems(ctx, pager)
+	items, err := enumerateItems[models.ChatMessageable](ctx, pager)
 
 	return items, graph.Stack(ctx, err).OrNil()
 }
