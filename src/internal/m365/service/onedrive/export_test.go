@@ -17,10 +17,10 @@ import (
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type ExportUnitSuite struct {
@@ -292,10 +292,10 @@ func (suite *ExportUnitSuite) TestGetItems() {
 
 			if size+count > 0 { // it is only initialized if we have something
 				expectedStats = data.ExportStats{}
-				expectedStats.UpdateBytes(details.OneDriveItem, int64(size))
+				expectedStats.UpdateBytes(path.FilesCategory, int64(size))
 
 				for i := 0; i < count; i++ {
-					expectedStats.UpdateResourceCount(details.OneDriveItem)
+					expectedStats.UpdateResourceCount(path.FilesCategory)
 				}
 			}
 
@@ -376,7 +376,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	assert.Equal(t, expectedItems, fitems, "items")
 
 	expectedStats := data.ExportStats{}
-	expectedStats.UpdateBytes(details.OneDriveItem, int64(size))
-	expectedStats.UpdateResourceCount(details.OneDriveItem)
+	expectedStats.UpdateBytes(path.FilesCategory, int64(size))
+	expectedStats.UpdateResourceCount(path.FilesCategory)
 	assert.Equal(t, expectedStats, stats, "stats")
 }

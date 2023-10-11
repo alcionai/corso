@@ -19,7 +19,6 @@ import (
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -136,8 +135,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 	assert.Equal(t, expectedItems, fitems, "items")
 
 	expectedStats := data.ExportStats{}
-	expectedStats.UpdateBytes(details.GroupsChannelMessage, int64(size))
-	expectedStats.UpdateResourceCount(details.GroupsChannelMessage)
+	expectedStats.UpdateBytes(path.ChannelMessagesCategory, int64(size))
+	expectedStats.UpdateResourceCount(path.ChannelMessagesCategory)
 	assert.Equal(t, expectedStats, stats, "stats")
 }
 
@@ -237,7 +236,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 	assert.Equal(t, expectedItems, fitems, "items")
 
 	expectedStats := data.ExportStats{}
-	expectedStats.UpdateBytes(details.OneDriveItem, int64(size))
-	expectedStats.UpdateResourceCount(details.OneDriveItem)
+	expectedStats.UpdateBytes(path.FilesCategory, int64(size))
+	expectedStats.UpdateResourceCount(path.FilesCategory)
 	assert.Equal(t, expectedStats, stats, "stats")
 }

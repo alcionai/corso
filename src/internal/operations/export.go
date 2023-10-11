@@ -22,12 +22,12 @@ import (
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -328,7 +328,7 @@ func (op *ExportOperation) finalizeMetrics(
 //	    Contacts data.KindStats
 //	    ...
 //	}
-func (op *ExportOperation) GetStats() map[details.ItemType]data.KindStats {
+func (op *ExportOperation) GetStats() map[path.CategoryType]data.KindStats {
 	return op.stats.GetStats()
 }
 

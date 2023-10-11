@@ -12,10 +12,10 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -58,8 +58,8 @@ func streamItems(
 					Error: err,
 				}
 			} else {
-				stats.UpdateResourceCount(details.GroupsChannelMessage)
-				body = data.ReaderWithStats(body, details.GroupsChannelMessage, stats)
+				stats.UpdateResourceCount(path.ChannelMessagesCategory)
+				body = data.ReaderWithStats(body, path.ChannelMessagesCategory, stats)
 
 				ch <- export.Item{
 					ID: item.ID(),

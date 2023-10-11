@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -118,22 +117,7 @@ func runExport(
 	}
 
 	for k, s := range stats {
-		kind := ""
-
-		switch k {
-		case details.OneDriveItem:
-			kind = "Files"
-		case details.GroupsChannelMessage:
-			kind = "Messages"
-		case details.ExchangeContact:
-			kind = "Contacts"
-		case details.ExchangeEvent:
-			kind = "Events"
-		case details.ExchangeMail:
-			kind = "Emails"
-		}
-
-		Infof(ctx, "%s: %d items (%s)", kind, s.ResourceCount, humanize.Bytes(uint64(s.BytesRead)))
+		Infof(ctx, "%s: %d items (%s)", k.HumanString(), s.ResourceCount, humanize.Bytes(uint64(s.BytesRead)))
 	}
 
 	return nil

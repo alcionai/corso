@@ -9,10 +9,10 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 func NewExportCollection(
@@ -60,8 +60,8 @@ func streamItems(
 				continue
 			}
 
-			stats.UpdateResourceCount(details.OneDriveItem)
-			body := data.ReaderWithStats(item.ToReader(), details.OneDriveItem, stats)
+			stats.UpdateResourceCount(path.FilesCategory)
+			body := data.ReaderWithStats(item.ToReader(), path.FilesCategory, stats)
 
 			ch <- export.Item{
 				ID:    itemUUID,

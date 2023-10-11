@@ -18,7 +18,6 @@ import (
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -135,7 +134,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	assert.Equal(t, expectedItems, fitems, "items")
 
 	expectedStats := data.ExportStats{}
-	expectedStats.UpdateBytes(details.OneDriveItem, int64(size))
-	expectedStats.UpdateResourceCount(details.OneDriveItem)
+	expectedStats.UpdateBytes(path.FilesCategory, int64(size))
+	expectedStats.UpdateResourceCount(path.FilesCategory)
 	assert.Equal(t, expectedStats, stats, "stats")
 }

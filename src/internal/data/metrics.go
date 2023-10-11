@@ -4,7 +4,7 @@ import (
 	"io"
 	"sync/atomic"
 
-	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type CollectionStats struct {
@@ -30,13 +30,12 @@ type KindStats struct {
 
 type ExportStats struct {
 	// data is kept private so that we can enforce atomic int updates
-	// TODO(meain): Should we be exposing details.ItemType?
-	data map[details.ItemType]KindStats
+	data map[path.CategoryType]KindStats
 }
 
-func (es *ExportStats) UpdateBytes(kind details.ItemType, bytesRead int64) {
+func (es *ExportStats) UpdateBytes(kind path.CategoryType, bytesRead int64) {
 	if es.data == nil {
-		es.data = map[details.ItemType]KindStats{}
+		es.data = map[path.CategoryType]KindStats{}
 	}
 
 	ks := es.data[kind]
@@ -44,9 +43,9 @@ func (es *ExportStats) UpdateBytes(kind details.ItemType, bytesRead int64) {
 	es.data[kind] = ks
 }
 
-func (es *ExportStats) UpdateResourceCount(kind details.ItemType) {
+func (es *ExportStats) UpdateResourceCount(kind path.CategoryType) {
 	if es.data == nil {
-		es.data = map[details.ItemType]KindStats{}
+		es.data = map[path.CategoryType]KindStats{}
 	}
 
 	ks := es.data[kind]
@@ -54,7 +53,7 @@ func (es *ExportStats) UpdateResourceCount(kind details.ItemType) {
 	es.data[kind] = ks
 }
 
-func (es *ExportStats) GetStats() map[details.ItemType]KindStats {
+func (es *ExportStats) GetStats() map[path.CategoryType]KindStats {
 	return es.data
 }
 
@@ -79,7 +78,7 @@ func (sr *statsReader) Close() error {
 // will update the stats
 func ReaderWithStats(
 	reader io.ReadCloser,
-	kind details.ItemType,
+	kind path.CategoryType,
 	stats *ExportStats,
 ) io.ReadCloser {
 	if reader == nil {
