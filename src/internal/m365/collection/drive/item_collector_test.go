@@ -266,7 +266,13 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
-				&itemBackupHandler{suite.ac.Drives(), test.user, scope},
+				&itemBackupHandler{
+					baseItemHandler: baseItemHandler{
+						ac: suite.ac.Drives(),
+					},
+					userID: test.user,
+					scope:  scope,
+				},
 				creds.AzureTenantID,
 				idname.NewProvider(test.user, test.user),
 				service.updateStatus,

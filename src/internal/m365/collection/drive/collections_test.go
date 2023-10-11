@@ -740,7 +740,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(currPrevPaths, test.inputFolderMap)
 
 			c := NewCollections(
-				&itemBackupHandler{api.Drives{}, user, test.scope},
+				&itemBackupHandler{
+					baseItemHandler: baseItemHandler{
+						ac: api.Drives{},
+					},
+					userID: user,
+					scope:  test.scope,
+				},
 				tenant,
 				idname.NewProvider(user, user),
 				nil,
@@ -2462,7 +2468,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			// Add a few collections
 			for i := 0; i < collCount; i++ {
 				coll, err := NewCollection(
-					&itemBackupHandler{api.Drives{}, "test-user", anyFolder},
+					&itemBackupHandler{
+						baseItemHandler: baseItemHandler{
+							ac: api.Drives{},
+						},
+						userID: "test-user",
+						scope:  anyFolder,
+					},
 					idname.NewProvider("", ""),
 					nil,
 					nil,

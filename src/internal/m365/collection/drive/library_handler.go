@@ -9,6 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -17,10 +18,54 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
+type baseLibraryHandler struct {
+	ac api.Drives
+}
+
+func (h baseLibraryHandler) NewDrivePager(
+	resourceOwner string,
+	fields []string,
+) api.Pager[models.Driveable] {
+	return h.ac.NewSiteDrivePager(resourceOwner, fields)
+}
+
+func (h baseLibraryHandler) AugmentItemInfo(
+	dii details.ItemInfo,
+	resource idname.Provider,
+	item models.DriveItemable,
+	size int64,
+	parentPath *path.Builder,
+) details.ItemInfo {
+	var pps string
+
+	if parentPath != nil {
+		pps = parentPath.String()
+	}
+
+	driveName, driveID := getItemDriveInfo(item)
+
+	dii.Extension = &details.ExtensionData{}
+	dii.SharePoint = &details.SharePointInfo{
+		Created:    ptr.Val(item.GetCreatedDateTime()),
+		DriveID:    driveID,
+		DriveName:  driveName,
+		ItemName:   ptr.Val(item.GetName()),
+		ItemType:   details.SharePointLibrary,
+		Modified:   ptr.Val(item.GetLastModifiedDateTime()),
+		Owner:      getItemCreator(item),
+		ParentPath: pps,
+		SiteID:     resource.ID(),
+		Size:       size,
+		WebURL:     resource.Name(),
+	}
+
+	return dii
+}
+
 var _ BackupHandler = &libraryBackupHandler{}
 
 type libraryBackupHandler struct {
-	ac      api.Drives
+	baseLibraryHandler
 	siteID  string
 	scope   selectors.SharePointScope
 	service path.ServiceType
@@ -32,7 +77,14 @@ func NewLibraryBackupHandler(
 	scope selectors.SharePointScope,
 	service path.ServiceType,
 ) libraryBackupHandler {
-	return libraryBackupHandler{ac, siteID, scope, service}
+	return libraryBackupHandler{
+		baseLibraryHandler: baseLibraryHandler{
+			ac: ac,
+		},
+		siteID:  siteID,
+		scope:   scope,
+		service: service,
+	}
 }
 
 func (h libraryBackupHandler) Get(
@@ -82,23 +134,6 @@ func (h libraryBackupHandler) CanonicalPath(
 
 func (h libraryBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
 	return h.service, path.LibrariesCategory
-}
-
-func (h libraryBackupHandler) NewDrivePager(
-	resourceOwner string,
-	fields []string,
-) api.Pager[models.Driveable] {
-	return h.ac.NewSiteDrivePager(resourceOwner, fields)
-}
-
-func (h libraryBackupHandler) AugmentItemInfo(
-	dii details.ItemInfo,
-	resource idname.Provider,
-	item models.DriveItemable,
-	size int64,
-	parentPath *path.Builder,
-) details.ItemInfo {
-	return augmentItemInfo(dii, resource, h.service, item, size, parentPath)
 }
 
 func (h libraryBackupHandler) FormatDisplayPath(
@@ -152,12 +187,19 @@ func (h libraryBackupHandler) EnumerateDriveItemsDelta(
 var _ RestoreHandler = &libraryRestoreHandler{}
 
 type libraryRestoreHandler struct {
+	baseLibraryHandler
 	ac      api.Client
 	service path.ServiceType
 }
 
 func NewLibraryRestoreHandler(ac api.Client, service path.ServiceType) libraryRestoreHandler {
-	return libraryRestoreHandler{ac, service}
+	return libraryRestoreHandler{
+		baseLibraryHandler: baseLibraryHandler{
+			ac: ac.Drives(),
+		},
+		ac:      ac,
+		service: service,
+	}
 }
 
 func (h libraryRestoreHandler) PostDrive(
@@ -165,23 +207,6 @@ func (h libraryRestoreHandler) PostDrive(
 	siteID, driveName string,
 ) (models.Driveable, error) {
 	return h.ac.Lists().PostDrive(ctx, siteID, driveName)
-}
-
-func (h libraryRestoreHandler) NewDrivePager(
-	resourceOwner string,
-	fields []string,
-) api.Pager[models.Driveable] {
-	return h.ac.Drives().NewSiteDrivePager(resourceOwner, fields)
-}
-
-func (h libraryRestoreHandler) AugmentItemInfo(
-	dii details.ItemInfo,
-	resource idname.Provider,
-	item models.DriveItemable,
-	size int64,
-	parentPath *path.Builder,
-) details.ItemInfo {
-	return augmentItemInfo(dii, resource, h.service, item, size, parentPath)
 }
 
 func (h libraryRestoreHandler) DeleteItem(

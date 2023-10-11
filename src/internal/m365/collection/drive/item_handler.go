@@ -9,6 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -21,16 +22,69 @@ import (
 // backup
 // ---------------------------------------------------------------------------
 
+type baseItemHandler struct {
+	ac api.Drives
+}
+
+func (h baseItemHandler) NewDrivePager(
+	resourceOwner string,
+	fields []string,
+) api.Pager[models.Driveable] {
+	return h.ac.NewUserDrivePager(resourceOwner, fields)
+}
+
+// AugmentItemInfo will populate a details.OneDriveInfo struct
+// with properties from the drive item.  ItemSize is specified
+// separately for restore processes because the local itemable
+// doesn't have its size value updated as a side effect of creation,
+// and kiota drops any SetSize update.
+func (h baseItemHandler) AugmentItemInfo(
+	dii details.ItemInfo,
+	resource idname.Provider,
+	item models.DriveItemable,
+	size int64,
+	parentPath *path.Builder,
+) details.ItemInfo {
+	var pps string
+
+	if parentPath != nil {
+		pps = parentPath.String()
+	}
+
+	driveName, driveID := getItemDriveInfo(item)
+
+	dii.Extension = &details.ExtensionData{}
+	dii.OneDrive = &details.OneDriveInfo{
+		Created:    ptr.Val(item.GetCreatedDateTime()),
+		DriveID:    driveID,
+		DriveName:  driveName,
+		ItemName:   ptr.Val(item.GetName()),
+		ItemType:   details.OneDriveItem,
+		Modified:   ptr.Val(item.GetLastModifiedDateTime()),
+		Owner:      getItemCreator(item),
+		ParentPath: pps,
+		Size:       size,
+	}
+
+	return dii
+}
+
 var _ BackupHandler = &itemBackupHandler{}
 
 type itemBackupHandler struct {
-	ac     api.Drives
+	baseItemHandler
 	userID string
 	scope  selectors.OneDriveScope
 }
 
 func NewItemBackupHandler(ac api.Drives, userID string, scope selectors.OneDriveScope) *itemBackupHandler {
-	return &itemBackupHandler{ac, userID, scope}
+	return &itemBackupHandler{
+		baseItemHandler: baseItemHandler{
+			ac: ac,
+		},
+		userID: userID,
+		scope:  scope,
+	}
 }
 
 func (h itemBackupHandler) Get(
@@ -80,22 +134,6 @@ func (h itemBackupHandler) CanonicalPath(
 
 func (h itemBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
 	return path.OneDriveService, path.FilesCategory
-}
-
-func (h itemBackupHandler) NewDrivePager(
-	resourceOwner string, fields []string,
-) api.Pager[models.Driveable] {
-	return h.ac.NewUserDrivePager(resourceOwner, fields)
-}
-
-func (h itemBackupHandler) AugmentItemInfo(
-	dii details.ItemInfo,
-	resource idname.Provider,
-	item models.DriveItemable,
-	size int64,
-	parentPath *path.Builder,
-) details.ItemInfo {
-	return augmentItemInfo(dii, resource, path.OneDriveService, item, size, parentPath)
 }
 
 func (h itemBackupHandler) FormatDisplayPath(
@@ -149,11 +187,15 @@ func (h itemBackupHandler) EnumerateDriveItemsDelta(
 var _ RestoreHandler = &itemRestoreHandler{}
 
 type itemRestoreHandler struct {
-	ac api.Drives
+	baseItemHandler
 }
 
 func NewRestoreHandler(ac api.Client) *itemRestoreHandler {
-	return &itemRestoreHandler{ac.Drives()}
+	return &itemRestoreHandler{
+		baseItemHandler: baseItemHandler{
+			ac: ac.Drives(),
+		},
+	}
 }
 
 func (h itemRestoreHandler) PostDrive(
@@ -161,27 +203,6 @@ func (h itemRestoreHandler) PostDrive(
 	string, string,
 ) (models.Driveable, error) {
 	return nil, clues.New("creating drives in oneDrive is not supported")
-}
-
-func (h itemRestoreHandler) NewDrivePager(
-	resourceOwner string, fields []string,
-) api.Pager[models.Driveable] {
-	return h.ac.NewUserDrivePager(resourceOwner, fields)
-}
-
-// AugmentItemInfo will populate a details.OneDriveInfo struct
-// with properties from the drive item.  ItemSize is specified
-// separately for restore processes because the local itemable
-// doesn't have its size value updated as a side effect of creation,
-// and kiota drops any SetSize update.
-func (h itemRestoreHandler) AugmentItemInfo(
-	dii details.ItemInfo,
-	resource idname.Provider,
-	item models.DriveItemable,
-	size int64,
-	parentPath *path.Builder,
-) details.ItemInfo {
-	return augmentItemInfo(dii, resource, path.OneDriveService, item, size, parentPath)
 }
 
 func (h itemRestoreHandler) DeleteItem(
