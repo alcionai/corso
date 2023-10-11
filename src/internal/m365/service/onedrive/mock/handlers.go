@@ -163,8 +163,13 @@ func (h *BackupHandler) Get(context.Context, string, map[string]string) (*http.R
 func (h BackupHandler) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID, prevDeltaLink string,
+	selectProps []string,
 ) ([]models.DriveItemable, api.DeltaUpdate, error) {
-	return h.DriveItemEnumeration.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink)
+	return h.DriveItemEnumeration.EnumerateDriveItemsDelta(
+		ctx,
+		driveID,
+		prevDeltaLink,
+		selectProps)
 }
 
 func (h BackupHandler) GetItem(ctx context.Context, _, _ string) (models.DriveItemable, error) {
@@ -282,6 +287,7 @@ type EnumeratesDriveItemsDelta struct {
 func (edi EnumeratesDriveItemsDelta) EnumerateDriveItemsDelta(
 	_ context.Context,
 	driveID, _ string,
+	_ []string,
 ) (
 	[]models.DriveItemable,
 	api.DeltaUpdate,

@@ -273,9 +273,9 @@ func (oc *Collection) getDriveItemContent(
 
 		// Skip big OneNote files as they can't be downloaded
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
+			// oc.scope == CollectionScopePackage && *item.GetSize() >= MaxOneNoteFileSize {
 			// TODO: We've removed the file size check because it looks like we've seen persistent
 			// 503's with smaller OneNote files also.
-			// oc.scope == CollectionScopePackage && *item.GetSize() >= MaxOneNoteFileSize {
 			oc.scope == CollectionScopePackage {
 			// FIXME: It is possible that in case of a OneNote file we
 			// will end up just backing up the `onetoc2` file without
@@ -283,10 +283,18 @@ func (oc *Collection) getDriveItemContent(
 			// "item". This will have to be handled during the
 			// restore, or we have to handle it separately by somehow
 			// deleting the entire collection.
-			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipBigOneNote).Info("max OneNote file size exceeded")
-			errs.AddSkip(ctx, fault.FileSkip(fault.SkipBigOneNote, driveID, itemID, itemName, graph.ItemInfo(item)))
+			logger.
+				CtxErr(ctx, err).
+				With("skipped_reason", fault.SkipOneNote).
+				Info("inaccessible one note file")
+			errs.AddSkip(ctx, fault.FileSkip(
+				fault.SkipOneNote,
+				driveID,
+				itemID,
+				itemName,
+				graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "max oneNote item").Label(graph.LabelsSkippable)
+			return nil, clues.Wrap(err, "inaccesible oneNote item").Label(graph.LabelsSkippable)
 		}
 
 		errs.AddRecoverable(

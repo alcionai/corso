@@ -298,7 +298,8 @@ func (c *Collections) Get(
 		items, du, err := c.handler.EnumerateDriveItemsDelta(
 			ictx,
 			driveID,
-			prevDeltaLink)
+			prevDeltaLink,
+			api.DefaultDriveItemProps())
 		if err != nil {
 			return nil, false, err
 		}
@@ -811,6 +812,8 @@ func (c *Collections) UpdateCollections(
 			if item.GetPackageEscaped() != nil {
 				colScope = CollectionScopePackage
 			}
+
+			ictx = clues.Add(ictx, "collection_scope", colScope)
 
 			col, err := NewCollection(
 				c.handler,

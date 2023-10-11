@@ -97,7 +97,11 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	nfid := ptr.Val(newFolder.GetId())
 
 	// Get the previous delta to feed into url cache
-	_, du, err := ac.EnumerateDriveItemsDelta(ctx, suite.driveID, "")
+	_, du, err := ac.EnumerateDriveItemsDelta(
+		ctx,
+		suite.driveID,
+		"",
+		api.URLCacheDriveItemProps())
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, du.URL)
 

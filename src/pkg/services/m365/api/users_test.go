@@ -86,6 +86,13 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 			},
 		},
 		{
+			name: "mail inbox err - resoruceLocked",
+			err:  odErr(string(graph.NotAllowed)),
+			expect: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, graph.ErrResourceLocked, clues.ToCore(err))
+			},
+		},
+		{
 			name: "mail inbox err - user not found",
 			err:  odErr(string(graph.MailboxNotEnabledForRESTAPI)),
 			expect: func(t *testing.T, err error) {

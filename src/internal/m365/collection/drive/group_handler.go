@@ -2,8 +2,12 @@ package drive
 
 import (
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -12,7 +16,7 @@ import (
 var _ BackupHandler = &groupBackupHandler{}
 
 type groupBackupHandler struct {
-	libraryBackupHandler
+	siteBackupHandler
 	groupID string
 	scope   selectors.GroupsScope
 }
@@ -23,8 +27,10 @@ func NewGroupBackupHandler(
 	scope selectors.GroupsScope,
 ) groupBackupHandler {
 	return groupBackupHandler{
-		libraryBackupHandler{
-			ac:     ac,
+		siteBackupHandler{
+			baseSiteHandler: baseSiteHandler{
+				ac: ac,
+			},
 			siteID: siteID,
 			// Not adding scope here. Anything that needs scope has to
 			// be from group handler
@@ -94,6 +100,39 @@ func (h groupBackupHandler) SitePathPrefix(tenantID string) (path.Path, error) {
 		false,
 		odConsts.SitesPathDir,
 		h.siteID)
+}
+
+func (h groupBackupHandler) AugmentItemInfo(
+	dii details.ItemInfo,
+	resource idname.Provider,
+	item models.DriveItemable,
+	size int64,
+	parentPath *path.Builder,
+) details.ItemInfo {
+	var pps string
+
+	if parentPath != nil {
+		pps = parentPath.String()
+	}
+
+	driveName, driveID := getItemDriveInfo(item)
+
+	dii.Extension = &details.ExtensionData{}
+	dii.Groups = &details.GroupsInfo{
+		Created:    ptr.Val(item.GetCreatedDateTime()),
+		DriveID:    driveID,
+		DriveName:  driveName,
+		ItemName:   ptr.Val(item.GetName()),
+		ItemType:   details.SharePointLibrary,
+		Modified:   ptr.Val(item.GetLastModifiedDateTime()),
+		Owner:      getItemCreator(item),
+		ParentPath: pps,
+		SiteID:     resource.ID(),
+		Size:       size,
+		WebURL:     resource.Name(),
+	}
+
+	return dii
 }
 
 func (h groupBackupHandler) IsAllPass() bool {

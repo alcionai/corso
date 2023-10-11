@@ -29,6 +29,7 @@ func (suite *ErrUnitSuite) TestInternal() {
 		{BackupNotFound, []error{repository.ErrorBackupNotFound}},
 		{ServiceNotEnabled, []error{graph.ErrServiceNotEnabled}},
 		{ResourceOwnerNotFound, []error{graph.ErrResourceOwnerNotFound}},
+		{ResourceNotAccessible, []error{graph.ErrResourceLocked}},
 	}
 	for _, test := range table {
 		suite.Run(string(test.get), func() {
@@ -46,6 +47,7 @@ func (suite *ErrUnitSuite) TestIs() {
 		{BackupNotFound, repository.ErrorBackupNotFound},
 		{ServiceNotEnabled, graph.ErrServiceNotEnabled},
 		{ResourceOwnerNotFound, graph.ErrResourceOwnerNotFound},
+		{ResourceNotAccessible, graph.ErrResourceLocked},
 	}
 	for _, test := range table {
 		suite.Run(string(test.target), func() {
