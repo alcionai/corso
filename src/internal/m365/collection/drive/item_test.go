@@ -80,7 +80,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			rh := NewRestoreHandler(suite.service.ac)
+			rh := NewUserDriveRestoreHandler(suite.service.ac)
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()

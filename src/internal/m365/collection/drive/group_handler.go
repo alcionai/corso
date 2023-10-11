@@ -16,7 +16,7 @@ import (
 var _ BackupHandler = &groupBackupHandler{}
 
 type groupBackupHandler struct {
-	libraryBackupHandler
+	siteBackupHandler
 	groupID string
 	scope   selectors.GroupsScope
 }
@@ -27,8 +27,8 @@ func NewGroupBackupHandler(
 	scope selectors.GroupsScope,
 ) groupBackupHandler {
 	return groupBackupHandler{
-		libraryBackupHandler{
-			baseLibraryHandler: baseLibraryHandler{
+		siteBackupHandler{
+			baseSiteHandler: baseSiteHandler{
 				ac: ac,
 			},
 			siteID: siteID,

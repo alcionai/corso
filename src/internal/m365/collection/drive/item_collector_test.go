@@ -266,8 +266,8 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
-				&itemBackupHandler{
-					baseItemHandler: baseItemHandler{
+				&userDriveBackupHandler{
+					baseUserDriveHandler: baseUserDriveHandler{
 						ac: suite.ac.Drives(),
 					},
 					userID: test.user,

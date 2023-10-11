@@ -131,7 +131,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 		pkg       = "/package"
 	)
 
-	bh := itemBackupHandler{userID: user}
+	bh := userDriveBackupHandler{userID: user}
 	testBaseDrivePath := odConsts.DriveFolderPrefixBuilder("driveID1").String()
 	expectedPath := getExpectedPathGenerator(suite.T(), bh, tenant, testBaseDrivePath)
 	expectedStatePath := getExpectedStatePathGenerator(suite.T(), bh, tenant, testBaseDrivePath)
@@ -740,8 +740,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestUpdateCollections() {
 			maps.Copy(currPrevPaths, test.inputFolderMap)
 
 			c := NewCollections(
-				&itemBackupHandler{
-					baseItemHandler: baseItemHandler{
+				&userDriveBackupHandler{
+					baseUserDriveHandler: baseUserDriveHandler{
 						ac: api.Drives{},
 					},
 					userID: user,
@@ -1196,7 +1196,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 	drive2.SetName(&driveID2)
 
 	var (
-		bh = itemBackupHandler{userID: user}
+		bh = userDriveBackupHandler{userID: user}
 
 		driveBasePath1 = odConsts.DriveFolderPrefixBuilder(driveID1).String()
 		driveBasePath2 = odConsts.DriveFolderPrefixBuilder(driveID2).String()
@@ -2468,8 +2468,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			// Add a few collections
 			for i := 0; i < collCount; i++ {
 				coll, err := NewCollection(
-					&itemBackupHandler{
-						baseItemHandler: baseItemHandler{
+					&userDriveBackupHandler{
+						baseUserDriveHandler: baseUserDriveHandler{
 							ac: api.Drives{},
 						},
 						userID: "test-user",
