@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"sync"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -690,8 +689,6 @@ func (c *Collections) PopulateDriveCollections(
 		el               = errs.Local()
 		newPrevPaths     = map[string]string{}
 		invalidPrevDelta = len(prevDeltaLink) == 0
-		ch               = make(chan api.NextPage[models.DriveItemable], 1)
-		wg               = sync.WaitGroup{}
 
 		// currPrevPaths is used to identify which collection a
 		// file belongs to. This is useful to delete a file from the
@@ -705,57 +702,53 @@ func (c *Collections) PopulateDriveCollections(
 		maps.Copy(newPrevPaths, oldPrevPaths)
 	}
 
-	go func() {
-		defer wg.Done()
+	pager := c.handler.EnumerateDriveItemsDelta(
+		ctx,
+		driveID,
+		prevDeltaLink,
+		api.CallConfig{
+			Select: api.DefaultDriveItemProps(),
+		})
 
-		for pg := range ch {
+	page, reset, done := pager.NextPage()
+	for ; !done; page, reset, done = pager.NextPage() {
+		if el.Failure() != nil {
+			break
+		}
+
+		if reset {
+			newPrevPaths = map[string]string{}
+			currPrevPaths = map[string]string{}
+			c.CollectionMap[driveID] = map[string]*Collection{}
+			invalidPrevDelta = true
+		}
+
+		for _, item := range page {
 			if el.Failure() != nil {
-				// exhaust the channel to ensure it closes
-				continue
+				break
 			}
 
-			if pg.Reset {
-				newPrevPaths = map[string]string{}
-				currPrevPaths = map[string]string{}
-				c.CollectionMap[driveID] = map[string]*Collection{}
-				invalidPrevDelta = true
-			}
-
-			for _, item := range pg.Items {
-				if el.Failure() != nil {
-					continue
-				}
-
-				err := c.processItem(
-					ctx,
-					item,
-					driveID,
-					driveName,
-					oldPrevPaths,
-					currPrevPaths,
-					newPrevPaths,
-					excludedItemIDs,
-					invalidPrevDelta,
-					el)
-				if err != nil {
-					el.AddRecoverable(ctx, clues.Stack(err))
-				}
+			err := c.processItem(
+				ctx,
+				item,
+				driveID,
+				driveName,
+				oldPrevPaths,
+				currPrevPaths,
+				newPrevPaths,
+				excludedItemIDs,
+				invalidPrevDelta,
+				el)
+			if err != nil {
+				el.AddRecoverable(ctx, clues.Stack(err))
 			}
 		}
-	}()
+	}
 
-	wg.Add(1)
-
-	du, err := c.handler.EnumerateDriveItemsDelta(
-		ctx,
-		ch,
-		driveID,
-		prevDeltaLink)
+	du, err := pager.Results()
 	if err != nil {
 		return du, nil, clues.Stack(err)
 	}
-
-	wg.Wait()
 
 	return du, newPrevPaths, el.Failure()
 }

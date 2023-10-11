@@ -1,8 +1,16 @@
 package fault
 
 import (
+	"context"
+
 	"github.com/alcionai/corso/src/cli/print"
 )
+
+// AddSkipper presents an interface that allows callers to
+// write additional skipped items to the complying struct.
+type AddSkipper interface {
+	AddSkip(ctx context.Context, s *Skipped)
+}
 
 // skipCause identifies the well-known conditions to Skip an item.  It is
 // important that skip cause enumerations do not overlap with general error

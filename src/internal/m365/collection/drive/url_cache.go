@@ -165,7 +165,8 @@ func (uc *urlCache) refreshCache(
 			Select: api.URLCacheDriveItemProps(),
 		})
 
-	for page, reset, done := pager.NextPage(); !done; {
+	page, reset, done := pager.NextPage()
+	for ; !done; page, reset, done = pager.NextPage() {
 		err := uc.updateCache(
 			ctx,
 			page,

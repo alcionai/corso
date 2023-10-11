@@ -104,8 +104,8 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 			)
 
 			mbh.DriveItemEnumeration = mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]mock.DriveItemsDeltaPager{
-					driveID: mock.DriveItemsDeltaPager{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID: {
 						Pages:       []mock.NextPage{{Items: test.items}},
 						DeltaUpdate: du,
 					},
