@@ -44,8 +44,8 @@ type urlCache struct {
 	// cacheMu protects idToProps and lastRefreshTime
 	cacheMu sync.RWMutex
 	// refreshMu serializes cache refresh attempts by potential writers
-	refreshMu       sync.Mutex
-	deltaQueryCount int
+	refreshMu    sync.Mutex
+	refreshCount int
 
 	enumerator EnumerateDriveItemsDeltaer
 
@@ -154,8 +154,8 @@ func (uc *urlCache) refreshCache(
 	uc.cacheMu.Lock()
 	defer uc.cacheMu.Unlock()
 
-	// Issue a delta query to graph
 	logger.Ctx(ctx).Info("refreshing url cache")
+	uc.refreshCount++
 
 	pager := uc.enumerator.EnumerateDriveItemsDelta(
 		ctx,
@@ -166,8 +166,6 @@ func (uc *urlCache) refreshCache(
 		})
 
 	for page, reset, done := pager.NextPage(); !done; {
-		uc.deltaQueryCount++
-
 		err := uc.updateCache(
 			ctx,
 			page,

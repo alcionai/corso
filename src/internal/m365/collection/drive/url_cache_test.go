@@ -183,7 +183,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	wg.Wait()
 
 	// Validate that exactly 1 delta query was made by url cache
-	require.Equal(t, 1, uc.deltaQueryCount)
+	require.Equal(t, 1, uc.refreshCount)
 }
 
 // ---------------------------------------------------------------------------
@@ -226,7 +226,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.NoError,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Greater(t, uc.lastRefreshTime, startTime)
-				assert.Equal(t, 1, uc.deltaQueryCount)
+				assert.Equal(t, 1, uc.refreshCount)
 				assert.Equal(t, 1, len(uc.idToProps))
 			},
 		},
@@ -266,7 +266,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.NoError,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Greater(t, uc.lastRefreshTime, startTime)
-				assert.Equal(t, 1, uc.deltaQueryCount)
+				assert.Equal(t, 1, uc.refreshCount)
 				assert.Equal(t, 5, len(uc.idToProps))
 			},
 		},
@@ -308,7 +308,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.NoError,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Greater(t, uc.lastRefreshTime, startTime)
-				assert.Equal(t, 2, uc.deltaQueryCount)
+				assert.Equal(t, 2, uc.refreshCount)
 				assert.Equal(t, 5, len(uc.idToProps))
 			},
 		},
@@ -328,6 +328,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 				},
 				{
 					Items: []models.DriveItemable{
+						fileItem("0", "file1", "root", "root", "https://dummy0.com", false),
 						fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
 						fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
 						fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
@@ -365,7 +366,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.NoError,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Greater(t, uc.lastRefreshTime, startTime)
-				assert.Equal(t, 4, uc.deltaQueryCount)
+				assert.Equal(t, 4, uc.refreshCount)
 				assert.Equal(t, 5, len(uc.idToProps))
 			},
 		},
@@ -419,7 +420,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.NoError,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Greater(t, uc.lastRefreshTime, startTime)
-				assert.Equal(t, 3, uc.deltaQueryCount)
+				assert.Equal(t, 3, uc.refreshCount)
 				assert.Equal(t, 5, len(uc.idToProps))
 			},
 		},
@@ -451,7 +452,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.NoError,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Greater(t, uc.lastRefreshTime, startTime)
-				assert.Equal(t, 1, uc.deltaQueryCount)
+				assert.Equal(t, 1, uc.refreshCount)
 				assert.Equal(t, 3, len(uc.idToProps))
 			},
 		},
@@ -477,7 +478,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.NoError,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Greater(t, uc.lastRefreshTime, startTime)
-				assert.Equal(t, 1, uc.deltaQueryCount)
+				assert.Equal(t, 1, uc.refreshCount)
 				assert.Equal(t, 2, len(uc.idToProps))
 			},
 		},
@@ -494,7 +495,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.Error,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Greater(t, uc.lastRefreshTime, startTime)
-				assert.Equal(t, 1, uc.deltaQueryCount)
+				assert.Equal(t, 1, uc.refreshCount)
 				assert.Equal(t, 1, len(uc.idToProps))
 			},
 		},
@@ -511,7 +512,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.Error,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Equal(t, time.Time{}, uc.lastRefreshTime)
-				assert.NotZero(t, uc.deltaQueryCount)
+				assert.NotZero(t, uc.refreshCount)
 				assert.Equal(t, 0, len(uc.idToProps))
 			},
 		},
@@ -530,7 +531,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			expectErr: assert.Error,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
 				assert.Greater(t, uc.lastRefreshTime, startTime)
-				assert.Equal(t, 1, uc.deltaQueryCount)
+				assert.Equal(t, 1, uc.refreshCount)
 				assert.Equal(t, 1, len(uc.idToProps))
 			},
 		},
