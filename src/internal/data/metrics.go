@@ -58,20 +58,16 @@ func (es *ExportStats) GetStats() map[path.CategoryType]KindStats {
 }
 
 type statsReader struct {
-	reader io.ReadCloser
-	kind   details.ItemType
-	stats  *ExportStats
+	io.ReadCloser
+	kind  path.CategoryType
+	stats *ExportStats
 }
 
-func (sr *statsReader) Read(p []byte) (n int, err error) {
-	n, err = sr.reader.Read(p)
+func (sr *statsReader) Read(p []byte) (int, error) {
+	n, err := sr.ReadCloser.Read(p)
 	sr.stats.UpdateBytes(sr.kind, int64(n))
 
-	return
-}
-
-func (sr *statsReader) Close() error {
-	return sr.reader.Close()
+	return n, err
 }
 
 // Create a function that will take a reader and return a reader that
@@ -86,8 +82,8 @@ func ReaderWithStats(
 	}
 
 	return &statsReader{
-		reader: reader,
-		kind:   kind,
-		stats:  stats,
+		ReadCloser: reader,
+		kind:       kind,
+		stats:      stats,
 	}
 }
