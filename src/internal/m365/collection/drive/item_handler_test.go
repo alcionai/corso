@@ -36,7 +36,7 @@ func (suite *ItemBackupHandlerUnitSuite) TestPathPrefix() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := itemBackupHandler{userID: resourceOwner}
+			h := userDriveBackupHandler{userID: resourceOwner}
 
 			result, err := h.PathPrefix(tenantID, "driveID")
 			test.expectErr(t, err, clues.ToCore(err))
@@ -65,7 +65,7 @@ func (suite *ItemBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := itemBackupHandler{userID: resourceOwner}
+			h := userDriveBackupHandler{userID: resourceOwner}
 
 			result, err := h.MetadataPathPrefix(tenantID)
 			test.expectErr(t, err, clues.ToCore(err))
@@ -94,7 +94,7 @@ func (suite *ItemBackupHandlerUnitSuite) TestCanonicalPath() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := itemBackupHandler{userID: resourceOwner}
+			h := userDriveBackupHandler{userID: resourceOwner}
 			p := path.Builder{}.Append("prefix")
 
 			result, err := h.CanonicalPath(p, tenantID)
@@ -110,7 +110,7 @@ func (suite *ItemBackupHandlerUnitSuite) TestCanonicalPath() {
 func (suite *ItemBackupHandlerUnitSuite) TestServiceCat() {
 	t := suite.T()
 
-	s, c := itemBackupHandler{}.ServiceCat()
+	s, c := userDriveBackupHandler{}.ServiceCat()
 	assert.Equal(t, path.OneDriveService, s)
 	assert.Equal(t, path.FilesCategory, c)
 }
