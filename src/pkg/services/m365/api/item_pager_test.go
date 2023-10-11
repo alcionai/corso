@@ -313,6 +313,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			*testing.T,
 		) DeltaPager[testItem]
 		prevDelta     string
+		filter        func(a any) bool
 		expect        expected
 		canDelta      bool
 		validModTimes bool
@@ -454,6 +455,57 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			canDelta: false,
 		},
+		{
+			name: "no prev delta and fail all filter",
+			pagerGetter: func(t *testing.T) Pager[any] {
+				return nil
+			},
+			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+				return &testIDsDeltaPager{
+					t: t,
+					added: map[string]time.Time{
+						"uno": now.Add(time.Minute),
+						"dos": now.Add(2 * time.Minute),
+					},
+					removed:       []string{"tres", "quatro"},
+					validModTimes: true,
+				}
+			},
+			filter: func(any) bool { return false },
+			expect: expected{
+				added:         map[string]time.Time{},
+				removed:       []string{},
+				deltaUpdate:   DeltaUpdate{Reset: true},
+				validModTimes: true,
+			},
+			canDelta: true,
+		},
+		{
+			name: "with prev delta and fail all filter",
+			pagerGetter: func(t *testing.T) Pager[any] {
+				return nil
+			},
+			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+				return &testIDsDeltaPager{
+					t: t,
+					added: map[string]time.Time{
+						"uno": now.Add(time.Minute),
+						"dos": now.Add(2 * time.Minute),
+					},
+					removed:       []string{"tres", "quatro"},
+					validModTimes: true,
+				}
+			},
+			filter:    func(any) bool { return false },
+			prevDelta: "delta",
+			expect: expected{
+				added:         map[string]time.Time{},
+				removed:       []string{},
+				deltaUpdate:   DeltaUpdate{Reset: false},
+				validModTimes: true,
+			},
+			canDelta: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -463,13 +515,19 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			filters := []func(any) bool{}
+			if test.filter != nil {
+				filters = append(filters, test.filter)
+			}
+
 			added, validModTimes, removed, deltaUpdate, err := getAddedAndRemovedItemIDs[testItem](
 				ctx,
 				test.pagerGetter(t),
 				test.deltaPagerGetter(t),
 				test.prevDelta,
 				test.canDelta,
-				addedAndRemovedByAddtlData[testItem])
+				addedAndRemovedByAddtlData[testItem],
+				filters...)
 
 			require.NoErrorf(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
 			if validModTimes {
