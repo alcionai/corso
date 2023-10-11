@@ -813,6 +813,8 @@ func (c *Collections) UpdateCollections(
 				colScope = CollectionScopePackage
 			}
 
+			ictx = clues.Add(ictx, "collection_scope", colScope)
+
 			col, err := NewCollection(
 				c.handler,
 				c.protectedResource,
