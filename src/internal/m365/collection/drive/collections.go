@@ -707,8 +707,7 @@ func (c *Collections) PopulateDriveCollections(
 			Select: api.DefaultDriveItemProps(),
 		})
 
-	page, reset, done := pager.NextPage()
-	for ; !done; page, reset, done = pager.NextPage() {
+	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
 		if el.Failure() != nil {
 			break
 		}

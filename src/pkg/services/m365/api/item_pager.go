@@ -223,8 +223,7 @@ func batchEnumerateItems[T any](
 
 	go enumerateItems[T](ctx, pager, &npr)
 
-	page, _, done := npr.NextPage()
-	for ; !done; page, _, done = npr.NextPage() {
+	for page, _, done := npr.NextPage(); !done; page, _, done = npr.NextPage() {
 		items = append(items, page...)
 	}
 
@@ -347,8 +346,7 @@ func batchDeltaEnumerateItems[T any](
 
 	go deltaEnumerateItems[T](ctx, pager, &npr, prevDeltaLink)
 
-	page, reset, done := npr.NextPage()
-	for ; !done; page, reset, done = npr.NextPage() {
+	for page, reset, done := npr.NextPage(); !done; page, reset, done = npr.NextPage() {
 		if reset {
 			results = []T{}
 		}
