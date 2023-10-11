@@ -27,6 +27,7 @@ func (ctrl *Controller) ProduceExportCollections(
 	exportCfg control.ExportConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
+	stats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:export")
@@ -51,6 +52,7 @@ func (ctrl *Controller) ProduceExportCollections(
 			opts,
 			dcs,
 			deets,
+			stats,
 			errs)
 	case selectors.ServiceSharePoint:
 		expCollections, err = sharepoint.ProduceExportCollections(
@@ -61,6 +63,7 @@ func (ctrl *Controller) ProduceExportCollections(
 			dcs,
 			ctrl.backupDriveIDNames,
 			deets,
+			stats,
 			errs)
 	case selectors.ServiceGroups:
 		expCollections, err = groups.ProduceExportCollections(
@@ -72,6 +75,7 @@ func (ctrl *Controller) ProduceExportCollections(
 			ctrl.backupDriveIDNames,
 			ctrl.backupSiteIDWebURL,
 			deets,
+			stats,
 			errs)
 
 	default:
