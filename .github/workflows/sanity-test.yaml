@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - call-groups-sanity-test
   workflow_dispatch:
     inputs:
       user:
