@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type ExportUnitSuite struct {
@@ -245,15 +247,32 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			stats := data.ExportStats{}
 			ec := drive.NewExportCollection(
 				"",
 				[]data.RestoreCollection{test.backingCollection},
-				test.version)
+				test.version,
+				&stats)
 
 			items := ec.Items(ctx)
 
+			count := 0
+			size := 0
 			fitems := []export.Item{}
+
 			for item := range items {
+				if item.Error == nil {
+					count++
+				}
+
+				if item.Body != nil {
+					b, err := io.ReadAll(item.Body)
+					assert.NoError(t, err, clues.ToCore(err))
+
+					size += len(b)
+					item.Body = io.NopCloser(bytes.NewBuffer(b))
+				}
+
 				fitems = append(fitems, item)
 			}
 
@@ -268,6 +287,19 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				assert.Equal(t, test.expectedItems[i].Body, item.Body, "body")
 				assert.ErrorIs(t, item.Error, test.expectedItems[i].Error)
 			}
+
+			var expectedStats data.ExportStats
+
+			if size+count > 0 { // it is only initialized if we have something
+				expectedStats = data.ExportStats{}
+				expectedStats.UpdateBytes(path.FilesCategory, int64(size))
+
+				for i := 0; i < count; i++ {
+					expectedStats.UpdateResourceCount(path.FilesCategory)
+				}
+			}
+
+			assert.Equal(t, expectedStats, stats, "stats")
 		})
 	}
 }
@@ -312,6 +344,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		},
 	}
 
+	stats := data.ExportStats{}
+
 	ecs, err := ProduceExportCollections(
 		ctx,
 		int(version.Backup),
@@ -319,14 +353,30 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		control.DefaultOptions(),
 		dcs,
 		nil,
+		&stats,
 		fault.New(true))
 	assert.NoError(t, err, "export collections error")
 	assert.Len(t, ecs, 1, "num of collections")
 
 	fitems := []export.Item{}
+	size := 0
+
 	for item := range ecs[0].Items(ctx) {
+		// unwrap the body from stats reader
+		b, err := io.ReadAll(item.Body)
+		assert.NoError(t, err, clues.ToCore(err))
+
+		size += len(b)
+		bitem := io.NopCloser(bytes.NewBuffer(b))
+		item.Body = bitem
+
 		fitems = append(fitems, item)
 	}
 
 	assert.Equal(t, expectedItems, fitems, "items")
+
+	expectedStats := data.ExportStats{}
+	expectedStats.UpdateBytes(path.FilesCategory, int64(size))
+	expectedStats.UpdateResourceCount(path.FilesCategory)
+	assert.Equal(t, expectedStats, stats, "stats")
 }

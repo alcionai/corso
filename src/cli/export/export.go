@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/alcionai/clues"
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/flags"
@@ -108,6 +109,15 @@ func runExport(
 	err = export.ConsumeExportCollections(ctx, exportLocation, expColl, eo.Errors)
 	if err != nil {
 		return Only(ctx, err)
+	}
+
+	stats := eo.GetStats()
+	if len(stats) > 0 {
+		Infof(ctx, "\nExport details")
+	}
+
+	for k, s := range stats {
+		Infof(ctx, "%s: %d items (%s)", k.HumanString(), s.ResourceCount, humanize.Bytes(uint64(s.BytesRead)))
 	}
 
 	return nil
