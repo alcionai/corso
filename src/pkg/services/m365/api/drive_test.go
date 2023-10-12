@@ -178,18 +178,39 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 					"renamed item should have a different name")
 			},
 		},
-		// FIXME: this *should* behave the same as folder collision, but there's either a
-		// bug or a deviation in graph api behavior.
+		// Note: this currently behaves the same as folder collision, but there used to be a
+		// bug or a deviation in graph api behavior that prevented it from succeeding.
+		// No response on the ticket below, so this test code is being kept around to showcase
+		// that prior behavior while we're evaluating the permanence of the fix.
 		// See open ticket: https://github.com/OneDrive/onedrive-api-docs/issues/1702
+		// {
+		// 	name:        "replace file",
+		// 	onCollision: control.Replace,
+		// 	postItem:    file,
+		// 	expectErr: func(t *testing.T, err error) {
+		// 		assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+		// 	},
+		// 	expectItem: func(t *testing.T, i models.DriveItemable) {
+		// 		assert.Nil(t, i)
+		// 	},
+		// },
 		{
 			name:        "replace file",
 			onCollision: control.Replace,
 			postItem:    file,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+				assert.NoError(t, err, clues.ToCore(err))
 			},
 			expectItem: func(t *testing.T, i models.DriveItemable) {
-				assert.Nil(t, i)
+				assert.Equal(
+					t,
+					ptr.Val(origFile.GetName()),
+					ptr.Val(i.GetName()),
+					"replaced item should have the same name")
+				assert.True(
+					t,
+					ptr.Val(origFile.GetLastModifiedDateTime()).Equal(ptr.Val(i.GetLastModifiedDateTime())),
+					"replaced item should have the same mod time")
 			},
 		},
 	}
