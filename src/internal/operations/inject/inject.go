@@ -3,6 +3,8 @@ package inject
 import (
 	"context"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
@@ -117,3 +119,18 @@ type (
 		RepoMaintenance(ctx context.Context, opts repository.Maintenance) error
 	}
 )
+
+type BaseServiceHandler struct{}
+
+func (h BaseServiceHandler) ProduceExportCollections(
+	ctx context.Context,
+	backupVersion int,
+	exportCfg control.ExportConfig,
+	dcs []data.RestoreCollection,
+	stats *data.ExportStats,
+	errs *fault.Bus,
+) ([]export.Collectioner, error) {
+	return nil, clues.New("not implemented")
+}
+
+func (h BaseServiceHandler) CacheItemInfo(v details.ItemInfo) {}
