@@ -1949,6 +1949,61 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
+			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{},
+								Reset: true,
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder2", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file", "file", driveBasePath1+"/folder", "folder2", true, false, false),
+								},
+							},
+						},
+						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+				expectedPath1("/folder"): {
+					// Old folder path should be marked as deleted since it should compare
+					// by ID.
+					data.DeletedState: {},
+					data.NewState:     {"folder2", "file"},
+				},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder2": expectedPath1("/folder"),
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+			},
+		},
+		{
 			name:   "OneDrive Two Item Pages with Malware",
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
