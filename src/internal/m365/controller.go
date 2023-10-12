@@ -20,6 +20,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
+var ErrNoResourceLookup = clues.New("missing resource lookup client")
+
 // must comply with BackupProducer and RestoreConsumer
 var (
 	_ inject.BackupProducer  = &Controller{}
@@ -290,6 +292,10 @@ func (ctrl *Controller) PopulateProtectedResourceIDAndName(
 	resourceID string, // input value, can be either id or name
 	ins idname.Cacher,
 ) (idname.Provider, error) {
+	if ctrl.ownerLookup == nil {
+		return nil, clues.Stack(ErrNoResourceLookup).WithClues(ctx)
+	}
+
 	pr, err := ctrl.ownerLookup.GetResourceIDAndNameFrom(ctx, resourceID, ins)
 	if err != nil {
 		return nil, clues.Wrap(err, "identifying resource owner")
