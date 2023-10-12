@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type (
@@ -86,15 +85,11 @@ type (
 		ProduceExportCollections(
 			ctx context.Context,
 			backupVersion int,
-			selector selectors.Selector,
 			exportCfg control.ExportConfig,
-			opts control.Options,
 			dcs []data.RestoreCollection,
 			stats *data.ExportStats,
 			errs *fault.Bus,
 		) ([]export.Collectioner, error)
-
-		Wait() *data.CollectionStats
 
 		CacheItemInfoer
 	}
@@ -118,7 +113,15 @@ type (
 	RepoMaintenancer interface {
 		RepoMaintenance(ctx context.Context, opts repository.Maintenance) error
 	}
+
+	// ServiceHandler contains the set of functions required to implement all
+	// service-specific functionality for backups, restores, and exports.
+	ServiceHandler interface {
+		ExportConsumer
+	}
 )
+
+var _ ServiceHandler = &BaseServiceHandler{}
 
 type BaseServiceHandler struct{}
 
