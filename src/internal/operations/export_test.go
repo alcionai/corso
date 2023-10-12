@@ -37,7 +37,7 @@ func TestExportUnitSuite(t *testing.T) {
 	suite.Run(t, &ExportUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ExportUnitSuite) TestExportOperation_PersistResults() {
+func (suite *ExportUnitSuite) TestExportOperation_Export() {
 	var (
 		kw        = &kopia.Wrapper{}
 		sw        = store.NewWrapper(&kopia.ModelStore{})
