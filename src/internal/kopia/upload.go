@@ -149,7 +149,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 		return
 	} else if info.Modified().IsZero() {
-		cp.errs.AddRecoverable(ctx, clues.New("mod time of zero").
+		cp.errs.AddRecoverable(ctx, clues.New("zero-valued mod time").
 			WithClues(ctx).
 			Label(fault.LabelForceNoBackupCreation))
 	}
