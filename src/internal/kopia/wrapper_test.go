@@ -1067,6 +1067,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 		DriveID:   "drive-id",
 		DriveName: "drive-name",
 		ItemName:  "item",
+		Modified:  time.Now(),
 	}
 
 	// tags that are supplied by the caller. This includes basic tags to support
@@ -1124,10 +1125,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					info.ItemName = name
 
 					ms := &dataMock.Item{
-						ItemID:   name,
-						Reader:   io.NopCloser(&bytes.Buffer{}),
-						ItemSize: 0,
-						ItemInfo: details.ItemInfo{OneDrive: &info},
+						ItemID:       name,
+						Reader:       io.NopCloser(&bytes.Buffer{}),
+						ItemSize:     0,
+						ItemInfo:     details.ItemInfo{OneDrive: &info},
+						ModifiedTime: info.Modified,
 					}
 
 					streams = append(streams, ms)
@@ -1152,12 +1154,15 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			cols: func() []data.BackupCollection {
 				info := baseOneDriveItemInfo
 				info.ItemName = testFileName
+				// Update the mod time so it's not counted as cached.
+				info.Modified = info.Modified.Add(time.Hour)
 
 				ms := &dataMock.Item{
-					ItemID:   testFileName,
-					Reader:   io.NopCloser(&bytes.Buffer{}),
-					ItemSize: 0,
-					ItemInfo: details.ItemInfo{OneDrive: &info},
+					ItemID:       testFileName,
+					Reader:       io.NopCloser(&bytes.Buffer{}),
+					ItemSize:     0,
+					ItemInfo:     details.ItemInfo{OneDrive: &info},
+					ModifiedTime: info.Modified,
 				}
 
 				mc := &dataMock.Collection{
