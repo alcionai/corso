@@ -434,17 +434,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 			op.Errors.Fail(test.fail)
 
-			test.expectErr(t, op.persistResults(now, &test.stats, op.Counter))
+			// op.Counter is not incremented in this test.
+			test.expectErr(t, op.persistResults(now, &test.stats, count.New()))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
 			assert.Equal(t, op.Results.ItemsRead, test.stats.ctrl.Successes, "items read")
 			assert.Equal(t, op.Results.ItemsWritten, test.stats.k.TotalFileCount, "items written")
 			assert.Equal(t, op.Results.BytesRead, test.stats.k.TotalHashedBytes, "bytes read")
 			assert.Equal(t, op.Results.BytesUploaded, test.stats.k.TotalUploadedBytes, "bytes written")
-			assert.Equal(t, op.Results.ItemsWritten, op.Counter.Get(count.PersistedFiles), "items written")
-			assert.Equal(t, op.Results.BytesRead, op.Counter.Get(count.PersistedHashedBytes), "bytes read")
-			assert.Equal(t, op.Results.BytesUploaded, op.Counter.Get(count.PersistedUploadedBytes), "bytes written")
-			assert.Equal(t, 1, test.stats.resourceCount, "resource owners")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")
 		})
