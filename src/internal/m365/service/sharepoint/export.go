@@ -16,6 +16,32 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+func NewSharePointHandler(
+	opts control.Options,
+) *sharepointHandler {
+	return &sharepointHandler{
+		opts:               opts,
+		backupDriveIDNames: idname.NewCache(nil),
+	}
+}
+
+type sharepointHandler struct {
+	opts control.Options
+
+	backupDriveIDNames idname.CacheBuilder
+}
+
+func (h *sharepointHandler) CacheItemInfo(v details.ItemInfo) {
+	// Old versions would store SharePoint data as OneDrive.
+	switch {
+	case v.SharePoint != nil:
+		h.backupDriveIDNames.Add(v.SharePoint.DriveID, v.SharePoint.DriveName)
+
+	case v.OneDrive != nil:
+		h.backupDriveIDNames.Add(v.OneDrive.DriveID, v.OneDrive.DriveName)
+	}
+}
+
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
 func ProduceExportCollections(

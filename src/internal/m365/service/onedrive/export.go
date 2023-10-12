@@ -14,6 +14,20 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+func NewOneDriveHandler(
+	opts control.Options,
+) *onedriveHandler {
+	return &onedriveHandler{
+		opts: opts,
+	}
+}
+
+type onedriveHandler struct {
+	opts control.Options
+}
+
+func (h *onedriveHandler) CacheItemInfo(v details.ItemInfo) {}
+
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
 func ProduceExportCollections(

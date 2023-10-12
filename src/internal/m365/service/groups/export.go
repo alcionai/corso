@@ -18,6 +18,32 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+func NewGroupsHandler(
+	opts control.Options,
+) *groupsHandler {
+	return &groupsHandler{
+		opts:               opts,
+		backupDriveIDNames: idname.NewCache(nil),
+		backupSiteIDWebURL: idname.NewCache(nil),
+	}
+}
+
+type groupsHandler struct {
+	opts control.Options
+
+	backupDriveIDNames idname.CacheBuilder
+	backupSiteIDWebURL idname.CacheBuilder
+}
+
+func (h *groupsHandler) CacheItemInfo(v details.ItemInfo) {
+	if v.Groups == nil {
+		return
+	}
+
+	h.backupDriveIDNames.Add(v.Groups.DriveID, v.Groups.DriveName)
+	h.backupSiteIDWebURL.Add(v.Groups.SiteID, v.Groups.WebURL)
+}
+
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
 func ProduceExportCollections(
