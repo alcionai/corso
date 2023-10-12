@@ -240,7 +240,7 @@ func checkBackupIsInManifests(
 	for _, category := range categories {
 		t.Run(category.String(), func(t *testing.T) {
 			var (
-				r     = kopia.NewReason("", resourceOwner, sel.PathService(), category)
+				r     = identity.NewReason("", resourceOwner, sel.PathService(), category)
 				tags  = map[string]string{kopia.TagBackupCategory: ""}
 				found bool
 			)
