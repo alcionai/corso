@@ -293,6 +293,27 @@ func (s Selector) PathCategories() (selectorPathCategories, error) {
 	return ro.PathCategories(), nil
 }
 
+// AllPathCategories returns the sets of include and filter path categories
+// across all scope sets.
+func (s Selector) AllPathCategories() ([]path.CategoryType, error) {
+	all, err := s.PathCategories()
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	res := map[string]path.CategoryType{}
+
+	for _, cat := range all.Includes {
+		res[cat.String()] = cat
+	}
+
+	for _, cat := range all.Filters {
+		res[cat.String()] = cat
+	}
+
+	return maps.Values(res), nil
+}
+
 // Reasons returns a deduplicated set of the backup reasons produced
 // using the selector's discrete owner and each scopes' service and
 // category types.
