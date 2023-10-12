@@ -31,7 +31,7 @@ func (r repository) NewExport(
 		r.Opts,
 		r.dataLayer,
 		store.NewWrapper(r.modelStore),
-		r.Provider,
+		r.Provider.NewServiceHandler(r.Opts, sel.PathService()),
 		r.Account,
 		model.StableID(backupID),
 		sel,
