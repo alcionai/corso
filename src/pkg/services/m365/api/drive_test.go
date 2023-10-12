@@ -89,6 +89,17 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
 
+	updatedFile := models.NewDriveItem()
+	updatedFile.SetAdditionalData(origFile.GetAdditionalData())
+	updatedFile.SetCreatedBy(origFile.GetCreatedBy())
+	updatedFile.SetCreatedDateTime(origFile.GetCreatedDateTime())
+	updatedFile.SetDescription(origFile.GetDescription())
+	updatedFile.SetFile(origFile.GetFile())
+	updatedFile.SetName(ptr.To("updated" + ptr.Val(origFile.GetName())))
+	updatedFile.SetParentReference(origFile.GetParentReference())
+	updatedFile.SetSize(origFile.GetSize())
+	updatedFile.SetWebUrl(origFile.GetWebUrl())
+
 	table := []struct {
 		name        string
 		onCollision control.CollisionPolicy
@@ -197,16 +208,18 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 		{
 			name:        "replace file",
 			onCollision: control.Replace,
-			postItem:    file,
+			postItem:    updatedFile,
 			expectErr: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
 			expectItem: func(t *testing.T, i models.DriveItemable) {
+				// the name was updated
 				assert.Equal(
 					t,
-					ptr.Val(origFile.GetName()),
+					"updated"+ptr.Val(origFile.GetName()),
 					ptr.Val(i.GetName()),
-					"replaced item should have the same name")
+					"replaced item should have the updated name")
+				// the mod time was not
 				assert.True(
 					t,
 					ptr.Val(origFile.GetLastModifiedDateTime()).Equal(ptr.Val(i.GetLastModifiedDateTime())),
