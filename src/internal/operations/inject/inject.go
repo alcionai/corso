@@ -119,6 +119,13 @@ type (
 	ServiceHandler interface {
 		ExportConsumer
 	}
+
+	ToServiceHandler interface {
+		NewServiceHandler(
+			opts control.Options,
+			service path.ServiceType,
+		) ServiceHandler
+	}
 )
 
 var _ ServiceHandler = &BaseServiceHandler{}

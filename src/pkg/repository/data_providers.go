@@ -15,8 +15,9 @@ import (
 
 type DataProvider interface {
 	inject.BackupProducer
-	inject.ExportConsumer
 	inject.RestoreConsumer
+
+	inject.ToServiceHandler
 
 	VerifyAccess(ctx context.Context) error
 }
