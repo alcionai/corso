@@ -46,15 +46,11 @@ func (h *groupsHandler) CacheItemInfo(v details.ItemInfo) {
 
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
-func ProduceExportCollections(
+func (h *groupsHandler) ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	exportCfg control.ExportConfig,
-	opts control.Options,
 	dcs []data.RestoreCollection,
-	backupDriveIDNames idname.Cacher,
-	backupSiteIDWebURL idname.Cacher,
-	deets *details.Builder,
 	stats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
@@ -81,13 +77,14 @@ func ProduceExportCollections(
 				backupVersion,
 				exportCfg,
 				stats)
+
 		case path.LibrariesCategory:
 			drivePath, err := path.ToDrivePath(restoreColl.FullPath())
 			if err != nil {
 				return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
 			}
 
-			driveName, ok := backupDriveIDNames.NameOf(drivePath.DriveID)
+			driveName, ok := h.backupDriveIDNames.NameOf(drivePath.DriveID)
 			if !ok {
 				// This should not happen, but just in case
 				logger.Ctx(ctx).With("drive_id", drivePath.DriveID).Info("drive name not found, using drive id")
@@ -97,7 +94,7 @@ func ProduceExportCollections(
 			rfds := restoreColl.FullPath().Folders()
 			siteName := rfds[1] // use siteID by default
 
-			webURL, ok := backupSiteIDWebURL.NameOf(siteName)
+			webURL, ok := h.backupSiteIDWebURL.NameOf(siteName)
 			if !ok {
 				// This should not happen, but just in case
 				logger.Ctx(ctx).With("site_id", rfds[1]).Info("site weburl not found, using site id")

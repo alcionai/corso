@@ -30,13 +30,11 @@ func (h *onedriveHandler) CacheItemInfo(v details.ItemInfo) {}
 
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
-func ProduceExportCollections(
+func (h *onedriveHandler) ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	exportCfg control.ExportConfig,
-	opts control.Options,
 	dcs []data.RestoreCollection,
-	deets *details.Builder,
 	stats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
