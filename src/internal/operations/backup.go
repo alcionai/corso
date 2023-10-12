@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -237,6 +238,23 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
 
+	var cats []string
+
+	allCats, err := op.Selectors.AllPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for backup")
+	} else {
+		for _, cat := range allCats {
+			cats = append(cats, cat.HumanString())
+		}
+	}
+
+	// Sort so that it's the same across backups in case we need to do something
+	// like bin the service/category types across multiple backups.
+	slices.Sort(cats)
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.account.ID()),
@@ -244,6 +262,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"resource_owner_name", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
+		"categories", cats,
 		"incremental", op.incremental,
 		"disable_assist_backup", op.disableAssistBackup)
 

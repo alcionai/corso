@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/archive"
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -137,11 +138,29 @@ func (op *ExportOperation) Run(ctx context.Context) (
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	var cats []string
+
+	allCats, err := op.Selectors.AllPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for export")
+	} else {
+		for _, cat := range allCats {
+			cats = append(cats, cat.HumanString())
+		}
+	}
+
+	// Sort so that it's the same across backups in case we need to do something
+	// like bin the service/category types across multiple exports.
+	slices.Sort(cats)
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
-		"service", op.Selectors.Service)
+		"service", op.Selectors.Service,
+		"categories", cats)
 
 	defer func() {
 		op.bus.Event(

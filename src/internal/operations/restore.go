@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
@@ -138,11 +139,29 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	ctx = count.Embed(ctx, op.Counter)
 
+	var cats []string
+
+	allCats, err := op.Selectors.AllPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for restore")
+	} else {
+		for _, cat := range allCats {
+			cats = append(cats, cat.HumanString())
+		}
+	}
+
+	// Sort so that it's the same across backups in case we need to do something
+	// like bin the service/category types across multiple restores.
+	slices.Sort(cats)
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
 		"service", op.Selectors.Service,
+		"categories", cats,
 		"destination_container", clues.Hide(op.RestoreCfg.Location))
 
 	defer func() {
