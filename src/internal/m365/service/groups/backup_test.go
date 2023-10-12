@@ -85,14 +85,14 @@ func (suite *GroupsBackupUnitSuite) TestMetadataFiles() {
 	}{
 		{
 			name:      "error",
-			reason:    kopia.NewReason("tenant", "user", path.GroupsService, path.LibrariesCategory),
+			reason:    identity.NewReason("tenant", "user", path.GroupsService, path.LibrariesCategory),
 			manID:     "manifestID",
 			r:         mockRestoreProducer{err: assert.AnError},
 			expectErr: require.Error,
 		},
 		{
 			name:   "single site",
-			reason: kopia.NewReason("tenant", "user", path.GroupsService, path.LibrariesCategory),
+			reason: identity.NewReason("tenant", "user", path.GroupsService, path.LibrariesCategory),
 			manID:  "manifestID",
 			r: mockRestoreProducer{
 				rc: []data.RestoreCollection{
@@ -108,7 +108,7 @@ func (suite *GroupsBackupUnitSuite) TestMetadataFiles() {
 		},
 		{
 			name:   "multiple sites",
-			reason: kopia.NewReason("tenant", "user", path.GroupsService, path.LibrariesCategory),
+			reason: identity.NewReason("tenant", "user", path.GroupsService, path.LibrariesCategory),
 			manID:  "manifestID",
 			r: mockRestoreProducer{
 				rc: []data.RestoreCollection{

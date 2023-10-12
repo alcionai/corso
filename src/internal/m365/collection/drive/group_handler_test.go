@@ -141,7 +141,7 @@ func (suite *GroupBackupHandlerUnitSuite) TestServiceCat() {
 	t := suite.T()
 
 	s, c := groupBackupHandler{
-		libraryBackupHandler: libraryBackupHandler{service: path.GroupsService},
+		siteBackupHandler: siteBackupHandler{service: path.GroupsService},
 	}.ServiceCat()
 	assert.Equal(t, path.GroupsService, s)
 	assert.Equal(t, path.LibrariesCategory, c)

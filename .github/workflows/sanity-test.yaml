@@ -38,7 +38,7 @@ jobs:
       CORSO_LOG_DIR: ${{ github.workspace }}/src/testlog
       CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-sanity.log
       RESTORE_DEST_PFX: Corso_Test_Sanity_
-      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
+      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || vars.CORSO_M365_TEST_USER_ID }}
       CORSO_ENABLE_GROUPS: true
 
     defaults:
@@ -93,7 +93,7 @@ jobs:
         if: always()
         uses: ./.github/actions/purge-m365-data
         with:
-          site: ${{ secrets.CORSO_M365_TEST_SITE_URL }}
+          site: ${{ vars.CORSO_M365_TEST_SITE_URL }}
           folder-prefix: ${{ env.RESTORE_DEST_PFX }}
           libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
           older-than: ${{ env.NOW }}
@@ -291,7 +291,7 @@ jobs:
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
           go run . sharepoint files  \
-            --site ${{ secrets.CORSO_M365_TEST_SITE_URL }} \
+            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
             --user ${{ env.TEST_USER }} \
             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
@@ -306,7 +306,7 @@ jobs:
         with:
           service: sharepoint
           kind: first-backup
-          backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
@@ -317,7 +317,7 @@ jobs:
         working-directory: ./src/cmd/factory
         run: |
           go run . sharepoint files  \
-            --site ${{ secrets.CORSO_M365_TEST_SITE_URL }} \
+            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
             --user ${{ env.TEST_USER }} \
             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
@@ -330,7 +330,7 @@ jobs:
         with:
           service: sharepoint
           kind: incremental
-          backup-args: '--site "${{ secrets.CORSO_M365_TEST_SITE_URL }}"'
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           test-folder: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}

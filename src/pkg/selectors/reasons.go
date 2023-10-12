@@ -8,45 +8,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// ---------------------------------------------------------------------------
-// reasoner interface compliance
-// ---------------------------------------------------------------------------
-
-var _ identity.Reasoner = &backupReason{}
-
-type backupReason struct {
-	category path.CategoryType
-	resource string
-	service  path.ServiceType
-	tenant   string
-}
-
-func (br backupReason) Tenant() string {
-	return br.tenant
-}
-
-func (br backupReason) ProtectedResource() string {
-	return br.resource
-}
-
-func (br backupReason) Service() path.ServiceType {
-	return br.service
-}
-
-func (br backupReason) Category() path.CategoryType {
-	return br.category
-}
-
-func (br backupReason) SubtreePath() (path.Path, error) {
-	return path.BuildPrefix(
-		br.tenant,
-		br.resource,
-		br.service,
-		br.category)
-}
-
-func (br backupReason) key() string {
-	return br.category.String() + br.resource + br.service.String() + br.tenant
+func key(br identity.Reasoner) string {
+	return br.Category().String() +
+		br.ProtectedResource() +
+		br.Service().String() +
+		br.Tenant()
 }
 
 // ---------------------------------------------------------------------------
@@ -76,14 +42,8 @@ func reasonsFor(
 
 	for _, sl := range [][]path.CategoryType{pc.Includes, pc.Filters} {
 		for _, cat := range sl {
-			br := backupReason{
-				category: cat,
-				resource: resource,
-				service:  service,
-				tenant:   tenantID,
-			}
-
-			reasons[br.key()] = br
+			br := identity.NewReason(tenantID, resource, service, cat)
+			reasons[key(br)] = br
 		}
 	}
 

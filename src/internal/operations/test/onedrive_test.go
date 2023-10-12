@@ -134,7 +134,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 	}
 
 	grh := func(ac api.Client) drive.RestoreHandler {
-		return drive.NewRestoreHandler(ac)
+		return drive.NewUserDriveRestoreHandler(ac)
 	}
 
 	runDriveIncrementalTest(
