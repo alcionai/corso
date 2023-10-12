@@ -96,7 +96,6 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	updatedFile.SetDescription(origFile.GetDescription())
 	updatedFile.SetFile(origFile.GetFile())
 	updatedFile.SetName(ptr.To("updated" + ptr.Val(origFile.GetName())))
-	updatedFile.SetParentReference(origFile.GetParentReference())
 	updatedFile.SetSize(origFile.GetSize())
 	updatedFile.SetWebUrl(origFile.GetWebUrl())
 
@@ -219,10 +218,10 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 					"updated"+ptr.Val(origFile.GetName()),
 					ptr.Val(i.GetName()),
 					"replaced item should have the updated name")
-				// the mod time was not
+				// the mod time automatically updates
 				assert.True(
 					t,
-					ptr.Val(origFile.GetLastModifiedDateTime()).Equal(ptr.Val(i.GetLastModifiedDateTime())),
+					ptr.Val(origFile.GetLastModifiedDateTime()).Before(ptr.Val(i.GetLastModifiedDateTime())),
 					"replaced item should have the same mod time")
 			},
 		},
