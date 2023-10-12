@@ -12,12 +12,34 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
+
+// NewServiceHandler returns an instance of a struct capable of running various
+// operations for a given service.
+func (ctrl *Controller) NewServiceHandler(
+	opts control.Options,
+	service path.ServiceType,
+) inject.ServiceHandler {
+	switch service {
+	case path.OneDriveService:
+		return onedrive.NewOneDriveHandler(opts)
+
+	case path.SharePointService:
+		return sharepoint.NewSharePointHandler(opts)
+
+	case path.GroupsService:
+		return groups.NewGroupsHandler(opts)
+	}
+
+	return &inject.BaseServiceHandler{}
+}
 
 // ProduceExportCollections exports data from the specified collections
 func (ctrl *Controller) ProduceExportCollections(
