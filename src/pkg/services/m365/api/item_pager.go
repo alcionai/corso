@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -206,7 +207,9 @@ func deltaEnumerateItems[T any](
 // shared enumeration runner funcs
 // ---------------------------------------------------------------------------
 
-type addedAndRemovedHandler[T any] func(items []T) (map[string]time.Time, []string, error)
+type addedAndRemovedHandler[T any] func(
+	items []T,
+) (map[string]time.Time, []string, error)
 
 func getAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
@@ -246,11 +249,15 @@ type getIDer interface {
 
 // for added and removed by additionalData[@removed]
 
-type getIDAndAddtler interface {
+type getIDModAndAddtler interface {
 	getIDer
+	getModTimer
 	GetAdditionalData() map[string]any
 }
 
+// for types that are non-compliant with this interface,
+// pagers will need to wrap the return value in a struct
+// that provides this compliance.
 type getModTimer interface {
 	GetLastModifiedDateTime() *time.Time
 }
@@ -262,7 +269,7 @@ func addedAndRemovedByAddtlData[T any](
 	removed := []string{}
 
 	for _, item := range items {
-		giaa, ok := any(item).(getIDAndAddtler)
+		giaa, ok := any(item).(getIDModAndAddtler)
 		if !ok {
 			return nil, nil, clues.New("item does not provide id and additional data getters").
 				With("item_type", fmt.Sprintf("%T", item))
@@ -275,10 +282,18 @@ func addedAndRemovedByAddtlData[T any](
 			var modTime time.Time
 
 			if mt, ok := giaa.(getModTimer); ok {
-				modTime = ptr.Val(mt.GetLastModifiedDateTime())
+				// Make sure to get a non-zero mod time if the item doesn't have one for
+				// some reason. Otherwise we can hit an issue where kopia has a
+				// different mod time for the file than the details does. This occurs
+				// due to a conversion kopia does on the time from
+				// time.Time -> nanoseconds for serialization. During incremental
+				// backups, kopia goes from nanoseconds -> time.Time but there's an
+				// overflow which yields a different timestamp.
+				// https://github.com/gohugoio/hugo/issues/6161#issuecomment-725915786
+				modTime = ptr.OrNow(mt.GetLastModifiedDateTime())
 			}
 
-			added[ptr.Val(giaa.GetId())] = modTime
+			added[ptr.Val(giaa.GetId())] = dttm.OrNow(modTime)
 		} else {
 			removed = append(removed, ptr.Val(giaa.GetId()))
 		}
@@ -289,8 +304,9 @@ func addedAndRemovedByAddtlData[T any](
 
 // for added and removed by GetDeletedDateTime()
 
-type getIDAndDeletedDateTimer interface {
+type getIDModAndDeletedDateTimer interface {
 	getIDer
+	getModTimer
 	GetDeletedDateTime() *time.Time
 }
 
@@ -301,7 +317,7 @@ func addedAndRemovedByDeletedDateTime[T any](
 	removed := []string{}
 
 	for _, item := range items {
-		giaddt, ok := any(item).(getIDAndDeletedDateTimer)
+		giaddt, ok := any(item).(getIDModAndDeletedDateTimer)
 		if !ok {
 			return nil, nil, clues.New("item does not provide id and deleted date time getters").
 				With("item_type", fmt.Sprintf("%T", item))
@@ -322,7 +338,7 @@ func addedAndRemovedByDeletedDateTime[T any](
 				modTime = ptr.OrNow(mt.GetLastModifiedDateTime())
 			}
 
-			added[ptr.Val(giaddt.GetId())] = modTime
+			added[ptr.Val(giaddt.GetId())] = dttm.OrNow(modTime)
 		} else {
 			removed = append(removed, ptr.Val(giaddt.GetId()))
 		}

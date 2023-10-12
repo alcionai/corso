@@ -99,3 +99,41 @@ func (suite *PointerSuite) TestVal() {
 	assert.NotEmpty(t, myInt32)
 	assert.NotEmpty(t, myInt64)
 }
+
+func (suite *PointerSuite) TestOrNow() {
+	oneMinuteAgo := time.Now().Add(-1 * time.Minute)
+
+	table := []struct {
+		name        string
+		p           *time.Time
+		expectEqual bool
+	}{
+		{
+			name:        "populated value",
+			p:           &oneMinuteAgo,
+			expectEqual: true,
+		},
+		{
+			name:        "nil",
+			p:           nil,
+			expectEqual: false,
+		},
+		{
+			name:        "pointer to 0 valued time",
+			p:           &time.Time{},
+			expectEqual: false,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			result := ptr.OrNow(test.p)
+
+			if test.expectEqual {
+				assert.Equal(t, *test.p, result)
+			} else {
+				assert.WithinDuration(t, time.Now(), result, time.Minute)
+			}
+		})
+	}
+}
