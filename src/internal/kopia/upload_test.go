@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -569,6 +570,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 				deets:          bd,
 				pending:        map[string]*itemDetails{},
 				errs:           fault.New(true),
+				counter:        count.New(),
 			}
 
 			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
@@ -579,6 +581,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 
 			assert.Empty(t, cp.pending)
 			assert.Equal(t, test.expectedBytes, cp.totalBytes)
+			assert.Equal(t, test.expectedBytes, cp.counter.Get(count.PersistedHashedBytes))
 		})
 	}
 }

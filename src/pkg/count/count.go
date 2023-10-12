@@ -56,6 +56,14 @@ func (b *Bus) Add(k key, n int64) {
 	}
 }
 
+// AdderFor returns a func that adds any value of i
+// to the bus using the given key.
+func (b *Bus) AdderFor(k key) func(i int64) {
+	return func(i int64) {
+		b.Add(k, i)
+	}
+}
+
 // Get returns the local count.
 func (b *Bus) Get(k key) int64 {
 	if b == nil {

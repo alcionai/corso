@@ -15,6 +15,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -99,6 +100,7 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 		base ManifestEntry,
 	) ManifestEntry {
 		bbs := test.baseBackups(base)
+		counter := count.New()
 
 		stats, _, _, err := w.ConsumeBackupCollections(
 			ctx,
@@ -108,11 +110,14 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 			nil,
 			nil,
 			true,
-			fault.New(true))
+			fault.New(true),
+			counter)
 		require.NoError(t, err, clues.ToCore(err))
 
-		assert.Equal(t, 0, stats.IgnoredErrorCount)
-		assert.Equal(t, 0, stats.ErrorCount)
+		assert.Zero(t, stats.IgnoredErrorCount)
+		assert.Zero(t, stats.ErrorCount)
+		assert.Zero(t, counter.Get(count.PersistenceIgnoredErrors))
+		assert.Zero(t, counter.Get(count.PersistenceErrors))
 		assert.False(t, stats.Incomplete)
 
 		snap, err := snapshot.LoadSnapshot(
