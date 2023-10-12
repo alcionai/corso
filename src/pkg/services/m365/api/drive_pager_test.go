@@ -199,7 +199,7 @@ func (suite *DrivePagerIntgSuite) TestEnumerateDriveItems() {
 				Select: api.DefaultDriveItemProps(),
 			})
 
-	for page, reset, done := pager.NextPage(); !done; {
+	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
 		items = append(items, page...)
 
 		assert.False(t, reset, "should not reset")

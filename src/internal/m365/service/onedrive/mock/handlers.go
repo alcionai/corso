@@ -292,20 +292,20 @@ func (m GetsItem) GetItem(
 // Enumerates Drive Items
 // ---------------------------------------------------------------------------
 
-type NextPage[T any] struct {
-	Items []T
+type NextPage struct {
+	Items []models.DriveItemable
 	Reset bool
 }
 
 type EnumerateItemsDeltaByDrive struct {
-	DrivePagers map[string]DriveItemsDeltaPager
+	DrivePagers map[string]*DriveItemsDeltaPager
 }
 
 var _ api.NextPageResulter[models.DriveItemable] = &DriveItemsDeltaPager{}
 
 type DriveItemsDeltaPager struct {
 	Idx         int
-	Pages       []NextPage[models.DriveItemable]
+	Pages       []NextPage
 	DeltaUpdate api.DeltaUpdate
 	Err         error
 }
@@ -316,7 +316,7 @@ func (edibd EnumerateItemsDeltaByDrive) EnumerateDriveItemsDelta(
 	_ api.CallConfig,
 ) api.NextPageResulter[models.DriveItemable] {
 	didp := edibd.DrivePagers[driveID]
-	return &didp
+	return didp
 }
 
 func (edi *DriveItemsDeltaPager) NextPage() ([]models.DriveItemable, bool, bool) {
@@ -325,7 +325,7 @@ func (edi *DriveItemsDeltaPager) NextPage() ([]models.DriveItemable, bool, bool)
 	}
 
 	np := edi.Pages[edi.Idx]
-	edi.Idx++
+	edi.Idx = edi.Idx + 1
 
 	return np.Items, np.Reset, false
 }
