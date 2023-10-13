@@ -1,6 +1,8 @@
 package m365
 
 import (
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
@@ -14,17 +16,18 @@ import (
 func (ctrl *Controller) NewServiceHandler(
 	opts control.Options,
 	service path.ServiceType,
-) inject.ServiceHandler {
+) (inject.ServiceHandler, error) {
 	switch service {
 	case path.OneDriveService:
-		return onedrive.NewOneDriveHandler(opts)
+		return onedrive.NewOneDriveHandler(opts), nil
 
 	case path.SharePointService:
-		return sharepoint.NewSharePointHandler(opts)
+		return sharepoint.NewSharePointHandler(opts), nil
 
 	case path.GroupsService:
-		return groups.NewGroupsHandler(opts)
+		return groups.NewGroupsHandler(opts), nil
 	}
 
-	return &inject.BaseServiceHandler{}
+	return nil, clues.New("unrecognized service").
+		With("service_type", service.String())
 }

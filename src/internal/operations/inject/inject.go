@@ -124,7 +124,7 @@ type (
 		NewServiceHandler(
 			opts control.Options,
 			service path.ServiceType,
-		) ServiceHandler
+		) (ServiceHandler, error)
 	}
 )
 
