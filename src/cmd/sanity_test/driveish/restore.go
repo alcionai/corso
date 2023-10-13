@@ -47,20 +47,20 @@ func CheckRestoration(
 
 	root := populateSanitree(ctx, ac, driveID)
 
-	dataTree, ok := root.Children[envs.DataFolder]
+	sourceTree, ok := root.Children[envs.SourceContainer]
 	common.Assert(
 		ctx,
 		func() bool { return ok },
-		"should find root-level data folder",
-		envs.DataFolder,
+		"should find root-level source data folder",
+		envs.SourceContainer,
 		"not found")
 
-	restoreTree, ok := root.Children[envs.FolderName]
+	restoreTree, ok := root.Children[envs.RestoreContainer]
 	common.Assert(
 		ctx,
 		func() bool { return ok },
 		"should find root-level restore folder",
-		envs.FolderName,
+		envs.RestoreContainer,
 		"not found")
 
 	var permissionCheck common.ContainerComparatorFn[
@@ -73,8 +73,8 @@ func CheckRestoration(
 
 	common.AssertEqualTrees[models.DriveItemable](
 		ctx,
-		dataTree,
-		restoreTree.Children[envs.DataFolder],
+		sourceTree,
+		restoreTree.Children[envs.SourceContainer],
 		permissionCheck,
 		nil)
 

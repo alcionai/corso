@@ -7,6 +7,9 @@ inputs:
   kind:
     description: Kind of test
     required: true
+  backup-id:
+    description: Backup to retrieve data out of
+    required: false
   backup-args:
     description: Arguments to pass for backup
     required: false
@@ -15,12 +18,9 @@ inputs:
     description: Arguments to pass for restore; restore is skipped when missing.
     required: false
     default: ""
-  test-folder:
+  restore-container:
     description: Folder to use for testing
     required: true
-  base-backup:
-    description: Base backup to use for testing
-    required: false
   log-dir:
     description: Folder to store test log files
     required: true
@@ -88,11 +88,9 @@ runs:
       shell: bash
       working-directory: src
       env:
-        SANITY_TEST_KIND: restore
-        SANITY_TEST_FOLDER: ${{ steps.restore.outputs.result }}
-        SANITY_TEST_SERVICE: ${{ inputs.service }}
-        SANITY_TEST_DATA: ${{ inputs.test-folder }}
-        SANITY_BASE_BACKUP: ${{ inputs.base-backup }}
+        SANITY_TEST_RESTORE_CONTAINER: ${{ steps.restore.outputs.result }}
+        SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
+        SANITY_BACKUP_ID: ${{ inputs.backup-id }}
       run: |
         echo "---------------------------"
         echo Sanity Test Restore ${{ inputs.service }} ${{ inputs.kind }}
@@ -125,11 +123,9 @@ runs:
       shell: bash
       working-directory: src
       env:
-        SANITY_TEST_KIND: export
-        SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
-        SANITY_TEST_SERVICE: ${{ inputs.service }}
-        SANITY_TEST_DATA: ${{ inputs.test-folder }}
-        SANITY_BASE_BACKUP: ${{ inputs.base-backup }}
+        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
+        SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
+        SANITY_BACKUP_ID: ${{ inputs.backup-id }}
       run: |
         echo "---------------------------"
         echo Sanity-Test Export ${{ inputs.service }} ${{ inputs.kind }}
@@ -165,11 +161,9 @@ runs:
       shell: bash
       working-directory: src
       env:
-        SANITY_TEST_KIND: export
-        SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
-        SANITY_TEST_SERVICE: ${{ inputs.service }}
-        SANITY_TEST_DATA: ${{ inputs.test-folder }}
-        SANITY_BASE_BACKUP: ${{ inputs.base-backup }}
+        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
+        SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
+        SANITY_BACKUP_ID: ${{ inputs.backup-id }}
       run: |
         echo "---------------------------"
         echo Sanity-Test Export Archive ${{ inputs.service }} ${{ inputs.kind }}
