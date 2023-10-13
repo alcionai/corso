@@ -2,7 +2,6 @@ package driveish
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 
 	"github.com/alcionai/clues"
@@ -32,32 +31,31 @@ func CheckExport(
 	root := populateSanitree(
 		ctx,
 		ac,
-		driveID,
-		envs.StartTime)
+		driveID)
 
-	dataTree, ok := root.Children[envs.DataFolder]
+	sourceTree, ok := root.Children[envs.SourceContainer]
 	common.Assert(
 		ctx,
 		func() bool { return ok },
-		"should find root-level data folder",
-		envs.DataFolder,
+		"should find root-level source data folder",
+		envs.SourceContainer,
 		"not found")
 
-	fpTree := common.BuildFilepathSanitree(ctx, envs.FolderName)
+	fpTree := common.BuildFilepathSanitree(ctx, envs.RestoreContainer)
 
 	comparator := func(
 		ctx context.Context,
-		expect *common.Sanitree[models.DriveItemable],
-		result *common.Sanitree[fs.FileInfo],
+		expect *common.Sanitree[models.DriveItemable, models.DriveItemable],
+		result *common.Sanitree[fs.FileInfo, fs.FileInfo],
 	) {
 		common.CompareLeaves(ctx, expect.Leaves, result.Leaves, nil)
 	}
 
 	common.CompareDiffTrees(
 		ctx,
-		dataTree,
-		fpTree.Children[envs.DataFolder],
+		sourceTree,
+		fpTree.Children[envs.SourceContainer],
 		comparator)
 
-	fmt.Println("Success")
+	common.Infof(ctx, "Success")
 }

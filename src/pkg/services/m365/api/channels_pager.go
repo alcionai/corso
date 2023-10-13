@@ -42,7 +42,7 @@ func (p *channelMessagePageCtrl) ValidModTimes() bool {
 
 func (c Channels) NewChannelMessagePager(
 	teamID, channelID string,
-	selectProps ...string,
+	cc CallConfig,
 ) *channelMessagePageCtrl {
 	builder := c.Stable.
 		Client().
@@ -57,8 +57,12 @@ func (c Channels) NewChannelMessagePager(
 		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
 	}
 
-	if len(selectProps) > 0 {
-		options.QueryParameters.Select = selectProps
+	if len(cc.Props) > 0 {
+		options.QueryParameters.Select = cc.Props
+	}
+
+	if len(cc.Expand) > 0 {
+		options.QueryParameters.Expand = cc.Expand
 	}
 
 	return &channelMessagePageCtrl{
@@ -68,6 +72,20 @@ func (c Channels) NewChannelMessagePager(
 		gs:         c.Stable,
 		options:    options,
 	}
+}
+
+// GetChannelMessages fetches a delta of all messages in the channel.
+// returns two maps: addedItems, deletedItems
+func (c Channels) GetChannelMessages(
+	ctx context.Context,
+	teamID, channelID string,
+	cc CallConfig,
+) ([]models.ChatMessageable, error) {
+	ctx = clues.Add(ctx, "channel_id", channelID)
+	pager := c.NewChannelMessagePager(teamID, channelID, cc)
+	items, err := enumerateItems[models.ChatMessageable](ctx, pager)
+
+	return items, graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -163,7 +181,7 @@ func FilterOutSystemMessages(cm models.ChatMessageable) bool {
 		content == channelMessageSystemMessageContent)
 }
 
-// GetChannelMessageIDsDelta fetches a delta of all messages in the channel.
+// GetChannelMessageIDs fetches a delta of all messages in the channel.
 // returns two maps: addedItems, deletedItems
 func (c Channels) GetChannelMessageIDs(
 	ctx context.Context,
@@ -172,7 +190,7 @@ func (c Channels) GetChannelMessageIDs(
 ) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	added, validModTimes, removed, du, err := getAddedAndRemovedItemIDs[models.ChatMessageable](
 		ctx,
-		c.NewChannelMessagePager(teamID, channelID),
+		c.NewChannelMessagePager(teamID, channelID, CallConfig{}),
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
 		prevDeltaLink,
 		canMakeDeltaQueries,

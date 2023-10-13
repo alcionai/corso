@@ -2,7 +2,6 @@ package driveish
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -46,37 +45,40 @@ func CheckRestoration(
 		"drive_id", driveID,
 		"drive_name", driveName)
 
-	root := populateSanitree(ctx, ac, driveID, envs.StartTime)
+	root := populateSanitree(ctx, ac, driveID)
 
-	dataTree, ok := root.Children[envs.DataFolder]
+	sourceTree, ok := root.Children[envs.SourceContainer]
 	common.Assert(
 		ctx,
 		func() bool { return ok },
-		"should find root-level data folder",
-		envs.DataFolder,
+		"should find root-level source data folder",
+		envs.SourceContainer,
 		"not found")
 
-	restoreTree, ok := root.Children[envs.FolderName]
+	restoreTree, ok := root.Children[envs.RestoreContainer]
 	common.Assert(
 		ctx,
 		func() bool { return ok },
 		"should find root-level restore folder",
-		envs.FolderName,
+		envs.RestoreContainer,
 		"not found")
 
-	var permissionCheck common.ContainerComparatorFn[models.DriveItemable, models.DriveItemable]
+	var permissionCheck common.ContainerComparatorFn[
+		models.DriveItemable, models.DriveItemable,
+		models.DriveItemable, models.DriveItemable]
+
 	if permissionsComparator != nil {
 		permissionCheck = checkRestoredDriveItemPermissions(permissionsComparator)
 	}
 
 	common.AssertEqualTrees[models.DriveItemable](
 		ctx,
-		dataTree,
-		restoreTree.Children[envs.DataFolder],
+		sourceTree,
+		restoreTree.Children[envs.SourceContainer],
 		permissionCheck,
 		nil)
 
-	fmt.Println("Success")
+	common.Infof(ctx, "Success")
 }
 
 func permissionIn(
@@ -125,17 +127,19 @@ func permissionIn(
 	return pi
 }
 
+/*
+TODO: replace this check with testElementsMatch
+from internal/connecter/graph_connector_helper_test.go
+*/
 func checkRestoredDriveItemPermissions(
 	comparator func(expect, result []common.PermissionInfo) func() bool,
-) common.ContainerComparatorFn[models.DriveItemable, models.DriveItemable] {
-	/**
-		TODO: replace this check with testElementsMatch
-		from internal/connecter/graph_connector_helper_test.go
-	**/
-
+) common.ContainerComparatorFn[
+	models.DriveItemable, models.DriveItemable,
+	models.DriveItemable, models.DriveItemable,
+] {
 	return func(
 		ctx context.Context,
-		expect, result *common.Sanitree[models.DriveItemable],
+		expect, result *common.Sanitree[models.DriveItemable, models.DriveItemable],
 	) {
 		expectPerms, err := tform.AnyValueToT[[]common.PermissionInfo](
 			expandPermissions,

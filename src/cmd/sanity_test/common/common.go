@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -19,34 +18,30 @@ type PermissionInfo struct {
 }
 
 const (
-	sanityBaseBackup  = "SANITY_BASE_BACKUP"
-	sanityTestData    = "SANITY_TEST_DATA"
-	sanityTestFolder  = "SANITY_TEST_FOLDER"
-	sanityTestService = "SANITY_TEST_SERVICE"
-	sanityTestUser    = "SANITY_TEST_USER"
+	sanityBackupID             = "SANITY_BACKUP_ID"
+	sanityTestSourceContainer  = "SANITY_TEST_SOURCE_CONTAINER"
+	sanityTestRestoreContainer = "SANITY_TEST_RESTORE_CONTAINER"
+	sanityTestUser             = "SANITY_TEST_USER"
 )
 
 type Envs struct {
-	BaseBackupFolder string
-	DataFolder       string
-	FolderName       string
-	Service          string
+	BackupID         string
+	SourceContainer  string
+	RestoreContainer string
+	GroupID          string
 	SiteID           string
-	StartTime        time.Time
 	UserID           string
 }
 
 func EnvVars(ctx context.Context) Envs {
-	folder := strings.TrimSpace(os.Getenv(sanityTestFolder))
-	startTime, _ := MustGetTimeFromName(ctx, folder)
+	folder := strings.TrimSpace(os.Getenv(sanityTestRestoreContainer))
 
 	e := Envs{
-		BaseBackupFolder: os.Getenv(sanityBaseBackup),
-		DataFolder:       os.Getenv(sanityTestData),
-		FolderName:       folder,
+		BackupID:         os.Getenv(sanityBackupID),
+		SourceContainer:  os.Getenv(sanityTestSourceContainer),
+		RestoreContainer: folder,
+		GroupID:          tconfig.GetM365TeamID(ctx),
 		SiteID:           tconfig.GetM365SiteID(ctx),
-		Service:          os.Getenv(sanityTestService),
-		StartTime:        startTime,
 		UserID:           tconfig.GetM365UserID(ctx),
 	}
 
