@@ -71,7 +71,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: containsOnly,
-				Site:       empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -80,7 +79,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: prefixOnly,
-				Site:       empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -89,7 +87,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: containsAndPrefix,
-				Site:       empty,
 			},
 			expectIncludeLen: 2,
 		},
@@ -100,7 +97,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 				FolderPath: empty,
 				ListItem:   empty,
 				ListFolder: containsOnly,
-				Site:       empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -123,7 +119,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: empty,
-				// SiteID:     empty,  // TODO(meain): Update once we support multiple sites
 			},
 			expectIncludeLen: 2,
 		},
@@ -132,7 +127,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: empty,
-				// SiteID:     empty, // TODO(meain): update once we support multiple sites
 			},
 			expectIncludeLen: 2,
 		},
@@ -231,9 +225,9 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 		expect   assert.ErrorAssertionFunc
 	}{
 		{
-			name:     "no opts",
+			name:     "just site",
 			backupID: "id",
-			opts:     utils.GroupsOpts{},
+			opts:     utils.GroupsOpts{Site: "site"}, // site is mandatory
 			expect:   assert.NoError,
 		},
 		{
@@ -246,6 +240,7 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 			name:     "all valid",
 			backupID: "id",
 			opts: utils.GroupsOpts{
+				Site:                   "site",
 				FileCreatedAfter:       dttm.Now(),
 				FileCreatedBefore:      dttm.Now(),
 				FileModifiedAfter:      dttm.Now(),
@@ -362,7 +357,7 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			test.expect(t, utils.ValidateGroupsRestoreFlags(test.backupID, test.opts, false))
+			test.expect(t, utils.ValidateGroupsRestoreFlags(test.backupID, test.opts, true))
 		})
 	}
 }
