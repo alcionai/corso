@@ -19,47 +19,31 @@ func CheckEmailRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	var (
-		folderNameToItemCount        = make(map[string]int32)
-		folderNameToRestoreItemCount = make(map[string]int32)
-	)
-
-	restoredTree := buildSanitree(ctx, ac, envs.UserID, envs.FolderName)
-	dataTree := buildSanitree(ctx, ac, envs.UserID, envs.DataFolder)
+	restoredTree := buildSanitree(ctx, ac, envs.UserID, envs.RestoreContainer)
+	sourceTree := buildSanitree(ctx, ac, envs.UserID, envs.SourceContainer)
 
 	ctx = clues.Add(
 		ctx,
-		"restore_folder_id", restoredTree.ContainerID,
-		"restore_folder_name", restoredTree.ContainerName,
-		"original_folder_id", dataTree.ContainerID,
-		"original_folder_name", dataTree.ContainerName)
+		"restore_container_id", restoredTree.ID,
+		"restore_container_name", restoredTree.Name,
+		"source_container_id", sourceTree.ID,
+		"source_container_name", sourceTree.Name)
 
-	verifyEmailData(ctx, folderNameToRestoreItemCount, folderNameToItemCount)
-
-	common.AssertEqualTrees[models.MailFolderable](
+	common.AssertEqualTrees[models.MailFolderable, any](
 		ctx,
-		dataTree,
-		restoredTree.Children[envs.DataFolder])
-}
+		sourceTree,
+		restoredTree.Children[envs.SourceContainer],
+		nil,
+		nil)
 
-func verifyEmailData(ctx context.Context, restoreMessageCount, messageCount map[string]int32) {
-	for fldName, expected := range messageCount {
-		got := restoreMessageCount[fldName]
-
-		common.Assert(
-			ctx,
-			func() bool { return expected == got },
-			fmt.Sprintf("Restore item counts do not match: %s", fldName),
-			expected,
-			got)
-	}
+	common.Infof(ctx, "Success")
 }
 
 func buildSanitree(
 	ctx context.Context,
 	ac api.Client,
 	userID, folderName string,
-) *common.Sanitree[models.MailFolderable] {
+) *common.Sanitree[models.MailFolderable, any] {
 	gcc, err := ac.Mail().GetContainerByName(
 		ctx,
 		userID,
@@ -80,46 +64,47 @@ func buildSanitree(
 			clues.New("casting "+*gcc.GetDisplayName()+" to models.MailFolderable"))
 	}
 
-	root := &common.Sanitree[models.MailFolderable]{
-		Container:     mmf,
-		ContainerID:   ptr.Val(mmf.GetId()),
-		ContainerName: ptr.Val(mmf.GetDisplayName()),
-		ContainsItems: int(ptr.Val(mmf.GetTotalItemCount())),
-		Children:      map[string]*common.Sanitree[models.MailFolderable]{},
+	root := &common.Sanitree[models.MailFolderable, any]{
+		Self:        mmf,
+		ID:          ptr.Val(mmf.GetId()),
+		Name:        ptr.Val(mmf.GetDisplayName()),
+		CountLeaves: int(ptr.Val(mmf.GetTotalItemCount())),
+		Children:    map[string]*common.Sanitree[models.MailFolderable, any]{},
 	}
 
-	recurseSubfolders(ctx, ac, root, userID)
+	recursivelyBuildTree(ctx, ac, root, userID, root.Name+"/")
 
 	return root
 }
 
-func recurseSubfolders(
+func recursivelyBuildTree(
 	ctx context.Context,
 	ac api.Client,
-	parent *common.Sanitree[models.MailFolderable],
-	userID string,
+	stree *common.Sanitree[models.MailFolderable, any],
+	userID, location string,
 ) {
+	common.Debugf(ctx, "adding: %s", location)
+
 	childFolders, err := ac.Mail().GetContainerChildren(
 		ctx,
 		userID,
-		parent.ContainerID)
+		stree.ID)
 	if err != nil {
-		common.Fatal(ctx, "getting subfolders", err)
+		common.Fatal(ctx, "getting child containers", err)
 	}
 
 	for _, child := range childFolders {
-		c := &common.Sanitree[models.MailFolderable]{
-			Container:     child,
-			ContainerID:   ptr.Val(child.GetId()),
-			ContainerName: ptr.Val(child.GetDisplayName()),
-			ContainsItems: int(ptr.Val(child.GetTotalItemCount())),
-			Children:      map[string]*common.Sanitree[models.MailFolderable]{},
+		c := &common.Sanitree[models.MailFolderable, any]{
+			Parent:      stree,
+			Self:        child,
+			ID:          ptr.Val(child.GetId()),
+			Name:        ptr.Val(child.GetDisplayName()),
+			CountLeaves: int(ptr.Val(child.GetTotalItemCount())),
+			Children:    map[string]*common.Sanitree[models.MailFolderable, any]{},
 		}
 
-		parent.Children[c.ContainerName] = c
+		stree.Children[c.Name] = c
 
-		if ptr.Val(child.GetChildFolderCount()) > 0 {
-			recurseSubfolders(ctx, ac, c, userID)
-		}
+		recursivelyBuildTree(ctx, ac, c, userID, location+c.Name+"/")
 	}
 }
