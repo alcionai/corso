@@ -63,9 +63,6 @@ corso repo connect s3 --bucket my-bucket --prefix my-prefix
 
 # Connect to a Corso repo in an S3 compliant storage provider
 corso repo connect s3 --bucket my-bucket --endpoint my-s3-server-endpoint`
-
-	s3ProviderCommandUpdatePhasephraseExamples = `# Update passphrase to a Corso repo in AWS S3 bucket named "my-bucket"
-corso repo update-passphrase s3 --bucket my-bucket --new-passphrase 'newpass'`
 )
 
 // ---------------------------------------------------------------------------------------------------------

@@ -9,7 +9,6 @@ import (
 
 	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
-
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
@@ -23,7 +22,12 @@ const (
 	initCommand             = "init"
 	connectCommand          = "connect"
 	updatePassphraseCommand = "update-passphrase"
-	maintenanceCommand      = "maintenance"
+	MaintenanceCommand      = "maintenance"
+)
+
+const (
+	providerCommandUpdatePhasephraseExamples = `# Update passphrase of a Corso repo"
+	corso repo update-passphrase --new-passphrase 'newpass'`
 )
 
 var (
@@ -119,7 +123,7 @@ func handleConnectCmd(cmd *cobra.Command, args []string) error {
 
 func maintenanceCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   maintenanceCommand,
+		Use:   MaintenanceCommand,
 		Short: "Run maintenance on an existing repository",
 		Long:  `Run maintenance on an existing repository to optimize performance and storage use`,
 		RunE:  handleMaintenanceCmd,
@@ -188,11 +192,12 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 // `corso repo update-passphrase <repository> [<flag>...]`
 func updatePassphraseCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   updatePassphraseCommand,
-		Short: "Update passphrase of connected repository.",
-		Long:  `Update repository passphrase.`,
-		RunE:  handleUpdateCmd,
-		Args:  cobra.NoArgs,
+		Use:     updatePassphraseCommand,
+		Short:   "Update passphrase of connected repository.",
+		Long:    `Update repository passphrase.`,
+		RunE:    handleUpdateCmd,
+		Args:    cobra.NoArgs,
+		Example: providerCommandUpdatePhasephraseExamples,
 	}
 }
 
