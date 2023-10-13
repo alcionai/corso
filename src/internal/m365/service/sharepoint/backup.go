@@ -80,7 +80,7 @@ func ProduceBackupCollections(
 			spcs, canUsePreviousBackup, err = site.CollectLibraries(
 				ctx,
 				bpc,
-				drive.NewLibraryBackupHandler(
+				drive.NewSiteBackupHandler(
 					ac.Drives(),
 					bpc.ProtectedResource.ID(),
 					scope,

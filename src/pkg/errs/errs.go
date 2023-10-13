@@ -16,6 +16,7 @@ const (
 	ApplicationThrottled  errEnum = "application-throttled"
 	BackupNotFound        errEnum = "backup-not-found"
 	RepoAlreadyExists     errEnum = "repository-already-exists"
+	ResourceNotAccessible errEnum = "resource-not-accesible"
 	ResourceOwnerNotFound errEnum = "resource-owner-not-found"
 	ServiceNotEnabled     errEnum = "service-not-enabled"
 )
@@ -27,6 +28,7 @@ var internalToExternal = map[errEnum][]error{
 	ApplicationThrottled:  {graph.ErrApplicationThrottled},
 	BackupNotFound:        {repository.ErrorBackupNotFound},
 	RepoAlreadyExists:     {repository.ErrorRepoAlreadyExists},
+	ResourceNotAccessible: {graph.ErrResourceLocked},
 	ResourceOwnerNotFound: {graph.ErrResourceOwnerNotFound},
 	ServiceNotEnabled:     {graph.ErrServiceNotEnabled},
 }

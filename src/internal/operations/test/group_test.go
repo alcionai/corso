@@ -62,7 +62,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
 	}
 
 	grh := func(ac api.Client) drive.RestoreHandler {
-		return drive.NewLibraryRestoreHandler(ac, path.GroupsService)
+		return drive.NewSiteRestoreHandler(ac, path.GroupsService)
 	}
 
 	runDriveIncrementalTest(

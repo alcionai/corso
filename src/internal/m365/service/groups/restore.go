@@ -39,7 +39,7 @@ func ConsumeRestoreCollections(
 	var (
 		restoreMetrics    support.CollectionMetrics
 		caches            = drive.NewRestoreCaches(backupDriveIDNames)
-		lrh               = drive.NewLibraryRestoreHandler(ac, rcc.Selector.PathService())
+		lrh               = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
 		el                = errs.Local()
 		webURLToSiteNames = map[string]string{}
 	)

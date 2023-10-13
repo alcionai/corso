@@ -144,6 +144,25 @@ func (c Channels) NewChannelMessageDeltaPager(
 	}
 }
 
+// this is the message content for system chatMessage entities with type
+// unknownFutureValue.
+const channelMessageSystemMessageContent = "<systemEventMessage/>"
+
+func FilterOutSystemMessages(cm models.ChatMessageable) bool {
+	if ptr.Val(cm.GetMessageType()) == models.SYSTEMEVENTMESSAGE_CHATMESSAGETYPE {
+		return false
+	}
+
+	content := ""
+
+	if cm.GetBody() != nil {
+		content = ptr.Val(cm.GetBody().GetContent())
+	}
+
+	return !(ptr.Val(cm.GetMessageType()) == models.UNKNOWNFUTUREVALUE_CHATMESSAGETYPE &&
+		content == channelMessageSystemMessageContent)
+}
+
 // GetChannelMessageIDsDelta fetches a delta of all messages in the channel.
 // returns two maps: addedItems, deletedItems
 func (c Channels) GetChannelMessageIDs(
@@ -157,7 +176,8 @@ func (c Channels) GetChannelMessageIDs(
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
 		prevDeltaLink,
 		canMakeDeltaQueries,
-		addedAndRemovedByDeletedDateTime[models.ChatMessageable])
+		addedAndRemovedByDeletedDateTime[models.ChatMessageable],
+		FilterOutSystemMessages)
 
 	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
 }

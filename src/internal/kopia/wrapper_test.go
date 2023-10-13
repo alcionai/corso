@@ -811,12 +811,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 	}
 
 	reasons := []identity.Reasoner{
-		NewReason(
+		identity.NewReason(
 			testTenant,
 			suite.storePath1.ProtectedResource(),
 			suite.storePath1.Service(),
 			suite.storePath1.Category()),
-		NewReason(
+		identity.NewReason(
 			testTenant,
 			suite.storePath2.ProtectedResource(),
 			suite.storePath2.Service(),
@@ -1067,6 +1067,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 		DriveID:   "drive-id",
 		DriveName: "drive-name",
 		ItemName:  "item",
+		Modified:  time.Now(),
 	}
 
 	// tags that are supplied by the caller. This includes basic tags to support
@@ -1077,7 +1078,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 	}
 
 	reasons := []identity.Reasoner{
-		NewReason(
+		identity.NewReason(
 			testTenant,
 			storePath.ProtectedResource(),
 			storePath.Service(),
@@ -1124,10 +1125,11 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 					info.ItemName = name
 
 					ms := &dataMock.Item{
-						ItemID:   name,
-						Reader:   io.NopCloser(&bytes.Buffer{}),
-						ItemSize: 0,
-						ItemInfo: details.ItemInfo{OneDrive: &info},
+						ItemID:       name,
+						Reader:       io.NopCloser(&bytes.Buffer{}),
+						ItemSize:     0,
+						ItemInfo:     details.ItemInfo{OneDrive: &info},
+						ModifiedTime: info.Modified,
 					}
 
 					streams = append(streams, ms)
@@ -1152,12 +1154,15 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			cols: func() []data.BackupCollection {
 				info := baseOneDriveItemInfo
 				info.ItemName = testFileName
+				// Update the mod time so it's not counted as cached.
+				info.Modified = info.Modified.Add(time.Hour)
 
 				ms := &dataMock.Item{
-					ItemID:   testFileName,
-					Reader:   io.NopCloser(&bytes.Buffer{}),
-					ItemSize: 0,
-					ItemInfo: details.ItemInfo{OneDrive: &info},
+					ItemID:       testFileName,
+					Reader:       io.NopCloser(&bytes.Buffer{}),
+					ItemSize:     0,
+					ItemInfo:     details.ItemInfo{OneDrive: &info},
+					ModifiedTime: info.Modified,
 				}
 
 				mc := &dataMock.Collection{
@@ -1253,7 +1258,7 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 
 	w := &Wrapper{k}
 
-	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	dc1 := exchMock.NewCollection(suite.storePath1, suite.locPath1, 1)
 	dc2 := exchMock.NewCollection(suite.storePath2, suite.locPath2, 1)
@@ -1303,7 +1308,10 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 
 	loc1 := path.Builder{}.Append(suite.storePath1.Folders()...)
 	loc2 := path.Builder{}.Append(suite.storePath2.Folders()...)
-	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+
+	info := exchMock.StubMailInfo()
+	info.Exchange.Modified = time.Now()
 
 	collections := []data.BackupCollection{
 		&dataMock.Collection{
@@ -1311,14 +1319,16 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 			Loc:  loc1,
 			ItemData: []data.Item{
 				&dataMock.Item{
-					ItemID:   testFileName,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 				&dataMock.Item{
-					ItemID:   testFileName2,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData2)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName2,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData2)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 			},
 		},
@@ -1327,24 +1337,28 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 			Loc:  loc2,
 			ItemData: []data.Item{
 				&dataMock.Item{
-					ItemID:   testFileName3,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData3)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName3,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData3)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 				&dataMock.Item{
-					ItemID:   testFileName4,
-					ReadErr:  assert.AnError,
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName4,
+					ReadErr:      assert.AnError,
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 				&dataMock.Item{
-					ItemID:   testFileName5,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData5)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName5,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData5)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 				&dataMock.Item{
-					ItemID:   testFileName6,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData6)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName6,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData6)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 			},
 		},
@@ -1585,7 +1599,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 			dataMock.NewVersionedBackupCollection(t, collection))
 	}
 
-	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	// Other tests check basic things about deets so not doing that again here.
 	stats, _, _, err := suite.w.ConsumeBackupCollections(
@@ -1622,7 +1636,7 @@ func (c *i64counter) Count(i int64) {
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
-	r := NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
 	man, err := suite.w.c.LoadSnapshot(suite.ctx, suite.snapshotID)
 	require.NoError(suite.T(), err, "getting base snapshot: %v", clues.ToCore(err))

@@ -88,6 +88,7 @@ type (
 			exportCfg control.ExportConfig,
 			opts control.Options,
 			dcs []data.RestoreCollection,
+			stats *data.ExportStats,
 			errs *fault.Bus,
 		) ([]export.Collectioner, error)
 

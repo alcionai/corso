@@ -18,12 +18,12 @@ const (
 	// permanently fail any attempts to backup or restore.
 	SkipMalware skipCause = "malware_detected"
 
-	// SkipBigOneNote identifies that a file was skipped because it
-	// was big OneNote file and we can only download OneNote files which
-	// are less that 2GB in size.
+	// SkipOneNote identifies that a file was skipped because it
+	// was a OneNote file that remains inaccessible (503 server response)
+	// regardless of the number of retries.
 	//nolint:lll
 	// https://support.microsoft.com/en-us/office/restrictions-and-limitations-in-onedrive-and-sharepoint-64883a5d-228e-48f5-b3d2-eb39e07630fa#onenotenotebooks
-	SkipBigOneNote skipCause = "big_one_note_file"
+	SkipOneNote skipCause = "inaccessible_one_note_file"
 )
 
 var _ print.Printable = &Skipped{}

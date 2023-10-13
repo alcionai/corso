@@ -11,15 +11,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type LibraryBackupHandlerUnitSuite struct {
+type ItemBackupHandlerUnitSuite struct {
 	tester.Suite
 }
 
-func TestLibraryBackupHandlerUnitSuite(t *testing.T) {
-	suite.Run(t, &LibraryBackupHandlerUnitSuite{Suite: tester.NewUnitSuite(t)})
+func TestItemBackupHandlerUnitSuite(t *testing.T) {
+	suite.Run(t, &ItemBackupHandlerUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *LibraryBackupHandlerUnitSuite) TestPathPrefix() {
+func (suite *ItemBackupHandlerUnitSuite) TestPathPrefix() {
 	tenantID, resourceOwner := "tenant", "resourceOwner"
 
 	table := []struct {
@@ -28,15 +28,15 @@ func (suite *LibraryBackupHandlerUnitSuite) TestPathPrefix() {
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:      "sharepoint",
-			expect:    "tenant/sharepoint/resourceOwner/libraries/drives/driveID/root:",
+			name:      "onedrive",
+			expect:    "tenant/onedrive/resourceOwner/files/drives/driveID/root:",
 			expectErr: assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := libraryBackupHandler{service: path.SharePointService, siteID: resourceOwner}
+			h := userDriveBackupHandler{userID: resourceOwner}
 
 			result, err := h.PathPrefix(tenantID, "driveID")
 			test.expectErr(t, err, clues.ToCore(err))
@@ -48,7 +48,7 @@ func (suite *LibraryBackupHandlerUnitSuite) TestPathPrefix() {
 	}
 }
 
-func (suite *LibraryBackupHandlerUnitSuite) TestMetadataPathPrefix() {
+func (suite *ItemBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 	tenantID, resourceOwner := "tenant", "resourceOwner"
 
 	table := []struct {
@@ -57,15 +57,15 @@ func (suite *LibraryBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:      "sharepoint",
-			expect:    "tenant/sharepointMetadata/resourceOwner/libraries",
+			name:      "onedrive",
+			expect:    "tenant/onedriveMetadata/resourceOwner/files",
 			expectErr: assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := libraryBackupHandler{service: path.SharePointService, siteID: resourceOwner}
+			h := userDriveBackupHandler{userID: resourceOwner}
 
 			result, err := h.MetadataPathPrefix(tenantID)
 			test.expectErr(t, err, clues.ToCore(err))
@@ -77,7 +77,7 @@ func (suite *LibraryBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 	}
 }
 
-func (suite *LibraryBackupHandlerUnitSuite) TestCanonicalPath() {
+func (suite *ItemBackupHandlerUnitSuite) TestCanonicalPath() {
 	tenantID, resourceOwner := "tenant", "resourceOwner"
 
 	table := []struct {
@@ -86,15 +86,15 @@ func (suite *LibraryBackupHandlerUnitSuite) TestCanonicalPath() {
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:      "sharepoint",
-			expect:    "tenant/sharepoint/resourceOwner/libraries/prefix",
+			name:      "onedrive",
+			expect:    "tenant/onedrive/resourceOwner/files/prefix",
 			expectErr: assert.NoError,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := libraryBackupHandler{service: path.SharePointService, siteID: resourceOwner}
+			h := userDriveBackupHandler{userID: resourceOwner}
 			p := path.Builder{}.Append("prefix")
 
 			result, err := h.CanonicalPath(p, tenantID)
@@ -107,10 +107,10 @@ func (suite *LibraryBackupHandlerUnitSuite) TestCanonicalPath() {
 	}
 }
 
-func (suite *LibraryBackupHandlerUnitSuite) TestServiceCat() {
+func (suite *ItemBackupHandlerUnitSuite) TestServiceCat() {
 	t := suite.T()
 
-	s, c := libraryBackupHandler{service: path.SharePointService}.ServiceCat()
-	assert.Equal(t, path.SharePointService, s)
-	assert.Equal(t, path.LibrariesCategory, c)
+	s, c := userDriveBackupHandler{}.ServiceCat()
+	assert.Equal(t, path.OneDriveService, s)
+	assert.Equal(t, path.FilesCategory, c)
 }

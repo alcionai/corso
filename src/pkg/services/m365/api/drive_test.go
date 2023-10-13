@@ -3,6 +3,7 @@ package api_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -88,6 +89,19 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 		file,
 		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
+
+	// ensure we don't bucket the mod time within a second
+	time.Sleep(2 * time.Second)
+
+	updatedFile := models.NewDriveItem()
+	updatedFile.SetAdditionalData(origFile.GetAdditionalData())
+	updatedFile.SetCreatedBy(origFile.GetCreatedBy())
+	updatedFile.SetCreatedDateTime(origFile.GetCreatedDateTime())
+	updatedFile.SetDescription(origFile.GetDescription())
+	updatedFile.SetFile(origFile.GetFile())
+	updatedFile.SetName(ptr.To("updated" + ptr.Val(origFile.GetName())))
+	updatedFile.SetSize(origFile.GetSize())
+	updatedFile.SetWebUrl(origFile.GetWebUrl())
 
 	table := []struct {
 		name        string
@@ -178,18 +192,41 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 					"renamed item should have a different name")
 			},
 		},
-		// FIXME: this *should* behave the same as folder collision, but there's either a
-		// bug or a deviation in graph api behavior.
+		// Note: this currently behaves the same as folder collision, but there used to be a
+		// bug or a deviation in graph api behavior that prevented it from succeeding.
+		// No response on the ticket below, so this test code is being kept around to showcase
+		// that prior behavior while we're evaluating the permanence of the fix.
 		// See open ticket: https://github.com/OneDrive/onedrive-api-docs/issues/1702
+		// {
+		// 	name:        "replace file",
+		// 	onCollision: control.Replace,
+		// 	postItem:    file,
+		// 	expectErr: func(t *testing.T, err error) {
+		// 		assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+		// 	},
+		// 	expectItem: func(t *testing.T, i models.DriveItemable) {
+		// 		assert.Nil(t, i)
+		// 	},
+		// },
 		{
 			name:        "replace file",
 			onCollision: control.Replace,
-			postItem:    file,
+			postItem:    updatedFile,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+				assert.NoError(t, err, clues.ToCore(err))
 			},
 			expectItem: func(t *testing.T, i models.DriveItemable) {
-				assert.Nil(t, i)
+				// the name was updated
+				assert.Equal(
+					t,
+					"updated"+ptr.Val(origFile.GetName()),
+					ptr.Val(i.GetName()),
+					"replaced item should have the updated name")
+				// the mod time automatically updates
+				assert.True(
+					t,
+					ptr.Val(origFile.GetLastModifiedDateTime()).Before(ptr.Val(i.GetLastModifiedDateTime())),
+					"replaced item should have a later mod time")
 			},
 		},
 	}
