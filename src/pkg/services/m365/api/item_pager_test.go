@@ -272,7 +272,7 @@ func (suite *PagerUnitSuite) TestEnumerateItems() {
 					pageErr: assert.AnError,
 				}
 			},
-			expect:    []any{},
+			expect:    []testItem{},
 			expectErr: require.Error,
 		},
 	}
