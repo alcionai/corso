@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	initCommand        = "init"
-	connectCommand     = "connect"
-	updateCommand      = "update-passphrase"
-	maintenanceCommand = "maintenance"
+	initCommand             = "init"
+	connectCommand          = "connect"
+	updatePassphraseCommand = "update-passphrase"
+	maintenanceCommand      = "maintenance"
 )
 
 var (
@@ -185,7 +185,7 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 // `corso repo update-passphrase <repository> [<flag>...]`
 func updateCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   updateCommand,
+		Use:   updatePassphraseCommand,
 		Short: "Update a repository.",
 		Long:  `Update repository configuration and behavior.`,
 		RunE:  handleUpdateCmd,

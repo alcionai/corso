@@ -29,7 +29,7 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 	case connectCommand:
 		c, _ = utils.AddCommand(cmd, s3ConnectCmd())
 
-	case updateCommand:
+	case updatePassphraseCommand:
 		update := s3UpdateCmd()
 		flags.AddCorsoUpdatePassphraseFlags(update)
 		c, _ = utils.AddCommand(cmd, update)
