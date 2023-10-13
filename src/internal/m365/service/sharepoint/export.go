@@ -29,8 +29,7 @@ func NewSharePointHandler(
 }
 
 type sharepointHandler struct {
-	opts control.Options
-
+	opts               control.Options
 	backupDriveIDNames idname.CacheBuilder
 }
 
