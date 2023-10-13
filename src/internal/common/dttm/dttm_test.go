@@ -58,6 +58,47 @@ func (suite *DTTMUnitSuite) TestParseTime() {
 	require.Error(t, err, clues.ToCore(err))
 }
 
+func (suite *DTTMUnitSuite) TestOrNow() {
+	var (
+		oneMinuteAgo = time.Now().Add(-1 * time.Minute)
+		inOneHour    = time.Now().Add(1 * time.Hour)
+		empty        time.Time
+	)
+
+	table := []struct {
+		name   string
+		input  time.Time
+		expect func(t *testing.T, result time.Time)
+	}{
+		{
+			name:  "a minute ago",
+			input: oneMinuteAgo,
+			expect: func(t *testing.T, result time.Time) {
+				assert.True(t, oneMinuteAgo.Equal(result), "equal")
+			},
+		},
+		{
+			name:  "in an hour",
+			input: inOneHour,
+			expect: func(t *testing.T, result time.Time) {
+				assert.True(t, inOneHour.Equal(result), "equal")
+			},
+		},
+		{
+			name:  "empty",
+			input: empty,
+			expect: func(t *testing.T, result time.Time) {
+				assert.WithinDuration(t, time.Now(), result, time.Minute)
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), dttm.OrNow(test.input))
+		})
+	}
+}
+
 func (suite *DTTMUnitSuite) TestExtractTime() {
 	comparable := func(t *testing.T, tt time.Time, shortFormat dttm.TimeFormat) time.Time {
 		ts := dttm.FormatToLegacy(tt.UTC())
