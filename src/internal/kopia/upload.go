@@ -214,6 +214,7 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 	if clues.HasLabel(err, graph.LabelsSkippable) {
 		cp.counter.Inc(count.PersistenceExpectedErrors)
 		cp.incExpectedErrs()
+
 		return
 	}
 

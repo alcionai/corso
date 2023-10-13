@@ -75,11 +75,11 @@ func testForFiles(
 ) {
 	t.Helper()
 
-	count := 0
+	fCount := 0
 
 	for _, c := range collections {
 		for s := range c.Items(ctx, fault.New(true)) {
-			count++
+			fCount++
 
 			fullPath, err := c.FullPath().AppendItem(s.ID())
 			require.NoError(t, err, clues.ToCore(err))
@@ -98,7 +98,7 @@ func testForFiles(
 		}
 	}
 
-	assert.Equal(t, len(expected), count)
+	assert.Equal(t, len(expected), fCount)
 }
 
 func checkSnapshotTags(
