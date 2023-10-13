@@ -570,6 +570,8 @@ func ControllerWithSelector(
 	onFail func(*testing.T, context.Context),
 	counter *count.Bus,
 ) (*m365.Controller, selectors.Selector) {
+	ctx = clues.Add(ctx, "controller_selector", sel)
+
 	ctrl, err := m365.NewController(
 		ctx,
 		acct,
