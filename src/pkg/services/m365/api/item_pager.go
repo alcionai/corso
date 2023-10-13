@@ -209,7 +209,12 @@ func deltaEnumerateItems[T any](
 
 type addedAndRemovedHandler[T any] func(
 	items []T,
-) (map[string]time.Time, []string, error)
+	filters ...func(T) bool, // false -> remove, true -> keep
+) (
+	map[string]time.Time,
+	[]string,
+	error,
+)
 
 func getAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
@@ -218,6 +223,7 @@ func getAddedAndRemovedItemIDs[T any](
 	prevDeltaLink string,
 	canMakeDeltaQueries bool,
 	aarh addedAndRemovedHandler[T],
+	filters ...func(T) bool,
 ) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := deltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
@@ -226,7 +232,7 @@ func getAddedAndRemovedItemIDs[T any](
 		}
 
 		if err == nil {
-			a, r, err := aarh(ts)
+			a, r, err := aarh(ts, filters...)
 			return a, deltaPager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
 		}
 	}
@@ -238,7 +244,7 @@ func getAddedAndRemovedItemIDs[T any](
 		return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 	}
 
-	a, r, err := aarh(ts)
+	a, r, err := aarh(ts, filters...)
 
 	return a, pager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
 }
@@ -264,11 +270,22 @@ type getModTimer interface {
 
 func addedAndRemovedByAddtlData[T any](
 	items []T,
+	filters ...func(T) bool,
 ) (map[string]time.Time, []string, error) {
 	added := map[string]time.Time{}
 	removed := []string{}
 
 	for _, item := range items {
+		passAllFilters := true
+
+		for _, passes := range filters {
+			passAllFilters = passAllFilters && passes(item)
+		}
+
+		if !passAllFilters {
+			continue
+		}
+
 		giaa, ok := any(item).(getIDModAndAddtler)
 		if !ok {
 			return nil, nil, clues.New("item does not provide id and additional data getters").
@@ -312,11 +329,22 @@ type getIDModAndDeletedDateTimer interface {
 
 func addedAndRemovedByDeletedDateTime[T any](
 	items []T,
+	filters ...func(T) bool,
 ) (map[string]time.Time, []string, error) {
 	added := map[string]time.Time{}
 	removed := []string{}
 
 	for _, item := range items {
+		passAllFilters := true
+
+		for _, passes := range filters {
+			passAllFilters = passAllFilters && passes(item)
+		}
+
+		if !passAllFilters {
+			continue
+		}
+
 		giaddt, ok := any(item).(getIDModAndDeletedDateTimer)
 		if !ok {
 			return nil, nil, clues.New("item does not provide id and deleted date time getters").

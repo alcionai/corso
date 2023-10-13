@@ -304,7 +304,7 @@ func (c Mail) GetItem(
 	if err == nil {
 		for _, a := range attached.GetValue() {
 			attachSize := ptr.Val(a.GetSize())
-			size = +int64(attachSize)
+			size += int64(attachSize)
 		}
 
 		mail.SetAttachments(attached.GetValue())
@@ -380,7 +380,7 @@ func (c Mail) GetItem(
 
 		atts = append(atts, att)
 		attachSize := ptr.Val(a.GetSize())
-		size = +int64(attachSize)
+		size += int64(attachSize)
 	}
 
 	mail.SetAttachments(atts)

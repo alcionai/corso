@@ -3,6 +3,7 @@ package api_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -88,6 +89,9 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 		file,
 		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
+
+	// ensure we don't bucket the mod time within a second
+	time.Sleep(2 * time.Second)
 
 	updatedFile := models.NewDriveItem()
 	updatedFile.SetAdditionalData(origFile.GetAdditionalData())
@@ -222,7 +226,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 				assert.True(
 					t,
 					ptr.Val(origFile.GetLastModifiedDateTime()).Before(ptr.Val(i.GetLastModifiedDateTime())),
-					"replaced item should have the same mod time")
+					"replaced item should have a later mod time")
 			},
 		},
 	}
