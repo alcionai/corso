@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -83,7 +84,10 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ac, err := api.NewClient(suite.credentials, control.DefaultOptions())
+			ac, err := api.NewClient(
+				suite.credentials,
+				count.New(),
+				control.DefaultOptions())
 			require.NoError(t, err, clues.ToCore(err))
 
 			acm := ac.Mail()

@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/errs"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -53,7 +54,7 @@ func (suite *GroupsIntgSuite) TestGroupByID() {
 
 	gid := tconfig.M365TeamID(t)
 
-	group, err := m365.GroupByID(ctx, suite.acct, gid)
+	group, err := m365.GroupByID(ctx, suite.acct, gid, count.New())
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, group)
 
@@ -71,7 +72,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 
 	gid := tconfig.M365TeamID(t)
 
-	group, err := m365.GroupByID(ctx, suite.acct, gid)
+	group, err := m365.GroupByID(ctx, suite.acct, gid, count.New())
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, group)
 
@@ -80,7 +81,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 
 	gemail := tconfig.M365TeamEmail(t)
 
-	groupByEmail, err := m365.GroupByID(ctx, suite.acct, gemail)
+	groupByEmail, err := m365.GroupByID(ctx, suite.acct, gemail, count.New())
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, group)
 
@@ -95,7 +96,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_notFound() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	group, err := m365.GroupByID(ctx, suite.acct, uuid.NewString())
+	group, err := m365.GroupByID(ctx, suite.acct, uuid.NewString(), count.New())
 	require.Nil(t, group)
 	require.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
 	require.True(t, errs.Is(err, errs.ResourceOwnerNotFound))
@@ -109,7 +110,10 @@ func (suite *GroupsIntgSuite) TestGroups() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	groups, err := m365.Groups(ctx, suite.acct, fault.New(true))
+	groups, err := m365.Groups(
+		ctx,
+		suite.acct,
+		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, groups)
 
@@ -155,7 +159,10 @@ func (suite *GroupsIntgSuite) TestGroupsMap() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	gm, err := m365.GroupsMap(ctx, suite.acct, fault.New(true))
+	gm, err := m365.GroupsMap(
+		ctx,
+		suite.acct,
+		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, gm)
 
@@ -203,7 +210,10 @@ func (suite *GroupsIntgSuite) TestGroups_InvalidCredentials() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			groups, err := m365.Groups(ctx, test.acct(t), fault.New(true))
+			groups, err := m365.Groups(
+				ctx,
+				test.acct(t),
+				fault.New(true))
 			assert.Empty(t, groups, "returned no groups")
 			assert.NotNil(t, err)
 		})

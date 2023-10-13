@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 // ---------------------------------------------------------------------------
@@ -27,13 +28,13 @@ import (
 
 // GockClient produces a new exchange api client that can be
 // mocked using gock.
-func gockClient(creds account.M365Config) (Client, error) {
-	s, err := gmock.NewService(creds)
+func gockClient(creds account.M365Config, counter *count.Bus) (Client, error) {
+	s, err := gmock.NewService(creds, counter)
 	if err != nil {
 		return Client{}, err
 	}
 
-	li, err := gmock.NewService(creds, graph.NoTimeout())
+	li, err := gmock.NewService(creds, counter, graph.NoTimeout())
 	if err != nil {
 		return Client{}, err
 	}
@@ -128,10 +129,10 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.ac, err = NewClient(creds, control.DefaultOptions())
+	its.ac, err = NewClient(creds, count.New(), control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.gockAC, err = gockClient(creds)
+	its.gockAC, err = gockClient(creds, count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	// user drive

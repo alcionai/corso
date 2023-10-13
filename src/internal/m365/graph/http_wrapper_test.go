@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 type HTTPWrapperIntgSuite struct {
@@ -34,7 +35,7 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	hw := NewHTTPWrapper()
+	hw := NewHTTPWrapper(count.New())
 
 	resp, err := hw.Request(
 		ctx,
@@ -107,7 +108,7 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 		},
 	}
 
-	hw := NewHTTPWrapper(appendMiddleware(&mwResp))
+	hw := NewHTTPWrapper(count.New(), appendMiddleware(&mwResp))
 
 	resp, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -175,6 +176,7 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_http2StreamErrorRetries() 
 			}
 
 			hw := NewHTTPWrapper(
+				count.New(),
 				appendMiddleware(&mwResp),
 				MaxConnectionRetries(test.retries))
 

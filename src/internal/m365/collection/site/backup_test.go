@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -46,14 +47,18 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 	defer flush()
 
 	var (
-		siteID = tconfig.M365SiteID(t)
-		a      = tconfig.NewM365Account(t)
+		siteID  = tconfig.M365SiteID(t)
+		a       = tconfig.NewM365Account(t)
+		counter = count.New()
 	)
 
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ac, err := api.NewClient(creds, control.DefaultOptions())
+	ac, err := api.NewClient(
+		creds,
+		counter,
+		control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	bpc := inject.BackupProducerConfig{
@@ -71,6 +76,7 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 		ac,
 		sel.Lists(selectors.Any())[0],
 		(&MockGraphService{}).UpdateStatus,
+		counter,
 		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, col)

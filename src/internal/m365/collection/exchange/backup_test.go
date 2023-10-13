@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -432,7 +433,10 @@ func (suite *BackupIntgSuite) SetupSuite() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
+	suite.ac, err = api.NewClient(
+		creds,
+		count.New(),
+		control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.tenantID = creds.AzureTenantID

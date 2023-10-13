@@ -42,7 +42,7 @@ func (c Groups) GetAll(
 	ctx context.Context,
 	errs *fault.Bus,
 ) ([]models.Groupable, error) {
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (c Groups) GetByID(
 	identifier string,
 	_ CallConfig, // matching standards
 ) (models.Groupable, error) {
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func (c Groups) GetAllSites(
 		return nil, clues.Wrap(err, "getting channels")
 	}
 
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -292,7 +292,7 @@ func (c Groups) GetRootSite(
 	ctx context.Context,
 	identifier string,
 ) (models.Siteable, error) {
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, err
 	}

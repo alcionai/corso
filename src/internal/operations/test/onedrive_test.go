@@ -814,7 +814,12 @@ func runDriveIncrementalTest(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			cleanCtrl, err := m365.NewController(ctx, acct, sel.PathService(), control.DefaultOptions())
+			cleanCtrl, err := m365.NewController(
+				ctx,
+				acct,
+				sel.PathService(),
+				control.DefaultOptions(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			bod.ctrl = cleanCtrl
@@ -1117,7 +1122,8 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		ctx,
 		acct,
 		path.OneDriveService,
-		control.DefaultOptions())
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	userable, err := ctrl.AC.Users().GetByID(ctx, suite.its.user.ID)

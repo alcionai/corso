@@ -204,9 +204,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
-	// for cases where we can't pass the counter down as part of a func call.
-	ctx = count.Embed(ctx, op.Counter)
-
 	// Check if the protected resource has the service enabled in order for us
 	// to run a backup.
 	enabled, err := op.bp.IsServiceEnabled(
@@ -421,6 +418,7 @@ func (op *BackupOperation) do(
 		mdColls,
 		lastBackupVersion,
 		op.Options,
+		op.Counter,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing backup data collections")
@@ -500,6 +498,7 @@ func produceBackupDataCollections(
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	ctrlOpts control.Options,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	progressBar := observe.MessageWithCompletion(ctx, "Discovering items to backup")
@@ -513,7 +512,7 @@ func produceBackupDataCollections(
 		Selector:            sel,
 	}
 
-	return bp.ProduceBackupCollections(ctx, bpc, errs)
+	return bp.ProduceBackupCollections(ctx, bpc, counter, errs)
 }
 
 // ---------------------------------------------------------------------------

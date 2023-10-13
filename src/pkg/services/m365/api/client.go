@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -39,29 +40,44 @@ type Client struct {
 	// graph api client.
 	Requester graph.Requester
 
+	counter *count.Bus
+
 	options control.Options
 }
 
 // NewClient produces a new exchange api client.  Must be used in
 // place of creating an ad-hoc client struct.
-func NewClient(creds account.M365Config, co control.Options) (Client, error) {
-	s, err := NewService(creds)
+func NewClient(
+	creds account.M365Config,
+	counter *count.Bus,
+	co control.Options,
+) (Client, error) {
+	s, err := NewService(creds, counter)
 	if err != nil {
 		return Client{}, err
 	}
 
-	li, err := newLargeItemService(creds)
+	li, err := newLargeItemService(creds, counter)
 	if err != nil {
 		return Client{}, err
 	}
 
-	rqr := graph.NewNoTimeoutHTTPWrapper()
+	rqr := graph.NewNoTimeoutHTTPWrapper(counter)
 
 	if co.DeltaPageSize < 1 || co.DeltaPageSize > maxDeltaPageSize {
 		co.DeltaPageSize = maxDeltaPageSize
 	}
 
-	return Client{creds, s, li, rqr, co}, nil
+	cli := Client{
+		Credentials: creds,
+		Stable:      s,
+		LargeItem:   li,
+		Requester:   rqr,
+		counter:     counter,
+		options:     co,
+	}
+
+	return cli, nil
 }
 
 // initConcurrencyLimit ensures that the graph concurrency limiter is
@@ -77,15 +93,20 @@ func InitConcurrencyLimit(ctx context.Context, pst path.ServiceType) {
 // so that in-flight state within the adapter doesn't get clobbered.
 // Most calls should use the Client.Stable property instead of calling this
 // func, unless it is explicitly necessary.
-func (c Client) Service() (graph.Servicer, error) {
-	return NewService(c.Credentials)
+func (c Client) Service(counter *count.Bus) (graph.Servicer, error) {
+	return NewService(c.Credentials, counter)
 }
 
-func NewService(creds account.M365Config, opts ...graph.Option) (*graph.Service, error) {
+func NewService(
+	creds account.M365Config,
+	counter *count.Bus,
+	opts ...graph.Option,
+) (*graph.Service, error) {
 	a, err := graph.CreateAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
 		creds.AzureClientSecret,
+		counter,
 		opts...)
 	if err != nil {
 		return nil, clues.Wrap(err, "generating graph api adapter")
@@ -94,8 +115,11 @@ func NewService(creds account.M365Config, opts ...graph.Option) (*graph.Service,
 	return graph.NewService(a), nil
 }
 
-func newLargeItemService(creds account.M365Config) (*graph.Service, error) {
-	a, err := NewService(creds, graph.NoTimeout())
+func newLargeItemService(
+	creds account.M365Config,
+	counter *count.Bus,
+) (*graph.Service, error) {
+	a, err := NewService(creds, counter, graph.NoTimeout())
 	if err != nil {
 		return nil, clues.Wrap(err, "generating no-timeout graph adapter")
 	}

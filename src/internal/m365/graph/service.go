@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -104,6 +105,7 @@ func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 // to create a graph api client connection.
 func CreateAdapter(
 	tenant, client, secret string,
+	counter *count.Bus,
 	opts ...Option,
 ) (abstractions.RequestAdapter, error) {
 	auth, err := GetAuth(tenant, client, secret)
@@ -111,7 +113,7 @@ func CreateAdapter(
 		return nil, err
 	}
 
-	httpClient, cc := KiotaHTTPClient(opts...)
+	httpClient, cc := KiotaHTTPClient(counter, opts...)
 
 	adpt, err := msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth,
@@ -148,11 +150,14 @@ func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityA
 // and consume relatively unbound socket connections.  It is important
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
-func KiotaHTTPClient(opts ...Option) (*http.Client, *clientConfig) {
+func KiotaHTTPClient(
+	counter *count.Bus,
+	opts ...Option,
+) (*http.Client, *clientConfig) {
 	var (
 		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
 		cc            = populateConfig(opts...)
-		middlewares   = kiotaMiddlewares(&clientOptions, cc)
+		middlewares   = kiotaMiddlewares(counter, &clientOptions, cc)
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
 
@@ -269,6 +274,7 @@ func MaxConnectionRetries(max int) Option {
 
 // kiotaMiddlewares creates a default slice of middleware for the Graph Client.
 func kiotaMiddlewares(
+	counter *count.Bus,
 	options *msgraphgocore.GraphClientOptions,
 	cc *clientConfig,
 ) []khttp.Middleware {
@@ -291,9 +297,14 @@ func kiotaMiddlewares(
 		mw = append(mw, concurrencyLimitMiddlewareSingleton)
 	}
 
+	throttler := &throttlingMiddleware{
+		tf:      newTimedFence(),
+		counter: counter,
+	}
+
 	mw = append(
 		mw,
-		&throttlingMiddleware{newTimedFence()},
+		throttler,
 		&RateLimiterMiddleware{},
 		&MetricsMiddleware{})
 

@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -68,6 +69,7 @@ func NewController(
 	acct account.Account,
 	pst path.ServiceType,
 	co control.Options,
+	counter *count.Bus,
 ) (*Controller, error) {
 	graph.InitializeConcurrencyLimiter(ctx, pst == path.ExchangeService, co.Parallelism.ItemFetch)
 
@@ -76,7 +78,7 @@ func NewController(
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	ac, err := api.NewClient(creds, co)
+	ac, err := api.NewClient(creds, counter, co)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}

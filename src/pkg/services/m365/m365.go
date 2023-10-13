@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -28,6 +29,7 @@ func makeAC(
 	ctx context.Context,
 	acct account.Account,
 	pst path.ServiceType,
+	counter *count.Bus,
 ) (api.Client, error) {
 	api.InitConcurrencyLimit(ctx, pst)
 
@@ -36,7 +38,10 @@ func makeAC(
 		return api.Client{}, clues.Wrap(err, "getting m365 account creds").WithClues(ctx)
 	}
 
-	cli, err := api.NewClient(creds, control.DefaultOptions())
+	cli, err := api.NewClient(
+		creds,
+		counter,
+		control.DefaultOptions())
 	if err != nil {
 		return api.Client{}, clues.Wrap(err, "constructing api client").WithClues(ctx)
 	}

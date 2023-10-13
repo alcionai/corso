@@ -58,7 +58,7 @@ func (c Users) GetAll(
 	ctx context.Context,
 	errs *fault.Bus,
 ) ([]models.Userable, error) {
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, err
 	}

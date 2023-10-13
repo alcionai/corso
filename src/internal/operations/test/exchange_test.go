@@ -393,7 +393,10 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ac, err := api.NewClient(creds, control.DefaultOptions())
+	ac, err := api.NewClient(
+		creds,
+		count.New(),
+		control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate 3 new folders with two items each.

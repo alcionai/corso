@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph/betasdk/models"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 type BetaUnitSuite struct {
@@ -31,7 +32,8 @@ func (suite *BetaUnitSuite) TestBetaService_Adapter() {
 	adpt, err := graph.CreateAdapter(
 		m365.AzureTenantID,
 		m365.AzureClientID,
-		m365.AzureClientSecret)
+		m365.AzureClientSecret,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	service := NewBetaService(adpt)
