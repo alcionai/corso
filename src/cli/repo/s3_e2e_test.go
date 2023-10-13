@@ -292,7 +292,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_badInputs() {
 	}
 }
 
-func (suite *S3E2ESuite) TestUpdateS3Cmd() {
+func (suite *S3E2ESuite) TestUpdatePassphraseCmd() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
 
@@ -332,10 +332,8 @@ func (suite *S3E2ESuite) TestUpdateS3Cmd() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	cmd = cliTD.StubRootCmd(
-		"repo", "update-passphrase", "s3",
+		"repo", "update-passphrase",
 		"--config-file", configFP,
-		"--bucket", cfg.Bucket,
-		"--prefix", cfg.Prefix,
 		"--new-passphrase", "newpass")
 	cli.BuildCommandTree(cmd)
 

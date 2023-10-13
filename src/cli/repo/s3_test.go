@@ -31,7 +31,7 @@ func (suite *S3Suite) TestAddS3Commands() {
 	}{
 		{"init s3", initCommand, expectUse, s3InitCmd().Short, initS3Cmd},
 		{"connect s3", connectCommand, expectUse, s3ConnectCmd().Short, connectS3Cmd},
-		{"update s3", updateCommand, expectUse, s3UpdateCmd().Short, updateS3Cmd},
+		// {"update s3", updateCommand, expectUse, s3UpdateCmd().Short, updateS3Cmd},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {

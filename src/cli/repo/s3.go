@@ -28,11 +28,6 @@ func addS3Commands(cmd *cobra.Command) *cobra.Command {
 
 	case connectCommand:
 		c, _ = utils.AddCommand(cmd, s3ConnectCmd())
-
-	case updatePassphraseCommand:
-		update := s3UpdateCmd()
-		flags.AddCorsoUpdatePassphraseFlags(update)
-		c, _ = utils.AddCommand(cmd, update)
 	}
 
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
@@ -233,63 +228,6 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, opts.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
-
-	return nil
-}
-
-// ---------------------------------------------------------------------------------------------------------
-// Update Password
-// ---------------------------------------------------------------------------------------------------------
-
-// `corso repo update-passphrase s3 [<flag>...]`
-func s3UpdateCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:     s3ProviderCommand,
-		Short:   "Update to a S3 repository",
-		Long:    `Update to an existing S3 repository.`,
-		RunE:    updateS3Cmd,
-		Args:    cobra.NoArgs,
-		Example: s3ProviderCommandUpdatePhasephraseExamples,
-	}
-}
-
-// updates to an existing s3 repo.
-// currently just updating Kopia password
-func updateS3Cmd(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	cfg, err := config.GetConfigRepoDetails(
-		ctx,
-		storage.ProviderS3,
-		true,
-		true,
-		flags.S3FlagOverrides(cmd))
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	repoID := cfg.RepoID
-	if len(repoID) == 0 {
-		repoID = events.RepoIDNotFound
-	}
-
-	opts := utils.ControlWithConfig(cfg)
-
-	r, err := repository.New(
-		ctx,
-		cfg.Account,
-		cfg.Storage,
-		opts,
-		repoID)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
-	}
-
-	if err := r.UpdatePassword(ctx, flags.UpdateCorsoPhasephraseFV); err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to update s3"))
-	}
-
-	Infof(ctx, "Updated repo password.")
 
 	return nil
 }

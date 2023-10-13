@@ -7,11 +7,16 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/cli/print"
+
+	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
+	repo "github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (
@@ -36,18 +41,18 @@ func AddCommands(cmd *cobra.Command) {
 	var (
 		// Get new instances so that setting the context during tests works
 		// properly.
-		repoCmd        = repoCmd()
-		initCmd        = initCmd()
-		connectCmd     = connectCmd()
-		maintenanceCmd = maintenanceCmd()
-		updateCmd      = updateCmd()
+		repoCmd             = repoCmd()
+		initCmd             = initCmd()
+		connectCmd          = connectCmd()
+		maintenanceCmd      = maintenanceCmd()
+		updatePassphraseCmd = updatePassphraseCmd()
 	)
 
 	cmd.AddCommand(repoCmd)
 	repoCmd.AddCommand(initCmd)
 	repoCmd.AddCommand(connectCmd)
 	repoCmd.AddCommand(maintenanceCmd)
-	repoCmd.AddCommand(updateCmd)
+	repoCmd.AddCommand(updatePassphraseCmd)
 
 	flags.AddMaintenanceModeFlag(maintenanceCmd)
 	flags.AddForceMaintenanceFlag(maintenanceCmd)
@@ -58,8 +63,6 @@ func AddCommands(cmd *cobra.Command) {
 		addRepoTo(initCmd)
 		addRepoTo(connectCmd)
 	}
-
-	addS3Commands(updateCmd)
 }
 
 // The repo category of commands.
@@ -139,7 +142,7 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		// we don't need the graph client.
 		path.OneDriveService)
 	if err != nil {
-		return print.Only(ctx, err)
+		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -152,12 +155,12 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 			Force:  flags.ForceMaintenanceFV,
 		})
 	if err != nil {
-		return print.Only(ctx, err)
+		return Only(ctx, err)
 	}
 
 	err = m.Run(ctx)
 	if err != nil {
-		return print.Only(ctx, err)
+		return Only(ctx, err)
 	}
 
 	return nil
@@ -183,11 +186,11 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 
 // The repo update subcommand.
 // `corso repo update-passphrase <repository> [<flag>...]`
-func updateCmd() *cobra.Command {
+func updatePassphraseCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   updatePassphraseCommand,
-		Short: "Update a repository.",
-		Long:  `Update repository configuration and behavior.`,
+		Short: "Update passphrase of connected repository.",
+		Long:  `Update repository passphrase.`,
 		RunE:  handleUpdateCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -195,5 +198,40 @@ func updateCmd() *cobra.Command {
 
 // Handler for calls to `corso repo init`.
 func handleUpdateCmd(cmd *cobra.Command, args []string) error {
-	return cmd.Help()
+	ctx := cmd.Context()
+
+	cfg, err := config.GetConfigRepoDetails(
+		ctx,
+		storage.ProviderS3,
+		true,
+		true,
+		flags.S3FlagOverrides(cmd))
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	repoID := cfg.RepoID
+	if len(repoID) == 0 {
+		repoID = events.RepoIDNotFound
+	}
+
+	opts := utils.ControlWithConfig(cfg)
+
+	r, err := repo.New(
+		ctx,
+		cfg.Account,
+		cfg.Storage,
+		opts,
+		repoID)
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
+	}
+
+	if err := r.UpdatePassword(ctx, flags.UpdateCorsoPhasephraseFV); err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to update s3"))
+	}
+
+	Infof(ctx, "Updated repo password.")
+
+	return nil
 }
