@@ -313,7 +313,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			*testing.T,
 		) DeltaPager[testItem]
 		prevDelta     string
-		filter        func(a any) bool
+		filter        func(a testItem) bool
 		expect        expected
 		canDelta      bool
 		validModTimes bool
@@ -457,10 +457,10 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		},
 		{
 			name: "no prev delta and fail all filter",
-			pagerGetter: func(t *testing.T) Pager[any] {
+			pagerGetter: func(t *testing.T) Pager[testItem] {
 				return nil
 			},
-			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[testItem] {
 				return &testIDsDeltaPager{
 					t: t,
 					added: map[string]time.Time{
@@ -471,7 +471,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					validModTimes: true,
 				}
 			},
-			filter: func(any) bool { return false },
+			filter: func(testItem) bool { return false },
 			expect: expected{
 				added:         map[string]time.Time{},
 				removed:       []string{},
@@ -482,10 +482,10 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		},
 		{
 			name: "with prev delta and fail all filter",
-			pagerGetter: func(t *testing.T) Pager[any] {
+			pagerGetter: func(t *testing.T) Pager[testItem] {
 				return nil
 			},
-			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[testItem] {
 				return &testIDsDeltaPager{
 					t: t,
 					added: map[string]time.Time{
@@ -496,7 +496,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					validModTimes: true,
 				}
 			},
-			filter:    func(any) bool { return false },
+			filter:    func(testItem) bool { return false },
 			prevDelta: "delta",
 			expect: expected{
 				added:         map[string]time.Time{},
@@ -515,7 +515,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			filters := []func(any) bool{}
+			filters := []func(testItem) bool{}
 			if test.filter != nil {
 				filters = append(filters, test.filter)
 			}
