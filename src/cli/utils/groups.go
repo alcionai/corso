@@ -20,7 +20,7 @@ type GroupsOpts struct {
 	MessageLastReplyAfter  string
 	MessageLastReplyBefore string
 
-	SiteID             []string
+	Site               string
 	Library            string
 	FileName           []string // for libraries, to duplicate onedrive interface
 	FolderPath         []string // for libraries, to duplicate onedrive interface
@@ -70,7 +70,7 @@ func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 		Groups:   flags.GroupFV,
 		Channels: flags.ChannelFV,
 		Messages: flags.MessageFV,
-		SiteID:   flags.SiteIDFV,
+		Site:     flags.GroupSiteFV,
 
 		Library:                flags.LibraryFV,
 		FileName:               flags.FileNameFV,
@@ -101,9 +101,16 @@ func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 }
 
 // ValidateGroupsRestoreFlags checks common flags for correctness and interdependencies
-func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts) error {
+func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool) error {
 	if len(backupID) == 0 {
 		return clues.New("a backup ID is required")
+	}
+
+	// The user has to explicitly specify which resource to restore. In
+	// this case, since we can only restore sites, the user is supposed
+	// to specify which site to restore.
+	if isRestore && len(opts.Site) == 0 {
+		return clues.New("a site ID or web URL is required")
 	}
 
 	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
@@ -164,8 +171,6 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 		llf, lli    = len(opts.ListFolder), len(opts.ListItem)
 		lpf, lpi    = len(opts.PageFolder), len(opts.Page)
 		lg, lch, lm = len(opts.Groups), len(opts.Channels), len(opts.Messages)
-		// TODO(meain): handle sites once we add non-root site backup
-		// ls := len(opts.SiteID)
 	)
 
 	if lg == 0 {
@@ -259,6 +264,7 @@ func FilterGroupsRestoreInfoSelectors(
 	sel *selectors.GroupsRestore,
 	opts GroupsOpts,
 ) {
+	AddGroupsFilter(sel, opts.Site, sel.Site)
 	AddGroupsFilter(sel, opts.Library, sel.Library)
 	AddGroupsFilter(sel, opts.FileCreatedAfter, sel.CreatedAfter)
 	AddGroupsFilter(sel, opts.FileCreatedBefore, sel.CreatedBefore)

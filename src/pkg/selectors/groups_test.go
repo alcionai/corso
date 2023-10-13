@@ -457,6 +457,7 @@ func (suite *GroupsSelectorSuite) TestCategory_PathType() {
 		{GroupsLibraryFolder, path.LibrariesCategory},
 		{GroupsLibraryItem, path.LibrariesCategory},
 		{GroupsInfoSiteLibraryDrive, path.LibrariesCategory},
+		{GroupsInfoSite, path.LibrariesCategory},
 	}
 	for _, test := range table {
 		suite.Run(test.cat.String(), func() {

@@ -71,7 +71,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: containsOnly,
-				SiteID:     empty,
+				Site:       empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -80,7 +80,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: prefixOnly,
-				SiteID:     empty,
+				Site:       empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -89,7 +89,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: containsAndPrefix,
-				SiteID:     empty,
+				Site:       empty,
 			},
 			expectIncludeLen: 2,
 		},
@@ -100,7 +100,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 				FolderPath: empty,
 				ListItem:   empty,
 				ListFolder: containsOnly,
-				SiteID:     empty,
+				Site:       empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -362,7 +362,7 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			test.expect(t, utils.ValidateGroupsRestoreFlags(test.backupID, test.opts))
+			test.expect(t, utils.ValidateGroupsRestoreFlags(test.backupID, test.opts, false))
 		})
 	}
 }

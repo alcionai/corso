@@ -27,6 +27,8 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, true)
+		flags.AddSingleSiteIDFlag(c, false)
+		flags.AddSharePointDetailsAndRestoreFlags(c)
 		flags.AddGroupDetailsAndRestoreFlags(c)
 		flags.AddExportConfigFlags(c)
 		flags.AddFailFastFlag(c)
@@ -89,7 +91,7 @@ func exportGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := utils.ValidateGroupsRestoreFlags(flags.BackupIDFV, opts); err != nil {
+	if err := utils.ValidateGroupsRestoreFlags(flags.BackupIDFV, opts, false); err != nil {
 		return err
 	}
 
