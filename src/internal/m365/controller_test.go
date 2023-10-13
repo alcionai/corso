@@ -254,6 +254,18 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	}
 }
 
+func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom_nilCheck() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	ctrl := &Controller{ownerLookup: nil}
+
+	_, err := ctrl.PopulateProtectedResourceIDAndName(ctx, "", nil)
+	require.ErrorIs(t, err, ErrNoResourceLookup, clues.ToCore(err))
+}
+
 func (suite *ControllerUnitSuite) TestController_Wait() {
 	t := suite.T()
 

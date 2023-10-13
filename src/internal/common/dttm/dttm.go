@@ -98,10 +98,18 @@ func Now() string {
 	return FormatNow(Standard)
 }
 
+func OrNow(t time.Time) time.Time {
+	if t.IsZero() {
+		return time.Now().UTC()
+	}
+
+	return t
+}
+
 // FormatNow produces the current time in UTC using the provided
 // time format.
 func FormatNow(fmt TimeFormat) string {
-	return FormatTo(time.Now(), fmt)
+	return FormatTo(time.Now().UTC(), fmt)
 }
 
 // FormatTo produces the a datetime with the given format.

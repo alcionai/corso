@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -206,7 +207,14 @@ func deltaEnumerateItems[T any](
 // shared enumeration runner funcs
 // ---------------------------------------------------------------------------
 
-type addedAndRemovedHandler[T any] func(items []T) (map[string]time.Time, []string, error)
+type addedAndRemovedHandler[T any] func(
+	items []T,
+	filters ...func(T) bool, // false -> remove, true -> keep
+) (
+	map[string]time.Time,
+	[]string,
+	error,
+)
 
 func getAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
@@ -215,6 +223,7 @@ func getAddedAndRemovedItemIDs[T any](
 	prevDeltaLink string,
 	canMakeDeltaQueries bool,
 	aarh addedAndRemovedHandler[T],
+	filters ...func(T) bool,
 ) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := deltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
@@ -223,7 +232,7 @@ func getAddedAndRemovedItemIDs[T any](
 		}
 
 		if err == nil {
-			a, r, err := aarh(ts)
+			a, r, err := aarh(ts, filters...)
 			return a, deltaPager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
 		}
 	}
@@ -235,7 +244,7 @@ func getAddedAndRemovedItemIDs[T any](
 		return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 	}
 
-	a, r, err := aarh(ts)
+	a, r, err := aarh(ts, filters...)
 
 	return a, pager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
 }
@@ -246,23 +255,38 @@ type getIDer interface {
 
 // for added and removed by additionalData[@removed]
 
-type getIDAndAddtler interface {
+type getIDModAndAddtler interface {
 	getIDer
+	getModTimer
 	GetAdditionalData() map[string]any
 }
 
+// for types that are non-compliant with this interface,
+// pagers will need to wrap the return value in a struct
+// that provides this compliance.
 type getModTimer interface {
 	GetLastModifiedDateTime() *time.Time
 }
 
 func addedAndRemovedByAddtlData[T any](
 	items []T,
+	filters ...func(T) bool,
 ) (map[string]time.Time, []string, error) {
 	added := map[string]time.Time{}
 	removed := []string{}
 
 	for _, item := range items {
-		giaa, ok := any(item).(getIDAndAddtler)
+		passAllFilters := true
+
+		for _, passes := range filters {
+			passAllFilters = passAllFilters && passes(item)
+		}
+
+		if !passAllFilters {
+			continue
+		}
+
+		giaa, ok := any(item).(getIDModAndAddtler)
 		if !ok {
 			return nil, nil, clues.New("item does not provide id and additional data getters").
 				With("item_type", fmt.Sprintf("%T", item))
@@ -275,10 +299,18 @@ func addedAndRemovedByAddtlData[T any](
 			var modTime time.Time
 
 			if mt, ok := giaa.(getModTimer); ok {
-				modTime = ptr.Val(mt.GetLastModifiedDateTime())
+				// Make sure to get a non-zero mod time if the item doesn't have one for
+				// some reason. Otherwise we can hit an issue where kopia has a
+				// different mod time for the file than the details does. This occurs
+				// due to a conversion kopia does on the time from
+				// time.Time -> nanoseconds for serialization. During incremental
+				// backups, kopia goes from nanoseconds -> time.Time but there's an
+				// overflow which yields a different timestamp.
+				// https://github.com/gohugoio/hugo/issues/6161#issuecomment-725915786
+				modTime = ptr.OrNow(mt.GetLastModifiedDateTime())
 			}
 
-			added[ptr.Val(giaa.GetId())] = modTime
+			added[ptr.Val(giaa.GetId())] = dttm.OrNow(modTime)
 		} else {
 			removed = append(removed, ptr.Val(giaa.GetId()))
 		}
@@ -289,19 +321,31 @@ func addedAndRemovedByAddtlData[T any](
 
 // for added and removed by GetDeletedDateTime()
 
-type getIDAndDeletedDateTimer interface {
+type getIDModAndDeletedDateTimer interface {
 	getIDer
+	getModTimer
 	GetDeletedDateTime() *time.Time
 }
 
 func addedAndRemovedByDeletedDateTime[T any](
 	items []T,
+	filters ...func(T) bool,
 ) (map[string]time.Time, []string, error) {
 	added := map[string]time.Time{}
 	removed := []string{}
 
 	for _, item := range items {
-		giaddt, ok := any(item).(getIDAndDeletedDateTimer)
+		passAllFilters := true
+
+		for _, passes := range filters {
+			passAllFilters = passAllFilters && passes(item)
+		}
+
+		if !passAllFilters {
+			continue
+		}
+
+		giaddt, ok := any(item).(getIDModAndDeletedDateTimer)
 		if !ok {
 			return nil, nil, clues.New("item does not provide id and deleted date time getters").
 				With("item_type", fmt.Sprintf("%T", item))
@@ -322,7 +366,7 @@ func addedAndRemovedByDeletedDateTime[T any](
 				modTime = ptr.OrNow(mt.GetLastModifiedDateTime())
 			}
 
-			added[ptr.Val(giaddt.GetId())] = modTime
+			added[ptr.Val(giaddt.GetId())] = dttm.OrNow(modTime)
 		} else {
 			removed = append(removed, ptr.Val(giaddt.GetId()))
 		}
