@@ -9,6 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -21,19 +22,72 @@ import (
 // backup
 // ---------------------------------------------------------------------------
 
-var _ BackupHandler = &itemBackupHandler{}
+type baseUserDriveHandler struct {
+	ac api.Drives
+}
 
-type itemBackupHandler struct {
-	ac     api.Drives
+func (h baseUserDriveHandler) NewDrivePager(
+	resourceOwner string,
+	fields []string,
+) api.Pager[models.Driveable] {
+	return h.ac.NewUserDrivePager(resourceOwner, fields)
+}
+
+// AugmentItemInfo will populate a details.OneDriveInfo struct
+// with properties from the drive item.  ItemSize is specified
+// separately for restore processes because the local itemable
+// doesn't have its size value updated as a side effect of creation,
+// and kiota drops any SetSize update.
+func (h baseUserDriveHandler) AugmentItemInfo(
+	dii details.ItemInfo,
+	resource idname.Provider,
+	item models.DriveItemable,
+	size int64,
+	parentPath *path.Builder,
+) details.ItemInfo {
+	var pps string
+
+	if parentPath != nil {
+		pps = parentPath.String()
+	}
+
+	driveName, driveID := getItemDriveInfo(item)
+
+	dii.Extension = &details.ExtensionData{}
+	dii.OneDrive = &details.OneDriveInfo{
+		Created:    ptr.Val(item.GetCreatedDateTime()),
+		DriveID:    driveID,
+		DriveName:  driveName,
+		ItemName:   ptr.Val(item.GetName()),
+		ItemType:   details.OneDriveItem,
+		Modified:   ptr.Val(item.GetLastModifiedDateTime()),
+		Owner:      getItemCreator(item),
+		ParentPath: pps,
+		Size:       size,
+	}
+
+	return dii
+}
+
+var _ BackupHandler = &userDriveBackupHandler{}
+
+type userDriveBackupHandler struct {
+	baseUserDriveHandler
 	userID string
 	scope  selectors.OneDriveScope
 }
 
-func NewItemBackupHandler(ac api.Drives, userID string, scope selectors.OneDriveScope) *itemBackupHandler {
-	return &itemBackupHandler{ac, userID, scope}
+func NewUserDriveBackupHandler(ac api.Drives, userID string, scope selectors.OneDriveScope) *userDriveBackupHandler {
+	return &userDriveBackupHandler{
+		baseUserDriveHandler: baseUserDriveHandler{
+			ac: ac,
+		},
+		userID: userID,
+		scope:  scope,
+	}
 }
 
-func (h itemBackupHandler) Get(
+func (h userDriveBackupHandler) Get(
 	ctx context.Context,
 	url string,
 	headers map[string]string,
@@ -41,7 +95,7 @@ func (h itemBackupHandler) Get(
 	return h.ac.Get(ctx, url, headers)
 }
 
-func (h itemBackupHandler) PathPrefix(
+func (h userDriveBackupHandler) PathPrefix(
 	tenantID, driveID string,
 ) (path.Path, error) {
 	return path.Build(
@@ -55,7 +109,7 @@ func (h itemBackupHandler) PathPrefix(
 		odConsts.RootPathDir)
 }
 
-func (h itemBackupHandler) MetadataPathPrefix(
+func (h userDriveBackupHandler) MetadataPathPrefix(
 	tenantID string,
 ) (path.Path, error) {
 	p, err := path.BuildMetadata(
@@ -71,133 +125,101 @@ func (h itemBackupHandler) MetadataPathPrefix(
 	return p, nil
 }
 
-func (h itemBackupHandler) CanonicalPath(
+func (h userDriveBackupHandler) CanonicalPath(
 	folders *path.Builder,
 	tenantID string,
 ) (path.Path, error) {
 	return folders.ToDataLayerOneDrivePath(tenantID, h.userID, false)
 }
 
-func (h itemBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
+func (h userDriveBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
 	return path.OneDriveService, path.FilesCategory
 }
 
-func (h itemBackupHandler) NewDrivePager(
-	resourceOwner string, fields []string,
-) api.Pager[models.Driveable] {
-	return h.ac.NewUserDrivePager(resourceOwner, fields)
-}
-
-func (h itemBackupHandler) AugmentItemInfo(
-	dii details.ItemInfo,
-	resource idname.Provider,
-	item models.DriveItemable,
-	size int64,
-	parentPath *path.Builder,
-) details.ItemInfo {
-	return augmentItemInfo(dii, resource, path.OneDriveService, item, size, parentPath)
-}
-
-func (h itemBackupHandler) FormatDisplayPath(
+func (h userDriveBackupHandler) FormatDisplayPath(
 	_ string, // drive name not displayed for onedrive
 	pb *path.Builder,
 ) string {
 	return "/" + pb.String()
 }
 
-func (h itemBackupHandler) NewLocationIDer(
+func (h userDriveBackupHandler) NewLocationIDer(
 	driveID string,
 	elems ...string,
 ) details.LocationIDer {
 	return details.NewOneDriveLocationIDer(driveID, elems...)
 }
 
-func (h itemBackupHandler) GetItemPermission(
+func (h userDriveBackupHandler) GetItemPermission(
 	ctx context.Context,
 	driveID, itemID string,
 ) (models.PermissionCollectionResponseable, error) {
 	return h.ac.GetItemPermission(ctx, driveID, itemID)
 }
 
-func (h itemBackupHandler) GetItem(
+func (h userDriveBackupHandler) GetItem(
 	ctx context.Context,
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
 	return h.ac.GetItem(ctx, driveID, itemID)
 }
 
-func (h itemBackupHandler) IsAllPass() bool {
+func (h userDriveBackupHandler) IsAllPass() bool {
 	return h.scope.IsAny(selectors.OneDriveFolder)
 }
 
-func (h itemBackupHandler) IncludesDir(dir string) bool {
+func (h userDriveBackupHandler) IncludesDir(dir string) bool {
 	return h.scope.Matches(selectors.OneDriveFolder, dir)
 }
 
-func (h itemBackupHandler) EnumerateDriveItemsDelta(
+func (h userDriveBackupHandler) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID, prevDeltaLink string,
+	selectProps []string,
 ) ([]models.DriveItemable, api.DeltaUpdate, error) {
-	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink)
+	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, selectProps)
 }
 
 // ---------------------------------------------------------------------------
 // Restore
 // ---------------------------------------------------------------------------
 
-var _ RestoreHandler = &itemRestoreHandler{}
+var _ RestoreHandler = &userDriveRestoreHandler{}
 
-type itemRestoreHandler struct {
-	ac api.Drives
+type userDriveRestoreHandler struct {
+	baseUserDriveHandler
 }
 
-func NewRestoreHandler(ac api.Client) *itemRestoreHandler {
-	return &itemRestoreHandler{ac.Drives()}
+func NewUserDriveRestoreHandler(ac api.Client) *userDriveRestoreHandler {
+	return &userDriveRestoreHandler{
+		baseUserDriveHandler: baseUserDriveHandler{
+			ac: ac.Drives(),
+		},
+	}
 }
 
-func (h itemRestoreHandler) PostDrive(
+func (h userDriveRestoreHandler) PostDrive(
 	context.Context,
 	string, string,
 ) (models.Driveable, error) {
 	return nil, clues.New("creating drives in oneDrive is not supported")
 }
 
-func (h itemRestoreHandler) NewDrivePager(
-	resourceOwner string, fields []string,
-) api.Pager[models.Driveable] {
-	return h.ac.NewUserDrivePager(resourceOwner, fields)
-}
-
-// AugmentItemInfo will populate a details.OneDriveInfo struct
-// with properties from the drive item.  ItemSize is specified
-// separately for restore processes because the local itemable
-// doesn't have its size value updated as a side effect of creation,
-// and kiota drops any SetSize update.
-func (h itemRestoreHandler) AugmentItemInfo(
-	dii details.ItemInfo,
-	resource idname.Provider,
-	item models.DriveItemable,
-	size int64,
-	parentPath *path.Builder,
-) details.ItemInfo {
-	return augmentItemInfo(dii, resource, path.OneDriveService, item, size, parentPath)
-}
-
-func (h itemRestoreHandler) DeleteItem(
+func (h userDriveRestoreHandler) DeleteItem(
 	ctx context.Context,
 	driveID, itemID string,
 ) error {
 	return h.ac.DeleteItem(ctx, driveID, itemID)
 }
 
-func (h itemRestoreHandler) DeleteItemPermission(
+func (h userDriveRestoreHandler) DeleteItemPermission(
 	ctx context.Context,
 	driveID, itemID, permissionID string,
 ) error {
 	return h.ac.DeleteItemPermission(ctx, driveID, itemID, permissionID)
 }
 
-func (h itemRestoreHandler) GetItemsInContainerByCollisionKey(
+func (h userDriveRestoreHandler) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	driveID, containerID string,
 ) (map[string]api.DriveItemIDType, error) {
@@ -209,14 +231,14 @@ func (h itemRestoreHandler) GetItemsInContainerByCollisionKey(
 	return m, nil
 }
 
-func (h itemRestoreHandler) NewItemContentUpload(
+func (h userDriveRestoreHandler) NewItemContentUpload(
 	ctx context.Context,
 	driveID, itemID string,
 ) (models.UploadSessionable, error) {
 	return h.ac.NewItemContentUpload(ctx, driveID, itemID)
 }
 
-func (h itemRestoreHandler) PostItemPermissionUpdate(
+func (h userDriveRestoreHandler) PostItemPermissionUpdate(
 	ctx context.Context,
 	driveID, itemID string,
 	body *drives.ItemItemsItemInvitePostRequestBody,
@@ -224,7 +246,7 @@ func (h itemRestoreHandler) PostItemPermissionUpdate(
 	return h.ac.PostItemPermissionUpdate(ctx, driveID, itemID, body)
 }
 
-func (h itemRestoreHandler) PostItemLinkShareUpdate(
+func (h userDriveRestoreHandler) PostItemLinkShareUpdate(
 	ctx context.Context,
 	driveID, itemID string,
 	body *drives.ItemItemsItemCreateLinkPostRequestBody,
@@ -232,7 +254,7 @@ func (h itemRestoreHandler) PostItemLinkShareUpdate(
 	return h.ac.PostItemLinkShareUpdate(ctx, driveID, itemID, body)
 }
 
-func (h itemRestoreHandler) PostItemInContainer(
+func (h userDriveRestoreHandler) PostItemInContainer(
 	ctx context.Context,
 	driveID, parentFolderID string,
 	newItem models.DriveItemable,
@@ -241,14 +263,14 @@ func (h itemRestoreHandler) PostItemInContainer(
 	return h.ac.PostItemInContainer(ctx, driveID, parentFolderID, newItem, onCollision)
 }
 
-func (h itemRestoreHandler) GetFolderByName(
+func (h userDriveRestoreHandler) GetFolderByName(
 	ctx context.Context,
 	driveID, parentFolderID, folderName string,
 ) (models.DriveItemable, error) {
 	return h.ac.GetFolderByName(ctx, driveID, parentFolderID, folderName)
 }
 
-func (h itemRestoreHandler) GetRootFolder(
+func (h userDriveRestoreHandler) GetRootFolder(
 	ctx context.Context,
 	driveID string,
 ) (models.DriveItemable, error) {

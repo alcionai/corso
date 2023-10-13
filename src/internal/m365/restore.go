@@ -61,7 +61,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	case path.OneDriveService:
 		status, err = onedrive.ConsumeRestoreCollections(
 			ctx,
-			drive.NewRestoreHandler(ctrl.AC),
+			drive.NewUserDriveRestoreHandler(ctrl.AC),
 			rcc,
 			ctrl.backupDriveIDNames,
 			dcs,

@@ -188,7 +188,7 @@ func (suite *DrivePagerIntgSuite) TestEnumerateDriveItems() {
 	items, du, err := suite.its.
 		ac.
 		Drives().
-		EnumerateDriveItemsDelta(ctx, suite.its.user.driveID, "")
+		EnumerateDriveItemsDelta(ctx, suite.its.user.driveID, "", api.DefaultDriveItemProps())
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, items, "no items found in user's drive")
 	assert.NotEmpty(t, du.URL, "should have a delta link")

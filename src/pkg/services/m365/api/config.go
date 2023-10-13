@@ -120,8 +120,8 @@ func DefaultDriveItemProps() []string {
 		"shared")
 }
 
-// URL cache only needs a subset of item properties
-func DriveItemSelectURLCache() []string {
+// URL cache only needs to fetch a small subset of item properties
+func URLCacheDriveItemProps() []string {
 	return idAnd(
 		"content.downloadUrl",
 		"deleted",

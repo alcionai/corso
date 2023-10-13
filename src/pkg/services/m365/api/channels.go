@@ -170,7 +170,7 @@ func ChannelMessageInfo(
 		LastReplyAt:    lastReply,
 		Modified:       modTime,
 		MessageCreator: GetChatMessageFrom(msg),
-		MessagePreview: str.Preview(content, 16),
+		MessagePreview: str.Preview(content, 128),
 		ReplyCount:     len(msg.GetReplies()),
 		Size:           int64(len(content)),
 	}

@@ -29,6 +29,7 @@ func ProduceExportCollections(
 	backupDriveIDNames idname.Cacher,
 	backupSiteIDWebURL idname.Cacher,
 	deets *details.Builder,
+	stats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	var (
@@ -52,7 +53,8 @@ func ProduceExportCollections(
 				path.Builder{}.Append(folders...).String(),
 				[]data.RestoreCollection{restoreColl},
 				backupVersion,
-				exportCfg)
+				exportCfg,
+				stats)
 		case path.LibrariesCategory:
 			drivePath, err := path.ToDrivePath(restoreColl.FullPath())
 			if err != nil {
@@ -91,7 +93,8 @@ func ProduceExportCollections(
 			coll = drive.NewExportCollection(
 				baseDir.String(),
 				[]data.RestoreCollection{restoreColl},
-				backupVersion)
+				backupVersion,
+				stats)
 		default:
 			el.AddRecoverable(
 				ctx,

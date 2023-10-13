@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -125,7 +126,7 @@ func testEnumerateChannelMessageReplies(
 	assert.Equal(t, len(replies), info.ReplyCount)
 	assert.Equal(t, msg.GetFrom().GetUser().GetDisplayName(), info.MessageCreator)
 	assert.Equal(t, lastReply, info.LastReplyAt)
-	assert.Equal(t, str.Preview(ptr.Val(msg.GetBody().GetContent()), 16), info.MessagePreview)
+	assert.Equal(t, str.Preview(ptr.Val(msg.GetBody().GetContent()), 128), info.MessagePreview)
 
 	msgReplyIDs := map[string]struct{}{}
 
@@ -134,4 +135,68 @@ func testEnumerateChannelMessageReplies(
 	}
 
 	assert.Equal(t, replyIDs, msgReplyIDs)
+}
+
+func (suite *ChannelsPagerIntgSuite) TestFilterOutSystemMessages() {
+	systemMessage := models.NewChatMessage()
+	systemMessage.SetMessageType(ptr.To(models.SYSTEMEVENTMESSAGE_CHATMESSAGETYPE))
+
+	systemMessageBody := models.NewItemBody()
+	systemMessageBody.SetContent(ptr.To("<systemEventMessage/>"))
+
+	messageBody := models.NewItemBody()
+	messageBody.SetContent(ptr.To("message"))
+
+	unknownFutureSystemMessage := models.NewChatMessage()
+	unknownFutureSystemMessage.SetMessageType(ptr.To(models.UNKNOWNFUTUREVALUE_CHATMESSAGETYPE))
+	unknownFutureSystemMessage.SetBody(systemMessageBody)
+
+	unknownFutureMessage := models.NewChatMessage()
+	unknownFutureMessage.SetMessageType(ptr.To(models.UNKNOWNFUTUREVALUE_CHATMESSAGETYPE))
+	unknownFutureMessage.SetBody(messageBody)
+
+	regularSystemMessage := models.NewChatMessage()
+	regularSystemMessage.SetMessageType(ptr.To(models.MESSAGE_CHATMESSAGETYPE))
+	regularSystemMessage.SetBody(systemMessageBody)
+
+	regularMessage := models.NewChatMessage()
+	regularMessage.SetMessageType(ptr.To(models.MESSAGE_CHATMESSAGETYPE))
+	regularMessage.SetBody(messageBody)
+
+	table := []struct {
+		name   string
+		cm     models.ChatMessageable
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "system message type",
+			cm:     systemMessage,
+			expect: assert.False,
+		},
+		{
+			name:   "unknown future type system body",
+			cm:     unknownFutureSystemMessage,
+			expect: assert.False,
+		},
+		{
+			name:   "unknown future type message body",
+			cm:     unknownFutureMessage,
+			expect: assert.True,
+		},
+		{
+			name:   "message type system body",
+			cm:     regularSystemMessage,
+			expect: assert.True,
+		},
+		{
+			name:   "message type message body",
+			cm:     regularMessage,
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), api.FilterOutSystemMessages(test.cm))
+		})
+	}
 }

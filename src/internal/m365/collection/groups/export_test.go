@@ -90,7 +90,8 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 				[]data.RestoreCollection{test.backingColl},
 				version.NoBackup,
 				control.DefaultExportConfig(),
-				ch)
+				ch,
+				&data.ExportStats{})
 
 			var (
 				itm export.Item

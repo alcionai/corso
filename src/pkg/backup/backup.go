@@ -102,7 +102,7 @@ func New(
 		switch true {
 		case s.HasCause(fault.SkipMalware):
 			malware++
-		case s.HasCause(fault.SkipBigOneNote):
+		case s.HasCause(fault.SkipOneNote):
 			invalidONFile++
 		default:
 			otherSkips++

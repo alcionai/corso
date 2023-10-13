@@ -813,3 +813,57 @@ func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
 		})
 	}
 }
+
+func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
+	innerMatch := odErr("not-match")
+	merr := odataerrors.NewMainError()
+	inerr := odataerrors.NewInnerError()
+	inerr.SetAdditionalData(map[string]any{
+		"code": string(ResourceLocked),
+	})
+	merr.SetInnerError(inerr)
+	merr.SetCode(ptr.To("not-match"))
+	innerMatch.SetErrorEscaped(merr)
+
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErrMsg("InvalidRequest", "resource is locked"),
+			expect: assert.False,
+		},
+		{
+			name:   "matching oDataErr code",
+			err:    odErr(string(NotAllowed)),
+			expect: assert.True,
+		},
+		{
+			name:   "matching oDataErr inner code",
+			err:    innerMatch,
+			expect: assert.True,
+		},
+		{
+			name:   "matching err sentinel",
+			err:    ErrResourceLocked,
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrResourceLocked(test.err))
+		})
+	}
+}

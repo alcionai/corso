@@ -106,6 +106,17 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			},
 		},
 		{
+			name: "resource locked",
+			mock: func(ctx context.Context) getDefaultDriver {
+				odErr := odErrMsg(string(graph.NotAllowed), "resource")
+				return mockDGDD{nil, graph.Stack(ctx, odErr)}
+			},
+			expect: assert.False,
+			expectErr: func(t *testing.T, err error) {
+				assert.Error(t, err, clues.ToCore(err))
+			},
+		},
+		{
 			name: "arbitrary error",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := odErrMsg("code", "message")

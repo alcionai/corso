@@ -231,20 +231,20 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 		{
 			name: "fetch with attachment",
 			setupf: func() {
-				mitem := models.NewMessage()
-				mitem.SetId(&mid)
-				mitem.SetHasAttachments(ptr.To(true))
+				email := models.NewMessage()
+				email.SetId(&mid)
+				email.SetHasAttachments(ptr.To(true))
 
 				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(parseableToMap(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), email))
 
 				atts := models.NewAttachmentCollectionResponse()
-				aitem := models.NewAttachment()
+				attch := models.NewAttachment()
 
-				asize := int32(50)
-				aitem.SetSize(&asize)
-				atts.SetValue([]models.Attachmentable{aitem})
+				size := int32(50)
+				attch.SetSize(&size)
+				atts.SetValue([]models.Attachmentable{attch})
 
 				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
@@ -257,23 +257,22 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 		{
 			name: "fetch individual attachment",
 			setupf: func() {
-				truthy := true
-				mitem := models.NewMessage()
-				mitem.SetId(&mid)
-				mitem.SetHasAttachments(&truthy)
+				email := models.NewMessage()
+				email.SetId(&mid)
+				email.SetHasAttachments(ptr.To(true))
 
 				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(parseableToMap(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), email))
 
 				atts := models.NewAttachmentCollectionResponse()
-				aitem := models.NewAttachment()
-				aitem.SetId(&aid)
+				attch := models.NewAttachment()
+				attch.SetId(&aid)
 
-				asize := int32(200)
-				aitem.SetSize(&asize)
+				size := int32(200)
+				attch.SetSize(&size)
 
-				atts.SetValue([]models.Attachmentable{aitem})
+				atts.SetValue([]models.Attachmentable{attch})
 
 				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(503)
@@ -284,7 +283,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				interceptV1Path("users", "user", "messages", mid, "attachments", aid).
 					Reply(200).
-					JSON(parseableToMap(suite.T(), aitem))
+					JSON(parseableToMap(suite.T(), attch))
 			},
 			attachmentCount: 1,
 			size:            200,
@@ -294,22 +293,22 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 			name: "fetch multiple individual attachments",
 			setupf: func() {
 				truthy := true
-				mitem := models.NewMessage()
-				mitem.SetId(&mid)
-				mitem.SetHasAttachments(&truthy)
+				email := models.NewMessage()
+				email.SetId(&mid)
+				email.SetHasAttachments(&truthy)
 
 				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(parseableToMap(suite.T(), mitem))
+					JSON(parseableToMap(suite.T(), email))
 
 				atts := models.NewAttachmentCollectionResponse()
-				aitem := models.NewAttachment()
-				aitem.SetId(&aid)
+				attch := models.NewAttachment()
+				attch.SetId(&aid)
 
 				asize := int32(200)
-				aitem.SetSize(&asize)
+				attch.SetSize(&asize)
 
-				atts.SetValue([]models.Attachmentable{aitem, aitem, aitem, aitem, aitem})
+				atts.SetValue([]models.Attachmentable{attch, attch, attch, attch, attch})
 
 				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(503)
@@ -321,24 +320,24 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				for i := 0; i < 5; i++ {
 					interceptV1Path("users", "user", "messages", mid, "attachments", aid).
 						Reply(200).
-						JSON(parseableToMap(suite.T(), aitem))
+						JSON(parseableToMap(suite.T(), attch))
 				}
 			},
 			attachmentCount: 5,
-			size:            200,
+			size:            1000,
 			expect:          assert.NoError,
 		},
 	}
 
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
+	for _, test := range tests {
+		suite.Run(test.name, func() {
 			t := suite.T()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			defer gock.Off()
-			tt.setupf()
+			test.setupf()
 
 			item, _, err := suite.its.gockAC.Mail().GetItem(
 				ctx,
@@ -346,28 +345,26 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 				mid,
 				false,
 				fault.New(true))
-			tt.expect(t, err)
+			test.expect(t, err)
 
 			it, ok := item.(models.Messageable)
 			require.True(t, ok, "convert to messageable")
 
 			var size int64
-			mailBody := it.GetBody()
-			if mailBody != nil {
-				content := ptr.Val(mailBody.GetContent())
-				if len(content) > 0 {
-					size = int64(len(content))
-				}
+
+			if it.GetBody() != nil {
+				content := ptr.Val(it.GetBody().GetContent())
+				size = int64(len(content))
 			}
 
 			attachments := it.GetAttachments()
 			for _, attachment := range attachments {
-				size = +int64(*attachment.GetSize())
+				size += int64(*attachment.GetSize())
 			}
 
 			assert.Equal(t, *it.GetId(), mid)
-			assert.Equal(t, tt.attachmentCount, len(attachments), "attachment count")
-			assert.Equal(t, tt.size, size, "mail size")
+			assert.Equal(t, test.attachmentCount, len(attachments), "attachment count")
+			assert.Equal(t, test.size, size, "mail size")
 			assert.True(t, gock.IsDone(), "made all requests")
 		})
 	}

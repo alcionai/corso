@@ -86,6 +86,7 @@ type EnumerateDriveItemsDeltaer interface {
 	EnumerateDriveItemsDelta(
 		ctx context.Context,
 		driveID, prevDeltaLink string,
+		selectProps []string,
 	) (
 		[]models.DriveItemable,
 		api.DeltaUpdate,

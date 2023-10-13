@@ -51,7 +51,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 	)
 
 	pb := path.Builder{}.Append(testBaseDrivePath.Elements()...)
-	ep, err := drive.NewLibraryBackupHandler(api.Drives{}, siteID, nil, path.SharePointService).
+	ep, err := drive.NewSiteBackupHandler(api.Drives{}, siteID, nil, path.SharePointService).
 		CanonicalPath(pb, tenantID)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -99,7 +99,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 			)
 
 			c := drive.NewCollections(
-				drive.NewLibraryBackupHandler(api.Drives{}, siteID, test.scope, path.SharePointService),
+				drive.NewSiteBackupHandler(api.Drives{}, siteID, test.scope, path.SharePointService),
 				tenantID,
 				idname.NewProvider(siteID, siteID),
 				nil,

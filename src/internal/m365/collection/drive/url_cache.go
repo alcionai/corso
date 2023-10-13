@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 const (
@@ -156,7 +157,11 @@ func (uc *urlCache) refreshCache(
 	// Issue a delta query to graph
 	logger.Ctx(ctx).Info("refreshing url cache")
 
-	items, du, err := uc.edid.EnumerateDriveItemsDelta(ctx, uc.driveID, uc.prevDelta)
+	items, du, err := uc.edid.EnumerateDriveItemsDelta(
+		ctx,
+		uc.driveID,
+		uc.prevDelta,
+		api.URLCacheDriveItemProps())
 	if err != nil {
 		uc.idToProps = make(map[string]itemProps)
 		return clues.Stack(err)

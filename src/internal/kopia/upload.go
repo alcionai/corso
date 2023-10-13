@@ -148,6 +148,10 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
+	} else if info.Modified().IsZero() {
+		cp.errs.AddRecoverable(ctx, clues.New("zero-valued mod time").
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation))
 	}
 
 	err = cp.deets.Add(d.repoPath, d.locationPath, info)
