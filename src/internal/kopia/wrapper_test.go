@@ -1310,20 +1310,25 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	loc2 := path.Builder{}.Append(suite.storePath2.Folders()...)
 	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
 
+	info := exchMock.StubMailInfo()
+	info.Exchange.Modified = time.Now()
+
 	collections := []data.BackupCollection{
 		&dataMock.Collection{
 			Path: suite.storePath1,
 			Loc:  loc1,
 			ItemData: []data.Item{
 				&dataMock.Item{
-					ItemID:   testFileName,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 				&dataMock.Item{
-					ItemID:   testFileName2,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData2)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName2,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData2)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 			},
 		},
@@ -1332,24 +1337,28 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 			Loc:  loc2,
 			ItemData: []data.Item{
 				&dataMock.Item{
-					ItemID:   testFileName3,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData3)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName3,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData3)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 				&dataMock.Item{
-					ItemID:   testFileName4,
-					ReadErr:  assert.AnError,
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName4,
+					ReadErr:      assert.AnError,
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 				&dataMock.Item{
-					ItemID:   testFileName5,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData5)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName5,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData5)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 				&dataMock.Item{
-					ItemID:   testFileName6,
-					Reader:   io.NopCloser(bytes.NewReader(testFileData6)),
-					ItemInfo: exchMock.StubMailInfo(),
+					ItemID:       testFileName6,
+					Reader:       io.NopCloser(bytes.NewReader(testFileData6)),
+					ModifiedTime: info.Modified(),
+					ItemInfo:     info,
 				},
 			},
 		},
