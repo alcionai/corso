@@ -44,10 +44,10 @@ type urlCache struct {
 	// cacheMu protects idToProps and lastRefreshTime
 	cacheMu sync.RWMutex
 	// refreshMu serializes cache refresh attempts by potential writers
-	refreshMu       sync.Mutex
-	deltaQueryCount int
+	refreshMu    sync.Mutex
+	refreshCount int
 
-	edid EnumerateDriveItemsDeltaer
+	enumerator EnumerateDriveItemsDeltaer
 
 	errs *fault.Bus
 }
@@ -56,10 +56,10 @@ type urlCache struct {
 func newURLCache(
 	driveID, prevDelta string,
 	refreshInterval time.Duration,
-	edid EnumerateDriveItemsDeltaer,
+	enumerator EnumerateDriveItemsDeltaer,
 	errs *fault.Bus,
 ) (*urlCache, error) {
-	err := validateCacheParams(driveID, refreshInterval, edid)
+	err := validateCacheParams(driveID, refreshInterval, enumerator)
 	if err != nil {
 		return nil, clues.Wrap(err, "cache params")
 	}
@@ -68,7 +68,7 @@ func newURLCache(
 			idToProps:       make(map[string]itemProps),
 			lastRefreshTime: time.Time{},
 			driveID:         driveID,
-			edid:            edid,
+			enumerator:      enumerator,
 			prevDelta:       prevDelta,
 			refreshInterval: refreshInterval,
 			errs:            errs,
@@ -80,7 +80,7 @@ func newURLCache(
 func validateCacheParams(
 	driveID string,
 	refreshInterval time.Duration,
-	edid EnumerateDriveItemsDeltaer,
+	enumerator EnumerateDriveItemsDeltaer,
 ) error {
 	if len(driveID) == 0 {
 		return clues.New("drive id is empty")
@@ -90,8 +90,8 @@ func validateCacheParams(
 		return clues.New("invalid refresh interval")
 	}
 
-	if edid == nil {
-		return clues.New("nil item enumerator")
+	if enumerator == nil {
+		return clues.New("missing item enumerator")
 	}
 
 	return nil
@@ -154,22 +154,30 @@ func (uc *urlCache) refreshCache(
 	uc.cacheMu.Lock()
 	defer uc.cacheMu.Unlock()
 
-	// Issue a delta query to graph
 	logger.Ctx(ctx).Info("refreshing url cache")
+	uc.refreshCount++
 
-	items, du, err := uc.edid.EnumerateDriveItemsDelta(
+	pager := uc.enumerator.EnumerateDriveItemsDelta(
 		ctx,
 		uc.driveID,
 		uc.prevDelta,
-		api.URLCacheDriveItemProps())
-	if err != nil {
-		uc.idToProps = make(map[string]itemProps)
-		return clues.Stack(err)
+		api.CallConfig{
+			Select: api.URLCacheDriveItemProps(),
+		})
+
+	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
+		err := uc.updateCache(
+			ctx,
+			page,
+			reset,
+			uc.errs)
+		if err != nil {
+			return clues.Wrap(err, "updating cache")
+		}
 	}
 
-	uc.deltaQueryCount++
-
-	if err := uc.updateCache(ctx, items, uc.errs); err != nil {
+	du, err := pager.Results()
+	if err != nil {
 		return clues.Stack(err)
 	}
 
@@ -205,9 +213,14 @@ func (uc *urlCache) readCache(
 func (uc *urlCache) updateCache(
 	ctx context.Context,
 	items []models.DriveItemable,
+	reset bool,
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
+
+	if reset {
+		uc.idToProps = map[string]itemProps{}
+	}
 
 	for _, item := range items {
 		if el.Failure() != nil {
