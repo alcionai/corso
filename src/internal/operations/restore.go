@@ -138,11 +138,19 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 
 	ctx = count.Embed(ctx, op.Counter)
 
+	cats, err := op.Selectors.AllHumanPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for restore")
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
 		"service", op.Selectors.Service,
+		"categories", cats,
 		"destination_container", clues.Hide(op.RestoreCfg.Location))
 
 	defer func() {
@@ -265,16 +273,6 @@ func (op *RestoreOperation) do(
 		"details_paths", len(paths),
 		"backup_snapshot_id", bup.SnapshotID,
 		"backup_version", bup.Version)
-
-	op.bus.Event(
-		ctx,
-		events.RestoreStart,
-		map[string]any{
-			events.StartTime:        start,
-			events.BackupID:         op.BackupID,
-			events.BackupCreateTime: bup.CreationTime,
-			events.RestoreID:        opStats.restoreID,
-		})
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 

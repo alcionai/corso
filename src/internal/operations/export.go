@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -46,6 +47,7 @@ type ExportOperation struct {
 	Selectors selectors.Selector
 	ExportCfg control.ExportConfig
 	Version   string
+	stats     data.ExportStats
 
 	acct account.Account
 	ec   inject.ExportConsumer
@@ -72,6 +74,7 @@ func NewExportOperation(
 		Selectors: sel,
 		Version:   "v0",
 		ec:        ec,
+		stats:     data.ExportStats{},
 	}
 	if err := op.validate(); err != nil {
 		return ExportOperation{}, err
@@ -134,11 +137,19 @@ func (op *ExportOperation) Run(ctx context.Context) (
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	cats, err := op.Selectors.AllHumanPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for export")
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
-		"service", op.Selectors.Service)
+		"service", op.Selectors.Service,
+		"categories", cats)
 
 	defer func() {
 		op.bus.Event(
@@ -229,16 +240,6 @@ func (op *ExportOperation) do(
 		"backup_snapshot_id", bup.SnapshotID,
 		"backup_version", bup.Version)
 
-	op.bus.Event(
-		ctx,
-		events.ExportStart,
-		map[string]any{
-			events.StartTime:        start,
-			events.BackupID:         op.BackupID,
-			events.BackupCreateTime: bup.CreationTime,
-			events.ExportID:         opStats.exportID,
-		})
-
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to export", len(paths), op.BackupID))
 
 	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
@@ -257,7 +258,7 @@ func (op *ExportOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	expCollections, err := exportRestoreCollections(
+	expCollections, err := produceExportCollections(
 		ctx,
 		op.ec,
 		bup.Version,
@@ -265,6 +266,9 @@ func (op *ExportOperation) do(
 		op.ExportCfg,
 		op.Options,
 		dcs,
+		// We also have opStats, but that tracks different data.
+		// Maybe we can look into merging them some time in the future.
+		&op.stats,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Stack(err)
@@ -320,11 +324,19 @@ func (op *ExportOperation) finalizeMetrics(
 	return op.Errors.Failure()
 }
 
+// GetStats returns the stats of the export operation. You should only
+// be calling this once the export collections have been read and process
+// as the data that will be available here will be the data that was read
+// and processed.
+func (op *ExportOperation) GetStats() map[path.CategoryType]data.KindStats {
+	return op.stats.GetStats()
+}
+
 // ---------------------------------------------------------------------------
 // Exporter funcs
 // ---------------------------------------------------------------------------
 
-func exportRestoreCollections(
+func produceExportCollections(
 	ctx context.Context,
 	ec inject.ExportConsumer,
 	backupVersion int,
@@ -332,6 +344,7 @@ func exportRestoreCollections(
 	exportCfg control.ExportConfig,
 	opts control.Options,
 	dcs []data.RestoreCollection,
+	exportStats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	complete := observe.MessageWithCompletion(ctx, "Preparing export")
@@ -347,6 +360,7 @@ func exportRestoreCollections(
 		exportCfg,
 		opts,
 		dcs,
+		exportStats,
 		errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "exporting collections")

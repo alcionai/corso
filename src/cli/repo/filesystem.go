@@ -87,15 +87,6 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 	// Retention is not supported for filesystem repos.
 	retentionOpts := ctrlRepo.Retention{}
 
-	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
-	utils.SendStartCorsoEvent(
-		ctx,
-		cfg.Storage,
-		cfg.Account.ID(),
-		map[string]any{"command": "init repo"},
-		cfg.Account.ID(),
-		opt)
-
 	storageCfg, err := cfg.Storage.ToFilesystemConfig()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving filesystem configuration"))

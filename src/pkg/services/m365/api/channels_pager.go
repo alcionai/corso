@@ -42,7 +42,7 @@ func (p *channelMessagePageCtrl) ValidModTimes() bool {
 
 func (c Channels) NewChannelMessagePager(
 	teamID, channelID string,
-	selectProps ...string,
+	cc CallConfig,
 ) *channelMessagePageCtrl {
 	builder := c.Stable.
 		Client().
@@ -57,8 +57,12 @@ func (c Channels) NewChannelMessagePager(
 		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
 	}
 
-	if len(selectProps) > 0 {
-		options.QueryParameters.Select = selectProps
+	if len(cc.Select) > 0 {
+		options.QueryParameters.Select = cc.Select
+	}
+
+	if len(cc.Expand) > 0 {
+		options.QueryParameters.Expand = cc.Expand
 	}
 
 	return &channelMessagePageCtrl{
@@ -68,6 +72,20 @@ func (c Channels) NewChannelMessagePager(
 		gs:         c.Stable,
 		options:    options,
 	}
+}
+
+// GetChannelMessages fetches a delta of all messages in the channel.
+// returns two maps: addedItems, deletedItems
+func (c Channels) GetChannelMessages(
+	ctx context.Context,
+	teamID, channelID string,
+	cc CallConfig,
+) ([]models.ChatMessageable, error) {
+	ctx = clues.Add(ctx, "channel_id", channelID)
+	pager := c.NewChannelMessagePager(teamID, channelID, cc)
+	items, err := batchEnumerateItems[models.ChatMessageable](ctx, pager)
+
+	return items, graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +162,26 @@ func (c Channels) NewChannelMessageDeltaPager(
 	}
 }
 
-// GetChannelMessageIDsDelta fetches a delta of all messages in the channel.
+// this is the message content for system chatMessage entities with type
+// unknownFutureValue.
+const channelMessageSystemMessageContent = "<systemEventMessage/>"
+
+func FilterOutSystemMessages(cm models.ChatMessageable) bool {
+	if ptr.Val(cm.GetMessageType()) == models.SYSTEMEVENTMESSAGE_CHATMESSAGETYPE {
+		return false
+	}
+
+	content := ""
+
+	if cm.GetBody() != nil {
+		content = ptr.Val(cm.GetBody().GetContent())
+	}
+
+	return !(ptr.Val(cm.GetMessageType()) == models.UNKNOWNFUTUREVALUE_CHATMESSAGETYPE &&
+		content == channelMessageSystemMessageContent)
+}
+
+// GetChannelMessageIDs fetches a delta of all messages in the channel.
 // returns two maps: addedItems, deletedItems
 func (c Channels) GetChannelMessageIDs(
 	ctx context.Context,
@@ -153,11 +190,12 @@ func (c Channels) GetChannelMessageIDs(
 ) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	added, validModTimes, removed, du, err := getAddedAndRemovedItemIDs[models.ChatMessageable](
 		ctx,
-		c.NewChannelMessagePager(teamID, channelID),
+		c.NewChannelMessagePager(teamID, channelID, CallConfig{}),
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
 		prevDeltaLink,
 		canMakeDeltaQueries,
-		addedAndRemovedByDeletedDateTime[models.ChatMessageable])
+		addedAndRemovedByDeletedDateTime[models.ChatMessageable],
+		FilterOutSystemMessages)
 
 	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
 }
@@ -227,7 +265,7 @@ func (c Channels) GetChannelMessageReplies(
 	ctx context.Context,
 	teamID, channelID, messageID string,
 ) ([]models.ChatMessageable, error) {
-	return enumerateItems[models.ChatMessageable](
+	return batchEnumerateItems[models.ChatMessageable](
 		ctx,
 		c.NewChannelMessageRepliesPager(teamID, channelID, messageID))
 }
@@ -284,5 +322,5 @@ func (c Channels) GetChannels(
 	ctx context.Context,
 	teamID string,
 ) ([]models.Channelable, error) {
-	return enumerateItems[models.Channelable](ctx, c.NewChannelPager(teamID))
+	return batchEnumerateItems[models.Channelable](ctx, c.NewChannelPager(teamID))
 }

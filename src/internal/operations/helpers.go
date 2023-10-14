@@ -48,9 +48,9 @@ func LogFaultErrors(ctx context.Context, fe *fault.Errors, prefix string) {
 	}
 
 	var (
-		log        = logger.Ctx(ctx)
-		pfxMsg     = prefix + ":"
-		li, ls, lr = len(fe.Items), len(fe.Skipped), len(fe.Recovered)
+		log            = logger.Ctx(ctx)
+		pfxMsg         = prefix + ":"
+		li, ls, lr, la = len(fe.Items), len(fe.Skipped), len(fe.Recovered), len(fe.Alerts)
 	)
 
 	if fe.Failure == nil && li+ls+lr == 0 {
@@ -72,5 +72,9 @@ func LogFaultErrors(ctx context.Context, fe *fault.Errors, prefix string) {
 
 	for i, err := range fe.Recovered {
 		log.With("recovered_error", err).Errorf("%s recoverable error %d of %d: %s", pfxMsg, i+1, lr, err.Msg)
+	}
+
+	for i, alert := range fe.Alerts {
+		log.With("alert", alert).Infof("%s alert %d of %d: %s", pfxMsg, i+1, la, alert.Message)
 	}
 }

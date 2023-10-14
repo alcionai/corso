@@ -671,7 +671,7 @@ func createFolder(
 		ctx,
 		driveID,
 		parentFolderID,
-		newItem(folderName, true),
+		api.NewDriveItem(folderName, true),
 		control.Replace)
 
 	// ErrItemAlreadyExistsConflict can only occur for folders if the
@@ -692,7 +692,7 @@ func createFolder(
 		ctx,
 		driveID,
 		parentFolderID,
-		newItem(folderName, true),
+		api.NewDriveItem(folderName, true),
 		control.Copy)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating folder")
@@ -733,7 +733,7 @@ func restoreFile(
 	}
 
 	var (
-		item                 = newItem(name, false)
+		item                 = api.NewDriveItem(name, false)
 		collisionKey         = api.DriveItemCollisionKey(item)
 		collision            api.DriveItemIDType
 		shouldDeleteOriginal bool

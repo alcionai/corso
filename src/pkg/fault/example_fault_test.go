@@ -441,3 +441,28 @@ func ExampleBus_AddSkip() {
 
 	// Output: skipped processing file: malware_detected
 }
+
+// ExampleBus_AddAlert showcases when to use AddAlert.
+func ExampleBus_AddAlert() {
+	errs := fault.New(false)
+
+	// Some events should be communicated to the end user without recording an
+	// error to the operation.  Logs aren't sufficient because we don't promote
+	// log messages to the terminal.  But errors and skips are too heavy and hacky
+	// to use.  In these cases, we can create informational Alerts.
+	//
+	// Only the message gets shown to the user.  But since we're persisting this
+	// data along with the backup details and other fault info, we have the option
+	// of packing any other contextual data that we want.
+	errs.AddAlert(ctx, fault.NewAlert(
+		"something important happened!",
+		"deduplication-namespace",
+		"file-id",
+		"file-name",
+		map[string]any{"foo": "bar"}))
+
+	// later on, after processing, end users can scrutinize the alerts.
+	fmt.Println(errs.Alerts()[0].String())
+
+	// Alert: something important happened!
+}

@@ -237,6 +237,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
 
+	cats, err := op.Selectors.AllHumanPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for backup")
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.account.ID()),
@@ -244,17 +251,9 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"resource_owner_name", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
+		"categories", cats,
 		"incremental", op.incremental,
 		"disable_assist_backup", op.disableAssistBackup)
-
-	op.bus.Event(
-		ctx,
-		events.BackupStart,
-		map[string]any{
-			events.StartTime: startTime,
-			events.Service:   op.Selectors.Service.String(),
-			events.BackupID:  op.Results.BackupID,
-		})
 
 	defer func() {
 		op.bus.Event(

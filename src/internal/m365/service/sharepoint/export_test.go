@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -98,6 +99,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		},
 	}
 
+	stats := data.ExportStats{}
+
 	ecs, err := ProduceExportCollections(
 		ctx,
 		int(version.Backup),
@@ -106,6 +109,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		dcs,
 		cache,
 		nil,
+		&stats,
 		fault.New(true))
 	assert.NoError(t, err, "export collections error")
 	assert.Len(t, ecs, 1, "num of collections")
@@ -113,9 +117,24 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	assert.Equal(t, expectedPath, ecs[0].BasePath(), "base dir")
 
 	fitems := []export.Item{}
+	size := 0
+
 	for item := range ecs[0].Items(ctx) {
+		// unwrap the body from stats reader
+		b, err := io.ReadAll(item.Body)
+		assert.NoError(t, err, clues.ToCore(err))
+
+		size += len(b)
+		bitem := io.NopCloser(bytes.NewBuffer(b))
+		item.Body = bitem
+
 		fitems = append(fitems, item)
 	}
 
 	assert.Equal(t, expectedItems, fitems, "items")
+
+	expectedStats := data.ExportStats{}
+	expectedStats.UpdateBytes(path.FilesCategory, int64(size))
+	expectedStats.UpdateResourceCount(path.FilesCategory)
+	assert.Equal(t, expectedStats, stats, "stats")
 }

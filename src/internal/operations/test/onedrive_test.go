@@ -134,7 +134,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 	}
 
 	grh := func(ac api.Client) drive.RestoreHandler {
-		return drive.NewRestoreHandler(ac)
+		return drive.NewUserDriveRestoreHandler(ac)
 	}
 
 	runDriveIncrementalTest(
@@ -801,11 +801,7 @@ func runDriveIncrementalTest(
 
 			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
 			assert.Empty(t, incBO.Errors.Recovered(), "incremental recoverable/iteration errors")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "incremental backup-start events")
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
-			assert.Equal(t,
-				incMB.CalledWith[events.BackupStart][0][events.BackupID],
-				bupID, "incremental backupID pre-declaration")
 		})
 	}
 }
@@ -912,11 +908,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	assert.LessOrEqual(t, 2, incBO.Results.ItemsRead, "items read")
 	assert.NoError(t, incBO.Errors.Failure(), "non-recoverable error", clues.ToCore(incBO.Errors.Failure()))
 	assert.Empty(t, incBO.Errors.Recovered(), "recoverable/iteration errors")
-	assert.Equal(t, 1, incMB.TimesCalled[events.BackupStart], "backup-start events")
 	assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "backup-end events")
-	assert.Equal(t,
-		incMB.CalledWith[events.BackupStart][0][events.BackupID],
-		incBO.Results.BackupID, "backupID pre-declaration")
 
 	bid := incBO.Results.BackupID
 	bup := &backup.Backup{}

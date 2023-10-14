@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -41,10 +41,33 @@ func (l deltaNextLink) GetOdataDeltaLink() *string {
 	return l.deltaLink
 }
 
+// mock item
+
+var _ getIDModAndAddtler = &testItem{}
+
+type testItem struct {
+	id             string
+	modTime        time.Time
+	additionalData map[string]any
+}
+
+//nolint:revive
+func (ti testItem) GetId() *string {
+	return &ti.id
+}
+
+func (ti testItem) GetLastModifiedDateTime() *time.Time {
+	return &ti.modTime
+}
+
+func (ti testItem) GetAdditionalData() map[string]any {
+	return ti.additionalData
+}
+
 // mock page
 
 type testPage struct {
-	values []any
+	values []testItem
 }
 
 func (p testPage) GetOdataNextLink() *string {
@@ -57,13 +80,13 @@ func (p testPage) GetOdataDeltaLink() *string {
 	return ptr.To("")
 }
 
-func (p testPage) GetValue() []any {
+func (p testPage) GetValue() []testItem {
 	return p.values
 }
 
 // mock item pager
 
-var _ Pager[any] = &testPager{}
+var _ Pager[testItem] = &testPager{}
 
 type testPager struct {
 	t       *testing.T
@@ -71,7 +94,7 @@ type testPager struct {
 	pageErr error
 }
 
-func (p *testPager) GetPage(ctx context.Context) (NextLinkValuer[any], error) {
+func (p *testPager) GetPage(ctx context.Context) (NextLinkValuer[testItem], error) {
 	return p.pager, p.pageErr
 }
 
@@ -81,7 +104,7 @@ func (p testPager) ValidModTimes() bool { return true }
 
 // mock id pager
 
-var _ Pager[any] = &testIDsPager{}
+var _ Pager[testItem] = &testIDsPager{}
 
 type testIDsPager struct {
 	t             *testing.T
@@ -94,7 +117,7 @@ type testIDsPager struct {
 
 func (p *testIDsPager) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[any], error) {
+) (NextLinkValuer[testItem], error) {
 	if len(p.errorCode) > 0 {
 		ierr := odataerrors.NewMainError()
 		ierr.SetCode(&p.errorCode)
@@ -105,21 +128,23 @@ func (p *testIDsPager) GetPage(
 		return nil, err
 	}
 
-	values := make([]any, 0, len(p.added)+len(p.removed))
+	values := make([]testItem, 0, len(p.added)+len(p.removed))
 
 	for a, modTime := range p.added {
-		// contact chosen arbitrarily, any exchange model should work
-		itm := models.NewContact()
-		itm.SetId(ptr.To(a))
-		itm.SetLastModifiedDateTime(ptr.To(modTime))
+		itm := testItem{
+			id:      a,
+			modTime: modTime,
+		}
 		values = append(values, itm)
 	}
 
 	for _, r := range p.removed {
-		// contact chosen arbitrarily, any exchange model should work
-		itm := models.NewContact()
-		itm.SetId(ptr.To(r))
-		itm.SetAdditionalData(map[string]any{graph.AddtlDataRemoved: struct{}{}})
+		itm := testItem{
+			id: r,
+			additionalData: map[string]any{
+				graph.AddtlDataRemoved: struct{}{},
+			},
+		}
 		values = append(values, itm)
 	}
 
@@ -141,7 +166,7 @@ func (p testIDsPager) ValidModTimes() bool {
 	return p.validModTimes
 }
 
-var _ DeltaPager[any] = &testIDsDeltaPager{}
+var _ DeltaPager[testItem] = &testIDsDeltaPager{}
 
 type testIDsDeltaPager struct {
 	t             *testing.T
@@ -154,7 +179,7 @@ type testIDsDeltaPager struct {
 
 func (p *testIDsDeltaPager) GetPage(
 	ctx context.Context,
-) (DeltaLinkValuer[any], error) {
+) (DeltaLinkValuer[testItem], error) {
 	if len(p.errorCode) > 0 {
 		ierr := odataerrors.NewMainError()
 		ierr.SetCode(&p.errorCode)
@@ -165,21 +190,23 @@ func (p *testIDsDeltaPager) GetPage(
 		return nil, err
 	}
 
-	values := make([]any, 0, len(p.added)+len(p.removed))
+	values := make([]testItem, 0, len(p.added)+len(p.removed))
 
 	for a, modTime := range p.added {
-		// contact chosen arbitrarily, any exchange model should work
-		itm := models.NewContact()
-		itm.SetId(ptr.To(a))
-		itm.SetLastModifiedDateTime(ptr.To(modTime))
+		itm := testItem{
+			id:      a,
+			modTime: modTime,
+		}
 		values = append(values, itm)
 	}
 
 	for _, r := range p.removed {
-		// contact chosen arbitrarily, any exchange model should work
-		itm := models.NewContact()
-		itm.SetId(ptr.To(r))
-		itm.SetAdditionalData(map[string]any{graph.AddtlDataRemoved: struct{}{}})
+		itm := testItem{
+			id: r,
+			additionalData: map[string]any{
+				graph.AddtlDataRemoved: struct{}{},
+			},
+		}
 		values = append(values, itm)
 	}
 
@@ -216,8 +243,8 @@ func TestPagerUnitSuite(t *testing.T) {
 func (suite *PagerUnitSuite) TestEnumerateItems() {
 	tests := []struct {
 		name      string
-		getPager  func(*testing.T, context.Context) Pager[any]
-		expect    []any
+		getPager  func(*testing.T, context.Context) Pager[testItem]
+		expect    []testItem
 		expectErr require.ErrorAssertionFunc
 	}{
 		{
@@ -225,13 +252,13 @@ func (suite *PagerUnitSuite) TestEnumerateItems() {
 			getPager: func(
 				t *testing.T,
 				ctx context.Context,
-			) Pager[any] {
+			) Pager[testItem] {
 				return &testPager{
 					t:     t,
-					pager: testPage{[]any{"foo", "bar"}},
+					pager: testPage{[]testItem{{id: "foo"}, {id: "bar"}}},
 				}
 			},
-			expect:    []any{"foo", "bar"},
+			expect:    []testItem{{id: "foo"}, {id: "bar"}},
 			expectErr: require.NoError,
 		},
 		{
@@ -239,13 +266,13 @@ func (suite *PagerUnitSuite) TestEnumerateItems() {
 			getPager: func(
 				t *testing.T,
 				ctx context.Context,
-			) Pager[any] {
+			) Pager[testItem] {
 				return &testPager{
 					t:       t,
 					pageErr: assert.AnError,
 				}
 			},
-			expect:    nil,
+			expect:    []testItem{},
 			expectErr: require.Error,
 		},
 	}
@@ -257,7 +284,7 @@ func (suite *PagerUnitSuite) TestEnumerateItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			result, err := enumerateItems(ctx, test.getPager(t, ctx))
+			result, err := batchEnumerateItems(ctx, test.getPager(t, ctx))
 			test.expectErr(t, err, clues.ToCore(err))
 
 			require.EqualValues(t, test.expect, result)
@@ -274,26 +301,29 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 	}
 
 	now := time.Now()
+	epoch, err := time.Parse(time.DateOnly, "1970-01-01")
+	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {
 		name        string
 		pagerGetter func(
 			*testing.T,
-		) Pager[any]
+		) Pager[testItem]
 		deltaPagerGetter func(
 			*testing.T,
-		) DeltaPager[any]
+		) DeltaPager[testItem]
 		prevDelta     string
+		filter        func(a testItem) bool
 		expect        expected
 		canDelta      bool
 		validModTimes bool
 	}{
 		{
 			name: "no prev delta",
-			pagerGetter: func(t *testing.T) Pager[any] {
+			pagerGetter: func(t *testing.T) Pager[testItem] {
 				return nil
 			},
-			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[testItem] {
 				return &testIDsDeltaPager{
 					t: t,
 					added: map[string]time.Time{
@@ -317,10 +347,10 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		},
 		{
 			name: "no prev delta invalid mod times",
-			pagerGetter: func(t *testing.T) Pager[any] {
+			pagerGetter: func(t *testing.T) Pager[testItem] {
 				return nil
 			},
-			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[testItem] {
 				return &testIDsDeltaPager{
 					t: t,
 					added: map[string]time.Time{
@@ -332,8 +362,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			expect: expected{
 				added: map[string]time.Time{
-					"uno": {},
-					"dos": {},
+					"uno": time.Now().Add(-1 * time.Minute),
+					"dos": time.Now().Add(-1 * time.Minute),
 				},
 				removed:     []string{"tres", "quatro"},
 				deltaUpdate: DeltaUpdate{Reset: true},
@@ -342,10 +372,10 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		},
 		{
 			name: "with prev delta",
-			pagerGetter: func(t *testing.T) Pager[any] {
+			pagerGetter: func(t *testing.T) Pager[testItem] {
 				return nil
 			},
-			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[testItem] {
 				return &testIDsDeltaPager{
 					t: t,
 					added: map[string]time.Time{
@@ -370,10 +400,10 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		},
 		{
 			name: "delta expired",
-			pagerGetter: func(t *testing.T) Pager[any] {
+			pagerGetter: func(t *testing.T) Pager[testItem] {
 				return nil
 			},
-			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[testItem] {
 				return &testIDsDeltaPager{
 					t: t,
 					added: map[string]time.Time{
@@ -400,7 +430,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		},
 		{
 			name: "delta not allowed",
-			pagerGetter: func(t *testing.T) Pager[any] {
+			pagerGetter: func(t *testing.T) Pager[testItem] {
 				return &testIDsPager{
 					t: t,
 					added: map[string]time.Time{
@@ -411,7 +441,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					validModTimes: true,
 				}
 			},
-			deltaPagerGetter: func(t *testing.T) DeltaPager[any] {
+			deltaPagerGetter: func(t *testing.T) DeltaPager[testItem] {
 				return nil
 			},
 			expect: expected{
@@ -425,6 +455,57 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			canDelta: false,
 		},
+		{
+			name: "no prev delta and fail all filter",
+			pagerGetter: func(t *testing.T) Pager[testItem] {
+				return nil
+			},
+			deltaPagerGetter: func(t *testing.T) DeltaPager[testItem] {
+				return &testIDsDeltaPager{
+					t: t,
+					added: map[string]time.Time{
+						"uno": now.Add(time.Minute),
+						"dos": now.Add(2 * time.Minute),
+					},
+					removed:       []string{"tres", "quatro"},
+					validModTimes: true,
+				}
+			},
+			filter: func(testItem) bool { return false },
+			expect: expected{
+				added:         map[string]time.Time{},
+				removed:       []string{},
+				deltaUpdate:   DeltaUpdate{Reset: true},
+				validModTimes: true,
+			},
+			canDelta: true,
+		},
+		{
+			name: "with prev delta and fail all filter",
+			pagerGetter: func(t *testing.T) Pager[testItem] {
+				return nil
+			},
+			deltaPagerGetter: func(t *testing.T) DeltaPager[testItem] {
+				return &testIDsDeltaPager{
+					t: t,
+					added: map[string]time.Time{
+						"uno": now.Add(time.Minute),
+						"dos": now.Add(2 * time.Minute),
+					},
+					removed:       []string{"tres", "quatro"},
+					validModTimes: true,
+				}
+			},
+			filter:    func(testItem) bool { return false },
+			prevDelta: "delta",
+			expect: expected{
+				added:         map[string]time.Time{},
+				removed:       []string{},
+				deltaUpdate:   DeltaUpdate{Reset: false},
+				validModTimes: true,
+			},
+			canDelta: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -434,16 +515,30 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			added, validModTimes, removed, deltaUpdate, err := getAddedAndRemovedItemIDs[any](
+			filters := []func(testItem) bool{}
+			if test.filter != nil {
+				filters = append(filters, test.filter)
+			}
+
+			added, validModTimes, removed, deltaUpdate, err := getAddedAndRemovedItemIDs[testItem](
 				ctx,
 				test.pagerGetter(t),
 				test.deltaPagerGetter(t),
 				test.prevDelta,
 				test.canDelta,
-				addedAndRemovedByAddtlData[any])
+				addedAndRemovedByAddtlData[testItem],
+				filters...)
 
 			require.NoErrorf(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
-			assert.Equal(t, test.expect.added, added, "added item IDs and mod times")
+			if validModTimes {
+				assert.Equal(t, test.expect.added, added, "added item IDs and mod times")
+			} else {
+				assert.ElementsMatch(t, maps.Keys(test.expect.added), maps.Keys(added), "added item IDs")
+				for _, modtime := range added {
+					assert.True(t, modtime.After(epoch), "mod time after epoch")
+					assert.False(t, modtime.Equal(time.Time{}), "non-zero mod time")
+				}
+			}
 			assert.Equal(t, test.expect.validModTimes, validModTimes, "valid mod times")
 			assert.EqualValues(t, test.expect.removed, removed, "removed item IDs")
 			assert.Equal(t, test.expect.deltaUpdate, deltaUpdate, "delta update")

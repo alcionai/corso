@@ -150,8 +150,10 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      assert.AnError,
 				},
 			},
-			expectedErr:     assert.Error,
-			expectedResults: nil,
+			expectedErr: assert.Error,
+			// even though we error, the func will return both the
+			// error and the prior results
+			expectedResults: resultDrives,
 		},
 		{
 			name: "MySiteURLNotFound",
@@ -266,7 +268,13 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			)
 
 			colls := NewCollections(
-				&itemBackupHandler{suite.ac.Drives(), test.user, scope},
+				&userDriveBackupHandler{
+					baseUserDriveHandler: baseUserDriveHandler{
+						ac: suite.ac.Drives(),
+					},
+					userID: test.user,
+					scope:  scope,
+				},
 				creds.AzureTenantID,
 				idname.NewProvider(test.user, test.user),
 				service.updateStatus,

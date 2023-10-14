@@ -121,9 +121,12 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 	)
 
 	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
-
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting user")
+		if graph.IsErrResourceLocked(err) {
+			err = clues.Stack(graph.ErrResourceLocked, err)
+		}
+
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, err
@@ -182,6 +185,10 @@ func EvaluateMailboxError(err error) error {
 	// must occur before MailFolderNotFound, due to overlapping cases.
 	if graph.IsErrUserNotFound(err) {
 		return clues.Stack(graph.ErrResourceOwnerNotFound, err)
+	}
+
+	if graph.IsErrResourceLocked(err) {
+		return clues.Stack(graph.ErrResourceLocked, err)
 	}
 
 	if graph.IsErrExchangeMailFolderNotFound(err) || graph.IsErrAuthenticationError(err) {

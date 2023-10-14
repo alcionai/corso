@@ -367,6 +367,5 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 	assert.Zero(t, ro.Results.ResourceOwners, "resource owners")
 	assert.Zero(t, ro.Results.BytesRead, "bytes read")
 	// no restore start, because we'd need to find the backup first.
-	assert.Equal(t, 0, mb.TimesCalled[events.RestoreStart], "restore-start events")
 	assert.Equal(t, 1, mb.TimesCalled[events.RestoreEnd], "restore-end events")
 }

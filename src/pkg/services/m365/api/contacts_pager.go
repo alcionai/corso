@@ -84,7 +84,7 @@ func (c Contacts) EnumerateContainers(
 		pgr = c.NewContactFoldersPager(userID, baseContainerID, immutableIDs)
 	)
 
-	containers, err := enumerateItems(ctx, pgr)
+	containers, err := batchEnumerateItems(ctx, pgr)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -165,7 +165,7 @@ func (c Contacts) GetItemsInContainerByCollisionKey(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewContactsPager(userID, containerID, false, contactCollisionKeyProps()...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := batchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating contacts")
 	}
@@ -186,7 +186,7 @@ func (c Contacts) GetItemIDsInContainer(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewContactsPager(userID, containerID, false, idAnd()...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := batchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating contacts")
 	}

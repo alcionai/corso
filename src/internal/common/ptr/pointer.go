@@ -1,6 +1,10 @@
 package ptr
 
-import "time"
+import (
+	"time"
+
+	"github.com/alcionai/corso/src/internal/common/dttm"
+)
 
 // ptr package is a common package used for pointer
 // access and deserialization.
@@ -38,10 +42,10 @@ func ValOK[T any](ptr *T) (T, bool) {
 // time in UTC.
 func OrNow(t *time.Time) time.Time {
 	if t == nil {
-		return time.Now().UTC()
+		t = &time.Time{}
 	}
 
-	return *t
+	return dttm.OrNow(*t)
 }
 
 // To generates a pointer from any value.  Primarily useful

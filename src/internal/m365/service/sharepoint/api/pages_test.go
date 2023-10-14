@@ -109,7 +109,7 @@ func (suite *SharePointPageSuite) TestRestoreSinglePage() {
 	//nolint:lll
 	byteArray := spMock.Page("Byte Test")
 
-	pageData, err := data.NewUnindexedPrefetchedItem(
+	pageData, err := data.NewPrefetchedItem(
 		io.NopCloser(bytes.NewReader(byteArray)),
 		testName,
 		time.Now())

@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -51,7 +52,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 	)
 
 	pb := path.Builder{}.Append(testBaseDrivePath.Elements()...)
-	ep, err := drive.NewLibraryBackupHandler(api.Drives{}, siteID, nil, path.SharePointService).
+	ep, err := drive.NewSiteBackupHandler(api.Drives{}, siteID, nil, path.SharePointService).
 		CanonicalPath(pb, tenantID)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
@@ -90,19 +91,29 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 			defer flush()
 
 			var (
-				paths     = map[string]string{}
-				newPaths  = map[string]string{}
-				excluded  = map[string]struct{}{}
-				itemColls = map[string]map[string]string{
-					driveID: {},
+				mbh = mock.DefaultSharePointBH(siteID)
+				du  = api.DeltaUpdate{
+					URL:   "notempty",
+					Reset: false,
 				}
-				collMap = map[string]map[string]*drive.Collection{
+				paths    = map[string]string{}
+				excluded = map[string]struct{}{}
+				collMap  = map[string]map[string]*drive.Collection{
 					driveID: {},
 				}
 			)
 
+			mbh.DriveItemEnumeration = mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID: {
+						Pages:       []mock.NextPage{{Items: test.items}},
+						DeltaUpdate: du,
+					},
+				},
+			}
+
 			c := drive.NewCollections(
-				drive.NewLibraryBackupHandler(api.Drives{}, siteID, test.scope, path.SharePointService),
+				mbh,
 				tenantID,
 				idname.NewProvider(siteID, siteID),
 				nil,
@@ -110,16 +121,13 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 
 			c.CollectionMap = collMap
 
-			err := c.UpdateCollections(
+			_, _, err := c.PopulateDriveCollections(
 				ctx,
 				driveID,
 				"General",
-				test.items,
 				paths,
-				newPaths,
 				excluded,
-				itemColls,
-				true,
+				"",
 				fault.New(true))
 
 			test.expect(t, err, clues.ToCore(err))
