@@ -57,8 +57,8 @@ func (c Channels) NewChannelMessagePager(
 		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
 	}
 
-	if len(cc.Props) > 0 {
-		options.QueryParameters.Select = cc.Props
+	if len(cc.Select) > 0 {
+		options.QueryParameters.Select = cc.Select
 	}
 
 	if len(cc.Expand) > 0 {
@@ -83,7 +83,7 @@ func (c Channels) GetChannelMessages(
 ) ([]models.ChatMessageable, error) {
 	ctx = clues.Add(ctx, "channel_id", channelID)
 	pager := c.NewChannelMessagePager(teamID, channelID, cc)
-	items, err := enumerateItems[models.ChatMessageable](ctx, pager)
+	items, err := batchEnumerateItems[models.ChatMessageable](ctx, pager)
 
 	return items, graph.Stack(ctx, err).OrNil()
 }
