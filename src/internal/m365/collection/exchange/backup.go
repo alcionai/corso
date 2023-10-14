@@ -160,7 +160,7 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, validModTimes, removed, newDelta, err := bh.itemEnumerator().
+		added, _, removed, newDelta, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
@@ -199,7 +199,11 @@ func populateCollections(
 			bh.itemHandler(),
 			added,
 			removed,
-			validModTimes,
+			// TODO: produce a feature flag that allows selective
+			// enabling of valid modTimes.  This currently produces
+			// rare-case failures with incorrect details merging.
+			// Root cause is not yet known.
+			false,
 			statusUpdater)
 
 		collections[cID] = edc
