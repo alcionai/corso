@@ -307,7 +307,7 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 		flags.AWSSecretAccessKeyFV = ""
 		flags.AWSSessionTokenFV = ""
 
-		flags.CorsoPassphraseFV = ""
+		flags.PassphraseFV = ""
 	})
 
 	// Generate test config file
@@ -344,7 +344,7 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 	overrides[credentials.AWSSecretAccessKey] = flags.AWSSecretAccessKeyFV
 	overrides[credentials.AWSSessionToken] = flags.AWSSessionTokenFV
 
-	flags.CorsoPassphraseFV = "passphrase-flags"
+	flags.PassphraseFV = "passphrase-flags"
 
 	repoDetails, err := getStorageAndAccountWithViper(
 		vpr,
@@ -378,7 +378,7 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 	assert.Equal(t, flags.AzureClientSecretFV, m365Config.AzureClientSecret)
 	assert.Equal(t, flags.AzureClientTenantFV, m365Config.AzureTenantID)
 
-	assert.Equal(t, flags.CorsoPassphraseFV, pass)
+	assert.Equal(t, flags.PassphraseFV, pass)
 }
 
 // ------------------------------------------------------------
