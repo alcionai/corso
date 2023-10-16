@@ -199,7 +199,7 @@ type GroupsRestoreNightlyIntgSuite struct {
 	its intgTesterSetup
 }
 
-func TestGroupsRestoreIntgSuite(t *testing.T) {
+func TestGroupsRestoreNightlyIntgSuite(t *testing.T) {
 	suite.Run(t, &GroupsRestoreNightlyIntgSuite{
 		Suite: tester.NewNightlySuite(
 			t,
@@ -226,18 +226,18 @@ func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsWithAdvancedOp
 		suite.its.group.RootSite.DriveRootFolderID)
 }
 
-// func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsAlternateProtectedResource() {
-// 	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
-// 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
-// 	sel.Filter(sel.Library("documents"))
-// 	sel.DiscreteOwner = suite.its.group.ID
+func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsAlternateProtectedResource() {
+	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+	sel.Filter(sel.Library("documents"))
+	sel.DiscreteOwner = suite.its.group.ID
 
-// 	runDriveRestoreToAlternateProtectedResource(
-// 		suite.T(),
-// 		suite,
-// 		suite.its.ac,
-// 		sel.Selector,
-// 		suite.its.group.RootSite,
-// 		suite.its.secondaryGroup.RootSite,
-// 		suite.its.secondaryGroup.ID)
-// }
+	runDriveRestoreToAlternateProtectedResource(
+		suite.T(),
+		suite,
+		suite.its.ac,
+		sel.Selector,
+		suite.its.group.RootSite,
+		suite.its.secondaryGroup.RootSite,
+		suite.its.secondaryGroup.ID)
+}
