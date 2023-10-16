@@ -196,7 +196,7 @@ func (suite *RestoreOpUnitSuite) TestChooseRestoreResource() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			result, err := chooseRestoreResource(ctx, test.ctrl, test.cfg, test.orig)
+			svc, result, err := chooseRestoreResource(ctx, test.ctrl, test.cfg, test.orig)
 			test.expectErr(t, err, clues.ToCore(err))
 			require.NotNil(t, result)
 			assert.Equal(t, test.expectID, result.ID())

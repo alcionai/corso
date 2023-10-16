@@ -56,7 +56,7 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
 
-		RestoreCfg: makeRestoreCfgOpts(cmd),
+		RestoreCfg: makeBaseRestoreCfgOpts(cmd),
 		ExportCfg:  makeExportCfgOpts(cmd),
 
 		// populated contains the list of flags that appear in the

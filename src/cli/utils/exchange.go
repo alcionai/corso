@@ -59,7 +59,7 @@ func MakeExchangeOpts(cmd *cobra.Command) ExchangeOpts {
 		EventStartsBefore: flags.EventStartsBeforeFV,
 		EventSubject:      flags.EventSubjectFV,
 
-		RestoreCfg: makeRestoreCfgOpts(cmd),
+		RestoreCfg: makeBaseRestoreCfgOpts(cmd),
 
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate

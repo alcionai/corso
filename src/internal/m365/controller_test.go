@@ -57,18 +57,18 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	var (
 		itn    = map[string]string{id: name}
 		nti    = map[string]string{name: id}
-		lookup = &resourceClient{
+		lookup = &ResourceClient{
 			enum:   resource.Users,
 			getter: &mock.IDNameGetter{ID: id, Name: name},
 		}
-		noLookup = &resourceClient{enum: resource.Users, getter: &mock.IDNameGetter{}}
+		noLookup = &ResourceClient{enum: resource.Users, getter: &mock.IDNameGetter{}}
 	)
 
 	table := []struct {
 		name              string
 		protectedResource string
 		ins               inMock.Cache
-		rc                *resourceClient
+		rc                *ResourceClient
 		expectID          string
 		expectName        string
 		expectErr         require.ErrorAssertionFunc

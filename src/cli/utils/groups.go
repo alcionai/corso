@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -67,6 +68,10 @@ func AddGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.
 }
 
 func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
+	restoreCfg := makeBaseRestoreCfgOpts(cmd)
+	restoreCfg.SubServiceType = path.SharePointService                   // this is the only possibility as of now
+	restoreCfg.SubService = append(flags.SiteIDFV, flags.WebURLFV...)[0] // we should always have just one
+
 	return GroupsOpts{
 		Groups:   flags.GroupFV,
 		Channels: flags.ChannelFV,
@@ -92,7 +97,7 @@ func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
 
-		RestoreCfg: makeRestoreCfgOpts(cmd),
+		RestoreCfg: restoreCfg,
 		ExportCfg:  makeExportCfgOpts(cmd),
 
 		// populated contains the list of flags that appear in the

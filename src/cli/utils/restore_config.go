@@ -11,6 +11,7 @@ import (
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type RestoreCfgOpts struct {
@@ -23,10 +24,18 @@ type RestoreCfgOpts struct {
 	ProtectedResource string
 	SkipPermissions   bool
 
+	// SubService is useful when we are trying to restore Groups where
+	// the user can only restore a single service at any point instead of
+	// the entire backup.
+	SubServiceType path.ServiceType
+	SubService     string
+
 	Populated flags.PopulatedFlags
 }
 
-func makeRestoreCfgOpts(cmd *cobra.Command) RestoreCfgOpts {
+// makeBaseRestoreCfgOpts fills in all RestoreCfgOpts except for sub
+// service details. That is filled by the caller.
+func makeBaseRestoreCfgOpts(cmd *cobra.Command) RestoreCfgOpts {
 	return RestoreCfgOpts{
 		Collisions:        flags.CollisionsFV,
 		Destination:       flags.DestinationFV,
@@ -73,6 +82,9 @@ func MakeRestoreConfig(
 
 	restoreCfg.ProtectedResource = opts.ProtectedResource
 	restoreCfg.IncludePermissions = !opts.SkipPermissions
+
+	restoreCfg.SubService.Type = opts.SubServiceType
+	restoreCfg.SubService.ID = opts.SubService
 
 	Infof(ctx, "Restoring to folder %s", restoreCfg.Location)
 

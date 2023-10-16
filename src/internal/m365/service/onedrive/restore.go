@@ -10,14 +10,42 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/resource"
+	"github.com/alcionai/corso/src/internal/m365/service/common"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
+
+func GetRestoreResource(
+	ctx context.Context,
+	ac api.Client,
+	rc control.RestoreConfig,
+	ins idname.Cacher,
+	orig idname.Provider,
+) (path.ServiceType, idname.Provider, error) {
+	if len(rc.ProtectedResource) == 0 {
+		return path.OneDriveService, orig, nil
+	}
+
+	res, err := common.GetResourceClient(resource.Users, ac)
+	if err != nil {
+		return path.UnknownService, nil, err
+	}
+
+	pr, err := res.GetResourceIDAndNameFrom(ctx, rc.ProtectedResource, ins)
+	if err != nil {
+		return path.UnknownService, nil, clues.Wrap(err, "identifying resource owner")
+	}
+
+	return path.OneDriveService, pr, nil
+}
 
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive
 func ConsumeRestoreCollections(

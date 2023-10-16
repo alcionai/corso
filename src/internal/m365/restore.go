@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
@@ -16,10 +17,44 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+func (ctrl *Controller) GetRestoreResource(
+	ctx context.Context,
+	service path.ServiceType,
+	rc control.RestoreConfig,
+	orig idname.Provider,
+) (path.ServiceType, idname.Provider, error) {
+	var (
+		svc path.ServiceType
+		pr  idname.Provider
+		err error
+	)
+
+	switch service {
+	case path.ExchangeService:
+		svc, pr, err = exchange.GetRestoreResource(ctx, ctrl.AC, rc, ctrl.IDNameLookup, orig)
+	case path.OneDriveService:
+		svc, pr, err = onedrive.GetRestoreResource(ctx, ctrl.AC, rc, ctrl.IDNameLookup, orig)
+	case path.SharePointService:
+		svc, pr, err = sharepoint.GetRestoreResource(ctx, ctrl.AC, rc, ctrl.IDNameLookup, orig)
+	case path.GroupsService:
+		svc, pr, err = groups.GetRestoreResource(ctx, ctrl.AC, rc, ctrl.IDNameLookup, orig)
+	default:
+		err = clues.New("unknown service").With("service", service)
+	}
+
+	if err != nil {
+		return path.UnknownService, nil, err
+	}
+
+	ctrl.IDNameLookup = idname.NewCache(map[string]string{pr.ID(): pr.Name()})
+	return svc, pr, nil
+}
 
 // ConsumeRestoreCollections restores data from the specified collections
 // into M365 using the GraphAPI.

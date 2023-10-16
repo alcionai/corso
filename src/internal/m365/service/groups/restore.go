@@ -13,6 +13,8 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/resource"
+	"github.com/alcionai/corso/src/internal/m365/service/common"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -23,6 +25,39 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
+
+func GetRestoreResource(
+	ctx context.Context,
+	ac api.Client,
+	rc control.RestoreConfig,
+	ins idname.Cacher,
+	orig idname.Provider,
+) (path.ServiceType, idname.Provider, error) {
+	// As of now Groups can only restore sites and so we don't need
+	// any extra logic here, but if/when we start supporting restoring
+	// other data like messages or chat, we can probably pass that on via
+	// the restore config and choose the appropriate api client here.
+	res, err := common.GetResourceClient(resource.Sites, ac)
+	if err != nil {
+		return path.UnknownService, nil, err
+	}
+
+	if len(rc.ProtectedResource) == 0 {
+		pr, err := res.GetResourceIDAndNameFrom(ctx, rc.SubService.ID, ins)
+		if err != nil {
+			return path.UnknownService, nil, clues.Wrap(err, "identifying resource owner")
+		}
+
+		return path.SharePointService, pr, nil
+	}
+
+	pr, err := res.GetResourceIDAndNameFrom(ctx, rc.ProtectedResource, ins)
+	if err != nil {
+		return path.UnknownService, nil, clues.Wrap(err, "identifying resource owner")
+	}
+
+	return path.SharePointService, pr, nil
+}
 
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive
 func ConsumeRestoreCollections(
@@ -37,11 +72,10 @@ func ConsumeRestoreCollections(
 	ctr *count.Bus,
 ) (*support.ControllerOperationStatus, error) {
 	var (
-		restoreMetrics    support.CollectionMetrics
-		caches            = drive.NewRestoreCaches(backupDriveIDNames)
-		lrh               = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
-		el                = errs.Local()
-		webURLToSiteNames = map[string]string{}
+		restoreMetrics support.CollectionMetrics
+		caches         = drive.NewRestoreCaches(backupDriveIDNames)
+		lrh            = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
+		el             = errs.Local()
 	)
 
 	// Reorder collections so that the parents directories are created
@@ -56,7 +90,6 @@ func ConsumeRestoreCollections(
 
 		var (
 			err      error
-			siteName string
 			category = dc.FullPath().Category()
 			metrics  support.CollectionMetrics
 			ictx     = clues.Add(ctx,
@@ -68,34 +101,7 @@ func ConsumeRestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			siteID := dc.FullPath().Folders()[1]
-
-			webURL, ok := backupSiteIDWebURL.NameOf(siteID)
-			if !ok {
-				// This should not happen, but just in case
-				logger.Ctx(ctx).With("site_id", siteID).Info("site weburl not found, using site id")
-			}
-
-			siteName, err = getSiteName(ctx, siteID, webURL, ac.Sites(), webURLToSiteNames)
-			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "getting site").
-					With("web_url", webURL, "site_id", siteID))
-			} else if len(siteName) == 0 {
-				// Site was deleted in between and restore and is not
-				// available anymore.
-				continue
-			}
-
-			pr := idname.NewProvider(siteID, siteName)
-			srcc := inject.RestoreConsumerConfig{
-				BackupVersion:     rcc.BackupVersion,
-				Options:           rcc.Options,
-				ProtectedResource: pr,
-				RestoreConfig:     rcc.RestoreConfig,
-				Selector:          rcc.Selector,
-			}
-
-			err = caches.Populate(ctx, lrh, srcc.ProtectedResource.ID())
+			err = caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
 			if err != nil {
 				return nil, clues.Wrap(err, "initializing restore caches")
 			}
@@ -103,7 +109,7 @@ func ConsumeRestoreCollections(
 			metrics, err = drive.RestoreCollection(
 				ictx,
 				lrh,
-				srcc,
+				rcc,
 				dc,
 				caches,
 				deets,

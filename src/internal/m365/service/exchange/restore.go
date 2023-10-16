@@ -5,17 +5,45 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/resource"
+	"github.com/alcionai/corso/src/internal/m365/service/common"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
+
+func GetRestoreResource(
+	ctx context.Context,
+	ac api.Client,
+	rc control.RestoreConfig,
+	ins idname.Cacher,
+	orig idname.Provider,
+) (path.ServiceType, idname.Provider, error) {
+	if len(rc.ProtectedResource) == 0 {
+		return path.ExchangeService, orig, nil
+	}
+
+	res, err := common.GetResourceClient(resource.Users, ac)
+	if err != nil {
+		return path.UnknownService, nil, err
+	}
+
+	pr, err := res.GetResourceIDAndNameFrom(ctx, rc.ProtectedResource, ins)
+	if err != nil {
+		return path.UnknownService, nil, clues.Wrap(err, "identifying resource owner")
+	}
+
+	return path.ExchangeService, pr, nil
+}
 
 // ConsumeRestoreCollections restores M365 objects in data.RestoreCollection to MSFT
 // store through GraphAPI.

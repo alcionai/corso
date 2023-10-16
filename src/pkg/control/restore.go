@@ -38,6 +38,11 @@ func IsValidCollisionPolicy(cp CollisionPolicy) bool {
 
 const RootLocation = "/"
 
+type RestoreConfigSubService struct {
+	ID   string
+	Type path.ServiceType
+}
+
 // RestoreConfig contains
 type RestoreConfig struct {
 	// Defines the per-item collision handling policy.
@@ -48,6 +53,11 @@ type RestoreConfig struct {
 	// If empty, restores to the same resource that was backed up.
 	// Defaults to empty.
 	ProtectedResource string `json:"protectedResource"`
+
+	// SubService specifies the sub-service which we are restoring in
+	// case of services that are constructed out of multiple services
+	// like Groups.
+	SubService RestoreConfigSubService
 
 	// Location specifies the container into which the data will be restored.
 	// Only accepts container names, does not accept IDs.

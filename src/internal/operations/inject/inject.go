@@ -45,6 +45,12 @@ type (
 	}
 
 	RestoreConsumer interface {
+		GetRestoreResource(
+			ctx context.Context,
+			service path.ServiceType,
+			rc control.RestoreConfig,
+			orig idname.Provider,
+		) (path.ServiceType, idname.Provider, error)
 		ConsumeRestoreCollections(
 			ctx context.Context,
 			rcc RestoreConsumerConfig,

@@ -227,7 +227,11 @@ func (op *RestoreOperation) do(
 		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
-	restoreToProtectedResource, err := chooseRestoreResource(ctx, op.rc, op.RestoreCfg, bup.Selector)
+	restoreService, restoreToProtectedResource, err := op.rc.GetRestoreResource(
+		ctx,
+		op.Selectors.PathService(),
+		op.RestoreCfg,
+		bup.Selector)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting destination protected resource")
 	}
@@ -236,13 +240,14 @@ func (op *RestoreOperation) do(
 		ctx,
 		"backup_protected_resource_id", bup.Selector.ID(),
 		"backup_protected_resource_name", clues.Hide(bup.Selector.Name()),
+		"restore_service", restoreService,
 		"restore_protected_resource_id", restoreToProtectedResource.ID(),
 		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
 
 	// Check if the resource has the service enabled to be able to restore.
 	enabled, err := op.rc.IsServiceEnabled(
 		ctx,
-		op.Selectors.PathService(),
+		restoreService,
 		restoreToProtectedResource.ID())
 	if err != nil {
 		return nil, clues.Wrap(err, "verifying service restore is enabled").WithClues(ctx)
@@ -348,24 +353,6 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsWritten = opStats.ctrl.Successes
 
 	return op.Errors.Failure()
-}
-
-func chooseRestoreResource(
-	ctx context.Context,
-	pprian inject.PopulateProtectedResourceIDAndNamer,
-	restoreCfg control.RestoreConfig,
-	orig idname.Provider,
-) (idname.Provider, error) {
-	if len(restoreCfg.ProtectedResource) == 0 {
-		return orig, nil
-	}
-
-	resource, err := pprian.PopulateProtectedResourceIDAndName(
-		ctx,
-		restoreCfg.ProtectedResource,
-		nil)
-
-	return resource, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
