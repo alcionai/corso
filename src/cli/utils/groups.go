@@ -69,7 +69,8 @@ func AddGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.
 
 func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 	restoreCfg := makeBaseRestoreCfgOpts(cmd)
-	restoreCfg.SubServiceType = path.SharePointService                   // this is the only possibility as of now
+	restoreCfg.SubServiceType = path.SharePointService // this is the only possibility as of now
+
 	restoreCfg.SubService = append(flags.SiteIDFV, flags.WebURLFV...)[0] // we should always have just one
 
 	return GroupsOpts{

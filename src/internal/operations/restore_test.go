@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -132,75 +130,6 @@ func (suite *RestoreOpUnitSuite) TestRestoreOperation_PersistResults() {
 			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")
-		})
-	}
-}
-
-func (suite *RestoreOpUnitSuite) TestChooseRestoreResource() {
-	var (
-		id        = "id"
-		name      = "name"
-		cfgWithPR = control.DefaultRestoreConfig(dttm.HumanReadable)
-	)
-
-	cfgWithPR.ProtectedResource = "cfgid"
-
-	table := []struct {
-		name           string
-		cfg            control.RestoreConfig
-		ctrl           *mock.Controller
-		orig           idname.Provider
-		expectErr      assert.ErrorAssertionFunc
-		expectProvider assert.ValueAssertionFunc
-		expectID       string
-		expectName     string
-	}{
-		{
-			name: "use original",
-			cfg:  control.DefaultRestoreConfig(dttm.HumanReadable),
-			ctrl: &mock.Controller{
-				ProtectedResourceID:   id,
-				ProtectedResourceName: name,
-			},
-			orig:       idname.NewProvider("oid", "oname"),
-			expectErr:  assert.NoError,
-			expectID:   "oid",
-			expectName: "oname",
-		},
-		{
-			name: "look up resource with iface",
-			cfg:  cfgWithPR,
-			ctrl: &mock.Controller{
-				ProtectedResourceID:   id,
-				ProtectedResourceName: name,
-			},
-			orig:       idname.NewProvider("oid", "oname"),
-			expectErr:  assert.NoError,
-			expectID:   id,
-			expectName: name,
-		},
-		{
-			name: "error looking up protected resource",
-			cfg:  cfgWithPR,
-			ctrl: &mock.Controller{
-				ProtectedResourceErr: assert.AnError,
-			},
-			orig:      idname.NewProvider("oid", "oname"),
-			expectErr: assert.Error,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			svc, result, err := chooseRestoreResource(ctx, test.ctrl, test.cfg, test.orig)
-			test.expectErr(t, err, clues.ToCore(err))
-			require.NotNil(t, result)
-			assert.Equal(t, test.expectID, result.ID())
-			assert.Equal(t, test.expectName, result.Name())
 		})
 	}
 }

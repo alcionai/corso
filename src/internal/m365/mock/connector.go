@@ -50,6 +50,15 @@ func (ctrl Controller) ProduceBackupCollections(
 	return ctrl.Collections, ctrl.Exclude, ctrl.Err == nil, ctrl.Err
 }
 
+func (ctrl Controller) GetRestoreResource(
+	ctx context.Context,
+	service path.ServiceType,
+	rc control.RestoreConfig,
+	orig idname.Provider,
+) (path.ServiceType, idname.Provider, error) {
+	return service, orig, nil
+}
+
 func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,

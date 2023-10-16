@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -63,6 +64,73 @@ func (suite *GroupsUnitSuite) TestConsumeRestoreCollections_noErrorOnGroups() {
 		fault.New(false),
 		nil)
 	assert.NoError(t, err, "Groups Channels restore")
+}
+
+func (suite *GroupsUnitSuite) TestGetRestoreResource() {
+	var (
+		sid          = "site-id"
+		sname        = "site-name"
+		nsid         = "new-site-id"
+		nsname       = "new-site-name"
+		cfgWithoutPR = control.DefaultRestoreConfig(dttm.HumanReadable)
+		cfgWithPR    = control.DefaultRestoreConfig(dttm.HumanReadable)
+	)
+
+	cfgWithoutPR.SubService.Type = path.SharePointService
+	cfgWithoutPR.SubService.ID = sid
+	cfgWithPR.ProtectedResource = nsid
+	cfgWithPR.SubService.Type = path.SharePointService
+	cfgWithPR.SubService.ID = sid
+
+	table := []struct {
+		name           string
+		cfg            control.RestoreConfig
+		orig           idname.Provider
+		cache          map[string]string
+		expectErr      assert.ErrorAssertionFunc
+		expectProvider assert.ValueAssertionFunc
+		expectID       string
+		expectName     string
+	}{
+		{
+			name:       "use original",
+			cfg:        cfgWithoutPR,
+			orig:       idname.NewProvider("oid", "oname"),
+			cache:      map[string]string{sid: sname},
+			expectErr:  assert.NoError,
+			expectID:   sid,
+			expectName: sname,
+		},
+		{
+			name:       "use new",
+			cfg:        cfgWithPR,
+			orig:       idname.NewProvider("oid", "oname"),
+			cache:      map[string]string{nsid: nsname},
+			expectErr:  assert.NoError,
+			expectID:   nsid,
+			expectName: nsname,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			svc, result, err := GetRestoreResource(
+				ctx,
+				api.Client{},
+				test.cfg,
+				idname.NewCache(test.cache),
+				test.orig)
+			test.expectErr(t, err, clues.ToCore(err))
+			require.NotNil(t, result)
+			assert.Equal(t, path.SharePointService, svc)
+			assert.Equal(t, test.expectID, result.ID())
+			assert.Equal(t, test.expectName, result.Name())
+		})
+	}
 }
 
 type groupsIntegrationSuite struct {

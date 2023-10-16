@@ -53,6 +53,7 @@ func (ctrl *Controller) GetRestoreResource(
 	}
 
 	ctrl.IDNameLookup = idname.NewCache(map[string]string{pr.ID(): pr.Name()})
+
 	return svc, pr, nil
 }
 
