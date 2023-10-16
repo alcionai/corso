@@ -19,7 +19,7 @@ var (
 )
 
 // AddRestoreConfigFlags adds the restore config flag set.
-func AddRestoreConfigFlags(cmd *cobra.Command, canRestoreToAlternate bool) {
+func AddRestoreConfigFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
 	fs.StringVar(
 		&CollisionsFV, CollisionsFN, string(control.Skip),
@@ -29,9 +29,7 @@ func AddRestoreConfigFlags(cmd *cobra.Command, canRestoreToAlternate bool) {
 		&DestinationFV, DestinationFN, "",
 		"Overrides the folder where items get restored; '/' places items into their original location")
 
-	if canRestoreToAlternate {
-		fs.StringVar(
-			&ToResourceFV, ToResourceFN, "",
-			"Overrides the protected resource (mailbox, site, user, etc) where data gets restored")
-	}
+	fs.StringVar(
+		&ToResourceFV, ToResourceFN, "",
+		"Overrides the protected resource (mailbox, site, user, etc) where data gets restored")
 }
