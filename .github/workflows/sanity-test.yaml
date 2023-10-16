@@ -385,7 +385,7 @@ jobs:
         with:
           service: groups
           kind: incremental
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }}"'
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }}"'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
