@@ -15,22 +15,22 @@ import (
 // Resource Lookup Handling
 // ---------------------------------------------------------------------------
 
-func GetResourceClient(rc resource.Category, ac api.Client) (*resourceClient, error) {
+func GetResourceClient(rc resource.Category, ac api.Client) (*ResourceClient, error) {
 	switch rc {
 	case resource.Users:
-		return &resourceClient{enum: rc, getter: ac.Users()}, nil
+		return &ResourceClient{Enum: rc, Getter: ac.Users()}, nil
 	case resource.Sites:
-		return &resourceClient{enum: rc, getter: ac.Sites()}, nil
+		return &ResourceClient{Enum: rc, Getter: ac.Sites()}, nil
 	case resource.Groups:
-		return &resourceClient{enum: rc, getter: ac.Groups()}, nil
+		return &ResourceClient{Enum: rc, Getter: ac.Groups()}, nil
 	default:
 		return nil, clues.New("unrecognized owner resource type").With("resource_enum", rc)
 	}
 }
 
-type resourceClient struct {
-	enum   resource.Category
-	getter getIDAndNamer
+type ResourceClient struct {
+	Enum   resource.Category
+	Getter getIDAndNamer
 }
 
 type getIDAndNamer interface {
@@ -45,7 +45,7 @@ type getIDAndNamer interface {
 	)
 }
 
-var _ idname.GetResourceIDAndNamer = &resourceClient{}
+var _ idname.GetResourceIDAndNamer = &ResourceClient{}
 
 // GetResourceIDAndNameFrom looks up the resource's canonical id and display name.
 // If the resource is present in the idNameSwapper, then that interface's id and
@@ -53,7 +53,7 @@ var _ idname.GetResourceIDAndNamer = &resourceClient{}
 // api to fetch the user or site using the resource value. This fallback assumes
 // that the resource is a well formed ID or display name of appropriate design
 // (PrincipalName for users, WebURL for sites).
-func (r resourceClient) GetResourceIDAndNameFrom(
+func (r ResourceClient) GetResourceIDAndNameFrom(
 	ctx context.Context,
 	owner string,
 	ins idname.Cacher,
@@ -73,7 +73,7 @@ func (r resourceClient) GetResourceIDAndNameFrom(
 		err      error
 	)
 
-	id, name, err = r.getter.GetIDAndName(ctx, owner, api.CallConfig{})
+	id, name, err = r.Getter.GetIDAndName(ctx, owner, api.CallConfig{})
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
 			return nil, clues.Stack(graph.ErrResourceOwnerNotFound, err)

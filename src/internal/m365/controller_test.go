@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	"github.com/alcionai/corso/src/internal/m365/resource"
+	"github.com/alcionai/corso/src/internal/m365/service/common"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -57,18 +58,18 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	var (
 		itn    = map[string]string{id: name}
 		nti    = map[string]string{name: id}
-		lookup = &ResourceClient{
-			enum:   resource.Users,
-			getter: &mock.IDNameGetter{ID: id, Name: name},
+		lookup = &common.ResourceClient{
+			Enum:   resource.Users,
+			Getter: &mock.IDNameGetter{ID: id, Name: name},
 		}
-		noLookup = &ResourceClient{enum: resource.Users, getter: &mock.IDNameGetter{}}
+		noLookup = &common.ResourceClient{Enum: resource.Users, Getter: &mock.IDNameGetter{}}
 	)
 
 	table := []struct {
 		name              string
 		protectedResource string
 		ins               inMock.Cache
-		rc                *ResourceClient
+		rc                *common.ResourceClient
 		expectID          string
 		expectName        string
 		expectErr         require.ErrorAssertionFunc

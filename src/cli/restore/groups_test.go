@@ -53,6 +53,7 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 						"--" + flags.RunModeFN, flags.RunModeFlagTest,
 						"--" + flags.BackupFN, flagsTD.BackupInput,
 						"--" + flags.SiteFN, flagsTD.SiteInput,
+						"--" + flags.SiteIDFN, flagsTD.SiteInput,
 						"--" + flags.LibraryFN, flagsTD.LibraryInput,
 						"--" + flags.FileFN, flagsTD.FlgInputs(flagsTD.FileNameInput),
 						"--" + flags.FolderFN, flagsTD.FlgInputs(flagsTD.FolderPathInput),
@@ -83,7 +84,8 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 			opts := utils.MakeGroupsOpts(cmd)
 
 			assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
-			assert.Equal(t, flagsTD.SiteInput, opts.Site)
+			assert.Equal(t, flagsTD.SiteInput, opts.SiteID[0])
+			assert.Equal(t, flagsTD.SiteInput, opts.WebURL[0])
 			assert.Equal(t, flagsTD.LibraryInput, opts.Library)
 			assert.ElementsMatch(t, flagsTD.FileNameInput, opts.FileName)
 			assert.ElementsMatch(t, flagsTD.FolderPathInput, opts.FolderPath)
