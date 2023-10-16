@@ -26,8 +26,8 @@ const (
 )
 
 const (
-	providerCommandUpdatePhasephraseExamples = `# Update passphrase of a Corso repo"
-	corso repo update-passphrase --new-passphrase 'newpass'`
+	providerCommandUpdatePhasephraseExamples = `# Update the Corso repository passphrase"
+corso repo update-passphrase --new-passphrase 'newpass'`
 )
 
 var (
@@ -75,7 +75,7 @@ func repoCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "repo",
 		Short: "Manage your repositories",
-		Long:  `Initialize, configure, connect and update to your account backup repositories.`,
+		Long:  `Initialize, configure, connect and update to your account backup repositories`,
 		RunE:  handleRepoCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -189,12 +189,12 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 }
 
 // The repo update subcommand.
-// `corso repo update-passphrase <repository> [<flag>...]`
+// `corso repo update-passphrase [<flag>...]`
 func updatePassphraseCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     updatePassphraseCommand,
-		Short:   "Update passphrase of connected repository.",
-		Long:    `Update repository passphrase.`,
+		Short:   "Update the repository passphrase",
+		Long:    `Update the repository passphrase`,
 		RunE:    handleUpdateCmd,
 		Args:    cobra.NoArgs,
 		Example: providerCommandUpdatePhasephraseExamples,
@@ -232,7 +232,7 @@ func handleUpdateCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
 	}
 
-	if err := r.UpdatePassword(ctx, flags.UpdateCorsoPhasephraseFV); err != nil {
+	if err := r.UpdatePassword(ctx, flags.NewPhasephraseFV); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to update s3"))
 	}
 

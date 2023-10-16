@@ -28,7 +28,6 @@ const (
 	tenantIDDeprecated = "m365_tenant_hash_deprecated"
 
 	// Event Keys
-
 	RepoInit       = "Repo Init"
 	RepoConnect    = "Repo Connect"
 	BackupEnd      = "Backup End"
