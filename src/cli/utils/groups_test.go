@@ -227,8 +227,26 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 		{
 			name:     "just site",
 			backupID: "id",
-			opts:     utils.GroupsOpts{Site: "site"}, // site is mandatory
+			opts:     utils.GroupsOpts{WebURL: []string{"site"}}, // site is mandatory
 			expect:   assert.NoError,
+		},
+		{
+			name:     "just siteid",
+			backupID: "id",
+			opts:     utils.GroupsOpts{SiteID: []string{"site-id"}},
+			expect:   assert.NoError,
+		},
+		{
+			name:     "multiple sites",
+			backupID: "id",
+			opts:     utils.GroupsOpts{SiteID: []string{"site-id1", "site-id2"}},
+			expect:   assert.Error,
+		},
+		{
+			name:     "site and siteid",
+			backupID: "id",
+			opts:     utils.GroupsOpts{SiteID: []string{"site-id"}, WebURL: []string{"site"}},
+			expect:   assert.Error,
 		},
 		{
 			name:     "no backupID",
@@ -240,7 +258,7 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 			name:     "all valid",
 			backupID: "id",
 			opts: utils.GroupsOpts{
-				Site:                   "site",
+				WebURL:                 []string{"site"},
 				FileCreatedAfter:       dttm.Now(),
 				FileCreatedBefore:      dttm.Now(),
 				FileModifiedAfter:      dttm.Now(),

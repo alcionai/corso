@@ -7,10 +7,9 @@ import (
 const DataMessages = "messages"
 
 const (
-	ChannelFN   = "channel"
-	GroupFN     = "group"
-	MessageFN   = "message"
-	GroupSiteFN = "site"
+	ChannelFN = "channel"
+	GroupFN   = "group"
+	MessageFN = "message"
 
 	MessageCreatedAfterFN    = "message-created-after"
 	MessageCreatedBeforeFN   = "message-created-before"
@@ -23,31 +22,11 @@ var (
 	GroupFV   []string
 	MessageFV []string
 
-	// Have to create a separate one for restore to make sure we
-	// create on which accepts only one value
-	GroupSiteFV string
-
 	MessageCreatedAfterFV    string
 	MessageCreatedBeforeFV   string
 	MessageLastReplyAfterFV  string
 	MessageLastReplyBeforeFV string
 )
-
-func AddSingleSiteIDFlag(cmd *cobra.Command, required bool) {
-	cmd.Flags().StringVar(
-		&GroupSiteFV,
-		GroupSiteFN,
-		"",
-		"ID or URL of the site to restore.")
-
-	// TODO: we can move this check to runtime once we support
-	// restoring other resources from groups, ie chat messages and
-	// only cause it to fail when the user is trying to restore site
-	// data.
-	if required {
-		cobra.CheckErr(cmd.MarkFlagRequired(GroupSiteFN))
-	}
-}
 
 func AddGroupDetailsAndRestoreFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()

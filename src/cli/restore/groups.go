@@ -27,7 +27,8 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, true)
-		flags.AddSingleSiteIDFlag(c, true)
+		flags.AddSiteFlag(c, false)
+		flags.AddSiteIDFlag(c, false)
 		flags.AddNoPermissionsFlag(c)
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 		flags.AddRestoreConfigFlags(c, false)

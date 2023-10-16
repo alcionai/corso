@@ -20,7 +20,8 @@ type GroupsOpts struct {
 	MessageLastReplyAfter  string
 	MessageLastReplyBefore string
 
-	Site               string
+	SiteID             []string
+	WebURL             []string
 	Library            string
 	FileName           []string // for libraries, to duplicate onedrive interface
 	FolderPath         []string // for libraries, to duplicate onedrive interface
@@ -70,7 +71,8 @@ func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 		Groups:   flags.GroupFV,
 		Channels: flags.ChannelFV,
 		Messages: flags.MessageFV,
-		Site:     flags.GroupSiteFV,
+		WebURL:   flags.WebURLFV,
+		SiteID:   flags.SiteIDFV,
 
 		Library:                flags.LibraryFV,
 		FileName:               flags.FileNameFV,
@@ -109,8 +111,12 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool
 	// The user has to explicitly specify which resource to restore. In
 	// this case, since we can only restore sites, the user is supposed
 	// to specify which site to restore.
-	if isRestore && len(opts.Site) == 0 {
-		return clues.New("a site ID or web URL is required")
+	if isRestore {
+		if len(opts.WebURL)+len(opts.SiteID) == 0 {
+			return clues.New("web URL of the site to restore is required. Use --" + flags.SiteFN + " to provide one.")
+		} else if len(opts.WebURL)+len(opts.SiteID) > 1 {
+			return clues.New("only a single site can be selected for restore")
+		}
 	}
 
 	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
@@ -264,7 +270,23 @@ func FilterGroupsRestoreInfoSelectors(
 	sel *selectors.GroupsRestore,
 	opts GroupsOpts,
 ) {
-	AddGroupsFilter(sel, opts.Site, sel.Site)
+	var site string
+
+	if len(opts.SiteID) > 0 {
+		site = opts.SiteID[0]
+	} else {
+		// using else instead of else if so that it would have a hard
+		// fail in case we somehow miss checking this earlier
+		site = opts.WebURL[0]
+	}
+
+	// sel.Site can accept both ID and URL and so irrespective of
+	// which flag the user uses, we can process both weburl and siteid
+	// Also since the url will start with `https://` in the data that
+	// we store and the id is a uuid, we can grantee that there will be
+	// no collisions.
+	AddGroupsFilter(sel, site, sel.Site)
+
 	AddGroupsFilter(sel, opts.Library, sel.Library)
 	AddGroupsFilter(sel, opts.FileCreatedAfter, sel.CreatedAfter)
 	AddGroupsFilter(sel, opts.FileCreatedBefore, sel.CreatedBefore)
