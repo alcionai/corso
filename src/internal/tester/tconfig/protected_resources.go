@@ -233,7 +233,7 @@ func GetM365TeamSiteID(ctx context.Context) string {
 		logger.Ctx(ctx).Error(err, "retrieving m365 team id from test configuration")
 	}
 
-	return strings.ToLower(cfg[TestCfgTeamID])
+	return strings.ToLower(cfg[TestCfgTeamSiteID])
 }
 
 // UnlicensedM365UserID returns an userID string representing the m365UserID
