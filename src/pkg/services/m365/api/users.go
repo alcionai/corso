@@ -121,9 +121,12 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 	)
 
 	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
-
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting user")
+		if graph.IsErrResourceLocked(err) {
+			err = clues.Stack(graph.ErrResourceLocked, err)
+		}
+
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, err

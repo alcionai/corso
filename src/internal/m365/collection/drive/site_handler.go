@@ -175,9 +175,9 @@ func (h siteBackupHandler) IncludesDir(dir string) bool {
 func (h siteBackupHandler) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID, prevDeltaLink string,
-	selectProps []string,
-) ([]models.DriveItemable, api.DeltaUpdate, error) {
-	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, selectProps)
+	cc api.CallConfig,
+) api.NextPageResulter[models.DriveItemable] {
+	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, cc)
 }
 
 // ---------------------------------------------------------------------------

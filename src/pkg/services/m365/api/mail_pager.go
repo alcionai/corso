@@ -81,7 +81,7 @@ func (c Mail) EnumerateContainers(
 		pgr = c.NewMailFoldersPager(userID, immutableIDs)
 	)
 
-	containers, err := enumerateItems(ctx, pgr)
+	containers, err := batchEnumerateItems(ctx, pgr)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -162,7 +162,7 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewMailPager(userID, containerID, false, mailCollisionKeyProps()...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := batchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating mails")
 	}
@@ -183,7 +183,7 @@ func (c Mail) GetItemIDsInContainer(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewMailPager(userID, containerID, false, idAnd()...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := batchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating mails")
 	}

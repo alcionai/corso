@@ -137,11 +137,19 @@ func (op *ExportOperation) Run(ctx context.Context) (
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	cats, err := op.Selectors.AllHumanPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for export")
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
-		"service", op.Selectors.Service)
+		"service", op.Selectors.Service,
+		"categories", cats)
 
 	defer func() {
 		op.bus.Event(
