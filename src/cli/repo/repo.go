@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -15,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
 	repo "github.com/alcionai/corso/src/pkg/repository"
-	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (
@@ -201,31 +199,30 @@ func updatePassphraseCmd() *cobra.Command {
 	}
 }
 
-// Handler for calls to `corso repo init`.
+// Handler for calls to `corso repo update-password`.
 func handleUpdateCmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.GetConfigRepoDetails(
-		ctx,
-		storage.ProviderS3,
-		true,
-		true,
-		flags.S3FlagOverrides(cmd))
+	// Need to give it a valid service so it won't error out on us even though
+	// we don't need the graph client.
+	repository, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.OneDriveService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	repoID := cfg.RepoID
+	opts := rdao.Opts
+
+	defer utils.CloseRepo(ctx, repository)
+
+	repoID := repository.GetID()
 	if len(repoID) == 0 {
 		repoID = events.RepoIDNotFound
 	}
 
-	opts := utils.ControlWithConfig(cfg)
-
 	r, err := repo.New(
 		ctx,
-		cfg.Account,
-		cfg.Storage,
+		rdao.Repo.Account,
+		rdao.Repo.Storage,
 		opts,
 		repoID)
 	if err != nil {
