@@ -85,7 +85,7 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 			assert.Equal(t, flagsTD.FileCreatedBeforeInput, opts.FileCreatedBefore)
 			assert.Equal(t, flagsTD.FileModifiedAfterInput, opts.FileModifiedAfter)
 			assert.Equal(t, flagsTD.FileModifiedBeforeInput, opts.FileModifiedBefore)
-			assert.Equal(t, flagsTD.CorsoPassphrase, flags.CorsoPassphraseFV)
+			assert.Equal(t, flagsTD.CorsoPassphrase, flags.PassphraseFV)
 			flagsTD.AssertStorageFlags(t, cmd)
 		})
 	}
