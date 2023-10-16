@@ -8,16 +8,24 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/cli/print"
+	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/path"
+	repo "github.com/alcionai/corso/src/pkg/repository"
 )
 
 const (
-	initCommand        = "init"
-	connectCommand     = "connect"
-	maintenanceCommand = "maintenance"
+	initCommand             = "init"
+	connectCommand          = "connect"
+	updatePassphraseCommand = "update-passphrase"
+	MaintenanceCommand      = "maintenance"
+)
+
+const (
+	providerCommandUpdatePhasephraseExamples = `# Update the Corso repository passphrase"
+corso repo update-passphrase --new-passphrase 'newpass'`
 )
 
 var (
@@ -35,16 +43,18 @@ func AddCommands(cmd *cobra.Command) {
 	var (
 		// Get new instances so that setting the context during tests works
 		// properly.
-		repoCmd        = repoCmd()
-		initCmd        = initCmd()
-		connectCmd     = connectCmd()
-		maintenanceCmd = maintenanceCmd()
+		repoCmd             = repoCmd()
+		initCmd             = initCmd()
+		connectCmd          = connectCmd()
+		maintenanceCmd      = maintenanceCmd()
+		updatePassphraseCmd = updatePassphraseCmd()
 	)
 
 	cmd.AddCommand(repoCmd)
 	repoCmd.AddCommand(initCmd)
 	repoCmd.AddCommand(connectCmd)
 	repoCmd.AddCommand(maintenanceCmd)
+	repoCmd.AddCommand(updatePassphraseCmd)
 
 	flags.AddMaintenanceModeFlag(maintenanceCmd)
 	flags.AddForceMaintenanceFlag(maintenanceCmd)
@@ -63,7 +73,7 @@ func repoCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "repo",
 		Short: "Manage your repositories",
-		Long:  `Initialize, configure, and connect to your account backup repositories.`,
+		Long:  `Initialize, configure, connect and update to your account backup repositories`,
 		RunE:  handleRepoCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -111,7 +121,7 @@ func handleConnectCmd(cmd *cobra.Command, args []string) error {
 
 func maintenanceCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   maintenanceCommand,
+		Use:   MaintenanceCommand,
 		Short: "Run maintenance on an existing repository",
 		Long:  `Run maintenance on an existing repository to optimize performance and storage use`,
 		RunE:  handleMaintenanceCmd,
@@ -134,7 +144,7 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 		// we don't need the graph client.
 		path.OneDriveService)
 	if err != nil {
-		return print.Only(ctx, err)
+		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
@@ -147,12 +157,12 @@ func handleMaintenanceCmd(cmd *cobra.Command, args []string) error {
 			Force:  flags.ForceMaintenanceFV,
 		})
 	if err != nil {
-		return print.Only(ctx, err)
+		return Only(ctx, err)
 	}
 
 	err = m.Run(ctx)
 	if err != nil {
-		return print.Only(ctx, err)
+		return Only(ctx, err)
 	}
 
 	return nil
@@ -174,4 +184,56 @@ func getMaintenanceType(t string) (repository.MaintenanceType, error) {
 	}
 
 	return res, nil
+}
+
+// The repo update subcommand.
+// `corso repo update-passphrase [<flag>...]`
+func updatePassphraseCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     updatePassphraseCommand,
+		Short:   "Update the repository passphrase",
+		Long:    `Update the repository passphrase`,
+		RunE:    handleUpdateCmd,
+		Args:    cobra.NoArgs,
+		Example: providerCommandUpdatePhasephraseExamples,
+	}
+}
+
+// Handler for calls to `corso repo update-password`.
+func handleUpdateCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	// Need to give it a valid service so it won't error out on us even though
+	// we don't need the graph client.
+	repos, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.OneDriveService)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	opts := rdao.Opts
+
+	defer utils.CloseRepo(ctx, repos)
+
+	repoID := repos.GetID()
+	if len(repoID) == 0 {
+		repoID = events.RepoIDNotFound
+	}
+
+	r, err := repo.New(
+		ctx,
+		rdao.Repo.Account,
+		rdao.Repo.Storage,
+		opts,
+		repoID)
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
+	}
+
+	if err := r.UpdatePassword(ctx, flags.NewPhasephraseFV); err != nil {
+		return Only(ctx, clues.Wrap(err, "Failed to update s3"))
+	}
+
+	Infof(ctx, "Updated repo password.")
+
+	return nil
 }
