@@ -394,6 +394,8 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 		{"file modified before epoch", dspl, user, sel.ModifiedBefore(dttm.Format(now)), assert.False},
 		{"in library", dspl, user, sel.Library("included-library"), assert.True},
 		{"not in library", dspl, user, sel.Library("not-included-library"), assert.False},
+		{"site id", dspl, user, sel.Site("site1"), assert.True},
+		{"web url", dspl, user, sel.Site(user), assert.True},
 		{"library id", dspl, user, sel.Library("1234"), assert.True},
 		{"not library id", dspl, user, sel.Library("abcd"), assert.False},
 
@@ -430,6 +432,7 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 					LastReplyAt:    mod,
 					DriveName:      "included-library",
 					DriveID:        "1234",
+					SiteID:         "site1",
 				},
 			}
 
@@ -457,6 +460,7 @@ func (suite *GroupsSelectorSuite) TestCategory_PathType() {
 		{GroupsLibraryFolder, path.LibrariesCategory},
 		{GroupsLibraryItem, path.LibrariesCategory},
 		{GroupsInfoSiteLibraryDrive, path.LibrariesCategory},
+		{GroupsInfoSite, path.LibrariesCategory},
 	}
 	for _, test := range table {
 		suite.Run(test.cat.String(), func() {

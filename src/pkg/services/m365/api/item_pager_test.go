@@ -272,7 +272,7 @@ func (suite *PagerUnitSuite) TestEnumerateItems() {
 					pageErr: assert.AnError,
 				}
 			},
-			expect:    nil,
+			expect:    []testItem{},
 			expectErr: require.Error,
 		},
 	}
@@ -284,7 +284,7 @@ func (suite *PagerUnitSuite) TestEnumerateItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			result, err := enumerateItems(ctx, test.getPager(t, ctx))
+			result, err := batchEnumerateItems(ctx, test.getPager(t, ctx))
 			test.expectErr(t, err, clues.ToCore(err))
 
 			require.EqualValues(t, test.expect, result)

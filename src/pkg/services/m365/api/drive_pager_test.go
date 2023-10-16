@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -185,11 +186,28 @@ func (suite *DrivePagerIntgSuite) TestEnumerateDriveItems() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	items, du, err := suite.its.
+	items := []models.DriveItemable{}
+
+	pager := suite.its.
 		ac.
 		Drives().
-		EnumerateDriveItemsDelta(ctx, suite.its.user.driveID, "", api.DefaultDriveItemProps())
+		EnumerateDriveItemsDelta(
+			ctx,
+			suite.its.user.driveID,
+			"",
+			api.CallConfig{
+				Select: api.DefaultDriveItemProps(),
+			})
+
+	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
+		items = append(items, page...)
+
+		assert.False(t, reset, "should not reset")
+	}
+
+	du, err := pager.Results()
+
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, items, "no items found in user's drive")
+	require.NotEmpty(t, items, "should find items in user's drive")
 	assert.NotEmpty(t, du.URL, "should have a delta link")
 }

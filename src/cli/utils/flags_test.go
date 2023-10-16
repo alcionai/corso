@@ -77,7 +77,7 @@ func (suite *FlagUnitSuite) TestAddCorsoPassphraseFlags() {
 	cmd := &cobra.Command{
 		Use: "test",
 		Run: func(cmd *cobra.Command, args []string) {
-			assert.Equal(t, "passphrase", flags.CorsoPassphraseFV, flags.CorsoPassphraseFN)
+			assert.Equal(t, "passphrase", flags.PassphraseFV, flags.PassphraseFN)
 		},
 	}
 
@@ -85,7 +85,7 @@ func (suite *FlagUnitSuite) TestAddCorsoPassphraseFlags() {
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
 		"test",
-		"--" + flags.CorsoPassphraseFN, "passphrase",
+		"--" + flags.PassphraseFN, "passphrase",
 	})
 
 	err := cmd.Execute()
@@ -134,7 +134,7 @@ func (suite *FlagUnitSuite) TestFilesystemFlags() {
 			assert.Equal(t, "tenantID", flags.AzureClientTenantFV, flags.AzureClientTenantFN)
 			assert.Equal(t, "clientID", flags.AzureClientIDFV, flags.AzureClientIDFN)
 			assert.Equal(t, "secret", flags.AzureClientSecretFV, flags.AzureClientSecretFN)
-			assert.Equal(t, "passphrase", flags.CorsoPassphraseFV, flags.CorsoPassphraseFN)
+			assert.Equal(t, "passphrase", flags.PassphraseFV, flags.PassphraseFN)
 		},
 	}
 
@@ -147,7 +147,7 @@ func (suite *FlagUnitSuite) TestFilesystemFlags() {
 		"--" + flags.AzureClientIDFN, "clientID",
 		"--" + flags.AzureClientTenantFN, "tenantID",
 		"--" + flags.AzureClientSecretFN, "secret",
-		"--" + flags.CorsoPassphraseFN, "passphrase",
+		"--" + flags.PassphraseFN, "passphrase",
 	})
 
 	err := cmd.Execute()
