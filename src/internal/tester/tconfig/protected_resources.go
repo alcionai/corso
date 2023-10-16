@@ -185,14 +185,14 @@ func M365SiteURL(t *testing.T) string {
 	return strings.ToLower(cfg[TestCfgSiteURL])
 }
 
-// GetM365SiteID returns a siteID string representing the m365SitteID described
+// GetM365SiteID returns a siteID string representing the m365SiteID described
 // by either the env var CORSO_M365_TEST_SITE_ID, the corso_test.toml config
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
 func GetM365SiteID(ctx context.Context) string {
 	cfg, err := ReadTestConfig()
 	if err != nil {
-		logger.Ctx(ctx).Error(err, "retrieving m365 user id from test configuration")
+		logger.Ctx(ctx).Error(err, "retrieving m365 site id from test configuration")
 	}
 
 	return strings.ToLower(cfg[TestCfgSiteID])
@@ -207,6 +207,19 @@ func SecondaryM365SiteID(t *testing.T) string {
 	require.NoError(t, err, "retrieving secondary m365 site id from test configuration: %+v", clues.ToCore(err))
 
 	return strings.ToLower(cfg[TestCfgSecondarySiteID])
+}
+
+// GetM365TeamID returns a groupID string representing the m365TeamID described
+// by either the env var CORSO_M365_TEST_TEAM_ID, the corso_test.toml config
+// file or the default value (in that order of priority).  The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func GetM365TeamID(ctx context.Context) string {
+	cfg, err := ReadTestConfig()
+	if err != nil {
+		logger.Ctx(ctx).Error(err, "retrieving m365 team id from test configuration")
+	}
+
+	return strings.ToLower(cfg[TestCfgTeamID])
 }
 
 // UnlicensedM365UserID returns an userID string representing the m365UserID

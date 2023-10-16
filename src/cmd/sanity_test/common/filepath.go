@@ -1,38 +1,79 @@
 package common
 
 import (
+	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
 
-	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func FilepathWalker(
-	folderName string,
-	exportFileSizes map[string]int64,
-	startTime time.Time,
-) filepath.WalkFunc {
-	return func(path string, info os.FileInfo, err error) error {
+func BuildFilepathSanitree(
+	ctx context.Context,
+	rootDir string,
+) *Sanitree[fs.FileInfo, fs.FileInfo] {
+	var root *Sanitree[fs.FileInfo, fs.FileInfo]
+
+	walker := func(
+		p string,
+		info os.FileInfo,
+		err error,
+	) error {
 		if err != nil {
-			return clues.Stack(err)
+			Fatal(ctx, "error passed to filepath walker", err)
 		}
 
-		if info.IsDir() {
+		relPath, err := filepath.Rel(rootDir, p)
+		if err != nil {
+			Fatal(ctx, "getting relative filepath", err)
+		}
+
+		if info != nil {
+			Debugf(ctx, "adding: %s", relPath)
+		}
+
+		if root == nil {
+			root = &Sanitree[fs.FileInfo, fs.FileInfo]{
+				Self:     info,
+				ID:       info.Name(),
+				Name:     info.Name(),
+				Leaves:   map[string]*Sanileaf[fs.FileInfo, fs.FileInfo]{},
+				Children: map[string]*Sanitree[fs.FileInfo, fs.FileInfo]{},
+			}
+
 			return nil
 		}
 
-		relPath, err := filepath.Rel(folderName, path)
-		if err != nil {
-			return clues.Stack(err)
-		}
+		elems := path.Split(relPath)
+		node := root.NodeAt(ctx, elems[:len(elems)-1])
 
-		exportFileSizes[relPath] = info.Size()
-
-		if startTime.After(info.ModTime()) {
-			startTime = info.ModTime()
+		if info.IsDir() {
+			node.Children[info.Name()] = &Sanitree[fs.FileInfo, fs.FileInfo]{
+				Parent:   node,
+				Self:     info,
+				ID:       info.Name(),
+				Name:     info.Name(),
+				Leaves:   map[string]*Sanileaf[fs.FileInfo, fs.FileInfo]{},
+				Children: map[string]*Sanitree[fs.FileInfo, fs.FileInfo]{},
+			}
+		} else {
+			node.Leaves[info.Name()] = &Sanileaf[fs.FileInfo, fs.FileInfo]{
+				Parent: node,
+				Self:   info,
+				ID:     info.Name(),
+				Name:   info.Name(),
+				Size:   info.Size(),
+			}
 		}
 
 		return nil
 	}
+
+	err := filepath.Walk(rootDir, walker)
+	if err != nil {
+		Fatal(ctx, "walking filepath", err)
+	}
+
+	return root
 }

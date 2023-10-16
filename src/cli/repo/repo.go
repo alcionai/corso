@@ -205,16 +205,16 @@ func handleUpdateCmd(cmd *cobra.Command, args []string) error {
 
 	// Need to give it a valid service so it won't error out on us even though
 	// we don't need the graph client.
-	repository, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.OneDriveService)
+	repos, rdao, err := utils.GetAccountAndConnect(ctx, cmd, path.OneDriveService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	opts := rdao.Opts
 
-	defer utils.CloseRepo(ctx, repository)
+	defer utils.CloseRepo(ctx, repos)
 
-	repoID := repository.GetID()
+	repoID := repos.GetID()
 	if len(repoID) == 0 {
 		repoID = events.RepoIDNotFound
 	}
