@@ -21,7 +21,7 @@ func CheckGroupsExport(
 	// assumes we only need to sanity check the default site.
 	// should we expand this to check all sites in the group?
 	// are we backing up / restoring more than the default site?
-	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
+	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.TeamSiteID)
 	if err != nil {
 		common.Fatal(ctx, "getting the drive:", err)
 	}

@@ -222,6 +222,20 @@ func GetM365TeamID(ctx context.Context) string {
 	return strings.ToLower(cfg[TestCfgTeamID])
 }
 
+// GetM365TeamSiteID returns a site ID string representing the m365TeamSiteID
+// described by either the env var CORSO_M365_TEST_TEAM_SITE_ID, the
+// corso_test.toml config file or the default value (in that order of priority).
+// The default is a last-attempt fallback that will only work on alcion's
+// testing org.
+func GetM365TeamSiteID(ctx context.Context) string {
+	cfg, err := ReadTestConfig()
+	if err != nil {
+		logger.Ctx(ctx).Error(err, "retrieving m365 team id from test configuration")
+	}
+
+	return strings.ToLower(cfg[TestCfgTeamID])
+}
+
 // UnlicensedM365UserID returns an userID string representing the m365UserID
 // described by either the env var CORSO_M365_TEST_UNLICENSED_USER, the
 // corso_test.toml config file or the default value (in that order of priority).
