@@ -60,7 +60,8 @@ func AddCommands(cmd *cobra.Command) {
 	flags.AddForceMaintenanceFlag(maintenanceCmd)
 	flags.AddMaintenanceUserFlag(maintenanceCmd)
 	flags.AddMaintenanceHostnameFlag(maintenanceCmd)
-	flags.AddCorsoUpdatePassphraseFlags(updatePassphraseCmd)
+
+	flags.AddUpdatePassphraseFlags(updatePassphraseCmd, true)
 
 	for _, addRepoTo := range repoCommands {
 		addRepoTo(initCmd)
