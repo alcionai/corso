@@ -15,7 +15,7 @@ func CheckGroupsRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
+	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.TeamSiteID)
 	if err != nil {
 		common.Fatal(ctx, "getting site's default drive:", err)
 	}
