@@ -43,6 +43,10 @@ func GetRestoreResource(
 	}
 
 	if len(rc.ProtectedResource) == 0 {
+		if len(rc.SubService.ID) == 0 {
+			return path.UnknownService, nil, errors.New("missing subservice id for restore")
+		}
+
 		pr, err := res.GetResourceIDAndNameFrom(ctx, rc.SubService.ID, ins)
 		if err != nil {
 			return path.UnknownService, nil, clues.Wrap(err, "identifying resource owner")

@@ -239,5 +239,5 @@ func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsAlternateProte
 		sel.Selector,
 		suite.its.group.RootSite,
 		suite.its.secondaryGroup.RootSite,
-		suite.its.secondaryGroup.ID)
+		suite.its.secondaryGroup.RootSite.ID)
 }

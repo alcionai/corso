@@ -1050,6 +1050,12 @@ func runDriveRestoreWithAdvancedOptions(
 		acd                 = ac.Drives()
 	)
 
+	// Groups restore needs subservice information
+	if sel.Service == selectors.ServiceGroups {
+		restoreCfg.SubService.Type = path.SharePointService
+		restoreCfg.SubService.ID = driveID
+	}
+
 	// initial restore
 
 	suite.Run("baseline", func() {
@@ -1320,8 +1326,13 @@ func runDriveRestoreToAlternateProtectedResource(
 		acd               = ac.Drives()
 	)
 
-	// first restore to the 'from' resource
+	// Groups restore needs subservice information
+	if sel.Service == selectors.ServiceGroups {
+		restoreCfg.SubService.Type = path.SharePointService
+		restoreCfg.SubService.ID = driveFrom.ID
+	}
 
+	// first restore to the 'from' resource
 	suite.Run("restore original resource", func() {
 		mb = evmock.NewBus()
 		fromCtr := count.New()
