@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Email size metadata was incorrectly set to the size of the last attachment.  Emails will now correctly report the size of the mail content plus the size of all attachments.
 - Improves the filtering capabilities for Groups restore and backup
 - Improve check to skip OneNote files that cannot be downloaded.
+- Fix Groups backup for non Team groups
 
 ### Changed
 - Groups restore now expects the site whose backup we should restore
