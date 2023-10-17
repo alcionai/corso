@@ -69,9 +69,13 @@ func AddGroupsCategories(sel *selectors.GroupsBackup, cats []string) *selectors.
 
 func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 	restoreCfg := makeBaseRestoreCfgOpts(cmd)
-	restoreCfg.SubServiceType = path.SharePointService // this is the only possibility as of now
 
-	restoreCfg.SubService = append(flags.SiteIDFV, flags.WebURLFV...)[0] // we should always have just one
+	sites := append(flags.SiteIDFV, flags.WebURLFV...)
+	if len(sites) > 0 {
+		// There will either be zero or one sites, this is ensured by ValidateGroupsRestoreFlags
+		restoreCfg.SubServiceType = path.SharePointService
+		restoreCfg.SubService = sites[0]
+	}
 
 	return GroupsOpts{
 		Groups:   flags.GroupFV,
@@ -114,15 +118,15 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool
 		return clues.New("a backup ID is required")
 	}
 
-	// The user has to explicitly specify which resource to restore. In
-	// this case, since we can only restore sites, the user is supposed
-	// to specify which site to restore.
-	if isRestore {
-		if len(opts.WebURL)+len(opts.SiteID) == 0 {
-			return clues.New("web URL of the site to restore is required. Use --" + flags.SiteFN + " to provide one.")
-		} else if len(opts.WebURL)+len(opts.SiteID) > 1 {
-			return clues.New("only a single site can be selected for restore")
-		}
+	// When restoring the user has to select a single site to
+	// restore. During exports or other operation, they can either select
+	// the entire backup or just a single site.
+	if isRestore && len(opts.WebURL)+len(opts.SiteID) == 0 {
+		return clues.New("web URL of the site to restore is required. Use --" + flags.SiteFN + " to provide one.")
+	}
+
+	if len(opts.WebURL)+len(opts.SiteID) > 1 {
+		return clues.New("only a single site can be selected when processing sub resources")
 	}
 
 	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
