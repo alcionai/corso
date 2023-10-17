@@ -272,11 +272,11 @@ func FilterGroupsRestoreInfoSelectors(
 ) {
 	var site string
 
+	// It is possible that neither exists as this filter is only
+	// mandatory for restore and not for export.
 	if len(opts.SiteID) > 0 {
 		site = opts.SiteID[0]
-	} else {
-		// using else instead of else if so that it would have a hard
-		// fail in case we somehow miss checking this earlier
+	} else if len(opts.WebURL) > 0 {
 		site = opts.WebURL[0]
 	}
 
