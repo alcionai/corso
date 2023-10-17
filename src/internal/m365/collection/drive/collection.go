@@ -335,18 +335,18 @@ func downloadContent(
 	itemID := ptr.Val(item.GetId())
 	ctx = clues.Add(ctx, "item_id", itemID)
 
-	content, err := downloadItem(ctx, iaag, item)
-	if err == nil {
-		return content, nil
-	} else if !graph.IsErrUnauthorized(err) {
-		return nil, err
-	}
+	// content, err := downloadItem(ctx, iaag, item)
+	// if err == nil {
+	// 	return content, nil
+	// } else if !graph.IsErrUnauthorized(err) {
+	// 	return nil, err
+	// }
 
 	// Assume unauthorized requests are a sign of an expired jwt
 	// token, and that we've overrun the available window to
 	// download the file.  Get a fresh url from the cache and attempt to
 	// download again.
-	content, err = readItemContents(ctx, iaag, uc, itemID)
+	content, err := readItemContents(ctx, iaag, uc, itemID)
 	if err == nil {
 		logger.Ctx(ctx).Debug("found item in url cache")
 		return content, nil

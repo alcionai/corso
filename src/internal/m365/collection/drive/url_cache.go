@@ -17,7 +17,7 @@ import (
 
 const (
 	urlCacheDriveItemThreshold = 300 * 1000
-	urlCacheRefreshInterval    = 1 * time.Hour
+	urlCacheRefreshInterval    = 200 * time.Millisecond
 )
 
 type getItemPropertyer interface {
@@ -86,7 +86,7 @@ func validateCacheParams(
 		return clues.New("drive id is empty")
 	}
 
-	if refreshInterval < 1*time.Second {
+	if refreshInterval < 100*time.Millisecond {
 		return clues.New("invalid refresh interval")
 	}
 
