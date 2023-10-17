@@ -33,5 +33,3 @@ Below is a list of known Corso issues and limitations:
 * Teams messages don't support Restore due to limited Graph API support for message creation.
 
 * Groups and Teams support is available in an early-access status, and may be subject to breaking changes.
-
-* Restoring the data into a different Group from the one it was backed up from isn't currently supported

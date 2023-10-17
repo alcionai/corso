@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Skips graph calls for expired item download URLs.
 - Export operation now shows the stats at the end of the run
+- Group backup data can now be restored to a different resource than the one it was backed up from
 
 ### Fixed
 - Catch and report cases where a protected resource is locked out of access.  SDK consumers have a new errs sentinel that allows them to check for this case.
