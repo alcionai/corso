@@ -184,13 +184,13 @@ func ReadTestConfig() (map[string]string, error) {
 		TestCfgGroupID,
 		os.Getenv(EnvCorsoM365TestGroupID),
 		vpr.GetString(TestCfgGroupID),
-		"6f24b40d-b13d-4752-980f-f5fb9fba7aa0")
+		"87d622a5-fb64-4fa4-a324-3dd620afe0bd") // CINonTeamGroup (create one without teams)
 	fallbackTo(
 		testEnv,
 		TestCfgSecondaryGroupID,
 		os.Getenv(EnvCorsoSecondaryM365TestGroupID),
 		vpr.GetString(TestCfgSecondaryGroupID),
-		"20cda3c0-6f9a-4286-9f2f-bb284e1f79c9")
+		"cd260eff-834f-4cc3-b3bf-0aad1c9b8b7e") // CINonTeamGroup2 (create one without teams)
 	fallbackTo(
 		testEnv,
 		TestCfgSiteURL,
