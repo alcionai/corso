@@ -209,8 +209,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointWithAd
 		suite,
 		suite.its.ac,
 		sel.Selector,
-		suite.its.site.DriveID,
-		suite.its.site.DriveRootFolderID)
+		suite.its.site)
 }
 
 func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointAlternateProtectedResource() {

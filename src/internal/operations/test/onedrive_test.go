@@ -1015,8 +1015,7 @@ func (suite *OneDriveRestoreNightlyIntgSuite) TestRestore_Run_onedriveWithAdvanc
 		suite,
 		suite.its.ac,
 		sel.Selector,
-		suite.its.user.DriveID,
-		suite.its.user.DriveRootFolderID)
+		suite.its.user)
 }
 
 func runDriveRestoreWithAdvancedOptions(
@@ -1024,7 +1023,7 @@ func runDriveRestoreWithAdvancedOptions(
 	suite tester.Suite,
 	ac api.Client,
 	sel selectors.Selector, // both Restore and Backup types work.
-	driveID, rootFolderID string,
+	driveFrom ids,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -1053,7 +1052,7 @@ func runDriveRestoreWithAdvancedOptions(
 	// Groups restore needs subservice information
 	if sel.Service == selectors.ServiceGroups {
 		restoreCfg.SubService.Type = path.SharePointService
-		restoreCfg.SubService.ID = driveID
+		restoreCfg.SubService.ID = driveFrom.ID
 	}
 
 	// initial restore
@@ -1084,18 +1083,18 @@ func runDriveRestoreWithAdvancedOptions(
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
-		contGC, err := acd.GetFolderByName(ctx, driveID, rootFolderID, restoreCfg.Location)
+		contGC, err := acd.GetFolderByName(ctx, driveFrom.DriveID, driveFrom.DriveRootFolderID, restoreCfg.Location)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// the folder containing the files is a child of the folder created by the restore.
-		contGC, err = acd.GetFolderByName(ctx, driveID, ptr.Val(contGC.GetId()), selTD.TestFolderName)
+		contGC, err = acd.GetFolderByName(ctx, driveFrom.DriveID, ptr.Val(contGC.GetId()), selTD.TestFolderName)
 		require.NoError(t, err, clues.ToCore(err))
 
 		containerID = ptr.Val(contGC.GetId())
 
 		collKeys, err = acd.GetItemsInContainerByCollisionKey(
 			ctx,
-			driveID,
+			driveFrom.DriveID,
 			containerID)
 		require.NoError(t, err, clues.ToCore(err))
 
@@ -1103,7 +1102,7 @@ func runDriveRestoreWithAdvancedOptions(
 
 		checkRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
 
-		fileIDs, err = acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		fileIDs, err = acd.GetItemIDsInContainer(ctx, driveFrom.DriveID, containerID)
 		require.NoError(t, err, clues.ToCore(err))
 	})
 
@@ -1145,14 +1144,14 @@ func runDriveRestoreWithAdvancedOptions(
 		result := filterCollisionKeyResults(
 			t,
 			ctx,
-			driveID,
+			driveFrom.DriveID,
 			containerID,
 			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
 			collKeys)
 
 		assert.Len(t, result, 0, "no new items should get added")
 
-		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveFrom.DriveID, containerID)
 		require.NoError(t, err, clues.ToCore(err))
 
 		assert.Equal(t, fileIDs, currentFileIDs, "ids are equal")
@@ -1201,7 +1200,7 @@ func runDriveRestoreWithAdvancedOptions(
 		result := filterCollisionKeyResults(
 			t,
 			ctx,
-			driveID,
+			driveFrom.DriveID,
 			containerID,
 			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
 			collKeys)
@@ -1212,7 +1211,7 @@ func runDriveRestoreWithAdvancedOptions(
 			assert.NotEqual(t, v, collKeys[k], "replaced items should have new IDs")
 		}
 
-		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveFrom.DriveID, containerID)
 		require.NoError(t, err, clues.ToCore(err))
 
 		assert.Equal(t, len(fileIDs), len(currentFileIDs), "count of ids ids are equal")
@@ -1266,14 +1265,14 @@ func runDriveRestoreWithAdvancedOptions(
 		result := filterCollisionKeyResults(
 			t,
 			ctx,
-			driveID,
+			driveFrom.DriveID,
 			containerID,
 			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
 			collKeys)
 
 		assert.Len(t, result, len(collKeys), "all items should have been added as copies")
 
-		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveFrom.DriveID, containerID)
 		require.NoError(t, err, clues.ToCore(err))
 
 		assert.Equal(t, 2*len(fileIDs), len(currentFileIDs), "count of ids should be double from before")

@@ -222,8 +222,7 @@ func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsWithAdvancedOp
 		suite,
 		suite.its.ac,
 		sel.Selector,
-		suite.its.group.RootSite.DriveID,
-		suite.its.group.RootSite.DriveRootFolderID)
+		suite.its.group.RootSite)
 }
 
 func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsAlternateProtectedResource() {
