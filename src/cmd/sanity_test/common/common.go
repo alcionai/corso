@@ -31,6 +31,7 @@ type Envs struct {
 	GroupID          string
 	SiteID           string
 	UserID           string
+	TeamSiteID       string
 }
 
 func EnvVars(ctx context.Context) Envs {
@@ -43,6 +44,7 @@ func EnvVars(ctx context.Context) Envs {
 		GroupID:          tconfig.GetM365TeamID(ctx),
 		SiteID:           tconfig.GetM365SiteID(ctx),
 		UserID:           tconfig.GetM365UserID(ctx),
+		TeamSiteID:       tconfig.GetM365TeamSiteID(ctx),
 	}
 
 	if len(os.Getenv(sanityTestUser)) > 0 {
