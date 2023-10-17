@@ -69,20 +69,24 @@ func getOneDriveItem(
 	ac api.Client,
 	driveID string,
 ) models.DriveItemable {
-	var driveItem models.DriveItemable
-	// file to test the reader function
-	items, _, err := ac.Drives().EnumerateDriveItemsDelta(ctx, driveID, "", api.DefaultDriveItemProps())
-	require.NoError(t, err, clues.ToCore(err))
+	pager := ac.Drives().EnumerateDriveItemsDelta(
+		ctx,
+		driveID,
+		"",
+		api.CallConfig{
+			Select: api.DefaultDriveItemProps(),
+		})
 
-	// Return a file item
-	for _, item := range items {
-		if item.GetFile() != nil {
-			driveItem = item
-			break
+	// Get a file item
+	for page, _, done := pager.NextPage(); !done; page, _, done = pager.NextPage() {
+		for _, item := range page {
+			if item.GetFile() != nil {
+				return item
+			}
 		}
 	}
 
-	return driveItem
+	return nil
 }
 
 // TestItemReader is an integration test that makes a few assumptions
@@ -96,6 +100,10 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	sc := selectors.
+		NewOneDriveBackup([]string{suite.user}).
+		AllData()[0]
+
 	driveItem := getOneDriveItem(ctx, t, suite.service.ac, suite.userDriveID)
 	// Test Requirement 2: Need a file
 	require.NotEmpty(
@@ -105,10 +113,12 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 		suite.user,
 		suite.userDriveID)
 
-	bh := itemBackupHandler{
-		suite.service.ac.Drives(),
-		suite.user,
-		(&selectors.OneDriveBackup{}).Folders(selectors.Any())[0],
+	bh := &userDriveBackupHandler{
+		baseUserDriveHandler: baseUserDriveHandler{
+			ac: suite.service.ac.Drives(),
+		},
+		userID: suite.user,
+		scope:  sc,
 	}
 
 	// Read data for the file
