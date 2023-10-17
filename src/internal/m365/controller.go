@@ -10,6 +10,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/internal/m365/resource"
+	"github.com/alcionai/corso/src/internal/m365/service/common"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -80,9 +82,35 @@ func NewController(
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}
 
+	var rCli *common.ResourceClient
+
+	// no failure for unknown service.
+	// In that case we create a controller that doesn't attempt to look up any resource
+	// data.  This case helps avoid unnecessary service calls when the end user is running
+	// repo init and connect commands via the CLI.  All other callers should be expected
+	// to pass in a known service, or else expect downstream failures.
+	if pst != path.UnknownService {
+		rc := resource.UnknownResource
+
+		switch pst {
+		case path.ExchangeService, path.OneDriveService:
+			rc = resource.Users
+		case path.GroupsService:
+			rc = resource.Groups
+		case path.SharePointService:
+			rc = resource.Sites
+		}
+
+		rCli, err = common.GetResourceClient(rc, ac)
+		if err != nil {
+			return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
+		}
+	}
+
 	ctrl := Controller{
 		AC:           ac,
 		IDNameLookup: idname.NewCache(nil),
+		ownerLookup:  rCli,
 
 		credentials:        creds,
 		tenant:             acct.ID(),

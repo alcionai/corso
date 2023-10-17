@@ -116,15 +116,18 @@ func (suite *RestoreUnitSuite) TestRestoreConfig_piiHandling() {
 		expectPlain string
 	}{
 		{
-			name:        "empty",
-			expectSafe:  `{"onCollision":"","protectedResource":"","location":"","drive":"","includePermissions":false}`,
-			expectPlain: `{"onCollision":"","protectedResource":"","location":"","drive":"","includePermissions":false}`,
+			name: "empty",
+			expectSafe: `{"onCollision":"","protectedResource":"","SubService":{"ID":"","Type":0}` +
+				`,"location":"","drive":"","includePermissions":false}`,
+			expectPlain: `{"onCollision":"","protectedResource":"","SubService":{"ID":"","Type":0}` +
+				`,"location":"","drive":"","includePermissions":false}`,
 		},
 		{
-			name:       "defaults",
-			rc:         cdrc,
-			expectSafe: `{"onCollision":"skip","protectedResource":"","location":"***","drive":"","includePermissions":false}`,
-			expectPlain: `{"onCollision":"skip","protectedResource":"","location":"` +
+			name: "defaults",
+			rc:   cdrc,
+			expectSafe: `{"onCollision":"skip","protectedResource":"","SubService":{"ID":"","Type":0}` +
+				`,"location":"***","drive":"","includePermissions":false}`,
+			expectPlain: `{"onCollision":"skip","protectedResource":"","SubService":{"ID":"","Type":0},"location":"` +
 				cdrc.Location + `","drive":"","includePermissions":false}`,
 		},
 		{
@@ -136,9 +139,11 @@ func (suite *RestoreUnitSuite) TestRestoreConfig_piiHandling() {
 				Drive:              "somedriveid",
 				IncludePermissions: true,
 			},
-			expectSafe: `{"onCollision":"copy","protectedResource":"***","location":"***/exchange/***/email/***/***/***",` +
+			expectSafe: `{"onCollision":"copy","protectedResource":"***","SubService":{"ID":"","Type":0}` +
+				`,"location":"***/exchange/***/email/***/***/***",` +
 				`"drive":"***","includePermissions":true}`,
-			expectPlain: `{"onCollision":"copy","protectedResource":"snoob","location":"tid/exchange/ro/email/foo/bar/baz",` +
+			expectPlain: `{"onCollision":"copy","protectedResource":"snoob","SubService":{"ID":"","Type":0}` +
+				`,"location":"tid/exchange/ro/email/foo/bar/baz",` +
 				`"drive":"somedriveid","includePermissions":true}`,
 		},
 	}
