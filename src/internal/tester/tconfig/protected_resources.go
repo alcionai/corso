@@ -278,9 +278,10 @@ func SecondaryM365TeamID(t *testing.T) string {
 // by either the env var CORSO_M365_TEST_GROUP_ID, the corso_test.toml config
 // file or the default value (in that order of priority).  The default is a
 // last-attempt fallback that will only work on alcion's testing org.
+// NOTE: This Group will not have a Team associated with it.
 func M365GroupID(t *testing.T) string {
 	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving m365 group id from test configuration: %+v", clues.ToCore(err))
 
-	return strings.ToLower(cfg[TestCfgTeamID])
+	return strings.ToLower(cfg[TestCfgGroupID])
 }

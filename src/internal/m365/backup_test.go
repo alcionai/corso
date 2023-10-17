@@ -511,7 +511,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	defer flush()
 
 	var (
-		groupID  = tconfig.M365GroupID(t)
+		groupID  = tconfig.M365TeamID(t)
 		ctrl     = newController(ctx, t, path.GroupsService)
 		groupIDs = []string{groupID}
 	)
@@ -585,7 +585,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 	defer flush()
 
 	var (
-		groupID  = tconfig.M365GroupID(t)
+		groupID  = tconfig.M365TeamID(t)
 		ctrl     = newController(ctx, t, path.GroupsService)
 		groupIDs = []string{groupID}
 	)

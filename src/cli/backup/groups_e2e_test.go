@@ -517,7 +517,7 @@ func (suite *BackupDeleteGroupsE2ESuite) SetupSuite() {
 
 	suite.dpnd = prepM365Test(t, ctx, path.GroupsService)
 
-	m365GroupID := tconfig.M365GroupID(t)
+	m365GroupID := tconfig.M365TeamID(t)
 	groups := []string{m365GroupID}
 
 	// some tests require an existing backup
