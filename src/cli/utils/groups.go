@@ -72,7 +72,7 @@ func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 
 	sites := append(flags.SiteIDFV, flags.WebURLFV...)
 	if len(sites) > 0 {
-		// There will either be zero or one sites, this is ensured by ValidateGroupsRestoreFlags
+		// There will either be zero or one site, this is ensured by ValidateGroupsRestoreFlags
 		restoreCfg.SubServiceType = path.SharePointService
 		restoreCfg.SubService = sites[0]
 	}
@@ -119,7 +119,7 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool
 	}
 
 	// When restoring the user has to select a single site to
-	// restore. During exports or other operation, they can either select
+	// restore. During exports or other operations, they can either select
 	// the entire backup or just a single site.
 	if isRestore && len(opts.WebURL)+len(opts.SiteID) == 0 {
 		return clues.New("web URL of the site to restore is required. Use --" + flags.SiteFN + " to provide one.")

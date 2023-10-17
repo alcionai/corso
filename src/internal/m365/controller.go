@@ -110,9 +110,9 @@ func NewController(
 	ctrl := Controller{
 		AC:           ac,
 		IDNameLookup: idname.NewCache(nil),
-		ownerLookup:  rCli,
 
 		credentials:        creds,
+		ownerLookup:        rCli,
 		tenant:             acct.ID(),
 		wg:                 &sync.WaitGroup{},
 		backupDriveIDNames: idname.NewCache(nil),
