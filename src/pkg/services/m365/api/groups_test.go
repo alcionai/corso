@@ -137,6 +137,24 @@ func (suite *GroupsIntgSuite) TestGetAllSites() {
 	require.Equal(t, siteCount, len(sites), "incorrect number of sites")
 }
 
+// GetAllSites for Groups that are not Teams should return just the root site
+func (suite *GroupsIntgSuite) TestGetAllSitesNonTeam() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	group, err := suite.its.ac.Groups().GetByID(ctx, suite.its.nonTeamGroup.id, api.CallConfig{})
+	require.NoError(t, err)
+	require.False(t, api.IsTeam(ctx, group), "group should not be a team for this test")
+
+	sites, err := suite.its.ac.
+		Groups().
+		GetAllSites(ctx, suite.its.nonTeamGroup.id, fault.New(true))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(sites), "incorrect number of sites")
+}
+
 func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 	t := suite.T()
 

@@ -182,6 +182,19 @@ func (c Groups) GetAllSites(
 
 	sites := []models.Siteable{root}
 
+	group, err := c.Groups().GetByID(
+		ctx,
+		identifier,
+		CallConfig{})
+	if err != nil {
+		return nil, clues.Wrap(err, "getting group").WithClues(ctx)
+	}
+
+	isTeam := IsTeam(ctx, group)
+	if !isTeam {
+		return sites, nil
+	}
+
 	channels, err := Channels(c).GetChannels(ctx, identifier)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting channels")

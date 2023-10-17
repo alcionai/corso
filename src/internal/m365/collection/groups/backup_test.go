@@ -470,7 +470,7 @@ func (suite *BackupIntgSuite) SetupSuite() {
 
 func (suite *BackupIntgSuite) TestCreateCollections() {
 	var (
-		protectedResource = tconfig.M365GroupID(suite.T())
+		protectedResource = tconfig.M365TeamID(suite.T())
 		resources         = []string{protectedResource}
 		handler           = NewChannelBackupHandler(protectedResource, suite.ac.Channels())
 	)

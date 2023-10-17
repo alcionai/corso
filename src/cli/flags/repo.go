@@ -76,12 +76,16 @@ func AddCorsoPassphaseFlags(cmd *cobra.Command) {
 }
 
 // M365 flags
-func AddCorsoUpdatePassphraseFlags(cmd *cobra.Command) {
+func AddUpdatePassphraseFlags(cmd *cobra.Command, require bool) {
 	fs := cmd.Flags()
 	fs.StringVar(&NewPhasephraseFV,
 		NewPassphraseFN,
 		"",
 		"update Corso passphrase for repo")
+
+	if require {
+		cobra.CheckErr(cmd.MarkFlagRequired(NewPassphraseFN))
+	}
 }
 
 // ---------------------------------------------------------------------------

@@ -531,11 +531,12 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 	strval := "not-important"
 
 	table := []struct {
-		name     string
-		colScope collectionScope
-		itemSize int64
-		labels   []string
-		err      error
+		name         string
+		colScope     collectionScope
+		itemSize     int64
+		itemMimeType string
+		labels       []string
+		err          error
 	}{
 		{
 			name:     "Simple item fetch no error",
@@ -570,6 +571,14 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 			itemSize: 10,
 			err:      clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
+		},
+		{
+			name:         "small OneNote file",
+			colScope:     CollectionScopeFolder,
+			itemMimeType: oneNoteMimeType,
+			itemSize:     10,
+			err:          clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:       []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
 			name:     "big OneNote file",
@@ -609,6 +618,8 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 				now,
 				true,
 				false)
+
+			stubItem.GetFile().SetMimeType(&test.itemMimeType)
 
 			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.GI = mock.GetsItem{Item: stubItem}
