@@ -176,7 +176,7 @@ func (uc *urlCache) refreshCache(
 		}
 	}
 
-	du, err := pager.Results()
+	_, err := pager.Results()
 	if err != nil {
 		return clues.Stack(err)
 	}
@@ -185,7 +185,6 @@ func (uc *urlCache) refreshCache(
 
 	// Update last refresh time
 	uc.lastRefreshTime = time.Now()
-	uc.prevDelta = du.URL
 
 	return nil
 }
