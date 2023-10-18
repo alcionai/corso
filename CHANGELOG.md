@@ -17,6 +17,12 @@ repo.
 - Catch and report cases where a protected resource is locked out of access.  SDK consumers have a new errs sentinel that allows them to check for this case.
 - Fix a case where missing item LastModifiedTimes could cause incremental backups to fail.
 - Email size metadata was incorrectly set to the size of the last attachment.  Emails will now correctly report the size of the mail content plus the size of all attachments.
+- Improves the filtering capabilities for Groups restore and backup
+- Improve check to skip OneNote files that cannot be downloaded.
+- Fix Groups backup for non Team groups
+
+### Changed
+- Groups restore now expects the site whose backup we should restore
 
 ## [v0.14.0] (beta) - 2023-10-09
 

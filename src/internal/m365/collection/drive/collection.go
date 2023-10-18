@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,6 +33,8 @@ import (
 const (
 	// Used to compare in case of OneNote files
 	MaxOneNoteFileSize = 2 * 1024 * 1024 * 1024
+
+	oneNoteMimeType = "application/msonenote"
 )
 
 var _ data.BackupCollection = &Collection{}
@@ -271,12 +274,15 @@ func (oc *Collection) getDriveItemContent(
 			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
 
+		var itemMimeType string
+		if item.GetFile() != nil {
+			itemMimeType = ptr.Val(item.GetFile().GetMimeType())
+		}
 		// Skip big OneNote files as they can't be downloaded
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
-			// oc.scope == CollectionScopePackage && *item.GetSize() >= MaxOneNoteFileSize {
 			// TODO: We've removed the file size check because it looks like we've seen persistent
 			// 503's with smaller OneNote files also.
-			oc.scope == CollectionScopePackage {
+			(oc.scope == CollectionScopePackage || strings.EqualFold(itemMimeType, oneNoteMimeType)) {
 			// FIXME: It is possible that in case of a OneNote file we
 			// will end up just backing up the `onetoc2` file without
 			// the one file which is the important part of the OneNote

@@ -15,7 +15,7 @@ func PreparedStorageFlags() []string {
 		"--" + flags.AWSSecretAccessKeyFN, AWSSecretAccessKey,
 		"--" + flags.AWSSessionTokenFN, AWSSessionToken,
 
-		"--" + flags.CorsoPassphraseFN, CorsoPassphrase,
+		"--" + flags.PassphraseFN, CorsoPassphrase,
 	}
 }
 
@@ -24,7 +24,7 @@ func AssertStorageFlags(t *testing.T, cmd *cobra.Command) {
 	assert.Equal(t, AWSSecretAccessKey, flags.AWSSecretAccessKeyFV)
 	assert.Equal(t, AWSSessionToken, flags.AWSSessionTokenFV)
 
-	assert.Equal(t, CorsoPassphrase, flags.CorsoPassphraseFV)
+	assert.Equal(t, CorsoPassphrase, flags.PassphraseFV)
 }
 
 func PreparedProviderFlags() []string {

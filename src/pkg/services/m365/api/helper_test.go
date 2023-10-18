@@ -83,11 +83,12 @@ type ids struct {
 }
 
 type intgTesterSetup struct {
-	ac     api.Client
-	gockAC api.Client
-	user   ids
-	site   ids
-	group  ids
+	ac           api.Client
+	gockAC       api.Client
+	user         ids
+	site         ids
+	group        ids
+	nonTeamGroup ids // group which does not have an associated team
 }
 
 func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
@@ -141,6 +142,8 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	// use of the TeamID is intentional here, so that we are assured
 	// the group has full usage of the teams api.
 	its.group.id = tconfig.M365TeamID(t)
+
+	its.nonTeamGroup.id = tconfig.M365GroupID(t)
 
 	channel, err := its.ac.Channels().
 		GetChannelByName(
