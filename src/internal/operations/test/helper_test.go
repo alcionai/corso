@@ -398,6 +398,21 @@ func generateContainerOfItems(
 	restoreCfg.Location = destFldr
 	restoreCfg.IncludePermissions = true
 
+	if sel.Service == selectors.ServiceGroups {
+		restoreCfg.SubService.Type = path.SharePointService
+		restoreCfg.SubService.ID = siteID
+	}
+
+	var protectedResource idname.Provider = sel
+
+	// In case of  groups, we use the root site as the restore target
+	if sel.Service == selectors.ServiceGroups {
+		rootSite, err := ctrl.AC.Sites().GetByID(ctx, siteID, api.CallConfig{})
+		require.NoError(t, err, clues.ToCore(err))
+
+		protectedResource = idname.NewProvider(siteID, ptr.Val(rootSite.GetName()))
+	}
+
 	dataColls := buildCollections(
 		t,
 		service,
@@ -410,7 +425,7 @@ func generateContainerOfItems(
 	rcc := inject.RestoreConsumerConfig{
 		BackupVersion:     backupVersion,
 		Options:           opts,
-		ProtectedResource: sel,
+		ProtectedResource: protectedResource,
 		RestoreConfig:     restoreCfg,
 		Selector:          sel,
 	}

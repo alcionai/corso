@@ -42,6 +42,8 @@ func (suite *GroupsBackupIntgSuite) SetupSuite() {
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
 	sel := selectors.NewGroupsRestore([]string{suite.its.group.ID})
 
+	// sel.Filter(sel.Site(suite.its.group.RootSite.ID))
+
 	ic := func(cs []string) selectors.Selector {
 		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))
 		return sel.Selector
