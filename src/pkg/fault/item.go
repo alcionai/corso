@@ -103,12 +103,13 @@ func (i Item) MinimumPrintable() any {
 
 // Headers returns the human-readable names of properties of an Item
 // for printing out to a terminal.
-func (i Item) Headers() []string {
+func (i Item) Headers(bool) []string {
+	// NOTE: skipID does not make sense in this context
 	return []string{"Action", "Type", "Name", "Container", "Cause"}
 }
 
 // Values populates the printable values matching the Headers list.
-func (i Item) Values() []string {
+func (i Item) Values(bool) []string {
 	var cn string
 
 	acn, ok := i.Additional[AddtlContainerName]

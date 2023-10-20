@@ -120,8 +120,11 @@ func (suite *SkippedUnitSuite) TestSkipped_HeadersValues() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, []string{"Action", "Type", "Name", "Container", "Cause"}, test.skip.Headers())
-			assert.Equal(t, test.expect, test.skip.Values())
+			assert.Equal(t, []string{"Action", "Type", "Name", "Container", "Cause"}, test.skip.Headers(false))
+			assert.Equal(t, test.expect, test.skip.Values(false))
+
+			assert.Equal(t, []string{"Action", "Type", "Name", "Container", "Cause"}, test.skip.Headers(true))
+			assert.Equal(t, test.expect, test.skip.Values(true))
 		})
 	}
 }

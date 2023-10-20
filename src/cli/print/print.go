@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/tidwall/pretty"
@@ -178,11 +179,11 @@ func outf(ctx context.Context, w io.Writer, t string, s ...any) {
 type Printable interface {
 	minimumPrintabler
 	// should list the property names of the values surfaced in Values()
-	Headers() []string
+	Headers(skipID bool) []string
 	// list of values for tabular or csv formatting
 	// if the backing data is nil or otherwise missing,
 	// values should provide an empty string as opposed to skipping entries
-	Values() []string
+	Values(skipID bool) []string
 }
 
 type minimumPrintabler interface {
@@ -204,6 +205,23 @@ func printItem(w io.Writer, p Printable) {
 	}
 
 	outputTable(w, []Printable{p})
+}
+
+// ItemProperties prints the printable either as in a single line or a json
+// The difference between this and Item is that this one does not print the ID
+func ItemProperties(ctx context.Context, p Printable) {
+	printItemProperties(getRootCmd(ctx).OutOrStdout(), p)
+}
+
+// print prints the printable items,
+// according to the caller's requested format.
+func printItemProperties(w io.Writer, p Printable) {
+	if outputAsJSON || outputAsJSONDebug {
+		outputJSON(w, p, outputAsJSONDebug)
+		return
+	}
+
+	outputOneLine(w, []Printable{p})
 }
 
 // All prints the slice of printable items,
@@ -240,12 +258,12 @@ func Table(ctx context.Context, ps []Printable) {
 // output to stdout the list of printable structs in a table
 func outputTable(w io.Writer, ps []Printable) {
 	t := table.Table{
-		Headers: ps[0].Headers(),
+		Headers: ps[0].Headers(false),
 		Rows:    [][]string{},
 	}
 
 	for _, p := range ps {
-		t.Rows = append(t.Rows, p.Values())
+		t.Rows = append(t.Rows, p.Values(false))
 	}
 
 	_ = t.WriteTable(
@@ -308,4 +326,29 @@ func printPrettyJSON(w io.Writer, a any) {
 	}
 
 	fmt.Fprintln(w, string(pretty.Pretty(bs)))
+}
+
+// -------------------------------------------------------------------------------------------
+// One line
+// -------------------------------------------------------------------------------------------
+
+// Output in the following format:
+// Bytes Uploaded: 401 kB | Items Uploaded: 59 | Items Skipped: 0 | Errors: 0
+func outputOneLine(w io.Writer, ps []Printable) {
+	headers := ps[0].Headers(true)
+	rows := [][]string{}
+
+	for _, p := range ps {
+		rows = append(rows, p.Values(true))
+	}
+
+	printables := []string{}
+
+	for _, row := range rows {
+		for i, col := range row {
+			printables = append(printables, fmt.Sprintf("%s: %s", headers[i], col))
+		}
+	}
+
+	fmt.Fprintln(w, strings.Join(printables, " | "))
 }

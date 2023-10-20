@@ -491,11 +491,12 @@ func (pec printableErrCore) MinimumPrintable() any {
 	return pec
 }
 
-func (pec printableErrCore) Headers() []string {
+func (pec printableErrCore) Headers(bool) []string {
+	// NOTE: skipID does not make sense in this context
 	return []string{"Error"}
 }
 
-func (pec printableErrCore) Values() []string {
+func (pec printableErrCore) Values(bool) []string {
 	if pec.ErrCore == nil {
 		return []string{"<nil>"}
 	}

@@ -173,6 +173,12 @@ func (b Backup) Print(ctx context.Context) {
 	print.Item(ctx, b)
 }
 
+// PrintProperties writes the Backup to StdOut, in the format requested by the caller.
+// Unlike Print, it skips the ID of the Backup
+func (b Backup) PrintProperties(ctx context.Context) {
+	print.ItemProperties(ctx, b)
+}
+
 // PrintAll writes the slice of Backups to StdOut, in the format requested by the caller.
 func PrintAll(ctx context.Context, bs []*Backup) {
 	if len(bs) == 0 {
@@ -218,19 +224,24 @@ func (b Backup) MinimumPrintable() any {
 
 // Headers returns the human-readable names of properties in a Backup
 // for printing out to a terminal in a columnar display.
-func (b Backup) Headers() []string {
-	return []string{
-		"ID",
+func (b Backup) Headers(skipID bool) []string {
+	headers := []string{
 		"Started At",
 		"Duration",
 		"Status",
 		"Resource Owner",
 	}
+
+	if skipID {
+		return headers
+	}
+
+	return append([]string{"ID"}, headers...)
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
-func (b Backup) Values() []string {
+func (b Backup) Values(skipID bool) []string {
 	var (
 		status   = b.Status
 		errCount = b.ErrorCount
@@ -281,13 +292,18 @@ func (b Backup) Values() []string {
 
 	bs := b.toStats()
 
-	return []string{
-		string(b.ID),
+	values := []string{
 		dttm.FormatToTabularDisplay(b.StartedAt),
 		bs.EndedAt.Sub(bs.StartedAt).String(),
 		status,
 		name,
 	}
+
+	if skipID {
+		return values
+	}
+
+	return append([]string{string(b.ID)}, values...)
 }
 
 // ----- print backup stats
@@ -326,6 +342,12 @@ func (bs backupStats) Print(ctx context.Context) {
 	print.Item(ctx, bs)
 }
 
+// PrintProperties writes the Backup to StdOut, in the format requested by the caller.
+// Unlike Print, it skips the ID of backupStats
+func (bs backupStats) PrintProperties(ctx context.Context) {
+	print.ItemProperties(ctx, bs)
+}
+
 // MinimumPrintable reduces the Backup to its minimally printable details.
 func (bs backupStats) MinimumPrintable() any {
 	return bs
@@ -333,24 +355,34 @@ func (bs backupStats) MinimumPrintable() any {
 
 // Headers returns the human-readable names of properties in a Backup
 // for printing out to a terminal in a columnar display.
-func (bs backupStats) Headers() []string {
-	return []string{
-		"ID",
+func (bs backupStats) Headers(skipID bool) []string {
+	headers := []string{
 		"Bytes Uploaded",
 		"Items Uploaded",
 		"Items Skipped",
 		"Errors",
 	}
+
+	if skipID {
+		return headers
+	}
+
+	return append([]string{"ID"}, headers...)
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
-func (bs backupStats) Values() []string {
-	return []string{
-		bs.ID,
+func (bs backupStats) Values(skipID bool) []string {
+	values := []string{
 		humanize.Bytes(uint64(bs.BytesUploaded)),
 		strconv.Itoa(bs.ItemsWritten),
 		strconv.Itoa(bs.ItemsSkipped),
 		strconv.Itoa(bs.ErrorCount),
 	}
+
+	if skipID {
+		return values
+	}
+
+	return append([]string{bs.ID}, values...)
 }
