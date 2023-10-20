@@ -77,5 +77,5 @@ func AddGroupFlag(
 		GroupFN, nil,
 		"Backup data by group; accepts '"+Wildcard+"' to select all groups.")
 
-	_ = cmd.RegisterFlagCompletionFunc(GroupFN, completionFunc)
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(GroupFN, completionFunc))
 }

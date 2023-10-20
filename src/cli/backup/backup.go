@@ -192,7 +192,11 @@ func genericCreateCommand(
 		if err != nil {
 			cerr := clues.Wrap(err, owner).WithClues(ictx)
 			errs = append(errs, cerr)
-			clj, _ := json.Marshal(cerr.Core().Values)
+			clj, jmerr := json.Marshal(cerr.Core().Values)
+			if jmerr != nil {
+				clj = []byte(fmt.Sprintf("Unable to marshal error metadata"))
+			}
+
 			Errf(ictx, color.Red("ERROR: Unable to complete backup")+" \nMessage: %v\nMetadata: %s\n", err, clj)
 
 			continue
