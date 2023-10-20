@@ -42,7 +42,7 @@ func AddDataFlag(cmd *cobra.Command, allowed []string, hide bool) {
 	}
 
 	// TODO(meain): This is a hacky way to get it to autocomplete multiple items
-	_ = cmd.RegisterFlagCompletionFunc(
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(
 		CategoryDataFN,
 		func(
 			cmd *cobra.Command,
@@ -71,5 +71,5 @@ func AddDataFlag(cmd *cobra.Command, allowed []string, hide bool) {
 			}
 
 			return completions, cobra.ShellCompDirectiveNoSpace
-		})
+		}))
 }

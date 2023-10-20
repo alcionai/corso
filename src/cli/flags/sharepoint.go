@@ -125,5 +125,5 @@ func AddSiteFlag(
 
 	cmd.Flags().StringSliceVar(&WebURLFV, SiteFN, nil, message)
 
-	_ = cmd.RegisterFlagCompletionFunc(SiteFN, completionFunc)
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(SiteFN, completionFunc))
 }

@@ -47,7 +47,7 @@ func AddBackupIDFlag(
 	completionFunc func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective),
 ) {
 	cmd.Flags().StringVar(&BackupIDFV, BackupFN, "", "ID of the backup to retrieve.")
-	_ = cmd.RegisterFlagCompletionFunc(BackupFN, completionFunc)
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(BackupFN, completionFunc))
 
 	if require {
 		cobra.CheckErr(cmd.MarkFlagRequired(BackupFN))

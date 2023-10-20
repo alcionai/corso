@@ -32,7 +32,7 @@ func AddUserFlag(
 		"Backup a specific user's data; accepts '"+Wildcard+"' to select all users.")
 	cobra.CheckErr(cmd.MarkFlagRequired(UserFN))
 
-	_ = cmd.RegisterFlagCompletionFunc(UserFN, completionFunc)
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(UserFN, completionFunc))
 }
 
 // AddMailBoxFlag adds the --user and --mailbox flag.
@@ -49,7 +49,7 @@ func AddMailBoxFlag(
 
 	cobra.CheckErr(flags.MarkDeprecated(UserFN, fmt.Sprintf("use --%s instead", MailBoxFN)))
 
-	_ = cmd.RegisterFlagCompletionFunc(UserFN,
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(UserFN,
 		func(
 			cmd *cobra.Command,
 			args []string,
@@ -57,14 +57,14 @@ func AddMailBoxFlag(
 		) ([]string, cobra.ShellCompDirective) {
 			message := fmt.Sprintf("This flag is deprecated, Use --%s instead", MailBoxFN)
 			return cobra.AppendActiveHelp(nil, message), cobra.ShellCompDirectiveNoFileComp
-		})
+		}))
 
 	flags.StringSliceVar(
 		&UserFV,
 		MailBoxFN, nil,
 		"Backup a specific mailbox's data; accepts '"+Wildcard+"' to select all mailbox.")
 
-	_ = cmd.RegisterFlagCompletionFunc(MailBoxFN, completionFunc)
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(MailBoxFN, completionFunc))
 }
 
 // AddAzureCredsFlags adds M365 cred flags
