@@ -2,6 +2,8 @@ package site
 
 import (
 	"context"
+	"fmt"
+	stdpath "path"
 
 	"github.com/alcionai/clues"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -30,6 +33,7 @@ func CollectLibraries(
 	tenantID string,
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	su support.StatusUpdater,
+	service path.ServiceType,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
@@ -43,6 +47,15 @@ func CollectLibraries(
 			su,
 			bpc.Options)
 	)
+
+	name := stdpath.Base(bpc.ProtectedResource.Name())
+	msg := fmt.Sprintf("%s (%s)", path.LibrariesCategory.HumanString(), name)
+
+	progressBar := observe.SubMessageWithCompletionAndTip(
+		ctx,
+		msg,
+		func() string { return fmt.Sprintf("(found %d items)", colls.NumItems) })
+	close(progressBar)
 
 	odcs, canUsePreviousBackup, err := colls.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 	if err != nil {

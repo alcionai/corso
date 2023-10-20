@@ -12,8 +12,10 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/color"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -188,7 +190,7 @@ func genericCreateCommand(
 		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
 		if err != nil {
 			errs = append(errs, clues.WrapWC(ictx, err, owner))
-			Errf(ictx, "%v\n", err)
+			Errf(ictx, color.Red("ERROR: Unable to complete backup")+" \nMessage: %v\n", err)
 
 			continue
 		}
@@ -209,7 +211,7 @@ func genericCreateCommand(
 			}
 
 			errs = append(errs, clues.WrapWC(ictx, err, owner))
-			Errf(ictx, "%v\n", err)
+			Errf(ictx, color.Red("ERROR: Unable to complete backup")+" \nMessage: %v\n", err)
 
 			continue
 		}
@@ -217,10 +219,10 @@ func genericCreateCommand(
 		bIDs = append(bIDs, string(bo.Results.BackupID))
 
 		if !DisplayJSONFormat() {
-			Infof(ctx, "Done\n")
+			Infof(ctx, fmt.Sprintf("Backup complete %s %s", observe.Bullet, color.Blue(bo.Results.BackupID)))
 			printBackupStats(ctx, r, string(bo.Results.BackupID))
 		} else {
-			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+			Infof(ctx, "Backup complete - ID: %v\n", bo.Results.BackupID)
 		}
 	}
 
@@ -231,9 +233,8 @@ func genericCreateCommand(
 
 	if len(bups) > 0 {
 		Info(ctx, "Completed Backups:")
+		backup.PrintAll(ctx, bups)
 	}
-
-	backup.PrintAll(ctx, bups)
 
 	if len(errs) > 0 {
 		sb := fmt.Sprintf("%d of %d backups failed:\n", len(errs), len(selectorSet))

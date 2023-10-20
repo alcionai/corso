@@ -127,6 +127,25 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 	}()
 }
 
+func (suite *ObserveProgressUnitSuite) TestObserve_section() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	recorder := strings.Builder{}
+	ctx = SeedObserver(ctx, &recorder, config{})
+
+	process := uuid.NewString()[:8]
+	target := uuid.NewString()[:8]
+
+	Section(ctx, process, target)
+	Flush(ctx)
+	assert.NotEmpty(t, recorder)
+	assert.Contains(t, recorder.String(), process)
+	assert.Contains(t, recorder.String(), target)
+}
+
 func (suite *ObserveProgressUnitSuite) TestObserve_message() {
 	t := suite.T()
 

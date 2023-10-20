@@ -83,16 +83,14 @@ func Only(ctx context.Context, e error) error {
 
 // Err prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-// Prepends the message with "Error: "
 func Err(ctx context.Context, s ...any) {
 	out(ctx, getRootCmd(ctx).ErrOrStderr(), s...)
 }
 
 // Errf prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-// Prepends the message with "Error: "
 func Errf(ctx context.Context, tmpl string, s ...any) {
-	outf(ctx, getRootCmd(ctx).ErrOrStderr(), "\nError: \n\t"+tmpl+"\n", s...)
+	outf(ctx, getRootCmd(ctx).ErrOrStderr(), tmpl, s...)
 }
 
 // Out prints the params to cobra's output writer (stdOut by default)

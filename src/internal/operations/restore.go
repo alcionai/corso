@@ -250,7 +250,7 @@ func (op *RestoreOperation) do(
 		return nil, clues.WrapWC(ctx, graph.ErrServiceNotEnabled, "service not enabled for restore")
 	}
 
-	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(restoreToProtectedResource.Name()))
+	observe.Section(ctx, "Restoring", clues.Hide(restoreToProtectedResource.Name()))
 
 	paths, err := formatDetailsForRestoration(
 		ctx,
@@ -269,6 +269,10 @@ func (op *RestoreOperation) do(
 		"details_paths", len(paths),
 		"backup_snapshot_id", bup.SnapshotID,
 		"backup_version", bup.Version)
+
+	if len(paths) == 0 {
+		return nil, clues.New("no items match the provided filters")
+	}
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 

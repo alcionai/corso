@@ -187,7 +187,8 @@ func (r *repository) Connect(ctx context.Context, cfg ConnConfig) (err error) {
 		return clues.Stack(err)
 	}
 
-	observe.Message(ctx, "Connecting to repository")
+	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
+	defer close(progressBar)
 
 	if err := r.setupKopia(ctx, ctrlRepo.Retention{}, false); err != nil {
 		return clues.Stack(err)

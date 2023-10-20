@@ -223,7 +223,7 @@ func (op *ExportOperation) do(
 		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
-	observe.Message(ctx, "Exporting", observe.Bullet, clues.Hide(bup.Selector.DiscreteOwner))
+	observe.Section(ctx, "Exporting", clues.Hide(bup.Selector.DiscreteOwner))
 
 	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.ec, op.Errors)
 	if err != nil {

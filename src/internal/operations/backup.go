@@ -279,7 +279,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Execution
 	// -----
 
-	observe.Message(ctx, "Backing Up", observe.Bullet, clues.Hide(op.ResourceOwner.Name()))
+	observe.Section(ctx, "Backing Up", clues.Hide(op.ResourceOwner.Name()))
 
 	deets, err := op.do(
 		ctx,
