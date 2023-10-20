@@ -1,5 +1,10 @@
 package utils
 
+// The code in this file is mostly lifted out of cobra itself. It as
+// of now has  some issue with how it handles completions for
+// subcommands and only autocompletes for top level commands.
+// https://github.com/spf13/cobra/issues/981#issuecomment-547003669
+
 import (
 	"fmt"
 	"strings"
@@ -9,7 +14,6 @@ import (
 
 // SubcommandsRequiredWithSuggestions will ensure we have a subcommand provided by the user and augments it with
 // suggestion for commands, alias and help on root command.
-// https://github.com/spf13/cobra/issues/981#issuecomment-547003669
 func SubcommandsRequiredWithSuggestions(cmd *cobra.Command, args []string) error {
 	requireMsg := "%s requires a valid subcommand"
 	// This will be triggered if cobra didn't find any subcommands.
@@ -55,7 +59,7 @@ func SubcommandsRequiredWithSuggestions(cmd *cobra.Command, args []string) error
 
 	var suggestionsMsg string
 	if len(suggestions) > 0 {
-		suggestionsMsg += "Did you mean this?\n"
+		suggestionsMsg += "\n\nDid you mean this?\n"
 		for _, s := range suggestions {
 			suggestionsMsg += fmt.Sprintf("\t%v\n", s)
 		}
