@@ -32,7 +32,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
-	github.com/vbauerster/mpb/v8 v8.1.6
+	github.com/vbauerster/mpb/v8 v8.6.2
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/time v0.3.0
