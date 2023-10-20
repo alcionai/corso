@@ -19,7 +19,7 @@ func GetBackups(ctx context.Context, cmd *cobra.Command, service path.ServiceTyp
 		return nil, err
 	}
 
-	defer CloseRepo(context.Background(), r)
+	defer CloseRepo(context.TODO(), r)
 
 	return r.BackupsByTag(ctx, store.Service(service))
 }
@@ -32,7 +32,7 @@ func BackupIDCompletionFunc(service path.ServiceType) completionFunc {
 		args []string,
 		toComplete string,
 	) ([]string, cobra.ShellCompDirective) {
-		bs, err := GetBackups(context.Background(), cmd, service)
+		bs, err := GetBackups(context.TODO(), cmd, service)
 		if err != nil {
 			return cobra.AppendActiveHelp(
 				nil,
@@ -60,7 +60,7 @@ func UsersCompletionFunc(service path.ServiceType) completionFunc {
 		args []string,
 		toComplete string,
 	) ([]string, cobra.ShellCompDirective) {
-		ctx := context.Background()
+		ctx := context.TODO()
 
 		_, acct, err := AccountConnectAndWriteRepoConfig(ctx, cmd, service)
 		if err != nil {
@@ -99,7 +99,7 @@ func MailboxCompletionFunc(service path.ServiceType) completionFunc {
 		args []string,
 		toComplete string,
 	) ([]string, cobra.ShellCompDirective) {
-		ctx := context.Background()
+		ctx := context.TODO()
 
 		_, acct, err := AccountConnectAndWriteRepoConfig(ctx, cmd, service)
 		if err != nil {
@@ -133,7 +133,7 @@ func GroupsCompletionFunc() completionFunc {
 		args []string,
 		toComplete string,
 	) ([]string, cobra.ShellCompDirective) {
-		ctx := context.Background()
+		ctx := context.TODO()
 
 		_, acct, err := AccountConnectAndWriteRepoConfig(ctx, cmd, path.GroupsService)
 		if err != nil {
@@ -166,7 +166,7 @@ func SitesCompletionFunc() completionFunc {
 		args []string,
 		toComplete string,
 	) ([]string, cobra.ShellCompDirective) {
-		ctx := context.Background()
+		ctx := context.TODO()
 
 		_, acct, err := AccountConnectAndWriteRepoConfig(ctx, cmd, path.SharePointService)
 		if err != nil {
