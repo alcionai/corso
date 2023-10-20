@@ -65,14 +65,14 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
 
-		flags.AddUserFlag(c)
+		flags.AddUserFlag(c, utils.UsersCompletionFunc(path.OneDriveService))
 		flags.AddGenericBackupFlags(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
 		fs.SortFlags = false
 
-		flags.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false, utils.BackupIDCompletionFunc(path.OneDriveService))
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
@@ -83,7 +83,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = oneDriveServiceCommandDetailsExamples
 
 		flags.AddSkipReduceFlag(c)
-		flags.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true, utils.BackupIDCompletionFunc(path.OneDriveService))
 		flags.AddOneDriveDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
@@ -94,7 +94,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = oneDriveServiceCommandDeleteExamples
 
 		flags.AddMultipleBackupIDsFlag(c, false)
-		flags.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false, utils.BackupIDCompletionFunc(path.OneDriveService))
 	}
 
 	return c

@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -26,7 +27,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		flags.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true, utils.BackupIDCompletionFunc(path.OneDriveService))
 		flags.AddOneDriveDetailsAndRestoreFlags(c)
 		flags.AddNoPermissionsFlag(c)
 		flags.AddRestoreConfigFlags(c, true)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // called by export.go to map subcommands to provider-specific handling.
@@ -26,7 +27,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		fs.SortFlags = false
 
-		flags.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true, utils.BackupIDCompletionFunc(path.SharePointService))
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 		flags.AddExportConfigFlags(c)
 		flags.AddFailFastFlag(c)

@@ -41,8 +41,13 @@ func AddMultipleBackupIDsFlag(cmd *cobra.Command, require bool) {
 }
 
 // AddBackupIDFlag adds the --backup flag.
-func AddBackupIDFlag(cmd *cobra.Command, require bool) {
+func AddBackupIDFlag(
+	cmd *cobra.Command,
+	require bool,
+	completionFunc func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective),
+) {
 	cmd.Flags().StringVar(&BackupIDFV, BackupFN, "", "ID of the backup to retrieve.")
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(BackupFN, completionFunc))
 
 	if require {
 		cobra.CheckErr(cmd.MarkFlagRequired(BackupFN))

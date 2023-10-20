@@ -22,16 +22,24 @@ var (
 )
 
 // AddUserFlag adds the --user flag.
-func AddUserFlag(cmd *cobra.Command) {
+func AddUserFlag(
+	cmd *cobra.Command,
+	completionFunc func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective),
+) {
 	cmd.Flags().StringSliceVar(
 		&UserFV,
 		UserFN, nil,
 		"Backup a specific user's data; accepts '"+Wildcard+"' to select all users.")
 	cobra.CheckErr(cmd.MarkFlagRequired(UserFN))
+
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(UserFN, completionFunc))
 }
 
 // AddMailBoxFlag adds the --user and --mailbox flag.
-func AddMailBoxFlag(cmd *cobra.Command) {
+func AddMailBoxFlag(
+	cmd *cobra.Command,
+	completionFunc func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective),
+) {
 	flags := cmd.Flags()
 
 	flags.StringSliceVar(
@@ -41,10 +49,22 @@ func AddMailBoxFlag(cmd *cobra.Command) {
 
 	cobra.CheckErr(flags.MarkDeprecated(UserFN, fmt.Sprintf("use --%s instead", MailBoxFN)))
 
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(UserFN,
+		func(
+			cmd *cobra.Command,
+			args []string,
+			toComplete string,
+		) ([]string, cobra.ShellCompDirective) {
+			message := fmt.Sprintf("This flag is deprecated, Use --%s instead", MailBoxFN)
+			return cobra.AppendActiveHelp(nil, message), cobra.ShellCompDirectiveNoFileComp
+		}))
+
 	flags.StringSliceVar(
 		&UserFV,
 		MailBoxFN, nil,
 		"Backup a specific mailbox's data; accepts '"+Wildcard+"' to select all mailbox.")
+
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(MailBoxFN, completionFunc))
 }
 
 // AddAzureCredsFlags adds M365 cred flags

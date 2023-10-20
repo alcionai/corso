@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -54,7 +55,19 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	avoidTheseCommands := []string{
-		"corso", "env", "help", "backup", "details", "list", "restore", "export", "delete", "repo", "init", "connect",
+		"corso",
+		"env",
+		"help",
+		"backup",
+		"details",
+		"list",
+		"restore",
+		"export",
+		"delete",
+		"repo",
+		"init",
+		"connect",
+		"completion [bash|zsh|fish|powershell]",
 	}
 
 	if len(logger.ResolvedLogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
@@ -121,6 +134,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	cmd.SetUsageTemplate(indentExamplesTemplate(corsoCmd.UsageTemplate()))
 
 	cmd.CompletionOptions.DisableDefaultCmd = true
+	cmd.SuggestionsMinimumDistance = 2 // default
 
 	repo.AddCommands(cmd)
 	backup.AddCommands(cmd)
@@ -128,6 +142,38 @@ func BuildCommandTree(cmd *cobra.Command) {
 	export.AddCommands(cmd)
 	debug.AddCommands(cmd)
 	help.AddCommands(cmd)
+	AddCompletion(cmd)
+}
+
+// We are not using the default completion command as it will be
+// harder to control it, for example skipping printing "Logging to file"
+// message
+func AddCompletion(cmd *cobra.Command) {
+	completion := &cobra.Command{
+		Use:                   "completion [bash|zsh|fish|powershell]",
+		Short:                 "Generate completion script",
+		Long:                  "To load completions",
+		DisableFlagsInUseLine: true,
+		ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
+		Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+		Hidden:                true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			switch args[0] {
+			case "bash":
+				return cmd.Root().GenBashCompletion(os.Stdout)
+			case "zsh":
+				return cmd.Root().GenZshCompletion(os.Stdout)
+			case "fish":
+				return cmd.Root().GenFishCompletion(os.Stdout, true)
+			case "powershell":
+				return cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+			}
+
+			return fmt.Errorf("unknown shell type %q", args[0])
+		},
+	}
+
+	cmd.AddCommand(completion)
 }
 
 // ------------------------------------------------------------------------------------------

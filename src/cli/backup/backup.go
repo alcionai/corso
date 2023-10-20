@@ -75,7 +75,7 @@ func backupCmd() *cobra.Command {
 		Short: "Backup your service data",
 		Long:  `Backup the data stored in one of your M365 services.`,
 		RunE:  handleBackupCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -94,7 +94,7 @@ func createCmd() *cobra.Command {
 		Use:   createCommand,
 		Short: "Backup an M365 Service",
 		RunE:  handleCreateCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -113,7 +113,7 @@ func listCmd() *cobra.Command {
 		Use:   listCommand,
 		Short: "List the history of backups",
 		RunE:  handleListCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -132,7 +132,7 @@ func detailsCmd() *cobra.Command {
 		Use:   detailsCommand,
 		Short: "Shows the details of a backup",
 		RunE:  handleDetailsCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -151,7 +151,7 @@ func deleteCmd() *cobra.Command {
 		Use:   deleteCommand,
 		Short: "Deletes a backup",
 		RunE:  handleDeleteCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 

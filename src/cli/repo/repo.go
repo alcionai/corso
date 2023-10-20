@@ -77,7 +77,7 @@ func repoCmd() *cobra.Command {
 		Short: "Manage your repositories",
 		Long:  `Initialize, configure, connect and update to your account backup repositories`,
 		RunE:  handleRepoCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -95,7 +95,7 @@ func initCmd() *cobra.Command {
 		Short: "Initialize a repository.",
 		Long:  `Create a new repository to store your backups.`,
 		RunE:  handleInitCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -112,7 +112,7 @@ func connectCmd() *cobra.Command {
 		Short: "Connect to a repository.",
 		Long:  `Connect to an existing repository.`,
 		RunE:  handleConnectCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
@@ -127,7 +127,7 @@ func maintenanceCmd() *cobra.Command {
 		Short: "Run maintenance on an existing repository",
 		Long:  `Run maintenance on an existing repository to optimize performance and storage use`,
 		RunE:  handleMaintenanceCmd,
-		Args:  cobra.NoArgs,
+		Args:  utils.SubcommandsRequiredWithSuggestions,
 	}
 }
 
