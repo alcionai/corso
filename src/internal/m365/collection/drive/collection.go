@@ -286,7 +286,7 @@ func (oc *Collection) getDriveItemContent(
 			// oc.isPackageOrChildOfPackage && *item.GetSize() >= MaxOneNoteFileSize {
 			// TODO: We've removed the file size check because it looks like we've seen persistent
 			// 503's with smaller OneNote files also.
-			oc.isPackageOrChildOfPackage || strings.EqualFold(itemMimeType, oneNoteMimeType)) {
+			oc.isPackageOrChildOfPackage || strings.EqualFold(itemMimeType, oneNoteMimeType) {
 			// FIXME: It is possible that in case of a OneNote file we
 			// will end up just backing up the `onetoc2` file without
 			// the one file which is the important part of the OneNote
