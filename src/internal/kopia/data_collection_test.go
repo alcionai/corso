@@ -16,7 +16,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
+	istats "github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -395,12 +397,16 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 			defer flush()
 
 			root := getLayout(t, test.inputSerializationVersion)
-			c := &i64counter{}
+
+			counter := count.New()
+			c := istats.ByteCounter{
+				Counter: counter.AdderFor(count.PersistedUploadedBytes),
+			}
 
 			col := &kopiaDataCollection{
 				path:            pth,
 				dir:             root,
-				counter:         c,
+				counter:         &c,
 				expectedVersion: readers.DefaultSerializationVersion,
 			}
 

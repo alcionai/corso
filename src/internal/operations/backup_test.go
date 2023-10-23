@@ -39,6 +39,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -136,6 +137,7 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	tags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
+	counter *count.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(backupReasons, bases, cs, tags, buildTreeWithBase)
@@ -432,14 +434,14 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 			op.Errors.Fail(test.fail)
 
-			test.expectErr(t, op.persistResults(now, &test.stats))
+			// op.Counter is not incremented in this test.
+			test.expectErr(t, op.persistResults(now, &test.stats, count.New()))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
-			assert.Equal(t, test.stats.ctrl.Successes, op.Results.ItemsRead, "items read")
-			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
-			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
-			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
-			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
+			assert.Equal(t, op.Results.ItemsRead, test.stats.ctrl.Successes, "items read")
+			assert.Equal(t, op.Results.ItemsWritten, test.stats.k.TotalFileCount, "items written")
+			assert.Equal(t, op.Results.BytesRead, test.stats.k.TotalHashedBytes, "bytes read")
+			assert.Equal(t, op.Results.BytesUploaded, test.stats.k.TotalUploadedBytes, "bytes written")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")
 		})
@@ -525,7 +527,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		nil,
 		backupID,
 		true,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {

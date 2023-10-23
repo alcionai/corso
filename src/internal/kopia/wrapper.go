@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -76,6 +77,13 @@ func manifestToStats(
 	progress *corsoProgress,
 	uploadCount *stats.ByteCounter,
 ) BackupStats {
+	progress.counter.Add(count.PersistedFiles, int64(man.Stats.TotalFileCount))
+	progress.counter.Add(count.PersistedCachedFiles, int64(man.Stats.CachedFiles))
+	progress.counter.Add(count.PersistedNonCachedFiles, int64(man.Stats.NonCachedFiles))
+	progress.counter.Add(count.PersistedDirectories, int64(man.Stats.TotalDirectoryCount))
+	progress.counter.Add(count.PersistenceErrors, int64(man.Stats.ErrorCount))
+	progress.counter.Add(count.PersistenceIgnoredErrors, int64(man.Stats.IgnoredErrorCount))
+
 	return BackupStats{
 		SnapshotID: string(man.ID),
 
@@ -145,6 +153,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	additionalTags map[string]string,
 	buildTreeWithBase bool,
 	errs *fault.Bus,
+	counter *count.Bus,
 ) (*BackupStats, *details.Builder, DetailsMergeInfoer, error) {
 	if w.c == nil {
 		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
@@ -163,6 +172,7 @@ func (w Wrapper) ConsumeBackupCollections(
 		deets:   &details.Builder{},
 		toMerge: newMergeDetails(),
 		errs:    errs,
+		counter: counter,
 	}
 
 	// When running an incremental backup, we need to pass the prior
@@ -227,7 +237,11 @@ func (w Wrapper) makeSnapshotWithRoot(
 ) (*BackupStats, error) {
 	var (
 		man *snapshot.Manifest
-		bc  = &stats.ByteCounter{}
+		bc  = &stats.ByteCounter{
+			// duplicate the count in the progress count.Bus.  Later we can
+			// replace the ByteCounter with the progress counter entirely.
+			Counter: progress.counter.AdderFor(count.PersistedUploadedBytes),
+		}
 	)
 
 	snapIDs := make([]manifest.ID, 0, len(prevSnapEntries)) // just for logging
