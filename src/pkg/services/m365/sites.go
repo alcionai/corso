@@ -56,7 +56,7 @@ func SiteByID(
 ) (*Site, error) {
 	ac, err := makeAC(ctx, acct, path.SharePointService)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.Stack(err)
 	}
 
 	cc := api.CallConfig{
@@ -75,7 +75,7 @@ func SiteByID(
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
 	ac, err := makeAC(ctx, acct, path.SharePointService)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.Stack(err)
 	}
 
 	return getAllSites(ctx, ac.Sites())
