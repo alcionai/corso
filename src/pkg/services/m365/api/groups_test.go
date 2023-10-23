@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -167,32 +168,42 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 	table := []struct {
 		name      string
 		id        string
-		expectErr assert.ErrorAssertionFunc
+		expectErr func(t *testing.T, err error)
 	}{
 		{
-			name:      "valid id",
-			id:        groupID,
-			expectErr: assert.NoError,
+			name: "valid id",
+			id:   groupID,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
 		},
 		{
-			name:      "valid email as identifier",
-			id:        groupsEmail,
-			expectErr: assert.NoError,
+			name: "valid email as identifier",
+			id:   groupsEmail,
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
 		},
 		{
-			name:      "invalid id",
-			id:        uuid.NewString(),
-			expectErr: assert.Error,
+			name: "invalid id",
+			id:   uuid.NewString(),
+			expectErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+			},
 		},
 		{
-			name:      "valid display name",
-			id:        ptr.Val(grp.GetDisplayName()),
-			expectErr: assert.NoError,
+			name: "valid display name",
+			id:   ptr.Val(grp.GetDisplayName()),
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
 		},
 		{
-			name:      "invalid displayName",
-			id:        "jabberwocky",
-			expectErr: assert.Error,
+			name: "invalid displayName",
+			id:   "jabberwocky",
+			expectErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+			},
 		},
 	}
 	for _, test := range table {
@@ -202,8 +213,8 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := groupsAPI.GetByID(ctx, test.id, CallConfig{})
-			test.expectErr(t, err, clues.ToCore(err))
+			_, err := groupsAPI.GetByID(ctx, test.id, api.CallConfig{})
+			test.expectErr(t, err)
 		})
 	}
 }
