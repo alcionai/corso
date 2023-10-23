@@ -28,20 +28,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-type collectionScope int
-
-const (
-	// CollectionScopeUnknown is used when we don't know and don't need
-	// to know the kind, like in the case of deletes
-	CollectionScopeUnknown collectionScope = 0
-
-	// CollectionScopeFolder is used for regular folder collections
-	CollectionScopeFolder collectionScope = 1
-
-	// CollectionScopePackage is used to represent OneNote items
-	CollectionScopePackage collectionScope = 2
-)
-
 const restrictedDirectory = "Site Pages"
 
 // Collections is used to retrieve drive data for a
@@ -384,7 +370,7 @@ func (c *Collections) Get(
 				driveID,
 				c.statusUpdater,
 				c.ctrl,
-				CollectionScopeUnknown,
+				false,
 				true,
 				nil)
 			if err != nil {
@@ -421,7 +407,7 @@ func (c *Collections) Get(
 			driveID,
 			c.statusUpdater,
 			c.ctrl,
-			CollectionScopeUnknown,
+			false,
 			true,
 			nil)
 		if err != nil {
@@ -606,7 +592,7 @@ func (c *Collections) handleDelete(
 		driveID,
 		c.statusUpdater,
 		c.ctrl,
-		CollectionScopeUnknown,
+		false,
 		// DoNotMerge is not checked for deleted items.
 		false,
 		nil)
@@ -847,13 +833,6 @@ func (c *Collections) processItem(
 			return nil
 		}
 
-		colScope := CollectionScopeFolder
-		if item.GetPackageEscaped() != nil {
-			colScope = CollectionScopePackage
-		}
-
-		ictx = clues.Add(ictx, "collection_scope", colScope)
-
 		col, err := NewCollection(
 			c.handler,
 			c.protectedResource,
@@ -862,7 +841,7 @@ func (c *Collections) processItem(
 			driveID,
 			c.statusUpdater,
 			c.ctrl,
-			colScope,
+			item.GetPackageEscaped() != nil,
 			invalidPrevDelta,
 			nil)
 		if err != nil {

@@ -2706,7 +2706,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 					driveID,
 					nil,
 					control.Options{ToggleFeatures: control.Toggles{}},
-					CollectionScopeFolder,
+					false,
 					true,
 					nil)
 				require.NoError(t, err, clues.ToCore(err))
