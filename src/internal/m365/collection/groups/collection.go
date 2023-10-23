@@ -35,7 +35,7 @@ type Collection struct {
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	getter getChannelMessager
+	getter getItemByIDer
 
 	statusUpdater support.StatusUpdater
 }
@@ -48,7 +48,7 @@ type Collection struct {
 // or notMoved (if they match).
 func NewCollection(
 	baseCol data.BaseCollection,
-	getter getChannelMessager,
+	getter getItemByIDer,
 	protectedResource string,
 	added map[string]struct{},
 	removed map[string]struct{},
@@ -144,7 +144,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			flds := col.FullPath().Folders()
 			parentFolderID := flds[len(flds)-1]
 
-			item, info, err := col.getter.GetChannelMessage(
+			item, info, err := col.getter.GetItemByID(
 				ctx,
 				col.protectedResource,
 				parentFolderID,
