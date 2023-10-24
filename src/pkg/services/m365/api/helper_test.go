@@ -77,6 +77,7 @@ func parseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
 
 type ids struct {
 	id                string
+	email             string
 	driveID           string
 	driveRootFolderID string
 	testContainerID   string
@@ -142,6 +143,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	// use of the TeamID is intentional here, so that we are assured
 	// the group has full usage of the teams api.
 	its.group.id = tconfig.M365TeamID(t)
+	its.group.email = tconfig.M365TeamEmail(t)
 
 	its.nonTeamGroup.id = tconfig.M365GroupID(t)
 
