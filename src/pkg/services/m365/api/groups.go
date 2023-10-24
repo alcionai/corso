@@ -161,7 +161,7 @@ func (c Groups) GetByID(
 			err = clues.Stack(graph.ErrResourceLocked, err)
 		}
 
-		return nil, graph.Wrap(ctx, err, "finding group by filter fallback")
+		return nil, graph.Wrap(ctx, err, "finding group by secondary identifier")
 	}
 
 	vs := resp.GetValue()
