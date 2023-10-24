@@ -913,7 +913,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 	driveID2 := "2"
 	deltaURL1 := "url/1"
 	deltaURL2 := "url/2"
-
 	folderID1 := "folder1"
 	folderID2 := "folder2"
 	path1 := "folder1/path"
