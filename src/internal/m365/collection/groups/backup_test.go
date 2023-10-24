@@ -49,11 +49,11 @@ type mockBackupHandler struct {
 	doNotInclude  bool
 }
 
-func (bh mockBackupHandler) getChannels(context.Context) ([]models.Channelable, error) {
+func (bh mockBackupHandler) getContainers(context.Context) ([]models.Channelable, error) {
 	return bh.channels, bh.channelsErr
 }
 
-func (bh mockBackupHandler) getChannelMessageIDs(
+func (bh mockBackupHandler) getContainerItemIDs(
 	_ context.Context,
 	_, _ string,
 	_ bool,
@@ -89,7 +89,7 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh mockBackupHandler) GetChannelMessage(
+func (bh mockBackupHandler) GetItemByID(
 	_ context.Context,
 	_, _, itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {

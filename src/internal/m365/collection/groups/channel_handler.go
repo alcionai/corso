@@ -31,13 +31,13 @@ func NewChannelBackupHandler(
 	}
 }
 
-func (bh channelsBackupHandler) getChannels(
+func (bh channelsBackupHandler) getContainers(
 	ctx context.Context,
 ) ([]models.Channelable, error) {
 	return bh.ac.GetChannels(ctx, bh.protectedResource)
 }
 
-func (bh channelsBackupHandler) getChannelMessageIDs(
+func (bh channelsBackupHandler) getContainerItemIDs(
 	ctx context.Context,
 	channelID, prevDelta string,
 	canMakeDeltaQueries bool,
@@ -76,9 +76,9 @@ func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
 		false)
 }
 
-func (bh channelsBackupHandler) GetChannelMessage(
+func (bh channelsBackupHandler) GetItemByID(
 	ctx context.Context,
-	teamID, channelID, itemID string,
+	groupID, channelID, itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
-	return bh.ac.GetChannelMessage(ctx, teamID, channelID, itemID)
+	return bh.ac.GetChannelMessage(ctx, groupID, channelID, itemID)
 }
