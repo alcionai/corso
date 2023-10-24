@@ -109,7 +109,7 @@ func TestOneDriveCollectionsUnitSuite(t *testing.T) {
 	suite.Run(t, &OneDriveCollectionsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func getDelList(files ...string) map[string]struct{} {
+func makeExcludeMap(files ...string) map[string]struct{} {
 	delList := map[string]struct{}{}
 	for _, file := range files {
 		delList[file+metadata.DataFileSuffix] = struct{}{}
@@ -193,7 +193,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 			expectedPrevPaths: map[string]string{
 				"root": expectedPath(""),
 			},
-			expectedExcludes:         getDelList("file"),
+			expectedExcludes:         makeExcludeMap("file"),
 			expectedTopLevelPackages: map[string]struct{}{},
 		},
 		{
@@ -308,7 +308,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				expectedPath("/package"): {},
 			},
 			expectedCountPackages: 1,
-			expectedExcludes:      getDelList("fileInRoot", "fileInFolder", "fileInPackage"),
+			expectedExcludes:      makeExcludeMap("fileInRoot", "fileInFolder", "fileInPackage"),
 		},
 		{
 			name: "contains folder selector",
@@ -350,7 +350,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				"folder2":   expectedPath(folder + subFolder + folder),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
-			expectedExcludes:         getDelList("fileInFolder", "fileInFolder2"),
+			expectedExcludes:         makeExcludeMap("fileInFolder", "fileInFolder2"),
 		},
 		{
 			name: "prefix subfolder selector",
@@ -388,7 +388,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				"folder2":   expectedPath(folder + subFolder + folder),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
-			expectedExcludes:         getDelList("fileInFolder2"),
+			expectedExcludes:         makeExcludeMap("fileInFolder2"),
 		},
 		{
 			name: "match subfolder selector",
@@ -424,7 +424,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				"subfolder": expectedPath(folder + subFolder),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
-			expectedExcludes:         getDelList("fileInSubfolder"),
+			expectedExcludes:         makeExcludeMap("fileInSubfolder"),
 		},
 		{
 			name: "not moved folder tree",
@@ -506,7 +506,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				"folder": expectedPath("/folder2"),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
-			expectedExcludes:         getDelList("file"),
+			expectedExcludes:         makeExcludeMap("file"),
 		},
 		{
 			name: "moved folder tree with file no previous 1",
@@ -531,7 +531,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				"folder": expectedPath(folder),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
-			expectedExcludes:         getDelList("file"),
+			expectedExcludes:         makeExcludeMap("file"),
 		},
 		{
 			name: "moved folder tree and subfolder 1",
@@ -636,7 +636,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				"subfolder": expectedPath("/folder/subfolder"),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
-			expectedExcludes:         getDelList("itemInSubfolder", "itemInFolder2"),
+			expectedExcludes:         makeExcludeMap("itemInSubfolder", "itemInFolder2"),
 		},
 		{
 			name: "moved folder tree multiple times",
@@ -666,7 +666,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				"subfolder": expectedPath("/folder2/subfolder"),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
-			expectedExcludes:         getDelList("file"),
+			expectedExcludes:         makeExcludeMap("file"),
 		},
 		{
 			name: "deleted folder and package",
@@ -773,7 +773,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				"root": expectedPath(""),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
-			expectedExcludes:         getDelList("item"),
+			expectedExcludes:         makeExcludeMap("item"),
 		},
 		{
 			name: "item before parent errors",
@@ -789,10 +789,12 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 			expectedCollectionIDs: map[string]statePath{
 				"root": expectedStatePath(data.NotMovedState, ""),
 			},
-			expectedItemCount:        0,
-			expectedFileCount:        0,
-			expectedContainerCount:   1,
-			expectedPrevPaths:        nil,
+			expectedItemCount:      0,
+			expectedFileCount:      0,
+			expectedContainerCount: 1,
+			expectedPrevPaths: map[string]string{
+				"root": expectedPath(""),
+			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
 		},
@@ -828,7 +830,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				expectedPath("/package"): {},
 			},
 			expectedCountPackages: 1,
-			expectedExcludes:      getDelList("fileInRoot", "goodFile"),
+			expectedExcludes:      makeExcludeMap("fileInRoot", "goodFile"),
 		},
 	}
 
@@ -879,7 +881,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				test.inputFolderMap,
 				excludes,
 				test.topLevelPackages,
-				"",
+				"prevdelta",
 				errs)
 			test.expect(t, err, clues.ToCore(err))
 			assert.ElementsMatch(
@@ -889,7 +891,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, test.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, test.expectedContainerCount, c.NumContainers, "container count")
-			assert.Equal(t, test.expectedSkippedCount, len(errs.Skipped()), "skipped items")
+			assert.Equal(t, test.expectedSkippedCount, len(errs.Skipped()), "skipped item count")
 
 			for id, sp := range test.expectedCollectionIDs {
 				if !assert.Containsf(t, c.CollectionMap[driveID], id, "missing collection with id %s", id) {
@@ -902,9 +904,9 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				assert.Equalf(t, sp.prevPath, c.CollectionMap[driveID][id].PreviousPath(), "prev path for collection %s", id)
 			}
 
-			assert.Equal(t, test.expectedPrevPaths, newPrevPaths, "metadata paths")
+			assert.Equal(t, test.expectedPrevPaths, newPrevPaths, "previous paths")
 			assert.Equal(t, test.expectedTopLevelPackages, test.topLevelPackages, "top level packages")
-			assert.Equal(t, test.expectedExcludes, excludes, "exclude list")
+			assert.Equal(t, test.expectedExcludes, excludes, "excluded item IDs map")
 
 			var countPackages int
 
@@ -916,7 +918,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 				}
 			}
 
-			assert.Equal(t, test.expectedCountPackages, countPackages, "count of collectsion marked as packages")
+			assert.Equal(t, test.expectedCountPackages, countPackages, "count of collections marked as packages")
 		})
 	}
 }
@@ -1392,7 +1394,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				driveID1: {"root": rootFolderPath1},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
+				rootFolderPath1: makeExcludeMap("file"),
 			}),
 		},
 		{
@@ -1426,7 +1428,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				driveID1: {"root": rootFolderPath1},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
+				rootFolderPath1: makeExcludeMap("file"),
 			}),
 		},
 		{
@@ -1545,7 +1547,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				rootFolderPath1: getDelList("file"),
+				rootFolderPath1: makeExcludeMap("file"),
 			}),
 		},
 		{

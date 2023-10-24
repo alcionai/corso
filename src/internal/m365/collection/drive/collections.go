@@ -207,8 +207,7 @@ func DeserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 	return nil
 }
 
-// Retrieves drive data as set of `data.Collections` and a set of item names to
-// be excluded from the upcoming backup.
+// Retrieves drive data as set of `data.Collections`.
 func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
