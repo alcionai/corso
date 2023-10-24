@@ -309,7 +309,8 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	for _, c := range containers {
-		findContainer(c)
+		err := findContainer(c)
+		require.NoError(t, err, clues.ToCore(err))
 	}
 
 	require.True(
