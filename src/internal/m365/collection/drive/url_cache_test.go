@@ -63,8 +63,6 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
 	drive, err := suite.ac.Users().GetDefaultDrive(ctx, suite.user)
 	require.NoError(t, err, clues.ToCore(err))
 
