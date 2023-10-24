@@ -46,6 +46,8 @@ type Site struct {
 	// * getByID (the drive expansion doesn't work on paginated data)
 	// * lucky chance (not all responses contain an owner ID)
 	OwnerID string
+	// OwnerEmail may or may not contain the site owner's email.
+	OwnerEmail string
 }
 
 // SiteByID retrieves a specific site.
@@ -120,6 +122,19 @@ func ParseSite(item models.Siteable) *Site {
 		item.GetDrive().GetOwner().GetUser().GetId() != nil {
 		s.OwnerType = SiteOwnerUser
 		s.OwnerID = ptr.Val(item.GetDrive().GetOwner().GetUser().GetId())
+
+		addtl := item.
+			GetDrive().
+			GetOwner().
+			GetUser().
+			GetAdditionalData()
+
+		email, err := str.AnyValueToString("email", addtl)
+		if err != nil {
+			return s
+		}
+
+		s.OwnerEmail = email
 	} else if item.GetDrive() != nil && item.GetDrive().GetOwner() != nil {
 		ownerItem := item.GetDrive().GetOwner()
 		if _, ok := ownerItem.GetAdditionalData()["group"]; ok {
@@ -131,6 +146,11 @@ func ParseSite(item models.Siteable) *Site {
 			}
 
 			s.OwnerID, err = str.AnyValueToString("id", group)
+			if err != nil {
+				return s
+			}
+
+			s.OwnerEmail, err = str.AnyValueToString("email", group)
 			if err != nil {
 				return s
 			}

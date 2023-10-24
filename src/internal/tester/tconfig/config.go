@@ -28,6 +28,7 @@ const (
 	TestCfgSiteID           = "m365siteid"
 	TestCfgSiteURL          = "m365siteurl"
 	TestCfgTeamID           = "m365teamid"
+	TestCfgTeamEmail        = "m365teamemail"
 	TestCfgTeamSiteID       = "m365teamsiteid"
 	TestCfgGroupID          = "m365groupid"
 	TestCfgUserID           = "m365userid"
@@ -48,6 +49,7 @@ const (
 	EnvCorsoM365TestSiteID           = "CORSO_M365_TEST_SITE_ID"
 	EnvCorsoM365TestSiteURL          = "CORSO_M365_TEST_SITE_URL"
 	EnvCorsoM365TestTeamID           = "CORSO_M365_TEST_TEAM_ID"
+	EnvCorsoM365TestTeamEmail        = "CORSO_M365_TEST_TEAM_EMAIL"
 	EnvCorsoM365TestTeamSiteID       = "CORSO_M365_TEST_TEAM_SITE_ID"
 	EnvCorsoSecondaryM365TestTeamID  = "CORSO_SECONDARY_M365_TEST_TEAM_ID"
 	EnvCorsoM365TestGroupID          = "CORSO_M365_TEST_GROUP_ID"
@@ -209,6 +211,12 @@ func ReadTestConfig() (map[string]string, error) {
 		os.Getenv(EnvCorsoUnlicensedM365TestUserID),
 		vpr.GetString(TestCfgUnlicensedUserID),
 		"testevents@10rqc2.onmicrosoft.com")
+	fallbackTo(
+		testEnv,
+		TestCfgTeamEmail,
+		os.Getenv(EnvCorsoM365TestTeamEmail),
+		vpr.GetString(TestCfgTeamEmail),
+		"CorsoCITeam@10rqc2.onmicrosoft.com")
 
 	testEnv[EnvCorsoTestConfigFilePath] = os.Getenv(EnvCorsoTestConfigFilePath)
 	testConfig = testEnv
