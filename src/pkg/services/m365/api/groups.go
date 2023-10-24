@@ -136,22 +136,36 @@ func (c Groups) GetByID(
 			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceLocked, err))
 		}
 
-		logger.CtxErr(ctx, err).Info("finding group by id, falling back to display name")
+		logger.CtxErr(ctx, err).Info("finding group by id, falling back to secondary identifier")
 	}
 
-	var filterTemplate string
 	// attempt to find by email address if the identifier looks like an email
 	if isEmail(identifier) {
-		filterTemplate = filterGroupByMailQueryTmpl
-	} else {
-		filterTemplate = filterGroupByDisplayNameQueryTmpl
+		// fall back to display name or email address
+		opts := &groups.GroupsRequestBuilderGetRequestConfiguration{
+			Headers: newEventualConsistencyHeaders(),
+			QueryParameters: &groups.GroupsRequestBuilderGetQueryParameters{
+				Filter: ptr.To(fmt.Sprintf(filterGroupByMailQueryTmpl, identifier)),
+			},
+		}
+
+		resp, err := service.Client().Groups().Get(ctx, opts)
+		if err != nil {
+			if graph.IsErrResourceLocked(err) {
+				err = clues.Stack(graph.ErrResourceLocked, err)
+			}
+
+			logger.CtxErr(ctx, err).Info("finding group by email, falling back to display name")
+		}
+
+		return getGroupFromResponse(ctx, resp)
 	}
 
-	// fall back to display name or email address
+	// fall back to display name
 	opts := &groups.GroupsRequestBuilderGetRequestConfiguration{
 		Headers: newEventualConsistencyHeaders(),
 		QueryParameters: &groups.GroupsRequestBuilderGetQueryParameters{
-			Filter: ptr.To(fmt.Sprintf(filterTemplate, identifier)),
+			Filter: ptr.To(fmt.Sprintf(filterGroupByDisplayNameQueryTmpl, identifier)),
 		},
 	}
 
@@ -161,9 +175,13 @@ func (c Groups) GetByID(
 			err = clues.Stack(graph.ErrResourceLocked, err)
 		}
 
-		return nil, graph.Wrap(ctx, err, "finding group by secondary identifier")
+		return nil, graph.Wrap(ctx, err, "finding group by display name")
 	}
 
+	return getGroupFromResponse(ctx, resp)
+}
+
+func getGroupFromResponse(ctx context.Context, resp models.GroupCollectionResponseable) (models.Groupable, error) {
 	vs := resp.GetValue()
 
 	if len(vs) == 0 {
@@ -172,9 +190,7 @@ func (c Groups) GetByID(
 		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).WithClues(ctx)
 	}
 
-	group = vs[0]
-
-	return group, nil
+	return vs[0], nil
 }
 
 // GetAllSites gets all the sites that belong to a group. This is
