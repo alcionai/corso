@@ -796,53 +796,25 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
 func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
 	var (
 		users    = []string{suite.user}
 		handlers = BackupHandlers(suite.ac)
-		calID    string
-		bdayID   string
 	)
 
-	fn := func(gcc graph.CachedContainer) error {
-		if ptr.Val(gcc.GetDisplayName()) == api.DefaultCalendar {
-			calID = ptr.Val(gcc.GetId())
-		}
-
-		if ptr.Val(gcc.GetDisplayName()) == "Birthdays" {
-			bdayID = ptr.Val(gcc.GetId())
-		}
-
-		return nil
-	}
-
-	err := suite.ac.Events().EnumerateContainers(
-		ctx,
-		suite.user,
-		"",
-		false,
-		fn,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-
 	tests := []struct {
-		name, expected string
-		scope          selectors.ExchangeScope
+		name, expectedContainerName string
+		scope                       selectors.ExchangeScope
 	}{
 		{
-			name:     "Default Event Calendar",
-			expected: calID,
+			name:                  "Default Event Calendar",
+			expectedContainerName: api.DefaultCalendar,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{api.DefaultCalendar},
 				selectors.PrefixMatch())[0],
 		},
 		{
-			name:     "Birthday Calendar",
-			expected: bdayID,
+			name:                  "Birthday Calendar",
+			expectedContainerName: "Birthdays",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{"Birthdays"},
 				selectors.PrefixMatch())[0],
@@ -879,13 +851,16 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 			wg.Add(len(collections))
 
 			for _, edc := range collections {
+				dlp, isDLP := edc.(data.LocationPather)
+
 				var isMetadata bool
 
-				if edc.FullPath().Service() != path.ExchangeMetadataService {
-					isMetadata = true
-					assert.Equal(t, test.expected, edc.FullPath().Folder(false))
+				if edc.FullPath().Service() == path.ExchangeService {
+					require.True(t, isDLP, "must be a location pather")
+					assert.Contains(t, dlp.LocationPath().Elements(), test.expectedContainerName)
 				} else {
-					assert.Equal(t, "", edc.FullPath().Folder(false))
+					isMetadata = true
+					assert.Empty(t, edc.FullPath().Folder(false))
 				}
 
 				for item := range edc.Items(ctx, fault.New(true)) {

@@ -13,13 +13,11 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -294,8 +292,8 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 	var (
 		found         bool
 		calID         = ptr.Val(cal.GetId())
-		findContainer = func(gcc graph.CachedContainer) error {
-			if ptr.Val(gcc.GetId()) == calID {
+		findContainer = func(mc models.Calendarable) error {
+			if ptr.Val(mc.GetId()) == calID {
 				found = true
 			}
 
@@ -303,14 +301,18 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 		}
 	)
 
-	err = ac.EnumerateContainers(
+	containers, err := ac.EnumerateContainers(
 		ctx,
 		suite.its.user.id,
 		api.DefaultCalendar,
-		false,
-		findContainer,
-		fault.New(true))
+		false)
 	require.NoError(t, err, clues.ToCore(err))
+
+	for _, c := range containers {
+		err := findContainer(c)
+		require.NoError(t, err, clues.ToCore(err))
+	}
+
 	require.True(
 		t,
 		found,
