@@ -406,10 +406,10 @@ func fixupReasons(
 			continue
 		}
 
-		// We've got at least on base for this Reason. The below finds which base to
-		// keep based on the creation time of the bases. If there's multiple bases
-		// in the input slice then we'll log information about the ones that we
-		// didn't add to the result set.
+		// We've got at least one base for this Reason. The below finds which base
+		// to keep based on the creation time of the bases. If there's multiple
+		// bases in the input slice then we'll log information about the ones that
+		// we didn't add to the result set.
 
 		// Sort in reverse chronological order so that it's easy to find the
 		// youngest base.
@@ -481,7 +481,8 @@ func (bb *backupBases) fixupAndVerify(ctx context.Context) {
 	bb.assistBases = fixupMinRequirements(ctx, bb.assistBases)
 
 	// Remove merge bases that have overlapping Reasons. It's alright to call this
-	// on assist bases too because we only expect one assist base per Reason.
+	// on assist bases too because we only expect at most one assist base per
+	// Reason.
 	bb.mergeBases = fixupReasons(ctx, bb.mergeBases)
 	bb.assistBases = fixupReasons(ctx, bb.assistBases)
 }
