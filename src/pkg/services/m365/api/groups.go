@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/mail"
 	"net/url"
 	"strings"
 
@@ -95,7 +96,10 @@ func getGroups(
 	return results, el.Failure()
 }
 
-const filterGroupByDisplayNameQueryTmpl = "displayName eq '%s'"
+const (
+	filterGroupByDisplayNameQueryTmpl = "displayName eq '%s'"
+	filterGroupByMailQueryTmpl        = "proxyAddresses/any(a:a eq 'smtp:%s')"
+)
 
 // GetID can look up a group by either its canonical id (a uuid)
 // or by the group's display name.  If looking up the display name
@@ -135,10 +139,19 @@ func (c Groups) GetByID(
 		logger.CtxErr(ctx, err).Info("finding group by id, falling back to display name")
 	}
 
+	var filterTemplate string
+	// attempt to find by email address if the identifier looks like an email
+	if isEmail(identifier) {
+		filterTemplate = filterGroupByMailQueryTmpl
+	} else {
+		filterTemplate = filterGroupByDisplayNameQueryTmpl
+	}
+
+	// fall back to display name or email address
 	opts := &groups.GroupsRequestBuilderGetRequestConfiguration{
 		Headers: newEventualConsistencyHeaders(),
 		QueryParameters: &groups.GroupsRequestBuilderGetQueryParameters{
-			Filter: ptr.To(fmt.Sprintf(filterGroupByDisplayNameQueryTmpl, identifier)),
+			Filter: ptr.To(fmt.Sprintf(filterTemplate, identifier)),
 		},
 	}
 
@@ -148,7 +161,7 @@ func (c Groups) GetByID(
 			err = clues.Stack(graph.ErrResourceLocked, err)
 		}
 
-		return nil, graph.Wrap(ctx, err, "finding group by display name")
+		return nil, graph.Wrap(ctx, err, "finding group by filter fallback")
 	}
 
 	vs := resp.GetValue()
@@ -348,4 +361,9 @@ func (c Groups) GetIDAndName(
 	}
 
 	return ptr.Val(s.GetId()), ptr.Val(s.GetDisplayName()), nil
+}
+
+func isEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
 }
