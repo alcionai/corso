@@ -180,6 +180,7 @@ func defaultTransport() http.RoundTripper {
 
 func internalMiddleware(cc *clientConfig) []khttp.Middleware {
 	mw := []khttp.Middleware{
+		&ErrorIdentifierMiddleware{},
 		&RetryMiddleware{
 			MaxRetries: cc.maxRetries,
 			Delay:      cc.minDelay,

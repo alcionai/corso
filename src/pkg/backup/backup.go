@@ -90,7 +90,7 @@ func New(
 		skipCount = len(fe.Skipped)
 		failMsg   string
 
-		malware, invalidONFile, otherSkips int
+		malware, invalidONFile, permanentServiceFailure, otherSkips int
 	)
 
 	if fe.Failure != nil {
@@ -104,6 +104,8 @@ func New(
 			malware++
 		case s.HasCause(fault.SkipOneNote):
 			invalidONFile++
+		case s.HasCause(fault.SkipPermanentServiceFailure):
+			permanentServiceFailure++
 		default:
 			otherSkips++
 		}
@@ -134,9 +136,10 @@ func New(
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		SkippedCounts: stats.SkippedCounts{
-			TotalSkippedItems:         skipCount,
-			SkippedMalware:            malware,
-			SkippedInvalidOneNoteFile: invalidONFile,
+			TotalSkippedItems:              skipCount,
+			SkippedMalware:                 malware,
+			SkippedInvalidOneNoteFile:      invalidONFile,
+			SkippedPermanentServiceFailure: permanentServiceFailure,
 		},
 	}
 }
@@ -243,6 +246,10 @@ func (b Backup) Values() []string {
 
 	if b.SkippedInvalidOneNoteFile > 0 {
 		skipped = append(skipped, fmt.Sprintf("%d invalid OneNote file", b.SkippedInvalidOneNoteFile))
+	}
+
+	if b.SkippedPermanentServiceFailure > 0 {
+		skipped = append(skipped, fmt.Sprintf("%d permanent service failures", b.SkippedPermanentServiceFailure))
 	}
 
 	status += strings.Join(skipped, ", ")

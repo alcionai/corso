@@ -120,6 +120,16 @@ var (
 	// replies, no error should get returned.
 	ErrMultipleResultsMatchIdentifier = clues.New("multiple results match the identifier")
 
+	// ErrNoRespServerFailure is a generic name for a specific condition: when the request
+	// fails out after all attempted retries with the conditions:
+	// 1. response status code 503
+	// 2. response content length <= 0
+	// This can indicate a persistent inability to access the requested resource.  It's
+	// difficult to determine the underlying cause, since the server provides no response
+	// body.  In many cases this is a non-transient issue and must be skipped to ensure
+	// the operation succeeds.
+	ErrNoRespServerFailure = clues.New("server failed to respond to request")
+
 	// ErrResourceLocked occurs when a resource has had its access locked.
 	// Example case: https://learn.microsoft.com/en-us/sharepoint/manage-lock-status
 	// This makes the resource inaccessible for any Corso operations.
@@ -283,6 +293,10 @@ func IsErrResourceLocked(err error) bool {
 	return errors.Is(err, ErrResourceLocked) ||
 		hasInnerErrorCode(err, ResourceLocked) ||
 		hasErrorCode(err, NotAllowed)
+}
+
+func IsErrNoRespServerFailure(err error) bool {
+	return errors.Is(err, ErrNoRespServerFailure)
 }
 
 // ---------------------------------------------------------------------------

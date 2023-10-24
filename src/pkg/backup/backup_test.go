@@ -202,17 +202,30 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 			expect: "test (42 errors, 1 skipped: 1 invalid OneNote file)",
 		},
 		{
-			name: "errors, malware, notFound, invalid OneNote",
+			name: "errors and permanent service failures",
 			bup: backup.Backup{
 				Status:     "test",
 				ErrorCount: 42,
 				SkippedCounts: stats.SkippedCounts{
-					TotalSkippedItems:         1,
-					SkippedMalware:            1,
-					SkippedInvalidOneNoteFile: 1,
+					TotalSkippedItems:              1,
+					SkippedPermanentServiceFailure: 1,
 				},
 			},
-			expect: "test (42 errors, 1 skipped: 1 malware, 1 invalid OneNote file)",
+			expect: "test (42 errors, 1 skipped: 1 permanent service failures)",
+		},
+		{
+			name: "errors, malware, notFound, invalid OneNote, permanent service failures",
+			bup: backup.Backup{
+				Status:     "test",
+				ErrorCount: 42,
+				SkippedCounts: stats.SkippedCounts{
+					TotalSkippedItems:              1,
+					SkippedMalware:                 1,
+					SkippedInvalidOneNoteFile:      1,
+					SkippedPermanentServiceFailure: 1,
+				},
+			},
+			expect: "test (42 errors, 1 skipped: 1 malware, 1 invalid OneNote file, 1 permanent service failures)",
 		},
 	}
 	for _, test := range table {

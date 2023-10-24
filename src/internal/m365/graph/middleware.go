@@ -369,3 +369,35 @@ func (mw *MetricsMiddleware) Intercept(
 
 	return resp, err
 }
+
+// ---------------------------------------------------------------------------
+// Error Edge Case Identifier
+// ---------------------------------------------------------------------------
+
+// ErrorIdentifierMiddleware ensures known edge cases result in well-represented errors.
+type ErrorIdentifierMiddleware struct{}
+
+func (mw *ErrorIdentifierMiddleware) Intercept(
+	pipeline khttp.Pipeline,
+	middlewareIndex int,
+	req *http.Request,
+) (*http.Response, error) {
+	ctx := req.Context()
+	resp, err := pipeline.Next(req, middlewareIndex)
+
+	if resp == nil || err != nil {
+		return resp, err
+	}
+
+	if resp.StatusCode == http.StatusServiceUnavailable && resp.ContentLength <= 0 {
+		// log the response body dump just for security.  Sometimes a "0 content length"
+		// is actually due to the client's inability to parse the response, and not that
+		// the response content is actually missing.
+		dump := getRespDump(ctx, resp, true)
+		logger.Ctx(ctx).Infow("graph api resp - 503 with no content", "response", dump)
+
+		return nil, clues.Stack(ErrNoRespServerFailure)
+	}
+
+	return resp, err
+}

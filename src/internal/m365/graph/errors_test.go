@@ -162,6 +162,40 @@ func (suite *GraphErrorsUnitSuite) TestIsErrAuthenticationError() {
 	}
 }
 
+func (suite *GraphErrorsUnitSuite) TestIsErrNoRespServerFailure() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr(ErrNoRespServerFailure.Error()),
+			expect: assert.False,
+		},
+		{
+			name:   "matching error",
+			err:    ErrNoRespServerFailure,
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrNoRespServerFailure(test.err))
+		})
+	}
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 	table := []struct {
 		name   string

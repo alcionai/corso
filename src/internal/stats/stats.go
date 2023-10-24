@@ -39,7 +39,8 @@ func (bc *ByteCounter) Count(i int64) {
 }
 
 type SkippedCounts struct {
-	TotalSkippedItems         int `json:"totalSkippedItems"`
-	SkippedMalware            int `json:"skippedMalware"`
-	SkippedInvalidOneNoteFile int `json:"skippedInvalidOneNoteFile"`
+	TotalSkippedItems              int `json:"totalSkippedItems"`
+	SkippedMalware                 int `json:"skippedMalware"`
+	SkippedInvalidOneNoteFile      int `json:"skippedInvalidOneNoteFile"`
+	SkippedPermanentServiceFailure int `json:"skippedPermanentServiceFailure"`
 }

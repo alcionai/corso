@@ -32,6 +32,12 @@ const (
 	//nolint:lll
 	// https://support.microsoft.com/en-us/office/restrictions-and-limitations-in-onedrive-and-sharepoint-64883a5d-228e-48f5-b3d2-eb39e07630fa#onenotenotebooks
 	SkipOneNote skipCause = "inaccessible_one_note_file"
+
+	// SkipPermanentServiceFailure identifies that a file was skipped
+	// because a request failed out with a 503 status code and a response
+	// with no content.  We assume this case to represent non-transient
+	// conditions.
+	SkipPermanentServiceFailure skipCause = "permanent_service_failure"
 )
 
 var _ print.Printable = &Skipped{}
