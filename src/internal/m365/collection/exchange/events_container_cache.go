@@ -87,12 +87,12 @@ func (ecc *eventContainerCache) Populate(
 			return el.Failure()
 		}
 
-		gncf := graph.NewCacheFolder(
+		cacheFolder := graph.NewCacheFolder(
 			api.CalendarDisplayable{Calendarable: c},
 			path.Builder{}.Append(ptr.Val(c.GetId())),
 			path.Builder{}.Append(ptr.Val(c.GetName())))
 
-		err := ecc.addFolder(&gncf)
+		err := ecc.addFolder(&cacheFolder)
 		if err != nil {
 			errs.AddRecoverable(
 				ctx,

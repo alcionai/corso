@@ -66,7 +66,7 @@ func (p *contactsFoldersPageCtrl) ValidModTimes() bool {
 	return true
 }
 
-// EnumerateContainers retrieves all of the users current contact folders.
+// EnumerateContainers retrieves all of the user's current contact folders.
 func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseContainerID string,

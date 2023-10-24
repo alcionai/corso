@@ -113,9 +113,9 @@ func (cfc *contactContainerCache) Populate(
 			return el.Failure()
 		}
 
-		gncf := graph.NewCacheFolder(c, nil, nil)
+		cacheFolder := graph.NewCacheFolder(c, nil, nil)
 
-		err := cfc.addFolder(&gncf)
+		err := cfc.addFolder(&cacheFolder)
 		if err != nil {
 			errs.AddRecoverable(
 				ctx,

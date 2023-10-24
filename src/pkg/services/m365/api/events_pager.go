@@ -67,7 +67,7 @@ func (p *eventsCalendarsPageCtrl) ValidModTimes() bool {
 	return true
 }
 
-// EnumerateContainers retrieves all of the users current mail folders.
+// EnumerateContainers retrieves all of the user's current mail folders.
 func (c Events) EnumerateContainers(
 	ctx context.Context,
 	userID, _ string, // baseContainerID not needed here

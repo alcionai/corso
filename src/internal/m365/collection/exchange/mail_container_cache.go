@@ -117,9 +117,9 @@ func (mc *mailContainerCache) Populate(
 			return el.Failure()
 		}
 
-		gncf := graph.NewCacheFolder(c, nil, nil)
+		cacheFolder := graph.NewCacheFolder(c, nil, nil)
 
-		err := mc.addFolder(&gncf)
+		err := mc.addFolder(&cacheFolder)
 		if err != nil {
 			errs.AddRecoverable(
 				ctx,
