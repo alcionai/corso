@@ -3,8 +3,75 @@ package kopia
 import (
 	"testing"
 
+	"github.com/kopia/kopia/repo/manifest"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/pkg/backup"
 )
+
+func basesMatch(t *testing.T, expect, got []BackupBase, dataType string) {
+	expectBups := make([]*backup.Backup, 0, len(expect))
+	expectMans := make([]*snapshot.Manifest, 0, len(expect))
+	gotBups := make([]*backup.Backup, 0, len(got))
+	gotMans := make([]*snapshot.Manifest, 0, len(got))
+	gotBasesByID := map[model.StableID]BackupBase{}
+
+	for _, e := range expect {
+		expectBups = append(expectBups, e.Backup)
+		expectMans = append(expectMans, e.ItemDataSnapshot)
+	}
+
+	for _, g := range got {
+		gotBups = append(gotBups, g.Backup)
+		gotMans = append(gotMans, g.ItemDataSnapshot)
+		gotBasesByID[g.Backup.ID] = g
+	}
+
+	assert.ElementsMatch(t, expectBups, gotBups, dataType+" backup model")
+	assert.ElementsMatch(t, expectMans, gotMans, dataType+" item data snapshot")
+
+	// Need to compare Reasons separately since they're also a slice.
+	for _, e := range expect {
+		b, ok := gotBasesByID[e.Backup.ID]
+		if !ok {
+			// Missing bases will be reported above.
+			continue
+		}
+
+		assert.ElementsMatch(t, e.Reasons, b.Reasons)
+	}
+}
+
+// TODO(ashmrtn): Temp function until all PRs in the series merge.
+func manifestsMatch(t *testing.T, expect, got []ManifestEntry, dataType string) {
+	expectMans := make([]*snapshot.Manifest, 0, len(expect))
+	gotMans := make([]*snapshot.Manifest, 0, len(got))
+	gotBasesByID := map[manifest.ID]ManifestEntry{}
+
+	for _, e := range expect {
+		expectMans = append(expectMans, e.Manifest)
+	}
+
+	for _, g := range got {
+		gotMans = append(gotMans, g.Manifest)
+		gotBasesByID[g.Manifest.ID] = g
+	}
+
+	assert.ElementsMatch(t, expectMans, gotMans, dataType+" item data snapshot")
+
+	// Need to compare Reasons separately since they're also a slice.
+	for _, e := range expect {
+		b, ok := gotBasesByID[e.Manifest.ID]
+		if !ok {
+			// Missing bases will be reported above.
+			continue
+		}
+
+		assert.ElementsMatch(t, e.Reasons, b.Reasons)
+	}
+}
 
 func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
 	if expect == nil && got == nil {
@@ -33,11 +100,9 @@ func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
 		return
 	}
 
-	assert.ElementsMatch(t, expect.Backups(), got.Backups(), "backups")
-	assert.ElementsMatch(t, expect.MergeBases(), got.MergeBases(), "merge bases")
-	assert.ElementsMatch(t, expect.UniqueAssistBackups(), got.UniqueAssistBackups(), "assist backups")
-	assert.ElementsMatch(t, expect.UniqueAssistBases(), got.UniqueAssistBases(), "assist bases")
-	assert.ElementsMatch(t, expect.SnapshotAssistBases(), got.SnapshotAssistBases(), "snapshot assist bases")
+	basesMatch(t, expect.NewMergeBases(), got.NewMergeBases(), "merge bases")
+	basesMatch(t, expect.NewUniqueAssistBases(), got.NewUniqueAssistBases(), "assist bases")
+	manifestsMatch(t, expect.SnapshotAssistBases(), got.SnapshotAssistBases(), "snapshot assist bases")
 }
 
 func NewMockBackupBases() *MockBackupBases {
