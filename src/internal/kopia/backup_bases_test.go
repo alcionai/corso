@@ -46,7 +46,7 @@ func makeBase(ti testInput) BackupBase {
 	for _, c := range ti.cat {
 		reasons = append(
 			reasons,
-			NewReason(
+			identity.NewReason(
 				ti.tenant,
 				ti.protectedResource,
 				path.ExchangeService,
