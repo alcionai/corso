@@ -23,14 +23,12 @@ type containerGetter interface {
 	) (graph.Container, error)
 }
 
-type containersEnumerator interface {
+type containersEnumerator[T any] interface {
 	EnumerateContainers(
 		ctx context.Context,
 		userID, baseDirID string,
 		immutableIDs bool,
-		fn func(graph.CachedContainer) error,
-		errs *fault.Bus,
-	) error
+	) ([]T, error)
 }
 
 type containerRefresher interface {

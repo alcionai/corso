@@ -261,6 +261,18 @@ func M365TeamID(t *testing.T) string {
 	return strings.ToLower(cfg[TestCfgTeamID])
 }
 
+// M365TeamEmail returns a teamEmail string representing the m365TeamsEmail described
+// by either the env var CORSO_M365_TEST_TEAM_EMAIL, the corso_test.toml config
+// file or the default value (in that order of priority) and should belong the same group as the one
+// represented by CORSO_M365_TEST_TEAM_ID. The default is a
+// last-attempt fallback that will only work on alcion's testing org.
+func M365TeamEmail(t *testing.T) string {
+	cfg, err := ReadTestConfig()
+	require.NoError(t, err, "retrieving m365 team email from test configuration: %+v", clues.ToCore(err))
+
+	return strings.ToLower(cfg[TestCfgTeamEmail])
+}
+
 // SecondaryM365TeamID returns a teamID string representing the secondarym365TeamID described
 // by either the env var CORSO_SECONDARY_M365_TEST_TEAM_ID, the corso_test.toml config
 // file or the default value (in that order of priority).  The default is a
