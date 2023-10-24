@@ -27,10 +27,12 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
+	istats "github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -73,11 +75,11 @@ func testForFiles(
 ) {
 	t.Helper()
 
-	count := 0
+	fCount := 0
 
 	for _, c := range collections {
 		for s := range c.Items(ctx, fault.New(true)) {
-			count++
+			fCount++
 
 			fullPath, err := c.FullPath().AppendItem(s.ID())
 			require.NoError(t, err, clues.ToCore(err))
@@ -96,7 +98,7 @@ func testForFiles(
 		}
 	}
 
-	assert.Equal(t, len(expected), count)
+	assert.Equal(t, len(expected), fCount)
 }
 
 func checkSnapshotTags(
@@ -883,6 +885,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			defer flush()
 
 			bbs := test.baseBackups(base)
+			counter := count.New()
 
 			stats, deets, deetsMerger, err := suite.w.ConsumeBackupCollections(
 				ctx,
@@ -892,26 +895,44 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				nil,
 				tags,
 				true,
-				fault.New(true))
+				fault.New(true),
+				counter)
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
+			assert.Equal(t, int64(test.expectedUploadedFiles), counter.Get(count.PersistedFiles), "total files")
 			assert.Equal(t, test.expectedUploadedFiles, stats.UncachedFileCount, "uncached files")
+			assert.Equal(t, int64(test.expectedUploadedFiles), counter.Get(count.PersistedNonCachedFiles), "uncached files")
 			assert.Equal(t, test.expectedCachedFiles, stats.CachedFileCount, "cached files")
+			assert.Equal(t, int64(test.expectedCachedFiles), counter.Get(count.PersistedCachedFiles), "cached files")
 			assert.Equal(t, 4+len(test.collections), stats.TotalDirectoryCount, "directory count")
-			assert.Equal(t, 0, stats.IgnoredErrorCount)
-			assert.Equal(t, 0, stats.ErrorCount)
+			assert.Equal(t, int64(4+len(test.collections)), counter.Get(count.PersistedDirectories), "directory count")
+			assert.Zero(t, stats.IgnoredErrorCount, "ignored errors")
+			assert.Zero(t, counter.Get(count.PersistenceIgnoredErrors), "ignored errors")
+			assert.Zero(t, stats.ErrorCount, "errors")
+			assert.Zero(t, counter.Get(count.PersistenceErrors), "errors")
 			assert.False(t, stats.Incomplete)
 			test.hashedBytesCheck(t, stats.TotalHashedBytes, "hashed bytes")
+			test.hashedBytesCheck(t, counter.Get(count.PersistedHashedBytes), "hashed bytes")
 			assert.LessOrEqual(
 				t,
 				test.uploadedBytes[0],
 				stats.TotalUploadedBytes,
 				"low end of uploaded bytes")
+			assert.LessOrEqual(
+				t,
+				test.uploadedBytes[0],
+				counter.Get(count.PersistedUploadedBytes),
+				"low end of uploaded bytes")
 			assert.GreaterOrEqual(
 				t,
 				test.uploadedBytes[1],
 				stats.TotalUploadedBytes,
+				"high end of uploaded bytes")
+			assert.GreaterOrEqual(
+				t,
+				test.uploadedBytes[1],
+				counter.Get(count.PersistedUploadedBytes),
 				"high end of uploaded bytes")
 
 			if test.expectMerge {
@@ -1183,6 +1204,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 			collections := test.cols()
+			counter := count.New()
 
 			stats, deets, prevShortRefs, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
@@ -1192,15 +1214,22 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				nil,
 				tags,
 				true,
-				fault.New(true))
+				fault.New(true),
+				counter)
 			assert.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
+			assert.Equal(t, int64(test.expectedUploadedFiles), counter.Get(count.PersistedFiles), "total files")
 			assert.Equal(t, test.expectedUploadedFiles, stats.UncachedFileCount, "uncached files")
+			assert.Equal(t, int64(test.expectedUploadedFiles), counter.Get(count.PersistedNonCachedFiles), "uncached files")
 			assert.Equal(t, test.expectedCachedFiles, stats.CachedFileCount, "cached files")
-			assert.Equal(t, 5, stats.TotalDirectoryCount)
-			assert.Equal(t, 0, stats.IgnoredErrorCount)
-			assert.Equal(t, 0, stats.ErrorCount)
+			assert.Equal(t, int64(test.expectedCachedFiles), counter.Get(count.PersistedCachedFiles), "cached files")
+			assert.Equal(t, 5, stats.TotalDirectoryCount, "uploaded directories")
+			assert.Equal(t, int64(5), counter.Get(count.PersistedDirectories), "uploaded directories")
+			assert.Zero(t, stats.IgnoredErrorCount, "ignored errors")
+			assert.Zero(t, counter.Get(count.PersistenceIgnoredErrors), "ignored errors")
+			assert.Zero(t, stats.ErrorCount, "errors")
+			assert.Zero(t, counter.Get(count.PersistenceErrors), "errors")
 			assert.False(t, stats.Incomplete)
 
 			// 47 file and 1 folder entries.
@@ -1280,7 +1309,8 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		nil,
 		nil,
 		true,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Compression(ctx, "gzip")
@@ -1365,6 +1395,7 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	}
 
 	errs := fault.New(true)
+	counter := count.New()
 
 	stats, deets, _, err := suite.w.ConsumeBackupCollections(
 		suite.ctx,
@@ -1374,12 +1405,17 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		nil,
 		true,
-		errs)
+		errs,
+		counter)
 	require.Error(t, err, clues.ToCore(err))
-	assert.Equal(t, 0, stats.ErrorCount, "error count")
+	assert.Zero(t, stats.ErrorCount, "error count")
+	assert.Zero(t, counter.Get(count.PersistenceErrors), "error count")
 	assert.Equal(t, 5, stats.TotalFileCount, "total files")
+	assert.Equal(t, int64(5), counter.Get(count.PersistedFiles), "total files")
 	assert.Equal(t, 6, stats.TotalDirectoryCount, "total directories")
-	assert.Equal(t, 0, stats.IgnoredErrorCount, "ignored errors")
+	assert.Equal(t, int64(6), counter.Get(count.PersistedDirectories), "total directories")
+	assert.Zero(t, stats.IgnoredErrorCount, "ignored errors")
+	assert.Zero(t, counter.Get(count.PersistenceIgnoredErrors), "ignored errors")
 	assert.Equal(t, 1, len(errs.Errors().Recovered), "recovered errors")
 	assert.False(t, stats.Incomplete, "incomplete")
 	// 5 file and 2 folder entries.
@@ -1388,7 +1424,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	failedPath, err := suite.storePath2.AppendItem(testFileName4)
 	require.NoError(t, err, clues.ToCore(err))
 
-	ic := i64counter{}
+	ic := istats.ByteCounter{
+		Counter: counter.AdderFor(count.PersistedUploadedBytes),
+	}
 
 	dcs, err := suite.w.ProduceRestoreCollections(
 		suite.ctx,
@@ -1411,7 +1449,12 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 	// Files that had an error shouldn't make a dir entry in kopia. If they do we
 	// may run into kopia-assisted incrementals issues because only mod time and
 	// not file size is checked for StreamingFiles.
-	assert.ErrorIs(t, errs.Failure(), data.ErrNotFound, "errored file is restorable", clues.ToCore(err))
+	assert.ErrorIs(
+		t,
+		errs.Failure(),
+		data.ErrNotFound,
+		"errored file is restorable",
+		clues.ToCore(err))
 }
 
 type backedupFile struct {
@@ -1450,7 +1493,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				nil,
 				nil,
 				true,
-				fault.New(true))
+				fault.New(true),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, BackupStats{}, *s)
@@ -1600,6 +1644,7 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 	}
 
 	r := identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory)
+	counter := count.New()
 
 	// Other tests check basic things about deets so not doing that again here.
 	stats, _, _, err := suite.w.ConsumeBackupCollections(
@@ -1610,12 +1655,17 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		nil,
 		nil,
 		false,
-		fault.New(true))
+		fault.New(true),
+		counter)
 	require.NoError(t, err, clues.ToCore(err))
-	require.Equal(t, stats.ErrorCount, 0)
-	require.Equal(t, stats.TotalFileCount, expectedFiles)
-	require.Equal(t, stats.TotalDirectoryCount, expectedDirs)
-	require.Equal(t, stats.IgnoredErrorCount, 0)
+	require.Zero(t, stats.ErrorCount)
+	require.Zero(t, counter.Get(count.PersistenceErrors))
+	require.Zero(t, stats.IgnoredErrorCount)
+	require.Zero(t, counter.Get(count.PersistenceIgnoredErrors))
+	require.Equal(t, expectedFiles, stats.TotalFileCount)
+	require.Equal(t, int64(expectedFiles), counter.Get(count.PersistedFiles))
+	require.Equal(t, expectedDirs, stats.TotalDirectoryCount)
+	require.Equal(t, int64(expectedFiles), counter.Get(count.PersistedDirectories))
 	require.False(t, stats.Incomplete)
 
 	suite.snapshotID = manifest.ID(stats.SnapshotID)
@@ -1625,14 +1675,6 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TearDownTest() {
 	err := suite.w.Close(suite.ctx)
 	assert.NoError(suite.T(), err, clues.ToCore(err))
 	logger.Flush(suite.ctx)
-}
-
-type i64counter struct {
-	i int64
-}
-
-func (c *i64counter) Count(i int64) {
-	c.i += i
 }
 
 func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
@@ -1729,6 +1771,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				})
 			}
 
+			counter := count.New()
+
 			stats, _, _, err := suite.w.ConsumeBackupCollections(
 				suite.ctx,
 				[]identity.Reasoner{r},
@@ -1741,10 +1785,13 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				excluded,
 				nil,
 				true,
-				fault.New(true))
+				fault.New(true),
+				counter)
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectedCachedItems, stats.CachedFileCount)
 			assert.Equal(t, test.expectedUncachedItems, stats.UncachedFileCount)
+			assert.Equal(t, int64(test.expectedCachedItems), counter.Get(count.PersistedCachedFiles))
+			assert.Equal(t, int64(test.expectedUncachedItems), counter.Get(count.PersistedNonCachedFiles))
 
 			test.backupIDCheck(t, stats.SnapshotID)
 
@@ -1752,7 +1799,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				return
 			}
 
-			ic := i64counter{}
+			ic := istats.ByteCounter{
+				Counter: counter.AdderFor(count.PersistedUploadedBytes),
+			}
 
 			dcs, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
@@ -1871,7 +1920,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 				expected[pth.String()] = item.data
 			}
 
-			ic := i64counter{}
+			counter := count.New()
+			ic := istats.ByteCounter{
+				Counter: counter.AdderFor(count.PersistedUploadedBytes),
+			}
 
 			result, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
@@ -1902,7 +1954,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections() {
 			}
 
 			assert.Len(t, result, test.expectedCollections)
-			assert.Less(t, int64(0), ic.i)
+			assert.Less(t, int64(0), ic.NumBytes)
+			assert.Less(t, int64(0), counter.Get(count.PersistedUploadedBytes))
 			testForFiles(t, ctx, expected, result)
 		})
 	}
@@ -2010,7 +2063,10 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Path
 				expected[itemPath.String()] = item.data
 			}
 
-			ic := i64counter{}
+			counter := count.New()
+			ic := istats.ByteCounter{
+				Counter: counter.AdderFor(count.PersistedUploadedBytes),
+			}
 
 			result, err := suite.w.ProduceRestoreCollections(
 				suite.ctx,
@@ -2055,9 +2111,11 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestProduceRestoreCollections_Fetc
 		},
 	}
 
-	// Really only interested in getting the collection so we can call fetch on
-	// it.
-	ic := i64counter{}
+	// Really only interested in getting the collection so we can call fetch on it.
+	counter := count.New()
+	ic := istats.ByteCounter{
+		Counter: counter.AdderFor(count.PersistedUploadedBytes),
+	}
 
 	result, err := suite.w.ProduceRestoreCollections(
 		suite.ctx,
