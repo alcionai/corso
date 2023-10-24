@@ -123,14 +123,15 @@ func ParseSite(item models.Siteable) *Site {
 		s.OwnerType = SiteOwnerUser
 		s.OwnerID = ptr.Val(item.GetDrive().GetOwner().GetUser().GetId())
 
-		if email, ok := item.GetDrive().GetOwner().GetUser().GetAdditionalData()["email"]; ok {
-			var err error
-
-			s.OwnerEmail, err = str.AnyToString(email)
-			if err != nil {
-				return s
-			}
-		}
+	addtl := item.
+		GetDrive().
+		GetOwner().
+		GetUser().
+		GetAdditionalData()
+	email, err := AnyValueToString("email", addtl)
+	if err != nil {
+		return s
+	}
 	} else if item.GetDrive() != nil && item.GetDrive().GetOwner() != nil {
 		ownerItem := item.GetDrive().GetOwner()
 		if _, ok := ownerItem.GetAdditionalData()["group"]; ok {
