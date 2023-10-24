@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
 	"github.com/google/uuid"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
@@ -34,6 +37,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
+	"github.com/aws/aws-sdk-go/aws/session"
 )
 
 // BackupOperation wraps an operation with backup-specific props.
@@ -322,7 +326,54 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
 	}
 
+	awsSession := session.Must(session.NewSession())
+	cwClient := cloudwatch.New(awsSession)
+
+	tokens := op.Results.Counts[string(count.APICallTokensConsumed)]
+
+	logger.Ctx(ctx).Infow("publishing graph metrics",
+		"tokens_used", tokens)
+	PublishGraphMetrics(
+		ctx,
+		cwClient,
+		op.Selectors.Service.String(),
+		"tenantID",
+		tokens)
+
 	return op.Errors.Failure()
+}
+
+func PublishGraphMetrics(
+	ctx context.Context,
+	cwClient cloudwatchiface.CloudWatchAPI,
+	serviceName, tenantID string,
+	value int64) {
+	_, err := cwClient.PutMetricData(&cloudwatch.PutMetricDataInput{
+		Namespace: aws.String("mynamespace"),
+		MetricData: []*cloudwatch.MetricDatum{
+			// one metric at the tenant-level.
+			{
+				MetricName: aws.String("graph_api_tokens"),
+				Unit:       aws.String("Count"),
+				Value:      aws.Float64(float64(value)),
+				Dimensions: []*cloudwatch.Dimension{
+					{
+						Name:  aws.String("Service"),
+						Value: aws.String(serviceName),
+					},
+					{
+						Name:  aws.String("TenantID"),
+						Value: aws.String(tenantID),
+					},
+				},
+			},
+		},
+	})
+
+	if err != nil {
+		// do not block operations based on cloudwatch metrics
+		logger.CtxErr(ctx, err).Info("error sending metric %s to cloudwatch", "onedrive_graph_api_tokens")
+	}
 }
 
 // do is purely the action of running a backup.  All pre/post behavior
