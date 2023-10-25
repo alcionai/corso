@@ -639,14 +639,19 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 		}
 	}
 
-	makeBackup := func(ro, snapID string, cats ...path.CategoryType) kopia.BackupEntry {
-		return kopia.BackupEntry{
+	makeBackupBase := func(ro, snapID, incmpl string, cats ...path.CategoryType) kopia.BackupBase {
+		return kopia.BackupBase{
 			Backup: &backup.Backup{
 				BaseModel: model.BaseModel{
 					ID: model.StableID(snapID + "bup"),
 				},
 				SnapshotID:    snapID,
 				StreamStoreID: snapID + "store",
+			},
+			ItemDataSnapshot: &snapshot.Manifest{
+				ID:               manifest.ID(snapID),
+				IncompleteReason: incmpl,
+				Tags:             map[string]string{"tag:" + kopia.TagBackupID: snapID + "bup"},
 			},
 			Reasons: buildReasons(tid, ro, path.ExchangeService, cats...),
 		}
@@ -682,8 +687,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			bf: &mockBackupFinder{
 				data: map[string]kopia.BackupBases{
 					fbro: kopia.NewMockBackupBases().
-						WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-						WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)),
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)),
 				},
 			},
 			rp:              mockRestoreProducer{},
@@ -693,17 +697,15 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			assertB:         assert.False,
 			expectDCS:       nil,
 			expectMans: kopia.NewMockBackupBases().
-				WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-				WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)).
+				NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)).
 				MockDisableMergeBases(),
 		},
 		{
 			name: "only fallbacks",
 			bf: &mockBackupFinder{
 				data: map[string]kopia.BackupBases{
-					fbro: kopia.NewMockBackupBases().WithMergeBases(
-						makeMan(fbro, "fb_id1", "", path.EmailCategory)).WithBackups(
-						makeBackup(fbro, "fb_id1", path.EmailCategory)),
+					fbro: kopia.NewMockBackupBases().
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)),
 				},
 			},
 			rp: mockRestoreProducer{
@@ -717,16 +719,14 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
 			expectMans: kopia.NewMockBackupBases().
-				WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-				WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)),
+				NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)),
 		},
 		{
 			name: "only fallbacks, drop assist",
 			bf: &mockBackupFinder{
 				data: map[string]kopia.BackupBases{
 					fbro: kopia.NewMockBackupBases().
-						WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-						WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)),
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)),
 				},
 			},
 			rp: mockRestoreProducer{
@@ -741,8 +741,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
 			expectMans: kopia.NewMockBackupBases().
-				WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-				WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)).
+				NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)).
 				MockDisableAssistBases(),
 		},
 		{
@@ -752,8 +751,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					ro: kopia.NewMockBackupBases().
 						WithMergeBases(makeMan(ro, "id1", "", path.EmailCategory)),
 					fbro: kopia.NewMockBackupBases().
-						WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-						WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)),
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)),
 				},
 			},
 			rp: mockRestoreProducer{
@@ -804,8 +802,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 						WithMergeBases(makeMan(ro, "id1", "", path.EmailCategory)).
 						WithAssistBases(makeMan(ro, "id2", "checkpoint", path.EmailCategory)),
 					fbro: kopia.NewMockBackupBases().
-						WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-						WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)).
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)).
 						WithAssistBases(makeMan(fbro, "fb_id2", "checkpoint", path.EmailCategory)),
 				},
 			},
@@ -834,8 +831,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					ro: kopia.NewMockBackupBases().WithAssistBases(
 						makeMan(ro, "id2", "checkpoint", path.EmailCategory)),
 					fbro: kopia.NewMockBackupBases().
-						WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-						WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)),
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)),
 				},
 			},
 			rp: mockRestoreProducer{
@@ -851,8 +847,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
 			expectMans: kopia.NewMockBackupBases().
-				WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-				WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)).
+				NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)).
 				WithAssistBases(makeMan(ro, "id2", "checkpoint", path.EmailCategory)),
 		},
 		{
@@ -862,8 +857,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					ro: kopia.NewMockBackupBases().WithAssistBases(
 						makeMan(ro, "id2", "checkpoint", path.EmailCategory)),
 					fbro: kopia.NewMockBackupBases().
-						WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-						WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)),
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)),
 				},
 			},
 			rp: mockRestoreProducer{
@@ -880,8 +874,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			assertB:         assert.True,
 			expectDCS:       []mockColl{{id: "fb_id1"}},
 			expectMans: kopia.NewMockBackupBases().
-				WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory)).
-				WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory)).
+				NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory)).
 				MockDisableAssistBases(),
 		},
 		{
@@ -916,8 +909,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					ro: kopia.NewMockBackupBases().WithMergeBases(
 						makeMan(ro, "id1", "", path.EmailCategory, path.ContactsCategory)),
 					fbro: kopia.NewMockBackupBases().
-						WithMergeBases(makeMan(fbro, "fb_id1", "", path.EmailCategory, path.ContactsCategory)).
-						WithBackups(makeBackup(fbro, "fb_id1", path.EmailCategory, path.ContactsCategory)),
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory, path.ContactsCategory)),
 				},
 			},
 			rp: mockRestoreProducer{
@@ -948,8 +940,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					ro: kopia.NewMockBackupBases().WithMergeBases(
 						makeMan(ro, "id1", "", path.EmailCategory)),
 					fbro: kopia.NewMockBackupBases().
-						WithMergeBases(makeMan(fbro, "fb_id1", "", path.ContactsCategory)).
-						WithBackups(makeBackup(fbro, "fb_id1", path.ContactsCategory)),
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.ContactsCategory)),
 				},
 			},
 			rp: mockRestoreProducer{
@@ -967,10 +958,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}, {id: "fb_id1"}},
 			expectMans: kopia.NewMockBackupBases().
-				WithMergeBases(
-					makeMan(ro, "id1", "", path.EmailCategory),
-					makeMan(fbro, "fb_id1", "", path.ContactsCategory)).
-				WithBackups(makeBackup(fbro, "fb_id1", path.ContactsCategory)),
+				WithMergeBases(makeMan(ro, "id1", "", path.EmailCategory)).
+				NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.ContactsCategory)),
 		},
 		{
 			name: "complete mans and complete fallbacks, fallback has superset of reasons",
@@ -979,10 +968,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 					ro: kopia.NewMockBackupBases().WithMergeBases(
 						makeMan(ro, "id1", "", path.EmailCategory)),
 					fbro: kopia.NewMockBackupBases().
-						WithMergeBases(
-							makeMan(fbro, "fb_id1", "", path.EmailCategory, path.ContactsCategory)).
-						WithBackups(
-							makeBackup(fbro, "fb_id1", path.EmailCategory, path.ContactsCategory)),
+						NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.EmailCategory, path.ContactsCategory)),
 				},
 			},
 			rp: mockRestoreProducer{
@@ -1004,11 +990,8 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			assertB:   assert.True,
 			expectDCS: []mockColl{{id: "id1"}, {id: "fb_id1"}},
 			expectMans: kopia.NewMockBackupBases().
-				WithMergeBases(
-					makeMan(ro, "id1", "", path.EmailCategory),
-					makeMan(fbro, "fb_id1", "", path.ContactsCategory)).
-				WithBackups(
-					makeBackup(fbro, "fb_id1", path.ContactsCategory)),
+				WithMergeBases(makeMan(ro, "id1", "", path.EmailCategory)).
+				NewWithMergeBases(makeBackupBase(fbro, "fb_id1", "", path.ContactsCategory)),
 		},
 	}
 
