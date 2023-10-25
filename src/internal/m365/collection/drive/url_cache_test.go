@@ -184,6 +184,9 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 	// Validate that exactly 1 delta query was made by url cache
 	require.Equal(t, 1, uc.refreshCount)
+
+	// Validate that the prev delta base stays the same
+	require.Equal(t, du.URL, uc.prevDelta)
 }
 
 // ---------------------------------------------------------------------------
