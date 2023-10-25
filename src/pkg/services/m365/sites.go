@@ -21,7 +21,7 @@ import (
 type SiteOwnerType string
 
 const (
-	SiteOwnerUnknown SiteOwnerType = ""
+	SiteOwnerUnknown SiteOwnerType = "unknown"
 	SiteOwnerUser    SiteOwnerType = "user"
 	SiteOwnerGroup   SiteOwnerType = "group"
 )
