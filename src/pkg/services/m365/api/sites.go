@@ -279,16 +279,7 @@ func ValidateSite(item models.Siteable) error {
 			With("site_id", clues.Hide(id), "site_web_url", clues.Hide(wURL))
 	}
 
-	name := ptr.Val(item.GetDisplayName())
-	if len(name) == 0 {
-		// the built-in site at "https://{tenant-domain}/search" never has a name.
-		if strings.HasSuffix(wURL, "/search") {
-			return clues.Stack(ErrKnownSkippableCase).
-				With("site_id", clues.Hide(id), "site_web_url", clues.Hide(wURL))
-		}
-
-		return clues.New("missing site display name").With("site_id", clues.Hide(id))
-	}
+	// Not checking for a name since it's possible to have sites without a name.
 
 	return nil
 }
