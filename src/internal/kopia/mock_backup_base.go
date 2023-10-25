@@ -1,6 +1,7 @@
 package kopia
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/kopia/kopia/repo/manifest"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // TODO(ashmrtn): Temp function until all PRs in the series merge.
@@ -196,4 +199,68 @@ func (bb *MockBackupBases) MockDisableAssistBases() *MockBackupBases {
 func (bb *MockBackupBases) MockDisableMergeBases() *MockBackupBases {
 	bb.DisableMergeBases()
 	return bb
+}
+
+// -----------------------------------------------------------------------------
+// Functions for BackupBase creation
+// -----------------------------------------------------------------------------
+
+func NewBackupBaseBuilder(idPrefix string, id int) *BackupBaseBuilder {
+	bIDKey, _ := makeTagKV(TagBackupID)
+	baseID := fmt.Sprintf("%sID%d", idPrefix, id)
+
+	return &BackupBaseBuilder{
+		b: &BackupBase{
+			Backup: &backup.Backup{
+				BaseModel: model.BaseModel{
+					ID: model.StableID(baseID + "-backup"),
+				},
+				SnapshotID:    baseID + "-item-data",
+				StreamStoreID: baseID + "-stream-store",
+			},
+			ItemDataSnapshot: &snapshot.Manifest{
+				ID:   manifest.ID(baseID + "-item-data"),
+				Tags: map[string]string{bIDKey: baseID + "-backup"},
+			},
+			Reasons: []identity.Reasoner{
+				identity.NewReason(
+					"tenant",
+					"protected_resource",
+					path.ExchangeService,
+					path.EmailCategory),
+			},
+		},
+	}
+}
+
+type BackupBaseBuilder struct {
+	b *BackupBase
+}
+
+func (builder *BackupBaseBuilder) Build() BackupBase {
+	return *builder.b
+}
+
+func (builder *BackupBaseBuilder) MarkAssistBase() *BackupBaseBuilder {
+	if builder.b.Backup.Tags == nil {
+		builder.b.Backup.Tags = map[string]string{}
+	}
+
+	builder.b.Backup.Tags[model.BackupTypeTag] = model.AssistBackup
+
+	return builder
+}
+
+func (builder *BackupBaseBuilder) WithReasons(
+	reasons ...identity.Reasoner,
+) *BackupBaseBuilder {
+	builder.b.Reasons = reasons
+	return builder
+}
+
+func (builder *BackupBaseBuilder) AppendReasons(
+	reasons ...identity.Reasoner,
+) *BackupBaseBuilder {
+	builder.b.Reasons = append(builder.b.Reasons, reasons...)
+	return builder
 }
