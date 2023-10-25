@@ -1,6 +1,7 @@
 package kopia
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/kopia/kopia/repo/manifest"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // TODO(ashmrtn): Temp function until all PRs in the series merge.
@@ -220,7 +223,7 @@ func NewBackupBaseBuilder(idPrefix string, id int) *BackupBaseBuilder {
 				Tags: map[string]string{bIDKey: baseID + "-backup"},
 			},
 			Reasons: []identity.Reasoner{
-				NewReason(
+				identity.NewReason(
 					"tenant",
 					"protected_resource",
 					path.ExchangeService,
@@ -234,26 +237,30 @@ type BackupBaseBuilder struct {
 	b *BackupBase
 }
 
-func (bbb *BackupBaseBuilder) Build() BackupBase {
-	return *bbb.b
+func (builder *BackupBaseBuilder) Build() BackupBase {
+	return *builder.b
 }
 
-func (bbb *BackupBaseBuilder) MarkAssistBase() *BackupBaseBuilder {
-	if bbb.b.Backup.Tags == nil {
-		bbb.b.Backup.Tags = map[string]string{}
+func (builder *BackupBaseBuilder) MarkAssistBase() *BackupBaseBuilder {
+	if builder.b.Backup.Tags == nil {
+		builder.b.Backup.Tags = map[string]string{}
 	}
 
-	bbb.b.Backup.Tags[model.BackupTypeTag] = model.AssistBackup
+	builder.b.Backup.Tags[model.BackupTypeTag] = model.AssistBackup
 
-	return bbb
+	return builder
 }
 
-func (bbb *BackupBaseBuilder) WithReasons(reasons ...identity.Reasoner) *BackupBaseBuilder {
-	bbb.b.Reasons = reasons
-	return bbb
+func (builder *BackupBaseBuilder) WithReasons(
+	reasons ...identity.Reasoner,
+) *BackupBaseBuilder {
+	builder.b.Reasons = reasons
+	return builder
 }
 
-func (bbb *BackupBaseBuilder) AppendReasons(reasons ...identity.Reasoner) *BackupBaseBuilder {
-	bbb.b.Reasons = append(bbb.b.Reasons, reasons...)
-	return bbb
+func (builder *BackupBaseBuilder) AppendReasons(
+	reasons ...identity.Reasoner,
+) *BackupBaseBuilder {
+	builder.b.Reasons = append(builder.b.Reasons, reasons...)
+	return builder
 }
