@@ -228,7 +228,7 @@ func userIdentitySet(userID string, userEmail string) models.IdentitySetable {
 	userIdentity := models.NewUserIdentity()
 	userIdentity.SetId(ptr.To(userID))
 
-	if userEmail != "" {
+	if len(userEmail) > 0 {
 		userIdentity.SetAdditionalData(map[string]any{
 			"email": userEmail,
 		})
@@ -241,11 +241,11 @@ func userIdentitySet(userID string, userEmail string) models.IdentitySetable {
 
 func groupIdentitySet(groupID string, groupEmail string) models.IdentitySetable {
 	groupData := map[string]any{}
-	if groupEmail != "" {
+	if len(groupEmail) > 0 {
 		groupData["email"] = groupEmail
 	}
 
-	if groupID != "" {
+	if len(groupID) > 0 {
 		groupData["id"] = groupID
 	}
 
