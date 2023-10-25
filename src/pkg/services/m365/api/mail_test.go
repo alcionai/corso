@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type MailAPIUnitSuite struct {
@@ -150,7 +149,7 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			msg, expected := tt.msgAndRP()
-			assert.Equal(suite.T(), expected, api.MailInfo(msg, 0))
+			assert.Equal(suite.T(), expected, MailInfo(msg, 0))
 		})
 	}
 }
@@ -179,7 +178,7 @@ func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result, err := api.BytesToMessageable(test.byteArray)
+			result, err := BytesToMessageable(test.byteArray)
 			test.checkError(t, err, clues.ToCore(err))
 			test.checkObject(t, result)
 		})
@@ -380,7 +379,7 @@ func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
 
 	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
 	msgs := suite.its.ac.Mail()
-	mailfolder, err := msgs.CreateContainer(ctx, userID, api.MsgFolderRoot, folderName)
+	mailfolder, err := msgs.CreateContainer(ctx, userID, MsgFolderRoot, folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msg := models.NewMessage()
@@ -419,7 +418,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 		expectErr         assert.ErrorAssertionFunc
 	}{
 		{
-			name:      api.MailInbox,
+			name:      MailInbox,
 			expectErr: assert.NoError,
 		},
 		{

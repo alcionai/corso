@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type GroupUnitSuite struct {
@@ -70,7 +69,7 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := api.ValidateGroup(test.args)
+			err := ValidateGroup(test.args)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if test.errIsSkippable {
@@ -144,9 +143,9 @@ func (suite *GroupsIntgSuite) TestGetAllSitesNonTeam() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	group, err := suite.its.ac.Groups().GetByID(ctx, suite.its.nonTeamGroup.id, api.CallConfig{})
+	group, err := suite.its.ac.Groups().GetByID(ctx, suite.its.nonTeamGroup.id, CallConfig{})
 	require.NoError(t, err)
-	require.False(t, api.IsTeam(ctx, group), "group should not be a team for this test")
+	require.False(t, IsTeam(ctx, group), "group should not be a team for this test")
 
 	sites, err := suite.its.ac.
 		Groups().
@@ -167,7 +166,7 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 		groupsAPI   = suite.its.ac.Groups()
 	)
 
-	grp, err := groupsAPI.GetByID(ctx, groupID, api.CallConfig{})
+	grp, err := groupsAPI.GetByID(ctx, groupID, CallConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
@@ -208,7 +207,7 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := groupsAPI.GetByID(ctx, test.id, api.CallConfig{})
+			_, err := groupsAPI.GetByID(ctx, test.id, CallConfig{})
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}

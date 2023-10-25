@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type MailPagerIntgSuite struct {
@@ -40,7 +39,7 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.user.id, api.MailInbox)
+	container, err := ac.GetContainerByID(ctx, suite.its.user.id, MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msgs, err := ac.Stable.
@@ -57,12 +56,12 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsInContainerByCollisionKey() {
 	expectM := map[string]struct{}{}
 
 	for _, m := range ms {
-		expectM[api.MailCollisionKey(m)] = struct{}{}
+		expectM[MailCollisionKey(m)] = struct{}{}
 	}
 
 	expect := maps.Keys(expectM)
 
-	results, err := suite.its.ac.Mail().GetItemsInContainerByCollisionKey(ctx, suite.its.user.id, api.MailInbox)
+	results, err := suite.its.ac.Mail().GetItemsInContainerByCollisionKey(ctx, suite.its.user.id, MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 
@@ -103,7 +102,7 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsIDsInContainer() {
 		Users().
 		ByUserId(suite.its.user.id).
 		MailFolders().
-		ByMailFolderId(api.MailInbox).
+		ByMailFolderId(MailInbox).
 		Messages().
 		Get(ctx, config)
 	require.NoError(t, err, clues.ToCore(err))
@@ -116,7 +115,7 @@ func (suite *MailPagerIntgSuite) TestMail_GetItemsIDsInContainer() {
 	}
 
 	results, err := suite.its.ac.Mail().
-		GetItemIDsInContainer(ctx, suite.its.user.id, api.MailInbox)
+		GetItemIDsInContainer(ctx, suite.its.user.id, MailInbox)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 	require.Equal(t, len(expect), len(results), "must have same count of items")

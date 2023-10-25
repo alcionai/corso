@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ChannelsAPIUnitSuite struct {
@@ -235,7 +234,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			chMsg, expected := test.msgAndInfo()
-			assert.Equal(suite.T(), expected, api.ChannelMessageInfo(chMsg))
+			assert.Equal(suite.T(), expected, ChannelMessageInfo(chMsg))
 		})
 	}
 }
