@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 type siteIntegrationSuite struct {
@@ -223,68 +224,21 @@ func (suite *siteUnitSuite) TestGetAllSites() {
 	}
 }
 
-func userIdentitySet(userID string, userEmail string) models.IdentitySetable {
-	user := models.NewIdentitySet()
-	userIdentity := models.NewUserIdentity()
-	userIdentity.SetId(ptr.To(userID))
-
-	if len(userEmail) > 0 {
-		userIdentity.SetAdditionalData(map[string]any{
-			"email": userEmail,
-		})
-	}
-
-	user.SetUser(userIdentity)
-
-	return user
-}
-
-func groupIdentitySet(groupID string, groupEmail string) models.IdentitySetable {
-	groupData := map[string]any{}
-	if len(groupEmail) > 0 {
-		groupData["email"] = groupEmail
-	}
-
-	if len(groupID) > 0 {
-		groupData["id"] = groupID
-	}
-
-	group := models.NewIdentitySet()
-	group.SetAdditionalData(map[string]any{"group": groupData})
-
-	return group
-}
-
-func dummySite(owner models.IdentitySetable) models.Siteable {
-	site := models.NewSite()
-	site.SetId(ptr.To("id"))
-	site.SetWebUrl(ptr.To("weburl"))
-	site.SetDisplayName(ptr.To("displayname"))
-
-	drive := models.NewDrive()
-	drive.SetOwner(owner)
-	site.SetDrive(drive)
-
-	return site
-}
-
 func (suite *siteUnitSuite) TestGetSites() {
 	table := []struct {
 		name       string
 		mock       func(context.Context) api.GetByIDer[models.Siteable]
-		expectErr  func(*testing.T, error)
+		expectErr  assert.ErrorAssertionFunc
 		expectSite func(*testing.T, *Site)
 	}{
 		{
 			name: "ok - no owner",
 			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
 				return mockGASites{[]models.Siteable{
-					dummySite(nil),
+					mock.DummySite(nil),
 				}, nil}
 			},
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			expectErr: assert.NoError,
 			expectSite: func(t *testing.T, site *Site) {
 				assert.NotEmpty(t, site.ID)
 				assert.NotEmpty(t, site.WebURL)
@@ -296,12 +250,10 @@ func (suite *siteUnitSuite) TestGetSites() {
 			name: "ok - owner user",
 			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
 				return mockGASites{[]models.Siteable{
-					dummySite(userIdentitySet("userid", "useremail")),
+					mock.DummySite(mock.UserIdentity("userid", "useremail")),
 				}, nil}
 			},
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			expectErr: assert.NoError,
 			expectSite: func(t *testing.T, site *Site) {
 				assert.NotEmpty(t, site.ID)
 				assert.NotEmpty(t, site.WebURL)
@@ -315,12 +267,10 @@ func (suite *siteUnitSuite) TestGetSites() {
 			name: "ok - group user with ID and email",
 			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
 				return mockGASites{[]models.Siteable{
-					dummySite(groupIdentitySet("groupid", "groupemail")),
+					mock.DummySite(mock.GroupIdentitySet("groupid", "groupemail")),
 				}, nil}
 			},
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			expectErr: assert.NoError,
 			expectSite: func(t *testing.T, site *Site) {
 				assert.NotEmpty(t, site.ID)
 				assert.NotEmpty(t, site.WebURL)
@@ -334,12 +284,10 @@ func (suite *siteUnitSuite) TestGetSites() {
 			name: "ok - group user with no ID but email",
 			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
 				return mockGASites{[]models.Siteable{
-					dummySite(groupIdentitySet("", "groupemail")),
+					mock.DummySite(mock.GroupIdentitySet("", "groupemail")),
 				}, nil}
 			},
-			expectErr: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			expectErr: assert.NoError,
 			expectSite: func(t *testing.T, site *Site) {
 				assert.NotEmpty(t, site.ID)
 				assert.NotEmpty(t, site.WebURL)
@@ -361,7 +309,7 @@ func (suite *siteUnitSuite) TestGetSites() {
 
 			site, err := getSiteByID(ctx, gas, "id", api.CallConfig{})
 			test.expectSite(t, site)
-			test.expectErr(t, err)
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }
