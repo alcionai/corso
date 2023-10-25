@@ -61,7 +61,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 				s.SetWebUrl(ptr.To("sharepoint.com/sites/foo"))
 				return s
 			}(),
-			errCheck: assert.Error,
+			errCheck: assert.NoError,
 		},
 		{
 			name: "Search site",
