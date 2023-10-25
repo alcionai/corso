@@ -172,6 +172,7 @@ func ChannelMessageInfo(
 		Preview:         preview,
 		ReplyCount:      len(replies),
 		Size:            contentLen,
+		Subject:         ptr.Val(msg.GetSubject()),
 	}
 
 	var lr details.ChannelMessageInfo

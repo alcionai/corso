@@ -68,6 +68,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 				msg := models.NewChatMessage()
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
+				msg.SetSubject(ptr.To("subject"))
 
 				iden := models.NewIdentity()
 				iden.SetDisplayName(ptr.To("user"))
@@ -88,6 +89,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 						ReplyCount:      0,
 						Preview:         "",
 						Size:            0,
+						Subject:         "subject",
 					},
 				}
 
@@ -95,7 +97,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 			},
 		},
 		{
-			name: "No Replies - created by user",
+			name: "No Subject",
 			msgAndInfo: func() (models.ChatMessageable, *details.GroupsInfo) {
 				msg := models.NewChatMessage()
 				msg.SetCreatedDateTime(&initial)
@@ -121,6 +123,42 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 						ReplyCount:      0,
 						Preview:         content,
 						Size:            int64(len(content)),
+						Subject:         "",
+					},
+				}
+
+				return msg, i
+			},
+		},
+		{
+			name: "No Replies - created by user",
+			msgAndInfo: func() (models.ChatMessageable, *details.GroupsInfo) {
+				msg := models.NewChatMessage()
+				msg.SetCreatedDateTime(&initial)
+				msg.SetLastModifiedDateTime(&initial)
+				msg.SetBody(body)
+				msg.SetSubject(ptr.To("subject"))
+
+				iden := models.NewIdentity()
+				iden.SetDisplayName(ptr.To("user"))
+
+				from := models.NewChatMessageFromIdentitySet()
+				from.SetUser(iden)
+
+				msg.SetFrom(from)
+
+				i := &details.GroupsInfo{
+					ItemType:  details.GroupsChannelMessage,
+					Modified:  initial,
+					LastReply: details.ChannelMessageInfo{},
+					Message: details.ChannelMessageInfo{
+						AttachmentNames: []string{},
+						CreatedAt:       initial,
+						Creator:         "user",
+						ReplyCount:      0,
+						Preview:         content,
+						Size:            int64(len(content)),
+						Subject:         "subject",
 					},
 				}
 
@@ -134,6 +172,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
 				msg.SetBody(body)
+				msg.SetSubject(ptr.To("subject"))
 
 				iden := models.NewIdentity()
 				iden.SetDisplayName(ptr.To("app"))
@@ -154,6 +193,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 						ReplyCount:      0,
 						Preview:         content,
 						Size:            int64(len(content)),
+						Subject:         "subject",
 					},
 				}
 
@@ -167,6 +207,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
 				msg.SetBody(body)
+				msg.SetSubject(ptr.To("subject"))
 
 				iden := models.NewIdentity()
 				iden.SetDisplayName(ptr.To("device"))
@@ -187,6 +228,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 						ReplyCount:      0,
 						Preview:         content,
 						Size:            int64(len(content)),
+						Subject:         "subject",
 					},
 				}
 
@@ -200,6 +242,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
 				msg.SetBody(body)
+				msg.SetSubject(ptr.To("subject"))
 				msg.SetAttachments(attachments)
 
 				iden := models.NewIdentity()
@@ -221,6 +264,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 						ReplyCount:      0,
 						Preview:         content,
 						Size:            int64(len(content)),
+						Subject:         "subject",
 					},
 				}
 
@@ -234,6 +278,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
 				msg.SetBody(body)
+				msg.SetSubject(ptr.To("subject"))
 
 				iden := models.NewIdentity()
 				iden.SetDisplayName(ptr.To("user"))
@@ -277,6 +322,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 						ReplyCount:      1,
 						Preview:         content,
 						Size:            int64(len(content)),
+						Subject:         "subject",
 					},
 				}
 
@@ -290,6 +336,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
 				msg.SetBody(body)
+				msg.SetSubject(ptr.To("subject"))
 
 				iden := models.NewIdentity()
 				iden.SetDisplayName(ptr.To("user"))
@@ -345,6 +392,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 						ReplyCount:      2,
 						Preview:         content,
 						Size:            int64(len(content)),
+						Subject:         "subject",
 					},
 				}
 
@@ -358,6 +406,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
 				msg.SetBody(body)
+				msg.SetSubject(ptr.To("subject"))
 
 				iden := models.NewIdentity()
 				iden.SetDisplayName(ptr.To("user"))
@@ -414,6 +463,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 						ReplyCount:      2,
 						Preview:         content,
 						Size:            int64(len(content)),
+						Subject:         "subject",
 					},
 				}
 
@@ -427,6 +477,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 				msg.SetCreatedDateTime(&initial)
 				msg.SetLastModifiedDateTime(&initial)
 				msg.SetBody(body)
+				msg.SetSubject(ptr.To("subject"))
 				msg.SetAttachments(attachments)
 
 				iden := models.NewIdentity()
@@ -484,6 +535,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 						ReplyCount:      2,
 						Preview:         content,
 						Size:            int64(len(content)),
+						Subject:         "subject",
 					},
 				}
 

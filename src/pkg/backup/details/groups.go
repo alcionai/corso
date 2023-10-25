@@ -63,6 +63,7 @@ type ChannelMessageInfo struct {
 	Preview         string    `json:"preview,omitempty"`
 	ReplyCount      int       `json:"replyCount"`
 	Size            int64     `json:"size,omitempty"`
+	Subject         string    `json:"subject,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
@@ -72,7 +73,7 @@ func (i GroupsInfo) Headers() []string {
 	case SharePointLibrary:
 		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
 	case GroupsChannelMessage:
-		return []string{"Message", "Channel", "Replies", "Creator", "Created", "Last Reply"}
+		return []string{"Message", "Channel", "Subject", "Replies", "Creator", "Created", "Last Reply"}
 	}
 
 	return []string{}
@@ -94,16 +95,17 @@ func (i GroupsInfo) Values() []string {
 		}
 	case GroupsChannelMessage:
 		lastReply := dttm.FormatToTabularDisplay(i.LastReply.CreatedAt)
-		if i.LastReply.CreatedAt.Equal(time.Time{}) {
+		if i.LastReply.CreatedAt.IsZero() {
 			lastReply = ""
 		}
 
 		return []string{
 			i.Message.Preview,
 			i.ParentPath,
+			i.Message.Subject,
 			strconv.Itoa(i.Message.ReplyCount),
 			i.Message.Creator,
-			dttm.FormatToTabularDisplay(i.Created),
+			dttm.FormatToTabularDisplay(i.Message.CreatedAt),
 			lastReply,
 		}
 	}
