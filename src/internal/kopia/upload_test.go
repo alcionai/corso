@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -569,6 +570,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 				deets:          bd,
 				pending:        map[string]*itemDetails{},
 				errs:           fault.New(true),
+				counter:        count.New(),
 			}
 
 			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
@@ -579,6 +581,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 
 			assert.Empty(t, cp.pending)
 			assert.Equal(t, test.expectedBytes, cp.totalBytes)
+			assert.Equal(t, test.expectedBytes, cp.counter.Get(count.PersistedHashedBytes))
 		})
 	}
 }
@@ -2669,7 +2672,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 	getBaseSnapshot := func() (fs.Entry, map[string]*int) {
 		counters := map[string]*int{}
 
-		folder, count := newMockStaticDirectory(
+		folder, dirCount := newMockStaticDirectory(
 			encodeElements(folderID3)[0],
 			[]fs.Entry{
 				virtualfs.StreamingFileWithModTimeFromReader(
@@ -2681,9 +2684,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					time.Time{},
 					io.NopCloser(bytes.NewReader(fileData6))),
 			})
-		counters[folderID3] = count
+		counters[folderID3] = dirCount
 
-		folder, count = newMockStaticDirectory(
+		folder, dirCount = newMockStaticDirectory(
 			encodeElements(folderID2)[0],
 			[]fs.Entry{
 				virtualfs.StreamingFileWithModTimeFromReader(
@@ -2696,14 +2699,14 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					io.NopCloser(bytes.NewReader(fileData4))),
 				folder,
 			})
-		counters[folderID2] = count
+		counters[folderID2] = dirCount
 
-		folder4, count := newMockStaticDirectory(
+		folder4, dirCount := newMockStaticDirectory(
 			encodeElements(folderID4)[0],
 			[]fs.Entry{})
-		counters[folderID4] = count
+		counters[folderID4] = dirCount
 
-		folder, count = newMockStaticDirectory(
+		folder, dirCount = newMockStaticDirectory(
 			encodeElements(folderID1)[0],
 			[]fs.Entry{
 				virtualfs.StreamingFileWithModTimeFromReader(
@@ -2717,9 +2720,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				folder,
 				folder4,
 			})
-		counters[folderID1] = count
+		counters[folderID1] = dirCount
 
-		folder5, count := newMockStaticDirectory(
+		folder5, dirCount := newMockStaticDirectory(
 			encodeElements(folderID5)[0],
 			[]fs.Entry{
 				virtualfs.StreamingFileWithModTimeFromReader(
@@ -2731,7 +2734,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					time.Time{},
 					io.NopCloser(bytes.NewReader(fileData8))),
 			})
-		counters[folderID5] = count
+		counters[folderID5] = dirCount
 
 		return baseWithChildren(
 				prefixFolders,

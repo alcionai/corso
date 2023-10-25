@@ -23,23 +23,10 @@ import (
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-)
-
-type collectionScope int
-
-const (
-	// CollectionScopeUnknown is used when we don't know and don't need
-	// to know the kind, like in the case of deletes
-	CollectionScopeUnknown collectionScope = 0
-
-	// CollectionScopeFolder is used for regular folder collections
-	CollectionScopeFolder collectionScope = 1
-
-	// CollectionScopePackage is used to represent OneNote items
-	CollectionScopePackage collectionScope = 2
 )
 
 const restrictedDirectory = "Site Pages"
@@ -220,8 +207,7 @@ func DeserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 	return nil
 }
 
-// Retrieves drive data as set of `data.Collections` and a set of item names to
-// be excluded from the upcoming backup.
+// Retrieves drive data as set of `data.Collections`.
 func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
@@ -272,6 +258,13 @@ func (c *Collections) Get(
 			excludedItemIDs = map[string]struct{}{}
 			oldPrevPaths    = oldPrevPathsByDriveID[driveID]
 			prevDeltaLink   = prevDriveIDToDelta[driveID]
+
+			// packagePaths is keyed by folder paths to a parent directory
+			// which is marked as a package by its driveItem GetPackage
+			// property.  Packages are only marked at the top level folder,
+			// so we need this map to identify and mark all subdirs as also
+			// being package cased.
+			packagePaths = map[string]struct{}{}
 		)
 
 		delete(driveTombstones, driveID)
@@ -294,6 +287,7 @@ func (c *Collections) Get(
 			driveName,
 			oldPrevPaths,
 			excludedItemIDs,
+			packagePaths,
 			prevDeltaLink,
 			errs)
 		if err != nil {
@@ -384,7 +378,7 @@ func (c *Collections) Get(
 				driveID,
 				c.statusUpdater,
 				c.ctrl,
-				CollectionScopeUnknown,
+				false,
 				true,
 				nil)
 			if err != nil {
@@ -421,7 +415,7 @@ func (c *Collections) Get(
 			driveID,
 			c.statusUpdater,
 			c.ctrl,
-			CollectionScopeUnknown,
+			false,
 			true,
 			nil)
 		if err != nil {
@@ -606,7 +600,7 @@ func (c *Collections) handleDelete(
 		driveID,
 		c.statusUpdater,
 		c.ctrl,
-		CollectionScopeUnknown,
+		false,
 		// DoNotMerge is not checked for deleted items.
 		false,
 		nil)
@@ -679,6 +673,7 @@ func (c *Collections) PopulateDriveCollections(
 	driveID, driveName string,
 	oldPrevPaths map[string]string,
 	excludedItemIDs map[string]struct{},
+	topLevelPackages map[string]struct{},
 	prevDeltaLink string,
 	errs *fault.Bus,
 ) (api.DeltaUpdate, map[string]string, error) {
@@ -733,6 +728,7 @@ func (c *Collections) PopulateDriveCollections(
 				currPrevPaths,
 				newPrevPaths,
 				excludedItemIDs,
+				topLevelPackages,
 				invalidPrevDelta,
 				el)
 			if err != nil {
@@ -754,7 +750,8 @@ func (c *Collections) processItem(
 	item models.DriveItemable,
 	driveID, driveName string,
 	oldPrevPaths, currPrevPaths, newPrevPaths map[string]string,
-	excluded map[string]struct{},
+	excludedItemIDs map[string]struct{},
+	topLevelPackages map[string]struct{},
 	invalidPrevDelta bool,
 	skipper fault.AddSkipper,
 ) error {
@@ -792,7 +789,7 @@ func (c *Collections) processItem(
 			currPrevPaths,
 			newPrevPaths,
 			isFolder,
-			excluded,
+			excludedItemIDs,
 			invalidPrevDelta)
 
 		return clues.Stack(err).WithClues(ictx).OrNil()
@@ -847,12 +844,16 @@ func (c *Collections) processItem(
 			return nil
 		}
 
-		colScope := CollectionScopeFolder
-		if item.GetPackageEscaped() != nil {
-			colScope = CollectionScopePackage
+		isPackage := item.GetPackageEscaped() != nil
+		if isPackage {
+			// mark this path as a package type for all other collections.
+			// any subfolder should get marked as a childOfPackage below.
+			topLevelPackages[collectionPath.String()] = struct{}{}
 		}
 
-		ictx = clues.Add(ictx, "collection_scope", colScope)
+		childOfPackage := filters.
+			PathPrefix(maps.Keys(topLevelPackages)).
+			Compare(collectionPath.String())
 
 		col, err := NewCollection(
 			c.handler,
@@ -862,7 +863,7 @@ func (c *Collections) processItem(
 			driveID,
 			c.statusUpdater,
 			c.ctrl,
-			colScope,
+			isPackage || childOfPackage,
 			invalidPrevDelta,
 			nil)
 		if err != nil {
@@ -935,8 +936,8 @@ func (c *Collections) processItem(
 			// Always add a file to the excluded list. The file may have been
 			// renamed/moved/modified, so we still have to drop the
 			// original one and download a fresh copy.
-			excluded[itemID+metadata.DataFileSuffix] = struct{}{}
-			excluded[itemID+metadata.MetaFileSuffix] = struct{}{}
+			excludedItemIDs[itemID+metadata.DataFileSuffix] = struct{}{}
+			excludedItemIDs[itemID+metadata.MetaFileSuffix] = struct{}{}
 		}
 
 	default:

@@ -3,8 +3,87 @@ package kopia
 import (
 	"testing"
 
+	"github.com/kopia/kopia/repo/manifest"
+	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/pkg/backup"
 )
+
+// TODO(ashmrtn): Temp function until all PRs in the series merge.
+func backupsMatch(t *testing.T, expect, got []BackupEntry, dataType string) {
+	expectBups := make([]*backup.Backup, 0, len(expect))
+	gotBups := make([]*backup.Backup, 0, len(got))
+	gotBasesByID := map[model.StableID]BackupEntry{}
+
+	for _, e := range expect {
+		if e.Backup != nil {
+			expectBups = append(expectBups, e.Backup)
+		}
+	}
+
+	for _, g := range got {
+		if g.Backup != nil {
+			gotBups = append(gotBups, g.Backup)
+			gotBasesByID[g.Backup.ID] = g
+		}
+	}
+
+	assert.ElementsMatch(t, expectBups, gotBups, dataType+" backup model")
+
+	// Need to compare Reasons separately since they're also a slice.
+	for _, e := range expect {
+		if e.Backup == nil {
+			continue
+		}
+
+		b, ok := gotBasesByID[e.Backup.ID]
+		if !ok {
+			// Missing bases will be reported above.
+			continue
+		}
+
+		assert.ElementsMatch(t, e.Reasons, b.Reasons)
+	}
+}
+
+// TODO(ashmrtn): Temp function until all PRs in the series merge.
+func manifestsMatch(t *testing.T, expect, got []ManifestEntry, dataType string) {
+	expectMans := make([]*snapshot.Manifest, 0, len(expect))
+	gotMans := make([]*snapshot.Manifest, 0, len(got))
+	gotBasesByID := map[manifest.ID]ManifestEntry{}
+
+	for _, e := range expect {
+		if e.Manifest != nil {
+			expectMans = append(expectMans, e.Manifest)
+		}
+	}
+
+	for _, g := range got {
+		if g.Manifest != nil {
+			gotMans = append(gotMans, g.Manifest)
+			gotBasesByID[g.Manifest.ID] = g
+		}
+	}
+
+	assert.ElementsMatch(t, expectMans, gotMans, dataType+" item data snapshot")
+
+	// Need to compare Reasons separately since they're also a slice.
+	for _, e := range expect {
+		if e.Manifest == nil {
+			continue
+		}
+
+		b, ok := gotBasesByID[e.Manifest.ID]
+		if !ok {
+			// Missing bases will be reported above.
+			continue
+		}
+
+		assert.ElementsMatch(t, e.Reasons, b.Reasons)
+	}
+}
 
 func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
 	if expect == nil && got == nil {
@@ -33,11 +112,11 @@ func AssertBackupBasesEqual(t *testing.T, expect, got BackupBases) {
 		return
 	}
 
-	assert.ElementsMatch(t, expect.Backups(), got.Backups(), "backups")
-	assert.ElementsMatch(t, expect.MergeBases(), got.MergeBases(), "merge bases")
-	assert.ElementsMatch(t, expect.UniqueAssistBackups(), got.UniqueAssistBackups(), "assist backups")
-	assert.ElementsMatch(t, expect.UniqueAssistBases(), got.UniqueAssistBases(), "assist bases")
-	assert.ElementsMatch(t, expect.SnapshotAssistBases(), got.SnapshotAssistBases(), "snapshot assist bases")
+	backupsMatch(t, expect.Backups(), got.Backups(), "merge backups")
+	manifestsMatch(t, expect.MergeBases(), got.MergeBases(), "merge manifests")
+	backupsMatch(t, expect.UniqueAssistBackups(), got.UniqueAssistBackups(), "assist backups")
+	manifestsMatch(t, expect.UniqueAssistBases(), got.UniqueAssistBases(), "assist manifests")
+	manifestsMatch(t, expect.SnapshotAssistBases(), got.SnapshotAssistBases(), "snapshot assist bases")
 }
 
 func NewMockBackupBases() *MockBackupBases {
@@ -49,22 +128,63 @@ type MockBackupBases struct {
 }
 
 func (bb *MockBackupBases) WithBackups(b ...BackupEntry) *MockBackupBases {
-	bb.backupBases.backups = append(bb.Backups(), b...)
+	bases := make([]BackupBase, 0, len(b))
+	for _, base := range b {
+		bases = append(bases, BackupBase{
+			Backup:  base.Backup,
+			Reasons: base.Reasons,
+		})
+	}
+
+	bb.backupBases.mergeBases = append(bb.NewMergeBases(), bases...)
+
 	return bb
 }
 
 func (bb *MockBackupBases) WithMergeBases(m ...ManifestEntry) *MockBackupBases {
-	bb.backupBases.mergeBases = append(bb.MergeBases(), m...)
+	bases := make([]BackupBase, 0, len(m))
+	for _, base := range m {
+		bases = append(bases, BackupBase{
+			ItemDataSnapshot: base.Manifest,
+			Reasons:          base.Reasons,
+		})
+	}
+
+	bb.backupBases.mergeBases = append(bb.NewMergeBases(), bases...)
+
 	return bb
 }
 
 func (bb *MockBackupBases) WithAssistBackups(b ...BackupEntry) *MockBackupBases {
-	bb.backupBases.assistBackups = append(bb.UniqueAssistBackups(), b...)
+	bases := make([]BackupBase, 0, len(b))
+	for _, base := range b {
+		bases = append(bases, BackupBase{
+			Backup:  base.Backup,
+			Reasons: base.Reasons,
+		})
+	}
+
+	bb.backupBases.assistBases = append(bb.NewUniqueAssistBases(), bases...)
+
 	return bb
 }
 
 func (bb *MockBackupBases) WithAssistBases(m ...ManifestEntry) *MockBackupBases {
-	bb.backupBases.assistBases = append(bb.UniqueAssistBases(), m...)
+	bases := make([]BackupBase, 0, len(m))
+	for _, base := range m {
+		bases = append(bases, BackupBase{
+			ItemDataSnapshot: base.Manifest,
+			Reasons:          base.Reasons,
+		})
+	}
+
+	bb.backupBases.assistBases = append(bb.NewUniqueAssistBases(), bases...)
+
+	return bb
+}
+
+func (bb *MockBackupBases) NewWithMergeBases(b ...BackupBase) *MockBackupBases {
+	bb.backupBases.mergeBases = append(bb.NewMergeBases(), b...)
 	return bb
 }
 

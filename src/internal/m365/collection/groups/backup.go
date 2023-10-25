@@ -58,7 +58,7 @@ func CreateCollections(
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
 
-	channels, err := bh.getChannels(ctx)
+	channels, err := bh.getContainers(ctx)
 	if err != nil {
 		return nil, false, clues.Stack(err)
 	}
@@ -154,7 +154,7 @@ func populateCollections(
 		// and will return an error if a delta token is queried.
 		canMakeDeltaQueries := len(ptr.Val(c.GetEmail())) > 0
 
-		add, _, rem, du, err := bh.getChannelMessageIDs(ctx, cID, prevDelta, canMakeDeltaQueries)
+		add, _, rem, du, err := bh.getContainerItemIDs(ctx, cID, prevDelta, canMakeDeltaQueries)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue

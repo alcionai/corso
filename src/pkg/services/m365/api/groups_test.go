@@ -162,8 +162,9 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 	defer flush()
 
 	var (
-		groupID   = suite.its.group.id
-		groupsAPI = suite.its.ac.Groups()
+		groupID     = suite.its.group.id
+		groupsEmail = suite.its.group.email
+		groupsAPI   = suite.its.ac.Groups()
 	)
 
 	grp, err := groupsAPI.GetByID(ctx, groupID, api.CallConfig{})
@@ -177,6 +178,11 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 		{
 			name:      "valid id",
 			id:        groupID,
+			expectErr: assert.NoError,
+		},
+		{
+			name:      "valid email as identifier",
+			id:        groupsEmail,
 			expectErr: assert.NoError,
 		},
 		{

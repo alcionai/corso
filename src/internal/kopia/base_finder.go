@@ -136,7 +136,7 @@ func (b *baseFinder) getBackupModel(
 	return bup, nil
 }
 
-type backupBase struct {
+type BackupBase struct {
 	Backup           *backup.Backup
 	ItemDataSnapshot *snapshot.Manifest
 	// Reasons contains the tenant, protected resource and service/categories that
@@ -157,7 +157,7 @@ func (b *baseFinder) findBasesInSet(
 	ctx context.Context,
 	reason identity.Reasoner,
 	metas []*manifest.EntryMetadata,
-) (*backupBase, *backupBase, error) {
+) (*BackupBase, *BackupBase, error) {
 	// Sort manifests by time so we can go through them sequentially. The code in
 	// kopia appears to sort them already, but add sorting here just so we're not
 	// reliant on undocumented behavior.
@@ -166,8 +166,8 @@ func (b *baseFinder) findBasesInSet(
 	})
 
 	var (
-		mergeBase  *backupBase
-		assistBase *backupBase
+		mergeBase  *BackupBase
+		assistBase *BackupBase
 	)
 
 	for i := len(metas) - 1; i >= 0; i-- {
@@ -226,7 +226,7 @@ func (b *baseFinder) findBasesInSet(
 
 		if b.isAssistBackupModel(ictx, bup) {
 			if assistBase == nil {
-				assistBase = &backupBase{
+				assistBase = &BackupBase{
 					Backup:           bup,
 					ItemDataSnapshot: man,
 					Reasons:          []identity.Reasoner{reason},
@@ -248,7 +248,7 @@ func (b *baseFinder) findBasesInSet(
 			"search_snapshot_id", meta.ID,
 			"ssid", ssid)
 
-		mergeBase = &backupBase{
+		mergeBase = &BackupBase{
 			Backup:           bup,
 			ItemDataSnapshot: man,
 			Reasons:          []identity.Reasoner{reason},
@@ -304,7 +304,7 @@ func (b *baseFinder) getBase(
 	ctx context.Context,
 	r identity.Reasoner,
 	tags map[string]string,
-) (*backupBase, *backupBase, error) {
+) (*BackupBase, *BackupBase, error) {
 	allTags := map[string]string{}
 
 	for _, k := range tagKeys(r) {
@@ -336,8 +336,8 @@ func (b *baseFinder) FindBases(
 		// Backup models and item data snapshot manifests are 1:1 for bases so just
 		// track things by the backup ID. We need to track by ID so we can coalesce
 		// the reason for selecting something.
-		mergeBases  = map[model.StableID]backupBase{}
-		assistBases = map[model.StableID]backupBase{}
+		mergeBases  = map[model.StableID]BackupBase{}
+		assistBases = map[model.StableID]BackupBase{}
 	)
 
 	for _, searchReason := range reasons {
@@ -379,44 +379,10 @@ func (b *baseFinder) FindBases(
 		}
 	}
 
-	// Convert what we got to the format that backupBases takes right now.
-	// TODO(ashmrtn): Remove when backupBases has consolidated fields.
-	res := &backupBases{}
-	bups := make([]BackupEntry, 0, len(mergeBases))
-	snaps := make([]ManifestEntry, 0, len(mergeBases))
-
-	for _, base := range mergeBases {
-		bups = append(bups, BackupEntry{
-			Backup:  base.Backup,
-			Reasons: base.Reasons,
-		})
-
-		snaps = append(snaps, ManifestEntry{
-			Manifest: base.ItemDataSnapshot,
-			Reasons:  base.Reasons,
-		})
+	res := &backupBases{
+		mergeBases:  maps.Values(mergeBases),
+		assistBases: maps.Values(assistBases),
 	}
-
-	res.backups = bups
-	res.mergeBases = snaps
-
-	bups = make([]BackupEntry, 0, len(assistBases))
-	snaps = make([]ManifestEntry, 0, len(assistBases))
-
-	for _, base := range assistBases {
-		bups = append(bups, BackupEntry{
-			Backup:  base.Backup,
-			Reasons: base.Reasons,
-		})
-
-		snaps = append(snaps, ManifestEntry{
-			Manifest: base.ItemDataSnapshot,
-			Reasons:  base.Reasons,
-		})
-	}
-
-	res.assistBackups = bups
-	res.assistBases = snaps
 
 	res.fixupAndVerify(ctx)
 

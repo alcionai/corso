@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -23,6 +24,7 @@ type (
 			tags map[string]string,
 			buildTreeWithBase bool,
 			errs *fault.Bus,
+			counter *count.Bus,
 		) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error)
 	}
 
