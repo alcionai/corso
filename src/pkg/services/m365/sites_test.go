@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type siteIntegrationSuite struct {
@@ -81,10 +82,7 @@ func (suite *siteIntegrationSuite) TestSites_GetByID() {
 			assert.NotEmpty(t, site.WebURL)
 			assert.NotEmpty(t, site.ID)
 			assert.NotEmpty(t, site.DisplayName)
-			if site.OwnerType != SiteOwnerUnknown {
-				assert.NotEmpty(t, site.OwnerID)
-				assert.NotEmpty(t, site.OwnerType)
-			}
+			assert.NotEmpty(t, site.OwnerType)
 		})
 	}
 }
@@ -156,6 +154,14 @@ func (m mockGASites) GetAll(context.Context, *fault.Bus) ([]models.Siteable, err
 	return m.response, m.err
 }
 
+func (m mockGASites) GetByID(context.Context, string, api.CallConfig) (models.Siteable, error) {
+	if len(m.response) == 0 {
+		return nil, m.err
+	}
+
+	return m.response[0], m.err
+}
+
 func (suite *siteUnitSuite) TestGetAllSites() {
 	table := []struct {
 		name      string
@@ -212,6 +218,149 @@ func (suite *siteUnitSuite) TestGetAllSites() {
 			gas := test.mock(ctx)
 
 			_, err := getAllSites(ctx, gas)
+			test.expectErr(t, err)
+		})
+	}
+}
+
+func userIdentitySet(userID string, userEmail string) models.IdentitySetable {
+	user := models.NewIdentitySet()
+	userIdentity := models.NewUserIdentity()
+	userIdentity.SetId(ptr.To(userID))
+
+	if userEmail != "" {
+		userIdentity.SetAdditionalData(map[string]any{
+			"email": userEmail,
+		})
+	}
+
+	user.SetUser(userIdentity)
+
+	return user
+}
+
+func groupIdentitySet(groupID string, groupEmail string) models.IdentitySetable {
+	groupData := map[string]any{}
+	if groupEmail != "" {
+		groupData["email"] = groupEmail
+	}
+
+	if groupID != "" {
+		groupData["id"] = groupID
+	}
+
+	group := models.NewIdentitySet()
+	group.SetAdditionalData(map[string]any{"group": groupData})
+
+	return group
+}
+
+func dummySite(owner models.IdentitySetable) models.Siteable {
+	site := models.NewSite()
+	site.SetId(ptr.To("id"))
+	site.SetWebUrl(ptr.To("weburl"))
+	site.SetDisplayName(ptr.To("displayname"))
+
+	drive := models.NewDrive()
+	drive.SetOwner(owner)
+	site.SetDrive(drive)
+
+	return site
+}
+
+func (suite *siteUnitSuite) TestGetSites() {
+	table := []struct {
+		name       string
+		mock       func(context.Context) api.GetByIDer[models.Siteable]
+		expectErr  func(*testing.T, error)
+		expectSite func(*testing.T, *Site)
+	}{
+		{
+			name: "ok - no owner",
+			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
+				return mockGASites{[]models.Siteable{
+					dummySite(nil),
+				}, nil}
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectSite: func(t *testing.T, site *Site) {
+				assert.NotEmpty(t, site.ID)
+				assert.NotEmpty(t, site.WebURL)
+				assert.NotEmpty(t, site.DisplayName)
+				assert.Empty(t, site.OwnerID)
+			},
+		},
+		{
+			name: "ok - owner user",
+			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
+				return mockGASites{[]models.Siteable{
+					dummySite(userIdentitySet("userid", "useremail")),
+				}, nil}
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectSite: func(t *testing.T, site *Site) {
+				assert.NotEmpty(t, site.ID)
+				assert.NotEmpty(t, site.WebURL)
+				assert.NotEmpty(t, site.DisplayName)
+				assert.Equal(t, site.OwnerID, "userid")
+				assert.Equal(t, site.OwnerEmail, "useremail")
+				assert.Equal(t, site.OwnerType, SiteOwnerUser)
+			},
+		},
+		{
+			name: "ok - group user with ID and email",
+			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
+				return mockGASites{[]models.Siteable{
+					dummySite(groupIdentitySet("groupid", "groupemail")),
+				}, nil}
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectSite: func(t *testing.T, site *Site) {
+				assert.NotEmpty(t, site.ID)
+				assert.NotEmpty(t, site.WebURL)
+				assert.NotEmpty(t, site.DisplayName)
+				assert.Equal(t, SiteOwnerGroup, site.OwnerType)
+				assert.Equal(t, "groupid", site.OwnerID)
+				assert.Equal(t, "groupemail", site.OwnerEmail)
+			},
+		},
+		{
+			name: "ok - group user with no ID but email",
+			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
+				return mockGASites{[]models.Siteable{
+					dummySite(groupIdentitySet("", "groupemail")),
+				}, nil}
+			},
+			expectErr: func(t *testing.T, err error) {
+				assert.NoError(t, err, clues.ToCore(err))
+			},
+			expectSite: func(t *testing.T, site *Site) {
+				assert.NotEmpty(t, site.ID)
+				assert.NotEmpty(t, site.WebURL)
+				assert.NotEmpty(t, site.DisplayName)
+				assert.Equal(t, SiteOwnerGroup, site.OwnerType)
+				assert.Equal(t, "", site.OwnerID)
+				assert.Equal(t, "groupemail", site.OwnerEmail)
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			gas := test.mock(ctx)
+
+			site, err := getSiteByID(ctx, gas, "id", api.CallConfig{})
+			test.expectSite(t, site)
 			test.expectErr(t, err)
 		})
 	}

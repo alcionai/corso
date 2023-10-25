@@ -65,7 +65,11 @@ func SiteByID(
 		Expand: []string{"drive"},
 	}
 
-	s, err := ac.Sites().GetByID(ctx, id, cc)
+	return getSiteByID(ctx, ac.Sites(), id, cc)
+}
+
+func getSiteByID(ctx context.Context, ga api.GetByIDer[models.Siteable], id string, cc api.CallConfig) (*Site, error) {
+	s, err := ga.GetByID(ctx, id, cc)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -145,15 +149,10 @@ func ParseSite(item models.Siteable) *Site {
 				return s
 			}
 
-			s.OwnerID, err = str.AnyValueToString("id", group)
-			if err != nil {
-				return s
-			}
-
-			s.OwnerEmail, err = str.AnyValueToString("email", group)
-			if err != nil {
-				return s
-			}
+			// ignore the errors, these might or might not exist
+			// if they don't exist, we'll just have an empty string
+			s.OwnerID, _ = str.AnyValueToString("id", group)
+			s.OwnerEmail, _ = str.AnyValueToString("email", group)
 		}
 	}
 
