@@ -306,7 +306,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 	var (
 		ro          = "resourceowner"
 		tid         = "tenantid"
-		emailReason = kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)
+		emailReason = identity.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)
 
 		baseBuilder = func(id int) *kopia.BackupBaseBuilder {
 			return kopia.NewBackupBaseBuilder("", id).
@@ -383,7 +383,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				data: map[string]kopia.BackupBases{
 					ro: kopia.NewMockBackupBases().
 						WithMergeBases(baseBuilder(1).AppendReasons(
-							kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)).
+							identity.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)).
 							Build()),
 				},
 			},
@@ -420,7 +420,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			},
 			expectMans: kopia.NewMockBackupBases().
 				WithMergeBases(baseBuilder(1).AppendReasons(
-					kopia.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)).
+					identity.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)).
 					Build()),
 		},
 		{
@@ -480,7 +480,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 						baseBuilder(1).Build(),
 						baseBuilder(2).
 							WithReasons(
-								kopia.NewReason(tid, ro, path.ExchangeService, path.EventsCategory)).
+								identity.NewReason(tid, ro, path.ExchangeService, path.EventsCategory)).
 							Build()),
 				},
 			},
@@ -591,13 +591,13 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 		fbro = "fb_resourceowner"
 		tid  = "tenantid"
 
-		emailReason = kopia.NewReason(
+		emailReason = identity.NewReason(
 			tid,
 			ro,
 			path.ExchangeService,
 			path.EmailCategory)
 
-		fbEmailReason = kopia.NewReason(
+		fbEmailReason = identity.NewReason(
 			tid,
 			fbro,
 			path.ExchangeService,
@@ -857,11 +857,11 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 				data: map[string]kopia.BackupBases{
 					ro: kopia.NewMockBackupBases().WithMergeBases(
 						baseBuilder(1).
-							AppendReasons(kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
+							AppendReasons(identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
 							Build()),
 					fbro: kopia.NewMockBackupBases().WithMergeBases(
 						fbBaseBuilder(1).
-							AppendReasons(kopia.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+							AppendReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
 							Build()),
 				},
 			},
@@ -885,7 +885,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			expectDCS: []mockColl{{id: colID("", 1)}},
 			expectMans: kopia.NewMockBackupBases().WithMergeBases(
 				baseBuilder(1).
-					AppendReasons(kopia.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
+					AppendReasons(identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
 					Build()),
 		},
 		{
@@ -896,7 +896,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 						WithMergeBases(baseBuilder(1).Build()),
 					fbro: kopia.NewMockBackupBases().WithMergeBases(
 						fbBaseBuilder(1).
-							WithReasons(kopia.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+							WithReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
 							Build()),
 				},
 			},
@@ -917,7 +917,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			expectMans: kopia.NewMockBackupBases().WithMergeBases(
 				baseBuilder(1).Build(),
 				fbBaseBuilder(1).
-					WithReasons(kopia.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+					WithReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
 					Build()),
 		},
 		{
@@ -928,7 +928,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 						WithMergeBases(baseBuilder(1).Build()),
 					fbro: kopia.NewMockBackupBases().WithMergeBases(
 						fbBaseBuilder(1).
-							AppendReasons(kopia.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+							AppendReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
 							Build()),
 				},
 			},
@@ -953,7 +953,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_Fallb
 			expectMans: kopia.NewMockBackupBases().WithMergeBases(
 				baseBuilder(1).Build(),
 				fbBaseBuilder(1).
-					WithReasons(kopia.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+					WithReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
 					Build()),
 		},
 	}
