@@ -195,7 +195,7 @@ func (suite *ChannelsPagerIntgSuite) TestFilterOutSystemMessages() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), FilterOutSystemMessages(test.cm))
+			test.expect(suite.T(), filterOutSystemMessages(test.cm))
 		})
 	}
 }

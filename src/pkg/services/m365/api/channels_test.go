@@ -234,7 +234,7 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			chMsg, expected := test.msgAndInfo()
-			assert.Equal(suite.T(), expected, ChannelMessageInfo(chMsg))
+			assert.Equal(suite.T(), expected, channelMessageInfo(chMsg))
 		})
 	}
 }

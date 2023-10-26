@@ -94,7 +94,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := ValidateSite(test.args)
+			err := validateSite(test.args)
 			test.errCheck(t, err, clues.ToCore(err))
 
 			if test.errIsSkippable {

@@ -69,7 +69,7 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := ValidateGroup(test.args)
+			err := validateGroup(test.args)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if test.errIsSkippable {

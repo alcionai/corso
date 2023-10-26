@@ -58,7 +58,7 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 		suite.Run(tt.name, func() {
 			t := suite.T()
 
-			err := ValidateUser(tt.args)
+			err := validateUser(tt.args)
 			tt.errCheck(t, err, clues.ToCore(err))
 		})
 	}

@@ -128,7 +128,7 @@ func (c Channels) GetChannelMessage(
 
 	message.SetReplies(replies)
 
-	info := ChannelMessageInfo(message)
+	info := channelMessageInfo(message)
 
 	return message, info, nil
 }
@@ -137,7 +137,7 @@ func (c Channels) GetChannelMessage(
 // Helpers
 // ---------------------------------------------------------------------------
 
-func ChannelMessageInfo(
+func channelMessageInfo(
 	msg models.ChatMessageable,
 ) *details.GroupsInfo {
 	var (
