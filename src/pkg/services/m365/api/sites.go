@@ -258,6 +258,26 @@ func (c Sites) GetDefaultDrive(
 var ErrKnownSkippableCase = clues.New("case is known and skippable")
 
 const PersonalSitePath = "sharepoint.com/personal/"
+const personalSitePath = "sharepoint.com/personal/"
+
+func skippableSite(item models.Siteable) bool {
+	wURL := ptr.Val(item.GetWebUrl())
+	name := ptr.Val(item.GetDisplayName())
+
+	// personal (ie: oneDrive) sites have to be filtered out server-side.
+	if strings.Contains(wURL, personalSitePath) {
+		return true
+	}
+
+	// Not checking for a name since it's possible to have sites without a name.
+	// Do check if it's the search site though since we want to filter that out.
+	// The built-in site at "https://{tenant-domain}/search" never has a name.
+	if len(name) == 0 && strings.HasSuffix(wURL, "/search") {
+		return true
+	}
+
+	return false
+}
 
 // validateSite ensures the item is a Siteable, and contains the necessary
 // identifiers that we handle with all users.
