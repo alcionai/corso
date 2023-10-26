@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - SharePoint backup would fail if any site had an empty display name
+- Fix a bug with exports hanging post completion
 
 ## [v0.14.2] (beta) - 2023-10-17
 
