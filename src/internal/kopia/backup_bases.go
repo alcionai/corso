@@ -20,11 +20,46 @@ type BackupBases interface {
 	// ConvertToAssistBase converts the base with the given backup ID from a merge
 	// base to an assist base.
 	ConvertToAssistBase(backupID model.StableID)
+	// MergeBases returns a []BackupBase that corresponds to all the bases that
+	// will source unchanged information for this backup during hierarchy merging,
+	// snapshot creation, and details merging.
 	MergeBases() []BackupBase
+	// DisableMergeBases converts all merge bases in this BackupBases to assist
+	// bases. These bases can still participate in sourcing data kopia considers
+	// "cached" during the snapshot process and can source backup details entries
+	// for those cached items. However, they won't be used to source unchanged
+	// items during hierarchy merging, snapshot creation, or details merging.
+	//
+	// This call is order sensitive with DisableAssistBases.
 	DisableMergeBases()
+	// UniqueAssistBases returns the set of assist bases for the backup operation.
+	// Assist bases are used to source item data and details entries if the item
+	// is considered "cached" by kopia. They are not used to source unchanged
+	// items during hierarchy merging.
 	UniqueAssistBases() []BackupBase
+	// DisableAssistBases clears the set of assist bases for this backup. Doing so
+	// will result in kopia not finding any "cached" items and assist bases won't
+	// participate in details merging.
+	//
+	// This call is order sensitive with DisableMergeBases.
 	DisableAssistBases()
+	// MinBackupVersion returns the lowest version of all merge backups in the
+	// BackupBases.
 	MinBackupVersion() int
+	// MergeBackupBases takes another BackupBases and merges it's contained assist
+	// and merge bases into this BackupBases. The passed in BackupBases is
+	// considered an older alternative to this BackupBases meaning bases from
+	// other won't be selected unless there's no item in this BackupBases to cover
+	// that Reason.
+	//
+	// Callers pass in reasonToKey to control how individual BackupBase items are
+	// selected. For example, to migrate from using user name to user ID as the
+	// protected resource in the Reason the reasonToKey function could map
+	// BackupBase items with the same tenant, service, and category to the same
+	// key. This works because backup operations are already per protected
+	// resource.
+	//
+	// This call is order sensitive with DisableMergeBases and DisableAssistBases.
 	MergeBackupBases(
 		ctx context.Context,
 		other BackupBases,

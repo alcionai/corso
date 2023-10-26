@@ -230,7 +230,7 @@ func (w Wrapper) ConsumeBackupCollections(
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
-	prevSnapEntries []BackupBase,
+	prevBases []BackupBase,
 	root fs.Directory,
 	addlTags map[string]string,
 	progress *corsoProgress,
@@ -244,17 +244,17 @@ func (w Wrapper) makeSnapshotWithRoot(
 		}
 	)
 
-	snapIDs := make([]manifest.ID, 0, len(prevSnapEntries)) // just for logging
-	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
+	snapIDs := make([]manifest.ID, 0, len(prevBases)) // just for logging
+	prevSnaps := make([]*snapshot.Manifest, 0, len(prevBases))
 
-	for _, ent := range prevSnapEntries {
+	for _, ent := range prevBases {
 		prevSnaps = append(prevSnaps, ent.ItemDataSnapshot)
 		snapIDs = append(snapIDs, ent.ItemDataSnapshot.ID)
 	}
 
 	ctx = clues.Add(
 		ctx,
-		"num_assist_snapshots", len(prevSnapEntries),
+		"num_assist_snapshots", len(prevBases),
 		"assist_snapshot_ids", snapIDs,
 		"additional_tags", addlTags)
 
