@@ -79,7 +79,7 @@ func getGroups(
 			return false
 		}
 
-		err := ValidateGroup(item)
+		err := validateGroup(item)
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating groups"))
 		} else {
@@ -315,9 +315,9 @@ func (c Groups) GetRootSite(
 // helpers
 // ---------------------------------------------------------------------------
 
-// ValidateGroup ensures the item is a Groupable, and contains the necessary
+// validateGroup ensures the item is a Groupable, and contains the necessary
 // identifiers that we handle with all groups.
-func ValidateGroup(item models.Groupable) error {
+func validateGroup(item models.Groupable) error {
 	if item.GetId() == nil {
 		return clues.New("missing ID")
 	}

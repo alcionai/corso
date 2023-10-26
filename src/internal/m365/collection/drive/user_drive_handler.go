@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -29,7 +30,7 @@ type baseUserDriveHandler struct {
 func (h baseUserDriveHandler) NewDrivePager(
 	resourceOwner string,
 	fields []string,
-) api.Pager[models.Driveable] {
+) pagers.NonDeltaHandler[models.Driveable] {
 	return h.ac.NewUserDrivePager(resourceOwner, fields)
 }
 
@@ -176,7 +177,7 @@ func (h userDriveBackupHandler) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID, prevDeltaLink string,
 	cc api.CallConfig,
-) api.NextPageResulter[models.DriveItemable] {
+) pagers.NextPageResulter[models.DriveItemable] {
 	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, cc)
 }
 

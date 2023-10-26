@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"encoding/json"
@@ -14,12 +14,36 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	gmock "github.com/alcionai/corso/src/internal/m365/graph/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
+
+// ---------------------------------------------------------------------------
+// Gockable client
+// ---------------------------------------------------------------------------
+
+// GockClient produces a new exchange api client that can be
+// mocked using gock.
+func gockClient(creds account.M365Config) (Client, error) {
+	s, err := gmock.NewService(creds)
+	if err != nil {
+		return Client{}, err
+	}
+
+	li, err := gmock.NewService(creds, graph.NoTimeout())
+	if err != nil {
+		return Client{}, err
+	}
+
+	return Client{
+		Credentials: creds,
+		Stable:      s,
+		LargeItem:   li,
+	}, nil
+}
 
 // ---------------------------------------------------------------------------
 // Intercepting calls with Gock
@@ -55,7 +79,7 @@ func odErrMsg(code, message string) *odataerrors.ODataError {
 	return odErr
 }
 
-func parseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
+func requireParseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
 	sw := kjson.NewJsonSerializationWriter()
 
 	err := sw.WriteObjectValue("", thing)
@@ -84,8 +108,8 @@ type ids struct {
 }
 
 type intgTesterSetup struct {
-	ac           api.Client
-	gockAC       api.Client
+	ac           Client
+	gockAC       Client
 	user         ids
 	site         ids
 	group        ids
@@ -104,10 +128,10 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.ac, err = api.NewClient(creds, control.DefaultOptions())
+	its.ac, err = NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.gockAC, err = mock.NewClient(creds)
+	its.gockAC, err = gockClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// user drive

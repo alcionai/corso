@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ContactsAPIUnitSuite struct {
@@ -73,7 +72,7 @@ func (suite *ContactsAPIUnitSuite) TestContactInfo() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			contact, expected := test.contactAndRP()
-			assert.Equal(suite.T(), expected, api.ContactInfo(contact))
+			assert.Equal(suite.T(), expected, ContactInfo(contact))
 		})
 	}
 }
@@ -108,7 +107,7 @@ func (suite *ContactsAPIUnitSuite) TestBytesToContactable() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result, err := api.BytesToContactable(test.byteArray)
+			result, err := BytesToContactable(test.byteArray)
 			test.checkError(t, err, clues.ToCore(err))
 			test.isNil(t, result)
 		})

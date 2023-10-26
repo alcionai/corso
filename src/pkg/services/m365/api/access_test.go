@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type AccessAPIIntgSuite struct {
@@ -110,7 +109,7 @@ func (suite *AccessAPIIntgSuite) TestGetToken() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ac, err := api.NewClient(suite.its.ac.Credentials, control.DefaultOptions())
+			ac, err := NewClient(suite.its.ac.Credentials, control.DefaultOptions())
 			require.NoError(t, err, clues.ToCore(err))
 
 			ac.Credentials = test.creds()
