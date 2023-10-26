@@ -167,7 +167,7 @@ func channelMessageInfo(
 
 	preview, contentLen, err := getChatMessageContentPreview(msg)
 	if err != nil {
-		preview = "malformed or unparseable html"
+		preview = "malformed or unparseable html" + preview
 	}
 
 	message := details.ChannelMessageInfo{
@@ -185,7 +185,7 @@ func channelMessageInfo(
 	if lastReply != nil {
 		preview, contentLen, err = getChatMessageContentPreview(lastReply)
 		if err != nil {
-			preview = "malformed or unparseable html"
+			preview = "malformed or unparseable html: " + preview
 		}
 
 		lr = details.ChannelMessageInfo{
@@ -244,7 +244,7 @@ func GetChatMessageFrom(msg models.ChatMessageable) string {
 
 func getChatMessageContentPreview(msg models.ChatMessageable) (string, int64, error) {
 	content, origSize, err := StripChatMessageContent(msg)
-	return str.Preview(content, 128), origSize, clues.Stack(err)
+	return str.Preview(content, 128), origSize, clues.Stack(err).OrNil()
 }
 
 func StripChatMessageContent(msg models.ChatMessageable) (string, int64, error) {
@@ -262,10 +262,10 @@ func StripChatMessageContent(msg models.ChatMessageable) (string, int64, error) 
 	content = replaceAttachmentMarkup(content, msg.GetAttachments())
 	content, err := html2text.FromString(content)
 
-	return content, origSize, err
+	return content, origSize, clues.Stack(err).OrNil()
 }
 
-var attachmentMarkupRE = regexp.MustCompile(`<attachment id=\\"([\d\w-]+)\\"></attachment>`)
+var attachmentMarkupRE = regexp.MustCompile(`<attachment id=[\\]?"([\d\w-]+)[\\]?"></attachment>`)
 
 // replaces any instance of `<attachment id=\"1693946862569\"></attachment>` with `[attachment:{{name-of-attachment}}]`
 // assumes that the attachment ID exists in the attachments slice, otherwise defaults to `[attachment]`.

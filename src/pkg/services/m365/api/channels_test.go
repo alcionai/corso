@@ -580,7 +580,7 @@ func (suite *ChannelsAPIUnitSuite) TestStripChatMessageContent() {
 	attachments := []models.ChatMessageAttachmentable{attach1, attach2}
 
 	attachML := func(id string) string {
-		return fmt.Sprintf(`<attachment id=\"%s\"></attachment>`, id)
+		return fmt.Sprintf(`<attachment id="%s"></attachment>`, id)
 	}
 
 	tests := []struct {
