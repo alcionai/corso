@@ -211,9 +211,7 @@ func (c Drives) EnumerateDriveItemsDelta(
 		prevDeltaLink,
 		cc)
 
-	npr := &pagers.NextPageResults[models.DriveItemable]{
-		Pages: make(chan pagers.NextPage[models.DriveItemable]),
-	}
+	npr := pagers.NewNextPageResults[models.DriveItemable]()
 
 	// asynchronously enumerate pages on the caller's behalf.
 	// they only need to consume the pager and call Results at

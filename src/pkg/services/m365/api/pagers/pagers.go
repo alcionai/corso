@@ -40,9 +40,9 @@ type NextPager[T any] interface {
 	NextPage() (items []T, reset, done bool)
 }
 
-type NextPage[T any] struct {
-	Items []T
-	Reset bool
+type nextPage[T any] struct {
+	items []T
+	reset bool
 }
 
 type NextPageResulter[T any] interface {
@@ -51,59 +51,65 @@ type NextPageResulter[T any] interface {
 	Results() (DeltaUpdate, error)
 }
 
-var _ NextPageResulter[any] = &NextPageResults[any]{}
+var _ NextPageResulter[any] = &nextPageResults[any]{}
 
-type NextPageResults[T any] struct {
-	Pages chan NextPage[T]
-	DU    DeltaUpdate
-	Err   error
+type nextPageResults[T any] struct {
+	pages chan nextPage[T]
+	du    DeltaUpdate
+	err   error
 }
 
-func (npr *NextPageResults[T]) writeNextPage(
+func NewNextPageResults[T any]() *nextPageResults[T] {
+	return &nextPageResults[T]{
+		pages: make(chan nextPage[T]),
+	}
+}
+
+func (npr *nextPageResults[T]) writeNextPage(
 	ctx context.Context,
 	items []T,
 	reset bool,
 ) error {
-	if npr.Pages == nil {
+	if npr.pages == nil {
 		return clues.New("pager already closed")
 	}
 
 	select {
 	case <-ctx.Done():
 		return clues.Wrap(context.Canceled, "writing next page")
-	case npr.Pages <- NextPage[T]{
-		Items: items,
-		Reset: reset,
+	case npr.pages <- nextPage[T]{
+		items: items,
+		reset: reset,
 	}:
 		return nil
 	}
 }
 
-func (npr *NextPageResults[T]) NextPage() ([]T, bool, bool) {
-	if npr.Pages == nil {
+func (npr *nextPageResults[T]) NextPage() ([]T, bool, bool) {
+	if npr.pages == nil {
 		return nil, false, true
 	}
 
-	np, ok := <-npr.Pages
+	np, ok := <-npr.pages
 
-	return np.Items, np.Reset, !ok
+	return np.items, np.reset, !ok
 }
 
-func (npr *NextPageResults[T]) Results() (DeltaUpdate, error) {
-	if npr.Pages != nil {
+func (npr *nextPageResults[T]) Results() (DeltaUpdate, error) {
+	if npr.pages != nil {
 		//nolint:revive
-		for range npr.Pages {
+		for range npr.pages {
 			// if the pager hasn't closed yet, drain out the pages iterator
 			// to avoid leaking routines, and to ensure we get results.
 		}
 	}
 
-	return npr.DU, npr.Err
+	return npr.du, npr.err
 }
 
-func (npr *NextPageResults[T]) close() {
-	if npr.Pages != nil {
-		close(npr.Pages)
+func (npr *nextPageResults[T]) close() {
+	if npr.pages != nil {
+		close(npr.pages)
 	}
 }
 
@@ -180,7 +186,7 @@ type NonDeltaHandler[T any] interface {
 func EnumerateItems[T any](
 	ctx context.Context,
 	pager NonDeltaHandler[T],
-	npr *NextPageResults[T],
+	npr *nextPageResults[T],
 ) {
 	defer npr.close()
 
@@ -194,12 +200,12 @@ func EnumerateItems[T any](
 		// get the next page of data, check for standard errors
 		page, err := pager.GetPage(ctx)
 		if err != nil {
-			npr.Err = graph.Stack(ctx, err)
+			npr.err = graph.Stack(ctx, err)
 			return
 		}
 
 		if err := npr.writeNextPage(ctx, page.GetValue(), false); err != nil {
-			npr.Err = clues.Stack(err)
+			npr.err = clues.Stack(err)
 			return
 		}
 
@@ -216,8 +222,8 @@ func BatchEnumerateItems[T any](
 	pager NonDeltaHandler[T],
 ) ([]T, error) {
 	var (
-		npr = NextPageResults[T]{
-			Pages: make(chan NextPage[T]),
+		npr = nextPageResults[T]{
+			pages: make(chan nextPage[T]),
 		}
 		items = []T{}
 	)
@@ -250,7 +256,7 @@ type DeltaHandler[T any] interface {
 func DeltaEnumerateItems[T any](
 	ctx context.Context,
 	pager DeltaHandler[T],
-	npr *NextPageResults[T],
+	npr *nextPageResults[T],
 	prevDeltaLink string,
 ) {
 	defer npr.close()
@@ -278,11 +284,11 @@ func DeltaEnumerateItems[T any](
 			pager.Reset(ctx)
 
 			if err := npr.writeNextPage(ctx, nil, true); err != nil {
-				npr.Err = clues.Stack(err)
+				npr.err = clues.Stack(err)
 				return
 			}
 
-			npr.Err = clues.Stack(err)
+			npr.err = clues.Stack(err)
 
 			return
 		}
@@ -299,7 +305,7 @@ func DeltaEnumerateItems[T any](
 			pager.Reset(ctx)
 
 			if err := npr.writeNextPage(ctx, nil, true); err != nil {
-				npr.Err = clues.Stack(err)
+				npr.err = clues.Stack(err)
 				return
 			}
 
@@ -307,12 +313,12 @@ func DeltaEnumerateItems[T any](
 		}
 
 		if err != nil {
-			npr.Err = clues.Stack(err)
+			npr.err = clues.Stack(err)
 			return
 		}
 
 		if err := npr.writeNextPage(ctx, page.GetValue(), false); err != nil {
-			npr.Err = clues.Stack(err)
+			npr.err = clues.Stack(err)
 			return
 		}
 
@@ -327,7 +333,7 @@ func DeltaEnumerateItems[T any](
 
 	logger.Ctx(ctx).Debugw("completed delta item enumeration", "result_count", len(result))
 
-	npr.DU = DeltaUpdate{
+	npr.du = DeltaUpdate{
 		URL:   newDeltaLink,
 		Reset: invalidPrevDelta,
 	}
@@ -339,8 +345,8 @@ func batchDeltaEnumerateItems[T any](
 	prevDeltaLink string,
 ) ([]T, DeltaUpdate, error) {
 	var (
-		npr = NextPageResults[T]{
-			Pages: make(chan NextPage[T]),
+		npr = nextPageResults[T]{
+			pages: make(chan nextPage[T]),
 		}
 		results = []T{}
 	)
