@@ -363,7 +363,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 		{
 			name: "zero",
 			results: func(t *testing.T) map[string]any {
-				return parseableToMap(t, models.NewCalendarCollectionResponse())
+				return requireParseableToMap(t, models.NewCalendarCollectionResponse())
 			},
 			expectErr: assert.Error,
 		},
@@ -373,7 +373,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 				mfcr := models.NewCalendarCollectionResponse()
 				mfcr.SetValue([]models.Calendarable{c})
 
-				return parseableToMap(t, mfcr)
+				return requireParseableToMap(t, mfcr)
 			},
 			expectErr: assert.NoError,
 		},
@@ -383,7 +383,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 				mfcr := models.NewCalendarCollectionResponse()
 				mfcr.SetValue([]models.Calendarable{c, c})
 
-				return parseableToMap(t, mfcr)
+				return requireParseableToMap(t, mfcr)
 			},
 			expectErr: assert.NoError,
 		},

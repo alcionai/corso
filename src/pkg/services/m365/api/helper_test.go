@@ -80,7 +80,7 @@ func odErrMsg(code, message string) *odataerrors.ODataError {
 	return odErr
 }
 
-func parseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
+func requireParseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
 	sw := kjson.NewJsonSerializationWriter()
 
 	err := sw.WriteObjectValue("", thing)
