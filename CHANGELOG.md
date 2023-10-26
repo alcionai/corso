@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SharePoint backup would fail if any site had an empty display name
 - Fix a bug with exports hanging post completion
 
+### Changed
+- Item Details formatting in Groups and Teams backups.  Pre-release users will need to run new backups to avoid data corruption.
+
 ## [v0.14.2] (beta) - 2023-10-17
 
 ### Added
