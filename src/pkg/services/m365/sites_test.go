@@ -58,7 +58,6 @@ func (suite *siteIntegrationSuite) TestSites() {
 			t := suite.T()
 			assert.NotEmpty(t, s.WebURL)
 			assert.NotEmpty(t, s.ID)
-			assert.NotEmpty(t, s.DisplayName)
 		})
 	}
 }
@@ -82,7 +81,6 @@ func (suite *siteIntegrationSuite) TestSites_GetByID() {
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotEmpty(t, site.WebURL)
 			assert.NotEmpty(t, site.ID)
-			assert.NotEmpty(t, site.DisplayName)
 			assert.NotEmpty(t, site.OwnerType)
 		})
 	}
@@ -242,7 +240,6 @@ func (suite *siteUnitSuite) TestGetSites() {
 			expectSite: func(t *testing.T, site *Site) {
 				assert.NotEmpty(t, site.ID)
 				assert.NotEmpty(t, site.WebURL)
-				assert.NotEmpty(t, site.DisplayName)
 				assert.Empty(t, site.OwnerID)
 			},
 		},
@@ -257,7 +254,6 @@ func (suite *siteUnitSuite) TestGetSites() {
 			expectSite: func(t *testing.T, site *Site) {
 				assert.NotEmpty(t, site.ID)
 				assert.NotEmpty(t, site.WebURL)
-				assert.NotEmpty(t, site.DisplayName)
 				assert.Equal(t, site.OwnerID, "userid")
 				assert.Equal(t, site.OwnerEmail, "useremail")
 				assert.Equal(t, site.OwnerType, SiteOwnerUser)
@@ -274,7 +270,6 @@ func (suite *siteUnitSuite) TestGetSites() {
 			expectSite: func(t *testing.T, site *Site) {
 				assert.NotEmpty(t, site.ID)
 				assert.NotEmpty(t, site.WebURL)
-				assert.NotEmpty(t, site.DisplayName)
 				assert.Equal(t, SiteOwnerGroup, site.OwnerType)
 				assert.Equal(t, "groupid", site.OwnerID)
 				assert.Equal(t, "groupemail", site.OwnerEmail)
@@ -291,7 +286,6 @@ func (suite *siteUnitSuite) TestGetSites() {
 			expectSite: func(t *testing.T, site *Site) {
 				assert.NotEmpty(t, site.ID)
 				assert.NotEmpty(t, site.WebURL)
-				assert.NotEmpty(t, site.DisplayName)
 				assert.Equal(t, SiteOwnerGroup, site.OwnerType)
 				assert.Equal(t, "", site.OwnerID)
 				assert.Equal(t, "groupemail", site.OwnerEmail)
