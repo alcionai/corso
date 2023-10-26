@@ -65,10 +65,6 @@ func (suite *ExportUnitSuite) TestExportOperation_PersistResults() {
 						Collection: &exchMock.DataCollection{},
 					},
 				},
-				ctrl: &data.CollectionStats{
-					Objects:   1,
-					Successes: 1,
-				},
 			},
 		},
 		{
@@ -77,7 +73,6 @@ func (suite *ExportUnitSuite) TestExportOperation_PersistResults() {
 			fail:         assert.AnError,
 			stats: exportStats{
 				bytesRead: &stats.ByteCounter{},
-				ctrl:      &data.CollectionStats{},
 			},
 		},
 		{
@@ -86,7 +81,6 @@ func (suite *ExportUnitSuite) TestExportOperation_PersistResults() {
 			stats: exportStats{
 				bytesRead: &stats.ByteCounter{},
 				cs:        []data.RestoreCollection{},
-				ctrl:      &data.CollectionStats{},
 			},
 		},
 	}

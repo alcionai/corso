@@ -97,7 +97,6 @@ func (op ExportOperation) validate() error {
 // get populated asynchronously.
 type exportStats struct {
 	cs            []data.RestoreCollection
-	ctrl          *data.CollectionStats
 	bytesRead     *stats.ByteCounter
 	resourceCount int
 
@@ -274,10 +273,6 @@ func (op *ExportOperation) do(
 		return nil, clues.Stack(err)
 	}
 
-	opStats.ctrl = op.ec.Wait()
-
-	logger.Ctx(ctx).Debug(opStats.ctrl)
-
 	if op.ExportCfg.Archive {
 		zc, err := archive.ZipExportCollection(ctx, expCollections)
 		if err != nil {
@@ -309,17 +304,11 @@ func (op *ExportOperation) finalizeMetrics(
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.ctrl == nil {
-		op.Status = Failed
-		return clues.New("restoration never completed")
-	}
-
-	if op.Status != Failed && opStats.ctrl.IsZero() {
+	if op.Status != Failed && op.Results.ItemsRead == 0 {
 		op.Status = NoData
 	}
 
 	// We don't have data on what all items were written
-	// op.Results.ItemsWritten = opStats.ctrl.Successes
 
 	return op.Errors.Failure()
 }
