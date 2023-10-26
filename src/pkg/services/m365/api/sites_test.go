@@ -33,10 +33,9 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 	site.SetId(ptr.To("testID"))
 
 	tests := []struct {
-		name           string
-		args           models.Siteable
-		errCheck       assert.ErrorAssertionFunc
-		errIsSkippable bool
+		name     string
+		args     models.Siteable
+		errCheck assert.ErrorAssertionFunc
 	}{
 		{
 			name:     "No ID",
@@ -70,19 +69,17 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 				s.SetWebUrl(ptr.To("sharepoint.com/search"))
 				return s
 			}(),
-			errCheck:       assert.Error,
-			errIsSkippable: true,
+			errCheck: assert.NoError,
 		},
 		{
 			name: "Personal OneDrive",
 			args: func() *models.Site {
 				s := models.NewSite()
 				s.SetId(ptr.To("id"))
-				s.SetWebUrl(ptr.To("https://" + PersonalSitePath + "/someone's/onedrive"))
+				s.SetWebUrl(ptr.To("https://" + personalSitePath + "/someone's/onedrive"))
 				return s
 			}(),
-			errCheck:       assert.Error,
-			errIsSkippable: true,
+			errCheck: assert.NoError,
 		},
 		{
 			name:     "Valid Site",
@@ -96,10 +93,6 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 
 			err := validateSite(test.args)
 			test.errCheck(t, err, clues.ToCore(err))
-
-			if test.errIsSkippable {
-				assert.ErrorIs(t, err, ErrKnownSkippableCase)
-			}
 		})
 	}
 }
@@ -134,7 +127,7 @@ func (suite *SitesIntgSuite) TestGetAll() {
 	require.NotZero(t, len(sites), "must have at least one site")
 
 	for _, site := range sites {
-		assert.NotContains(t, ptr.Val(site.GetWebUrl()), PersonalSitePath, "must not return onedrive sites")
+		assert.NotContains(t, ptr.Val(site.GetWebUrl()), personalSitePath, "must not return onedrive sites")
 		assert.NotContains(t, ptr.Val(site.GetWebUrl()), "sharepoint.com/search", "must not return search site")
 	}
 }
