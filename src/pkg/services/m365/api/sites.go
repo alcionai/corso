@@ -11,7 +11,6 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -85,13 +84,12 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 		}
 
 		err := validateSite(item)
-		if errors.Is(err, ErrKnownSkippableCase) {
-			// safe to no-op
+		if err != nil {
+			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating site"))
 			return true
 		}
 
-		if err != nil {
-			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating site"))
+		if skippableSite(item) {
 			return true
 		}
 
@@ -255,9 +253,26 @@ func (c Sites) GetDefaultDrive(
 // helpers
 // ---------------------------------------------------------------------------
 
-var ErrKnownSkippableCase = clues.New("case is known and skippable")
+const personalSitePath = "sharepoint.com/personal/"
 
-const PersonalSitePath = "sharepoint.com/personal/"
+func skippableSite(item models.Siteable) bool {
+	wURL := ptr.Val(item.GetWebUrl())
+	name := ptr.Val(item.GetDisplayName())
+
+	// personal (ie: oneDrive) sites have to be filtered out server-side.
+	if strings.Contains(wURL, personalSitePath) {
+		return true
+	}
+
+	// Not checking for a name since it's possible to have sites without a name.
+	// Do check if it's the search site though since we want to filter that out.
+	// The built-in site at "https://{tenant-domain}/search" never has a name.
+	if len(name) == 0 && strings.HasSuffix(wURL, "/search") {
+		return true
+	}
+
+	return false
+}
 
 // validateSite ensures the item is a Siteable, and contains the necessary
 // identifiers that we handle with all users.
@@ -271,22 +286,6 @@ func validateSite(item models.Siteable) error {
 	wURL := ptr.Val(item.GetWebUrl())
 	if len(wURL) == 0 {
 		return clues.New("missing webURL").With("site_id", clues.Hide(id))
-	}
-
-	// TODO(ashmrtn): Personal and search site checks should really be in the
-	// caller instead of the validation function.
-	// personal (ie: oneDrive) sites have to be filtered out server-side.
-	if strings.Contains(wURL, PersonalSitePath) {
-		return clues.Stack(ErrKnownSkippableCase).
-			With("site_id", clues.Hide(id), "site_web_url", clues.Hide(wURL))
-	}
-
-	// Not checking for a name since it's possible to have sites without a name.
-	// Do check if it's the search site though since we want to filter that out.
-	// The built-in site at "https://{tenant-domain}/search" never has a name.
-	if len(ptr.Val(item.GetDisplayName())) == 0 && strings.HasSuffix(wURL, "/search") {
-		return clues.Stack(ErrKnownSkippableCase).
-			With("site_id", clues.Hide(id), "site_web_url", clues.Hide(wURL))
 	}
 
 	return nil
