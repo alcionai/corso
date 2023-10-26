@@ -1,9 +1,11 @@
 package api
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -562,6 +564,124 @@ func (suite *ChannelsAPIUnitSuite) TestChannelMessageInfo() {
 			assert.Equal(t, expected, result)
 			assert.ElementsMatch(t, ema, ma)
 			assert.ElementsMatch(t, elra, lra)
+		})
+	}
+}
+
+func (suite *ChannelsAPIUnitSuite) TestStripChatMessageContent() {
+	attach1 := models.NewChatMessageAttachment()
+	attach1.SetId(ptr.To("id1"))
+	attach1.SetName(ptr.To("a1"))
+
+	attach2 := models.NewChatMessageAttachment()
+	attach2.SetId(ptr.To("id2"))
+	attach2.SetName(ptr.To("a2"))
+
+	attachments := []models.ChatMessageAttachmentable{attach1, attach2}
+
+	attachML := func(id string) string {
+		return fmt.Sprintf(`<attachment id=\"%s\"></attachment>`, id)
+	}
+
+	tests := []struct {
+		name        string
+		content     string
+		attachments []models.ChatMessageAttachmentable
+		expect      string
+		expectErr   assert.ErrorAssertionFunc
+	}{
+		{
+			name:        "empty content",
+			content:     "",
+			attachments: attachments,
+			expect:      "",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "only attachment",
+			content:     attachML("id1"),
+			attachments: attachments,
+			expect:      "[attachment:a1]",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "unknown attachment",
+			content:     attachML("idX"),
+			attachments: attachments,
+			expect:      "[attachment]",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "text and attachment",
+			content:     "some text" + attachML("id1") + "other text",
+			attachments: attachments,
+			expect:      "some text[attachment:a1]other text",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "multiple attachments",
+			content:     attachML("id1") + attachML("id2"),
+			attachments: attachments,
+			expect:      "[attachment:a1][attachment:a2]",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "multiple attachments with unidentified",
+			content:     attachML("id1") + attachML("id2") + attachML("idX"),
+			attachments: attachments,
+			expect:      "[attachment:a1][attachment:a2][attachment]",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "with empty html",
+			content:     "<body><div></div></body>",
+			attachments: attachments,
+			expect:      "",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "with malformed div",
+			content:     "<body>body<div/>end</body>",
+			attachments: attachments,
+			expect:      "body\nend",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "with malformed html 2",
+			content:     "<body>body<p>inner</div>end</body>",
+			attachments: attachments,
+			expect:      "body\n\ninnerend",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "with html",
+			content:     "<body>body<div>in the div</div>end</body>",
+			attachments: attachments,
+			expect:      "body\nin the div\nend",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "with html and attachments",
+			content:     "<body>body<div>" + attachML("id1") + attachML("id2") + attachML("idX") + "</div>end</body>",
+			attachments: attachments,
+			expect:      "body\n[attachment:a1][attachment:a2][attachment]\nend",
+			expectErr:   assert.NoError,
+		},
+	}
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			msg := models.NewChatMessage()
+			body := models.NewItemBody()
+			body.SetContent(ptr.To(test.content))
+			msg.SetBody(body)
+			msg.SetAttachments(test.attachments)
+
+			// not testing len; it's effectively covered by the content assertion
+			result, _, err := StripChatMessageContent(msg)
+			assert.Equal(t, test.expect, result)
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }

@@ -152,15 +152,14 @@ func formatChannelMessage(
 }
 
 func makeMinimumChannelMesasge(item models.ChatMessageable) minimumChannelMessage {
-	var content string
-
-	if item.GetBody() != nil {
-		content = ptr.Val(item.GetBody().GetContent())
+	normContent, _, err := api.StripChatMessageContent(item)
+	if err != nil {
+		normContent = "malformed or unparseable html"
 	}
 
 	return minimumChannelMessage{
 		AttachmentNames:      api.GetChatMessageAttachmentNames(item),
-		Content:              content,
+		Content:              normContent,
 		CreatedDateTime:      ptr.Val(item.GetCreatedDateTime()),
 		From:                 api.GetChatMessageFrom(item),
 		LastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
