@@ -12,16 +12,17 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 )
 
 type ListsAPIIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 func (suite *ListsAPIIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func TestListsAPIIntgSuite(t *testing.T) {
@@ -39,9 +40,9 @@ func (suite *ListsAPIIntgSuite) TestLists_PostDrive() {
 	defer flush()
 
 	var (
-		acl       = suite.its.ac.Lists()
+		acl       = suite.its.AC.Lists()
 		driveName = testdata.DefaultRestoreConfig("list_api_post_drive").Location
-		siteID    = suite.its.site.id
+		siteID    = suite.its.Site.ID
 	)
 
 	// first post, should have no errors

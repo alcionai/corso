@@ -12,11 +12,12 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 )
 
 type EventsPagerIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 func TestEventsPagerIntgSuite(t *testing.T) {
@@ -28,23 +29,23 @@ func TestEventsPagerIntgSuite(t *testing.T) {
 }
 
 func (suite *EventsPagerIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func (suite *EventsPagerIntgSuite) TestEvents_GetItemsInContainerByCollisionKey() {
 	t := suite.T()
-	ac := suite.its.ac.Events()
+	ac := suite.its.AC.Events()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.user.id, "calendar")
+	container, err := ac.GetContainerByID(ctx, suite.its.User.ID, "calendar")
 	require.NoError(t, err, clues.ToCore(err))
 
 	evts, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.user.id).
+		ByUserId(suite.its.User.ID).
 		Calendars().
 		ByCalendarId(ptr.Val(container.GetId())).
 		Events().
@@ -60,9 +61,9 @@ func (suite *EventsPagerIntgSuite) TestEvents_GetItemsInContainerByCollisionKey(
 
 	expect := maps.Keys(expectM)
 
-	results, err := suite.its.ac.
+	results, err := suite.its.AC.
 		Events().
-		GetItemsInContainerByCollisionKey(ctx, suite.its.user.id, "calendar")
+		GetItemsInContainerByCollisionKey(ctx, suite.its.User.ID, "calendar")
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 

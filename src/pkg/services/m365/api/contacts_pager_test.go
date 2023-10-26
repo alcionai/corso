@@ -12,11 +12,12 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 )
 
 type ContactsPagerIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 func TestContactsPagerIntgSuite(t *testing.T) {
@@ -28,23 +29,23 @@ func TestContactsPagerIntgSuite(t *testing.T) {
 }
 
 func (suite *ContactsPagerIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollisionKey() {
 	t := suite.T()
-	ac := suite.its.ac.Contacts()
+	ac := suite.its.AC.Contacts()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.user.id, "contacts")
+	container, err := ac.GetContainerByID(ctx, suite.its.User.ID, "contacts")
 	require.NoError(t, err, clues.ToCore(err))
 
 	conts, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.user.id).
+		ByUserId(suite.its.User.ID).
 		ContactFolders().
 		ByContactFolderId(ptr.Val(container.GetId())).
 		Contacts().
@@ -60,7 +61,7 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollision
 
 	expect := maps.Keys(expectM)
 
-	results, err := suite.its.ac.Contacts().GetItemsInContainerByCollisionKey(ctx, suite.its.user.id, "contacts")
+	results, err := suite.its.AC.Contacts().GetItemsInContainerByCollisionKey(ctx, suite.its.User.ID, "contacts")
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 
@@ -85,18 +86,18 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollision
 
 func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsIDsInContainer() {
 	t := suite.T()
-	ac := suite.its.ac.Contacts()
+	ac := suite.its.AC.Contacts()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.user.id, DefaultContacts)
+	container, err := ac.GetContainerByID(ctx, suite.its.User.ID, DefaultContacts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msgs, err := ac.Stable.
 		Client().
 		Users().
-		ByUserId(suite.its.user.id).
+		ByUserId(suite.its.User.ID).
 		ContactFolders().
 		ByContactFolderId(ptr.Val(container.GetId())).
 		Contacts().
@@ -110,8 +111,8 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsIDsInContainer() {
 		expect[ptr.Val(m.GetId())] = struct{}{}
 	}
 
-	results, err := suite.its.ac.Contacts().
-		GetItemIDsInContainer(ctx, suite.its.user.id, DefaultContacts)
+	results, err := suite.its.AC.Contacts().
+		GetItemIDsInContainer(ctx, suite.its.User.ID, DefaultContacts)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 	require.Equal(t, len(expect), len(results), "must have same count of items")

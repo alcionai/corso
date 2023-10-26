@@ -16,17 +16,18 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 )
 
 type DriveAPIIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 func (suite *DriveAPIIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func TestDriveAPIs(t *testing.T) {
@@ -44,7 +45,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_CreatePagerAndGetPage() {
 	defer flush()
 
 	siteID := tconfig.M365SiteID(t)
-	pager := suite.its.ac.Drives().NewSiteDrivePager(siteID, []string{"name"})
+	pager := suite.its.AC.Drives().NewSiteDrivePager(siteID, []string{"name"})
 
 	a, err := pager.GetPage(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
@@ -58,13 +59,13 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	defer flush()
 
 	rc := testdata.DefaultRestoreConfig("drive_api_post_item")
-	acd := suite.its.ac.Drives()
+	acd := suite.its.AC.Drives()
 
 	// generate a parent for the test data
 	parent, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.user.driveID,
-		suite.its.user.driveRootFolderID,
+		suite.its.User.DriveID,
+		suite.its.User.DriveRootFolderID,
 		NewDriveItem(rc.Location, true),
 		control.Replace)
 	require.NoError(t, err, clues.ToCore(err))
@@ -73,7 +74,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	folder := NewDriveItem("collision", true)
 	origFolder, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.user.driveID,
+		suite.its.User.DriveID,
 		ptr.Val(parent.GetId()),
 		folder,
 		control.Copy)
@@ -83,7 +84,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	file := NewDriveItem("collision.txt", false)
 	origFile, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.user.driveID,
+		suite.its.User.DriveID,
 		ptr.Val(parent.GetId()),
 		file,
 		control.Copy)
@@ -234,7 +235,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 			t := suite.T()
 			i, err := acd.PostItemInContainer(
 				ctx,
-				suite.its.user.driveID,
+				suite.its.User.DriveID,
 				ptr.Val(parent.GetId()),
 				test.postItem,
 				test.onCollision)
@@ -255,15 +256,15 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 
 	var (
 		rc    = testdata.DefaultRestoreConfig("drive_folder_replace_regression")
-		acd   = suite.its.ac.Drives()
+		acd   = suite.its.AC.Drives()
 		files = make([]models.DriveItemable, 0, 5)
 	)
 
 	// generate a folder for the test data
 	folder, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.user.driveID,
-		suite.its.user.driveRootFolderID,
+		suite.its.User.DriveID,
+		suite.its.User.DriveRootFolderID,
 		NewDriveItem(rc.Location, true),
 		// skip instead of replace here to get
 		// an ErrItemAlreadyExistsConflict, just in case.
@@ -275,7 +276,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 		file := NewDriveItem(fmt.Sprintf("collision_%d.txt", i), false)
 		f, err := acd.PostItemInContainer(
 			ctx,
-			suite.its.user.driveID,
+			suite.its.User.DriveID,
 			ptr.Val(folder.GetId()),
 			file,
 			control.Copy)
@@ -286,7 +287,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 
 	resultFolder, err := acd.PostItemInContainer(
 		ctx,
-		suite.its.user.driveID,
+		suite.its.User.DriveID,
 		ptr.Val(folder.GetParentReference().GetId()),
 		NewDriveItem(rc.Location, true),
 		control.Replace)
@@ -297,7 +298,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 	resultFileColl, err := acd.Stable.
 		Client().
 		Drives().
-		ByDriveId(suite.its.user.driveID).
+		ByDriveId(suite.its.User.DriveID).
 		Items().
 		ByDriveItemId(ptr.Val(resultFolder.GetId())).
 		Children().

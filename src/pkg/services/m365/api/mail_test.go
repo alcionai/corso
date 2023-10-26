@@ -15,6 +15,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -187,7 +188,7 @@ func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 
 type MailAPIIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 // We do end up mocking the actual request, but creating the rest
@@ -201,7 +202,7 @@ func TestMailAPIIntgSuite(t *testing.T) {
 }
 
 func (suite *MailAPIIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
@@ -338,7 +339,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 			defer gock.Off()
 			test.setupf()
 
-			item, _, err := suite.its.gockAC.Mail().GetItem(
+			item, _, err := suite.its.GockAC.Mail().GetItem(
 				ctx,
 				"user",
 				mid,
@@ -378,7 +379,7 @@ func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
 	userID := tconfig.M365UserID(suite.T())
 
 	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
-	msgs := suite.its.ac.Mail()
+	msgs := suite.its.AC.Mail()
 	mailfolder, err := msgs.CreateContainer(ctx, userID, MsgFolderRoot, folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -402,14 +403,14 @@ func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
 func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 	var (
 		t   = suite.T()
-		acm = suite.its.ac.Mail()
+		acm = suite.its.AC.Mail()
 		rc  = testdata.DefaultRestoreConfig("mail_get_container_by_name")
 	)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	parent, err := acm.CreateContainer(ctx, suite.its.user.id, "msgfolderroot", rc.Location)
+	parent, err := acm.CreateContainer(ctx, suite.its.User.ID, "msgfolderroot", rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
@@ -443,7 +444,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := acm.GetContainerByName(ctx, suite.its.user.id, test.parentContainerID, test.name)
+			_, err := acm.GetContainerByName(ctx, suite.its.User.ID, test.parentContainerID, test.name)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
@@ -455,10 +456,10 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 		ctx, flush := tester.NewContext(t)
 		defer flush()
 
-		child, err := acm.CreateContainer(ctx, suite.its.user.id, pid, rc.Location)
+		child, err := acm.CreateContainer(ctx, suite.its.User.ID, pid, rc.Location)
 		require.NoError(t, err, clues.ToCore(err))
 
-		result, err := acm.GetContainerByName(ctx, suite.its.user.id, pid, rc.Location)
+		result, err := acm.GetContainerByName(ctx, suite.its.User.ID, pid, rc.Location)
 		assert.NoError(t, err, clues.ToCore(err))
 		assert.Equal(t, ptr.Val(child.GetId()), ptr.Val(result.GetId()))
 	})
@@ -514,7 +515,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName_mocked() {
 				Reply(200).
 				JSON(test.results(t))
 
-			_, err := suite.its.gockAC.
+			_, err := suite.its.GockAC.
 				Mail().
 				GetContainerByName(ctx, "u", "", test.name)
 			test.expectErr(t, err, clues.ToCore(err))

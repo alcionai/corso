@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -76,7 +77,7 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 
 type GroupsIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 func TestGroupsIntgSuite(t *testing.T) {
@@ -88,7 +89,7 @@ func TestGroupsIntgSuite(t *testing.T) {
 }
 
 func (suite *GroupsIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func (suite *GroupsIntgSuite) TestGetAll() {
@@ -97,7 +98,7 @@ func (suite *GroupsIntgSuite) TestGetAll() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	groups, err := suite.its.ac.
+	groups, err := suite.its.AC.
 		Groups().
 		GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
@@ -110,8 +111,8 @@ func (suite *GroupsIntgSuite) TestGetAllSites() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	channels, err := suite.its.ac.
-		Channels().GetChannels(ctx, suite.its.group.id)
+	channels, err := suite.its.AC.
+		Channels().GetChannels(ctx, suite.its.Group.ID)
 	require.NoError(t, err, "getting channels")
 	require.NotZero(t, len(channels), "must have at least one channel")
 
@@ -123,9 +124,9 @@ func (suite *GroupsIntgSuite) TestGetAllSites() {
 		}
 	}
 
-	sites, err := suite.its.ac.
+	sites, err := suite.its.AC.
 		Groups().
-		GetAllSites(ctx, suite.its.group.id, fault.New(true))
+		GetAllSites(ctx, suite.its.Group.ID, fault.New(true))
 	require.NoError(t, err)
 	require.NotZero(t, len(sites), "must have at least one site")
 	require.Equal(t, siteCount, len(sites), "incorrect number of sites")
@@ -138,13 +139,13 @@ func (suite *GroupsIntgSuite) TestGetAllSitesNonTeam() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	group, err := suite.its.ac.Groups().GetByID(ctx, suite.its.nonTeamGroup.id, CallConfig{})
+	group, err := suite.its.AC.Groups().GetByID(ctx, suite.its.NonTeamGroup.ID, CallConfig{})
 	require.NoError(t, err)
 	require.False(t, IsTeam(ctx, group), "group should not be a team for this test")
 
-	sites, err := suite.its.ac.
+	sites, err := suite.its.AC.
 		Groups().
-		GetAllSites(ctx, suite.its.nonTeamGroup.id, fault.New(true))
+		GetAllSites(ctx, suite.its.NonTeamGroup.ID, fault.New(true))
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sites), "incorrect number of sites")
 }
@@ -156,9 +157,9 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 	defer flush()
 
 	var (
-		groupID     = suite.its.group.id
-		groupsEmail = suite.its.group.email
-		groupsAPI   = suite.its.ac.Groups()
+		groupID     = suite.its.Group.ID
+		groupsEmail = suite.its.Group.Email
+		groupsAPI   = suite.its.AC.Groups()
 	)
 
 	grp, err := groupsAPI.GetByID(ctx, groupID, CallConfig{})

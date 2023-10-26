@@ -14,11 +14,12 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 )
 
 type ChannelsPagerIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 func TestChannelPagerIntgSuite(t *testing.T) {
@@ -30,19 +31,19 @@ func TestChannelPagerIntgSuite(t *testing.T) {
 }
 
 func (suite *ChannelsPagerIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func (suite *ChannelsPagerIntgSuite) TestEnumerateChannels() {
 	var (
 		t  = suite.T()
-		ac = suite.its.ac.Channels()
+		ac = suite.its.AC.Channels()
 	)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	chans, err := ac.GetChannels(ctx, suite.its.group.id)
+	chans, err := ac.GetChannels(ctx, suite.its.Group.ID)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, chans)
 }
@@ -50,7 +51,7 @@ func (suite *ChannelsPagerIntgSuite) TestEnumerateChannels() {
 func (suite *ChannelsPagerIntgSuite) TestEnumerateChannelMessages() {
 	var (
 		t  = suite.T()
-		ac = suite.its.ac.Channels()
+		ac = suite.its.AC.Channels()
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -58,8 +59,8 @@ func (suite *ChannelsPagerIntgSuite) TestEnumerateChannelMessages() {
 
 	addedIDs, _, _, du, err := ac.GetChannelMessageIDs(
 		ctx,
-		suite.its.group.id,
-		suite.its.group.testContainerID,
+		suite.its.Group.ID,
+		suite.its.Group.TestContainerID,
 		"",
 		true)
 	require.NoError(t, err, clues.ToCore(err))
@@ -69,8 +70,8 @@ func (suite *ChannelsPagerIntgSuite) TestEnumerateChannelMessages() {
 
 	addedIDs, _, deletedIDs, du, err := ac.GetChannelMessageIDs(
 		ctx,
-		suite.its.group.id,
-		suite.its.group.testContainerID,
+		suite.its.Group.ID,
+		suite.its.Group.TestContainerID,
 		du.URL,
 		true)
 	require.NoError(t, err, clues.ToCore(err))
@@ -83,9 +84,9 @@ func (suite *ChannelsPagerIntgSuite) TestEnumerateChannelMessages() {
 		suite.Run(id+"-replies", func() {
 			testEnumerateChannelMessageReplies(
 				suite.T(),
-				suite.its.ac.Channels(),
-				suite.its.group.id,
-				suite.its.group.testContainerID,
+				suite.its.AC.Channels(),
+				suite.its.Group.ID,
+				suite.its.Group.TestContainerID,
 				id)
 		})
 	}

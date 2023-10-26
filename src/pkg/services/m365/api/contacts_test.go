@@ -14,6 +14,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 )
@@ -116,7 +117,7 @@ func (suite *ContactsAPIUnitSuite) TestBytesToContactable() {
 
 type ContactsAPIIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 func TestContactsAPIntgSuite(t *testing.T) {
@@ -128,7 +129,7 @@ func TestContactsAPIntgSuite(t *testing.T) {
 }
 
 func (suite *ContactsAPIIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func (suite *ContactsAPIIntgSuite) TestContacts_GetContainerByName() {
@@ -142,9 +143,9 @@ func (suite *ContactsAPIIntgSuite) TestContacts_GetContainerByName() {
 
 	rc := testdata.DefaultRestoreConfig("contacts_api")
 
-	cc, err := suite.its.ac.Contacts().CreateContainer(
+	cc, err := suite.its.AC.Contacts().CreateContainer(
 		ctx,
-		suite.its.user.id,
+		suite.its.User.ID,
 		"",
 		rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
@@ -169,9 +170,9 @@ func (suite *ContactsAPIIntgSuite) TestContacts_GetContainerByName() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := suite.its.ac.
+			_, err := suite.its.AC.
 				Contacts().
-				GetContainerByName(ctx, suite.its.user.id, "", test.name)
+				GetContainerByName(ctx, suite.its.User.ID, "", test.name)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}

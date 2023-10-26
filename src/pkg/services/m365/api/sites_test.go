@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -99,7 +100,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 
 type SitesIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 func TestSitesIntgSuite(t *testing.T) {
@@ -111,7 +112,7 @@ func TestSitesIntgSuite(t *testing.T) {
 }
 
 func (suite *SitesIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func (suite *SitesIntgSuite) TestGetAll() {
@@ -120,7 +121,7 @@ func (suite *SitesIntgSuite) TestGetAll() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	sites, err := suite.its.ac.
+	sites, err := suite.its.AC.
 		Sites().
 		GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
@@ -146,7 +147,7 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 		uuids = strings.Join(parts[1:], ",")
 	}
 
-	sitesAPI := suite.its.ac.Sites()
+	sitesAPI := suite.its.AC.Sites()
 
 	table := []struct {
 		name      string
@@ -249,7 +250,7 @@ func (suite *SitesIntgSuite) TestGetRoot() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	result, err := suite.its.ac.Sites().GetRoot(ctx, CallConfig{Expand: []string{"drive"}})
+	result, err := suite.its.AC.Sites().GetRoot(ctx, CallConfig{Expand: []string{"drive"}})
 	require.NoError(t, err)
 	require.NotNil(t, result, "must find the root site")
 	require.NotEmpty(t, ptr.Val(result.GetId()), "must have an id")

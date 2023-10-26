@@ -16,6 +16,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/tester/tsetup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 )
@@ -219,7 +220,7 @@ func (suite *EventsAPIUnitSuite) TestBytesToEventable() {
 
 type EventsAPIIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its tsetup.M365
 }
 
 func TestEventsAPIIntgSuite(t *testing.T) {
@@ -231,7 +232,7 @@ func TestEventsAPIIntgSuite(t *testing.T) {
 }
 
 func (suite *EventsAPIIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = tsetup.NewM365IntegrationTester(suite.T())
 }
 
 func (suite *EventsAPIIntgSuite) TestEvents_RestoreLargeAttachment() {
@@ -243,7 +244,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_RestoreLargeAttachment() {
 	userID := tconfig.M365UserID(suite.T())
 
 	folderName := testdata.DefaultRestoreConfig("eventlargeattachmenttest").Location
-	evts := suite.its.ac.Events()
+	evts := suite.its.AC.Events()
 	calendar, err := evts.CreateContainer(ctx, userID, "", folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -282,10 +283,10 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	ac := suite.its.ac.Events()
+	ac := suite.its.AC.Events()
 	rc := testdata.DefaultRestoreConfig("api_calendar_discovery")
 
-	cal, err := ac.CreateContainer(ctx, suite.its.user.id, "", rc.Location)
+	cal, err := ac.CreateContainer(ctx, suite.its.User.ID, "", rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
@@ -302,7 +303,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 
 	containers, err := ac.EnumerateContainers(
 		ctx,
-		suite.its.user.id,
+		suite.its.User.ID,
 		DefaultCalendar,
 		false)
 	require.NoError(t, err, clues.ToCore(err))
@@ -341,9 +342,9 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			_, err := suite.its.ac.
+			_, err := suite.its.AC.
 				Events().
-				GetContainerByName(ctx, suite.its.user.id, "", test.name)
+				GetContainerByName(ctx, suite.its.User.ID, "", test.name)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
@@ -399,7 +400,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 				Reply(200).
 				JSON(test.results(t))
 
-			_, err := suite.its.gockAC.
+			_, err := suite.its.GockAC.
 				Events().
 				GetContainerByName(ctx, "u", "", test.name)
 			test.expectErr(t, err, clues.ToCore(err))
