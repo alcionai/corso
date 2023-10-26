@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -556,7 +557,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 							driveID: {
 								Pages:       test.pages,
 								Err:         test.pagerErr,
-								DeltaUpdate: api.DeltaUpdate{URL: deltaString},
+								DeltaUpdate: pagers.DeltaUpdate{URL: deltaString},
 							},
 						},
 					}

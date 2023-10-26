@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 type statePath struct {
@@ -843,7 +844,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 
 			var (
 				mbh = mock.DefaultOneDriveBH(user)
-				du  = api.DeltaUpdate{
+				du  = pagers.DeltaUpdate{
 					URL:   "notempty",
 					Reset: false,
 				}
@@ -1375,7 +1376,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								delItem("file", driveBasePath1, "root", true, false, false),
 							},
 						}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta},
 					},
 				},
 			},
@@ -1409,7 +1410,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								driveItem("file", "file", driveBasePath1, "root", true, false, false),
 							},
 						}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta},
 					},
 				},
 			},
@@ -1444,7 +1445,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 							},
 						}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -1484,7 +1485,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								driveItem("file", "file2", driveBasePath1+"/folder", "folder", true, false, false),
 							},
 						}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -1522,7 +1523,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 							driveItem("file", "file2", driveBasePath1, "root", true, false, false),
 						}}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta},
 					},
 				},
 			},
@@ -1561,7 +1562,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						}}},
-						DeltaUpdate: api.DeltaUpdate{URL: empty, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: empty, Reset: true},
 					},
 				},
 			},
@@ -1609,7 +1610,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -1671,7 +1672,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -1729,7 +1730,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -1771,7 +1772,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						}}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 					driveID2: {
 						Pages: []mock.NextPage{{Items: []models.DriveItemable{
@@ -1779,7 +1780,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder2", "folder", driveBasePath2, "root2", false, true, false),
 							driveItem("file2", "file", driveBasePath2+"/folder", "folder2", true, false, false),
 						}}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta2, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta2, Reset: true},
 					},
 				},
 			},
@@ -1831,7 +1832,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
 							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
 						}}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 					driveID2: {
 						Pages: []mock.NextPage{{Items: []models.DriveItemable{
@@ -1839,7 +1840,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveItem("folder", "folder", driveBasePath2, "root", false, true, false),
 							driveItem("file2", "file", driveBasePath2+"/folder", "folder", true, false, false),
 						}}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta2, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta2, Reset: true},
 					},
 				},
 			},
@@ -1884,7 +1885,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					driveID1: {
 						Pages:       []mock.NextPage{{Items: []models.DriveItemable{}}},
-						DeltaUpdate: api.DeltaUpdate{},
+						DeltaUpdate: pagers.DeltaUpdate{},
 						Err:         assert.AnError,
 					},
 				},
@@ -1918,7 +1919,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -1970,7 +1971,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -2033,7 +2034,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -2088,7 +2089,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -2148,7 +2149,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -2206,7 +2207,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta2, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta2, Reset: true},
 					},
 				},
 			},
@@ -2253,7 +2254,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							},
 							Reset: true,
 						}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -2298,7 +2299,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								Reset: true,
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -2347,7 +2348,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta2, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta2, Reset: true},
 					},
 				},
 			},
@@ -2393,7 +2394,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 								},
 							},
 						},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -2431,7 +2432,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveRootItem("root"),
 							delItem("folder", driveBasePath1, "root", false, true, false),
 						}}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -2466,7 +2467,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 							driveRootItem("root"),
 							delItem("file", driveBasePath1, "root", true, false, false),
 						}}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
 					},
 				},
 			},
@@ -2500,7 +2501,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 						Pages: []mock.NextPage{{Items: []models.DriveItemable{
 							driveRootItem("root"), // will be present
 						}}},
-						DeltaUpdate: api.DeltaUpdate{URL: delta},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta},
 					},
 				},
 			},
@@ -2794,7 +2795,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			itemPagers := map[string]api.DeltaPager[models.DriveItemable]{}
+			itemPagers := map[string]pagers.DeltaHandler[models.DriveItemable]{}
 			itemPagers[driveID] = &apiMock.DeltaPager[models.DriveItemable]{}
 
 			mbh := mock.DefaultOneDriveBH("test-user")

@@ -61,7 +61,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 				s.SetWebUrl(ptr.To("sharepoint.com/sites/foo"))
 				return s
 			}(),
-			errCheck: assert.Error,
+			errCheck: assert.NoError,
 		},
 		{
 			name: "Search site",
@@ -136,6 +136,7 @@ func (suite *SitesIntgSuite) TestGetAll() {
 
 	for _, site := range sites {
 		assert.NotContains(t, ptr.Val(site.GetWebUrl()), api.PersonalSitePath, "must not return onedrive sites")
+		assert.NotContains(t, ptr.Val(site.GetWebUrl()), "sharepoint.com/search", "must not return search site")
 	}
 }
 

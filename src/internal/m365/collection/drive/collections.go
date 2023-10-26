@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 const restrictedDirectory = "Site Pages"
@@ -676,7 +677,7 @@ func (c *Collections) PopulateDriveCollections(
 	topLevelPackages map[string]struct{},
 	prevDeltaLink string,
 	errs *fault.Bus,
-) (api.DeltaUpdate, map[string]string, error) {
+) (pagers.DeltaUpdate, map[string]string, error) {
 	var (
 		el               = errs.Local()
 		newPrevPaths     = map[string]string{}

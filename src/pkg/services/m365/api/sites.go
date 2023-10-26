@@ -273,21 +273,20 @@ func ValidateSite(item models.Siteable) error {
 		return clues.New("missing webURL").With("site_id", clues.Hide(id))
 	}
 
+	// TODO(ashmrtn): Personal and search site checks should really be in the
+	// caller instead of the validation function.
 	// personal (ie: oneDrive) sites have to be filtered out server-side.
 	if strings.Contains(wURL, PersonalSitePath) {
 		return clues.Stack(ErrKnownSkippableCase).
 			With("site_id", clues.Hide(id), "site_web_url", clues.Hide(wURL))
 	}
 
-	name := ptr.Val(item.GetDisplayName())
-	if len(name) == 0 {
-		// the built-in site at "https://{tenant-domain}/search" never has a name.
-		if strings.HasSuffix(wURL, "/search") {
-			return clues.Stack(ErrKnownSkippableCase).
-				With("site_id", clues.Hide(id), "site_web_url", clues.Hide(wURL))
-		}
-
-		return clues.New("missing site display name").With("site_id", clues.Hide(id))
+	// Not checking for a name since it's possible to have sites without a name.
+	// Do check if it's the search site though since we want to filter that out.
+	// The built-in site at "https://{tenant-domain}/search" never has a name.
+	if len(ptr.Val(item.GetDisplayName())) == 0 && strings.HasSuffix(wURL, "/search") {
+		return clues.Stack(ErrKnownSkippableCase).
+			With("site_id", clues.Hide(id), "site_web_url", clues.Hide(wURL))
 	}
 
 	return nil

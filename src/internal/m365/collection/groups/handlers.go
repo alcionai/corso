@@ -10,7 +10,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 type backupHandler interface {
@@ -26,7 +26,7 @@ type backupHandler interface {
 		ctx context.Context,
 		containerID, prevDelta string,
 		canMakeDeltaQueries bool,
-	) (map[string]time.Time, bool, []string, api.DeltaUpdate, error)
+	) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error)
 
 	// includeContainer evaluates whether the container is included
 	// in the provided scope.
