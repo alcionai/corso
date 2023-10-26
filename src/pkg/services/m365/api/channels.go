@@ -141,38 +141,58 @@ func channelMessageInfo(
 	msg models.ChatMessageable,
 ) *details.GroupsInfo {
 	var (
-		lastReply time.Time
-		modTime   = ptr.OrNow(msg.GetLastModifiedDateTime())
-		content   string
+		lastReply   models.ChatMessageable
+		lastReplyAt time.Time
+		modTime     = ptr.OrNow(msg.GetLastModifiedDateTime())
 	)
 
-	for _, r := range msg.GetReplies() {
+	replies := msg.GetReplies()
+
+	for _, r := range replies {
 		cdt := ptr.Val(r.GetCreatedDateTime())
-		if cdt.After(lastReply) {
-			lastReply = cdt
+		if cdt.After(lastReplyAt) {
+			lastReply = r
+			lastReplyAt = ptr.Val(r.GetCreatedDateTime())
 		}
 	}
 
 	// if the message hasn't been modified since before the most recent
 	// reply, set the modified time to the most recent reply.  This ensures
 	// we update the message contents to match changes in replies.
-	if modTime.Before(lastReply) {
-		modTime = lastReply
+	if modTime.Before(lastReplyAt) {
+		modTime = lastReplyAt
 	}
 
-	if msg.GetBody() != nil {
-		content = ptr.Val(msg.GetBody().GetContent())
+	preview, contentLen := GetChatMessageContentPreview(msg)
+
+	message := details.ChannelMessageInfo{
+		AttachmentNames: GetChatMessageAttachmentNames(msg),
+		CreatedAt:       ptr.Val(msg.GetCreatedDateTime()),
+		Creator:         GetChatMessageFrom(msg),
+		Preview:         preview,
+		ReplyCount:      len(replies),
+		Size:            contentLen,
+		Subject:         ptr.Val(msg.GetSubject()),
+	}
+
+	var lr details.ChannelMessageInfo
+
+	if lastReply != nil {
+		preview, contentLen = GetChatMessageContentPreview(lastReply)
+		lr = details.ChannelMessageInfo{
+			AttachmentNames: GetChatMessageAttachmentNames(lastReply),
+			CreatedAt:       ptr.Val(lastReply.GetCreatedDateTime()),
+			Creator:         GetChatMessageFrom(lastReply),
+			Preview:         preview,
+			Size:            contentLen,
+		}
 	}
 
 	return &details.GroupsInfo{
-		ItemType:       details.GroupsChannelMessage,
-		Created:        ptr.Val(msg.GetCreatedDateTime()),
-		LastReplyAt:    lastReply,
-		Modified:       modTime,
-		MessageCreator: GetChatMessageFrom(msg),
-		MessagePreview: str.Preview(content, 128),
-		ReplyCount:     len(msg.GetReplies()),
-		Size:           int64(len(content)),
+		ItemType:  details.GroupsChannelMessage,
+		Modified:  modTime,
+		Message:   message,
+		LastReply: lr,
 	}
 }
 
@@ -211,4 +231,26 @@ func GetChatMessageFrom(msg models.ChatMessageable) string {
 	}
 
 	return ""
+}
+
+func GetChatMessageContentPreview(msg models.ChatMessageable) (string, int64) {
+	var content string
+
+	if msg.GetBody() != nil {
+		content = ptr.Val(msg.GetBody().GetContent())
+	}
+
+	return str.Preview(content, 128), int64(len(content))
+}
+
+func GetChatMessageAttachmentNames(msg models.ChatMessageable) []string {
+	names := make([]string, 0, len(msg.GetAttachments()))
+
+	for _, a := range msg.GetAttachments() {
+		if name := ptr.Val(a.GetName()); len(name) > 0 {
+			names = append(names, name)
+		}
+	}
+
+	return names
 }
