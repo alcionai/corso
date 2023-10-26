@@ -243,11 +243,11 @@ func GetChatMessageFrom(msg models.ChatMessageable) string {
 }
 
 func getChatMessageContentPreview(msg models.ChatMessageable) (string, int64, error) {
-	content, origSize, err := StripChatMessageContent(msg)
+	content, origSize, err := stripChatMessageHTML(msg)
 	return str.Preview(content, 128), origSize, clues.Stack(err).OrNil()
 }
 
-func StripChatMessageContent(msg models.ChatMessageable) (string, int64, error) {
+func stripChatMessageHTML(msg models.ChatMessageable) (string, int64, error) {
 	var (
 		content  string
 		origSize int64
