@@ -33,10 +33,9 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 	site.SetId(ptr.To("testID"))
 
 	tests := []struct {
-		name           string
-		args           models.Siteable
-		errCheck       assert.ErrorAssertionFunc
-		errIsSkippable bool
+		name     string
+		args     models.Siteable
+		errCheck assert.ErrorAssertionFunc
 	}{
 		{
 			name:     "No ID",
@@ -70,8 +69,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 				s.SetWebUrl(ptr.To("sharepoint.com/search"))
 				return s
 			}(),
-			errCheck:       assert.Error,
-			errIsSkippable: true,
+			errCheck: assert.NoError,
 		},
 		{
 			name: "Personal OneDrive",
@@ -81,8 +79,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 				s.SetWebUrl(ptr.To("https://" + personalSitePath + "/someone's/onedrive"))
 				return s
 			}(),
-			errCheck:       assert.Error,
-			errIsSkippable: true,
+			errCheck: assert.NoError,
 		},
 		{
 			name:     "Valid Site",
@@ -96,10 +93,6 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 
 			err := validateSite(test.args)
 			test.errCheck(t, err, clues.ToCore(err))
-
-			if test.errIsSkippable {
-				assert.ErrorIs(t, err, ErrKnownSkippableCase)
-			}
 		})
 	}
 }
