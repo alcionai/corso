@@ -37,7 +37,7 @@ type (
 		GetMetadataPaths(
 			ctx context.Context,
 			r inject.RestoreProducer,
-			man kopia.ManifestEntry,
+			base kopia.BackupBase,
 			errs *fault.Bus,
 		) ([]path.RestorePaths, error)
 

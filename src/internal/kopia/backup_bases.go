@@ -17,16 +17,49 @@ import (
 // TODO(ashmrtn): Move this into some inject package. Here to avoid import
 // cycles.
 type BackupBases interface {
-	// ConvertToAssistBase converts the base with the given item data snapshot ID
-	// from a merge base to an assist base.
-	ConvertToAssistBase(manifestID manifest.ID)
-	Backups() []BackupEntry
-	UniqueAssistBackups() []BackupEntry
-	MinBackupVersion() int
-	MergeBases() []ManifestEntry
+	// ConvertToAssistBase converts the base with the given backup ID from a merge
+	// base to an assist base.
+	ConvertToAssistBase(backupID model.StableID)
+	// MergeBases returns a []BackupBase that corresponds to all the bases that
+	// will source unchanged information for this backup during hierarchy merging,
+	// snapshot creation, and details merging.
+	MergeBases() []BackupBase
+	// DisableMergeBases converts all merge bases in this BackupBases to assist
+	// bases. These bases can still participate in sourcing data kopia considers
+	// "cached" during the snapshot process and can source backup details entries
+	// for those cached items. However, they won't be used to source unchanged
+	// items during hierarchy merging, snapshot creation, or details merging.
+	//
+	// This call is order sensitive with DisableAssistBases.
 	DisableMergeBases()
-	UniqueAssistBases() []ManifestEntry
+	// UniqueAssistBases returns the set of assist bases for the backup operation.
+	// Assist bases are used to source item data and details entries if the item
+	// is considered "cached" by kopia. They are not used to source unchanged
+	// items during hierarchy merging.
+	UniqueAssistBases() []BackupBase
+	// DisableAssistBases clears the set of assist bases for this backup. Doing so
+	// will result in kopia not finding any "cached" items and assist bases won't
+	// participate in details merging.
+	//
+	// This call is order sensitive with DisableMergeBases.
 	DisableAssistBases()
+	// MinBackupVersion returns the lowest version of all merge backups in the
+	// BackupBases.
+	MinBackupVersion() int
+	// MergeBackupBases takes another BackupBases and merges it's contained assist
+	// and merge bases into this BackupBases. The passed in BackupBases is
+	// considered an older alternative to this BackupBases meaning bases from
+	// other won't be selected unless there's no item in this BackupBases to cover
+	// that Reason.
+	//
+	// Callers pass in reasonToKey to control how individual BackupBase items are
+	// selected. For example, to migrate from using user name to user ID as the
+	// protected resource in the Reason the reasonToKey function could map
+	// BackupBase items with the same tenant, service, and category to the same
+	// key. This works because backup operations are already per protected
+	// resource.
+	//
+	// This call is order sensitive with DisableMergeBases and DisableAssistBases.
 	MergeBackupBases(
 		ctx context.Context,
 		other BackupBases,
@@ -36,12 +69,7 @@ type BackupBases interface {
 	// incremental snapshot operations. It consists of the union of merge bases
 	// and assist bases. If DisableAssistBases has been called then it returns
 	// nil.
-	SnapshotAssistBases() []ManifestEntry
-
-	// TODO(ashmrtn): Remove other functions and just have these once other code
-	// is updated. Here for now so changes in this file can be made.
-	NewMergeBases() []BackupBase
-	NewUniqueAssistBases() []BackupBase
+	SnapshotAssistBases() []BackupBase
 }
 
 type backupBases struct {
@@ -53,72 +81,26 @@ type backupBases struct {
 	disableAssistBases bool
 }
 
-func (bb *backupBases) SnapshotAssistBases() []ManifestEntry {
+func (bb *backupBases) SnapshotAssistBases() []BackupBase {
 	if bb.disableAssistBases {
 		return nil
 	}
 
-	res := []ManifestEntry{}
-
-	for _, ab := range bb.assistBases {
-		res = append(res, ManifestEntry{
-			Manifest: ab.ItemDataSnapshot,
-			Reasons:  ab.Reasons,
-		})
-	}
-
-	for _, mb := range bb.mergeBases {
-		res = append(res, ManifestEntry{
-			Manifest: mb.ItemDataSnapshot,
-			Reasons:  mb.Reasons,
-		})
-	}
-
 	// Need to use the actual variables here because the functions will return nil
 	// depending on what's been marked as disabled.
-	return res
+	return append(slices.Clone(bb.mergeBases), bb.assistBases...)
 }
 
-func (bb *backupBases) ConvertToAssistBase(manifestID manifest.ID) {
+func (bb *backupBases) ConvertToAssistBase(backupID model.StableID) {
 	idx := slices.IndexFunc(
 		bb.mergeBases,
 		func(base BackupBase) bool {
-			return base.ItemDataSnapshot.ID == manifestID
+			return base.Backup.ID == backupID
 		})
 	if idx >= 0 {
 		bb.assistBases = append(bb.assistBases, bb.mergeBases[idx])
 		bb.mergeBases = slices.Delete(bb.mergeBases, idx, idx+1)
 	}
-}
-
-func (bb backupBases) Backups() []BackupEntry {
-	res := []BackupEntry{}
-
-	for _, mb := range bb.mergeBases {
-		res = append(res, BackupEntry{
-			Backup:  mb.Backup,
-			Reasons: mb.Reasons,
-		})
-	}
-
-	return res
-}
-
-func (bb backupBases) UniqueAssistBackups() []BackupEntry {
-	if bb.disableAssistBases {
-		return nil
-	}
-
-	res := []BackupEntry{}
-
-	for _, ab := range bb.assistBases {
-		res = append(res, BackupEntry{
-			Backup:  ab.Backup,
-			Reasons: ab.Reasons,
-		})
-	}
-
-	return res
 }
 
 func (bb *backupBases) MinBackupVersion() int {
@@ -137,20 +119,7 @@ func (bb *backupBases) MinBackupVersion() int {
 	return min
 }
 
-func (bb backupBases) MergeBases() []ManifestEntry {
-	res := []ManifestEntry{}
-
-	for _, mb := range bb.mergeBases {
-		res = append(res, ManifestEntry{
-			Manifest: mb.ItemDataSnapshot,
-			Reasons:  mb.Reasons,
-		})
-	}
-
-	return res
-}
-
-func (bb backupBases) NewMergeBases() []BackupBase {
+func (bb backupBases) MergeBases() []BackupBase {
 	return slices.Clone(bb.mergeBases)
 }
 
@@ -165,24 +134,7 @@ func (bb *backupBases) DisableMergeBases() {
 	bb.mergeBases = nil
 }
 
-func (bb backupBases) UniqueAssistBases() []ManifestEntry {
-	if bb.disableAssistBases {
-		return nil
-	}
-
-	res := []ManifestEntry{}
-
-	for _, ab := range bb.assistBases {
-		res = append(res, ManifestEntry{
-			Manifest: ab.ItemDataSnapshot,
-			Reasons:  ab.Reasons,
-		})
-	}
-
-	return res
-}
-
-func (bb backupBases) NewUniqueAssistBases() []BackupBase {
+func (bb backupBases) UniqueAssistBases() []BackupBase {
 	if bb.disableAssistBases {
 		return nil
 	}
@@ -250,11 +202,11 @@ func (bb *backupBases) MergeBackupBases(
 	other BackupBases,
 	reasonToKey func(reason identity.Reasoner) string,
 ) BackupBases {
-	if other == nil || (len(other.NewMergeBases()) == 0 && len(other.NewUniqueAssistBases()) == 0) {
+	if other == nil || (len(other.MergeBases()) == 0 && len(other.UniqueAssistBases()) == 0) {
 		return bb
 	}
 
-	if bb == nil || (len(bb.NewMergeBases()) == 0 && len(bb.NewUniqueAssistBases()) == 0) {
+	if bb == nil || (len(bb.MergeBases()) == 0 && len(bb.UniqueAssistBases()) == 0) {
 		return other
 	}
 
@@ -282,12 +234,12 @@ func (bb *backupBases) MergeBackupBases(
 		}
 	}
 
-	addMerge := getMissingBases(reasonToKey, toMerge, other.NewMergeBases())
-	addAssist := getMissingBases(reasonToKey, assist, other.NewUniqueAssistBases())
+	addMerge := getMissingBases(reasonToKey, toMerge, other.MergeBases())
+	addAssist := getMissingBases(reasonToKey, assist, other.UniqueAssistBases())
 
 	res := &backupBases{
-		mergeBases:  append(addMerge, bb.NewMergeBases()...),
-		assistBases: append(addAssist, bb.NewUniqueAssistBases()...),
+		mergeBases:  append(addMerge, bb.MergeBases()...),
+		assistBases: append(addAssist, bb.UniqueAssistBases()...),
 	}
 
 	return res
