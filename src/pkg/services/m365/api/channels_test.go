@@ -579,6 +579,16 @@ func (suite *ChannelsAPIUnitSuite) TestStripChatMessageContent() {
 
 	attachments := []models.ChatMessageAttachmentable{attach1, attach2}
 
+	realAttach := models.NewChatMessageAttachment()
+	realAttach.SetId(ptr.To("1693946862569"))
+	realAttach.SetName(ptr.To("meeting"))
+
+	realAttach2 := models.NewChatMessageAttachment()
+	realAttach2.SetId(ptr.To("c285cc11-a1ba-473f-ba49-433696e93ef5"))
+	realAttach2.SetName(ptr.To("thankyoublue.jpg"))
+
+	realAttachments := []models.ChatMessageAttachmentable{realAttach, realAttach2}
+
 	attachML := func(id string) string {
 		return fmt.Sprintf(`<attachment id="%s"></attachment>`, id)
 	}
@@ -665,6 +675,29 @@ func (suite *ChannelsAPIUnitSuite) TestStripChatMessageContent() {
 			content:     "<body>body<div>" + attachML("id1") + attachML("id2") + attachML("idX") + "</div>end</body>",
 			attachments: attachments,
 			expect:      "body\n[attachment:a1][attachment:a2][attachment]\nend",
+			expectErr:   assert.NoError,
+		},
+		{
+			name:        "real world example 1",
+			content:     "Scheduled a meeting<attachment id=\"1693946862569\"></attachment>",
+			attachments: realAttachments,
+			expect:      "Scheduled a meeting[attachment:meeting]",
+			expectErr:   assert.NoError,
+		},
+		{
+			name: "real world example 2",
+			//nolint:lll
+			content:     "<p>gifzz</p>\n<img alt=\"The Pumpkin Dance Dancing GIF by Halloween (GIF Image)\" height=\"240\" width=\"320\" src=\"https://media1.giphy.com/media/3oz8xwooUvMqNB1zEs/giphy.gif?cid=ae9bf95er6q1rr4j2btels96zvkiv5q7ylj6spnoekvbhe4p&amp;ep=v1_gifs_trending&amp;rid=giphy.gif&amp;ct=g\" style=\"padding-top:5px\">\n<p>&nbsp;</p>",
+			attachments: attachments,
+			expect:      "gifzz",
+			expectErr:   assert.NoError,
+		},
+		{
+			name: "real world example 3",
+			//nolint:lll
+			content:     "<p>one</p>\n<img alt=\"Cracking Up Lol GIF by Rodney Dangerfield (GIF Image)\" height=\"250\" width=\"250\" src=\"https://media4.giphy.com/media/l3fQf1OEAq0iri9RC/giphy.gif?cid=de9bf95exzvk1yspjkyg8vh903jyi5yuio8cm7hx4bm1062q&amp;ep=v1_gifs_trending&amp;rid=giphy.gif&amp;ct=g\" style=\"padding-top:5px\">\n<p>attach</p>\n<img alt=\"Sticker image, OH YEAH!\" height=\"250\" width=\"334\" src=\"https://graph.microsoft.com/v1.0/teams/1e8f7352-5393-4b37-b8ab-86ccded848ae/channels/19:vXykALk6NNnBYOkIAqJ6Shs9NuiW3qAuC-1cjprE_X41@thread.tacv2/messages/1698360469770/hostedContents/aWQ9eF8wLWN1cy1kMTItMTNmYzRlNDQwYWNhMjM1MmI2NTE1ZmMxZGI1ZmRlNjgsdHlwZT0xLHVybD1odHRwczovL3VzLWFwaS5hc20uc2t5cGUuY29tL3YxL29iamVjdHMvMC1jdXMtZDEyLTEzZmM0ZTQ0MGFjYTIzNTJiNjUxNWZjMWRiNWZkZTY4L3ZpZXdzL2ltZ28=/$value\" itemid=\"0-cus-d12-13fc4e440aca2352b6515fc1db5fde68\"><span style=\"font-size:0\">OH YEAH!</span>\n<p><span title=\"Party popper\" type=\"(1f389_partypopper)\" class=\"animated-emoticon-20-1f389_partypopper\"><img itemscope=\"\" itemtype=\"http://schema.skype.com/Emoji\" itemid=\"1f389_partypopper\" src=\"https://statics.teams.cdn.office.net/evergreen-assets/personal-expressions/v2/assets/emoticons/1f389_partypopper/default/20_f.png\" title=\"Party popper\" alt=\"🎉\" style=\"width:20px; height:20px\"></span></p>\n<img alt=\"Oh My God Omg GIF by Instacart (GIF Image)\" height=\"250\" width=\"250\" src=\"https://media3.giphy.com/media/8KFTElqwyGHIV4qLqo/giphy.gif?cid=de9bf95exzvk1yspjkyg8vh903jyi5yuio8cm7hx4bm1062q&amp;ep=v1_gifs_trending&amp;rid=giphy.gif&amp;ct=g\" style=\"padding-top:5px\">\n<p>&nbsp;</p><attachment id=\"c285cc11-a1ba-473f-ba49-433696e93ef5\"></attachment>",
+			attachments: realAttachments,
+			expect:      "one\n\nattach\n\nOH YEAH!\n\n[attachment:thankyoublue.jpg]",
 			expectErr:   assert.NoError,
 		},
 	}
