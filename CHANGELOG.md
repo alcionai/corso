@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Fixed
+- SharePoint backup would fail if any site had an empty display name
+
+## [v0.14.2] (beta) - 2023-10-17
+
 ### Added
 - Skips graph calls for expired item download URLs.
 - Export operation now shows the stats at the end of the run
