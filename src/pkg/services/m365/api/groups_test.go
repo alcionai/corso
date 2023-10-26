@@ -30,10 +30,9 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 	group.SetId(ptr.To("testID"))
 
 	tests := []struct {
-		name           string
-		args           models.Groupable
-		expectErr      assert.ErrorAssertionFunc
-		errIsSkippable bool
+		name      string
+		args      models.Groupable
+		expectErr assert.ErrorAssertionFunc
 	}{
 		{
 			name: "Valid group ",
@@ -71,10 +70,6 @@ func (suite *GroupUnitSuite) TestValidateGroup() {
 
 			err := validateGroup(test.args)
 			test.expectErr(t, err, clues.ToCore(err))
-
-			if test.errIsSkippable {
-				assert.ErrorIs(t, err, api.ErrKnownSkippableCase)
-			}
 		})
 	}
 }
