@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ChannelsPagerIntgSuite struct {
@@ -94,7 +93,7 @@ func (suite *ChannelsPagerIntgSuite) TestEnumerateChannelMessages() {
 
 func testEnumerateChannelMessageReplies(
 	t *testing.T,
-	ac api.Channels,
+	ac Channels,
 	groupID, channelID, messageID string,
 ) {
 	ctx, flush := tester.NewContext(t)
@@ -196,7 +195,7 @@ func (suite *ChannelsPagerIntgSuite) TestFilterOutSystemMessages() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), api.FilterOutSystemMessages(test.cm))
+			test.expect(suite.T(), filterOutSystemMessages(test.cm))
 		})
 	}
 }

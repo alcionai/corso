@@ -565,7 +565,7 @@ func (c Mail) Serialize(
 
 func MailInfo(msg models.Messageable, size int64) *details.ExchangeInfo {
 	var (
-		sender     = UnwrapEmailAddress(msg.GetSender())
+		sender     = unwrapEmailAddress(msg.GetSender())
 		subject    = ptr.Val(msg.GetSubject())
 		received   = ptr.Val(msg.GetReceivedDateTime())
 		created    = ptr.Val(msg.GetCreatedDateTime())
@@ -575,7 +575,7 @@ func MailInfo(msg models.Messageable, size int64) *details.ExchangeInfo {
 	if msg.GetToRecipients() != nil {
 		ppl := msg.GetToRecipients()
 		for _, entry := range ppl {
-			temp := UnwrapEmailAddress(entry)
+			temp := unwrapEmailAddress(entry)
 			if len(temp) > 0 {
 				recipients = append(recipients, temp)
 			}
@@ -594,7 +594,7 @@ func MailInfo(msg models.Messageable, size int64) *details.ExchangeInfo {
 	}
 }
 
-func UnwrapEmailAddress(contact models.Recipientable) string {
+func unwrapEmailAddress(contact models.Recipientable) string {
 	var empty string
 	if contact == nil || contact.GetEmailAddress() == nil {
 		return empty

@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"fmt"
@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type DriveAPIIntgSuite struct {
@@ -66,12 +65,12 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 		ctx,
 		suite.its.user.driveID,
 		suite.its.user.driveRootFolderID,
-		api.NewDriveItem(rc.Location, true),
+		NewDriveItem(rc.Location, true),
 		control.Replace)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate a folder to use for collision testing
-	folder := api.NewDriveItem("collision", true)
+	folder := NewDriveItem("collision", true)
 	origFolder, err := acd.PostItemInContainer(
 		ctx,
 		suite.its.user.driveID,
@@ -81,7 +80,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate an item to use for collision testing
-	file := api.NewDriveItem("collision.txt", false)
+	file := NewDriveItem("collision.txt", false)
 	origFile, err := acd.PostItemInContainer(
 		ctx,
 		suite.its.user.driveID,
@@ -265,7 +264,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 		ctx,
 		suite.its.user.driveID,
 		suite.its.user.driveRootFolderID,
-		api.NewDriveItem(rc.Location, true),
+		NewDriveItem(rc.Location, true),
 		// skip instead of replace here to get
 		// an ErrItemAlreadyExistsConflict, just in case.
 		control.Skip)
@@ -273,7 +272,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 
 	// generate items within that folder
 	for i := 0; i < 5; i++ {
-		file := api.NewDriveItem(fmt.Sprintf("collision_%d.txt", i), false)
+		file := NewDriveItem(fmt.Sprintf("collision_%d.txt", i), false)
 		f, err := acd.PostItemInContainer(
 			ctx,
 			suite.its.user.driveID,
@@ -289,7 +288,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 		ctx,
 		suite.its.user.driveID,
 		ptr.Val(folder.GetParentReference().GetId()),
-		api.NewDriveItem(rc.Location, true),
+		NewDriveItem(rc.Location, true),
 		control.Replace)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, ptr.Val(resultFolder.GetId()))

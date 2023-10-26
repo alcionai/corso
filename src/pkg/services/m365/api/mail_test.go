@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type MailAPIUnitSuite struct {
@@ -150,7 +149,7 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			msg, expected := tt.msgAndRP()
-			assert.Equal(suite.T(), expected, api.MailInfo(msg, 0))
+			assert.Equal(suite.T(), expected, MailInfo(msg, 0))
 		})
 	}
 }
@@ -179,7 +178,7 @@ func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result, err := api.BytesToMessageable(test.byteArray)
+			result, err := BytesToMessageable(test.byteArray)
 			test.checkError(t, err, clues.ToCore(err))
 			test.checkObject(t, result)
 		})
@@ -224,7 +223,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(parseableToMap(suite.T(), mitem))
+					JSON(requireParseableToMap(suite.T(), mitem))
 			},
 			expect: assert.NoError,
 		},
@@ -237,7 +236,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(parseableToMap(suite.T(), email))
+					JSON(requireParseableToMap(suite.T(), email))
 
 				atts := models.NewAttachmentCollectionResponse()
 				attch := models.NewAttachment()
@@ -248,7 +247,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
-					JSON(parseableToMap(suite.T(), atts))
+					JSON(requireParseableToMap(suite.T(), atts))
 			},
 			attachmentCount: 1,
 			size:            50,
@@ -263,7 +262,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(parseableToMap(suite.T(), email))
+					JSON(requireParseableToMap(suite.T(), email))
 
 				atts := models.NewAttachmentCollectionResponse()
 				attch := models.NewAttachment()
@@ -279,11 +278,11 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
-					JSON(parseableToMap(suite.T(), atts))
+					JSON(requireParseableToMap(suite.T(), atts))
 
 				interceptV1Path("users", "user", "messages", mid, "attachments", aid).
 					Reply(200).
-					JSON(parseableToMap(suite.T(), attch))
+					JSON(requireParseableToMap(suite.T(), attch))
 			},
 			attachmentCount: 1,
 			size:            200,
@@ -299,7 +298,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				interceptV1Path("users", "user", "messages", mid).
 					Reply(200).
-					JSON(parseableToMap(suite.T(), email))
+					JSON(requireParseableToMap(suite.T(), email))
 
 				atts := models.NewAttachmentCollectionResponse()
 				attch := models.NewAttachment()
@@ -315,12 +314,12 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 
 				interceptV1Path("users", "user", "messages", mid, "attachments").
 					Reply(200).
-					JSON(parseableToMap(suite.T(), atts))
+					JSON(requireParseableToMap(suite.T(), atts))
 
 				for i := 0; i < 5; i++ {
 					interceptV1Path("users", "user", "messages", mid, "attachments", aid).
 						Reply(200).
-						JSON(parseableToMap(suite.T(), attch))
+						JSON(requireParseableToMap(suite.T(), attch))
 				}
 			},
 			attachmentCount: 5,
@@ -380,7 +379,7 @@ func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
 
 	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
 	msgs := suite.its.ac.Mail()
-	mailfolder, err := msgs.CreateContainer(ctx, userID, api.MsgFolderRoot, folderName)
+	mailfolder, err := msgs.CreateContainer(ctx, userID, MsgFolderRoot, folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msg := models.NewMessage()
@@ -419,7 +418,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
 		expectErr         assert.ErrorAssertionFunc
 	}{
 		{
-			name:      api.MailInbox,
+			name:      MailInbox,
 			expectErr: assert.NoError,
 		},
 		{
@@ -478,7 +477,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName_mocked() {
 		{
 			name: "zero",
 			results: func(t *testing.T) map[string]any {
-				return parseableToMap(t, models.NewMailFolderCollectionResponse())
+				return requireParseableToMap(t, models.NewMailFolderCollectionResponse())
 			},
 			expectErr: assert.Error,
 		},
@@ -488,7 +487,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName_mocked() {
 				mfcr := models.NewMailFolderCollectionResponse()
 				mfcr.SetValue([]models.MailFolderable{mf})
 
-				return parseableToMap(t, mfcr)
+				return requireParseableToMap(t, mfcr)
 			},
 			expectErr: assert.NoError,
 		},
@@ -498,7 +497,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName_mocked() {
 				mfcr := models.NewMailFolderCollectionResponse()
 				mfcr.SetValue([]models.MailFolderable{mf, mf})
 
-				return parseableToMap(t, mfcr)
+				return requireParseableToMap(t, mfcr)
 			},
 			expectErr: assert.Error,
 		},
