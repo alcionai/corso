@@ -936,22 +936,44 @@ func (op *BackupOperation) createBackupModels(
 
 	// Add tags to mark this backup as either assist or merge. This is used to:
 	// 1. Filter assist backups by tag during base selection process
-	// 2. Differentiate assist backups from merge backups
-	if isMergeBackup(
+	// 2. Differentiate assist backups, merge backups, and preview backups.
+	switch {
+	case op.Options.ToggleFeatures.PreviewBackup:
+		// Preview backups need to be successful and without errors to be considered
+		// valid. Just reuse the merge base check for that since it has the same
+		// requirements.
+		if !isMergeBackup(
+			snapID,
+			ssid,
+			op.Options.FailureHandling,
+			op.Errors) {
+			return clues.New("failed preview backup").WithClues(ctx)
+		}
+
+		tags[model.BackupTypeTag] = model.PreviewBackup
+
+	case isMergeBackup(
 		snapID,
 		ssid,
 		op.Options.FailureHandling,
-		op.Errors) {
+		op.Errors):
 		tags[model.BackupTypeTag] = model.MergeBackup
-	} else if isAssistBackup(
+
+	case isAssistBackup(
 		opStats.hasNewDetailEntries,
 		snapID,
 		ssid,
 		op.Options.FailureHandling,
-		op.Errors) {
+		op.Errors):
 		tags[model.BackupTypeTag] = model.AssistBackup
-	} else {
+
+	default:
 		return clues.New("backup is neither assist nor merge").WithClues(ctx)
+	}
+
+	// Additional defensive check to make sure we tag things as expected above.
+	if len(tags[model.BackupTypeTag]) == 0 {
+		return clues.New("empty backup type tag").WithClues(ctx)
 	}
 
 	ctx = clues.Add(ctx, model.BackupTypeTag, tags[model.BackupTypeTag])
