@@ -117,7 +117,7 @@ func SitesInGroup(
 	result := make([]*Site, 0, len(sites))
 
 	for _, site := range sites {
-		result = append(result, ParseSite(site))
+		result = append(result, ParseSite(ctx, site))
 	}
 
 	return result, nil

@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -92,7 +93,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 
 			var (
 				mbh = mock.DefaultSharePointBH(siteID)
-				du  = api.DeltaUpdate{
+				du  = pagers.DeltaUpdate{
 					URL:   "notempty",
 					Reset: false,
 				}
