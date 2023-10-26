@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -57,14 +58,14 @@ func (bh mockBackupHandler) getContainerItemIDs(
 	_ context.Context,
 	_, _ string,
 	_ bool,
-) (map[string]time.Time, bool, []string, api.DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
 	idRes := make(map[string]time.Time, len(bh.messageIDs))
 
 	for _, id := range bh.messageIDs {
 		idRes[id] = time.Time{}
 	}
 
-	return idRes, true, bh.deletedMsgIDs, api.DeltaUpdate{}, bh.messagesErr
+	return idRes, true, bh.deletedMsgIDs, pagers.DeltaUpdate{}, bh.messagesErr
 }
 
 func (bh mockBackupHandler) includeContainer(

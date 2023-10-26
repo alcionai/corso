@@ -5,12 +5,12 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 var (
-	_ api.Pager[any]      = &Pager[any]{}
-	_ api.DeltaPager[any] = &DeltaPager[any]{}
+	_ pagers.NonDeltaHandler[any] = &Pager[any]{}
+	_ pagers.DeltaHandler[any]    = &DeltaPager[any]{}
 )
 
 type DeltaNextLinkValues[T any] struct {
@@ -50,7 +50,7 @@ type Pager[T any] struct {
 
 func (p *Pager[T]) GetPage(
 	context.Context,
-) (api.NextLinkValuer[T], error) {
+) (pagers.NextLinkValuer[T], error) {
 	if len(p.ToReturn) <= p.getIdx {
 		return nil, clues.New("index out of bounds").
 			With("index", p.getIdx, "values", p.ToReturn)
@@ -81,7 +81,7 @@ type DeltaPager[T any] struct {
 
 func (p *DeltaPager[T]) GetPage(
 	context.Context,
-) (api.DeltaLinkValuer[T], error) {
+) (pagers.DeltaLinkValuer[T], error) {
 	if len(p.ToReturn) <= p.getIdx {
 		return nil, clues.New("index out of bounds").
 			With("index", p.getIdx, "values", p.ToReturn)

@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 type ItemInfoAugmenter interface {
@@ -65,7 +66,7 @@ type BackupHandler interface {
 }
 
 type NewDrivePagerer interface {
-	NewDrivePager(resourceOwner string, fields []string) api.Pager[models.Driveable]
+	NewDrivePager(resourceOwner string, fields []string) pagers.NonDeltaHandler[models.Driveable]
 }
 
 type GetItemPermissioner interface {
@@ -87,7 +88,7 @@ type EnumerateDriveItemsDeltaer interface {
 		ctx context.Context,
 		driveID, prevDeltaLink string,
 		cc api.CallConfig,
-	) api.NextPageResulter[models.DriveItemable]
+	) pagers.NextPageResulter[models.DriveItemable]
 }
 
 // ---------------------------------------------------------------------------

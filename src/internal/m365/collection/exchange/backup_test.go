@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -65,7 +66,7 @@ type (
 	mockGetterResults struct {
 		added    []string
 		removed  []string
-		newDelta api.DeltaUpdate
+		newDelta pagers.DeltaUpdate
 		err      error
 	}
 )
@@ -79,12 +80,12 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	map[string]time.Time,
 	bool,
 	[]string,
-	api.DeltaUpdate,
+	pagers.DeltaUpdate,
 	error,
 ) {
 	results, ok := mg.results[cID]
 	if !ok {
-		return nil, false, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
+		return nil, false, nil, pagers.DeltaUpdate{}, clues.New("mock not found for " + cID)
 	}
 
 	delta := results.newDelta
@@ -919,18 +920,18 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 		commonResult  = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
-			newDelta: api.DeltaUpdate{URL: "delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url"},
 		}
 		errorResult = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
-			newDelta: api.DeltaUpdate{URL: "delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url"},
 			err:      assert.AnError,
 		}
 		deletedInFlightResult = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
-			newDelta: api.DeltaUpdate{URL: "delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url"},
 			err:      graph.ErrDeletedInFlight,
 		}
 		container1 = mockContainer{
@@ -1235,12 +1236,12 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 		result1 = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
-			newDelta: api.DeltaUpdate{URL: "delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url"},
 		}
 		result2 = mockGetterResults{
 			added:    []string{"a4", "a5", "a6"},
 			removed:  []string{"r4", "r5", "r6"},
-			newDelta: api.DeltaUpdate{URL: "delta_url2"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url2"},
 		}
 
 		container1 = mockContainer{
@@ -1523,7 +1524,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 }
 
 func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_repeatedItems() {
-	newDelta := api.DeltaUpdate{URL: "delta_url"}
+	newDelta := pagers.DeltaUpdate{URL: "delta_url"}
 
 	table := []struct {
 		name          string
@@ -1693,11 +1694,11 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
 		commonResults = mockGetterResults{
 			added:    []string{"added"},
-			newDelta: api.DeltaUpdate{URL: "new_delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "new_delta_url"},
 		}
 		expiredResults = mockGetterResults{
 			added: []string{"added"},
-			newDelta: api.DeltaUpdate{
+			newDelta: pagers.DeltaUpdate{
 				URL:   "new_delta_url",
 				Reset: true,
 			},
