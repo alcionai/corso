@@ -47,7 +47,7 @@ type BackupBase struct {
 	ItemDataSnapshot *snapshot.Manifest
 	// Reasons contains the tenant, protected resource and service/categories that
 	// caused this snapshot to be selected as a base. It's possible some
-	// (tenant, protected resources will have a subset of the categories as
+	// (tenant, protected resources) will have a subset of the categories as
 	// the reason for selecting a snapshot. For example:
 	// 1. backup user1 email,contacts -> B1
 	// 2. backup user1 contacts -> B2 (uses B1 as base)

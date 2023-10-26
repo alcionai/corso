@@ -383,7 +383,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 				data: map[string]kopia.BackupBases{
 					ro: kopia.NewMockBackupBases().
 						WithMergeBases(baseBuilder(1).AppendReasons(
-							identity.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)).
+							identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
 							Build()),
 				},
 			},
@@ -420,7 +420,7 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			},
 			expectMans: kopia.NewMockBackupBases().
 				WithMergeBases(baseBuilder(1).AppendReasons(
-					identity.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)).
+					identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
 					Build()),
 		},
 		{
