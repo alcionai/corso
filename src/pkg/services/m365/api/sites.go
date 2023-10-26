@@ -84,7 +84,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 			return false
 		}
 
-		err := ValidateSite(item)
+		err := validateSite(item)
 		if errors.Is(err, ErrKnownSkippableCase) {
 			// safe to no-op
 			return true
@@ -259,10 +259,10 @@ var ErrKnownSkippableCase = clues.New("case is known and skippable")
 
 const PersonalSitePath = "sharepoint.com/personal/"
 
-// ValidateSite ensures the item is a Siteable, and contains the necessary
+// validateSite ensures the item is a Siteable, and contains the necessary
 // identifiers that we handle with all users.
 // returns the item as a Siteable model.
-func ValidateSite(item models.Siteable) error {
+func validateSite(item models.Siteable) error {
 	id := ptr.Val(item.GetId())
 	if len(id) == 0 {
 		return clues.New("missing ID")

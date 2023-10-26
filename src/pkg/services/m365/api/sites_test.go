@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"strings"
@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type SitesUnitSuite struct {
@@ -79,7 +78,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 			args: func() *models.Site {
 				s := models.NewSite()
 				s.SetId(ptr.To("id"))
-				s.SetWebUrl(ptr.To("https://" + api.PersonalSitePath + "/someone's/onedrive"))
+				s.SetWebUrl(ptr.To("https://" + PersonalSitePath + "/someone's/onedrive"))
 				return s
 			}(),
 			errCheck:       assert.Error,
@@ -95,11 +94,11 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := api.ValidateSite(test.args)
+			err := validateSite(test.args)
 			test.errCheck(t, err, clues.ToCore(err))
 
 			if test.errIsSkippable {
-				assert.ErrorIs(t, err, api.ErrKnownSkippableCase)
+				assert.ErrorIs(t, err, ErrKnownSkippableCase)
 			}
 		})
 	}
@@ -135,7 +134,7 @@ func (suite *SitesIntgSuite) TestGetAll() {
 	require.NotZero(t, len(sites), "must have at least one site")
 
 	for _, site := range sites {
-		assert.NotContains(t, ptr.Val(site.GetWebUrl()), api.PersonalSitePath, "must not return onedrive sites")
+		assert.NotContains(t, ptr.Val(site.GetWebUrl()), PersonalSitePath, "must not return onedrive sites")
 		assert.NotContains(t, ptr.Val(site.GetWebUrl()), "sharepoint.com/search", "must not return search site")
 	}
 }
@@ -233,7 +232,7 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			cc := api.CallConfig{
+			cc := CallConfig{
 				Expand: []string{"drive"},
 			}
 
@@ -257,7 +256,7 @@ func (suite *SitesIntgSuite) TestGetRoot() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	result, err := suite.its.ac.Sites().GetRoot(ctx, api.CallConfig{Expand: []string{"drive"}})
+	result, err := suite.its.ac.Sites().GetRoot(ctx, CallConfig{Expand: []string{"drive"}})
 	require.NoError(t, err)
 	require.NotNil(t, result, "must find the root site")
 	require.NotEmpty(t, ptr.Val(result.GetId()), "must have an id")
