@@ -66,9 +66,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = oneDriveServiceCommandCreateExamples
 
 		flags.AddUserFlag(c)
-		flags.AddFailFastFlag(c)
-		flags.AddDisableIncrementalsFlag(c)
-		flags.AddForceItemDataDownloadFlag(c)
+		flags.AddGenericBackupFlags(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
