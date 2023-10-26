@@ -22,7 +22,7 @@ import (
 const (
 	hideProgressBarsFN   = "hide-progress"
 	retainProgressBarsFN = "retain-progress"
-	progressBarWidth     = 32
+	progressBarWidth     = 40
 )
 
 func init() {
