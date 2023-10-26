@@ -68,6 +68,8 @@ type BackupResults struct {
 	stats.ReadWrites
 	stats.StartAndEndTime
 	BackupID model.StableID `json:"backupID"`
+	// keys are found in /pkg/count/keys.go
+	Counts map[string]int64 `json:"counts"`
 }
 
 // NewBackupOperation constructs and validates a backup operation.
@@ -202,6 +204,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	// for cases where we can't pass the counter down as part of a func call.
 	ctx = count.Embed(ctx, op.Counter)
 
 	// Check if the protected resource has the service enabled in order for us
@@ -237,6 +240,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
 
+	cats, err := op.Selectors.AllHumanPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for backup")
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.account.ID()),
@@ -244,6 +254,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"resource_owner_name", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
+		"categories", cats,
 		"incremental", op.incremental,
 		"disable_assist_backup", op.disableAssistBackup)
 
@@ -286,7 +297,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Persistence
 	// -----
 
-	err = op.persistResults(startTime, &opStats)
+	err = op.persistResults(startTime, &opStats, op.Counter)
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
 		return op.Errors.Failure()
@@ -339,6 +350,7 @@ func (op *BackupOperation) do(
 		Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
+	// TODO: this is outdated and needs to be removed.
 	opStats.resourceCount = 1
 
 	kbf, err := op.kopia.NewBaseFinder(op.store)
@@ -401,7 +413,8 @@ func (op *BackupOperation) do(
 		ssmb,
 		backupID,
 		op.incremental && canUseMetadata && canUsePreviousBackup,
-		op.Errors)
+		op.Errors,
+		op.Counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "persisting collection backups")
 	}
@@ -491,6 +504,7 @@ func consumeBackupCollections(
 	backupID model.StableID,
 	isIncremental bool,
 	errs *fault.Bus,
+	counter *count.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	ctx = clues.Add(
 		ctx,
@@ -513,7 +527,8 @@ func consumeBackupCollections(
 		pmr,
 		tags,
 		isIncremental,
-		errs)
+		errs,
+		counter)
 	if err != nil {
 		if kopiaStats == nil {
 			return nil, nil, nil, clues.Stack(err)
@@ -589,7 +604,7 @@ func getNewPathRefs(
 func mergeItemsFromBase(
 	ctx context.Context,
 	checkReason bool,
-	baseBackup kopia.BackupEntry,
+	baseBackup kopia.BackupBase,
 	detailsStore streamstore.Streamer,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
@@ -602,7 +617,7 @@ func mergeItemsFromBase(
 	)
 
 	// Can't be in the above block else it's counted as a redeclaration.
-	ctx = clues.Add(ctx, "base_backup_id", baseBackup.ID)
+	ctx = clues.Add(ctx, "base_backup_id", baseBackup.Backup.ID)
 
 	baseDeets, err := getDetailsFromBackup(
 		ctx,
@@ -650,7 +665,7 @@ func mergeItemsFromBase(
 			dataFromBackup,
 			entry,
 			rr,
-			baseBackup.Version)
+			baseBackup.Backup.Version)
 		if err != nil {
 			return manifestAddedEntries,
 				clues.Wrap(err, "getting updated info for entry").WithClues(ictx)
@@ -731,7 +746,7 @@ func mergeDetails(
 	// leaves us in a bit of a pickle if the user has run any concurrent backups
 	// with overlapping Reasons that turn into assist bases, but the modTime check
 	// in DetailsMergeInfoer should handle that.
-	for _, base := range bases.UniqueAssistBackups() {
+	for _, base := range bases.UniqueAssistBases() {
 		added, err := mergeItemsFromBase(
 			ctx,
 			false,
@@ -756,7 +771,7 @@ func mergeDetails(
 	// We do want to enable matching entries based on Reasons because we
 	// explicitly control which subtrees from the merge base backup are grafted
 	// onto the hierarchy for the currently running backup.
-	for _, base := range bases.Backups() {
+	for _, base := range bases.MergeBases() {
 		added, err := mergeItemsFromBase(
 			ctx,
 			true,
@@ -791,6 +806,7 @@ func mergeDetails(
 func (op *BackupOperation) persistResults(
 	started time.Time,
 	opStats *backupStats,
+	counter *count.Bus,
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
@@ -808,6 +824,10 @@ func (op *BackupOperation) persistResults(
 		return clues.New("backup persistence never completed")
 	}
 
+	// the summary of all counts collected during backup
+	op.Results.Counts = counter.TotalValues()
+
+	// legacy counting system
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsWritten = opStats.k.TotalFileCount

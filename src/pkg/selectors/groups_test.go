@@ -370,51 +370,67 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 		dspl   = details.SharePointLibrary
 	)
 
+	type expectation func(t assert.TestingT, value bool, msg string, args ...any) bool
+
 	table := []struct {
 		name     string
 		itemType details.ItemType
 		creator  string
 		scope    []GroupsScope
-		expect   assert.BoolAssertionFunc
+		expect   expectation
 	}{
-		{"file create after the epoch", dspl, user, sel.CreatedAfter(dttm.Format(epoch)), assert.True},
-		{"file create after the epoch wrong type", dgcm, user, sel.CreatedAfter(dttm.Format(epoch)), assert.False},
-		{"file create after now", dspl, user, sel.CreatedAfter(dttm.Format(now)), assert.False},
-		{"file create after later", dspl, user, sel.CreatedAfter(dttm.Format(future)), assert.False},
-		{"file create before future", dspl, user, sel.CreatedBefore(dttm.Format(future)), assert.True},
-		{"file create before future wrong type", dgcm, user, sel.CreatedBefore(dttm.Format(future)), assert.False},
-		{"file create before now", dspl, user, sel.CreatedBefore(dttm.Format(now)), assert.False},
-		{"file create before modification", dspl, user, sel.CreatedBefore(dttm.Format(mod)), assert.True},
-		{"file create before epoch", dspl, user, sel.CreatedBefore(dttm.Format(now)), assert.False},
-		{"file modified after the epoch", dspl, user, sel.ModifiedAfter(dttm.Format(epoch)), assert.True},
-		{"file modified after now", dspl, user, sel.ModifiedAfter(dttm.Format(now)), assert.True},
-		{"file modified after later", dspl, user, sel.ModifiedAfter(dttm.Format(future)), assert.False},
-		{"file modified before future", dspl, user, sel.ModifiedBefore(dttm.Format(future)), assert.True},
-		{"file modified before now", dspl, user, sel.ModifiedBefore(dttm.Format(now)), assert.False},
-		{"file modified before epoch", dspl, user, sel.ModifiedBefore(dttm.Format(now)), assert.False},
-		{"in library", dspl, user, sel.Library("included-library"), assert.True},
-		{"not in library", dspl, user, sel.Library("not-included-library"), assert.False},
-		{"library id", dspl, user, sel.Library("1234"), assert.True},
-		{"not library id", dspl, user, sel.Library("abcd"), assert.False},
+		{"file create after the epoch", dspl, user, sel.CreatedAfter(dttm.Format(epoch)), assert.Truef},
+		{"file create after the epoch wrong type", dgcm, user, sel.CreatedAfter(dttm.Format(epoch)), assert.Falsef},
+		{"file create after now", dspl, user, sel.CreatedAfter(dttm.Format(now)), assert.Falsef},
+		{"file create after later", dspl, user, sel.CreatedAfter(dttm.Format(future)), assert.Falsef},
+		{"file create before future", dspl, user, sel.CreatedBefore(dttm.Format(future)), assert.Truef},
+		{"file create before future wrong type", dgcm, user, sel.CreatedBefore(dttm.Format(future)), assert.Falsef},
+		{"file create before now", dspl, user, sel.CreatedBefore(dttm.Format(now)), assert.Falsef},
+		{"file create before modification", dspl, user, sel.CreatedBefore(dttm.Format(mod)), assert.Truef},
+		{"file create before epoch", dspl, user, sel.CreatedBefore(dttm.Format(now)), assert.Falsef},
+		{"file modified after the epoch", dspl, user, sel.ModifiedAfter(dttm.Format(epoch)), assert.Truef},
+		{"file modified after now", dspl, user, sel.ModifiedAfter(dttm.Format(now)), assert.Truef},
+		{"file modified after later", dspl, user, sel.ModifiedAfter(dttm.Format(future)), assert.Falsef},
+		{"file modified before future", dspl, user, sel.ModifiedBefore(dttm.Format(future)), assert.Truef},
+		{"file modified before now", dspl, user, sel.ModifiedBefore(dttm.Format(now)), assert.Falsef},
+		{"file modified before epoch", dspl, user, sel.ModifiedBefore(dttm.Format(now)), assert.Falsef},
+		{"in library", dspl, user, sel.Library("included-library"), assert.Truef},
+		{"not in library", dspl, user, sel.Library("not-included-library"), assert.Falsef},
+		{"site id", dspl, user, sel.Site("site1"), assert.Truef},
+		{"web url", dspl, user, sel.Site(user), assert.Truef},
+		{"library id", dspl, user, sel.Library("1234"), assert.Truef},
+		{"not library id", dspl, user, sel.Library("abcd"), assert.Falsef},
 
-		{"channel message created by", dgcm, user, sel.MessageCreator(user), assert.True},
-		{"channel message not created by", dgcm, user, sel.MessageCreator(host), assert.False},
-		{"chan msg create after the epoch", dgcm, user, sel.MessageCreatedAfter(dttm.Format(epoch)), assert.True},
-		{"chan msg create after the epoch wrong type", dspl, user, sel.MessageCreatedAfter(dttm.Format(epoch)), assert.False},
-		{"chan msg create after now", dgcm, user, sel.MessageCreatedAfter(dttm.Format(now)), assert.False},
-		{"chan msg create after later", dgcm, user, sel.MessageCreatedAfter(dttm.Format(future)), assert.False},
-		{"chan msg create before future", dgcm, user, sel.MessageCreatedBefore(dttm.Format(future)), assert.True},
-		{"chan msg create before future wrong type", dspl, user, sel.MessageCreatedBefore(dttm.Format(future)), assert.False},
-		{"chan msg create before now", dgcm, user, sel.MessageCreatedBefore(dttm.Format(now)), assert.False},
-		{"chan msg create before reply", dgcm, user, sel.MessageCreatedBefore(dttm.Format(mod)), assert.True},
-		{"chan msg create before reply wrong type", dspl, user, sel.MessageCreatedBefore(dttm.Format(mod)), assert.False},
-		{"chan msg create before epoch", dgcm, user, sel.MessageCreatedBefore(dttm.Format(now)), assert.False},
-		{"chan msg last reply after the epoch", dgcm, user, sel.MessageLastReplyAfter(dttm.Format(epoch)), assert.True},
-		{"chan msg last reply after now", dgcm, user, sel.MessageLastReplyAfter(dttm.Format(now)), assert.True},
-		{"chan msg last reply after later", dgcm, user, sel.MessageLastReplyAfter(dttm.Format(future)), assert.False},
-		{"chan msg last reply before future", dgcm, user, sel.MessageLastReplyBefore(dttm.Format(future)), assert.True},
-		{"chan msg last reply before now", dgcm, user, sel.MessageLastReplyBefore(dttm.Format(now)), assert.False},
-		{"chan msg last reply before epoch", dgcm, user, sel.MessageLastReplyBefore(dttm.Format(now)), assert.False},
+		{"channel message created by", dgcm, user, sel.MessageCreator(user), assert.Truef},
+		{"channel message not created by", dgcm, user, sel.MessageCreator(host), assert.Falsef},
+		{"chan msg create after the epoch", dgcm, user, sel.MessageCreatedAfter(dttm.Format(epoch)), assert.Truef},
+		{
+			"chan msg create after the epoch wrong type",
+			dspl,
+			user,
+			sel.MessageCreatedAfter(dttm.Format(epoch)),
+			assert.Falsef,
+		},
+		{"chan msg create after now", dgcm, user, sel.MessageCreatedAfter(dttm.Format(now)), assert.Falsef},
+		{"chan msg create after later", dgcm, user, sel.MessageCreatedAfter(dttm.Format(future)), assert.Falsef},
+		{"chan msg create before future", dgcm, user, sel.MessageCreatedBefore(dttm.Format(future)), assert.Truef},
+		{
+			"chan msg create before future wrong type",
+			dspl,
+			user,
+			sel.MessageCreatedBefore(dttm.Format(future)),
+			assert.Falsef,
+		},
+		{"chan msg create before now", dgcm, user, sel.MessageCreatedBefore(dttm.Format(now)), assert.Falsef},
+		{"chan msg create before reply", dgcm, user, sel.MessageCreatedBefore(dttm.Format(mod)), assert.Truef},
+		{"chan msg create before reply wrong type", dspl, user, sel.MessageCreatedBefore(dttm.Format(mod)), assert.Falsef},
+		{"chan msg create before epoch", dgcm, user, sel.MessageCreatedBefore(dttm.Format(now)), assert.Falsef},
+		{"chan msg last reply after the epoch", dgcm, user, sel.MessageLastReplyAfter(dttm.Format(epoch)), assert.Truef},
+		{"chan msg last reply after now", dgcm, user, sel.MessageLastReplyAfter(dttm.Format(now)), assert.Truef},
+		{"chan msg last reply after later", dgcm, user, sel.MessageLastReplyAfter(dttm.Format(future)), assert.Falsef},
+		{"chan msg last reply before future", dgcm, user, sel.MessageLastReplyBefore(dttm.Format(future)), assert.Truef},
+		{"chan msg last reply before now", dgcm, user, sel.MessageLastReplyBefore(dttm.Format(now)), assert.Falsef},
+		{"chan msg last reply before epoch", dgcm, user, sel.MessageLastReplyBefore(dttm.Format(now)), assert.Falsef},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -422,20 +438,31 @@ func (suite *GroupsSelectorSuite) TestGroupsScope_MatchesInfo() {
 
 			itemInfo := details.ItemInfo{
 				Groups: &details.GroupsInfo{
-					ItemType:       test.itemType,
-					WebURL:         test.creator,
-					MessageCreator: test.creator,
-					Created:        now,
-					Modified:       mod,
-					LastReplyAt:    mod,
-					DriveName:      "included-library",
-					DriveID:        "1234",
+					ItemType:  test.itemType,
+					Created:   now,
+					WebURL:    test.creator,
+					Modified:  mod,
+					DriveName: "included-library",
+					DriveID:   "1234",
+					SiteID:    "site1",
+					Message: details.ChannelMessageInfo{
+						Creator:   test.creator,
+						CreatedAt: now,
+					},
+					LastReply: details.ChannelMessageInfo{
+						CreatedAt: mod,
+					},
 				},
 			}
 
 			scopes := setScopesToDefault(test.scope)
 			for _, scope := range scopes {
-				test.expect(t, scope.matchesInfo(itemInfo))
+				test.expect(
+					t,
+					scope.matchesInfo(itemInfo),
+					"not matching:\nscope:\n\t%+v\ninfo:\n\t%+v",
+					scope,
+					itemInfo.Groups)
 			}
 		})
 	}
@@ -457,6 +484,7 @@ func (suite *GroupsSelectorSuite) TestCategory_PathType() {
 		{GroupsLibraryFolder, path.LibrariesCategory},
 		{GroupsLibraryItem, path.LibrariesCategory},
 		{GroupsInfoSiteLibraryDrive, path.LibrariesCategory},
+		{GroupsInfoSite, path.LibrariesCategory},
 	}
 	for _, test := range table {
 		suite.Run(test.cat.String(), func() {

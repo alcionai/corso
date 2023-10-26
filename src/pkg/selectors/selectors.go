@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -291,6 +292,32 @@ func (s Selector) PathCategories() (selectorPathCategories, error) {
 	}
 
 	return ro.PathCategories(), nil
+}
+
+// AllHumanPathCategories returns the sets of include and filter path categories
+// across all scope sets. This is good for logging because it returns the
+// string version of the categories and sorts the slice so the category set is
+// easier to search for or bin across multiple logs.
+func (s Selector) AllHumanPathCategories() ([]string, error) {
+	all, err := s.PathCategories()
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	allCats := map[path.CategoryType]string{}
+
+	for _, cat := range all.Includes {
+		allCats[cat] = cat.HumanString()
+	}
+
+	for _, cat := range all.Filters {
+		allCats[cat] = cat.HumanString()
+	}
+
+	res := maps.Values(allCats)
+	slices.Sort(res)
+
+	return res, nil
 }
 
 // Reasons returns a deduplicated set of the backup reasons produced

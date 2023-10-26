@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Fixed
+- SharePoint backup would fail if any site had an empty display name
+- Fix a bug with exports hanging post completion
+
+### Changed
+- Item Details formatting in Groups and Teams backups.  Pre-release users will need to run new backups to avoid data corruption.
+
+## [v0.14.2] (beta) - 2023-10-17
+
 ### Added
 - Skips graph calls for expired item download URLs.
 - Export operation now shows the stats at the end of the run
@@ -15,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Catch and report cases where a protected resource is locked out of access.  SDK consumers have a new errs sentinel that allows them to check for this case.
 - Fix a case where missing item LastModifiedTimes could cause incremental backups to fail.
 - Email size metadata was incorrectly set to the size of the last attachment.  Emails will now correctly report the size of the mail content plus the size of all attachments.
+- Improves the filtering capabilities for Groups restore and backup
+- Improve check to skip OneNote files that cannot be downloaded.
+- Fix Groups backup for non Team groups
+
+### Changed
+- Groups restore now expects the site whose backup we should restore
 
 ## [v0.14.0] (beta) - 2023-10-09
 

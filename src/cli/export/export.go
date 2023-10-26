@@ -104,9 +104,15 @@ func runExport(
 	// It would be better to give a progressbar than a spinner, but we
 	// have any way of knowing how many files are available as of now.
 	diskWriteComplete := observe.MessageWithCompletion(ctx, "Writing data to disk")
-	defer close(diskWriteComplete)
 
 	err = export.ConsumeExportCollections(ctx, exportLocation, expColl, eo.Errors)
+
+	// The progressbar has to be closed before we move on as the Infof
+	// below flushes progressbar to prevent clobbering the output and
+	// that causes the entire export operation to stall indefinitely.
+	// https://github.com/alcionai/corso/blob/8102523dc62c001b301cd2ab4e799f86146ab1a0/src/cli/print/print.go#L151
+	close(diskWriteComplete)
+
 	if err != nil {
 		return Only(ctx, err)
 	}

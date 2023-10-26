@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	gmock "github.com/alcionai/corso/src/internal/m365/graph/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
@@ -40,11 +41,34 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
+
+// ---------------------------------------------------------------------------
+// Gockable client
+// ---------------------------------------------------------------------------
+
+// GockClient produces a new exchange api client that can be
+// mocked using gock.
+func gockClient(creds account.M365Config) (api.Client, error) {
+	s, err := gmock.NewService(creds)
+	if err != nil {
+		return api.Client{}, err
+	}
+
+	li, err := gmock.NewService(creds, graph.NoTimeout())
+	if err != nil {
+		return api.Client{}, err
+	}
+
+	return api.Client{
+		Credentials: creds,
+		Stable:      s,
+		LargeItem:   li,
+	}, nil
+}
 
 // Does not use the tester.DefaultTestRestoreDestination syntax as some of these
 // items are created directly, not as a result of restoration, and we want to ensure
@@ -250,8 +274,8 @@ func checkBackupIsInManifests(
 
 			mans := bf.FindBases(ctx, []identity.Reasoner{r}, tags)
 			for _, man := range mans.MergeBases() {
-				bID, ok := man.GetTag(kopia.TagBackupID)
-				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
+				bID, ok := man.GetSnapshotTag(kopia.TagBackupID)
+				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ItemDataSnapshot.ID) {
 					continue
 				}
 
@@ -601,7 +625,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	its.ac, err = api.NewClient(creds, control.DefaultOptions())
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.gockAC, err = mock.NewClient(creds)
+	its.gockAC, err = gockClient(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.user = userIDs(t, tconfig.M365UserID(t), its.ac)

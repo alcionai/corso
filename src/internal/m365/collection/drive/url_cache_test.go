@@ -2,6 +2,7 @@ package drive
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -24,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -91,17 +94,23 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		api.NewDriveItem(newFolderName, true),
 		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
-
 	require.NotNil(t, newFolder.GetId())
 
 	nfid := ptr.Val(newFolder.GetId())
 
 	// Get the previous delta to feed into url cache
-	_, du, err := ac.EnumerateDriveItemsDelta(
+	pager := ac.EnumerateDriveItemsDelta(
 		ctx,
 		suite.driveID,
 		"",
-		api.URLCacheDriveItemProps())
+		api.CallConfig{
+			Select: api.URLCacheDriveItemProps(),
+		})
+
+	// normally we'd page through all the pager.NextPage
+	// enumerations first.  But Results should make sure
+	// that we don't need to drain lower-level communication first.
+	du, err := pager.Results()
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, du.URL)
 
@@ -175,7 +184,10 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	wg.Wait()
 
 	// Validate that exactly 1 delta query was made by url cache
-	require.Equal(t, 1, uc.deltaQueryCount)
+	require.Equal(t, 1, uc.refreshCount)
+
+	// Validate that the prev delta base stays the same
+	require.Equal(t, du.URL, uc.prevDelta)
 }
 
 // ---------------------------------------------------------------------------
@@ -196,16 +208,18 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 
 	table := []struct {
 		name              string
-		pagerItems        map[string][]models.DriveItemable
-		pagerErr          map[string]error
+		pages             []mock.NextPage
+		pagerErr          error
 		expectedItemProps map[string]itemProps
-		expectedErr       require.ErrorAssertionFunc
-		cacheAssert       func(*urlCache, time.Time)
+		expectErr         assert.ErrorAssertionFunc
+		expect            func(*testing.T, *urlCache, time.Time)
 	}{
 		{
 			name: "single item in cache",
-			pagerItems: map[string][]models.DriveItemable{
-				driveID: {fileItem("1", "file1", "root", "root", "https://dummy1.com", false)},
+			pages: []mock.NextPage{
+				{Items: []models.DriveItemable{
+					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+				}},
 			},
 			expectedItemProps: map[string]itemProps{
 				"1": {
@@ -213,22 +227,123 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 					isDeleted:   false,
 				},
 			},
-			expectedErr: require.NoError,
-			cacheAssert: func(uc *urlCache, startTime time.Time) {
-				require.Greater(suite.T(), uc.lastRefreshTime, startTime)
-				require.Equal(suite.T(), 1, uc.deltaQueryCount)
-				require.Equal(suite.T(), 1, len(uc.idToProps))
+			expectErr: assert.NoError,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Greater(t, uc.lastRefreshTime, startTime)
+				assert.Equal(t, 1, uc.refreshCount)
+				assert.Equal(t, 1, len(uc.idToProps))
 			},
 		},
 		{
 			name: "multiple items in cache",
-			pagerItems: map[string][]models.DriveItemable{
-				driveID: {
+			pages: []mock.NextPage{
+				{Items: []models.DriveItemable{
 					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
 					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
 					fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
 					fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
 					fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
+				}},
+			},
+			expectedItemProps: map[string]itemProps{
+				"1": {
+					downloadURL: "https://dummy1.com",
+					isDeleted:   false,
+				},
+				"2": {
+					downloadURL: "https://dummy2.com",
+					isDeleted:   false,
+				},
+				"3": {
+					downloadURL: "https://dummy3.com",
+					isDeleted:   false,
+				},
+				"4": {
+					downloadURL: "https://dummy4.com",
+					isDeleted:   false,
+				},
+				"5": {
+					downloadURL: "https://dummy5.com",
+					isDeleted:   false,
+				},
+			},
+			expectErr: assert.NoError,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Greater(t, uc.lastRefreshTime, startTime)
+				assert.Equal(t, 1, uc.refreshCount)
+				assert.Equal(t, 5, len(uc.idToProps))
+			},
+		},
+		{
+			name: "multiple pages",
+			pages: []mock.NextPage{
+				{Items: []models.DriveItemable{
+					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
+					fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
+				}},
+				{Items: []models.DriveItemable{
+					fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
+					fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
+				}},
+			},
+			expectedItemProps: map[string]itemProps{
+				"1": {
+					downloadURL: "https://dummy1.com",
+					isDeleted:   false,
+				},
+				"2": {
+					downloadURL: "https://dummy2.com",
+					isDeleted:   false,
+				},
+				"3": {
+					downloadURL: "https://dummy3.com",
+					isDeleted:   false,
+				},
+				"4": {
+					downloadURL: "https://dummy4.com",
+					isDeleted:   false,
+				},
+				"5": {
+					downloadURL: "https://dummy5.com",
+					isDeleted:   false,
+				},
+			},
+			expectErr: assert.NoError,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Greater(t, uc.lastRefreshTime, startTime)
+				assert.Equal(t, 1, uc.refreshCount)
+				assert.Equal(t, 5, len(uc.idToProps))
+			},
+		},
+		{
+			name: "multiple pages with resets",
+			pages: []mock.NextPage{
+				{
+					Items: []models.DriveItemable{
+						fileItem("-1", "file-1", "root", "root", "https://dummy-1.com", false),
+						fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+						fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
+						fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
+					},
+				},
+				{
+					Items: []models.DriveItemable{},
+					Reset: true,
+				},
+				{
+					Items: []models.DriveItemable{
+						fileItem("0", "file1", "root", "root", "https://dummy0.com", false),
+						fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+						fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
+						fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
+					},
+				},
+				{
+					Items: []models.DriveItemable{
+						fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
+						fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
+					},
 				},
 			},
 			expectedItemProps: map[string]itemProps{
@@ -253,23 +368,77 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 					isDeleted:   false,
 				},
 			},
-			expectedErr: require.NoError,
-			cacheAssert: func(uc *urlCache, startTime time.Time) {
-				require.Greater(suite.T(), uc.lastRefreshTime, startTime)
-				require.Equal(suite.T(), 1, uc.deltaQueryCount)
-				require.Equal(suite.T(), 5, len(uc.idToProps))
+			expectErr: assert.NoError,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Greater(t, uc.lastRefreshTime, startTime)
+				assert.Equal(t, 1, uc.refreshCount)
+				assert.Equal(t, 6, len(uc.idToProps))
+			},
+		},
+		{
+			name: "multiple pages with resets and combo reset+items in page",
+			pages: []mock.NextPage{
+				{
+					Items: []models.DriveItemable{
+						fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+						fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
+						fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
+					},
+				},
+				{
+					Items: []models.DriveItemable{
+						fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+						fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
+						fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
+					},
+					Reset: true,
+				},
+				{
+					Items: []models.DriveItemable{
+						fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
+						fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
+					},
+				},
+			},
+			expectedItemProps: map[string]itemProps{
+				"1": {
+					downloadURL: "https://dummy1.com",
+					isDeleted:   false,
+				},
+				"2": {
+					downloadURL: "https://dummy2.com",
+					isDeleted:   false,
+				},
+				"3": {
+					downloadURL: "https://dummy3.com",
+					isDeleted:   false,
+				},
+				"4": {
+					downloadURL: "https://dummy4.com",
+					isDeleted:   false,
+				},
+				"5": {
+					downloadURL: "https://dummy5.com",
+					isDeleted:   false,
+				},
+			},
+			expectErr: assert.NoError,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Greater(t, uc.lastRefreshTime, startTime)
+				assert.Equal(t, 1, uc.refreshCount)
+				assert.Equal(t, 5, len(uc.idToProps))
 			},
 		},
 		{
 			name: "duplicate items with potentially new urls",
-			pagerItems: map[string][]models.DriveItemable{
-				driveID: {
+			pages: []mock.NextPage{
+				{Items: []models.DriveItemable{
 					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
 					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
 					fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
 					fileItem("1", "file1", "root", "root", "https://test1.com", false),
 					fileItem("2", "file2", "root", "root", "https://test2.com", false),
-				},
+				}},
 			},
 			expectedItemProps: map[string]itemProps{
 				"1": {
@@ -285,21 +454,21 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 					isDeleted:   false,
 				},
 			},
-			expectedErr: require.NoError,
-			cacheAssert: func(uc *urlCache, startTime time.Time) {
-				require.Greater(suite.T(), uc.lastRefreshTime, startTime)
-				require.Equal(suite.T(), 1, uc.deltaQueryCount)
-				require.Equal(suite.T(), 3, len(uc.idToProps))
+			expectErr: assert.NoError,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Greater(t, uc.lastRefreshTime, startTime)
+				assert.Equal(t, 1, uc.refreshCount)
+				assert.Equal(t, 3, len(uc.idToProps))
 			},
 		},
 		{
 			name: "deleted items",
-			pagerItems: map[string][]models.DriveItemable{
-				driveID: {
+			pages: []mock.NextPage{
+				{Items: []models.DriveItemable{
 					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
 					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
 					fileItem("1", "file1", "root", "root", "https://dummy1.com", true),
-				},
+				}},
 			},
 			expectedItemProps: map[string]itemProps{
 				"1": {
@@ -311,111 +480,120 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 					isDeleted:   false,
 				},
 			},
-			expectedErr: require.NoError,
-			cacheAssert: func(uc *urlCache, startTime time.Time) {
-				require.Greater(suite.T(), uc.lastRefreshTime, startTime)
-				require.Equal(suite.T(), 1, uc.deltaQueryCount)
-				require.Equal(suite.T(), 2, len(uc.idToProps))
+			expectErr: assert.NoError,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Greater(t, uc.lastRefreshTime, startTime)
+				assert.Equal(t, 1, uc.refreshCount)
+				assert.Equal(t, 2, len(uc.idToProps))
 			},
 		},
 		{
 			name: "item not found in cache",
-			pagerItems: map[string][]models.DriveItemable{
-				driveID: {fileItem("1", "file1", "root", "root", "https://dummy1.com", false)},
+			pages: []mock.NextPage{
+				{Items: []models.DriveItemable{
+					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
+				}},
 			},
 			expectedItemProps: map[string]itemProps{
 				"2": {},
 			},
-			expectedErr: require.Error,
-			cacheAssert: func(uc *urlCache, startTime time.Time) {
-				require.Greater(suite.T(), uc.lastRefreshTime, startTime)
-				require.Equal(suite.T(), 1, uc.deltaQueryCount)
-				require.Equal(suite.T(), 1, len(uc.idToProps))
+			expectErr: assert.Error,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Greater(t, uc.lastRefreshTime, startTime)
+				assert.Equal(t, 1, uc.refreshCount)
+				assert.Equal(t, 1, len(uc.idToProps))
 			},
 		},
 		{
-			name:       "delta query error",
-			pagerItems: map[string][]models.DriveItemable{},
-			pagerErr: map[string]error{
-				driveID: errors.New("delta query error"),
+			name: "delta query error",
+			pages: []mock.NextPage{
+				{Items: []models.DriveItemable{}},
 			},
+			pagerErr: errors.New("delta query error"),
 			expectedItemProps: map[string]itemProps{
 				"1": {},
 				"2": {},
 			},
-			expectedErr: require.Error,
-			cacheAssert: func(uc *urlCache, _ time.Time) {
-				require.Equal(suite.T(), time.Time{}, uc.lastRefreshTime)
-				require.Equal(suite.T(), 0, uc.deltaQueryCount)
-				require.Equal(suite.T(), 0, len(uc.idToProps))
+			expectErr: assert.Error,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Equal(t, time.Time{}, uc.lastRefreshTime)
+				assert.NotZero(t, uc.refreshCount)
+				assert.Equal(t, 0, len(uc.idToProps))
 			},
 		},
 
 		{
 			name: "folder item",
-			pagerItems: map[string][]models.DriveItemable{
-				driveID: {
+			pages: []mock.NextPage{
+				{Items: []models.DriveItemable{
 					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
 					driveItem("2", "folder2", "root", "root", false, true, false),
-				},
+				}},
 			},
 			expectedItemProps: map[string]itemProps{
 				"2": {},
 			},
-			expectedErr: require.Error,
-			cacheAssert: func(uc *urlCache, startTime time.Time) {
-				require.Greater(suite.T(), uc.lastRefreshTime, startTime)
-				require.Equal(suite.T(), 1, uc.deltaQueryCount)
-				require.Equal(suite.T(), 1, len(uc.idToProps))
+			expectErr: assert.Error,
+			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
+				assert.Greater(t, uc.lastRefreshTime, startTime)
+				assert.Equal(t, 1, uc.refreshCount)
+				assert.Equal(t, 1, len(uc.idToProps))
 			},
 		},
 	}
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
-			ctx, flush := tester.NewContext(t)
-			defer flush()
+			for _, numConcurrentReqs := range []int{1, 2, 32} {
+				crTestName := fmt.Sprintf("%d_concurrent_reqs", numConcurrentReqs)
+				suite.Run(crTestName, func() {
+					t := suite.T()
 
-			medi := mock.EnumeratesDriveItemsDelta{
-				Items:       test.pagerItems,
-				Err:         test.pagerErr,
-				DeltaUpdate: map[string]api.DeltaUpdate{driveID: {URL: deltaString}},
-			}
+					ctx, flush := tester.NewContext(t)
+					defer flush()
 
-			cache, err := newURLCache(
-				driveID,
-				"",
-				1*time.Hour,
-				&medi,
-				fault.New(true))
-
-			require.NoError(suite.T(), err, clues.ToCore(err))
-
-			numConcurrentReq := 100
-			var wg sync.WaitGroup
-			wg.Add(numConcurrentReq)
-
-			startTime := time.Now()
-
-			for i := 0; i < numConcurrentReq; i++ {
-				go func() {
-					defer wg.Done()
-
-					for id, expected := range test.expectedItemProps {
-						time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
-
-						props, err := cache.getItemProperties(ctx, id)
-
-						test.expectedErr(suite.T(), err, clues.ToCore(err))
-						require.Equal(suite.T(), expected, props)
+					medi := mock.EnumerateItemsDeltaByDrive{
+						DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+							driveID: {
+								Pages:       test.pages,
+								Err:         test.pagerErr,
+								DeltaUpdate: pagers.DeltaUpdate{URL: deltaString},
+							},
+						},
 					}
-				}()
+
+					cache, err := newURLCache(
+						driveID,
+						"",
+						1*time.Hour,
+						&medi,
+						fault.New(true))
+					require.NoError(t, err, clues.ToCore(err))
+
+					var wg sync.WaitGroup
+					wg.Add(numConcurrentReqs)
+
+					startTime := time.Now()
+
+					for i := 0; i < numConcurrentReqs; i++ {
+						go func(ti int) {
+							defer wg.Done()
+
+							for id, expected := range test.expectedItemProps {
+								time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+
+								props, err := cache.getItemProperties(ctx, id)
+								test.expectErr(t, err, clues.ToCore(err))
+								assert.Equal(t, expected, props)
+							}
+						}(i)
+					}
+
+					wg.Wait()
+
+					test.expect(t, cache, startTime)
+				})
 			}
-
-			wg.Wait()
-
-			test.cacheAssert(cache, startTime)
 		})
 	}
 }
@@ -432,7 +610,7 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 		driveID,
 		"",
 		refreshInterval,
-		&mock.EnumeratesDriveItemsDelta{},
+		&mock.EnumerateItemsDeltaByDrive{},
 		fault.New(true))
 
 	require.NoError(t, err, clues.ToCore(err))
@@ -456,44 +634,44 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 
 func (suite *URLCacheUnitSuite) TestNewURLCache() {
 	table := []struct {
-		name        string
-		driveID     string
-		refreshInt  time.Duration
-		itemPager   EnumerateDriveItemsDeltaer
-		errors      *fault.Bus
-		expectedErr require.ErrorAssertionFunc
+		name       string
+		driveID    string
+		refreshInt time.Duration
+		itemPager  EnumerateDriveItemsDeltaer
+		errors     *fault.Bus
+		expectErr  require.ErrorAssertionFunc
 	}{
 		{
-			name:        "invalid driveID",
-			driveID:     "",
-			refreshInt:  1 * time.Hour,
-			itemPager:   &mock.EnumeratesDriveItemsDelta{},
-			errors:      fault.New(true),
-			expectedErr: require.Error,
+			name:       "invalid driveID",
+			driveID:    "",
+			refreshInt: 1 * time.Hour,
+			itemPager:  &mock.EnumerateItemsDeltaByDrive{},
+			errors:     fault.New(true),
+			expectErr:  require.Error,
 		},
 		{
-			name:        "invalid refresh interval",
-			driveID:     "drive1",
-			refreshInt:  100 * time.Millisecond,
-			itemPager:   &mock.EnumeratesDriveItemsDelta{},
-			errors:      fault.New(true),
-			expectedErr: require.Error,
+			name:       "invalid refresh interval",
+			driveID:    "drive1",
+			refreshInt: 100 * time.Millisecond,
+			itemPager:  &mock.EnumerateItemsDeltaByDrive{},
+			errors:     fault.New(true),
+			expectErr:  require.Error,
 		},
 		{
-			name:        "invalid item enumerator",
-			driveID:     "drive1",
-			refreshInt:  1 * time.Hour,
-			itemPager:   nil,
-			errors:      fault.New(true),
-			expectedErr: require.Error,
+			name:       "invalid item enumerator",
+			driveID:    "drive1",
+			refreshInt: 1 * time.Hour,
+			itemPager:  nil,
+			errors:     fault.New(true),
+			expectErr:  require.Error,
 		},
 		{
-			name:        "valid",
-			driveID:     "drive1",
-			refreshInt:  1 * time.Hour,
-			itemPager:   &mock.EnumeratesDriveItemsDelta{},
-			errors:      fault.New(true),
-			expectedErr: require.NoError,
+			name:       "valid",
+			driveID:    "drive1",
+			refreshInt: 1 * time.Hour,
+			itemPager:  &mock.EnumerateItemsDeltaByDrive{},
+			errors:     fault.New(true),
+			expectErr:  require.NoError,
 		},
 	}
 
@@ -507,7 +685,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 				test.itemPager,
 				test.errors)
 
-			test.expectedErr(t, err, clues.ToCore(err))
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }

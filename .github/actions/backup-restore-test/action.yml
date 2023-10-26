@@ -7,6 +7,9 @@ inputs:
   kind:
     description: Kind of test
     required: true
+  backup-id:
+    description: Backup to retrieve data out of
+    required: false
   backup-args:
     description: Arguments to pass for backup
     required: false
@@ -15,12 +18,9 @@ inputs:
     description: Arguments to pass for restore; restore is skipped when missing.
     required: false
     default: ""
-  test-folder:
+  restore-container:
     description: Folder to use for testing
     required: true
-  base-backup:
-    description: Base backup to use for testing
-    required: false
   log-dir:
     description: Folder to store test log files
     required: true
@@ -49,7 +49,7 @@ runs:
         echo Backup ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-${{ inputs.service }}-${{inputs.kind }}.log
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-backup-${{inputs.kind }}.log
         ./corso backup create '${{ inputs.service }}' \
             --no-stats --hide-progress --json \
             ${{ inputs.backup-args }} |
@@ -68,7 +68,7 @@ runs:
         echo Restore ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-restore-${{inputs.kind }}.log
         ./corso restore '${{ inputs.service }}' \
             --no-stats \
             --hide-progress \
@@ -88,16 +88,14 @@ runs:
       shell: bash
       working-directory: src
       env:
-        SANITY_TEST_KIND: restore
-        SANITY_TEST_FOLDER: ${{ steps.restore.outputs.result }}
-        SANITY_TEST_SERVICE: ${{ inputs.service }}
-        SANITY_TEST_DATA: ${{ inputs.test-folder }}
-        SANITY_BASE_BACKUP: ${{ inputs.base-backup }}
+        SANITY_TEST_RESTORE_CONTAINER: ${{ steps.restore.outputs.result }}
+        SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
+        SANITY_BACKUP_ID: ${{ inputs.backup-id }}
       run: |
         echo "---------------------------"
         echo Sanity Test Restore ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-validate-${{inputs.kind }}.log
         ./sanity-test restore ${{ inputs.service }}
 
     - name: Export ${{ inputs.service }} ${{ inputs.kind }}
@@ -110,7 +108,7 @@ runs:
         echo Export ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-restore-${{inputs.kind }}.log
         ./corso export '${{ inputs.service }}' \
             /tmp/export-${{ inputs.service }}-${{inputs.kind }} \
             --no-stats \
@@ -125,16 +123,14 @@ runs:
       shell: bash
       working-directory: src
       env:
-        SANITY_TEST_KIND: export
-        SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
-        SANITY_TEST_SERVICE: ${{ inputs.service }}
-        SANITY_TEST_DATA: ${{ inputs.test-folder }}
-        SANITY_BASE_BACKUP: ${{ inputs.base-backup }}
+        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
+        SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
+        SANITY_BACKUP_ID: ${{ inputs.backup-id }}
       run: |
         echo "---------------------------"
         echo Sanity-Test Export ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-validate-${{inputs.kind }}.log
         ./sanity-test export ${{ inputs.service }}
 
     - name: Export archive ${{ inputs.service }} ${{ inputs.kind }}
@@ -147,7 +143,7 @@ runs:
         echo Export Archive ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-restore-${{ inputs.service }}-${{inputs.kind }}.log
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-restore-${{inputs.kind }}.log
         ./corso export '${{ inputs.service }}' \
             /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive \
             --no-stats \
@@ -165,16 +161,14 @@ runs:
       shell: bash
       working-directory: src
       env:
-        SANITY_TEST_KIND: export
-        SANITY_TEST_FOLDER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
-        SANITY_TEST_SERVICE: ${{ inputs.service }}
-        SANITY_TEST_DATA: ${{ inputs.test-folder }}
-        SANITY_BASE_BACKUP: ${{ inputs.base-backup }}
+        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
+        SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
+        SANITY_BACKUP_ID: ${{ inputs.backup-id }}
       run: |
         echo "---------------------------"
         echo Sanity-Test Export Archive ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-validate-${{ inputs.service }}-${{inputs.kind }}.log
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-validate-${{inputs.kind }}.log
         ./sanity-test export ${{ inputs.service }}
 
     - name: List ${{ inputs.service }} ${{ inputs.kind }}
@@ -185,7 +179,7 @@ runs:
         echo Backup list ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-${{ inputs.service }}-${{inputs.kind }}.log
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-${{ inputs.service }}-list-${{inputs.kind }}.log
         ./corso backup list ${{ inputs.service }} \
           --no-stats \
           --hide-progress \
@@ -206,7 +200,7 @@ runs:
         echo Backup List w/ Backup ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-single-${{ inputs.service }}-${{inputs.kind }}.log
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-${{ inputs.service }}-single-${{inputs.kind }}.log
         ./corso backup list ${{ inputs.service }} \
           --no-stats \
           --hide-progress \

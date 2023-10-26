@@ -176,7 +176,7 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
+	base kopia.BackupBase,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	var (
@@ -184,12 +184,12 @@ func (ctrl *Controller) GetMetadataPaths(
 		err   error
 	)
 
-	for _, reason := range man.Reasons {
+	for _, reason := range base.Reasons {
 		filePaths := [][]string{}
 
 		switch true {
 		case reason.Service() == path.GroupsService && reason.Category() == path.LibrariesCategory:
-			filePaths, err = groups.MetadataFiles(ctx, reason, r, man.ID, errs)
+			filePaths, err = groups.MetadataFiles(ctx, reason, r, base.ItemDataSnapshot.ID, errs)
 			if err != nil {
 				return nil, err
 			}

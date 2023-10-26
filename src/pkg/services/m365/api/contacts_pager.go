@@ -10,15 +10,15 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
 // container pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.ContactFolderable] = &contactsFoldersPageCtrl{}
+var _ pagers.NonDeltaHandler[models.ContactFolderable] = &contactsFoldersPageCtrl{}
 
 type contactsFoldersPageCtrl struct {
 	gs      graph.Servicer
@@ -30,7 +30,7 @@ func (c Contacts) NewContactFoldersPager(
 	userID, baseContainerID string,
 	immutableIDs bool,
 	selectProps ...string,
-) Pager[models.ContactFolderable] {
+) pagers.NonDeltaHandler[models.ContactFolderable] {
 	options := &users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
 		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 		QueryParameters: &users.ItemContactFoldersItemChildFoldersRequestBuilderGetQueryParameters{},
@@ -54,7 +54,7 @@ func (c Contacts) NewContactFoldersPager(
 
 func (p *contactsFoldersPageCtrl) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.ContactFolderable], error) {
+) (pagers.NextLinkValuer[models.ContactFolderable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -67,49 +67,21 @@ func (p *contactsFoldersPageCtrl) ValidModTimes() bool {
 	return true
 }
 
-// EnumerateContainers iterates through all of the users current
-// contacts folders, transforming each to a graph.CacheFolder, and calling
-// fn(cf).
-// Contact folders are represented in their current state, and do
-// not contain historical data.
+// EnumerateContainers retrieves all of the user's current contact folders.
 func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseContainerID string,
 	immutableIDs bool,
-	fn func(graph.CachedContainer) error,
-	errs *fault.Bus,
-) error {
-	var (
-		el  = errs.Local()
-		pgr = c.NewContactFoldersPager(userID, baseContainerID, immutableIDs)
-	)
-
-	containers, err := enumerateItems(ctx, pgr)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	for _, c := range containers {
-		if el.Failure() != nil {
-			break
-		}
-
-		gncf := graph.NewCacheFolder(c, nil, nil)
-
-		if err := fn(&gncf); err != nil {
-			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
-			continue
-		}
-	}
-
-	return el.Failure()
+) ([]models.ContactFolderable, error) {
+	containers, err := pagers.BatchEnumerateItems(ctx, c.NewContactFoldersPager(userID, baseContainerID, immutableIDs))
+	return containers, graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.Contactable] = &contactsPageCtrl{}
+var _ pagers.NonDeltaHandler[models.Contactable] = &contactsPageCtrl{}
 
 type contactsPageCtrl struct {
 	gs      graph.Servicer
@@ -121,7 +93,7 @@ func (c Contacts) NewContactsPager(
 	userID, containerID string,
 	immutableIDs bool,
 	selectProps ...string,
-) Pager[models.Contactable] {
+) pagers.NonDeltaHandler[models.Contactable] {
 	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
 		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{},
@@ -145,7 +117,7 @@ func (c Contacts) NewContactsPager(
 
 func (p *contactsPageCtrl) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.Contactable], error) {
+) (pagers.NextLinkValuer[models.Contactable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -165,7 +137,7 @@ func (c Contacts) GetItemsInContainerByCollisionKey(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewContactsPager(userID, containerID, false, contactCollisionKeyProps()...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating contacts")
 	}
@@ -186,7 +158,7 @@ func (c Contacts) GetItemIDsInContainer(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewContactsPager(userID, containerID, false, idAnd()...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating contacts")
 	}
@@ -204,7 +176,7 @@ func (c Contacts) GetItemIDsInContainer(
 // delta item ID pager
 // ---------------------------------------------------------------------------
 
-var _ DeltaPager[models.Contactable] = &contactDeltaPager{}
+var _ pagers.DeltaHandler[models.Contactable] = &contactDeltaPager{}
 
 type contactDeltaPager struct {
 	gs          graph.Servicer
@@ -235,7 +207,7 @@ func (c Contacts) NewContactsDeltaPager(
 	userID, containerID, prevDeltaLink string,
 	immutableIDs bool,
 	selectProps ...string,
-) DeltaPager[models.Contactable] {
+) pagers.DeltaHandler[models.Contactable] {
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		// do NOT set Top.  It limits the total items received.
 		QueryParameters: &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{},
@@ -258,7 +230,7 @@ func (c Contacts) NewContactsDeltaPager(
 
 func (p *contactDeltaPager) GetPage(
 	ctx context.Context,
-) (DeltaLinkValuer[models.Contactable], error) {
+) (pagers.DeltaLinkValuer[models.Contactable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -280,7 +252,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 	userID, containerID, prevDeltaLink string,
 	immutableIDs bool,
 	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
 	ctx = clues.Add(
 		ctx,
 		"data_category", path.ContactsCategory,
@@ -299,11 +271,11 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		immutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
-	return getAddedAndRemovedItemIDs[models.Contactable](
+	return pagers.GetAddedAndRemovedItemIDs[models.Contactable](
 		ctx,
 		pager,
 		deltaPager,
 		prevDeltaLink,
 		canMakeDeltaQueries,
-		addedAndRemovedByAddtlData[models.Contactable])
+		pagers.AddedAndRemovedByAddtlData[models.Contactable])
 }

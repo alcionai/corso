@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ChannelsPagerIntgSuite struct {
@@ -94,7 +93,7 @@ func (suite *ChannelsPagerIntgSuite) TestEnumerateChannelMessages() {
 
 func testEnumerateChannelMessageReplies(
 	t *testing.T,
-	ac api.Channels,
+	ac Channels,
 	groupID, channelID, messageID string,
 ) {
 	ctx, flush := tester.NewContext(t)
@@ -107,14 +106,16 @@ func testEnumerateChannelMessageReplies(
 	require.NoError(t, err, clues.ToCore(err))
 
 	var (
-		lastReply time.Time
-		replyIDs  = map[string]struct{}{}
+		lastReply   models.ChatMessageable
+		lastReplyAt time.Time
+		replyIDs    = map[string]struct{}{}
 	)
 
 	for _, r := range replies {
 		cdt := ptr.Val(r.GetCreatedDateTime())
-		if cdt.After(lastReply) {
-			lastReply = cdt
+		if cdt.After(lastReplyAt) {
+			lastReply = r
+			lastReplyAt = cdt
 		}
 
 		replyIDs[ptr.Val(r.GetId())] = struct{}{}
@@ -123,10 +124,20 @@ func testEnumerateChannelMessageReplies(
 	assert.Equal(t, messageID, ptr.Val(msg.GetId()))
 	assert.Equal(t, channelID, ptr.Val(msg.GetChannelIdentity().GetChannelId()))
 	assert.Equal(t, groupID, ptr.Val(msg.GetChannelIdentity().GetTeamId()))
-	assert.Equal(t, len(replies), info.ReplyCount)
-	assert.Equal(t, msg.GetFrom().GetUser().GetDisplayName(), info.MessageCreator)
-	assert.Equal(t, lastReply, info.LastReplyAt)
-	assert.Equal(t, str.Preview(ptr.Val(msg.GetBody().GetContent()), 128), info.MessagePreview)
+	// message
+	assert.Equal(t, len(msg.GetAttachments()), len(info.Message.AttachmentNames))
+	assert.Equal(t, len(replies), info.Message.ReplyCount)
+	assert.Equal(t, lastReplyAt, info.Message.CreatedAt)
+	assert.Equal(t, msg.GetFrom().GetUser().GetDisplayName(), info.Message.Creator)
+	assert.Equal(t, str.Preview(ptr.Val(msg.GetBody().GetContent()), 128), info.Message.Preview)
+	assert.Equal(t, len(ptr.Val(msg.GetBody().GetContent())), info.Message.Size)
+	// last reply
+	assert.Equal(t, len(lastReply.GetAttachments()), len(info.LastReply.AttachmentNames))
+	assert.Zero(t, info.LastReply.ReplyCount)
+	assert.Equal(t, lastReplyAt, info.LastReply.CreatedAt)
+	assert.Equal(t, lastReply.GetFrom().GetUser().GetDisplayName(), info.LastReply.Creator)
+	assert.Equal(t, str.Preview(ptr.Val(lastReply.GetBody().GetContent()), 128), info.LastReply.Preview)
+	assert.Equal(t, len(ptr.Val(lastReply.GetBody().GetContent())), info.LastReply.Size)
 
 	msgReplyIDs := map[string]struct{}{}
 
@@ -196,7 +207,7 @@ func (suite *ChannelsPagerIntgSuite) TestFilterOutSystemMessages() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), api.FilterOutSystemMessages(test.cm))
+			test.expect(suite.T(), filterOutSystemMessages(test.cm))
 		})
 	}
 }

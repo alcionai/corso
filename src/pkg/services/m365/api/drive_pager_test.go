@@ -1,9 +1,10 @@
-package api_test
+package api
 
 import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -11,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type DrivePagerIntgSuite struct {
@@ -69,7 +69,7 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemsInContainerByCollisionKey()
 			require.NoError(t, err, clues.ToCore(err))
 
 			ims := items.GetValue()
-			expect := make([]api.DriveItemIDType, 0, len(ims))
+			expect := make([]DriveItemIDType, 0, len(ims))
 
 			assert.NotEmptyf(
 				t,
@@ -143,7 +143,7 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemIDsInContainer() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			igv := items.GetValue()
-			expect := map[string]api.DriveItemIDType{}
+			expect := map[string]DriveItemIDType{}
 
 			assert.NotEmptyf(
 				t,
@@ -152,7 +152,7 @@ func (suite *DrivePagerIntgSuite) TestDrives_GetItemIDsInContainer() {
 				suite.its.user.id, test.driveID, test.rootFolderID)
 
 			for _, itm := range igv {
-				expect[ptr.Val(itm.GetId())] = api.DriveItemIDType{
+				expect[ptr.Val(itm.GetId())] = DriveItemIDType{
 					ItemID:   ptr.Val(itm.GetId()),
 					IsFolder: itm.GetFolder() != nil,
 				}
@@ -185,11 +185,28 @@ func (suite *DrivePagerIntgSuite) TestEnumerateDriveItems() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	items, du, err := suite.its.
+	items := []models.DriveItemable{}
+
+	pager := suite.its.
 		ac.
 		Drives().
-		EnumerateDriveItemsDelta(ctx, suite.its.user.driveID, "", api.DefaultDriveItemProps())
+		EnumerateDriveItemsDelta(
+			ctx,
+			suite.its.user.driveID,
+			"",
+			CallConfig{
+				Select: DefaultDriveItemProps(),
+			})
+
+	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
+		items = append(items, page...)
+
+		assert.False(t, reset, "should not reset")
+	}
+
+	du, err := pager.Results()
+
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, items, "no items found in user's drive")
+	require.NotEmpty(t, items, "should find items in user's drive")
 	assert.NotEmpty(t, du.URL, "should have a delta link")
 }

@@ -52,6 +52,7 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 					[]string{
 						"--" + flags.RunModeFN, flags.RunModeFlagTest,
 						"--" + flags.BackupFN, flagsTD.BackupInput,
+						"--" + flags.SiteFN, flagsTD.SiteInput,
 						"--" + flags.LibraryFN, flagsTD.LibraryInput,
 						"--" + flags.FileFN, flagsTD.FlgInputs(flagsTD.FileNameInput),
 						"--" + flags.FolderFN, flagsTD.FlgInputs(flagsTD.FolderPathInput),

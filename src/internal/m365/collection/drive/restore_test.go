@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 type RestoreUnitSuite struct {
@@ -423,7 +424,7 @@ func (m *mockGDPARF) GetRootFolder(
 func (m *mockGDPARF) NewDrivePager(
 	string,
 	[]string,
-) api.Pager[models.Driveable] {
+) pagers.NonDeltaHandler[models.Driveable] {
 	return m.pager
 }
 

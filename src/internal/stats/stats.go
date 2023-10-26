@@ -23,12 +23,19 @@ type StartAndEndTime struct {
 	CompletedAt time.Time `json:"completedAt"`
 }
 
+type Counter func(numBytes int64)
+
 type ByteCounter struct {
 	NumBytes int64
+	Counter  Counter
 }
 
 func (bc *ByteCounter) Count(i int64) {
 	atomic.AddInt64(&bc.NumBytes, i)
+
+	if bc.Counter != nil {
+		bc.Counter(i)
+	}
 }
 
 type SkippedCounts struct {

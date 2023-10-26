@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ContactsPagerIntgSuite struct {
@@ -56,7 +55,7 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsInContainerByCollision
 	expectM := map[string]struct{}{}
 
 	for _, c := range cs {
-		expectM[api.ContactCollisionKey(c)] = struct{}{}
+		expectM[ContactCollisionKey(c)] = struct{}{}
 	}
 
 	expect := maps.Keys(expectM)
@@ -91,7 +90,7 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsIDsInContainer() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	container, err := ac.GetContainerByID(ctx, suite.its.user.id, api.DefaultContacts)
+	container, err := ac.GetContainerByID(ctx, suite.its.user.id, DefaultContacts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	msgs, err := ac.Stable.
@@ -112,7 +111,7 @@ func (suite *ContactsPagerIntgSuite) TestContacts_GetItemsIDsInContainer() {
 	}
 
 	results, err := suite.its.ac.Contacts().
-		GetItemIDsInContainer(ctx, suite.its.user.id, api.DefaultContacts)
+		GetItemIDsInContainer(ctx, suite.its.user.id, DefaultContacts)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(results), "requires at least one result")
 	require.Equal(t, len(expect), len(results), "must have same count of items")

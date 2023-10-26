@@ -3,7 +3,6 @@ package selectors
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/alcionai/clues"
 
@@ -259,6 +258,21 @@ func (s *groups) ChannelMessages(channels, messages []string, opts ...option) []
 			set(GroupsChannel, channels, opts...))
 
 	return scopes
+}
+
+// Sites produces one or more Groups site scopes, where the site
+// matches upon a given site by ID or URL.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (s *groups) Site(site string) []GroupsScope {
+	return []GroupsScope{
+		makeInfoScope[GroupsScope](
+			GroupsLibraryItem,
+			GroupsInfoSite,
+			[]string{site},
+			filters.Equal),
+	}
 }
 
 // Library produces one or more Group library scopes, where the library
@@ -519,6 +533,7 @@ const (
 	GroupsInfoLibraryItemModifiedBefore groupsCategory = "GroupsInfoLibraryItemModifiedBefore"
 
 	// channel and drive selection
+	GroupsInfoSite             groupsCategory = "GroupsInfoSite"
 	GroupsInfoSiteLibraryDrive groupsCategory = "GroupsInfoSiteLibraryDrive"
 
 	// data contained within details.ItemInfo
@@ -562,7 +577,7 @@ func (c groupsCategory) leafCat() categorizer {
 		GroupsInfoChannelMessageCreatedAfter, GroupsInfoChannelMessageCreatedBefore, GroupsInfoChannelMessageCreator,
 		GroupsInfoChannelMessageLastReplyAfter, GroupsInfoChannelMessageLastReplyBefore:
 		return GroupsChannelMessage
-	case GroupsLibraryFolder, GroupsLibraryItem, GroupsInfoSiteLibraryDrive,
+	case GroupsLibraryFolder, GroupsLibraryItem, GroupsInfoSite, GroupsInfoSiteLibraryDrive,
 		GroupsInfoLibraryItemCreatedAfter, GroupsInfoLibraryItemCreatedBefore,
 		GroupsInfoLibraryItemModifiedAfter, GroupsInfoLibraryItemModifiedBefore:
 		return GroupsLibraryItem
@@ -781,6 +796,18 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 	}
 
 	switch infoCat {
+	case GroupsInfoSite:
+		ds := []string{}
+
+		if len(info.SiteID) > 0 {
+			ds = append(ds, info.SiteID)
+		}
+
+		if len(info.WebURL) > 0 {
+			ds = append(ds, info.WebURL)
+		}
+
+		return matchesAny(s, GroupsInfoSite, ds)
 	case GroupsInfoSiteLibraryDrive:
 		ds := []string{}
 
@@ -798,15 +825,15 @@ func (s GroupsScope) matchesInfo(dii details.ItemInfo) bool {
 	case GroupsInfoLibraryItemModifiedAfter, GroupsInfoLibraryItemModifiedBefore:
 		i = dttm.Format(info.Modified)
 	case GroupsInfoChannelMessageCreator:
-		i = info.MessageCreator
+		i = info.Message.Creator
 	case GroupsInfoChannelMessageCreatedAfter, GroupsInfoChannelMessageCreatedBefore:
-		i = dttm.Format(info.Created)
+		i = dttm.Format(info.Message.CreatedAt)
 	case GroupsInfoChannelMessageLastReplyAfter, GroupsInfoChannelMessageLastReplyBefore:
-		if info.LastReplyAt.Equal(time.Time{}) {
+		if info.LastReply.CreatedAt.IsZero() {
 			return false
 		}
 
-		i = dttm.Format(info.LastReplyAt)
+		i = dttm.Format(info.LastReply.CreatedAt)
 	}
 
 	return s.Matches(infoCat, i) && int(info.ItemType) == acceptableItemType

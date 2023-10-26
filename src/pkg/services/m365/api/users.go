@@ -95,7 +95,7 @@ func (c Users) GetAll(
 			return false
 		}
 
-		err := ValidateUser(item)
+		err := validateUser(item)
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating user"))
 		} else {
@@ -121,9 +121,12 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 	)
 
 	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
-
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting user")
+		if graph.IsErrResourceLocked(err) {
+			err = clues.Stack(graph.ErrResourceLocked, err)
+		}
+
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, err
@@ -294,9 +297,9 @@ func (c Users) GetFirstInboxMessage(
 // helpers
 // ---------------------------------------------------------------------------
 
-// ValidateUser ensures the item is a Userable, and contains the necessary
+// validateUser ensures the item is a Userable, and contains the necessary
 // identifiers that we handle with all users.
-func ValidateUser(item models.Userable) error {
+func validateUser(item models.Userable) error {
 	if item.GetId() == nil {
 		return clues.New("missing ID")
 	}

@@ -18,12 +18,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
-// CreateCollections - utility function that retrieves M365
-// IDs through Microsoft Graph API. The selectors.ExchangeScope
-// determines the type of collections that are retrieved.
 func CreateCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
@@ -160,7 +157,7 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, validModTimes, removed, newDelta, err := bh.itemEnumerator().
+		added, _, removed, newDelta, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
@@ -179,7 +176,7 @@ func populateCollections(
 			// to reset. This prevents any old items from being retained in
 			// storage.  If the container (or its children) are sill missing
 			// on the next backup, they'll get tombstoned.
-			newDelta = api.DeltaUpdate{Reset: true}
+			newDelta = pagers.DeltaUpdate{Reset: true}
 		}
 
 		if len(newDelta.URL) > 0 {
@@ -199,7 +196,11 @@ func populateCollections(
 			bh.itemHandler(),
 			added,
 			removed,
-			validModTimes,
+			// TODO: produce a feature flag that allows selective
+			// enabling of valid modTimes.  This currently produces
+			// rare-case failures with incorrect details merging.
+			// Root cause is not yet known.
+			false,
 			statusUpdater)
 
 		collections[cID] = edc

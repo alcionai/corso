@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 type baseSiteHandler struct {
@@ -25,7 +26,7 @@ type baseSiteHandler struct {
 func (h baseSiteHandler) NewDrivePager(
 	resourceOwner string,
 	fields []string,
-) api.Pager[models.Driveable] {
+) pagers.NonDeltaHandler[models.Driveable] {
 	return h.ac.NewSiteDrivePager(resourceOwner, fields)
 }
 
@@ -175,9 +176,9 @@ func (h siteBackupHandler) IncludesDir(dir string) bool {
 func (h siteBackupHandler) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID, prevDeltaLink string,
-	selectProps []string,
-) ([]models.DriveItemable, api.DeltaUpdate, error) {
-	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, selectProps)
+	cc api.CallConfig,
+) pagers.NextPageResulter[models.DriveItemable] {
+	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, cc)
 }
 
 // ---------------------------------------------------------------------------
