@@ -167,7 +167,7 @@ func (c Channels) NewChannelMessageDeltaPager(
 // unknownFutureValue.
 const channelMessageSystemMessageContent = "<systemEventMessage/>"
 
-func FilterOutSystemMessages(cm models.ChatMessageable) bool {
+func filterOutSystemMessages(cm models.ChatMessageable) bool {
 	if ptr.Val(cm.GetMessageType()) == models.SYSTEMEVENTMESSAGE_CHATMESSAGETYPE {
 		return false
 	}
@@ -196,7 +196,7 @@ func (c Channels) GetChannelMessageIDs(
 		prevDeltaLink,
 		canMakeDeltaQueries,
 		pagers.AddedAndRemovedByDeletedDateTime[models.ChatMessageable],
-		FilterOutSystemMessages)
+		filterOutSystemMessages)
 
 	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
 }

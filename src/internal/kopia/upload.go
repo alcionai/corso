@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
-	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"golang.org/x/exp/maps"
 
@@ -1047,26 +1046,20 @@ func traverseBaseDir(
 	return nil
 }
 
-func logBaseInfo(ctx context.Context, m ManifestEntry) {
+func logBaseInfo(ctx context.Context, b BackupBase) {
 	svcs := map[string]struct{}{}
 	cats := map[string]struct{}{}
 
-	for _, r := range m.Reasons {
+	for _, r := range b.Reasons {
 		svcs[r.Service().String()] = struct{}{}
 		cats[r.Category().String()] = struct{}{}
 	}
 
-	mbID, _ := m.GetTag(TagBackupID)
-	if len(mbID) == 0 {
-		mbID = "no_backup_id_tag"
-	}
-
+	// Base backup ID and base snapshot ID are already in context clues.
 	logger.Ctx(ctx).Infow(
 		"using base for backup",
-		"base_snapshot_id", m.ID,
 		"services", maps.Keys(svcs),
-		"categories", maps.Keys(cats),
-		"base_backup_id", mbID)
+		"categories", maps.Keys(cats))
 }
 
 const (
@@ -1093,20 +1086,32 @@ const (
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	snap ManifestEntry,
+	base BackupBase,
 	updatedPaths map[string]path.Path,
 	roots map[string]*treeMap,
 ) error {
+	bupID := "no_backup_id"
+	if base.Backup != nil && len(base.Backup.ID) > 0 {
+		bupID = string(base.Backup.ID)
+	}
+
+	ctx = clues.Add(
+		ctx,
+		"base_backup_id", bupID,
+		"base_snapshot_id", base.ItemDataSnapshot.ID)
+
 	// Only complete snapshots should be used to source base information.
 	// Snapshots for checkpoints will rely on kopia-assisted dedupe to efficiently
 	// handle items that were completely uploaded before Corso crashed.
-	if len(snap.IncompleteReason) > 0 {
+	if len(base.ItemDataSnapshot.IncompleteReason) > 0 {
+		logger.Ctx(ctx).Info("skipping incomplete snapshot")
 		return nil
 	}
 
-	ctx = clues.Add(ctx, "snapshot_base_id", snap.ID)
+	// Some logging to help track things.
+	logBaseInfo(ctx, base)
 
-	root, err := loader.SnapshotRoot(snap.Manifest)
+	root, err := loader.SnapshotRoot(base.ItemDataSnapshot)
 	if err != nil {
 		return clues.Wrap(err, "getting snapshot root directory").WithClues(ctx)
 	}
@@ -1116,13 +1121,10 @@ func inflateBaseTree(
 		return clues.New("snapshot root is not a directory").WithClues(ctx)
 	}
 
-	// Some logging to help track things.
-	logBaseInfo(ctx, snap)
-
 	// For each subtree corresponding to the tuple
 	// (resource owner, service, category) merge the directories in the base with
 	// what has been reported in the collections we got.
-	for _, r := range snap.Reasons {
+	for _, r := range base.Reasons {
 		ictx := clues.Add(
 			ctx,
 			"subtree_service", r.Service().String(),
@@ -1204,7 +1206,7 @@ func inflateBaseTree(
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	baseSnaps []ManifestEntry,
+	bases []BackupBase,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
@@ -1214,22 +1216,18 @@ func inflateDirTree(
 		return nil, clues.Wrap(err, "inflating collection tree")
 	}
 
-	baseIDs := make([]manifest.ID, 0, len(baseSnaps))
-	for _, snap := range baseSnaps {
-		baseIDs = append(baseIDs, snap.ID)
-	}
+	// Individual backup/snapshot IDs will be logged when merging their hierarchy.
+	ctx = clues.Add(ctx, "len_bases", len(bases))
 
-	ctx = clues.Add(ctx, "len_base_snapshots", len(baseSnaps), "base_snapshot_ids", baseIDs)
-
-	if len(baseIDs) > 0 {
-		logger.Ctx(ctx).Info("merging hierarchies from base snapshots")
+	if len(bases) > 0 {
+		logger.Ctx(ctx).Info("merging hierarchies from base backups")
 	} else {
-		logger.Ctx(ctx).Info("no base snapshots to merge")
+		logger.Ctx(ctx).Info("no base backups to merge")
 	}
 
-	for _, snap := range baseSnaps {
-		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {
-			return nil, clues.Wrap(err, "inflating base snapshot tree(s)")
+	for _, base := range bases {
+		if err = inflateBaseTree(ctx, loader, base, updatedPaths, roots); err != nil {
+			return nil, clues.Wrap(err, "inflating base backup tree(s)")
 		}
 	}
 

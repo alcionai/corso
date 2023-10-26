@@ -274,8 +274,8 @@ func checkBackupIsInManifests(
 
 			mans := bf.FindBases(ctx, []identity.Reasoner{r}, tags)
 			for _, man := range mans.MergeBases() {
-				bID, ok := man.GetTag(kopia.TagBackupID)
-				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
+				bID, ok := man.GetSnapshotTag(kopia.TagBackupID)
+				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ItemDataSnapshot.ID) {
 					continue
 				}
 

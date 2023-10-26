@@ -90,10 +90,14 @@ func streamItems(
 
 type (
 	minimumChannelMessage struct {
+		// TODO(keepers): remove attachmentNames when better formatting
+		// of attachments within the content body is implemented.
+		AttachmentNames      []string  `json:"attachmentNames"`
 		Content              string    `json:"content"`
 		CreatedDateTime      time.Time `json:"createdDateTime"`
 		From                 string    `json:"from"`
 		LastModifiedDateTime time.Time `json:"lastModifiedDateTime"`
+		Subject              string    `json:"subject"`
 	}
 
 	minimumChannelMessageAndReplies struct {
@@ -155,9 +159,11 @@ func makeMinimumChannelMesasge(item models.ChatMessageable) minimumChannelMessag
 	}
 
 	return minimumChannelMessage{
+		AttachmentNames:      api.GetChatMessageAttachmentNames(item),
 		Content:              content,
 		CreatedDateTime:      ptr.Val(item.GetCreatedDateTime()),
 		From:                 api.GetChatMessageFrom(item),
 		LastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
+		Subject:              ptr.Val(item.GetSubject()),
 	}
 }

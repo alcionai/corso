@@ -604,7 +604,7 @@ func getNewPathRefs(
 func mergeItemsFromBase(
 	ctx context.Context,
 	checkReason bool,
-	baseBackup kopia.BackupEntry,
+	baseBackup kopia.BackupBase,
 	detailsStore streamstore.Streamer,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
@@ -617,7 +617,7 @@ func mergeItemsFromBase(
 	)
 
 	// Can't be in the above block else it's counted as a redeclaration.
-	ctx = clues.Add(ctx, "base_backup_id", baseBackup.ID)
+	ctx = clues.Add(ctx, "base_backup_id", baseBackup.Backup.ID)
 
 	baseDeets, err := getDetailsFromBackup(
 		ctx,
@@ -665,7 +665,7 @@ func mergeItemsFromBase(
 			dataFromBackup,
 			entry,
 			rr,
-			baseBackup.Version)
+			baseBackup.Backup.Version)
 		if err != nil {
 			return manifestAddedEntries,
 				clues.Wrap(err, "getting updated info for entry").WithClues(ictx)
@@ -746,7 +746,7 @@ func mergeDetails(
 	// leaves us in a bit of a pickle if the user has run any concurrent backups
 	// with overlapping Reasons that turn into assist bases, but the modTime check
 	// in DetailsMergeInfoer should handle that.
-	for _, base := range bases.UniqueAssistBackups() {
+	for _, base := range bases.UniqueAssistBases() {
 		added, err := mergeItemsFromBase(
 			ctx,
 			false,
@@ -771,7 +771,7 @@ func mergeDetails(
 	// We do want to enable matching entries based on Reasons because we
 	// explicitly control which subtrees from the merge base backup are grafted
 	// onto the hierarchy for the currently running backup.
-	for _, base := range bases.Backups() {
+	for _, base := range bases.MergeBases() {
 		added, err := mergeItemsFromBase(
 			ctx,
 			true,

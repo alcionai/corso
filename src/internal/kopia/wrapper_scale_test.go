@@ -80,14 +80,14 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 
 	type testCase struct {
 		name        string
-		baseBackups func(base ManifestEntry) BackupBases
+		baseBackups func(base BackupBase) BackupBases
 		collections []data.BackupCollection
 	}
 
 	// Initial backup. All files should be considered new by kopia.
 	baseBackupCase := testCase{
 		name: "Setup",
-		baseBackups: func(ManifestEntry) BackupBases {
+		baseBackups: func(BackupBase) BackupBases {
 			return NewMockBackupBases()
 		},
 		collections: cols,
@@ -97,8 +97,8 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 		t tester.TestT,
 		ctx context.Context,
 		test testCase,
-		base ManifestEntry,
-	) ManifestEntry {
+		base BackupBase,
+	) BackupBase {
 		bbs := test.baseBackups(base)
 		counter := count.New()
 
@@ -126,20 +126,20 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 			manifest.ID(stats.SnapshotID))
 		require.NoError(t, err, clues.ToCore(err))
 
-		return ManifestEntry{
-			Manifest: snap,
-			Reasons:  reasons,
+		return BackupBase{
+			ItemDataSnapshot: snap,
+			Reasons:          reasons,
 		}
 	}
 
 	b.Logf("setting up base backup\n")
 
-	base := runAndTestBackup(b, ctx, baseBackupCase, ManifestEntry{})
+	base := runAndTestBackup(b, ctx, baseBackupCase, BackupBase{})
 
 	table := []testCase{
 		{
 			name: "Merge All",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base BackupBase) BackupBases {
 				return NewMockBackupBases().WithMergeBases(base)
 			},
 			collections: func() []data.BackupCollection {

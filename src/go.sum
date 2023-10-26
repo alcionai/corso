@@ -302,8 +302,8 @@ github.com/microsoft/kiota-serialization-multipart-go v1.0.0 h1:3O5sb5Zj+moLBiJy
 github.com/microsoft/kiota-serialization-multipart-go v1.0.0/go.mod h1:yauLeBTpANk4L03XD985akNysG24SnRJGaveZf+p4so=
 github.com/microsoft/kiota-serialization-text-go v1.0.0 h1:XOaRhAXy+g8ZVpcq7x7a0jlETWnWrEum0RhmbYrTFnA=
 github.com/microsoft/kiota-serialization-text-go v1.0.0/go.mod h1:sM1/C6ecnQ7IquQOGUrUldaO5wj+9+v7G2W3sQ3fy6M=
-github.com/microsoftgraph/msgraph-sdk-go v1.22.0 h1:CuoJU7/0UEZvO8wIeypRz2BUXe2cs/o/DqfpGlBvqH4=
-github.com/microsoftgraph/msgraph-sdk-go v1.22.0/go.mod h1:wNm5PDM3ShAnvkhDBptRR4K9e/Rd6LBG1QbOHQAYscM=
+github.com/microsoftgraph/msgraph-sdk-go v1.23.0 h1:0dFfUh6X5GdtICt+cOfXc8EnsZyHYA504Vl1Om/ZFSw=
+github.com/microsoftgraph/msgraph-sdk-go v1.23.0/go.mod h1:wNm5PDM3ShAnvkhDBptRR4K9e/Rd6LBG1QbOHQAYscM=
 github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0 h1:7NWTfyXvOjoizW7PmxNp3+8wCKPgpODs/D1cUZ3fkAY=
 github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0/go.mod h1:tQb4q3YMIj2dWhhXhQSJ4ELpol931ANKzHSYK5kX1qE=
 github.com/minio/md5-simd v1.1.2 h1:Gdi1DZK69+ZVMoNHRXJyNcxrMA4dSxoYHZSQbirFg34=
@@ -780,8 +780,8 @@ google.golang.org/grpc v1.31.1/go.mod h1:N36X2cJ7JwdamYAgDz+s+rVMFjt3numwzf/HckM
 google.golang.org/grpc v1.33.2/go.mod h1:JMHMWHQWaTccqQQlmk3MJZS+GWXOdAesneDmEnv2fbc=
 google.golang.org/grpc v1.34.0/go.mod h1:WotjhfgOW/POjDeRt8vscBtXq+2VjORFy659qA51WJ8=
 google.golang.org/grpc v1.35.0/go.mod h1:qjiiYl8FncCW8feJPdyg3v6XW24KsRHe+dy9BAGRRjU=
-google.golang.org/grpc v1.58.2 h1:SXUpjxeVF3FKrTYQI4f4KvbGD5u2xccdYdurwowix5I=
-google.golang.org/grpc v1.58.2/go.mod h1:tgX3ZQDlNJGU96V6yHh1T/JeoBQ2TXdr43YbYSsCJk0=
+google.golang.org/grpc v1.58.3 h1:BjnpXut1btbtgN/6sp+brB2Kbm2LjNXnidYujAVbSoQ=
+google.golang.org/grpc v1.58.3/go.mod h1:tgX3ZQDlNJGU96V6yHh1T/JeoBQ2TXdr43YbYSsCJk0=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
 google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=

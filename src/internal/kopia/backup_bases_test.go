@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -191,7 +192,7 @@ func (suite *BackupBasesUnitSuite) TestConvertToAssistBase() {
 		},
 	}
 
-	delID := manifest.ID("its3")
+	delID := model.StableID("3")
 
 	table := []struct {
 		name string
@@ -298,39 +299,19 @@ func (suite *BackupBasesUnitSuite) TestDisableMergeBases() {
 	}
 
 	bb.DisableMergeBases()
-	assert.Empty(t, bb.Backups())
 	assert.Empty(t, bb.MergeBases())
 
 	// Merge bases should still appear in the assist base set passed in for kopia
 	// snapshots and details merging.
 	assert.ElementsMatch(
 		t,
-		[]ManifestEntry{
-			{Manifest: merge[0].ItemDataSnapshot},
-			{Manifest: merge[1].ItemDataSnapshot},
-			{Manifest: assist[0].ItemDataSnapshot},
-			{Manifest: assist[1].ItemDataSnapshot},
-		},
+		append(slices.Clone(merge), assist...),
 		bb.SnapshotAssistBases())
 
 	assert.ElementsMatch(
 		t,
-		[]ManifestEntry{
-			{Manifest: merge[0].ItemDataSnapshot},
-			{Manifest: merge[1].ItemDataSnapshot},
-			{Manifest: assist[0].ItemDataSnapshot},
-			{Manifest: assist[1].ItemDataSnapshot},
-		},
+		append(slices.Clone(merge), assist...),
 		bb.UniqueAssistBases())
-	assert.ElementsMatch(
-		t,
-		[]BackupEntry{
-			{Backup: merge[0].Backup},
-			{Backup: merge[1].Backup},
-			{Backup: assist[0].Backup},
-			{Backup: assist[1].Backup},
-		},
-		bb.UniqueAssistBackups())
 }
 
 func (suite *BackupBasesUnitSuite) TestDisableAssistBases() {
@@ -342,11 +323,9 @@ func (suite *BackupBasesUnitSuite) TestDisableAssistBases() {
 
 	bb.DisableAssistBases()
 	assert.Empty(t, bb.UniqueAssistBases())
-	assert.Empty(t, bb.UniqueAssistBackups())
 	assert.Empty(t, bb.SnapshotAssistBases())
 
 	// Merge base should be unchanged.
-	assert.Len(t, bb.Backups(), 2)
 	assert.Len(t, bb.MergeBases(), 2)
 }
 
