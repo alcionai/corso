@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -45,9 +46,9 @@ type BackupHandler[T any] struct {
 	Service           path.ServiceType
 	Category          path.CategoryType
 
-	DrivePagerV api.Pager[models.Driveable]
+	DrivePagerV pagers.NonDeltaHandler[models.Driveable]
 	// driveID -> itemPager
-	ItemPagerV map[string]api.DeltaPager[models.DriveItemable]
+	ItemPagerV map[string]pagers.DeltaHandler[models.DriveItemable]
 
 	LocationIDFn locationIDer
 
@@ -136,7 +137,7 @@ func (h BackupHandler[T]) ServiceCat() (path.ServiceType, path.CategoryType) {
 	return h.Service, h.Category
 }
 
-func (h BackupHandler[T]) NewDrivePager(string, []string) api.Pager[models.Driveable] {
+func (h BackupHandler[T]) NewDrivePager(string, []string) pagers.NonDeltaHandler[models.Driveable] {
 	return h.DrivePagerV
 }
 
@@ -174,7 +175,7 @@ func (h BackupHandler[T]) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID, prevDeltaLink string,
 	cc api.CallConfig,
-) api.NextPageResulter[models.DriveItemable] {
+) pagers.NextPageResulter[models.DriveItemable] {
 	return h.DriveItemEnumeration.EnumerateDriveItemsDelta(
 		ctx,
 		driveID,
@@ -301,12 +302,12 @@ type EnumerateItemsDeltaByDrive struct {
 	DrivePagers map[string]*DriveItemsDeltaPager
 }
 
-var _ api.NextPageResulter[models.DriveItemable] = &DriveItemsDeltaPager{}
+var _ pagers.NextPageResulter[models.DriveItemable] = &DriveItemsDeltaPager{}
 
 type DriveItemsDeltaPager struct {
 	Idx         int
 	Pages       []NextPage
-	DeltaUpdate api.DeltaUpdate
+	DeltaUpdate pagers.DeltaUpdate
 	Err         error
 }
 
@@ -314,7 +315,7 @@ func (edibd EnumerateItemsDeltaByDrive) EnumerateDriveItemsDelta(
 	_ context.Context,
 	driveID, _ string,
 	_ api.CallConfig,
-) api.NextPageResulter[models.DriveItemable] {
+) pagers.NextPageResulter[models.DriveItemable] {
 	didp := edibd.DrivePagers[driveID]
 	return didp
 }
@@ -330,7 +331,7 @@ func (edi *DriveItemsDeltaPager) NextPage() ([]models.DriveItemable, bool, bool)
 	return np.Items, np.Reset, false
 }
 
-func (edi *DriveItemsDeltaPager) Results() (api.DeltaUpdate, error) {
+func (edi *DriveItemsDeltaPager) Results() (pagers.DeltaUpdate, error) {
 	return edi.DeltaUpdate, edi.Err
 }
 
@@ -367,7 +368,7 @@ type RestoreHandler struct {
 	PostItemResp   models.DriveItemable
 	PostItemErr    error
 
-	DrivePagerV api.Pager[models.Driveable]
+	DrivePagerV pagers.NonDeltaHandler[models.Driveable]
 
 	PostDriveResp models.Driveable
 	PostDriveErr  error
@@ -382,7 +383,7 @@ func (h RestoreHandler) PostDrive(
 	return h.PostDriveResp, h.PostDriveErr
 }
 
-func (h RestoreHandler) NewDrivePager(string, []string) api.Pager[models.Driveable] {
+func (h RestoreHandler) NewDrivePager(string, []string) pagers.NonDeltaHandler[models.Driveable] {
 	return h.DrivePagerV
 }
 

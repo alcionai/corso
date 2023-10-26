@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 var _ backupHandler = &channelsBackupHandler{}
@@ -41,7 +42,7 @@ func (bh channelsBackupHandler) getContainerItemIDs(
 	ctx context.Context,
 	channelID, prevDelta string,
 	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, api.DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
 	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, canMakeDeltaQueries)
 }
 
