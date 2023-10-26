@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"time"
 
@@ -186,8 +185,6 @@ func makeMinimumChannelMesasge(item models.ChatMessageable) minimumChannelMessag
 			Name: ptr.Val(a.GetName()),
 		})
 	}
-
-	fmt.Println(content)
 
 	return minimumChannelMessage{
 		Attachments:          minAttachments,
