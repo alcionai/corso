@@ -78,7 +78,7 @@ func (suite *SitesUnitSuite) TestValidateSite() {
 			args: func() *models.Site {
 				s := models.NewSite()
 				s.SetId(ptr.To("id"))
-				s.SetWebUrl(ptr.To("https://" + PersonalSitePath + "/someone's/onedrive"))
+				s.SetWebUrl(ptr.To("https://" + personalSitePath + "/someone's/onedrive"))
 				return s
 			}(),
 			errCheck:       assert.Error,
@@ -134,7 +134,7 @@ func (suite *SitesIntgSuite) TestGetAll() {
 	require.NotZero(t, len(sites), "must have at least one site")
 
 	for _, site := range sites {
-		assert.NotContains(t, ptr.Val(site.GetWebUrl()), PersonalSitePath, "must not return onedrive sites")
+		assert.NotContains(t, ptr.Val(site.GetWebUrl()), personalSitePath, "must not return onedrive sites")
 		assert.NotContains(t, ptr.Val(site.GetWebUrl()), "sharepoint.com/search", "must not return search site")
 	}
 }
