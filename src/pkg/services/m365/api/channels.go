@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/jaytaylor/html2text"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 
@@ -93,7 +95,7 @@ func (c Channels) GetChannelByName(
 	// Sanity check ID and name
 	cal := gv[0]
 
-	if err := CheckIDAndName(cal); err != nil {
+	if err := checkIDAndName(cal); err != nil {
 		return nil, clues.Stack(err).WithClues(ctx)
 	}
 
@@ -163,7 +165,10 @@ func channelMessageInfo(
 		modTime = lastReplyAt
 	}
 
-	preview, contentLen := GetChatMessageContentPreview(msg)
+	preview, contentLen, err := getChatMessageContentPreview(msg)
+	if err != nil {
+		preview = "malformed or unparseable html" + preview
+	}
 
 	message := details.ChannelMessageInfo{
 		AttachmentNames: GetChatMessageAttachmentNames(msg),
@@ -178,7 +183,11 @@ func channelMessageInfo(
 	var lr details.ChannelMessageInfo
 
 	if lastReply != nil {
-		preview, contentLen = GetChatMessageContentPreview(lastReply)
+		preview, contentLen, err = getChatMessageContentPreview(lastReply)
+		if err != nil {
+			preview = "malformed or unparseable html: " + preview
+		}
+
 		lr = details.ChannelMessageInfo{
 			AttachmentNames: GetChatMessageAttachmentNames(lastReply),
 			CreatedAt:       ptr.Val(lastReply.GetCreatedDateTime()),
@@ -196,9 +205,9 @@ func channelMessageInfo(
 	}
 }
 
-// CheckIDAndName is a validator that ensures the ID
+// checkIDAndName is a validator that ensures the ID
 // and name are populated and not zero valued.
-func CheckIDAndName(c models.Channelable) error {
+func checkIDAndName(c models.Channelable) error {
 	if c == nil {
 		return clues.New("nil container")
 	}
@@ -233,14 +242,59 @@ func GetChatMessageFrom(msg models.ChatMessageable) string {
 	return ""
 }
 
-func GetChatMessageContentPreview(msg models.ChatMessageable) (string, int64) {
-	var content string
+func getChatMessageContentPreview(msg models.ChatMessageable) (string, int64, error) {
+	content, origSize, err := stripChatMessageHTML(msg)
+	return str.Preview(content, 128), origSize, clues.Stack(err).OrNil()
+}
+
+func stripChatMessageHTML(msg models.ChatMessageable) (string, int64, error) {
+	var (
+		content  string
+		origSize int64
+	)
 
 	if msg.GetBody() != nil {
 		content = ptr.Val(msg.GetBody().GetContent())
 	}
 
-	return str.Preview(content, 128), int64(len(content))
+	origSize = int64(len(content))
+
+	content = replaceAttachmentMarkup(content, msg.GetAttachments())
+	content, err := html2text.FromString(content)
+
+	return content, origSize, clues.Stack(err).OrNil()
+}
+
+var attachmentMarkupRE = regexp.MustCompile(`<attachment id=[\\]?"([\d\w-]+)[\\]?"></attachment>`)
+
+// replaces any instance of `<attachment id=\"1693946862569\"></attachment>` with `[attachment:{{name-of-attachment}}]`
+// assumes that the attachment ID exists in the attachments slice, otherwise defaults to `[attachment]`.
+func replaceAttachmentMarkup(
+	content string,
+	attachments []models.ChatMessageAttachmentable,
+) string {
+	attMap := map[string]string{}
+
+	for _, att := range attachments {
+		attMap[ptr.Val(att.GetId())] = ptr.Val(att.GetName())
+	}
+
+	replacer := func(sub string) string {
+		sm := attachmentMarkupRE.FindStringSubmatch(sub)
+
+		if len(sm) > 1 {
+			name, ok := attMap[sm[1]]
+			if !ok {
+				return "[attachment]"
+			}
+
+			return fmt.Sprintf("[attachment:%s]", name)
+		}
+
+		return "[attachment]"
+	}
+
+	return attachmentMarkupRE.ReplaceAllStringFunc(content, replacer)
 }
 
 func GetChatMessageAttachmentNames(msg models.ChatMessageable) []string {

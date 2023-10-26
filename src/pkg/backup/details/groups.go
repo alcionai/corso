@@ -2,6 +2,7 @@ package details
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -100,7 +101,8 @@ func (i GroupsInfo) Values() []string {
 		}
 
 		return []string{
-			i.Message.Preview,
+			// html parsing may produce newlijnes, which we'll want to avoid
+			strings.ReplaceAll(i.Message.Preview, "\n", "\\n"),
 			i.ParentPath,
 			i.Message.Subject,
 			strconv.Itoa(i.Message.ReplyCount),
