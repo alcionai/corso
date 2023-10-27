@@ -168,9 +168,14 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 		{
 			name: "fetch with attachment",
 			setupf: func() {
-				email := models.NewPost()
-				email.SetId(&pid)
-				email.SetHasAttachments(ptr.To(true))
+				itm := models.NewPost()
+				itm.SetId(&pid)
+				itm.SetHasAttachments(ptr.To(true))
+
+				attch := models.NewAttachment()
+				attch.SetSize(ptr.To[int32](50))
+
+				itm.SetAttachments([]models.Attachmentable{attch})
 
 				interceptV1Path(
 					"groups",
@@ -182,110 +187,26 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					"posts",
 					pid).
 					Reply(200).
-					JSON(requireParseableToMap(suite.T(), email))
+					JSON(requireParseableToMap(suite.T(), itm))
 
-				atts := models.NewAttachmentCollectionResponse()
-				attch := models.NewAttachment()
-
-				size := int32(50)
-				attch.SetSize(&size)
-				atts.SetValue([]models.Attachmentable{attch})
-
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid,
-					"attachments").
-					Reply(200).
-					JSON(requireParseableToMap(suite.T(), atts))
 			},
 			attachmentCount: 1,
 			size:            50,
 			expect:          assert.NoError,
 		},
 		{
-			name: "fetch individual attachment",
-			setupf: func() {
-				email := models.NewPost()
-				email.SetId(&pid)
-				email.SetHasAttachments(ptr.To(true))
-
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid).
-					Reply(200).
-					JSON(requireParseableToMap(suite.T(), email))
-
-				atts := models.NewAttachmentCollectionResponse()
-				attch := models.NewAttachment()
-				attch.SetId(&aid)
-
-				size := int32(200)
-				attch.SetSize(&size)
-
-				atts.SetValue([]models.Attachmentable{attch})
-
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid,
-					"attachments").
-					Reply(503)
-
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid,
-					"attachments").
-					Reply(200).
-					JSON(requireParseableToMap(suite.T(), atts))
-
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid,
-					"attachments",
-					aid).
-					Reply(200).
-					JSON(requireParseableToMap(suite.T(), attch))
-			},
-			attachmentCount: 1,
-			size:            200,
-			expect:          assert.NoError,
-		},
-		{
 			name: "fetch multiple individual attachments",
 			setupf: func() {
 				truthy := true
-				email := models.NewPost()
-				email.SetId(&pid)
-				email.SetHasAttachments(&truthy)
+				itm := models.NewPost()
+				itm.SetId(&pid)
+				itm.SetHasAttachments(&truthy)
+
+				attch := models.NewAttachment()
+				attch.SetId(&aid)
+				attch.SetSize(ptr.To[int32](200))
+
+				itm.SetAttachments([]models.Attachmentable{attch, attch, attch, attch, attch})
 
 				interceptV1Path(
 					"groups",
@@ -297,57 +218,7 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					"posts",
 					pid).
 					Reply(200).
-					JSON(requireParseableToMap(suite.T(), email))
-
-				atts := models.NewAttachmentCollectionResponse()
-				attch := models.NewAttachment()
-				attch.SetId(&aid)
-
-				asize := int32(200)
-				attch.SetSize(&asize)
-
-				atts.SetValue([]models.Attachmentable{attch, attch, attch, attch, attch})
-
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid,
-					"attachments").
-					Reply(503)
-
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid,
-					"attachments").
-					Reply(200).
-					JSON(requireParseableToMap(suite.T(), atts))
-
-				for i := 0; i < 5; i++ {
-					interceptV1Path(
-						"groups",
-						"group",
-						"conversations",
-						"conv",
-						"threads",
-						"thread",
-						"posts",
-						pid,
-						"attachments",
-						aid).
-						Reply(200).
-						JSON(requireParseableToMap(suite.T(), attch))
-				}
+					JSON(requireParseableToMap(suite.T(), itm))
 			},
 			attachmentCount: 5,
 			size:            1000,
