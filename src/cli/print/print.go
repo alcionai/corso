@@ -10,7 +10,7 @@ import (
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
 
-	"github.com/alcionai/corso/src/internal/color"
+	"github.com/alcionai/corso/src/internal/common/color"
 	"github.com/alcionai/corso/src/internal/observe"
 )
 

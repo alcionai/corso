@@ -15,7 +15,7 @@ import (
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
-	"github.com/alcionai/corso/src/internal/color"
+	"github.com/alcionai/corso/src/internal/common/color"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
