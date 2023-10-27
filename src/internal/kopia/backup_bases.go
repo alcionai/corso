@@ -46,6 +46,9 @@ type BackupBases interface {
 	// MinBackupVersion returns the lowest version of all merge backups in the
 	// BackupBases.
 	MinBackupVersion() int
+	// MinAssisttVersion returns the lowest version of all assist backups in the
+	// BackupBases.
+	MinAssistVersion() int
 	// MergeBackupBases takes another BackupBases and merges it's contained assist
 	// and merge bases into this BackupBases. The passed in BackupBases is
 	// considered an older alternative to this BackupBases meaning bases from
@@ -114,6 +117,16 @@ func (bb *backupBases) MinBackupVersion() int {
 		if min == version.NoBackup || base.Backup.Version < min {
 			min = base.Backup.Version
 		}
+	}
+
+	return min
+}
+
+func (bb *backupBases) MinAssistVersion() int {
+	min := version.NoBackup
+
+	if bb == nil {
+		return min
 	}
 
 	for _, base := range bb.assistBases {

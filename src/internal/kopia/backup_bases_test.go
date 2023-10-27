@@ -92,20 +92,23 @@ func TestBackupBasesUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupBasesUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
+func (suite *BackupBasesUnitSuite) TestBackupBases_minVersions() {
 	table := []struct {
-		name            string
-		bb              *backupBases
-		expectedVersion int
+		name                  string
+		bb                    *backupBases
+		expectedBackupVersion int
+		expectedAssistVersion int
 	}{
 		{
-			name:            "Nil BackupBase",
-			expectedVersion: version.NoBackup,
+			name:                  "Nil BackupBase",
+			expectedBackupVersion: version.NoBackup,
+			expectedAssistVersion: version.NoBackup,
 		},
 		{
-			name:            "No Backups",
-			bb:              &backupBases{},
-			expectedVersion: version.NoBackup,
+			name:                  "No Backups",
+			bb:                    &backupBases{},
+			expectedBackupVersion: version.NoBackup,
+			expectedAssistVersion: version.NoBackup,
 		},
 		{
 			name: "Unsorted Backups",
@@ -128,7 +131,8 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 					},
 				},
 			},
-			expectedVersion: 0,
+			expectedBackupVersion: 0,
+			expectedAssistVersion: version.NoBackup,
 		},
 		{
 			name: "Only Assist Bases",
@@ -151,29 +155,13 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 					},
 				},
 			},
-			expectedVersion: 0,
+			expectedBackupVersion: version.NoBackup,
+			expectedAssistVersion: 0,
 		},
 		{
 			name: "Assist and Merge Bases, min merge",
 			bb: &backupBases{
 				mergeBases: []BackupBase{
-					{
-						Backup: &backup.Backup{
-							Version: 4,
-						},
-					},
-					{
-						Backup: &backup.Backup{
-							Version: 0,
-						},
-					},
-					{
-						Backup: &backup.Backup{
-							Version: 2,
-						},
-					},
-				},
-				assistBases: []BackupBase{
 					{
 						Backup: &backup.Backup{
 							Version: 4,
@@ -190,8 +178,26 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 						},
 					},
 				},
+				assistBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 4,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 1,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 3,
+						},
+					},
+				},
 			},
-			expectedVersion: 0,
+			expectedBackupVersion: 2,
+			expectedAssistVersion: 1,
 		},
 		{
 			name: "Assist and Merge Bases, min assist",
@@ -231,12 +237,15 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 					},
 				},
 			},
-			expectedVersion: 1,
+			expectedBackupVersion: 2,
+			expectedAssistVersion: 1,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			assert.Equal(suite.T(), test.expectedVersion, test.bb.MinBackupVersion())
+			t := suite.T()
+			assert.Equal(t, test.expectedBackupVersion, test.bb.MinBackupVersion(), "backup")
+			assert.Equal(t, test.expectedAssistVersion, test.bb.MinAssistVersion(), "assist")
 		})
 	}
 }
