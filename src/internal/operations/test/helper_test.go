@@ -728,6 +728,7 @@ func verifyExtensionData(
 	case path.OneDriveService:
 		detailsSize = itemInfo.OneDrive.Size
 	case path.GroupsService:
+		// FIXME: needs update for message.
 		detailsSize = itemInfo.Groups.Size
 	default:
 		assert.Fail(t, "unrecognized data type")

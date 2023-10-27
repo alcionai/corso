@@ -52,11 +52,8 @@ func (c Channels) GetChannel(
 		Channels().
 		ByChannelId(containerID).
 		Get(ctx, config)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	return resp, nil
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
 // GetChannelByName fetches a channel by name

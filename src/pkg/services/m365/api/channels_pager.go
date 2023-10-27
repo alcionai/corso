@@ -76,7 +76,6 @@ func (c Channels) NewChannelMessagePager(
 }
 
 // GetChannelMessages fetches a delta of all messages in the channel.
-// returns two maps: addedItems, deletedItems
 func (c Channels) GetChannelMessages(
 	ctx context.Context,
 	teamID, channelID string,
