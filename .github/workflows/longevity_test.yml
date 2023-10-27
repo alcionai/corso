@@ -77,6 +77,7 @@ jobs:
           git checkout ${{ github.ref }} -- .github
 
       - run: go build -o corso
+        timeout-minutes: 10
       
       - run: mkdir ${CORSO_LOG_DIR}
 
@@ -84,6 +85,7 @@ jobs:
         # runs haven't been taking long.
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v4
+        timeout-minutes: 10
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
           role-session-name: integration-testing
@@ -93,11 +95,13 @@ jobs:
       # Repository commands
 
       - name: Version Test
+        timeout-minutes: 10
         run: |
           ./corso --version | grep -c 'Corso version:'
 
       - name: Repo init test
         id: repo-init
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
@@ -119,6 +123,7 @@ jobs:
           fi
 
       - name: Repo connect test
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
@@ -140,6 +145,7 @@ jobs:
 
       - name: Backup exchange test
         id: exchange-test
+        timeout-minutes: 30
         run: |
           echo -e "\nBackup Exchange test\n" >> ${CORSO_LOG_FILE}
           ./corso backup create exchange \
@@ -164,6 +170,7 @@ jobs:
 
       - name: Backup onedrive test
         id: onedrive-test
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           echo -e "\nBackup OneDrive test\n" >> ${CORSO_LOG_FILE}
@@ -188,6 +195,7 @@ jobs:
       # Sharepoint test
       - name: Backup sharepoint test
         id: sharepoint-test
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
@@ -213,6 +221,7 @@ jobs:
       # Backup Exchange Deletion test
       - name: Backup Delete exchange test
         id: delete-exchange-test
+        timeout-minutes: 30
         env:
           SERVICE: "exchange"
           DELETION_DAYS: 10
@@ -225,6 +234,7 @@ jobs:
       # Backup Onedrive Deletion test
       - name: Backup Delete onedrive test
         id: delete-onedrive-test
+        timeout-minutes: 30
         env:
           SERVICE: "onedrive"
           DELETION_DAYS: 10
@@ -237,6 +247,7 @@ jobs:
       # Backup Sharepoint Deletion test
       - name: Backup Delete Sharepoint test
         id: delete-sharepoint-test
+        timeout-minutes: 30
         env:
           SERVICE: "sharepoint"
           DELETION_DAYS: 5
@@ -248,6 +259,7 @@ jobs:
       ##########################################################################
       # Export OneDrive Test
       - name: OneDrive Export test
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           echo -e "\Export OneDrive test\n" >> ${CORSO_LOG_FILE}
@@ -275,6 +287,7 @@ jobs:
       ##########################################################################
       # Export SharePoint Test
       - name: SharePoint Export test
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           echo -e "\Export SharePoint test\n" >> ${CORSO_LOG_FILE}
@@ -303,6 +316,7 @@ jobs:
       # Maintenance test
       - name: Maintenance test Daily
         id: maintenance-test-daily
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           echo -e "\n Maintenance test Daily\n" >> ${CORSO_LOG_FILE}
@@ -319,6 +333,7 @@ jobs:
 
       - name: Maintenance test Weekly
         id: maintenance-test-weekly
+        timeout-minutes: 30
         run: |
           if [[ $(date +%A) == "Saturday" ]]; then
             set -euo pipefail
