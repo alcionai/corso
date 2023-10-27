@@ -62,6 +62,40 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 		expected      []expectPaths
 	}{
 		{
+			name: "Groups List Errors v9",
+			// No version bump for the change so we always have to check for this.
+			backupVersion: version.Groups9Update,
+			input: []*details.Entry{
+				{
+					RepoRef:     GroupsRootItemPath.RR.String(),
+					LocationRef: GroupsRootItemPath.Loc.String(),
+					ItemInfo: details.ItemInfo{
+						Groups: &details.GroupsInfo{
+							ItemType: details.SharePointList,
+						},
+					},
+				},
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "Groups Page Errors v9",
+			// No version bump for the change so we always have to check for this.
+			backupVersion: version.Groups9Update,
+			input: []*details.Entry{
+				{
+					RepoRef:     GroupsRootItemPath.RR.String(),
+					LocationRef: GroupsRootItemPath.Loc.String(),
+					ItemInfo: details.ItemInfo{
+						Groups: &details.GroupsInfo{
+							ItemType: details.SharePointPage,
+						},
+					},
+				},
+			},
+			expectErr: assert.Error,
+		},
+		{
 			name: "Groups List Errors",
 			// No version bump for the change so we always have to check for this.
 			backupVersion: version.All8MigrateUserPNToID,

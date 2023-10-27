@@ -1,6 +1,6 @@
 package version
 
-const Backup = 8
+const Backup = Groups9Update
 
 // Various labels to refer to important version changes.
 // Labels don't need 1:1 service:version representation.  Add a new
@@ -46,6 +46,10 @@ const (
 	// All8MigrateUserPNToID marks when we migrated repo refs from the user's
 	// PrincipalName to their ID for stability.
 	All8MigrateUserPNToID = 8
+
+	// Groups9Update marks when we updated the details that groups and teams use.
+	// Older backups don't contain all the info we want in details.
+	Groups9Update = 9
 )
 
 // IsNoBackup returns true if the version implies that no prior backup exists.

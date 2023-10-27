@@ -169,6 +169,7 @@ func prepNewTestBackupOp(
 		bod,
 		bus,
 		opts)
+	bo.BackupVersion = backupVersion
 
 	bod.sss = streamstore.NewStreamer(
 		bod.kw,
