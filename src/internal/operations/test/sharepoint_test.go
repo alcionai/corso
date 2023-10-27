@@ -150,6 +150,13 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic_groups9Ve
 		"items written")
 }
 
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointVersion9AssistBases() {
+	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, true)
+}
+
 func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 	sel := selectors.NewSharePointRestore([]string{suite.its.site.ID})
 
