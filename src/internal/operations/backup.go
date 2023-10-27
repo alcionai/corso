@@ -382,6 +382,8 @@ func (op *BackupOperation) do(
 	//     services)
 	if op.Selectors.PathService() == path.GroupsService &&
 		mans.MinBackupVersion() < version.Groups9Update {
+		logger.Ctx(ctx).Info("dropping bases due to groups version change")
+
 		mans.DisableMergeBases()
 		mans.DisableAssistBases()
 
