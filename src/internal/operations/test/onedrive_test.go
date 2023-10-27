@@ -215,6 +215,13 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveBasic_groups9Versio
 		"items written")
 }
 
+//func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveBasic_assistBackup_groups9VersionBump() {
+//	sel := selectors.NewOneDriveBackup([]string{tconfig.SecondaryM365UserID(suite.T())})
+//	sel.Include(selTD.OneDriveBackupFolderScope(sel))
+//
+//	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, true)
+//}
+
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 	sel := selectors.NewOneDriveRestore([]string{suite.its.user.ID})
 
