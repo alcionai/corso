@@ -215,7 +215,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveBasic_groups9Versio
 		"items written")
 }
 
-//func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveBasic_assistBackup_groups9VersionBump() {
+//func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveVersion9AssistBases() {
 //	sel := selectors.NewOneDriveBackup([]string{tconfig.SecondaryM365UserID(suite.T())})
 //	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 //
@@ -922,19 +922,19 @@ func runDriveIncrementalTest(
 }
 
 var (
-	_ io.ReadCloser                    = &singleFileFailExtension{}
-	_ extensions.CreateItemExtensioner = &createSingleFileFailExtension{}
+	_ io.ReadCloser                    = &failFirstRead{}
+	_ extensions.CreateItemExtensioner = &createFailFirstRead{}
 )
 
-// singleFileFailExtension fails the first read on a file being uploaded during
-// a snapshot. Only one file is failed during the snapshot even if it the
-// snapshot contains multiple files.
-type singleFileFailExtension struct {
+// failFirstRead fails the first read on a file being uploaded during a
+// snapshot. Only one file is failed during the snapshot even if it the snapshot
+// contains multiple files.
+type failFirstRead struct {
 	firstFile *atomic.Bool
 	io.ReadCloser
 }
 
-func (e *singleFileFailExtension) Read(p []byte) (int, error) {
+func (e *failFirstRead) Read(p []byte) (int, error) {
 	if e.firstFile.CompareAndSwap(true, false) {
 		// This is the first file being read, return an error for it.
 		return 0, clues.New("injected error for testing")
@@ -943,26 +943,26 @@ func (e *singleFileFailExtension) Read(p []byte) (int, error) {
 	return e.ReadCloser.Read(p)
 }
 
-func newCreateSingleFileFailExtension() *createSingleFileFailExtension {
+func newCreateSingleFileFailExtension() *createFailFirstRead {
 	firstItem := &atomic.Bool{}
 	firstItem.Store(true)
 
-	return &createSingleFileFailExtension{
+	return &createFailFirstRead{
 		firstItem: firstItem,
 	}
 }
 
-type createSingleFileFailExtension struct {
+type createFailFirstRead struct {
 	firstItem *atomic.Bool
 }
 
-func (ce *createSingleFileFailExtension) CreateItemExtension(
+func (ce *createFailFirstRead) CreateItemExtension(
 	_ context.Context,
 	r io.ReadCloser,
 	_ details.ItemInfo,
 	_ *details.ExtensionData,
 ) (io.ReadCloser, error) {
-	return &singleFileFailExtension{
+	return &failFirstRead{
 		firstFile:  ce.firstItem,
 		ReadCloser: r,
 	}, nil

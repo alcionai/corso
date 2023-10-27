@@ -186,7 +186,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBum
 		"items written")
 }
 
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_assistBackup_groups9VersionBump() {
+func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsVersion9AssistBases() {
 	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),

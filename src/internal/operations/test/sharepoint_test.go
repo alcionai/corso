@@ -150,7 +150,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic_groups9Ve
 		"items written")
 }
 
-func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic_assistBackup_groups9VersionBump() {
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointVersion9AssistBases() {
 	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
