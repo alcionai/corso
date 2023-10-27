@@ -189,8 +189,10 @@ func genericCreateCommand(
 
 		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
 		if err != nil {
-			errs = append(errs, clues.WrapWC(ictx, err, owner))
-			Errf(ictx, color.Red("ERROR: Unable to complete backup")+" \nMessage: %v\n", err)
+			cerr := clues.WrapWC(ictx, err, owner)
+			errs = append(errs, cerr)
+
+			OperationError(ictx, "Unable to complete backup", err, cerr.Core().Values)
 
 			continue
 		}
@@ -210,8 +212,10 @@ func genericCreateCommand(
 				continue
 			}
 
-			errs = append(errs, clues.WrapWC(ictx, err, owner))
-			Errf(ictx, color.Red("ERROR: Unable to complete backup")+" \nMessage: %v\n", err)
+			cerr := clues.WrapWC(ictx, err, owner)
+			errs = append(errs, cerr)
+
+			OperationError(ictx, "Unable to complete backup", err, cerr.Core().Values)
 
 			continue
 		}

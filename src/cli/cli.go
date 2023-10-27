@@ -73,12 +73,12 @@ func preRun(cc *cobra.Command, args []string) error {
 
 func handleMailBoxFlag(ctx context.Context, c *cobra.Command, flagNames []string) {
 	if !slices.Contains(flagNames, "user") && !slices.Contains(flagNames, "mailbox") {
-		print.Err(ctx, "Error: either --user or --mailbox flag is required")
+		print.SimpleError(ctx, "either --user or --mailbox flag is required")
 		os.Exit(1)
 	}
 
 	if slices.Contains(flagNames, "user") && slices.Contains(flagNames, "mailbox") {
-		print.Err(ctx, "Error: cannot use both [mailbox, user] flags in the same command")
+		print.SimpleError(ctx, "cannot use both [mailbox, user] flags in the same command")
 		os.Exit(1)
 	}
 }

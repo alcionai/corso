@@ -10,6 +10,7 @@ import (
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
 
+	"github.com/alcionai/corso/src/internal/color"
 	"github.com/alcionai/corso/src/internal/observe"
 )
 
@@ -83,14 +84,29 @@ func Only(ctx context.Context, e error) error {
 
 // Err prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
+// You should ideally be using SimpleError or OperationError.
 func Err(ctx context.Context, s ...any) {
 	out(ctx, getRootCmd(ctx).ErrOrStderr(), s...)
 }
 
 // Errf prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
+// You should ideally be using SimpleError or OperationError.
 func Errf(ctx context.Context, tmpl string, s ...any) {
 	outf(ctx, getRootCmd(ctx).ErrOrStderr(), tmpl, s...)
+}
+
+func SimpleError(ctx context.Context, message string) {
+	Err(ctx, color.Red("Error: "+message))
+}
+
+func OperationError(ctx context.Context, header string, body error, metadata map[string]any) {
+	meta, err := json.Marshal(metadata)
+	if err != nil {
+		meta = []byte("Unable to marshal error metadata")
+	}
+
+	Err(ctx, color.Red("Error: "+header)+" \nMessage: %v\nMetadata: %s\n", body, meta)
 }
 
 // Out prints the params to cobra's output writer (stdOut by default)
