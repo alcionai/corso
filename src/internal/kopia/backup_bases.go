@@ -116,6 +116,12 @@ func (bb *backupBases) MinBackupVersion() int {
 		}
 	}
 
+	for _, base := range bb.assistBases {
+		if min == version.NoBackup || base.Backup.Version < min {
+			min = base.Backup.Version
+		}
+	}
+
 	return min
 }
 

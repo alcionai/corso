@@ -151,7 +151,87 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 					},
 				},
 			},
-			expectedVersion: version.NoBackup,
+			expectedVersion: 0,
+		},
+		{
+			name: "Assist and Merge Bases, min merge",
+			bb: &backupBases{
+				mergeBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 4,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 0,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 2,
+						},
+					},
+				},
+				assistBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 4,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 2,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 3,
+						},
+					},
+				},
+			},
+			expectedVersion: 0,
+		},
+		{
+			name: "Assist and Merge Bases, min assist",
+			bb: &backupBases{
+				mergeBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 4,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 3,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 2,
+						},
+					},
+				},
+				assistBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 4,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 1,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 3,
+						},
+					},
+				},
+			},
+			expectedVersion: 1,
 		},
 	}
 	for _, test := range table {
