@@ -380,15 +380,21 @@ func (op *BackupOperation) do(
 	//   * the base finder code to skip over older bases (breaks isolation a bit
 	//     by requiring knowledge of good/bad backup versions for different
 	//     services)
-	if op.Selectors.PathService() == path.GroupsService &&
-		mans.MinBackupVersion() < version.Groups9Update {
-		logger.Ctx(ctx).Info("dropping bases due to groups version change")
+	if op.Selectors.PathService() == path.GroupsService {
+		if mans.MinBackupVersion() < version.Groups9Update {
+			logger.Ctx(ctx).Info("dropping merge bases due to groups version change")
 
-		mans.DisableMergeBases()
-		mans.DisableAssistBases()
+			mans.DisableMergeBases()
+			mans.DisableAssistBases()
 
-		canUseMetadata = false
-		mdColls = nil
+			canUseMetadata = false
+			mdColls = nil
+		}
+
+		if mans.MinAssistVersion() < version.Groups9Update {
+			logger.Ctx(ctx).Info("disabling assist bases due to groups version change")
+			mans.DisableAssistBases()
+		}
 	}
 
 	ctx = clues.Add(
