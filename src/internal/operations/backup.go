@@ -381,7 +381,8 @@ func (op *BackupOperation) do(
 	//     by requiring knowledge of good/bad backup versions for different
 	//     services)
 	if op.Selectors.PathService() == path.GroupsService {
-		if mans.MinBackupVersion() < version.Groups9Update {
+		if mans.MinBackupVersion() != version.NoBackup &&
+			mans.MinBackupVersion() < version.Groups9Update {
 			logger.Ctx(ctx).Info("dropping merge bases due to groups version change")
 
 			mans.DisableMergeBases()
@@ -391,7 +392,8 @@ func (op *BackupOperation) do(
 			mdColls = nil
 		}
 
-		if mans.MinAssistVersion() < version.Groups9Update {
+		if mans.MinAssistVersion() != version.NoBackup &&
+			mans.MinAssistVersion() < version.Groups9Update {
 			logger.Ctx(ctx).Info("disabling assist bases due to groups version change")
 			mans.DisableAssistBases()
 		}
