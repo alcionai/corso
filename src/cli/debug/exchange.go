@@ -67,7 +67,7 @@ func metadataFilesExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	sel := selectors.NewExchangeBackup([]string{"me"})
+	sel := selectors.NewExchangeBackup([]string{"unused-placeholder"})
 
 	return runMetadataFiles(ctx, cmd, args, sel.Selector, flags.BackupIDFV, "Exchange")
 }

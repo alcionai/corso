@@ -29,8 +29,8 @@ func AddCommands(cmd *cobra.Command) {
 		subCommand := sc()
 		utils.AddCommand(debugC, subCommand, utils.MarkDebugCommand())
 
-		for _, addBackupTo := range debugCommands {
-			addBackupTo(subCommand)
+		for _, addTo := range debugCommands {
+			addTo(subCommand)
 		}
 	}
 }
@@ -46,8 +46,8 @@ const debugCommand = "debug"
 func debugCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   debugCommand,
-		Short: "debug your service data",
-		Long:  `debug the data stored in one of your M365 services.`,
+		Short: "debugging & troubleshooting utilities",
+		Long:  `debug the data stored in corso.`,
 		RunE:  handledebugCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -59,21 +59,21 @@ func handledebugCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }
 
-// The backup metadataFiles subcommand.
-// `corso backup metadata-files <service> [<flag>...]`
+// The debug metadataFiles subcommand.
+// `corso debug metadata-files <service> [<flag>...]`
 var metadataFilesCommand = "metadata-files"
 
 func metadataFilesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   metadataFilesCommand,
-		Short: "Display all the metadata file contents stored by the service",
+		Short: "display all the metadata file contents stored by the service",
 		RunE:  handleMetadataFilesCmd,
 		Args:  cobra.NoArgs,
 	}
 }
 
-// Handler for calls to `corso backup metadata-files`.
-// Produces the same output as `corso backup metadata-files --help`.
+// Handler for calls to `corso debug metadata-files`.
+// Produces the same output as `corso debug metadata-files --help`.
 func handleMetadataFilesCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
 }
@@ -87,7 +87,7 @@ func runMetadataFiles(
 	cmd *cobra.Command,
 	args []string,
 	sel selectors.Selector,
-	backupID, serviceName string,
+	debugID, serviceName string,
 ) error {
 	r, _, err := utils.GetAccountAndConnect(ctx, cmd, sel.PathService())
 	if err != nil {
@@ -96,7 +96,7 @@ func runMetadataFiles(
 
 	defer utils.CloseRepo(ctx, r)
 
-	// TODO: read and print out all metadata files in the backup
+	// TODO: read and print out all metadata files in the debug
 
 	return nil
 }

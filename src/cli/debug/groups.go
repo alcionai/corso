@@ -68,7 +68,7 @@ func metadataFilesGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	sel := selectors.NewGroupsBackup([]string{"me"})
+	sel := selectors.NewGroupsBackup([]string{"unused-placeholder"})
 
 	return runMetadataFiles(ctx, cmd, args, sel.Selector, flags.BackupIDFV, "Groups")
 }

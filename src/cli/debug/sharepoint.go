@@ -67,7 +67,7 @@ func metadataFilesSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	sel := selectors.NewSharePointBackup([]string{"me"})
+	sel := selectors.NewSharePointBackup([]string{"unused-placeholder"})
 
 	return runMetadataFiles(ctx, cmd, args, sel.Selector, flags.BackupIDFV, "SharePoint")
 }
