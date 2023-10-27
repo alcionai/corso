@@ -164,12 +164,12 @@ func (suite *BackupBasesUnitSuite) TestBackupBases_minVersions() {
 				mergeBases: []BackupBase{
 					{
 						Backup: &backup.Backup{
-							Version: 4,
+							Version: 1,
 						},
 					},
 					{
 						Backup: &backup.Backup{
-							Version: 2,
+							Version: 5,
 						},
 					},
 					{
@@ -186,18 +186,18 @@ func (suite *BackupBasesUnitSuite) TestBackupBases_minVersions() {
 					},
 					{
 						Backup: &backup.Backup{
-							Version: 1,
+							Version: 2,
 						},
 					},
 					{
 						Backup: &backup.Backup{
-							Version: 3,
+							Version: 6,
 						},
 					},
 				},
 			},
-			expectedBackupVersion: 2,
-			expectedAssistVersion: 1,
+			expectedBackupVersion: 1,
+			expectedAssistVersion: 2,
 		},
 		{
 			name: "Assist and Merge Bases, min assist",
@@ -205,17 +205,17 @@ func (suite *BackupBasesUnitSuite) TestBackupBases_minVersions() {
 				mergeBases: []BackupBase{
 					{
 						Backup: &backup.Backup{
-							Version: 4,
+							Version: 7,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 5,
 						},
 					},
 					{
 						Backup: &backup.Backup{
 							Version: 3,
-						},
-					},
-					{
-						Backup: &backup.Backup{
-							Version: 2,
 						},
 					},
 				},
@@ -227,18 +227,18 @@ func (suite *BackupBasesUnitSuite) TestBackupBases_minVersions() {
 					},
 					{
 						Backup: &backup.Backup{
-							Version: 1,
+							Version: 2,
 						},
 					},
 					{
 						Backup: &backup.Backup{
-							Version: 3,
+							Version: 6,
 						},
 					},
 				},
 			},
-			expectedBackupVersion: 2,
-			expectedAssistVersion: 1,
+			expectedBackupVersion: 3,
+			expectedAssistVersion: 2,
 		},
 	}
 	for _, test := range table {
