@@ -188,7 +188,6 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					pid).
 					Reply(200).
 					JSON(requireParseableToMap(suite.T(), itm))
-
 			},
 			attachmentCount: 1,
 			size:            50,
