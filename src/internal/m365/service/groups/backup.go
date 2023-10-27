@@ -118,7 +118,6 @@ func ProduceBackupCollections(
 					creds.AzureTenantID,
 					ssmb,
 					su,
-					path.GroupsService,
 					errs)
 				if err != nil {
 					el.AddRecoverable(ctx, err)

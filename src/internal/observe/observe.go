@@ -254,7 +254,7 @@ func MessageWithCompletion(
 		loggable = fmt.Sprintf("%v", msg)
 	)
 
-	return messageWithCompletion(ctx, plain, loggable, 0, 40, nil)
+	return messageWithCompletion(ctx, plain, loggable, 0, progressBarWidth, nil)
 }
 
 func SubMessageWithCompletion(
@@ -266,7 +266,7 @@ func SubMessageWithCompletion(
 		loggable = fmt.Sprintf("%v", msg)
 	)
 
-	return messageWithCompletion(ctx, plain, loggable, 2, 40, nil)
+	return messageWithCompletion(ctx, plain, loggable, 2, progressBarWidth, nil)
 }
 
 func SubMessageWithCompletionAndTip(
@@ -279,7 +279,7 @@ func SubMessageWithCompletionAndTip(
 		loggable = fmt.Sprintf("%v", msg)
 	)
 
-	return messageWithCompletion(ctx, plain, loggable, 2, 40, tip)
+	return messageWithCompletion(ctx, plain, loggable, 2, progressBarWidth, tip)
 }
 
 // messageWithCompletion is used to display progress with a spinner
@@ -311,13 +311,18 @@ func messageWithCompletion(
 	bfoc := mpb.BarFillerOnComplete(color.Green("done"))
 	if tip != nil {
 		bfoc = mpb.BarFillerMiddleware(func(base mpb.BarFiller) mpb.BarFiller {
-			return mpb.BarFillerFunc(func(w io.Writer, st decor.Statistics) error {
+			filler := func(w io.Writer, st decor.Statistics) error {
 				if st.Completed {
-					_, err := io.WriteString(w, fmt.Sprintf("%s %s", color.Green("done"), color.Grey(tip())))
+					msg := fmt.Sprintf("%s %s", color.Green("done"), color.Grey(tip()))
+					_, err := io.WriteString(w, msg)
+
 					return err
 				}
+
 				return base.Fill(w, st)
-			})
+			}
+
+			return mpb.BarFillerFunc(filler)
 		})
 	}
 

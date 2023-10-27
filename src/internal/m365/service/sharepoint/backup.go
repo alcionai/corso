@@ -84,7 +84,6 @@ func ProduceBackupCollections(
 				creds.AzureTenantID,
 				ssmb,
 				su,
-				path.SharePointService,
 				errs)
 			if err != nil {
 				el.AddRecoverable(ctx, err)
