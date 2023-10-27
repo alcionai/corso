@@ -1200,113 +1200,11 @@ func (suite *OneDriveBackupNightlyIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *OneDriveBackupNightlyIntgSuite) TestBackup_Run_oneDriveBasic_groups9VersionBump() {
-	t := suite.T()
+func (suite *OneDriveBackupNightlyIntgSuite) TestBackup_Run_oneDriveVersion9MergeBase() {
+	sel := selectors.NewOneDriveBackup([]string{suite.its.user.ID})
+	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		userID  = tconfig.SecondaryM365UserID(t)
-		osel    = selectors.NewOneDriveBackup([]string{userID})
-		ws      = deeTD.DriveIDFromRepoRef
-		opts    = control.DefaultOptions()
-	)
-
-	osel.Include(selTD.OneDriveBackupFolderScope(osel))
-
-	bo, bod := prepNewTestBackupOp(
-		t,
-		ctx,
-		mb,
-		osel.Selector,
-		opts,
-		version.All8MigrateUserPNToID,
-		counter)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.FilesCategory)
-
-	_, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
-		path.OneDriveService,
-		ws,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		ws,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	mb = evmock.NewBus()
-	counter = count.New()
-	notForcedFull := newTestBackupOp(
-		t,
-		ctx,
-		bod,
-		mb,
-		opts,
-		counter)
-	notForcedFull.BackupVersion = version.Groups9Update
-
-	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&notForcedFull,
-		bod.sel,
-		bod.sel.ID(),
-		path.FilesCategory)
-
-	_, expectDeets = deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		notForcedFull.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
-		path.OneDriveService,
-		ws,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		notForcedFull.Results.BackupID,
-		ws,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	// The number of items backed up in the second backup should be less than the
-	// number of items in the original backup.
-	assert.Greater(
-		t,
-		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
-		notForcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
-		"items written")
+	runMergeBaseGroupsUpdate(suite, sel.Selector, true)
 }
 
 //func (suite *OneDriveBackupNightlyIntgSuite) TestBackup_Run_oneDriveVersion9AssistBases() {
