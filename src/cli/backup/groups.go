@@ -73,10 +73,8 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddGroupFlag(c)
 		flags.AddDataFlag(c, []string{flags.DataLibraries, flags.DataMessages}, false)
 		flags.AddFetchParallelismFlag(c)
-		flags.AddFailFastFlag(c)
 		flags.AddDisableDeltaFlag(c)
-		flags.AddDisableIncrementalsFlag(c)
-		flags.AddForceItemDataDownloadFlag(c)
+		flags.AddGenericBackupFlags(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())
