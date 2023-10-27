@@ -3,6 +3,8 @@ package test_test
 import (
 	"context"
 	"fmt"
+	"io"
+	"sync/atomic"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -36,6 +38,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -909,6 +912,53 @@ func runDriveIncrementalTest(
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 		})
 	}
+}
+
+var (
+	_ io.ReadCloser                    = &singleFileFailExtension{}
+	_ extensions.CreateItemExtensioner = &createSingleFileFailExtension{}
+)
+
+// singleFileFailExtension fails the first read on a file being uploaded during
+// a snapshot. Only one file is failed during the snapshot even if it the
+// snapshot contains multiple files.
+type singleFileFailExtension struct {
+	firstFile *atomic.Bool
+	io.ReadCloser
+}
+
+func (e *singleFileFailExtension) Read(p []byte) (int, error) {
+	if e.firstFile.CompareAndSwap(true, false) {
+		// This is the first file being read, return an error for it.
+		return 0, clues.New("injected error for testing")
+	}
+
+	return e.ReadCloser.Read(p)
+}
+
+func newCreateSingleFileFailExtension() *createSingleFileFailExtension {
+	firstItem := &atomic.Bool{}
+	firstItem.Store(true)
+
+	return &createSingleFileFailExtension{
+		firstItem: firstItem,
+	}
+}
+
+type createSingleFileFailExtension struct {
+	firstItem *atomic.Bool
+}
+
+func (ce *createSingleFileFailExtension) CreateItemExtension(
+	_ context.Context,
+	r io.ReadCloser,
+	_ details.ItemInfo,
+	_ *details.ExtensionData,
+) (io.ReadCloser, error) {
+	return &singleFileFailExtension{
+		firstFile:  ce.firstItem,
+		ReadCloser: r,
+	}, nil
 }
 
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
