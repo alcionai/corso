@@ -371,6 +371,24 @@ func (op *BackupOperation) do(
 		return nil, clues.Wrap(err, "producing manifests and metadata")
 	}
 
+	// Force full backups if the base is an older corso version. Those backups
+	// don't have all the data we want to pull forward.
+	//
+	// TODO(ashmrtn): We can push this check further down the stack to either:
+	//   * the metadata fetch code to disable individual bases (requires a
+	//     function to completely remove a base from the set)
+	//   * the base finder code to skip over older bases (breaks isolation a bit
+	//     by requiring knowledge of good/bad backup versions for different
+	//     services)
+	if op.Selectors.PathService() == path.GroupsService &&
+		mans.MinBackupVersion() < version.Groups9Update {
+		mans.DisableMergeBases()
+		mans.DisableAssistBases()
+
+		canUseMetadata = false
+		mdColls = nil
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"can_use_metadata", canUseMetadata,
