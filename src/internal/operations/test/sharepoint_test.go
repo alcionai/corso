@@ -46,6 +46,110 @@ func (suite *SharePointBackupIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic_groups9VersionBump() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb   = evmock.NewBus()
+		sel  = selectors.NewSharePointBackup([]string{suite.its.site.ID})
+		opts = control.DefaultOptions()
+		ws   = deeTD.DriveIDFromRepoRef
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	bo, bod := prepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel.Selector,
+		opts,
+		version.All8MigrateUserPNToID)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&bo,
+		bod.sel,
+		bod.sel.ID(),
+		path.LibrariesCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.SharePointService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	mb = evmock.NewBus()
+	notForcedFull := newTestBackupOp(
+		t,
+		ctx,
+		bod,
+		mb,
+		opts)
+	notForcedFull.BackupVersion = version.Groups9Update
+
+	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&notForcedFull,
+		bod.sel,
+		bod.sel.ID(),
+		path.LibrariesCategory)
+
+	_, expectDeets = deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.SharePointService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	// The number of items backed up in the second backup should be less than the
+	// number of items in the original backup.
+	assert.Greater(
+		t,
+		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
+		notForcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
+		"items written")
+}
+
 func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 	sel := selectors.NewSharePointRestore([]string{suite.its.site.ID})
 
