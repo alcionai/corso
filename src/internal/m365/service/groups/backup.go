@@ -137,9 +137,10 @@ func ProduceBackupCollections(
 				err                  error
 			)
 
-			progressBar := observe.SubMessageWithCompletionAndTip(
+			progressBar := observe.MessageWithCompletion(
 				ctx,
 				scope.Category().PathType().HumanString(),
+				true,
 				// TODO(meain): Use number of messages and not channels
 				func() string { return fmt.Sprintf("(found %d channels)", len(cs)) })
 

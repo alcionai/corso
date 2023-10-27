@@ -52,9 +52,10 @@ func CollectLibraries(
 		path.LibrariesCategory.HumanString(),
 		stdpath.Base(bpc.ProtectedResource.Name()))
 
-	progressBar := observe.SubMessageWithCompletionAndTip(
+	progressBar := observe.MessageWithCompletion(
 		ctx,
 		msg,
+		true,
 		func() string { return fmt.Sprintf("(found %d items)", colls.NumItems) })
 	close(progressBar)
 

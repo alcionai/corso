@@ -276,7 +276,7 @@ func (op *RestoreOperation) do(
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 
-	progressBar := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
+	progressBar := observe.MessageWithCompletion(ctx, "Enumerating items in repository", false, nil)
 	defer close(progressBar)
 
 	dcs, err := op.kopia.ProduceRestoreCollections(
@@ -384,7 +384,7 @@ func consumeRestoreCollections(
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.Details, error) {
-	progressBar := observe.MessageWithCompletion(ctx, "Restoring data")
+	progressBar := observe.MessageWithCompletion(ctx, "Restoring data", false, nil)
 	defer close(progressBar)
 
 	rcc := inject.RestoreConsumerConfig{

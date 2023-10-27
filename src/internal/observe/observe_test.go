@@ -174,7 +174,7 @@ func (suite *ObserveProgressUnitSuite) TestObserve_progressWithChannelClosed() {
 
 	message := uuid.NewString()[:8]
 
-	ch := MessageWithCompletion(ctx, message)
+	ch := MessageWithCompletion(ctx, message, false, nil)
 
 	// Close channel without completing
 	close(ch)
@@ -199,7 +199,7 @@ func (suite *ObserveProgressUnitSuite) TestObserve_progressWithContextCancelled(
 
 	message := uuid.NewString()[:8]
 
-	_ = MessageWithCompletion(ctx, message)
+	_ = MessageWithCompletion(ctx, message, false, nil)
 
 	// cancel context
 	cancel()

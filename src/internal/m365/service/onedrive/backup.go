@@ -57,9 +57,10 @@ func ProduceBackupCollections(
 			su,
 			bpc.Options)
 
-		progressBar := observe.SubMessageWithCompletionAndTip(
+		progressBar := observe.MessageWithCompletion(
 			ctx,
 			path.FilesCategory.HumanString(),
+			true,
 			func() string { return fmt.Sprintf("(found %d files)", nc.NumFiles) })
 		defer close(progressBar)
 

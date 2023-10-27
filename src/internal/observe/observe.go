@@ -248,38 +248,21 @@ func Message(ctx context.Context, msgs ...any) {
 func MessageWithCompletion(
 	ctx context.Context,
 	msg any,
+	indent bool,
+	completionMessage func() string,
 ) chan<- struct{} {
 	var (
+		ind      = 0
 		plain    = plainString(msg)
 		loggable = fmt.Sprintf("%v", msg)
 	)
 
-	return messageWithCompletion(ctx, plain, loggable, 0, progressBarWidth, nil)
-}
+	if indent {
+		ind = 2
+		plain = color.Cyan(msg)
+	}
 
-func SubMessageWithCompletion(
-	ctx context.Context,
-	msg string,
-) chan<- struct{} {
-	var (
-		plain    = color.Cyan(msg)
-		loggable = fmt.Sprintf("%v", msg)
-	)
-
-	return messageWithCompletion(ctx, plain, loggable, 2, progressBarWidth, nil)
-}
-
-func SubMessageWithCompletionAndTip(
-	ctx context.Context,
-	msg string,
-	tip func() string,
-) chan<- struct{} {
-	var (
-		plain    = color.Cyan(msg)
-		loggable = fmt.Sprintf("%v", msg)
-	)
-
-	return messageWithCompletion(ctx, plain, loggable, 2, progressBarWidth, tip)
+	return messageWithCompletion(ctx, plain, loggable, ind, progressBarWidth, completionMessage)
 }
 
 // messageWithCompletion is used to display progress with a spinner

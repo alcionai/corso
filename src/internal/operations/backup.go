@@ -528,7 +528,7 @@ func produceBackupDataCollections(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	progressBar := observe.MessageWithCompletion(ctx, "Discovering items to backup")
+	progressBar := observe.MessageWithCompletion(ctx, "Discovering items to backup", false, nil)
 	defer close(progressBar)
 
 	bpc := inject.BackupProducerConfig{
@@ -565,7 +565,7 @@ func consumeBackupCollections(
 		"collection_source", "operations",
 		"snapshot_type", "item data")
 
-	progressBar := observe.MessageWithCompletion(ctx, "Backing up data")
+	progressBar := observe.MessageWithCompletion(ctx, "Backing up data", false, nil)
 	defer close(progressBar)
 
 	tags := map[string]string{

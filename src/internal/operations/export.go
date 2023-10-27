@@ -241,7 +241,7 @@ func (op *ExportOperation) do(
 
 	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to export", len(paths), op.BackupID))
 
-	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
+	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository", false, nil)
 	defer close(kopiaComplete)
 
 	dcs, err := op.kopia.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
@@ -332,7 +332,7 @@ func produceExportCollections(
 	exportStats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
-	complete := observe.MessageWithCompletion(ctx, "Preparing export")
+	complete := observe.MessageWithCompletion(ctx, "Preparing export", false, nil)
 	defer func() {
 		complete <- struct{}{}
 		close(complete)

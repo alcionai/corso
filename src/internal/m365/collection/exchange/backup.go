@@ -52,9 +52,10 @@ func CreateCollections(
 		return nil, clues.NewWC(ctx, "unsupported backup category type")
 	}
 
-	foldersComplete := observe.SubMessageWithCompletionAndTip(
+	foldersComplete := observe.MessageWithCompletion(
 		ctx,
 		qp.Category.HumanString(),
+		true,
 		func() string { return fmt.Sprintf("(found %d folders)", len(collections)) })
 	defer close(foldersComplete)
 
