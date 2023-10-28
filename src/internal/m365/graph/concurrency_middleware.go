@@ -11,6 +11,7 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	"golang.org/x/time/rate"
 
+	sw "github.com/RussellLuo/slidingwindow"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -102,6 +103,12 @@ var (
 	driveLimiter = rate.NewLimiter(drivePerSecond, driveMaxCap)
 	// also used as the exchange service limiter
 	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
+
+	slideLimiter, _ = sw.NewLimiter(10*time.Minute, 10000, func() (sw.Window, sw.StopFunc) {
+		// NewLocalWindow returns an empty stop function, so it's
+		// unnecessary to call it later.
+		return sw.NewLocalWindow()
+	})
 )
 
 type LimiterCfg struct {
@@ -185,11 +192,29 @@ func ctxLimiterConsumption(ctx context.Context, defaultConsumption int) int {
 // calls-per-minute rate.  Otherwise, the call will wait in a queue until
 // the next token set is available.
 func QueueRequest(ctx context.Context) {
-	limiter := ctxLimiter(ctx)
-	consume := ctxLimiterConsumption(ctx, defaultLC)
+	// limiter := ctxLimiter(ctx)
+	// consume := ctxLimiterConsumption(ctx, defaultLC)
 
-	if err := limiter.WaitN(ctx, consume); err != nil {
-		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
+	// if err := limiter.WaitN(ctx, consume); err != nil {
+	// 	logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
+	// }
+
+	// Add a do while loop to wait for the limiter to allow the request
+	// to go through.  This is necessary because the limiter.WaitN() call
+	// will return immediately if the limiter is already full, and we
+	// need to wait for the limiter to allow the request to go through.
+
+	for i := 0; i < 10; i++ {
+		a := slideLimiter.Allow()
+		if a {
+			// Tokens are available now; exit the loop.
+			break
+		}
+
+		logger.Ctx(ctx).Error("retrying - waiting for limiter tokens")
+
+		// Sleep for a second before the next retry.
+		time.Sleep(time.Second)
 	}
 }
 
