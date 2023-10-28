@@ -2,6 +2,7 @@ package details
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -37,25 +38,33 @@ func NewGroupsLocationIDer(
 
 // GroupsInfo describes a groups item
 type GroupsInfo struct {
-	Created    time.Time `json:"created,omitempty"`
-	ItemName   string    `json:"itemName,omitempty"`
-	ItemType   ItemType  `json:"itemType,omitempty"`
-	Modified   time.Time `json:"modified,omitempty"`
-	Owner      string    `json:"owner,omitempty"`
-	ParentPath string    `json:"parentPath,omitempty"`
-	Size       int64     `json:"size,omitempty"`
+	ItemType ItemType  `json:"itemType,omitempty"`
+	Modified time.Time `json:"modified,omitempty"`
 
 	// Channels Specific
-	LastReplyAt    time.Time `json:"lastResponseAt,omitempty"`
-	MessageCreator string    `json:"messageCreator,omitempty"`
-	MessagePreview string    `json:"messagePreview,omitempty"`
-	ReplyCount     int       `json:"replyCount,omitempty"`
+	Message   ChannelMessageInfo `json:"message"`
+	LastReply ChannelMessageInfo `json:"lastReply"`
 
 	// SharePoint specific
-	DriveName string `json:"driveName,omitempty"`
-	DriveID   string `json:"driveID,omitempty"`
-	SiteID    string `json:"siteID,omitempty"`
-	WebURL    string `json:"webURL,omitempty"`
+	Created    time.Time `json:"created,omitempty"`
+	DriveName  string    `json:"driveName,omitempty"`
+	DriveID    string    `json:"driveID,omitempty"`
+	ItemName   string    `json:"itemName,omitempty"`
+	Owner      string    `json:"owner,omitempty"`
+	ParentPath string    `json:"parentPath,omitempty"`
+	SiteID     string    `json:"siteID,omitempty"`
+	Size       int64     `json:"size,omitempty"`
+	WebURL     string    `json:"webURL,omitempty"`
+}
+
+type ChannelMessageInfo struct {
+	AttachmentNames []string  `json:"attachmentNames,omitempty"`
+	CreatedAt       time.Time `json:"createdAt,omitempty"`
+	Creator         string    `json:"creator,omitempty"`
+	Preview         string    `json:"preview,omitempty"`
+	ReplyCount      int       `json:"replyCount"`
+	Size            int64     `json:"size,omitempty"`
+	Subject         string    `json:"subject,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
@@ -65,7 +74,7 @@ func (i GroupsInfo) Headers() []string {
 	case SharePointLibrary:
 		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
 	case GroupsChannelMessage:
-		return []string{"Message", "Channel", "Replies", "Creator", "Created", "Last Reply"}
+		return []string{"Message", "Channel", "Subject", "Replies", "Creator", "Created", "Last Reply"}
 	}
 
 	return []string{}
@@ -86,17 +95,19 @@ func (i GroupsInfo) Values() []string {
 			dttm.FormatToTabularDisplay(i.Modified),
 		}
 	case GroupsChannelMessage:
-		lastReply := dttm.FormatToTabularDisplay(i.LastReplyAt)
-		if i.LastReplyAt.Equal(time.Time{}) {
+		lastReply := dttm.FormatToTabularDisplay(i.LastReply.CreatedAt)
+		if i.LastReply.CreatedAt.IsZero() {
 			lastReply = ""
 		}
 
 		return []string{
-			i.MessagePreview,
+			// html parsing may produce newlijnes, which we'll want to avoid
+			strings.ReplaceAll(i.Message.Preview, "\n", "\\n"),
 			i.ParentPath,
-			strconv.Itoa(i.ReplyCount),
-			i.MessageCreator,
-			dttm.FormatToTabularDisplay(i.Created),
+			i.Message.Subject,
+			strconv.Itoa(i.Message.ReplyCount),
+			i.Message.Creator,
+			dttm.FormatToTabularDisplay(i.Message.CreatedAt),
 			lastReply,
 		}
 	}

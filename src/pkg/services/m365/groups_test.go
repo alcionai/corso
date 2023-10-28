@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -13,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/errs"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365"
 )
@@ -59,6 +61,46 @@ func (suite *GroupsIntgSuite) TestGroupByID() {
 	assert.NotEmpty(t, group.DisplayName)
 }
 
+func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	gid := tconfig.M365TeamID(t)
+
+	group, err := m365.GroupByID(ctx, suite.acct, gid)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, group)
+
+	assert.Equal(t, gid, group.ID, "must match expected id")
+	assert.NotEmpty(t, group.DisplayName)
+
+	gemail := tconfig.M365TeamEmail(t)
+
+	groupByEmail, err := m365.GroupByID(ctx, suite.acct, gemail)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, group)
+
+	assert.Equal(t, groupByEmail, group, "must be the same group as the one gotten by id")
+}
+
+func (suite *GroupsIntgSuite) TestGroupByID_notFound() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	group, err := m365.GroupByID(ctx, suite.acct, uuid.NewString())
+	require.Nil(t, group)
+	require.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+	require.True(t, errs.Is(err, errs.ResourceOwnerNotFound))
+}
+
 func (suite *GroupsIntgSuite) TestGroups() {
 	t := suite.T()
 
@@ -84,6 +126,25 @@ func (suite *GroupsIntgSuite) TestGroups() {
 			}
 		})
 	}
+}
+
+func (suite *GroupsIntgSuite) TestSitesInGroup() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
+	gid := tconfig.M365TeamID(t)
+
+	sites, err := m365.SitesInGroup(
+		ctx,
+		suite.acct,
+		gid,
+		fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, sites)
 }
 
 func (suite *GroupsIntgSuite) TestGroupsMap() {

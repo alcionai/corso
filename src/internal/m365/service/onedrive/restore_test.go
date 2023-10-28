@@ -24,7 +24,7 @@ func TestRestoreUnitSuite(t *testing.T) {
 func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 	// Adding a simple test here so that we can be sure that this
 	// function gets updated whenever we add a new version.
-	require.LessOrEqual(suite.T(), version.Backup, version.All8MigrateUserPNToID, "unsupported backup version")
+	require.LessOrEqual(suite.T(), version.Backup, version.Groups9Update, "unsupported backup version")
 
 	table := []struct {
 		name    string
@@ -216,7 +216,7 @@ func (suite *RestoreUnitSuite) TestAugmentRestorePaths() {
 func (suite *RestoreUnitSuite) TestAugmentRestorePaths_DifferentRestorePath() {
 	// Adding a simple test here so that we can be sure that this
 	// function gets updated whenever we add a new version.
-	require.LessOrEqual(suite.T(), version.Backup, version.All8MigrateUserPNToID, "unsupported backup version")
+	require.LessOrEqual(suite.T(), version.Backup, version.Groups9Update, "unsupported backup version")
 
 	type pathPair struct {
 		storage string

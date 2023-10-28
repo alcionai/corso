@@ -18,6 +18,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 type siteIntegrationSuite struct {
@@ -56,7 +58,6 @@ func (suite *siteIntegrationSuite) TestSites() {
 			t := suite.T()
 			assert.NotEmpty(t, s.WebURL)
 			assert.NotEmpty(t, s.ID)
-			assert.NotEmpty(t, s.DisplayName)
 		})
 	}
 }
@@ -80,11 +81,7 @@ func (suite *siteIntegrationSuite) TestSites_GetByID() {
 			assert.NoError(t, err, clues.ToCore(err))
 			assert.NotEmpty(t, site.WebURL)
 			assert.NotEmpty(t, site.ID)
-			assert.NotEmpty(t, site.DisplayName)
-			if site.OwnerType != SiteOwnerUnknown {
-				assert.NotEmpty(t, site.OwnerID)
-				assert.NotEmpty(t, site.OwnerType)
-			}
+			assert.NotEmpty(t, site.OwnerType)
 		})
 	}
 }
@@ -156,6 +153,14 @@ func (m mockGASites) GetAll(context.Context, *fault.Bus) ([]models.Siteable, err
 	return m.response, m.err
 }
 
+func (m mockGASites) GetByID(context.Context, string, api.CallConfig) (models.Siteable, error) {
+	if len(m.response) == 0 {
+		return nil, m.err
+	}
+
+	return m.response[0], m.err
+}
+
 func (suite *siteUnitSuite) TestGetAllSites() {
 	table := []struct {
 		name      string
@@ -213,6 +218,92 @@ func (suite *siteUnitSuite) TestGetAllSites() {
 
 			_, err := getAllSites(ctx, gas)
 			test.expectErr(t, err)
+		})
+	}
+}
+
+func (suite *siteUnitSuite) TestGetSites() {
+	table := []struct {
+		name       string
+		mock       func(context.Context) api.GetByIDer[models.Siteable]
+		expectErr  assert.ErrorAssertionFunc
+		expectSite func(*testing.T, *Site)
+	}{
+		{
+			name: "ok - no owner",
+			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
+				return mockGASites{[]models.Siteable{
+					mock.DummySite(nil),
+				}, nil}
+			},
+			expectErr: assert.NoError,
+			expectSite: func(t *testing.T, site *Site) {
+				assert.NotEmpty(t, site.ID)
+				assert.NotEmpty(t, site.WebURL)
+				assert.Empty(t, site.OwnerID)
+			},
+		},
+		{
+			name: "ok - owner user",
+			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
+				return mockGASites{[]models.Siteable{
+					mock.DummySite(mock.UserIdentity("userid", "useremail")),
+				}, nil}
+			},
+			expectErr: assert.NoError,
+			expectSite: func(t *testing.T, site *Site) {
+				assert.NotEmpty(t, site.ID)
+				assert.NotEmpty(t, site.WebURL)
+				assert.Equal(t, site.OwnerID, "userid")
+				assert.Equal(t, site.OwnerEmail, "useremail")
+				assert.Equal(t, site.OwnerType, SiteOwnerUser)
+			},
+		},
+		{
+			name: "ok - group user with ID and email",
+			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
+				return mockGASites{[]models.Siteable{
+					mock.DummySite(mock.GroupIdentitySet("groupid", "groupemail")),
+				}, nil}
+			},
+			expectErr: assert.NoError,
+			expectSite: func(t *testing.T, site *Site) {
+				assert.NotEmpty(t, site.ID)
+				assert.NotEmpty(t, site.WebURL)
+				assert.Equal(t, SiteOwnerGroup, site.OwnerType)
+				assert.Equal(t, "groupid", site.OwnerID)
+				assert.Equal(t, "groupemail", site.OwnerEmail)
+			},
+		},
+		{
+			name: "ok - group user with no ID but email",
+			mock: func(ctx context.Context) api.GetByIDer[models.Siteable] {
+				return mockGASites{[]models.Siteable{
+					mock.DummySite(mock.GroupIdentitySet("", "groupemail")),
+				}, nil}
+			},
+			expectErr: assert.NoError,
+			expectSite: func(t *testing.T, site *Site) {
+				assert.NotEmpty(t, site.ID)
+				assert.NotEmpty(t, site.WebURL)
+				assert.Equal(t, SiteOwnerGroup, site.OwnerType)
+				assert.Equal(t, "", site.OwnerID)
+				assert.Equal(t, "groupemail", site.OwnerEmail)
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			gas := test.mock(ctx)
+
+			site, err := getSiteByID(ctx, gas, "id", api.CallConfig{})
+			test.expectSite(t, site)
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }

@@ -228,7 +228,7 @@ func (suite *SharePointIntegrationSuite) TestLinkSharesInheritanceRestoreAndBack
 
 func (suite *SharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
+	testRestoreFolderNamedFolderRegression(suite, version.Backup)
 }
 
 // ---------------------------------------------------------------------------
@@ -292,7 +292,7 @@ func (suite *OneDriveIntegrationSuite) TestLinkSharesInheritanceRestoreAndBackup
 
 func (suite *OneDriveIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
+	testRestoreFolderNamedFolderRegression(suite, version.Backup)
 }
 
 // ---------------------------------------------------------------------------

@@ -36,7 +36,7 @@ func GroupByID(
 ) (*Group, error) {
 	ac, err := makeAC(ctx, acct, path.GroupsService)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.Stack(err)
 	}
 
 	cc := api.CallConfig{}
@@ -69,7 +69,7 @@ func Groups(
 ) ([]*Group, error) {
 	ac, err := makeAC(ctx, acct, path.GroupsService)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.Stack(err)
 	}
 
 	return getAllGroups(ctx, ac.Groups())
@@ -96,6 +96,31 @@ func getAllGroups(
 	}
 
 	return ret, nil
+}
+
+func SitesInGroup(
+	ctx context.Context,
+	acct account.Account,
+	groupID string,
+	errs *fault.Bus,
+) ([]*Site, error) {
+	ac, err := makeAC(ctx, acct, path.GroupsService)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	sites, err := ac.Groups().GetAllSites(ctx, groupID, errs)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	result := make([]*Site, 0, len(sites))
+
+	for _, site := range sites {
+		result = append(result, ParseSite(ctx, site))
+	}
+
+	return result, nil
 }
 
 // ---------------------------------------------------------------------------

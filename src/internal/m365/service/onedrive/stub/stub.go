@@ -217,7 +217,8 @@ func (c *collection) withFile(name string, fileData []byte, meta MetaData) (*col
 		c.Aux = append(c.Aux, md)
 
 		// v6+ current metadata design
-	case version.OneDrive6NameInMeta, version.OneDrive7LocationRef, version.All8MigrateUserPNToID:
+	case version.OneDrive6NameInMeta, version.OneDrive7LocationRef,
+		version.All8MigrateUserPNToID, version.Groups9Update:
 		item, err := FileWithData(
 			name+metadata.DataFileSuffix,
 			name+metadata.DataFileSuffix,
@@ -251,7 +252,8 @@ func (c *collection) withFile(name string, fileData []byte, meta MetaData) (*col
 func (c *collection) withFolder(name string, meta MetaData) (*collection, error) {
 	switch c.BackupVersion {
 	case 0, version.OneDrive4DirIncludesPermissions, version.OneDrive5DirMetaNoName,
-		version.OneDrive6NameInMeta, version.OneDrive7LocationRef, version.All8MigrateUserPNToID:
+		version.OneDrive6NameInMeta, version.OneDrive7LocationRef,
+		version.All8MigrateUserPNToID, version.Groups9Update:
 		return c, nil
 
 	case version.OneDrive1DataAndMetaFiles, 2, version.OneDrive3IsMetaMarker:

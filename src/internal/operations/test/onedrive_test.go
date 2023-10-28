@@ -3,6 +3,8 @@ package test_test
 import (
 	"context"
 	"fmt"
+	"io"
+	"sync/atomic"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -36,6 +38,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -106,6 +109,118 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 		expectDeets,
 		false)
 }
+
+func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveBasic_groups9VersionBump() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb     = evmock.NewBus()
+		userID = tconfig.SecondaryM365UserID(t)
+		osel   = selectors.NewOneDriveBackup([]string{userID})
+		ws     = deeTD.DriveIDFromRepoRef
+		opts   = control.DefaultOptions()
+	)
+
+	osel.Include(selTD.OneDriveBackupFolderScope(osel))
+
+	bo, bod := prepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		osel.Selector,
+		opts,
+		version.All8MigrateUserPNToID)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&bo,
+		bod.sel,
+		bod.sel.ID(),
+		path.FilesCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.OneDriveService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	mb = evmock.NewBus()
+	notForcedFull := newTestBackupOp(
+		t,
+		ctx,
+		bod,
+		mb,
+		opts)
+	notForcedFull.BackupVersion = version.Groups9Update
+
+	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&notForcedFull,
+		bod.sel,
+		bod.sel.ID(),
+		path.FilesCategory)
+
+	_, expectDeets = deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.OneDriveService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	// The number of items backed up in the second backup should be less than the
+	// number of items in the original backup.
+	assert.Greater(
+		t,
+		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
+		notForcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
+		"items written")
+}
+
+//func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveVersion9AssistBases() {
+//	sel := selectors.NewOneDriveBackup([]string{tconfig.SecondaryM365UserID(suite.T())})
+//	sel.Include(selTD.OneDriveBackupFolderScope(sel))
+//
+//	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, true)
+//}
 
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
 	sel := selectors.NewOneDriveRestore([]string{suite.its.user.ID})
@@ -804,6 +919,179 @@ func runDriveIncrementalTest(
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 		})
 	}
+}
+
+var (
+	_ io.ReadCloser                    = &failFirstRead{}
+	_ extensions.CreateItemExtensioner = &createFailFirstRead{}
+)
+
+// failFirstRead fails the first read on a file being uploaded during a
+// snapshot. Only one file is failed during the snapshot even if it the snapshot
+// contains multiple files.
+type failFirstRead struct {
+	firstFile *atomic.Bool
+	io.ReadCloser
+}
+
+func (e *failFirstRead) Read(p []byte) (int, error) {
+	if e.firstFile.CompareAndSwap(true, false) {
+		// This is the first file being read, return an error for it.
+		return 0, clues.New("injected error for testing")
+	}
+
+	return e.ReadCloser.Read(p)
+}
+
+func newCreateSingleFileFailExtension() *createFailFirstRead {
+	firstItem := &atomic.Bool{}
+	firstItem.Store(true)
+
+	return &createFailFirstRead{
+		firstItem: firstItem,
+	}
+}
+
+type createFailFirstRead struct {
+	firstItem *atomic.Bool
+}
+
+func (ce *createFailFirstRead) CreateItemExtension(
+	_ context.Context,
+	r io.ReadCloser,
+	_ details.ItemInfo,
+	_ *details.ExtensionData,
+) (io.ReadCloser, error) {
+	return &failFirstRead{
+		firstFile:  ce.firstItem,
+		ReadCloser: r,
+	}, nil
+}
+
+func runDriveAssistBaseGroupsUpdate(
+	suite tester.Suite,
+	sel selectors.Selector,
+	expectCached bool,
+) {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		whatSet = deeTD.CategoryFromRepoRef
+		mb      = evmock.NewBus()
+		opts    = control.DefaultOptions()
+	)
+
+	opts.ItemExtensionFactory = []extensions.CreateItemExtensioner{
+		newCreateSingleFileFailExtension(),
+	}
+
+	// Creating out here so bod lasts for full test and isn't closed until the
+	// test is compltely done.
+	bo, bod := prepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel,
+		opts,
+		version.All8MigrateUserPNToID)
+	defer bod.close(t, ctx)
+
+	suite.Run("makeAssistBackup", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		// Need to run manually cause runAndCheckBackup assumes success for the most
+		// part.
+		err := bo.Run(ctx)
+		assert.Error(t, err, clues.ToCore(err))
+		assert.NotEmpty(t, bo.Results, "backup had non-zero results")
+		assert.NotEmpty(t, bo.Results.BackupID, "backup generated an ID")
+		assert.NotZero(t, bo.Results.ItemsWritten)
+
+		// TODO(ashmrtn): Check that the base is marked as an assist base.
+		t.Logf("base error: %v\n", err)
+	})
+
+	// Don't run the below if we've already failed since it won't make sense
+	// anymore.
+	if suite.T().Failed() {
+		return
+	}
+
+	suite.Run("makeIncrementalBackup", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		var (
+			mb   = evmock.NewBus()
+			opts = control.DefaultOptions()
+		)
+
+		forcedFull := newTestBackupOp(
+			t,
+			ctx,
+			bod,
+			mb,
+			opts)
+		forcedFull.BackupVersion = version.Groups9Update
+
+		runAndCheckBackup(t, ctx, &forcedFull, mb, false)
+
+		reasons, err := bod.sel.Reasons(bod.acct.ID(), false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		for _, reason := range reasons {
+			checkBackupIsInManifests(
+				t,
+				ctx,
+				bod.kw,
+				bod.sw,
+				&forcedFull,
+				bod.sel,
+				bod.sel.ID(),
+				reason.Category())
+		}
+
+		_, expectDeets := deeTD.GetDeetsInBackup(
+			t,
+			ctx,
+			forcedFull.Results.BackupID,
+			bod.acct.ID(),
+			bod.sel.ID(),
+			bod.sel.PathService(),
+			whatSet,
+			bod.kms,
+			bod.sss)
+		deeTD.CheckBackupDetails(
+			t,
+			ctx,
+			forcedFull.Results.BackupID,
+			whatSet,
+			bod.kms,
+			bod.sss,
+			expectDeets,
+			false)
+
+		// For groups the forced full backup shouldn't have any cached items. For
+		// OneDrive and SharePoint it should since they shouldn't be forcing full
+		// backups.
+		cachedCheck := assert.NotZero
+		if !expectCached {
+			cachedCheck = assert.Zero
+		}
+
+		cachedCheck(
+			t,
+			forcedFull.Results.Counts[string(count.PersistedCachedFiles)],
+			"kopia cached items")
+	})
 }
 
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {

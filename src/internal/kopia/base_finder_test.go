@@ -970,12 +970,12 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 
 			checkBackupEntriesMatch(
 				t,
-				bb.Backups(),
+				bb.MergeBases(),
 				test.backupData,
 				test.expectedBaseReasons)
 			checkBackupEntriesMatch(
 				t,
-				bb.UniqueAssistBackups(),
+				bb.UniqueAssistBases(),
 				test.backupData,
 				test.expectedAssistReasons)
 
@@ -1078,7 +1078,7 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 
 func checkManifestEntriesMatch(
 	t *testing.T,
-	retSnaps []ManifestEntry,
+	retSnaps []BackupBase,
 	allExpected []manifestInfo,
 	expectedIdxsAndReasons map[int][]identity.Reasoner,
 ) {
@@ -1090,7 +1090,7 @@ func checkManifestEntriesMatch(
 
 	got := make([]*snapshot.Manifest, 0, len(retSnaps))
 	for _, s := range retSnaps {
-		got = append(got, s.Manifest)
+		got = append(got, s.ItemDataSnapshot)
 	}
 
 	assert.ElementsMatch(t, expected, got)
@@ -1102,7 +1102,7 @@ func checkManifestEntriesMatch(
 	}
 
 	for _, found := range retSnaps {
-		reasons, ok := expectedReasons[found.ID]
+		reasons, ok := expectedReasons[found.ItemDataSnapshot.ID]
 		if !ok {
 			// Missing or extra snapshots will be reported by earlier checks.
 			continue
@@ -1113,13 +1113,13 @@ func checkManifestEntriesMatch(
 			reasons,
 			found.Reasons,
 			"incorrect reasons for snapshot with ID %s",
-			found.ID)
+			found.ItemDataSnapshot.ID)
 	}
 }
 
 func checkBackupEntriesMatch(
 	t *testing.T,
-	retBups []BackupEntry,
+	retBups []BackupBase,
 	allExpected []backupInfo,
 	expectedIdxsAndReasons map[int][]identity.Reasoner,
 ) {
@@ -1143,7 +1143,7 @@ func checkBackupEntriesMatch(
 	}
 
 	for _, found := range retBups {
-		reasons, ok := expectedReasons[found.ID]
+		reasons, ok := expectedReasons[found.Backup.ID]
 		if !ok {
 			// Missing or extra snapshots will be reported by earlier checks.
 			continue
@@ -1154,6 +1154,6 @@ func checkBackupEntriesMatch(
 			reasons,
 			found.Reasons,
 			"incorrect reasons for snapshot with ID %s",
-			found.ID)
+			found.Backup.ID)
 	}
 }

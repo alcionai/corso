@@ -62,9 +62,9 @@ func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
 func (mbp mockBackupProducer) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
+	base kopia.BackupBase,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	ctrl := m365.Controller{}
-	return ctrl.GetMetadataPaths(ctx, r, man, errs)
+	return ctrl.GetMetadataPaths(ctx, r, base, errs)
 }

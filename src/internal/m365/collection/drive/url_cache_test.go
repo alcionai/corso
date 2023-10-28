@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -184,6 +185,9 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 	// Validate that exactly 1 delta query was made by url cache
 	require.Equal(t, 1, uc.refreshCount)
+
+	// Validate that the prev delta base stays the same
+	require.Equal(t, du.URL, uc.prevDelta)
 }
 
 // ---------------------------------------------------------------------------
@@ -553,7 +557,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 							driveID: {
 								Pages:       test.pages,
 								Err:         test.pagerErr,
-								DeltaUpdate: api.DeltaUpdate{URL: deltaString},
+								DeltaUpdate: pagers.DeltaUpdate{URL: deltaString},
 							},
 						},
 					}

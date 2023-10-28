@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ type addedAndRemovedItemGetter interface {
 		user, containerID, oldDeltaToken string,
 		immutableIDs bool,
 		canMakeDeltaQueries bool,
-	) (map[string]time.Time, bool, []string, api.DeltaUpdate, error)
+	) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error)
 }
 
 type itemGetterSerializer interface {

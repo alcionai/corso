@@ -1,4 +1,4 @@
-package api
+package pagers
 
 import (
 	"context"
@@ -57,6 +57,12 @@ type nextPageResults[T any] struct {
 	pages chan nextPage[T]
 	du    DeltaUpdate
 	err   error
+}
+
+func NewNextPageResults[T any]() *nextPageResults[T] {
+	return &nextPageResults[T]{
+		pages: make(chan nextPage[T]),
+	}
 }
 
 func (npr *nextPageResults[T]) writeNextPage(
@@ -171,15 +177,15 @@ func NextAndDeltaLink(pl DeltaLinker) (string, string) {
 // non-delta item paging
 // ---------------------------------------------------------------------------
 
-type Pager[T any] interface {
+type NonDeltaHandler[T any] interface {
 	GetPager[NextLinkValuer[T]]
 	SetNextLinker
 	ValidModTimer
 }
 
-func enumerateItems[T any](
+func EnumerateItems[T any](
 	ctx context.Context,
-	pager Pager[T],
+	pager NonDeltaHandler[T],
 	npr *nextPageResults[T],
 ) {
 	defer npr.close()
@@ -211,9 +217,9 @@ func enumerateItems[T any](
 	logger.Ctx(ctx).Infow("completed delta item enumeration", "result_count", len(result))
 }
 
-func batchEnumerateItems[T any](
+func BatchEnumerateItems[T any](
 	ctx context.Context,
-	pager Pager[T],
+	pager NonDeltaHandler[T],
 ) ([]T, error) {
 	var (
 		npr = nextPageResults[T]{
@@ -222,7 +228,7 @@ func batchEnumerateItems[T any](
 		items = []T{}
 	)
 
-	go enumerateItems[T](ctx, pager, &npr)
+	go EnumerateItems[T](ctx, pager, &npr)
 
 	for page, _, done := npr.NextPage(); !done; page, _, done = npr.NextPage() {
 		items = append(items, page...)
@@ -237,7 +243,7 @@ func batchEnumerateItems[T any](
 // generic handler for delta-based item paging
 // ---------------------------------------------------------------------------
 
-type DeltaPager[T any] interface {
+type DeltaHandler[T any] interface {
 	GetPager[DeltaLinkValuer[T]]
 	Resetter
 	SetNextLinker
@@ -247,9 +253,9 @@ type DeltaPager[T any] interface {
 // enumerates pages of items, streaming each page to the provided channel.
 // the DeltaUpdate, reset notifications, and any errors are also fed to the
 // same channel.
-func deltaEnumerateItems[T any](
+func DeltaEnumerateItems[T any](
 	ctx context.Context,
-	pager DeltaPager[T],
+	pager DeltaHandler[T],
 	npr *nextPageResults[T],
 	prevDeltaLink string,
 ) {
@@ -335,7 +341,7 @@ func deltaEnumerateItems[T any](
 
 func batchDeltaEnumerateItems[T any](
 	ctx context.Context,
-	pager DeltaPager[T],
+	pager DeltaHandler[T],
 	prevDeltaLink string,
 ) ([]T, DeltaUpdate, error) {
 	var (
@@ -345,7 +351,7 @@ func batchDeltaEnumerateItems[T any](
 		results = []T{}
 	)
 
-	go deltaEnumerateItems[T](ctx, pager, &npr, prevDeltaLink)
+	go DeltaEnumerateItems[T](ctx, pager, &npr, prevDeltaLink)
 
 	for page, reset, done := npr.NextPage(); !done; page, reset, done = npr.NextPage() {
 		if reset {
@@ -373,10 +379,10 @@ type addedAndRemovedHandler[T any] func(
 	error,
 )
 
-func getAddedAndRemovedItemIDs[T any](
+func GetAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
-	pager Pager[T],
-	deltaPager DeltaPager[T],
+	pager NonDeltaHandler[T],
+	deltaPager DeltaHandler[T],
 	prevDeltaLink string,
 	canMakeDeltaQueries bool,
 	aarh addedAndRemovedHandler[T],
@@ -396,7 +402,7 @@ func getAddedAndRemovedItemIDs[T any](
 
 	du := DeltaUpdate{Reset: true}
 
-	ts, err := batchEnumerateItems(ctx, pager)
+	ts, err := BatchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
 	}
@@ -425,7 +431,7 @@ type getModTimer interface {
 	GetLastModifiedDateTime() *time.Time
 }
 
-func addedAndRemovedByAddtlData[T any](
+func AddedAndRemovedByAddtlData[T any](
 	items []T,
 	filters ...func(T) bool,
 ) (map[string]time.Time, []string, error) {
@@ -484,7 +490,7 @@ type getIDModAndDeletedDateTimer interface {
 	GetDeletedDateTime() *time.Time
 }
 
-func addedAndRemovedByDeletedDateTime[T any](
+func AddedAndRemovedByDeletedDateTime[T any](
 	items []T,
 	filters ...func(T) bool,
 ) (map[string]time.Time, []string, error) {
