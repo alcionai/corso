@@ -149,6 +149,7 @@ type cmdCfg struct {
 	hidden     bool
 	preRelease bool
 	preview    bool
+	debug      bool
 }
 
 type cmdOpt func(*cmdCfg)
@@ -178,6 +179,13 @@ func MarkPreviewCommand() cmdOpt {
 	}
 }
 
+func MarkDebugCommand() cmdOpt {
+	return func(cc *cmdCfg) {
+		cc.hidden = true
+		cc.debug = true
+	}
+}
+
 // AddCommand adds a clone of the subCommand to the parent,
 // and returns both the clone and its pflags.
 func AddCommand(parent, c *cobra.Command, opts ...cmdOpt) (*cobra.Command, *pflag.FlagSet) {
@@ -187,20 +195,23 @@ func AddCommand(parent, c *cobra.Command, opts ...cmdOpt) (*cobra.Command, *pfla
 	parent.AddCommand(c)
 	c.Hidden = cc.hidden
 
-	if cc.preRelease {
+	var deprecatedMsgOverride string
+
+	switch true {
+	case cc.preRelease:
+		deprecatedMsgOverride = "THIS IS A PRE-RELEASE COMMAND THAT MAY NOT FUNCTION PROPERLY, OR AT ALL"
+	case cc.preview:
+		deprecatedMsgOverride = "THIS IS A FEATURE PREVIEW THAT MAY NOT FUNCTION PROPERLY AND MAY BREAK ACROSS RELEASES"
+	case cc.debug:
+		deprecatedMsgOverride = "THIS IS A DEBUGGING COMMAND - IT IS NOT PART OF STANDARD CORSO OPERATION"
+	}
+
+	if len(deprecatedMsgOverride) > 0 {
 		// There is a default deprecated message that always shows so we do some terminal magic to overwrite it
 		c.Deprecated = "\n\033[1F\033[K" +
 			"==================================================================================================\n" +
-			"\tWARNING!!! THIS IS A PRE-RELEASE COMMAND THAT MAY NOT FUNCTION PROPERLY, OR AT ALL\n" +
+			"\tWARNING!!! " + deprecatedMsgOverride + "\n" +
 			"==================================================================================================\n"
-	}
-
-	if cc.preview {
-		// There is a default deprecated message that always shows so we do some terminal magic to overwrite it
-		c.Deprecated = "\n\033[1F\033[K" +
-			"=============================================================================================================\n" +
-			"\tWARNING!!! THIS IS A FEATURE PREVIEW THAT MAY NOT FUNCTION PROPERLY AND MAY BREAK ACROSS RELEASES\n" +
-			"=============================================================================================================\n"
 	}
 
 	c.Flags().SortFlags = false
