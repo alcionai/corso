@@ -367,12 +367,23 @@ func batchDeltaEnumerateItems[T any](
 }
 
 // ---------------------------------------------------------------------------
+// filter funcs
+// ---------------------------------------------------------------------------
+
+// false -> remove, true -> keep
+type filterer[T any] func(T) bool
+
+func FilterIncludeAll[T any](_ T) bool {
+	return true
+}
+
+// ---------------------------------------------------------------------------
 // shared enumeration runner funcs
 // ---------------------------------------------------------------------------
 
 type addedAndRemovedHandler[T any] func(
 	items []T,
-	filters ...func(T) bool, // false -> remove, true -> keep
+	filters ...filterer[T],
 ) (
 	map[string]time.Time,
 	[]string,
@@ -386,7 +397,7 @@ func GetAddedAndRemovedItemIDs[T any](
 	prevDeltaLink string,
 	canMakeDeltaQueries bool,
 	aarh addedAndRemovedHandler[T],
-	filters ...func(T) bool,
+	filters ...filterer[T],
 ) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := batchDeltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
@@ -416,24 +427,59 @@ type getIDer interface {
 	GetId() *string
 }
 
+type getIDAndModDateTimer interface {
+	getIDer
+	getLastModifiedDateTimer
+}
+
+// AddedAndRemovedAddAll indiscriminately adds every item to the added list, deleting nothing.
+func AddedAndRemovedAddAll[T any](
+	items []T,
+	filters ...filterer[T],
+) (map[string]time.Time, []string, error) {
+	added := map[string]time.Time{}
+
+	for _, item := range items {
+		passAllFilters := true
+
+		for _, passes := range filters {
+			passAllFilters = passAllFilters && passes(item)
+		}
+
+		if !passAllFilters {
+			continue
+		}
+
+		giamdt, ok := any(item).(getIDAndModDateTimer)
+		if !ok {
+			return nil, nil, clues.New("item does not provide id and modified date time getters").
+				With("item_type", fmt.Sprintf("%T", item))
+		}
+
+		added[ptr.Val(giamdt.GetId())] = dttm.OrNow(ptr.Val(giamdt.GetLastModifiedDateTime()))
+	}
+
+	return added, []string{}, nil
+}
+
 // for added and removed by additionalData[@removed]
 
 type getIDModAndAddtler interface {
 	getIDer
-	getModTimer
+	getLastModifiedDateTimer
 	GetAdditionalData() map[string]any
 }
 
 // for types that are non-compliant with this interface,
 // pagers will need to wrap the return value in a struct
 // that provides this compliance.
-type getModTimer interface {
+type getLastModifiedDateTimer interface {
 	GetLastModifiedDateTime() *time.Time
 }
 
 func AddedAndRemovedByAddtlData[T any](
 	items []T,
-	filters ...func(T) bool,
+	filters ...filterer[T],
 ) (map[string]time.Time, []string, error) {
 	added := map[string]time.Time{}
 	removed := []string{}
@@ -451,7 +497,7 @@ func AddedAndRemovedByAddtlData[T any](
 
 		giaa, ok := any(item).(getIDModAndAddtler)
 		if !ok {
-			return nil, nil, clues.New("item does not provide id and additional data getters").
+			return nil, nil, clues.New("item does not provide id, modified date time, and additional data getters").
 				With("item_type", fmt.Sprintf("%T", item))
 		}
 
@@ -461,7 +507,7 @@ func AddedAndRemovedByAddtlData[T any](
 		if giaa.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
 			var modTime time.Time
 
-			if mt, ok := giaa.(getModTimer); ok {
+			if mt, ok := giaa.(getLastModifiedDateTimer); ok {
 				// Make sure to get a non-zero mod time if the item doesn't have one for
 				// some reason. Otherwise we can hit an issue where kopia has a
 				// different mod time for the file than the details does. This occurs
@@ -486,13 +532,13 @@ func AddedAndRemovedByAddtlData[T any](
 
 type getIDModAndDeletedDateTimer interface {
 	getIDer
-	getModTimer
+	getLastModifiedDateTimer
 	GetDeletedDateTime() *time.Time
 }
 
 func AddedAndRemovedByDeletedDateTime[T any](
 	items []T,
-	filters ...func(T) bool,
+	filters ...filterer[T],
 ) (map[string]time.Time, []string, error) {
 	added := map[string]time.Time{}
 	removed := []string{}
@@ -510,14 +556,14 @@ func AddedAndRemovedByDeletedDateTime[T any](
 
 		giaddt, ok := any(item).(getIDModAndDeletedDateTimer)
 		if !ok {
-			return nil, nil, clues.New("item does not provide id and deleted date time getters").
+			return nil, nil, clues.New("item does not provide id, modified, and deleted date time getters").
 				With("item_type", fmt.Sprintf("%T", item))
 		}
 
 		if giaddt.GetDeletedDateTime() == nil {
 			var modTime time.Time
 
-			if mt, ok := giaddt.(getModTimer); ok {
+			if mt, ok := giaddt.(getLastModifiedDateTimer); ok {
 				// Make sure to get a non-zero mod time if the item doesn't have one for
 				// some reason. Otherwise we can hit an issue where kopia has a
 				// different mod time for the file than the details does. This occurs

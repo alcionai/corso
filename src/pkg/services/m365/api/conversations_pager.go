@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/groups"
@@ -140,7 +141,7 @@ func (c Conversations) NewConversationThreadsPager(
 	}
 }
 
-// GetConversations fetches all conversations in the group.
+// GetConversations fetches all conversation threads in the group.
 func (c Conversations) GetConversationThreads(
 	ctx context.Context,
 	groupID, conversationID string,
@@ -218,7 +219,7 @@ func (c Conversations) NewConversationThreadPostsPager(
 	}
 }
 
-// GetConversations fetches all conversations in the group.
+// GetConversations fetches all conversation posts in the group.
 func (c Conversations) GetConversationThreadPosts(
 	ctx context.Context,
 	groupID, conversationID, threadID string,
@@ -229,4 +230,24 @@ func (c Conversations) GetConversationThreadPosts(
 	items, err := pagers.BatchEnumerateItems[models.Postable](ctx, pager)
 
 	return items, graph.Stack(ctx, err).OrNil()
+}
+
+// GetConversations fetches all added and deleted conversation posts in the group.
+func (c Conversations) GetConversationThreadPostIDs(
+	ctx context.Context,
+	groupID, conversationID, threadID string,
+	cc CallConfig,
+) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
+	canMakeDeltaQueries := false
+
+	added, validModTimes, removed, du, err := pagers.GetAddedAndRemovedItemIDs[models.Postable](
+		ctx,
+		c.NewConversationThreadPostsPager(groupID, conversationID, threadID, CallConfig{}),
+		nil,
+		"",
+		canMakeDeltaQueries,
+		pagers.AddedAndRemovedAddAll[models.Postable],
+		pagers.FilterIncludeAll[models.Postable])
+
+	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
 }
