@@ -10,7 +10,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -41,7 +40,7 @@ func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo
 // UserHasMailbox returns true if the user has an exchange mailbox enabled
 // false otherwise, and a nil pointer and an error in case of error
 func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(ctx, acct, path.ExchangeService, count.New())
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
 		return false, clues.Stack(err)
 	}
@@ -54,7 +53,7 @@ func UserGetMailboxInfo(
 	acct account.Account,
 	userID string,
 ) (api.MailboxInfo, error) {
-	ac, err := makeAC(ctx, acct, path.ExchangeService, count.New())
+	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
 		return api.MailboxInfo{}, clues.Stack(err)
 	}
@@ -65,7 +64,7 @@ func UserGetMailboxInfo(
 // UserHasDrives returns true if the user has any drives
 // false otherwise, and a nil pointer and an error in case of error
 func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(ctx, acct, path.OneDriveService, count.New())
+	ac, err := makeAC(ctx, acct, path.OneDriveService)
 	if err != nil {
 		return false, clues.Stack(err)
 	}
@@ -75,7 +74,7 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 
 // usersNoInfo returns a list of users in the specified M365 tenant - with no info
 func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*UserNoInfo, error) {
-	ac, err := makeAC(ctx, acct, path.UnknownService, count.New())
+	ac, err := makeAC(ctx, acct, path.UnknownService)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}

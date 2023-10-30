@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/errs"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -54,7 +53,7 @@ func (suite *GroupsIntgSuite) TestGroupByID() {
 
 	gid := tconfig.M365TeamID(t)
 
-	group, err := m365.GroupByID(ctx, suite.acct, gid, count.New())
+	group, err := m365.GroupByID(ctx, suite.acct, gid)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, group)
 
@@ -72,7 +71,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 
 	gid := tconfig.M365TeamID(t)
 
-	group, err := m365.GroupByID(ctx, suite.acct, gid, count.New())
+	group, err := m365.GroupByID(ctx, suite.acct, gid)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, group)
 
@@ -81,7 +80,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 
 	gemail := tconfig.M365TeamEmail(t)
 
-	groupByEmail, err := m365.GroupByID(ctx, suite.acct, gemail, count.New())
+	groupByEmail, err := m365.GroupByID(ctx, suite.acct, gemail)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, group)
 
@@ -96,7 +95,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_notFound() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	group, err := m365.GroupByID(ctx, suite.acct, uuid.NewString(), count.New())
+	group, err := m365.GroupByID(ctx, suite.acct, uuid.NewString())
 	require.Nil(t, group)
 	require.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
 	require.True(t, errs.Is(err, errs.ResourceOwnerNotFound))

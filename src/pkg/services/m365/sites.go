@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -58,7 +57,7 @@ func SiteByID(
 	acct account.Account,
 	id string,
 ) (*Site, error) {
-	ac, err := makeAC(ctx, acct, path.SharePointService, count.New())
+	ac, err := makeAC(ctx, acct, path.SharePointService)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -86,7 +85,7 @@ func getSiteByID(
 
 // Sites returns a list of Sites in a specified M365 tenant
 func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
-	ac, err := makeAC(ctx, acct, path.SharePointService, count.New())
+	ac, err := makeAC(ctx, acct, path.SharePointService)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}

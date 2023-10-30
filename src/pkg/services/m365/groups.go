@@ -9,7 +9,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -35,7 +34,7 @@ func GroupByID(
 	acct account.Account,
 	id string,
 ) (*Group, error) {
-	ac, err := makeAC(ctx, acct, path.GroupsService, count.New())
+	ac, err := makeAC(ctx, acct, path.GroupsService)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -68,7 +67,7 @@ func Groups(
 	acct account.Account,
 	errs *fault.Bus,
 ) ([]*Group, error) {
-	ac, err := makeAC(ctx, acct, path.GroupsService, count.New())
+	ac, err := makeAC(ctx, acct, path.GroupsService)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -105,7 +104,7 @@ func SitesInGroup(
 	groupID string,
 	errs *fault.Bus,
 ) ([]*Site, error) {
-	ac, err := makeAC(ctx, acct, path.GroupsService, count.New())
+	ac, err := makeAC(ctx, acct, path.GroupsService)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
