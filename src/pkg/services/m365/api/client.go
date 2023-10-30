@@ -135,8 +135,10 @@ func (c Client) Post(
 // ---------------------------------------------------------------------------
 
 type CallConfig struct {
-	Expand []string
-	Select []string
+	Expand              []string
+	Select              []string
+	CanMakeDeltaQueries bool
+	UseImmutableIDs     bool
 }
 
 // ---------------------------------------------------------------------------

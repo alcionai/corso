@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/groups"
@@ -237,10 +236,10 @@ func (c Conversations) GetConversationThreadPostIDs(
 	ctx context.Context,
 	groupID, conversationID, threadID string,
 	cc CallConfig,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
+) (pagers.AddedAndRemoved, error) {
 	canMakeDeltaQueries := false
 
-	added, validModTimes, removed, du, err := pagers.GetAddedAndRemovedItemIDs[models.Postable](
+	aarh, err := pagers.GetAddedAndRemovedItemIDs[models.Postable](
 		ctx,
 		c.NewConversationThreadPostsPager(groupID, conversationID, threadID, CallConfig{}),
 		nil,
@@ -249,5 +248,5 @@ func (c Conversations) GetConversationThreadPostIDs(
 		pagers.AddedAndRemovedAddAll[models.Postable],
 		pagers.FilterIncludeAll[models.Postable])
 
-	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
+	return aarh, clues.Stack(err).OrNil()
 }

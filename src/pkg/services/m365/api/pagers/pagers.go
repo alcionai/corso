@@ -378,6 +378,13 @@ func FilterIncludeAll[T any](_ T) bool {
 // shared enumeration runner funcs
 // ---------------------------------------------------------------------------
 
+type AddedAndRemoved struct {
+	Added         map[string]time.Time
+	Removed       []string
+	DU            DeltaUpdate
+	ValidModTimes bool
+}
+
 type addedAndRemovedHandler[T any] func(
 	items []T,
 	filters ...func(T) bool,
@@ -395,16 +402,23 @@ func GetAddedAndRemovedItemIDs[T any](
 	canMakeDeltaQueries bool,
 	aarh addedAndRemovedHandler[T],
 	filters ...func(T) bool,
-) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
+) (AddedAndRemoved, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := batchDeltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
 		if err != nil && !graph.IsErrInvalidDelta(err) && !graph.IsErrDeltaNotSupported(err) {
-			return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+			return AddedAndRemoved{}, graph.Stack(ctx, err)
 		}
 
 		if err == nil {
 			a, r, err := aarh(ts, filters...)
-			return a, deltaPager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
+			aar := AddedAndRemoved{
+				Added:         a,
+				Removed:       r,
+				DU:            du,
+				ValidModTimes: deltaPager.ValidModTimes(),
+			}
+
+			return aar, graph.Stack(ctx, err).OrNil()
 		}
 	}
 
@@ -412,12 +426,18 @@ func GetAddedAndRemovedItemIDs[T any](
 
 	ts, err := BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+		return AddedAndRemoved{}, graph.Stack(ctx, err)
 	}
 
 	a, r, err := aarh(ts, filters...)
+	aar := AddedAndRemoved{
+		Added:         a,
+		Removed:       r,
+		DU:            du,
+		ValidModTimes: pager.ValidModTimes(),
+	}
 
-	return a, pager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
+	return aar, graph.Stack(ctx, err).OrNil()
 }
 
 type getIDer interface {

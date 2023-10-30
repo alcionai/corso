@@ -520,7 +520,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				filters = append(filters, test.filter)
 			}
 
-			added, validModTimes, removed, deltaUpdate, err := GetAddedAndRemovedItemIDs[testItem](
+			aar, err := GetAddedAndRemovedItemIDs[testItem](
 				ctx,
 				test.pagerGetter(t),
 				test.deltaPagerGetter(t),
@@ -530,18 +530,18 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				filters...)
 
 			require.NoErrorf(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
-			if validModTimes {
-				assert.Equal(t, test.expect.added, added, "added item IDs and mod times")
+			if aar.ValidModTimes {
+				assert.Equal(t, test.expect.added, aar.Added, "added item IDs and mod times")
 			} else {
-				assert.ElementsMatch(t, maps.Keys(test.expect.added), maps.Keys(added), "added item IDs")
-				for _, modtime := range added {
+				assert.ElementsMatch(t, maps.Keys(test.expect.added), maps.Keys(aar.Added), "added item IDs")
+				for _, modtime := range aar.Added {
 					assert.True(t, modtime.After(epoch), "mod time after epoch")
 					assert.False(t, modtime.Equal(time.Time{}), "non-zero mod time")
 				}
 			}
-			assert.Equal(t, test.expect.validModTimes, validModTimes, "valid mod times")
-			assert.EqualValues(t, test.expect.removed, removed, "removed item IDs")
-			assert.Equal(t, test.expect.deltaUpdate, deltaUpdate, "delta update")
+			assert.Equal(t, test.expect.validModTimes, aar.ValidModTimes, "valid mod times")
+			assert.EqualValues(t, test.expect.removed, aar.Removed, "removed item IDs")
+			assert.Equal(t, test.expect.deltaUpdate, aar.DU, "delta update")
 		})
 	}
 }

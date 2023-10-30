@@ -50,17 +50,17 @@ func (suite *ConversationsPagerIntgSuite) TestEnumerateConversations_withThreads
 		for _, thread := range threads {
 			posts := testEnumerateConvPosts(suite, conv, thread)
 
-			added, valid, removed, du, err := ac.GetConversationThreadPostIDs(
+			aar, err := ac.GetConversationThreadPostIDs(
 				ctx,
 				suite.its.group.id,
 				ptr.Val(conv.GetId()),
 				ptr.Val(thread.GetId()),
 				CallConfig{})
 			require.NoError(t, err, clues.ToCore(err))
-			require.Equal(t, len(posts), len(added), "added the same number of ids and posts")
-			assert.True(t, valid, "mod times should be valid")
-			assert.Empty(t, removed, "no items should get removed")
-			assert.Empty(t, du.URL, "no delta update token should be provided")
+			require.Equal(t, len(posts), len(aar.Added), "added the same number of ids and posts")
+			assert.True(t, aar.ValidModTimes, "mod times should be valid")
+			assert.Empty(t, aar.Removed, "no items should get removed")
+			assert.Empty(t, aar.DU.URL, "no delta update token should be provided")
 
 			for _, post := range posts {
 				testGetPostByID(suite, conv, thread, post)
