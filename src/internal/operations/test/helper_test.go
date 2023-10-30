@@ -632,8 +632,8 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	its.ac, err = api.NewClient(
 		creds,
-		counter,
-		control.DefaultOptions())
+		control.DefaultOptions(),
+		counter)
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.gockAC, err = gockClient(creds, counter)

@@ -86,8 +86,8 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 
 			ac, err := api.NewClient(
 				suite.credentials,
-				count.New(),
-				control.DefaultOptions())
+				control.DefaultOptions(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			acm := ac.Mail()

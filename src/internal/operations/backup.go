@@ -439,8 +439,8 @@ func (op *BackupOperation) do(
 		ssmb,
 		backupID,
 		op.incremental && canUseMetadata && canUsePreviousBackup,
-		op.Errors,
-		op.Counter)
+		op.Counter,
+		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "persisting collection backups")
 	}
@@ -530,8 +530,8 @@ func consumeBackupCollections(
 	pmr prefixmatcher.StringSetReader,
 	backupID model.StableID,
 	isIncremental bool,
-	errs *fault.Bus,
 	counter *count.Bus,
+	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	ctx = clues.Add(
 		ctx,
@@ -554,8 +554,8 @@ func consumeBackupCollections(
 		pmr,
 		tags,
 		isIncremental,
-		errs,
-		counter)
+		counter,
+		errs)
 	if err != nil {
 		if kopiaStats == nil {
 			return nil, nil, nil, clues.Stack(err)

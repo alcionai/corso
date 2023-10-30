@@ -45,7 +45,7 @@ func NewHTTPWrapper(
 		cc = populateConfig(opts...)
 		rt = customTransport{
 			n: pipeline{
-				middlewares: internalMiddleware(counter, cc),
+				middlewares: internalMiddleware(cc, counter),
 				transport:   defaultTransport(),
 			},
 		}
@@ -186,8 +186,8 @@ func defaultTransport() http.RoundTripper {
 }
 
 func internalMiddleware(
-	counter *count.Bus,
 	cc *clientConfig,
+	counter *count.Bus,
 ) []khttp.Middleware {
 	throttler := &throttlingMiddleware{
 		tf:      newTimedFence(),

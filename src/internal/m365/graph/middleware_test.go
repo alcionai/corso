@@ -110,7 +110,7 @@ func mockAdapter(
 	var (
 		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
 		cc            = populateConfig(MinimumBackoff(10 * time.Millisecond))
-		middlewares   = append(kiotaMiddlewares(count.New(), &clientOptions, cc), mw)
+		middlewares   = append(kiotaMiddlewares(&clientOptions, cc, count.New()), mw)
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
 

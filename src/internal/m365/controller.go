@@ -78,7 +78,7 @@ func NewController(
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	ac, err := api.NewClient(creds, counter, co)
+	ac, err := api.NewClient(creds, co, counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}

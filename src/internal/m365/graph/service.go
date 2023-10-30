@@ -157,7 +157,7 @@ func KiotaHTTPClient(
 	var (
 		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
 		cc            = populateConfig(opts...)
-		middlewares   = kiotaMiddlewares(counter, &clientOptions, cc)
+		middlewares   = kiotaMiddlewares(&clientOptions, cc, counter)
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
 
@@ -274,9 +274,9 @@ func MaxConnectionRetries(max int) Option {
 
 // kiotaMiddlewares creates a default slice of middleware for the Graph Client.
 func kiotaMiddlewares(
-	counter *count.Bus,
 	options *msgraphgocore.GraphClientOptions,
 	cc *clientConfig,
+	counter *count.Bus,
 ) []khttp.Middleware {
 	mw := []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),

@@ -21,7 +21,7 @@ func UsersMap(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) (idname.Cacher, error) {
-	au, err := makeUserAPI(acct, counter, co)
+	au, err := makeUserAPI(acct, co, counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "constructing a graph client")
 	}
@@ -31,15 +31,15 @@ func UsersMap(
 
 func makeUserAPI(
 	acct account.Account,
-	counter *count.Bus,
 	co control.Options,
+	counter *count.Bus,
 ) (api.Users, error) {
 	creds, err := acct.M365Config()
 	if err != nil {
 		return api.Users{}, clues.Wrap(err, "getting m365 account creds")
 	}
 
-	cli, err := api.NewClient(creds, counter, co)
+	cli, err := api.NewClient(creds, co, counter)
 	if err != nil {
 		return api.Users{}, clues.Wrap(err, "constructing api client")
 	}

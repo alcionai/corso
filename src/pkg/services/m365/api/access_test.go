@@ -112,8 +112,8 @@ func (suite *AccessAPIIntgSuite) TestGetToken() {
 
 			ac, err := NewClient(
 				suite.its.ac.Credentials,
-				count.New(),
-				control.DefaultOptions())
+				control.DefaultOptions(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			ac.Credentials = test.creds()

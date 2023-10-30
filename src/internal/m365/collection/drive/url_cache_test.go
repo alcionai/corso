@@ -64,8 +64,8 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 
 	suite.ac, err = api.NewClient(
 		creds,
-		count.New(),
-		control.DefaultOptions())
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	drive, err := suite.ac.Users().GetDefaultDrive(ctx, suite.user)

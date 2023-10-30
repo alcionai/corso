@@ -57,8 +57,8 @@ func (suite *SharePointPagesSuite) TestCollectPages() {
 
 	ac, err := api.NewClient(
 		creds,
-		counter,
-		control.DefaultOptions())
+		control.DefaultOptions(),
+		counter)
 	require.NoError(t, err, clues.ToCore(err))
 
 	bpc := inject.BackupProducerConfig{

@@ -34,8 +34,8 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	its.ac, err = api.NewClient(
 		creds,
-		count.New(),
-		control.DefaultOptions())
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.userID = tconfig.GetM365UserID(ctx)

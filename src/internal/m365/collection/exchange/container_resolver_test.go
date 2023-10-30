@@ -702,8 +702,8 @@ func (suite *ContainerResolverSuite) SetupSuite() {
 func (suite *ContainerResolverSuite) TestPopulate() {
 	ac, err := api.NewClient(
 		suite.credentials,
-		count.New(),
-		control.DefaultOptions())
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	eventFunc := func(t *testing.T) graph.ContainerResolver {

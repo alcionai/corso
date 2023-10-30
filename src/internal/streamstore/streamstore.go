@@ -216,8 +216,8 @@ func write(
 		prefixmatcher.NopReader[map[string]struct{}](),
 		nil,
 		false,
-		errs,
-		count.New())
+		count.New(),
+		errs)
 	if err != nil {
 		return "", clues.Wrap(err, "storing marshalled bytes in repository")
 	}

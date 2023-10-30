@@ -63,5 +63,5 @@ func GetAC() (api.Client, error) {
 		AzureTenantID: os.Getenv(account.AzureTenantID),
 	}
 
-	return api.NewClient(creds, count.New(), control.DefaultOptions())
+	return api.NewClient(creds, control.DefaultOptions(), count.New())
 }

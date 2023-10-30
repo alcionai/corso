@@ -48,8 +48,8 @@ func (suite *SharePointCollectionSuite) SetupSuite() {
 
 	ac, err := api.NewClient(
 		m365,
-		count.New(),
-		control.DefaultOptions())
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.ac = ac

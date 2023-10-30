@@ -24,8 +24,8 @@ type oneDriveService struct {
 func NewOneDriveService(credentials account.M365Config) (*oneDriveService, error) {
 	ac, err := api.NewClient(
 		credentials,
-		count.New(),
-		control.DefaultOptions())
+		control.DefaultOptions(),
+		count.New())
 	if err != nil {
 		return nil, err
 	}

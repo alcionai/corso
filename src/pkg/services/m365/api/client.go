@@ -49,8 +49,8 @@ type Client struct {
 // place of creating an ad-hoc client struct.
 func NewClient(
 	creds account.M365Config,
-	counter *count.Bus,
 	co control.Options,
+	counter *count.Bus,
 ) (Client, error) {
 	s, err := NewService(creds, counter)
 	if err != nil {

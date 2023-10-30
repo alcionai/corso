@@ -129,7 +129,7 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.ac, err = NewClient(creds, count.New(), control.DefaultOptions())
+	its.ac, err = NewClient(creds, control.DefaultOptions(), count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.gockAC, err = gockClient(creds, count.New())

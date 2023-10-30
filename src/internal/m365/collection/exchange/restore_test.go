@@ -46,8 +46,8 @@ func (suite *RestoreIntgSuite) SetupSuite() {
 	suite.credentials = m365
 	suite.ac, err = api.NewClient(
 		m365,
-		count.New(),
-		control.DefaultOptions())
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 }
 
