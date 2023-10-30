@@ -333,8 +333,7 @@ type mockLazyItemGetterSerializer struct {
 
 func (mlg *mockLazyItemGetterSerializer) GetItem(
 	ctx context.Context,
-	user string,
-	itemID string,
+	user, itemID string,
 	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
@@ -342,7 +341,10 @@ func (mlg *mockLazyItemGetterSerializer) GetItem(
 	return mlg.ItemGetSerialize.GetItem(ctx, user, itemID, immutableIDs, errs)
 }
 
-func (mlg *mockLazyItemGetterSerializer) check(t *testing.T, expectIDs []string) {
+func (mlg *mockLazyItemGetterSerializer) check(
+	t *testing.T,
+	expectIDs []string,
+) {
 	assert.ElementsMatch(t, expectIDs, mlg.callIDs)
 }
 

@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -25,7 +26,7 @@ func (h mailBackupHandler) itemEnumerator() addedAndRemovedItemGetter {
 	return h.ac
 }
 
-func (h mailBackupHandler) itemHandler() itemGetterSerializer {
+func (h mailBackupHandler) itemHandler() api.GetAndSerializeItemer[details.ExchangeInfo] {
 	return h.ac
 }
 

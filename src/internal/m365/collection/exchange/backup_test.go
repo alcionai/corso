@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -47,8 +48,13 @@ type mockBackupHandler struct {
 	userID   string
 }
 
-func (bh mockBackupHandler) itemEnumerator() addedAndRemovedItemGetter { return bh.mg }
-func (bh mockBackupHandler) itemHandler() itemGetterSerializer         { return nil }
+func (bh mockBackupHandler) itemEnumerator() addedAndRemovedItemGetter {
+	return bh.mg
+}
+
+func (bh mockBackupHandler) itemHandler() api.GetAndSerializeItemer[details.ExchangeInfo] {
+	return nil
+}
 
 func (bh mockBackupHandler) NewContainerCache(
 	userID string,

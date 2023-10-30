@@ -16,8 +16,8 @@ type GetAndSerializeItemer[INFO any] interface {
 type GetItemer[INFO any] interface {
 	GetItem(
 		ctx context.Context,
-		user, itemID string,
-		immutableIDs bool,
+		protectedResource, itemID string,
+		useImmutableIDs bool,
 		errs *fault.Bus,
 	) (serialization.Parsable, *INFO, error)
 }

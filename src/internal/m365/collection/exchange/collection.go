@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var (
@@ -63,7 +64,7 @@ func updateStatus(
 
 func getItemAndInfo(
 	ctx context.Context,
-	getter itemGetterSerializer,
+	getter api.GetAndSerializeItemer[details.ExchangeInfo],
 	userID string,
 	id string,
 	useImmutableIDs bool,
@@ -106,7 +107,7 @@ func getItemAndInfo(
 func NewCollection(
 	bc data.BaseCollection,
 	user string,
-	items itemGetterSerializer,
+	items api.GetAndSerializeItemer[details.ExchangeInfo],
 	origAdded map[string]time.Time,
 	origRemoved []string,
 	validModTimes bool,
@@ -161,7 +162,7 @@ type prefetchCollection struct {
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	getter itemGetterSerializer
+	getter api.GetAndSerializeItemer[details.ExchangeInfo]
 
 	statusUpdater support.StatusUpdater
 }
@@ -328,7 +329,7 @@ type lazyFetchCollection struct {
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	getter itemGetterSerializer
+	getter api.GetAndSerializeItemer[details.ExchangeInfo]
 
 	statusUpdater support.StatusUpdater
 }
@@ -426,7 +427,7 @@ func (col *lazyFetchCollection) streamItems(
 }
 
 type lazyItemGetter struct {
-	getter       itemGetterSerializer
+	getter       api.GetAndSerializeItemer[details.ExchangeInfo]
 	userID       string
 	itemID       string
 	parentPath   string

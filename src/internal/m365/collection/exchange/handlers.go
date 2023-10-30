@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/microsoft/kiota-abstractions-go/serialization"
-
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -22,7 +20,7 @@ import (
 
 type backupHandler interface {
 	itemEnumerator() addedAndRemovedItemGetter
-	itemHandler() itemGetterSerializer
+	itemHandler() api.GetAndSerializeItemer[details.ExchangeInfo]
 	NewContainerCache(userID string) (string, graph.ContainerResolver)
 }
 
@@ -33,20 +31,6 @@ type addedAndRemovedItemGetter interface {
 		immutableIDs bool,
 		canMakeDeltaQueries bool,
 	) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error)
-}
-
-type itemGetterSerializer interface {
-	GetItem(
-		ctx context.Context,
-		user, itemID string,
-		immutableIDs bool,
-		errs *fault.Bus,
-	) (serialization.Parsable, *details.ExchangeInfo, error)
-	Serialize(
-		ctx context.Context,
-		item serialization.Parsable,
-		user, itemID string,
-	) ([]byte, error)
 }
 
 func BackupHandlers(ac api.Client) map[path.CategoryType]backupHandler {
