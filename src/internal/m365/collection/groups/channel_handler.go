@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
-var _ backupHandler = &channelsBackupHandler{}
+var _ backupHandler[models.Channelable, models.ChatMessageable] = &channelsBackupHandler{}
 
 type channelsBackupHandler struct {
 	ac                api.Channels
@@ -29,6 +29,10 @@ func NewChannelBackupHandler(
 		ac:                ac,
 		protectedResource: protectedResource,
 	}
+}
+
+func (bh channelsBackupHandler) canMakeDeltaQueries(c models.Channelable) bool {
+	return len(ptr.Val(c.GetEmail())) > 0
 }
 
 func (bh channelsBackupHandler) getContainers(
@@ -67,6 +71,10 @@ func (bh channelsBackupHandler) canonicalPath(
 			false)
 }
 
+func (bh channelsBackupHandler) locationPath(c models.Channelable) *path.Builder {
+	return path.Builder{}.Append(ptr.Val(c.GetDisplayName()))
+}
+
 func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
 	return path.Build(
 		tenantID,
@@ -76,9 +84,11 @@ func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
 		false)
 }
 
-func (bh channelsBackupHandler) GetItemByID(
+func (bh channelsBackupHandler) GetItem(
 	ctx context.Context,
-	groupID, channelID, itemID string,
+	groupID string,
+	containerIDs path.Elements,
+	messageID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
-	return bh.ac.GetChannelMessage(ctx, groupID, channelID, itemID)
+	return bh.ac.GetChannelMessage(ctx, groupID, containerIDs[0], messageID)
 }

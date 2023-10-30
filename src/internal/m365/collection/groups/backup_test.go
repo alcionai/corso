@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/testdata"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -37,7 +38,7 @@ import (
 // mocks
 // ---------------------------------------------------------------------------
 
-var _ backupHandler = &mockBackupHandler{}
+var _ backupHandler[models.Channelable, models.ChatMessageable] = &mockBackupHandler{}
 
 type mockBackupHandler struct {
 	channels      []models.Channelable
@@ -49,6 +50,10 @@ type mockBackupHandler struct {
 	info          map[string]*details.GroupsInfo
 	getMessageErr map[string]error
 	doNotInclude  bool
+}
+
+func (bh mockBackupHandler) canMakeDeltaQueries(models.Channelable) bool {
+	return true
 }
 
 func (bh mockBackupHandler) getContainers(context.Context) ([]models.Channelable, error) {
@@ -98,9 +103,17 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh mockBackupHandler) GetItemByID(
+func (bh mockBackupHandler) locationPath(
+	c models.Channelable,
+) *path.Builder {
+	return path.Builder{}.Append(ptr.Val(c.GetDisplayName()))
+}
+
+func (bh mockBackupHandler) GetItem(
 	_ context.Context,
-	_, _, itemID string,
+	_ string,
+	_ path.Elements,
+	itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	return bh.messages[itemID], bh.info[itemID], bh.getMessageErr[itemID]
 }

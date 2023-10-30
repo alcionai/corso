@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
@@ -32,10 +31,10 @@ import (
 // it's simpler to comment them for tracking than to delete
 // and re-discover them later.
 
-func CreateCollections(
+func CreateCollections[C graph.GetIDer, I groupsItemer](
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
-	bh backupHandler,
+	bh backupHandler[C, I],
 	tenantID string,
 	scope selectors.GroupsScope,
 	su support.StatusUpdater,
@@ -61,7 +60,7 @@ func CreateCollections(
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
 
-	channels, err := bh.getContainers(ctx)
+	containers, err := bh.getContainers(ctx)
 	if err != nil {
 		return nil, false, clues.Stack(err)
 	}
@@ -73,7 +72,7 @@ func CreateCollections(
 		qp,
 		bh,
 		su,
-		channels,
+		containers,
 		scope,
 		cdps[scope.Category().PathType()],
 		bpc.Options,
@@ -90,12 +89,12 @@ func CreateCollections(
 	return allCollections, canUsePreviousBackup, nil
 }
 
-func populateCollections(
+func populateCollections[C graph.GetIDer, I groupsItemer](
 	ctx context.Context,
 	qp graph.QueryParams,
-	bh backupHandler,
+	bh backupHandler[C, I],
 	statusUpdater support.StatusUpdater,
-	channels []models.Channelable,
+	containers []C,
 	scope selectors.GroupsScope,
 	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
@@ -117,7 +116,7 @@ func populateCollections(
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
 
-	for _, c := range channels {
+	for _, c := range containers {
 		if el.Failure() != nil {
 			return nil, el.Failure()
 		}
@@ -125,7 +124,6 @@ func populateCollections(
 		var (
 			cl          = counter.Local()
 			cID         = ptr.Val(c.GetId())
-			cName       = ptr.Val(c.GetDisplayName())
 			err         error
 			dp          = dps[cID]
 			prevDelta   = dp.Delta
@@ -165,7 +163,7 @@ func populateCollections(
 		// if the channel has no email property, it is unable to process delta tokens
 		// and will return an error if a delta token is queried.
 		cc := api.CallConfig{
-			CanMakeDeltaQueries: len(ptr.Val(c.GetEmail())) > 0,
+			CanMakeDeltaQueries: bh.canMakeDeltaQueries(c),
 		}
 
 		addAndRem, err := bh.getContainerItemIDs(ctx, cID, prevDelta, cc)
@@ -205,7 +203,7 @@ func populateCollections(
 			data.NewBaseCollection(
 				currPath,
 				prevPath,
-				path.Builder{}.Append(cName),
+				bh.locationPath(c),
 				ctrlOpts,
 				addAndRem.DU.Reset,
 				cl),

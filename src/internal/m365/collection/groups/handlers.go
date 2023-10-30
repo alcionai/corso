@@ -3,7 +3,7 @@ package groups
 import (
 	"context"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -13,13 +13,21 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
-type backupHandler interface {
-	getItemByIDer
+// itemer standardizes common behavior that can be expected from all
+// items within a groups collection backup.
+type groupsItemer interface {
+	serialization.Parsable
+	graph.GetIDer
+	graph.GetLastModifiedDateTimer
+}
+
+type backupHandler[C graph.GetIDer, I groupsItemer] interface {
+	getItemer[I]
 
 	// gets all containers for the resource
 	getContainers(
 		ctx context.Context,
-	) ([]models.Channelable, error)
+	) ([]C, error)
 
 	// gets all item IDs (by delta, if possible) in the container
 	getContainerItemIDs(
@@ -33,7 +41,7 @@ type backupHandler interface {
 	includeContainer(
 		ctx context.Context,
 		qp graph.QueryParams,
-		ch models.Channelable,
+		c C,
 		scope selectors.GroupsScope,
 	) bool
 
@@ -43,11 +51,19 @@ type backupHandler interface {
 		folders *path.Builder,
 		tenantID string,
 	) (path.Path, error)
+
+	locationPath(c C) *path.Builder
+
+	// canMakeDeltaQueries evaluates whether the container can support a
+	// delta query when enumerating its items.
+	canMakeDeltaQueries(C) bool
 }
 
-type getItemByIDer interface {
-	GetItemByID(
+type getItemer[I groupsItemer] interface {
+	GetItem(
 		ctx context.Context,
-		resourceID, containerID, itemID string,
-	) (models.ChatMessageable, *details.GroupsInfo, error)
+		protectedResource string,
+		containerIDs path.Elements,
+		itemID string,
+	) (I, *details.GroupsInfo, error)
 }
