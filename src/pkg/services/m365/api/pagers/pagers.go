@@ -370,9 +370,6 @@ func batchDeltaEnumerateItems[T any](
 // filter funcs
 // ---------------------------------------------------------------------------
 
-// false -> remove, true -> keep
-type filterer[T any] func(T) bool
-
 func FilterIncludeAll[T any](_ T) bool {
 	return true
 }
@@ -383,7 +380,7 @@ func FilterIncludeAll[T any](_ T) bool {
 
 type addedAndRemovedHandler[T any] func(
 	items []T,
-	filters ...filterer[T],
+	filters ...func(T) bool,
 ) (
 	map[string]time.Time,
 	[]string,
@@ -397,7 +394,7 @@ func GetAddedAndRemovedItemIDs[T any](
 	prevDeltaLink string,
 	canMakeDeltaQueries bool,
 	aarh addedAndRemovedHandler[T],
-	filters ...filterer[T],
+	filters ...func(T) bool,
 ) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := batchDeltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
@@ -435,7 +432,7 @@ type getIDAndModDateTimer interface {
 // AddedAndRemovedAddAll indiscriminately adds every item to the added list, deleting nothing.
 func AddedAndRemovedAddAll[T any](
 	items []T,
-	filters ...filterer[T],
+	filters ...func(T) bool,
 ) (map[string]time.Time, []string, error) {
 	added := map[string]time.Time{}
 
@@ -479,7 +476,7 @@ type getLastModifiedDateTimer interface {
 
 func AddedAndRemovedByAddtlData[T any](
 	items []T,
-	filters ...filterer[T],
+	filters ...func(T) bool,
 ) (map[string]time.Time, []string, error) {
 	added := map[string]time.Time{}
 	removed := []string{}
@@ -538,7 +535,7 @@ type getIDModAndDeletedDateTimer interface {
 
 func AddedAndRemovedByDeletedDateTime[T any](
 	items []T,
-	filters ...filterer[T],
+	filters ...func(T) bool,
 ) (map[string]time.Time, []string, error) {
 	added := map[string]time.Time{}
 	removed := []string{}
