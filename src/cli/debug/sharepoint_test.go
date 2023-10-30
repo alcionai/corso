@@ -55,7 +55,6 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 				flagsTD.WithFlags(
 					sharePointServiceCommand,
 					[]string{
-						flagsTD.RestoreDestination,
 						"--" + flags.RunModeFN, flags.RunModeFlagTest,
 						"--" + flags.BackupFN, flagsTD.BackupInput,
 					},

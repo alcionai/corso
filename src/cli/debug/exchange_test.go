@@ -21,7 +21,7 @@ func TestExchangeUnitSuite(t *testing.T) {
 	suite.Run(t, &ExchangeUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
+func (suite *ExchangeUnitSuite) TestExchangeCommands() {
 	expectUse := exchangeServiceCommand + " " + exchangeServiceCommandUseSuffix
 
 	table := []struct {
@@ -55,7 +55,6 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 				flagsTD.WithFlags(
 					exchangeServiceCommand,
 					[]string{
-						flagsTD.RestoreDestination,
 						"--" + flags.RunModeFN, flags.RunModeFlagTest,
 						"--" + flags.BackupFN, flagsTD.BackupInput,
 					},
@@ -71,6 +70,7 @@ func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 				test.expectRunE)
 
 			assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+			flagsTD.AssertProviderFlags(t, cmd)
 			flagsTD.AssertStorageFlags(t, cmd)
 		})
 	}

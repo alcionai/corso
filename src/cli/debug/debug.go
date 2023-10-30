@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -31,6 +32,8 @@ func AddCommands(cmd *cobra.Command) {
 
 		for _, addTo := range debugCommands {
 			addTo(subCommand)
+			flags.AddAllProviderFlags(subCommand)
+			flags.AddAllStorageFlags(subCommand)
 		}
 	}
 }

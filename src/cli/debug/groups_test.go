@@ -55,7 +55,6 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 				flagsTD.WithFlags(
 					groupsServiceCommand,
 					[]string{
-						flagsTD.RestoreDestination,
 						"--" + flags.RunModeFN, flags.RunModeFlagTest,
 						"--" + flags.BackupFN, flagsTD.BackupInput,
 					},

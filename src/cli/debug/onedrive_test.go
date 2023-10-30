@@ -55,7 +55,6 @@ func (suite *OneDriveUnitSuite) TestAddOneDriveCommands() {
 				flagsTD.WithFlags(
 					oneDriveServiceCommand,
 					[]string{
-						flagsTD.RestoreDestination,
 						"--" + flags.RunModeFN, flags.RunModeFlagTest,
 						"--" + flags.BackupFN, flagsTD.BackupInput,
 					},
