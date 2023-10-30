@@ -29,7 +29,6 @@ func makeAC(
 	ctx context.Context,
 	acct account.Account,
 	pst path.ServiceType,
-	counter *count.Bus,
 ) (api.Client, error) {
 	api.InitConcurrencyLimit(ctx, pst)
 
@@ -41,7 +40,7 @@ func makeAC(
 	cli, err := api.NewClient(
 		creds,
 		control.DefaultOptions(),
-		counter)
+		count.New())
 	if err != nil {
 		return api.Client{}, clues.Wrap(err, "constructing api client").WithClues(ctx)
 	}

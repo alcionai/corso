@@ -34,9 +34,8 @@ func GroupByID(
 	ctx context.Context,
 	acct account.Account,
 	id string,
-	counter *count.Bus,
 ) (*Group, error) {
-	ac, err := makeAC(ctx, acct, path.GroupsService, counter)
+	ac, err := makeAC(ctx, acct, path.GroupsService, count.New())
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
