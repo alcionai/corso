@@ -66,8 +66,6 @@ func ProduceBackupCollections(
 		return nil, nil, clues.WrapWC(ctx, err, "getting group")
 	}
 
-	isTeam := api.IsTeam(ctx, group)
-
 	for _, scope := range b.Scopes() {
 		if el.Failure() != nil {
 			break
@@ -159,7 +157,7 @@ func ProduceBackupCollections(
 			}
 			progressBar := observe.MessageWithCompletion(ictx, pcfg, scope.Category().PathType().HumanString())
 
-			if !isTeam {
+			if !api.IsTeam(ctx, group) {
 				continue
 			}
 
@@ -186,6 +184,45 @@ func ProduceBackupCollections(
 				}
 
 				dbcs = append(dbcs, data.NewTombstoneCollection(tp, control.Options{}, cl))
+			}
+
+			dbcs = append(dbcs, cs...)
+
+			close(progressBar)
+		case path.ConversationPostsCategory:
+			var (
+				bh  = groups.NewConversationBackupHandler(bpc.ProtectedResource.ID(), ac.Conversations())
+				cs  []data.BackupCollection
+				err error
+			)
+
+			pcfg := observe.ProgressCfg{
+				Indent:            1,
+				CompletionMessage: func() string { return fmt.Sprintf("(found %d conversations)", len(cs)) },
+			}
+			progressBar := observe.MessageWithCompletion(ictx, pcfg, scope.Category().PathType().HumanString())
+
+			cs, canUsePreviousBackup, err := groups.CreateCollections(
+				ctx,
+				bpc,
+				bh,
+				creds.AzureTenantID,
+				scope,
+				su,
+				counter,
+				errs)
+			if err != nil {
+				el.AddRecoverable(ctx, err)
+				continue
+			}
+
+			if !canUsePreviousBackup {
+				tp, err := bh.PathPrefix(creds.AzureTenantID)
+				if err != nil {
+					return nil, nil, clues.Wrap(err, "getting conversations path")
+				}
+
+				dbcs = append(dbcs, data.NewTombstoneCollection(tp, control.Options{}, counter))
 			}
 
 			dbcs = append(dbcs, cs...)
@@ -235,6 +272,10 @@ func ProduceBackupCollections(
 
 	return collections, ssmb.ToReader(), el.Failure()
 }
+
+// ---------------------------------------------------------------------------
+// metadata
+// ---------------------------------------------------------------------------
 
 func getSitesMetadataCollection(
 	tenantID, groupID string,
