@@ -110,8 +110,8 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 			nil,
 			nil,
 			true,
-			fault.New(true),
-			counter)
+			counter,
+			fault.New(true))
 		require.NoError(t, err, clues.ToCore(err))
 
 		assert.Zero(t, stats.IgnoredErrorCount)

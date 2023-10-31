@@ -895,8 +895,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				nil,
 				tags,
 				true,
-				fault.New(true),
-				counter)
+				counter,
+				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
@@ -1215,8 +1215,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 				nil,
 				tags,
 				true,
-				fault.New(true),
-				counter)
+				counter,
+				fault.New(true))
 			assert.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, test.expectedUploadedFiles, stats.TotalFileCount, "total files")
@@ -1310,8 +1310,8 @@ func (suite *KopiaIntegrationSuite) TestRestoreAfterCompressionChange() {
 		nil,
 		nil,
 		true,
-		fault.New(true),
-		count.New())
+		count.New(),
+		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Compression(ctx, "gzip")
@@ -1406,8 +1406,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		nil,
 		nil,
 		true,
-		errs,
-		counter)
+		counter,
+		errs)
 	require.Error(t, err, clues.ToCore(err))
 	assert.Zero(t, stats.ErrorCount, "error count")
 	assert.Zero(t, counter.Get(count.PersistenceErrors), "error count")
@@ -1494,8 +1494,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollectionsHandlesNoCollections() 
 				nil,
 				nil,
 				true,
-				fault.New(true),
-				count.New())
+				count.New(),
+				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.Equal(t, BackupStats{}, *s)
@@ -1656,8 +1656,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		nil,
 		nil,
 		false,
-		fault.New(true),
-		counter)
+		counter,
+		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	require.Zero(t, stats.ErrorCount)
 	require.Zero(t, counter.Get(count.PersistenceErrors))
@@ -1786,8 +1786,8 @@ func (suite *KopiaSimpleRepoIntegrationSuite) TestBackupExcludeItem() {
 				excluded,
 				nil,
 				true,
-				fault.New(true),
-				counter)
+				counter,
+				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectedCachedItems, stats.CachedFileCount)
 			assert.Equal(t, test.expectedUncachedItems, stats.UncachedFileCount)

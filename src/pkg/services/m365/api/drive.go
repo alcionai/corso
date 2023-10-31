@@ -239,7 +239,7 @@ func (c Drives) DeleteItem(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := c.Service()
+	srv, err := c.Service(c.counter)
 	if err != nil {
 		return graph.Wrap(ctx, err, "creating adapter to delete item permission")
 	}
@@ -309,7 +309,7 @@ func (c Drives) DeleteItemPermission(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := c.Service()
+	srv, err := c.Service(c.counter)
 	if err != nil {
 		return graph.Wrap(ctx, err, "creating adapter to delete item permission")
 	}

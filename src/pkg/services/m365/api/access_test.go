@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 type AccessAPIIntgSuite struct {
@@ -109,7 +110,10 @@ func (suite *AccessAPIIntgSuite) TestGetToken() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ac, err := NewClient(suite.its.ac.Credentials, control.DefaultOptions())
+			ac, err := NewClient(
+				suite.its.ac.Credentials,
+				control.DefaultOptions(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			ac.Credentials = test.creds()

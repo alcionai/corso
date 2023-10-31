@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -61,7 +62,10 @@ func (suite *DataCollectionIntgSuite) SetupSuite() {
 
 	suite.tenantID = creds.AzureTenantID
 
-	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
+	suite.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -251,6 +255,7 @@ func (suite *DataCollectionIntgSuite) TestDataCollections_invalidResourceOwner()
 			collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 				ctx,
 				bpc,
+				count.New(),
 				fault.New(true))
 			assert.Error(t, err, clues.ToCore(err))
 			assert.False(t, canUsePreviousBackup, "can use previous backup")
@@ -311,6 +316,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				suite.ac,
 				ctrl.credentials,
 				ctrl.UpdateStatus,
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -398,6 +404,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
+		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -448,6 +455,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	cols, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
+		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -534,6 +542,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
+		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -634,6 +643,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 	collections, excludes, canUsePreviousBackup, err := ctrl.ProduceBackupCollections(
 		ctx,
 		bpc,
+		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")

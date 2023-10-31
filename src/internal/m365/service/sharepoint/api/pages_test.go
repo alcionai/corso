@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -26,7 +27,8 @@ func createTestBetaService(t *testing.T, credentials account.M365Config) *api.Be
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
-		credentials.AzureClientSecret)
+		credentials.AzureClientSecret,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	return api.NewBetaService(adapter)

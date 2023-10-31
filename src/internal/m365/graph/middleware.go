@@ -323,7 +323,9 @@ func (mw RetryMiddleware) getRetryDelay(
 // ---------------------------------------------------------------------------
 
 // MetricsMiddleware aggregates per-request metrics on the events bus
-type MetricsMiddleware struct{}
+type MetricsMiddleware struct {
+	counter *count.Bus
+}
 
 const xmruHeader = "x-ms-resource-unit"
 
@@ -362,8 +364,7 @@ func (mw *MetricsMiddleware) Intercept(
 		xmrui = 1
 	}
 
-	countBus := count.Ctx(req.Context())
-	countBus.Add(count.APICallTokensConsumed, int64(xmrui))
+	mw.counter.Add(count.APICallTokensConsumed, int64(xmrui))
 
 	events.IncN(xmrui, events.APICall, xmruHeader)
 

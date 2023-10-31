@@ -63,7 +63,7 @@ func (c Contacts) DeleteContainer(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := NewService(c.Credentials)
+	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -230,7 +230,7 @@ func (c Contacts) DeleteItem(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := c.Service()
+	srv, err := c.Service(c.counter)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}

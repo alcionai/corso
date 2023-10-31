@@ -73,7 +73,7 @@ func (c Mail) DeleteContainer(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := NewService(c.Credentials)
+	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -442,7 +442,7 @@ func (c Mail) DeleteItem(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := NewService(c.Credentials)
+	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -508,7 +508,7 @@ func (c Mail) PostLargeAttachment(
 	}
 
 	url := ptr.Val(us.GetUploadUrl())
-	w := graph.NewLargeItemWriter(parentItemID, url, size)
+	w := graph.NewLargeItemWriter(parentItemID, url, size, c.counter)
 	copyBuffer := make([]byte, graph.AttachmentChunkSize)
 
 	_, err = io.CopyBuffer(w, bytes.NewReader(content), copyBuffer)

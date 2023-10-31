@@ -136,8 +136,6 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
-	ctx = count.Embed(ctx, op.Counter)
-
 	cats, err := op.Selectors.AllHumanPathCategories()
 	if err != nil {
 		// No need to exit over this, we'll just be missing a bit of info in the

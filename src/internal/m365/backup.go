@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -35,6 +36,7 @@ import (
 func (ctrl *Controller) ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	service := bpc.Selector.PathService()
@@ -94,6 +96,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 			ctrl.AC,
 			ctrl.credentials,
 			ctrl.UpdateStatus,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err

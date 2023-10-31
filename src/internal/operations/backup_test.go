@@ -136,8 +136,8 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	excluded prefixmatcher.StringSetReader,
 	tags map[string]string,
 	buildTreeWithBase bool,
-	errs *fault.Bus,
 	counter *count.Bus,
+	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	if mbu.checkFunc != nil {
 		mbu.checkFunc(backupReasons, bases, cs, tags, buildTreeWithBase)
@@ -529,8 +529,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		nil,
 		backupID,
 		true,
-		fault.New(true),
-		count.New())
+		count.New(),
+		fault.New(true))
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems() {
@@ -1439,7 +1439,10 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
+	suite.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 }
 
