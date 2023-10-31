@@ -1,9 +1,6 @@
 name: Manually Test Teams Action
 
 on:
-  push:
-      branches: [slack_message_to_teams]
-
   workflow_dispatch:
     inputs:
       msg:
