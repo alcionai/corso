@@ -1211,12 +1211,61 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 				testAllUsersAllCats,
 				test.tags)
 
-			checkManifestEntriesMatch(
+			checkBaseEntriesMatch(
 				t,
 				bb.MergeBases(),
-				manifestData,
+				inputData,
 				test.expectedIdxs)
 		})
+	}
+}
+
+func checkBaseEntriesMatch(
+	t *testing.T,
+	gotBases []BackupBase,
+	allBases []baseInfo,
+	expectedIdxsAndReasons map[int][]identity.Reasoner,
+) {
+	// Check the proper snapshot manifests were returned.
+	expectedMans := make([]*snapshot.Manifest, 0, len(expectedIdxsAndReasons))
+	expectedBups := make([]*backup.Backup, 0, len(expectedIdxsAndReasons))
+
+	for i := range expectedIdxsAndReasons {
+		expectedMans = append(expectedMans, allBases[i].manifest.man)
+		expectedBups = append(expectedBups, &allBases[i].backup.b)
+	}
+
+	gotMans := make([]*snapshot.Manifest, 0, len(gotBases))
+	gotBups := make([]*backup.Backup, 0, len(gotBases))
+
+	for _, s := range gotBases {
+		gotMans = append(gotMans, s.ItemDataSnapshot)
+		gotBups = append(gotBups, s.Backup)
+	}
+
+	assert.ElementsMatch(t, expectedMans, gotMans, "item data manifests")
+	assert.ElementsMatch(t, expectedBups, gotBups, "backup models")
+
+	// Check the reasons for selecting each manifest are correct.
+	expectedReasons := make(map[model.StableID][]identity.Reasoner, len(expectedIdxsAndReasons))
+
+	for idx, reasons := range expectedIdxsAndReasons {
+		expectedReasons[allBases[idx].backup.b.ID] = reasons
+	}
+
+	for _, found := range gotBases {
+		reasons, ok := expectedReasons[found.Backup.ID]
+		if !ok {
+			// Missing or extra snapshots will be reported by earlier checks.
+			continue
+		}
+
+		assert.ElementsMatch(
+			t,
+			reasons,
+			found.Reasons,
+			"incorrect reasons for backup with ID %s",
+			found.Backup.ID)
 	}
 }
 
