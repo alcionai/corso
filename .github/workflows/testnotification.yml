@@ -1,0 +1,23 @@
+name: Manually Test Teams Action
+
+on:
+  workflow_dispatch:
+    inputs:
+      msg:
+        description: 'Message to send:'
+        required: true
+        default: 'This is a test message'
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Send notification
+      uses: ./.github/actions/teams-message
+      with:
+        msg: ${{ github.event.inputs.msg }}
+        teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}
