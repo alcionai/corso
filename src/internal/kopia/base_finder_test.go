@@ -279,7 +279,6 @@ func (builder *baseInfoBuilder) legacyBackupDetails() *baseInfoBuilder {
 	return builder
 }
 
-
 func (builder *baseInfoBuilder) clearBackupDetails() *baseInfoBuilder {
 	builder.info.backup.b.DetailsID = ""
 	builder.info.backup.b.StreamStoreID = ""
@@ -709,7 +708,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				t,
 				bb.MergeBases(),
 				test.data,
-				test.expectedMergeReasons)
+				test.expectedBaseReasons)
 			checkBaseEntriesMatch(
 				t,
 				bb.UniqueAssistBases(),
