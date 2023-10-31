@@ -197,6 +197,14 @@ func (b *baseFinder) findBasesInSet(
 
 		ictx = clues.Add(ictx, "ssid", ssid)
 
+		if bup.SnapshotID != string(man.ID) {
+			logger.Ctx(ictx).Infow(
+				"backup has empty or different snapshot ID",
+				"got_snapshot_id", bup.SnapshotID)
+
+			continue
+		}
+
 		// If we've made it to this point then we're considering the backup
 		// complete as it has both an item data snapshot and a backup details
 		// snapshot.
@@ -207,31 +215,39 @@ func (b *baseFinder) findBasesInSet(
 		// 2. at most one assist base per reason.
 		// 3. it must be more recent than the merge backup for the reason, if
 		// a merge backup exists.
-
-		if b.isAssistBackupModel(ictx, bup) {
+		switch bup.Type() {
+		case model.AssistBackup:
+			// Only add an assist base if we haven't already found one.
 			if assistBase == nil {
+				logger.Ctx(ictx).Info("found assist base")
+
 				assistBase = &BackupBase{
 					Backup:           bup,
 					ItemDataSnapshot: man,
 					Reasons:          []identity.Reasoner{reason},
 				}
-
-				logger.Ctx(ictx).Info("found assist base")
 			}
 
-			// Skip if an assist base has already been selected.
-			continue
+		case model.MergeBackup:
+			logger.Ctx(ictx).Info("found merge base")
+
+			mergeBase = &BackupBase{
+				Backup:           bup,
+				ItemDataSnapshot: man,
+				Reasons:          []identity.Reasoner{reason},
+			}
+
+		default:
+			logger.Ctx(ictx).Infow(
+				"skipping backup with empty or invalid type for incremental backups",
+				"backup_type", bup.Type())
 		}
 
-		logger.Ctx(ictx).Info("found merge base")
-
-		mergeBase = &BackupBase{
-			Backup:           bup,
-			ItemDataSnapshot: man,
-			Reasons:          []identity.Reasoner{reason},
+		// Need to check here if we found a merge base because adding a break in the
+		// case-statement will just leave the case not the for-loop.
+		if mergeBase != nil {
+			break
 		}
-
-		break
 	}
 
 	if mergeBase == nil && assistBase == nil {
