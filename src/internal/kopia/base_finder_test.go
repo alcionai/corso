@@ -382,7 +382,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 		data  []baseInfo
 		// Use this to denote the Reasons a base backup or base manifest is
 		// selected. The int maps to the index of the backup or manifest in data.
-		expectedBaseReasons map[int][]identity.Reasoner
+		expectedMergeReasons map[int][]identity.Reasoner
 		// Use this to denote the Reasons a kopia assised incrementals manifest is
 		// selected. The int maps to the index of the manifest in data.
 		expectedAssistReasons map[int][]identity.Reasoner
@@ -397,7 +397,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				newBaseInfoBuilder(1, testT1, testUser1Mail...).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
 		},
@@ -426,7 +426,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				newBaseInfoBuilder(1, testT1, testUser1Mail...).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
 		},
@@ -440,7 +440,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				newBaseInfoBuilder(1, testT1, testUser1Mail...).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
 		},
@@ -452,7 +452,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					legacyBackupDetails().
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -463,7 +463,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				newBaseInfoBuilder(1, testT1, testAllUsersAllCats...).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				0: testAllUsersAllCats,
 			},
 		},
@@ -488,7 +488,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				newBaseInfoBuilder(2, testT2, testAllUsersMail...).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				0: {
 					newTestReason(testUser1, path.EventsCategory),
 					newTestReason(testUser2, path.EventsCategory),
@@ -528,7 +528,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					newTestReason(testUser2, path.EmailCategory)).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				2: {
 					newTestReason(testUser1, path.EmailCategory),
 					newTestReason(testUser2, path.EmailCategory),
@@ -558,7 +558,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					setSnapshotIncomplete("checkpoint").
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -572,7 +572,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				newBaseInfoBuilder(2, testT2, testUser1Mail...).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
 		},
@@ -595,7 +595,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				newBaseInfoBuilder(1, testT1, testUser1Mail...).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -610,7 +610,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				newBaseInfoBuilder(1, testT1, testUser1Mail...).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -629,7 +629,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				newBaseInfoBuilder(1, testT1, testUser1Mail...).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				2: testUser1Mail,
 			},
 			expectedAssistReasons: map[int][]identity.Reasoner{
@@ -646,7 +646,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					setBackupType(model.AssistBackup).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -673,7 +673,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 					setBackupType(model.MergeBackup).
 					build(),
 			},
-			expectedBaseReasons: map[int][]identity.Reasoner{
+			expectedMergeReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
 		},
@@ -708,7 +708,7 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				t,
 				bb.MergeBases(),
 				test.data,
-				test.expectedBaseReasons)
+				test.expectedMergeReasons)
 			checkBaseEntriesMatch(
 				t,
 				bb.UniqueAssistBases(),
