@@ -11,10 +11,10 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	"golang.org/x/time/rate"
 
-	sw "github.com/RussellLuo/slidingwindow"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/reugn/equalizer"
 )
 
 // ---------------------------------------------------------------------------
@@ -104,11 +104,13 @@ var (
 	// also used as the exchange service limiter
 	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
 
-	slideLimiter, _ = sw.NewLimiter(10*time.Minute, 10000, func() (sw.Window, sw.StopFunc) {
-		// NewLocalWindow returns an empty stop function, so it's
-		// unnecessary to call it later.
-		return sw.NewLocalWindow()
-	})
+	// slideLimiter, _ = sw.NewLimiter(10*time.Minute, 10000, func() (sw.Window, sw.StopFunc) {
+	// 	// NewLocalWindow returns an empty stop function, so it's
+	// 	// unnecessary to call it later.
+	// 	return sw.NewLocalWindow()
+	// })
+
+	slider = equalizer.NewSlider(10*time.Minute, time.Minute, 10000)
 )
 
 type LimiterCfg struct {
@@ -204,18 +206,20 @@ func QueueRequest(ctx context.Context) {
 	// will return immediately if the limiter is already full, and we
 	// need to wait for the limiter to allow the request to go through.
 
-	for i := 0; i < 10; i++ {
-		a := slideLimiter.Allow()
-		if a {
-			// Tokens are available now; exit the loop.
-			break
-		}
+	// for i := 0; i < 10; i++ {
+	// 	a := slideLimiter.Allow()
+	// 	if a {
+	// 		// Tokens are available now; exit the loop.
+	// 		break
+	// 	}
 
-		logger.Ctx(ctx).Error("retrying - waiting for limiter tokens")
+	// 	logger.Ctx(ctx).Error("retrying - waiting for limiter tokens")
 
-		// Sleep for a second before the next retry.
-		time.Sleep(time.Second)
-	}
+	// 	// Sleep for a second before the next retry.
+	// 	time.Sleep(time.Second)
+	// }
+
+	slider.Take()
 }
 
 // RateLimiterMiddleware is used to ensure we don't overstep per-min request limits.
