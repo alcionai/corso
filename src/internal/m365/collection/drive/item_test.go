@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -231,7 +232,8 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 				rh,
 				test.driveID,
 				ptr.Val(newItem.GetId()),
-				writeSize)
+				writeSize,
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Using a 32 KB buffer for the copy allows us to validate the

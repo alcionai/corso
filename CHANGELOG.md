@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.15.0] (beta) - 2023-10-31
+
+### Added
+- Added `corso repo update-passphrase` command to update the passphrase of an existing Corso repository
+- Added Subject and Message preview to channel messages detail entries
+
 ### Fixed
 - SharePoint backup would fail if any site had an empty display name
 - Fix a bug with exports hanging post completion
+- Handle 503 errors in nested OneDrive packages
 
 ### Changed
-- Item Details formatting in Groups and Teams backups.  Pre-release users will need to run new backups to avoid data corruption.
+- Item Details formatting in Groups and Teams backups
 
 ## [v0.14.2] (beta) - 2023-10-17
 

@@ -52,13 +52,13 @@ import (
 
 // GockClient produces a new exchange api client that can be
 // mocked using gock.
-func gockClient(creds account.M365Config) (api.Client, error) {
-	s, err := gmock.NewService(creds)
+func gockClient(creds account.M365Config, counter *count.Bus) (api.Client, error) {
+	s, err := gmock.NewService(creds, counter)
 	if err != nil {
 		return api.Client{}, err
 	}
 
-	li, err := gmock.NewService(creds, graph.NoTimeout())
+	li, err := gmock.NewService(creds, counter, graph.NoTimeout())
 	if err != nil {
 		return api.Client{}, err
 	}
@@ -562,7 +562,12 @@ func ControllerWithSelector(
 	ins idname.Cacher,
 	onFail func(*testing.T, context.Context),
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, sel.PathService(), control.DefaultOptions())
+	ctrl, err := m365.NewController(
+		ctx,
+		acct,
+		sel.PathService(),
+		control.DefaultOptions(),
+		count.New())
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)
@@ -623,10 +628,15 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.ac, err = api.NewClient(creds, control.DefaultOptions())
+	counter := count.New()
+
+	its.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		counter)
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.gockAC, err = gockClient(creds)
+	its.gockAC, err = gockClient(creds, counter)
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.user = userIDs(t, tconfig.M365UserID(t), its.ac)

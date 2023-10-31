@@ -23,8 +23,8 @@ type (
 			pmr prefixmatcher.StringSetReader,
 			tags map[string]string,
 			buildTreeWithBase bool,
-			errs *fault.Bus,
 			counter *count.Bus,
+			errs *fault.Bus,
 		) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error)
 	}
 

@@ -114,9 +114,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Notify failure in slack
+      - name: Notify failure in teams
         if: failure()
-        uses: ./.github/actions/slack-message
+        uses: ./.github/actions/teams-message
         with:
           msg: "[FAILED] Nightly Checks"
-          slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

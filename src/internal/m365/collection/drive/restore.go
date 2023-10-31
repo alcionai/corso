@@ -788,7 +788,13 @@ func restoreFile(
 		return "", details.ItemInfo{}, err
 	}
 
-	w, uploadURL, err := driveItemWriter(ctx, ir, driveID, ptr.Val(newItem.GetId()), ss.Size())
+	w, uploadURL, err := driveItemWriter(
+		ctx,
+		ir,
+		driveID,
+		ptr.Val(newItem.GetId()),
+		ss.Size(),
+		ctr)
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "get item upload session")
 	}
@@ -841,7 +847,11 @@ func restoreFile(
 
 		// refresh the io.Writer to restart the upload
 		// TODO: @vkamra verify if var session is the desired input
-		w = graph.NewLargeItemWriter(ptr.Val(newItem.GetId()), uploadURL, ss.Size())
+		w = graph.NewLargeItemWriter(
+			ptr.Val(newItem.GetId()),
+			uploadURL,
+			ss.Size(),
+			ctr)
 	}
 
 	if err != nil {

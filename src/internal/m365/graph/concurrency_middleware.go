@@ -291,7 +291,8 @@ func (tf *timedFence) RaiseFence(seconds time.Duration) {
 
 // throttlingMiddleware is used to ensure we don't overstep per-min request limits.
 type throttlingMiddleware struct {
-	tf *timedFence
+	tf      *timedFence
+	counter *count.Bus
 }
 
 func (mw *throttlingMiddleware) Intercept(
@@ -314,8 +315,7 @@ func (mw *throttlingMiddleware) Intercept(
 		return resp, nil
 	}
 
-	countBus := count.Ctx(req.Context())
-	countBus.Inc(count.ThrottledAPICalls)
+	mw.counter.Inc(count.ThrottledAPICalls)
 
 	// if all prior conditions pass, we need to add a fence that blocks
 	// calls, globally, from progressing until the timeout retry-after

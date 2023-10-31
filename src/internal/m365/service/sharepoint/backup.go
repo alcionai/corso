@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -25,6 +26,7 @@ func ProduceBackupCollections(
 	ac api.Client,
 	creds account.M365Config,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	b, err := bpc.Selector.ToSharePointBackup()
@@ -102,6 +104,7 @@ func ProduceBackupCollections(
 				ac,
 				scope,
 				su,
+				counter,
 				errs)
 			if err != nil {
 				el.AddRecoverable(ctx, err)

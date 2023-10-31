@@ -40,6 +40,7 @@ type Controller struct {
 func (ctrl Controller) ProduceBackupCollections(
 	_ context.Context,
 	_ inject.BackupProducerConfig,
+	_ *count.Bus,
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,

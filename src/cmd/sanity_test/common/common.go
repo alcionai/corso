@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -62,5 +63,5 @@ func GetAC() (api.Client, error) {
 		AzureTenantID: os.Getenv(account.AzureTenantID),
 	}
 
-	return api.NewClient(creds, control.DefaultOptions())
+	return api.NewClient(creds, control.DefaultOptions(), count.New())
 }
