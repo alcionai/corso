@@ -41,8 +41,6 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	ctx = clues.Add(ctx, "category", scope.Category().PathType())
-
 	var (
 		allCollections = make([]data.BackupCollection, 0)
 		category       = scope.Category().PathType()
@@ -60,7 +58,11 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
 
-	containers, err := bh.getContainers(ctx)
+	cc := api.CallConfig{
+		CanMakeDeltaQueries: bh.canMakeDeltaQueries(),
+	}
+
+	containers, err := bh.getContainers(ctx, cc)
 	if err != nil {
 		return nil, false, clues.Stack(err)
 	}
@@ -94,7 +96,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 	qp graph.QueryParams,
 	bh backupHandler[C, I],
 	statusUpdater support.StatusUpdater,
-	containers []C,
+	containers []container[C],
 	scope selectors.GroupsScope,
 	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
@@ -123,15 +125,15 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 
 		var (
 			cl          = counter.Local()
-			cID         = ptr.Val(c.GetId())
+			cID         = ptr.Val(c.container.GetId())
 			err         error
-			dp          = dps[cID]
+			dp          = dps[c.folders.String()]
 			prevDelta   = dp.Delta
 			prevPathStr = dp.Path // do not log: pii; log prevPath instead
 			prevPath    path.Path
 			ictx        = clues.Add(
 				ctx,
-				"channel_id", cID,
+				"collection_path", c,
 				"previous_delta", pii.SafeURL{
 					URL:           prevDelta,
 					SafePathElems: graph.SafeURLPathParams,
@@ -144,7 +146,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 		delete(tombstones, cID)
 
 		// Only create a collection if the path matches the scope.
-		if !bh.includeContainer(ictx, qp, c, scope) {
+		if !bh.includeContainer(ictx, qp, c.container, scope) {
 			cl.Inc(count.SkippedContainers)
 			continue
 		}
@@ -163,10 +165,10 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 		// if the channel has no email property, it is unable to process delta tokens
 		// and will return an error if a delta token is queried.
 		cc := api.CallConfig{
-			CanMakeDeltaQueries: bh.canMakeDeltaQueries(c),
+			CanMakeDeltaQueries: bh.canMakeDeltaQueries() && c.canMakeDeltaQueries,
 		}
 
-		addAndRem, err := bh.getContainerItemIDs(ctx, cID, prevDelta, cc)
+		addAndRem, err := bh.getContainerItemIDs(ctx, c.folders, prevDelta, cc)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
@@ -179,12 +181,12 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 		cl.Add(count.ItemsRemoved, int64(len(removed)))
 
 		if len(addAndRem.DU.URL) > 0 {
-			deltaURLs[cID] = addAndRem.DU.URL
+			deltaURLs[c.folders.String()] = addAndRem.DU.URL
 		} else if !addAndRem.DU.Reset {
 			logger.Ctx(ictx).Info("missing delta url")
 		}
 
-		currPath, err := bh.canonicalPath(path.Builder{}.Append(cID), qp.TenantID)
+		currPath, err := bh.canonicalPath(c.folders, qp.TenantID)
 		if err != nil {
 			err = clues.StackWC(ctx, err).Label(count.BadCollPath)
 			el.AddRecoverable(ctx, err)
@@ -203,7 +205,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			data.NewBaseCollection(
 				currPath,
 				prevPath,
-				bh.locationPath(c),
+				c.location.Builder(),
 				ctrlOpts,
 				addAndRem.DU.Reset,
 				cl),
@@ -213,11 +215,11 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			removed,
 			statusUpdater)
 
-		collections[cID] = &edc
+		collections[c.folders.String()] = &edc
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
-		currPaths[cID] = currPath.String()
+		currPaths[c.folders.String()] = currPath.String()
 	}
 
 	// A tombstone is a channel that needs to be marked for deletion.

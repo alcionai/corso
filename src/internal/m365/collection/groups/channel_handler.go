@@ -5,6 +5,7 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -31,22 +32,36 @@ func NewChannelBackupHandler(
 	}
 }
 
-func (bh channelsBackupHandler) canMakeDeltaQueries(c models.Channelable) bool {
-	return len(ptr.Val(c.GetEmail())) > 0
+func (bh channelsBackupHandler) canMakeDeltaQueries() bool {
+	return true
 }
 
 func (bh channelsBackupHandler) getContainers(
 	ctx context.Context,
-) ([]models.Channelable, error) {
-	return bh.ac.GetChannels(ctx, bh.protectedResource)
+	_ api.CallConfig,
+) ([]container[models.Channelable], error) {
+	chans, err := bh.ac.GetChannels(ctx, bh.protectedResource)
+	results := make([]container[models.Channelable], 0, len(chans))
+
+	for _, ch := range chans {
+		results = append(results, channelContainer(ch))
+	}
+
+	return results, clues.Stack(err).OrNil()
 }
 
 func (bh channelsBackupHandler) getContainerItemIDs(
 	ctx context.Context,
-	channelID, prevDelta string,
+	containerPath path.Elements,
+	prevDelta string,
 	cc api.CallConfig,
 ) (pagers.AddedAndRemoved, error) {
-	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, cc)
+	return bh.ac.GetChannelMessageIDs(
+		ctx,
+		bh.protectedResource,
+		containerPath[0],
+		prevDelta,
+		cc)
 }
 
 func (bh channelsBackupHandler) includeContainer(
@@ -59,20 +74,17 @@ func (bh channelsBackupHandler) includeContainer(
 }
 
 func (bh channelsBackupHandler) canonicalPath(
-	folders *path.Builder,
+	folders path.Elements,
 	tenantID string,
 ) (path.Path, error) {
 	return folders.
+		Builder().
 		ToDataLayerPath(
 			tenantID,
 			bh.protectedResource,
 			path.GroupsService,
 			path.ChannelMessagesCategory,
 			false)
-}
-
-func (bh channelsBackupHandler) locationPath(c models.Channelable) *path.Builder {
-	return path.Builder{}.Append(ptr.Val(c.GetDisplayName()))
 }
 
 func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
@@ -91,4 +103,13 @@ func (bh channelsBackupHandler) GetItem(
 	messageID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	return bh.ac.GetChannelMessage(ctx, groupID, containerIDs[0], messageID)
+}
+
+func channelContainer(ch models.Channelable) container[models.Channelable] {
+	return container[models.Channelable]{
+		folders:             path.Elements{ptr.Val(ch.GetId())},
+		location:            path.Elements{ptr.Val(ch.GetDisplayName())},
+		canMakeDeltaQueries: len(ptr.Val(ch.GetEmail())) > 0,
+		container:           ch,
+	}
 }

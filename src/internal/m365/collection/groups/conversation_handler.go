@@ -3,6 +3,7 @@ package groups
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -31,26 +32,52 @@ func NewConversationBackupHandler(
 	}
 }
 
-func (bh conversationsBackupHandler) canMakeDeltaQueries(models.Conversationable) bool {
+func (bh conversationsBackupHandler) canMakeDeltaQueries() bool {
 	return false
 }
 
 func (bh conversationsBackupHandler) getContainers(
 	ctx context.Context,
-) ([]models.Conversationable, error) {
-	return bh.ac.GetConversations(ctx, bh.protectedResource, api.CallConfig{})
+	cc api.CallConfig,
+) ([]container[models.Conversationable], error) {
+	convs, err := bh.ac.GetConversations(ctx, bh.protectedResource, cc)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting conversations")
+	}
+
+	results := []container[models.Conversationable]{}
+
+	for _, conv := range convs {
+		ictx := clues.Add(ctx, "conversation_id", ptr.Val(conv.GetId()))
+
+		threads, err := bh.ac.GetConversationThreads(
+			ictx,
+			bh.protectedResource,
+			ptr.Val(conv.GetId()),
+			cc)
+		if err != nil {
+			return nil, clues.Wrap(err, "getting threads in conversation")
+		}
+
+		for _, thread := range threads {
+			results = append(results, conversationThreadContainer(conv, thread))
+		}
+	}
+
+	return results, nil
 }
 
 func (bh conversationsBackupHandler) getContainerItemIDs(
 	ctx context.Context,
-	conversationID, prevDelta string,
+	containerPath path.Elements,
+	_ string,
 	cc api.CallConfig,
 ) (pagers.AddedAndRemoved, error) {
 	return bh.ac.GetConversationThreadPostIDs(
 		ctx,
 		bh.protectedResource,
-		conversationID,
-		prevDelta,
+		containerPath[0],
+		containerPath[1],
 		cc)
 }
 
@@ -64,20 +91,17 @@ func (bh conversationsBackupHandler) includeContainer(
 }
 
 func (bh conversationsBackupHandler) canonicalPath(
-	folders *path.Builder,
+	folders path.Elements,
 	tenantID string,
 ) (path.Path, error) {
 	return folders.
+		Builder().
 		ToDataLayerPath(
 			tenantID,
 			bh.protectedResource,
 			path.GroupsService,
 			path.ConversationPostsCategory,
 			false)
-}
-
-func (bh conversationsBackupHandler) locationPath(c models.Conversationable) *path.Builder {
-	return &path.Builder{}
 }
 
 func (bh conversationsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
@@ -102,4 +126,16 @@ func (bh conversationsBackupHandler) GetItem(
 		containerIDs[1],
 		postID,
 		api.CallConfig{})
+}
+
+func conversationThreadContainer(
+	c models.Conversationable,
+	t models.ConversationThreadable,
+) container[models.Conversationable] {
+	return container[models.Conversationable]{
+		folders:             path.Elements{ptr.Val(c.GetId()), ptr.Val(t.GetId())},
+		location:            path.Elements{"TODO(keepers)"},
+		canMakeDeltaQueries: false,
+		container:           c,
+	}
 }
