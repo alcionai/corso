@@ -469,431 +469,226 @@ func (suite *BaseFinderUnitSuite) TestNoResult_ErrorListingSnapshots() {
 
 func (suite *BaseFinderUnitSuite) TestGetBases() {
 	table := []struct {
-		name         string
-		input        []identity.Reasoner
-		manifestData []manifestInfo
+		name  string
+		input []identity.Reasoner
+		data  []baseInfo
 		// Use this to denote the Reasons a base backup or base manifest is
 		// selected. The int maps to the index of the backup or manifest in data.
 		expectedBaseReasons map[int][]identity.Reasoner
 		// Use this to denote the Reasons a kopia assised incrementals manifest is
 		// selected. The int maps to the index of the manifest in data.
 		expectedAssistReasons map[int][]identity.Reasoner
-		backupData            []backupInfo
 	}{
 		{
 			name:  "Return Older Merge Base If Fail To Get Manifest",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					assert.AnError,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					setSnapshotError(assert.AnError).
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup2, true, true, false, nil, nil),
-				newBackupModel(testBackup1, true, true, false, nil, nil),
 			},
 		},
 		{
 			name:  "Return Older Assist Base If Fail To Get Manifest",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					assert.AnError,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					setSnapshotError(assert.AnError).
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					setBackupType(model.AssistBackup).
+					build(),
 			},
 			expectedAssistReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup2, true, true, false, nil, nil),
-				newBackupModel(
-					testBackup1,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.AssistBackup},
-					nil),
 			},
 		},
 		{
 			name:  "Return Older Merge Base If Fail To Get Backup",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					setBackupError(assert.AnError).
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup2, false, false, false, nil, assert.AnError),
-				newBackupModel(testBackup1, true, true, false, nil, nil),
 			},
 		},
 		{
 			name:  "Return Older Base If Missing Details",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					clearBackupDetails().
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup2, true, false, false, nil, nil),
-				newBackupModel(testBackup1, true, true, false, nil, nil),
 			},
 		},
 		{
 			name:  "Old Backup Details Pointer",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testEvents,
-					testUser1,
-					testUser2,
-					testUser3),
+			data: []baseInfo{
+				newBaseInfoBuilder(1, testT1, testAllUsersAllCats...).
+					legacyBackupDetails().
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup1, true, true, true, nil, nil),
 			},
 		},
 		{
 			name:  "All One Snapshot With Merge Base",
 			input: testAllUsersAllCats,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testEvents,
-					testUser1,
-					testUser2,
-					testUser3),
+			data: []baseInfo{
+				newBaseInfoBuilder(1, testT1, testAllUsersAllCats...).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testAllUsersAllCats,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup1, true, true, false, nil, nil),
 			},
 		},
 		{
 			name:  "All One Snapshot with Assist Base",
 			input: testAllUsersAllCats,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testEvents,
-					testUser1,
-					testUser2,
-					testUser3),
+			data: []baseInfo{
+				newBaseInfoBuilder(1, testT1, testAllUsersAllCats...).
+					setBackupType(model.AssistBackup).
+					build(),
 			},
 			expectedAssistReasons: map[int][]identity.Reasoner{
 				0: testAllUsersAllCats,
-			},
-			backupData: []backupInfo{
-				newBackupModel(
-					testBackup1,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.AssistBackup},
-					nil),
 			},
 		},
 		{
 			name:  "Multiple Bases Some Overlapping Reasons",
 			input: testAllUsersAllCats,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testEvents,
-					testUser1,
-					testUser2,
-					testUser3),
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testEvents,
-					testUser1,
-					testUser2,
-					testUser3),
+			data: []baseInfo{
+				newBaseInfoBuilder(1, testT1, testAllUsersAllCats...).
+					build(),
+				newBaseInfoBuilder(2, testT2, testAllUsersMail...).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: {
-					identity.NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-					identity.NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-					identity.NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
+					newTestReason(testUser1, path.EventsCategory),
+					newTestReason(testUser2, path.EventsCategory),
+					newTestReason(testUser3, path.EventsCategory),
 				},
 				1: {
-					identity.NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
-					identity.NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
-					identity.NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
+					newTestReason(testUser1, path.EmailCategory),
+					newTestReason(testUser2, path.EmailCategory),
+					newTestReason(testUser3, path.EmailCategory),
 				},
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup1, true, true, false, nil, nil),
-				newBackupModel(testBackup2, true, true, false, nil, nil),
 			},
 		},
 		{
 			name:  "Unique assist bases with common merge Base, overlapping reasons",
 			input: testAllUsersAllCats,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID3,
+			data: []baseInfo{
+				newBaseInfoBuilder(
+					3,
 					testT3,
-					testCompleteMan,
-					testBackup3,
-					nil,
-					testEvents,
-					testUser1,
-					testUser2),
-				newManifestInfo(
-					testID2,
+					newTestReason(testUser1, path.EventsCategory),
+					newTestReason(testUser2, path.EventsCategory)).
+					setBackupType(model.AssistBackup).
+					build(),
+				newBaseInfoBuilder(
+					2,
 					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1,
-					testUser2),
-				newManifestInfo(
-					testID1,
+					newTestReason(testUser1, path.EmailCategory),
+					newTestReason(testUser2, path.EmailCategory)).
+					setBackupType(model.AssistBackup).
+					build(),
+				newBaseInfoBuilder(
+					1,
 					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testEvents,
-					testUser1,
-					testUser2),
+					newTestReason(testUser1, path.EventsCategory),
+					newTestReason(testUser2, path.EventsCategory),
+					newTestReason(testUser1, path.EmailCategory),
+					newTestReason(testUser2, path.EmailCategory)).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				2: {
-					identity.NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-					identity.NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-					identity.NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
-					identity.NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					newTestReason(testUser1, path.EmailCategory),
+					newTestReason(testUser2, path.EmailCategory),
+					newTestReason(testUser1, path.EventsCategory),
+					newTestReason(testUser2, path.EventsCategory),
 				},
 			},
 			expectedAssistReasons: map[int][]identity.Reasoner{
 				0: {
-					identity.NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
-					identity.NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+					newTestReason(testUser1, path.EventsCategory),
+					newTestReason(testUser2, path.EventsCategory),
 				},
 				1: {
-					identity.NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-					identity.NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
+					newTestReason(testUser1, path.EmailCategory),
+					newTestReason(testUser2, path.EmailCategory),
 				},
-			},
-			backupData: []backupInfo{
-				newBackupModel(
-					testBackup3,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.AssistBackup},
-					nil),
-				newBackupModel(
-					testBackup2,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.AssistBackup},
-					nil),
-				newBackupModel(testBackup1, true, true, false, nil, nil),
 			},
 		},
 		{
 			name:  "Newer Incomplete Assist Snapshot",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID2,
-					testT2,
-					testIncompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					build(),
+				// This base shouldn't be returned.
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					setSnapshotIncomplete("checkpoint").
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup1, true, true, false, nil, nil),
-				// Shouldn't be returned but have here just so we can see.
-				newBackupModel(testBackup2, true, true, false, nil, nil),
 			},
 		},
 		{
 			name:  "Incomplete Older Than Complete",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID1,
-					testT1,
-					testIncompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					setSnapshotIncomplete("checkpoint").
+					build(),
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				1: testUser1Mail,
 			},
-			backupData: []backupInfo{
-				// Shouldn't be returned but have here just so we can see.
-				newBackupModel(testBackup1, true, true, false, nil, nil),
-				newBackupModel(testBackup2, true, true, false, nil, nil),
-			},
 		},
 		{
-			name:  "Newest Incomplete Only Incomplete",
+			name:  "Only Incomplete Returns Nothing",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID1,
-					testT1,
-					testIncompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID2,
-					testT2,
-					testIncompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
-			},
-			backupData: []backupInfo{
-				// Shouldn't be returned but have here just so we can see.
-				newBackupModel(testBackup1, true, true, false, nil, nil),
-				newBackupModel(testBackup2, true, true, false, nil, nil),
+			data: []baseInfo{
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					setSnapshotIncomplete("checkpoint").
+					build(),
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					setSnapshotIncomplete("checkpoint").
+					build(),
 			},
 		},
 		{
 			name:  "Some Bases Not Found",
 			input: testAllUsersMail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup1, true, true, false, nil, nil),
 			},
 		},
 		{
@@ -901,69 +696,30 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			input: testAllUsersMail,
 			// Manifests are currently returned in the order they're defined by the
 			// mock.
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup2, true, true, false, nil, nil),
-				// Shouldn't be returned but here just so we can check.
-				newBackupModel(testBackup1, true, true, false, nil, nil),
 			},
 		},
 		{
 			name:  "Return latest assist & merge base pair",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID4,
-					testT4,
-					testCompleteMan,
-					testBackup4,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID3,
-					testT3,
-					testCompleteMan,
-					testBackup3,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(4, testT4, testUser1Mail...).
+					setBackupType(model.AssistBackup).
+					build(),
+				newBaseInfoBuilder(3, testT3, testUser1Mail...).
+					setBackupType(model.AssistBackup).
+					build(),
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				2: testUser1Mail,
@@ -971,126 +727,46 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			expectedAssistReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
-			backupData: []backupInfo{
-				newBackupModel(
-					testBackup4,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.AssistBackup},
-					nil),
-				newBackupModel(
-					testBackup3,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.AssistBackup},
-					nil),
-				newBackupModel(testBackup2, true, true, false, nil, nil),
-				newBackupModel(testBackup1, true, true, false, nil, nil),
-			},
 		},
 		{
 			name:  "Newer merge base than assist base",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					setBackupType(model.AssistBackup).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup2, true, true, false, nil, nil),
-				newBackupModel(
-					testBackup1,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.AssistBackup},
-					nil),
 			},
 		},
 		{
 			name:  "Only assist bases",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
-				newManifestInfo(
-					testID1,
-					testT1,
-					testCompleteMan,
-					testBackup1,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					setBackupType(model.AssistBackup).
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					setBackupType(model.AssistBackup).
+					build(),
 			},
 			expectedAssistReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
 			},
-			backupData: []backupInfo{
-				newBackupModel(
-					testBackup2,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.AssistBackup},
-					nil),
-				newBackupModel(
-					testBackup1,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.AssistBackup},
-					nil),
-			},
 		},
 		{
-			name:  "Merge base with tag",
+			name:  "Merge base with merge tag",
 			input: testUser1Mail,
-			manifestData: []manifestInfo{
-				newManifestInfo(
-					testID2,
-					testT2,
-					testCompleteMan,
-					testBackup2,
-					nil,
-					testMail,
-					testUser1),
+			data: []baseInfo{
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					setBackupType(model.MergeBackup).
+					build(),
 			},
 			expectedBaseReasons: map[int][]identity.Reasoner{
 				0: testUser1Mail,
-			},
-			backupData: []backupInfo{
-				newBackupModel(testBackup2, true, true, false, nil, nil),
-				newBackupModel(
-					testBackup1,
-					true,
-					true,
-					false,
-					map[string]string{model.BackupTypeTag: model.MergeBackup},
-					nil),
 			},
 		},
 	}
@@ -1138,20 +814,10 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 }
 
 func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
-	manifestData := []manifestInfo{
-		newManifestInfo(
-			testID1,
-			testT1,
-			testCompleteMan,
-			testBackup1,
-			nil,
-			testMail,
-			testUser1,
-			"fnords",
-			"smarf"),
-	}
-	backupData := []backupInfo{
-		newBackupModel(testBackup1, true, true, false, nil, nil),
+	inputData := []baseInfo{
+		newBaseInfoBuilder(1, testT1, testUser1Mail...).
+			appendSnapshotTagKeys("fnords", "smarf").
+			build(),
 	}
 
 	table := []struct {
