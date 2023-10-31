@@ -23,7 +23,7 @@ type (
 		ProduceBackupCollections(
 			ctx context.Context,
 			bpc BackupProducerConfig,
-			count *count.Bus,
+			counter *count.Bus,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
 
