@@ -65,7 +65,7 @@ type ConversationPostInfo struct {
 	Creator   string    `json:"creator,omitempty"`
 	Preview   string    `json:"preview,omitempty"`
 	Size      int64     `json:"size,omitempty"`
-	Subject   string    `json:"subject,omitempty"`
+	Topic     string    `json:"topic,omitempty"`
 }
 
 type ChannelMessageInfo struct {
@@ -86,6 +86,8 @@ func (i GroupsInfo) Headers() []string {
 		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
 	case GroupsChannelMessage:
 		return []string{"Message", "Channel", "Subject", "Replies", "Creator", "Created", "Last Reply"}
+	case GroupsConversationPost:
+		return []string{"Post", "Conversation", "Sender", "Created"}
 	}
 
 	return []string{}
@@ -112,7 +114,7 @@ func (i GroupsInfo) Values() []string {
 		}
 
 		return []string{
-			// html parsing may produce newlijnes, which we'll want to avoid
+			// html parsing may produce newlines, which we'll want to avoid
 			strings.ReplaceAll(i.Message.Preview, "\n", "\\n"),
 			i.ParentPath,
 			i.Message.Subject,
@@ -120,6 +122,14 @@ func (i GroupsInfo) Values() []string {
 			i.Message.Creator,
 			dttm.FormatToTabularDisplay(i.Message.CreatedAt),
 			lastReply,
+		}
+	case GroupsConversationPost:
+		return []string{
+			// html parsing may produce newlines, which we'll want to avoid
+			strings.ReplaceAll(i.Post.Preview, "\n", "\\n"),
+			i.Post.Topic,
+			i.Post.Creator,
+			dttm.FormatToTabularDisplay(i.Post.CreatedAt),
 		}
 	}
 

@@ -113,7 +113,7 @@ func (bh conversationsBackupHandler) PathPrefix(tenantID string) (path.Path, err
 		false)
 }
 
-func (bh conversationsBackupHandler) GetItem(
+func (bh conversationsBackupHandler) getItem(
 	ctx context.Context,
 	groupID string,
 	containerIDs path.Elements, // expects: [conversationID, threadID]
@@ -128,6 +128,13 @@ func (bh conversationsBackupHandler) GetItem(
 		api.CallConfig{})
 }
 
+func (bh conversationsBackupHandler) augmentItemInfo(
+	dgi *details.GroupsInfo,
+	c models.Conversationable,
+) {
+	dgi.Post.Topic = ptr.Val(c.GetTopic())
+}
+
 func conversationThreadContainer(
 	c models.Conversationable,
 	t models.ConversationThreadable,
@@ -136,9 +143,8 @@ func conversationThreadContainer(
 		storageDirFolders: path.Elements{ptr.Val(c.GetId()), ptr.Val(t.GetId())},
 		// microsoft UX doesn't display any sort of container name that would make a reasonable
 		// "location" for the posts in the conversation.  We may need to revisit this, perhaps
-		// the subject is sufficiently acceptable.  But at this time it's left empty so that
-		// we don't populate it with problematic data.
-		humanLocation:       path.Elements{},
+		// the subject (aka topic) is sufficiently acceptable.
+		humanLocation:       path.Elements{ptr.Val(c.GetTopic())},
 		canMakeDeltaQueries: false,
 		container:           c,
 	}

@@ -95,13 +95,20 @@ func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
 		false)
 }
 
-func (bh channelsBackupHandler) GetItem(
+func (bh channelsBackupHandler) getItem(
 	ctx context.Context,
 	groupID string,
 	containerIDs path.Elements,
 	messageID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	return bh.ac.GetChannelMessage(ctx, groupID, containerIDs[0], messageID)
+}
+
+func (bh channelsBackupHandler) augmentItemInfo(
+	dgi *details.GroupsInfo,
+	c models.Channelable,
+) {
+	// no-op
 }
 
 func channelContainer(ch models.Channelable) container[models.Channelable] {

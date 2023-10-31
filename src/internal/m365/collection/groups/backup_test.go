@@ -50,6 +50,13 @@ type mockBackupHandler struct {
 	doNotInclude  bool
 }
 
+func (bh mockBackupHandler) augmentItemInfo(
+	*details.GroupsInfo,
+	models.Channelable,
+) {
+	// no-op
+}
+
 func (bh mockBackupHandler) canMakeDeltaQueries() bool {
 	return true
 }
@@ -116,7 +123,7 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh mockBackupHandler) GetItem(
+func (bh mockBackupHandler) getItem(
 	_ context.Context,
 	_ string,
 	_ path.Elements,
