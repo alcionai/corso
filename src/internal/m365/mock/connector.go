@@ -40,6 +40,7 @@ type Controller struct {
 func (ctrl Controller) ProduceBackupCollections(
 	_ context.Context,
 	_ inject.BackupProducerConfig,
+	_ *count.Bus,
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,
@@ -53,7 +54,7 @@ func (ctrl Controller) ProduceBackupCollections(
 func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
+	base kopia.BackupBase,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	return nil, clues.New("not implemented")

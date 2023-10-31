@@ -23,6 +23,7 @@ type (
 		ProduceBackupCollections(
 			ctx context.Context,
 			bpc BackupProducerConfig,
+			counter *count.Bus,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
 
@@ -37,7 +38,7 @@ type (
 		GetMetadataPaths(
 			ctx context.Context,
 			r inject.RestoreProducer,
-			man kopia.ManifestEntry,
+			base kopia.BackupBase,
 			errs *fault.Bus,
 		) ([]path.RestorePaths, error)
 

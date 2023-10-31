@@ -1,8 +1,6 @@
 package count
 
 import (
-	"context"
-
 	"github.com/puzpuzpuz/xsync/v2"
 )
 
@@ -53,6 +51,14 @@ func (b *Bus) Add(k key, n int64) {
 
 	if b.parent != nil {
 		b.parent.Add(k, n)
+	}
+}
+
+// AdderFor returns a func that adds any value of i
+// to the bus using the given key.
+func (b *Bus) AdderFor(k key) func(i int64) {
+	return func(i int64) {
+		b.Add(k, i)
 	}
 }
 
@@ -107,34 +113,4 @@ func (b *Bus) TotalValues() map[string]int64 {
 	}
 
 	return b.Values()
-}
-
-// ---------------------------------------------------------------------------
-// context embedding
-// ---------------------------------------------------------------------------
-
-type countKey string
-
-const ctxKey countKey = "corsoCounter"
-
-// Ctx retrieves the count.Bus embedded in the context.
-func Ctx(ctx context.Context) *Bus {
-	l := ctx.Value(ctxKey)
-	if l == nil {
-		return New()
-	}
-
-	return l.(*Bus)
-}
-
-// Embed allows users to embed their own count.Bus within the context.
-func Embed(
-	ctx context.Context,
-	bus *Bus,
-) context.Context {
-	if bus == nil {
-		bus = New()
-	}
-
-	return context.WithValue(ctx, ctxKey, bus)
 }

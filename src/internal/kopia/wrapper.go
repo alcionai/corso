@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -76,6 +77,13 @@ func manifestToStats(
 	progress *corsoProgress,
 	uploadCount *stats.ByteCounter,
 ) BackupStats {
+	progress.counter.Add(count.PersistedFiles, int64(man.Stats.TotalFileCount))
+	progress.counter.Add(count.PersistedCachedFiles, int64(man.Stats.CachedFiles))
+	progress.counter.Add(count.PersistedNonCachedFiles, int64(man.Stats.NonCachedFiles))
+	progress.counter.Add(count.PersistedDirectories, int64(man.Stats.TotalDirectoryCount))
+	progress.counter.Add(count.PersistenceErrors, int64(man.Stats.ErrorCount))
+	progress.counter.Add(count.PersistenceIgnoredErrors, int64(man.Stats.IgnoredErrorCount))
+
 	return BackupStats{
 		SnapshotID: string(man.ID),
 
@@ -144,6 +152,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	globalExcludeSet prefixmatcher.StringSetReader,
 	additionalTags map[string]string,
 	buildTreeWithBase bool,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) (*BackupStats, *details.Builder, DetailsMergeInfoer, error) {
 	if w.c == nil {
@@ -163,14 +172,15 @@ func (w Wrapper) ConsumeBackupCollections(
 		deets:   &details.Builder{},
 		toMerge: newMergeDetails(),
 		errs:    errs,
+		counter: counter,
 	}
 
 	// When running an incremental backup, we need to pass the prior
 	// snapshot bases into inflateDirTree so that the new snapshot
 	// includes historical data.
 	var (
-		mergeBase  []ManifestEntry
-		assistBase []ManifestEntry
+		mergeBase  []BackupBase
+		assistBase []BackupBase
 	)
 
 	if bases != nil {
@@ -220,27 +230,31 @@ func (w Wrapper) ConsumeBackupCollections(
 
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
-	prevSnapEntries []ManifestEntry,
+	prevBases []BackupBase,
 	root fs.Directory,
 	addlTags map[string]string,
 	progress *corsoProgress,
 ) (*BackupStats, error) {
 	var (
 		man *snapshot.Manifest
-		bc  = &stats.ByteCounter{}
+		bc  = &stats.ByteCounter{
+			// duplicate the count in the progress count.Bus.  Later we can
+			// replace the ByteCounter with the progress counter entirely.
+			Counter: progress.counter.AdderFor(count.PersistedUploadedBytes),
+		}
 	)
 
-	snapIDs := make([]manifest.ID, 0, len(prevSnapEntries)) // just for logging
-	prevSnaps := make([]*snapshot.Manifest, 0, len(prevSnapEntries))
+	snapIDs := make([]manifest.ID, 0, len(prevBases)) // just for logging
+	prevSnaps := make([]*snapshot.Manifest, 0, len(prevBases))
 
-	for _, ent := range prevSnapEntries {
-		prevSnaps = append(prevSnaps, ent.Manifest)
-		snapIDs = append(snapIDs, ent.ID)
+	for _, ent := range prevBases {
+		prevSnaps = append(prevSnaps, ent.ItemDataSnapshot)
+		snapIDs = append(snapIDs, ent.ItemDataSnapshot.ID)
 	}
 
 	ctx = clues.Add(
 		ctx,
-		"num_assist_snapshots", len(prevSnapEntries),
+		"num_assist_snapshots", len(prevBases),
 		"assist_snapshot_ids", snapIDs,
 		"additional_tags", addlTags)
 

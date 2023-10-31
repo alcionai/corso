@@ -57,7 +57,10 @@ jobs:
           go-version-file: src/go.mod
 
       - run: go build -o corso
+        timeout-minutes: 10
+
       - run: go build -o sanity-test ./cmd/sanity_test
+        timeout-minutes: 10
 
       - run: mkdir ${CORSO_LOG_DIR}
 
@@ -77,6 +80,7 @@ jobs:
           echo "NOW=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
       - name: Purge CI-Produced Folders for Users
+        timeout-minutes: 30
         uses: ./.github/actions/purge-m365-data
         with:
           user: ${{ env.TEST_USER }}
@@ -89,6 +93,7 @@ jobs:
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
 
       - name: Purge CI-Produced Folders for Sites
+        timeout-minutes: 30
         if: always()
         uses: ./.github/actions/purge-m365-data
         with:
@@ -107,10 +112,12 @@ jobs:
 # Repository commands
 
       - name: Version Test
+        timeout-minutes: 10
         run: |
           ./corso --version | grep -c 'Corso version:'
 
       - name: Repo init test
+        timeout-minutes: 10
         id: repo-init
         run: |
           set -euo pipefail
@@ -132,6 +139,7 @@ jobs:
           echo result="$prefix" >> $GITHUB_OUTPUT
 
       - name: Repo connect test
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
@@ -151,6 +159,7 @@ jobs:
       # Run maintenance on an empty repo just to make sure the command still
       # works.
       - name: Repo maintenance test
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           echo -e "\nRepo maintenance test\n" >> ${{ env.CORSO_LOG_FILE }}
@@ -167,6 +176,7 @@ jobs:
       # generate new entries to roll into the next load test
       # only runs if the test was successful
       - name: Exchange - Create new data
+        timeout-minutes: 30
         working-directory: ./src/cmd/factory
         run: |
           go run . exchange emails \
@@ -176,6 +186,7 @@ jobs:
           --count 4
 
       - name: Exchange - Backup
+        timeout-minutes: 30
         id: exchange-backup
         uses: ./.github/actions/backup-restore-test
         with:
@@ -187,6 +198,7 @@ jobs:
           log-dir: ${{ env.CORSO_LOG_DIR }}
 
       - name: Exchange - Incremental backup
+        timeout-minutes: 30
         id: exchange-backup-incremental
         uses: ./.github/actions/backup-restore-test
         with:
@@ -199,6 +211,7 @@ jobs:
           log-dir: ${{ env.CORSO_LOG_DIR }}
 
       - name: Exchange - Non delta backup
+        timeout-minutes: 30
         id: exchange-backup-non-delta
         uses: ./.github/actions/backup-restore-test
         with:
@@ -211,6 +224,7 @@ jobs:
           log-dir: ${{ env.CORSO_LOG_DIR }}
 
       - name: Exchange - Incremental backup after non-delta
+        timeout-minutes: 30
         id: exchange-backup-incremental-after-non-delta
         uses: ./.github/actions/backup-restore-test
         with:
@@ -230,6 +244,7 @@ jobs:
       # generate new entries for test
       - name: OneDrive - Create new data
         id: new-data-creation-onedrive
+        timeout-minutes: 30
         working-directory: ./src/cmd/factory
         run: |
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
@@ -245,6 +260,7 @@ jobs:
 
       - name: OneDrive - Backup
         id: onedrive-backup
+        timeout-minutes: 30
         uses: ./.github/actions/backup-restore-test
         with:
           service: onedrive
@@ -257,6 +273,7 @@ jobs:
 
       # generate some more enteries for incremental check
       - name: OneDrive - Create new data (for incremental)
+        timeout-minutes: 30
         working-directory: ./src/cmd/factory
         run: |
           go run . onedrive files  \
@@ -268,6 +285,7 @@ jobs:
 
       - name: OneDrive - Incremental backup
         id: onedrive-incremental
+        timeout-minutes: 30
         uses: ./.github/actions/backup-restore-test
         with:
           service: onedrive
@@ -285,6 +303,7 @@ jobs:
       # generate new entries for test
       - name: SharePoint - Create new data
         id: new-data-creation-sharepoint
+        timeout-minutes: 30
         working-directory: ./src/cmd/factory
         run: |
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
@@ -301,6 +320,7 @@ jobs:
 
       - name: SharePoint - Backup
         id: sharepoint-backup
+        timeout-minutes: 30
         uses: ./.github/actions/backup-restore-test
         with:
           service: sharepoint
@@ -313,6 +333,7 @@ jobs:
 
       # generate some more enteries for incremental check
       - name: SharePoint - Create new data (for incremental)
+        timeout-minutes: 30
         working-directory: ./src/cmd/factory
         run: |
           go run . sharepoint files  \
@@ -325,6 +346,7 @@ jobs:
 
       - name: SharePoint - Incremental backup
         id: sharepoint-incremental
+        timeout-minutes: 30
         uses: ./.github/actions/backup-restore-test
         with:
           service: sharepoint
@@ -342,6 +364,7 @@ jobs:
       # generate new entries for test
       - name: Groups - Create new data
         id: new-data-creation-groups
+        timeout-minutes: 30
         working-directory: ./src/cmd/factory
         run: |
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
@@ -358,6 +381,7 @@ jobs:
 
       - name: Groups - Backup
         id: groups-backup
+        timeout-minutes: 30
         uses: ./.github/actions/backup-restore-test
         with:
           service: groups
@@ -369,6 +393,7 @@ jobs:
 
       # generate some more enteries for incremental check
       - name: Groups - Create new data (for incremental)
+        timeout-minutes: 30
         working-directory: ./src/cmd/factory
         run: |
           go run . sharepoint files  \
@@ -381,6 +406,7 @@ jobs:
 
       - name: Groups - Incremental backup
         id: groups-incremental
+        timeout-minutes: 30
         uses: ./.github/actions/backup-restore-test
         with:
           service: groups
@@ -407,7 +433,7 @@ jobs:
 
       - name: Notify failure in slack
         if: failure()
-        uses: ./.github/actions/slack-message
+        uses: ./.github/actions/teams-message
         with:
           msg: "[FAILED] Sanity Tests"
-          slack_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          teams_url: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -24,11 +24,13 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -49,22 +51,22 @@ type mockBackupHandler struct {
 	doNotInclude  bool
 }
 
-func (bh mockBackupHandler) getChannels(context.Context) ([]models.Channelable, error) {
+func (bh mockBackupHandler) getContainers(context.Context) ([]models.Channelable, error) {
 	return bh.channels, bh.channelsErr
 }
 
-func (bh mockBackupHandler) getChannelMessageIDs(
+func (bh mockBackupHandler) getContainerItemIDs(
 	_ context.Context,
 	_, _ string,
 	_ bool,
-) (map[string]time.Time, bool, []string, api.DeltaUpdate, error) {
+) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
 	idRes := make(map[string]time.Time, len(bh.messageIDs))
 
 	for _, id := range bh.messageIDs {
 		idRes[id] = time.Time{}
 	}
 
-	return idRes, true, bh.deletedMsgIDs, api.DeltaUpdate{}, bh.messagesErr
+	return idRes, true, bh.deletedMsgIDs, pagers.DeltaUpdate{}, bh.messagesErr
 }
 
 func (bh mockBackupHandler) includeContainer(
@@ -89,7 +91,7 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh mockBackupHandler) GetChannelMessage(
+func (bh mockBackupHandler) GetItemByID(
 	_ context.Context,
 	_, _, itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
@@ -462,7 +464,10 @@ func (suite *BackupIntgSuite) SetupSuite() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
+	suite.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.tenantID = creds.AzureTenantID

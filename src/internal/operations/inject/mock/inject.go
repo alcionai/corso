@@ -11,6 +11,7 @@ import (
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -38,6 +39,7 @@ func NewMockBackupProducer(
 func (mbp *mockBackupProducer) ProduceBackupCollections(
 	context.Context,
 	inject.BackupProducerConfig,
+	*count.Bus,
 	*fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	if mbp.injectNonRecoverableErr {
@@ -62,9 +64,9 @@ func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
 func (mbp mockBackupProducer) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
+	base kopia.BackupBase,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	ctrl := m365.Controller{}
-	return ctrl.GetMetadataPaths(ctx, r, man, errs)
+	return ctrl.GetMetadataPaths(ctx, r, base, errs)
 }

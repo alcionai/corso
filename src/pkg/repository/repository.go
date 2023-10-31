@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -57,6 +58,8 @@ type Repositoryer interface {
 		ctx context.Context,
 		rcOpts ctrlRepo.Retention,
 	) (operations.RetentionConfigOperation, error)
+
+	Counter() *count.Bus
 }
 
 // Repository contains storage provider information.
@@ -70,6 +73,7 @@ type repository struct {
 	Opts     control.Options
 	Provider DataProvider // the client controller used for external user data CRUD
 
+	counter    *count.Bus
 	Bus        events.Eventer
 	dataLayer  *kopia.Wrapper
 	modelStore *kopia.ModelStore
@@ -110,6 +114,7 @@ func New(
 		Version: "v1",
 		Account: acct,
 		Storage: st,
+		counter: count.New(),
 		Bus:     bus,
 		Opts:    opts,
 	}
@@ -334,6 +339,10 @@ func (r repository) NewRetentionConfig(
 		r.dataLayer,
 		rcOpts,
 		r.Bus)
+}
+
+func (r repository) Counter() *count.Bus {
+	return r.counter
 }
 
 // ---------------------------------------------------------------------------

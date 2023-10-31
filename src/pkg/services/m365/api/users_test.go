@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type UsersUnitSuite struct {
@@ -59,7 +58,7 @@ func (suite *UsersUnitSuite) TestValidateUser() {
 		suite.Run(tt.name, func() {
 			t := suite.T()
 
-			err := api.ValidateUser(tt.args)
+			err := validateUser(tt.args)
 			tt.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -116,7 +115,7 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), api.EvaluateMailboxError(test.err))
+			test.expect(suite.T(), EvaluateMailboxError(test.err))
 		})
 	}
 }
@@ -136,7 +135,7 @@ func (suite *UsersUnitSuite) TestIsAnyErrMailboxNotFound() {
 			name: "mailbox not found error",
 			errs: []error{
 				clues.New("an error"),
-				api.ErrMailBoxNotFound,
+				ErrMailBoxNotFound,
 				clues.New("an error"),
 			},
 			expect: true,
@@ -145,7 +144,7 @@ func (suite *UsersUnitSuite) TestIsAnyErrMailboxNotFound() {
 			name: "other errors",
 			errs: []error{
 				clues.New("an error"),
-				api.ErrMailBoxSettingsAccessDenied,
+				ErrMailBoxSettingsAccessDenied,
 				clues.New("an error"),
 			},
 			expect: false,
@@ -153,7 +152,7 @@ func (suite *UsersUnitSuite) TestIsAnyErrMailboxNotFound() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			assert.Equal(suite.T(), test.expect, api.IsAnyErrMailboxNotFound(test.errs))
+			assert.Equal(suite.T(), test.expect, IsAnyErrMailboxNotFound(test.errs))
 		})
 	}
 }

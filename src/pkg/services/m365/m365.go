@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -33,12 +34,15 @@ func makeAC(
 
 	creds, err := acct.M365Config()
 	if err != nil {
-		return api.Client{}, clues.Wrap(err, "getting m365 account creds")
+		return api.Client{}, clues.Wrap(err, "getting m365 account creds").WithClues(ctx)
 	}
 
-	cli, err := api.NewClient(creds, control.DefaultOptions())
+	cli, err := api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	if err != nil {
-		return api.Client{}, clues.Wrap(err, "constructing api client")
+		return api.Client{}, clues.Wrap(err, "constructing api client").WithClues(ctx)
 	}
 
 	return cli, nil

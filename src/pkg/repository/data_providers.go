@@ -79,7 +79,12 @@ func connectToM365(
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer close(progressBar)
 
-	ctrl, err := m365.NewController(ctx, r.Account, pst, r.Opts)
+	ctrl, err := m365.NewController(
+		ctx,
+		r.Account,
+		pst,
+		r.Opts,
+		r.counter.Local())
 	if err != nil {
 		return nil, clues.Wrap(err, "creating m365 client controller")
 	}

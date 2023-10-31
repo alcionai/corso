@@ -58,7 +58,7 @@ func (c Users) GetAll(
 	ctx context.Context,
 	errs *fault.Bus,
 ) ([]models.Userable, error) {
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (c Users) GetAll(
 			return false
 		}
 
-		err := ValidateUser(item)
+		err := validateUser(item)
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating user"))
 		} else {
@@ -297,9 +297,9 @@ func (c Users) GetFirstInboxMessage(
 // helpers
 // ---------------------------------------------------------------------------
 
-// ValidateUser ensures the item is a Userable, and contains the necessary
+// validateUser ensures the item is a Userable, and contains the necessary
 // identifiers that we handle with all users.
-func ValidateUser(item models.Userable) error {
+func validateUser(item models.Userable) error {
 	if item.GetId() == nil {
 		return clues.New("missing ID")
 	}

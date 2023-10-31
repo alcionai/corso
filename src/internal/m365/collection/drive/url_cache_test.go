@@ -24,8 +24,10 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -60,7 +62,10 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
+	suite.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	drive, err := suite.ac.Users().GetDefaultDrive(ctx, suite.user)
@@ -158,7 +163,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			require.Equal(t, false, props.isDeleted)
 
 			// Validate download URL
-			c := graph.NewNoTimeoutHTTPWrapper()
+			c := graph.NewNoTimeoutHTTPWrapper(count.New())
 
 			resp, err := c.Request(
 				ctx,
@@ -184,6 +189,9 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 	// Validate that exactly 1 delta query was made by url cache
 	require.Equal(t, 1, uc.refreshCount)
+
+	// Validate that the prev delta base stays the same
+	require.Equal(t, du.URL, uc.prevDelta)
 }
 
 // ---------------------------------------------------------------------------
@@ -553,7 +561,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 							driveID: {
 								Pages:       test.pages,
 								Err:         test.pagerErr,
-								DeltaUpdate: api.DeltaUpdate{URL: deltaString},
+								DeltaUpdate: pagers.DeltaUpdate{URL: deltaString},
 							},
 						},
 					}

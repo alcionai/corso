@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 type BetaClientSuite struct {
@@ -45,7 +46,8 @@ func (suite *BetaClientSuite) TestCreateBetaClient() {
 	adpt, err := graph.CreateAdapter(
 		suite.credentials.AzureTenantID,
 		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret)
+		suite.credentials.AzureClientSecret,
+		count.New())
 
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -66,7 +68,8 @@ func (suite *BetaClientSuite) TestBasicClientGetFunctionality() {
 	adpt, err := graph.CreateAdapter(
 		suite.credentials.AzureTenantID,
 		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret)
+		suite.credentials.AzureClientSecret,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	client := NewBetaClient(adpt)

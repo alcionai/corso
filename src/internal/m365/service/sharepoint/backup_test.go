@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -92,7 +93,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 
 			var (
 				mbh = mock.DefaultSharePointBH(siteID)
-				du  = api.DeltaUpdate{
+				du  = pagers.DeltaUpdate{
 					URL:   "notempty",
 					Reset: false,
 				}
@@ -101,6 +102,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				collMap  = map[string]map[string]*drive.Collection{
 					driveID: {},
 				}
+				topLevelPackages = map[string]struct{}{}
 			)
 
 			mbh.DriveItemEnumeration = mock.EnumerateItemsDeltaByDrive{
@@ -127,7 +129,8 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				"General",
 				paths,
 				excluded,
-				"",
+				topLevelPackages,
+				"notempty",
 				fault.New(true))
 
 			test.expect(t, err, clues.ToCore(err))
@@ -135,6 +138,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, test.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, test.expectedContainerCount, c.NumContainers, "container count")
+			assert.Empty(t, topLevelPackages, "should not find package type folders")
 
 			for _, collPath := range test.expectedCollectionIDs {
 				assert.Contains(t, c.CollectionMap[driveID], collPath)

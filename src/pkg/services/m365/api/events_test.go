@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -13,14 +13,11 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type EventsAPIUnitSuite struct {
@@ -133,7 +130,7 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 					future       = time.Now().UTC().AddDate(0, 0, 1)
 					eventTime    = time.Date(future.Year(), future.Month(), future.Day(), future.Hour(), 0, 0, 0, time.UTC)
 					eventEndTime = eventTime.Add(30 * time.Minute)
-					event, err   = api.BytesToEventable(bytes)
+					event, err   = BytesToEventable(bytes)
 				)
 
 				require.NoError(suite.T(), err, clues.ToCore(err))
@@ -153,7 +150,7 @@ func (suite *EventsAPIUnitSuite) TestEventInfo() {
 			t := suite.T()
 
 			event, expected := test.evtAndRP()
-			result := api.EventInfo(event)
+			result := EventInfo(event)
 
 			assert.Equal(t, expected.Subject, result.Subject, "subject")
 			assert.Equal(t, expected.Sender, result.Sender, "sender")
@@ -213,7 +210,7 @@ func (suite *EventsAPIUnitSuite) TestBytesToEventable() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result, err := api.BytesToEventable(test.byteArray)
+			result, err := BytesToEventable(test.byteArray)
 			test.checkError(t, err, clues.ToCore(err))
 			test.isNil(t, result)
 		})
@@ -294,8 +291,8 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 	var (
 		found         bool
 		calID         = ptr.Val(cal.GetId())
-		findContainer = func(gcc graph.CachedContainer) error {
-			if ptr.Val(gcc.GetId()) == calID {
+		findContainer = func(mc models.Calendarable) error {
+			if ptr.Val(mc.GetId()) == calID {
 				found = true
 			}
 
@@ -303,14 +300,18 @@ func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
 		}
 	)
 
-	err = ac.EnumerateContainers(
+	containers, err := ac.EnumerateContainers(
 		ctx,
 		suite.its.user.id,
-		api.DefaultCalendar,
-		false,
-		findContainer,
-		fault.New(true))
+		DefaultCalendar,
+		false)
 	require.NoError(t, err, clues.ToCore(err))
+
+	for _, c := range containers {
+		err := findContainer(c)
+		require.NoError(t, err, clues.ToCore(err))
+	}
+
 	require.True(
 		t,
 		found,
@@ -361,7 +362,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 		{
 			name: "zero",
 			results: func(t *testing.T) map[string]any {
-				return parseableToMap(t, models.NewCalendarCollectionResponse())
+				return requireParseableToMap(t, models.NewCalendarCollectionResponse())
 			},
 			expectErr: assert.Error,
 		},
@@ -371,7 +372,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 				mfcr := models.NewCalendarCollectionResponse()
 				mfcr.SetValue([]models.Calendarable{c})
 
-				return parseableToMap(t, mfcr)
+				return requireParseableToMap(t, mfcr)
 			},
 			expectErr: assert.NoError,
 		},
@@ -381,7 +382,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 				mfcr := models.NewCalendarCollectionResponse()
 				mfcr.SetValue([]models.Calendarable{c, c})
 
-				return parseableToMap(t, mfcr)
+				return requireParseableToMap(t, mfcr)
 			},
 			expectErr: assert.NoError,
 		},

@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -36,12 +37,16 @@ type largeItemWriter struct {
 	client            httpWrapper
 }
 
-func NewLargeItemWriter(parentID, url string, size int64) *largeItemWriter {
+func NewLargeItemWriter(
+	parentID, url string,
+	size int64,
+	counter *count.Bus,
+) *largeItemWriter {
 	return &largeItemWriter{
 		parentID:      parentID,
 		url:           url,
 		contentLength: size,
-		client:        *NewNoTimeoutHTTPWrapper(),
+		client:        *NewNoTimeoutHTTPWrapper(counter),
 	}
 }
 

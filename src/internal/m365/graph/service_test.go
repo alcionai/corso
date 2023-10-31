@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 type GraphIntgSuite struct {
@@ -59,7 +60,8 @@ func (suite *GraphIntgSuite) TestCreateAdapter() {
 	adpt, err := CreateAdapter(
 		suite.fakeCredentials.AzureTenantID,
 		suite.fakeCredentials.AzureClientID,
-		suite.fakeCredentials.AzureClientSecret)
+		suite.fakeCredentials.AzureClientSecret,
+		count.New())
 
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, adpt)
@@ -143,7 +145,7 @@ func (suite *GraphIntgSuite) TestHTTPClient() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			cli, cc := KiotaHTTPClient(test.opts...)
+			cli, cc := KiotaHTTPClient(count.New(), test.opts...)
 			assert.NotNil(t, cli)
 			test.check(t, cli)
 			test.checkConfig(t, cc)
@@ -156,7 +158,8 @@ func (suite *GraphIntgSuite) TestSerializationEndPoint() {
 	adpt, err := CreateAdapter(
 		suite.fakeCredentials.AzureTenantID,
 		suite.fakeCredentials.AzureClientID,
-		suite.fakeCredentials.AzureClientSecret)
+		suite.fakeCredentials.AzureClientSecret,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	serv := NewService(adpt)
@@ -189,6 +192,7 @@ func (suite *GraphIntgSuite) TestAdapterWrap_catchesPanic() {
 		suite.credentials.AzureTenantID,
 		suite.credentials.AzureClientID,
 		suite.credentials.AzureClientSecret,
+		count.New(),
 		appendMiddleware(&alwaysPanicMiddleware))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -210,13 +214,13 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 	defer flush()
 
 	url := "https://graph.microsoft.com/fnords/beaux/regard"
-	count := 0
+	retryInc := 0
 
 	// the panics should get caught and returned as errors
 	alwaysECONNRESET := mwForceResp{
 		err: syscall.ECONNRESET,
 		alternate: func(req *http.Request) (bool, *http.Response, error) {
-			count++
+			retryInc++
 			return false, nil, nil
 		},
 	}
@@ -225,18 +229,19 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 		suite.credentials.AzureTenantID,
 		suite.credentials.AzureClientID,
 		suite.credentials.AzureClientSecret,
+		count.New(),
 		appendMiddleware(&alwaysECONNRESET))
 	require.NoError(t, err, clues.ToCore(err))
 
 	// the query doesn't matter
 	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 16, count, "number of retries")
+	require.Equal(t, 16, retryInc, "number of retries")
 
-	count = 0
+	retryInc = 0
 
 	// the query doesn't matter
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 16, count, "number of retries")
+	require.Equal(t, 16, retryInc, "number of retries")
 }

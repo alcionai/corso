@@ -23,6 +23,7 @@ import (
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -1217,7 +1218,12 @@ func newController(
 ) *Controller {
 	a := tconfig.NewM365Account(t)
 
-	controller, err := NewController(ctx, a, pst, control.Options{})
+	controller, err := NewController(
+		ctx,
+		a,
+		pst,
+		control.Options{},
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	return controller

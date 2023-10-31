@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -35,6 +36,7 @@ import (
 func (ctrl *Controller) ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	service := bpc.Selector.PathService()
@@ -94,6 +96,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 			ctrl.AC,
 			ctrl.credentials,
 			ctrl.UpdateStatus,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
@@ -176,7 +179,7 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
+	base kopia.BackupBase,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	var (
@@ -184,12 +187,12 @@ func (ctrl *Controller) GetMetadataPaths(
 		err   error
 	)
 
-	for _, reason := range man.Reasons {
+	for _, reason := range base.Reasons {
 		filePaths := [][]string{}
 
 		switch true {
 		case reason.Service() == path.GroupsService && reason.Category() == path.LibrariesCategory:
-			filePaths, err = groups.MetadataFiles(ctx, reason, r, man.ID, errs)
+			filePaths, err = groups.MetadataFiles(ctx, reason, r, base.ItemDataSnapshot.ID, errs)
 			if err != nil {
 				return nil, err
 			}

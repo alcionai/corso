@@ -75,13 +75,14 @@ type Collection struct {
 	// Specifies if it new, moved/rename or deleted
 	state data.CollectionState
 
-	// scope specifies what scope the items in a collection belongs
-	// to. This is primarily useful when dealing with a "package",
-	// like in the case of a OneNote file. A OneNote file is a
-	// collection with a package scope and multiple files in it. Most
-	// other collections have a scope of folder to indicate that the
-	// files within them belong to a folder.
-	scope collectionScope
+	// true if this collection, or a parent directory of this collection,
+	// is marked as a package.
+	// packages are only marked on the top-level directory, but special-case
+	// handling need apply to all subfolders.  Therefore it is necessary to cascade
+	// that identification to all affected collections, not just those that identify
+	// as packages themselves.
+	// see: https://learn.microsoft.com/en-us/graph/api/resources/package?view=graph-rest-1.0
+	isPackageOrChildOfPackage bool
 
 	// should only be true if the old delta token expired
 	doNotMergeItems bool
@@ -111,7 +112,7 @@ func NewCollection(
 	driveID string,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
-	colScope collectionScope,
+	isPackageOrChildOfPackage bool,
 	doNotMergeItems bool,
 	urlCache getItemPropertyer,
 ) (*Collection, error) {
@@ -137,7 +138,7 @@ func NewCollection(
 		driveID,
 		statusUpdater,
 		ctrlOpts,
-		colScope,
+		isPackageOrChildOfPackage,
 		doNotMergeItems,
 		urlCache)
 
@@ -155,24 +156,26 @@ func newColl(
 	driveID string,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
-	colScope collectionScope,
+	isPackageOrChildOfPackage bool,
 	doNotMergeItems bool,
 	urlCache getItemPropertyer,
 ) *Collection {
+	dataCh := make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize())
+
 	c := &Collection{
-		handler:           handler,
-		protectedResource: resource,
-		folderPath:        currPath,
-		prevPath:          prevPath,
-		driveItems:        map[string]models.DriveItemable{},
-		driveID:           driveID,
-		data:              make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize()),
-		statusUpdater:     statusUpdater,
-		ctrl:              ctrlOpts,
-		state:             data.StateOf(prevPath, currPath),
-		scope:             colScope,
-		doNotMergeItems:   doNotMergeItems,
-		urlCache:          urlCache,
+		handler:                   handler,
+		protectedResource:         resource,
+		folderPath:                currPath,
+		prevPath:                  prevPath,
+		driveItems:                map[string]models.DriveItemable{},
+		driveID:                   driveID,
+		data:                      dataCh,
+		statusUpdater:             statusUpdater,
+		ctrl:                      ctrlOpts,
+		state:                     data.StateOf(prevPath, currPath),
+		isPackageOrChildOfPackage: isPackageOrChildOfPackage,
+		doNotMergeItems:           doNotMergeItems,
+		urlCache:                  urlCache,
 	}
 
 	return c
@@ -280,9 +283,10 @@ func (oc *Collection) getDriveItemContent(
 		}
 		// Skip big OneNote files as they can't be downloaded
 		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
+			// oc.isPackageOrChildOfPackage && *item.GetSize() >= MaxOneNoteFileSize {
 			// TODO: We've removed the file size check because it looks like we've seen persistent
 			// 503's with smaller OneNote files also.
-			(oc.scope == CollectionScopePackage || strings.EqualFold(itemMimeType, oneNoteMimeType)) {
+			oc.isPackageOrChildOfPackage || strings.EqualFold(itemMimeType, oneNoteMimeType) {
 			// FIXME: It is possible that in case of a OneNote file we
 			// will end up just backing up the `onetoc2` file without
 			// the one file which is the important part of the OneNote
@@ -429,17 +433,21 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		return
 	}
 
-	queuedPath := oc.handler.FormatDisplayPath(oc.driveName, parentPath)
+	displayPath := oc.handler.FormatDisplayPath(oc.driveName, parentPath)
 
 	folderProgress := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		path.NewElements(queuedPath),
+		path.NewElements(displayPath),
 		int64(len(oc.driveItems)))
 	defer close(folderProgress)
 
 	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
 	defer close(semaphoreCh)
+
+	ctx = clues.Add(ctx,
+		"parent_path", parentPath,
+		"is_package", oc.isPackageOrChildOfPackage)
 
 	for _, item := range oc.driveItems {
 		if errs.Failure() != nil {

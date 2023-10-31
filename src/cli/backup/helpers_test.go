@@ -17,17 +17,42 @@ import (
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	gmock "github.com/alcionai/corso/src/internal/m365/graph/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/storage"
 	"github.com/alcionai/corso/src/pkg/storage/testdata"
 )
+
+// ---------------------------------------------------------------------------
+// Gockable client
+// ---------------------------------------------------------------------------
+
+// GockClient produces a new exchange api client that can be
+// mocked using gock.
+func gockClient(creds account.M365Config, counter *count.Bus) (api.Client, error) {
+	s, err := gmock.NewService(creds, counter)
+	if err != nil {
+		return api.Client{}, err
+	}
+
+	li, err := gmock.NewService(creds, counter, graph.NoTimeout())
+	if err != nil {
+		return api.Client{}, err
+	}
+
+	return api.Client{
+		Credentials: creds,
+		Stable:      s,
+		LargeItem:   li,
+	}, nil
+}
 
 // ---------------------------------------------------------------------------
 // Suite Setup
@@ -61,10 +86,13 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	creds, err := its.acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.ac, err = api.NewClient(creds, control.DefaultOptions())
+	its.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.gockAC, err = mock.NewClient(creds)
+	its.gockAC, err = gockClient(creds, count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	// user drive

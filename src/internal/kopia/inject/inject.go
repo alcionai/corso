@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -22,6 +23,7 @@ type (
 			pmr prefixmatcher.StringSetReader,
 			tags map[string]string,
 			buildTreeWithBase bool,
+			counter *count.Bus,
 			errs *fault.Bus,
 		) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error)
 	}

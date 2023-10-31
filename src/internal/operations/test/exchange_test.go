@@ -231,6 +231,113 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 	}
 }
 
+func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchangeBasic_groups9VersionBump() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb   = evmock.NewBus()
+		sel  = selectors.NewExchangeBackup([]string{suite.its.user.ID})
+		opts = control.DefaultOptions()
+		ws   = deeTD.DriveIDFromRepoRef
+	)
+
+	sel.Include(
+		sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
+		// sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
+		sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
+
+	bo, bod := prepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel.Selector,
+		opts,
+		version.All8MigrateUserPNToID)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&bo,
+		bod.sel,
+		bod.sel.ID(),
+		path.EmailCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.ExchangeService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	mb = evmock.NewBus()
+	notForcedFull := newTestBackupOp(
+		t,
+		ctx,
+		bod,
+		mb,
+		opts)
+	notForcedFull.BackupVersion = version.Groups9Update
+
+	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&notForcedFull,
+		bod.sel,
+		bod.sel.ID(),
+		path.EmailCategory)
+
+	_, expectDeets = deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.ExchangeService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	// The number of items backed up in the second backup should be less than the
+	// number of items in the original backup.
+	assert.Greater(
+		t,
+		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
+		notForcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
+		"items written")
+}
+
 func (suite *ExchangeBackupIntgSuite) TestBackup_Run_incrementalExchange() {
 	testExchangeContinuousBackups(suite, control.Toggles{})
 }
@@ -286,7 +393,10 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ac, err := api.NewClient(creds, control.DefaultOptions())
+	ac, err := api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate 3 new folders with two items each.

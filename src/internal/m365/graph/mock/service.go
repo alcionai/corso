@@ -7,13 +7,19 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
-func NewService(creds account.M365Config, opts ...graph.Option) (*graph.Service, error) {
+func NewService(
+	creds account.M365Config,
+	counter *count.Bus,
+	opts ...graph.Option,
+) (*graph.Service, error) {
 	a, err := CreateAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
 		creds.AzureClientSecret,
+		counter,
 		opts...)
 	if err != nil {
 		return nil, clues.Wrap(err, "generating graph adapter")
@@ -26,6 +32,7 @@ func NewService(creds account.M365Config, opts ...graph.Option) (*graph.Service,
 // enable interceptions via gock to make it mockable.
 func CreateAdapter(
 	tenant, client, secret string,
+	counter *count.Bus,
 	opts ...graph.Option,
 ) (*msgraphsdkgo.GraphRequestAdapter, error) {
 	auth, err := graph.GetAuth(tenant, client, secret)
@@ -33,7 +40,7 @@ func CreateAdapter(
 		return nil, err
 	}
 
-	httpClient, _ := graph.KiotaHTTPClient(opts...)
+	httpClient, _ := graph.KiotaHTTPClient(counter, opts...)
 
 	// This makes sure that we are able to intercept any requests via
 	// gock. Only necessary for testing.

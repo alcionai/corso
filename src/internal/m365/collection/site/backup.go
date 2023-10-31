@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -60,6 +61,7 @@ func CollectPages(
 	ac api.Client,
 	scope selectors.SharePointScope,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Pages collections")
@@ -74,7 +76,8 @@ func CollectPages(
 	adpt, err := graph.CreateAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
-		creds.AzureClientSecret)
+		creds.AzureClientSecret,
+		counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating azure client adapter")
 	}
