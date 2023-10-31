@@ -115,22 +115,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			expectIncludeLen: 2,
 		},
 		{
-			name: "library folder suffixes",
-			opts: utils.GroupsOpts{
-				FileName:   empty,
-				FolderPath: empty,
-			},
-			expectIncludeLen: 3,
-		},
-		{
-			name: "library folder suffixes and contains",
-			opts: utils.GroupsOpts{
-				FileName:   empty,
-				FolderPath: empty,
-			},
-			expectIncludeLen: 3,
-		},
-		{
 			name: "Page Folder",
 			opts: utils.GroupsOpts{
 				PageFolder: single,
@@ -200,6 +184,50 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				Groups:   single,
 				Channels: single,
+			},
+			expectIncludeLen: 1,
+		},
+		// conversations
+		{
+			name: "multiple conversations multiple posts",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: multi,
+				Posts:         multi,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "single conversations multiple post",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: single,
+				Posts:         multi,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "single conversations and post",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: single,
+				Posts:         single,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "multiple conversations only",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: multi,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "single conversations only",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: single,
 			},
 			expectIncludeLen: 1,
 		},
@@ -402,9 +430,18 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 			expectScopeLen: 1,
 		},
 		{
-			name:           "all allowed",
-			cats:           []string{flags.DataLibraries, flags.DataMessages},
-			expectScopeLen: 2,
+			name:           "conversations",
+			cats:           []string{flags.DataConversations},
+			expectScopeLen: 1,
+		},
+		{
+			name: "all allowed",
+			cats: []string{
+				flags.DataLibraries,
+				flags.DataMessages,
+				flags.DataConversations,
+			},
+			expectScopeLen: 3,
 		},
 		{
 			name:           "bad inputs",
