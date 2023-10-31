@@ -778,9 +778,17 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			mans := make([]manifestInfo, 0, len(test.data))
+			bups := make([]backupInfo, 0, len(test.data))
+
+			for _, d := range test.data {
+				mans = append(mans, d.manifest)
+				bups = append(bups, d.backup)
+			}
+
 			bf := baseFinder{
-				sm: &mockSnapshotManager{data: test.manifestData},
-				bg: &mockModelGetter{data: test.backupData},
+				sm: &mockSnapshotManager{data: mans},
+				bg: &mockModelGetter{data: bups},
 			}
 
 			bb := bf.FindBases(
@@ -788,26 +796,15 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				test.input,
 				nil)
 
-			checkBackupEntriesMatch(
+			checkBaseEntriesMatch(
 				t,
 				bb.MergeBases(),
-				test.backupData,
-				test.expectedBaseReasons)
-			checkBackupEntriesMatch(
+				test.data,
+				test.expectedMergeReasons)
+			checkBaseEntriesMatch(
 				t,
 				bb.UniqueAssistBases(),
-				test.backupData,
-				test.expectedAssistReasons)
-
-			checkManifestEntriesMatch(
-				t,
-				bb.MergeBases(),
-				test.manifestData,
-				test.expectedBaseReasons)
-			checkManifestEntriesMatch(
-				t,
-				bb.UniqueAssistBases(),
-				test.manifestData,
+				test.data,
 				test.expectedAssistReasons)
 		})
 	}
@@ -867,9 +864,17 @@ func (suite *BaseFinderUnitSuite) TestFindBases_CustomTags() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			mans := make([]manifestInfo, 0, len(inputData))
+			bups := make([]backupInfo, 0, len(inputData))
+
+			for _, d := range inputData {
+				mans = append(mans, d.manifest)
+				bups = append(bups, d.backup)
+			}
+
 			bf := baseFinder{
-				sm: &mockSnapshotManager{data: manifestData},
-				bg: &mockModelGetter{data: backupData},
+				sm: &mockSnapshotManager{data: mans},
+				bg: &mockModelGetter{data: bups},
 			}
 
 			bb := bf.FindBases(
