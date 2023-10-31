@@ -238,6 +238,8 @@ func (b *baseFinder) findBasesInSet(
 			}
 
 		default:
+			// Preview backups automatically fall into this group so there's no need
+			// to add a case to skip them.
 			logger.Ctx(ictx).Infow(
 				"skipping backup with empty or invalid type for incremental backups",
 				"backup_type", bup.Type())

@@ -698,6 +698,28 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 				0: testUser1Mail,
 			},
 		},
+		{
+			name:  "Ignore Preview Base",
+			input: testUser1Mail,
+			// Ordered by time from newest to oldest.
+			data: []baseInfo{
+				newBaseInfoBuilder(3, testT3, testUser1Mail...).
+					setBackupType(model.PreviewBackup).
+					build(),
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					setBackupType(model.AssistBackup).
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					setBackupType(model.MergeBackup).
+					build(),
+			},
+			expectedMergeReasons: map[int][]identity.Reasoner{
+				2: testUser1Mail,
+			},
+			expectedAssistReasons: map[int][]identity.Reasoner{
+				1: testUser1Mail,
+			},
+		},
 	}
 
 	for _, test := range table {
