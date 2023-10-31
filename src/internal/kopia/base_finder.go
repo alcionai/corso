@@ -257,42 +257,6 @@ func (b *baseFinder) findBasesInSet(
 	return mergeBase, assistBase, nil
 }
 
-// isAssistBackupModel checks if the provided backup is an assist backup.
-func (b *baseFinder) isAssistBackupModel(
-	ctx context.Context,
-	bup *backup.Backup,
-) bool {
-	allTags := map[string]string{
-		model.BackupTypeTag: model.AssistBackup,
-	}
-
-	for k, v := range allTags {
-		if bup.Tags[k] != v {
-			// This is not an assist backup so we can just exit here.
-			logger.Ctx(ctx).Debugw(
-				"assist backup model missing tags",
-				"backup_id", bup.ID,
-				"tag", k,
-				"expected_value", v,
-				"actual_value", bup.Tags[k])
-
-			return false
-		}
-	}
-
-	// Check if it has a valid streamstore id and snapshot id.
-	if len(bup.StreamStoreID) == 0 || len(bup.SnapshotID) == 0 {
-		logger.Ctx(ctx).Infow(
-			"nil ssid or snapshot id in assist base",
-			"ssid", bup.StreamStoreID,
-			"snapshot_id", bup.SnapshotID)
-
-		return false
-	}
-
-	return true
-}
-
 func (b *baseFinder) getBase(
 	ctx context.Context,
 	r identity.Reasoner,
