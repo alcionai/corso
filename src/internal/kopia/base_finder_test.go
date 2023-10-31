@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
@@ -276,6 +278,142 @@ func (mg mockModelGetter) GetBackup(
 	}
 
 	return nil, data.ErrNotFound
+}
+
+type baseInfo struct {
+	manifest manifestInfo
+	backup   backupInfo
+}
+
+type baseInfoBuilder struct {
+	info baseInfo
+}
+
+// newBaseInfoBuilder returns a builder with the given ID and mod time that's
+// valid. Use functions defined on the builder if an invalid or non-standard
+// state is required.
+func newBaseInfoBuilder(
+	id int,
+	modTime time.Time,
+	reasons ...identity.Reasoner,
+) *baseInfoBuilder {
+	snapID := fmt.Sprintf("snap%d", id)
+	bupID := fmt.Sprintf("backup%d", id)
+	deetsID := fmt.Sprintf("details%d", id)
+
+	manifestTags := map[string]string{}
+
+	for _, r := range reasons {
+		for _, k := range tagKeys(r) {
+			mk, mv := makeTagKV(k)
+			manifestTags[mk] = mv
+		}
+	}
+
+	k, _ := makeTagKV(TagBackupID)
+	manifestTags[k] = bupID
+
+	return &baseInfoBuilder{
+		info: baseInfo{
+			manifest: manifestInfo{
+				tags: manifestTags,
+				metadata: &manifest.EntryMetadata{
+					ID:      manifest.ID(snapID),
+					ModTime: modTime,
+					Labels:  manifestTags,
+				},
+				man: &snapshot.Manifest{
+					ID:   manifest.ID(snapID),
+					Tags: manifestTags,
+				},
+			},
+			backup: backupInfo{
+				b: backup.Backup{
+					BaseModel: model.BaseModel{
+						ID: model.StableID(bupID),
+					},
+					SnapshotID:    snapID,
+					StreamStoreID: deetsID,
+				},
+			},
+		},
+	}
+}
+
+func (builder *baseInfoBuilder) build() baseInfo {
+	return builder.info
+}
+
+func (builder *baseInfoBuilder) setBackupType(
+	backupType string,
+) *baseInfoBuilder {
+	if builder.info.backup.b.Tags == nil {
+		builder.info.backup.b.Tags = map[string]string{}
+	}
+
+	builder.info.backup.b.Tags[model.BackupTypeTag] = backupType
+
+	return builder
+}
+
+func (builder *baseInfoBuilder) setSnapshotIncomplete(
+	reason string,
+) *baseInfoBuilder {
+	builder.info.manifest.man.IncompleteReason = reason
+	return builder
+}
+
+func (builder *baseInfoBuilder) legacyBackupDetails() *baseInfoBuilder {
+	builder.info.backup.b.DetailsID = builder.info.backup.b.StreamStoreID
+	builder.info.backup.b.StreamStoreID = ""
+
+	return builder
+}
+
+
+func (builder *baseInfoBuilder) clearBackupDetails() *baseInfoBuilder {
+	builder.info.backup.b.DetailsID = ""
+	builder.info.backup.b.StreamStoreID = ""
+
+	return builder
+}
+
+func (builder *baseInfoBuilder) appendSnapshotTagKeys(
+	tags ...string,
+) *baseInfoBuilder {
+	kvs := make(map[string]string, len(tags))
+
+	for _, t := range tags {
+		tk, _ := makeTagKV(t)
+		kvs[tk] = ""
+	}
+
+	if builder.info.manifest.metadata.Labels == nil {
+		builder.info.manifest.metadata.Labels = map[string]string{}
+	}
+
+	if builder.info.manifest.man.Tags == nil {
+		builder.info.manifest.man.Tags = map[string]string{}
+	}
+
+	maps.Copy(builder.info.manifest.metadata.Labels, kvs)
+	maps.Copy(builder.info.manifest.man.Tags, kvs)
+
+	return builder
+}
+
+func (builder *baseInfoBuilder) setBackupError(
+	err error,
+) *baseInfoBuilder {
+	builder.info.backup.err = err
+	return builder
+}
+
+func (builder *baseInfoBuilder) setSnapshotError(
+	err error,
+) *baseInfoBuilder {
+	builder.info.manifest.err = err
+	return builder
 }
 
 // -----------------------------------------------------------------------------
