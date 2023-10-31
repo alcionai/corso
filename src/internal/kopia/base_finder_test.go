@@ -47,24 +47,30 @@ var (
 
 	testAllUsersAllCats = []identity.Reasoner{
 		// User1 email and events.
-		identity.NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-		identity.NewReason("", testUser1, path.ExchangeService, path.EventsCategory),
+		newTestReason(testUser1, path.EmailCategory),
+		newTestReason(testUser1, path.EventsCategory),
 		// User2 email and events.
-		identity.NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-		identity.NewReason("", testUser2, path.ExchangeService, path.EventsCategory),
+		newTestReason(testUser2, path.EmailCategory),
+		newTestReason(testUser2, path.EventsCategory),
 		// User3 email and events.
-		identity.NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
-		identity.NewReason("", testUser3, path.ExchangeService, path.EventsCategory),
+		newTestReason(testUser3, path.EmailCategory),
+		newTestReason(testUser3, path.EventsCategory),
 	}
 	testAllUsersMail = []identity.Reasoner{
-		identity.NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
-		identity.NewReason("", testUser2, path.ExchangeService, path.EmailCategory),
-		identity.NewReason("", testUser3, path.ExchangeService, path.EmailCategory),
+		newTestReason(testUser1, path.EmailCategory),
+		newTestReason(testUser2, path.EmailCategory),
+		newTestReason(testUser3, path.EmailCategory),
 	}
 	testUser1Mail = []identity.Reasoner{
-		identity.NewReason("", testUser1, path.ExchangeService, path.EmailCategory),
+		newTestReason(testUser1, path.EmailCategory),
 	}
 )
+
+// newTestReason is a helper function to make sure Reasons have a consistent
+// tenant and service when created within a test.
+func newTestReason(user string, category path.CategoryType) identity.Reasoner {
+	return identity.NewReason("", user, path.ExchangeService, category)
+}
 
 // -----------------------------------------------------------------------------
 // Empty mocks that return no data
