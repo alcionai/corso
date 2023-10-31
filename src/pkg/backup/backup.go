@@ -73,7 +73,7 @@ var _ print.Printable = &Backup{}
 
 func New(
 	snapshotID, streamStoreID, status string,
-	version int,
+	backupVersion int,
 	id model.StableID,
 	selector selectors.Selector,
 	ownerID, ownerName string,
@@ -119,7 +119,7 @@ func New(
 		ResourceOwnerID:   ownerID,
 		ResourceOwnerName: ownerName,
 
-		Version:       version,
+		Version:       backupVersion,
 		SnapshotID:    snapshotID,
 		StreamStoreID: streamStoreID,
 
