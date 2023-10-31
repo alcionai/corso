@@ -53,6 +53,16 @@ const (
 	// manifest search. It shouldn't be used to differentiate between backups once
 	// the manifest search completes.
 	MergeBackup = "merge-backup"
+	// PreviewBackup denotes that this backup contains a subset of information for
+	// the protected resource. PreviewBackups are used to demonstrate value but
+	// are not safe to use as merge bases for incremental backups. It's possible
+	// they could be used as assist bases since the only difference from a regular
+	// backup is the amount of data they contain.
+	//
+	// This tag should only be used for finding backups during a
+	// manifest search. It shouldn't be used to differentiate between backups once
+	// the manifest search completes.
+	PreviewBackup = "preview-backup"
 )
 
 // Valid returns true if the ModelType value fits within the const range.
