@@ -20,28 +20,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-const (
-	testCompleteMan   = false
-	testIncompleteMan = !testCompleteMan
-)
-
 var (
-	testT1  = time.Now()
-	testT2  = testT1.Add(1 * time.Hour)
-	testT3  = testT2.Add(1 * time.Hour)
-	testT4  = testT3.Add(1 * time.Hour)
-	testID1 = manifest.ID("snap1")
-	testID2 = manifest.ID("snap2")
-	testID3 = manifest.ID("snap3")
-	testID4 = manifest.ID("snap4")
-
-	testBackup1 = "backupID1"
-	testBackup2 = "backupID2"
-	testBackup3 = "backupID3"
-	testBackup4 = "backupID4"
-
-	testMail   = path.ExchangeService.String() + path.EmailCategory.String()
-	testEvents = path.ExchangeService.String() + path.EventsCategory.String()
+	testT1 = time.Now()
+	testT2 = testT1.Add(1 * time.Hour)
+	testT3 = testT2.Add(1 * time.Hour)
+	testT4 = testT3.Add(1 * time.Hour)
 
 	testUser1 = "user1"
 	testUser2 = "user2"
@@ -113,50 +96,6 @@ type manifestInfo struct {
 	err      error
 }
 
-func newManifestInfo(
-	id manifest.ID,
-	modTime time.Time,
-	incomplete bool,
-	backupID string,
-	err error,
-	tags ...string,
-) manifestInfo {
-	incompleteStr := ""
-	if incomplete {
-		incompleteStr = "checkpoint"
-	}
-
-	structTags := make(map[string]string, len(tags))
-
-	for _, t := range tags {
-		tk, _ := makeTagKV(t)
-		structTags[tk] = ""
-	}
-
-	res := manifestInfo{
-		tags: structTags,
-		err:  err,
-		metadata: &manifest.EntryMetadata{
-			ID:      id,
-			ModTime: modTime,
-			Labels:  structTags,
-		},
-		man: &snapshot.Manifest{
-			ID:               id,
-			IncompleteReason: incompleteStr,
-			Tags:             structTags,
-		},
-	}
-
-	if len(backupID) > 0 {
-		k, _ := makeTagKV(TagBackupID)
-		res.metadata.Labels[k] = backupID
-		res.man.Tags[k] = backupID
-	}
-
-	return res
-}
-
 type mockSnapshotManager struct {
 	data    []manifestInfo
 	findErr error
@@ -219,36 +158,6 @@ func (msm *mockSnapshotManager) LoadSnapshot(
 type backupInfo struct {
 	b   backup.Backup
 	err error
-}
-
-func newBackupModel(
-	id string,
-	hasItemSnap bool,
-	hasDetailsSnap bool,
-	oldDetailsID bool,
-	tags map[string]string,
-	err error,
-) backupInfo {
-	res := backupInfo{
-		b: backup.Backup{
-			BaseModel: model.BaseModel{
-				ID:   model.StableID(id),
-				Tags: tags,
-			},
-			SnapshotID: "iid",
-		},
-		err: err,
-	}
-
-	if hasDetailsSnap {
-		if !oldDetailsID {
-			res.b.StreamStoreID = "ssid"
-		} else {
-			res.b.DetailsID = "ssid"
-		}
-	}
-
-	return res
 }
 
 type mockModelGetter struct {
@@ -936,88 +845,6 @@ func checkBaseEntriesMatch(
 			reasons,
 			found.Reasons,
 			"incorrect reasons for backup with ID %s",
-			found.Backup.ID)
-	}
-}
-
-func checkManifestEntriesMatch(
-	t *testing.T,
-	retSnaps []BackupBase,
-	allExpected []manifestInfo,
-	expectedIdxsAndReasons map[int][]identity.Reasoner,
-) {
-	// Check the proper snapshot manifests were returned.
-	expected := make([]*snapshot.Manifest, 0, len(expectedIdxsAndReasons))
-	for i := range expectedIdxsAndReasons {
-		expected = append(expected, allExpected[i].man)
-	}
-
-	got := make([]*snapshot.Manifest, 0, len(retSnaps))
-	for _, s := range retSnaps {
-		got = append(got, s.ItemDataSnapshot)
-	}
-
-	assert.ElementsMatch(t, expected, got)
-
-	// Check the reasons for selecting each manifest are correct.
-	expectedReasons := make(map[manifest.ID][]identity.Reasoner, len(expectedIdxsAndReasons))
-	for idx, reasons := range expectedIdxsAndReasons {
-		expectedReasons[allExpected[idx].man.ID] = reasons
-	}
-
-	for _, found := range retSnaps {
-		reasons, ok := expectedReasons[found.ItemDataSnapshot.ID]
-		if !ok {
-			// Missing or extra snapshots will be reported by earlier checks.
-			continue
-		}
-
-		assert.ElementsMatch(
-			t,
-			reasons,
-			found.Reasons,
-			"incorrect reasons for snapshot with ID %s",
-			found.ItemDataSnapshot.ID)
-	}
-}
-
-func checkBackupEntriesMatch(
-	t *testing.T,
-	retBups []BackupBase,
-	allExpected []backupInfo,
-	expectedIdxsAndReasons map[int][]identity.Reasoner,
-) {
-	// Check the proper snapshot manifests were returned.
-	expected := make([]*backup.Backup, 0, len(expectedIdxsAndReasons))
-	for i := range expectedIdxsAndReasons {
-		expected = append(expected, &allExpected[i].b)
-	}
-
-	got := make([]*backup.Backup, 0, len(retBups))
-	for _, s := range retBups {
-		got = append(got, s.Backup)
-	}
-
-	assert.ElementsMatch(t, expected, got)
-
-	// Check the reasons for selecting each manifest are correct.
-	expectedReasons := make(map[model.StableID][]identity.Reasoner, len(expectedIdxsAndReasons))
-	for idx, reasons := range expectedIdxsAndReasons {
-		expectedReasons[allExpected[idx].b.ID] = reasons
-	}
-
-	for _, found := range retBups {
-		reasons, ok := expectedReasons[found.Backup.ID]
-		if !ok {
-			// Missing or extra snapshots will be reported by earlier checks.
-			continue
-		}
-
-		assert.ElementsMatch(
-			t,
-			reasons,
-			found.Reasons,
-			"incorrect reasons for snapshot with ID %s",
 			found.Backup.ID)
 	}
 }
