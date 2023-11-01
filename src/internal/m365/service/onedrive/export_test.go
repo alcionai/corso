@@ -14,7 +14,6 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -313,7 +312,6 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	var (
 		exportCfg     = control.ExportConfig{}
 		dpb           = odConsts.DriveFolderPrefixBuilder("driveID1")
-		dii           = odStub.DriveItemInfo()
 		expectedItems = []export.Item{
 			{
 				ID:   "id1.data",
@@ -322,8 +320,6 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 			},
 		}
 	)
-
-	dii.OneDrive.ItemName = "name1"
 
 	p, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
 	assert.NoError(t, err, "build path")
@@ -334,9 +330,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				Path: p,
 				ItemData: []data.Item{
 					&dataMock.Item{
-						ItemID:   "id1.data",
-						Reader:   io.NopCloser(bytes.NewBufferString("body1")),
-						ItemInfo: dii,
+						ItemID: "id1.data",
+						Reader: io.NopCloser(bytes.NewBufferString("body1")),
 					},
 				},
 			},
@@ -346,15 +341,14 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 
 	stats := data.ExportStats{}
 
-	ecs, err := ProduceExportCollections(
-		ctx,
-		int(version.Backup),
-		exportCfg,
-		control.DefaultOptions(),
-		dcs,
-		nil,
-		&stats,
-		fault.New(true))
+	ecs, err := NewOneDriveHandler(control.DefaultOptions()).
+		ProduceExportCollections(
+			ctx,
+			int(version.Backup),
+			exportCfg,
+			dcs,
+			&stats,
+			fault.New(true))
 	assert.NoError(t, err, "export collections error")
 	assert.Len(t, ecs, 1, "num of collections")
 

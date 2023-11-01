@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var _ inject.BackupProducer = &Controller{}
@@ -87,9 +86,7 @@ func (ctrl Controller) CacheItemInfo(dii details.ItemInfo) {}
 func (ctrl Controller) ProduceExportCollections(
 	_ context.Context,
 	_ int,
-	_ selectors.Selector,
 	_ control.ExportConfig,
-	_ control.Options,
 	_ []data.RestoreCollection,
 	_ *data.ExportStats,
 	_ *fault.Bus,

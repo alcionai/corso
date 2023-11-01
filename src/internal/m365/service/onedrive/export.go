@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
@@ -14,15 +15,29 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+var _ inject.ServiceHandler = &onedriveHandler{}
+
+func NewOneDriveHandler(
+	opts control.Options,
+) *onedriveHandler {
+	return &onedriveHandler{
+		opts: opts,
+	}
+}
+
+type onedriveHandler struct {
+	opts control.Options
+}
+
+func (h *onedriveHandler) CacheItemInfo(v details.ItemInfo) {}
+
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
-func ProduceExportCollections(
+func (h *onedriveHandler) ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	exportCfg control.ExportConfig,
-	opts control.Options,
 	dcs []data.RestoreCollection,
-	deets *details.Builder,
 	stats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {

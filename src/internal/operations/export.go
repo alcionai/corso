@@ -261,9 +261,7 @@ func (op *ExportOperation) do(
 		ctx,
 		op.ec,
 		bup.Version,
-		op.Selectors,
 		op.ExportCfg,
-		op.Options,
 		dcs,
 		// We also have opStats, but that tracks different data.
 		// Maybe we can look into merging them some time in the future.
@@ -329,9 +327,7 @@ func produceExportCollections(
 	ctx context.Context,
 	ec inject.ExportConsumer,
 	backupVersion int,
-	sel selectors.Selector,
 	exportCfg control.ExportConfig,
-	opts control.Options,
 	dcs []data.RestoreCollection,
 	exportStats *data.ExportStats,
 	errs *fault.Bus,
@@ -342,12 +338,15 @@ func produceExportCollections(
 		close(complete)
 	}()
 
+	ctx, end := diagnostics.Span(ctx, "m365:export")
+	defer end()
+
+	ctx = clues.Add(ctx, "export_config", exportCfg)
+
 	expCollections, err := ec.ProduceExportCollections(
 		ctx,
 		backupVersion,
-		sel,
 		exportCfg,
-		opts,
 		dcs,
 		exportStats,
 		errs)
