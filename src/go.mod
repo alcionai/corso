@@ -15,7 +15,7 @@ require (
 	github.com/h2non/gock v1.2.0
 	github.com/jaytaylor/html2text v0.0.0-20230321000545-74c2419ad056
 	github.com/kopia/kopia v0.13.0
-	github.com/microsoft/kiota-abstractions-go v1.3.0
+	github.com/microsoft/kiota-abstractions-go v1.3.1
 	github.com/microsoft/kiota-authentication-azure-go v1.0.1
 	github.com/microsoft/kiota-http-go v1.1.0
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
@@ -63,7 +63,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.10.0 // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
-	github.com/std-uritemplate/std-uritemplate/go v0.0.42 // indirect
+	github.com/std-uritemplate/std-uritemplate/go v0.0.46 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.48.0 // indirect
