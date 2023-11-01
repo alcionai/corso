@@ -199,8 +199,8 @@ func (b *baseFinder) findBasesInSet(
 
 		if bup.SnapshotID != string(man.ID) {
 			logger.Ctx(ictx).Infow(
-				"backup has empty or different snapshot ID",
-				"got_snapshot_id", bup.SnapshotID)
+				"retrieved backup has empty or different snapshot ID from provided manifest",
+				"backup_snapshot_id", bup.SnapshotID)
 
 			continue
 		}
