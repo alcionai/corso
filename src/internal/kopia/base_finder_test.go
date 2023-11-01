@@ -279,6 +279,13 @@ func (builder *baseInfoBuilder) legacyBackupDetails() *baseInfoBuilder {
 	return builder
 }
 
+func (builder *baseInfoBuilder) setBackupItemSnapshotID(
+	id string,
+) *baseInfoBuilder {
+	builder.info.backup.b.SnapshotID = id
+	return builder
+}
+
 func (builder *baseInfoBuilder) clearBackupDetails() *baseInfoBuilder {
 	builder.info.backup.b.DetailsID = ""
 	builder.info.backup.b.StreamStoreID = ""
@@ -436,6 +443,20 @@ func (suite *BaseFinderUnitSuite) TestGetBases() {
 			data: []baseInfo{
 				newBaseInfoBuilder(2, testT2, testUser1Mail...).
 					clearBackupDetails().
+					build(),
+				newBaseInfoBuilder(1, testT1, testUser1Mail...).
+					build(),
+			},
+			expectedMergeReasons: map[int][]identity.Reasoner{
+				1: testUser1Mail,
+			},
+		},
+		{
+			name:  "Return Older Base If Snapshot ID Mismatch",
+			input: testUser1Mail,
+			data: []baseInfo{
+				newBaseInfoBuilder(2, testT2, testUser1Mail...).
+					setBackupItemSnapshotID("foo").
 					build(),
 				newBaseInfoBuilder(1, testT1, testUser1Mail...).
 					build(),
