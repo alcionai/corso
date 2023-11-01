@@ -934,9 +934,11 @@ func (op *BackupOperation) createBackupModels(
 		model.ServiceTag: op.Selectors.PathService().String(),
 	}
 
-	// Add tags to mark this backup as either assist or merge. This is used to:
+	// Add tags to mark this backup as preview, assist, or merge. This is used to:
 	// 1. Filter assist backups by tag during base selection process
 	// 2. Differentiate assist backups, merge backups, and preview backups.
+	//
+	// model.BackupTypeTag has more info about how these tags are used.
 	switch {
 	case op.Options.ToggleFeatures.PreviewBackup:
 		// Preview backups need to be successful and without errors to be considered
@@ -968,7 +970,8 @@ func (op *BackupOperation) createBackupModels(
 		tags[model.BackupTypeTag] = model.AssistBackup
 
 	default:
-		return clues.New("backup is neither assist nor merge").WithClues(ctx)
+		return clues.New("unable to determine backup type due to operation errors").
+			WithClues(ctx)
 	}
 
 	// Additional defensive check to make sure we tag things as expected above.
