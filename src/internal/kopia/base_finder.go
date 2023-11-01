@@ -237,9 +237,11 @@ func (b *baseFinder) findBasesInSet(
 				Reasons:          []identity.Reasoner{reason},
 			}
 
+		case model.PreviewBackup:
+			// Preview backups are listed here for clarity though they use the same
+			// handling as the default case because they can't be used as bases.
+			fallthrough
 		default:
-			// Preview backups automatically fall into this group so there's no need
-			// to add a case to skip them.
 			logger.Ctx(ictx).Infow(
 				"skipping backup with empty or invalid type for incremental backups",
 				"backup_type", bup.Type())

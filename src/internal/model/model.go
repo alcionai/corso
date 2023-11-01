@@ -34,24 +34,30 @@ const (
 
 // common tags for filtering
 const (
-	ServiceTag    = "service"
+	ServiceTag = "service"
+	// BackupTypeTag is the key used to store the resulting type of backup from a
+	// backup operation. The type of the backup is determined by a combination of
+	// input options and if errors were encountered during the backup. When making
+	// an incremental backup, previous backups' types are inspected to determine
+	// if they can be used as a base.
+	//
+	// The backup type associated with this key should only be used for
+	// determining if a backup is a valid base. Once the bases for a backup
+	// operation have been found, structs like kopia.BackupBases should be used to
+	// track the type of each base.
 	BackupTypeTag = "backup-type"
 	// AssistBackup denotes that this backup should only be used for kopia
 	// assisted incrementals since it doesn't contain the complete set of data
 	// being backed up.
 	//
-	// This tag should only be used for finding backups during a
-	// manifest search. It shouldn't be used to differentiate between backups once
-	// the manifest search completes.
+	// See comment on BackupTypeTag for more information.
 	AssistBackup = "assist-backup"
 	// MergeBackup denotes that this backup can be used as a merge base during an
 	// incremental backup. It contains a complete snapshot of the data in the
 	// external service. Merge bases can also be used as assist bases during an
 	// incremental backup or demoted to being only an assist base.
 	//
-	// This tag should only be used for finding backups during a
-	// manifest search. It shouldn't be used to differentiate between backups once
-	// the manifest search completes.
+	// See comment on BackupTypeTag for more information.
 	MergeBackup = "merge-backup"
 	// PreviewBackup denotes that this backup contains a subset of information for
 	// the protected resource. PreviewBackups are used to demonstrate value but
@@ -59,9 +65,7 @@ const (
 	// they could be used as assist bases since the only difference from a regular
 	// backup is the amount of data they contain.
 	//
-	// This tag should only be used for finding backups during a
-	// manifest search. It shouldn't be used to differentiate between backups once
-	// the manifest search completes.
+	// See comment on BackupTypeTag for more information.
 	PreviewBackup = "preview-backup"
 )
 
