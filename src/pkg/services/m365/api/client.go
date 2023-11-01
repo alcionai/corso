@@ -40,9 +40,6 @@ type Client struct {
 	// graph api client.
 	Requester graph.Requester
 
-	delegated       graph.Servicer
-	delegatedAccess delegatedAccess
-
 	counter *count.Bus
 
 	options control.Options
