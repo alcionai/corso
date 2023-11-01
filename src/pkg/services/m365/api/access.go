@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -68,24 +69,50 @@ func (c Access) GetToken(
 	return nil
 }
 
-type delegatedAccess struct {
-	TokenType    string `json:"token_type"`
-	Scope        string `json:"scope"`
-	ExpiresIn    string `json:"expires_in"`
-	ExpiresOn    string `json:"expires_on"`
-	NotBefore    string `json:"not_before"`
-	Resource     string `json:"resource"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+type delegatedResp struct {
+	AccessToken     string `json:"access_token,omitempty"`
+	Devicecode      string `json:"device_code,omitempty"`
+	ExpiresIn       string `json:"expires_in,omitempty"`
+	ExpiresOn       string `json:"expires_on,omitempty"`
+	Interval        string `json:"interval,omitempty"`
+	Message         string `json:"message,omitempty"`
+	NotBefore       string `json:"not_before,omitempty"`
+	RefreshToken    string `json:"refresh_token,omitempty"`
+	Resource        string `json:"resource,omitempty"`
+	Scope           string `json:"scope,omitempty"`
+	TokenType       string `json:"token_type,omitempty"`
+	UserCode        string `json:"user_code,omitempty"`
+	VerificationURI string `json:"verification_uri,omitempty"`
 }
 
-func (da delegatedAccess) MinimumPrintable() any {
+func (da delegatedResp) MinimumPrintable() any {
+	return da
+}
+
+type deviceResp struct {
+	AccessToken     string `json:"access_token,omitempty"`
+	Devicecode      string `json:"device_code,omitempty"`
+	ExpiresIn       int    `json:"expires_in,omitempty"`
+	ExpiresOn       string `json:"expires_on,omitempty"`
+	IDToken         string `json:"id_token,omitempty"`
+	Interval        int    `json:"interval,omitempty"`
+	Message         string `json:"message,omitempty"`
+	NotBefore       string `json:"not_before,omitempty"`
+	RefreshToken    string `json:"refresh_token,omitempty"`
+	Resource        string `json:"resource,omitempty"`
+	Scope           string `json:"scope,omitempty"`
+	TokenType       string `json:"token_type,omitempty"`
+	UserCode        string `json:"user_code,omitempty"`
+	VerificationURI string `json:"verification_uri,omitempty"`
+}
+
+func (da deviceResp) MinimumPrintable() any {
 	return da
 }
 
 func (c *Access) GetDelegatedToken(
 	ctx context.Context,
-) (delegatedAccess, error) {
+) (delegatedResp, error) {
 	var (
 		//nolint:lll
 		// https://dzone.com/articles/getting-access-token-for-microsoft-graph-using-oau
@@ -110,21 +137,124 @@ func (c *Access) GetDelegatedToken(
 
 	resp, err := c.Post(ctx, rawURL, headers, body)
 	if err != nil {
-		return delegatedAccess{}, graph.Stack(ctx, err)
+		return delegatedResp{}, graph.Stack(ctx, err)
 	}
 
 	if resp.StatusCode == http.StatusBadRequest {
-		return delegatedAccess{}, clues.New("incorrect tenant or credentials")
+		return delegatedResp{}, clues.New("incorrect tenant or credentials")
 	}
 
 	if resp.StatusCode/100 == 4 || resp.StatusCode/100 == 5 {
-		return delegatedAccess{}, clues.New("non-2xx response: " + resp.Status)
+		return delegatedResp{}, clues.New("non-2xx response: " + resp.Status)
 	}
 
 	defer resp.Body.Close()
 
-	var da delegatedAccess
-	err = json.NewDecoder(resp.Body).Decode(&da)
+	var ar delegatedResp
+	err = json.NewDecoder(resp.Body).Decode(&ar)
 
-	return da, clues.Wrap(err, "undecodable body").WithClues(ctx).OrNil()
+	return ar, clues.Wrap(err, "undecodable resp body").WithClues(ctx).OrNil()
+}
+
+func (c *Access) RequestDeviceToken(
+	ctx context.Context,
+) (deviceResp, error) {
+	var (
+		//nolint:lll
+		// https://dzone.com/articles/getting-access-token-for-microsoft-graph-using-oau
+		rawURL = fmt.Sprintf(
+			"https://login.microsoftonline.com/%s/oauth2/v2.0/devicecode",
+			c.Credentials.AzureTenantID)
+		headers = map[string]string{
+			"Content-Type": "application/x-www-form-urlencoded",
+		}
+		body = strings.NewReader(fmt.Sprintf(
+			"client_id=%s&client_secret=%s&scope=%s",
+			c.Credentials.AzureClientID,
+			c.Credentials.AzureClientSecret,
+			"user.read openid profile offline_access"))
+	)
+
+	resp, err := c.Post(ctx, rawURL, headers, body)
+	if err != nil {
+		return deviceResp{}, graph.Stack(ctx, err)
+	}
+
+	if resp.StatusCode == http.StatusBadRequest {
+		return deviceResp{}, clues.New("incorrect tenant or credentials")
+	}
+
+	if resp.StatusCode/100 == 4 || resp.StatusCode/100 == 5 {
+		return deviceResp{}, clues.New("non-2xx response: " + resp.Status)
+	}
+
+	defer resp.Body.Close()
+
+	var ar deviceResp
+	err = json.NewDecoder(resp.Body).Decode(&ar)
+
+	return ar, clues.Wrap(err, "undecodable resp body").WithClues(ctx).OrNil()
+}
+
+func (c *Access) GetDeviceToken(
+	ctx context.Context,
+	deviceCode string,
+) (deviceResp, error) {
+	var (
+		//nolint:lll
+		// https://dzone.com/articles/getting-access-token-for-microsoft-graph-using-oau
+		rawURL = fmt.Sprintf(
+			"https://login.microsoftonline.com/%s/oauth2/v2.0/token",
+			c.Credentials.AzureTenantID)
+		headers = map[string]string{
+			"Content-Type": "application/x-www-form-urlencoded",
+		}
+		body = strings.NewReader(fmt.Sprintf(
+			"grant_type=urn:ietf:params:oauth:grant-type:device_code"+
+				"&client_id=%s"+
+				"&client_secret=%s"+
+				"&device_code=%s",
+			c.Credentials.AzureClientID,
+			c.Credentials.AzureClientSecret,
+			deviceCode))
+	)
+
+	fmt.Printf("\n-----\ndc %q\n-----\n", deviceCode)
+
+	resp, err := c.Post(ctx, rawURL, headers, body)
+	if err != nil {
+		err = graph.Stack(ctx, err)
+		fmt.Printf("\n-----\nERROR %+v\n-----\n", clues.ToCore(err))
+
+		return deviceResp{}, err
+	}
+
+	if resp.StatusCode == http.StatusBadRequest {
+		respDump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			return deviceResp{}, clues.Wrap(err, "dumping http response")
+		}
+
+		fmt.Printf("\n-----\nresp %+v\n-----\n", string(respDump))
+
+		return deviceResp{}, clues.New("incorrect tenant or credentials")
+	}
+
+	if resp.StatusCode/100 == 4 || resp.StatusCode/100 == 5 {
+		respDump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			return deviceResp{}, clues.Wrap(err, "dumping http response")
+		}
+
+		fmt.Printf("\n-----\nresp %+v\n-----\n", string(respDump))
+
+		return deviceResp{}, clues.New("non-2xx response: " + resp.Status)
+	}
+
+	defer resp.Body.Close()
+
+	var ar deviceResp
+	err = json.NewDecoder(resp.Body).Decode(&ar)
+
+	return ar, clues.Wrap(err, "undecodable resp body").WithClues(ctx).OrNil()
 }
