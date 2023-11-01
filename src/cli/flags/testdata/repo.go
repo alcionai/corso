@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"gotest.tools/v3/assert"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/alcionai/corso/src/cli/flags"
 )
@@ -39,4 +39,18 @@ func AssertProviderFlags(t *testing.T, cmd *cobra.Command) {
 	assert.Equal(t, AzureClientID, flags.AzureClientIDFV)
 	assert.Equal(t, AzureTenantID, flags.AzureClientTenantFV)
 	assert.Equal(t, AzureClientSecret, flags.AzureClientSecretFV)
+}
+
+func PreparedGenericBackupFlags() []string {
+	return []string{
+		"--" + flags.FailFastFN,
+		"--" + flags.DisableIncrementalsFN,
+		"--" + flags.ForceItemDataDownloadFN,
+	}
+}
+
+func AssertGenericBackupFlags(t *testing.T, cmd *cobra.Command) {
+	assert.True(t, flags.FailFastFV, "fail fast flag")
+	assert.True(t, flags.DisableIncrementalsFV, "disable incrementals flag")
+	assert.True(t, flags.ForceItemDataDownloadFV, "force item data download flag")
 }
