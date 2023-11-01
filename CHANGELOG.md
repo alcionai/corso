@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.0.0] (beta) - 2023-11-01
+
 ## [v0.15.0] (beta) - 2023-10-31
 
 ### Added
@@ -418,7 +420,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.0.0...HEAD
+[v0.0.0]: https://github.com/alcionai/corso/compare/v0.14.0...v0.0.0
 [v0.14.0]: https://github.com/alcionai/corso/compare/v0.13.0...v0.14.0
 [v0.13.0]: https://github.com/alcionai/corso/compare/v0.12.0...v0.13.0
 [v0.12.0]: https://github.com/alcionai/corso/compare/v0.11.1...v0.12.0
