@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
@@ -16,16 +17,40 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
+var _ inject.ServiceHandler = &sharepointHandler{}
+
+func NewSharePointHandler(
+	opts control.Options,
+) *sharepointHandler {
+	return &sharepointHandler{
+		opts:               opts,
+		backupDriveIDNames: idname.NewCache(nil),
+	}
+}
+
+type sharepointHandler struct {
+	opts               control.Options
+	backupDriveIDNames idname.CacheBuilder
+}
+
+func (h *sharepointHandler) CacheItemInfo(v details.ItemInfo) {
+	// Old versions would store SharePoint data as OneDrive.
+	switch {
+	case v.SharePoint != nil:
+		h.backupDriveIDNames.Add(v.SharePoint.DriveID, v.SharePoint.DriveName)
+
+	case v.OneDrive != nil:
+		h.backupDriveIDNames.Add(v.OneDrive.DriveID, v.OneDrive.DriveName)
+	}
+}
+
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
-func ProduceExportCollections(
+func (h *sharepointHandler) ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	exportCfg control.ExportConfig,
-	opts control.Options,
 	dcs []data.RestoreCollection,
-	backupDriveIDNames idname.CacheBuilder,
-	deets *details.Builder,
 	stats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
@@ -40,7 +65,7 @@ func ProduceExportCollections(
 			return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
 		}
 
-		driveName, ok := backupDriveIDNames.NameOf(drivePath.DriveID)
+		driveName, ok := h.backupDriveIDNames.NameOf(drivePath.DriveID)
 		if !ok {
 			// This should not happen, but just in case
 			logger.Ctx(ctx).With("drive_id", drivePath.DriveID).Info("drive name not found, using drive id")

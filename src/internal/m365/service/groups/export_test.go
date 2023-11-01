@@ -4,21 +4,19 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	groupMock "github.com/alcionai/corso/src/internal/m365/service/groups/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -87,9 +85,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 				Path: p,
 				ItemData: []data.Item{
 					&dataMock.Item{
-						ItemID:   itemID,
-						Reader:   body,
-						ItemInfo: dii,
+						ItemID: itemID,
+						Reader: body,
 					},
 				},
 			},
@@ -99,17 +96,14 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 
 	stats := data.ExportStats{}
 
-	ecs, err := ProduceExportCollections(
-		ctx,
-		int(version.Backup),
-		exportCfg,
-		control.DefaultOptions(),
-		dcs,
-		nil,
-		nil,
-		nil,
-		&stats,
-		fault.New(true))
+	ecs, err := NewGroupsHandler(control.DefaultOptions()).
+		ProduceExportCollections(
+			ctx,
+			int(version.Backup),
+			exportCfg,
+			dcs,
+			&stats,
+			fault.New(true))
 	assert.NoError(t, err, "export collections error")
 	assert.Len(t, ecs, 1, "num of collections")
 
@@ -154,13 +148,19 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 		driveName       = "driveName1"
 		exportCfg       = control.ExportConfig{}
 		dpb             = odConsts.DriveFolderPrefixBuilder(driveID)
-		driveNameCache  = idname.NewCache(
-			// Cache check with lowercased ids
-			map[string]string{strings.ToLower(driveID): driveName})
-		siteWebURLCache = idname.NewCache(
-			// Cache check with lowercased ids
-			map[string]string{strings.ToLower(siteID): siteWebURL})
-		dii           = odStub.DriveItemInfo()
+
+		dii = details.ItemInfo{
+			Groups: &details.GroupsInfo{
+				ItemType:  details.SharePointLibrary,
+				ItemName:  "name1",
+				Size:      1,
+				DriveName: driveName,
+				DriveID:   driveID,
+				SiteID:    siteID,
+				WebURL:    siteWebURL,
+			},
+		}
+
 		expectedPath  = "Libraries/" + siteEscapedName + "/" + driveName
 		expectedItems = []export.Item{
 			{
@@ -170,8 +170,6 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 			},
 		}
 	)
-
-	dii.OneDrive.ItemName = "name1"
 
 	p, err := dpb.ToDataLayerPath(
 		"t",
@@ -189,9 +187,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 				Path: p,
 				ItemData: []data.Item{
 					&dataMock.Item{
-						ItemID:   "id1.data",
-						Reader:   io.NopCloser(bytes.NewBufferString("body1")),
-						ItemInfo: dii,
+						ItemID: "id1.data",
+						Reader: io.NopCloser(bytes.NewBufferString("body1")),
 					},
 				},
 			},
@@ -199,17 +196,16 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 		},
 	}
 
+	handler := NewGroupsHandler(control.DefaultOptions())
+	handler.CacheItemInfo(dii)
+
 	stats := data.ExportStats{}
 
-	ecs, err := ProduceExportCollections(
+	ecs, err := handler.ProduceExportCollections(
 		ctx,
 		int(version.Backup),
 		exportCfg,
-		control.DefaultOptions(),
 		dcs,
-		driveNameCache,
-		siteWebURLCache,
-		nil,
 		&stats,
 		fault.New(true))
 	assert.NoError(t, err, "export collections error")
