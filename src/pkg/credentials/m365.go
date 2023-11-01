@@ -10,12 +10,16 @@ import (
 const (
 	AzureClientID     = "AZURE_CLIENT_ID"
 	AzureClientSecret = "AZURE_CLIENT_SECRET"
+	AzureUsername     = "AZURE_USERNAME"
+	AzureUserPassword = "AZURE_USER_PASSWORD"
 )
 
 // M365 aggregates m365 credentials from flag and env_var values.
 type M365 struct {
 	AzureClientID     string
 	AzureClientSecret string
+	AzureUsername     string
+	AzureUserPassword string
 }
 
 // M365 is a helper for aggregating m365 secrets and credentials.
@@ -24,10 +28,14 @@ func GetM365() M365 {
 	// var AzureClientID, AzureClientSecret string
 	AzureClientID := os.Getenv(AzureClientID)
 	AzureClientSecret := os.Getenv(AzureClientSecret)
+	AzureUserPassword := os.Getenv(AzureUserPassword)
+	AzureUsername := os.Getenv(AzureUsername)
 
 	return M365{
 		AzureClientID:     AzureClientID,
 		AzureClientSecret: AzureClientSecret,
+		AzureUsername:     AzureUsername,
+		AzureUserPassword: AzureUserPassword,
 	}
 }
 

@@ -98,17 +98,16 @@ func configureAccount(
 
 // M365 is a helper for aggregating m365 secrets and credentials.
 func GetM365(m365Cfg account.M365Config) credentials.M365 {
-	AzureClientID := str.First(
+	creds := credentials.GetM365()
+
+	creds.AzureClientID = str.First(
 		flags.AzureClientIDFV,
-		os.Getenv(credentials.AzureClientID),
+		creds.AzureClientID,
 		m365Cfg.AzureClientID)
-	AzureClientSecret := str.First(
+	creds.AzureClientSecret = str.First(
 		flags.AzureClientSecretFV,
-		os.Getenv(credentials.AzureClientSecret),
+		creds.AzureClientSecret,
 		m365Cfg.AzureClientSecret)
 
-	return credentials.M365{
-		AzureClientID:     AzureClientID,
-		AzureClientSecret: AzureClientSecret,
-	}
+	return creds
 }

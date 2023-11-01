@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/backup"
@@ -33,10 +34,10 @@ var corsoCmd = &cobra.Command{
 	Short:             "Free, Secure, Open-Source Backup for M365.",
 	Long:              `Free, Secure, and Open-Source Backup for Microsoft 365.`,
 	RunE:              handleCorsoCmd,
-	PersistentPreRunE: preRun,
+	PersistentPreRunE: PreRun,
 }
 
-func preRun(cc *cobra.Command, args []string) error {
+func PreRun(cc *cobra.Command, args []string) error {
 	if err := config.InitFunc(cc, args); err != nil {
 		return err
 	}
@@ -104,6 +105,13 @@ func CorsoCommand() *cobra.Command {
 	return c
 }
 
+func AddSupportFlags(cmd *cobra.Command) {
+	config.AddConfigFlags(cmd)
+	logger.AddLoggingFlags(cmd)
+	observe.AddProgressBarFlags(cmd)
+	print.AddOutputFlag(cmd)
+}
+
 // BuildCommandTree builds out the command tree used by the Corso library.
 func BuildCommandTree(cmd *cobra.Command) {
 	// want to order flags explicitly
@@ -111,11 +119,8 @@ func BuildCommandTree(cmd *cobra.Command) {
 	flags.AddRunModeFlag(cmd, true)
 
 	cmd.Flags().BoolP("version", "v", false, "current version info")
-	cmd.PersistentPreRunE = preRun
-	config.AddConfigFlags(cmd)
-	logger.AddLoggingFlags(cmd)
-	observe.AddProgressBarFlags(cmd)
-	print.AddOutputFlag(cmd)
+	cmd.PersistentPreRunE = PreRun
+	AddSupportFlags(cmd)
 	flags.AddGlobalOperationFlags(cmd)
 	cmd.SetUsageTemplate(indentExamplesTemplate(corsoCmd.UsageTemplate()))
 
@@ -132,13 +137,19 @@ func BuildCommandTree(cmd *cobra.Command) {
 // Running Corso
 // ------------------------------------------------------------------------------------------
 
-// Handle builds and executes the cli processor.
-func Handle() {
+func SeedCtx() (context.Context, *zap.SugaredLogger) {
 	//nolint:forbidigo
 	ctx := config.Seed(context.Background())
 	ctx, log := logger.Seed(ctx, logger.PreloadLoggingFlags(os.Args[1:]))
 	ctx = print.SetRootCmd(ctx, corsoCmd)
 	ctx = observe.SeedObserver(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
+
+	return ctx, log
+}
+
+// Handle builds and executes the cli processor.
+func Handle() {
+	ctx, log := SeedCtx()
 
 	BuildCommandTree(corsoCmd)
 

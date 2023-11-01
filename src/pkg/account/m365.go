@@ -21,6 +21,8 @@ const (
 	keyAzureClientID     = "azure_clientid"
 	keyAzureClientSecret = "azure_clientSecret"
 	keyAzureTenantID     = "azure_tenantid"
+	keyAzureUsername     = "azure_username"
+	keyAzureUserPassword = "azure_userPassword"
 )
 
 // StringConfig transforms a m365Config struct into a plain
@@ -31,6 +33,8 @@ func (c M365Config) StringConfig() (map[string]string, error) {
 		keyAzureClientID:     c.AzureClientID,
 		keyAzureClientSecret: c.AzureClientSecret,
 		keyAzureTenantID:     c.AzureTenantID,
+		keyAzureUsername:     c.AzureUsername,
+		keyAzureUserPassword: c.AzureUserPassword,
 	}
 
 	return cfg, c.validate()
@@ -52,6 +56,8 @@ func (a Account) M365Config() (M365Config, error) {
 		c.AzureClientID = a.Config[keyAzureClientID]
 		c.AzureClientSecret = a.Config[keyAzureClientSecret]
 		c.AzureTenantID = a.Config[keyAzureTenantID]
+		c.AzureUsername = a.Config[keyAzureUsername]
+		c.AzureUserPassword = a.Config[keyAzureUserPassword]
 	}
 
 	return c, c.validate()
