@@ -183,18 +183,19 @@ func (b *baseFinder) findBasesInSet(
 			continue
 		}
 
+		ictx = clues.Add(ictx, "search_backup_id", bup.ID)
+
 		ssid := bup.StreamStoreID
 		if len(ssid) == 0 {
 			ssid = bup.DetailsID
 		}
 
 		if len(ssid) == 0 {
-			logger.Ctx(ictx).Debugw(
-				"empty backup stream store ID",
-				"search_backup_id", bup.ID)
-
+			logger.Ctx(ictx).Debug("empty backup stream store ID")
 			continue
 		}
+
+		ictx = clues.Add(ictx, "ssid", ssid)
 
 		// If we've made it to this point then we're considering the backup
 		// complete as it has both an item data snapshot and a backup details
@@ -215,21 +216,14 @@ func (b *baseFinder) findBasesInSet(
 					Reasons:          []identity.Reasoner{reason},
 				}
 
-				logger.Ctx(ictx).Infow(
-					"found assist base",
-					"search_backup_id", bup.ID,
-					"search_snapshot_id", meta.ID,
-					"ssid", ssid)
+				logger.Ctx(ictx).Info("found assist base")
 			}
 
 			// Skip if an assist base has already been selected.
 			continue
 		}
 
-		logger.Ctx(ictx).Infow("found merge base",
-			"search_backup_id", bup.ID,
-			"search_snapshot_id", meta.ID,
-			"ssid", ssid)
+		logger.Ctx(ictx).Info("found merge base")
 
 		mergeBase = &BackupBase{
 			Backup:           bup,
