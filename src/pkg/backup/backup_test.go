@@ -69,9 +69,9 @@ func (suite *BackupUnitSuite) TestBackup_Type() {
 			versionStart: version.All8MigrateUserPNToID,
 			versionEnd:   version.Backup,
 			inputTags: map[string]string{
-				model.BackupTypeTag: model.MergeBackup,
+				model.BackupTypeTag: model.AssistBackup,
 			},
-			expect: model.MergeBackup,
+			expect: model.AssistBackup,
 		},
 		{
 			name:         "Tag Versions Returns Empty Type If Untagged",
