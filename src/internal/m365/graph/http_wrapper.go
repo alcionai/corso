@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -36,12 +37,15 @@ type Requester interface {
 // and consume relatively unbound socket connections.  It is important
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
-func NewHTTPWrapper(opts ...Option) *httpWrapper {
+func NewHTTPWrapper(
+	counter *count.Bus,
+	opts ...Option,
+) *httpWrapper {
 	var (
 		cc = populateConfig(opts...)
 		rt = customTransport{
 			n: pipeline{
-				middlewares: internalMiddleware(cc),
+				middlewares: internalMiddleware(cc, counter),
 				transport:   defaultTransport(),
 			},
 		}
@@ -66,9 +70,12 @@ func NewHTTPWrapper(opts ...Option) *httpWrapper {
 // and consume relatively unbound socket connections.  It is important
 // to centralize this client to be passed downstream where api calls
 // can utilize it on a per-download basis.
-func NewNoTimeoutHTTPWrapper(opts ...Option) *httpWrapper {
+func NewNoTimeoutHTTPWrapper(
+	counter *count.Bus,
+	opts ...Option,
+) *httpWrapper {
 	opts = append(opts, NoTimeout())
-	return NewHTTPWrapper(opts...)
+	return NewHTTPWrapper(counter, opts...)
 }
 
 // ---------------------------------------------------------------------------
@@ -178,7 +185,15 @@ func defaultTransport() http.RoundTripper {
 	return defaultTransport
 }
 
-func internalMiddleware(cc *clientConfig) []khttp.Middleware {
+func internalMiddleware(
+	cc *clientConfig,
+	counter *count.Bus,
+) []khttp.Middleware {
+	throttler := &throttlingMiddleware{
+		tf:      newTimedFence(),
+		counter: counter,
+	}
+
 	mw := []khttp.Middleware{
 		&RetryMiddleware{
 			MaxRetries: cc.maxRetries,
@@ -187,7 +202,7 @@ func internalMiddleware(cc *clientConfig) []khttp.Middleware {
 		khttp.NewRetryHandler(),
 		khttp.NewRedirectHandler(),
 		&LoggingMiddleware{},
-		&throttlingMiddleware{newTimedFence()},
+		throttler,
 		&RateLimiterMiddleware{},
 		&MetricsMiddleware{},
 	}

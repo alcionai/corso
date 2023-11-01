@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -191,6 +192,7 @@ func driveItemWriter(
 	nicu NewItemContentUploader,
 	driveID, itemID string,
 	itemSize int64,
+	counter *count.Bus,
 ) (io.Writer, string, error) {
 	ctx = clues.Add(ctx, "upload_item_id", itemID)
 
@@ -199,7 +201,11 @@ func driveItemWriter(
 		return nil, "", clues.Stack(err)
 	}
 
-	iw := graph.NewLargeItemWriter(itemID, ptr.Val(icu.GetUploadUrl()), itemSize)
+	iw := graph.NewLargeItemWriter(
+		itemID,
+		ptr.Val(icu.GetUploadUrl()),
+		itemSize,
+		counter)
 
 	return iw, ptr.Val(icu.GetUploadUrl()), nil
 }

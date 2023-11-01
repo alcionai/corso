@@ -16,6 +16,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 type ConcurrencyMWUnitTestSuite struct {
@@ -307,7 +308,10 @@ func (suite *ConcurrencyMWUnitTestSuite) TestThrottlingMiddleware() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			tm := throttlingMiddleware{newTimedFence()}
+			tm := &throttlingMiddleware{
+				tf:      newTimedFence(),
+				counter: count.New(),
+			}
 
 			req := &http.Request{}
 			req = req.WithContext(ctx)

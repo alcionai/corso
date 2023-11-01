@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -45,7 +46,10 @@ func (suite *SharePointCollectionSuite) SetupSuite() {
 
 	suite.creds = m365
 
-	ac, err := api.NewClient(m365, control.DefaultOptions())
+	ac, err := api.NewClient(
+		m365,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.ac = ac

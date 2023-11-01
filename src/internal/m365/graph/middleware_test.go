@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -109,7 +110,7 @@ func mockAdapter(
 	var (
 		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
 		cc            = populateConfig(MinimumBackoff(10 * time.Millisecond))
-		middlewares   = append(kiotaMiddlewares(&clientOptions, cc), mw)
+		middlewares   = append(kiotaMiddlewares(&clientOptions, cc, count.New()), mw)
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
 

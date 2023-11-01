@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/count"
 )
 
 type UploadSessionSuite struct {
@@ -69,7 +70,7 @@ func (suite *UploadSessionSuite) TestWriter() {
 
 	defer ts.Close()
 
-	writer := NewLargeItemWriter("item", ts.URL, writeSize)
+	writer := NewLargeItemWriter("item", ts.URL, writeSize, count.New())
 
 	// Using a 32 KB buffer for the copy allows us to validate the
 	// multi-part upload. `io.CopyBuffer` will only write 32 KB at

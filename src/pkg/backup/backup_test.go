@@ -1,6 +1,7 @@
 package backup_test
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -24,6 +26,84 @@ type BackupUnitSuite struct {
 
 func TestBackupUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *BackupUnitSuite) TestBackup_Type() {
+	table := []struct {
+		name string
+		// versionStart is the first version to run this test on. Together with
+		// versionEnd this allows more compact test definition when the behavior is
+		// the same for multiple versions.
+		versionStart int
+		// versionEnd is the final version to run this test on. Together with
+		// versionStart this allows more compact test definition when the behavior
+		// is the same for multiple versions.
+		versionEnd int
+		// Take a map so that we can have check not having the tag at all vs. having
+		// an empty value.
+		inputTags map[string]string
+		expect    string
+	}{
+		{
+			name:         "NoVersion Returns Empty Type If Untagged",
+			versionStart: version.NoBackup,
+			versionEnd:   version.NoBackup,
+		},
+		{
+			name:         "PreTag Versions Returns Merge Type If Untagged",
+			versionStart: 0,
+			versionEnd:   version.All8MigrateUserPNToID,
+			expect:       model.MergeBackup,
+		},
+		{
+			name:         "Tag Versions Returns Merge Type If Tagged",
+			versionStart: version.All8MigrateUserPNToID,
+			versionEnd:   version.Backup,
+			inputTags: map[string]string{
+				model.BackupTypeTag: model.MergeBackup,
+			},
+			expect: model.MergeBackup,
+		},
+		{
+			name:         "Tag Versions Returns Assist Type If Tagged",
+			versionStart: version.All8MigrateUserPNToID,
+			versionEnd:   version.Backup,
+			inputTags: map[string]string{
+				model.BackupTypeTag: model.AssistBackup,
+			},
+			expect: model.AssistBackup,
+		},
+		{
+			name:         "Tag Versions Returns Empty Type If Untagged",
+			versionStart: version.Groups9Update,
+			versionEnd:   version.Backup,
+		},
+		{
+			name:         "All Versions Returns Empty Type If Empty Tag",
+			versionStart: 0,
+			versionEnd:   version.Backup,
+			inputTags: map[string]string{
+				model.BackupTypeTag: "",
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			for v := test.versionStart; v <= test.versionEnd; v++ {
+				suite.Run(fmt.Sprintf("Version%d", v), func() {
+					bup := backup.Backup{
+						BaseModel: model.BaseModel{
+							Tags: test.inputTags,
+						},
+						Version: v,
+					}
+
+					assert.Equal(suite.T(), test.expect, bup.Type())
+				})
+			}
+		})
+	}
 }
 
 func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {

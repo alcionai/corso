@@ -109,7 +109,10 @@ func (suite *GroupsIntgSuite) TestGroups() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	groups, err := m365.Groups(ctx, suite.acct, fault.New(true))
+	groups, err := m365.Groups(
+		ctx,
+		suite.acct,
+		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, groups)
 
@@ -155,7 +158,10 @@ func (suite *GroupsIntgSuite) TestGroupsMap() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	gm, err := m365.GroupsMap(ctx, suite.acct, fault.New(true))
+	gm, err := m365.GroupsMap(
+		ctx,
+		suite.acct,
+		fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, gm)
 
@@ -203,7 +209,10 @@ func (suite *GroupsIntgSuite) TestGroups_InvalidCredentials() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			groups, err := m365.Groups(ctx, test.acct(t), fault.New(true))
+			groups, err := m365.Groups(
+				ctx,
+				test.acct(t),
+				fault.New(true))
 			assert.Empty(t, groups, "returned no groups")
 			assert.NotNil(t, err)
 		})

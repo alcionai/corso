@@ -53,6 +53,7 @@ const sidebars = {
             'cli/corso-repo-init-filesystem',
             'cli/corso-repo-connect-filesystem',
             'cli/corso-repo-maintenance',
+            'cli/corso-repo-update-passphrase',
             'cli/corso-env']
         },
         {

@@ -25,7 +25,8 @@ memory, please run Corso with the following options:
 
   ```powershell
   # Connect to the Corso Repository
-  .\corso <command> -hide-progress --log-level debug --mask-sensitive-data <command-options> > corso-gc.log 2>&1
+  GODEBUG=gctrace=1 .\corso <command> -hide-progress --log-level debug --mask-sensitive-data `
+    <command-options> > corso-gc.log 2>&1
   ```
 
 </TabItem>
@@ -33,7 +34,8 @@ memory, please run Corso with the following options:
 
   ```bash
   # Connect to the Corso Repository
-  ./corso <command> -hide-progress --log-level debug --mask-sensitive-data <command-options> > corso-gc.log 2>&1
+  GODEBUG=gctrace=1 ./corso <command> -hide-progress --log-level debug --mask-sensitive-data \
+    <command-options> > corso-gc.log 2>&1
   ```
 
 </TabItem>

@@ -152,8 +152,8 @@ func (w Wrapper) ConsumeBackupCollections(
 	globalExcludeSet prefixmatcher.StringSetReader,
 	additionalTags map[string]string,
 	buildTreeWithBase bool,
-	errs *fault.Bus,
 	counter *count.Bus,
+	errs *fault.Bus,
 ) (*BackupStats, *details.Builder, DetailsMergeInfoer, error) {
 	if w.c == nil {
 		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)

@@ -69,7 +69,8 @@ func AddAWSCredsFlags(cmd *cobra.Command) {
 // M365 flags
 func AddCorsoPassphaseFlags(cmd *cobra.Command) {
 	fs := cmd.Flags()
-	fs.StringVar(&PassphraseFV,
+	fs.StringVar(
+		&PassphraseFV,
 		PassphraseFN,
 		"",
 		"Passphrase to protect encrypted repository contents")
@@ -78,7 +79,8 @@ func AddCorsoPassphaseFlags(cmd *cobra.Command) {
 // M365 flags
 func AddUpdatePassphraseFlags(cmd *cobra.Command, require bool) {
 	fs := cmd.Flags()
-	fs.StringVar(&NewPhasephraseFV,
+	fs.StringVar(
+		&NewPhasephraseFV,
 		NewPassphraseFN,
 		"",
 		"update Corso passphrase for repo")
