@@ -1649,7 +1649,6 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
 		tenantID = acct.Config[account.AzureTenantIDKey]
-		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 	)
 
@@ -1667,6 +1666,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 		collFunc                func() []data.BackupCollection
 		injectNonRecoverableErr bool
 		failurePolicy           control.FailurePolicy
+		previewBackup           bool
 		expectRunErr            assert.ErrorAssertionFunc
 		expectBackupTag         string
 		expectFaults            func(t *testing.T, errs *fault.Bus)
@@ -1829,6 +1829,67 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				assert.Greater(t, len(errs.Recovered()), 0, "recovered errors")
 			},
 		},
+
+		{
+			name: "preview, fail after recovery, no errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]dataMock.Item{
+							makeMockItem("file1", nil, time.Now(), false, nil),
+							makeMockItem("file2", nil, time.Now(), false, nil),
+						}),
+				}
+
+				return bc
+			},
+			failurePolicy:   control.FailAfterRecovery,
+			previewBackup:   true,
+			expectRunErr:    assert.NoError,
+			expectBackupTag: model.PreviewBackup,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Empty(t, errs.Recovered(), "recovered errors")
+			},
+		},
+		{
+			name: "preview, fail after recovery, non-recoverable errors",
+			collFunc: func() []data.BackupCollection {
+				return nil
+			},
+			injectNonRecoverableErr: true,
+			failurePolicy:           control.FailAfterRecovery,
+			previewBackup:           true,
+			expectRunErr:            assert.Error,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
+			},
+		},
+		{
+			name: "preview, fail after recovery, recoverable errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]dataMock.Item{
+							makeMockItem("file1", nil, time.Now(), false, nil),
+							makeMockItem("file2", nil, time.Now(), false, assert.AnError),
+						}),
+				}
+
+				return bc
+			},
+			failurePolicy: control.FailAfterRecovery,
+			previewBackup: true,
+			expectRunErr:  assert.Error,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Greater(t, len(errs.Recovered()), 0, "recovered errors")
+			},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -1856,7 +1917,9 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			cs = append(cs, mc)
 			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, test.injectNonRecoverableErr)
 
+			opts := control.DefaultOptions()
 			opts.FailureHandling = test.failurePolicy
+			opts.ToggleFeatures.PreviewBackup = test.previewBackup
 
 			bo, err := NewBackupOperation(
 				ctx,
