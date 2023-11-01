@@ -749,3 +749,35 @@ jobs:
       - name: Validate docs
         run: |
           curl https://corsobackup.io/docs/quickstart/ | grep https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_x86_64.tar.gz
+
+  Update-Changelog:
+    needs: [Validate-Website-Artifacts, SetEnv]
+    environment: Testing
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      TAG: ${{ needs.SetEnv.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO: Use this in goreleaser to use the changelog as the release notes
+      - name: Get current changelog
+        run: |
+          set -e
+          sed -n '/^## \[Unreleased\]/,/^## /p'<CHANGELOG.md|tail -n+2| sed '$ d' > changelog-current
+          cat changelog-current
+
+      - name: Prep for next release
+        run: |
+          set -e
+          sed -i "s|## \[Unreleased\]\(.*\)|## [Unreleased]\1\n\n## [$TAG]\1 - $(date '+%F')|" CHANGELOG.md
+          sed -i "s|\[Unreleased\]: https://github.com/alcionai/corso/compare/\(v[0-9]*.[0-9]*.[0-9]*\)...HEAD.*|[Unreleased]: https://github.com/alcionai/corso/compare/$TAG...HEAD\n[$TAG]: https://github.com/alcionai/corso/compare/\1...$TAG|" CHANGELOG.md
+          cat CHANGELOG.md
+
+      - name: Create Pull Request for changelog
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: Update CHANGELOG for release ${{ env.TAG }}
+          title: Update CHANGELOG for release ${{ env.TAG }}
+          body: Update CHANGELOG file and prep it for next release.
+          team-reviewers: corso-maintainers
