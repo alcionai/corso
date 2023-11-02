@@ -70,7 +70,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 		expectedItems = []export.Item{
 			{
 				ID:   itemID,
-				Name: dii.Groups.ItemName,
+				Name: dii.Groups.ItemName + ".json",
 				// Body: body, not checked
 			},
 		}
