@@ -61,10 +61,12 @@ func streamItems(
 				stats.UpdateResourceCount(path.ChannelMessagesCategory)
 				body = data.ReaderWithStats(body, path.ChannelMessagesCategory, stats)
 
+				// messages are exported as json and should be named as such
+				name := item.ID() + ".json"
+
 				ch <- export.Item{
-					ID: item.ID(),
-					// channel message items have no name
-					Name: item.ID(),
+					ID:   item.ID(),
+					Name: name,
 					Body: body,
 				}
 			}
