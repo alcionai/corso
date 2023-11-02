@@ -20,8 +20,8 @@ type colorableWriter struct {
 	writer io.Writer
 }
 
-func NewColorableWriter(color *color.Color, writer io.Writer) io.Writer {
-	return &colorableWriter{color, writer}
+func NewColorableWriter(clr *color.Color, writer io.Writer) io.Writer {
+	return &colorableWriter{clr, writer}
 }
 
 func (cw *colorableWriter) Write(p []byte) (n int, err error) {

@@ -250,7 +250,11 @@ func (op *RestoreOperation) do(
 		return nil, clues.WrapWC(ctx, graph.ErrServiceNotEnabled, "service not enabled for restore")
 	}
 
-	observe.Section(ctx, "Restoring", clues.Hide(restoreToProtectedResource.Name()))
+	pcfg := observe.ProgressCfg{
+		NewSection:        true,
+		SectionIdentifier: clues.Hide(restoreToProtectedResource.Name()),
+	}
+	observe.Message(ctx, pcfg, "Restoring")
 
 	paths, err := formatDetailsForRestoration(
 		ctx,
@@ -274,9 +278,12 @@ func (op *RestoreOperation) do(
 		return nil, clues.New("no items match the provided filters")
 	}
 
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+	observe.Message(
+		ctx,
+		observe.ProgressCfg{},
+		fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 
-	progressBar := observe.MessageWithCompletion(ctx, "Enumerating items in repository", false, nil)
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Enumerating items in repository")
 	defer close(progressBar)
 
 	dcs, err := op.kopia.ProduceRestoreCollections(
@@ -384,7 +391,7 @@ func consumeRestoreCollections(
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.Details, error) {
-	progressBar := observe.MessageWithCompletion(ctx, "Restoring data", false, nil)
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Restoring data")
 	defer close(progressBar)
 
 	rcc := inject.RestoreConsumerConfig{

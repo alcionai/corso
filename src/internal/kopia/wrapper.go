@@ -651,6 +651,7 @@ func (w Wrapper) RepoMaintenance(
 			if len(params.Owner) == 0 || (params.Owner != currentOwner && opts.Force) {
 				observe.Message(
 					ctx,
+					observe.ProgressCfg{},
 					"updating maintenance user@host to ",
 					clues.Hide(currentOwner))
 

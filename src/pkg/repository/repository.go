@@ -153,7 +153,7 @@ func (r *repository) Initialize(ctx context.Context, cfg InitConfig) (err error)
 		return clues.Stack(err)
 	}
 
-	observe.Message(ctx, "Initializing repository")
+	observe.Message(ctx, observe.ProgressCfg{}, "Initializing repository")
 
 	if err := r.setupKopia(ctx, cfg.RetentionOpts, true); err != nil {
 		return err
@@ -187,7 +187,7 @@ func (r *repository) Connect(ctx context.Context, cfg ConnConfig) (err error) {
 		return clues.Stack(err)
 	}
 
-	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository", false, nil)
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Connecting to repository")
 	defer close(progressBar)
 
 	if err := r.setupKopia(ctx, ctrlRepo.Retention{}, false); err != nil {
@@ -210,7 +210,7 @@ func (r *repository) UpdatePassword(ctx context.Context, password string) (err e
 		}
 	}()
 
-	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository", false, nil)
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Connecting to repository")
 	defer close(progressBar)
 
 	repoNameHash, err := r.GenerateHashForRepositoryConfigFileName()

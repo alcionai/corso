@@ -57,11 +57,12 @@ func ProduceBackupCollections(
 			su,
 			bpc.Options)
 
-		progressBar := observe.MessageWithCompletion(
-			ctx,
-			path.FilesCategory.HumanString(),
-			true,
-			func() string { return fmt.Sprintf("(found %d files)", nc.NumFiles) })
+		pcfg := observe.ProgressCfg{
+			Indent:            1,
+			CompletionMessage: func() string { return fmt.Sprintf("(found %d files)", nc.NumFiles) },
+		}
+		progressBar := observe.MessageWithCompletion(ctx, pcfg, path.FilesCategory.HumanString())
+
 		defer close(progressBar)
 
 		odcs, canUsePreviousBackup, err = nc.Get(ctx, bpc.MetadataCollections, ssmb, errs)

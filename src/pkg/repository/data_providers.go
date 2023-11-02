@@ -89,7 +89,7 @@ func connectToM365(
 		return ctrl, nil
 	}
 
-	progressBar := observe.MessageWithCompletion(ctx, "Connecting to M365", false, nil)
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Connecting to M365")
 	defer close(progressBar)
 
 	ctrl, err := m365.NewController(

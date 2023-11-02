@@ -137,12 +137,12 @@ func ProduceBackupCollections(
 				err                  error
 			)
 
-			progressBar := observe.MessageWithCompletion(
-				ctx,
-				scope.Category().PathType().HumanString(),
-				true,
+			pcfg := observe.ProgressCfg{
+				Indent: 1,
 				// TODO(meain): Use number of messages and not channels
-				func() string { return fmt.Sprintf("(found %d channels)", len(cs)) })
+				CompletionMessage: func() string { return fmt.Sprintf("(found %d channels)", len(cs)) },
+			}
+			progressBar := observe.MessageWithCompletion(ctx, pcfg, scope.Category().PathType().HumanString())
 
 			if !isTeam {
 				continue

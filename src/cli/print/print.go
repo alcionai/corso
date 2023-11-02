@@ -88,7 +88,9 @@ func Only(ctx context.Context, e error) error {
 // You should ideally be using SimpleError or OperationError.
 func Err(ctx context.Context, s ...any) {
 	cw := ccolor.NewColorableWriter(color.New(color.FgRed), getRootCmd(ctx).ErrOrStderr())
+
 	s = append([]any{"Error:"}, s...)
+
 	out(ctx, cw, s...)
 }
 

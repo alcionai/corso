@@ -279,7 +279,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Execution
 	// -----
 
-	observe.Section(ctx, "Backing Up", clues.Hide(op.ResourceOwner.Name()))
+	pcfg := observe.ProgressCfg{
+		NewSection:        true,
+		SectionIdentifier: clues.Hide(op.ResourceOwner.Name()),
+	}
+	observe.Message(ctx, pcfg, "Backing Up")
 
 	deets, err := op.do(
 		ctx,
@@ -528,7 +532,7 @@ func produceBackupDataCollections(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	progressBar := observe.MessageWithCompletion(ctx, "Discovering items to backup", false, nil)
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Discovering items to backup")
 	defer close(progressBar)
 
 	bpc := inject.BackupProducerConfig{
@@ -565,7 +569,7 @@ func consumeBackupCollections(
 		"collection_source", "operations",
 		"snapshot_type", "item data")
 
-	progressBar := observe.MessageWithCompletion(ctx, "Backing up data", false, nil)
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Backing up data")
 	defer close(progressBar)
 
 	tags := map[string]string{

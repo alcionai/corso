@@ -139,7 +139,12 @@ func (suite *ObserveProgressUnitSuite) TestObserve_section() {
 	process := uuid.NewString()[:8]
 	target := uuid.NewString()[:8]
 
-	Section(ctx, process, target)
+	pcfg := ProgressCfg{
+		NewSection:        true,
+		SectionIdentifier: target,
+	}
+	Message(ctx, pcfg, process)
+
 	Flush(ctx)
 	assert.NotEmpty(t, recorder)
 	assert.Contains(t, recorder.String(), process)
@@ -157,7 +162,7 @@ func (suite *ObserveProgressUnitSuite) TestObserve_message() {
 
 	message := uuid.NewString()[:8]
 
-	Message(ctx, message)
+	Message(ctx, ProgressCfg{}, message)
 	Flush(ctx)
 	assert.NotEmpty(t, recorder)
 	assert.Contains(t, recorder.String(), message)
@@ -174,7 +179,7 @@ func (suite *ObserveProgressUnitSuite) TestObserve_progressWithChannelClosed() {
 
 	message := uuid.NewString()[:8]
 
-	ch := MessageWithCompletion(ctx, message, false, nil)
+	ch := MessageWithCompletion(ctx, ProgressCfg{}, message)
 
 	// Close channel without completing
 	close(ch)
@@ -199,7 +204,7 @@ func (suite *ObserveProgressUnitSuite) TestObserve_progressWithContextCancelled(
 
 	message := uuid.NewString()[:8]
 
-	_ = MessageWithCompletion(ctx, message, false, nil)
+	_ = MessageWithCompletion(ctx, ProgressCfg{}, message)
 
 	// cancel context
 	cancel()
