@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Changed
+- Change file extension of messages export to json to match the content
+
 ## [v0.15.0] (beta) - 2023-10-31
 
 ### Added
