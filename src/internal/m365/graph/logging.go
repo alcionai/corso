@@ -70,3 +70,12 @@ func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string 
 
 	return string(respDump)
 }
+
+func getReqDump(ctx context.Context, req *http.Request) string {
+	reqDump, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("dumping http response")
+	}
+
+	return string(reqDump)
+}

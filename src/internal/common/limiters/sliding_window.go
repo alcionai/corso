@@ -2,6 +2,7 @@ package limiters
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -139,6 +140,14 @@ func (s *slidingWindow) nextInterval() {
 
 	// Slide the fixed windows if windowSize time has elapsed.
 	if s.currentInterval == 0 {
+		sum := int64(0)
+		for i := 0; i < int(s.numIntervals); i++ {
+			fmt.Printf("Curr Interval %d: %d\n", i, s.curr.count[i])
+			sum += s.curr.count[i]
+		}
+
+		fmt.Printf("Switching window: Total tokens issued: %d\n\n", sum)
+
 		s.prev = s.curr
 		s.curr = fixedWindow{
 			count: make([]int, s.numIntervals),

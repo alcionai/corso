@@ -102,6 +102,10 @@ var (
 	driveLimiter = rate.NewLimiter(drivePerSecond, driveMaxCap)
 	// also used as the exchange service limiter
 	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
+
+	// 10 min window, 1 second sliding interval, 10k capacity
+	//exchangeLimiter = limiters.NewLimiter(10*time.Minute, 100*time.Millisecond, 10000)
+	exchangeLimiter = limiters.NewLimiter(10*time.Minute, 1*time.Second, 10000)
 )
 
 type LimiterCfg struct {

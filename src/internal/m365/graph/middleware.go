@@ -334,6 +334,12 @@ func (mw *MetricsMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
+	// Log request
+	dump := getReqDump(req.Context(), req)
+	logger.Ctx(req.Context()).Debugw("making graph api req: ",
+		"request", dump,
+		"requests_so_far", mw.counter.Get(count.APICallTokensConsumed))
+
 	var (
 		start     = time.Now()
 		resp, err = pipeline.Next(req, middlewareIndex)
