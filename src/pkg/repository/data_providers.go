@@ -85,7 +85,7 @@ func connectToM365(
 		r.Account,
 		pst,
 		r.Opts,
-		r.counter.Local())
+		r.counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating m365 client controller")
 	}

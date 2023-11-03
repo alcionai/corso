@@ -306,7 +306,9 @@ func kiotaMiddlewares(
 		mw,
 		throttler,
 		&RateLimiterMiddleware{},
-		&MetricsMiddleware{})
+		&MetricsMiddleware{
+			counter: counter,
+		})
 
 	if len(cc.appendMiddleware) > 0 {
 		mw = append(mw, cc.appendMiddleware...)

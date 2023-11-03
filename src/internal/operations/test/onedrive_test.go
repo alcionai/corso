@@ -71,18 +71,19 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 	defer flush()
 
 	var (
-		tenID  = tconfig.M365TenantID(t)
-		mb     = evmock.NewBus()
-		userID = tconfig.SecondaryM365UserID(t)
-		osel   = selectors.NewOneDriveBackup([]string{userID})
-		ws     = deeTD.DriveIDFromRepoRef
-		svc    = path.OneDriveService
-		opts   = control.DefaultOptions()
+		tenID   = tconfig.M365TenantID(t)
+		mb      = evmock.NewBus()
+		counter = count.New()
+		userID  = tconfig.SecondaryM365UserID(t)
+		osel    = selectors.NewOneDriveBackup([]string{userID})
+		ws      = deeTD.DriveIDFromRepoRef
+		svc     = path.OneDriveService
+		opts    = control.DefaultOptions()
 	)
 
 	osel.Include(selTD.OneDriveBackupFolderScope(osel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, osel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, osel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -117,11 +118,12 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveBasic_groups9Versio
 	defer flush()
 
 	var (
-		mb     = evmock.NewBus()
-		userID = tconfig.SecondaryM365UserID(t)
-		osel   = selectors.NewOneDriveBackup([]string{userID})
-		ws     = deeTD.DriveIDFromRepoRef
-		opts   = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		counter = count.New()
+		userID  = tconfig.SecondaryM365UserID(t)
+		osel    = selectors.NewOneDriveBackup([]string{userID})
+		ws      = deeTD.DriveIDFromRepoRef
+		opts    = control.DefaultOptions()
 	)
 
 	osel.Include(selTD.OneDriveBackupFolderScope(osel))
@@ -132,7 +134,8 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveBasic_groups9Versio
 		mb,
 		osel.Selector,
 		opts,
-		version.All8MigrateUserPNToID)
+		version.All8MigrateUserPNToID,
+		counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -167,12 +170,14 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveBasic_groups9Versio
 		false)
 
 	mb = evmock.NewBus()
+	counter = count.New()
 	notForcedFull := newTestBackupOp(
 		t,
 		ctx,
 		bod,
 		mb,
-		opts)
+		opts,
+		counter)
 	notForcedFull.BackupVersion = version.Groups9Update
 
 	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
@@ -282,10 +287,11 @@ func runDriveIncrementalTest(
 	defer flush()
 
 	var (
-		acct = tconfig.NewM365Account(t)
-		opts = control.DefaultOptions()
-		mb   = evmock.NewBus()
-		ws   = deeTD.DriveIDFromRepoRef
+		acct    = tconfig.NewM365Account(t)
+		opts    = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		counter = count.New()
+		ws      = deeTD.DriveIDFromRepoRef
 
 		// `now` has to be formatted with SimpleDateTimeTesting as
 		// some drives cannot have `:` in file/folder names
@@ -315,7 +321,7 @@ func runDriveIncrementalTest(
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ctrl, sel := ControllerWithSelector(t, ctx, acct, sel, nil, nil)
+	ctrl, sel := ControllerWithSelector(t, ctx, acct, sel, nil, nil, counter)
 	ac := ctrl.AC.Drives()
 	rh := getRestoreHandler(ctrl.AC)
 
@@ -436,7 +442,7 @@ func runDriveIncrementalTest(
 			locRef)
 	}
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	sel = bod.sel
@@ -825,14 +831,16 @@ func runDriveIncrementalTest(
 			bod.ctrl = cleanCtrl
 
 			var (
-				t     = suite.T()
-				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(
+				t       = suite.T()
+				incMB   = evmock.NewBus()
+				counter = count.New()
+				incBO   = newTestBackupOp(
 					t,
 					ctx,
 					bod,
 					incMB,
-					opts)
+					opts,
+					counter)
 			)
 
 			ctx, flush := tester.WithContext(t, ctx)
@@ -986,6 +994,7 @@ func runDriveAssistBaseGroupsUpdate(
 	var (
 		whatSet = deeTD.CategoryFromRepoRef
 		mb      = evmock.NewBus()
+		counter = count.New()
 		opts    = control.DefaultOptions()
 	)
 
@@ -1001,7 +1010,8 @@ func runDriveAssistBaseGroupsUpdate(
 		mb,
 		sel,
 		opts,
-		version.All8MigrateUserPNToID)
+		version.All8MigrateUserPNToID,
+		counter)
 	defer bod.close(t, ctx)
 
 	suite.Run("makeAssistBackup", func() {
@@ -1035,8 +1045,9 @@ func runDriveAssistBaseGroupsUpdate(
 		defer flush()
 
 		var (
-			mb   = evmock.NewBus()
-			opts = control.DefaultOptions()
+			mb      = evmock.NewBus()
+			counter = count.New()
+			opts    = control.DefaultOptions()
 		)
 
 		forcedFull := newTestBackupOp(
@@ -1044,7 +1055,8 @@ func runDriveAssistBaseGroupsUpdate(
 			ctx,
 			bod,
 			mb,
-			opts)
+			opts,
+			counter)
 		forcedFull.BackupVersion = version.Groups9Update
 
 		runAndCheckBackup(t, ctx, &forcedFull, mb, false)
@@ -1106,9 +1118,10 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	defer flush()
 
 	var (
-		acct = tconfig.NewM365Account(t)
-		opts = control.DefaultOptions()
-		mb   = evmock.NewBus()
+		acct    = tconfig.NewM365Account(t)
+		opts    = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		counter = count.New()
 
 		categories = map[path.CategoryType][][]string{
 			path.FilesCategory: {{bupMD.DeltaURLsFileName}, {bupMD.PreviousPathFileName}},
@@ -1123,7 +1136,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		acct,
 		path.OneDriveService,
 		control.DefaultOptions(),
-		count.New())
+		counter)
 	require.NoError(t, err, clues.ToCore(err))
 
 	userable, err := ctrl.AC.Users().GetByID(ctx, suite.its.user.ID)
@@ -1135,7 +1148,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	oldsel := selectors.NewOneDriveBackup([]string{uname})
 	oldsel.Include(selTD.OneDriveBackupFolderScope(oldsel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, opts, 0)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, oldsel.Selector, opts, 0, counter)
 	defer bod.close(t, ctx)
 
 	sel := bod.sel
@@ -1163,7 +1176,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	var (
 		incMB = evmock.NewBus()
 		// the incremental backup op should have a proper user ID for the id.
-		incBO = newTestBackupOp(t, ctx, bod, incMB, opts)
+		incBO = newTestBackupOp(t, ctx, bod, incMB, opts, counter)
 	)
 
 	require.NotEqualf(
@@ -1234,20 +1247,21 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
 	defer flush()
 
 	var (
-		tenID  = tconfig.M365TenantID(t)
-		mb     = evmock.NewBus()
-		userID = tconfig.SecondaryM365UserID(t)
-		osel   = selectors.NewOneDriveBackup([]string{userID})
-		ws     = deeTD.DriveIDFromRepoRef
-		svc    = path.OneDriveService
-		opts   = control.DefaultOptions()
+		tenID   = tconfig.M365TenantID(t)
+		mb      = evmock.NewBus()
+		counter = count.New()
+		userID  = tconfig.SecondaryM365UserID(t)
+		osel    = selectors.NewOneDriveBackup([]string{userID})
+		ws      = deeTD.DriveIDFromRepoRef
+		svc     = path.OneDriveService
+		opts    = control.DefaultOptions()
 	)
 
 	opts.ItemExtensionFactory = getTestExtensionFactories()
 
 	osel.Include(selTD.OneDriveBackupFolderScope(osel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, osel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, osel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1326,11 +1340,12 @@ func runDriveRestoreWithAdvancedOptions(
 	// a backup is required to run restores
 
 	var (
-		mb   = evmock.NewBus()
-		opts = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		counter = count.New()
+		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1598,11 +1613,12 @@ func runDriveRestoreToAlternateProtectedResource(
 	// a backup is required to run restores
 
 	var (
-		mb   = evmock.NewBus()
-		opts = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		counter = count.New()
+		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
