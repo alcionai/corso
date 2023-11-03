@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -117,6 +118,251 @@ func (mcg mockContainerGetter) GetContainerByID(
 ) (graph.Container, error) {
 	res := mcg.itemsByID[containerID]
 	return res.c, res.err
+}
+
+// ---------------------------------------------------------------------------
+// rankedContainerResolver unit tests
+// ---------------------------------------------------------------------------
+
+type RankedContainerResolverUnitSuite struct {
+	tester.Suite
+}
+
+func TestRankedContainerResolverUnitSuite(t *testing.T) {
+	suite.Run(t, &RankedContainerResolverUnitSuite{
+		Suite: tester.NewUnitSuite(t),
+	})
+}
+
+func (suite *RankedContainerResolverUnitSuite) TestItemByID() {
+	// Containers available to operate on directly in tests.
+	const (
+		id1         = "id1"
+		idNotInBase = "idNotInBase"
+	)
+
+	mcg := mockContainerGetter{
+		itemsByID: map[string]containerGetterRes{
+			id1:         {c: mockContainer{id: ptr.To(id1)}},
+			idNotInBase: {c: mockContainer{id: ptr.To(idNotInBase)}},
+		},
+	}
+
+	// Configure base containers we want.
+	mcr := &mockContainerResolver{
+		containersByID: map[string]graph.CachedContainer{
+			id1: &mockCachedContainer{id: id1},
+		},
+	}
+
+	table := []struct {
+		name        string
+		includes    []string
+		excludes    []string
+		itemID      string
+		expectFound bool
+	}{
+		{
+			name:        "NeitherIncludedNorExcluded",
+			itemID:      id1,
+			expectFound: true,
+		},
+		{
+			name:        "NeitherIncludedOrExcluded NotInBase",
+			itemID:      idNotInBase,
+			expectFound: false,
+		},
+		{
+			name:        "Included",
+			includes:    []string{id1},
+			itemID:      id1,
+			expectFound: true,
+		},
+		{
+			name:        "Excluded",
+			excludes:    []string{id1},
+			itemID:      id1,
+			expectFound: false,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			rcr, err := newRankedContainerResolver(
+				ctx,
+				mcr,
+				mcg,
+				"userID",
+				test.includes,
+				test.excludes)
+			require.NoError(t, err, clues.ToCore(err))
+
+			item := rcr.ItemByID(test.itemID)
+			if test.expectFound {
+				require.NotNil(t, item)
+				assert.Equal(t, test.itemID, ptr.Val(item.GetId()), "returned item ID")
+			} else {
+				assert.Nil(t, item, "unexpected item returned: %+v", item)
+			}
+		})
+	}
+}
+
+func (suite *RankedContainerResolverUnitSuite) TestItems() {
+	// Containers available to operate on directly in tests.
+	const (
+		id1         = "id1"
+		id2         = "id2"
+		id3         = "id3"
+		idErr       = "idErr"
+		idEmpty     = "idEmpty"
+		idNotInBase = "idNotInBase"
+	)
+
+	mcg := mockContainerGetter{
+		itemsByID: map[string]containerGetterRes{
+			id1:         {c: mockContainer{id: ptr.To(id1)}},
+			id2:         {c: mockContainer{id: ptr.To(id2)}},
+			id3:         {c: mockContainer{id: ptr.To(id3)}},
+			idErr:       {err: assert.AnError},
+			idEmpty:     {c: mockContainer{}},
+			idNotInBase: {c: mockContainer{id: ptr.To(idNotInBase)}},
+		},
+	}
+
+	// Configure base containers we want.
+	mcr := &mockContainerResolver{
+		containersByID: map[string]graph.CachedContainer{
+			id1: &mockCachedContainer{id: id1},
+			id2: &mockCachedContainer{id: id2},
+			id3: &mockCachedContainer{id: id3},
+		},
+	}
+
+	// Add a bunch more containers so we're more likely to get a random order from
+	// the map.
+	var otherContainerIDs []string
+
+	for i := 0; i < 100; i++ {
+		id := fmt.Sprintf("extra-id%d", i)
+		mcr.containersByID[id] = &mockCachedContainer{id: id}
+		otherContainerIDs = append(otherContainerIDs, id)
+	}
+
+	table := []struct {
+		name     string
+		includes []string
+		excludes []string
+		// expectPrefix is the prefix of container IDs that should be in the result.
+		expectPrefix []string
+		// expectExtraUnordered allows specifying additional IDs in the set of IDs
+		// available to work with that will appear in the unordered set. For
+		// example, if only id1 was part of includes and excludes was empty then id2
+		// and id3 should appear somewhere in the output but don't have a particluar
+		// order requirement.
+		expectExtraUnordered []string
+		expectErr            assert.ErrorAssertionFunc
+	}{
+		{
+			name:         "ReturnsRankedItems",
+			includes:     []string{id2, id1, id3},
+			expectPrefix: []string{id2, id1, id3},
+			expectErr:    assert.NoError,
+		},
+		{
+			name:                 "ReturnsRankedItems SomeUnordered",
+			includes:             []string{id2, id1},
+			expectPrefix:         []string{id2, id1},
+			expectExtraUnordered: []string{id3},
+			expectErr:            assert.NoError,
+		},
+		{
+			name:         "ReturnsRankedItems SomeExcluded",
+			includes:     []string{id2},
+			excludes:     []string{id3, id1},
+			expectPrefix: []string{id2},
+			expectErr:    assert.NoError,
+		},
+		{
+			name:                 "ReturnsRankedItems SomeIncludesNotInBase",
+			includes:             []string{id2, id1, idNotInBase},
+			expectPrefix:         []string{id2, id1},
+			expectExtraUnordered: []string{id3},
+			expectErr:            assert.NoError,
+		},
+		{
+			name:         "ReturnsRankedItems SomeExcludesNotInBase",
+			includes:     []string{id2},
+			excludes:     []string{id1, idNotInBase, id3},
+			expectPrefix: []string{id2},
+			expectErr:    assert.NoError,
+		},
+		{
+			name:      "FailsOnIncludeError",
+			includes:  []string{id2, id1, idErr},
+			expectErr: assert.Error,
+		},
+		{
+			name:      "FailsOnExcludeError",
+			excludes:  []string{id2, id1, idErr},
+			expectErr: assert.Error,
+		},
+		{
+			name:      "FailsOnIncludeContainerWithEmptyID",
+			includes:  []string{id2, id1, idEmpty},
+			expectErr: assert.Error,
+		},
+		{
+			name:      "FailsOnExcludeContainerWithEmptyID",
+			excludes:  []string{id2, id1, idEmpty},
+			expectErr: assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			rcr, err := newRankedContainerResolver(
+				ctx,
+				mcr,
+				mcg,
+				"userID",
+				test.includes,
+				test.excludes)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			items := rcr.Items()
+			resIDs := make([]string, 0, len(items))
+
+			for _, item := range items {
+				resIDs = append(resIDs, ptr.Val(item.GetId()))
+			}
+
+			assert.Equal(
+				t,
+				test.expectPrefix,
+				resIDs[:len(test.expectPrefix)],
+				"ordered prefix of result")
+			assert.ElementsMatch(
+				t,
+				append(slices.Clone(test.expectExtraUnordered), otherContainerIDs...),
+				resIDs[len(test.expectPrefix):],
+				"unordered remainder of result")
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
