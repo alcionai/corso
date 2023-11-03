@@ -353,6 +353,10 @@ func (cr *containerResolver) addFolder(cf graph.CachedContainer) error {
 	return nil
 }
 
+func (cr *containerResolver) ItemByID(id string) graph.CachedContainer {
+	return cr.cache[id]
+}
+
 func (cr *containerResolver) Items() []graph.CachedContainer {
 	res := make([]graph.CachedContainer, 0, len(cr.cache))
 
