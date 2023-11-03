@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -51,6 +52,71 @@ func (m mockContainer) SetPath(p *path.Builder)     {}
 
 func strPtr(s string) *string {
 	return &s
+}
+
+var _ graph.ContainerResolver = mockContainerResolver{}
+
+type mockContainerResolver struct {
+	containersByID map[string]graph.CachedContainer
+}
+
+func (mc mockContainerResolver) IDToPath(
+	ctx context.Context,
+	id string,
+) (*path.Builder, *path.Builder, error) {
+	return nil, nil, clues.New("not implemented")
+}
+
+func (mc mockContainerResolver) Populate(
+	ctx context.Context,
+	errs *fault.Bus,
+	baseFolderID string,
+	baseContainerPath ...string,
+) error {
+	return clues.New("not implemented")
+}
+
+func (mc mockContainerResolver) PathInCache(p string) (string, bool) {
+	return "", false
+}
+
+func (mc mockContainerResolver) LocationInCache(p string) (string, bool) {
+	return "", false
+}
+
+func (mc mockContainerResolver) AddToCache(
+	ctx context.Context,
+	c graph.Container,
+) error {
+	return clues.New("not implemented")
+}
+
+func (mc mockContainerResolver) ItemByID(id string) graph.CachedContainer {
+	return mc.containersByID[id]
+}
+
+func (mc mockContainerResolver) Items() []graph.CachedContainer {
+	return maps.Values(mc.containersByID)
+}
+
+var _ containerGetter = mockContainerGetter{}
+
+type containerGetterRes struct {
+	c   graph.Container
+	err error
+}
+
+type mockContainerGetter struct {
+	itemsByID map[string]containerGetterRes
+}
+
+func (mcg mockContainerGetter) GetContainerByID(
+	ctx context.Context,
+	userID string,
+	containerID string,
+) (graph.Container, error) {
+	res := mcg.itemsByID[containerID]
+	return res.c, res.err
 }
 
 // ---------------------------------------------------------------------------
