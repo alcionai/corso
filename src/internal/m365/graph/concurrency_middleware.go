@@ -105,7 +105,7 @@ var (
 
 	// 10 min window, 1 second sliding interval, 10k capacity
 	//exchangeLimiter = limiters.NewLimiter(10*time.Minute, 100*time.Millisecond, 10000)
-	exchangeLimiter = limiters.NewLimiter(10*time.Minute, 1*time.Second, 10000)
+	exchangeLimiter = limiters.NewLimiter(10*time.Minute, 1*time.Second, 9800)
 )
 
 type LimiterCfg struct {
