@@ -83,9 +83,10 @@ func NewBackupOperation(
 	selector selectors.Selector,
 	owner idname.Provider,
 	bus events.Eventer,
+	counter *count.Bus,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:           newOperation(opts, bus, count.New(), kw, sw),
+		operation:           newOperation(opts, bus, counter, kw, sw),
 		ResourceOwner:       owner,
 		Selectors:           selector,
 		Version:             "v0",

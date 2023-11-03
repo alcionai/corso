@@ -118,12 +118,13 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 
 			var (
 				mb      = evmock.NewBus()
+				counter = count.New()
 				sel     = test.selector().Selector
 				opts    = control.DefaultOptions()
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
-			bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup)
+			bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
 			defer bod.close(t, ctx)
 
 			sel = bod.sel
@@ -185,7 +186,8 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 					ctx,
 					bod,
 					incMB,
-					opts)
+					opts,
+					counter)
 			)
 
 			runAndCheckBackup(t, ctx, &incBO, incMB, true)
@@ -238,10 +240,11 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchangeBasic_groups9Versio
 	defer flush()
 
 	var (
-		mb   = evmock.NewBus()
-		sel  = selectors.NewExchangeBackup([]string{suite.its.user.ID})
-		opts = control.DefaultOptions()
-		ws   = deeTD.DriveIDFromRepoRef
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewExchangeBackup([]string{suite.its.user.ID})
+		opts    = control.DefaultOptions()
+		ws      = deeTD.DriveIDFromRepoRef
 	)
 
 	sel.Include(
@@ -255,7 +258,8 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchangeBasic_groups9Versio
 		mb,
 		sel.Selector,
 		opts,
-		version.All8MigrateUserPNToID)
+		version.All8MigrateUserPNToID,
+		counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -290,12 +294,14 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchangeBasic_groups9Versio
 		false)
 
 	mb = evmock.NewBus()
+	counter = count.New()
 	notForcedFull := newTestBackupOp(
 		t,
 		ctx,
 		bod,
 		mb,
-		opts)
+		opts,
+		counter)
 	notForcedFull.BackupVersion = version.Groups9Update
 
 	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
@@ -357,6 +363,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	var (
 		acct       = tconfig.NewM365Account(t)
 		mb         = evmock.NewBus()
+		counter    = count.New()
 		now        = dttm.Now()
 		service    = path.ExchangeService
 		categories = map[path.CategoryType][][]string{
@@ -379,7 +386,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	)
 
 	opts.ToggleFeatures = toggles
-	ctrl, sels := ControllerWithSelector(t, ctx, acct, sel.Selector, nil, nil)
+	ctrl, sels := ControllerWithSelector(t, ctx, acct, sel.Selector, nil, nil, counter)
 	sel.DiscreteOwner = sels.ID()
 	sel.DiscreteOwnerName = sels.Name()
 
@@ -578,7 +585,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		}
 	}
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	// run the initial backup
@@ -911,15 +918,16 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			var (
-				t     = suite.T()
-				incMB = evmock.NewBus()
-				atid  = creds.AzureTenantID
+				t       = suite.T()
+				incMB   = evmock.NewBus()
+				counter = count.New()
+				atid    = creds.AzureTenantID
 			)
 
 			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
-			incBO := newTestBackupOp(t, ctx, bod, incMB, opts)
+			incBO := newTestBackupOp(t, ctx, bod, incMB, opts, counter)
 
 			suite.Run("PreTestSetup", func() {
 				t := suite.T()
@@ -1043,11 +1051,12 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 	baseSel.DiscreteOwner = suite.its.user.ID
 
 	var (
-		mb   = evmock.NewBus()
-		opts = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		counter = count.New()
+		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1353,11 +1362,12 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 	baseSel.DiscreteOwner = suite.its.user.ID
 
 	var (
-		mb   = evmock.NewBus()
-		opts = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		counter = count.New()
+		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)

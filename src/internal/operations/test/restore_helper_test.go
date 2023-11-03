@@ -68,7 +68,7 @@ func prepNewTestRestoreOp(
 	backupStore storage.Storage,
 	backupID model.StableID,
 	bus events.Eventer,
-	ctr *count.Bus,
+	counter *count.Bus,
 	sel selectors.Selector,
 	opts control.Options,
 	restoreCfg control.RestoreConfig,
@@ -112,7 +112,8 @@ func prepNewTestRestoreOp(
 		rod.acct,
 		sel,
 		nil,
-		rod.close)
+		rod.close,
+		counter)
 
 	ro := newTestRestoreOp(
 		t,
@@ -120,7 +121,7 @@ func prepNewTestRestoreOp(
 		rod,
 		backupID,
 		bus,
-		ctr,
+		counter,
 		opts,
 		restoreCfg)
 
@@ -142,7 +143,7 @@ func newTestRestoreOp(
 	rod *restoreOpDependencies,
 	backupID model.StableID,
 	bus events.Eventer,
-	ctr *count.Bus,
+	counter *count.Bus,
 	opts control.Options,
 	restoreCfg control.RestoreConfig,
 ) operations.RestoreOperation {
@@ -159,7 +160,7 @@ func newTestRestoreOp(
 		rod.sel,
 		restoreCfg,
 		bus,
-		ctr)
+		counter)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		rod.close(t, ctx)
 		t.FailNow()
