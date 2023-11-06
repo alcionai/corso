@@ -1,6 +1,9 @@
 package storage
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -16,6 +19,8 @@ type CommonConfig struct {
 const (
 	keyCommonCorsoPassphrase = "common_corsoPassphrase"
 	keyCommonKopiaCfgDir     = "common_kopiaCfgDir"
+
+	hashLength = 7
 )
 
 // StringConfig transforms a commonConfig struct into a plain
@@ -50,4 +55,14 @@ func (c CommonConfig) validate() error {
 
 	// kopiaCfgFilePath is not required
 	return nil
+}
+
+func GenerateHash(input []byte, hashlength int) string {
+	h := md5.New()
+	h.Write([]byte(input))
+	hexstr := hex.EncodeToString(h.Sum(nil))
+	if hashlength > 0 {
+		return hexstr[0:hashlength]
+	}
+	return hexstr
 }
