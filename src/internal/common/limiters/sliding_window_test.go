@@ -1,42 +1,249 @@
 package limiters
 
 import (
+	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"go.uber.org/goleak"
+
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-func BenchmarkSlidingWindowLimiter(b *testing.B) {
-	// 1 second window, 1 millisecond sliding interval, 1000 token capacity (1k per sec)
-	limiter := NewLimiter(1*time.Second, 1*time.Millisecond, 1000)
-	// If the allowed rate is 1k per sec, 4k goroutines should take 3.xx sec
-	numGoroutines := 4000
+type SlidingWindowUnitTestSuite struct {
+	tester.Suite
+}
 
-	ctx, flush := tester.NewContext(b)
+func TestSlidingWindowLimiterSuite(t *testing.T) {
+	suite.Run(t, &SlidingWindowUnitTestSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *SlidingWindowUnitTestSuite) TestWaitBasic() {
+	var (
+		t          = suite.T()
+		windowSize = 1 * time.Second
+		// Assume slide interval is equal to window size for simplicity.
+		slideInterval   = 1 * time.Second
+		capacity        = 100
+		startTime       = time.Now()
+		numRequests     = 3 * capacity
+		wg              sync.WaitGroup
+		mu              sync.Mutex
+		intervalToCount = make(map[time.Duration]int)
+	)
+
+	defer goleak.VerifyNone(t)
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	var wg sync.WaitGroup
+	s, err := NewSlidingWindowLimiter(windowSize, slideInterval, capacity)
+	require.NoError(t, err)
 
-	b.ResetTimer()
-	b.StartTimer()
+	defer s.Shutdown()
 
-	for i := 0; i < numGoroutines; i++ {
+	// Check if all tokens are available for use post initialization.
+	require.Equal(t, capacity, len(s.(*slidingWindow).permits))
+
+	// Make concurrent requests to the limiter
+	for i := 0; i < numRequests; i++ {
 		wg.Add(1)
 
 		go func() {
 			defer wg.Done()
 
-			_ = limiter.Wait(ctx)
+			err := s.Wait(ctx)
+			require.NoError(t, err)
+
+			// Number of seconds since startTime
+			bucket := time.Since(startTime).Truncate(windowSize)
+
+			mu.Lock()
+			intervalToCount[bucket]++
+			mu.Unlock()
 		}()
 	}
 
 	wg.Wait()
-	b.StopTimer()
 
-	totalDuration := b.Elapsed()
+	// Verify that number of requests allowed in each window is less than or equal
+	// to window capacity
+	for _, c := range intervalToCount {
+		require.True(t, c <= capacity, "count: %d, capacity: %d", c, capacity)
+	}
+}
 
-	fmt.Printf("Total time taken: %v\n", totalDuration)
+func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
+	var (
+		t             = suite.T()
+		windowSize    = 1 * time.Second
+		slideInterval = 10 * time.Millisecond
+		capacity      = 100
+		// Test will run for duration of 2 windowSize.
+		numRequests = 2 * capacity
+		wg          sync.WaitGroup
+	)
+
+	defer goleak.VerifyNone(t)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	s, err := NewSlidingWindowLimiter(windowSize, slideInterval, capacity)
+	require.NoError(t, err)
+
+	defer s.Shutdown()
+
+	// Make concurrent requests to the limiter
+	for i := 0; i < numRequests; i++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			// Sleep for a random duration to spread out requests over multiple slide
+			// intervals & windows, so that we can test the sliding window logic better.
+			// Without this, the requests will be bunched up in the very first intervals
+			// of the 2 windows. Rest of the intervals will be empty.
+			time.Sleep(time.Duration(rand.Intn(1500)) * time.Millisecond)
+
+			err := s.Wait(ctx)
+			require.NoError(t, err)
+		}()
+	}
+	wg.Wait()
+
+	// Verify that number of requests allowed in each window is less than or equal
+	// to window capacity
+	sw := s.(*slidingWindow)
+	data := append(sw.prev.count, sw.curr.count...)
+
+	sums := slidingSum(data, sw.numIntervals)
+
+	for _, sum := range sums {
+		fmt.Printf("sum: %d\n", sum)
+		require.True(t, sum <= capacity, "sum: %d, capacity: %d", sum, capacity)
+	}
+}
+
+func (suite *SlidingWindowUnitTestSuite) TestContextCancellation() {
+	var (
+		t             = suite.T()
+		windowSize    = 100 * time.Millisecond
+		slideInterval = 10 * time.Millisecond
+		wg            sync.WaitGroup
+	)
+
+	defer goleak.VerifyNone(t)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// Initialize limiter with capacity = 0 to test context cancellations.
+	s, err := NewSlidingWindowLimiter(windowSize, slideInterval, 0)
+	require.NoError(t, err)
+
+	defer s.Shutdown()
+
+	ctx, cancel := context.WithTimeout(ctx, 2*windowSize)
+	defer cancel()
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		err := s.Wait(ctx)
+		require.Equal(t, context.DeadlineExceeded, err)
+	}()
+
+	wg.Wait()
+}
+
+func (suite *SlidingWindowUnitTestSuite) TestNewSlidingWindowLimiter() {
+	tests := []struct {
+		name          string
+		windowSize    time.Duration
+		slideInterval time.Duration
+		capacity      int
+		expectErr     assert.ErrorAssertionFunc
+	}{
+		{
+			name:          "Invalid window size",
+			windowSize:    0,
+			slideInterval: 10 * time.Millisecond,
+			capacity:      100,
+			expectErr:     assert.Error,
+		},
+		{
+			name:          "Invalid slide interval",
+			windowSize:    100 * time.Millisecond,
+			slideInterval: 0,
+			capacity:      100,
+			expectErr:     assert.Error,
+		},
+		{
+			name:          "Slide interval > window size",
+			windowSize:    10 * time.Millisecond,
+			slideInterval: 100 * time.Millisecond,
+			capacity:      100,
+			expectErr:     assert.Error,
+		},
+		{
+			name:          "Invalid capacity",
+			windowSize:    100 * time.Millisecond,
+			slideInterval: 10 * time.Millisecond,
+			capacity:      -1,
+			expectErr:     assert.Error,
+		},
+		{
+			name:          "Valid parameters",
+			windowSize:    100 * time.Millisecond,
+			slideInterval: 10 * time.Millisecond,
+			capacity:      100,
+			expectErr:     assert.NoError,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			s, err := NewSlidingWindowLimiter(
+				test.windowSize,
+				test.slideInterval,
+				test.capacity)
+			test.expectErr(t, err)
+
+			if s != nil {
+				s.Shutdown()
+			}
+		})
+	}
+}
+
+func slidingSum(data []int, w int) []int {
+	var (
+		sum = 0
+		res = make([]int, len(data)-w+1)
+	)
+
+	for i := 0; i < w; i++ {
+		sum += data[i]
+	}
+
+	res[0] = sum
+
+	for i := 1; i < len(data)-w+1; i++ {
+		sum = sum - data[i-1] + data[i+w-1]
+		res[i] = sum
+	}
+
+	return res
 }

@@ -4,92 +4,161 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/alcionai/clues"
 )
 
-type (
-	token   struct{}
-	Limiter interface {
-		Wait(ctx context.Context) error
-	}
-)
+type token struct{}
 
-// TODO: Expose interfaces for limiter and window
-type window struct {
-	// TODO: See if we need to store start time. Without it there is no way
-	// to tell if the ticker is lagging behind ( due to contention from consumers or otherwise).
-	// Although with our use cases, at max we'd have 10k requests contending with the ticker which
-	// should be easily doable in fraction of 1 sec. Although we should benchmark this.
-	// start time.Time
-	count []int64
+type fixedWindow struct {
+	count []int
 }
 
 var _ Limiter = &slidingWindow{}
 
 type slidingWindow struct {
-	w               time.Duration
-	slidingInterval time.Duration
-	capacity        int64
-	currentInterval int64
-	numIntervals    int64
-	permits         chan token
-	mu              sync.Mutex
-	curr            window
-	prev            window
+	// capacity is the maximum number of requests allowed in a sliding window at
+	// any given time.
+	capacity int
+	// windowSize is the total duration of the sliding window. Limiter will allow
+	// at most capacity requests in this duration.
+	windowSize time.Duration
+	// slideInterval controls how frequently the window slides. Smaller interval
+	// provides better accuracy at the cost of more frequent sliding & more
+	// memory usage.
+	slideInterval time.Duration
+
+	// numIntervals is the number of intervals in the window. Calculated as
+	// windowSize / slideInterval.
+	numIntervals int
+	// currentInterval tracks the current slide interval
+	currentInterval int
+
+	// Each request acquires a token from the permits channel. If the channel
+	// is empty, the request is blocked until a permit is available or if the
+	// context is cancelled.
+	permits chan token
+
+	// curr and prev are fixed windows of size windowSize. Each window contains
+	// a slice of intervals which hold a count of the number of tokens granted
+	// during that interval.
+	curr fixedWindow
+	prev fixedWindow
+
+	// mu synchronizes access to the curr and prev windows
+	mu sync.Mutex
+	// stopTimer stops the recurring slide timer
+	stopTimer chan struct{}
 }
 
-// slidingInterval controls degree of movement of the sliding window from left to right
-// Smaller slidingInterval means more frequent movement of the sliding window.
-// TODO: Introduce an option to control token refresh frequency. Otherwise, if the sliding interval is
-// large, it may slow down the token refresh rate. Not implementing this for simplicity, since for our
-// use cases we are going to have a sliding interval of 1 sec which is good enough.
-func NewLimiter(w time.Duration, slidingInterval time.Duration, capacity int64) Limiter {
-	ni := int64(w / slidingInterval)
+func NewSlidingWindowLimiter(
+	windowSize, slideInterval time.Duration,
+	capacity int,
+) (Limiter, error) {
+	if err := validate(windowSize, slideInterval, capacity); err != nil {
+		return nil, err
+	}
 
-	sw := &slidingWindow{
-		w:               w,
-		slidingInterval: slidingInterval,
-		capacity:        capacity,
-		permits:         make(chan token, capacity),
-		numIntervals:    ni,
-		prev: window{
-			count: make([]int64, ni),
+	ni := int(windowSize / slideInterval)
+
+	s := &slidingWindow{
+		windowSize:    windowSize,
+		slideInterval: slideInterval,
+		capacity:      capacity,
+		permits:       make(chan token, capacity),
+		numIntervals:  ni,
+		prev: fixedWindow{
+			count: make([]int, ni),
 		},
-		curr: window{
-			count: make([]int64, ni),
+		curr: fixedWindow{
+			count: make([]int, ni),
 		},
 		currentInterval: -1,
+		stopTimer:       make(chan struct{}),
 	}
 
-	// Initialize
-	sw.nextInterval()
+	s.initialize()
 
-	// Move the sliding window forward every slidingInterval
-	// TODO: fix leaking goroutine
-	go sw.run()
-
-	// Prefill permits
-	for i := int64(0); i < capacity; i++ {
-		sw.permits <- token{}
-	}
-
-	return sw
+	return s, nil
 }
 
-// TODO: Implement stopping the ticker
-func (s *slidingWindow) run() {
-	ticker := time.NewTicker(s.slidingInterval)
+// Wait blocks a request until a token is available or the context is cancelled.
+// TODO(pandeyabs): Implement WaitN.
+func (s *slidingWindow) Wait(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.permits:
+		s.mu.Lock()
+		defer s.mu.Unlock()
 
-	for range ticker.C {
-		s.slide()
+		s.curr.count[s.currentInterval]++
+	}
+
+	return nil
+}
+
+// Shutdown cleans up the slide goroutine. If shutdown is not called, the slide
+// goroutine will continue to run until the program exits.
+func (s *slidingWindow) Shutdown() {
+	select {
+	case s.stopTimer <- struct{}{}:
+	default:
 	}
 }
 
-func (s *slidingWindow) slide() {
-	// Slide into the next interval
+// initialize starts the slide goroutine and prefills tokens to full capacity.
+func (s *slidingWindow) initialize() {
+	// Ok to not hold the mutex here since nothing else is running yet.
 	s.nextInterval()
 
-	// Remove permits from the previous window
-	for i := int64(0); i < s.prev.count[s.currentInterval]; i++ {
+	// Start a goroutine which runs every slideInterval. This goroutine will
+	// continue to run until the program exits or until Shutdown is called.
+	go func() {
+		ticker := time.NewTicker(s.slideInterval)
+
+		for {
+			select {
+			case <-ticker.C:
+				s.slide()
+			case <-s.stopTimer:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
+	// Prefill permits to allow tokens to be granted immediately
+	for i := int(0); i < s.capacity; i++ {
+		s.permits <- token{}
+	}
+}
+
+// nextInterval increments the current interval and slides the fixed
+// windows if needed. Should be called with the mutex held.
+func (s *slidingWindow) nextInterval() {
+	// Increment current interval
+	s.currentInterval = (s.currentInterval + 1) % s.numIntervals
+
+	// Slide the fixed windows if windowSize time has elapsed.
+	if s.currentInterval == 0 {
+		s.prev = s.curr
+		s.curr = fixedWindow{
+			count: make([]int, s.numIntervals),
+		}
+	}
+}
+
+// slide moves the window forward by one interval. It reclaims tokens from the
+// interval that we slid past and adds them back to available permits. If the
+// permits are already at capacity, excess tokens are discarded.
+func (s *slidingWindow) slide() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.nextInterval()
+
+	for i := int(0); i < s.prev.count[s.currentInterval]; i++ {
 		select {
 		case s.permits <- token{}:
 		default:
@@ -99,32 +168,30 @@ func (s *slidingWindow) slide() {
 	}
 }
 
-// next increments the current interval and resets the current window if needed
-func (s *slidingWindow) nextInterval() {
-	s.mu.Lock()
-	// Increment current interval
-	s.currentInterval = (s.currentInterval + 1) % s.numIntervals
-
-	// If it's the first interval, move curr window to prev window and reset curr window.
-	if s.currentInterval == 0 {
-		s.prev = s.curr
-		s.curr = window{
-			count: make([]int64, s.numIntervals),
-		}
+func validate(
+	windowSize, slideInterval time.Duration,
+	capacity int,
+) error {
+	if windowSize <= 0 {
+		return clues.New("invalid window size")
 	}
 
-	s.mu.Unlock()
-}
+	if slideInterval <= 0 {
+		return clues.New("invalid slide interval")
+	}
 
-// TODO: Implement WaitN
-func (s *slidingWindow) Wait(ctx context.Context) error {
-	<-s.permits
+	// Allow capacity to be 0 for testing purposes
+	if capacity < 0 {
+		return clues.New("invalid window capacity")
+	}
 
-	// Acquire mutex and increment current interval's count
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if windowSize < slideInterval {
+		return clues.New("window too small to fit slide interval")
+	}
 
-	s.curr.count[s.currentInterval]++
+	if windowSize%slideInterval != 0 {
+		return clues.New("window not divisible by slide interval")
+	}
 
 	return nil
 }
