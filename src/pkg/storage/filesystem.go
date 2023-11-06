@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"encoding/json"
+
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
 
@@ -22,6 +24,25 @@ type FilesystemConfig struct {
 
 func (s Storage) ToFilesystemConfig() (*FilesystemConfig, error) {
 	return buildFilesystemConfigFromMap(s.Config)
+}
+
+func (s Storage) GenerateFilesystemHash() (string, error) {
+	fsCfg, err := buildFilesystemConfigFromMap(s.Config)
+	if err != nil {
+		return "", err
+	}
+
+	fsCfgBytes, err := json.Marshal(fsCfg)
+	if err != nil {
+		return "", clues.New("failed to serialize filesystem config")
+	}
+
+	fsCfgHash := GenerateHash(fsCfgBytes, hashLength)
+	if len(fsCfgHash) != hashLength {
+		return "", clues.New("failed to generate hash of configured length")
+	}
+
+	return fsCfgHash, nil
 }
 
 func buildFilesystemConfigFromMap(config map[string]string) (*FilesystemConfig, error) {

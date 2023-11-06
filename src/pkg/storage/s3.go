@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 
@@ -64,6 +65,25 @@ var s3constToTomlKeyMap = map[string]string{
 
 func (s Storage) ToS3Config() (*S3Config, error) {
 	return buildS3ConfigFromMap(s.Config)
+}
+
+func (s Storage) GenerateS3Hash() (string, error) {
+	s3Cfg, err := buildS3ConfigFromMap(s.Config)
+	if err != nil {
+		return "", err
+	}
+
+	s3CfgBytes, err := json.Marshal(s3Cfg)
+	if err != nil {
+		return "", clues.New("failed to serialize s3 config")
+	}
+
+	s3ConfigHash := GenerateHash(s3CfgBytes, hashLength)
+	if len(s3ConfigHash) != hashLength {
+		return "", clues.New("failed to generate hash of configured length")
+	}
+
+	return s3ConfigHash, nil
 }
 
 func buildS3ConfigFromMap(config map[string]string) (*S3Config, error) {
