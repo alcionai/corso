@@ -62,3 +62,77 @@ func (suite *StorageUnitSuite) TestNewStorage() {
 		})
 	}
 }
+
+// Test ArePathsEquivalent
+func (suite *StorageUnitSuite) TestArePathsEquivalent() {
+	table := []struct {
+		name        string
+		path1       string
+		path2       string
+		expected    bool
+		expectedErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:        "additional backslash in path",
+			path1:       "/home/backups/",
+			path2:       "/home/backups",
+			expected:    true,
+			expectedErr: assert.NoError,
+		},
+		{
+			name:        "leading whitespace in path",
+			path1:       " /home/backups",
+			path2:       "/home/backups",
+			expected:    true,
+			expectedErr: assert.NoError,
+		},
+		{
+			name:        "different paths",
+			path1:       "/home/backups/1",
+			path2:       "/home/backups/2",
+			expected:    false,
+			expectedErr: assert.NoError,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			actual, err := ArePathsEquivalent(test.path1, test.path2)
+			assert.Equal(t, test.expected, actual)
+
+			test.expectedErr(t, err)
+		})
+	}
+}
+
+// Test IsValidPath
+func (suite *StorageUnitSuite) TestIsValidPath() {
+	table := []struct {
+		name     string
+		path     string
+		create   bool
+		expected bool
+	}{
+		{
+			name:     "valid directory",
+			path:     "/tmp/backups/",
+			expected: true,
+		},
+		{
+			name:     "valid file path",
+			path:     "/tmp/backups/a.txt",
+			expected: true,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			actual := IsValidPath(test.path)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
