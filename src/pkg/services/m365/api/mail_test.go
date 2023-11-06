@@ -204,7 +204,7 @@ func (suite *MailAPIIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
+func (suite *MailAPIIntgSuite) TestMail_attachmentListDownload() {
 	mid := "fake-message-id"
 	aid := "fake-attachment-id"
 
@@ -369,7 +369,7 @@ func (suite *MailAPIIntgSuite) TestHugeAttachmentListDownload() {
 	}
 }
 
-func (suite *MailAPIIntgSuite) TestMail_RestoreLargeAttachment() {
+func (suite *MailAPIIntgSuite) TestMail_PostLargeAttachment() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
