@@ -492,7 +492,7 @@ func updateCollectionPaths(
 	var initialCurPath path.Path
 
 	col, found := cmap[driveID][itemID]
-	if found {
+	if found && col.FullPath() != nil {
 		initialCurPath = col.FullPath()
 		if initialCurPath.String() == curPath.String() {
 			return found, nil
@@ -693,7 +693,7 @@ func (c *Collections) PopulateDriveCollections(
 		// seenFolders is used to track the folders that we have
 		// already seen. This will help us track in case a folder was
 		// recreated multiple times in between a run.
-		seenFolders = idname.NewCache(map[string]string{})
+		seenFolders = map[string]string{}
 	)
 
 	if !invalidPrevDelta {
@@ -757,7 +757,7 @@ func (c *Collections) processItem(
 	item models.DriveItemable,
 	driveID, driveName string,
 	oldPrevPaths, currPrevPaths, newPrevPaths map[string]string,
-	seenFolders idname.CacheBuilder,
+	seenFolders map[string]string,
 	excludedItemIDs map[string]struct{},
 	topLevelPackages map[string]struct{},
 	invalidPrevDelta bool,
@@ -866,18 +866,24 @@ func (c *Collections) processItem(
 		// This check is to ensure that if a folder was deleted and
 		// recreated multiple times between a backup, we only use the
 		// final one.
-		pid, found := seenFolders.IDOf(collectionPath.String())
+		alreadyHandledFolderID, collPathAlreadyExists := seenFolders[collectionPath.String()]
+		collPathAlreadyExists = collPathAlreadyExists && alreadyHandledFolderID != itemID
 
-		recreated := found && pid != itemID
-		if recreated {
+		if collPathAlreadyExists {
+			// we don't have a good way of juggling multiple previous paths
+			// at this time.  If a path was declared twice, it's a bit ambiguous
+			// which prior data the current folder now contains.  Safest thing to
+			// do is to call it a new folder and ingest items fresh.
 			prevPath = nil
+
 			c.NumContainers--
 			c.NumItems--
-			delete(c.CollectionMap[driveID], pid)
-			delete(newPrevPaths, pid)
-		} else {
-			seenFolders.Add(itemID, collectionPath.String())
+
+			delete(c.CollectionMap[driveID], alreadyHandledFolderID)
+			delete(newPrevPaths, alreadyHandledFolderID)
 		}
+
+		seenFolders[collectionPath.String()] = itemID
 
 		col, err := NewCollection(
 			c.handler,
@@ -888,7 +894,7 @@ func (c *Collections) processItem(
 			c.statusUpdater,
 			c.ctrl,
 			isPackage || childOfPackage,
-			invalidPrevDelta || recreated,
+			invalidPrevDelta || collPathAlreadyExists,
 			nil)
 		if err != nil {
 			return clues.Stack(err).WithClues(ictx)
