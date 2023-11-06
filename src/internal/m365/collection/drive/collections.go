@@ -454,6 +454,8 @@ func (c *Collections) Get(
 		collections = append(collections, md)
 	}
 
+	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
+
 	return collections, canUsePrevBackup, nil
 }
 
