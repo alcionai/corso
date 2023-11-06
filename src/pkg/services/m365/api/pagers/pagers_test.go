@@ -100,148 +100,97 @@ func (p testPage) GetValue() []testItem {
 	return p.values
 }
 
-// mock item pager
+// mock item pagers
 
-var _ NonDeltaHandler[testItem] = &testPager{}
-
-type testPager struct {
-	t       *testing.T
-	pager   testPage
-	pageErr error
+type pageResult struct {
+	items      []testItem
+	err        error
+	errCode    string
+	needsReset bool
 }
 
-func (p *testPager) GetPage(ctx context.Context) (NextLinkValuer[testItem], error) {
-	return p.pager, p.pageErr
-}
+var (
+	_ NonDeltaHandler[testItem] = &testIDsNonDeltaMultiPager{}
+	_ DeltaHandler[testItem]    = &testIDsDeltaMultiPager{}
+)
 
-func (p *testPager) SetNextLink(nextLink string) {}
-
-func (p testPager) ValidModTimes() bool { return true }
-
-// mock id pager
-
-var _ NonDeltaHandler[testItem] = &testIDsPager{}
-
-type testIDsPager struct {
+type testIDsNonDeltaMultiPager struct {
 	t             *testing.T
-	added         map[string]time.Time
-	removed       []string
-	errorCode     string
-	needsReset    bool
+	pageIdx       int
+	pages         []pageResult
 	validModTimes bool
+	needsReset    bool
 }
 
-func (p *testIDsPager) GetPage(
+func (p *testIDsNonDeltaMultiPager) GetPage(
 	ctx context.Context,
 ) (NextLinkValuer[testItem], error) {
-	if len(p.errorCode) > 0 {
+	if p.pageIdx >= len(p.pages) {
+		return testPage{}, clues.New("result out of expected range")
+	}
+
+	res := p.pages[p.pageIdx]
+	p.needsReset = res.needsReset
+	p.pageIdx++
+
+	if res.err != nil {
+		return testPage{}, res.err
+	}
+
+	if len(res.errCode) > 0 {
 		ierr := odataerrors.NewMainError()
-		ierr.SetCode(&p.errorCode)
+		ierr.SetCode(ptr.To(res.errCode))
 
 		err := odataerrors.NewODataError()
 		err.SetErrorEscaped(ierr)
 
-		return nil, err
+		return testPage{}, err
 	}
 
-	values := make([]testItem, 0, len(p.added)+len(p.removed))
+	var nextLink string
 
-	for a, modTime := range p.added {
-		itm := testItem{
-			id:      a,
-			modTime: modTime,
-		}
-		values = append(values, itm)
+	if p.pageIdx < len(p.pages) {
+		// Value doesn't matter as long as it's not empty.
+		nextLink = "next"
 	}
 
-	for _, r := range p.removed {
-		itm := testItem{
-			id: r,
-			additionalData: map[string]any{
-				graph.AddtlDataRemoved: struct{}{},
-			},
-		}
-		values = append(values, itm)
-	}
-
-	return testPage{values}, nil
+	return testPage{
+		values:   res.items,
+		nextLink: nextLink,
+	}, nil
 }
 
-func (p *testIDsPager) SetNextLink(string) {}
+func (p *testIDsNonDeltaMultiPager) SetNextLink(string) {}
 
-func (p *testIDsPager) Reset(context.Context) {
+func (p *testIDsNonDeltaMultiPager) Reset(context.Context) {
 	if !p.needsReset {
 		require.Fail(p.t, "reset should not be called")
 	}
 
 	p.needsReset = false
-	p.errorCode = ""
 }
 
-func (p testIDsPager) ValidModTimes() bool {
+func (p testIDsNonDeltaMultiPager) ValidModTimes() bool {
 	return p.validModTimes
 }
 
-var _ DeltaHandler[testItem] = &testIDsDeltaPager{}
-
-type testIDsDeltaPager struct {
-	t             *testing.T
-	added         map[string]time.Time
-	removed       []string
-	errorCode     string
-	needsReset    bool
-	validModTimes bool
+func newDeltaPager(p *testIDsNonDeltaMultiPager) *testIDsDeltaMultiPager {
+	return &testIDsDeltaMultiPager{
+		testIDsNonDeltaMultiPager: p,
+	}
 }
 
-func (p *testIDsDeltaPager) GetPage(
+type testIDsDeltaMultiPager struct {
+	*testIDsNonDeltaMultiPager
+}
+
+func (p *testIDsDeltaMultiPager) GetPage(
 	ctx context.Context,
 ) (DeltaLinkValuer[testItem], error) {
-	if len(p.errorCode) > 0 {
-		ierr := odataerrors.NewMainError()
-		ierr.SetCode(&p.errorCode)
+	linker, err := p.testIDsNonDeltaMultiPager.GetPage(ctx)
+	deltaLinker := linker.(DeltaLinkValuer[testItem])
 
-		err := odataerrors.NewODataError()
-		err.SetErrorEscaped(ierr)
-
-		return nil, err
-	}
-
-	values := make([]testItem, 0, len(p.added)+len(p.removed))
-
-	for a, modTime := range p.added {
-		itm := testItem{
-			id:      a,
-			modTime: modTime,
-		}
-		values = append(values, itm)
-	}
-
-	for _, r := range p.removed {
-		itm := testItem{
-			id: r,
-			additionalData: map[string]any{
-				graph.AddtlDataRemoved: struct{}{},
-			},
-		}
-		values = append(values, itm)
-	}
-
-	return testPage{values}, nil
-}
-
-func (p *testIDsDeltaPager) SetNextLink(string) {}
-
-func (p *testIDsDeltaPager) Reset(context.Context) {
-	if !p.needsReset {
-		require.Fail(p.t, "reset should not be called")
-	}
-
-	p.needsReset = false
-	p.errorCode = ""
-}
-
-func (p testIDsDeltaPager) ValidModTimes() bool {
-	return p.validModTimes
+	return deltaLinker, err
 }
 
 // ---------------------------------------------------------------------------
