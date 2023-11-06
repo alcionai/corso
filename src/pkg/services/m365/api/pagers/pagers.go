@@ -378,6 +378,13 @@ func FilterIncludeAll[T any](_ T) bool {
 // shared enumeration runner funcs
 // ---------------------------------------------------------------------------
 
+type AddedAndRemoved struct {
+	Added         map[string]time.Time
+	Removed       []string
+	DU            DeltaUpdate
+	ValidModTimes bool
+}
+
 type addedAndRemovedHandler[T any] func(
 	items []T,
 	filters ...func(T) bool,
@@ -395,16 +402,23 @@ func GetAddedAndRemovedItemIDs[T any](
 	canMakeDeltaQueries bool,
 	aarh addedAndRemovedHandler[T],
 	filters ...func(T) bool,
-) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
+) (AddedAndRemoved, error) {
 	if canMakeDeltaQueries {
 		ts, du, err := batchDeltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
 		if err != nil && !graph.IsErrInvalidDelta(err) && !graph.IsErrDeltaNotSupported(err) {
-			return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+			return AddedAndRemoved{}, graph.Stack(ctx, err)
 		}
 
 		if err == nil {
 			a, r, err := aarh(ts, filters...)
-			return a, deltaPager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
+			aar := AddedAndRemoved{
+				Added:         a,
+				Removed:       r,
+				DU:            du,
+				ValidModTimes: deltaPager.ValidModTimes(),
+			}
+
+			return aar, graph.Stack(ctx, err).OrNil()
 		}
 	}
 
@@ -412,21 +426,23 @@ func GetAddedAndRemovedItemIDs[T any](
 
 	ts, err := BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+		return AddedAndRemoved{}, graph.Stack(ctx, err)
 	}
 
 	a, r, err := aarh(ts, filters...)
+	aar := AddedAndRemoved{
+		Added:         a,
+		Removed:       r,
+		DU:            du,
+		ValidModTimes: pager.ValidModTimes(),
+	}
 
-	return a, pager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
-}
-
-type getIDer interface {
-	GetId() *string
+	return aar, graph.Stack(ctx, err).OrNil()
 }
 
 type getIDAndModDateTimer interface {
-	getIDer
-	getLastModifiedDateTimer
+	graph.GetIDer
+	graph.GetLastModifiedDateTimer
 }
 
 // AddedAndRemovedAddAll indiscriminately adds every item to the added list, deleting nothing.
@@ -462,16 +478,9 @@ func AddedAndRemovedAddAll[T any](
 // for added and removed by additionalData[@removed]
 
 type getIDModAndAddtler interface {
-	getIDer
-	getLastModifiedDateTimer
-	GetAdditionalData() map[string]any
-}
-
-// for types that are non-compliant with this interface,
-// pagers will need to wrap the return value in a struct
-// that provides this compliance.
-type getLastModifiedDateTimer interface {
-	GetLastModifiedDateTime() *time.Time
+	graph.GetIDer
+	graph.GetLastModifiedDateTimer
+	graph.GetAdditionalDataer
 }
 
 func AddedAndRemovedByAddtlData[T any](
@@ -504,7 +513,11 @@ func AddedAndRemovedByAddtlData[T any](
 		if giaa.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
 			var modTime time.Time
 
-			if mt, ok := giaa.(getLastModifiedDateTimer); ok {
+			// not all items comply with last modified date time, and not all
+			// items can be wrapped in a way that produces a valid value for
+			// the func.  That's why this isn't packed in to the expected
+			// interfaace composition.
+			if mt, ok := giaa.(graph.GetLastModifiedDateTimer); ok {
 				// Make sure to get a non-zero mod time if the item doesn't have one for
 				// some reason. Otherwise we can hit an issue where kopia has a
 				// different mod time for the file than the details does. This occurs
@@ -528,9 +541,9 @@ func AddedAndRemovedByAddtlData[T any](
 // for added and removed by GetDeletedDateTime()
 
 type getIDModAndDeletedDateTimer interface {
-	getIDer
-	getLastModifiedDateTimer
-	GetDeletedDateTime() *time.Time
+	graph.GetIDer
+	graph.GetLastModifiedDateTimer
+	graph.GetDeletedDateTimer
 }
 
 func AddedAndRemovedByDeletedDateTime[T any](
@@ -560,7 +573,11 @@ func AddedAndRemovedByDeletedDateTime[T any](
 		if giaddt.GetDeletedDateTime() == nil {
 			var modTime time.Time
 
-			if mt, ok := giaddt.(getLastModifiedDateTimer); ok {
+			// not all items comply with last modified date time, and not all
+			// items can be wrapped in a way that produces a valid value for
+			// the func.  That's why this isn't packed in to the expected
+			// interfaace composition.
+			if mt, ok := giaddt.(graph.GetLastModifiedDateTimer); ok {
 				// Make sure to get a non-zero mod time if the item doesn't have one for
 				// some reason. Otherwise we can hit an issue where kopia has a
 				// different mod time for the file than the details does. This occurs

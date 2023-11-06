@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -35,6 +34,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -487,37 +487,38 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		require.True(t, ok, "dir %s found in %s cache", locRef.String(), category)
 
 		var (
-			err   error
-			items map[string]time.Time
+			err error
+			aar pagers.AddedAndRemoved
+			cc  = api.CallConfig{
+				UseImmutableIDs:     toggles.ExchangeImmutableIDs,
+				CanMakeDeltaQueries: true,
+			}
 		)
 
 		switch category {
 		case path.EmailCategory:
-			items, _, _, _, err = ac.Mail().GetAddedAndRemovedItemIDs(
+			aar, err = ac.Mail().GetAddedAndRemovedItemIDs(
 				ctx,
 				uidn.ID(),
 				containerID,
 				"",
-				toggles.ExchangeImmutableIDs,
-				true)
+				cc)
 
 		case path.EventsCategory:
-			items, _, _, _, err = ac.Events().GetAddedAndRemovedItemIDs(
+			aar, err = ac.Events().GetAddedAndRemovedItemIDs(
 				ctx,
 				uidn.ID(),
 				containerID,
 				"",
-				toggles.ExchangeImmutableIDs,
-				true)
+				cc)
 
 		case path.ContactsCategory:
-			items, _, _, _, err = ac.Contacts().GetAddedAndRemovedItemIDs(
+			aar, err = ac.Contacts().GetAddedAndRemovedItemIDs(
 				ctx,
 				uidn.ID(),
 				containerID,
 				"",
-				toggles.ExchangeImmutableIDs,
-				true)
+				cc)
 		}
 
 		require.NoError(
@@ -526,6 +527,8 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			"getting items for category %s, container %s",
 			category,
 			locRef.String())
+
+		items := aar.Added
 
 		dest := dataset[category].dests[destName]
 		dest.locRef = locRef.String()

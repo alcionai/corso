@@ -2,7 +2,6 @@ package groups
 
 import (
 	"context"
-	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -41,9 +40,9 @@ func (bh channelsBackupHandler) getContainers(
 func (bh channelsBackupHandler) getContainerItemIDs(
 	ctx context.Context,
 	channelID, prevDelta string,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
-	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, canMakeDeltaQueries)
+	cc api.CallConfig,
+) (pagers.AddedAndRemoved, error) {
+	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, cc)
 }
 
 func (bh channelsBackupHandler) includeContainer(
