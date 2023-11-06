@@ -83,12 +83,12 @@ func (ti testItem) GetAdditionalData() map[string]any {
 // mock page
 
 type testPage struct {
-	values []testItem
+	values   []testItem
+	nextLink string
 }
 
 func (p testPage) GetOdataNextLink() *string {
-	// no next, just one page
-	return ptr.To("")
+	return ptr.To(p.nextLink)
 }
 
 func (p testPage) GetOdataDeltaLink() *string {
