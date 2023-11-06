@@ -260,7 +260,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom_nilCheck() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	ctrl := &Controller{ownerLookup: nil}
+	ctrl := &Controller{resourceHandler: nil}
 
 	_, err := ctrl.PopulateProtectedResourceIDAndName(ctx, "", nil)
 	require.ErrorIs(t, err, ErrNoResourceLookup, clues.ToCore(err))
