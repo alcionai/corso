@@ -91,18 +91,21 @@ func InitFunc(cmd *cobra.Command, args []string) error {
 		fp = configFilePath
 	}
 
-	err := initWithViper(cmd.Context(), fp)
+	vpr := GetViper(cmd.Context())
+
+	err := initWithViper(vpr, fp)
 	if err != nil {
 		return err
 	}
+
+	SetViper(cmd.Context(), vpr)
 
 	return Read(cmd.Context())
 }
 
 // initWithViper implements InitConfig, but takes in a viper
 // struct for testing.
-func initWithViper(ctx context.Context, configFP string) error {
-	vpr := GetViper(ctx)
+func initWithViper(vpr *viper.Viper, configFP string) error {
 	// Configure default config file location
 	if len(configFP) == 0 || configFP == displayDefaultFP {
 		// Find home directory.
@@ -116,7 +119,6 @@ func initWithViper(ctx context.Context, configFP string) error {
 		vpr.SetConfigType("toml")
 		vpr.SetConfigName(".corso")
 	} else {
-
 		ext := filepath.Ext(configFP)
 		if len(ext) == 0 {
 			return clues.New("config file requires an extension e.g. `toml`")
@@ -132,7 +134,6 @@ func initWithViper(ctx context.Context, configFP string) error {
 		// work correctly (it does not use the configured file)
 		vpr.AddConfigPath(filepath.Dir(configFP))
 	}
-	SetViper(ctx, vpr)
 
 	return nil
 }

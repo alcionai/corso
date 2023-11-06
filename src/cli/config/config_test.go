@@ -161,7 +161,7 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 	ctx := context.Background()
 	SetViper(ctx, vpr)
 
-	err := initWithViper(ctx, testConfigFilePath)
+	err := initWithViper(vpr, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config", clues.ToCore(err))
 
 	s3Cfg := &storage.S3Config{
@@ -217,7 +217,7 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 	ctx := context.Background()
 	SetViper(ctx, vpr)
 
-	err := initWithViper(ctx, testConfigFilePath)
+	err := initWithViper(vpr, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config")
 
 	s3Cfg := &storage.S3Config{Bucket: bkt}
@@ -418,7 +418,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 
 	ctx := context.Background()
 	SetViper(ctx, vpr)
-	err := initWithViper(ctx, testConfigFilePath)
+	err := initWithViper(vpr, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config", clues.ToCore(err))
 
 	s3Cfg := &storage.S3Config{
