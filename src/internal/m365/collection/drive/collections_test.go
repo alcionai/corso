@@ -2514,6 +2514,66 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
+			name:   "One Drive Folder Created -> Deleted -> Created with prev",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									delItem("folder", driveBasePath1, "root", false, true, false),
+									delItem("file", driveBasePath1, "root", true, false, false),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder1", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file1", "file", driveBasePath1+"/folder", "folder1", true, false, false),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta2, Reset: true},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.DeletedState: {}, data.NewState: {"folder1", "file1"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta2,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder1": folderPath1,
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: false,
+				folderPath1:     true,
+			},
+		},
+		{
 			name:   "One Drive Item Made And Deleted",
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
