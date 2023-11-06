@@ -45,6 +45,22 @@ func (l deltaNextLink) GetOdataDeltaLink() *string {
 
 var _ getIDModAndAddtler = &testItem{}
 
+func removedItem(id string) testItem {
+	return testItem{
+		id: id,
+		additionalData: map[string]any{
+			graph.AddtlDataRemoved: struct{}{},
+		},
+	}
+}
+
+func addedItem(id string, modTime time.Time) testItem {
+	return testItem{
+		id:      id,
+		modTime: modTime,
+	}
+}
+
 type testItem struct {
 	id             string
 	modTime        time.Time
