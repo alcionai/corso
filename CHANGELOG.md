@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Change file extension of messages export to json to match the content
 
+### Fixed
+- Handle OneDrive folders being deleted and recreated midway through a backup
+
 ## [v0.15.0] (beta) - 2023-10-31
 
 ### Added
