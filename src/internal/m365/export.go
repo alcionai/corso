@@ -17,6 +17,9 @@ func (ctrl *Controller) NewServiceHandler(
 	opts control.Options,
 	service path.ServiceType,
 ) (inject.ServiceHandler, error) {
+	// currently a no-op, since export doesn't look up any resources.
+	// but we want it set in place at the head of a NewServiceHandler
+	// as a standard behavior.
 	ctrl.setResourceHandler(service)
 
 	switch service {
