@@ -689,6 +689,11 @@ func (c *Collections) PopulateDriveCollections(
 		// different collection within the same delta query
 		// item ID -> item ID
 		currPrevPaths = map[string]string{}
+
+		// seenFolders is used to track the folders that we have
+		// already seen. This will help us track in case a folder was
+		// recreated multiple times in between a run.
+		seenFolders = idname.NewCache(map[string]string{})
 	)
 
 	if !invalidPrevDelta {
@@ -728,6 +733,7 @@ func (c *Collections) PopulateDriveCollections(
 				oldPrevPaths,
 				currPrevPaths,
 				newPrevPaths,
+				seenFolders,
 				excludedItemIDs,
 				topLevelPackages,
 				invalidPrevDelta,
@@ -751,6 +757,7 @@ func (c *Collections) processItem(
 	item models.DriveItemable,
 	driveID, driveName string,
 	oldPrevPaths, currPrevPaths, newPrevPaths map[string]string,
+	seenFolders idname.CacheBuilder,
 	excludedItemIDs map[string]struct{},
 	topLevelPackages map[string]struct{},
 	invalidPrevDelta bool,
@@ -856,6 +863,22 @@ func (c *Collections) processItem(
 			PathPrefix(maps.Keys(topLevelPackages)).
 			Compare(collectionPath.String())
 
+		// This check is to ensure that if a folder was deleted and
+		// recreated multiple times between a backup, we only use the
+		// final one.
+		pid, found := seenFolders.IDOf(collectionPath.String())
+
+		recreated := found && pid != itemID
+		if recreated {
+			prevPath = nil
+			c.NumContainers--
+			c.NumItems--
+			delete(c.CollectionMap[driveID], pid)
+			delete(newPrevPaths, pid)
+		} else {
+			seenFolders.Add(itemID, collectionPath.String())
+		}
+
 		col, err := NewCollection(
 			c.handler,
 			c.protectedResource,
@@ -865,7 +888,7 @@ func (c *Collections) processItem(
 			c.statusUpdater,
 			c.ctrl,
 			isPackage || childOfPackage,
-			invalidPrevDelta,
+			invalidPrevDelta || recreated,
 			nil)
 		if err != nil {
 			return clues.Stack(err).WithClues(ictx)
