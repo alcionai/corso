@@ -440,13 +440,9 @@ func GetAddedAndRemovedItemIDs[T any](
 	return aar, graph.Stack(ctx, err).OrNil()
 }
 
-type getIDer interface {
-	GetId() *string
-}
-
 type getIDAndModDateTimer interface {
-	getIDer
-	getLastModifiedDateTimer
+	graph.GetIDer
+	graph.GetLastModifiedDateTimer
 }
 
 // AddedAndRemovedAddAll indiscriminately adds every item to the added list, deleting nothing.
@@ -482,16 +478,9 @@ func AddedAndRemovedAddAll[T any](
 // for added and removed by additionalData[@removed]
 
 type getIDModAndAddtler interface {
-	getIDer
-	getLastModifiedDateTimer
-	GetAdditionalData() map[string]any
-}
-
-// for types that are non-compliant with this interface,
-// pagers will need to wrap the return value in a struct
-// that provides this compliance.
-type getLastModifiedDateTimer interface {
-	GetLastModifiedDateTime() *time.Time
+	graph.GetIDer
+	graph.GetLastModifiedDateTimer
+	graph.GetAdditionalDataer
 }
 
 func AddedAndRemovedByAddtlData[T any](
@@ -524,7 +513,11 @@ func AddedAndRemovedByAddtlData[T any](
 		if giaa.GetAdditionalData()[graph.AddtlDataRemoved] == nil {
 			var modTime time.Time
 
-			if mt, ok := giaa.(getLastModifiedDateTimer); ok {
+			// not all items comply with last modified date time, and not all
+			// items can be wrapped in a way that produces a valid value for
+			// the func.  That's why this isn't packed in to the expected
+			// interfaace composition.
+			if mt, ok := giaa.(graph.GetLastModifiedDateTimer); ok {
 				// Make sure to get a non-zero mod time if the item doesn't have one for
 				// some reason. Otherwise we can hit an issue where kopia has a
 				// different mod time for the file than the details does. This occurs
@@ -548,9 +541,9 @@ func AddedAndRemovedByAddtlData[T any](
 // for added and removed by GetDeletedDateTime()
 
 type getIDModAndDeletedDateTimer interface {
-	getIDer
-	getLastModifiedDateTimer
-	GetDeletedDateTime() *time.Time
+	graph.GetIDer
+	graph.GetLastModifiedDateTimer
+	graph.GetDeletedDateTimer
 }
 
 func AddedAndRemovedByDeletedDateTime[T any](
@@ -580,7 +573,11 @@ func AddedAndRemovedByDeletedDateTime[T any](
 		if giaddt.GetDeletedDateTime() == nil {
 			var modTime time.Time
 
-			if mt, ok := giaddt.(getLastModifiedDateTimer); ok {
+			// not all items comply with last modified date time, and not all
+			// items can be wrapped in a way that produces a valid value for
+			// the func.  That's why this isn't packed in to the expected
+			// interfaace composition.
+			if mt, ok := giaddt.(graph.GetLastModifiedDateTimer); ok {
 				// Make sure to get a non-zero mod time if the item doesn't have one for
 				// some reason. Otherwise we can hit an issue where kopia has a
 				// different mod time for the file than the details does. This occurs
