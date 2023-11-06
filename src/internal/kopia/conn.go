@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"sync"
 	"time"
@@ -28,7 +29,7 @@ import (
 
 const (
 	defaultKopiaConfigDir  = "/tmp/"
-	defaultKopiaConfigFile = "repository.config"
+	defaultKopiaConfigFile = "repository-%s.config"
 	defaultCompressor      = "zstd-better-compression"
 	// Interval of 0 disables scheduling.
 	defaultSchedulingInterval = time.Second * 0
@@ -196,7 +197,12 @@ func (w *conn) commonConnect(
 		configDir = defaultKopiaConfigDir
 	}
 
-	cfgFile := filepath.Join(configDir, defaultKopiaConfigFile)
+	cfgHash, err := configHashByProvider(ctx, w.storage)
+	if err != nil {
+		return clues.Stack(err).WithClues(ctx)
+	}
+
+	cfgFile := filepath.Join(configDir, fmt.Sprintf(defaultKopiaConfigFile, cfgHash))
 
 	// todo - issue #75: nil here should be storage.ConnectOptions()
 	if err := repo.Connect(
@@ -227,6 +233,17 @@ func blobStoreByProvider(
 		return filesystemStorage(ctx, opts, s)
 	default:
 		return nil, clues.New("storage provider details are required").WithClues(ctx)
+	}
+}
+
+func configHashByProvider(ctx context.Context, s storage.Storage) (string, error) {
+	switch s.Provider {
+	case storage.ProviderS3:
+		return s.GenerateS3Hash()
+	case storage.ProviderFilesystem:
+		return s.GenerateFilesystemHash()
+	default:
+		return "", clues.New("storage provider details are required").WithClues(ctx)
 	}
 }
 
