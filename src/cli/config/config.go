@@ -2,6 +2,8 @@ package config
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,7 +91,7 @@ func InitFunc(cmd *cobra.Command, args []string) error {
 		fp = configFilePath
 	}
 
-	err := initWithViper(GetViper(cmd.Context()), fp)
+	err := initWithViper(cmd.Context(), fp)
 	if err != nil {
 		return err
 	}
@@ -99,7 +101,8 @@ func InitFunc(cmd *cobra.Command, args []string) error {
 
 // initWithViper implements InitConfig, but takes in a viper
 // struct for testing.
-func initWithViper(vpr *viper.Viper, configFP string) error {
+func initWithViper(ctx context.Context, configFP string) error {
+	vpr := GetViper(ctx)
 	// Configure default config file location
 	if len(configFP) == 0 || configFP == displayDefaultFP {
 		// Find home directory.
@@ -112,25 +115,24 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 		vpr.AddConfigPath(configDir)
 		vpr.SetConfigType("toml")
 		vpr.SetConfigName(".corso")
+	} else {
 
-		return nil
+		ext := filepath.Ext(configFP)
+		if len(ext) == 0 {
+			return clues.New("config file requires an extension e.g. `toml`")
+		}
+		fileName := filepath.Base(configFP)
+		fileName = strings.TrimSuffix(fileName, ext)
+
+		vpr.SetConfigType(strings.TrimPrefix(ext, "."))
+		vpr.SetConfigName(fileName)
+		vpr.SetConfigFile(configFP)
+		// We also configure the path, type and filename
+		// because `vpr.SafeWriteConfig` needs these set to
+		// work correctly (it does not use the configured file)
+		vpr.AddConfigPath(filepath.Dir(configFP))
 	}
-
-	vpr.SetConfigFile(configFP)
-	// We also configure the path, type and filename
-	// because `vpr.SafeWriteConfig` needs these set to
-	// work correctly (it does not use the configured file)
-	vpr.AddConfigPath(filepath.Dir(configFP))
-
-	ext := filepath.Ext(configFP)
-	if len(ext) == 0 {
-		return clues.New("config file requires an extension e.g. `toml`")
-	}
-
-	fileName := filepath.Base(configFP)
-	fileName = strings.TrimSuffix(fileName, ext)
-	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
-	vpr.SetConfigName(fileName)
+	SetViper(ctx, vpr)
 
 	return nil
 }
@@ -280,11 +282,15 @@ func getStorageAndAccountWithViper(
 	// possibly read the prior config from a .corso file
 	if readFromFile {
 		if err := vpr.ReadInConfig(); err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			_, configNotSet := err.(viper.ConfigFileNotFoundError)
+			configNotFound := errors.Is(err, fs.ErrNotExist)
+
+			if configNotSet || configNotFound {
+				readConfigFromViper = false
+			} else {
 				return config, clues.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}
 
-			readConfigFromViper = false
 		}
 
 		// in case of existing config, fetch repoid from config file

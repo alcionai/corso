@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -157,7 +158,10 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 		host   = "some-host"
 	)
 
-	err := initWithViper(vpr, testConfigFilePath)
+	ctx := context.Background()
+	SetViper(ctx, vpr)
+
+	err := initWithViper(ctx, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config", clues.ToCore(err))
 
 	s3Cfg := &storage.S3Config{
@@ -210,7 +214,10 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 		tid = "dfb12063-7598-458b-85ab-42352c5c25e2"
 	)
 
-	err := initWithViper(vpr, testConfigFilePath)
+	ctx := context.Background()
+	SetViper(ctx, vpr)
+
+	err := initWithViper(ctx, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config")
 
 	s3Cfg := &storage.S3Config{Bucket: bkt}
@@ -409,7 +416,9 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	// Configure viper to read test config file
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 
-	err := initWithViper(vpr, testConfigFilePath)
+	ctx := context.Background()
+	SetViper(ctx, vpr)
+	err := initWithViper(ctx, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config", clues.ToCore(err))
 
 	s3Cfg := &storage.S3Config{
