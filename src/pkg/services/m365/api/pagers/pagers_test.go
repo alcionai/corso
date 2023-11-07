@@ -411,6 +411,10 @@ type modTimeTest struct {
 var (
 	addedItem1 = addedItem("a_uno", time.Now())
 	addedItem2 = addedItem("a_dos", time.Now())
+	addedItem3 = addedItem("a_tres", time.Now())
+	addedItem4 = addedItem("a_quatro", time.Now())
+	addedItem5 = addedItem("a_cinco", time.Now())
+	addedItem6 = addedItem("a_seis", time.Now())
 
 	removedItem1 = removedItem("r_uno")
 	removedItem2 = removedItem("r_dos")
@@ -633,6 +637,194 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			expect: expected{
 				errCheck: assert.Error,
 			},
+		},
+		{
+			name: "FourValidPages OnlyPartOfSecondPage",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t:             t,
+					validModTimes: validModTimes,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem2,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem3,
+								addedItem4,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem("cinco", time.Now()),
+								addedItem("seis", time.Now()),
+							},
+						},
+						{
+							items: []testItem{
+								addedItem("siete", time.Now()),
+								addedItem("ocho", time.Now()),
+							},
+						},
+					},
+				}
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+					addedItem2,
+				},
+				finalPageAdded: []testItem{
+					addedItem3,
+					addedItem4,
+				},
+				numAdded:     3,
+				maxGetterIdx: 3,
+				noDelta:      true,
+			},
+			limit: 3,
+		},
+		{
+			name: "FourValidPages OnlyPartOfSecondPage SomeItemsFiltered",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t:             t,
+					validModTimes: validModTimes,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem2,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem3,
+								addedItem4,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem5,
+								addedItem6,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem("siete", time.Now()),
+								addedItem("ocho", time.Now()),
+							},
+						},
+					},
+				}
+			},
+			filter: func(item testItem) bool {
+				return item.id != addedItem2.id
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+				},
+				finalPageAdded: []testItem{
+					addedItem3,
+					addedItem4,
+				},
+				numAdded:     2,
+				maxGetterIdx: 3,
+				noDelta:      true,
+			},
+			limit: 2,
+		},
+		{
+			name: "ThreeValidPages OnlyPartOfThirdPage RepeatItem",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t:             t,
+					validModTimes: validModTimes,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem2,
+								removedItem1,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem4,
+								addedItem3,
+								removedItem2,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem5,
+								addedItem6,
+							},
+						},
+					},
+				}
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+					addedItem2,
+					addedItem3,
+					addedItem4,
+				},
+				finalPageAdded: []testItem{
+					addedItem5,
+					addedItem6,
+				},
+				removed: []testItem{
+					removedItem1,
+					removedItem2,
+				},
+				numAdded:     5,
+				maxGetterIdx: 3,
+			},
+			limit: 5,
+		},
+		{
+			name: "ParentContextCancelled",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t:             t,
+					validModTimes: true,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem("uno", time.Now()),
+								addedItem("dos", time.Now()),
+								removedItem("siete"),
+							},
+						},
+					},
+				}
+			},
+			expect: expected{
+				errCheck: assert.Error,
+			},
+			ctxCancelled: true,
 		},
 	}
 
@@ -913,6 +1105,130 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 			},
 			expect: expected{
 				errCheck:  assert.NoError,
+				deltaLink: assert.Empty,
+			},
+		},
+		{
+			name:        "FivePages DeltaReset LimitedItems",
+			pagerGetter: nilPager,
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
+				return newDeltaPager(
+					&testIDsNonDeltaMultiPager{
+						t: t,
+						pages: []pageResult{
+							{
+								items: []testItem{
+									addedItem1,
+									removedItem1,
+								},
+							},
+							{
+								errCode:    "SyncStateNotFound",
+								needsReset: true,
+							},
+							{
+								items: []testItem{
+									removedItem2,
+									addedItem2,
+								},
+							},
+							{
+								items: []testItem{
+									addedItem3,
+									addedItem4,
+								},
+							},
+							{
+								items: []testItem{
+									addedItem5,
+									addedItem6,
+								},
+							},
+						},
+						validModTimes: validModTimes,
+					})
+			},
+			limit: 3,
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem2,
+					addedItem3,
+					addedItem4,
+				},
+				removed: []testItem{
+					removedItem2,
+				},
+				deltaLink: assert.Empty,
+			},
+		},
+		{
+			name: "FivePages DeltaNoSupported LimitedItems",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) NonDeltaHandler[testItem] {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								removedItem2,
+								addedItem2,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem3,
+								addedItem4,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem5,
+								addedItem6,
+							},
+						},
+					},
+					validModTimes: validModTimes,
+				}
+			},
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
+				return newDeltaPager(
+					&testIDsNonDeltaMultiPager{
+						t: t,
+						pages: []pageResult{
+							{
+								items: []testItem{
+									addedItem1,
+									removedItem1,
+								},
+							},
+							{
+								err:        graph.ErrDeltaNotSupported,
+								needsReset: true,
+							},
+						},
+						validModTimes: validModTimes,
+					})
+			},
+			limit: 3,
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem2,
+					addedItem3,
+					addedItem4,
+				},
+				removed: []testItem{
+					removedItem2,
+				},
 				deltaLink: assert.Empty,
 			},
 		},
