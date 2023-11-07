@@ -47,8 +47,8 @@ type slidingWindow struct {
 
 	// mu synchronizes access to the curr and prev windows
 	mu sync.Mutex
-	// stopTimer stops the recurring slide timer
-	stopTimer chan struct{}
+	// stopTicker stops the recurring slide ticker
+	stopTicker chan struct{}
 }
 
 func NewSlidingWindowLimiter(
@@ -74,7 +74,7 @@ func NewSlidingWindowLimiter(
 			count: make([]int, ni),
 		},
 		currentInterval: -1,
-		stopTimer:       make(chan struct{}),
+		stopTicker:      make(chan struct{}),
 	}
 
 	s.initialize()
@@ -87,7 +87,7 @@ func NewSlidingWindowLimiter(
 func (s *slidingWindow) Wait(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return clues.Stack(ctx.Err())
 	case <-s.permits:
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -101,10 +101,7 @@ func (s *slidingWindow) Wait(ctx context.Context) error {
 // Shutdown cleans up the slide goroutine. If shutdown is not called, the slide
 // goroutine will continue to run until the program exits.
 func (s *slidingWindow) Shutdown() {
-	select {
-	case s.stopTimer <- struct{}{}:
-	default:
-	}
+	close(s.stopTicker)
 }
 
 // initialize starts the slide goroutine and prefills tokens to full capacity.
@@ -121,7 +118,7 @@ func (s *slidingWindow) initialize() {
 			select {
 			case <-ticker.C:
 				s.slide()
-			case <-s.stopTimer:
+			case <-s.stopTicker:
 				ticker.Stop()
 				return
 			}
@@ -159,12 +156,7 @@ func (s *slidingWindow) slide() {
 	s.nextInterval()
 
 	for i := 0; i < s.prev.count[s.currentInterval]; i++ {
-		select {
-		case s.permits <- token{}:
-		default:
-			// Skip if permits are at capacity
-			return
-		}
+		s.permits <- token{}
 	}
 }
 

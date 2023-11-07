@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/goleak"
 
 	"github.com/alcionai/corso/src/internal/tester"
 )
@@ -37,6 +38,8 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitBasic() {
 		mu              sync.Mutex
 		intervalToCount = make(map[time.Duration]int)
 	)
+
+	defer goleak.VerifyNone(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -77,8 +80,8 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitBasic() {
 	}
 }
 
-// TestWaitSliding tests the sliding window functionality of the limiter with distributed
-// Wait() calls.
+// TestWaitSliding tests the sliding window functionality of the limiter with
+// time distributed Wait() calls.
 func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 	var (
 		t             = suite.T()
@@ -89,6 +92,8 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 		numRequests = 2 * capacity
 		wg          sync.WaitGroup
 	)
+
+	defer goleak.VerifyNone(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -122,7 +127,7 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 	sw := s.(*slidingWindow)
 	data := append(sw.prev.count, sw.curr.count...)
 
-	sums := slidingSum(data, sw.numIntervals)
+	sums := slidingSums(data, sw.numIntervals)
 
 	for _, sum := range sums {
 		require.True(t, sum <= capacity, "sum: %d, capacity: %d", sum, capacity)
@@ -136,6 +141,8 @@ func (suite *SlidingWindowUnitTestSuite) TestContextCancellation() {
 		slideInterval = 10 * time.Millisecond
 		wg            sync.WaitGroup
 	)
+
+	defer goleak.VerifyNone(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -155,7 +162,7 @@ func (suite *SlidingWindowUnitTestSuite) TestContextCancellation() {
 		defer wg.Done()
 
 		err := s.Wait(ctx)
-		require.Equal(t, context.DeadlineExceeded, err)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
 	}()
 
 	wg.Wait()
@@ -198,6 +205,13 @@ func (suite *SlidingWindowUnitTestSuite) TestNewSlidingWindowLimiter() {
 			expectErr:     assert.Error,
 		},
 		{
+			name:          "Window not divisible by slide interval",
+			windowSize:    100 * time.Millisecond,
+			slideInterval: 11 * time.Millisecond,
+			capacity:      100,
+			expectErr:     assert.Error,
+		},
+		{
 			name:          "Valid parameters",
 			windowSize:    100 * time.Millisecond,
 			slideInterval: 10 * time.Millisecond,
@@ -210,12 +224,14 @@ func (suite *SlidingWindowUnitTestSuite) TestNewSlidingWindowLimiter() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			defer goleak.VerifyNone(t)
+
 			s, err := NewSlidingWindowLimiter(
 				test.windowSize,
 				test.slideInterval,
 				test.capacity)
 			if s != nil {
-				defer s.Shutdown()
+				s.Shutdown()
 			}
 
 			test.expectErr(t, err)
@@ -223,7 +239,7 @@ func (suite *SlidingWindowUnitTestSuite) TestNewSlidingWindowLimiter() {
 	}
 }
 
-func slidingSum(data []int, w int) []int {
+func slidingSums(data []int, w int) []int {
 	var (
 		sum = 0
 		res = make([]int, len(data)-w+1)
