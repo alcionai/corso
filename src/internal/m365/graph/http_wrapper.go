@@ -204,7 +204,9 @@ func internalMiddleware(
 		&LoggingMiddleware{},
 		throttler,
 		&RateLimiterMiddleware{},
-		&MetricsMiddleware{},
+		&MetricsMiddleware{
+			counter: counter,
+		},
 	}
 
 	if len(cc.appendMiddleware) > 0 {

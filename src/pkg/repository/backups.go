@@ -93,7 +93,8 @@ func (r repository) NewBackupWithLookup(
 		r.Account,
 		sel,
 		sel, // the selector acts as an IDNamer for its discrete resource owner.
-		r.Bus)
+		r.Bus,
+		r.counter)
 }
 
 // Backup retrieves a backup by id.
