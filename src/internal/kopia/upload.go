@@ -762,7 +762,7 @@ func inflateCollectionTree(
 					With("updated_path", p)
 				logger.CtxErr(ictx, err).Error("processing deleted collection")
 
-				if firstErr != nil {
+				if firstErr == nil {
 					firstErr = err
 				}
 			}
@@ -780,7 +780,7 @@ func inflateCollectionTree(
 					With("updated_path", p)
 				logger.CtxErr(ictx, err).Error("processing moved collection")
 
-				if firstErr != nil {
+				if firstErr == nil {
 					firstErr = err
 				}
 			}
@@ -804,7 +804,7 @@ func inflateCollectionTree(
 					With("updated_path", p)
 				logger.CtxErr(ictx, err).Error("processing not moved collection")
 
-				if firstErr != nil {
+				if firstErr == nil {
 					firstErr = err
 				}
 			}
@@ -847,7 +847,7 @@ func inflateCollectionTree(
 				WithClues(ctx)
 			logger.CtxErr(ctx, err).Error("adding node to tree")
 
-			if firstErr != nil {
+			if firstErr == nil {
 				firstErr = err
 			}
 		}
