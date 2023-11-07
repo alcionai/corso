@@ -728,6 +728,10 @@ func inflateCollectionTree(
 	collections []data.BackupCollection,
 	toMerge *mergeDetails,
 ) (map[string]*treeMap, map[string]path.Path, error) {
+	// failed is temporary and just allows us to log all conflicts before
+	// returning an error.
+	var firstErr error
+
 	roots := make(map[string]*treeMap)
 	// Contains the old path for collections that are not new.
 	// Allows resolving what the new path should be when walking the base
@@ -753,9 +757,17 @@ func inflateCollectionTree(
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				return nil, nil, clues.New("multiple previous state changes to collection").
+				err := clues.New("multiple previous state changes to collection").
 					WithClues(ictx).
 					With("updated_path", p)
+				logger.CtxErr(ictx, err).Info("processing deleted collection")
+				if firstErr != nil {
+					firstErr = err
+				}
+
+				//return nil, nil, clues.New("multiple previous state changes to collection").
+				//	WithClues(ictx).
+				//	With("updated_path", p)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = nil
@@ -766,9 +778,17 @@ func inflateCollectionTree(
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				return nil, nil, clues.New("multiple previous state changes to collection").
+				err := clues.New("multiple previous state changes to collection").
 					WithClues(ictx).
 					With("updated_path", p)
+				logger.CtxErr(ictx, err).Info("processing moved collection")
+				if firstErr != nil {
+					firstErr = err
+				}
+
+				//return nil, nil, clues.New("multiple previous state changes to collection").
+				//	WithClues(ictx).
+				//	With("updated_path", p)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
@@ -785,9 +805,17 @@ func inflateCollectionTree(
 		case data.NotMovedState:
 			p := s.PreviousPath().String()
 			if p, ok := updatedPaths[p]; ok {
-				return nil, nil, clues.New("multiple previous state changes to collection").
+				err := clues.New("multiple previous state changes to collection").
 					WithClues(ictx).
 					With("updated_path", p)
+				logger.CtxErr(ictx, err).Info("processing not moved collection")
+				if firstErr != nil {
+					firstErr = err
+				}
+
+				//return nil, nil, clues.New("multiple previous state changes to collection").
+				//	WithClues(ictx).
+				//	With("updated_path", p)
 			}
 
 			updatedPaths[p] = s.FullPath()
@@ -824,13 +852,21 @@ func inflateCollectionTree(
 		}
 
 		if node.collection != nil && node.collection.State() == data.NotMovedState {
-			return nil, nil, clues.New("conflicting states for collection").
-				WithClues(ctx).
-				With("changed_path", p)
+			err := clues.New("conflicting states for collection").
+				WithClues(ctx)
+			logger.CtxErr(ctx, err).Info("adding node to tree")
+			if firstErr != nil {
+				firstErr = err
+			}
+
+			//return nil, nil, clues.New("conflicting states for collection").
+			//	WithClues(ctx).
+			//	With("changed_path", p)
 		}
 	}
 
-	return roots, updatedPaths, nil
+	//return roots, updatedPaths, nil
+	return roots, updatedPaths, clues.Stack(firstErr).OrNil()
 }
 
 func subtreeChanged(
