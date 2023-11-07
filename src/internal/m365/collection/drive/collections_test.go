@@ -221,6 +221,30 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 			expectedTopLevelPackages: map[string]struct{}{},
 		},
 		{
+			name: "Single Folder created twice", // deleted a created with same name in between a backup
+			items: []models.DriveItemable{
+				driveRootItem("root"),
+				driveItem("id1", "folder", testBaseDrivePath, "root", false, true, false),
+				driveItem("id2", "folder", testBaseDrivePath, "root", false, true, false),
+			},
+			inputFolderMap:   map[string]string{},
+			scope:            anyFolder,
+			topLevelPackages: map[string]struct{}{},
+			expect:           assert.NoError,
+			expectedCollectionIDs: map[string]statePath{
+				"root": expectedStatePath(data.NotMovedState, ""),
+				"id2":  expectedStatePath(data.NewState, folder),
+			},
+			expectedPrevPaths: map[string]string{
+				"root": expectedPath(""),
+				"id2":  expectedPath("/folder"),
+			},
+			expectedItemCount:        1,
+			expectedContainerCount:   2,
+			expectedExcludes:         map[string]struct{}{},
+			expectedTopLevelPackages: map[string]struct{}{},
+		},
+		{
 			name: "Single Package",
 			items: []models.DriveItemable{
 				driveRootItem("root"),
@@ -478,6 +502,123 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 			expectedPrevPaths: map[string]string{
 				"root":      expectedPath(""),
 				"folder":    expectedPath(folder),
+				"subfolder": expectedPath(folder + subFolder),
+			},
+			expectedTopLevelPackages: map[string]struct{}{},
+			expectedExcludes:         map[string]struct{}{},
+		},
+		{
+			name: "moved folder tree twice within backup",
+			items: []models.DriveItemable{
+				driveRootItem("root"),
+				driveItem("id1", "folder", testBaseDrivePath, "root", false, true, false),
+				driveItem("id2", "folder", testBaseDrivePath, "root", false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"id1":       expectedPath("/a-folder"),
+				"subfolder": expectedPath("/a-folder/subfolder"),
+			},
+			scope:            anyFolder,
+			topLevelPackages: map[string]struct{}{},
+			expect:           assert.NoError,
+			expectedCollectionIDs: map[string]statePath{
+				"root": expectedStatePath(data.NotMovedState, ""),
+				"id2":  expectedStatePath(data.NewState, folder),
+			},
+			expectedItemCount:      1,
+			expectedFileCount:      0,
+			expectedContainerCount: 2,
+			expectedPrevPaths: map[string]string{
+				"root":      expectedPath(""),
+				"id2":       expectedPath(folder),
+				"subfolder": expectedPath(folder + subFolder),
+			},
+			expectedTopLevelPackages: map[string]struct{}{},
+			expectedExcludes:         map[string]struct{}{},
+		},
+		{
+			name: "deleted folder tree twice within backup",
+			items: []models.DriveItemable{
+				driveRootItem("root"),
+				delItem("id1", testBaseDrivePath, "root", false, true, false),
+				driveItem("id1", "folder", testBaseDrivePath, "root", false, true, false),
+				delItem("id1", testBaseDrivePath, "root", false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"id1":       expectedPath(""),
+				"subfolder": expectedPath("/a-folder/subfolder"),
+			},
+			scope:            anyFolder,
+			topLevelPackages: map[string]struct{}{},
+			expect:           assert.NoError,
+			expectedCollectionIDs: map[string]statePath{
+				"root": expectedStatePath(data.NotMovedState, ""),
+				"id1":  expectedStatePath(data.DeletedState, ""),
+			},
+			expectedItemCount:      0,
+			expectedFileCount:      0,
+			expectedContainerCount: 1,
+			expectedPrevPaths: map[string]string{
+				"root":      expectedPath(""),
+				"subfolder": expectedPath("/a-folder" + subFolder),
+			},
+			expectedTopLevelPackages: map[string]struct{}{},
+			expectedExcludes:         map[string]struct{}{},
+		},
+		{
+			name: "moved folder tree twice within backup including delete",
+			items: []models.DriveItemable{
+				driveRootItem("root"),
+				driveItem("id1", "folder", testBaseDrivePath, "root", false, true, false),
+				delItem("id1", testBaseDrivePath, "root", false, true, false),
+				driveItem("id2", "folder", testBaseDrivePath, "root", false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"id1":       expectedPath("/a-folder"),
+				"subfolder": expectedPath("/a-folder/subfolder"),
+			},
+			scope:            anyFolder,
+			topLevelPackages: map[string]struct{}{},
+			expect:           assert.NoError,
+			expectedCollectionIDs: map[string]statePath{
+				"root": expectedStatePath(data.NotMovedState, ""),
+				"id2":  expectedStatePath(data.NewState, folder),
+			},
+			expectedItemCount:      1,
+			expectedFileCount:      0,
+			expectedContainerCount: 2,
+			expectedPrevPaths: map[string]string{
+				"root":      expectedPath(""),
+				"id2":       expectedPath(folder),
+				"subfolder": expectedPath(folder + subFolder),
+			},
+			expectedTopLevelPackages: map[string]struct{}{},
+			expectedExcludes:         map[string]struct{}{},
+		},
+		{
+			name: "deleted folder tree twice within backup with addition",
+			items: []models.DriveItemable{
+				driveRootItem("root"),
+				driveItem("id1", "folder", testBaseDrivePath, "root", false, true, false),
+				delItem("id1", testBaseDrivePath, "root", false, true, false),
+				driveItem("id2", "folder", testBaseDrivePath, "root", false, true, false),
+				delItem("id2", testBaseDrivePath, "root", false, true, false),
+			},
+			inputFolderMap: map[string]string{
+				"id1":       expectedPath("/a-folder"),
+				"subfolder": expectedPath("/a-folder/subfolder"),
+			},
+			scope:            anyFolder,
+			topLevelPackages: map[string]struct{}{},
+			expect:           assert.NoError,
+			expectedCollectionIDs: map[string]statePath{
+				"root": expectedStatePath(data.NotMovedState, ""),
+			},
+			expectedItemCount:      1,
+			expectedFileCount:      0,
+			expectedContainerCount: 2,
+			expectedPrevPaths: map[string]string{
+				"root":      expectedPath(""),
 				"subfolder": expectedPath(folder + subFolder),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
@@ -888,7 +1029,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestPopulateDriveCollections() {
 			assert.ElementsMatch(
 				t,
 				maps.Keys(test.expectedCollectionIDs),
-				maps.Keys(c.CollectionMap[driveID]))
+				maps.Keys(c.CollectionMap[driveID]),
+				"expected collection IDs")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, test.expectedFileCount, c.NumFiles, "file count")
 			assert.Equal(t, test.expectedContainerCount, c.NumContainers, "container count")
@@ -2374,6 +2516,179 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
+			name:   "One Drive Folder Created -> Deleted -> Created",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									delItem("folder", driveBasePath1, "root", false, true, false),
+									delItem("file", driveBasePath1, "root", true, false, false),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder1", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file1", "file", driveBasePath1+"/folder", "folder1", true, false, false),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta2, Reset: true},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.NewState: {"folder1", "file1"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta2,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder1": folderPath1,
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+			},
+		},
+		{
+			name:   "One Drive Folder Deleted -> Created -> Deleted",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									delItem("folder", driveBasePath1, "root", false, true, false),
+									delItem("file", driveBasePath1+"/folder", "root", true, false, false),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									delItem("folder", driveBasePath1, "root", false, true, false),
+									delItem("file", driveBasePath1+"/folder", "root", true, false, false),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta2, Reset: true},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NotMovedState: {}},
+				folderPath1:     {data.DeletedState: {}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta2,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root": rootFolderPath1,
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{},
+		},
+		{
+			name:   "One Drive Folder Created -> Deleted -> Created with prev",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									delItem("folder", driveBasePath1, "root", false, true, false),
+									delItem("file", driveBasePath1, "root", true, false, false),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder1", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file1", "file", driveBasePath1+"/folder", "folder1", true, false, false),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta2, Reset: true},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+				folderPath1:     {data.DeletedState: {}, data.NewState: {"folder1", "file1"}},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta2,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder1": folderPath1,
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: false,
+				folderPath1:     true,
+			},
+		},
+		{
 			name:   "One Drive Item Made And Deleted",
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
@@ -2586,7 +2901,8 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				return
 			}
 
-			collectionCount := 0
+			collPaths := []string{}
+
 			for _, baseCol := range cols {
 				var folderPath string
 				if baseCol.State() != data.DeletedState {
@@ -2613,7 +2929,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					continue
 				}
 
-				collectionCount++
+				collPaths = append(collPaths, folderPath)
 
 				// TODO: We should really be getting items in the collection
 				// via the Items() channel. The lack of that makes this check a bit more
@@ -2632,7 +2948,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					t,
 					test.expectedCollections[folderPath][baseCol.State()],
 					itemIDs,
-					"state: %d, path: %s",
+					"expected elements to match in collection with:\nstate '%d'\npath '%s'",
 					baseCol.State(),
 					folderPath)
 
@@ -2648,14 +2964,18 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"DoNotMergeItems in collection: %s", p)
 			}
 
-			expectedCollectionCount := 0
-			for _, ec := range test.expectedCollections {
-				expectedCollectionCount += len(ec)
+			expectCollPaths := []string{}
+
+			for cp, c := range test.expectedCollections {
+				// add one entry or each expected collection
+				for range c {
+					expectCollPaths = append(expectCollPaths, cp)
+				}
 			}
 
-			assert.Equal(t, expectedCollectionCount, collectionCount, "number of collections")
+			assert.ElementsMatch(t, expectCollPaths, collPaths, "collection paths")
 
-			test.expectedDelList.AssertEqual(t, delList)
+			test.expectedDelList.AssertEqual(t, delList, "deleted items")
 		})
 	}
 }
