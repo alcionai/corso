@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/graph"
@@ -316,21 +315,6 @@ func assertSliceEmptyOr[S ~[]E, E any](
 	t *testing.T,
 	expect S,
 	got S,
-	assertionFunc assert.ComparisonAssertionFunc,
-	msgAndArgs ...any,
-) {
-	if len(expect) == 0 {
-		assert.Empty(t, got, msgAndArgs)
-		return
-	}
-
-	assertionFunc(t, expect, got, msgAndArgs)
-}
-
-func assertMapEmptyOr[M ~map[K]V, K comparable, V any](
-	t *testing.T,
-	expect M,
-	got M,
 	assertionFunc assert.ComparisonAssertionFunc,
 	msgAndArgs ...any,
 ) {
