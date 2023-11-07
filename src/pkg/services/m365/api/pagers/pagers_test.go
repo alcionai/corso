@@ -346,6 +346,7 @@ func assertAddedAndRemoved(
 	t *testing.T,
 	validModTimes bool,
 	wantAdded []testItem,
+	partialAdded []testItem,
 	gotAdded map[string]time.Time,
 	wantRemoved []testItem,
 	gotRemoved []string,
@@ -353,31 +354,41 @@ func assertAddedAndRemoved(
 	epoch, err := time.Parse(time.DateOnly, "1970-01-01")
 	require.NoError(t, err, clues.ToCore(err))
 
-	expectAdded := map[string]time.Time{}
+	requireAdded := map[string]time.Time{}
 	for _, item := range wantAdded {
-		expectAdded[item.id] = item.modTime
+		requireAdded[item.id] = item.modTime
 	}
 
-	if validModTimes {
-		assertMapEmptyOr(
-			t,
-			expectAdded,
-			gotAdded,
-			assert.Equal,
-			"added item IDs and mod times")
-	} else {
-		assertSliceEmptyOr(
-			t,
-			maps.Keys(expectAdded),
-			maps.Keys(gotAdded),
-			assert.ElementsMatch,
-			"added item IDs")
+	maybeAdded := map[string]time.Time{}
+	for _, item := range partialAdded {
+		maybeAdded[item.id] = item.modTime
+	}
 
-		for _, modtime := range gotAdded {
-			assert.True(t, modtime.After(epoch), "mod time after epoch")
-			assert.False(t, modtime.IsZero(), "non-zero mod time")
+	for id, mt := range gotAdded {
+		var (
+			wantMT time.Time
+			found  bool
+		)
+
+		if wantMT, found = requireAdded[id]; found {
+			delete(requireAdded, id)
+		} else if wantMT, found = maybeAdded[id]; found {
+			delete(maybeAdded, id)
+		}
+
+		if !assert.True(t, found, "unexpected added item with ID %v", id) {
+			continue
+		}
+
+		if validModTimes {
+			assert.Equal(t, wantMT, mt, "mod time for item with ID %v", id)
+		} else {
+			assert.True(t, mt.After(epoch), "mod time after epoch for item with ID %v", id)
+			assert.False(t, mt.IsZero(), "non-zero mod time for item with ID %v", id)
 		}
 	}
+
+	assert.Empty(t, requireAdded, "required items not added")
 
 	expectRemoved := []string{}
 	for _, item := range wantRemoved {
@@ -428,7 +439,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			p *testIDsNonDeltaMultiPager,
 		) (NonDeltaHandler[testItem], DeltaHandler[testItem])
 		expectDeltaReset bool
-		expectDeltaLink  assert.ValueAssertionFunc
+		expectNoDelta    bool
 	}{
 		{
 			name:        "NoPrevDelta",
@@ -439,7 +450,6 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				return nil, newDeltaPager(p)
 			},
 			expectDeltaReset: true,
-			expectDeltaLink:  assert.NotEmpty,
 		},
 		{
 			name:        "PrevDelta",
@@ -450,7 +460,6 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			) (NonDeltaHandler[testItem], DeltaHandler[testItem]) {
 				return nil, newDeltaPager(p)
 			},
-			expectDeltaLink: assert.NotEmpty,
 		},
 		{
 			name:      "DeltaNotAllowed",
@@ -461,14 +470,26 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				return p, nil
 			},
 			expectDeltaReset: true,
-			expectDeltaLink:  assert.Empty,
+			expectNoDelta:    true,
 		},
 	}
 
 	type expected struct {
 		errCheck assert.ErrorAssertionFunc
 		added    []testItem
+		// finalPageAdded is the set of items on the last page for queries that
+		// limit results. Some of these items may not be returned, but we don't
+		// make guarantees about which ones those will be.
+		finalPageAdded []testItem
+		// numAdded is the total number of added items that should be returned.
+		numAdded int
 		removed  []testItem
+		// maxGetterIdx is the maximum index for the item page getter. Helps ensure
+		// we're stopping enumeration when we reach the item limit.
+		maxGetterIdx int
+		// expectNoDelta should be set if we exit enumeration early due to the item
+		// limit so we don't get a delta token.
+		noDelta bool
 	}
 
 	table := []struct {
@@ -477,8 +498,10 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			t *testing.T,
 			validModTimes bool,
 		) *testIDsNonDeltaMultiPager
-		filter func(a testItem) bool
-		expect expected
+		filter       func(a testItem) bool
+		expect       expected
+		limit        int
+		ctxCancelled bool
 	}{
 		{
 			name: "OnePage",
@@ -504,7 +527,9 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					addedItem1,
 					addedItem2,
 				},
-				removed: []testItem{removedItem1, removedItem2},
+				numAdded:     2,
+				removed:      []testItem{removedItem1, removedItem2},
+				maxGetterIdx: 1,
 			},
 		},
 		{
@@ -535,7 +560,9 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					addedItem1,
 					addedItem2,
 				},
-				removed: []testItem{removedItem1, removedItem2},
+				numAdded:     2,
+				removed:      []testItem{removedItem1, removedItem2},
+				maxGetterIdx: 2,
 			},
 		},
 		{
@@ -558,7 +585,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			filter: func(testItem) bool { return false },
 			expect: expected{
-				errCheck: assert.NoError,
+				errCheck:     assert.NoError,
+				maxGetterIdx: 1,
 			},
 		},
 		{
@@ -585,7 +613,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			filter: func(testItem) bool { return false },
 			expect: expected{
-				errCheck: assert.NoError,
+				errCheck:     assert.NoError,
+				maxGetterIdx: 2,
 			},
 		},
 		{
@@ -618,6 +647,14 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 							ctx, flush := tester.NewContext(t)
 							defer flush()
 
+							ictx, cancel := context.WithCancel(ctx)
+
+							if test.ctxCancelled {
+								cancel()
+							} else {
+								defer cancel()
+							}
+
 							filters := []func(testItem) bool{}
 							if test.filter != nil {
 								filters = append(filters, test.filter)
@@ -627,11 +664,12 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 							getter, deltaGetter := pagerTypeTest.pagersFunc(basePager)
 
 							added, validModTimes, removed, deltaUpdate, err := GetAddedAndRemovedItemIDs[testItem](
-								ctx,
+								ictx,
 								getter,
 								deltaGetter,
 								pagerTypeTest.prevDelta,
 								pagerTypeTest.canUseDelta,
+								test.limit,
 								AddedAndRemovedByAddtlData[testItem],
 								filters...)
 							test.expect.errCheck(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
@@ -640,14 +678,23 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 								return
 							}
 
+							assert.Len(t, added, test.expect.numAdded, "number of added items")
+							assert.GreaterOrEqual(t, test.expect.maxGetterIdx, basePager.pageIdx, "number of pager calls")
+
 							assert.Equal(t, modTimeTest.validModTimes, validModTimes, "valid mod times")
-							assert.Equal(t, pagerTypeTest.expectDeltaReset, deltaUpdate.Reset, "delta update")
-							pagerTypeTest.expectDeltaLink(t, deltaUpdate.URL, "delta link")
+							assert.Equal(t, pagerTypeTest.expectDeltaReset, deltaUpdate.Reset, "delta reset")
+
+							if pagerTypeTest.expectNoDelta || test.expect.noDelta {
+								assert.Empty(t, deltaUpdate.URL, "delta link")
+							} else {
+								assert.NotEmpty(t, deltaUpdate.URL, "delta link")
+							}
 
 							assertAddedAndRemoved(
 								t,
 								modTimeTest.validModTimes,
 								test.expect.added,
+								test.expect.finalPageAdded,
 								added,
 								test.expect.removed,
 								removed)
@@ -684,6 +731,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 			t *testing.T,
 			validModTimes bool,
 		) DeltaHandler[testItem]
+		limit  int
 		expect expected
 	}{
 		{
@@ -885,6 +933,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						test.deltaPagerGetter(t, modTimeTest.validModTimes),
 						"a",
 						true,
+						test.limit,
 						AddedAndRemovedByAddtlData[testItem])
 					require.NoError(
 						t,
@@ -893,13 +942,14 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						clues.ToCore(err))
 
 					assert.Equal(t, modTimeTest.validModTimes, validModTimes, "valid mod times")
-					assert.True(t, deltaUpdate.Reset, "delta update")
+					assert.True(t, deltaUpdate.Reset, "delta reset")
 					test.expect.deltaLink(t, deltaUpdate.URL, "delta link")
 
 					assertAddedAndRemoved(
 						t,
 						modTimeTest.validModTimes,
 						test.expect.added,
+						nil,
 						added,
 						test.expect.removed,
 						removed)
