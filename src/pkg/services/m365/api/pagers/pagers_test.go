@@ -305,6 +305,113 @@ func (suite *PagerUnitSuite) TestBatchEnumerateItems() {
 	}
 }
 
+func assertSliceEmptyOr[S ~[]E, E any](
+	t *testing.T,
+	expect S,
+	got S,
+	assertionFunc assert.ComparisonAssertionFunc,
+	msgAndArgs ...any,
+) {
+	if len(expect) == 0 {
+		assert.Empty(t, got, msgAndArgs)
+		return
+	}
+
+	assertionFunc(t, expect, got, msgAndArgs)
+}
+
+func assertMapEmptyOr[M ~map[K]V, K comparable, V any](
+	t *testing.T,
+	expect M,
+	got M,
+	assertionFunc assert.ComparisonAssertionFunc,
+	msgAndArgs ...any,
+) {
+	if len(expect) == 0 {
+		assert.Empty(t, got, msgAndArgs)
+		return
+	}
+
+	assertionFunc(t, expect, got, msgAndArgs)
+}
+
+func assertAddedAndRemoved(
+	t *testing.T,
+	validModTimes bool,
+	wantAdded []testItem,
+	gotAdded map[string]time.Time,
+	wantRemoved []testItem,
+	gotRemoved []string,
+) {
+	epoch, err := time.Parse(time.DateOnly, "1970-01-01")
+	require.NoError(t, err, clues.ToCore(err))
+
+	expectAdded := map[string]time.Time{}
+	for _, item := range wantAdded {
+		expectAdded[item.id] = item.modTime
+	}
+
+	if validModTimes {
+		assertMapEmptyOr(
+			t,
+			expectAdded,
+			gotAdded,
+			assert.Equal,
+			"added item IDs and mod times")
+	} else {
+		assertSliceEmptyOr(
+			t,
+			maps.Keys(expectAdded),
+			maps.Keys(gotAdded),
+			assert.ElementsMatch,
+			"added item IDs")
+
+		for _, modtime := range gotAdded {
+			assert.True(t, modtime.After(epoch), "mod time after epoch")
+			assert.False(t, modtime.IsZero(), "non-zero mod time")
+		}
+	}
+
+	expectRemoved := []string{}
+	for _, item := range wantRemoved {
+		expectRemoved = append(expectRemoved, item.id)
+	}
+
+	assertSliceEmptyOr(
+		t,
+		expectRemoved,
+		gotRemoved,
+		assert.ElementsMatch,
+		"removed item IDs")
+}
+
+type modTimeTest struct {
+	name          string
+	validModTimes bool
+}
+
+var (
+	addedItem1 = addedItem("a_uno", time.Now())
+	addedItem2 = addedItem("a_dos", time.Now())
+
+	removedItem1 = removedItem("r_uno")
+	removedItem2 = removedItem("r_dos")
+
+	modTimeTests = []modTimeTest{
+		{
+			name:          "ValidModTimes",
+			validModTimes: true,
+		},
+		{
+			name: "InvalidModTimes",
+		},
+	}
+
+	nilPager = func(*testing.T, bool) NonDeltaHandler[testItem] {
+		return nil
+	}
+)
+
 func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 	type expected struct {
 		added         []testItem
