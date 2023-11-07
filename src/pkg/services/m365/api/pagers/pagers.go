@@ -445,6 +445,75 @@ type addedAndRemovedHandler[T any] func(
 	error,
 )
 
+func getLimitedItems[T any](
+	ctx context.Context,
+	resultsPager *nextPageResults[T],
+	itemLimit int,
+	getAddedAndRemoved addedAndRemovedHandler[T],
+	filters ...func(T) bool,
+) (map[string]time.Time, []string, DeltaUpdate, error) {
+	var (
+		done  bool
+		reset bool
+		page  []T
+
+		removed []string
+		added   = map[string]time.Time{}
+	)
+
+	// Can't use a for-loop variable declaration because the line ends up too
+	// long.
+	for !done && (itemLimit <= 0 || len(added) < itemLimit) {
+		// If the context was cancelled then exit early. This will keep us from
+		// accidentally reading from the pager more since it could pick to either
+		// send another page or see the context cancellation. We don't need to
+		// cancel the pager because it should see the context cancellation once we
+		// stop attempting to fetch the next page.
+		if ctx.Err() != nil {
+			return nil, nil, DeltaUpdate{}, clues.Stack(ctx.Err(), context.Cause(ctx)).
+				WithClues(ctx)
+		}
+
+		// Get the next page first thing in the loop instead of last thing so we
+		// don't fetch an extra page we then discard when we've reached the item
+		// limit. That wouldn't affect correctness but would consume more tokens in
+		// our rate limiter.
+		page, reset, done = resultsPager.NextPage()
+
+		if reset {
+			added = map[string]time.Time{}
+			removed = nil
+		}
+
+		pageAdded, pageRemoved, err := getAddedAndRemoved(page, filters...)
+		if err != nil {
+			resultsPager.Cancel()
+			return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+		}
+
+		removed = append(removed, pageRemoved...)
+
+		for k, v := range pageAdded {
+			added[k] = v
+
+			if itemLimit > 0 && len(added) >= itemLimit {
+				break
+			}
+		}
+	}
+
+	// Cancel the pager so we don't fetch the rest of the data it may have.
+	resultsPager.Cancel()
+
+	du, err := resultsPager.Results()
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+	}
+
+	// We processed all the results from the pager.
+	return added, removed, du, nil
+}
+
 func GetAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
 	pager NonDeltaHandler[T],
