@@ -390,33 +390,6 @@ func DeltaEnumerateItems[T any](
 		"page_count", pageCount)
 }
 
-func batchDeltaEnumerateItems[T any](
-	ctx context.Context,
-	pager DeltaHandler[T],
-	prevDeltaLink string,
-) ([]T, DeltaUpdate, error) {
-	var (
-		npr = nextPageResults[T]{
-			pages: make(chan nextPage[T]),
-		}
-		results = []T{}
-	)
-
-	go DeltaEnumerateItems[T](ctx, pager, &npr, prevDeltaLink)
-
-	for page, reset, done := npr.NextPage(); !done; page, reset, done = npr.NextPage() {
-		if reset {
-			results = []T{}
-		}
-
-		results = append(results, page...)
-	}
-
-	du, err := npr.Results()
-
-	return results, du, clues.Stack(err).OrNil()
-}
-
 // ---------------------------------------------------------------------------
 // filter funcs
 // ---------------------------------------------------------------------------
