@@ -1,6 +1,7 @@
 package api
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -230,21 +231,31 @@ func (suite *DrivePagerIntgSuite) TestDriveDeltaPagerQueryParams() {
 				str := "deltaLink"
 				delta.SetOdataDeltaLink(&str)
 
-				var selectParams string
-				for _, v := range DefaultDriveItemProps() {
-					selectParams += v + ","
+				params := DefaultDriveItemProps()
+				selectParams := params[0]
+
+				for _, p := range params[1:] {
+					selectParams += "," + p
 				}
 
-				// remove last comma
-				selectParams = selectParams[:len(selectParams)-1]
+				preferHeaderItems := []string{
+					"deltashowremovedasdeleted",
+					"deltatraversepermissiongaps",
+					"deltashowsharingchanges",
+					"hierarchicalsharing",
+				}
+				preferParams := preferHeaderItems[0]
 
-				queryParams := map[string]string{
-					"$top":    string(maxDeltaPageSize),
-					"$select": selectParams,
+				for _, p := range preferHeaderItems[1:] {
+					preferParams += "," + p
 				}
 
 				interceptV1Path("drives", "drive", "items", "root", "delta()").
-					MatchParams(queryParams).
+					MatchParam("$select", selectParams).
+					MatchParam("$top", strconv.Itoa(int(maxDeltaPageSize))).
+					MatchHeaders(map[string]string{
+						"Prefer": preferParams,
+					}).
 					Reply(200).
 					JSON(requireParseableToMap(suite.T(), delta))
 			},
@@ -278,7 +289,7 @@ func (suite *DrivePagerIntgSuite) TestDriveDeltaPagerQueryParams() {
 			}
 
 			_, err := pager.Results()
-			require.Error(t, err, clues.ToCore(err))
+			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }
