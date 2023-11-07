@@ -702,8 +702,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 							},
 						},
 						validModTimes: validModTimes,
-					},
-				)
+					})
 			},
 			expect: expected{
 				errCheck: assert.NoError,
@@ -746,8 +745,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 							{},
 						},
 						validModTimes: validModTimes,
-					},
-				)
+					})
 			},
 			expect: expected{
 				errCheck: assert.NoError,
@@ -792,8 +790,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 							},
 						},
 						validModTimes: validModTimes,
-					},
-				)
+					})
 			},
 			expect: expected{
 				errCheck: assert.NoError,
@@ -848,8 +845,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 							},
 						},
 						validModTimes: validModTimes,
-					},
-				)
+					})
 			},
 			expect: expected{
 				errCheck: assert.NoError,
