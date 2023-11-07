@@ -11,29 +11,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-// Idable represents objects that implement msgraph-sdk-go/models.entityable
-// and have the concept of an ID.
-type Idable interface {
-	GetId() *string
-}
-
-// Descendable represents objects that implement msgraph-sdk-go/models.entityable
-// and have the concept of a "parent folder".
-type Descendable interface {
-	Idable
-	GetParentFolderId() *string
-}
-
-// Displayable represents objects that implement msgraph-sdk-go/models.entityable
-// and have the concept of a display name.
-type Displayable interface {
-	Idable
-	GetDisplayName() *string
-}
-
 type Container interface {
-	Descendable
-	Displayable
+	GetIDer
+	GetParentFolderIDer
+	GetDisplayNamer
 }
 
 // CachedContainer is used for local unit tests but also makes it so that this
@@ -41,10 +22,12 @@ type Container interface {
 // reuse logic in IDToPath.
 type CachedContainer interface {
 	Container
+
 	// Location contains either the display names for the dirs (if this is a calendar)
 	// or nil
 	Location() *path.Builder
 	SetLocation(*path.Builder)
+
 	// Path contains either the ids for the dirs (if this is a calendar)
 	// or the display names for the dirs
 	Path() *path.Builder
