@@ -723,11 +723,16 @@ func addMergeLocation(col data.BackupCollection, toMerge *mergeDetails) error {
 	return nil
 }
 
+type pathUpdate struct {
+	p     path.Path
+	state data.CollectionState
+}
+
 func inflateCollectionTree(
 	ctx context.Context,
 	collections []data.BackupCollection,
 	toMerge *mergeDetails,
-) (map[string]*treeMap, map[string]path.Path, error) {
+) (map[string]*treeMap, map[string]pathUpdate, error) {
 	// failed is temporary and just allows us to log all conflicts before
 	// returning an error.
 	var firstErr error
@@ -736,7 +741,7 @@ func inflateCollectionTree(
 	// Contains the old path for collections that are not new.
 	// Allows resolving what the new path should be when walking the base
 	// snapshot(s)'s hierarchy. Nil represents a collection that was deleted.
-	updatedPaths := make(map[string]path.Path)
+	updatedPaths := make(map[string]pathUpdate)
 	// Temporary variable just to track the things that have been marked as
 	// changed while keeping a reference to their path.
 	changedPaths := []path.Path{}
@@ -757,17 +762,17 @@ func inflateCollectionTree(
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				err := clues.New("multiple previous state changes to collection").
+				err := clues.New("multiple previous state changes").
 					WithClues(ictx).
-					With("updated_path", p)
-				logger.CtxErr(ictx, err).Error("processing deleted collection")
+					With("updated_path", p, "current_state", data.DeletedState)
+				logger.CtxErr(ictx, err).Error("previous path state collision")
 
 				if firstErr == nil {
 					firstErr = err
 				}
 			}
 
-			updatedPaths[s.PreviousPath().String()] = nil
+			updatedPaths[s.PreviousPath().String()] = pathUpdate{state: data.DeletedState}
 
 			continue
 
@@ -775,17 +780,20 @@ func inflateCollectionTree(
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				err := clues.New("multiple previous state changes to collection").
+				err := clues.New("multiple previous state changes").
 					WithClues(ictx).
-					With("updated_path", p)
-				logger.CtxErr(ictx, err).Error("processing moved collection")
+					With("updated_path", p, "current_state", data.MovedState)
+				logger.CtxErr(ictx, err).Error("previous path state collision")
 
 				if firstErr == nil {
 					firstErr = err
 				}
 			}
 
-			updatedPaths[s.PreviousPath().String()] = s.FullPath()
+			updatedPaths[s.PreviousPath().String()] = pathUpdate{
+				p:     s.FullPath(),
+				state: data.MovedState,
+			}
 
 			// Only safe when collections are moved since we only need prefix matching
 			// if a nested folder's path changed in some way that didn't generate a
@@ -796,20 +804,24 @@ func inflateCollectionTree(
 				return nil, nil, clues.Wrap(err, "adding merge location").
 					WithClues(ictx)
 			}
+
 		case data.NotMovedState:
 			p := s.PreviousPath().String()
 			if p, ok := updatedPaths[p]; ok {
-				err := clues.New("multiple previous state changes to collection").
+				err := clues.New("multiple previous state changes").
 					WithClues(ictx).
-					With("updated_path", p)
-				logger.CtxErr(ictx, err).Error("processing not moved collection")
+					With("updated_path", p, "current_state", data.NotMovedState)
+				logger.CtxErr(ictx, err).Error("previous path state collision")
 
 				if firstErr == nil {
 					firstErr = err
 				}
 			}
 
-			updatedPaths[p] = s.FullPath()
+			updatedPaths[p] = pathUpdate{
+				p:     s.FullPath(),
+				state: data.NotMovedState,
+			}
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
@@ -858,7 +870,7 @@ func inflateCollectionTree(
 
 func subtreeChanged(
 	roots map[string]*treeMap,
-	updatedPaths map[string]path.Path,
+	updatedPaths map[string]pathUpdate,
 	oldDirPath *path.Builder,
 	currentPath *path.Builder,
 ) bool {
@@ -915,7 +927,7 @@ func subtreeChanged(
 func traverseBaseDir(
 	ctx context.Context,
 	depth int,
-	updatedPaths map[string]path.Path,
+	updatedPaths map[string]pathUpdate,
 	oldDirPath *path.Builder,
 	expectedDirPath *path.Builder,
 	dir fs.Directory,
@@ -960,14 +972,14 @@ func traverseBaseDir(
 
 	if upb, ok := updatedPaths[oldDirPath.String()]; ok {
 		// This directory was deleted.
-		if upb == nil {
+		if upb.p == nil {
 			currentPath = nil
 
 			stats.Inc(statDel)
 		} else {
 			// This directory was explicitly mentioned and the new (possibly
 			// unchanged) location is in upb.
-			currentPath = upb.ToBuilder()
+			currentPath = upb.p.ToBuilder()
 
 			// Below we check if the collection was marked as new or DoNotMerge which
 			// disables merging behavior. That means we can't directly update stats
@@ -1113,7 +1125,7 @@ func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
 	base BackupBase,
-	updatedPaths map[string]path.Path,
+	updatedPaths map[string]pathUpdate,
 	roots map[string]*treeMap,
 ) error {
 	bupID := "no_backup_id"
@@ -1184,8 +1196,8 @@ func inflateBaseTree(
 		// otherwise unchecked in tree inflation below this point.
 		newSubtreePath := subtreePath.ToBuilder()
 
-		if p, ok := updatedPaths[subtreePath.String()]; ok {
-			newSubtreePath = p.ToBuilder()
+		if up, ok := updatedPaths[subtreePath.String()]; ok {
+			newSubtreePath = up.p.ToBuilder()
 		}
 
 		stats := count.New()
