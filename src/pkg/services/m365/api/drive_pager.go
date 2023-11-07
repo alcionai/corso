@@ -38,7 +38,9 @@ func (c Drives) NewDriveItemPager(
 	selectProps ...string,
 ) pagers.NonDeltaHandler[models.DriveItemable] {
 	options := &drives.ItemItemsItemChildrenRequestBuilderGetRequestConfiguration{
-		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{},
+		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{
+			Top: ptr.To(maxNonDeltaPageSize),
+		},
 	}
 
 	if len(selectProps) > 0 {
@@ -144,8 +146,10 @@ func (c Drives) newDriveItemDeltaPager(
 	}
 
 	options := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferHeaderItems...),
-		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{},
+		Headers: newPreferHeaders(preferHeaderItems...),
+		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
+			Top: ptr.To(maxDeltaPageSize),
+		},
 	}
 
 	if len(cc.Select) > 0 {
