@@ -129,7 +129,7 @@ func (s *slidingWindow) initialize() {
 	}()
 
 	// Prefill permits to allow tokens to be granted immediately
-	for i := int(0); i < s.capacity; i++ {
+	for i := 0; i < s.capacity; i++ {
 		s.permits <- token{}
 	}
 }
@@ -158,7 +158,7 @@ func (s *slidingWindow) slide() {
 
 	s.nextInterval()
 
-	for i := int(0); i < s.prev.count[s.currentInterval]; i++ {
+	for i := 0; i < s.prev.count[s.currentInterval]; i++ {
 		select {
 		case s.permits <- token{}:
 		default:
@@ -186,7 +186,7 @@ func validate(
 	}
 
 	if windowSize < slideInterval {
-		return clues.New("window too small to fit slide interval")
+		return clues.New("window too small to fit intervals")
 	}
 
 	if windowSize%slideInterval != 0 {

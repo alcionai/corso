@@ -2,7 +2,6 @@ package limiters
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -126,7 +125,6 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 	sums := slidingSum(data, sw.numIntervals)
 
 	for _, sum := range sums {
-		fmt.Printf("sum: %d\n", sum)
 		require.True(t, sum <= capacity, "sum: %d, capacity: %d", sum, capacity)
 	}
 }
