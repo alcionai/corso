@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/h2non/gock"
+	msDrive "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -209,4 +211,74 @@ func (suite *DrivePagerIntgSuite) TestEnumerateDriveItems() {
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, items, "should find items in user's drive")
 	assert.NotEmpty(t, du.URL, "should have a delta link")
+}
+
+func (suite *DrivePagerIntgSuite) TestDriveDeltaPagerQueryParams() {
+	tests := []struct {
+		name   string
+		setupf func()
+		expect assert.ErrorAssertionFunc
+	}{
+		{
+			name: "validate select and top params",
+			setupf: func() {
+				delta := msDrive.NewItemItemsItemDeltaResponse()
+				delta.SetValue([]models.DriveItemable{
+					models.NewDriveItem(),
+				})
+
+				str := "deltaLink"
+				delta.SetOdataDeltaLink(&str)
+
+				var selectParams string
+				for _, v := range DefaultDriveItemProps() {
+					selectParams += v + ","
+				}
+
+				// remove last comma
+				selectParams = selectParams[:len(selectParams)-1]
+
+				queryParams := map[string]string{
+					"$top":    string(maxDeltaPageSize),
+					"$select": selectParams,
+				}
+
+				interceptV1Path("drives", "drive", "items", "root", "delta()").
+					MatchParams(queryParams).
+					Reply(200).
+					JSON(requireParseableToMap(suite.T(), delta))
+			},
+			expect: assert.NoError,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			defer gock.Off()
+			test.setupf()
+
+			pager := suite.
+				its.
+				gockAC.
+				Drives().
+				EnumerateDriveItemsDelta(
+					ctx,
+					"drive",
+					"",
+					CallConfig{
+						Select: DefaultDriveItemProps(),
+					})
+			for _, reset, done := pager.NextPage(); !done; _, reset, done = pager.NextPage() {
+				assert.False(t, reset, "should not reset")
+			}
+
+			_, err := pager.Results()
+			require.Error(t, err, clues.ToCore(err))
+		})
+	}
 }
