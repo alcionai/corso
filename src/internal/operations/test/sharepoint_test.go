@@ -53,10 +53,11 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic_groups9Ve
 	defer flush()
 
 	var (
-		mb   = evmock.NewBus()
-		sel  = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts = control.DefaultOptions()
-		ws   = deeTD.DriveIDFromRepoRef
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
+		opts    = control.DefaultOptions()
+		ws      = deeTD.DriveIDFromRepoRef
 	)
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
@@ -67,7 +68,8 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic_groups9Ve
 		mb,
 		sel.Selector,
 		opts,
-		version.All8MigrateUserPNToID)
+		version.All8MigrateUserPNToID,
+		counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -102,12 +104,14 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic_groups9Ve
 		false)
 
 	mb = evmock.NewBus()
+	counter = count.New()
 	notForcedFull := newTestBackupOp(
 		t,
 		ctx,
 		bod,
 		mb,
-		opts)
+		opts,
+		counter)
 	notForcedFull.BackupVersion = version.Groups9Update
 
 	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
@@ -207,14 +211,15 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic() {
 	defer flush()
 
 	var (
-		mb   = evmock.NewBus()
-		sel  = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
+		opts    = control.DefaultOptions()
 	)
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -236,19 +241,20 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 	defer flush()
 
 	var (
-		mb    = evmock.NewBus()
-		sel   = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts  = control.DefaultOptions()
-		tenID = tconfig.M365TenantID(t)
-		svc   = path.SharePointService
-		ws    = deeTD.DriveIDFromRepoRef
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
+		opts    = control.DefaultOptions()
+		tenID   = tconfig.M365TenantID(t)
+		svc     = path.SharePointService
+		ws      = deeTD.DriveIDFromRepoRef
 	)
 
 	opts.ItemExtensionFactory = getTestExtensionFactories()
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -385,6 +391,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 	// run a backup
 	var (
 		mb          = evmock.NewBus()
+		counter     = count.New()
 		opts        = control.DefaultOptions()
 		graphClient = suite.its.ac.Stable.Client()
 	)
@@ -394,7 +401,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 	bsel.Filter(bsel.Library(rc.Location))
 	bsel.DiscreteOwner = suite.its.site.ID
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, bsel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, bsel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)

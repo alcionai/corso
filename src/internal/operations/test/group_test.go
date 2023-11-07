@@ -88,6 +88,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBum
 
 	var (
 		mb      = evmock.NewBus()
+		counter = count.New()
 		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
 		opts    = control.DefaultOptions()
 		whatSet = deeTD.CategoryFromRepoRef
@@ -103,7 +104,8 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBum
 		mb,
 		sel.Selector,
 		opts,
-		version.All8MigrateUserPNToID)
+		version.All8MigrateUserPNToID,
+		counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -138,12 +140,14 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBum
 		false)
 
 	mb = evmock.NewBus()
+	counter = count.New()
 	forcedFull := newTestBackupOp(
 		t,
 		ctx,
 		bod,
 		mb,
-		opts)
+		opts,
+		counter)
 	forcedFull.BackupVersion = version.Groups9Update
 
 	runAndCheckBackup(t, ctx, &forcedFull, mb, false)
@@ -203,6 +207,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 
 	var (
 		mb      = evmock.NewBus()
+		counter = count.New()
 		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
 		opts    = control.DefaultOptions()
 		whatSet = deeTD.CategoryFromRepoRef
@@ -212,7 +217,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 		selTD.GroupsBackupLibraryFolderScope(sel),
 		selTD.GroupsBackupChannelScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -254,12 +259,13 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 	defer flush()
 
 	var (
-		mb    = evmock.NewBus()
-		sel   = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts  = control.DefaultOptions()
-		tenID = tconfig.M365TenantID(t)
-		svc   = path.GroupsService
-		ws    = deeTD.DriveIDFromRepoRef
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
+		opts    = control.DefaultOptions()
+		tenID   = tconfig.M365TenantID(t)
+		svc     = path.GroupsService
+		ws      = deeTD.DriveIDFromRepoRef
 	)
 
 	opts.ItemExtensionFactory = getTestExtensionFactories()
@@ -267,7 +273,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 	// does not apply to channel messages
 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
