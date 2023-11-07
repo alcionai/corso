@@ -413,295 +413,484 @@ var (
 )
 
 func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
+	pagerTypeTests := []struct {
+		name        string
+		prevDelta   string
+		canUseDelta bool
+		pagersFunc  func(
+			p *testIDsNonDeltaMultiPager,
+		) (NonDeltaHandler[testItem], DeltaHandler[testItem])
+		expectDeltaReset bool
+	}{
+		{
+			name:        "NoPrevDelta",
+			canUseDelta: true,
+			pagersFunc: func(
+				p *testIDsNonDeltaMultiPager,
+			) (NonDeltaHandler[testItem], DeltaHandler[testItem]) {
+				return nil, newDeltaPager(p)
+			},
+			expectDeltaReset: true,
+		},
+		{
+			name:        "PrevDelta",
+			prevDelta:   "a",
+			canUseDelta: true,
+			pagersFunc: func(
+				p *testIDsNonDeltaMultiPager,
+			) (NonDeltaHandler[testItem], DeltaHandler[testItem]) {
+				return nil, newDeltaPager(p)
+			},
+		},
+		{
+			name:      "DeltaNotAllowed",
+			prevDelta: "a",
+			pagersFunc: func(
+				p *testIDsNonDeltaMultiPager,
+			) (NonDeltaHandler[testItem], DeltaHandler[testItem]) {
+				return p, nil
+			},
+			expectDeltaReset: true,
+		},
+	}
+
 	type expected struct {
-		added         []testItem
-		removed       []string
-		deltaUpdate   DeltaUpdate
-		validModTimes bool
+		errCheck assert.ErrorAssertionFunc
+		added    []testItem
+		removed  []testItem
 	}
 
-	nilPager := func(t *testing.T) NonDeltaHandler[testItem] {
-		return nil
+	table := []struct {
+		name        string
+		pagerGetter func(
+			t *testing.T,
+			validModTimes bool,
+		) *testIDsNonDeltaMultiPager
+		filter func(a testItem) bool
+		expect expected
+	}{
+		{
+			name: "OnePage",
+			pagerGetter: func(t *testing.T, validModTime bool) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem2,
+								removedItem1,
+								removedItem2,
+							},
+						},
+					},
+					validModTimes: validModTime,
+				}
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+					addedItem2,
+				},
+				removed: []testItem{removedItem1, removedItem2},
+			},
+		},
+		{
+			name: "TwoPages",
+			pagerGetter: func(t *testing.T, validModTime bool) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								removedItem1,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem2,
+								removedItem2,
+							},
+						},
+					},
+					validModTimes: validModTime,
+				}
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+					addedItem2,
+				},
+				removed: []testItem{removedItem1, removedItem2},
+			},
+		},
+		{
+			name: "OnePage FilterFailsAll",
+			pagerGetter: func(t *testing.T, validModTimes bool) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem2,
+								removedItem1,
+								removedItem2,
+							},
+						},
+					},
+					validModTimes: validModTimes,
+				}
+			},
+			filter: func(testItem) bool { return false },
+			expect: expected{
+				errCheck: assert.NoError,
+			},
+		},
+		{
+			name: "TwoPages FilterFailsAll",
+			pagerGetter: func(t *testing.T, validModTimes bool) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								removedItem1,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem2,
+								removedItem2,
+							},
+						},
+					},
+					validModTimes: validModTimes,
+				}
+			},
+			filter: func(testItem) bool { return false },
+			expect: expected{
+				errCheck: assert.NoError,
+			},
+		},
+		{
+			name: "Error",
+			pagerGetter: func(t *testing.T, validModTimes bool) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							err: assert.AnError,
+						},
+					},
+					validModTimes: validModTimes,
+				}
+			},
+			expect: expected{
+				errCheck: assert.Error,
+			},
+		},
 	}
 
-	epoch, err := time.Parse(time.DateOnly, "1970-01-01")
-	require.NoError(suite.T(), err, clues.ToCore(err))
+	for _, modTimeTest := range modTimeTests {
+		suite.Run(modTimeTest.name, func() {
+			for _, pagerTypeTest := range pagerTypeTests {
+				suite.Run(pagerTypeTest.name, func() {
+					for _, test := range table {
+						suite.Run(test.name, func() {
+							t := suite.T()
 
-	item1 := addedItem("uno", time.Now())
-	item2 := addedItem("dos", time.Now())
+							ctx, flush := tester.NewContext(t)
+							defer flush()
+
+							filters := []func(testItem) bool{}
+							if test.filter != nil {
+								filters = append(filters, test.filter)
+							}
+
+							basePager := test.pagerGetter(t, modTimeTest.validModTimes)
+							getter, deltaGetter := pagerTypeTest.pagersFunc(basePager)
+
+							addRemoved, err := GetAddedAndRemovedItemIDs[testItem](
+								ctx,
+								getter,
+								deltaGetter,
+								pagerTypeTest.prevDelta,
+								pagerTypeTest.canUseDelta,
+								AddedAndRemovedByAddtlData[testItem],
+								filters...)
+							test.expect.errCheck(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
+
+							if err != nil {
+								return
+							}
+
+							assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
+							assert.Equal(t, pagerTypeTest.expectDeltaReset, addRemoved.DU.Reset, "delta update")
+
+							assertAddedAndRemoved(
+								t,
+								modTimeTest.validModTimes,
+								test.expect.added,
+								addRemoved.Added,
+								test.expect.removed,
+								addRemoved.Removed)
+						})
+					}
+				})
+			}
+		})
+	}
+}
+
+// TestGetAddedAndRemovedItemIDs_FallbackPagers tests that when pagers get reset
+// or need to fallback to other pager types things work as expected. This only
+// tests for basic cases where we enumerate everything with the fallback pager.
+// These are here mostly to ensure we clear the results from the invalid pager
+// properly. If we can ensure that then other tests will ensure the fallback
+// pager properly handles all the other things like item filtering, item limits,
+// cancellation, etc.
+func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
+	type expected struct {
+		errCheck assert.ErrorAssertionFunc
+		added    []testItem
+		removed  []testItem
+	}
 
 	tests := []struct {
 		name        string
 		pagerGetter func(
-			*testing.T,
+			t *testing.T,
+			validModTimes bool,
 		) NonDeltaHandler[testItem]
 		deltaPagerGetter func(
-			*testing.T,
+			t *testing.T,
+			validModTimes bool,
 		) DeltaHandler[testItem]
-		prevDelta     string
-		filter        func(a testItem) bool
-		expect        expected
-		canDelta      bool
-		validModTimes bool
+		expect expected
 	}{
 		{
-			name:        "no prev delta",
+			name:        "TwoValidPages DeltaReset",
 			pagerGetter: nilPager,
-			deltaPagerGetter: func(t *testing.T) DeltaHandler[testItem] {
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
 				return newDeltaPager(
 					&testIDsNonDeltaMultiPager{
 						t: t,
 						pages: []pageResult{
 							{
 								items: []testItem{
-									item1,
-									item2,
-									removedItem("tres"),
-									removedItem("quatro"),
+									addedItem1,
+									removedItem1,
 								},
 							},
-						},
-						validModTimes: true,
-					})
-			},
-			expect: expected{
-				added: []testItem{
-					item1,
-					item2,
-				},
-				removed:       []string{"tres", "quatro"},
-				deltaUpdate:   DeltaUpdate{Reset: true},
-				validModTimes: true,
-			},
-			canDelta: true,
-		},
-		{
-			name:        "no prev delta invalid mod times",
-			pagerGetter: nilPager,
-			deltaPagerGetter: func(t *testing.T) DeltaHandler[testItem] {
-				return newDeltaPager(
-					&testIDsNonDeltaMultiPager{
-						t: t,
-						pages: []pageResult{
-							{
-								items: []testItem{
-									addedItem("uno", time.Time{}),
-									addedItem("dos", time.Time{}),
-									removedItem("tres"),
-									removedItem("quatro"),
-								},
-							},
-						},
-					})
-			},
-			expect: expected{
-				added: []testItem{
-					item1,
-					item2,
-				},
-				removed:     []string{"tres", "quatro"},
-				deltaUpdate: DeltaUpdate{Reset: true},
-			},
-			canDelta: true,
-		},
-		{
-			name:        "with prev delta",
-			pagerGetter: nilPager,
-			deltaPagerGetter: func(t *testing.T) DeltaHandler[testItem] {
-				return newDeltaPager(
-					&testIDsNonDeltaMultiPager{
-						t: t,
-						pages: []pageResult{
-							{
-								items: []testItem{
-									item1,
-									item2,
-									removedItem("tres"),
-									removedItem("quatro"),
-								},
-							},
-						},
-						validModTimes: true,
-					})
-			},
-			prevDelta: "delta",
-			expect: expected{
-				added: []testItem{
-					item1,
-					item2,
-				},
-				removed:       []string{"tres", "quatro"},
-				deltaUpdate:   DeltaUpdate{Reset: false},
-				validModTimes: true,
-			},
-			canDelta: true,
-		},
-		{
-			name:        "delta expired",
-			pagerGetter: nilPager,
-			deltaPagerGetter: func(t *testing.T) DeltaHandler[testItem] {
-				return newDeltaPager(
-					&testIDsNonDeltaMultiPager{
-						t: t,
-						pages: []pageResult{
 							{
 								errCode:    "SyncStateNotFound",
 								needsReset: true,
 							},
 							{
 								items: []testItem{
-									item1,
-									item2,
-									removedItem("tres"),
-									removedItem("quatro"),
+									removedItem2,
+									addedItem2,
 								},
 							},
 						},
-						validModTimes: true,
-					})
+						validModTimes: validModTimes,
+					},
+				)
 			},
-			prevDelta: "delta",
 			expect: expected{
+				errCheck: assert.NoError,
 				added: []testItem{
-					item1,
-					item2,
+					addedItem2,
 				},
-				removed:       []string{"tres", "quatro"},
-				deltaUpdate:   DeltaUpdate{Reset: true},
-				validModTimes: true,
+				removed: []testItem{
+					removedItem2,
+				},
 			},
-			canDelta: true,
 		},
 		{
-			name: "delta not allowed",
-			pagerGetter: func(t *testing.T) NonDeltaHandler[testItem] {
+			name:        "TwoPages DeltaResetAtEnd",
+			pagerGetter: nilPager,
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
+				return newDeltaPager(
+					&testIDsNonDeltaMultiPager{
+						t: t,
+						pages: []pageResult{
+							{
+								items: []testItem{
+									addedItem("uno", time.Now()),
+									removedItem("tres"),
+								},
+							},
+							{
+								items: []testItem{
+									removedItem("quatro"),
+									addedItem("dos", time.Now()),
+								},
+							},
+							{
+								errCode:    "SyncStateNotFound",
+								needsReset: true,
+							},
+							// Return an empty page to show no new results after reset.
+							{},
+						},
+						validModTimes: validModTimes,
+					},
+				)
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+			},
+		},
+		{
+			name: "TwoValidPages DeltaNotSupported",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) NonDeltaHandler[testItem] {
 				return &testIDsNonDeltaMultiPager{
 					t: t,
 					pages: []pageResult{
 						{
 							items: []testItem{
-								item1,
-								item2,
-								removedItem("tres"),
-								removedItem("quatro"),
+								addedItem1,
+								removedItem1,
+							},
+						},
+						{
+							items: []testItem{
+								removedItem2,
+								addedItem2,
 							},
 						},
 					},
-					validModTimes: true,
+					validModTimes: validModTimes,
 				}
 			},
-			deltaPagerGetter: func(t *testing.T) DeltaHandler[testItem] {
-				return nil
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
+				return newDeltaPager(
+					&testIDsNonDeltaMultiPager{
+						t: t,
+						pages: []pageResult{
+							{
+								err:        graph.ErrDeltaNotSupported,
+								needsReset: true,
+							},
+						},
+						validModTimes: validModTimes,
+					},
+				)
 			},
 			expect: expected{
+				errCheck: assert.NoError,
 				added: []testItem{
-					item1,
-					item2,
+					addedItem1,
+					addedItem2,
 				},
-				removed:       []string{"tres", "quatro"},
-				deltaUpdate:   DeltaUpdate{Reset: true},
-				validModTimes: true,
+				removed: []testItem{
+					removedItem1,
+					removedItem2,
+				},
 			},
-			canDelta: false,
 		},
 		{
-			name:        "no prev delta and fail all filter",
-			pagerGetter: nilPager,
-			deltaPagerGetter: func(t *testing.T) DeltaHandler[testItem] {
+			name: "TwoPages DeltaNotSupportedAtEnd",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) NonDeltaHandler[testItem] {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						// Return an empty page.
+						{},
+					},
+					validModTimes: validModTimes,
+				}
+			},
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
 				return newDeltaPager(
 					&testIDsNonDeltaMultiPager{
 						t: t,
 						pages: []pageResult{
 							{
 								items: []testItem{
-									item1,
-									item2,
-									removedItem("tres"),
-									removedItem("quatro"),
+									addedItem1,
+									removedItem1,
 								},
 							},
-						},
-						validModTimes: true,
-					})
-			},
-			filter: func(testItem) bool { return false },
-			expect: expected{
-				removed:       []string{},
-				deltaUpdate:   DeltaUpdate{Reset: true},
-				validModTimes: true,
-			},
-			canDelta: true,
-		},
-		{
-			name:        "with prev delta and fail all filter",
-			pagerGetter: nilPager,
-			deltaPagerGetter: func(t *testing.T) DeltaHandler[testItem] {
-				return newDeltaPager(
-					&testIDsNonDeltaMultiPager{
-						t: t,
-						pages: []pageResult{
 							{
 								items: []testItem{
-									item1,
-									item2,
-									removedItem("tres"),
-									removedItem("quatro"),
+									removedItem2,
+									addedItem2,
 								},
 							},
+							{
+								err:        graph.ErrDeltaNotSupported,
+								needsReset: true,
+							},
 						},
-						validModTimes: true,
-					})
+						validModTimes: validModTimes,
+					},
+				)
 			},
-			filter:    func(testItem) bool { return false },
-			prevDelta: "delta",
 			expect: expected{
-				removed:       []string{},
-				deltaUpdate:   DeltaUpdate{Reset: false},
-				validModTimes: true,
+				errCheck: assert.NoError,
 			},
-			canDelta: true,
 		},
 	}
 
-	for _, test := range tests {
-		suite.Run(test.name, func() {
-			t := suite.T()
+	for _, modTimeTest := range modTimeTests {
+		suite.Run(modTimeTest.name, func() {
+			for _, test := range tests {
+				suite.Run(test.name, func() {
+					t := suite.T()
 
-			ctx, flush := tester.NewContext(t)
-			defer flush()
+					ctx, flush := tester.NewContext(t)
+					defer flush()
 
-			filters := []func(testItem) bool{}
-			if test.filter != nil {
-				filters = append(filters, test.filter)
+					addRemoved, err := GetAddedAndRemovedItemIDs[testItem](
+						ctx,
+						test.pagerGetter(t, modTimeTest.validModTimes),
+						test.deltaPagerGetter(t, modTimeTest.validModTimes),
+						"a",
+						true,
+						AddedAndRemovedByAddtlData[testItem])
+					require.NoError(
+						t,
+						err,
+						"getting added and removed item IDs: %+v",
+						clues.ToCore(err))
+
+					assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
+					assert.True(t, addRemoved.DU.Reset, "delta update")
+
+					assertAddedAndRemoved(
+						t,
+						modTimeTest.validModTimes,
+						test.expect.added,
+						addRemoved.Added,
+						test.expect.removed,
+						addRemoved.Removed)
+				})
 			}
-
-			aar, err := GetAddedAndRemovedItemIDs[testItem](
-				ctx,
-				test.pagerGetter(t),
-				test.deltaPagerGetter(t),
-				test.prevDelta,
-				test.canDelta,
-				AddedAndRemovedByAddtlData[testItem],
-				filters...)
-
-			expectAddedMap := map[string]time.Time{}
-			for _, item := range test.expect.added {
-				expectAddedMap[item.id] = item.modTime
-			}
-
-			require.NoErrorf(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
-			if aar.ValidModTimes {
-				assert.Equal(t, expectAddedMap, aar.Added, "added item IDs and mod times")
-			} else {
-				assert.ElementsMatch(t, maps.Keys(expectAddedMap), maps.Keys(aar.Added), "added item IDs")
-				for _, modtime := range aar.Added {
-					assert.True(t, modtime.After(epoch), "mod time after epoch")
-					assert.False(t, modtime.Equal(time.Time{}), "non-zero mod time")
-				}
-			}
-			assert.Equal(t, test.expect.validModTimes, aar.ValidModTimes, "valid mod times")
-			assert.EqualValues(t, test.expect.removed, aar.Removed, "removed item IDs")
-			assert.Equal(t, test.expect.deltaUpdate, aar.DU, "delta update")
 		})
 	}
 }
