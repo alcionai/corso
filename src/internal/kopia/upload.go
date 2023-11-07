@@ -760,14 +760,11 @@ func inflateCollectionTree(
 				err := clues.New("multiple previous state changes to collection").
 					WithClues(ictx).
 					With("updated_path", p)
-				logger.CtxErr(ictx, err).Info("processing deleted collection")
+				logger.CtxErr(ictx, err).Error("processing deleted collection")
+
 				if firstErr != nil {
 					firstErr = err
 				}
-
-				//return nil, nil, clues.New("multiple previous state changes to collection").
-				//	WithClues(ictx).
-				//	With("updated_path", p)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = nil
@@ -781,14 +778,11 @@ func inflateCollectionTree(
 				err := clues.New("multiple previous state changes to collection").
 					WithClues(ictx).
 					With("updated_path", p)
-				logger.CtxErr(ictx, err).Info("processing moved collection")
+				logger.CtxErr(ictx, err).Error("processing moved collection")
+
 				if firstErr != nil {
 					firstErr = err
 				}
-
-				//return nil, nil, clues.New("multiple previous state changes to collection").
-				//	WithClues(ictx).
-				//	With("updated_path", p)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
@@ -808,14 +802,11 @@ func inflateCollectionTree(
 				err := clues.New("multiple previous state changes to collection").
 					WithClues(ictx).
 					With("updated_path", p)
-				logger.CtxErr(ictx, err).Info("processing not moved collection")
+				logger.CtxErr(ictx, err).Error("processing not moved collection")
+
 				if firstErr != nil {
 					firstErr = err
 				}
-
-				//return nil, nil, clues.New("multiple previous state changes to collection").
-				//	WithClues(ictx).
-				//	With("updated_path", p)
 			}
 
 			updatedPaths[p] = s.FullPath()
@@ -854,18 +845,14 @@ func inflateCollectionTree(
 		if node.collection != nil && node.collection.State() == data.NotMovedState {
 			err := clues.New("conflicting states for collection").
 				WithClues(ctx)
-			logger.CtxErr(ctx, err).Info("adding node to tree")
+			logger.CtxErr(ctx, err).Error("adding node to tree")
+
 			if firstErr != nil {
 				firstErr = err
 			}
-
-			//return nil, nil, clues.New("conflicting states for collection").
-			//	WithClues(ctx).
-			//	With("changed_path", p)
 		}
 	}
 
-	//return roots, updatedPaths, nil
 	return roots, updatedPaths, clues.Stack(firstErr).OrNil()
 }
 
