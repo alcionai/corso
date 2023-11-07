@@ -1,17 +1,13 @@
 package storage
 
 import (
-	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 var ErrVerifyingConfigStorage = clues.New("verifying configs in corso config file")
@@ -162,6 +158,8 @@ func mustMatchConfig(
 	tomlMap map[string]string,
 	m map[string]string,
 ) error {
+	fs := path.NewFileSystem()
+
 	for k, v := range m {
 		if len(v) == 0 {
 			continue // empty variables will get caught by configuration validators, if necessary
@@ -171,12 +169,13 @@ func mustMatchConfig(
 		if !ok {
 			continue // m may declare values which aren't stored in the config file
 		}
+
 		vv := cast.ToString(g.Get(tomlK))
 
 		areEqual := false
 
-		if IsValidPath(v) && IsValidPath(vv) {
-			areEqual, _ = ArePathsEquivalent(v, vv)
+		if path.IsValidPath(v, fs) && path.IsValidPath(vv, fs) {
+			areEqual = path.ArePathsEquivalent(v, vv)
 		} else {
 			areEqual = v == vv
 		}
@@ -188,54 +187,4 @@ func mustMatchConfig(
 	}
 
 	return nil
-}
-
-func ArePathsEquivalent(path1, path2 string) (bool, error) {
-	normalizedPath1 := strings.TrimSpace(filepath.Clean(path1))
-	normalizedPath2 := strings.TrimSpace(filepath.Clean(path2))
-
-	normalizedPath1 = strings.TrimSuffix(normalizedPath1, string(filepath.Separator))
-	normalizedPath2 = strings.TrimSuffix(normalizedPath2, string(filepath.Separator))
-
-	return normalizedPath1 == normalizedPath2, nil
-}
-
-func IsValidPath(path string) bool {
-	if _, err := os.Stat(path); err == nil {
-		return true
-	}
-
-	isDir := strings.TrimSpace(filepath.Ext(path)) == ""
-
-	if isDir {
-		err := os.Mkdir(path, 0644)
-		if err == nil {
-			os.Remove(path)
-			return true
-		}
-
-		if os.IsPermission(err) {
-			logger.Ctx(context.Background()).Info("directory could have been created but got permission error")
-			return true
-		}
-	} else {
-		dir := filepath.Dir(path)
-		err := os.Mkdir(dir, 0644)
-		if err != nil {
-			return false
-		}
-		defer os.Remove(dir)
-
-		_, err = os.Create(path)
-		if err == nil {
-			os.Remove(path)
-			return true
-		}
-
-		if os.IsPermission(err) {
-			logger.Ctx(context.Background()).Info("file could have been created but got permission error")
-			return true
-		}
-	}
-	return true
 }

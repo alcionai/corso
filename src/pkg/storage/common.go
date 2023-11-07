@@ -57,12 +57,14 @@ func (c CommonConfig) validate() error {
 	return nil
 }
 
-func GenerateHash(input []byte, hashlength int) string {
+func GenerateHash(input []byte, hashLength int) string {
 	h := md5.New()
 	h.Write([]byte(input))
 	hexstr := hex.EncodeToString(h.Sum(nil))
-	if hashlength > 0 {
-		return hexstr[0:hashlength]
+
+	if hashLength > 0 {
+		return hexstr[0:hashLength]
 	}
+
 	return hexstr
 }

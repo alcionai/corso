@@ -2,6 +2,8 @@ package path
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -11,6 +13,18 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 )
+
+type MockFileSystem struct{}
+
+func (fs MockFileSystem) CreateFile(filename string) (*os.File, error) {
+	_ = filename
+	return &os.File{}, nil
+}
+
+func (fs MockFileSystem) Mkdir(path string, mode os.FileMode) error {
+	_, _ = path, mode
+	return nil
+}
 
 type testData struct {
 	name           string
@@ -571,6 +585,77 @@ func (suite *PathUnitSuite) TestBuildRestorePaths() {
 
 			assert.Equal(t, test.restorePath, rdir.String(), "restore path")
 			assert.Equal(t, test.storagePath, r.String(), "storage path")
+		})
+	}
+}
+
+// Test ArePathsEquivalent
+func (suite *PathUnitSuite) TestArePathsEquivalent() {
+	table := []struct {
+		name     string
+		path1    string
+		path2    string
+		expected bool
+	}{
+		{
+			name:     "additional backslash in path",
+			path1:    "/home/backups/",
+			path2:    "/home/backups",
+			expected: true,
+		},
+		{
+			name:     "leading whitespace in path",
+			path1:    " /home/backups",
+			path2:    "/home/backups",
+			expected: true,
+		},
+		{
+			name:     "different paths",
+			path1:    "/home/backups/1",
+			path2:    "/home/backups/2",
+			expected: false,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			actual := ArePathsEquivalent(test.path1, test.path2)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
+// Test IsValidPath
+func (suite *PathUnitSuite) TestIsValidPath() {
+	tmpDir := suite.T().TempDir()
+	fs := MockFileSystem{}
+
+	table := []struct {
+		name     string
+		path     string
+		create   bool
+		expected bool
+	}{
+		{
+			name:     "valid directory",
+			path:     filepath.Join(tmpDir, "backups"),
+			expected: true,
+		},
+		{
+			name:     "valid file path",
+			path:     filepath.Join(tmpDir, "backups", "a.txt"),
+			expected: true,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			actual := IsValidPath(test.path, fs)
+			assert.Equal(t, test.expected, actual)
 		})
 	}
 }

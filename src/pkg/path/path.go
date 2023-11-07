@@ -52,6 +52,8 @@ package path
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -125,6 +127,25 @@ type Path interface {
 type RestorePaths struct {
 	StoragePath Path
 	RestorePath Path
+}
+
+type FileSystem interface {
+	CreateFile(filename string) (*os.File, error)
+	Mkdir(path string, mode os.FileMode) error
+}
+
+type fileSystem struct{}
+
+func NewFileSystem() fileSystem {
+	return fileSystem{}
+}
+
+func (fs fileSystem) CreateFile(filename string) (*os.File, error) {
+	return os.Create(filename)
+}
+
+func (fs fileSystem) Mkdir(path string, mode os.FileMode) error {
+	return os.Mkdir(path, mode)
 }
 
 // ---------------------------------------------------------------------------
@@ -315,6 +336,60 @@ func Split(segment string) []string {
 	res = append(res, segment[startIdx:])
 
 	return res
+}
+
+func ArePathsEquivalent(path1, path2 string) bool {
+	normalizedPath1 := strings.TrimSpace(filepath.Clean(path1))
+	normalizedPath2 := strings.TrimSpace(filepath.Clean(path2))
+
+	normalizedPath1 = strings.TrimSuffix(normalizedPath1, string(filepath.Separator))
+	normalizedPath2 = strings.TrimSuffix(normalizedPath2, string(filepath.Separator))
+
+	return normalizedPath1 == normalizedPath2
+}
+
+func IsValidPath(path string, fs FileSystem) bool {
+	isDir := strings.TrimSpace(filepath.Ext(path)) == ""
+
+	if isDir {
+		if err := FindOrCreateDirectory(path, fs); err != nil {
+			return false
+		}
+	} else {
+		dir := filepath.Dir(path)
+
+		if err := FindOrCreateDirectory(dir, fs); err != nil {
+			return false
+		}
+
+		if err := FindOrCreateFile(path, fs); err != nil {
+			return false
+		}
+	}
+
+	os.Remove(path)
+
+	return true
+}
+
+func FindOrCreateDirectory(directoryPath string, fs FileSystem) error {
+	if _, err := os.Stat(directoryPath); err == nil {
+		return nil
+	}
+
+	return fs.Mkdir(directoryPath, 0o644)
+}
+
+func FindOrCreateFile(filePath string, fs FileSystem) error {
+	if _, err := os.Stat(filePath); err == nil {
+		return nil
+	}
+
+	if _, err := fs.CreateFile(filePath); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------

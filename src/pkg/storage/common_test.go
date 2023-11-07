@@ -108,8 +108,8 @@ func (suite *CommonCfgUnitSuite) TestGenerateHash() {
 
 	table := []struct {
 		name       string
-		input1     interface{}
-		input2     interface{}
+		input1     any
+		input2     any
 		sameCheck  bool
 		hashLength int
 	}{
@@ -188,7 +188,6 @@ func (suite *CommonCfgUnitSuite) TestGenerateHash() {
 				assert.Equal(t, test.hashLength, len(hash2))
 				assert.NotEqual(t, hash1, hash2)
 			}
-
 		})
 	}
 }

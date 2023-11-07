@@ -75,13 +75,10 @@ func (s Storage) GenerateS3Hash() (string, error) {
 
 	s3CfgBytes, err := json.Marshal(s3Cfg)
 	if err != nil {
-		return "", clues.New("failed to serialize s3 config")
+		return "", clues.New("serializing s3 config")
 	}
 
 	s3ConfigHash := GenerateHash(s3CfgBytes, hashLength)
-	if len(s3ConfigHash) != hashLength {
-		return "", clues.New("failed to generate hash of configured length")
-	}
 
 	return s3ConfigHash, nil
 }

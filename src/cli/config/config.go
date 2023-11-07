@@ -73,8 +73,8 @@ func init() {
 
 // adds the persistent flag --config-file to the provided command.
 func AddConfigFlags(cmd *cobra.Command) {
-	fs := cmd.PersistentFlags()
-	fs.StringVar(
+	pf := cmd.PersistentFlags()
+	pf.StringVar(
 		&configFilePathFlag,
 		"config-file", displayDefaultFP, "config file location")
 }
@@ -93,8 +93,7 @@ func InitFunc(cmd *cobra.Command, args []string) error {
 
 	vpr := GetViper(cmd.Context())
 
-	err := initWithViper(vpr, fp)
-	if err != nil {
+	if err := initWithViper(vpr, fp); err != nil {
 		return err
 	}
 
@@ -123,6 +122,7 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 		if len(ext) == 0 {
 			return clues.New("config file requires an extension e.g. `toml`")
 		}
+
 		fileName := filepath.Base(configFP)
 		fileName = strings.TrimSuffix(fileName, ext)
 
@@ -283,17 +283,15 @@ func getStorageAndAccountWithViper(
 	// possibly read the prior config from a .corso file
 	if readFromFile {
 		if err := vpr.ReadInConfig(); err != nil {
-			_, configNotSet := err.(viper.ConfigFileNotFoundError)
+			configNotSet := errors.As(err, &viper.ConfigFileNotFoundError{})
 			configNotFound := errors.Is(err, fs.ErrNotExist)
 
-			if configNotSet || configNotFound {
-				readConfigFromViper = false
-			} else {
+			if !configNotSet && !configNotFound {
 				return config, clues.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}
 
+			readConfigFromViper = false
 		}
-
 		// in case of existing config, fetch repoid from config file
 		config.RepoID = vpr.GetString(RepoID)
 	}

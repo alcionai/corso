@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	defaultKopiaConfigDir  = "/tmp/"
-	defaultKopiaConfigFile = "repository-%s.config"
-	defaultCompressor      = "zstd-better-compression"
+	defaultKopiaConfigDir   = "/tmp/"
+	kopiaConfigFileTemplate = "repository-%s.config"
+	defaultCompressor       = "zstd-better-compression"
 	// Interval of 0 disables scheduling.
 	defaultSchedulingInterval = time.Second * 0
 )
@@ -199,10 +199,10 @@ func (w *conn) commonConnect(
 
 	cfgHash, err := configHashByProvider(ctx, w.storage)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.Stack(err)
 	}
 
-	cfgFile := filepath.Join(configDir, fmt.Sprintf(defaultKopiaConfigFile, cfgHash))
+	cfgFile := filepath.Join(configDir, fmt.Sprintf(kopiaConfigFileTemplate, cfgHash))
 
 	// todo - issue #75: nil here should be storage.ConnectOptions()
 	if err := repo.Connect(
@@ -243,7 +243,7 @@ func configHashByProvider(ctx context.Context, s storage.Storage) (string, error
 	case storage.ProviderFilesystem:
 		return s.GenerateFilesystemHash()
 	default:
-		return "", clues.New("storage provider details are required").WithClues(ctx)
+		return "", clues.New("unrecognized storage provider details are required").WithClues(ctx)
 	}
 }
 

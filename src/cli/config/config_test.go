@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -158,7 +157,9 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 		host   = "some-host"
 	)
 
-	ctx := context.Background()
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	SetViper(ctx, vpr)
 
 	err := initWithViper(vpr, testConfigFilePath)
@@ -214,7 +215,9 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 		tid = "dfb12063-7598-458b-85ab-42352c5c25e2"
 	)
 
-	ctx := context.Background()
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	SetViper(ctx, vpr)
 
 	err := initWithViper(vpr, testConfigFilePath)
@@ -416,7 +419,9 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	// Configure viper to read test config file
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 
-	ctx := context.Background()
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	SetViper(ctx, vpr)
 	err := initWithViper(vpr, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config", clues.ToCore(err))
