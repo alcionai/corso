@@ -2404,6 +2404,65 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
+			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtExistingLocation",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+								},
+							},
+							{
+								Items: []models.DriveItemable{},
+								Reset: true,
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem("root"),
+									driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+									driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": folderPath1,
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {data.NewState: {}},
+				expectedPath1("/folder"): {
+					data.NewState: {"folder", "file"},
+				},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"folder": expectedPath1("/folder"),
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1: true,
+				folderPath1:     true,
+			},
+		},
+		{
 			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
@@ -2555,7 +2614,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				fullPath(1):                   {data.NewState: {}},
-				fullPath(1, name(folder)):     {data.NotMovedState: {id(folder), id(file)}},
+				fullPath(1, name(folder)):     {data.NewState: {id(folder), id(file)}},
 				fullPath(1, namex(folder, 2)): {data.DeletedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
@@ -3296,6 +3355,10 @@ func (suite *CollectionsUnitSuite) TestGet() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			// if test.name != "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtExistingLocation" {
+			// 	t.Skip()
+			// }
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()

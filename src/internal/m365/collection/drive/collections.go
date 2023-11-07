@@ -762,6 +762,7 @@ func (c *Collections) PopulateDriveCollections(
 			ctx = clues.Add(ctx, "delta_reset_occurred", true)
 			newPrevPaths = map[string]string{}
 			currPrevPaths = map[string]string{}
+			seenFolders = map[string]string{}
 			c.CollectionMap[driveID] = map[string]*Collection{}
 			invalidPrevDelta = true
 		}
@@ -927,6 +928,10 @@ func (c *Collections) processItem(
 
 			delete(c.CollectionMap[driveID], alreadyHandledFolderID)
 			delete(newPrevPaths, alreadyHandledFolderID)
+		}
+
+		if invalidPrevDelta {
+			prevPath = nil
 		}
 
 		seenFolders[collectionPath.String()] = itemID
