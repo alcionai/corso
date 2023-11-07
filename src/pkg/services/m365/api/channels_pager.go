@@ -195,6 +195,7 @@ func (c Channels) GetChannelMessageIDs(
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
 		prevDeltaLink,
 		canMakeDeltaQueries,
+		0,
 		pagers.AddedAndRemovedByDeletedDateTime[models.ChatMessageable],
 		filterOutSystemMessages)
 

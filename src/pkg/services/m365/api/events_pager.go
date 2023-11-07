@@ -272,5 +272,6 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		deltaPager,
 		prevDeltaLink,
 		canMakeDeltaQueries,
+		0,
 		pagers.AddedAndRemovedByAddtlData[models.Eventable])
 }
