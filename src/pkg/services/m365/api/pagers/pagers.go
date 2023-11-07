@@ -485,31 +485,41 @@ func GetAddedAndRemovedItemIDs[T any](
 	deltaPager DeltaHandler[T],
 	prevDeltaLink string,
 	canMakeDeltaQueries bool,
+	itemLimit int,
 	aarh addedAndRemovedHandler[T],
 	filters ...func(T) bool,
 ) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
 	if canMakeDeltaQueries {
-		ts, du, err := batchDeltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
+		npr := NewNextPageResults[T]()
+
+		go DeltaEnumerateItems[T](ctx, deltaPager, npr, prevDeltaLink)
+
+		added, removed, du, err := getLimitedItems(
+			ctx,
+			npr,
+			itemLimit,
+			aarh,
+			filters...)
 		if err != nil && !graph.IsErrInvalidDelta(err) && !graph.IsErrDeltaNotSupported(err) {
 			return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
-		}
-
-		if err == nil {
-			a, r, err := aarh(ts, filters...)
-			return a, deltaPager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
+		} else if err == nil {
+			return added, deltaPager.ValidModTimes(), removed, du, nil
 		}
 	}
 
 	du := DeltaUpdate{Reset: true}
+	npr := NewNextPageResults[T]()
 
-	ts, err := BatchEnumerateItems(ctx, pager)
-	if err != nil {
-		return nil, false, nil, DeltaUpdate{}, graph.Stack(ctx, err)
-	}
+	go EnumerateItems[T](ctx, pager, npr)
 
-	a, r, err := aarh(ts, filters...)
+	added, removed, _, err := getLimitedItems(
+		ctx,
+		npr,
+		itemLimit,
+		aarh,
+		filters...)
 
-	return a, pager.ValidModTimes(), r, du, graph.Stack(ctx, err).OrNil()
+	return added, pager.ValidModTimes(), removed, du, clues.Stack(err).OrNil()
 }
 
 type getIDer interface {
