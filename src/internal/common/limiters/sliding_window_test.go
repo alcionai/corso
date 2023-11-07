@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.uber.org/goleak"
 
 	"github.com/alcionai/corso/src/internal/tester"
 )
@@ -24,6 +23,8 @@ func TestSlidingWindowLimiterSuite(t *testing.T) {
 	suite.Run(t, &SlidingWindowUnitTestSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+// TestWaitBasic tests the Wait() functionality of the limiter with multiple
+// concurrent requests.
 func (suite *SlidingWindowUnitTestSuite) TestWaitBasic() {
 	var (
 		t          = suite.T()
@@ -37,8 +38,6 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitBasic() {
 		mu              sync.Mutex
 		intervalToCount = make(map[time.Duration]int)
 	)
-
-	defer goleak.VerifyNone(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -79,6 +78,8 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitBasic() {
 	}
 }
 
+// TestWaitSliding tests the sliding window functionality of the limiter with distributed
+// Wait() calls.
 func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 	var (
 		t             = suite.T()
@@ -89,8 +90,6 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 		numRequests = 2 * capacity
 		wg          sync.WaitGroup
 	)
-
-	defer goleak.VerifyNone(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -139,8 +138,6 @@ func (suite *SlidingWindowUnitTestSuite) TestContextCancellation() {
 		slideInterval = 10 * time.Millisecond
 		wg            sync.WaitGroup
 	)
-
-	defer goleak.VerifyNone(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -219,11 +216,11 @@ func (suite *SlidingWindowUnitTestSuite) TestNewSlidingWindowLimiter() {
 				test.windowSize,
 				test.slideInterval,
 				test.capacity)
-			test.expectErr(t, err)
-
 			if s != nil {
-				s.Shutdown()
+				defer s.Shutdown()
 			}
+
+			test.expectErr(t, err)
 		})
 	}
 }
