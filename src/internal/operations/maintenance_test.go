@@ -26,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -181,7 +182,8 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = bo.Run(ctx)
