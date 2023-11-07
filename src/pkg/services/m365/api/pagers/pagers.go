@@ -76,7 +76,10 @@ func (npr *nextPageResults[T]) writeNextPage(
 
 	select {
 	case <-ctx.Done():
-		return clues.Wrap(context.Canceled, "writing next page")
+		return clues.Wrap(
+			clues.Stack(ctx.Err(), context.Cause(ctx)),
+			"writing next page")
+
 	case npr.pages <- nextPage[T]{
 		items: items,
 		reset: reset,
