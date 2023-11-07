@@ -11,6 +11,7 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	"golang.org/x/time/rate"
 
+	limiters "github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -102,6 +103,8 @@ var (
 	driveLimiter = rate.NewLimiter(drivePerSecond, driveMaxCap)
 	// also used as the exchange service limiter
 	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
+
+	exchLim, _ = limiters.NewSlidingWindowLimiter(610*time.Second, 1*time.Second, 9800)
 )
 
 type LimiterCfg struct {
@@ -185,10 +188,14 @@ func ctxLimiterConsumption(ctx context.Context, defaultConsumption int) int {
 // calls-per-minute rate.  Otherwise, the call will wait in a queue until
 // the next token set is available.
 func QueueRequest(ctx context.Context) {
-	limiter := ctxLimiter(ctx)
-	consume := ctxLimiterConsumption(ctx, defaultLC)
+	// limiter := ctxLimiter(ctx)
+	// consume := ctxLimiterConsumption(ctx, defaultLC)
 
-	if err := limiter.WaitN(ctx, consume); err != nil {
+	// if err := limiter.WaitN(ctx, consume); err != nil {
+	// 	logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
+	// }
+
+	if err := exchLim.Wait(ctx); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
 	}
 }
