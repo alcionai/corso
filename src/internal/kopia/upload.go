@@ -752,9 +752,10 @@ func inflateCollectionTree(
 
 			changedPaths = append(changedPaths, s.PreviousPath())
 
-			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
+			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, clues.New("multiple previous state changes to collection").
-					WithClues(ictx)
+					WithClues(ictx).
+					With("updated_path", p)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = nil
@@ -764,9 +765,10 @@ func inflateCollectionTree(
 		case data.MovedState:
 			changedPaths = append(changedPaths, s.PreviousPath())
 
-			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
+			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
 				return nil, nil, clues.New("multiple previous state changes to collection").
-					WithClues(ictx)
+					WithClues(ictx).
+					With("updated_path", p)
 			}
 
 			updatedPaths[s.PreviousPath().String()] = s.FullPath()
@@ -782,9 +784,10 @@ func inflateCollectionTree(
 			}
 		case data.NotMovedState:
 			p := s.PreviousPath().String()
-			if _, ok := updatedPaths[p]; ok {
+			if p, ok := updatedPaths[p]; ok {
 				return nil, nil, clues.New("multiple previous state changes to collection").
-					WithClues(ictx)
+					WithClues(ictx).
+					With("updated_path", p)
 			}
 
 			updatedPaths[p] = s.FullPath()
