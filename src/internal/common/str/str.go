@@ -1,9 +1,9 @@
 package str
 
 import (
-	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"hash/crc32"
 	"strconv"
 
 	"github.com/alcionai/clues"
@@ -93,14 +93,11 @@ func SliceToMap(ss []string) map[string]struct{} {
 	return m
 }
 
-func GenerateHash(input []byte, hashLength int) string {
-	h := md5.New()
-	h.Write([]byte(input))
-	hexstr := hex.EncodeToString(h.Sum(nil))
+func GenerateHash(input []byte) string {
+	crc32Hash := crc32.NewIEEE()
+	crc32Hash.Write(input)
+	checksum := crc32Hash.Sum(nil)
+	hashString := hex.EncodeToString(checksum)
 
-	if hashLength > 0 {
-		return hexstr[0:hashLength]
-	}
-
-	return hexstr
+	return hashString
 }

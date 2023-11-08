@@ -28,8 +28,6 @@ import (
 
 const (
 	NewRepoID = ""
-
-	hashLength = 7
 )
 
 var (
@@ -308,7 +306,7 @@ func (r repository) GenerateHashForRepositoryConfigFileName() (string, error) {
 		return "", clues.Wrap(err, "serializing hash config")
 	}
 
-	hashStr := str.GenerateHash(b, hashLength)
+	hashStr := str.GenerateHash(b)
 
 	return hashStr, nil
 }
