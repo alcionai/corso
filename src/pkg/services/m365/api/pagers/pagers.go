@@ -206,12 +206,8 @@ func EnumerateItems[T any](
 ) {
 	defer npr.close()
 
-	var (
-		result = make([]T, 0)
-		// stubbed initial value to ensure we enter the loop.
-		nextLink = "do-while"
-	)
-
+	// stubbed initial value to ensure we enter the loop.
+	nextLink := "do-while"
 	for len(nextLink) > 0 {
 		// get the next page of data, check for standard errors
 		page, err := pager.GetPage(ctx)
@@ -232,8 +228,6 @@ func EnumerateItems[T any](
 
 		pager.SetNextLink(nextLink)
 	}
-
-	logger.Ctx(ctx).Infow("completed delta item enumeration", "result_count", len(result))
 }
 
 func BatchEnumerateItems[T any](
@@ -279,7 +273,6 @@ func DeltaEnumerateItems[T any](
 	defer npr.close()
 
 	var (
-		result = make([]T, 0)
 		// stubbed initial value to ensure we enter the loop.
 		newDeltaLink     = ""
 		invalidPrevDelta = len(prevDeltaLink) == 0
@@ -365,8 +358,6 @@ func DeltaEnumerateItems[T any](
 		nextLink = nl
 		pager.SetNextLink(nextLink)
 	}
-
-	logger.Ctx(ctx).Debugw("completed delta item enumeration", "result_count", len(result))
 }
 
 // ---------------------------------------------------------------------------
