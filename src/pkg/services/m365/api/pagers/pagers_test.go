@@ -477,6 +477,9 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		// noDelta should be set if we exit enumeration early due to the item limit
 		// so we don't get a delta token.
 		noDelta bool
+		// deltaReset should be set if something specific to the error case will
+		// cause the delta to be marked as reset (e.x. error).
+		deltaReset bool
 	}
 
 	table := []struct {
@@ -618,7 +621,10 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				}
 			},
 			expect: expected{
-				errCheck: assert.Error,
+				errCheck:     assert.Error,
+				maxGetterIdx: 1,
+				noDelta:      true,
+				deltaReset:   true,
 			},
 		},
 		{
@@ -806,6 +812,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			expect: expected{
 				errCheck:     assert.Error,
+				noDelta:      true,
+				deltaReset:   true,
 				maxGetterIdx: 1,
 			},
 			ctxCancelled: true,
@@ -850,15 +858,19 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 								filters...)
 							test.expect.errCheck(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
 
-							if err != nil {
-								return
-							}
+							// Check return values even if we get an error as some handlers
+							// continue to run when some error types are returned.
 
 							assert.Len(t, addRemoved.Added, test.expect.numAdded, "number of added items")
 							assert.GreaterOrEqual(t, test.expect.maxGetterIdx, basePager.pageIdx, "number of pager calls")
 
 							assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
-							assert.Equal(t, pagerTypeTest.expectDeltaReset, addRemoved.DU.Reset, "delta reset")
+
+							assert.Equal(
+								t,
+								test.expect.deltaReset || pagerTypeTest.expectDeltaReset,
+								addRemoved.DU.Reset,
+								"delta reset")
 
 							if pagerTypeTest.expectNoDelta || test.expect.noDelta {
 								assert.Empty(t, addRemoved.DU.URL, "delta link")
