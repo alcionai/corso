@@ -923,10 +923,11 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 // cancellation, etc.
 func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 	type expected struct {
-		errCheck  assert.ErrorAssertionFunc
-		added     []testItem
-		removed   []testItem
-		deltaLink assert.ValueAssertionFunc
+		errCheck      assert.ErrorAssertionFunc
+		added         []testItem
+		removed       []testItem
+		deltaLink     assert.ValueAssertionFunc
+		invertModTime bool
 	}
 
 	tests := []struct {
@@ -1074,6 +1075,61 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 					removedItem2,
 				},
 				deltaLink: assert.Empty,
+			},
+		},
+		{
+			name: "TwoValidPages DeltaNotSupported SwitchModTimeValidity",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) NonDeltaHandler[testItem] {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								removedItem1,
+							},
+						},
+						{
+							items: []testItem{
+								removedItem2,
+								addedItem2,
+							},
+						},
+					},
+					validModTimes: !validModTimes,
+				}
+			},
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
+				return newDeltaPager(
+					&testIDsNonDeltaMultiPager{
+						t: t,
+						pages: []pageResult{
+							{
+								err:        graph.ErrDeltaNotSupported,
+								needsReset: true,
+							},
+						},
+						validModTimes: validModTimes,
+					})
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+					addedItem2,
+				},
+				removed: []testItem{
+					removedItem1,
+					removedItem2,
+				},
+				deltaLink:     assert.Empty,
+				invertModTime: true,
 			},
 		},
 		{
@@ -1273,7 +1329,12 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						"getting added and removed item IDs: %+v",
 						clues.ToCore(err))
 
-					assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
+					wantModTime := modTimeTest.validModTimes
+					if test.expect.invertModTime {
+						wantModTime = !wantModTime
+					}
+
+					assert.Equal(t, wantModTime, addRemoved.ValidModTimes, "valid mod times")
 					assert.True(t, addRemoved.DU.Reset, "delta reset")
 					test.expect.deltaLink(t, addRemoved.DU.URL, "delta link")
 
