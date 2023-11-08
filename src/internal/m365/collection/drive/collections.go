@@ -311,25 +311,36 @@ func (c *Collections) Get(
 		driveIDToPrevPaths[driveID] = map[string]string{}
 		maps.Copy(driveIDToPrevPaths[driveID], newPrevPaths)
 
+		numDriveItems := c.NumItems - numPrevItems
+		numPrevItems = c.NumItems
+
 		logger.Ctx(ictx).Infow(
 			"persisted metadata for drive",
 			"num_new_paths_entries", len(newPrevPaths),
 			"delta_reset", du.Reset)
 
-		numDriveItems := c.NumItems - numPrevItems
-		numPrevItems = c.NumItems
-
-		// Attach an url cache
+		// Attach an url cache to the drive if the number of discovered items is
+		// below the threshold. Attaching cache to larger drives can cause
+		// performance issues since cache delta queries start taking up majority of
+		// the hour the refreshed URLs are valid for.
 		if numDriveItems < urlCacheDriveItemThreshold {
-			logger.Ctx(ictx).Info("adding url cache for drive")
+			logger.Ctx(ictx).Infow(
+				"adding url cache for drive",
+				"num_drive_items", numDriveItems)
 
-			err = c.addURLCacheToDriveCollections(
-				ictx,
+			uc, err := newURLCache(
 				driveID,
 				prevDeltaLink,
+				urlCacheRefreshInterval,
+				c.handler,
 				errs)
 			if err != nil {
-				return nil, false, err
+				return nil, false, clues.Stack(err)
+			}
+
+			// Set the URL cache instance for all collections in this drive.
+			for id := range c.CollectionMap[driveID] {
+				c.CollectionMap[driveID][id].urlCache = uc
 			}
 		}
 
@@ -455,33 +466,6 @@ func (c *Collections) Get(
 	}
 
 	return collections, canUsePrevBackup, nil
-}
-
-// addURLCacheToDriveCollections adds an URL cache to all collections belonging to
-// a drive.
-func (c *Collections) addURLCacheToDriveCollections(
-	ctx context.Context,
-	driveID, prevDelta string,
-	errs *fault.Bus,
-) error {
-	uc, err := newURLCache(
-		driveID,
-		prevDelta,
-		urlCacheRefreshInterval,
-		c.handler,
-		errs)
-	if err != nil {
-		return err
-	}
-
-	// Set the URL cache for all collections in this drive
-	for _, driveColls := range c.CollectionMap {
-		for _, coll := range driveColls {
-			coll.urlCache = uc
-		}
-	}
-
-	return nil
 }
 
 func updateCollectionPaths(
