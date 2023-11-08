@@ -311,13 +311,13 @@ func (c *Collections) Get(
 		driveIDToPrevPaths[driveID] = map[string]string{}
 		maps.Copy(driveIDToPrevPaths[driveID], newPrevPaths)
 
-		numDriveItems := c.NumItems - numPrevItems
-		numPrevItems = c.NumItems
-
 		logger.Ctx(ictx).Infow(
 			"persisted metadata for drive",
 			"num_new_paths_entries", len(newPrevPaths),
 			"delta_reset", du.Reset)
+
+		numDriveItems := c.NumItems - numPrevItems
+		numPrevItems = c.NumItems
 
 		// Attach an url cache to the drive if the number of discovered items is
 		// below the threshold. Attaching cache to larger drives can cause

@@ -3089,6 +3089,9 @@ func delItem(
 	return item
 }
 
+// TestURLCacheAttach tests for 2 things:
+// 1. All collections belong to the same drive share the url cache instance
+// 2. Each drive has its own unique url cache instance
 func (suite *OneDriveCollectionsUnitSuite) TestURLCacheAttach() {
 	var (
 		tenant = "a-tenant"
