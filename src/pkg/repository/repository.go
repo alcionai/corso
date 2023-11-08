@@ -37,11 +37,6 @@ var (
 	ErrorBackupNotFound    = clues.New("no backup exists with that id")
 )
 
-type HashConfig struct {
-	Storage storage.Storage
-	Account account.Account
-}
-
 type Repositoryer interface {
 	Backuper
 	BackupGetter
