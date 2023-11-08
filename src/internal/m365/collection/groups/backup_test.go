@@ -58,15 +58,22 @@ func (bh mockBackupHandler) getContainers(context.Context) ([]models.Channelable
 func (bh mockBackupHandler) getContainerItemIDs(
 	_ context.Context,
 	_, _ string,
-	_ bool,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
+	_ api.CallConfig,
+) (pagers.AddedAndRemoved, error) {
 	idRes := make(map[string]time.Time, len(bh.messageIDs))
 
 	for _, id := range bh.messageIDs {
 		idRes[id] = time.Time{}
 	}
 
-	return idRes, true, bh.deletedMsgIDs, pagers.DeltaUpdate{}, bh.messagesErr
+	aar := pagers.AddedAndRemoved{
+		Added:         idRes,
+		Removed:       bh.deletedMsgIDs,
+		ValidModTimes: true,
+		DU:            pagers.DeltaUpdate{},
+	}
+
+	return aar, bh.messagesErr
 }
 
 func (bh mockBackupHandler) includeContainer(

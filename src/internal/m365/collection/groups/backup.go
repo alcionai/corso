@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // TODO: incremental support
@@ -152,20 +153,22 @@ func populateCollections(
 
 		// if the channel has no email property, it is unable to process delta tokens
 		// and will return an error if a delta token is queried.
-		canMakeDeltaQueries := len(ptr.Val(c.GetEmail())) > 0
+		cc := api.CallConfig{
+			CanMakeDeltaQueries: len(ptr.Val(c.GetEmail())) > 0,
+		}
 
-		add, _, rem, du, err := bh.getContainerItemIDs(ctx, cID, prevDelta, canMakeDeltaQueries)
+		addAndRem, err := bh.getContainerItemIDs(ctx, cID, prevDelta, cc)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
 		}
 
-		added := str.SliceToMap(maps.Keys(add))
-		removed := str.SliceToMap(rem)
+		added := str.SliceToMap(maps.Keys(addAndRem.Added))
+		removed := str.SliceToMap(addAndRem.Removed)
 
-		if len(du.URL) > 0 {
-			deltaURLs[cID] = du.URL
-		} else if !du.Reset {
+		if len(addAndRem.DU.URL) > 0 {
+			deltaURLs[cID] = addAndRem.DU.URL
+		} else if !addAndRem.DU.Reset {
 			logger.Ctx(ictx).Info("missing delta url")
 		}
 
@@ -188,7 +191,7 @@ func populateCollections(
 				prevPath,
 				path.Builder{}.Append(cName),
 				ctrlOpts,
-				du.Reset),
+				addAndRem.DU.Reset),
 			bh,
 			qp.ProtectedResource.ID(),
 			added,

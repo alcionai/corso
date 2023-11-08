@@ -112,6 +112,9 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 		chanItem  = toRR(path.ChannelMessagesCategory, "gid", slices.Clone(itemElems1), "chitem")
 		chanItem2 = toRR(path.ChannelMessagesCategory, "gid", slices.Clone(itemElems2), "chitem2")
 		chanItem3 = toRR(path.ChannelMessagesCategory, "gid", slices.Clone(itemElems3), "chitem3")
+		convItem  = toRR(path.ConversationPostsCategory, "gid", slices.Clone(itemElems1), "convitem")
+		convItem2 = toRR(path.ConversationPostsCategory, "gid", slices.Clone(itemElems2), "convitem2")
+		convItem3 = toRR(path.ConversationPostsCategory, "gid", slices.Clone(itemElems3), "convitem3")
 	)
 
 	deets := &details.Details{
@@ -186,6 +189,39 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 						},
 					},
 				},
+				{
+					RepoRef:     convItem,
+					ItemRef:     "convitem",
+					LocationRef: strings.Join(itemElems1, "/"),
+					ItemInfo: details.ItemInfo{
+						Groups: &details.GroupsInfo{
+							ItemType:   details.GroupsConversationPost,
+							ParentPath: strings.Join(itemElems1, "/"),
+						},
+					},
+				},
+				{
+					RepoRef:     convItem2,
+					LocationRef: strings.Join(itemElems2, "/"),
+					// ItemRef intentionally blank to test fallback case
+					ItemInfo: details.ItemInfo{
+						Groups: &details.GroupsInfo{
+							ItemType:   details.GroupsConversationPost,
+							ParentPath: strings.Join(itemElems2, "/"),
+						},
+					},
+				},
+				{
+					RepoRef:     convItem3,
+					ItemRef:     "convitem3",
+					LocationRef: strings.Join(itemElems3, "/"),
+					ItemInfo: details.ItemInfo{
+						Groups: &details.GroupsInfo{
+							ItemType:   details.GroupsConversationPost,
+							ParentPath: strings.Join(itemElems3, "/"),
+						},
+					},
+				},
 			},
 		},
 	}
@@ -207,7 +243,10 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 				sel.Include(sel.AllData())
 				return sel
 			},
-			expect: arr(libItem, libItem2, libItem3, chanItem, chanItem2, chanItem3),
+			expect: arr(
+				libItem, libItem2, libItem3,
+				chanItem, chanItem2, chanItem3,
+				convItem, convItem2, convItem3),
 		},
 		{
 			name: "only match library item",
@@ -219,29 +258,10 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 			expect: arr(libItem2),
 		},
 		{
-			name: "only match channel item",
-			makeSelector: func() *GroupsRestore {
-				sel := NewGroupsRestore(Any())
-				sel.Include(sel.ChannelMessages(Any(), []string{"chitem2"}))
-				return sel
-			},
-			expect: arr(chanItem2),
-		},
-		{
 			name: "library id doesn't match name",
 			makeSelector: func() *GroupsRestore {
 				sel := NewGroupsRestore(Any())
 				sel.Include(sel.LibraryItems(Any(), []string{"item2"}))
-				return sel
-			},
-			expect: []string{},
-			cfg:    Config{OnlyMatchItemNames: true},
-		},
-		{
-			name: "channel id doesn't match name",
-			makeSelector: func() *GroupsRestore {
-				sel := NewGroupsRestore(Any())
-				sel.Include(sel.ChannelMessages(Any(), []string{"item2"}))
 				return sel
 			},
 			expect: []string{},
@@ -274,6 +294,44 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 				return sel
 			},
 			expect: arr(libItem, libItem2),
+		},
+		{
+			name: "only match channel item",
+			makeSelector: func() *GroupsRestore {
+				sel := NewGroupsRestore(Any())
+				sel.Include(sel.ChannelMessages(Any(), []string{"chitem2"}))
+				return sel
+			},
+			expect: arr(chanItem2),
+		},
+		{
+			name: "channel id doesn't match name",
+			makeSelector: func() *GroupsRestore {
+				sel := NewGroupsRestore(Any())
+				sel.Include(sel.ChannelMessages(Any(), []string{"item2"}))
+				return sel
+			},
+			expect: []string{},
+			cfg:    Config{OnlyMatchItemNames: true},
+		},
+		{
+			name: "only match conversation item",
+			makeSelector: func() *GroupsRestore {
+				sel := NewGroupsRestore(Any())
+				sel.Include(sel.ConversationPosts(Any(), []string{"convitem2"}))
+				return sel
+			},
+			expect: arr(convItem2),
+		},
+		{
+			name: "conversation id doesn't match name",
+			makeSelector: func() *GroupsRestore {
+				sel := NewGroupsRestore(Any())
+				sel.Include(sel.ConversationPosts(Any(), []string{"item2"}))
+				return sel
+			},
+			expect: []string{},
+			cfg:    Config{OnlyMatchItemNames: true},
 		},
 	}
 	for _, test := range table {
@@ -317,6 +375,17 @@ func (suite *GroupsSelectorSuite) TestGroupsCategory_PathValues() {
 			expected: map[categorizer][]string{
 				GroupsChannel:        {""},
 				GroupsChannelMessage: {itemID, shortRef},
+			},
+			cfg: Config{},
+		},
+		{
+			name:      "Groups Conversation Posts",
+			sc:        GroupsConversationPost,
+			pathElems: elems,
+			locRef:    "",
+			expected: map[categorizer][]string{
+				GroupsConversation:     {""},
+				GroupsConversationPost: {itemID, shortRef},
 			},
 			cfg: Config{},
 		},
@@ -476,6 +545,8 @@ func (suite *GroupsSelectorSuite) TestCategory_PathType() {
 		{GroupsCategoryUnknown, path.UnknownCategory},
 		{GroupsChannel, path.ChannelMessagesCategory},
 		{GroupsChannelMessage, path.ChannelMessagesCategory},
+		{GroupsConversation, path.ConversationPostsCategory},
+		{GroupsConversationPost, path.ConversationPostsCategory},
 		{GroupsInfoChannelMessageCreator, path.ChannelMessagesCategory},
 		{GroupsInfoChannelMessageCreatedAfter, path.ChannelMessagesCategory},
 		{GroupsInfoChannelMessageCreatedBefore, path.ChannelMessagesCategory},
