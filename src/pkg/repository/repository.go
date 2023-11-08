@@ -197,17 +197,8 @@ func (r *repository) Connect(
 // - connect to the provider storage using existing password
 // - update the repo with new password
 func (r *repository) UpdatePassword(ctx context.Context, password string) (err error) {
-	ctx = clues.Add(
-		ctx,
-		"acct_provider", r.Account.Provider.String(),
-		"acct_id", clues.Hide(r.Account.ID()),
-		"storage_provider", r.Storage.Provider.String())
-
-	defer func() {
-		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
-			err = crErr
-		}
-	}()
+	ctx = r.addContextInfo(ctx)
+	defer r.handleRecovery(ctx, &err, "repo connect")
 
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer close(progressBar)
