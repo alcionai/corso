@@ -72,7 +72,71 @@ func NewCollections(
 	}
 }
 
-func deserializeMetadata(
+func deserializeAndValidateMetadata(
+	ctx context.Context,
+	cols []data.RestoreCollection,
+) (map[string]string, map[string]map[string]string, bool, error) {
+	deltas, prevs, canUse, err := DeserializeMetadata(ctx, cols)
+	if err != nil || !canUse {
+		return deltas, prevs, canUse, clues.Stack(err).OrNil()
+	}
+
+	// Go through and remove delta tokens if we didn't have any paths for them
+	// or one or more paths are empty (incorrect somehow). This will ensure we
+	// don't accidentally try to pull in delta results when we should have
+	// enumerated everything instead.
+	//
+	// Loop over the set of previous deltas because it's alright to have paths
+	// without a delta but not to have a delta without paths. This way ensures
+	// we check at least all the path sets for the deltas we have.
+	for drive := range deltas {
+		paths := prevs[drive]
+		if len(paths) == 0 {
+			delete(deltas, drive)
+		}
+
+		// Drives have only a single delta token. If we find any folder that
+		// seems like the path is bad we need to drop the entire token and start
+		// fresh. Since we know the token will be gone we can also stop checking
+		// for other possibly incorrect folder paths.
+		for _, prevPath := range paths {
+			if len(prevPath) == 0 {
+				delete(deltas, drive)
+				break
+			}
+		}
+	}
+
+	prevPathCollisions := map[string]string{}
+
+	for driveID, folders := range prevs {
+		for fid, prev := range folders {
+			if otherID, collision := prevPathCollisions[prev]; collision {
+				logger.Ctx(ctx).
+					With(
+						"collision_folder_id_1", fid,
+						"collision_folder_id_2", otherID,
+						"collision_drive_id", driveID,
+						"collision_prev_path", prev).
+					Info("duplicate previous paths across different folder IDs")
+
+				// If a previous path collision occurs, we need to force a full backup
+				// in order to correct the backup state, else we'll potentially hit
+				// unresolvable failures.
+				return map[string]string{}, map[string]map[string]string{}, false, nil
+			}
+
+			prevPathCollisions[prev] = fid
+		}
+
+		// reset the collision check for each drive
+		prevPathCollisions = map[string]string{}
+	}
+
+	return deltas, prevs, canUse, nil
+}
+
+func DeserializeMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
 ) (map[string]string, map[string]map[string]string, bool, error) {
@@ -137,32 +201,6 @@ func deserializeMetadata(
 				}
 			}
 		}
-
-		// Go through and remove delta tokens if we didn't have any paths for them
-		// or one or more paths are empty (incorrect somehow). This will ensure we
-		// don't accidentally try to pull in delta results when we should have
-		// enumerated everything instead.
-		//
-		// Loop over the set of previous deltas because it's alright to have paths
-		// without a delta but not to have a delta without paths. This way ensures
-		// we check at least all the path sets for the deltas we have.
-		for drive := range prevDeltas {
-			paths := prevFolders[drive]
-			if len(paths) == 0 {
-				delete(prevDeltas, drive)
-			}
-
-			// Drives have only a single delta token. If we find any folder that
-			// seems like the path is bad we need to drop the entire token and start
-			// fresh. Since we know the token will be gone we can also stop checking
-			// for other possibly incorrect folder paths.
-			for _, prevPath := range paths {
-				if len(prevPath) == 0 {
-					delete(prevDeltas, drive)
-					break
-				}
-			}
-		}
 	}
 
 	// if reads from items failed, return empty but no error
@@ -215,7 +253,7 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeMetadata(ctx, prevMetadata)
+	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(ctx, prevMetadata)
 	if err != nil {
 		return nil, false, err
 	}
