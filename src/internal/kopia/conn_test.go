@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/snapshot"
@@ -27,9 +28,10 @@ func openLocalKopiaRepo(
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, error) {
 	st := storeTD.NewFilesystemStorage(t)
+	hashStr := uuid.NewString()[:7]
 
 	k := NewConn(st)
-	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}); err != nil {
+	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, hashStr); err != nil {
 		return nil, err
 	}
 
@@ -41,9 +43,10 @@ func openKopiaRepo(
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, error) {
 	st := storeTD.NewPrefixedS3Storage(t)
+	hashStr := uuid.NewString()[:7]
 
 	k := NewConn(st)
-	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}); err != nil {
+	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, hashStr); err != nil {
 		return nil, err
 	}
 
@@ -91,6 +94,7 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 
 func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 	t := suite.T()
+	hashStr := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -98,19 +102,20 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 	st := storeTD.NewFilesystemStorage(t)
 	k := NewConn(st)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, hashStr)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err = k.Initialize(ctx, repository.Options{}, repository.Retention{}, hashStr)
 	assert.Error(t, err, clues.ToCore(err))
 	assert.ErrorIs(t, err, ErrorRepoAlreadyExists)
 }
 
 func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	t := suite.T()
+	hashStr := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -119,12 +124,13 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	st.Provider = storage.ProviderUnknown
 	k := NewConn(st)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, hashStr)
 	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 	t := suite.T()
+	hashStr := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -132,7 +138,7 @@ func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 	st := storeTD.NewFilesystemStorage(t)
 	k := NewConn(st)
 
-	err := k.Connect(ctx, repository.Options{})
+	err := k.Connect(ctx, repository.Options{}, hashStr)
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -278,6 +284,7 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 }
 
 func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect() {
+	hashStr := uuid.NewString()[:7]
 	newCompressor := "pgzip"
 	newRetentionDaily := policy.OptionalInt(42)
 	newRetention := policy.RetentionPolicy{KeepDaily: &newRetentionDaily}
@@ -376,7 +383,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 			err = k.Close(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = k.Connect(ctx, repository.Options{})
+			err = k.Connect(ctx, repository.Options{}, hashStr)
 			require.NoError(t, err, clues.ToCore(err))
 
 			defer func() {
@@ -393,6 +400,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 
 func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 	t := suite.T()
+	hashStr := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -404,7 +412,7 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Re-open with Connect.
-	err = k.Connect(ctx, repository.Options{})
+	err = k.Connect(ctx, repository.Options{}, hashStr)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -413,6 +421,7 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 
 func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 	t := suite.T()
+	hashStr := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -425,7 +434,7 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 	st := storeTD.NewFilesystemStorage(t)
 	k := NewConn(st)
 
-	err := k.Initialize(ctx, opts, repository.Retention{})
+	err := k.Initialize(ctx, opts, repository.Retention{}, hashStr)
 	require.NoError(t, err, clues.ToCore(err))
 
 	kopiaOpts := k.ClientOptions()
@@ -439,7 +448,7 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 	opts.User = "hello"
 	opts.Host = "world"
 
-	err = k.Connect(ctx, opts)
+	err = k.Connect(ctx, opts, hashStr)
 	require.NoError(t, err, clues.ToCore(err))
 
 	kopiaOpts = k.ClientOptions()
@@ -453,7 +462,7 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 	opts.User = ""
 	opts.Host = ""
 
-	err = k.Connect(ctx, opts)
+	err = k.Connect(ctx, opts, hashStr)
 	require.NoError(t, err, clues.ToCore(err))
 
 	kopiaOpts = k.ClientOptions()
@@ -485,6 +494,7 @@ func TestConnRetentionIntegrationSuite(t *testing.T) {
 // from the default values that kopia uses.
 func (suite *ConnRetentionIntegrationSuite) TestInitWithAndWithoutRetention() {
 	t := suite.T()
+	hashStr := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -492,7 +502,7 @@ func (suite *ConnRetentionIntegrationSuite) TestInitWithAndWithoutRetention() {
 	st1 := storeTD.NewPrefixedS3Storage(t)
 
 	k1 := NewConn(st1)
-	err := k1.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k1.Initialize(ctx, repository.Options{}, repository.Retention{}, hashStr)
 	require.NoError(t, err, "initializing repo 1: %v", clues.ToCore(err))
 
 	st2 := storeTD.NewPrefixedS3Storage(t)
@@ -505,7 +515,8 @@ func (suite *ConnRetentionIntegrationSuite) TestInitWithAndWithoutRetention() {
 			Mode:     ptr.To(repository.GovernanceRetention),
 			Duration: ptr.To(time.Hour * 48),
 			Extend:   ptr.To(true),
-		})
+		},
+		hashStr)
 	require.NoError(t, err, "initializing repo 2: %v", clues.ToCore(err))
 
 	dr1, ok := k1.Repository.(repo.DirectRepository)

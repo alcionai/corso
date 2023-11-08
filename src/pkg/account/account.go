@@ -88,3 +88,12 @@ func (a Account) ID() string {
 
 	return a.Config[a.Provider.String()+"-tenant-id"]
 }
+
+func (a Account) AccountHashConfig() (map[string]any, error) {
+	switch a.Provider {
+	case ProviderM365:
+		return a.GetM365ConfigForHashing()
+	}
+
+	return nil, clues.New("unsupported account provider: [" + a.Provider.String() + "]")
+}

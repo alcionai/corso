@@ -1,6 +1,8 @@
 package str
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 
@@ -89,4 +91,26 @@ func SliceToMap(ss []string) map[string]struct{} {
 	}
 
 	return m
+}
+
+func GenerateHash(input []byte, hashLength int) string {
+	h := md5.New()
+	h.Write([]byte(input))
+	hexstr := hex.EncodeToString(h.Sum(nil))
+
+	if hashLength > 0 {
+		return hexstr[0:hashLength]
+	}
+
+	return hexstr
+}
+
+func Contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+
+	return false
 }

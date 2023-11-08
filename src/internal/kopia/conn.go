@@ -96,6 +96,7 @@ func (w *conn) Initialize(
 	ctx context.Context,
 	opts repository.Options,
 	retentionOpts repository.Retention,
+	hashStr string,
 ) error {
 	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
@@ -138,7 +139,8 @@ func (w *conn) Initialize(
 		cfg.KopiaCfgDir,
 		bst,
 		cfg.CorsoPassphrase,
-		defaultCompressor)
+		defaultCompressor,
+		hashStr)
 	if err != nil {
 		return err
 	}
@@ -153,7 +155,7 @@ func (w *conn) Initialize(
 	return clues.Stack(w.setRetentionParameters(ctx, retentionOpts)).OrNil()
 }
 
-func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
+func (w *conn) Connect(ctx context.Context, opts repository.Options, hashStr string) error {
 	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -171,7 +173,8 @@ func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
 		cfg.KopiaCfgDir,
 		bst,
 		cfg.CorsoPassphrase,
-		defaultCompressor)
+		defaultCompressor,
+		hashStr)
 }
 
 func (w *conn) commonConnect(
@@ -180,6 +183,7 @@ func (w *conn) commonConnect(
 	configDir string,
 	bst blob.Storage,
 	password, compressor string,
+	hashStr string,
 ) error {
 	kopiaOpts := &repo.ConnectOptions{
 		ClientOptions: repo.ClientOptions{
@@ -197,12 +201,7 @@ func (w *conn) commonConnect(
 		configDir = defaultKopiaConfigDir
 	}
 
-	cfgHash, err := configHashByProvider(ctx, w.storage)
-	if err != nil {
-		return clues.Stack(err)
-	}
-
-	cfgFile := filepath.Join(configDir, fmt.Sprintf(kopiaConfigFileTemplate, cfgHash))
+	cfgFile := filepath.Join(configDir, fmt.Sprintf(kopiaConfigFileTemplate, hashStr))
 
 	// todo - issue #75: nil here should be storage.ConnectOptions()
 	if err := repo.Connect(
@@ -233,17 +232,6 @@ func blobStoreByProvider(
 		return filesystemStorage(ctx, opts, s)
 	default:
 		return nil, clues.New("storage provider details are required").WithClues(ctx)
-	}
-}
-
-func configHashByProvider(ctx context.Context, s storage.Storage) (string, error) {
-	switch s.Provider {
-	case storage.ProviderS3:
-		return s.GenerateS3Hash()
-	case storage.ProviderFilesystem:
-		return s.GenerateFilesystemHash()
-	default:
-		return "", clues.New("unrecognized storage provider details are required").WithClues(ctx)
 	}
 }
 
@@ -596,13 +584,13 @@ func (w *conn) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
 	return snapshotfs.SnapshotRoot(w.Repository, man)
 }
 
-func (w *conn) UpdatePassword(ctx context.Context, password string, opts repository.Options) error {
+func (w *conn) UpdatePassword(ctx context.Context, password string, opts repository.Options, hashStr string) error {
 	if len(password) <= 0 {
 		return clues.New("empty password provided")
 	}
 
 	kopiaRef := NewConn(w.storage)
-	if err := kopiaRef.Connect(ctx, opts); err != nil {
+	if err := kopiaRef.Connect(ctx, opts, hashStr); err != nil {
 		return clues.Wrap(err, "connecting kopia client")
 	}
 

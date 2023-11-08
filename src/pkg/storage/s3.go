@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"encoding/json"
 	"os"
+	"reflect"
 	"strconv"
 
 	"github.com/alcionai/clues"
@@ -20,6 +20,14 @@ type S3Config struct {
 	Prefix         string
 	DoNotUseTLS    bool
 	DoNotVerifyTLS bool
+}
+
+var excludedS3ConfigFieldsForHashing = []string{
+	"DoNotUseTLS",
+	"DoNotVerifyTLS",
+	"AccessKey",
+	"SecretKey",
+	"SessionToken",
 }
 
 // config key consts
@@ -67,20 +75,29 @@ func (s Storage) ToS3Config() (*S3Config, error) {
 	return buildS3ConfigFromMap(s.Config)
 }
 
-func (s Storage) GenerateS3Hash() (string, error) {
+func (s Storage) GetS3ConfigForHashing() (map[string]any, error) {
 	s3Cfg, err := buildS3ConfigFromMap(s.Config)
 	if err != nil {
-		return "", err
+		return nil, clues.Stack(err)
 	}
 
-	s3CfgBytes, err := json.Marshal(s3Cfg)
-	if err != nil {
-		return "", clues.New("serializing s3 config")
+	filteredS3Config := createFilteredS3ConfigForHashing(*s3Cfg)
+
+	return filteredS3Config, nil
+}
+
+func createFilteredS3ConfigForHashing(source S3Config) map[string]any {
+	filteredS3Config := make(map[string]any)
+	sourceValue := reflect.ValueOf(source)
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		fieldName := sourceValue.Type().Field(i).Name
+		if !str.Contains(excludedS3ConfigFieldsForHashing, fieldName) {
+			filteredS3Config[fieldName] = sourceValue.Field(i).Interface()
+		}
 	}
 
-	s3ConfigHash := GenerateHash(s3CfgBytes, hashLength)
-
-	return s3ConfigHash, nil
+	return filteredS3Config
 }
 
 func buildS3ConfigFromMap(config map[string]string) (*S3Config, error) {

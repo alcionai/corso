@@ -125,8 +125,9 @@ func prepNewTestBackupOp(
 	}
 
 	k := kopia.NewConn(bod.st)
+	hashStr := uuid.NewString()[:7]
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, hashStr)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {

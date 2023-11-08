@@ -1,13 +1,23 @@
 package storage
 
 import (
-	"encoding/json"
+	"reflect"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/path"
 )
+
+var excludedFileSystemConfigFieldsForHashing = []string{
+	"DoNotUseTLS",
+	"DoNotVerifyTLS",
+	"AccessKey",
+	"SecretKey",
+	"SessionToken",
+}
 
 const (
 	FilesystemPath = "path"
@@ -26,20 +36,29 @@ func (s Storage) ToFilesystemConfig() (*FilesystemConfig, error) {
 	return buildFilesystemConfigFromMap(s.Config)
 }
 
-func (s Storage) GenerateFilesystemHash() (string, error) {
-	fsCfg, err := buildFilesystemConfigFromMap(s.Config)
+func (s Storage) GetFileSystemConfigForHashing() (map[string]any, error) {
+	fileSystemCfg, err := buildFilesystemConfigFromMap(s.Config)
 	if err != nil {
-		return "", clues.Stack(err)
+		return nil, clues.Stack(err)
 	}
 
-	fsCfgBytes, err := json.Marshal(fsCfg)
-	if err != nil {
-		return "", clues.New("serializing filesystem config")
+	filteredFileSystemConfig := createFilteredFileSystemConfigForHashing(*fileSystemCfg)
+
+	return filteredFileSystemConfig, nil
+}
+
+func createFilteredFileSystemConfigForHashing(source FilesystemConfig) map[string]any {
+	filteredFileSystemConfig := make(map[string]any)
+	sourceValue := reflect.ValueOf(source)
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		fieldName := sourceValue.Type().Field(i).Name
+		if !str.Contains(excludedFileSystemConfigFieldsForHashing, fieldName) {
+			filteredFileSystemConfig[fieldName] = sourceValue.Field(i).Interface()
+		}
 	}
 
-	fsCfgHash := GenerateHash(fsCfgBytes, hashLength)
-
-	return fsCfgHash, nil
+	return filteredFileSystemConfig
 }
 
 func buildFilesystemConfigFromMap(config map[string]string) (*FilesystemConfig, error) {
@@ -101,7 +120,11 @@ func (c *FilesystemConfig) ApplyConfigOverrides(
 		}
 	}
 
-	c.Path = str.First(overrides[FilesystemPath], c.Path)
+	sanitizePath := func(p string) string {
+		return path.TrimTrailingSlash(strings.TrimSpace(p))
+	}
+
+	c.Path = str.First(sanitizePath(overrides[FilesystemPath]), sanitizePath(c.Path))
 
 	return c.validate()
 }

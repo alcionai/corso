@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -39,7 +40,9 @@ func getKopiaHandles(
 ) (*kopia.Wrapper, *kopia.ModelStore) {
 	st := storeTD.NewPrefixedS3Storage(t)
 	k := kopia.NewConn(st)
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	hashStr := uuid.NewString()[:7]
+
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, hashStr)
 	require.NoError(t, err, clues.ToCore(err))
 
 	kw, err := kopia.NewWrapper(k)

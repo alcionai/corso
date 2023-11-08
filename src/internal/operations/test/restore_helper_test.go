@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -81,10 +82,11 @@ func prepNewTestRestoreOp(
 			acct: tconfig.NewM365Account(t),
 			st:   backupStore,
 		}
-		k = kopia.NewConn(rod.st)
+		k       = kopia.NewConn(rod.st)
+		hashStr = uuid.NewString()[:7]
 	)
 
-	err := k.Connect(ctx, repository.Options{})
+	err := k.Connect(ctx, repository.Options{}, hashStr)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// kopiaRef comes with a count of 1 and Wrapper bumps it again

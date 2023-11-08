@@ -108,6 +108,17 @@ func (s Storage) StorageConfig() (Configurer, error) {
 	return nil, clues.New("unsupported storage provider: [" + s.Provider.String() + "]")
 }
 
+func (s Storage) StorageHashConfig() (map[string]any, error) {
+	switch s.Provider {
+	case ProviderS3:
+		return s.GetS3ConfigForHashing()
+	case ProviderFilesystem:
+		return s.GetFileSystemConfigForHashing()
+	}
+
+	return nil, clues.New("unsupported storage provider: [" + s.Provider.String() + "]")
+}
+
 func NewStorageConfig(provider ProviderType) (Configurer, error) {
 	switch provider {
 	case ProviderS3:
