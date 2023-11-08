@@ -112,7 +112,24 @@ func deserializeAndValidateMetadata(
 		}
 	}
 
-	prevPathCollisions := map[string]string{}
+	if prevPathsHaveCollisions(ctx, prevs) {
+		// If a previous path collision occurs, we need to force a full backup
+		// in order to correct the backup state, else we'll potentially hit
+		// unresolvable failures.
+		return map[string]string{}, map[string]map[string]string{}, false, nil
+	}
+
+	return deltas, prevs, canUse, nil
+}
+
+func prevPathsHaveCollisions(
+	ctx context.Context,
+	prevs map[string]map[string]string,
+) bool {
+	var (
+		prevPathCollisions = map[string]string{}
+		foundCollision     bool
+	)
 
 	for driveID, folders := range prevs {
 		for fid, prev := range folders {
@@ -123,12 +140,9 @@ func deserializeAndValidateMetadata(
 						"collision_folder_id_2", otherID,
 						"collision_drive_id", driveID,
 						"collision_prev_path", path.LoggableDir(prev)).
-					Info("duplicate previous paths across different folder IDs")
+					Info("duplicate previous paths")
 
-				// If a previous path collision occurs, we need to force a full enumeration
-				// in order to correct the backup state, else we'll potentially hit
-				// unresolvable failures.
-				return map[string]string{}, map[string]map[string]string{}, false, nil
+				foundCollision = true
 			}
 
 			prevPathCollisions[prev] = fid
@@ -138,7 +152,7 @@ func deserializeAndValidateMetadata(
 		prevPathCollisions = map[string]string{}
 	}
 
-	return deltas, prevs, canUse, nil
+	return foundCollision
 }
 
 func DeserializeMetadata(
@@ -467,6 +481,11 @@ func (c *Collections) Get(
 		}
 
 		collections = append(collections, coll)
+	}
+
+	// validate metadata
+	if prevPathsHaveCollisions(ctx, driveIDToPrevPaths) {
+		return nil, false, clues.New("backup produced malformed metadata: previous path collision").WithClues(ctx)
 	}
 
 	// add metadata collections
