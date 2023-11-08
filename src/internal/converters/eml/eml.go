@@ -25,8 +25,8 @@ const (
 	dateFormat = "2006-01-02 15:04:05 MST" // from xhit/go-simple-mail
 )
 
-// toEml converts a Messageable to .eml format
-func toEml(data models.Messageable) (string, error) {
+// ToEml converts a Messageable to .eml format
+func ToEml(data models.Messageable) (string, error) {
 	email := mail.NewMSG()
 
 	if data.GetFrom() != nil {
