@@ -628,6 +628,26 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 		},
 		{
+			name: "ErrorDeletedInFlight",
+			pagerGetter: func(t *testing.T, validModTimes bool) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							err: graph.ErrDeletedInFlight,
+						},
+					},
+					validModTimes: validModTimes,
+				}
+			},
+			expect: expected{
+				errCheck:     assert.Error,
+				maxGetterIdx: 1,
+				noDelta:      true,
+				deltaReset:   true,
+			},
+		},
+		{
 			name: "FourValidPages OnlyPartOfSecondPage",
 			pagerGetter: func(
 				t *testing.T,
