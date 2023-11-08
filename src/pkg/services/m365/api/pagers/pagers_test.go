@@ -474,8 +474,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		// maxGetterIdx is the maximum index for the item page getter. Helps ensure
 		// we're stopping enumeration when we reach the item limit.
 		maxGetterIdx int
-		// expectNoDelta should be set if we exit enumeration early due to the item
-		// limit so we don't get a delta token.
+		// noDelta should be set if we exit enumeration early due to the item limit
+		// so we don't get a delta token.
 		noDelta bool
 	}
 
@@ -792,7 +792,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			) *testIDsNonDeltaMultiPager {
 				return &testIDsNonDeltaMultiPager{
 					t:             t,
-					validModTimes: true,
+					validModTimes: validModTimes,
 					pages: []pageResult{
 						{
 							items: []testItem{
