@@ -8,7 +8,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -53,7 +52,7 @@ func (ctrl Controller) ProduceBackupCollections(
 func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	base kopia.BackupBase,
+	base inject.ReasonAndSnapshotIDer,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	return nil, clues.New("not implemented")

@@ -38,6 +38,7 @@ type Repositoryer interface {
 	Restorer
 	Exporter
 	DataProviderConnector
+	DataStoreConnector
 
 	Initialize(
 		ctx context.Context,

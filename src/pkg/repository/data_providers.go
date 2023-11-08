@@ -30,6 +30,12 @@ type DataProviderConnector interface {
 		ctx context.Context,
 		pst path.ServiceType,
 	) error
+	// DataProvider retrieves the data provider.
+	DataProvider() DataProvider
+}
+
+func (r *repository) DataProvider() DataProvider {
+	return r.Provider
 }
 
 func (r *repository) ConnectDataProvider(

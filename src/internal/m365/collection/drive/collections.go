@@ -72,7 +72,7 @@ func NewCollections(
 	}
 }
 
-func deserializeMetadata(
+func DeserializeMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
 ) (map[string]string, map[string]map[string]string, bool, error) {
@@ -96,7 +96,7 @@ func deserializeMetadata(
 		for breakLoop := false; !breakLoop; {
 			select {
 			case <-ctx.Done():
-				return nil, nil, false, clues.Wrap(ctx.Err(), "deserialzing previous backup metadata").WithClues(ctx)
+				return nil, nil, false, clues.Wrap(ctx.Err(), "deserializing previous backup metadata").WithClues(ctx)
 
 			case item, ok := <-items:
 				if !ok {
@@ -215,7 +215,7 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeMetadata(ctx, prevMetadata)
+	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := DeserializeMetadata(ctx, prevMetadata)
 	if err != nil {
 		return nil, false, err
 	}

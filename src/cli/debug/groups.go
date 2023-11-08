@@ -1,11 +1,15 @@
 package debug
 
 import (
+	"context"
+
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -60,13 +64,25 @@ func metadataFilesGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// opts := utils.MakeGroupsOpts(cmd)
-
 	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
 	sel := selectors.NewGroupsBackup([]string{"unused-placeholder"})
+	sel.Include(sel.AllData())
 
-	return runMetadataFiles(ctx, cmd, args, sel.Selector, flags.BackupIDFV, "Groups")
+	return genericMetadataFiles(
+		ctx,
+		cmd,
+		args,
+		sel.Selector,
+		flags.BackupIDFV,
+		deserializeGroupsMetadata)
+}
+
+func deserializeGroupsMetadata(
+	ctx context.Context,
+	metadataCollections []data.RestoreCollection,
+) ([]metadataFile, error) {
+	return nil, clues.New("needs implementation")
 }
