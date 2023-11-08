@@ -1375,6 +1375,77 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 			canUsePreviousBackup: false,
 			errCheck:             assert.NoError,
 		},
+		{
+			name: "DuplicatePreviousPaths",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1}),
+						graph.NewMetadataEntry(
+							bupMD.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID1: path1,
+									folderID2: path1,
+								},
+							}),
+					}
+				},
+			},
+			expectedDeltas:       map[string]string{},
+			expectedPaths:        map[string]map[string]string{},
+			canUsePreviousBackup: false,
+			errCheck:             assert.NoError,
+		},
+		{
+			name: "DuplicatePreviousPaths_separateDrives",
+			cols: []func() []graph.MetadataCollectionEntry{
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID1: deltaURL1}),
+						graph.NewMetadataEntry(
+							bupMD.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID1: {
+									folderID1: path1,
+								},
+							}),
+					}
+				},
+				func() []graph.MetadataCollectionEntry {
+					return []graph.MetadataCollectionEntry{
+						graph.NewMetadataEntry(
+							bupMD.DeltaURLsFileName,
+							map[string]string{driveID2: deltaURL2}),
+						graph.NewMetadataEntry(
+							bupMD.PreviousPathFileName,
+							map[string]map[string]string{
+								driveID2: {
+									folderID1: path1,
+								},
+							}),
+					}
+				},
+			},
+			expectedDeltas: map[string]string{
+				driveID1: deltaURL1,
+				driveID2: deltaURL2,
+			},
+			expectedPaths: map[string]map[string]string{
+				driveID1: {
+					folderID1: path1,
+				},
+				driveID2: {
+					folderID1: path1,
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+		},
 	}
 
 	for _, test := range table {
@@ -1406,7 +1477,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					data.NoFetchRestoreCollection{Collection: mc}))
 			}
 
-			deltas, paths, canUsePreviousBackup, err := DeserializeMetadata(ctx, cols)
+			deltas, paths, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, cols)
 			test.errCheck(t, err)
 			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 
@@ -1439,7 +1510,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata_ReadFailure()
 
 	fc := failingColl{}
 
-	_, _, canUsePreviousBackup, err := DeserializeMetadata(ctx, []data.RestoreCollection{fc})
+	_, _, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, []data.RestoreCollection{fc})
 	require.NoError(t, err)
 	require.False(t, canUsePreviousBackup)
 }
@@ -2839,6 +2910,62 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				rootFolderPath2: true,
 			},
 		},
+		{
+			name:   "duplicate previous paths in metadata",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{{
+							Items: []models.DriveItemable{
+								driveRootItem("root"),
+								driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
+								driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+								driveItem("folder2", "folder2", driveBasePath1, "root", false, true, false),
+								driveItem("file2", "file2", driveBasePath1+"/folder2", "folder2", true, false, false),
+							},
+						}},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta},
+					},
+				},
+			},
+			canUsePreviousBackup: false,
+			errCheck:             assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder":  rootFolderPath1 + "/folder",
+					"folder2": rootFolderPath1 + "/folder",
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {
+					data.NewState: {"folder", "folder2"},
+				},
+				rootFolderPath1 + "/folder": {
+					data.NewState: {"folder", "file"},
+				},
+				rootFolderPath1 + "/folder2": {
+					data.NewState: {"folder2", "file2"},
+				},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":    rootFolderPath1,
+					"folder":  rootFolderPath1 + "/folder",
+					"folder2": rootFolderPath1 + "/folder2",
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				rootFolderPath1:              true,
+				rootFolderPath1 + "/folder":  true,
+				rootFolderPath1 + "/folder2": true,
+			},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -2912,7 +3039,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				}
 
 				if folderPath == metadataPath.String() {
-					deltas, paths, _, err := DeserializeMetadata(
+					deltas, paths, _, err := deserializeAndValidateMetadata(
 						ctx,
 						[]data.RestoreCollection{
 							dataMock.NewUnversionedRestoreCollection(
