@@ -4,8 +4,8 @@ import (
 	"reflect"
 
 	"github.com/alcionai/clues"
+	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
@@ -79,7 +79,7 @@ func createFilteredM365ConfigForHashing(source M365Config) map[string]any {
 
 	for i := 0; i < sourceValue.NumField(); i++ {
 		fieldName := sourceValue.Type().Field(i).Name
-		if !str.Contains(excludedM365ConfigFieldsForHashing, fieldName) {
+		if !slices.Contains(excludedM365ConfigFieldsForHashing, fieldName) {
 			filteredM365Config[fieldName] = sourceValue.Field(i).Interface()
 		}
 	}

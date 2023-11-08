@@ -137,10 +137,10 @@ func (w *conn) Initialize(
 		ctx,
 		opts,
 		cfg.KopiaCfgDir,
+		hashStr,
 		bst,
 		cfg.CorsoPassphrase,
-		defaultCompressor,
-		hashStr)
+		defaultCompressor)
 	if err != nil {
 		return err
 	}
@@ -171,19 +171,19 @@ func (w *conn) Connect(ctx context.Context, opts repository.Options, hashStr str
 		ctx,
 		opts,
 		cfg.KopiaCfgDir,
+		hashStr,
 		bst,
 		cfg.CorsoPassphrase,
-		defaultCompressor,
-		hashStr)
+		defaultCompressor)
 }
 
 func (w *conn) commonConnect(
 	ctx context.Context,
 	opts repository.Options,
 	configDir string,
+	hashStr string,
 	bst blob.Storage,
 	password, compressor string,
-	hashStr string,
 ) error {
 	kopiaOpts := &repo.ConnectOptions{
 		ClientOptions: repo.ClientOptions{

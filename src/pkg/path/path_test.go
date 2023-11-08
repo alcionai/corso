@@ -2,6 +2,7 @@ package path
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,13 +17,21 @@ import (
 
 type MockFileSystem struct{}
 
-func (fs MockFileSystem) CreateFile(filename string) (*os.File, error) {
+func (m MockFileSystem) CreateFile(filename string) (*os.File, error) {
 	_ = filename
 	return &os.File{}, nil
 }
 
-func (fs MockFileSystem) Mkdir(path string, mode os.FileMode) error {
+func (m MockFileSystem) Mkdir(path string, mode os.FileMode) error {
 	_, _ = path, mode
+	return nil
+}
+
+func (m MockFileSystem) Stat(path string) (fs.FileInfo, error) {
+	return os.Stat(path)
+}
+
+func (m MockFileSystem) Remove(path string) error {
 	return nil
 }
 
@@ -630,7 +639,7 @@ func (suite *PathUnitSuite) TestArePathsEquivalent() {
 // Test IsValidPath
 func (suite *PathUnitSuite) TestIsValidPath() {
 	tmpDir := suite.T().TempDir()
-	fs := MockFileSystem{}
+	f := MockFileSystem{}
 
 	table := []struct {
 		name     string
@@ -654,7 +663,7 @@ func (suite *PathUnitSuite) TestIsValidPath() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			actual := IsValidPath(test.path, fs)
+			actual := IsValidPath(test.path, f)
 			assert.Equal(t, test.expected, actual)
 		})
 	}

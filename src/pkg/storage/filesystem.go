@@ -2,6 +2,7 @@ package storage
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -53,7 +54,7 @@ func createFilteredFileSystemConfigForHashing(source FilesystemConfig) map[strin
 
 	for i := 0; i < sourceValue.NumField(); i++ {
 		fieldName := sourceValue.Type().Field(i).Name
-		if !str.Contains(excludedFileSystemConfigFieldsForHashing, fieldName) {
+		if !slices.Contains(excludedFileSystemConfigFieldsForHashing, fieldName) {
 			filteredFileSystemConfig[fieldName] = sourceValue.Field(i).Interface()
 		}
 	}

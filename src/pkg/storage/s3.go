@@ -3,6 +3,7 @@ package storage
 import (
 	"os"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/alcionai/clues"
@@ -92,7 +93,7 @@ func createFilteredS3ConfigForHashing(source S3Config) map[string]any {
 
 	for i := 0; i < sourceValue.NumField(); i++ {
 		fieldName := sourceValue.Type().Field(i).Name
-		if !str.Contains(excludedS3ConfigFieldsForHashing, fieldName) {
+		if !slices.Contains(excludedS3ConfigFieldsForHashing, fieldName) {
 			filteredS3Config[fieldName] = sourceValue.Field(i).Interface()
 		}
 	}

@@ -52,6 +52,7 @@ package path
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -132,20 +133,30 @@ type RestorePaths struct {
 type FileSystem interface {
 	CreateFile(filename string) (*os.File, error)
 	Mkdir(path string, mode os.FileMode) error
+	Stat(path string) (fs.FileInfo, error)
+	Remove(path string) error
 }
 
 type fileSystem struct{}
 
-func NewFileSystem() fileSystem {
+func NewFileSystem() FileSystem {
 	return fileSystem{}
 }
 
-func (fs fileSystem) CreateFile(filename string) (*os.File, error) {
+func (f fileSystem) CreateFile(filename string) (*os.File, error) {
 	return os.Create(filename)
 }
 
-func (fs fileSystem) Mkdir(path string, mode os.FileMode) error {
+func (f fileSystem) Mkdir(path string, mode os.FileMode) error {
 	return os.Mkdir(path, mode)
+}
+
+func (f fileSystem) Stat(path string) (fs.FileInfo, error) {
+	return os.Stat(path)
+}
+
+func (f fileSystem) Remove(path string) error {
+	return os.Remove(path)
 }
 
 // ---------------------------------------------------------------------------
@@ -348,44 +359,44 @@ func ArePathsEquivalent(path1, path2 string) bool {
 	return normalizedPath1 == normalizedPath2
 }
 
-func IsValidPath(path string, fs FileSystem) bool {
+func IsValidPath(path string, f FileSystem) bool {
 	isDir := strings.TrimSpace(filepath.Ext(path)) == ""
 
 	if isDir {
-		if err := FindOrCreateDirectory(path, fs); err != nil {
+		if err := FindOrCreateDirectory(path, f); err != nil {
 			return false
 		}
 	} else {
 		dir := filepath.Dir(path)
 
-		if err := FindOrCreateDirectory(dir, fs); err != nil {
+		if err := FindOrCreateDirectory(dir, f); err != nil {
 			return false
 		}
 
-		if err := FindOrCreateFile(path, fs); err != nil {
+		if err := FindOrCreateFile(path, f); err != nil {
 			return false
 		}
 	}
 
-	os.Remove(path)
+	_ = f.Remove(path)
 
 	return true
 }
 
-func FindOrCreateDirectory(directoryPath string, fs FileSystem) error {
-	if _, err := os.Stat(directoryPath); err == nil {
+func FindOrCreateDirectory(directoryPath string, f FileSystem) error {
+	if _, err := f.Stat(directoryPath); err == nil {
 		return nil
 	}
 
-	return fs.Mkdir(directoryPath, 0o644)
+	return f.Mkdir(directoryPath, 0o644)
 }
 
-func FindOrCreateFile(filePath string, fs FileSystem) error {
-	if _, err := os.Stat(filePath); err == nil {
+func FindOrCreateFile(filePath string, f FileSystem) error {
+	if _, err := f.Stat(filePath); err == nil {
 		return nil
 	}
 
-	if _, err := fs.CreateFile(filePath); err != nil {
+	if _, err := f.CreateFile(filePath); err != nil {
 		return err
 	}
 
