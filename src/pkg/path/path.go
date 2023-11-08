@@ -52,7 +52,6 @@ package path
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,35 +127,6 @@ type Path interface {
 type RestorePaths struct {
 	StoragePath Path
 	RestorePath Path
-}
-
-type FileSystem interface {
-	CreateFile(filename string) (*os.File, error)
-	Mkdir(path string, mode os.FileMode) error
-	Stat(path string) (fs.FileInfo, error)
-	Remove(path string) error
-}
-
-type fileSystem struct{}
-
-func NewFileSystem() FileSystem {
-	return fileSystem{}
-}
-
-func (f fileSystem) CreateFile(filename string) (*os.File, error) {
-	return os.Create(filename)
-}
-
-func (f fileSystem) Mkdir(path string, mode os.FileMode) error {
-	return os.Mkdir(path, mode)
-}
-
-func (f fileSystem) Stat(path string) (fs.FileInfo, error) {
-	return os.Stat(path)
-}
-
-func (f fileSystem) Remove(path string) error {
-	return os.Remove(path)
 }
 
 // ---------------------------------------------------------------------------
@@ -359,48 +329,9 @@ func ArePathsEquivalent(path1, path2 string) bool {
 	return normalizedPath1 == normalizedPath2
 }
 
-func IsValidPath(path string, f FileSystem) bool {
-	isDir := strings.TrimSpace(filepath.Ext(path)) == ""
-
-	if isDir {
-		if err := FindOrCreateDirectory(path, f); err != nil {
-			return false
-		}
-	} else {
-		dir := filepath.Dir(path)
-
-		if err := FindOrCreateDirectory(dir, f); err != nil {
-			return false
-		}
-
-		if err := FindOrCreateFile(path, f); err != nil {
-			return false
-		}
-	}
-
-	_ = f.Remove(path)
-
-	return true
-}
-
-func FindOrCreateDirectory(directoryPath string, f FileSystem) error {
-	if _, err := f.Stat(directoryPath); err == nil {
-		return nil
-	}
-
-	return f.Mkdir(directoryPath, 0o644)
-}
-
-func FindOrCreateFile(filePath string, f FileSystem) error {
-	if _, err := f.Stat(filePath); err == nil {
-		return nil
-	}
-
-	if _, err := f.CreateFile(filePath); err != nil {
-		return err
-	}
-
-	return nil
+func IsValidPath(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // ---------------------------------------------------------------------------

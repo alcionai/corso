@@ -639,22 +639,29 @@ func (suite *PathUnitSuite) TestArePathsEquivalent() {
 // Test IsValidPath
 func (suite *PathUnitSuite) TestIsValidPath() {
 	tmpDir := suite.T().TempDir()
-	f := MockFileSystem{}
+
+	backupDir := filepath.Join(tmpDir, "backups")
+	backupFile := filepath.Join(backupDir, "a.txt")
+
+	err := os.Mkdir(backupDir, 0o777)
+	require.NoError(suite.T(), err)
+
+	_, err = os.Create(backupFile)
+	require.NoError(suite.T(), err)
 
 	table := []struct {
 		name     string
 		path     string
-		create   bool
 		expected bool
 	}{
 		{
 			name:     "valid directory",
-			path:     filepath.Join(tmpDir, "backups"),
+			path:     backupDir,
 			expected: true,
 		},
 		{
 			name:     "valid file path",
-			path:     filepath.Join(tmpDir, "backups", "a.txt"),
+			path:     backupFile,
 			expected: true,
 		},
 	}
@@ -663,7 +670,7 @@ func (suite *PathUnitSuite) TestIsValidPath() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			actual := IsValidPath(test.path, f)
+			actual := IsValidPath(test.path)
 			assert.Equal(t, test.expected, actual)
 		})
 	}

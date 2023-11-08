@@ -169,8 +169,6 @@ func mustMatchConfig(
 	tomlMap map[string]string,
 	m map[string]string,
 ) error {
-	fs := path.NewFileSystem()
-
 	for k, v := range m {
 		if len(v) == 0 {
 			continue // empty variables will get caught by configuration validators, if necessary
@@ -185,7 +183,7 @@ func mustMatchConfig(
 
 		areEqual := false
 
-		if path.IsValidPath(v, fs) && path.IsValidPath(vv, fs) {
+		if path.IsValidPath(v) && path.IsValidPath(vv) {
 			areEqual = path.ArePathsEquivalent(v, vv)
 		} else {
 			areEqual = v == vv
