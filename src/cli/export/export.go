@@ -23,7 +23,10 @@ var exportCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addOneDriveCommands,
 	addSharePointCommands,
 	addGroupsCommands,
+	addExchangeCommands,
 }
+
+var defaultAcceptedFormatTypes = []string{string(control.DefaultFormat)}
 
 // AddCommands attaches all `corso export * *` commands to the parent.
 func AddCommands(cmd *cobra.Command) {
@@ -63,8 +66,9 @@ func runExport(
 	ueco utils.ExportCfgOpts,
 	sel selectors.Selector,
 	backupID, serviceName string,
+	acceptedFormatTypes []string,
 ) error {
-	if err := utils.ValidateExportConfigFlags(&ueco); err != nil {
+	if err := utils.ValidateExportConfigFlags(&ueco, acceptedFormatTypes); err != nil {
 		return Only(ctx, err)
 	}
 

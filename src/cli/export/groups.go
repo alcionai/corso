@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
 // called by export.go to map subcommands to provider-specific handling.
@@ -99,5 +100,18 @@ func exportGroupsCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
 	utils.FilterGroupsRestoreInfoSelectors(sel, opts)
 
-	return runExport(ctx, cmd, args, opts.ExportCfg, sel.Selector, flags.BackupIDFV, "Groups")
+	acceptedGroupsFormatTypes := []string{
+		string(control.DefaultFormat),
+		string(control.JSONFormat),
+	}
+
+	return runExport(
+		ctx,
+		cmd,
+		args,
+		opts.ExportCfg,
+		sel.Selector,
+		flags.BackupIDFV,
+		"Groups",
+		acceptedGroupsFormatTypes)
 }
