@@ -249,7 +249,7 @@ func (p *contactDeltaPager) ValidModTimes() bool {
 func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	cc CallConfig,
+	config CallConfig,
 ) (pagers.AddedAndRemoved, error) {
 	ctx = clues.Add(
 		ctx,
@@ -261,12 +261,12 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		cc.UseImmutableIDs,
+		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 	pager := c.NewContactsPager(
 		userID,
 		containerID,
-		cc.UseImmutableIDs,
+		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Contactable](
@@ -274,7 +274,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		cc.CanMakeDeltaQueries,
-		0,
+		config.CanMakeDeltaQueries,
+		config.LimitResults,
 		pagers.AddedAndRemovedByAddtlData[models.Contactable])
 }
