@@ -3409,12 +3409,6 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			// if test.name != "OneDrive_OneItemPage_ImmediateInvalidPrevDelta_MoveFolderToPreviouslyExistingPath" {
-			// 	t.Skip()
-			// } else {
-			// 	fmt.Printf("\n-----\n%+v\n-----\n", test.name)
-			// }
-
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
