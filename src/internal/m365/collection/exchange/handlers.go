@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"time"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 
@@ -30,9 +29,8 @@ type addedAndRemovedItemGetter interface {
 	GetAddedAndRemovedItemIDs(
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
-		immutableIDs bool,
-		canMakeDeltaQueries bool,
-	) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error)
+		cc api.CallConfig,
+	) (pagers.AddedAndRemoved, error)
 }
 
 type itemGetterSerializer interface {

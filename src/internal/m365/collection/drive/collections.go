@@ -319,17 +319,28 @@ func (c *Collections) Get(
 		numDriveItems := c.NumItems - numPrevItems
 		numPrevItems = c.NumItems
 
-		// Attach an url cache
+		// Attach an url cache to the drive if the number of discovered items is
+		// below the threshold. Attaching cache to larger drives can cause
+		// performance issues since cache delta queries start taking up majority of
+		// the hour the refreshed URLs are valid for.
 		if numDriveItems < urlCacheDriveItemThreshold {
-			logger.Ctx(ictx).Info("adding url cache for drive")
+			logger.Ctx(ictx).Infow(
+				"adding url cache for drive",
+				"num_drive_items", numDriveItems)
 
-			err = c.addURLCacheToDriveCollections(
-				ictx,
+			uc, err := newURLCache(
 				driveID,
 				prevDeltaLink,
+				urlCacheRefreshInterval,
+				c.handler,
 				errs)
 			if err != nil {
-				return nil, false, err
+				return nil, false, clues.Stack(err)
+			}
+
+			// Set the URL cache instance for all collections in this drive.
+			for id := range c.CollectionMap[driveID] {
+				c.CollectionMap[driveID][id].urlCache = uc
 			}
 		}
 
@@ -457,33 +468,6 @@ func (c *Collections) Get(
 	return collections, canUsePrevBackup, nil
 }
 
-// addURLCacheToDriveCollections adds an URL cache to all collections belonging to
-// a drive.
-func (c *Collections) addURLCacheToDriveCollections(
-	ctx context.Context,
-	driveID, prevDelta string,
-	errs *fault.Bus,
-) error {
-	uc, err := newURLCache(
-		driveID,
-		prevDelta,
-		urlCacheRefreshInterval,
-		c.handler,
-		errs)
-	if err != nil {
-		return err
-	}
-
-	// Set the URL cache for all collections in this drive
-	for _, driveColls := range c.CollectionMap {
-		for _, coll := range driveColls {
-			coll.urlCache = uc
-		}
-	}
-
-	return nil
-}
-
 func updateCollectionPaths(
 	driveID, itemID string,
 	cmap map[string]map[string]*Collection,
@@ -492,7 +476,7 @@ func updateCollectionPaths(
 	var initialCurPath path.Path
 
 	col, found := cmap[driveID][itemID]
-	if found {
+	if found && col.FullPath() != nil {
 		initialCurPath = col.FullPath()
 		if initialCurPath.String() == curPath.String() {
 			return found, nil
@@ -689,6 +673,11 @@ func (c *Collections) PopulateDriveCollections(
 		// different collection within the same delta query
 		// item ID -> item ID
 		currPrevPaths = map[string]string{}
+
+		// seenFolders is used to track the folders that we have
+		// already seen. This will help us track in case a folder was
+		// recreated multiple times in between a run.
+		seenFolders = map[string]string{}
 	)
 
 	if !invalidPrevDelta {
@@ -728,6 +717,7 @@ func (c *Collections) PopulateDriveCollections(
 				oldPrevPaths,
 				currPrevPaths,
 				newPrevPaths,
+				seenFolders,
 				excludedItemIDs,
 				topLevelPackages,
 				invalidPrevDelta,
@@ -751,6 +741,7 @@ func (c *Collections) processItem(
 	item models.DriveItemable,
 	driveID, driveName string,
 	oldPrevPaths, currPrevPaths, newPrevPaths map[string]string,
+	seenFolders map[string]string,
 	excludedItemIDs map[string]struct{},
 	topLevelPackages map[string]struct{},
 	invalidPrevDelta bool,
@@ -856,6 +847,28 @@ func (c *Collections) processItem(
 			PathPrefix(maps.Keys(topLevelPackages)).
 			Compare(collectionPath.String())
 
+		// This check is to ensure that if a folder was deleted and
+		// recreated multiple times between a backup, we only use the
+		// final one.
+		alreadyHandledFolderID, collPathAlreadyExists := seenFolders[collectionPath.String()]
+		collPathAlreadyExists = collPathAlreadyExists && alreadyHandledFolderID != itemID
+
+		if collPathAlreadyExists {
+			// we don't have a good way of juggling multiple previous paths
+			// at this time.  If a path was declared twice, it's a bit ambiguous
+			// which prior data the current folder now contains.  Safest thing to
+			// do is to call it a new folder and ingest items fresh.
+			prevPath = nil
+
+			c.NumContainers--
+			c.NumItems--
+
+			delete(c.CollectionMap[driveID], alreadyHandledFolderID)
+			delete(newPrevPaths, alreadyHandledFolderID)
+		}
+
+		seenFolders[collectionPath.String()] = itemID
+
 		col, err := NewCollection(
 			c.handler,
 			c.protectedResource,
@@ -865,7 +878,7 @@ func (c *Collections) processItem(
 			c.statusUpdater,
 			c.ctrl,
 			isPackage || childOfPackage,
-			invalidPrevDelta,
+			invalidPrevDelta || collPathAlreadyExists,
 			nil)
 		if err != nil {
 			return clues.Stack(err).WithClues(ictx)

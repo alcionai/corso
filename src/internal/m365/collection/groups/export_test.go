@@ -46,7 +46,7 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 					},
 				},
 			},
-			expectName: "zim",
+			expectName: "zim.json",
 			expectErr:  assert.NoError,
 		},
 		{
@@ -71,7 +71,7 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 					clues.New("I miss my cupcake."),
 				},
 			},
-			expectName: "gir",
+			expectName: "gir.json",
 			expectErr:  assert.Error,
 		},
 	}

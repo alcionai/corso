@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -250,9 +249,8 @@ func (p *contactDeltaPager) ValidModTimes() bool {
 func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	immutableIDs bool,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
+	cc CallConfig,
+) (pagers.AddedAndRemoved, error) {
 	ctx = clues.Add(
 		ctx,
 		"data_category", path.ContactsCategory,
@@ -263,12 +261,12 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		immutableIDs,
+		cc.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 	pager := c.NewContactsPager(
 		userID,
 		containerID,
-		immutableIDs,
+		cc.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Contactable](
@@ -276,6 +274,6 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		canMakeDeltaQueries,
+		cc.CanMakeDeltaQueries,
 		pagers.AddedAndRemovedByAddtlData[models.Contactable])
 }

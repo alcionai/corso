@@ -42,8 +42,11 @@ type GroupsInfo struct {
 	Modified time.Time `json:"modified,omitempty"`
 
 	// Channels Specific
-	Message   ChannelMessageInfo `json:"message"`
-	LastReply ChannelMessageInfo `json:"lastReply"`
+	Message   ChannelMessageInfo `json:"message,omitempty"`
+	LastReply ChannelMessageInfo `json:"lastReply,omitempty"`
+
+	// Conversations Specific
+	Post ConversationPostInfo `json:"post,omitempty"`
 
 	// SharePoint specific
 	Created    time.Time `json:"created,omitempty"`
@@ -55,6 +58,14 @@ type GroupsInfo struct {
 	SiteID     string    `json:"siteID,omitempty"`
 	Size       int64     `json:"size,omitempty"`
 	WebURL     string    `json:"webURL,omitempty"`
+}
+
+type ConversationPostInfo struct {
+	CreatedAt time.Time `json:"createdAt,omitempty"`
+	Creator   string    `json:"creator,omitempty"`
+	Preview   string    `json:"preview,omitempty"`
+	Size      int64     `json:"size,omitempty"`
+	Subject   string    `json:"subject,omitempty"`
 }
 
 type ChannelMessageInfo struct {
