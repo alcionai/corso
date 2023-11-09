@@ -22,6 +22,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
+const (
+	defaultPreviewContainerLimit         = 5
+	defaultPreviewItemsPerContainerLimit = 10
+	defaultPreviewItemLimit              = defaultPreviewContainerLimit * defaultPreviewItemsPerContainerLimit
+)
+
 func CreateCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
@@ -102,6 +108,7 @@ func populateCollections(
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
 	var (
+		err error
 		// folder ID -> BackupCollection.
 		collections = map[string]data.BackupCollection{}
 		// folder ID -> delta url or folder path lookups
@@ -111,11 +118,57 @@ func populateCollections(
 		// deleted from this map, leaving only the deleted folders behind
 		tombstones = makeTombstones(dps)
 		category   = qp.Category
+
+		maxContainers        = ctrlOpts.ItemLimits.MaxContainers
+		maxItemsPerContainer = ctrlOpts.ItemLimits.MaxItemsPerContainer
+		maxItems             = ctrlOpts.ItemLimits.MaxItems
+
+		addedItems   int
+		addedFolders int
 	)
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
 
 	el := errs.Local()
+
+	// Preview backups select a reduced set of data. This is managed by ordering
+	// the set of results from the container resolver and reducing the number of
+	// items selected from each container.
+	if ctrlOpts.ToggleFeatures.PreviewBackup {
+		resolver, err = newRankedContainerResolver(
+			ctx,
+			resolver,
+			bh.folderGetter(),
+			qp.ProtectedResource.ID(),
+			// TODO(ashmrtn): Includes and excludes should really be associated with
+			// the service not the data category. This is because a single data
+			// handler may be used for multiple services (e.x. drive handler is used
+			// for OneDrive, SharePoint, and Groups/Teams).
+			bh.previewIncludeFolders(),
+			bh.previewExcludeFolders())
+		if err != nil {
+			return nil, clues.Wrap(err, "creating ranked container resolver")
+		}
+
+		// Configure limits with reasonable defaults if they're not set.
+		if maxContainers == 0 {
+			maxContainers = defaultPreviewContainerLimit
+		}
+
+		if maxItemsPerContainer == 0 {
+			maxItemsPerContainer = defaultPreviewItemsPerContainerLimit
+		}
+
+		if maxItems == 0 {
+			maxItems = defaultPreviewItemLimit
+		}
+
+		logger.Ctx(ctx).Infow(
+			"running preview backup",
+			"item_limit", maxItems,
+			"container_limit", maxContainers,
+			"items_per_container_limit", maxItemsPerContainer)
+	}
 
 	for _, c := range resolver.Items() {
 		if el.Failure() != nil {
@@ -165,6 +218,25 @@ func populateCollections(
 		}
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
+
+		// Since part of this is about figuring out how many items to get for this
+		// particular container we need to reconfigure for every container we see.
+		if ctrlOpts.ToggleFeatures.PreviewBackup {
+			toAdd := maxItems - addedItems
+
+			if addedFolders >= maxContainers || toAdd <= 0 {
+				break
+			}
+
+			if toAdd > maxItemsPerContainer {
+				toAdd = maxItemsPerContainer
+			}
+
+			// Delta tokens generated with this CallConfig shouldn't be used for
+			// regular backups. They may have different query parameters which will
+			// cause incorrect output for regular backups.
+			itemConfig.LimitResults = toAdd
+		}
 
 		addAndRem, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
@@ -216,6 +288,8 @@ func populateCollections(
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
 		currPaths[cID] = currPath.String()
+		addedItems += len(addAndRem.Added)
+		addedFolders++
 	}
 
 	// A tombstone is a folder that needs to be marked for deletion.
