@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Added export support for emails in exchange backups as `.eml` files
+
 ### Changed
 - Change file extension of messages export to json to match the content
 
