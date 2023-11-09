@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
@@ -60,5 +61,83 @@ func (suite *StorageUnitSuite) TestNewStorage() {
 				s.Config["expect"],
 				"expected storage config [%s], got [%s]", test.c.expect, s.Config["expect"])
 		})
+	}
+}
+
+func (suite *StorageUnitSuite) TestGetAccountConfigHash() {
+	tests := []struct {
+		name     string
+		provider ProviderType
+		config   any
+	}{
+		{
+			name:     "s3 storage",
+			provider: ProviderS3,
+			config:   getTestS3Config("test-bucket", "https://aws.s3", "test-prefix"),
+		},
+		{
+			name:     "filesystem storage",
+			provider: ProviderFilesystem,
+			config:   getTestFileSystemConfig("test/to/dir"),
+		},
+		{
+			name:     "invalid account",
+			provider: ProviderUnknown,
+			config:   testConfig{"configVal", nil},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			if test.provider == ProviderUnknown {
+				s, err := NewStorage(test.provider, test.config.(testConfig))
+				require.NoError(t, err)
+
+				_, err = s.GetStorageConfigHash()
+				require.Error(t, err)
+			}
+
+			if test.provider == ProviderS3 {
+				_, ok := test.config.(Configurer)
+				require.True(t, ok)
+
+				s3Cnf := test.config.(*S3Config)
+				s, err := NewStorage(test.provider, s3Cnf)
+				require.NoError(t, err)
+
+				hash, err := s.GetStorageConfigHash()
+				require.NoError(t, err)
+				assert.True(t, len(hash) > 0)
+			}
+
+			if test.provider == ProviderFilesystem {
+				_, ok := test.config.(Configurer)
+				require.True(t, ok)
+
+				fsCnf := test.config.(*FilesystemConfig)
+				s, err := NewStorage(test.provider, fsCnf)
+				require.NoError(t, err)
+
+				hash, err := s.GetStorageConfigHash()
+				require.NoError(t, err)
+				assert.True(t, len(hash) > 0)
+			}
+		})
+	}
+}
+
+func getTestS3Config(bucket, endpoint, prefix string) *S3Config {
+	return &S3Config{
+		Bucket:   bucket,
+		Endpoint: endpoint,
+		Prefix:   prefix,
+	}
+}
+
+func getTestFileSystemConfig(path string) *FilesystemConfig {
+	return &FilesystemConfig{
+		Path: path,
 	}
 }

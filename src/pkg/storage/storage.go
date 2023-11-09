@@ -32,8 +32,8 @@ const (
 
 // storage parsing errors
 var (
-	errMissingRequired         = clues.New("missing required storage configuration")
-	invalidProviderErrTemplate = "unsupported account provider: [%s]"
+	errMissingRequired = clues.New("missing required storage configuration")
+	errInvalidProvider = clues.New("unsupported storage provider")
 )
 
 // Storage defines a storage provider, along with any configuration
@@ -105,18 +105,29 @@ func (s Storage) StorageConfig() (Configurer, error) {
 		return buildFilesystemConfigFromMap(s.Config)
 	}
 
-	return nil, clues.New(fmt.Sprintf(invalidProviderErrTemplate, s.Provider.String()))
+	return nil, errInvalidProvider.With("provider", s.Provider)
 }
 
-func (s Storage) GetStorageConfigForHash() (map[string]any, error) {
+func (s Storage) GetStorageConfigHash() (string, error) {
 	switch s.Provider {
 	case ProviderS3:
-		return s.GetS3ConfigForHashing()
+		s3Cnf, err := s.ToS3Config()
+		if err != nil {
+			return "", err
+		}
+
+		return s3Cnf.configHash()
+
 	case ProviderFilesystem:
-		return s.GetFileSystemConfigForHashing()
+		fsCnf, err := s.ToFilesystemConfig()
+		if err != nil {
+			return "", err
+		}
+
+		return fsCnf.configHash()
 	}
 
-	return nil, clues.New(fmt.Sprintf(invalidProviderErrTemplate, s.Provider.String()))
+	return "", errInvalidProvider.With("provider", s.Provider)
 }
 
 func NewStorageConfig(provider ProviderType) (Configurer, error) {
@@ -127,7 +138,7 @@ func NewStorageConfig(provider ProviderType) (Configurer, error) {
 		return &FilesystemConfig{}, nil
 	}
 
-	return nil, clues.New(fmt.Sprintf(invalidProviderErrTemplate, provider.String()))
+	return nil, errInvalidProvider.With("provider", provider)
 }
 
 type Getter interface {
@@ -159,6 +170,8 @@ type Configurer interface {
 	) error
 
 	WriteConfigToStorer
+
+	configHash() (string, error)
 }
 
 // mustMatchConfig compares the values of each key to their config file value in store.

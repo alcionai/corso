@@ -1,8 +1,6 @@
 package account
 
 import (
-	"fmt"
-
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -18,8 +16,8 @@ const (
 
 // storage parsing errors
 var (
-	errMissingRequired         = clues.New("missing required storage configuration")
-	invalidProviderErrTemplate = "unsupported account provider: [%s]"
+	errMissingRequired = clues.New("missing required storage configuration")
+	errInvalidProvider = clues.New("unsupported account provider")
 )
 
 const (
@@ -41,6 +39,7 @@ type providerIDer interface {
 	common.StringConfigurer
 
 	providerID(accountProvider) string
+	configHash() (string, error)
 }
 
 // NewAccount aggregates all the supplied configurations into a single configuration
@@ -92,11 +91,16 @@ func (a Account) ID() string {
 	return a.Config[a.Provider.String()+"-tenant-id"]
 }
 
-func (a Account) GetAccountConfigForHash() (map[string]any, error) {
+func (a Account) GetAccountConfigHash() (string, error) {
 	switch a.Provider {
 	case ProviderM365:
-		return a.GetM365ConfigForHashing()
+		m365, err := a.M365Config()
+		if err != nil {
+			return "", clues.Stack(err)
+		}
+
+		return m365.configHash()
 	}
 
-	return nil, clues.New(fmt.Sprintf(invalidProviderErrTemplate, a.Provider.String()))
+	return "", errInvalidProvider.With("provider", a.Provider)
 }

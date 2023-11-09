@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"reflect"
 	"slices"
 
@@ -30,31 +31,6 @@ func (s Storage) ToFilesystemConfig() (*FilesystemConfig, error) {
 	return buildFilesystemConfigFromMap(s.Config)
 }
 
-func (s Storage) GetFileSystemConfigForHashing() (map[string]any, error) {
-	fileSystemCfg, err := buildFilesystemConfigFromMap(s.Config)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
-	filteredFileSystemConfig := createFilteredFileSystemConfigForHashing(*fileSystemCfg)
-
-	return filteredFileSystemConfig, nil
-}
-
-func createFilteredFileSystemConfigForHashing(source FilesystemConfig) map[string]any {
-	filteredFileSystemConfig := make(map[string]any)
-	sourceValue := reflect.ValueOf(source)
-
-	for i := 0; i < sourceValue.NumField(); i++ {
-		fieldName := sourceValue.Type().Field(i).Name
-		if !slices.Contains(excludedFileSystemConfigFieldsForHashing, fieldName) {
-			filteredFileSystemConfig[fieldName] = sourceValue.Field(i).Interface()
-		}
-	}
-
-	return filteredFileSystemConfig
-}
-
 func buildFilesystemConfigFromMap(config map[string]string) (*FilesystemConfig, error) {
 	c := &FilesystemConfig{}
 
@@ -81,6 +57,31 @@ func (c FilesystemConfig) validate() error {
 
 func (c *FilesystemConfig) fsConfigsFromStore(g Getter) {
 	c.Path = cast.ToString(g.Get(FilesystemPath))
+}
+
+func (c FilesystemConfig) configHash() (string, error) {
+	filteredFileSystemConfig := createFilteredFileSystemConfigForHashing(c)
+
+	b, err := json.Marshal(filteredFileSystemConfig)
+	if err != nil {
+		return "", clues.Stack(err)
+	}
+
+	return str.GenerateHash(b), nil
+}
+
+func createFilteredFileSystemConfigForHashing(source FilesystemConfig) map[string]any {
+	filteredFileSystemConfig := make(map[string]any)
+	sourceValue := reflect.ValueOf(source)
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		fieldName := sourceValue.Type().Field(i).Name
+		if !slices.Contains(excludedFileSystemConfigFieldsForHashing, fieldName) {
+			filteredFileSystemConfig[fieldName] = sourceValue.Field(i).Interface()
+		}
+	}
+
+	return filteredFileSystemConfig
 }
 
 // TODO(pandeyabs): Remove this. It's not adding any value.

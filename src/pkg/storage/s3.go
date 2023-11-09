@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"os"
 	"reflect"
 	"slices"
@@ -76,31 +77,6 @@ func (s Storage) ToS3Config() (*S3Config, error) {
 	return buildS3ConfigFromMap(s.Config)
 }
 
-func (s Storage) GetS3ConfigForHashing() (map[string]any, error) {
-	s3Cfg, err := buildS3ConfigFromMap(s.Config)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
-	filteredS3Config := createFilteredS3ConfigForHashing(*s3Cfg)
-
-	return filteredS3Config, nil
-}
-
-func createFilteredS3ConfigForHashing(source S3Config) map[string]any {
-	filteredS3Config := make(map[string]any)
-	sourceValue := reflect.ValueOf(source)
-
-	for i := 0; i < sourceValue.NumField(); i++ {
-		fieldName := sourceValue.Type().Field(i).Name
-		if !slices.Contains(excludedS3ConfigFieldsForHashing, fieldName) {
-			filteredS3Config[fieldName] = sourceValue.Field(i).Interface()
-		}
-	}
-
-	return filteredS3Config
-}
-
 func buildS3ConfigFromMap(config map[string]string) (*S3Config, error) {
 	c := &S3Config{}
 
@@ -159,6 +135,31 @@ func (c S3Config) validate() error {
 	}
 
 	return nil
+}
+
+func (c S3Config) configHash() (string, error) {
+	filteredS3Config := createFilteredS3ConfigForHashing(c)
+
+	b, err := json.Marshal(filteredS3Config)
+	if err != nil {
+		return "", clues.Stack(err)
+	}
+
+	return str.GenerateHash(b), nil
+}
+
+func createFilteredS3ConfigForHashing(source S3Config) map[string]any {
+	filteredS3Config := make(map[string]any)
+	sourceValue := reflect.ValueOf(source)
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		fieldName := sourceValue.Type().Field(i).Name
+		if !slices.Contains(excludedS3ConfigFieldsForHashing, fieldName) {
+			filteredS3Config[fieldName] = sourceValue.Field(i).Interface()
+		}
+	}
+
+	return filteredS3Config
 }
 
 func s3Overrides(in map[string]string) map[string]string {

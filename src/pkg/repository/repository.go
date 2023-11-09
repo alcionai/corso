@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
-	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -165,7 +164,7 @@ func (r *repository) Initialize(
 
 	repoNameHash, err := r.GenerateHashForRepositoryConfigFileName()
 	if err != nil {
-		return clues.Wrap(err, "generate repo config")
+		return clues.Wrap(err, "generating repo config")
 	}
 
 	kopiaRef := kopia.NewConn(r.Storage)
@@ -363,33 +362,17 @@ func (r repository) Counter() *count.Bus {
 }
 
 func (r repository) GenerateHashForRepositoryConfigFileName() (string, error) {
-	accountHashConfig, err := r.Account.GetAccountConfigForHash()
+	accountHash, err := r.Account.GetAccountConfigHash()
 	if err != nil {
-		return "", clues.Wrap(err, "fetch account hash config")
+		return "", clues.Wrap(err, "fetch account config hash")
 	}
 
-	storageHashConfig, err := r.Storage.GetStorageConfigForHash()
+	storageHash, err := r.Storage.GetStorageConfigHash()
 	if err != nil {
-		return "", clues.Wrap(err, "fetch storage hash config")
+		return "", clues.Wrap(err, "fetch storage config hash")
 	}
 
-	finalHashConfig := make(map[string]any)
-	for k, v := range accountHashConfig {
-		finalHashConfig[k] = v
-	}
-
-	for k, v := range storageHashConfig {
-		finalHashConfig[k] = v
-	}
-
-	b, err := json.Marshal(finalHashConfig)
-	if err != nil {
-		return "", clues.Wrap(err, "serializing hash config")
-	}
-
-	repoNameHash := str.GenerateHash(b)
-
-	return repoNameHash, nil
+	return fmt.Sprintf("%s-%s", accountHash, storageHash), nil
 }
 
 // ---------------------------------------------------------------------------

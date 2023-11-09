@@ -1,11 +1,13 @@
 package account
 
 import (
+	"encoding/json"
 	"reflect"
 	"slices"
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
@@ -50,6 +52,17 @@ func (c M365Config) providerID(ap accountProvider) string {
 	return ""
 }
 
+func (c M365Config) configHash() (string, error) {
+	filteredM365Config := createFilteredM365ConfigForHashing(c)
+
+	b, err := json.Marshal(filteredM365Config)
+	if err != nil {
+		return "", clues.Stack(err)
+	}
+
+	return str.GenerateHash(b), nil
+}
+
 // M365Config retrieves the M365Config details from the Account config.
 func (a Account) M365Config() (M365Config, error) {
 	c := M365Config{}
@@ -60,17 +73,6 @@ func (a Account) M365Config() (M365Config, error) {
 	}
 
 	return c, c.validate()
-}
-
-func (a Account) GetM365ConfigForHashing() (map[string]any, error) {
-	m365Cfg, err := a.M365Config()
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
-	filteredM365Config := createFilteredM365ConfigForHashing(m365Cfg)
-
-	return filteredM365Config, nil
 }
 
 func createFilteredM365ConfigForHashing(source M365Config) map[string]any {
