@@ -2912,9 +2912,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 		},
 		{
 			name:   "duplicate previous paths in metadata",
-			drives: []models.Driveable{drive1},
+			drives: []models.Driveable{drive1, drive2},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					// contains duplicates
 					driveID1: {
 						Pages: []mock.NextPage{{
 							Items: []models.DriveItemable{
@@ -2927,6 +2928,19 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 						}},
 						DeltaUpdate: pagers.DeltaUpdate{URL: delta},
 					},
+					// does not contain duplicates
+					driveID2: {
+						Pages: []mock.NextPage{{
+							Items: []models.DriveItemable{
+								driveRootItem("root"),
+								driveItem("folder", "folder", driveBasePath2, "root", false, true, false),
+								driveItem("file", "file", driveBasePath2+"/folder", "folder", true, false, false),
+								driveItem("folder2", "folder2", driveBasePath2, "root", false, true, false),
+								driveItem("file2", "file2", driveBasePath2+"/folder2", "folder2", true, false, false),
+							},
+						}},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta2},
+					},
 				},
 			},
 			canUsePreviousBackup: false,
@@ -2936,6 +2950,11 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"root":    rootFolderPath1,
 					"folder":  rootFolderPath1 + "/folder",
 					"folder2": rootFolderPath1 + "/folder",
+				},
+				driveID2: {
+					"root":    rootFolderPath2,
+					"folder":  rootFolderPath2 + "/folder",
+					"folder2": rootFolderPath2 + "/folder2",
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
@@ -2948,9 +2967,19 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				rootFolderPath1 + "/folder2": {
 					data.NewState: {"folder2", "file2"},
 				},
+				rootFolderPath2: {
+					data.NewState: {"folder", "folder2"},
+				},
+				rootFolderPath2 + "/folder": {
+					data.NewState: {"folder", "file"},
+				},
+				rootFolderPath2 + "/folder2": {
+					data.NewState: {"folder2", "file2"},
+				},
 			},
 			expectedDeltaURLs: map[string]string{
 				driveID1: delta,
+				driveID2: delta2,
 			},
 			expectedFolderPaths: map[string]map[string]string{
 				driveID1: {
@@ -2958,12 +2987,20 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					"folder":  rootFolderPath1 + "/folder",
 					"folder2": rootFolderPath1 + "/folder2",
 				},
+				driveID2: {
+					"root":    rootFolderPath2,
+					"folder":  rootFolderPath2 + "/folder",
+					"folder2": rootFolderPath2 + "/folder2",
+				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
 				rootFolderPath1:              true,
 				rootFolderPath1 + "/folder":  true,
 				rootFolderPath1 + "/folder2": true,
+				rootFolderPath2:              true,
+				rootFolderPath2 + "/folder":  true,
+				rootFolderPath2 + "/folder2": true,
 			},
 		},
 	}

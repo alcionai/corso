@@ -78,7 +78,7 @@ func deserializeAndValidateMetadata(
 ) (map[string]string, map[string]map[string]string, bool, error) {
 	deltas, prevs, canUse, err := DeserializeMetadata(ctx, cols)
 	if err != nil || !canUse {
-		return deltas, prevs, canUse, clues.Stack(err).OrNil()
+		return deltas, prevs, false, clues.Stack(err).OrNil()
 	}
 
 	// Go through and remove delta tokens if we didn't have any paths for them
@@ -90,8 +90,11 @@ func deserializeAndValidateMetadata(
 	// without a delta but not to have a delta without paths. This way ensures
 	// we check at least all the path sets for the deltas we have.
 	for drive := range deltas {
+		ictx := clues.Add(ctx, "drive_id", drive)
+
 		paths := prevs[drive]
 		if len(paths) == 0 {
+			logger.Ctx(ictx).Info("dropping drive delta due to 0 prev paths")
 			delete(deltas, drive)
 		}
 
@@ -101,7 +104,9 @@ func deserializeAndValidateMetadata(
 		// for other possibly incorrect folder paths.
 		for _, prevPath := range paths {
 			if len(prevPath) == 0 {
+				logger.Ctx(ictx).Info("dropping drive delta due to 0 len path")
 				delete(deltas, drive)
+
 				break
 			}
 		}
@@ -117,10 +122,10 @@ func deserializeAndValidateMetadata(
 						"collision_folder_id_1", fid,
 						"collision_folder_id_2", otherID,
 						"collision_drive_id", driveID,
-						"collision_prev_path", prev).
+						"collision_prev_path", path.LoggableDir(prev)).
 					Info("duplicate previous paths across different folder IDs")
 
-				// If a previous path collision occurs, we need to force a full backup
+				// If a previous path collision occurs, we need to force a full enumeration
 				// in order to correct the backup state, else we'll potentially hit
 				// unresolvable failures.
 				return map[string]string{}, map[string]map[string]string{}, false, nil
