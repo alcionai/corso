@@ -355,8 +355,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 							},
 						},
 						validModTimes: true,
-					},
-				)
+					})
 			},
 			expect: expected{
 				added: []testItem{
@@ -386,8 +385,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 								},
 							},
 						},
-					},
-				)
+					})
 			},
 			expect: expected{
 				added: []testItem{
@@ -417,8 +415,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 							},
 						},
 						validModTimes: true,
-					},
-				)
+					})
 			},
 			prevDelta: "delta",
 			expect: expected{
@@ -454,8 +451,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 							},
 						},
 						validModTimes: true,
-					},
-				)
+					})
 			},
 			prevDelta: "delta",
 			expect: expected{
@@ -519,8 +515,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 							},
 						},
 						validModTimes: true,
-					},
-				)
+					})
 			},
 			filter: func(testItem) bool { return false },
 			expect: expected{
@@ -548,8 +543,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 							},
 						},
 						validModTimes: true,
-					},
-				)
+					})
 			},
 			filter:    func(testItem) bool { return false },
 			prevDelta: "delta",
