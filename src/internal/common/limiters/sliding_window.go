@@ -91,8 +91,8 @@ func (s *slidingWindow) Wait(ctx context.Context) error {
 
 // Wait blocks a request until N tokens are available or the context gets
 // cancelled.
-func (s *slidingWindow) WaitN(ctx context.Context, N int) error {
-	for i := 0; i < N; i++ {
+func (s *slidingWindow) WaitN(ctx context.Context, n int) error {
+	for i := 0; i < n; i++ {
 		select {
 		case <-ctx.Done():
 			return clues.Stack(ctx.Err())

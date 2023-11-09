@@ -89,23 +89,23 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 		slideInterval time.Duration
 		capacity      int
 		numRequests   int
-		N             int
+		n             int
 	}{
 		{
-			Name:          "Request 1 token",
+			Name:          "Request 1 token each",
 			windowSize:    1 * time.Second,
 			slideInterval: 10 * time.Millisecond,
 			capacity:      100,
 			numRequests:   200,
-			N:             1,
+			n:             1,
 		},
 		{
-			Name:          "Request 5 tokens",
+			Name:          "Request 5 tokens each",
 			windowSize:    1 * time.Second,
 			slideInterval: 10 * time.Millisecond,
 			capacity:      100,
 			numRequests:   100,
-			N:             5,
+			n:             5,
 		},
 	}
 
@@ -136,7 +136,7 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 					// of the 2 windows. Rest of the intervals will be empty.
 					time.Sleep(time.Duration(rand.Intn(1500)) * time.Millisecond)
 
-					err := s.WaitN(ctx, test.N)
+					err := s.WaitN(ctx, test.n)
 					require.NoError(t, err)
 				}()
 			}
