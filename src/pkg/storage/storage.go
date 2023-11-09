@@ -32,7 +32,8 @@ const (
 
 // storage parsing errors
 var (
-	errMissingRequired = clues.New("missing required storage configuration")
+	errMissingRequired         = clues.New("missing required storage configuration")
+	invalidProviderErrTemplate = "unsupported account provider: [%s]"
 )
 
 // Storage defines a storage provider, along with any configuration
@@ -104,7 +105,18 @@ func (s Storage) StorageConfig() (Configurer, error) {
 		return buildFilesystemConfigFromMap(s.Config)
 	}
 
-	return nil, clues.New("unsupported storage provider: [" + s.Provider.String() + "]")
+	return nil, clues.New(fmt.Sprintf(invalidProviderErrTemplate, s.Provider.String()))
+}
+
+func (s Storage) GetStorageConfigForHash() (map[string]any, error) {
+	switch s.Provider {
+	case ProviderS3:
+		return s.GetS3ConfigForHashing()
+	case ProviderFilesystem:
+		return s.GetFileSystemConfigForHashing()
+	}
+
+	return nil, clues.New(fmt.Sprintf(invalidProviderErrTemplate, s.Provider.String()))
 }
 
 func NewStorageConfig(provider ProviderType) (Configurer, error) {
@@ -115,7 +127,7 @@ func NewStorageConfig(provider ProviderType) (Configurer, error) {
 		return &FilesystemConfig{}, nil
 	}
 
-	return nil, clues.New("unsupported storage provider: [" + provider.String() + "]")
+	return nil, clues.New(fmt.Sprintf(invalidProviderErrTemplate, provider.String()))
 }
 
 type Getter interface {
@@ -169,7 +181,7 @@ func mustMatchConfig(
 
 		vv := cast.ToString(g.Get(tomlK))
 		if v != vv {
-			err := clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
+			err := clues.New(fmt.Sprintf("value of %s (%s) does not match corso configuration value (%s)", k, v, vv))
 			return clues.Stack(ErrVerifyingConfigStorage, err)
 		}
 	}

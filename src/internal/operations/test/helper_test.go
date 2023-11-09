@@ -124,10 +124,11 @@ func prepNewTestBackupOp(
 		acct: tconfig.NewM365Account(t),
 		st:   storeTD.NewPrefixedS3Storage(t),
 	}
+	repoNameHash := uuid.NewString()[:7]
 
 	k := kopia.NewConn(bod.st)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {

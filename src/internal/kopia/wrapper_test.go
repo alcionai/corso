@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/format"
@@ -202,6 +203,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 
 func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails() {
 	t := suite.T()
+	repoNameHash := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -228,7 +230,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 		Host: "bar",
 	}
 
-	err = k.Connect(ctx, opts)
+	err = k.Connect(ctx, opts, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	var notOwnedErr maintenance.NotOwnedError
@@ -239,6 +241,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 
 func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeeds() {
 	t := suite.T()
+	repoNameHash := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -265,7 +268,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 		Host: "bar",
 	}
 
-	err = k.Connect(ctx, opts)
+	err = k.Connect(ctx, opts, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	mOpts.Force = true
@@ -286,6 +289,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 // blobs as there's several of them, but at least this gives us something.
 func (suite *BasicKopiaIntegrationSuite) TestSetRetentionParameters_NoChangesOnFailure() {
 	t := suite.T()
+	repoNameHash := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -318,7 +322,7 @@ func (suite *BasicKopiaIntegrationSuite) TestSetRetentionParameters_NoChangesOnF
 	k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Connect(ctx, repository.Options{})
+	err = k.Connect(ctx, repository.Options{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer k.Close(ctx)
@@ -375,6 +379,7 @@ func checkRetentionParams(
 //revive:disable-next-line:context-as-argument
 func mustReopen(t *testing.T, ctx context.Context, w *Wrapper) {
 	k := w.c
+	repoNameHash := uuid.NewString()[:7]
 
 	err := w.Close(ctx)
 	require.NoError(t, err, "closing wrapper: %v", clues.ToCore(err))
@@ -382,7 +387,7 @@ func mustReopen(t *testing.T, ctx context.Context, w *Wrapper) {
 	err = k.Close(ctx)
 	require.NoError(t, err, "closing conn: %v", clues.ToCore(err))
 
-	err = k.Connect(ctx, repository.Options{})
+	err = k.Connect(ctx, repository.Options{}, repoNameHash)
 	require.NoError(t, err, "reconnecting conn: %v", clues.ToCore(err))
 
 	w.c = k

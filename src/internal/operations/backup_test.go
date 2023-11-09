@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1514,6 +1515,7 @@ func TestAssistBackupIntegrationSuite(t *testing.T) {
 
 func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	repoNameHash := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -1525,7 +1527,7 @@ func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 
 	suite.acct = tconfig.NewM365Account(t)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {

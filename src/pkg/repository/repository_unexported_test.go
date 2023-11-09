@@ -698,6 +698,7 @@ func TestRepositoryModelIntgSuite(t *testing.T) {
 
 func (suite *RepositoryModelIntgSuite) SetupSuite() {
 	t := suite.T()
+	repoNameHash := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -710,10 +711,10 @@ func (suite *RepositoryModelIntgSuite) SetupSuite() {
 
 	require.NotNil(t, k)
 
-	err = k.Initialize(ctx, rep.Options{}, rep.Retention{})
+	err = k.Initialize(ctx, rep.Options{}, rep.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Connect(ctx, rep.Options{})
+	err = k.Connect(ctx, rep.Options{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -752,6 +753,7 @@ func (suite *RepositoryModelIntgSuite) TearDownSuite() {
 
 func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
 	t := suite.T()
+	repoNameHash := uuid.NewString()[:7]
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -761,10 +763,10 @@ func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
 		k = kopia.NewConn(s)
 	)
 
-	err := k.Initialize(ctx, rep.Options{}, rep.Retention{})
+	err := k.Initialize(ctx, rep.Options{}, rep.Retention{}, repoNameHash)
 	require.NoError(t, err, "initializing repo: %v", clues.ToCore(err))
 
-	err = k.Connect(ctx, rep.Options{})
+	err = k.Connect(ctx, rep.Options{}, repoNameHash)
 	require.NoError(t, err, "connecting to repo: %v", clues.ToCore(err))
 
 	defer k.Close(ctx)

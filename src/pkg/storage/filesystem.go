@@ -1,11 +1,17 @@
 package storage
 
 import (
+	"reflect"
+	"slices"
+
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common/str"
 )
+
+// nothing to exclude, for parity
+var excludedFileSystemConfigFieldsForHashing = []string{}
 
 const (
 	FilesystemPath = "path"
@@ -22,6 +28,31 @@ type FilesystemConfig struct {
 
 func (s Storage) ToFilesystemConfig() (*FilesystemConfig, error) {
 	return buildFilesystemConfigFromMap(s.Config)
+}
+
+func (s Storage) GetFileSystemConfigForHashing() (map[string]any, error) {
+	fileSystemCfg, err := buildFilesystemConfigFromMap(s.Config)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	filteredFileSystemConfig := createFilteredFileSystemConfigForHashing(*fileSystemCfg)
+
+	return filteredFileSystemConfig, nil
+}
+
+func createFilteredFileSystemConfigForHashing(source FilesystemConfig) map[string]any {
+	filteredFileSystemConfig := make(map[string]any)
+	sourceValue := reflect.ValueOf(source)
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		fieldName := sourceValue.Type().Field(i).Name
+		if !slices.Contains(excludedFileSystemConfigFieldsForHashing, fieldName) {
+			filteredFileSystemConfig[fieldName] = sourceValue.Field(i).Interface()
+		}
+	}
+
+	return filteredFileSystemConfig
 }
 
 func buildFilesystemConfigFromMap(config map[string]string) (*FilesystemConfig, error) {

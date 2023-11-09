@@ -1,6 +1,9 @@
 package account
 
 import (
+	"reflect"
+	"slices"
+
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/credentials"
@@ -10,6 +13,8 @@ import (
 const (
 	AzureTenantID = "AZURE_TENANT_ID"
 )
+
+var excludedM365ConfigFieldsForHashing = []string{"AzureClientSecret"}
 
 type M365Config struct {
 	credentials.M365 // requires: ClientID, ClientSecret
@@ -55,6 +60,31 @@ func (a Account) M365Config() (M365Config, error) {
 	}
 
 	return c, c.validate()
+}
+
+func (a Account) GetM365ConfigForHashing() (map[string]any, error) {
+	m365Cfg, err := a.M365Config()
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	filteredM365Config := createFilteredM365ConfigForHashing(m365Cfg)
+
+	return filteredM365Config, nil
+}
+
+func createFilteredM365ConfigForHashing(source M365Config) map[string]any {
+	filteredM365Config := make(map[string]any)
+	sourceValue := reflect.ValueOf(source)
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		fieldName := sourceValue.Type().Field(i).Name
+		if !slices.Contains(excludedM365ConfigFieldsForHashing, fieldName) {
+			filteredM365Config[fieldName] = sourceValue.Field(i).Interface()
+		}
+	}
+
+	return filteredM365Config
 }
 
 func (c M365Config) validate() error {

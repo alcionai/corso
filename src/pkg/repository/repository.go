@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -9,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -161,8 +163,13 @@ func (r *repository) Initialize(
 
 	observe.Message(ctx, "Initializing repository")
 
+	repoNameHash, err := r.GenerateHashForRepositoryConfigFileName()
+	if err != nil {
+		return clues.Wrap(err, "generate repo config")
+	}
+
 	kopiaRef := kopia.NewConn(r.Storage)
-	if err := kopiaRef.Initialize(ctx, r.Opts.Repo, cfg.RetentionOpts); err != nil {
+	if err := kopiaRef.Initialize(ctx, r.Opts.Repo, cfg.RetentionOpts, repoNameHash); err != nil {
 		// replace common internal errors so that sdk users can check results with errors.Is()
 		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
 			return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
@@ -226,8 +233,13 @@ func (r *repository) Connect(
 
 	observe.Message(ctx, "Connecting to repository")
 
+	repoNameHash, err := r.GenerateHashForRepositoryConfigFileName()
+	if err != nil {
+		return clues.Wrap(err, "generate repo config")
+	}
+
 	kopiaRef := kopia.NewConn(r.Storage)
-	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
+	if err := kopiaRef.Connect(ctx, r.Opts.Repo, repoNameHash); err != nil {
 		return clues.Wrap(err, "connecting kopia client")
 	}
 	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
@@ -277,12 +289,17 @@ func (r *repository) UpdatePassword(ctx context.Context, password string) (err e
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer close(progressBar)
 
+	repoNameHash, err := r.GenerateHashForRepositoryConfigFileName()
+	if err != nil {
+		return clues.Wrap(err, "generate repo config")
+	}
+
 	kopiaRef := kopia.NewConn(r.Storage)
-	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
+	if err := kopiaRef.Connect(ctx, r.Opts.Repo, repoNameHash); err != nil {
 		return clues.Wrap(err, "connecting kopia client")
 	}
 
-	err = kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo)
+	err = kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo, repoNameHash)
 	if err != nil {
 		return clues.Wrap(err, "updating on kopia")
 	}
@@ -343,6 +360,36 @@ func (r repository) NewRetentionConfig(
 
 func (r repository) Counter() *count.Bus {
 	return r.counter
+}
+
+func (r repository) GenerateHashForRepositoryConfigFileName() (string, error) {
+	accountHashConfig, err := r.Account.GetAccountConfigForHash()
+	if err != nil {
+		return "", clues.Wrap(err, "fetch account hash config")
+	}
+
+	storageHashConfig, err := r.Storage.GetStorageConfigForHash()
+	if err != nil {
+		return "", clues.Wrap(err, "fetch storage hash config")
+	}
+
+	finalHashConfig := make(map[string]any)
+	for k, v := range accountHashConfig {
+		finalHashConfig[k] = v
+	}
+
+	for k, v := range storageHashConfig {
+		finalHashConfig[k] = v
+	}
+
+	b, err := json.Marshal(finalHashConfig)
+	if err != nil {
+		return "", clues.Wrap(err, "serializing hash config")
+	}
+
+	repoNameHash := str.GenerateHash(b)
+
+	return repoNameHash, nil
 }
 
 // ---------------------------------------------------------------------------

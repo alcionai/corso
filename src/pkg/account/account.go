@@ -1,6 +1,8 @@
 package account
 
 import (
+	"fmt"
+
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common"
@@ -16,7 +18,8 @@ const (
 
 // storage parsing errors
 var (
-	errMissingRequired = clues.New("missing required storage configuration")
+	errMissingRequired         = clues.New("missing required storage configuration")
+	invalidProviderErrTemplate = "unsupported account provider: [%s]"
 )
 
 const (
@@ -87,4 +90,13 @@ func (a Account) ID() string {
 	}
 
 	return a.Config[a.Provider.String()+"-tenant-id"]
+}
+
+func (a Account) GetAccountConfigForHash() (map[string]any, error) {
+	switch a.Provider {
+	case ProviderM365:
+		return a.GetM365ConfigForHashing()
+	}
+
+	return nil, clues.New(fmt.Sprintf(invalidProviderErrTemplate, a.Provider.String()))
 }
