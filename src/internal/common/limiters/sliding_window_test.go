@@ -101,8 +101,6 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 	s, err := NewSlidingWindowLimiter(windowSize, slideInterval, capacity)
 	require.NoError(t, err)
 
-	defer s.Shutdown()
-
 	// Make concurrent requests to the limiter
 	for i := 0; i < numRequests; i++ {
 		wg.Add(1)
@@ -122,6 +120,9 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 	}
 	wg.Wait()
 
+	// Shutdown the ticker before accessing the internal limiter state.
+	s.Shutdown()
+
 	// Verify that number of requests allowed in each window is less than or equal
 	// to window capacity
 	sw := s.(*slidingWindow)
@@ -135,37 +136,42 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
 }
 
 func (suite *SlidingWindowUnitTestSuite) TestContextCancellation() {
-	var (
-		t             = suite.T()
-		windowSize    = 100 * time.Millisecond
-		slideInterval = 10 * time.Millisecond
-		wg            sync.WaitGroup
-	)
+	t := suite.T()
 
-	defer goleak.VerifyNone(t)
+	// Since this test can infinitely block on failure conditions, run it within
+	// a time contained eventually block.
+	assert.Eventually(t, func() bool {
+		var (
+			windowSize    = 100 * time.Millisecond
+			slideInterval = 10 * time.Millisecond
+			wg            sync.WaitGroup
+		)
 
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+		ctx, flush := tester.NewContext(t)
+		defer flush()
 
-	// Initialize limiter with capacity = 0 to test context cancellations.
-	s, err := NewSlidingWindowLimiter(windowSize, slideInterval, 0)
-	require.NoError(t, err)
+		// Initialize limiter with capacity = 0 to test context cancellations.
+		s, err := NewSlidingWindowLimiter(windowSize, slideInterval, 0)
+		require.NoError(t, err)
 
-	defer s.Shutdown()
+		defer s.Shutdown()
 
-	ctx, cancel := context.WithTimeout(ctx, 2*windowSize)
-	defer cancel()
+		ctx, cancel := context.WithTimeout(ctx, 2*windowSize)
+		defer cancel()
 
-	wg.Add(1)
+		wg.Add(1)
 
-	go func() {
-		defer wg.Done()
+		go func() {
+			defer wg.Done()
 
-		err := s.Wait(ctx)
-		require.ErrorIs(t, err, context.DeadlineExceeded)
-	}()
+			err := s.Wait(ctx)
+			require.ErrorIs(t, err, context.DeadlineExceeded)
+		}()
 
-	wg.Wait()
+		wg.Wait()
+
+		return true
+	}, 3*time.Second, 100*time.Millisecond)
 }
 
 func (suite *SlidingWindowUnitTestSuite) TestNewSlidingWindowLimiter() {
@@ -257,4 +263,23 @@ func slidingSums(data []int, w int) []int {
 	}
 
 	return res
+}
+
+func (suite *SlidingWindowUnitTestSuite) TestShutdown() {
+	var (
+		t             = suite.T()
+		windowSize    = 1 * time.Second
+		slideInterval = 1 * time.Second
+		capacity      = 100
+	)
+
+	defer goleak.VerifyNone(t)
+
+	s, err := NewSlidingWindowLimiter(windowSize, slideInterval, capacity)
+	require.NoError(t, err)
+
+	s.Shutdown()
+
+	// Second call to Shutdown() should be a no-op.
+	s.Shutdown()
 }

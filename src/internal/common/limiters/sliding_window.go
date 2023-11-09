@@ -49,6 +49,7 @@ type slidingWindow struct {
 	mu sync.Mutex
 	// stopTicker stops the recurring slide ticker
 	stopTicker chan struct{}
+	closeOnce  sync.Once
 }
 
 func NewSlidingWindowLimiter(
@@ -101,7 +102,9 @@ func (s *slidingWindow) Wait(ctx context.Context) error {
 // Shutdown cleans up the slide goroutine. If shutdown is not called, the slide
 // goroutine will continue to run until the program exits.
 func (s *slidingWindow) Shutdown() {
-	close(s.stopTicker)
+	s.closeOnce.Do(func() {
+		close(s.stopTicker)
+	})
 }
 
 // initialize starts the slide goroutine and prefills tokens to full capacity.
@@ -147,8 +150,7 @@ func (s *slidingWindow) nextInterval() {
 }
 
 // slide moves the window forward by one interval. It reclaims tokens from the
-// interval that we slid past and adds them back to available permits. If the
-// permits are already at capacity, excess tokens are discarded.
+// interval that we slid past and adds them back to available permits.
 func (s *slidingWindow) slide() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
