@@ -1084,6 +1084,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 		cols                 []func() []graph.MetadataCollectionEntry
 		expectedDeltas       map[string]string
 		expectedPaths        map[string]map[string]string
+		expectedAlerts       []string
 		canUsePreviousBackup bool
 		errCheck             assert.ErrorAssertionFunc
 	}{
@@ -1394,9 +1395,17 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					}
 				},
 			},
-			expectedDeltas:       map[string]string{},
-			expectedPaths:        map[string]map[string]string{},
-			canUsePreviousBackup: false,
+			expectedDeltas: map[string]string{
+				driveID1: deltaURL1,
+			},
+			expectedPaths: map[string]map[string]string{
+				driveID1: {
+					folderID1: path1,
+					folderID2: path1,
+				},
+			},
+			expectedAlerts:       []string{fault.AlertPreviousPathCollision},
+			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 		},
 		{
@@ -1406,12 +1415,15 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{driveID1: deltaURL1}),
+							map[string]string{
+								driveID1: deltaURL1,
+							}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								driveID1: {
 									folderID1: path1,
+									folderID2: path1,
 								},
 							}),
 					}
@@ -1438,11 +1450,13 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 			expectedPaths: map[string]map[string]string{
 				driveID1: {
 					folderID1: path1,
+					folderID2: path1,
 				},
 				driveID2: {
 					folderID1: path1,
 				},
 			},
+			expectedAlerts:       []string{fault.AlertPreviousPathCollision},
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 		},
@@ -1477,12 +1491,22 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					data.NoFetchRestoreCollection{Collection: mc}))
 			}
 
-			deltas, paths, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, cols, fault.New(true))
+			fb := fault.New(true)
+
+			deltas, paths, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, cols, fb)
 			test.errCheck(t, err)
 			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 
 			assert.Equal(t, test.expectedDeltas, deltas, "deltas")
 			assert.Equal(t, test.expectedPaths, paths, "paths")
+
+			alertMsgs := []string{}
+
+			for _, alert := range fb.Alerts() {
+				alertMsgs = append(alertMsgs, alert.Message)
+			}
+
+			assert.ElementsMatch(t, test.expectedAlerts, alertMsgs, "alert messages")
 		})
 	}
 }
