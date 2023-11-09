@@ -50,6 +50,9 @@ type mockBackupHandler struct {
 
 func (bh mockBackupHandler) itemEnumerator() addedAndRemovedItemGetter { return bh.mg }
 func (bh mockBackupHandler) itemHandler() itemGetterSerializer         { return nil }
+func (bh mockBackupHandler) folderGetter() containerGetter             { return nil }
+func (bh mockBackupHandler) previewIncludeFolders() []string           { return nil }
+func (bh mockBackupHandler) previewExcludeFolders() []string           { return nil }
 
 func (bh mockBackupHandler) NewContainerCache(
 	userID string,

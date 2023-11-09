@@ -29,6 +29,26 @@ func (h mailBackupHandler) itemHandler() itemGetterSerializer {
 	return h.ac
 }
 
+func (h mailBackupHandler) folderGetter() containerGetter {
+	return h.ac
+}
+
+func (h mailBackupHandler) previewIncludeFolders() []string {
+	return []string{
+		"inbox",
+	}
+}
+
+func (h mailBackupHandler) previewExcludeFolders() []string {
+	return []string{
+		"drafts",
+		"sentitems",
+		"outbox",
+		"recoverableitemsdeletions",
+		"junkemail",
+	}
+}
+
 func (h mailBackupHandler) NewContainerCache(
 	userID string,
 ) (string, graph.ContainerResolver) {
