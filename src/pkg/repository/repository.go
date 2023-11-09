@@ -140,8 +140,12 @@ type InitConfig struct {
 //   - store the configuration details
 //   - connect to the provider
 func (r *repository) Initialize(ctx context.Context, cfg InitConfig) (err error) {
-	ctx = r.addContextInfo(ctx)
-	defer r.handleRecovery(ctx, &err, "repo init")
+	ctx = r.addContextClues(ctx)
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
+			err = crErr
+		}
+	}()
 
 	if err := r.ConnectDataProvider(ctx, cfg.Service); err != nil {
 		return clues.Stack(err)
@@ -170,8 +174,12 @@ type ConnConfig struct {
 //   - connect to the provider storage
 //   - return the connected repository
 func (r *repository) Connect(ctx context.Context, cfg ConnConfig) (err error) {
-	ctx = r.addContextInfo(ctx)
-	defer r.handleRecovery(ctx, &err, "repo connect")
+	ctx = r.addContextClues(ctx)
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
+			err = crErr
+		}
+	}()
 
 	if err := r.ConnectDataProvider(ctx, cfg.Service); err != nil {
 		return clues.Stack(err)
@@ -180,7 +188,7 @@ func (r *repository) Connect(ctx context.Context, cfg ConnConfig) (err error) {
 	observe.Message(ctx, "Connecting to repository")
 
 	if err := r.setupKopia(ctx, ctrlRepo.Retention{}, false); err != nil {
-		return err
+		return clues.Stack(err)
 	}
 
 	r.Bus.Event(ctx, events.RepoConnect, nil)
@@ -192,8 +200,12 @@ func (r *repository) Connect(ctx context.Context, cfg ConnConfig) (err error) {
 // - connect to the provider storage using existing password
 // - update the repo with new password
 func (r *repository) UpdatePassword(ctx context.Context, password string) (err error) {
-	ctx = r.addContextInfo(ctx)
-	defer r.handleRecovery(ctx, &err, "repo connect")
+	ctx = r.addContextClues(ctx)
+	defer func() {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
+			err = crErr
+		}
+	}()
 
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer close(progressBar)
@@ -266,18 +278,12 @@ func (r repository) Counter() *count.Bus {
 	return r.counter
 }
 
-func (r *repository) addContextInfo(ctx context.Context) context.Context {
+func (r *repository) addContextClues(ctx context.Context) context.Context {
 	return clues.Add(
 		ctx,
-		"acct_provider", r.Account.Provider.String(),
+		"acct_provider", r.Account.Provider,
 		"acct_id", clues.Hide(r.Account.ID()),
-		"storage_provider", r.Storage.Provider.String())
-}
-
-func (r *repository) handleRecovery(ctx context.Context, err *error, label string) {
-	if crErr := crash.Recovery(ctx, recover(), label); crErr != nil {
-		*err = crErr
-	}
+		"storage_provider", r.Storage.Provider)
 }
 
 func (r *repository) setupKopia(
