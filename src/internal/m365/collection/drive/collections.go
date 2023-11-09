@@ -75,6 +75,7 @@ func NewCollections(
 func deserializeAndValidateMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
+	fb *fault.Bus,
 ) (map[string]string, map[string]map[string]string, bool, error) {
 	deltas, prevs, canUse, err := DeserializeMetadata(ctx, cols)
 	if err != nil || !canUse {
@@ -112,44 +113,47 @@ func deserializeAndValidateMetadata(
 		}
 	}
 
-	if prevPathsHaveCollisions(ctx, prevs) {
-		// If a previous path collision occurs, we need to force a full backup
-		// in order to correct the backup state, else we'll potentially hit
-		// unresolvable failures.
-		return map[string]string{}, map[string]map[string]string{}, false, nil
-	}
+	alertIfPrevPathsHaveCollisions(ctx, prevs, fb)
 
 	return deltas, prevs, canUse, nil
 }
 
-func prevPathsHaveCollisions(
+func alertIfPrevPathsHaveCollisions(
 	ctx context.Context,
 	prevs map[string]map[string]string,
+	fb *fault.Bus,
 ) bool {
-	var (
-		prevPathCollisions = map[string]string{}
-		foundCollision     bool
-	)
+	var foundCollision bool
 
 	for driveID, folders := range prevs {
+		prevPathCollisions := map[string]string{}
+
 		for fid, prev := range folders {
 			if otherID, collision := prevPathCollisions[prev]; collision {
-				logger.Ctx(ctx).
-					With(
-						"collision_folder_id_1", fid,
-						"collision_folder_id_2", otherID,
-						"collision_drive_id", driveID,
-						"collision_prev_path", path.LoggableDir(prev)).
-					Info("duplicate previous paths")
+				ctx = clues.Add(
+					ctx,
+					"collision_folder_id_1", fid,
+					"collision_folder_id_2", otherID,
+					"collision_drive_id", driveID,
+					"collision_prev_path", path.LoggableDir(prev))
+
+				fb.AddAlert(ctx, fault.NewAlert(
+					fault.AlertPreviousPathCollision,
+					"", // no namespace
+					"", // no item id
+					"previousPaths",
+					map[string]any{
+						"collision_folder_id_1": fid,
+						"collision_folder_id_2": otherID,
+						"collision_drive_id":    driveID,
+						"collision_prev_path":   prev,
+					}))
 
 				foundCollision = true
 			}
 
 			prevPathCollisions[prev] = fid
 		}
-
-		// reset the collision check for each drive
-		prevPathCollisions = map[string]string{}
 	}
 
 	return foundCollision
@@ -272,7 +276,7 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(ctx, prevMetadata)
+	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(ctx, prevMetadata, errs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -483,10 +487,7 @@ func (c *Collections) Get(
 		collections = append(collections, coll)
 	}
 
-	// validate metadata
-	if prevPathsHaveCollisions(ctx, driveIDToPrevPaths) {
-		return nil, false, clues.New("backup produced malformed metadata: previous path collision").WithClues(ctx)
-	}
+	alertIfPrevPathsHaveCollisions(ctx, driveIDToPrevPaths, errs)
 
 	// add metadata collections
 	pathPrefix, err := c.handler.MetadataPathPrefix(c.tenantID)
@@ -1074,13 +1075,13 @@ func includePath(ctx context.Context, dsc dirScopeChecker, folderPath path.Path)
 }
 
 func updatePath(paths map[string]string, id, newPath string) {
-	oldPath := paths[id]
-	if len(oldPath) == 0 {
+	currPath := paths[id]
+	if len(currPath) == 0 {
 		paths[id] = newPath
 		return
 	}
 
-	if oldPath == newPath {
+	if currPath == newPath {
 		return
 	}
 
@@ -1089,10 +1090,10 @@ func updatePath(paths map[string]string, id, newPath string) {
 	// other components should take care of that. We do need to ensure that the
 	// resulting map contains all folders though so we know the next time around.
 	for folderID, p := range paths {
-		if !strings.HasPrefix(p, oldPath) {
+		if !strings.HasPrefix(p, currPath) {
 			continue
 		}
 
-		paths[folderID] = strings.Replace(p, oldPath, newPath, 1)
+		paths[folderID] = strings.Replace(p, currPath, newPath, 1)
 	}
 }

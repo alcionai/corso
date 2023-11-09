@@ -208,7 +208,6 @@ func (e *Bus) AddAlert(ctx context.Context, a *Alert) {
 	e.logAndAddAlert(ctx, a, 1)
 }
 
-// logs the error and adds an alert.
 func (e *Bus) logAndAddAlert(ctx context.Context, a *Alert, trace int) {
 	logger.CtxStack(ctx, trace+1).
 		With("alert", a).

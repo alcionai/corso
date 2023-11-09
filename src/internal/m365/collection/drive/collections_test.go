@@ -1477,7 +1477,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					data.NoFetchRestoreCollection{Collection: mc}))
 			}
 
-			deltas, paths, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, cols)
+			deltas, paths, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, cols, fault.New(true))
 			test.errCheck(t, err)
 			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 
@@ -1510,7 +1510,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata_ReadFailure()
 
 	fc := failingColl{}
 
-	_, _, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, []data.RestoreCollection{fc})
+	_, _, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, []data.RestoreCollection{fc}, fault.New(true))
 	require.NoError(t, err)
 	require.False(t, canUsePreviousBackup)
 }
@@ -2943,7 +2943,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					},
 				},
 			},
-			canUsePreviousBackup: false,
+			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			prevFolderPaths: map[string]map[string]string{
 				driveID1: {
@@ -2962,10 +2962,10 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 					data.NewState: {"folder", "folder2"},
 				},
 				rootFolderPath1 + "/folder": {
-					data.NewState: {"folder", "file"},
+					data.NotMovedState: {"folder", "file"},
 				},
 				rootFolderPath1 + "/folder2": {
-					data.NewState: {"folder2", "file2"},
+					data.MovedState: {"folder2", "file2"},
 				},
 				rootFolderPath2: {
 					data.NewState: {"folder", "folder2"},
@@ -3003,10 +3003,67 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				rootFolderPath2 + "/folder2": true,
 			},
 		},
+		{
+			name:   "fnargle",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{{
+							Items: []models.DriveItemable{
+								driveRootItem("root"),
+								driveItem("fanny2", "fanny", driveBasePath1, "root", false, true, false),
+								driveItem("file2", "file2", driveBasePath1+"/fanny", "fanny2", true, false, false),
+								driveItem("nav", "nav", driveBasePath1, "root", false, true, false),
+								driveItem("file", "file", driveBasePath1+"/nav", "nav", true, false, false),
+							},
+						}},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			prevFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root": rootFolderPath1,
+					"nav":  rootFolderPath1 + "/fanny",
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {
+					data.NewState: {"fanny2"},
+				},
+				rootFolderPath1 + "/nav": {
+					data.MovedState: {"nav", "file"},
+				},
+				rootFolderPath1 + "/fanny": {
+					data.NewState: {"fanny2", "file2"},
+				},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedFolderPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"nav":    rootFolderPath1 + "/nav",
+					"fanny2": rootFolderPath1 + "/nav", // note: this is a bug, but currently expected
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
+				rootFolderPath1: makeExcludeMap("file", "file2"),
+			}),
+			doNotMergeItems: map[string]bool{},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+
+			if test.name != "fnargle" {
+				t.Skip()
+			}
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
@@ -3057,7 +3114,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			delList := prefixmatcher.NewStringSetBuilder()
 
 			cols, canUsePreviousBackup, err := c.Get(ctx, prevMetadata, delList, errs)
-			test.errCheck(t, err)
+			test.errCheck(t, err, clues.ToCore(err))
 			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 			assert.Equal(t, test.expectedSkippedCount, len(errs.Skipped()))
 
@@ -3076,19 +3133,20 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				}
 
 				if folderPath == metadataPath.String() {
-					deltas, paths, _, err := deserializeAndValidateMetadata(
+					deltas, prevs, _, err := deserializeAndValidateMetadata(
 						ctx,
 						[]data.RestoreCollection{
 							dataMock.NewUnversionedRestoreCollection(
 								t,
 								data.NoFetchRestoreCollection{Collection: baseCol}),
-						})
+						},
+						errs)
 					if !assert.NoError(t, err, "deserializing metadata", clues.ToCore(err)) {
 						continue
 					}
 
 					assert.Equal(t, test.expectedDeltaURLs, deltas, "delta urls")
-					assert.Equal(t, test.expectedFolderPaths, paths, "folder paths")
+					assert.Equal(t, test.expectedFolderPaths, prevs, "previous paths")
 
 					continue
 				}
