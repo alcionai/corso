@@ -3061,10 +3061,6 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			if test.name != "fnargle" {
-				t.Skip()
-			}
-
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 

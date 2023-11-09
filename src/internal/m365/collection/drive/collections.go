@@ -122,9 +122,7 @@ func alertIfPrevPathsHaveCollisions(
 	ctx context.Context,
 	prevs map[string]map[string]string,
 	fb *fault.Bus,
-) bool {
-	var foundCollision bool
-
+) {
 	for driveID, folders := range prevs {
 		prevPathCollisions := map[string]string{}
 
@@ -148,15 +146,11 @@ func alertIfPrevPathsHaveCollisions(
 						"collision_drive_id":    driveID,
 						"collision_prev_path":   prev,
 					}))
-
-				foundCollision = true
 			}
 
 			prevPathCollisions[prev] = fid
 		}
 	}
-
-	return foundCollision
 }
 
 func DeserializeMetadata(
@@ -276,7 +270,7 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(ctx, prevMetadata, errs)
+	deltasByDriveID, prevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(ctx, prevMetadata, errs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -285,7 +279,7 @@ func (c *Collections) Get(
 
 	driveTombstones := map[string]struct{}{}
 
-	for driveID := range oldPrevPathsByDriveID {
+	for driveID := range prevPathsByDriveID {
 		driveTombstones[driveID] = struct{}{}
 	}
 
@@ -318,8 +312,8 @@ func (c *Collections) Get(
 				"drive_name", clues.Hide(driveName))
 
 			excludedItemIDs = map[string]struct{}{}
-			oldPrevPaths    = oldPrevPathsByDriveID[driveID]
-			prevDeltaLink   = prevDriveIDToDelta[driveID]
+			oldPrevPaths    = prevPathsByDriveID[driveID]
+			prevDeltaLink   = deltasByDriveID[driveID]
 
 			// packagePaths is keyed by folder paths to a parent directory
 			// which is marked as a package by its driveItem GetPackage
