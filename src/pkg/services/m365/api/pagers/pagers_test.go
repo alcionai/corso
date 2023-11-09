@@ -524,6 +524,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			filter: func(testItem) bool { return false },
 			expect: expected{
+				removed:       []string{},
 				deltaUpdate:   DeltaUpdate{Reset: true},
 				validModTimes: true,
 			},
@@ -553,6 +554,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			filter:    func(testItem) bool { return false },
 			prevDelta: "delta",
 			expect: expected{
+				removed:       []string{},
 				deltaUpdate:   DeltaUpdate{Reset: false},
 				validModTimes: true,
 			},
