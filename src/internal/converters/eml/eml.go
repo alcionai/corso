@@ -13,26 +13,31 @@ import (
 	"fmt"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mail "github.com/xhit/go-simple-mail/v2"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 const (
-	fromFormat = "%s <%s>"
-	dateFormat = "2006-01-02 15:04:05 MST" // from xhit/go-simple-mail
+	addressFormat = "%s <%s>"
+	dateFormat    = "2006-01-02 15:04:05 MST" // from xhit/go-simple-mail
 )
 
-// ToEml converts a Messageable to .eml format
-func ToEml(ctx context.Context, data models.Messageable) (string, error) {
+// FromJSON converts a Messageable(as json) to .eml format
+func FromJSON(ctx context.Context, body []byte) (string, error) {
+	data, err := api.BytesToMessageable(body)
+	if err != nil {
+		return "", clues.Wrap(err, "converting to messageble")
+	}
+
 	email := mail.NewMSG()
 
 	if data.GetFrom() != nil {
 		email.SetFrom(
 			fmt.Sprintf(
-				fromFormat,
+				addressFormat,
 				ptr.Val(data.GetFrom().GetEmailAddress().GetName()),
 				ptr.Val(data.GetFrom().GetEmailAddress().GetAddress())))
 	}
@@ -41,7 +46,7 @@ func ToEml(ctx context.Context, data models.Messageable) (string, error) {
 		for _, recipient := range data.GetToRecipients() {
 			email.AddTo(
 				fmt.Sprintf(
-					fromFormat,
+					addressFormat,
 					ptr.Val(recipient.GetEmailAddress().GetName()),
 					ptr.Val(recipient.GetEmailAddress().GetAddress())))
 		}
@@ -51,7 +56,7 @@ func ToEml(ctx context.Context, data models.Messageable) (string, error) {
 		for _, recipient := range data.GetCcRecipients() {
 			email.AddCc(
 				fmt.Sprintf(
-					fromFormat,
+					addressFormat,
 					ptr.Val(recipient.GetEmailAddress().GetName()),
 					ptr.Val(recipient.GetEmailAddress().GetAddress())))
 		}
@@ -61,7 +66,7 @@ func ToEml(ctx context.Context, data models.Messageable) (string, error) {
 		for _, recipient := range data.GetBccRecipients() {
 			email.AddBcc(
 				fmt.Sprintf(
-					fromFormat,
+					addressFormat,
 					ptr.Val(recipient.GetEmailAddress().GetName()),
 					ptr.Val(recipient.GetEmailAddress().GetAddress())))
 		}
@@ -77,7 +82,7 @@ func ToEml(ctx context.Context, data models.Messageable) (string, error) {
 		} else if len(rts) != 0 {
 			email.SetReplyTo(
 				fmt.Sprintf(
-					fromFormat,
+					addressFormat,
 					ptr.Val(rts[0].GetEmailAddress().GetName()),
 					ptr.Val(rts[0].GetEmailAddress().GetAddress())))
 		}

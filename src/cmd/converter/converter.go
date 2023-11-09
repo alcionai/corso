@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/alcionai/corso/src/internal/converters/eml"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 func main() {
@@ -31,12 +30,7 @@ func main() {
 	case "msg":
 		switch to {
 		case "eml":
-			msg, err := api.BytesToMessageable(body)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			out, err = eml.ToEml(context.Background(), msg)
+			out, err = eml.FromJSON(context.Background(), body)
 			if err != nil {
 				log.Fatal(err)
 			}

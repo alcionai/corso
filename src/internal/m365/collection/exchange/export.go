@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 func NewExportCollection(
@@ -65,17 +64,7 @@ func streamItems(
 				continue
 			}
 
-			msg, err := api.BytesToMessageable(content)
-			if err != nil {
-				ch <- export.Item{
-					ID:    id,
-					Error: clues.Wrap(err, "parsing email"),
-				}
-
-				continue
-			}
-
-			email, err := eml.ToEml(ctx, msg)
+			email, err := eml.FromJSON(ctx, content)
 			if err != nil {
 				ch <- export.Item{
 					ID:    id,
