@@ -89,8 +89,13 @@ func (s *slidingWindow) Wait(ctx context.Context) error {
 	return s.WaitN(ctx, 1)
 }
 
-// Wait blocks a request until N tokens are available or the context gets
-// cancelled.
+// WaitN blocks a request until n tokens are available or the context gets
+// cancelled. WaitN should be called with n <= capacity otherwise it will block
+// forever.
+//
+// TODO(pandeyabs): Enforce n <= capacity check. Not adding it right now because
+// we are relying on capacity = 0 for ctx cancellation test, which would need
+// some refactoring.
 func (s *slidingWindow) WaitN(ctx context.Context, n int) error {
 	for i := 0; i < n; i++ {
 		select {
