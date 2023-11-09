@@ -34,6 +34,9 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 	out, err := FromJSON(ctx, body)
 	assert.NoError(t, err, "converting to eml")
 
+	out, err := FromJSON(ctx, body)
+	assert.NoError(t, err, "converting to eml")
+
 	msg, err := api.BytesToMessageable(body)
 	require.NoError(t, err, "creating message")
 
