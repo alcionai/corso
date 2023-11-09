@@ -37,8 +37,8 @@ type Repositoryer interface {
 	BackupGetter
 	Restorer
 	Exporter
+	Debugger
 	DataProviderConnector
-	DataStoreConnector
 
 	Initialize(
 		ctx context.Context,

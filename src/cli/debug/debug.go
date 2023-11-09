@@ -4,14 +4,11 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/kopia/kopia/repo/manifest"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -90,98 +87,33 @@ func handleMetadataFilesCmd(cmd *cobra.Command, args []string) error {
 // runners
 // ---------------------------------------------------------------------------
 
-type base struct {
-	snapshotID manifest.ID
-	reasons    []identity.Reasoner
-}
-
-func (b base) GetReasons() []identity.Reasoner {
-	return b.reasons
-}
-
-func (b base) GetSnapshotID() manifest.ID {
-	return b.snapshotID
-}
-
-type metadataFile struct {
-	name string
-	path string
-	data any
-}
-
-type mdDeserialize func(
-	ctx context.Context,
-	metadataCollections []data.RestoreCollection,
-) ([]metadataFile, error)
-
 func genericMetadataFiles(
 	ctx context.Context,
 	cmd *cobra.Command,
 	args []string,
 	sel selectors.Selector,
 	backupID string,
-	metadataDeserializer mdDeserialize,
 ) error {
 	ctx = clues.Add(ctx, "backup_id", backupID)
 
-	r, repoDeets, err := utils.GetAccountAndConnect(ctx, cmd, sel.PathService())
+	r, _, err := utils.GetAccountAndConnect(ctx, cmd, sel.PathService())
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	bup, err := r.Backup(ctx, backupID)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "looking up backup"))
-	}
-
 	// read metadata
-	sel = sel.SetDiscreteOwnerIDName(bup.ResourceOwnerID, bup.ResourceOwnerName)
-
-	reasons, err := sel.Reasons(repoDeets.Repo.Account.ID(), false)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "constructing backup reasons"))
-	}
-
-	rp := r.DataStore()
-
-	paths, err := r.DataProvider().GetMetadataPaths(
-		ctx,
-		rp,
-		&base{manifest.ID(bup.SnapshotID), reasons},
-		fault.New(true))
+	files, err := r.GetBackupMetadata(ctx, sel, backupID, fault.New(true))
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "retrieving metadata files"))
 	}
 
-	colls, err := rp.ProduceRestoreCollections(
-		ctx,
-		bup.SnapshotID,
-		paths,
-		nil,
-		fault.New(true))
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "looking up metadata file content"))
-	}
-
-	Info(ctx, "Reading Metadata From:")
-
-	for _, coll := range colls {
-		Infof(ctx, "%s", coll.FullPath())
-	}
-
-	// print metadata
-	files, err := metadataDeserializer(ctx, colls)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "deserializing metadata file content"))
-	}
-
 	for _, file := range files {
 		Infof(ctx, "\n------------------------------")
-		Info(ctx, file.name)
-		Info(ctx, file.path)
-		Pretty(ctx, file.data)
+		Info(ctx, file.Name)
+		Info(ctx, file.Path)
+		Pretty(ctx, file.Data)
 	}
 
 	return nil

@@ -1,17 +1,11 @@
 package debug
 
 import (
-	"context"
-
-	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive"
-	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -77,26 +71,5 @@ func metadataFilesSharePointCmd(cmd *cobra.Command, args []string) error {
 		cmd,
 		args,
 		sel.Selector,
-		flags.BackupIDFV,
-		deserializeDriveMetadata)
-}
-
-func deserializeDriveMetadata(
-	ctx context.Context,
-	metadataCollections []data.RestoreCollection,
-) ([]metadataFile, error) {
-	deltas, prevs, _, err := drive.DeserializeMetadata(ctx, metadataCollections)
-
-	files := []metadataFile{
-		{
-			name: bupMD.PreviousPathFileName,
-			data: prevs,
-		},
-		{
-			name: bupMD.DeltaURLsFileName,
-			data: deltas,
-		},
-	}
-
-	return files, clues.Stack(err).OrNil()
+		flags.BackupIDFV)
 }

@@ -1,15 +1,11 @@
 package debug
 
 import (
-	"context"
-
-	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -75,13 +71,5 @@ func metadataFilesExchangeCmd(cmd *cobra.Command, args []string) error {
 		cmd,
 		args,
 		sel.Selector,
-		flags.BackupIDFV,
-		deserializeExchangeMetadata)
-}
-
-func deserializeExchangeMetadata(
-	ctx context.Context,
-	metadataCollections []data.RestoreCollection,
-) ([]metadataFile, error) {
-	return nil, clues.New("needs implementation")
+		flags.BackupIDFV)
 }

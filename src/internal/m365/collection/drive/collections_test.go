@@ -1406,7 +1406,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata() {
 					data.NoFetchRestoreCollection{Collection: mc}))
 			}
 
-			deltas, paths, canUsePreviousBackup, err := DeserializeMetadata(ctx, cols)
+			deltas, paths, canUsePreviousBackup, err := deserializeMetadata(ctx, cols)
 			test.errCheck(t, err)
 			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 
@@ -1439,7 +1439,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestDeserializeMetadata_ReadFailure()
 
 	fc := failingColl{}
 
-	_, _, canUsePreviousBackup, err := DeserializeMetadata(ctx, []data.RestoreCollection{fc})
+	_, _, canUsePreviousBackup, err := deserializeMetadata(ctx, []data.RestoreCollection{fc})
 	require.NoError(t, err)
 	require.False(t, canUsePreviousBackup)
 }
@@ -2912,7 +2912,7 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 				}
 
 				if folderPath == metadataPath.String() {
-					deltas, paths, _, err := DeserializeMetadata(
+					deltas, paths, _, err := deserializeMetadata(
 						ctx,
 						[]data.RestoreCollection{
 							dataMock.NewUnversionedRestoreCollection(

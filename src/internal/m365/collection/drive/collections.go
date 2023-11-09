@@ -72,7 +72,7 @@ func NewCollections(
 	}
 }
 
-func DeserializeMetadata(
+func deserializeMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
 ) (map[string]string, map[string]map[string]string, bool, error) {
@@ -215,7 +215,7 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := DeserializeMetadata(ctx, prevMetadata)
+	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeMetadata(ctx, prevMetadata)
 	if err != nil {
 		return nil, false, err
 	}

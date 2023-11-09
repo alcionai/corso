@@ -71,6 +71,5 @@ func metadataFilesOneDriveCmd(cmd *cobra.Command, args []string) error {
 		cmd,
 		args,
 		sel.Selector,
-		flags.BackupIDFV,
-		deserializeDriveMetadata)
+		flags.BackupIDFV)
 }
