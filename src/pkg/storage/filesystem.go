@@ -1,10 +1,13 @@
 package storage
 
 import (
+	"strings"
+
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -83,7 +86,11 @@ func (c *FilesystemConfig) ApplyConfigOverrides(
 		}
 	}
 
-	c.Path = str.First(overrides[FilesystemPath], c.Path)
+	sanitizePath := func(p string) string {
+		return path.TrimTrailingSlash(strings.TrimSpace(p))
+	}
+
+	c.Path = str.First(sanitizePath(overrides[FilesystemPath]), sanitizePath(c.Path))
 
 	return c.validate()
 }

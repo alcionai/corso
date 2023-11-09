@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 var ErrVerifyingConfigStorage = clues.New("verifying configs in corso config file")
@@ -168,7 +169,16 @@ func mustMatchConfig(
 		}
 
 		vv := cast.ToString(g.Get(tomlK))
-		if v != vv {
+
+		areEqual := false
+
+		if path.IsValidPath(v) && path.IsValidPath(vv) {
+			areEqual = path.ArePathsEquivalent(v, vv)
+		} else {
+			areEqual = v == vv
+		}
+
+		if !areEqual {
 			err := clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
 			return clues.Stack(ErrVerifyingConfigStorage, err)
 		}

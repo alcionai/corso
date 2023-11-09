@@ -52,6 +52,8 @@ package path
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -315,6 +317,21 @@ func Split(segment string) []string {
 	res = append(res, segment[startIdx:])
 
 	return res
+}
+
+func ArePathsEquivalent(path1, path2 string) bool {
+	normalizedPath1 := strings.TrimSpace(filepath.Clean(path1))
+	normalizedPath2 := strings.TrimSpace(filepath.Clean(path2))
+
+	normalizedPath1 = strings.TrimSuffix(normalizedPath1, string(filepath.Separator))
+	normalizedPath2 = strings.TrimSuffix(normalizedPath2, string(filepath.Separator))
+
+	return normalizedPath1 == normalizedPath2
+}
+
+func IsValidPath(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // ---------------------------------------------------------------------------
