@@ -329,7 +329,7 @@ func ArePathsEquivalent(path1, path2 string) bool {
 	return normalizedPath1 == normalizedPath2
 }
 
-func IsValidPath(path string) bool {
+func DoesPathExistInOS(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }

@@ -172,7 +172,7 @@ func mustMatchConfig(
 
 		areEqual := false
 
-		if path.IsValidPath(v) && path.IsValidPath(vv) {
+		if path.DoesPathExistInOS(v) && path.DoesPathExistInOS(vv) {
 			areEqual = path.ArePathsEquivalent(v, vv)
 		} else {
 			areEqual = v == vv
