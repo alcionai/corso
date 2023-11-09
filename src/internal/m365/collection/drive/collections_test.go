@@ -3054,6 +3054,124 @@ func (suite *OneDriveCollectionsUnitSuite) TestGet() {
 			}),
 			doNotMergeItems: map[string]bool{},
 		},
+		{
+			name:   "out of order item enumeration causes prev path collisions",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{{
+							Items: []models.DriveItemable{
+								driveRootItem("root"),
+								driveItem("fanny2", "fanny", driveBasePath1, "root", false, true, false),
+								driveItem("file2", "file2", driveBasePath1+"/fanny", "fanny2", true, false, false),
+								driveItem("nav", "nav", driveBasePath1, "root", false, true, false),
+								driveItem("file", "file", driveBasePath1+"/nav", "nav", true, false, false),
+							},
+						}},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			previousPaths: map[string]map[string]string{
+				driveID1: {
+					"root": rootFolderPath1,
+					"nav":  rootFolderPath1 + "/fanny",
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {
+					data.NewState: {"fanny2"},
+				},
+				rootFolderPath1 + "/nav": {
+					data.MovedState: {"nav", "file"},
+				},
+				rootFolderPath1 + "/fanny": {
+					data.NewState: {"fanny2", "file2"},
+				},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedPreviousPaths: map[string]map[string]string{
+				driveID1: {
+					"root":   rootFolderPath1,
+					"nav":    rootFolderPath1 + "/nav",
+					"fanny2": rootFolderPath1 + "/nav", // note: this is a bug, but currently expected
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
+				rootFolderPath1: makeExcludeMap("file", "file2"),
+			}),
+			doNotMergeItems: map[string]bool{},
+		},
+		{
+			name:   "out of order item enumeration causes opposite prev path collisions",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					driveID1: {
+						Pages: []mock.NextPage{{
+							Items: []models.DriveItemable{
+								driveRootItem("root"),
+								driveItem("file1", "file1", driveBasePath1, "root", true, false, false),
+								driveItem("fanny", "fanny", driveBasePath1, "root", false, true, false),
+								driveItem("nav", "nav", driveBasePath1, "root", false, true, false),
+								driveItem("id1", "foo", driveBasePath1+"/fanny", "fanny", false, true, false),
+								driveItem("id2", "foo", driveBasePath1+"/nav", "nav", false, true, false),
+							},
+						}},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			previousPaths: map[string]map[string]string{
+				driveID1: {
+					"root":  rootFolderPath1,
+					"nav":   rootFolderPath1 + "/nav",
+					"fanny": rootFolderPath1 + "/fanny",
+					"id1":   rootFolderPath1 + "/nav/foo",
+					"id2":   rootFolderPath1 + "/fanny/foo",
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				rootFolderPath1: {
+					data.NotMovedState: {"file1"},
+				},
+				rootFolderPath1 + "/nav": {
+					data.NotMovedState: {"nav"},
+				},
+				rootFolderPath1 + "/nav/foo": {
+					data.MovedState: {"id2"},
+				},
+				rootFolderPath1 + "/fanny": {
+					data.NotMovedState: {"fanny"},
+				},
+				rootFolderPath1 + "/fanny/foo": {
+					data.MovedState: {"id1"},
+				},
+			},
+			expectedDeltaURLs: map[string]string{
+				driveID1: delta,
+			},
+			expectedPreviousPaths: map[string]map[string]string{
+				driveID1: {
+					"root":  rootFolderPath1,
+					"nav":   rootFolderPath1 + "/nav",
+					"fanny": rootFolderPath1 + "/fanny",
+					"id1":   rootFolderPath1 + "/nav/foo", // note: this is a bug, but currently expected
+					"id2":   rootFolderPath1 + "/nav/foo",
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
+				rootFolderPath1: makeExcludeMap("file1"),
+			}),
+			doNotMergeItems: map[string]bool{},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
