@@ -86,21 +86,22 @@ func AddConfigFlags(cmd *cobra.Command) {
 // InitFunc provides a func that lazily initializes viper and
 // verifies that the configuration was able to read a file.
 func InitFunc(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
 	fp := configFilePathFlag
 	if len(fp) == 0 || fp == displayDefaultFP {
 		fp = configFilePath
 	}
 
-	vpr := GetViper(cmd.Context())
+	vpr := GetViper(ctx)
 
-	err := initWithViper(vpr, fp)
-	if err != nil {
+	if err := initWithViper(vpr, fp); err != nil {
 		return err
 	}
 
-	SetViper(cmd.Context(), vpr)
+	ctx = SetViper(ctx, vpr)
 
-	return Read(cmd.Context())
+	return Read(ctx)
 }
 
 // initWithViper implements InitConfig, but takes in a viper
