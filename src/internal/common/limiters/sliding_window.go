@@ -84,16 +84,23 @@ func NewSlidingWindowLimiter(
 }
 
 // Wait blocks a request until a token is available or the context is cancelled.
-// TODO(pandeyabs): Implement WaitN.
+// Equivalent to calling WaitN(ctx, 1).
 func (s *slidingWindow) Wait(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return clues.Stack(ctx.Err())
-	case <-s.permits:
-		s.mu.Lock()
-		defer s.mu.Unlock()
+	return s.WaitN(ctx, 1)
+}
 
-		s.curr.count[s.currentInterval]++
+// Wait blocks a request until N tokens are available or the context gets
+// cancelled.
+func (s *slidingWindow) WaitN(ctx context.Context, N int) error {
+	for i := 0; i < N; i++ {
+		select {
+		case <-ctx.Done():
+			return clues.Stack(ctx.Err())
+		case <-s.permits:
+			s.mu.Lock()
+			s.curr.count[s.currentInterval]++
+			s.mu.Unlock()
+		}
 	}
 
 	return nil
