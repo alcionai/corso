@@ -522,6 +522,8 @@ func (c *Collections) Get(
 		collections = append(collections, md)
 	}
 
+	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
+
 	return collections, canUsePrevBackup, nil
 }
 
@@ -737,6 +739,8 @@ func (c *Collections) PopulateDriveCollections(
 		seenFolders = map[string]string{}
 	)
 
+	ctx = clues.Add(ctx, "invalid_prev_delta", invalidPrevDelta)
+
 	if !invalidPrevDelta {
 		maps.Copy(newPrevPaths, oldPrevPaths)
 	}
@@ -755,6 +759,7 @@ func (c *Collections) PopulateDriveCollections(
 		}
 
 		if reset {
+			ctx = clues.Add(ctx, "delta_reset_occurred", true)
 			newPrevPaths = map[string]string{}
 			currPrevPaths = map[string]string{}
 			c.CollectionMap[driveID] = map[string]*Collection{}
