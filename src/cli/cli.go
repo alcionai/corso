@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/backup"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/debug"
 	"github.com/alcionai/corso/src/cli/export"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/help"
@@ -125,6 +126,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	backup.AddCommands(cmd)
 	restore.AddCommands(cmd)
 	export.AddCommands(cmd)
+	debug.AddCommands(cmd)
 	help.AddCommands(cmd)
 }
 

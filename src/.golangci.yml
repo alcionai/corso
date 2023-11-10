@@ -125,6 +125,9 @@ issues:
       linters:
         - forbidigo
       text: "context.(Background|TODO)"
+    - path: internal/m365/collection/drive/collections_test.go
+      linters:
+        - lll
     - path: internal/m365/graph/betasdk
       linters:
         - wsl
