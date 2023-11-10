@@ -2,6 +2,7 @@ package m365
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -102,6 +103,31 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 	}
 
 	return ret, nil
+}
+
+func UserAssignedLicenses(ctx context.Context, acct account.Account, userID string) (int, error) {
+	ac, err := makeAC(ctx, acct, path.UnknownService)
+	if err != nil {
+		return 0, clues.Stack(err).WithClues(ctx)
+	}
+
+	us, err := ac.Users().GetByID(
+		ctx,
+		userID,
+		api.CallConfig{Select: api.SelectProps("assignedLicenses")})
+	if err != nil {
+		return 0, err
+	}
+
+	if us.GetAssignedLicenses() != nil {
+		for _, license := range us.GetAssignedLicenses() {
+			fmt.Println(license.GetSkuId())
+		}
+
+		return len(us.GetAssignedLicenses()), nil
+	}
+
+	return 0, clues.New("user missing assigned licenses")
 }
 
 // parseUser extracts information from `models.Userable` we care about
