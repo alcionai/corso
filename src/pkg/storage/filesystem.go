@@ -1,10 +1,13 @@
 package storage
 
 import (
+	"strings"
+
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 const (
@@ -15,6 +18,9 @@ var fsConstToTomlKeyMap = map[string]string{
 	StorageProviderTypeKey: StorageProviderTypeKey,
 	FilesystemPath:         FilesystemPath,
 }
+
+// add filesystem config key names that require path related validations
+var fsPathKeys = []string{FilesystemPath}
 
 type FilesystemConfig struct {
 	Path string
@@ -77,13 +83,17 @@ func (c *FilesystemConfig) ApplyConfigOverrides(
 			}
 
 			// This is matching override values from config file.
-			if err := mustMatchConfig(g, fsConstToTomlKeyMap, fsOverrides(overrides)); err != nil {
+			if err := mustMatchConfig(g, fsConstToTomlKeyMap, fsOverrides(overrides), fsPathKeys); err != nil {
 				return clues.Wrap(err, "verifying storage configs in corso config file")
 			}
 		}
 	}
 
-	c.Path = str.First(overrides[FilesystemPath], c.Path)
+	sanitizePath := func(p string) string {
+		return path.TrimTrailingSlash(strings.TrimSpace(p))
+	}
+
+	c.Path = str.First(sanitizePath(overrides[FilesystemPath]), sanitizePath(c.Path))
 
 	return c.validate()
 }
