@@ -93,7 +93,6 @@ func (p testPage) GetOdataNextLink() *string {
 }
 
 func (p testPage) GetOdataDeltaLink() *string {
-	// delta is not tested here
 	return ptr.To(p.deltaLink)
 }
 
