@@ -72,7 +72,88 @@ func NewCollections(
 	}
 }
 
-func deserializeMetadata(
+func deserializeAndValidateMetadata(
+	ctx context.Context,
+	cols []data.RestoreCollection,
+	fb *fault.Bus,
+) (map[string]string, map[string]map[string]string, bool, error) {
+	deltas, prevs, canUse, err := DeserializeMetadata(ctx, cols)
+	if err != nil || !canUse {
+		return deltas, prevs, false, clues.Stack(err).OrNil()
+	}
+
+	// Go through and remove delta tokens if we didn't have any paths for them
+	// or one or more paths are empty (incorrect somehow). This will ensure we
+	// don't accidentally try to pull in delta results when we should have
+	// enumerated everything instead.
+	//
+	// Loop over the set of previous deltas because it's alright to have paths
+	// without a delta but not to have a delta without paths. This way ensures
+	// we check at least all the path sets for the deltas we have.
+	for drive := range deltas {
+		ictx := clues.Add(ctx, "drive_id", drive)
+
+		paths := prevs[drive]
+		if len(paths) == 0 {
+			logger.Ctx(ictx).Info("dropping drive delta due to 0 prev paths")
+			delete(deltas, drive)
+		}
+
+		// Drives have only a single delta token. If we find any folder that
+		// seems like the path is bad we need to drop the entire token and start
+		// fresh. Since we know the token will be gone we can also stop checking
+		// for other possibly incorrect folder paths.
+		for _, prevPath := range paths {
+			if len(prevPath) == 0 {
+				logger.Ctx(ictx).Info("dropping drive delta due to 0 len path")
+				delete(deltas, drive)
+
+				break
+			}
+		}
+	}
+
+	alertIfPrevPathsHaveCollisions(ctx, prevs, fb)
+
+	return deltas, prevs, canUse, nil
+}
+
+func alertIfPrevPathsHaveCollisions(
+	ctx context.Context,
+	prevs map[string]map[string]string,
+	fb *fault.Bus,
+) {
+	for driveID, folders := range prevs {
+		prevPathCollisions := map[string]string{}
+
+		for fid, prev := range folders {
+			if otherID, collision := prevPathCollisions[prev]; collision {
+				ctx = clues.Add(
+					ctx,
+					"collision_folder_id_1", fid,
+					"collision_folder_id_2", otherID,
+					"collision_drive_id", driveID,
+					"collision_prev_path", path.LoggableDir(prev))
+
+				fb.AddAlert(ctx, fault.NewAlert(
+					fault.AlertPreviousPathCollision,
+					"", // no namespace
+					"", // no item id
+					"previousPaths",
+					map[string]any{
+						"collision_folder_id_1": fid,
+						"collision_folder_id_2": otherID,
+						"collision_drive_id":    driveID,
+						"collision_prev_path":   prev,
+					}))
+			}
+
+			prevPathCollisions[prev] = fid
+		}
+	}
+}
+
+func DeserializeMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
 ) (map[string]string, map[string]map[string]string, bool, error) {
@@ -137,32 +218,6 @@ func deserializeMetadata(
 				}
 			}
 		}
-
-		// Go through and remove delta tokens if we didn't have any paths for them
-		// or one or more paths are empty (incorrect somehow). This will ensure we
-		// don't accidentally try to pull in delta results when we should have
-		// enumerated everything instead.
-		//
-		// Loop over the set of previous deltas because it's alright to have paths
-		// without a delta but not to have a delta without paths. This way ensures
-		// we check at least all the path sets for the deltas we have.
-		for drive := range prevDeltas {
-			paths := prevFolders[drive]
-			if len(paths) == 0 {
-				delete(prevDeltas, drive)
-			}
-
-			// Drives have only a single delta token. If we find any folder that
-			// seems like the path is bad we need to drop the entire token and start
-			// fresh. Since we know the token will be gone we can also stop checking
-			// for other possibly incorrect folder paths.
-			for _, prevPath := range paths {
-				if len(prevPath) == 0 {
-					delete(prevDeltas, drive)
-					break
-				}
-			}
-		}
 	}
 
 	// if reads from items failed, return empty but no error
@@ -215,7 +270,7 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeMetadata(ctx, prevMetadata)
+	deltasByDriveID, prevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(ctx, prevMetadata, errs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -224,7 +279,7 @@ func (c *Collections) Get(
 
 	driveTombstones := map[string]struct{}{}
 
-	for driveID := range oldPrevPathsByDriveID {
+	for driveID := range prevPathsByDriveID {
 		driveTombstones[driveID] = struct{}{}
 	}
 
@@ -257,8 +312,8 @@ func (c *Collections) Get(
 				"drive_name", clues.Hide(driveName))
 
 			excludedItemIDs = map[string]struct{}{}
-			oldPrevPaths    = oldPrevPathsByDriveID[driveID]
-			prevDeltaLink   = prevDriveIDToDelta[driveID]
+			oldPrevPaths    = prevPathsByDriveID[driveID]
+			prevDeltaLink   = deltasByDriveID[driveID]
 
 			// packagePaths is keyed by folder paths to a parent directory
 			// which is marked as a package by its driveItem GetPackage
@@ -425,6 +480,8 @@ func (c *Collections) Get(
 
 		collections = append(collections, coll)
 	}
+
+	alertIfPrevPathsHaveCollisions(ctx, driveIDToPrevPaths, errs)
 
 	// add metadata collections
 	pathPrefix, err := c.handler.MetadataPathPrefix(c.tenantID)
@@ -1012,13 +1069,13 @@ func includePath(ctx context.Context, dsc dirScopeChecker, folderPath path.Path)
 }
 
 func updatePath(paths map[string]string, id, newPath string) {
-	oldPath := paths[id]
-	if len(oldPath) == 0 {
+	currPath := paths[id]
+	if len(currPath) == 0 {
 		paths[id] = newPath
 		return
 	}
 
-	if oldPath == newPath {
+	if currPath == newPath {
 		return
 	}
 
@@ -1027,10 +1084,10 @@ func updatePath(paths map[string]string, id, newPath string) {
 	// other components should take care of that. We do need to ensure that the
 	// resulting map contains all folders though so we know the next time around.
 	for folderID, p := range paths {
-		if !strings.HasPrefix(p, oldPath) {
+		if !strings.HasPrefix(p, currPath) {
 			continue
 		}
 
-		paths[folderID] = strings.Replace(p, oldPath, newPath, 1)
+		paths[folderID] = strings.Replace(p, currPath, newPath, 1)
 	}
 }
