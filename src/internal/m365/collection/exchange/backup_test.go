@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -32,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -75,18 +75,11 @@ type (
 func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, cID, prevDelta string,
-	_ bool,
-	_ bool,
-) (
-	map[string]time.Time,
-	bool,
-	[]string,
-	pagers.DeltaUpdate,
-	error,
-) {
+	_ api.CallConfig,
+) (pagers.AddedAndRemoved, error) {
 	results, ok := mg.results[cID]
 	if !ok {
-		return nil, false, nil, pagers.DeltaUpdate{}, clues.New("mock not found for " + cID)
+		return pagers.AddedAndRemoved{}, clues.New("mock not found for " + cID)
 	}
 
 	delta := results.newDelta
@@ -99,7 +92,14 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 		resAdded[add] = time.Time{}
 	}
 
-	return resAdded, false, results.removed, delta, results.err
+	aar := pagers.AddedAndRemoved{
+		Added:         resAdded,
+		Removed:       results.removed,
+		ValidModTimes: false,
+		DU:            delta,
+	}
+
+	return aar, results.err
 }
 
 var _ graph.ContainerResolver = &mockResolver{}

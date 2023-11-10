@@ -376,11 +376,15 @@ func getDir(
 		return nil, clues.Wrap(ErrNoRestorePath, "getting directory").WithClues(ctx)
 	}
 
+	toGet := dirPath.PopFront()
+
+	ctx = clues.Add(ctx, "entry_path", toGet)
+
 	// GetNestedEntry handles nil properly.
 	e, err := snapshotfs.GetNestedEntry(
 		ctx,
 		snapshotRoot,
-		encodeElements(dirPath.PopFront().Elements()...))
+		encodeElements(toGet.Elements()...))
 	if err != nil {
 		if isErrEntryNotFound(err) {
 			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)

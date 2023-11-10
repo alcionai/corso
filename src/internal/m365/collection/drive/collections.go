@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -27,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -72,7 +72,88 @@ func NewCollections(
 	}
 }
 
-func deserializeMetadata(
+func deserializeAndValidateMetadata(
+	ctx context.Context,
+	cols []data.RestoreCollection,
+	fb *fault.Bus,
+) (map[string]string, map[string]map[string]string, bool, error) {
+	deltas, prevs, canUse, err := DeserializeMetadata(ctx, cols)
+	if err != nil || !canUse {
+		return deltas, prevs, false, clues.Stack(err).OrNil()
+	}
+
+	// Go through and remove delta tokens if we didn't have any paths for them
+	// or one or more paths are empty (incorrect somehow). This will ensure we
+	// don't accidentally try to pull in delta results when we should have
+	// enumerated everything instead.
+	//
+	// Loop over the set of previous deltas because it's alright to have paths
+	// without a delta but not to have a delta without paths. This way ensures
+	// we check at least all the path sets for the deltas we have.
+	for drive := range deltas {
+		ictx := clues.Add(ctx, "drive_id", drive)
+
+		paths := prevs[drive]
+		if len(paths) == 0 {
+			logger.Ctx(ictx).Info("dropping drive delta due to 0 prev paths")
+			delete(deltas, drive)
+		}
+
+		// Drives have only a single delta token. If we find any folder that
+		// seems like the path is bad we need to drop the entire token and start
+		// fresh. Since we know the token will be gone we can also stop checking
+		// for other possibly incorrect folder paths.
+		for _, prevPath := range paths {
+			if len(prevPath) == 0 {
+				logger.Ctx(ictx).Info("dropping drive delta due to 0 len path")
+				delete(deltas, drive)
+
+				break
+			}
+		}
+	}
+
+	alertIfPrevPathsHaveCollisions(ctx, prevs, fb)
+
+	return deltas, prevs, canUse, nil
+}
+
+func alertIfPrevPathsHaveCollisions(
+	ctx context.Context,
+	prevs map[string]map[string]string,
+	fb *fault.Bus,
+) {
+	for driveID, folders := range prevs {
+		prevPathCollisions := map[string]string{}
+
+		for fid, prev := range folders {
+			if otherID, collision := prevPathCollisions[prev]; collision {
+				ctx = clues.Add(
+					ctx,
+					"collision_folder_id_1", fid,
+					"collision_folder_id_2", otherID,
+					"collision_drive_id", driveID,
+					"collision_prev_path", path.LoggableDir(prev))
+
+				fb.AddAlert(ctx, fault.NewAlert(
+					fault.AlertPreviousPathCollision,
+					"", // no namespace
+					"", // no item id
+					"previousPaths",
+					map[string]any{
+						"collision_folder_id_1": fid,
+						"collision_folder_id_2": otherID,
+						"collision_drive_id":    driveID,
+						"collision_prev_path":   prev,
+					}))
+			}
+
+			prevPathCollisions[prev] = fid
+		}
+	}
+}
+
+func DeserializeMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
 ) (map[string]string, map[string]map[string]string, bool, error) {
@@ -96,7 +177,7 @@ func deserializeMetadata(
 		for breakLoop := false; !breakLoop; {
 			select {
 			case <-ctx.Done():
-				return nil, nil, false, clues.Wrap(ctx.Err(), "deserialzing previous backup metadata").WithClues(ctx)
+				return nil, nil, false, clues.Wrap(ctx.Err(), "deserializing previous backup metadata").WithClues(ctx)
 
 			case item, ok := <-items:
 				if !ok {
@@ -134,32 +215,6 @@ func deserializeMetadata(
 					errs.Fail(clues.Stack(err).WithClues(ictx))
 
 					return map[string]string{}, map[string]map[string]string{}, false, nil
-				}
-			}
-		}
-
-		// Go through and remove delta tokens if we didn't have any paths for them
-		// or one or more paths are empty (incorrect somehow). This will ensure we
-		// don't accidentally try to pull in delta results when we should have
-		// enumerated everything instead.
-		//
-		// Loop over the set of previous deltas because it's alright to have paths
-		// without a delta but not to have a delta without paths. This way ensures
-		// we check at least all the path sets for the deltas we have.
-		for drive := range prevDeltas {
-			paths := prevFolders[drive]
-			if len(paths) == 0 {
-				delete(prevDeltas, drive)
-			}
-
-			// Drives have only a single delta token. If we find any folder that
-			// seems like the path is bad we need to drop the entire token and start
-			// fresh. Since we know the token will be gone we can also stop checking
-			// for other possibly incorrect folder paths.
-			for _, prevPath := range paths {
-				if len(prevPath) == 0 {
-					delete(prevDeltas, drive)
-					break
 				}
 			}
 		}
@@ -215,7 +270,7 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeMetadata(ctx, prevMetadata)
+	deltasByDriveID, prevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(ctx, prevMetadata, errs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -224,7 +279,7 @@ func (c *Collections) Get(
 
 	driveTombstones := map[string]struct{}{}
 
-	for driveID := range oldPrevPathsByDriveID {
+	for driveID := range prevPathsByDriveID {
 		driveTombstones[driveID] = struct{}{}
 	}
 
@@ -257,8 +312,8 @@ func (c *Collections) Get(
 				"drive_name", clues.Hide(driveName))
 
 			excludedItemIDs = map[string]struct{}{}
-			oldPrevPaths    = oldPrevPathsByDriveID[driveID]
-			prevDeltaLink   = prevDriveIDToDelta[driveID]
+			oldPrevPaths    = prevPathsByDriveID[driveID]
+			prevDeltaLink   = deltasByDriveID[driveID]
 
 			// packagePaths is keyed by folder paths to a parent directory
 			// which is marked as a package by its driveItem GetPackage
@@ -280,7 +335,7 @@ func (c *Collections) Get(
 
 		logger.Ctx(ictx).Infow(
 			"previous metadata for drive",
-			"num_paths_entries", len(oldPrevPaths))
+			"count_old_prev_paths", len(oldPrevPaths))
 
 		du, newPrevPaths, err := c.PopulateDriveCollections(
 			ctx,
@@ -313,23 +368,34 @@ func (c *Collections) Get(
 
 		logger.Ctx(ictx).Infow(
 			"persisted metadata for drive",
-			"num_new_paths_entries", len(newPrevPaths),
+			"count_new_prev_paths", len(newPrevPaths),
 			"delta_reset", du.Reset)
 
 		numDriveItems := c.NumItems - numPrevItems
 		numPrevItems = c.NumItems
 
-		// Attach an url cache
+		// Attach an url cache to the drive if the number of discovered items is
+		// below the threshold. Attaching cache to larger drives can cause
+		// performance issues since cache delta queries start taking up majority of
+		// the hour the refreshed URLs are valid for.
 		if numDriveItems < urlCacheDriveItemThreshold {
-			logger.Ctx(ictx).Info("adding url cache for drive")
+			logger.Ctx(ictx).Infow(
+				"adding url cache for drive",
+				"num_drive_items", numDriveItems)
 
-			err = c.addURLCacheToDriveCollections(
-				ictx,
+			uc, err := newURLCache(
 				driveID,
 				prevDeltaLink,
+				urlCacheRefreshInterval,
+				c.handler,
 				errs)
 			if err != nil {
-				return nil, false, err
+				return nil, false, clues.Stack(err)
+			}
+
+			// Set the URL cache instance for all collections in this drive.
+			for id := range c.CollectionMap[driveID] {
+				c.CollectionMap[driveID][id].urlCache = uc
 			}
 		}
 
@@ -426,6 +492,8 @@ func (c *Collections) Get(
 		collections = append(collections, coll)
 	}
 
+	alertIfPrevPathsHaveCollisions(ctx, driveIDToPrevPaths, errs)
+
 	// add metadata collections
 	pathPrefix, err := c.handler.MetadataPathPrefix(c.tenantID)
 	if err != nil {
@@ -454,34 +522,9 @@ func (c *Collections) Get(
 		collections = append(collections, md)
 	}
 
+	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
+
 	return collections, canUsePrevBackup, nil
-}
-
-// addURLCacheToDriveCollections adds an URL cache to all collections belonging to
-// a drive.
-func (c *Collections) addURLCacheToDriveCollections(
-	ctx context.Context,
-	driveID, prevDelta string,
-	errs *fault.Bus,
-) error {
-	uc, err := newURLCache(
-		driveID,
-		prevDelta,
-		urlCacheRefreshInterval,
-		c.handler,
-		errs)
-	if err != nil {
-		return err
-	}
-
-	// Set the URL cache for all collections in this drive
-	for _, driveColls := range c.CollectionMap {
-		for _, coll := range driveColls {
-			coll.urlCache = uc
-		}
-	}
-
-	return nil
 }
 
 func updateCollectionPaths(
@@ -492,7 +535,7 @@ func updateCollectionPaths(
 	var initialCurPath path.Path
 
 	col, found := cmap[driveID][itemID]
-	if found {
+	if found && col.FullPath() != nil {
 		initialCurPath = col.FullPath()
 		if initialCurPath.String() == curPath.String() {
 			return found, nil
@@ -689,7 +732,14 @@ func (c *Collections) PopulateDriveCollections(
 		// different collection within the same delta query
 		// item ID -> item ID
 		currPrevPaths = map[string]string{}
+
+		// seenFolders is used to track the folders that we have
+		// already seen. This will help us track in case a folder was
+		// recreated multiple times in between a run.
+		seenFolders = map[string]string{}
 	)
+
+	ctx = clues.Add(ctx, "invalid_prev_delta", invalidPrevDelta)
 
 	if !invalidPrevDelta {
 		maps.Copy(newPrevPaths, oldPrevPaths)
@@ -709,8 +759,10 @@ func (c *Collections) PopulateDriveCollections(
 		}
 
 		if reset {
+			ctx = clues.Add(ctx, "delta_reset_occurred", true)
 			newPrevPaths = map[string]string{}
 			currPrevPaths = map[string]string{}
+			seenFolders = map[string]string{}
 			c.CollectionMap[driveID] = map[string]*Collection{}
 			invalidPrevDelta = true
 		}
@@ -728,6 +780,7 @@ func (c *Collections) PopulateDriveCollections(
 				oldPrevPaths,
 				currPrevPaths,
 				newPrevPaths,
+				seenFolders,
 				excludedItemIDs,
 				topLevelPackages,
 				invalidPrevDelta,
@@ -751,6 +804,7 @@ func (c *Collections) processItem(
 	item models.DriveItemable,
 	driveID, driveName string,
 	oldPrevPaths, currPrevPaths, newPrevPaths map[string]string,
+	seenFolders map[string]string,
 	excludedItemIDs map[string]struct{},
 	topLevelPackages map[string]struct{},
 	invalidPrevDelta bool,
@@ -856,6 +910,32 @@ func (c *Collections) processItem(
 			PathPrefix(maps.Keys(topLevelPackages)).
 			Compare(collectionPath.String())
 
+		// This check is to ensure that if a folder was deleted and
+		// recreated multiple times between a backup, we only use the
+		// final one.
+		alreadyHandledFolderID, collPathAlreadyExists := seenFolders[collectionPath.String()]
+		collPathAlreadyExists = collPathAlreadyExists && alreadyHandledFolderID != itemID
+
+		if collPathAlreadyExists {
+			// we don't have a good way of juggling multiple previous paths
+			// at this time.  If a path was declared twice, it's a bit ambiguous
+			// which prior data the current folder now contains.  Safest thing to
+			// do is to call it a new folder and ingest items fresh.
+			prevPath = nil
+
+			c.NumContainers--
+			c.NumItems--
+
+			delete(c.CollectionMap[driveID], alreadyHandledFolderID)
+			delete(newPrevPaths, alreadyHandledFolderID)
+		}
+
+		if invalidPrevDelta {
+			prevPath = nil
+		}
+
+		seenFolders[collectionPath.String()] = itemID
+
 		col, err := NewCollection(
 			c.handler,
 			c.protectedResource,
@@ -865,7 +945,7 @@ func (c *Collections) processItem(
 			c.statusUpdater,
 			c.ctrl,
 			isPackage || childOfPackage,
-			invalidPrevDelta,
+			invalidPrevDelta || collPathAlreadyExists,
 			nil)
 		if err != nil {
 			return clues.Stack(err).WithClues(ictx)
@@ -983,13 +1063,13 @@ func includePath(ctx context.Context, dsc dirScopeChecker, folderPath path.Path)
 }
 
 func updatePath(paths map[string]string, id, newPath string) {
-	oldPath := paths[id]
-	if len(oldPath) == 0 {
+	currPath := paths[id]
+	if len(currPath) == 0 {
 		paths[id] = newPath
 		return
 	}
 
-	if oldPath == newPath {
+	if currPath == newPath {
 		return
 	}
 
@@ -998,10 +1078,10 @@ func updatePath(paths map[string]string, id, newPath string) {
 	// other components should take care of that. We do need to ensure that the
 	// resulting map contains all folders though so we know the next time around.
 	for folderID, p := range paths {
-		if !strings.HasPrefix(p, oldPath) {
+		if !strings.HasPrefix(p, currPath) {
 			continue
 		}
 
-		paths[folderID] = strings.Replace(p, oldPath, newPath, 1)
+		paths[folderID] = strings.Replace(p, currPath, newPath, 1)
 	}
 }

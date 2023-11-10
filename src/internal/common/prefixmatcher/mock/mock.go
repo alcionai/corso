@@ -25,20 +25,20 @@ func NewPrefixMap(m map[string]map[string]struct{}) *PrefixMap {
 	return &r
 }
 
-func (pm PrefixMap) AssertEqual(t *testing.T, r prefixmatcher.StringSetReader) {
+func (pm PrefixMap) AssertEqual(t *testing.T, r prefixmatcher.StringSetReader, description string) {
 	if pm.Empty() {
-		require.True(t, r.Empty(), "result prefixMap should be empty but contains keys: %+v", r.Keys())
+		require.Truef(t, r.Empty(), "%s: result prefixMap should be empty but contains keys: %+v", description, r.Keys())
 		return
 	}
 
 	pks := pm.Keys()
 	rks := r.Keys()
 
-	assert.ElementsMatch(t, pks, rks, "prefix keys match")
+	assert.ElementsMatchf(t, pks, rks, "%s: prefix keys match", description)
 
 	for _, pk := range pks {
 		p, _ := pm.Get(pk)
 		r, _ := r.Get(pk)
-		assert.Equal(t, p, r, "values match")
+		assert.Equal(t, p, r, description)
 	}
 }

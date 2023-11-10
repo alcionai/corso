@@ -2,15 +2,14 @@ package api
 
 import (
 	"context"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -250,9 +249,8 @@ func (p *contactDeltaPager) ValidModTimes() bool {
 func (c Contacts) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	immutableIDs bool,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
+	cc CallConfig,
+) (pagers.AddedAndRemoved, error) {
 	ctx = clues.Add(
 		ctx,
 		"data_category", path.ContactsCategory,
@@ -263,12 +261,12 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		immutableIDs,
+		cc.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 	pager := c.NewContactsPager(
 		userID,
 		containerID,
-		immutableIDs,
+		cc.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Contactable](
@@ -276,6 +274,7 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		canMakeDeltaQueries,
+		cc.CanMakeDeltaQueries,
+		0,
 		pagers.AddedAndRemovedByAddtlData[models.Contactable])
 }

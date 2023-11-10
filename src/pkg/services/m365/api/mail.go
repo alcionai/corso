@@ -14,10 +14,10 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 const (
@@ -324,7 +324,7 @@ func (c Mail) GetItem(
 	logger.CtxErr(ctx, err).Info("fetching all attachments by id")
 
 	// Getting size just to log in case of error
-	attachConfig.QueryParameters.Select = []string{"id", "size"}
+	attachConfig.QueryParameters.Select = idAnd("size")
 
 	attachments, err := c.LargeItem.
 		Client().
@@ -348,6 +348,11 @@ func (c Mail) GetItem(
 			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 		}
 
+		ictx := clues.Add(
+			ctx,
+			"attachment_id", ptr.Val(a.GetId()),
+			"attachment_size", ptr.Val(a.GetSize()))
+
 		att, err := c.Stable.
 			Client().
 			Users().
@@ -356,17 +361,13 @@ func (c Mail) GetItem(
 			ByMessageId(itemID).
 			Attachments().
 			ByAttachmentId(ptr.Val(a.GetId())).
-			Get(ctx, attachConfig)
+			Get(ictx, attachConfig)
 		if err != nil {
 			// CannotOpenFileAttachment errors are not transient and
 			// happens possibly from the original item somehow getting
 			// deleted from M365 and so we can skip these
 			if graph.IsErrCannotOpenFileAttachment(err) {
-				logger.CtxErr(ctx, err).
-					With(
-						"attachment_id", ptr.Val(a.GetId()),
-						"attachment_size", ptr.Val(a.GetSize())).
-					Info("attachment not found")
+				logger.CtxErr(ictx, err).Info("attachment not found")
 				// TODO This should use a `AddSkip` once we have
 				// figured out the semantics for skipping
 				// subcomponents of an item
@@ -374,8 +375,7 @@ func (c Mail) GetItem(
 				continue
 			}
 
-			return nil, nil, graph.Wrap(ctx, err, "getting mail attachment").
-				With("attachment_id", ptr.Val(a.GetId()), "attachment_size", ptr.Val(a.GetSize()))
+			return nil, nil, graph.Wrap(ictx, err, "getting mail attachment")
 		}
 
 		atts = append(atts, att)

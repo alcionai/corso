@@ -16,7 +16,6 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/model"
@@ -26,9 +25,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -181,7 +182,8 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = bo.Run(ctx)

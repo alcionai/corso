@@ -18,7 +18,6 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	odMock "github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
@@ -46,6 +45,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -429,7 +429,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				acct,
 				sel,
 				sel,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			op.Errors.Fail(test.fail)
@@ -1487,7 +1488,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.acct,
 				sel,
 				sel,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -1930,7 +1932,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = bo.Run(ctx)
@@ -2245,7 +2248,8 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = bo.Run(ctx)

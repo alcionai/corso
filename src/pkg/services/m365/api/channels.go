@@ -13,9 +13,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -52,11 +52,8 @@ func (c Channels) GetChannel(
 		Channels().
 		ByChannelId(containerID).
 		Get(ctx, config)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	return resp, nil
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
 // GetChannelByName fetches a channel by name
