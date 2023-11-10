@@ -111,7 +111,10 @@ func UserAssignedLicenses(ctx context.Context, acct account.Account, userID stri
 		return 0, clues.Stack(err).WithClues(ctx)
 	}
 
-	us, err := ac.Users().AssignedLicenses(ctx, userID)
+	us, err := ac.Users().GetByID(
+		ctx,
+		userID,
+		api.CallConfig{Select: api.SelectProps("assignedLicenses")})
 	if err != nil {
 		return 0, err
 	}

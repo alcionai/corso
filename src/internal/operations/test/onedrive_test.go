@@ -1139,7 +1139,10 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 		counter)
 	require.NoError(t, err, clues.ToCore(err))
 
-	userable, err := ctrl.AC.Users().GetByID(ctx, suite.its.user.ID)
+	userable, err := ctrl.AC.Users().GetByID(
+		ctx,
+		suite.its.user.ID,
+		api.CallConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
 	uid := ptr.Val(userable.GetId())

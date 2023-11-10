@@ -112,25 +112,11 @@ func (c Users) GetAll(
 	return us, el.Failure()
 }
 
-func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable, error) {
-	var (
-		resp models.Userable
-		err  error
-	)
-
-	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
-	if err != nil {
-		if graph.IsErrResourceLocked(err) {
-			err = clues.Stack(graph.ErrResourceLocked, err)
-		}
-
-		return nil, graph.Stack(ctx, err)
-	}
-
-	return resp, err
-}
-
-func (c Users) AssignedLicenses(ctx context.Context, identifier string) (models.Userable, error) {
+func (c Users) GetByID(
+	ctx context.Context,
+	identifier string,
+	cc CallConfig,
+) (models.Userable, error) {
 	var (
 		resp models.Userable
 		err  error
@@ -140,10 +126,15 @@ func (c Users) AssignedLicenses(ctx context.Context, identifier string) (models.
 		QueryParameters: &users.UserItemRequestBuilderGetQueryParameters{},
 	}
 
-	options.QueryParameters.Select = []string{"assignedLicenses"}
+	if len(cc.Select) > 0 {
+		options.QueryParameters.Select = cc.Select
+	}
 
-	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, options)
-
+	resp, err = c.Stable.
+		Client().
+		Users().
+		ByUserId(identifier).
+		Get(ctx, options)
 	if err != nil {
 		if graph.IsErrResourceLocked(err) {
 			err = clues.Stack(graph.ErrResourceLocked, err)
@@ -160,9 +151,9 @@ func (c Users) AssignedLicenses(ctx context.Context, identifier string) (models.
 func (c Users) GetIDAndName(
 	ctx context.Context,
 	userID string,
-	_ CallConfig, // not currently supported
+	cc CallConfig,
 ) (string, string, error) {
-	u, err := c.GetByID(ctx, userID)
+	u, err := c.GetByID(ctx, userID, cc)
 	if err != nil {
 		return "", "", err
 	}
