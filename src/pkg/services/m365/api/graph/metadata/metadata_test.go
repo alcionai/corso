@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	odmetadata "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/graph/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 type boolfAssertionFunc func(assert.TestingT, bool, string, ...any) bool

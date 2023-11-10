@@ -9,7 +9,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
@@ -21,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -18,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -340,7 +342,7 @@ var constToTomlKeyMap = map[string]string{
 // If any value differs from the viper value, an error is returned.
 // values in m that aren't stored in the config are ignored.
 // TODO(pandeyabs): This code is currently duplicated in 2 places.
-func mustMatchConfig(vpr *viper.Viper, m map[string]string) error {
+func mustMatchConfig(vpr *viper.Viper, m map[string]string, pathKeys []string) error {
 	for k, v := range m {
 		if len(v) == 0 {
 			continue // empty variables will get caught by configuration validators, if necessary
@@ -352,7 +354,16 @@ func mustMatchConfig(vpr *viper.Viper, m map[string]string) error {
 		}
 
 		vv := vpr.GetString(tomlK)
-		if v != vv {
+		areEqual := false
+
+		// some of the values maybe paths, hence they require more than just string equality
+		if len(pathKeys) > 0 && slices.Contains(pathKeys, k) {
+			areEqual = path.ArePathsEquivalent(v, vv)
+		} else {
+			areEqual = v == vv
+		}
+
+		if !areEqual {
 			return clues.New("value of " + k + " (" + v + ") does not match corso configuration value (" + vv + ")")
 		}
 	}
