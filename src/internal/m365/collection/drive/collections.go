@@ -785,6 +785,8 @@ func (c *Collections) PopulateDriveCollections(
 		}
 	}
 
+	fmt.Printf("\n-----\n")
+
 	du, err := pager.Results()
 	if err != nil {
 		return du, nil, clues.Stack(err)
@@ -815,6 +817,12 @@ func (c *Collections) processItem(
 			"item_is_folder", isFolder)
 	)
 
+	fmt.Printf("\n\033[0;34m%s \033[0m| \033[0;31m %s \033[0m", itemID, itemName)
+
+	for i := 0; i < 12-len(itemName); i++ {
+		fmt.Printf(" ")
+	}
+
 	if item.GetMalware() != nil {
 		addtl := graph.ItemInfo(item)
 		skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
@@ -826,11 +834,14 @@ func (c *Collections) processItem(
 		skipper.AddSkip(ctx, skip)
 		logger.Ctx(ctx).Infow("malware detected", "item_details", addtl)
 
+		fmt.Printf("| \033[0;35m %s \033[0m", "<malware>")
+
 		return nil
 	}
 
 	// Deleted file or folder.
 	if item.GetDeleted() != nil {
+		fmt.Printf("| \033[0;35m %s \033[0m", "<deleted>")
 		err := c.handleDelete(
 			itemID,
 			driveID,
@@ -850,6 +861,8 @@ func (c *Collections) processItem(
 			WithClues(ictx).
 			Label(fault.LabelForceNoBackupCreation)
 	}
+
+	fmt.Printf("| \033[0;30m %s\033[0m", collectionPath.Folders()[2:])
 
 	// Skip items that don't match the folder selectors we were given.
 	if shouldSkip(ctx, collectionPath, c.handler, driveName) {
