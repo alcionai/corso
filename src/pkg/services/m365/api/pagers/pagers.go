@@ -114,6 +114,9 @@ func (npr *nextPageResults[T]) Cancel() {
 	close(npr.cancel)
 }
 
+// Results returns the final status of the pager. This is a blocking call. To
+// avoid deadlocking, either call Cancel before this or iterate through all
+// pager results using NextPage.
 func (npr *nextPageResults[T]) Results() (DeltaUpdate, error) {
 	<-npr.done
 	return npr.du, npr.err
