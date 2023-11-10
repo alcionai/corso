@@ -3434,7 +3434,13 @@ func (suite *CollectionsUnitSuite) TestGet() {
 }
 
 func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
-	collCount := 3
+	drive1 := models.NewDrive()
+	drive1.SetId(ptr.To(idx(drive, 1)))
+	drive1.SetName(ptr.To(namex(drive, 1)))
+
+	drive2 := models.NewDrive()
+	drive2.SetId(ptr.To(idx(drive, 2)))
+	drive2.SetName(ptr.To(namex(drive, 2)))
 
 	table := []struct {
 		name       string
@@ -3450,21 +3456,21 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					driveID1: {
+					idx(drive, 1): {
 						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem("root1"),
-							driveItem("folder", "folder", driveBasePath1, "root", false, true, false),
-							driveItem("file", "file", driveBasePath1+"/folder", "folder", true, false, false),
+							driveRootItem(rootID),
+							driveItem(id(folder), name(folder), parent(1), rootID, isFolder),
+							driveItem(id(file), name(file), parent(1, name(folder)), id(folder), isFile),
 						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
 					},
-					driveID2: {
+					idx(drive, 2): {
 						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem("root2"),
-							driveItem("folder2", "folder", driveBasePath2, "root2", false, true, false),
-							driveItem("file2", "file", driveBasePath2+"/folder", "folder2", true, false, false),
+							driveRootItem(rootID),
+							driveItem(idx(folder, 2), name(folder), parent(2), rootID, isFolder),
+							driveItem(idx(file, 2), name(file), parent(2, name(folder)), idx(folder, 2), isFile),
 						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: delta2, Reset: true},
+						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2), Reset: true},
 					},
 				},
 			},
@@ -3488,7 +3494,7 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 				},
 			}
 
-			mbh := mock.DefaultOneDriveBH("a-user")
+			mbh := mock.DefaultOneDriveBH(user)
 			mbh.DrivePagerV = mockDrivePager
 			mbh.DriveItemEnumeration = test.enumerator
 
