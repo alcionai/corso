@@ -278,6 +278,8 @@ func populateCollections(
 
 	collections["metadata"] = col
 
+	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
+
 	return collections, el.Failure()
 }
 
