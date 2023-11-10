@@ -55,6 +55,8 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	suite.user = tconfig.SecondaryM365UserID(t)
 
 	acct := tconfig.NewM365Account(t)
