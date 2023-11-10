@@ -2,7 +2,7 @@
     "lockFileVersion": "1.0.0",
     "kiotaVersion": "0.10.0.0",
     "clientClassName": "BetaClient",
-    "clientNamespaceName": "github.com/alcionai/corso/src/internal/m365/graph/betasdk",
+    "clientNamespaceName": "github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk",
     "language": "Go",
     "betaVersion": "0.53.0",
     "usesBackingStore": false,
