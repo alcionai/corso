@@ -245,6 +245,7 @@ func (c Conversations) GetConversationThreadPostIDs(
 		nil,
 		"",
 		canMakeDeltaQueries,
+		0,
 		pagers.AddedAndRemovedAddAll[models.Postable],
 		pagers.FilterIncludeAll[models.Postable])
 
