@@ -7,7 +7,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/groups"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -245,6 +245,7 @@ func (c Conversations) GetConversationThreadPostIDs(
 		nil,
 		"",
 		canMakeDeltaQueries,
+		0,
 		pagers.AddedAndRemovedAddAll[models.Postable],
 		pagers.FilterIncludeAll[models.Postable])
 

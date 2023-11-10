@@ -2,6 +2,7 @@ package pagers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,13 +11,15 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
 // common structs
 // ---------------------------------------------------------------------------
+
+var errCancelled = clues.New("enumeration cancelled")
 
 // DeltaUpdate holds the results of a current delta token.  It normally
 // gets produced when aggregating the addition and removal of items in
@@ -54,14 +57,18 @@ type NextPageResulter[T any] interface {
 var _ NextPageResulter[any] = &nextPageResults[any]{}
 
 type nextPageResults[T any] struct {
-	pages chan nextPage[T]
-	du    DeltaUpdate
-	err   error
+	pages  chan nextPage[T]
+	cancel chan struct{}
+	done   chan struct{}
+	du     DeltaUpdate
+	err    error
 }
 
 func NewNextPageResults[T any]() *nextPageResults[T] {
 	return &nextPageResults[T]{
-		pages: make(chan nextPage[T]),
+		pages:  make(chan nextPage[T]),
+		cancel: make(chan struct{}),
+		done:   make(chan struct{}),
 	}
 }
 
@@ -76,7 +83,13 @@ func (npr *nextPageResults[T]) writeNextPage(
 
 	select {
 	case <-ctx.Done():
-		return clues.Wrap(context.Canceled, "writing next page")
+		return clues.Wrap(
+			clues.Stack(ctx.Err(), context.Cause(ctx)),
+			"writing next page")
+
+	case <-npr.cancel:
+		return clues.Stack(errCancelled)
+
 	case npr.pages <- nextPage[T]{
 		items: items,
 		reset: reset,
@@ -95,21 +108,27 @@ func (npr *nextPageResults[T]) NextPage() ([]T, bool, bool) {
 	return np.items, np.reset, !ok
 }
 
-func (npr *nextPageResults[T]) Results() (DeltaUpdate, error) {
-	if npr.pages != nil {
-		//nolint:revive
-		for range npr.pages {
-			// if the pager hasn't closed yet, drain out the pages iterator
-			// to avoid leaking routines, and to ensure we get results.
-		}
-	}
+// Cancel stops the current pager enumeration. Must only be called at most once
+// per pager.
+func (npr *nextPageResults[T]) Cancel() {
+	close(npr.cancel)
+}
 
+// Results returns the final status of the pager. This is a blocking call. To
+// avoid deadlocking, either call Cancel before this or iterate through all
+// pager results using NextPage.
+func (npr *nextPageResults[T]) Results() (DeltaUpdate, error) {
+	<-npr.done
 	return npr.du, npr.err
 }
 
 func (npr *nextPageResults[T]) close() {
 	if npr.pages != nil {
 		close(npr.pages)
+	}
+
+	if npr.done != nil {
+		close(npr.done)
 	}
 }
 
@@ -191,7 +210,8 @@ func EnumerateItems[T any](
 	defer npr.close()
 
 	var (
-		result = make([]T, 0)
+		pageCount = 0
+		itemCount = 0
 		// stubbed initial value to ensure we enter the loop.
 		nextLink = "do-while"
 	)
@@ -204,8 +224,16 @@ func EnumerateItems[T any](
 			return
 		}
 
-		if err := npr.writeNextPage(ctx, page.GetValue(), false); err != nil {
-			npr.err = clues.Stack(err)
+		pageResults := page.GetValue()
+
+		itemCount += len(pageResults)
+		pageCount++
+
+		if err := npr.writeNextPage(ctx, pageResults, false); err != nil {
+			if !errors.Is(err, errCancelled) {
+				npr.err = clues.Stack(err)
+			}
+
 			return
 		}
 
@@ -214,7 +242,10 @@ func EnumerateItems[T any](
 		pager.SetNextLink(nextLink)
 	}
 
-	logger.Ctx(ctx).Infow("completed delta item enumeration", "result_count", len(result))
+	logger.Ctx(ctx).Infow(
+		"completed item enumeration",
+		"item_count", itemCount,
+		"page_count", pageCount)
 }
 
 func BatchEnumerateItems[T any](
@@ -222,13 +253,11 @@ func BatchEnumerateItems[T any](
 	pager NonDeltaHandler[T],
 ) ([]T, error) {
 	var (
-		npr = nextPageResults[T]{
-			pages: make(chan nextPage[T]),
-		}
+		npr   = NewNextPageResults[T]()
 		items = []T{}
 	)
 
-	go EnumerateItems[T](ctx, pager, &npr)
+	go EnumerateItems[T](ctx, pager, npr)
 
 	for page, _, done := npr.NextPage(); !done; page, _, done = npr.NextPage() {
 		items = append(items, page...)
@@ -262,13 +291,23 @@ func DeltaEnumerateItems[T any](
 	defer npr.close()
 
 	var (
-		result = make([]T, 0)
+		pageCount = 0
+		itemCount = 0
 		// stubbed initial value to ensure we enter the loop.
 		newDeltaLink     = ""
 		invalidPrevDelta = len(prevDeltaLink) == 0
 		nextLink         = "do-while"
 		consume          = graph.SingleGetOrDeltaLC
 	)
+
+	// Ensure we always populate info about the delta token even if we exit before
+	// going through all pages of results.
+	defer func() {
+		npr.du = DeltaUpdate{
+			URL:   newDeltaLink,
+			Reset: invalidPrevDelta,
+		}
+	}()
 
 	if invalidPrevDelta {
 		// Delta queries with no previous token cost more.
@@ -284,7 +323,10 @@ func DeltaEnumerateItems[T any](
 			pager.Reset(ctx)
 
 			if err := npr.writeNextPage(ctx, nil, true); err != nil {
-				npr.err = clues.Stack(err)
+				if !errors.Is(err, errCancelled) {
+					npr.err = clues.Stack(err)
+				}
+
 				return
 			}
 
@@ -304,8 +346,14 @@ func DeltaEnumerateItems[T any](
 			// Reset tells the pager to try again after ditching its delta history.
 			pager.Reset(ctx)
 
+			pageCount = 0
+			itemCount = 0
+
 			if err := npr.writeNextPage(ctx, nil, true); err != nil {
-				npr.err = clues.Stack(err)
+				if !errors.Is(err, errCancelled) {
+					npr.err = clues.Stack(err)
+				}
+
 				return
 			}
 
@@ -317,8 +365,16 @@ func DeltaEnumerateItems[T any](
 			return
 		}
 
-		if err := npr.writeNextPage(ctx, page.GetValue(), false); err != nil {
-			npr.err = clues.Stack(err)
+		pageResults := page.GetValue()
+
+		itemCount += len(pageResults)
+		pageCount++
+
+		if err := npr.writeNextPage(ctx, pageResults, false); err != nil {
+			if !errors.Is(err, errCancelled) {
+				npr.err = clues.Stack(err)
+			}
+
 			return
 		}
 
@@ -331,39 +387,10 @@ func DeltaEnumerateItems[T any](
 		pager.SetNextLink(nextLink)
 	}
 
-	logger.Ctx(ctx).Debugw("completed delta item enumeration", "result_count", len(result))
-
-	npr.du = DeltaUpdate{
-		URL:   newDeltaLink,
-		Reset: invalidPrevDelta,
-	}
-}
-
-func batchDeltaEnumerateItems[T any](
-	ctx context.Context,
-	pager DeltaHandler[T],
-	prevDeltaLink string,
-) ([]T, DeltaUpdate, error) {
-	var (
-		npr = nextPageResults[T]{
-			pages: make(chan nextPage[T]),
-		}
-		results = []T{}
-	)
-
-	go DeltaEnumerateItems[T](ctx, pager, &npr, prevDeltaLink)
-
-	for page, reset, done := npr.NextPage(); !done; page, reset, done = npr.NextPage() {
-		if reset {
-			results = []T{}
-		}
-
-		results = append(results, page...)
-	}
-
-	du, err := npr.Results()
-
-	return results, du, clues.Stack(err).OrNil()
+	logger.Ctx(ctx).Infow(
+		"completed delta item enumeration",
+		"item_count", itemCount,
+		"page_count", pageCount)
 }
 
 // ---------------------------------------------------------------------------
@@ -394,45 +421,138 @@ type addedAndRemovedHandler[T any] func(
 	error,
 )
 
+// batchWithMaxItemCount attempts to get itemLimit added items from the
+// underlying pager. If itemLimit is 0 then gets all items from the pager. The
+// item count is the actual number of added items, not just the number of added
+// items seen. This means that duplicate items and items that are filtered out
+// don't count towards the limit.
+//
+// Also respects context cancellations.
+func batchWithMaxItemCount[T any](
+	ctx context.Context,
+	resultsPager *nextPageResults[T],
+	itemLimit int,
+	getAddedAndRemoved addedAndRemovedHandler[T],
+	filters ...func(T) bool,
+) (map[string]time.Time, []string, DeltaUpdate, error) {
+	var (
+		done  bool
+		reset bool
+		page  []T
+
+		removed []string
+		added   = map[string]time.Time{}
+	)
+
+	// Can't use a for-loop variable declaration because the line ends up too
+	// long.
+	for !done && (itemLimit <= 0 || len(added) < itemLimit) {
+		// If the context was cancelled then exit early. This will keep us from
+		// accidentally reading from the pager more since it could pick to either
+		// send another page or see the context cancellation. We don't need to
+		// cancel the pager because it should see the context cancellation once we
+		// stop attempting to fetch the next page.
+		if ctx.Err() != nil {
+			return nil, nil, DeltaUpdate{}, clues.Stack(ctx.Err(), context.Cause(ctx)).
+				WithClues(ctx)
+		}
+
+		// Get the next page first thing in the loop instead of last thing so we
+		// don't fetch an extra page we then discard when we've reached the item
+		// limit. That wouldn't affect correctness but would consume more tokens in
+		// our rate limiter.
+		page, reset, done = resultsPager.NextPage()
+
+		if reset {
+			added = map[string]time.Time{}
+			removed = nil
+		}
+
+		pageAdded, pageRemoved, err := getAddedAndRemoved(page, filters...)
+		if err != nil {
+			resultsPager.Cancel()
+			return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+		}
+
+		removed = append(removed, pageRemoved...)
+
+		for k, v := range pageAdded {
+			added[k] = v
+
+			if itemLimit > 0 && len(added) >= itemLimit {
+				break
+			}
+		}
+	}
+
+	// Cancel the pager so we don't fetch the rest of the data it may have.
+	resultsPager.Cancel()
+
+	du, err := resultsPager.Results()
+	if err != nil {
+		return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+	}
+
+	// We processed all the results from the pager.
+	return added, removed, du, nil
+}
+
+// GetAddedAndRemovedItemIDs returns the set of item IDs that were added or
+// removed from this resource since the last delta query. If no delta query is
+// passed in then returns all items found, not just changed/removed ones.
+//
+// Use itemLimit to stop enumeration partway through and filters to pick which
+// items should be returned.
 func GetAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
 	pager NonDeltaHandler[T],
 	deltaPager DeltaHandler[T],
 	prevDeltaLink string,
 	canMakeDeltaQueries bool,
+	itemLimit int,
 	aarh addedAndRemovedHandler[T],
 	filters ...func(T) bool,
 ) (AddedAndRemoved, error) {
 	if canMakeDeltaQueries {
-		ts, du, err := batchDeltaEnumerateItems[T](ctx, deltaPager, prevDeltaLink)
-		if err != nil && !graph.IsErrInvalidDelta(err) && !graph.IsErrDeltaNotSupported(err) {
-			return AddedAndRemoved{}, graph.Stack(ctx, err)
+		npr := NewNextPageResults[T]()
+
+		go DeltaEnumerateItems[T](ctx, deltaPager, npr, prevDeltaLink)
+
+		added, removed, du, err := batchWithMaxItemCount(
+			ctx,
+			npr,
+			itemLimit,
+			aarh,
+			filters...)
+		aar := AddedAndRemoved{
+			Added:         added,
+			Removed:       removed,
+			DU:            du,
+			ValidModTimes: deltaPager.ValidModTimes(),
 		}
 
-		if err == nil {
-			a, r, err := aarh(ts, filters...)
-			aar := AddedAndRemoved{
-				Added:         a,
-				Removed:       r,
-				DU:            du,
-				ValidModTimes: deltaPager.ValidModTimes(),
-			}
-
+		if err != nil && !graph.IsErrInvalidDelta(err) && !graph.IsErrDeltaNotSupported(err) {
+			return AddedAndRemoved{}, graph.Stack(ctx, err)
+		} else if err == nil {
 			return aar, graph.Stack(ctx, err).OrNil()
 		}
 	}
 
 	du := DeltaUpdate{Reset: true}
+	npr := NewNextPageResults[T]()
 
-	ts, err := BatchEnumerateItems(ctx, pager)
-	if err != nil {
-		return AddedAndRemoved{}, graph.Stack(ctx, err)
-	}
+	go EnumerateItems[T](ctx, pager, npr)
 
-	a, r, err := aarh(ts, filters...)
+	added, removed, _, err := batchWithMaxItemCount(
+		ctx,
+		npr,
+		itemLimit,
+		aarh,
+		filters...)
+
 	aar := AddedAndRemoved{
-		Added:         a,
-		Removed:       r,
+		Added:         added,
+		Removed:       removed,
 		DU:            du,
 		ValidModTimes: pager.ValidModTimes(),
 	}

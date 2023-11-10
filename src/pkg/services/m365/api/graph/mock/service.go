@@ -5,9 +5,9 @@ import (
 	"github.com/h2non/gock"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 func NewService(
