@@ -275,5 +275,6 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		deltaPager,
 		prevDeltaLink,
 		cc.CanMakeDeltaQueries,
+		0,
 		pagers.AddedAndRemovedByAddtlData[models.Contactable])
 }

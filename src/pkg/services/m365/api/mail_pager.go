@@ -272,5 +272,6 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		deltaPager,
 		prevDeltaLink,
 		cc.CanMakeDeltaQueries,
+		0,
 		pagers.AddedAndRemovedByAddtlData[models.Messageable])
 }
