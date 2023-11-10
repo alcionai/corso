@@ -120,6 +120,7 @@ func UserAssignedLicenses(ctx context.Context, acct account.Account, userID stri
 		for _, license := range us.GetAssignedLicenses() {
 			fmt.Println(license.GetSkuId())
 		}
+
 		return len(us.GetAssignedLicenses()), nil
 	}
 
@@ -132,6 +133,7 @@ func parseUser(item models.Userable) (*UserNoInfo, error) {
 		return nil, clues.New("user missing principal name").
 			With("user_id", ptr.Val(item.GetId()))
 	}
+
 	u := &UserNoInfo{
 		PrincipalName: ptr.Val(item.GetUserPrincipalName()),
 		ID:            ptr.Val(item.GetId()),

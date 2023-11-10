@@ -244,6 +244,7 @@ func (suite *userIntegrationSuite) TestUserAssignedLicenses() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+
 	defer flush()
 
 	runs := []struct {
