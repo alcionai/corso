@@ -3,11 +3,14 @@ package exchange
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -24,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -39,20 +43,49 @@ import (
 // mocks
 // ---------------------------------------------------------------------------
 
-var _ backupHandler = &mockBackupHandler{}
+var (
+	_ backupHandler        = &mockBackupHandler{}
+	_ itemGetterSerializer = mockItemGetter{}
+)
+
+// mockItemGetter implmenets the basics required to allow calls to
+// Collection.Items(). However, it returns static data.
+type mockItemGetter struct{}
+
+func (ig mockItemGetter) GetItem(
+	context.Context,
+	string,
+	string,
+	bool,
+	*fault.Bus,
+) (serialization.Parsable, *details.ExchangeInfo, error) {
+	return models.NewMessage(), &details.ExchangeInfo{}, nil
+}
+
+func (ig mockItemGetter) Serialize(
+	context.Context,
+	serialization.Parsable,
+	string,
+	string,
+) ([]byte, error) {
+	return []byte("foo"), nil
+}
 
 type mockBackupHandler struct {
-	mg       mockGetter
-	category path.CategoryType
-	ac       api.Client
-	userID   string
+	mg              mockGetter
+	fg              containerGetter
+	category        path.CategoryType
+	ac              api.Client
+	userID          string
+	previewIncludes []string
+	previewExcludes []string
 }
 
 func (bh mockBackupHandler) itemEnumerator() addedAndRemovedItemGetter { return bh.mg }
-func (bh mockBackupHandler) itemHandler() itemGetterSerializer         { return nil }
-func (bh mockBackupHandler) folderGetter() containerGetter             { return nil }
-func (bh mockBackupHandler) previewIncludeFolders() []string           { return nil }
-func (bh mockBackupHandler) previewExcludeFolders() []string           { return nil }
+func (bh mockBackupHandler) itemHandler() itemGetterSerializer         { return mockItemGetter{} }
+func (bh mockBackupHandler) folderGetter() containerGetter             { return bh.fg }
+func (bh mockBackupHandler) previewIncludeFolders() []string           { return bh.previewIncludes }
+func (bh mockBackupHandler) previewExcludeFolders() []string           { return bh.previewExcludes }
 
 func (bh mockBackupHandler) NewContainerCache(
 	userID string,
@@ -78,7 +111,7 @@ type (
 func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, cID, prevDelta string,
-	_ api.CallConfig,
+	config api.CallConfig,
 ) (pagers.AddedAndRemoved, error) {
 	results, ok := mg.results[cID]
 	if !ok {
@@ -90,8 +123,13 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 		delta.URL = ""
 	}
 
-	resAdded := make(map[string]time.Time, len(results.added))
-	for _, add := range results.added {
+	toAdd := config.LimitResults
+	if toAdd == 0 || toAdd > len(results.added) {
+		toAdd = len(results.added)
+	}
+
+	resAdded := make(map[string]time.Time, toAdd)
+	for _, add := range results.added[:toAdd] {
 		resAdded[add] = time.Time{}
 	}
 
@@ -105,14 +143,15 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	return aar, results.err
 }
 
-var _ graph.ContainerResolver = &mockResolver{}
-
-type (
-	mockResolver struct {
-		items []graph.CachedContainer
-		added map[string]string
-	}
+var (
+	_ graph.ContainerResolver = &mockResolver{}
+	_ containerGetter         = &mockResolver{}
 )
+
+type mockResolver struct {
+	items []graph.CachedContainer
+	added map[string]string
+}
 
 func newMockResolver(items ...mockContainer) mockResolver {
 	is := make([]graph.CachedContainer, 0, len(items))
@@ -132,6 +171,21 @@ func (m mockResolver) ItemByID(id string) graph.CachedContainer {
 	}
 
 	return nil
+}
+
+// GetContainerByID returns the given container if it exists in the resolver.
+// This is kind of merging functionality that we generally assume is separate,
+// but it does allow for easier test setup.
+func (m mockResolver) GetContainerByID(
+	ctx context.Context,
+	userID, dirID string,
+) (graph.Container, error) {
+	c := m.ItemByID(dirID)
+	if c == nil {
+		return nil, data.ErrNotFound
+	}
+
+	return c, nil
 }
 
 func (m mockResolver) Items() []graph.CachedContainer {
