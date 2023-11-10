@@ -55,6 +55,14 @@ type BackupBase struct {
 	Reasons []identity.Reasoner
 }
 
+func (bb BackupBase) GetReasons() []identity.Reasoner {
+	return bb.Reasons
+}
+
+func (bb BackupBase) GetSnapshotID() manifest.ID {
+	return bb.ItemDataSnapshot.ID
+}
+
 func (bb BackupBase) GetSnapshotTag(key string) (string, bool) {
 	k, _ := makeTagKV(key)
 	v, ok := bb.ItemDataSnapshot.Tags[k]

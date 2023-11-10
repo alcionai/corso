@@ -59,13 +59,17 @@ func metadataFilesExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// opts := utils.MakeExchangeOpts(cmd)
-
 	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
 	sel := selectors.NewExchangeBackup([]string{"unused-placeholder"})
+	sel.Include(sel.AllData())
 
-	return runMetadataFiles(ctx, cmd, args, sel.Selector, flags.BackupIDFV, "Exchange")
+	return genericMetadataFiles(
+		ctx,
+		cmd,
+		args,
+		sel.Selector,
+		flags.BackupIDFV)
 }
