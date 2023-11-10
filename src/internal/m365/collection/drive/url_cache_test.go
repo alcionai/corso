@@ -531,7 +531,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			pages: []mock.NextPage{
 				{Items: []models.DriveItemable{
 					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					driveItem("2", "folder2", "root", "root", false, true, false),
+					driveItem("2", "folder2", "root", "root", isFolder),
 				}},
 			},
 			expectedItemProps: map[string]itemProps{
