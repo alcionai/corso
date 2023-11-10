@@ -2,12 +2,12 @@ package m365
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -105,58 +105,21 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 	return ret, nil
 }
 
-func UserIsLicenseReconciliationNeeded(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(ctx, acct, path.UnknownService)
-	if err != nil {
-		return false, clues.Stack(err).WithClues(ctx)
-	}
-
-	us, err := ac.Users().IsLicenseReconciliationNeeded(ctx, userID)
-	if err != nil {
-		return false, err
-	}
-
-	if _, ok := us.GetAdditionalData()["isLicenseReconciliationNeeded"]; ok {
-		licenseReconciliationStatus, err := tform.AnyValueToT[*bool]("isLicenseReconciliationNeeded", us.GetAdditionalData())
-		if err != nil {
-			return false, err
-		}
-		return *licenseReconciliationStatus, nil
-	}
-
-	return false, clues.New("user missing license information")
-}
-
-func UserAssignedPlansCount(ctx context.Context, acct account.Account, userID string) (int, error) {
-	ac, err := makeAC(ctx, acct, path.UnknownService)
-	if err != nil {
-		return 0, clues.Stack(err).WithClues(ctx)
-	}
-
-	us, err := ac.Users().AssignedPlansAndLicenses(ctx, userID)
-	if err != nil {
-		return 0, err
-	}
-
-	if us.GetAssignedPlans() != nil {
-		return len(us.GetAssignedPlans()), nil
-	}
-
-	return 0, clues.New("user missing assigned plans")
-}
-
 func UserAssignedLicenses(ctx context.Context, acct account.Account, userID string) (int, error) {
 	ac, err := makeAC(ctx, acct, path.UnknownService)
 	if err != nil {
 		return 0, clues.Stack(err).WithClues(ctx)
 	}
 
-	us, err := ac.Users().AssignedPlansAndLicenses(ctx, userID)
+	us, err := ac.Users().AssignedLicenses(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
 
 	if us.GetAssignedLicenses() != nil {
+		for _, license := range us.GetAssignedLicenses() {
+			fmt.Println(license.GetSkuId())
+		}
 		return len(us.GetAssignedLicenses()), nil
 	}
 

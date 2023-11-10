@@ -112,30 +112,25 @@ func (c Users) GetAll(
 	return us, el.Failure()
 }
 
-// IsLicenseReconciliationNeeded looks up the user matching the given identifier.  The identifier can be either a
-// canonical user id or a princpalName.
-func (c Users) IsLicenseReconciliationNeeded(ctx context.Context, identifier string) (models.Userable, error) {
+func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable, error) {
 	var (
 		resp models.Userable
 		err  error
 	)
 
-	options := &users.UserItemRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.UserItemRequestBuilderGetQueryParameters{},
-	}
-
-	options.QueryParameters.Select = []string{"isLicenseReconciliationNeeded"}
-
-	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, options)
-
+	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting user")
+		if graph.IsErrResourceLocked(err) {
+			err = clues.Stack(graph.ErrResourceLocked, err)
+		}
+
+		return nil, graph.Stack(ctx, err)
 	}
 
 	return resp, err
 }
 
-func (c Users) AssignedPlansAndLicenses(ctx context.Context, identifier string) (models.Userable, error) {
+func (c Users) AssignedLicenses(ctx context.Context, identifier string) (models.Userable, error) {
 	var (
 		resp models.Userable
 		err  error
@@ -145,7 +140,7 @@ func (c Users) AssignedPlansAndLicenses(ctx context.Context, identifier string) 
 		QueryParameters: &users.UserItemRequestBuilderGetQueryParameters{},
 	}
 
-	options.QueryParameters.Select = []string{"assignedPlans", "assignedLicenses"}
+	options.QueryParameters.Select = []string{"assignedLicenses"}
 
 	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, options)
 
@@ -167,7 +162,7 @@ func (c Users) GetIDAndName(
 	userID string,
 	_ CallConfig, // not currently supported
 ) (string, string, error) {
-	u, err := c.IsLicenseReconciliationNeeded(ctx, userID)
+	u, err := c.GetByID(ctx, userID)
 	if err != nil {
 		return "", "", err
 	}

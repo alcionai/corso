@@ -1,7 +1,6 @@
 package m365
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -203,35 +202,6 @@ func (suite *userIntegrationSuite) TestUserGetMailboxInfo() {
 	}
 }
 
-func (suite *userIntegrationSuite) TestUser_GetByID() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	acct := tconfig.NewM365Account(t)
-
-	users, err := UsersCompatNoInfo(ctx, acct)
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotEmpty(t, users)
-
-	for _, s := range users {
-		suite.Run("user_"+s.ID, func() {
-			t := suite.T()
-			reconciliationNeeded, err := UserIsLicenseReconciliationNeeded(ctx, acct, s.ID)
-			assert.NoError(t, err, clues.ToCore(err))
-			plans, err := UserAssignedPlansCount(ctx, acct, s.ID)
-			assert.NoError(t, err, clues.ToCore(err))
-
-			lic, err := UserAssignedLicenses(ctx, acct, s.ID)
-			assert.NoError(t, err, clues.ToCore(err))
-			fmt.Printf("user: %v \n", reconciliationNeeded)
-			fmt.Printf("plans: %v \n", plans)
-			fmt.Printf("lic: %v \n", lic)
-		})
-	}
-}
-
 func (suite *userIntegrationSuite) TestUsers_InvalidCredentials() {
 	table := []struct {
 		name string
@@ -266,6 +236,50 @@ func (suite *userIntegrationSuite) TestUsers_InvalidCredentials() {
 			users, err := UsersCompatNoInfo(ctx, test.acct(t))
 			assert.Empty(t, users, "returned some users")
 			assert.NotNil(t, err)
+		})
+	}
+}
+
+func (suite *userIntegrationSuite) TestUserAssignedLicenses() {
+	t := suite.T()
+	ctx, flush := tester.NewContext(t)
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+	defer flush()
+
+	runs := []struct {
+		name      string
+		userID    string
+		expect    int
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name:      "user with no licenses",
+			userID:    tconfig.UnlicensedM365UserID(t),
+			expect:    0,
+			expectErr: require.NoError,
+		},
+		{
+			name:      "user with licenses",
+			userID:    tconfig.M365UserID(t),
+			expect:    2,
+			expectErr: require.NoError,
+		},
+		{
+			name:      "User does not exist",
+			userID:    "fake",
+			expect:    0,
+			expectErr: require.Error,
+		},
+	}
+
+	for _, run := range runs {
+		t.Run(run.name, func(t *testing.T) {
+			user, err := UserAssignedLicenses(
+				ctx,
+				suite.acct,
+				run.userID)
+			run.expectErr(t, err, clues.ToCore(err))
+			assert.Equal(t, run.expect, user)
 		})
 	}
 }
