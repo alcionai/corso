@@ -1,6 +1,7 @@
 package m365
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -198,6 +199,35 @@ func (suite *userIntegrationSuite) TestUserGetMailboxInfo() {
 			info, err := UserGetMailboxInfo(ctx, acct, test.user)
 			test.expectErr(t, err, clues.ToCore(err))
 			test.expect(t, info)
+		})
+	}
+}
+
+func (suite *userIntegrationSuite) TestUser_GetByID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	acct := tconfig.NewM365Account(t)
+
+	users, err := UsersCompatNoInfo(ctx, acct)
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, users)
+
+	for _, s := range users {
+		suite.Run("user_"+s.ID, func() {
+			t := suite.T()
+			reconciliationNeeded, err := UserIsLicenseReconciliationNeeded(ctx, acct, s.ID)
+			assert.NoError(t, err, clues.ToCore(err))
+			plans, err := UserAssignedPlansCount(ctx, acct, s.ID)
+			assert.NoError(t, err, clues.ToCore(err))
+
+			lic, err := UserAssignedLicenses(ctx, acct, s.ID)
+			assert.NoError(t, err, clues.ToCore(err))
+			fmt.Printf("user: %v \n", reconciliationNeeded)
+			fmt.Printf("plans: %v \n", plans)
+			fmt.Printf("lic: %v \n", lic)
 		})
 	}
 }
