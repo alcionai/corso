@@ -3,6 +3,8 @@ package inject
 import (
 	"context"
 
+	"github.com/kopia/kopia/repo/manifest"
+
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
@@ -15,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/kopia/kopia/repo/manifest"
 )
 
 type (

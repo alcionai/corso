@@ -75,6 +75,7 @@ func NewCollections(
 func deserializeAndValidateMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
+	fb *fault.Bus,
 ) (map[string]string, map[string]map[string]string, bool, error) {
 	deltas, prevs, canUse, err := DeserializeMetadata(ctx, cols)
 	if err != nil || !canUse {
@@ -112,33 +113,44 @@ func deserializeAndValidateMetadata(
 		}
 	}
 
-	prevPathCollisions := map[string]string{}
+	alertIfPrevPathsHaveCollisions(ctx, prevs, fb)
 
+	return deltas, prevs, canUse, nil
+}
+
+func alertIfPrevPathsHaveCollisions(
+	ctx context.Context,
+	prevs map[string]map[string]string,
+	fb *fault.Bus,
+) {
 	for driveID, folders := range prevs {
+		prevPathCollisions := map[string]string{}
+
 		for fid, prev := range folders {
 			if otherID, collision := prevPathCollisions[prev]; collision {
-				logger.Ctx(ctx).
-					With(
-						"collision_folder_id_1", fid,
-						"collision_folder_id_2", otherID,
-						"collision_drive_id", driveID,
-						"collision_prev_path", path.LoggableDir(prev)).
-					Info("duplicate previous paths across different folder IDs")
+				ctx = clues.Add(
+					ctx,
+					"collision_folder_id_1", fid,
+					"collision_folder_id_2", otherID,
+					"collision_drive_id", driveID,
+					"collision_prev_path", path.LoggableDir(prev))
 
-				// If a previous path collision occurs, we need to force a full enumeration
-				// in order to correct the backup state, else we'll potentially hit
-				// unresolvable failures.
-				return map[string]string{}, map[string]map[string]string{}, false, nil
+				fb.AddAlert(ctx, fault.NewAlert(
+					fault.AlertPreviousPathCollision,
+					"", // no namespace
+					"", // no item id
+					"previousPaths",
+					map[string]any{
+						"collision_folder_id_1": fid,
+						"collision_folder_id_2": otherID,
+						"collision_drive_id":    driveID,
+						"collision_prev_path":   prev,
+					}))
 			}
 
 			prevPathCollisions[prev] = fid
 		}
-
-		// reset the collision check for each drive
-		prevPathCollisions = map[string]string{}
 	}
-
-	return deltas, prevs, canUse, nil
 }
 
 func DeserializeMetadata(
@@ -258,7 +270,7 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	prevDriveIDToDelta, oldPrevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(ctx, prevMetadata)
+	deltasByDriveID, prevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(ctx, prevMetadata, errs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -267,7 +279,7 @@ func (c *Collections) Get(
 
 	driveTombstones := map[string]struct{}{}
 
-	for driveID := range oldPrevPathsByDriveID {
+	for driveID := range prevPathsByDriveID {
 		driveTombstones[driveID] = struct{}{}
 	}
 
@@ -300,8 +312,8 @@ func (c *Collections) Get(
 				"drive_name", clues.Hide(driveName))
 
 			excludedItemIDs = map[string]struct{}{}
-			oldPrevPaths    = oldPrevPathsByDriveID[driveID]
-			prevDeltaLink   = prevDriveIDToDelta[driveID]
+			oldPrevPaths    = prevPathsByDriveID[driveID]
+			prevDeltaLink   = deltasByDriveID[driveID]
 
 			// packagePaths is keyed by folder paths to a parent directory
 			// which is marked as a package by its driveItem GetPackage
@@ -468,6 +480,8 @@ func (c *Collections) Get(
 
 		collections = append(collections, coll)
 	}
+
+	alertIfPrevPathsHaveCollisions(ctx, driveIDToPrevPaths, errs)
 
 	// add metadata collections
 	pathPrefix, err := c.handler.MetadataPathPrefix(c.tenantID)
@@ -1055,13 +1069,13 @@ func includePath(ctx context.Context, dsc dirScopeChecker, folderPath path.Path)
 }
 
 func updatePath(paths map[string]string, id, newPath string) {
-	oldPath := paths[id]
-	if len(oldPath) == 0 {
+	currPath := paths[id]
+	if len(currPath) == 0 {
 		paths[id] = newPath
 		return
 	}
 
-	if oldPath == newPath {
+	if currPath == newPath {
 		return
 	}
 
@@ -1070,10 +1084,10 @@ func updatePath(paths map[string]string, id, newPath string) {
 	// other components should take care of that. We do need to ensure that the
 	// resulting map contains all folders though so we know the next time around.
 	for folderID, p := range paths {
-		if !strings.HasPrefix(p, oldPath) {
+		if !strings.HasPrefix(p, currPath) {
 			continue
 		}
 
-		paths[folderID] = strings.Replace(p, oldPath, newPath, 1)
+		paths[folderID] = strings.Replace(p, currPath, newPath, 1)
 	}
 }
