@@ -83,8 +83,9 @@ func (ti testItem) GetAdditionalData() map[string]any {
 // mock page
 
 type testPage struct {
-	values   []testItem
-	nextLink string
+	values    []testItem
+	nextLink  string
+	deltaLink string
 }
 
 func (p testPage) GetOdataNextLink() *string {
@@ -92,8 +93,7 @@ func (p testPage) GetOdataNextLink() *string {
 }
 
 func (p testPage) GetOdataDeltaLink() *string {
-	// delta is not tested here
-	return ptr.To("")
+	return ptr.To(p.deltaLink)
 }
 
 func (p testPage) GetValue() []testItem {
@@ -147,16 +147,22 @@ func (p *testIDsNonDeltaMultiPager) GetPage(
 		return testPage{}, err
 	}
 
-	var nextLink string
+	var (
+		nextLink  string
+		deltaLink string
+	)
 
 	if p.pageIdx < len(p.pages) {
 		// Value doesn't matter as long as it's not empty.
 		nextLink = "next"
+	} else {
+		deltaLink = "delta"
 	}
 
 	return testPage{
-		values:   res.items,
-		nextLink: nextLink,
+		values:    res.items,
+		nextLink:  nextLink,
+		deltaLink: deltaLink,
 	}, nil
 }
 
@@ -421,6 +427,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			p *testIDsNonDeltaMultiPager,
 		) (NonDeltaHandler[testItem], DeltaHandler[testItem])
 		expectDeltaReset bool
+		expectDeltaLink  assert.ValueAssertionFunc
 	}{
 		{
 			name:        "NoPrevDelta",
@@ -431,6 +438,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				return nil, newDeltaPager(p)
 			},
 			expectDeltaReset: true,
+			expectDeltaLink:  assert.NotEmpty,
 		},
 		{
 			name:        "PrevDelta",
@@ -441,6 +449,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			) (NonDeltaHandler[testItem], DeltaHandler[testItem]) {
 				return nil, newDeltaPager(p)
 			},
+			expectDeltaLink: assert.NotEmpty,
 		},
 		{
 			name:      "DeltaNotAllowed",
@@ -451,6 +460,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				return p, nil
 			},
 			expectDeltaReset: true,
+			expectDeltaLink:  assert.Empty,
 		},
 	}
 
@@ -631,6 +641,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 
 							assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
 							assert.Equal(t, pagerTypeTest.expectDeltaReset, addRemoved.DU.Reset, "delta update")
+							pagerTypeTest.expectDeltaLink(t, addRemoved.DU.URL, "delta link")
 
 							assertAddedAndRemoved(
 								t,
@@ -656,9 +667,10 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 // cancellation, etc.
 func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 	type expected struct {
-		errCheck assert.ErrorAssertionFunc
-		added    []testItem
-		removed  []testItem
+		errCheck  assert.ErrorAssertionFunc
+		added     []testItem
+		removed   []testItem
+		deltaLink assert.ValueAssertionFunc
 	}
 
 	tests := []struct {
@@ -712,6 +724,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 				removed: []testItem{
 					removedItem2,
 				},
+				deltaLink: assert.NotEmpty,
 			},
 		},
 		{
@@ -748,7 +761,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 					})
 			},
 			expect: expected{
-				errCheck: assert.NoError,
+				errCheck:  assert.NoError,
+				deltaLink: assert.NotEmpty,
 			},
 		},
 		{
@@ -802,6 +816,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 					removedItem1,
 					removedItem2,
 				},
+				deltaLink: assert.Empty,
 			},
 		},
 		{
@@ -848,7 +863,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 					})
 			},
 			expect: expected{
-				errCheck: assert.NoError,
+				errCheck:  assert.NoError,
+				deltaLink: assert.Empty,
 			},
 		},
 	}
@@ -877,6 +893,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 
 					assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
 					assert.True(t, addRemoved.DU.Reset, "delta update")
+					test.expect.deltaLink(t, addRemoved.DU.URL, "delta link")
 
 					assertAddedAndRemoved(
 						t,
