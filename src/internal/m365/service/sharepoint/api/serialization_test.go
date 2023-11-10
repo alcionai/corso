@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	bmodels "github.com/alcionai/corso/src/internal/m365/graph/betasdk/models"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	bmodels "github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk/models"
 )
 
 type SerializationUnitSuite struct {
