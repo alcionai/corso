@@ -2404,6 +2404,118 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
+			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtExistingLocation",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID),
+									driveItem(id(folder), name(folder), parent(1), rootID, isFolder),
+									driveItem(id(file), name(file), parent(1, name(folder)), id(folder), isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{},
+								Reset: true,
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID),
+									driveItem(id(folder), name(folder), parent(1), rootID, isFolder),
+									driveItem(id(file), name(file), parent(1, name(folder)), id(folder), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			previousPaths: map[string]map[string]string{
+				idx(drive, 1): {
+					rootID:     fullPath(1),
+					id(folder): fullPath(1, name(folder)),
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				fullPath(1): {data.NewState: {}},
+				fullPath(1, name(folder)): {
+					data.NewState: {id(folder), id(file)},
+				},
+			},
+			expectedDeltaURLs: map[string]string{
+				idx(drive, 1): delta,
+			},
+			expectedPreviousPaths: map[string]map[string]string{
+				idx(drive, 1): {
+					rootID:     fullPath(1),
+					id(folder): fullPath(1, name(folder)),
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				fullPath(1):               true,
+				fullPath(1, name(folder)): true,
+			},
+		},
+		{
+			name:   "OneDrive_OneItemPage_ImmediateInvalidPrevDelta_MoveFolderToPreviouslyExistingPath",
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{},
+								Reset: true,
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID),
+									driveItem(idx(folder, 2), name(folder), parent(1), rootID, isFolder),
+									driveItem(idx(file, 2), name(file), parent(1, name(folder)), idx(folder, 2), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
+					},
+				},
+			},
+			canUsePreviousBackup: true,
+			errCheck:             assert.NoError,
+			previousPaths: map[string]map[string]string{
+				idx(drive, 1): {
+					rootID:     fullPath(1),
+					id(folder): fullPath(1, name(folder)),
+				},
+			},
+			expectedCollections: map[string]map[data.CollectionState][]string{
+				fullPath(1): {data.NewState: {}},
+				fullPath(1, name(folder)): {
+					data.DeletedState: {},
+					data.NewState:     {idx(folder, 2), idx(file, 2)},
+				},
+			},
+			expectedDeltaURLs: map[string]string{
+				idx(drive, 1): delta,
+			},
+			expectedPreviousPaths: map[string]map[string]string{
+				idx(drive, 1): {
+					rootID:         fullPath(1),
+					idx(folder, 2): fullPath(1, name(folder)),
+				},
+			},
+			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
+			doNotMergeItems: map[string]bool{
+				fullPath(1):               true,
+				fullPath(1, name(folder)): true,
+			},
+		},
+		{
 			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
@@ -2555,7 +2667,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
 				fullPath(1):                   {data.NewState: {}},
-				fullPath(1, name(folder)):     {data.NotMovedState: {id(folder), id(file)}},
+				fullPath(1, name(folder)):     {data.NewState: {id(folder), id(file)}},
 				fullPath(1, namex(folder, 2)): {data.DeletedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
