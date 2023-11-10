@@ -13,6 +13,7 @@ import (
 	"fmt"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mail "github.com/xhit/go-simple-mail/v2"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -25,6 +26,17 @@ const (
 	dateFormat    = "2006-01-02 15:04:05 MST" // from xhit/go-simple-mail
 )
 
+func formatAddress(entry models.EmailAddressable) string {
+	name := ptr.Val(entry.GetName())
+	email := ptr.Val(entry.GetAddress())
+
+	if name == email {
+		return email
+	}
+
+	return fmt.Sprintf(addressFormat, name, email)
+}
+
 // FromJSON converts a Messageable (as json) to .eml format
 func FromJSON(ctx context.Context, body []byte) (string, error) {
 	data, err := api.BytesToMessageable(body)
@@ -35,40 +47,44 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	email := mail.NewMSG()
 
 	if data.GetFrom() != nil {
-		email.SetFrom(
-			fmt.Sprintf(
-				addressFormat,
-				ptr.Val(data.GetFrom().GetEmailAddress().GetName()),
-				ptr.Val(data.GetFrom().GetEmailAddress().GetAddress())))
+		email.SetFrom(formatAddress(data.GetFrom().GetEmailAddress()))
+
+		if email.Error != nil {
+			return "", clues.Wrap(email.Error, "adding from address").
+				With("id", ptr.Val(data.GetId()), "from", data.GetFrom())
+		}
 	}
 
 	if data.GetToRecipients() != nil {
 		for _, recipient := range data.GetToRecipients() {
-			email.AddTo(
-				fmt.Sprintf(
-					addressFormat,
-					ptr.Val(recipient.GetEmailAddress().GetName()),
-					ptr.Val(recipient.GetEmailAddress().GetAddress())))
+			email.AddTo(formatAddress(recipient.GetEmailAddress()))
+
+			if email.Error != nil {
+				return "", clues.Wrap(email.Error, "adding to address").
+					With("id", ptr.Val(data.GetId()), "to", recipient)
+			}
 		}
 	}
 
 	if data.GetCcRecipients() != nil {
 		for _, recipient := range data.GetCcRecipients() {
-			email.AddCc(
-				fmt.Sprintf(
-					addressFormat,
-					ptr.Val(recipient.GetEmailAddress().GetName()),
-					ptr.Val(recipient.GetEmailAddress().GetAddress())))
+			email.AddCc(formatAddress(recipient.GetEmailAddress()))
+
+			if email.Error != nil {
+				return "", clues.Wrap(email.Error, "adding cc address").
+					With("id", ptr.Val(data.GetId()), "cc", recipient)
+			}
 		}
 	}
 
 	if data.GetBccRecipients() != nil {
 		for _, recipient := range data.GetBccRecipients() {
-			email.AddBcc(
-				fmt.Sprintf(
-					addressFormat,
-					ptr.Val(recipient.GetEmailAddress().GetName()),
-					ptr.Val(recipient.GetEmailAddress().GetAddress())))
+			email.AddBcc(formatAddress(recipient.GetEmailAddress()))
+
+			if email.Error != nil {
+				return "", clues.Wrap(email.Error, "adding bcc address").
+					With("id", ptr.Val(data.GetId()), "bcc", recipient)
+			}
 		}
 	}
 
@@ -78,22 +94,30 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			logger.Ctx(ctx).
 				With("id", ptr.Val(data.GetId()),
 					"reply_to_count", len(rts)).
-				Warn("more than 1 reply to")
-		} else if len(rts) != 0 {
-			email.SetReplyTo(
-				fmt.Sprintf(
-					addressFormat,
-					ptr.Val(rts[0].GetEmailAddress().GetName()),
-					ptr.Val(rts[0].GetEmailAddress().GetAddress())))
+				Warn("more than 1 Reply-To, adding only the first one")
+		}
+
+		if len(rts) != 0 {
+			email.SetReplyTo(formatAddress(rts[0].GetEmailAddress()))
 		}
 	}
 
 	if data.GetSubject() != nil {
 		email.SetSubject(ptr.Val(data.GetSubject()))
+
+		if email.Error != nil {
+			return "", clues.Wrap(email.Error, "adding subject").
+				With("id", ptr.Val(data.GetId()), "subject", data.GetSubject())
+		}
 	}
 
 	if data.GetSentDateTime() != nil {
 		email.SetDate(ptr.Val(data.GetSentDateTime()).Format(dateFormat))
+
+		if email.Error != nil {
+			return "", clues.Wrap(email.Error, "adding date").
+				With("id", ptr.Val(data.GetId()), "date", data.GetSentDateTime())
+		}
 	}
 
 	if data.GetBody() != nil {
@@ -117,6 +141,13 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			}
 
 			email.SetBody(contentType, ptr.Val(data.GetBody().GetContent()))
+
+			if email.Error != nil {
+				return "", clues.Wrap(email.Error, "adding body").
+					With("id", ptr.Val(data.GetId()),
+						"body_type", data.GetBody().GetContentType().String(),
+						"body_len", len(*data.GetBody().GetContent()))
+			}
 		}
 	}
 
@@ -140,6 +171,13 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				Data:     bts,
 				Inline:   ptr.Val(attachment.GetIsInline()),
 			})
+
+			if email.Error != nil {
+				return "", clues.Wrap(email.Error, "adding attachment").
+					With("id", ptr.Val(data.GetId()),
+						"attachment_id", ptr.Val(attachment.GetId()),
+						"attachment_name", ptr.Val(attachment.GetName()))
+			}
 		}
 	}
 

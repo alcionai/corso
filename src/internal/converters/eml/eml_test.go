@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -21,6 +22,40 @@ type EMLUnitSuite struct {
 
 func TestEMLUnitSuite(t *testing.T) {
 	suite.Run(t, &EMLUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *EMLUnitSuite) TestFormatAddress() {
+	t := suite.T()
+
+	tests := []struct {
+		tname    string
+		name     string
+		email    string
+		expected string
+	}{
+		{
+			tname:    "different name and email",
+			name:     "John Doe",
+			email:    "johndoe@provider.com",
+			expected: `John Doe <johndoe@provider.com>`,
+		},
+		{
+			tname:    "same name and email",
+			name:     "johndoe@provider.com",
+			email:    "johndoe@provider.com",
+			expected: "johndoe@provider.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.tname, func(t *testing.T) {
+			entity := models.NewEmailAddress()
+			entity.SetName(ptr.To(tt.name))
+			entity.SetAddress(ptr.To(tt.email))
+
+			assert.Equal(t, tt.expected, formatAddress(entity))
+		})
+	}
 }
 
 func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
