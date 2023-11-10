@@ -3,11 +3,13 @@ package debug
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -31,9 +33,9 @@ func AddCommands(cmd *cobra.Command) {
 		utils.AddCommand(debugC, subCommand, utils.MarkDebugCommand())
 
 		for _, addTo := range debugCommands {
-			addTo(subCommand)
-			flags.AddAllProviderFlags(subCommand)
-			flags.AddAllStorageFlags(subCommand)
+			servCmd := addTo(subCommand)
+			flags.AddAllProviderFlags(servCmd)
+			flags.AddAllStorageFlags(servCmd)
 		}
 	}
 }
@@ -85,13 +87,15 @@ func handleMetadataFilesCmd(cmd *cobra.Command, args []string) error {
 // runners
 // ---------------------------------------------------------------------------
 
-func runMetadataFiles(
+func genericMetadataFiles(
 	ctx context.Context,
 	cmd *cobra.Command,
 	args []string,
 	sel selectors.Selector,
-	debugID, serviceName string,
+	backupID string,
 ) error {
+	ctx = clues.Add(ctx, "backup_id", backupID)
+
 	r, _, err := utils.GetAccountAndConnect(ctx, cmd, sel.PathService())
 	if err != nil {
 		return Only(ctx, err)
@@ -99,7 +103,18 @@ func runMetadataFiles(
 
 	defer utils.CloseRepo(ctx, r)
 
-	// TODO: read and print out all metadata files in the debug
+	// read metadata
+	files, err := r.GetBackupMetadata(ctx, sel, backupID, fault.New(true))
+	if err != nil {
+		return Only(ctx, clues.Wrap(err, "retrieving metadata files"))
+	}
+
+	for _, file := range files {
+		Infof(ctx, "\n------------------------------")
+		Info(ctx, file.Name)
+		Info(ctx, file.Path)
+		Pretty(ctx, file.Data)
+	}
 
 	return nil
 }
