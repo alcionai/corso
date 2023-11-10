@@ -418,7 +418,14 @@ type addedAndRemovedHandler[T any] func(
 	error,
 )
 
-func getLimitedItems[T any](
+// batchWithMaxItemCount attempts to get itemLimit added items from the
+// underlying pager. If itemLimit is 0 then gets all items from the pager. The
+// item count is the actual number of added items, not just the number of added
+// items seen. This means that duplicate items and items that are filtered out
+// don't count towards the limit.
+//
+// Also respects context cancellations.
+func batchWithMaxItemCount[T any](
 	ctx context.Context,
 	resultsPager *nextPageResults[T],
 	itemLimit int,
@@ -487,6 +494,12 @@ func getLimitedItems[T any](
 	return added, removed, du, nil
 }
 
+// GetAddedAndRemovedItemIDs returns the set of item IDs that were added or
+// removed from this resource since the last delta query. If no delta query is
+// passed in then returns all items found, not just changed/removed ones.
+//
+// Use itemLimit to stop enumeration partway through and filters to pick which
+// items should be returned.
 func GetAddedAndRemovedItemIDs[T any](
 	ctx context.Context,
 	pager NonDeltaHandler[T],
@@ -502,7 +515,7 @@ func GetAddedAndRemovedItemIDs[T any](
 
 		go DeltaEnumerateItems[T](ctx, deltaPager, npr, prevDeltaLink)
 
-		added, removed, du, err := getLimitedItems(
+		added, removed, du, err := batchWithMaxItemCount(
 			ctx,
 			npr,
 			itemLimit,
@@ -527,7 +540,7 @@ func GetAddedAndRemovedItemIDs[T any](
 
 	go EnumerateItems[T](ctx, pager, npr)
 
-	added, removed, _, err := getLimitedItems(
+	added, removed, _, err := batchWithMaxItemCount(
 		ctx,
 		npr,
 		itemLimit,
