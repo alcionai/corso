@@ -237,7 +237,8 @@ func fullPath(driveID any, elems ...string) string {
 			path.OneDriveService.String(),
 			user,
 			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(idx(drive, driveID)).String()},
+			odConsts.DriveFolderPrefixBuilder(idx(drive, driveID)).String(),
+		},
 		elems...)...)
 }
 

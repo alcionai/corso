@@ -6,7 +6,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 
-	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -25,11 +24,6 @@ func (b base) GetReasons() []identity.Reasoner {
 func (b base) GetSnapshotID() manifest.ID {
 	return b.snapshotID
 }
-
-type mdDeserialize func(
-	ctx context.Context,
-	metadataCollections []data.RestoreCollection,
-) ([]store.MetadataFile, error)
 
 // should probably turn into a NewDebug interface like we're
 // doing with the other interfaces
