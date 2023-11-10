@@ -3,12 +3,14 @@ package inject
 import (
 	"context"
 
+	"github.com/kopia/kopia/repo/manifest"
+
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -37,7 +39,7 @@ type (
 		GetMetadataPaths(
 			ctx context.Context,
 			r inject.RestoreProducer,
-			base kopia.BackupBase,
+			base ReasonAndSnapshotIDer,
 			errs *fault.Bus,
 		) ([]path.RestorePaths, error)
 
@@ -124,5 +126,10 @@ type (
 			opts control.Options,
 			service path.ServiceType,
 		) (ServiceHandler, error)
+	}
+
+	ReasonAndSnapshotIDer interface {
+		GetReasons() []identity.Reasoner
+		GetSnapshotID() manifest.ID
 	}
 )
