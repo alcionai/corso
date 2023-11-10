@@ -38,6 +38,7 @@ type Repositoryer interface {
 	BackupGetter
 	Restorer
 	Exporter
+	Debugger
 	DataProviderConnector
 
 	Initialize(

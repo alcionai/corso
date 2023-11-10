@@ -4,6 +4,10 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 )
 
+const (
+	AlertPreviousPathCollision = "previous_path_collision"
+)
+
 var _ print.Printable = &Alert{}
 
 // Alerts are informational-only notifications.  The purpose of alerts is to

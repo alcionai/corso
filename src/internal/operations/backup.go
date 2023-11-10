@@ -397,6 +397,23 @@ func (op *BackupOperation) do(
 		}
 	}
 
+	// Drop merge bases if we're doing a preview backup. Preview backups may use
+	// different delta token parameters so we need to ensure we do a token
+	// refresh. This could eventually be pushed down the stack if we track token
+	// versions.
+	//
+	// TODO(ashmrtn): Until we use token versions to determine this, refactor
+	// input params to produceManifestsAndMetadata and do this in that function
+	// instead of here.
+	if op.Options.ToggleFeatures.PreviewBackup {
+		logger.Ctx(ctx).Info("disabling merge bases for preview backup")
+
+		mans.DisableMergeBases()
+
+		canUseMetadata = false
+		mdColls = nil
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"can_use_metadata", canUseMetadata,

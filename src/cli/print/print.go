@@ -119,10 +119,21 @@ func Infof(ctx context.Context, t string, s ...any) {
 	outf(ctx, getRootCmd(ctx).ErrOrStderr(), t, s...)
 }
 
+// Pretty prettifies and prints the value.
+func Pretty(ctx context.Context, a any) {
+	if a == nil {
+		Err(ctx, "<nil>")
+		return
+	}
+
+	printPrettyJSON(getRootCmd(ctx).ErrOrStderr(), a)
+}
+
 // PrettyJSON prettifies and prints the value.
 func PrettyJSON(ctx context.Context, p minimumPrintabler) {
 	if p == nil {
 		Err(ctx, "<nil>")
+		return
 	}
 
 	outputJSON(getRootCmd(ctx).ErrOrStderr(), p, outputAsJSONDebug)
@@ -274,6 +285,17 @@ func outputJSONArr(w io.Writer, ps []Printable, debug bool) {
 // output to stdout the list of printable structs as json.
 func printJSON(w io.Writer, a any) {
 	bs, err := json.Marshal(a)
+	if err != nil {
+		fmt.Fprintf(w, "error formatting results to json: %v\n", err)
+		return
+	}
+
+	fmt.Fprintln(w, string(pretty.Pretty(bs)))
+}
+
+// output to stdout the list of printable structs as prettified json.
+func printPrettyJSON(w io.Writer, a any) {
+	bs, err := json.MarshalIndent(a, "", "  ")
 	if err != nil {
 		fmt.Fprintf(w, "error formatting results to json: %v\n", err)
 		return
