@@ -16,6 +16,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -106,6 +107,7 @@ func (s Service) Serialize(object serialization.Parsable) ([]byte, error) {
 func CreateAdapter(
 	tenant, client, secret string,
 	counter *count.Bus,
+	lim limiters.Limiter,
 	opts ...Option,
 ) (abstractions.RequestAdapter, error) {
 	auth, err := GetAuth(tenant, client, secret)
@@ -113,7 +115,7 @@ func CreateAdapter(
 		return nil, err
 	}
 
-	httpClient, cc := KiotaHTTPClient(counter, opts...)
+	httpClient, cc := KiotaHTTPClient(counter, lim, opts...)
 
 	adpt, err := msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth,
@@ -152,12 +154,13 @@ func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityA
 // can utilize it on a per-download basis.
 func KiotaHTTPClient(
 	counter *count.Bus,
+	lim limiters.Limiter,
 	opts ...Option,
 ) (*http.Client, *clientConfig) {
 	var (
 		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
 		cc            = populateConfig(opts...)
-		middlewares   = kiotaMiddlewares(&clientOptions, cc, counter)
+		middlewares   = kiotaMiddlewares(&clientOptions, cc, counter, lim)
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
 
@@ -277,6 +280,7 @@ func kiotaMiddlewares(
 	options *msgraphgocore.GraphClientOptions,
 	cc *clientConfig,
 	counter *count.Bus,
+	lim limiters.Limiter,
 ) []khttp.Middleware {
 	mw := []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),
@@ -305,7 +309,9 @@ func kiotaMiddlewares(
 	mw = append(
 		mw,
 		throttler,
-		&RateLimiterMiddleware{},
+		&RateLimiterMiddleware{
+			lim: lim,
+		},
 		&MetricsMiddleware{
 			counter: counter,
 		})

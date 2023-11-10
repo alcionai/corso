@@ -11,6 +11,7 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -88,18 +89,23 @@ const (
 	// but doing so risks timeouts.  It's better to give the limits breathing room.
 	defaultPerSecond = 16  // 16 * 60 * 10 = 9600
 	defaultMaxCap    = 200 // real cap is 10k-per-10-minutes
+
+	ExchangeTimeLimit     = 10 * time.Minute
+	ExchangeTokenQuota    = 9600
+	ExchangeSlideInterval = 1 * time.Second
+
 	// since drive runs on a per-minute, rather than per-10-minute bucket, we have
 	// to keep the max cap equal to the per-second cap.  A large maxCap pool (say,
 	// 1200, similar to the per-minute cap) would allow us to make a flood of 2400
 	// calls in the first minute, putting us over the per-minute limit.  Keeping
 	// the cap at the per-second burst means we only dole out a max of 1240 in one
 	// minute (20 cap + 1200 per minute + one burst of padding).
-	drivePerSecond = 20 // 20 * 60 = 1200
-	driveMaxCap    = 20 // real cap is 1250-per-minute
+	DrivePerSecond = 20 // 20 * 60 = 1200
+	DriveMaxCap    = 20 // real cap is 1250-per-minute
 )
 
 var (
-	driveLimiter = rate.NewLimiter(drivePerSecond, driveMaxCap)
+	driveLimiter = rate.NewLimiter(DrivePerSecond, DriveMaxCap)
 	// also used as the exchange service limiter
 	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
 )
@@ -114,21 +120,6 @@ const limiterCfgCtxKey limiterCfgKey = "corsoGaphRateLimiterCfg"
 
 func BindRateLimiterConfig(ctx context.Context, lc LimiterCfg) context.Context {
 	return context.WithValue(ctx, limiterCfgCtxKey, lc)
-}
-
-func ctxLimiter(ctx context.Context) *rate.Limiter {
-	lc, ok := extractRateLimiterConfig(ctx)
-	if !ok {
-		return defaultLimiter
-	}
-
-	switch lc.Service {
-	// FIXME: Handle based on category once we add chat backup
-	case path.OneDriveService, path.SharePointService, path.GroupsService:
-		return driveLimiter
-	default:
-		return defaultLimiter
-	}
 }
 
 func extractRateLimiterConfig(ctx context.Context) (LimiterCfg, bool) {
@@ -184,24 +175,25 @@ func ctxLimiterConsumption(ctx context.Context, defaultConsumption int) int {
 // QueueRequest will allow the request to occur immediately if we're under the
 // calls-per-minute rate.  Otherwise, the call will wait in a queue until
 // the next token set is available.
-func QueueRequest(ctx context.Context) {
-	limiter := ctxLimiter(ctx)
+func QueueRequest(ctx context.Context, lim limiters.Limiter) {
 	consume := ctxLimiterConsumption(ctx, defaultLC)
 
-	if err := limiter.WaitN(ctx, consume); err != nil {
+	if err := lim.WaitN(ctx, consume); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
 	}
 }
 
 // RateLimiterMiddleware is used to ensure we don't overstep per-min request limits.
-type RateLimiterMiddleware struct{}
+type RateLimiterMiddleware struct {
+	lim limiters.Limiter
+}
 
 func (mw *RateLimiterMiddleware) Intercept(
 	pipeline khttp.Pipeline,
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	QueueRequest(req.Context())
+	QueueRequest(req.Context(), mw.lim)
 	return pipeline.Next(req, middlewareIndex)
 }
 

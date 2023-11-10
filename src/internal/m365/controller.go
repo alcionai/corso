@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/resource"
@@ -78,7 +79,24 @@ func NewController(
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	ac, err := api.NewClient(creds, co, counter)
+	// Pick a rate limiter based on the service type
+	var lim limiters.Limiter
+
+	switch pst {
+	case path.OneDriveService, path.SharePointService, path.GroupsService:
+		lim = limiters.NewTokenBucketLimiter(graph.DrivePerSecond, graph.DriveMaxCap)
+	default:
+		// TODO(pandeyabs): Change default to token bucket exch limits like it exists today.
+		lim, err = limiters.NewSlidingWindowLimiter(
+			graph.ExchangeTimeLimit,
+			graph.ExchangeSlideInterval,
+			graph.ExchangeTokenQuota)
+		if err != nil {
+			return nil, clues.Wrap(err, "creating sliding window limiter").WithClues(ctx)
+		}
+	}
+
+	ac, err := api.NewClient(creds, co, counter, lim)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
 	}

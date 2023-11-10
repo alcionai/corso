@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/http2"
 
+	"github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -39,13 +40,14 @@ type Requester interface {
 // can utilize it on a per-download basis.
 func NewHTTPWrapper(
 	counter *count.Bus,
+	lim limiters.Limiter,
 	opts ...Option,
 ) *httpWrapper {
 	var (
 		cc = populateConfig(opts...)
 		rt = customTransport{
 			n: pipeline{
-				middlewares: internalMiddleware(cc, counter),
+				middlewares: internalMiddleware(cc, counter, lim),
 				transport:   defaultTransport(),
 			},
 		}
@@ -72,10 +74,11 @@ func NewHTTPWrapper(
 // can utilize it on a per-download basis.
 func NewNoTimeoutHTTPWrapper(
 	counter *count.Bus,
+	lim limiters.Limiter,
 	opts ...Option,
 ) *httpWrapper {
 	opts = append(opts, NoTimeout())
-	return NewHTTPWrapper(counter, opts...)
+	return NewHTTPWrapper(counter, lim, opts...)
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +191,7 @@ func defaultTransport() http.RoundTripper {
 func internalMiddleware(
 	cc *clientConfig,
 	counter *count.Bus,
+	lim limiters.Limiter,
 ) []khttp.Middleware {
 	throttler := &throttlingMiddleware{
 		tf:      newTimedFence(),
@@ -203,7 +207,9 @@ func internalMiddleware(
 		khttp.NewRedirectHandler(),
 		&LoggingMiddleware{},
 		throttler,
-		&RateLimiterMiddleware{},
+		&RateLimiterMiddleware{
+			lim: lim,
+		},
 		&MetricsMiddleware{
 			counter: counter,
 		},

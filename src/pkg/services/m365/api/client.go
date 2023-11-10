@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -43,6 +44,9 @@ type Client struct {
 	counter *count.Bus
 
 	options control.Options
+
+	// rate limiter
+	lim limiters.Limiter
 }
 
 // NewClient produces a new exchange api client.  Must be used in
@@ -51,18 +55,19 @@ func NewClient(
 	creds account.M365Config,
 	co control.Options,
 	counter *count.Bus,
+	lim limiters.Limiter,
 ) (Client, error) {
-	s, err := NewService(creds, counter)
+	s, err := NewService(creds, counter, lim)
 	if err != nil {
 		return Client{}, err
 	}
 
-	li, err := newLargeItemService(creds, counter)
+	li, err := newLargeItemService(creds, counter, lim)
 	if err != nil {
 		return Client{}, err
 	}
 
-	rqr := graph.NewNoTimeoutHTTPWrapper(counter)
+	rqr := graph.NewNoTimeoutHTTPWrapper(counter, lim)
 
 	if co.DeltaPageSize < 1 || co.DeltaPageSize > maxDeltaPageSize {
 		co.DeltaPageSize = maxDeltaPageSize
@@ -75,6 +80,7 @@ func NewClient(
 		Requester:   rqr,
 		counter:     counter,
 		options:     co,
+		lim:         lim,
 	}
 
 	return cli, nil
@@ -100,6 +106,7 @@ func (c Client) Service(counter *count.Bus) (graph.Servicer, error) {
 func NewService(
 	creds account.M365Config,
 	counter *count.Bus,
+	lim limiters.Limiter,
 	opts ...graph.Option,
 ) (*graph.Service, error) {
 	a, err := graph.CreateAdapter(
@@ -107,6 +114,7 @@ func NewService(
 		creds.AzureClientID,
 		creds.AzureClientSecret,
 		counter,
+		lim,
 		opts...)
 	if err != nil {
 		return nil, clues.Wrap(err, "generating graph api adapter")
@@ -118,8 +126,9 @@ func NewService(
 func newLargeItemService(
 	creds account.M365Config,
 	counter *count.Bus,
+	lim limiters.Limiter,
 ) (*graph.Service, error) {
-	a, err := NewService(creds, counter, graph.NoTimeout())
+	a, err := NewService(creds, counter, lim, graph.NoTimeout())
 	if err != nil {
 		return nil, clues.Wrap(err, "generating no-timeout graph adapter")
 	}
