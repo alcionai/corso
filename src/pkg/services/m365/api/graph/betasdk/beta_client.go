@@ -7,7 +7,7 @@ import (
 	kw "github.com/microsoft/kiota-serialization-json-go"
 	ktext "github.com/microsoft/kiota-serialization-text-go"
 
-	i1a3c1a5501c5e41b7fd169f2d4c768dce9b096ac28fb5431bf02afcc57295411 "github.com/alcionai/corso/src/internal/m365/graph/betasdk/sites"
+	i1a3c1a5501c5e41b7fd169f2d4c768dce9b096ac28fb5431bf02afcc57295411 "github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk/sites"
 )
 
 // BetaClient the main entry point of the SDK, exposes the configuration and the fluent API.
