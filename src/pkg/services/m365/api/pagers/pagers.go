@@ -191,7 +191,8 @@ func EnumerateItems[T any](
 	defer npr.close()
 
 	var (
-		result = make([]T, 0)
+		pageCount = 0
+		itemCount = 0
 		// stubbed initial value to ensure we enter the loop.
 		nextLink = "do-while"
 	)
@@ -204,7 +205,12 @@ func EnumerateItems[T any](
 			return
 		}
 
-		if err := npr.writeNextPage(ctx, page.GetValue(), false); err != nil {
+		pageResults := page.GetValue()
+
+		itemCount += len(pageResults)
+		pageCount++
+
+		if err := npr.writeNextPage(ctx, pageResults, false); err != nil {
 			npr.err = clues.Stack(err)
 			return
 		}
@@ -214,7 +220,10 @@ func EnumerateItems[T any](
 		pager.SetNextLink(nextLink)
 	}
 
-	logger.Ctx(ctx).Infow("completed delta item enumeration", "result_count", len(result))
+	logger.Ctx(ctx).Infow(
+		"completed item enumeration",
+		"item_count", itemCount,
+		"page_count", pageCount)
 }
 
 func BatchEnumerateItems[T any](
@@ -262,7 +271,8 @@ func DeltaEnumerateItems[T any](
 	defer npr.close()
 
 	var (
-		result = make([]T, 0)
+		pageCount = 0
+		itemCount = 0
 		// stubbed initial value to ensure we enter the loop.
 		newDeltaLink     = ""
 		invalidPrevDelta = len(prevDeltaLink) == 0
@@ -304,6 +314,9 @@ func DeltaEnumerateItems[T any](
 			// Reset tells the pager to try again after ditching its delta history.
 			pager.Reset(ctx)
 
+			pageCount = 0
+			itemCount = 0
+
 			if err := npr.writeNextPage(ctx, nil, true); err != nil {
 				npr.err = clues.Stack(err)
 				return
@@ -317,7 +330,12 @@ func DeltaEnumerateItems[T any](
 			return
 		}
 
-		if err := npr.writeNextPage(ctx, page.GetValue(), false); err != nil {
+		pageResults := page.GetValue()
+
+		itemCount += len(pageResults)
+		pageCount++
+
+		if err := npr.writeNextPage(ctx, pageResults, false); err != nil {
 			npr.err = clues.Stack(err)
 			return
 		}
@@ -331,7 +349,10 @@ func DeltaEnumerateItems[T any](
 		pager.SetNextLink(nextLink)
 	}
 
-	logger.Ctx(ctx).Debugw("completed delta item enumeration", "result_count", len(result))
+	logger.Ctx(ctx).Infow(
+		"completed delta item enumeration",
+		"item_count", itemCount,
+		"page_count", pageCount)
 
 	npr.du = DeltaUpdate{
 		URL:   newDeltaLink,

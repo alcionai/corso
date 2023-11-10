@@ -109,7 +109,7 @@ func populateCollections(
 		el         = errs.Local()
 	)
 
-	logger.Ctx(ctx).Info("filling collections", "len_deltapaths", len(dps))
+	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
 
 	for _, c := range channels {
 		if el.Failure() != nil {
@@ -266,6 +266,8 @@ func populateCollections(
 	}
 
 	collections["metadata"] = col
+
+	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
 
 	return collections, el.Failure()
 }
