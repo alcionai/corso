@@ -574,3 +574,74 @@ func (suite *PathUnitSuite) TestBuildRestorePaths() {
 		})
 	}
 }
+
+func (suite *PathUnitSuite) TestArePathsEquivalent() {
+	tests := []struct {
+		name       string
+		path1      string
+		path2      string
+		equivalent bool
+	}{
+		// Test cases with equivalent paths
+		{
+			name:       "same linux normal path",
+			path1:      "/path/to/dir",
+			path2:      "/path/to/dir",
+			equivalent: true,
+		},
+		{
+			name:       "same windows normal path",
+			path1:      "C:\\Users\\User\\Documents",
+			path2:      "C:\\Users\\User\\Documents",
+			equivalent: true,
+		},
+		{
+			name:       "same linux extra trailing slash path",
+			path1:      "/path/with/trailing/slash/",
+			path2:      "/path/with/trailing/slash",
+			equivalent: true,
+		},
+		{
+			name:       "same linux relative path",
+			path1:      "relative/path",
+			path2:      "./relative/path",
+			equivalent: true,
+		},
+
+		// Test cases with non-equivalent paths
+		{
+			name:       "different linux normal path",
+			path1:      "/path/to/dir",
+			path2:      "/path/to/different/dir",
+			equivalent: false,
+		},
+		{
+			name:       "different windows normal path",
+			path1:      "C:\\Users\\User\\Documents",
+			path2:      "D:\\Users\\User\\Documents",
+			equivalent: false,
+		},
+		{
+			name:       "different linux extra trailing slash path",
+			path1:      "/path/with/trailing/slash/",
+			path2:      "/different/path/with/trailing/slash",
+			equivalent: false,
+		},
+		{
+			name:       "different linux relative path",
+			path1:      "relative/path",
+			path2:      "../relative/path",
+			equivalent: false,
+		},
+	}
+
+	for _, test := range tests {
+		t := suite.T()
+		suite.Run(test.name, func() {
+			result := ArePathsEquivalent(test.path1, test.path2)
+			if result != test.equivalent {
+				t.Errorf("Paths %s and %s are not equivalent as expected.", test.path1, test.path2)
+			}
+		})
+	}
+}

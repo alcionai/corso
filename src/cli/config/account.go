@@ -30,6 +30,9 @@ func m365Overrides(in map[string]string) map[string]string {
 	}
 }
 
+// add m365 config key names that require path related validations
+var m365PathKeys = []string{}
+
 // configureAccount builds a complete account configuration from a mix of
 // viper properties and manual overrides.
 func configureAccount(
@@ -57,7 +60,7 @@ func configureAccount(
 				return acct, clues.New("unsupported account provider: [" + providerType + "]")
 			}
 
-			if err := mustMatchConfig(vpr, m365Overrides(overrides)); err != nil {
+			if err := mustMatchConfig(vpr, m365Overrides(overrides), m365PathKeys); err != nil {
 				return acct, clues.Wrap(err, "verifying m365 configs in corso config file")
 			}
 		}
