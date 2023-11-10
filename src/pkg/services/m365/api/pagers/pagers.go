@@ -293,9 +293,6 @@ func DeltaEnumerateItems[T any](
 
 			pager.Reset(ctx)
 
-			pageCount = 0
-			itemCount = 0
-
 			if err := npr.writeNextPage(ctx, nil, true); err != nil {
 				npr.err = clues.Stack(err)
 				return
