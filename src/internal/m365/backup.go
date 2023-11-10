@@ -8,7 +8,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
@@ -179,7 +178,7 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	base kopia.BackupBase,
+	base inject.ReasonAndSnapshotIDer,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	var (
@@ -187,12 +186,12 @@ func (ctrl *Controller) GetMetadataPaths(
 		err   error
 	)
 
-	for _, reason := range base.Reasons {
+	for _, reason := range base.GetReasons() {
 		filePaths := [][]string{}
 
 		switch true {
 		case reason.Service() == path.GroupsService && reason.Category() == path.LibrariesCategory:
-			filePaths, err = groups.MetadataFiles(ctx, reason, r, base.ItemDataSnapshot.ID, errs)
+			filePaths, err = groups.MetadataFiles(ctx, reason, r, base.GetSnapshotID(), errs)
 			if err != nil {
 				return nil, err
 			}
