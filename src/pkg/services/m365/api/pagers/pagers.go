@@ -191,8 +191,8 @@ func EnumerateItems[T any](
 	defer npr.close()
 
 	var (
-		pageCount   = 0
-		resultCount = 0
+		pageCount = 0
+		itemCount = 0
 		// stubbed initial value to ensure we enter the loop.
 		nextLink = "do-while"
 	)
@@ -207,7 +207,7 @@ func EnumerateItems[T any](
 
 		pageResults := page.GetValue()
 
-		resultCount += len(pageResults)
+		itemCount += len(pageResults)
 		pageCount++
 
 		if err := npr.writeNextPage(ctx, pageResults, false); err != nil {
@@ -222,7 +222,7 @@ func EnumerateItems[T any](
 
 	logger.Ctx(ctx).Infow(
 		"completed item enumeration",
-		"result_count", resultCount,
+		"item_count", itemCount,
 		"page_count", pageCount)
 }
 
@@ -271,8 +271,8 @@ func DeltaEnumerateItems[T any](
 	defer npr.close()
 
 	var (
-		pageCount   = 0
-		resultCount = 0
+		pageCount = 0
+		itemCount = 0
 		// stubbed initial value to ensure we enter the loop.
 		newDeltaLink     = ""
 		invalidPrevDelta = len(prevDeltaLink) == 0
@@ -294,7 +294,7 @@ func DeltaEnumerateItems[T any](
 			pager.Reset(ctx)
 
 			pageCount = 0
-			resultCount = 0
+			itemCount = 0
 
 			if err := npr.writeNextPage(ctx, nil, true); err != nil {
 				npr.err = clues.Stack(err)
@@ -318,7 +318,7 @@ func DeltaEnumerateItems[T any](
 			pager.Reset(ctx)
 
 			pageCount = 0
-			resultCount = 0
+			itemCount = 0
 
 			if err := npr.writeNextPage(ctx, nil, true); err != nil {
 				npr.err = clues.Stack(err)
@@ -335,7 +335,7 @@ func DeltaEnumerateItems[T any](
 
 		pageResults := page.GetValue()
 
-		resultCount += len(pageResults)
+		itemCount += len(pageResults)
 		pageCount++
 
 		if err := npr.writeNextPage(ctx, pageResults, false); err != nil {
@@ -354,7 +354,7 @@ func DeltaEnumerateItems[T any](
 
 	logger.Ctx(ctx).Infow(
 		"completed delta item enumeration",
-		"result_count", resultCount,
+		"item_count", itemCount,
 		"page_count", pageCount)
 
 	npr.du = DeltaUpdate{
