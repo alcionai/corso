@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
@@ -157,6 +158,7 @@ func mustMatchConfig(
 	g Getter,
 	tomlMap map[string]string,
 	m map[string]string,
+	pathKeys []string,
 ) error {
 	for k, v := range m {
 		if len(v) == 0 {
@@ -172,7 +174,8 @@ func mustMatchConfig(
 
 		areEqual := false
 
-		if path.DoesPathExistInOS(v) && path.DoesPathExistInOS(vv) {
+		// some of the values maybe paths, hence they require more than just string equality check
+		if len(pathKeys) > 0 && slices.Contains(pathKeys, k) {
 			areEqual = path.ArePathsEquivalent(v, vv)
 		} else {
 			areEqual = v == vv

@@ -216,6 +216,8 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 	s3Cfg := &storage.S3Config{Bucket: bkt}
 	m365 := account.M365Config{AzureTenantID: tid}
 
+	m365PathKeys := []string{}
+
 	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, repository.Options{}, "repoid")
 	require.NoError(t, err, "writing repo config", clues.ToCore(err))
 
@@ -272,7 +274,7 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.errCheck(suite.T(), mustMatchConfig(vpr, test.input), clues.ToCore(err))
+			test.errCheck(suite.T(), mustMatchConfig(vpr, test.input, m365PathKeys), clues.ToCore(err))
 		})
 	}
 }

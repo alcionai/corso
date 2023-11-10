@@ -19,6 +19,9 @@ var fsConstToTomlKeyMap = map[string]string{
 	FilesystemPath:         FilesystemPath,
 }
 
+// add filesystem config key names that require path related validations
+var fsPathKeys = []string{FilesystemPath}
+
 type FilesystemConfig struct {
 	Path string
 }
@@ -80,7 +83,7 @@ func (c *FilesystemConfig) ApplyConfigOverrides(
 			}
 
 			// This is matching override values from config file.
-			if err := mustMatchConfig(g, fsConstToTomlKeyMap, fsOverrides(overrides)); err != nil {
+			if err := mustMatchConfig(g, fsConstToTomlKeyMap, fsOverrides(overrides), fsPathKeys); err != nil {
 				return clues.Wrap(err, "verifying storage configs in corso config file")
 			}
 		}

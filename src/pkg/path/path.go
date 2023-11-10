@@ -52,7 +52,6 @@ package path
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -327,11 +326,6 @@ func ArePathsEquivalent(path1, path2 string) bool {
 	normalizedPath2 = strings.TrimSuffix(normalizedPath2, string(filepath.Separator))
 
 	return normalizedPath1 == normalizedPath2
-}
-
-func DoesPathExistInOS(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
 
 // ---------------------------------------------------------------------------
