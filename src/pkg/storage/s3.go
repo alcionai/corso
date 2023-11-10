@@ -62,6 +62,9 @@ var s3constToTomlKeyMap = map[string]string{
 	StorageProviderTypeKey: StorageProviderTypeKey,
 }
 
+// add s3 config key names that require path related validations
+var s3PathKeys = []string{}
+
 func (s Storage) ToS3Config() (*S3Config, error) {
 	return buildS3ConfigFromMap(s.Config)
 }
@@ -176,7 +179,7 @@ func (c *S3Config) ApplyConfigOverrides(
 				return clues.New("unsupported storage provider: [" + providerType + "]")
 			}
 
-			if err := mustMatchConfig(kvg, s3constToTomlKeyMap, s3Overrides(overrides)); err != nil {
+			if err := mustMatchConfig(kvg, s3constToTomlKeyMap, s3Overrides(overrides), s3PathKeys); err != nil {
 				return clues.Stack(err)
 			}
 		}

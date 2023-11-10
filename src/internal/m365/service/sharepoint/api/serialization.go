@@ -9,7 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	betamodels "github.com/alcionai/corso/src/internal/m365/graph/betasdk/models"
+	betamodels "github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk/models"
 )
 
 // createFromBytes generates an m365 object form bytes.
