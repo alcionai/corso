@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -124,7 +125,7 @@ func prepNewTestBackupOp(
 		acct: tconfig.NewM365Account(t),
 		st:   storeTD.NewPrefixedS3Storage(t),
 	}
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	k := kopia.NewConn(bod.st)
 

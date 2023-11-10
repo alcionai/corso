@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/repo/format"
@@ -24,6 +23,7 @@ import (
 
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
@@ -203,7 +203,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 
 func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -241,7 +241,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 
 func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeeds() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -289,7 +289,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 // blobs as there's several of them, but at least this gives us something.
 func (suite *BasicKopiaIntegrationSuite) TestSetRetentionParameters_NoChangesOnFailure() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -379,7 +379,7 @@ func checkRetentionParams(
 //revive:disable-next-line:context-as-argument
 func mustReopen(t *testing.T, ctx context.Context, w *Wrapper) {
 	k := w.c
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	err := w.Close(ctx)
 	require.NoError(t, err, "closing wrapper: %v", clues.ToCore(err))

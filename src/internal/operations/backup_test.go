@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/google/uuid"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -1515,7 +1515,7 @@ func TestAssistBackupIntegrationSuite(t *testing.T) {
 
 func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()

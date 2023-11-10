@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -37,7 +37,7 @@ func TestStreamStoreIntgSuite(t *testing.T) {
 
 func (suite *StreamStoreIntgSuite) SetupSubTest() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()

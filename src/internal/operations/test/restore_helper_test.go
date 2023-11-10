@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -83,7 +83,7 @@ func prepNewTestRestoreOp(
 			st:   backupStore,
 		}
 		k            = kopia.NewConn(rod.st)
-		repoNameHash = uuid.NewString()[:7]
+		repoNameHash = strTD.NewHashForRepoConfigName()
 	)
 
 	err := k.Connect(ctx, repository.Options{}, repoNameHash)

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -858,7 +859,7 @@ func openConnAndModelStore(
 ) (*conn, *ModelStore) {
 	st := storeTD.NewFilesystemStorage(t)
 	c := NewConn(st)
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	err := c.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
@@ -879,7 +880,7 @@ func reconnectToModelStore(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	c *conn,
 ) *ModelStore {
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 	err := c.Connect(ctx, repository.Options{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 

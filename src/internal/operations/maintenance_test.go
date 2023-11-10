@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -40,7 +40,7 @@ func getKopiaHandles(
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*kopia.Wrapper, *kopia.ModelStore) {
 	st := storeTD.NewPrefixedS3Storage(t)
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 	k := kopia.NewConn(st)
 	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))

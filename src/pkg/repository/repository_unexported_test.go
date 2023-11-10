@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/model"
@@ -698,7 +699,7 @@ func TestRepositoryModelIntgSuite(t *testing.T) {
 
 func (suite *RepositoryModelIntgSuite) SetupSuite() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -753,7 +754,7 @@ func (suite *RepositoryModelIntgSuite) TearDownSuite() {
 
 func (suite *RepositoryModelIntgSuite) TestGetRepositoryModel() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()

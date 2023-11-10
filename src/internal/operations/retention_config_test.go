@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -36,7 +36,7 @@ func (suite *RetentionConfigOpIntegrationSuite) TestRepoRetentionConfig() {
 		// need to initialize the repository before we can test connecting to it.
 		st           = storeTD.NewPrefixedS3Storage(t)
 		k            = kopia.NewConn(st)
-		repoNameHash = uuid.NewString()[:7]
+		repoNameHash = strTD.NewHashForRepoConfigName()
 	)
 
 	ctx, flush := tester.NewContext(t)

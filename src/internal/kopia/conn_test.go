@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/google/uuid"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
 	"github.com/kopia/kopia/snapshot"
@@ -17,6 +16,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -28,7 +28,7 @@ func openLocalKopiaRepo(
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, error) {
 	st := storeTD.NewFilesystemStorage(t)
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	k := NewConn(st)
 	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash); err != nil {
@@ -43,7 +43,7 @@ func openKopiaRepo(
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, error) {
 	st := storeTD.NewPrefixedS3Storage(t)
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	k := NewConn(st)
 	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash); err != nil {
@@ -94,7 +94,7 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 
 func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -115,7 +115,7 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 
 func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -130,7 +130,7 @@ func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
 
 func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -288,7 +288,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 	newRetentionDaily := policy.OptionalInt(42)
 	newRetention := policy.RetentionPolicy{KeepDaily: &newRetentionDaily}
 	newSchedInterval := time.Second * 42
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	table := []struct {
 		name          string
@@ -400,7 +400,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 
 func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -421,7 +421,7 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 
 func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -494,7 +494,7 @@ func TestConnRetentionIntegrationSuite(t *testing.T) {
 // from the default values that kopia uses.
 func (suite *ConnRetentionIntegrationSuite) TestInitWithAndWithoutRetention() {
 	t := suite.T()
-	repoNameHash := uuid.NewString()[:7]
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
