@@ -78,7 +78,7 @@ func (suite *siteIntegrationSuite) TestSites_GetByID() {
 		suite.Run("site_"+s.ID, func() {
 			t := suite.T()
 			site, err := SiteByID(ctx, acct, s.ID)
-			assert.NoError(t, err, clues.ToCore(err))
+			require.NoError(t, err, clues.ToCore(err))
 			assert.NotEmpty(t, site.WebURL)
 			assert.NotEmpty(t, site.ID)
 			assert.NotEmpty(t, site.OwnerType)
