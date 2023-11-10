@@ -1751,6 +1751,379 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 	}
 }
 
+func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_PreviewBackup() {
+	type itemContainer struct {
+		container mockContainer
+		added     []string
+		removed   []string
+	}
+
+	type expected struct {
+		mustHave  []itemContainer
+		maybeHave []itemContainer
+		// numItems is the total number of added items to expect. Needed because
+		// some tests can return one of a set of items depending on the order
+		// containers are processed in.
+		numItems int
+	}
+
+	var (
+		containers []mockContainer
+		newDelta   = pagers.DeltaUpdate{URL: "delta_url"}
+	)
+
+	for i := 0; i < 10; i++ {
+		id := fmt.Sprintf("%d", i)
+		name := fmt.Sprintf("display_name_%d", i)
+		containers = append(containers, mockContainer{
+			id:          strPtr(id),
+			displayName: strPtr(name),
+			p:           path.Builder{}.Append(id),
+			l:           path.Builder{}.Append(name),
+		})
+	}
+
+	table := []struct {
+		name     string
+		limits   control.Limits
+		data     []itemContainer
+		includes []string
+		excludes []string
+		expect   expected
+	}{
+		{
+			name: "IncludeContainer NoItemLimit ContainerLimit",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        1,
+			},
+			data: []itemContainer{
+				{
+					container: containers[0],
+					added:     []string{"a1", "a2", "a3", "a4", "a5"},
+				},
+				{
+					container: containers[1],
+					added:     []string{"a6", "a7", "a8", "a9", "a10"},
+				},
+				{
+					container: containers[2],
+					added:     []string{"a11", "a12", "a13", "a14", "a15"},
+				},
+			},
+			includes: []string{ptr.Val(containers[1].GetId())},
+			expect: expected{
+				mustHave: []itemContainer{
+					{
+						container: containers[1],
+						added:     []string{"a6", "a7", "a8", "a9", "a10"},
+					},
+				},
+				numItems: 5,
+			},
+		},
+		{
+			name: "IncludeContainer ItemLimit ContainerLimit",
+			limits: control.Limits{
+				MaxItems:             3,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        1,
+			},
+			data: []itemContainer{
+				{
+					container: containers[0],
+					added:     []string{"a1", "a2", "a3", "a4", "a5"},
+				},
+				{
+					container: containers[1],
+					added:     []string{"a6", "a7", "a8", "a9", "a10"},
+				},
+				{
+					container: containers[2],
+					added:     []string{"a11", "a12", "a13", "a14", "a15"},
+				},
+			},
+			includes: []string{ptr.Val(containers[1].GetId())},
+			expect: expected{
+				maybeHave: []itemContainer{
+					{
+						container: containers[1],
+						added:     []string{"a6", "a7", "a8", "a9", "a10"},
+					},
+				},
+				numItems: 3,
+			},
+		},
+		{
+			name: "IncludeContainer ItemLimit NoContainerLimit",
+			limits: control.Limits{
+				MaxItems:             8,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+			},
+			data: []itemContainer{
+				{
+					container: containers[0],
+					added:     []string{"a1", "a2", "a3", "a4", "a5"},
+				},
+				{
+					container: containers[1],
+					added:     []string{"a6", "a7", "a8", "a9", "a10"},
+				},
+				{
+					container: containers[2],
+					added:     []string{"a11", "a12", "a13", "a14", "a15"},
+				},
+			},
+			includes: []string{ptr.Val(containers[1].GetId())},
+			expect: expected{
+				mustHave: []itemContainer{
+					{
+						container: containers[1],
+						added:     []string{"a6", "a7", "a8", "a9", "a10"},
+					},
+				},
+				maybeHave: []itemContainer{
+					{
+						container: containers[0],
+						added:     []string{"a1", "a2", "a3", "a4", "a5"},
+					},
+					{
+						container: containers[2],
+						added:     []string{"a11", "a12", "a13", "a14", "a15"},
+					},
+				},
+				numItems: 8,
+			},
+		},
+		{
+			name: "PerContainerItemLimit NoContainerLimit",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 3,
+				MaxContainers:        999,
+			},
+			data: []itemContainer{
+				{
+					container: containers[0],
+					added:     []string{"a1", "a2", "a3", "a4", "a5"},
+				},
+				{
+					container: containers[1],
+					added:     []string{"a6", "a7", "a8", "a9", "a10"},
+				},
+				{
+					container: containers[2],
+					added:     []string{"a11", "a12", "a13", "a14", "a15"},
+				},
+			},
+			expect: expected{
+				// The test isn't setup to handle partial containers so the best we can
+				// do is check that all items are expected and the item limit is hit.
+				maybeHave: []itemContainer{
+					{
+						container: containers[1],
+						added:     []string{"a6", "a7", "a8", "a9", "a10"},
+					},
+					{
+						container: containers[0],
+						added:     []string{"a1", "a2", "a3", "a4", "a5"},
+					},
+					{
+						container: containers[2],
+						added:     []string{"a11", "a12", "a13", "a14", "a15"},
+					},
+				},
+				numItems: 9,
+			},
+		},
+		{
+			name: "ExcludeContainer NoLimits",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+			},
+			excludes: []string{ptr.Val(containers[1].GetId())},
+			data: []itemContainer{
+				{
+					container: containers[0],
+					added:     []string{"a1", "a2", "a3", "a4", "a5"},
+				},
+				{
+					container: containers[1],
+					added:     []string{"a6", "a7", "a8", "a9", "a10"},
+				},
+				{
+					container: containers[2],
+					added:     []string{"a11", "a12", "a13", "a14", "a15"},
+				},
+			},
+			expect: expected{
+				// The test isn't setup to handle partial containers so the best we can
+				// do is check that all items are expected and the item limit is hit.
+				maybeHave: []itemContainer{
+					{
+						container: containers[0],
+						added:     []string{"a1", "a2", "a3", "a4", "a5"},
+					},
+					{
+						container: containers[2],
+						added:     []string{"a11", "a12", "a13", "a14", "a15"},
+					},
+				},
+				numItems: 10,
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			var (
+				qp = graph.QueryParams{
+					Category:          path.EmailCategory, // doesn't matter which one we use.
+					ProtectedResource: inMock.NewProvider("user_id", "user_name"),
+					TenantID:          suite.creds.AzureTenantID,
+				}
+				statusUpdater = func(*support.ControllerOperationStatus) {}
+				allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
+				dps           = metadata.DeltaPaths{} // incrementals are tested separately
+			)
+
+			inputContainers := make([]mockContainer, 0, len(test.data))
+			inputItems := map[string]mockGetterResults{}
+
+			for _, item := range test.data {
+				inputContainers = append(inputContainers, item.container)
+				inputItems[ptr.Val(item.container.GetId())] = mockGetterResults{
+					added:    item.added,
+					removed:  item.removed,
+					newDelta: newDelta,
+				}
+			}
+
+			// Make sure concurrency limit is initialized to a non-zero value or we'll
+			// deadlock.
+			opts := control.DefaultOptions()
+			opts.FailureHandling = control.FailFast
+			opts.ToggleFeatures.PreviewBackup = true
+			opts.ItemLimits = test.limits
+
+			resolver := newMockResolver(inputContainers...)
+			getter := mockGetter{results: inputItems}
+			mbh := mockBackupHandler{
+				mg:              getter,
+				fg:              resolver,
+				category:        qp.Category,
+				previewIncludes: test.includes,
+				previewExcludes: test.excludes,
+			}
+
+			require.Equal(t, "user_id", qp.ProtectedResource.ID(), qp.ProtectedResource)
+			require.Equal(t, "user_name", qp.ProtectedResource.Name(), qp.ProtectedResource)
+
+			collections, err := populateCollections(
+				ctx,
+				qp,
+				mbh,
+				statusUpdater,
+				resolver,
+				allScope,
+				dps,
+				opts,
+				fault.New(true))
+			require.NoError(t, err, clues.ToCore(err))
+
+			var totalItems int
+
+			// collection assertions
+			for _, c := range collections {
+				if c.FullPath().Service() == path.ExchangeMetadataService {
+					continue
+				}
+
+				if c.State() == data.DeletedState {
+					continue
+				}
+
+				// TODO(ashmrtn): Remove when we make LocationPath part of the
+				// Collection interface.
+				lp := c.(data.LocationPather)
+				mustHave := map[string]struct{}{}
+				maybeHave := map[string]struct{}{}
+
+				containerKey := lp.LocationPath().String()
+
+				for _, item := range test.expect.mustHave {
+					// Get the right container of items.
+					if containerKey != item.container.l.String() {
+						continue
+					}
+
+					for _, id := range item.added {
+						mustHave[id] = struct{}{}
+					}
+				}
+
+				for _, item := range test.expect.maybeHave {
+					// Get the right container of items.
+					if containerKey != item.container.l.String() {
+						continue
+					}
+
+					for _, id := range item.added {
+						maybeHave[id] = struct{}{}
+					}
+				}
+
+				errs := fault.New(true)
+
+				for item := range c.Items(ctx, errs) {
+					// We don't expect deleted items in the test or in practice because we
+					// never reuse delta tokens for preview backups.
+					if item.Deleted() {
+						continue
+					}
+
+					totalItems++
+
+					var found bool
+
+					if _, found = mustHave[item.ID()]; found {
+						delete(mustHave, item.ID())
+						continue
+					}
+
+					if _, found = maybeHave[item.ID()]; found {
+						delete(maybeHave, item.ID())
+						continue
+					}
+
+					assert.True(t, found, "unexpected item %v", item.ID())
+				}
+				require.NoError(t, errs.Failure())
+
+				assert.Empty(
+					t,
+					mustHave,
+					"container %v missing required items",
+					lp.LocationPath().String())
+			}
+
+			assert.Equal(
+				t,
+				test.expect.numItems,
+				totalItems,
+				"total items seen across collections")
+		})
+	}
+}
+
 func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_incrementals_nondelta() {
 	var (
 		userID   = "user_id"
