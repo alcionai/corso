@@ -805,7 +805,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				}
 			},
 			expect: expected{
-				errCheck: assert.Error,
+				errCheck:     assert.Error,
+				maxGetterIdx: 1,
 			},
 			ctxCancelled: true,
 		},
