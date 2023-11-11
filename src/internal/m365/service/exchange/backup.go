@@ -110,6 +110,8 @@ func ProduceBackupCollections(
 		collections = append(collections, baseCols...)
 	}
 
+	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
+
 	return collections, nil, canUsePreviousBackup, el.Failure()
 }
 

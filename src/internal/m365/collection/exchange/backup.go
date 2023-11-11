@@ -165,6 +165,7 @@ func populateCollections(
 		// Only create a collection if the path matches the scope.
 		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		if !ok {
+			cl.Inc(count.SkippedContainers)
 			continue
 		}
 
@@ -304,8 +305,6 @@ func populateCollections(
 	}
 
 	collections["metadata"] = col
-
-	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
 
 	return collections, el.Failure()
 }

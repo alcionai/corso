@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -1158,7 +1159,8 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 				tenant,
 				idname.NewProvider(user, user),
 				nil,
-				control.Options{ToggleFeatures: control.Toggles{}})
+				control.Options{ToggleFeatures: control.Toggles{}},
+				count.New())
 
 			c.CollectionMap[driveID] = map[string]*Collection{}
 
@@ -1170,6 +1172,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 				excludes,
 				test.topLevelPackages,
 				"prevdelta",
+				count.New(),
 				errs)
 			test.expect(t, err, clues.ToCore(err))
 			assert.ElementsMatch(
@@ -1628,7 +1631,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 
 			fb := fault.New(true)
 
-			deltas, paths, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, cols, fb)
+			deltas, paths, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, cols, count.New(), fb)
 			test.errCheck(t, err)
 			assert.Equal(t, test.canUsePreviousBackup, canUsePreviousBackup, "can use previous backup")
 
@@ -1656,7 +1659,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata_ReadFailure() {
 
 	fc := failingColl{}
 
-	_, _, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, []data.RestoreCollection{fc}, fault.New(true))
+	_, _, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, []data.RestoreCollection{fc}, count.New(), fault.New(true))
 	require.NoError(t, err)
 	require.False(t, canUsePreviousBackup)
 }
@@ -3427,7 +3430,8 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				tenant,
 				idname.NewProvider(user, user),
 				func(*support.ControllerOperationStatus) {},
-				control.Options{ToggleFeatures: control.Toggles{}})
+				control.Options{ToggleFeatures: control.Toggles{}},
+				count.New())
 
 			prevDelta := "prev-delta"
 
@@ -3484,6 +3488,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 								t,
 								data.NoFetchRestoreCollection{Collection: baseCol}),
 						},
+						count.New(),
 						errs)
 					if !assert.NoError(t, err, "deserializing metadata", clues.ToCore(err)) {
 						continue
@@ -3616,7 +3621,8 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 				tenant,
 				idname.NewProvider(user, user),
 				func(*support.ControllerOperationStatus) {},
-				control.Options{ToggleFeatures: control.Toggles{}})
+				control.Options{ToggleFeatures: control.Toggles{}},
+				count.New())
 
 			errs := fault.New(true)
 			delList := prefixmatcher.NewStringSetBuilder()

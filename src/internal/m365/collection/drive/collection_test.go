@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -215,7 +216,8 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				control.Options{ToggleFeatures: control.Toggles{}},
 				false,
 				true,
-				nil)
+				nil,
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
@@ -337,7 +339,8 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
 		true,
-		nil)
+		nil,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	stubItem := odTD.NewStubDriveItem(
@@ -415,7 +418,8 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
 		true,
-		nil)
+		nil,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	coll.Add(stubItem)
@@ -471,7 +475,8 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
 		true,
-		nil)
+		nil,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	mtime := time.Now().AddDate(0, -1, 0)
@@ -1002,7 +1007,8 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 				opts,
 				false,
 				true,
-				nil)
+				nil,
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			stubItem := odTD.NewStubDriveItem(
