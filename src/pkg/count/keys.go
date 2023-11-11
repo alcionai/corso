@@ -27,6 +27,7 @@ const (
 
 	// amounts reported by data providers
 
+	Channels                      Key = "channels"
 	CollectionMoved               Key = "collection-moved"
 	CollectionNew                 Key = "collection-state-new"
 	CollectionNotMoved            Key = "collection-state-not-moved"
@@ -43,6 +44,8 @@ const (
 	ItemsRemoved                  Key = "items-removed"
 	LazyDeletedInFlight           Key = "lazy-deleted-in-flight"
 	Malware                       Key = "malware"
+	MetadataItems                 Key = "metadata-items"
+	MetadataBytes                 Key = "metadata-bytes"
 	MissingDelta                  Key = "missing-delta-token"
 	NewDeltas                     Key = "new-delta-tokens"
 	NewPrevPaths                  Key = "new-previous-paths"
@@ -54,6 +57,7 @@ const (
 	PrevPaths                     Key = "previous-paths"
 	PreviousPathMetadataCollision Key = "previous-path-metadata-collision"
 	ProviderItemsRead             Key = "provider-items-read"
+	Sites                         Key = "sites"
 	SkippedContainers             Key = "skipped-containers"
 	StreamBytesAdded              Key = "stream-bytes-added"
 	StreamDirsAdded               Key = "stream-dirs-added"
