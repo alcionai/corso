@@ -80,6 +80,7 @@ func NewBaseCollection(
 		locationPath:    location,
 		prevPath:        prev,
 		state:           StateOf(prev, curr, counter),
+		Counter:         counter.Local(),
 	}
 }
 
@@ -107,6 +108,8 @@ type BaseCollection struct {
 
 	// doNotMergeItems should only be true if the old delta token expired.
 	doNotMergeItems bool
+
+	Counter *count.Bus
 }
 
 // FullPath returns the BaseCollection's fullPath []string
