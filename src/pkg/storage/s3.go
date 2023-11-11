@@ -1,7 +1,10 @@
 package storage
 
 import (
+	"encoding/json"
 	"os"
+	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/alcionai/clues"
@@ -19,6 +22,14 @@ type S3Config struct {
 	Prefix         string
 	DoNotUseTLS    bool
 	DoNotVerifyTLS bool
+}
+
+var excludedS3ConfigFieldsForHashing = []string{
+	"DoNotUseTLS",
+	"DoNotVerifyTLS",
+	"AccessKey",
+	"SecretKey",
+	"SessionToken",
 }
 
 // config key consts
@@ -127,6 +138,31 @@ func (c S3Config) validate() error {
 	}
 
 	return nil
+}
+
+func (c S3Config) configHash() (string, error) {
+	filteredS3Config := createFilteredS3ConfigForHashing(c)
+
+	b, err := json.Marshal(filteredS3Config)
+	if err != nil {
+		return "", clues.Stack(err)
+	}
+
+	return str.GenerateHash(b), nil
+}
+
+func createFilteredS3ConfigForHashing(source S3Config) map[string]any {
+	filteredS3Config := make(map[string]any)
+	sourceValue := reflect.ValueOf(source)
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		fieldName := sourceValue.Type().Field(i).Name
+		if !slices.Contains(excludedS3ConfigFieldsForHashing, fieldName) {
+			filteredS3Config[fieldName] = sourceValue.Field(i).Interface()
+		}
+	}
+
+	return filteredS3Config
 }
 
 func s3Overrides(in map[string]string) map[string]string {

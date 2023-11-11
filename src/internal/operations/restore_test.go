@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -236,13 +237,14 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	var (
-		st = storeTD.NewPrefixedS3Storage(t)
-		k  = kopia.NewConn(st)
+		st           = storeTD.NewPrefixedS3Storage(t)
+		k            = kopia.NewConn(st)
+		repoNameHash = strTD.NewHashForRepoConfigName()
 	)
 
 	suite.acct = tconfig.NewM365Account(t)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {

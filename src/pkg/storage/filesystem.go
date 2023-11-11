@@ -1,6 +1,9 @@
 package storage
 
 import (
+	"encoding/json"
+	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -9,6 +12,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+// nothing to exclude, for parity
+var excludedFileSystemConfigFieldsForHashing = []string{}
 
 const (
 	FilesystemPath = "path"
@@ -56,6 +62,31 @@ func (c FilesystemConfig) validate() error {
 
 func (c *FilesystemConfig) fsConfigsFromStore(g Getter) {
 	c.Path = cast.ToString(g.Get(FilesystemPath))
+}
+
+func (c FilesystemConfig) configHash() (string, error) {
+	filteredFileSystemConfig := createFilteredFileSystemConfigForHashing(c)
+
+	b, err := json.Marshal(filteredFileSystemConfig)
+	if err != nil {
+		return "", clues.Stack(err)
+	}
+
+	return str.GenerateHash(b), nil
+}
+
+func createFilteredFileSystemConfigForHashing(source FilesystemConfig) map[string]any {
+	filteredFileSystemConfig := make(map[string]any)
+	sourceValue := reflect.ValueOf(source)
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		fieldName := sourceValue.Type().Field(i).Name
+		if !slices.Contains(excludedFileSystemConfigFieldsForHashing, fieldName) {
+			filteredFileSystemConfig[fieldName] = sourceValue.Field(i).Interface()
+		}
+	}
+
+	return filteredFileSystemConfig
 }
 
 // TODO(pandeyabs): Remove this. It's not adding any value.

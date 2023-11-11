@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -1514,6 +1515,7 @@ func TestAssistBackupIntegrationSuite(t *testing.T) {
 
 func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -1525,7 +1527,7 @@ func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 
 	suite.acct = tconfig.NewM365Account(t)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {

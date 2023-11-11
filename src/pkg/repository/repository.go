@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -211,12 +212,17 @@ func (r *repository) UpdatePassword(ctx context.Context, password string) (err e
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer close(progressBar)
 
+	repoNameHash, err := r.GenerateHashForRepositoryConfigFileName()
+	if err != nil {
+		return clues.Wrap(err, "generating repo config hash")
+	}
+
 	kopiaRef := kopia.NewConn(r.Storage)
-	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
+	if err := kopiaRef.Connect(ctx, r.Opts.Repo, repoNameHash); err != nil {
 		return clues.Wrap(err, "connecting kopia client")
 	}
 
-	err = kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo)
+	err = kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo, repoNameHash)
 	if err != nil {
 		return clues.Wrap(err, "updating on kopia")
 	}
@@ -294,9 +300,14 @@ func (r *repository) setupKopia(
 ) error {
 	var err error
 
+	repoHashName, err := r.GenerateHashForRepositoryConfigFileName()
+	if err != nil {
+		return clues.Wrap(err, "generating repo config hash")
+	}
+
 	kopiaRef := kopia.NewConn(r.Storage)
 	if isInitialize {
-		if err := kopiaRef.Initialize(ctx, r.Opts.Repo, retentionOpts); err != nil {
+		if err := kopiaRef.Initialize(ctx, r.Opts.Repo, retentionOpts, repoHashName); err != nil {
 			// Replace common internal errors so that SDK users can check results with errors.Is()
 			if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
 				return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
@@ -305,7 +316,7 @@ func (r *repository) setupKopia(
 			return clues.Wrap(err, "initializing kopia")
 		}
 	} else {
-		if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
+		if err := kopiaRef.Connect(ctx, r.Opts.Repo, repoHashName); err != nil {
 			return clues.Wrap(err, "connecting kopia client")
 		}
 	}
@@ -333,6 +344,20 @@ func (r *repository) setupKopia(
 	}
 
 	return nil
+}
+
+func (r repository) GenerateHashForRepositoryConfigFileName() (string, error) {
+	accountHash, err := r.Account.GetAccountConfigHash()
+	if err != nil {
+		return "", clues.Wrap(err, "fetch account config hash")
+	}
+
+	storageHash, err := r.Storage.GetStorageConfigHash()
+	if err != nil {
+		return "", clues.Wrap(err, "fetch storage config hash")
+	}
+
+	return fmt.Sprintf("%s-%s", accountHash, storageHash), nil
 }
 
 // ---------------------------------------------------------------------------
