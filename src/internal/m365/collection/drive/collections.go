@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -27,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -335,7 +335,7 @@ func (c *Collections) Get(
 
 		logger.Ctx(ictx).Infow(
 			"previous metadata for drive",
-			"num_paths_entries", len(oldPrevPaths))
+			"count_old_prev_paths", len(oldPrevPaths))
 
 		du, newPrevPaths, err := c.PopulateDriveCollections(
 			ctx,
@@ -368,7 +368,7 @@ func (c *Collections) Get(
 
 		logger.Ctx(ictx).Infow(
 			"persisted metadata for drive",
-			"num_new_paths_entries", len(newPrevPaths),
+			"count_new_prev_paths", len(newPrevPaths),
 			"delta_reset", du.Reset)
 
 		numDriveItems := c.NumItems - numPrevItems
@@ -762,6 +762,7 @@ func (c *Collections) PopulateDriveCollections(
 			ctx = clues.Add(ctx, "delta_reset_occurred", true)
 			newPrevPaths = map[string]string{}
 			currPrevPaths = map[string]string{}
+			seenFolders = map[string]string{}
 			c.CollectionMap[driveID] = map[string]*Collection{}
 			invalidPrevDelta = true
 		}
@@ -927,6 +928,10 @@ func (c *Collections) processItem(
 
 			delete(c.CollectionMap[driveID], alreadyHandledFolderID)
 			delete(newPrevPaths, alreadyHandledFolderID)
+		}
+
+		if invalidPrevDelta {
+			prevPath = nil
 		}
 
 		seenFolders[collectionPath.String()] = itemID
