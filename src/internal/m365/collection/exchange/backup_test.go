@@ -332,7 +332,8 @@ func (suite *DataCollectionsUnitSuite) TestParseMetadataCollections() {
 			coll, err := graph.MakeMetadataCollection(
 				pathPrefix,
 				entries,
-				func(cos *support.ControllerOperationStatus) {})
+				func(cos *support.ControllerOperationStatus) {},
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			cdps, canUsePreviousBackup, err := ParseMetadataCollections(ctx, []data.RestoreCollection{

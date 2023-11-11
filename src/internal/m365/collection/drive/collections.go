@@ -528,7 +528,8 @@ func (c *Collections) Get(
 			graph.NewMetadataEntry(bupMD.PreviousPathFileName, driveIDToPrevPaths),
 			graph.NewMetadataEntry(bupMD.DeltaURLsFileName, driveIDToDeltaLink),
 		},
-		c.statusUpdater)
+		c.statusUpdater,
+		count.New())
 
 	if err != nil {
 		// Technically it's safe to continue here because the logic for starting an
