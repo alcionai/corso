@@ -11,11 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -326,25 +325,11 @@ func assertSliceEmptyOr[S ~[]E, E any](
 	assertionFunc(t, expect, got, msgAndArgs)
 }
 
-func assertMapEmptyOr[M ~map[K]V, K comparable, V any](
-	t *testing.T,
-	expect M,
-	got M,
-	assertionFunc assert.ComparisonAssertionFunc,
-	msgAndArgs ...any,
-) {
-	if len(expect) == 0 {
-		assert.Empty(t, got, msgAndArgs)
-		return
-	}
-
-	assertionFunc(t, expect, got, msgAndArgs)
-}
-
 func assertAddedAndRemoved(
 	t *testing.T,
 	validModTimes bool,
 	wantAdded []testItem,
+	partialAdded []testItem,
 	gotAdded map[string]time.Time,
 	wantRemoved []testItem,
 	gotRemoved []string,
@@ -352,31 +337,41 @@ func assertAddedAndRemoved(
 	epoch, err := time.Parse(time.DateOnly, "1970-01-01")
 	require.NoError(t, err, clues.ToCore(err))
 
-	expectAdded := map[string]time.Time{}
+	requireAdded := map[string]time.Time{}
 	for _, item := range wantAdded {
-		expectAdded[item.id] = item.modTime
+		requireAdded[item.id] = item.modTime
 	}
 
-	if validModTimes {
-		assertMapEmptyOr(
-			t,
-			expectAdded,
-			gotAdded,
-			assert.Equal,
-			"added item IDs and mod times")
-	} else {
-		assertSliceEmptyOr(
-			t,
-			maps.Keys(expectAdded),
-			maps.Keys(gotAdded),
-			assert.ElementsMatch,
-			"added item IDs")
+	maybeAdded := map[string]time.Time{}
+	for _, item := range partialAdded {
+		maybeAdded[item.id] = item.modTime
+	}
 
-		for _, modtime := range gotAdded {
-			assert.True(t, modtime.After(epoch), "mod time after epoch")
-			assert.False(t, modtime.IsZero(), "non-zero mod time")
+	for id, mt := range gotAdded {
+		var (
+			wantMT time.Time
+			found  bool
+		)
+
+		if wantMT, found = requireAdded[id]; found {
+			delete(requireAdded, id)
+		} else if wantMT, found = maybeAdded[id]; found {
+			delete(maybeAdded, id)
+		}
+
+		if !assert.True(t, found, "unexpected added item with ID %v", id) {
+			continue
+		}
+
+		if validModTimes {
+			assert.Equal(t, wantMT, mt, "mod time for item with ID %v", id)
+		} else {
+			assert.True(t, mt.After(epoch), "mod time after epoch for item with ID %v", id)
+			assert.False(t, mt.IsZero(), "non-zero mod time for item with ID %v", id)
 		}
 	}
+
+	assert.Empty(t, requireAdded, "required items not added")
 
 	expectRemoved := []string{}
 	for _, item := range wantRemoved {
@@ -399,6 +394,10 @@ type modTimeTest struct {
 var (
 	addedItem1 = addedItem("a_uno", time.Now())
 	addedItem2 = addedItem("a_dos", time.Now())
+	addedItem3 = addedItem("a_tres", time.Now())
+	addedItem4 = addedItem("a_quatro", time.Now())
+	addedItem5 = addedItem("a_cinco", time.Now())
+	addedItem6 = addedItem("a_seis", time.Now())
 
 	removedItem1 = removedItem("r_uno")
 	removedItem2 = removedItem("r_dos")
@@ -427,7 +426,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			p *testIDsNonDeltaMultiPager,
 		) (NonDeltaHandler[testItem], DeltaHandler[testItem])
 		expectDeltaReset bool
-		expectDeltaLink  assert.ValueAssertionFunc
+		expectNoDelta    bool
 	}{
 		{
 			name:        "NoPrevDelta",
@@ -438,7 +437,6 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				return nil, newDeltaPager(p)
 			},
 			expectDeltaReset: true,
-			expectDeltaLink:  assert.NotEmpty,
 		},
 		{
 			name:        "PrevDelta",
@@ -449,7 +447,6 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			) (NonDeltaHandler[testItem], DeltaHandler[testItem]) {
 				return nil, newDeltaPager(p)
 			},
-			expectDeltaLink: assert.NotEmpty,
 		},
 		{
 			name:      "DeltaNotAllowed",
@@ -460,14 +457,26 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				return p, nil
 			},
 			expectDeltaReset: true,
-			expectDeltaLink:  assert.Empty,
+			expectNoDelta:    true,
 		},
 	}
 
 	type expected struct {
 		errCheck assert.ErrorAssertionFunc
 		added    []testItem
+		// finalPageAdded is the set of items on the last page for queries that
+		// limit results. Some of these items may not be returned, but we don't
+		// make guarantees about which ones those will be.
+		finalPageAdded []testItem
+		// numAdded is the total number of added items that should be returned.
+		numAdded int
 		removed  []testItem
+		// maxGetterIdx is the maximum index for the item page getter. Helps ensure
+		// we're stopping enumeration when we reach the item limit.
+		maxGetterIdx int
+		// expectNoDelta should be set if we exit enumeration early due to the item
+		// limit so we don't get a delta token.
+		noDelta bool
 	}
 
 	table := []struct {
@@ -476,8 +485,10 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			t *testing.T,
 			validModTimes bool,
 		) *testIDsNonDeltaMultiPager
-		filter func(a testItem) bool
-		expect expected
+		filter       func(a testItem) bool
+		expect       expected
+		limit        int
+		ctxCancelled bool
 	}{
 		{
 			name: "OnePage",
@@ -503,7 +514,9 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					addedItem1,
 					addedItem2,
 				},
-				removed: []testItem{removedItem1, removedItem2},
+				numAdded:     2,
+				removed:      []testItem{removedItem1, removedItem2},
+				maxGetterIdx: 1,
 			},
 		},
 		{
@@ -534,7 +547,9 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					addedItem1,
 					addedItem2,
 				},
-				removed: []testItem{removedItem1, removedItem2},
+				numAdded:     2,
+				removed:      []testItem{removedItem1, removedItem2},
+				maxGetterIdx: 2,
 			},
 		},
 		{
@@ -557,7 +572,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			filter: func(testItem) bool { return false },
 			expect: expected{
-				errCheck: assert.NoError,
+				errCheck:     assert.NoError,
+				maxGetterIdx: 1,
 			},
 		},
 		{
@@ -584,7 +600,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			filter: func(testItem) bool { return false },
 			expect: expected{
-				errCheck: assert.NoError,
+				errCheck:     assert.NoError,
+				maxGetterIdx: 2,
 			},
 		},
 		{
@@ -604,6 +621,195 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				errCheck: assert.Error,
 			},
 		},
+		{
+			name: "FourValidPages OnlyPartOfSecondPage",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t:             t,
+					validModTimes: validModTimes,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem2,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem3,
+								addedItem4,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem("cinco", time.Now()),
+								addedItem("seis", time.Now()),
+							},
+						},
+						{
+							items: []testItem{
+								addedItem("siete", time.Now()),
+								addedItem("ocho", time.Now()),
+							},
+						},
+					},
+				}
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+					addedItem2,
+				},
+				finalPageAdded: []testItem{
+					addedItem3,
+					addedItem4,
+				},
+				numAdded:     3,
+				maxGetterIdx: 3,
+				noDelta:      true,
+			},
+			limit: 3,
+		},
+		{
+			name: "FourValidPages OnlyPartOfSecondPage SomeItemsFiltered",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t:             t,
+					validModTimes: validModTimes,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem2,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem3,
+								addedItem4,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem5,
+								addedItem6,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem("siete", time.Now()),
+								addedItem("ocho", time.Now()),
+							},
+						},
+					},
+				}
+			},
+			filter: func(item testItem) bool {
+				return item.id != addedItem2.id
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+				},
+				finalPageAdded: []testItem{
+					addedItem3,
+					addedItem4,
+				},
+				numAdded:     2,
+				maxGetterIdx: 3,
+				noDelta:      true,
+			},
+			limit: 2,
+		},
+		{
+			name: "ThreeValidPages OnlyPartOfThirdPage RepeatItem",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t:             t,
+					validModTimes: validModTimes,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem2,
+								removedItem1,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem1,
+								addedItem4,
+								addedItem3,
+								removedItem2,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem5,
+								addedItem6,
+							},
+						},
+					},
+				}
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+					addedItem2,
+					addedItem3,
+					addedItem4,
+				},
+				finalPageAdded: []testItem{
+					addedItem5,
+					addedItem6,
+				},
+				removed: []testItem{
+					removedItem1,
+					removedItem2,
+				},
+				numAdded:     5,
+				maxGetterIdx: 3,
+			},
+			limit: 5,
+		},
+		{
+			name: "ParentContextCancelled",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t:             t,
+					validModTimes: true,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem("uno", time.Now()),
+								addedItem("dos", time.Now()),
+								removedItem("siete"),
+							},
+						},
+					},
+				}
+			},
+			expect: expected{
+				errCheck:     assert.Error,
+				maxGetterIdx: 1,
+			},
+			ctxCancelled: true,
+		},
 	}
 
 	for _, modTimeTest := range modTimeTests {
@@ -617,6 +823,14 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 							ctx, flush := tester.NewContext(t)
 							defer flush()
 
+							ictx, cancel := context.WithCancel(ctx)
+
+							if test.ctxCancelled {
+								cancel()
+							} else {
+								defer cancel()
+							}
+
 							filters := []func(testItem) bool{}
 							if test.filter != nil {
 								filters = append(filters, test.filter)
@@ -626,11 +840,12 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 							getter, deltaGetter := pagerTypeTest.pagersFunc(basePager)
 
 							addRemoved, err := GetAddedAndRemovedItemIDs[testItem](
-								ctx,
+								ictx,
 								getter,
 								deltaGetter,
 								pagerTypeTest.prevDelta,
 								pagerTypeTest.canUseDelta,
+								test.limit,
 								AddedAndRemovedByAddtlData[testItem],
 								filters...)
 							test.expect.errCheck(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
@@ -639,14 +854,23 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 								return
 							}
 
+							assert.Len(t, addRemoved.Added, test.expect.numAdded, "number of added items")
+							assert.GreaterOrEqual(t, test.expect.maxGetterIdx, basePager.pageIdx, "number of pager calls")
+
 							assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
-							assert.Equal(t, pagerTypeTest.expectDeltaReset, addRemoved.DU.Reset, "delta update")
-							pagerTypeTest.expectDeltaLink(t, addRemoved.DU.URL, "delta link")
+							assert.Equal(t, pagerTypeTest.expectDeltaReset, addRemoved.DU.Reset, "delta reset")
+
+							if pagerTypeTest.expectNoDelta || test.expect.noDelta {
+								assert.Empty(t, addRemoved.DU.URL, "delta link")
+							} else {
+								assert.NotEmpty(t, addRemoved.DU.URL, "delta link")
+							}
 
 							assertAddedAndRemoved(
 								t,
 								modTimeTest.validModTimes,
 								test.expect.added,
+								test.expect.finalPageAdded,
 								addRemoved.Added,
 								test.expect.removed,
 								addRemoved.Removed)
@@ -683,6 +907,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 			t *testing.T,
 			validModTimes bool,
 		) DeltaHandler[testItem]
+		limit  int
 		expect expected
 	}{
 		{
@@ -867,6 +1092,130 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 				deltaLink: assert.Empty,
 			},
 		},
+		{
+			name:        "FivePages DeltaReset LimitedItems",
+			pagerGetter: nilPager,
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
+				return newDeltaPager(
+					&testIDsNonDeltaMultiPager{
+						t: t,
+						pages: []pageResult{
+							{
+								items: []testItem{
+									addedItem1,
+									removedItem1,
+								},
+							},
+							{
+								errCode:    "SyncStateNotFound",
+								needsReset: true,
+							},
+							{
+								items: []testItem{
+									removedItem2,
+									addedItem2,
+								},
+							},
+							{
+								items: []testItem{
+									addedItem3,
+									addedItem4,
+								},
+							},
+							{
+								items: []testItem{
+									addedItem5,
+									addedItem6,
+								},
+							},
+						},
+						validModTimes: validModTimes,
+					})
+			},
+			limit: 3,
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem2,
+					addedItem3,
+					addedItem4,
+				},
+				removed: []testItem{
+					removedItem2,
+				},
+				deltaLink: assert.Empty,
+			},
+		},
+		{
+			name: "FivePages DeltaNoSupported LimitedItems",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) NonDeltaHandler[testItem] {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								removedItem2,
+								addedItem2,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem3,
+								addedItem4,
+							},
+						},
+						{
+							items: []testItem{
+								addedItem5,
+								addedItem6,
+							},
+						},
+					},
+					validModTimes: validModTimes,
+				}
+			},
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
+				return newDeltaPager(
+					&testIDsNonDeltaMultiPager{
+						t: t,
+						pages: []pageResult{
+							{
+								items: []testItem{
+									addedItem1,
+									removedItem1,
+								},
+							},
+							{
+								err:        graph.ErrDeltaNotSupported,
+								needsReset: true,
+							},
+						},
+						validModTimes: validModTimes,
+					})
+			},
+			limit: 3,
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem2,
+					addedItem3,
+					addedItem4,
+				},
+				removed: []testItem{
+					removedItem2,
+				},
+				deltaLink: assert.Empty,
+			},
+		},
 	}
 
 	for _, modTimeTest := range modTimeTests {
@@ -884,6 +1233,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						test.deltaPagerGetter(t, modTimeTest.validModTimes),
 						"a",
 						true,
+						test.limit,
 						AddedAndRemovedByAddtlData[testItem])
 					require.NoError(
 						t,
@@ -892,13 +1242,14 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						clues.ToCore(err))
 
 					assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
-					assert.True(t, addRemoved.DU.Reset, "delta update")
+					assert.True(t, addRemoved.DU.Reset, "delta reset")
 					test.expect.deltaLink(t, addRemoved.DU.URL, "delta link")
 
 					assertAddedAndRemoved(
 						t,
 						modTimeTest.validModTimes,
 						test.expect.added,
+						nil,
 						addRemoved.Added,
 						test.expect.removed,
 						addRemoved.Removed)

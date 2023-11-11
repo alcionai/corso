@@ -128,7 +128,7 @@ issues:
     - path: internal/m365/collection/drive/collections_test.go
       linters:
         - lll
-    - path: internal/m365/graph/betasdk
+    - path: pkg/services/m365/api/graph/betasdk
       linters:
         - wsl
         - revive

@@ -141,3 +141,131 @@ func getTestFileSystemConfig(path string) *FilesystemConfig {
 		Path: path,
 	}
 }
+
+type testGetter struct {
+	storeMap map[string]string
+}
+
+func (tg testGetter) Get(key string) any {
+	val, ok := tg.storeMap[key]
+	if ok {
+		return val
+	}
+
+	return ""
+}
+
+func (suite *StorageUnitSuite) TestMustMatchConfig() {
+	t := suite.T()
+
+	table := []struct {
+		name        string
+		tomlMap     map[string]string
+		overrideMap map[string]string
+		getterMap   map[string]string
+		pathKeys    []string
+		errorCheck  assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "s3 config match",
+			tomlMap: s3constToTomlKeyMap,
+			overrideMap: map[string]string{
+				Bucket:           "test-bucket",
+				Endpoint:         "https://aws.s3",
+				Prefix:           "test-prefix",
+				"additional-key": "additional-value",
+			},
+			getterMap: map[string]string{
+				"bucket":   "test-bucket",
+				"endpoint": "https://aws.s3",
+				"prefix":   "test-prefix",
+			},
+			errorCheck: assert.NoError,
+		},
+		{
+			name:    "s3 config match - bucket mismatch",
+			tomlMap: s3constToTomlKeyMap,
+			overrideMap: map[string]string{
+				Bucket:           "test-bucket",
+				Endpoint:         "https://aws.s3",
+				Prefix:           "test-prefix",
+				"additional-key": "additional-value",
+			},
+			getterMap: map[string]string{
+				"bucket":   "test-bucket-new",
+				"endpoint": "https://aws.s3",
+				"prefix":   "test-prefix",
+			},
+			errorCheck: assert.Error,
+		},
+		{
+			name:    "s3 config match - endpoint mismatch",
+			tomlMap: s3constToTomlKeyMap,
+			overrideMap: map[string]string{
+				Bucket:           "test-bucket",
+				Endpoint:         "https://aws.s3",
+				Prefix:           "test-prefix",
+				"additional-key": "additional-value",
+			},
+			getterMap: map[string]string{
+				"bucket":   "test-bucket",
+				"endpoint": "https://aws.s3/new",
+				"prefix":   "test-prefix",
+			},
+			errorCheck: assert.Error,
+		},
+		{
+			name:    "s3 config match - prefix mismatch",
+			tomlMap: s3constToTomlKeyMap,
+			overrideMap: map[string]string{
+				Bucket:           "test-bucket",
+				Endpoint:         "https://aws.s3",
+				Prefix:           "test-prefix",
+				"additional-key": "additional-value",
+			},
+			getterMap: map[string]string{
+				"bucket":   "test-bucket",
+				"endpoint": "https://aws.s3",
+				"prefix":   "test-prefix-new",
+			},
+			errorCheck: assert.Error,
+		},
+		{
+			name:    "filesystem config match - success case",
+			tomlMap: fsConstToTomlKeyMap,
+			overrideMap: map[string]string{
+				StorageProviderTypeKey: "filesystem",
+				FilesystemPath:         "/path/to/dir",
+				"additional-key":       "additional-value",
+			},
+			getterMap: map[string]string{
+				"provider": "filesystem",
+				"path":     "/path/to/dir",
+			},
+			pathKeys:   []string{FilesystemPath},
+			errorCheck: assert.NoError,
+		},
+		{
+			name:    "filesystem config match - path mismatch",
+			tomlMap: fsConstToTomlKeyMap,
+			overrideMap: map[string]string{
+				StorageProviderTypeKey: "filesystem",
+				FilesystemPath:         "/path/to/dir",
+				"additional-key":       "additional-value",
+			},
+			getterMap: map[string]string{
+				"provider": "filesystem",
+				"path":     "/path/to/dir/new",
+			},
+			pathKeys:   []string{FilesystemPath},
+			errorCheck: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			tg := testGetter{test.getterMap}
+			err := mustMatchConfig(tg, test.tomlMap, test.overrideMap, test.pathKeys)
+			test.errorCheck(t, err)
+		})
+	}
+}

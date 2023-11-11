@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type SitesUnitSuite struct {

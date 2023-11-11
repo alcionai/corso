@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	exchTD "github.com/alcionai/corso/src/internal/m365/service/exchange/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -34,6 +33,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
@@ -231,117 +231,6 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 		})
 	}
-}
-
-func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchangeBasic_groups9VersionBump() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		sel     = selectors.NewExchangeBackup([]string{suite.its.user.ID})
-		opts    = control.DefaultOptions()
-		ws      = deeTD.DriveIDFromRepoRef
-	)
-
-	sel.Include(
-		sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
-		// sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
-		sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
-
-	bo, bod := prepNewTestBackupOp(
-		t,
-		ctx,
-		mb,
-		sel.Selector,
-		opts,
-		version.All8MigrateUserPNToID,
-		counter)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.EmailCategory)
-
-	_, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
-		path.ExchangeService,
-		ws,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		ws,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	mb = evmock.NewBus()
-	counter = count.New()
-	notForcedFull := newTestBackupOp(
-		t,
-		ctx,
-		bod,
-		mb,
-		opts,
-		counter)
-	notForcedFull.BackupVersion = version.Groups9Update
-
-	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&notForcedFull,
-		bod.sel,
-		bod.sel.ID(),
-		path.EmailCategory)
-
-	_, expectDeets = deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		notForcedFull.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
-		path.ExchangeService,
-		ws,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		notForcedFull.Results.BackupID,
-		ws,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	// The number of items backed up in the second backup should be less than the
-	// number of items in the original backup.
-	assert.Greater(
-		t,
-		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
-		notForcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
-		"items written")
 }
 
 func (suite *ExchangeBackupIntgSuite) TestBackup_Run_incrementalExchange() {
@@ -996,6 +885,134 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 		})
 	}
+}
+
+type ExchangeBackupNightlyIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestExchangeBackupNightlyIntgSuite(t *testing.T) {
+	suite.Run(t, &ExchangeBackupNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *ExchangeBackupNightlyIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *ExchangeBackupNightlyIntgSuite) TestBackup_Run_exchangeBasic_groups9VersionBump() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewExchangeBackup([]string{suite.its.user.ID})
+		opts    = control.DefaultOptions()
+		ws      = deeTD.DriveIDFromRepoRef
+	)
+
+	sel.Include(
+		sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
+		// sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
+		sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
+
+	bo, bod := prepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel.Selector,
+		opts,
+		version.All8MigrateUserPNToID,
+		counter)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&bo,
+		bod.sel,
+		bod.sel.ID(),
+		path.EmailCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.ExchangeService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	mb = evmock.NewBus()
+	counter = count.New()
+	notForcedFull := newTestBackupOp(
+		t,
+		ctx,
+		bod,
+		mb,
+		opts,
+		counter)
+	notForcedFull.BackupVersion = version.Groups9Update
+
+	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&notForcedFull,
+		bod.sel,
+		bod.sel.ID(),
+		path.EmailCategory)
+
+	_, expectDeets = deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.ExchangeService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	// The number of items backed up in the second backup should be less than the
+	// number of items in the original backup.
+	assert.Greater(
+		t,
+		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
+		notForcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
+		"items written")
 }
 
 type ExchangeRestoreNightlyIntgSuite struct {

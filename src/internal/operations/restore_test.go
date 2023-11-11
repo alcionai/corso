@@ -18,7 +18,6 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -31,6 +30,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
