@@ -2,6 +2,8 @@ package config
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -73,8 +75,8 @@ func init() {
 
 // adds the persistent flag --config-file to the provided command.
 func AddConfigFlags(cmd *cobra.Command) {
-	fs := cmd.PersistentFlags()
-	fs.StringVar(
+	pf := cmd.PersistentFlags()
+	pf.StringVar(
 		&configFilePathFlag,
 		"config-file", displayDefaultFP, "config file location")
 }
@@ -86,17 +88,22 @@ func AddConfigFlags(cmd *cobra.Command) {
 // InitFunc provides a func that lazily initializes viper and
 // verifies that the configuration was able to read a file.
 func InitFunc(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
 	fp := configFilePathFlag
 	if len(fp) == 0 || fp == displayDefaultFP {
 		fp = configFilePath
 	}
 
-	err := initWithViper(GetViper(cmd.Context()), fp)
-	if err != nil {
+	vpr := GetViper(ctx)
+
+	if err := initWithViper(vpr, fp); err != nil {
 		return err
 	}
 
-	return Read(cmd.Context())
+	ctx = SetViper(ctx, vpr)
+
+	return Read(ctx)
 }
 
 // initWithViper implements InitConfig, but takes in a viper
@@ -114,25 +121,22 @@ func initWithViper(vpr *viper.Viper, configFP string) error {
 		vpr.AddConfigPath(configDir)
 		vpr.SetConfigType("toml")
 		vpr.SetConfigName(".corso")
+	} else {
+		ext := filepath.Ext(configFP)
+		if len(ext) == 0 {
+			return clues.New("config file requires an extension e.g. `toml`")
+		}
 
-		return nil
+		fileName := filepath.Base(configFP)
+		fileName = strings.TrimSuffix(fileName, ext)
+		vpr.SetConfigType(strings.TrimPrefix(ext, "."))
+		vpr.SetConfigName(fileName)
+		vpr.SetConfigFile(configFP)
+		// We also configure the path, type and filename
+		// because `vpr.SafeWriteConfig` needs these set to
+		// work correctly (it does not use the configured file)
+		vpr.AddConfigPath(filepath.Dir(configFP))
 	}
-
-	vpr.SetConfigFile(configFP)
-	// We also configure the path, type and filename
-	// because `vpr.SafeWriteConfig` needs these set to
-	// work correctly (it does not use the configured file)
-	vpr.AddConfigPath(filepath.Dir(configFP))
-
-	ext := filepath.Ext(configFP)
-	if len(ext) == 0 {
-		return clues.New("config file requires an extension e.g. `toml`")
-	}
-
-	fileName := filepath.Base(configFP)
-	fileName = strings.TrimSuffix(fileName, ext)
-	vpr.SetConfigType(strings.TrimPrefix(ext, "."))
-	vpr.SetConfigName(fileName)
 
 	return nil
 }
@@ -282,7 +286,10 @@ func getStorageAndAccountWithViper(
 	// possibly read the prior config from a .corso file
 	if readFromFile {
 		if err := vpr.ReadInConfig(); err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			configNotSet := errors.As(err, &viper.ConfigFileNotFoundError{})
+			configNotFound := errors.Is(err, fs.ErrNotExist)
+
+			if !configNotSet && !configNotFound {
 				return config, clues.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}
 
