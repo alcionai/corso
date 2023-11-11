@@ -143,8 +143,9 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 					ctx,
 					bpc,
 					suite.ac,
-					suite.tenantID,
+					suite.ac.Credentials,
 					ctrl.UpdateStatus,
+					count.New(),
 					fault.New(true))
 				require.NoError(t, err, clues.ToCore(err))
 				assert.True(t, canUsePreviousBackup, "can use previous backup")
