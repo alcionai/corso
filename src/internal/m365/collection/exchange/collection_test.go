@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -146,13 +147,15 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 							test.prev,
 							test.loc,
 							control.DefaultOptions(),
-							false),
+							false,
+							count.New()),
 						"u",
 						mock.DefaultItemGetSerialize(),
 						nil,
 						nil,
 						colType.validModTimes,
-						nil)
+						nil,
+						count.New())
 					assert.Equal(t, test.expect, c.State(), "collection state")
 					assert.Equal(t, test.curr, c.FullPath(), "full path")
 					assert.Equal(t, test.prev, c.PreviousPath(), "prev path")
@@ -289,13 +292,15 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 					nil,
 					locPath.ToBuilder(),
 					control.DefaultOptions(),
-					false),
+					false,
+					count.New()),
 				"",
 				&mock.ItemGetSerialize{},
 				test.added,
 				maps.Keys(test.removed),
 				false,
-				statusUpdater)
+				statusUpdater,
+				count.New())
 
 			for item := range col.Items(ctx, errs) {
 				itemCount++
@@ -427,13 +432,15 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 					nil,
 					locPath.ToBuilder(),
 					control.DefaultOptions(),
-					false),
+					false,
+					count.New()),
 				"",
 				mlg,
 				test.added,
 				maps.Keys(test.removed),
 				true,
-				statusUpdater)
+				statusUpdater,
+				count.New())
 
 			for item := range col.Items(ctx, errs) {
 				itemCount++

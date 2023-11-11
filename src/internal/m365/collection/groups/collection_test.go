@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -121,7 +122,8 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 					test.prev,
 					test.loc,
 					control.DefaultOptions(),
-					false),
+					false,
+					count.New()),
 				nil,
 				"g",
 				nil, nil,
@@ -202,7 +204,8 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 					nil,
 					locPath.ToBuilder(),
 					control.DefaultOptions(),
-					false),
+					false,
+					count.New()),
 				added:         test.added,
 				removed:       test.removed,
 				getter:        mock.GetChannelMessage{},

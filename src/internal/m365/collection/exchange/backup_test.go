@@ -513,6 +513,7 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 				test.scope,
 				metadata.DeltaPaths{},
 				func(status *support.ControllerOperationStatus) {},
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -593,6 +594,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 				test.scope,
 				metadata.DeltaPaths{},
 				func(status *support.ControllerOperationStatus) {},
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Less(t, 1, len(collections), "retrieved metadata and data collections")
@@ -625,6 +627,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 				test.scope,
 				dps,
 				func(status *support.ControllerOperationStatus) {},
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 		})
@@ -664,6 +667,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 		sel.Scopes()[0],
 		metadata.DeltaPaths{},
 		newStatusUpdater(t, &wg),
+		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -750,6 +754,7 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 				test.scope,
 				metadata.DeltaPaths{},
 				newStatusUpdater(t, &wg),
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -859,6 +864,7 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 				test.scope,
 				metadata.DeltaPaths{},
 				newStatusUpdater(t, &wg),
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			require.Len(t, collections, 2)
@@ -1135,6 +1141,7 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 					test.scope,
 					dps,
 					ctrlOpts,
+					count.New(),
 					fault.New(test.failFast == control.FailFast))
 				test.expectErr(t, err, clues.ToCore(err))
 
@@ -1477,6 +1484,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 						sc.scope,
 						test.inputMetadata(t, qp.Category),
 						control.Options{FailureHandling: control.FailFast},
+						count.New(),
 						fault.New(true))
 					require.NoError(t, err, "getting collections", clues.ToCore(err))
 
@@ -1643,6 +1651,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 				allScope,
 				dps,
 				control.Options{FailureHandling: control.FailFast},
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -2064,6 +2073,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 						allScope,
 						test.dps,
 						ctrlOpts,
+						count.New(),
 						fault.New(true))
 					assert.NoError(t, err, clues.ToCore(err))
 

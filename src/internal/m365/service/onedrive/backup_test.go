@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -92,7 +93,7 @@ func (suite *BackupUnitSuite) TestMigrationCollections() {
 				ProtectedResource: u,
 			}
 
-			mc, err := migrationCollections(bpc, "t", nil)
+			mc, err := migrationCollections(bpc, "t", nil, count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			if test.expectLen == 0 {
