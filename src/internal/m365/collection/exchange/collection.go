@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -111,6 +112,7 @@ func NewCollection(
 	origRemoved []string,
 	validModTimes bool,
 	statusUpdater support.StatusUpdater,
+	counter *count.Bus,
 ) data.BackupCollection {
 	added := maps.Clone(origAdded)
 	removed := make(map[string]struct{}, len(origRemoved))
@@ -127,6 +129,9 @@ func NewCollection(
 
 		removed[r] = struct{}{}
 	}
+
+	counter.Add(count.ItemsAdded, int64(len(added)))
+	counter.Add(count.ItemsRemoved, int64(len(removed)))
 
 	if !validModTimes {
 		return &prefetchCollection{

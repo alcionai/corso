@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -30,6 +31,7 @@ func CreateCollections(
 	scope selectors.ExchangeScope,
 	dps metadata.DeltaPaths,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	ctx = clues.Add(ctx, "category", scope.Category().PathType())
@@ -69,10 +71,13 @@ func CreateCollections(
 		scope,
 		dps,
 		bpc.Options,
+		counter,
 		errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "filling collections")
 	}
+
+	counter.Add(count.Collections, int64(len(collections)))
 
 	for _, coll := range collections {
 		allCollections = append(allCollections, coll)
@@ -99,6 +104,7 @@ func populateCollections(
 	scope selectors.ExchangeScope,
 	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
 	var (
@@ -114,6 +120,7 @@ func populateCollections(
 	)
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
+	counter.Add(count.PrevDeltas, int64(len(dps)))
 
 	el := errs.Local()
 
@@ -123,6 +130,9 @@ func populateCollections(
 		}
 
 		cID := ptr.Val(c.GetId())
+		cl := counter.Local()
+		// TODO: waiting on clues bump
+		// ictx := clues.SetCounter(cl)
 
 		var (
 			err         error
@@ -150,6 +160,7 @@ func populateCollections(
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
+				err = clues.Stack(err).Label(count.BadPrevPath)
 				logger.CtxErr(ictx, err).Error("parsing prev path")
 				// if the previous path is unusable, then the delta must be, too.
 				prevDelta = ""
@@ -188,6 +199,7 @@ func populateCollections(
 			deltaURLs[cID] = addAndRem.DU.URL
 		} else if !addAndRem.DU.Reset {
 			logger.Ctx(ictx).Info("missing delta url")
+			cl.Inc(count.MissingDelta)
 		}
 
 		edc := NewCollection(
@@ -196,17 +208,19 @@ func populateCollections(
 				prevPath,
 				locPath,
 				ctrlOpts,
-				addAndRem.DU.Reset),
+				addAndRem.DU.Reset,
+				cl),
 			qp.ProtectedResource.ID(),
 			bh.itemHandler(),
 			addAndRem.Added,
 			addAndRem.Removed,
 			// TODO: produce a feature flag that allows selective
 			// enabling of valid modTimes.  This currently produces
-			// rare-case failures with incorrect details merging.
+			// rare failures with incorrect details merging.
 			// Root cause is not yet known.
 			false,
-			statusUpdater)
+			statusUpdater,
+			cl)
 
 		collections[cID] = edc
 
@@ -230,7 +244,11 @@ func populateCollections(
 		)
 
 		if collections[id] != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
+			clues.New("conflict: tombstone exists for a live collection").
+				WithClues(ictx).
+				Label(count.CollectionTombstoneConflict)
+			el.AddRecoverable(ctx, err)
+
 			continue
 		}
 
@@ -242,18 +260,18 @@ func populateCollections(
 
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
+			err = clues.Stack(err).WithClues(ctx).Label(count.BadPrevPath)
 			// technically shouldn't ever happen.  But just in case...
 			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
+
 			continue
 		}
 
-		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts)
+		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts, counter)
 	}
 
-	logger.Ctx(ctx).Infow(
-		"adding metadata collection entries",
-		"num_paths_entries", len(currPaths),
-		"num_deltas_entries", len(deltaURLs))
+	counter.Add(count.NewDeltas, int64(len(deltaURLs)))
+	counter.Add(count.NewPrevPaths, int64(len(currPaths)))
 
 	pathPrefix, err := path.BuildMetadata(
 		qp.TenantID,
@@ -278,7 +296,7 @@ func populateCollections(
 
 	collections["metadata"] = col
 
-	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
+	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
 
 	return collections, el.Failure()
 }

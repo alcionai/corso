@@ -17,7 +17,7 @@ func TestCountUnitSuite(t *testing.T) {
 	suite.Run(t, &CountUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-const testKey = key("just-for-testing")
+const testKey = Key("just-for-testing")
 
 func (suite *CountUnitSuite) TestBus_Inc() {
 	newParent := func() *Bus {

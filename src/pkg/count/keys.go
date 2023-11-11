@@ -1,42 +1,62 @@
 package count
 
-type key string
+type Key string
 
 const (
 	// count of bucket-tokens consumed by api calls.
-	APICallTokensConsumed key = "api-call-tokens-consumed"
+	APICallTokensConsumed Key = "api-call-tokens-consumed"
 	// count of api calls that resulted in failure due to throttling.
-	ThrottledAPICalls key = "throttled-api-calls"
+	ThrottledAPICalls Key = "throttled-api-calls"
 )
 
 // Tracked during backup
 const (
 	// amounts reported by kopia
-	PersistedCachedFiles          key = "persisted-cached-files"
-	PersistedDirectories          key = "persisted-directories"
-	PersistedFiles                key = "persisted-files"
-	PersistedHashedBytes          key = "persisted-hashed-bytes"
-	PersistedNonCachedFiles       key = "persisted-non-cached-files"
-	PersistedNonMetaFiles         key = "persisted-non-meta-files"
-	PersistedNonMetaUploadedBytes key = "persisted-non-meta-uploaded-bytes"
-	PersistedUploadedBytes        key = "persisted-uploaded-bytes"
-	PersistenceErrors             key = "persistence-errors"
-	PersistenceExpectedErrors     key = "persistence-expected-errors"
-	PersistenceIgnoredErrors      key = "persistence-ignored-errors"
+	PersistedCachedFiles          Key = "persisted-cached-files"
+	PersistedDirectories          Key = "persisted-directories"
+	PersistedFiles                Key = "persisted-files"
+	PersistedHashedBytes          Key = "persisted-hashed-bytes"
+	PersistedNonCachedFiles       Key = "persisted-non-cached-files"
+	PersistedNonMetaFiles         Key = "persisted-non-meta-files"
+	PersistedNonMetaUploadedBytes Key = "persisted-non-meta-uploaded-bytes"
+	PersistedUploadedBytes        Key = "persisted-uploaded-bytes"
+	PersistenceErrors             Key = "persistence-errors"
+	PersistenceExpectedErrors     Key = "persistence-expected-errors"
+	PersistenceIgnoredErrors      Key = "persistence-ignored-errors"
+	// amounts reported by producers
+	CollectionMoved      Key = "collection-moved"
+	CollectionNew        Key = "collection-state-new"
+	CollectionNotMoved   Key = "collection-state-not-moved"
+	CollectionTombstoned Key = "collection-state-tombstoned"
+	Collections          Key = "collections"
+	ItemsAdded           Key = "items-added"
+	ItemsRemoved         Key = "items-removed"
+	MissingDelta         Key = "missing-delta-token"
+	NewDeltas            Key = "new-delta-tokens"
+	NewPrevPaths         Key = "new-previous-paths"
+	NoDeltaQueries       Key = "cannot-make-delta-queries"
+	PrevDeltas           Key = "previous-deltas"
 	// amounts reported by data providers
-	ProviderItemsRead key = "provider-items-read"
+	ProviderItemsRead Key = "provider-items-read"
+)
+
+// Counted using clues error labels
+const (
+	BadPathPrefix               = "bad_path_prefix_creation"
+	BadPrevPath                 = "unparsable_prev_path"
+	CollectionTombstoneConflict = "collection_tombstone_conflicts_with_live_collection"
 )
 
 // Tracked during restore
 const (
 	// count of times that items had collisions during restore,
 	// and that collision was solved by replacing the item.
-	CollisionReplace key = "collision-replace"
+	CollisionReplace Key = "collision-replace"
 	// count of times that items had collisions during restore,
 	// and that collision was solved by skipping the item.
-	CollisionSkip key = "collision-skip"
+	CollisionSkip Key = "collision-skip"
 	// NewItemCreated should be used for non-skip, non-replace,
 	// non-meta item creation counting.  IE: use it specifically
 	// for counting new items (no collision) or copied items.
-	NewItemCreated key = "new-item-created"
+	NewItemCreated Key = "new-item-created"
 )
