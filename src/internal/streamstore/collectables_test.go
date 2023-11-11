@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -36,6 +37,7 @@ func TestStreamStoreIntgSuite(t *testing.T) {
 
 func (suite *StreamStoreIntgSuite) SetupSubTest() {
 	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -44,7 +46,7 @@ func (suite *StreamStoreIntgSuite) SetupSubTest() {
 	st := storeTD.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kcloser = func() { k.Close(ctx) }

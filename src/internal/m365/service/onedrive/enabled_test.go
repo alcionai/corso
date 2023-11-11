@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type EnabledUnitSuite struct {
@@ -33,7 +33,7 @@ func (m mockDGDD) GetDefaultDrive(context.Context, string) (models.Driveable, er
 	return m.response, m.err
 }
 
-// Copied from src/internal/m365/graph/errors_test.go
+// Copied from src/pkg/services/m365/api/graph/errors_test.go
 func odErrMsg(code, message string) *odataerrors.ODataError {
 	odErr := odataerrors.NewODataError()
 	merr := odataerrors.NewMainError()

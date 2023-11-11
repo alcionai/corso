@@ -42,28 +42,28 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 		{
 			name:             "no inputs",
 			opts:             utils.GroupsOpts{},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "empty",
 			opts: utils.GroupsOpts{
 				Groups: empty,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "single inputs",
 			opts: utils.GroupsOpts{
 				Groups: single,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "multi inputs",
 			opts: utils.GroupsOpts{
 				Groups: multi,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		// sharepoint
 		{
@@ -120,7 +120,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 				FileName:   empty,
 				FolderPath: empty,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "library folder suffixes and contains",
@@ -128,7 +128,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 				FileName:   empty,
 				FolderPath: empty,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "Page Folder",
@@ -389,7 +389,7 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 		{
 			name:           "none",
 			cats:           []string{},
-			expectScopeLen: 2,
+			expectScopeLen: 3,
 		},
 		{
 			name:           "libraries",

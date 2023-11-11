@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
@@ -20,6 +19,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // TODO: incremental support
@@ -108,7 +109,7 @@ func populateCollections(
 		el         = errs.Local()
 	)
 
-	logger.Ctx(ctx).Info("filling collections", "len_deltapaths", len(dps))
+	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
 
 	for _, c := range channels {
 		if el.Failure() != nil {
@@ -152,20 +153,22 @@ func populateCollections(
 
 		// if the channel has no email property, it is unable to process delta tokens
 		// and will return an error if a delta token is queried.
-		canMakeDeltaQueries := len(ptr.Val(c.GetEmail())) > 0
+		cc := api.CallConfig{
+			CanMakeDeltaQueries: len(ptr.Val(c.GetEmail())) > 0,
+		}
 
-		add, _, rem, du, err := bh.getContainerItemIDs(ctx, cID, prevDelta, canMakeDeltaQueries)
+		addAndRem, err := bh.getContainerItemIDs(ctx, cID, prevDelta, cc)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
 		}
 
-		added := str.SliceToMap(maps.Keys(add))
-		removed := str.SliceToMap(rem)
+		added := str.SliceToMap(maps.Keys(addAndRem.Added))
+		removed := str.SliceToMap(addAndRem.Removed)
 
-		if len(du.URL) > 0 {
-			deltaURLs[cID] = du.URL
-		} else if !du.Reset {
+		if len(addAndRem.DU.URL) > 0 {
+			deltaURLs[cID] = addAndRem.DU.URL
+		} else if !addAndRem.DU.Reset {
 			logger.Ctx(ictx).Info("missing delta url")
 		}
 
@@ -188,7 +191,7 @@ func populateCollections(
 				prevPath,
 				path.Builder{}.Append(cName),
 				ctrlOpts,
-				du.Reset),
+				addAndRem.DU.Reset),
 			bh,
 			qp.ProtectedResource.ID(),
 			added,
@@ -263,6 +266,8 @@ func populateCollections(
 	}
 
 	collections["metadata"] = col
+
+	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
 
 	return collections, el.Failure()
 }

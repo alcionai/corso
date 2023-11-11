@@ -14,7 +14,6 @@ import (
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/testdata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -30,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -58,15 +58,22 @@ func (bh mockBackupHandler) getContainers(context.Context) ([]models.Channelable
 func (bh mockBackupHandler) getContainerItemIDs(
 	_ context.Context,
 	_, _ string,
-	_ bool,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
+	_ api.CallConfig,
+) (pagers.AddedAndRemoved, error) {
 	idRes := make(map[string]time.Time, len(bh.messageIDs))
 
 	for _, id := range bh.messageIDs {
 		idRes[id] = time.Time{}
 	}
 
-	return idRes, true, bh.deletedMsgIDs, pagers.DeltaUpdate{}, bh.messagesErr
+	aar := pagers.AddedAndRemoved{
+		Added:         idRes,
+		Removed:       bh.deletedMsgIDs,
+		ValidModTimes: true,
+		DU:            pagers.DeltaUpdate{},
+	}
+
+	return aar, bh.messagesErr
 }
 
 func (bh mockBackupHandler) includeContainer(

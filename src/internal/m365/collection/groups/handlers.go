@@ -2,14 +2,14 @@ package groups
 
 import (
 	"context"
-	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -25,8 +25,8 @@ type backupHandler interface {
 	getContainerItemIDs(
 		ctx context.Context,
 		containerID, prevDelta string,
-		canMakeDeltaQueries bool,
-	) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error)
+		cc api.CallConfig,
+	) (pagers.AddedAndRemoved, error)
 
 	// includeContainer evaluates whether the container is included
 	// in the provided scope.

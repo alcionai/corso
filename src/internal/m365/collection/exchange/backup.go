@@ -8,7 +8,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -18,6 +17,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -157,14 +158,18 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, _, removed, newDelta, err := bh.itemEnumerator().
+		cc := api.CallConfig{
+			CanMakeDeltaQueries: !ctrlOpts.ToggleFeatures.DisableDelta,
+			UseImmutableIDs:     ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
+		}
+
+		addAndRem, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
 				cID,
 				prevDelta,
-				ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
-				!ctrlOpts.ToggleFeatures.DisableDelta)
+				cc)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(ctx, clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
@@ -176,12 +181,12 @@ func populateCollections(
 			// to reset. This prevents any old items from being retained in
 			// storage.  If the container (or its children) are sill missing
 			// on the next backup, they'll get tombstoned.
-			newDelta = pagers.DeltaUpdate{Reset: true}
+			addAndRem.DU = pagers.DeltaUpdate{Reset: true}
 		}
 
-		if len(newDelta.URL) > 0 {
-			deltaURLs[cID] = newDelta.URL
-		} else if !newDelta.Reset {
+		if len(addAndRem.DU.URL) > 0 {
+			deltaURLs[cID] = addAndRem.DU.URL
+		} else if !addAndRem.DU.Reset {
 			logger.Ctx(ictx).Info("missing delta url")
 		}
 
@@ -191,11 +196,11 @@ func populateCollections(
 				prevPath,
 				locPath,
 				ctrlOpts,
-				newDelta.Reset),
+				addAndRem.DU.Reset),
 			qp.ProtectedResource.ID(),
 			bh.itemHandler(),
-			added,
-			removed,
+			addAndRem.Added,
+			addAndRem.Removed,
 			// TODO: produce a feature flag that allows selective
 			// enabling of valid modTimes.  This currently produces
 			// rare-case failures with incorrect details merging.
@@ -272,6 +277,8 @@ func populateCollections(
 	}
 
 	collections["metadata"] = col
+
+	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
 
 	return collections, el.Failure()
 }

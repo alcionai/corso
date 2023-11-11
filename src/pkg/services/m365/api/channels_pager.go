@@ -2,14 +2,13 @@ package api
 
 import (
 	"context"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -186,18 +185,19 @@ func filterOutSystemMessages(cm models.ChatMessageable) bool {
 func (c Channels) GetChannelMessageIDs(
 	ctx context.Context,
 	teamID, channelID, prevDeltaLink string,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
-	added, validModTimes, removed, du, err := pagers.GetAddedAndRemovedItemIDs[models.ChatMessageable](
+	cc CallConfig,
+) (pagers.AddedAndRemoved, error) {
+	aar, err := pagers.GetAddedAndRemovedItemIDs[models.ChatMessageable](
 		ctx,
 		c.NewChannelMessagePager(teamID, channelID, CallConfig{}),
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
 		prevDeltaLink,
-		canMakeDeltaQueries,
+		cc.CanMakeDeltaQueries,
+		0,
 		pagers.AddedAndRemovedByDeletedDateTime[models.ChatMessageable],
 		filterOutSystemMessages)
 
-	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
+	return aar, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

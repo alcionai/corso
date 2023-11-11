@@ -1,7 +1,9 @@
 package str
 
 import (
+	"encoding/hex"
 	"fmt"
+	"hash/crc32"
 	"strconv"
 
 	"github.com/alcionai/clues"
@@ -89,4 +91,13 @@ func SliceToMap(ss []string) map[string]struct{} {
 	}
 
 	return m
+}
+
+func GenerateHash(input []byte) string {
+	crc32Hash := crc32.NewIEEE()
+	crc32Hash.Write(input)
+	checksum := crc32Hash.Sum(nil)
+	hashString := hex.EncodeToString(checksum)
+
+	return hashString
 }
