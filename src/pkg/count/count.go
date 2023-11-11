@@ -27,13 +27,13 @@ func (b *Bus) Local() *Bus {
 	return bus
 }
 
-func (b *Bus) getCounter(k key) *xsync.Counter {
+func (b *Bus) getCounter(k Key) *xsync.Counter {
 	xc, _ := b.stats.LoadOrStore(string(k), xsync.NewCounter())
 	return xc
 }
 
 // Inc increases the count by 1.
-func (b *Bus) Inc(k key) {
+func (b *Bus) Inc(k Key) {
 	if b == nil {
 		return
 	}
@@ -42,7 +42,7 @@ func (b *Bus) Inc(k key) {
 }
 
 // Inc increases the count by n.
-func (b *Bus) Add(k key, n int64) {
+func (b *Bus) Add(k Key, n int64) {
 	if b == nil {
 		return
 	}
@@ -56,14 +56,14 @@ func (b *Bus) Add(k key, n int64) {
 
 // AdderFor returns a func that adds any value of i
 // to the bus using the given key.
-func (b *Bus) AdderFor(k key) func(i int64) {
+func (b *Bus) AdderFor(k Key) func(i int64) {
 	return func(i int64) {
 		b.Add(k, i)
 	}
 }
 
 // Get returns the local count.
-func (b *Bus) Get(k key) int64 {
+func (b *Bus) Get(k Key) int64 {
 	if b == nil {
 		return -1
 	}
@@ -72,7 +72,7 @@ func (b *Bus) Get(k key) int64 {
 }
 
 // Total returns the global count.
-func (b *Bus) Total(k key) int64 {
+func (b *Bus) Total(k Key) int64 {
 	if b == nil {
 		return -1
 	}

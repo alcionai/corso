@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -60,6 +61,7 @@ func BaseCollections(
 	service path.ServiceType,
 	categories map[path.CategoryType]struct{},
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	var (
@@ -82,7 +84,7 @@ func BaseCollections(
 		full, err := path.BuildPrefix(tenant, rOwner, service, cat)
 		if err != nil {
 			// Shouldn't happen.
-			err = clues.WrapWC(ictx, err, "making path")
+			err = clues.WrapWC(ictx, err, "making path").Label(count.BadPathPrefix)
 			el.AddRecoverable(ictx, err)
 			lastErr = err
 
@@ -95,7 +97,7 @@ func BaseCollections(
 				prev:  full,
 				full:  full,
 				su:    su,
-				state: data.StateOf(full, full),
+				state: data.StateOf(full, full, counter),
 			})
 		}
 	}
@@ -111,6 +113,7 @@ func BaseCollections(
 func NewPrefixCollection(
 	prev, full path.Path,
 	su support.StatusUpdater,
+	counter *count.Bus,
 ) (*prefixCollection, error) {
 	if prev != nil {
 		if len(prev.Item()) > 0 {
@@ -136,7 +139,7 @@ func NewPrefixCollection(
 		prev:  prev,
 		full:  full,
 		su:    su,
-		state: data.StateOf(prev, full),
+		state: data.StateOf(prev, full, counter),
 	}
 
 	if pc.state == data.DeletedState {

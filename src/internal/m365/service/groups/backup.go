@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -36,6 +37,7 @@ func ProduceBackupCollections(
 	ac api.Client,
 	creds account.M365Config,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	b, err := bpc.Selector.ToGroupsBackup()

@@ -10,6 +10,8 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -23,8 +25,9 @@ func ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
-	tenantID string,
+	creds account.M365Config,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	eb, err := bpc.Selector.ToExchangeBackup()
@@ -35,6 +38,7 @@ func ProduceBackupCollections(
 	var (
 		collections = []data.BackupCollection{}
 		el          = errs.Local()
+		tenantID    = creds.AzureTenantID
 		categories  = map[path.CategoryType]struct{}{}
 		handlers    = exchange.BackupHandlers(ac)
 	)
@@ -46,6 +50,7 @@ func ProduceBackupCollections(
 
 	if !canMakeDeltaQueries {
 		logger.Ctx(ctx).Info("delta requests not available")
+		counter.Inc(count.NoDeltaQueries)
 
 		bpc.Options.ToggleFeatures.DisableDelta = true
 	}
@@ -75,6 +80,7 @@ func ProduceBackupCollections(
 			scope,
 			cdps[scope.Category().PathType()],
 			su,
+			counter,
 			errs)
 		if err != nil {
 			el.AddRecoverable(ctx, err)
@@ -95,6 +101,7 @@ func ProduceBackupCollections(
 			path.ExchangeService,
 			categories,
 			su,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
