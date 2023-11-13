@@ -143,11 +143,9 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 				"--" + flags.GroupFN, flagsTD.FlgInputs(flagsTD.GroupsInput),
 				"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.GroupsCategoryDataInput),
 				"--" + flags.FetchParallelismFN, flagsTD.FetchParallelism,
-				"--" + flags.FailFastFN,
-				"--" + flags.DisableIncrementalsFN,
-				"--" + flags.ForceItemDataDownloadFN,
 				"--" + flags.DisableDeltaFN,
 			},
+			flagsTD.PreparedGenericBackupFlags(),
 			flagsTD.PreparedProviderFlags(),
 			flagsTD.PreparedStorageFlags()))
 
@@ -160,6 +158,7 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
 	assert.True(t, co.ToggleFeatures.DisableDelta)
+	flagsTD.AssertGenericBackupFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
 }

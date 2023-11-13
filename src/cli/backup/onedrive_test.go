@@ -101,10 +101,8 @@ func (suite *OneDriveUnitSuite) TestBackupCreateFlags() {
 			[]string{
 				"--" + flags.RunModeFN, flags.RunModeFlagTest,
 				"--" + flags.UserFN, flagsTD.FlgInputs(flagsTD.UsersInput),
-				"--" + flags.FailFastFN,
-				"--" + flags.DisableIncrementalsFN,
-				"--" + flags.ForceItemDataDownloadFN,
 			},
+			flagsTD.PreparedGenericBackupFlags(),
 			flagsTD.PreparedProviderFlags(),
 			flagsTD.PreparedStorageFlags()))
 
@@ -115,6 +113,7 @@ func (suite *OneDriveUnitSuite) TestBackupCreateFlags() {
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+	flagsTD.AssertGenericBackupFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
 }
