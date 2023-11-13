@@ -129,12 +129,12 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	// -----
 
 	ctx, end := diagnostics.Span(ctx, "operations:restore:run")
-	defer func() {
-		end()
-	}()
+	defer end()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
+
+	ctx = clues.AddTrace(ctx)
 
 	cats, err := op.Selectors.AllHumanPathCategories()
 	if err != nil {

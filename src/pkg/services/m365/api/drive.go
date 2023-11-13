@@ -266,19 +266,33 @@ func (c Drives) GetItemPermission(
 	ctx context.Context,
 	driveID, itemID string,
 ) (models.PermissionCollectionResponseable, error) {
-	perm, err := c.Stable.
-		Client().
-		Drives().
-		ByDriveId(driveID).
-		Items().
-		ByDriveItemId(itemID).
-		Permissions().
-		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item permission").With("item_id", itemID)
+	var (
+		retries int
+		perm    models.PermissionCollectionResponseable
+		err     error
+	)
+
+	// jwt retry has to be handled here, since we need to re-run the
+	// full client to get the new token.
+	for i := 0; i < 3; i++ {
+		retries++
+
+		perm, err = c.Stable.
+			Client().
+			Drives().
+			ByDriveId(driveID).
+			Items().
+			ByDriveItemId(itemID).
+			Permissions().
+			Get(ctx, nil)
+		if err != nil && !graph.IsErrUnauthorizedOrBadToken(err) {
+			break
+		}
 	}
 
-	return perm, nil
+	return perm, graph.Wrap(ctx, err, "getting item permissions").
+		With("api_retry_count", retries).
+		OrNil()
 }
 
 func (c Drives) PostItemPermissionUpdate(

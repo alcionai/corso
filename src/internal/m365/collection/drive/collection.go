@@ -341,7 +341,7 @@ func downloadContent(
 	content, err := downloadItem(ctx, iaag, item)
 	if err == nil {
 		return content, nil
-	} else if !graph.IsErrUnauthorized(err) {
+	} else if !graph.IsErrUnauthorizedOrBadToken(err) {
 		return nil, err
 	}
 
@@ -397,7 +397,7 @@ func readItemContents(
 	}
 
 	rc, err := downloadFile(ctx, iaag, props.downloadURL)
-	if graph.IsErrUnauthorized(err) {
+	if graph.IsErrUnauthorizedOrBadToken(err) {
 		logger.CtxErr(ctx, err).Info("stale item in cache")
 	}
 

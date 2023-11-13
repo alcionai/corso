@@ -10,8 +10,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common"
-	jwt "github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/common/str"
@@ -25,10 +23,6 @@ import (
 const (
 	acceptHeaderKey   = "Accept"
 	acceptHeaderValue = "*/*"
-
-	// JWTQueryParam is a query param embed in graph download URLs which holds
-	// JWT token.
-	JWTQueryParam = "tempauth"
 )
 
 // downloadUrlKeys is used to find the download URL in a DriveItem response.
@@ -130,16 +124,18 @@ func downloadFile(
 	}
 
 	// Precheck for url expiry before we make a call to graph to download the
-	// file. If the url is expired, we can return early and save a call to graph.
+	// file. If the url is expiredErr, we can return early and save a call to graph.
 	//
 	// Ignore all errors encountered during the check. We can rely on graph to
 	// return errors on malformed urls. Ignoring errors also future proofs against
 	// any sudden graph changes, for e.g. if graph decides to embed the token in a
 	// new query param.
-	expired, err := isURLExpired(ctx, url)
-	if err == nil && expired {
-		logger.Ctx(ctx).Debug("expired item download url")
-		return nil, graph.ErrTokenExpired
+	expiredErr, err := graph.IsURLExpired(ctx, url)
+	if expiredErr != nil {
+		logger.CtxErr(ctx, expiredErr).Debug("expired item download url")
+		return nil, clues.Stack(expiredErr)
+	} else if err != nil {
+		logger.CtxErr(ctx, err).Info("checking item download url for expiration")
 	}
 
 	rc, err := readers.NewResetRetryHandler(
@@ -154,20 +150,19 @@ func downloadFile(
 
 func downloadItemMeta(
 	ctx context.Context,
-	gip GetItemPermissioner,
+	getter GetItemPermissioner,
 	driveID string,
 	item models.DriveItemable,
 ) (io.ReadCloser, int, error) {
-	meta := metadata.Metadata{FileName: ptr.Val(item.GetName())}
-
-	if item.GetShared() == nil {
-		meta.SharingMode = metadata.SharingModeInherited
-	} else {
-		meta.SharingMode = metadata.SharingModeCustom
+	meta := metadata.Metadata{
+		FileName:    ptr.Val(item.GetName()),
+		SharingMode: metadata.SharingModeInherited,
 	}
 
-	if meta.SharingMode == metadata.SharingModeCustom {
-		perm, err := gip.GetItemPermission(ctx, driveID, ptr.Val(item.GetId()))
+	if item.GetShared() != nil {
+		meta.SharingMode = metadata.SharingModeCustom
+
+		perm, err := getter.GetItemPermission(ctx, driveID, ptr.Val(item.GetId()))
 		if err != nil {
 			return nil, 0, err
 		}
@@ -218,28 +213,4 @@ func setName(orig models.ItemReferenceable, driveName string) models.ItemReferen
 	orig.SetName(&driveName)
 
 	return orig
-}
-
-// isURLExpired inspects the jwt token embed in the item download url
-// and returns true if it is expired.
-func isURLExpired(
-	ctx context.Context,
-	url string,
-) (bool, error) {
-	// Extract the raw JWT string from the download url.
-	rawJWT, err := common.GetQueryParamFromURL(url, JWTQueryParam)
-	if err != nil {
-		logger.CtxErr(ctx, err).Info("query param not found")
-
-		return false, clues.StackWC(ctx, err)
-	}
-
-	expired, err := jwt.IsJWTExpired(rawJWT)
-	if err != nil {
-		logger.CtxErr(ctx, err).Info("checking jwt expiry")
-
-		return false, clues.StackWC(ctx, err)
-	}
-
-	return expired, nil
 }
