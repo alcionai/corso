@@ -1189,7 +1189,7 @@ type OneDriveBackupNightlyIntgSuite struct {
 }
 
 func TestOneDriveBackupNightlyIntgSuite(t *testing.T) {
-	suite.Run(t, &OneDriveBackupIntgSuite{
+	suite.Run(t, &OneDriveBackupNightlyIntgSuite{
 		Suite: tester.NewNightlySuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
