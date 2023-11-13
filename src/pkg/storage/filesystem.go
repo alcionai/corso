@@ -1,11 +1,20 @@
 package storage
 
 import (
+	"encoding/json"
+	"reflect"
+	"slices"
+	"strings"
+
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
 
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/path"
 )
+
+// nothing to exclude, for parity
+var excludedFileSystemConfigFieldsForHashing = []string{}
 
 const (
 	FilesystemPath = "path"
@@ -15,6 +24,9 @@ var fsConstToTomlKeyMap = map[string]string{
 	StorageProviderTypeKey: StorageProviderTypeKey,
 	FilesystemPath:         FilesystemPath,
 }
+
+// add filesystem config key names that require path related validations
+var fsPathKeys = []string{FilesystemPath}
 
 type FilesystemConfig struct {
 	Path string
@@ -52,6 +64,31 @@ func (c *FilesystemConfig) fsConfigsFromStore(g Getter) {
 	c.Path = cast.ToString(g.Get(FilesystemPath))
 }
 
+func (c FilesystemConfig) configHash() (string, error) {
+	filteredFileSystemConfig := createFilteredFileSystemConfigForHashing(c)
+
+	b, err := json.Marshal(filteredFileSystemConfig)
+	if err != nil {
+		return "", clues.Stack(err)
+	}
+
+	return str.GenerateHash(b), nil
+}
+
+func createFilteredFileSystemConfigForHashing(source FilesystemConfig) map[string]any {
+	filteredFileSystemConfig := make(map[string]any)
+	sourceValue := reflect.ValueOf(source)
+
+	for i := 0; i < sourceValue.NumField(); i++ {
+		fieldName := sourceValue.Type().Field(i).Name
+		if !slices.Contains(excludedFileSystemConfigFieldsForHashing, fieldName) {
+			filteredFileSystemConfig[fieldName] = sourceValue.Field(i).Interface()
+		}
+	}
+
+	return filteredFileSystemConfig
+}
+
 // TODO(pandeyabs): Remove this. It's not adding any value.
 func fsOverrides(in map[string]string) map[string]string {
 	return map[string]string{
@@ -77,13 +114,17 @@ func (c *FilesystemConfig) ApplyConfigOverrides(
 			}
 
 			// This is matching override values from config file.
-			if err := mustMatchConfig(g, fsConstToTomlKeyMap, fsOverrides(overrides)); err != nil {
+			if err := mustMatchConfig(g, fsConstToTomlKeyMap, fsOverrides(overrides), fsPathKeys); err != nil {
 				return clues.Wrap(err, "verifying storage configs in corso config file")
 			}
 		}
 	}
 
-	c.Path = str.First(overrides[FilesystemPath], c.Path)
+	sanitizePath := func(p string) string {
+		return path.TrimTrailingSlash(strings.TrimSpace(p))
+	}
+
+	c.Path = str.First(sanitizePath(overrides[FilesystemPath]), sanitizePath(c.Path))
 
 	return c.validate()
 }

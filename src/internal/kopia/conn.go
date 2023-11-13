@@ -2,6 +2,7 @@ package kopia
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"sync"
 	"time"
@@ -27,9 +28,9 @@ import (
 )
 
 const (
-	defaultKopiaConfigDir  = "/tmp/"
-	defaultKopiaConfigFile = "repository.config"
-	defaultCompressor      = "zstd-better-compression"
+	defaultKopiaConfigDir   = "/tmp/"
+	kopiaConfigFileTemplate = "repository-%s.config"
+	defaultCompressor       = "zstd-better-compression"
 	// Interval of 0 disables scheduling.
 	defaultSchedulingInterval = time.Second * 0
 )
@@ -95,6 +96,7 @@ func (w *conn) Initialize(
 	ctx context.Context,
 	opts repository.Options,
 	retentionOpts repository.Retention,
+	repoNameHash string,
 ) error {
 	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
@@ -135,6 +137,7 @@ func (w *conn) Initialize(
 		ctx,
 		opts,
 		cfg.KopiaCfgDir,
+		repoNameHash,
 		bst,
 		cfg.CorsoPassphrase,
 		defaultCompressor)
@@ -152,7 +155,7 @@ func (w *conn) Initialize(
 	return clues.Stack(w.setRetentionParameters(ctx, retentionOpts)).OrNil()
 }
 
-func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
+func (w *conn) Connect(ctx context.Context, opts repository.Options, repoNameHash string) error {
 	bst, err := blobStoreByProvider(ctx, opts, w.storage)
 	if err != nil {
 		return clues.Wrap(err, "initializing storage")
@@ -168,6 +171,7 @@ func (w *conn) Connect(ctx context.Context, opts repository.Options) error {
 		ctx,
 		opts,
 		cfg.KopiaCfgDir,
+		repoNameHash,
 		bst,
 		cfg.CorsoPassphrase,
 		defaultCompressor)
@@ -177,6 +181,7 @@ func (w *conn) commonConnect(
 	ctx context.Context,
 	opts repository.Options,
 	configDir string,
+	repoNameHash string,
 	bst blob.Storage,
 	password, compressor string,
 ) error {
@@ -196,7 +201,7 @@ func (w *conn) commonConnect(
 		configDir = defaultKopiaConfigDir
 	}
 
-	cfgFile := filepath.Join(configDir, defaultKopiaConfigFile)
+	cfgFile := filepath.Join(configDir, fmt.Sprintf(kopiaConfigFileTemplate, repoNameHash))
 
 	// todo - issue #75: nil here should be storage.ConnectOptions()
 	if err := repo.Connect(
@@ -579,13 +584,18 @@ func (w *conn) SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error) {
 	return snapshotfs.SnapshotRoot(w.Repository, man)
 }
 
-func (w *conn) UpdatePassword(ctx context.Context, password string, opts repository.Options) error {
+func (w *conn) UpdatePassword(
+	ctx context.Context,
+	password string,
+	opts repository.Options,
+	repoNameHash string,
+) error {
 	if len(password) <= 0 {
 		return clues.New("empty password provided")
 	}
 
 	kopiaRef := NewConn(w.storage)
-	if err := kopiaRef.Connect(ctx, opts); err != nil {
+	if err := kopiaRef.Connect(ctx, opts, repoNameHash); err != nil {
 		return clues.Wrap(err, "connecting kopia client")
 	}
 

@@ -105,10 +105,8 @@ func (suite *SharePointUnitSuite) TestBackupCreateFlags() {
 				"--" + flags.SiteIDFN, flagsTD.FlgInputs(flagsTD.SiteIDInput),
 				"--" + flags.SiteFN, flagsTD.FlgInputs(flagsTD.WebURLInput),
 				"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.SharepointCategoryDataInput),
-				"--" + flags.FailFastFN,
-				"--" + flags.DisableIncrementalsFN,
-				"--" + flags.ForceItemDataDownloadFN,
 			},
+			flagsTD.PreparedGenericBackupFlags(),
 			flagsTD.PreparedProviderFlags(),
 			flagsTD.PreparedStorageFlags()))
 
@@ -120,6 +118,7 @@ func (suite *SharePointUnitSuite) TestBackupCreateFlags() {
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+	flagsTD.AssertGenericBackupFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
 }

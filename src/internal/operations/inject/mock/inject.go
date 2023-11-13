@@ -7,7 +7,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -64,7 +63,7 @@ func (mbp *mockBackupProducer) Wait() *data.CollectionStats {
 func (mbp mockBackupProducer) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	base kopia.BackupBase,
+	base inject.ReasonAndSnapshotIDer,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	ctrl := m365.Controller{}
