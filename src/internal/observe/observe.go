@@ -505,14 +505,14 @@ func CollectionProgress(
 		counted++
 		// Log every 1000 items that are processed
 		if counted%1000 == 0 {
-			log.Infow("uploading", "count", counted)
+			log.Infow("uploading", "count_items", counted)
 		}
 	}
 
 	if obs.hidden() || len(plain) == 0 {
 		go listen(ctx, ch, nop, incCount)
 
-		defer log.Infow("done - "+message, "count", counted)
+		defer log.Infow("done - "+message, "count_items", counted)
 
 		return ch
 	}
@@ -546,7 +546,7 @@ func CollectionProgress(
 		})
 
 	go waitAndCloseBar(ctx, bar, obs.wg, func() {
-		log.Infow("done - "+message, "count", counted)
+		log.Infow("done - "+message, "count_items", counted)
 	})()
 
 	return ch

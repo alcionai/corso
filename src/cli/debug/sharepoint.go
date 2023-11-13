@@ -59,13 +59,17 @@ func metadataFilesSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// opts := utils.MakeSharePointOpts(cmd)
-
 	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
 	sel := selectors.NewSharePointBackup([]string{"unused-placeholder"})
+	sel.Include(sel.LibraryFolders(selectors.Any()))
 
-	return runMetadataFiles(ctx, cmd, args, sel.Selector, flags.BackupIDFV, "SharePoint")
+	return genericMetadataFiles(
+		ctx,
+		cmd,
+		args,
+		sel.Selector,
+		flags.BackupIDFV)
 }

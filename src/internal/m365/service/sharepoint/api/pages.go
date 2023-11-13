@@ -11,11 +11,11 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/m365/graph"
-	betamodels "github.com/alcionai/corso/src/internal/m365/graph/betasdk/models"
-	betasites "github.com/alcionai/corso/src/internal/m365/graph/betasdk/sites"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	betamodels "github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk/models"
+	betasites "github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk/sites"
 )
 
 type NameID struct {
