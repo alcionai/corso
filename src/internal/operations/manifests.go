@@ -53,7 +53,7 @@ func produceManifestsAndMetadata(
 }
 
 // getManifestsAndMetadata calls kopia to retrieve prior backup manifests,
-// metadata collections to supply backup heuristics.
+// metadata collections to supply backup information.
 func getManifestsAndMetadata(
 	ctx context.Context,
 	bf inject.BaseFinder,

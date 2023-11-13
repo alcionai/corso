@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -33,6 +32,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -83,9 +83,10 @@ func NewBackupOperation(
 	selector selectors.Selector,
 	owner idname.Provider,
 	bus events.Eventer,
+	counter *count.Bus,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:           newOperation(opts, bus, count.New(), kw, sw),
+		operation:           newOperation(opts, bus, counter, kw, sw),
 		ResourceOwner:       owner,
 		Selectors:           selector,
 		Version:             "v0",
@@ -394,6 +395,23 @@ func (op *BackupOperation) do(
 			logger.Ctx(ctx).Info("disabling assist bases due to groups version change")
 			mans.DisableAssistBases()
 		}
+	}
+
+	// Drop merge bases if we're doing a preview backup. Preview backups may use
+	// different delta token parameters so we need to ensure we do a token
+	// refresh. This could eventually be pushed down the stack if we track token
+	// versions.
+	//
+	// TODO(ashmrtn): Until we use token versions to determine this, refactor
+	// input params to produceManifestsAndMetadata and do this in that function
+	// instead of here.
+	if op.Options.ToggleFeatures.PreviewBackup {
+		logger.Ctx(ctx).Info("disabling merge bases for preview backup")
+
+		mans.DisableMergeBases()
+
+		canUseMetadata = false
+		mdColls = nil
 	}
 
 	ctx = clues.Add(

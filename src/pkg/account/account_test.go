@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -20,6 +21,10 @@ func (c testConfig) providerID(ap accountProvider) string {
 
 func (c testConfig) StringConfig() (map[string]string, error) {
 	return map[string]string{"expect": c.expect}, c.err
+}
+
+func (c testConfig) configHash() (string, error) {
+	return "hashed-config", c.err
 }
 
 type AccountSuite struct {
@@ -62,4 +67,58 @@ func (suite *AccountSuite) TestNewAccount() {
 				"expected account config [%s], got [%s]", test.c.expect, s.Config["expect"])
 		})
 	}
+}
+
+func (suite *AccountSuite) TestGetAccountConfigHash() {
+	tests := []struct {
+		name     string
+		provider accountProvider
+		config   any
+	}{
+		{
+			name:     "valid account",
+			provider: ProviderM365,
+			config:   getTestM365Config("1234", "5678"),
+		},
+		{
+			name:     "invalid account",
+			provider: ProviderUnknown,
+			config:   testConfig{"configVal", "", nil},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			if test.provider == ProviderUnknown {
+				s, err := NewAccount(test.provider, test.config.(testConfig))
+				require.NoError(t, err)
+
+				_, err = s.GetAccountConfigHash()
+				require.Error(t, err)
+			}
+
+			if test.provider == ProviderM365 {
+				_, ok := test.config.(providerIDer)
+				require.True(t, ok)
+
+				s, err := NewAccount(test.provider, test.config.(M365Config))
+				require.NoError(t, err)
+
+				hash, err := s.GetAccountConfigHash()
+				require.NoError(t, err)
+				assert.True(t, len(hash) > 0)
+			}
+		})
+	}
+}
+
+func getTestM365Config(clientID, tenantID string) M365Config {
+	c := M365Config{}
+	c.AzureClientID = clientID
+	c.AzureClientSecret = "super secret"
+	c.AzureTenantID = tenantID
+
+	return c
 }

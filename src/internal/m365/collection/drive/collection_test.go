@@ -23,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	metaTD "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata/testdata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	odTD "github.com/alcionai/corso/src/internal/m365/service/onedrive/testdata"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -33,6 +32,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------

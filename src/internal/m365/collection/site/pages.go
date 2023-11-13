@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph/betasdk/models"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk/models"
 )
 
 // pageToSPInfo propagates metadata from  the SharePoint Page data type

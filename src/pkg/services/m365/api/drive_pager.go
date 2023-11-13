@@ -10,9 +10,9 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	onedrive "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -38,7 +38,9 @@ func (c Drives) NewDriveItemPager(
 	selectProps ...string,
 ) pagers.NonDeltaHandler[models.DriveItemable] {
 	options := &drives.ItemItemsItemChildrenRequestBuilderGetRequestConfiguration{
-		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{},
+		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{
+			Top: ptr.To(maxNonDeltaPageSize),
+		},
 	}
 
 	if len(selectProps) > 0 {
@@ -144,8 +146,10 @@ func (c Drives) newDriveItemDeltaPager(
 	}
 
 	options := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferHeaderItems...),
-		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{},
+		Headers: newPreferHeaders(preferHeaderItems...),
+		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
+			Top: ptr.To(maxDeltaPageSize),
+		},
 	}
 
 	if len(cc.Select) > 0 {

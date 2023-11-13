@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -25,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var (
@@ -186,15 +186,15 @@ func (suite *SharePointIntegrationSuite) SetupSuite() {
 	si := NewSuiteInfoImpl(suite.T(), ctx, tconfig.M365SiteID(suite.T()), path.SharePointService)
 
 	// users needed for permissions
-	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
+	user, err := si.controller.AC.Users().GetByID(ctx, si.user, api.CallConfig{})
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser, api.CallConfig{})
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser)
+	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser, api.CallConfig{})
 	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
@@ -255,15 +255,15 @@ func (suite *OneDriveIntegrationSuite) SetupSuite() {
 
 	si := NewSuiteInfoImpl(t, ctx, tconfig.M365UserID(t), path.OneDriveService)
 
-	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
+	user, err := si.controller.AC.Users().GetByID(ctx, si.user, api.CallConfig{})
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser, api.CallConfig{})
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser)
+	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser, api.CallConfig{})
 	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 
@@ -319,15 +319,15 @@ func (suite *OneDriveNightlySuite) SetupSuite() {
 
 	si := NewSuiteInfoImpl(t, ctx, tconfig.M365UserID(t), path.OneDriveService)
 
-	user, err := si.controller.AC.Users().GetByID(ctx, si.user)
+	user, err := si.controller.AC.Users().GetByID(ctx, si.user, api.CallConfig{})
 	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
 	si.userID = ptr.Val(user.GetId())
 
-	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser)
+	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser, api.CallConfig{})
 	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
 	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
 
-	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser)
+	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser, api.CallConfig{})
 	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
 	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
 

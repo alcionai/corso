@@ -80,7 +80,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
 		true)
 }
 
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBump() {
+func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -88,6 +88,142 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBum
 
 	var (
 		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
+		opts    = control.DefaultOptions()
+		whatSet = deeTD.CategoryFromRepoRef
+	)
+
+	sel.Include(
+		selTD.GroupsBackupLibraryFolderScope(sel),
+		selTD.GroupsBackupChannelScope(sel))
+
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&bo,
+		bod.sel,
+		bod.sel.ID(),
+		path.ChannelMessagesCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.GroupsService,
+		whatSet,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		whatSet,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+}
+
+func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
+		opts    = control.DefaultOptions()
+		tenID   = tconfig.M365TenantID(t)
+		svc     = path.GroupsService
+		ws      = deeTD.DriveIDFromRepoRef
+	)
+
+	opts.ItemExtensionFactory = getTestExtensionFactories()
+
+	// does not apply to channel messages
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&bo,
+		bod.sel,
+		bod.sel.ID(),
+		path.LibrariesCategory)
+
+	bID := bo.Results.BackupID
+
+	deets, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bID,
+		tenID,
+		bod.sel.ID(),
+		svc,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	// Check that the extensions are in the backup
+	for _, ent := range deets.Entries {
+		if ent.Folder == nil {
+			verifyExtensionData(t, ent.ItemInfo, path.GroupsService)
+		}
+	}
+}
+
+type GroupsBackupNightlyIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestGroupsBackupNightlyIntgSuite(t *testing.T) {
+	suite.Run(t, &GroupsBackupNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *GroupsBackupNightlyIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBump() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb      = evmock.NewBus()
+		counter = count.New()
 		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
 		opts    = control.DefaultOptions()
 		whatSet = deeTD.CategoryFromRepoRef
@@ -103,7 +239,8 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBum
 		mb,
 		sel.Selector,
 		opts,
-		version.All8MigrateUserPNToID)
+		version.All8MigrateUserPNToID,
+		counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -138,12 +275,14 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBum
 		false)
 
 	mb = evmock.NewBus()
+	counter = count.New()
 	forcedFull := newTestBackupOp(
 		t,
 		ctx,
 		bod,
 		mb,
-		opts)
+		opts,
+		counter)
 	forcedFull.BackupVersion = version.Groups9Update
 
 	runAndCheckBackup(t, ctx, &forcedFull, mb, false)
@@ -186,129 +325,13 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBum
 		"items written")
 }
 
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsVersion9AssistBases() {
+func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9AssistBases() {
 	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
 		selTD.GroupsBackupChannelScope(sel))
 
 	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, false)
-}
-
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts    = control.DefaultOptions()
-		whatSet = deeTD.CategoryFromRepoRef
-	)
-
-	sel.Include(
-		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel))
-
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.ChannelMessagesCategory)
-
-	_, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
-		path.GroupsService,
-		whatSet,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		whatSet,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-}
-
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb    = evmock.NewBus()
-		sel   = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts  = control.DefaultOptions()
-		tenID = tconfig.M365TenantID(t)
-		svc   = path.GroupsService
-		ws    = deeTD.DriveIDFromRepoRef
-	)
-
-	opts.ItemExtensionFactory = getTestExtensionFactories()
-
-	// does not apply to channel messages
-	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
-
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.LibrariesCategory)
-
-	bID := bo.Results.BackupID
-
-	deets, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bID,
-		tenID,
-		bod.sel.ID(),
-		svc,
-		ws,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bID,
-		ws,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	// Check that the extensions are in the backup
-	for _, ent := range deets.Entries {
-		if ent.Folder == nil {
-			verifyExtensionData(t, ent.ItemInfo, path.GroupsService)
-		}
-	}
 }
 
 type GroupsRestoreNightlyIntgSuite struct {

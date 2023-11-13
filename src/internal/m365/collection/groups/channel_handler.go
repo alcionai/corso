@@ -2,16 +2,15 @@ package groups
 
 import (
 	"context"
-	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -41,9 +40,9 @@ func (bh channelsBackupHandler) getContainers(
 func (bh channelsBackupHandler) getContainerItemIDs(
 	ctx context.Context,
 	channelID, prevDelta string,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
-	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, canMakeDeltaQueries)
+	cc api.CallConfig,
+) (pagers.AddedAndRemoved, error) {
+	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, cc)
 }
 
 func (bh channelsBackupHandler) includeContainer(

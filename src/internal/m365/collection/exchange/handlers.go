@@ -2,17 +2,16 @@ package exchange
 
 import (
 	"context"
-	"time"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -30,9 +29,8 @@ type addedAndRemovedItemGetter interface {
 	GetAddedAndRemovedItemIDs(
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
-		immutableIDs bool,
-		canMakeDeltaQueries bool,
-	) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error)
+		cc api.CallConfig,
+	) (pagers.AddedAndRemoved, error)
 }
 
 type itemGetterSerializer interface {

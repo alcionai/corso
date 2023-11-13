@@ -34,6 +34,7 @@ func (suite *CategoryTypeUnitSuite) TestToCategoryType() {
 		{input: "pages", expect: 7},
 		{input: "details", expect: 8},
 		{input: "channelmessages", expect: 9},
+		{input: "conversationposts", expect: 10},
 	}
 	for _, test := range table {
 		suite.Run(test.input, func() {
@@ -60,6 +61,7 @@ func (suite *CategoryTypeUnitSuite) TestHumanString() {
 		{input: 7, expect: "Pages"},
 		{input: 8, expect: "Details"},
 		{input: 9, expect: "Messages"},
+		{input: 10, expect: "Posts"},
 	}
 	for _, test := range table {
 		suite.Run(test.input.String(), func() {
