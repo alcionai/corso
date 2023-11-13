@@ -15,25 +15,25 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ inject.ServiceHandler = &onedriveHandler{}
+var _ inject.ServiceHandler = &baseOnedriveHandler{}
 
 func NewOneDriveHandler(
 	opts control.Options,
-) *onedriveHandler {
-	return &onedriveHandler{
+) *baseOnedriveHandler {
+	return &baseOnedriveHandler{
 		opts: opts,
 	}
 }
 
-type onedriveHandler struct {
+type baseOnedriveHandler struct {
 	opts control.Options
 }
 
-func (h *onedriveHandler) CacheItemInfo(v details.ItemInfo) {}
+func (h *baseOnedriveHandler) CacheItemInfo(v details.ItemInfo) {}
 
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
-func (h *onedriveHandler) ProduceExportCollections(
+func (h *baseOnedriveHandler) ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	exportCfg control.ExportConfig,
