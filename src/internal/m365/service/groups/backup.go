@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -27,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 func ProduceBackupCollections(

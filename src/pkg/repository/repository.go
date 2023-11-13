@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -37,6 +38,7 @@ type Repositoryer interface {
 	BackupGetter
 	Restorer
 	Exporter
+	Debugger
 	DataProviderConnector
 
 	Initialize(
@@ -139,18 +141,10 @@ type InitConfig struct {
 //   - update maintenance retention parameters as needed
 //   - store the configuration details
 //   - connect to the provider
-func (r *repository) Initialize(
-	ctx context.Context,
-	cfg InitConfig,
-) (err error) {
-	ctx = clues.Add(
-		ctx,
-		"acct_provider", r.Account.Provider.String(),
-		"acct_id", clues.Hide(r.Account.ID()),
-		"storage_provider", r.Storage.Provider.String())
-
+func (r *repository) Initialize(ctx context.Context, cfg InitConfig) (err error) {
+	ctx = r.addContextClues(ctx)
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover(), "repo init"); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -161,31 +155,8 @@ func (r *repository) Initialize(
 
 	observe.Message(ctx, "Initializing repository")
 
-	kopiaRef := kopia.NewConn(r.Storage)
-	if err := kopiaRef.Initialize(ctx, r.Opts.Repo, cfg.RetentionOpts); err != nil {
-		// replace common internal errors so that sdk users can check results with errors.Is()
-		if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
-			return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
-		}
-
-		return clues.Wrap(err, "initializing kopia")
-	}
-	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
-	// to close here.
-	defer kopiaRef.Close(ctx)
-
-	r.dataLayer, err = kopia.NewWrapper(kopiaRef)
-	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
-	}
-
-	r.modelStore, err = kopia.NewModelStore(kopiaRef)
-	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
-	}
-
-	if err := newRepoModel(ctx, r.modelStore, r.ID); err != nil {
-		return clues.Wrap(err, "setting up repository").WithClues(ctx)
+	if err := r.setupKopia(ctx, cfg.RetentionOpts, true); err != nil {
+		return err
 	}
 
 	r.Bus.Event(ctx, events.RepoInit, nil)
@@ -204,16 +175,8 @@ type ConnConfig struct {
 //   - connect to the m365 account
 //   - connect to the provider storage
 //   - return the connected repository
-func (r *repository) Connect(
-	ctx context.Context,
-	cfg ConnConfig,
-) (err error) {
-	ctx = clues.Add(
-		ctx,
-		"acct_provider", r.Account.Provider.String(),
-		"acct_id", clues.Hide(r.Account.ID()),
-		"storage_provider", r.Storage.Provider.String())
-
+func (r *repository) Connect(ctx context.Context, cfg ConnConfig) (err error) {
+	ctx = r.addContextClues(ctx)
 	defer func() {
 		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
 			err = crErr
@@ -226,31 +189,8 @@ func (r *repository) Connect(
 
 	observe.Message(ctx, "Connecting to repository")
 
-	kopiaRef := kopia.NewConn(r.Storage)
-	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
-		return clues.Wrap(err, "connecting kopia client")
-	}
-	// kopiaRef comes with a count of 1 and NewWrapper/NewModelStore bumps it again so safe
-	// to close here.
-	defer kopiaRef.Close(ctx)
-
-	r.dataLayer, err = kopia.NewWrapper(kopiaRef)
-	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
-	}
-
-	r.modelStore, err = kopia.NewModelStore(kopiaRef)
-	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
-	}
-
-	if r.ID == events.RepoIDNotFound {
-		rm, err := getRepoModel(ctx, r.modelStore)
-		if err != nil {
-			return clues.Wrap(err, "retrieving repo model info")
-		}
-
-		r.ID = string(rm.ID)
+	if err := r.setupKopia(ctx, ctrlRepo.Retention{}, false); err != nil {
+		return clues.Stack(err)
 	}
 
 	r.Bus.Event(ctx, events.RepoConnect, nil)
@@ -262,12 +202,7 @@ func (r *repository) Connect(
 // - connect to the provider storage using existing password
 // - update the repo with new password
 func (r *repository) UpdatePassword(ctx context.Context, password string) (err error) {
-	ctx = clues.Add(
-		ctx,
-		"acct_provider", r.Account.Provider.String(),
-		"acct_id", clues.Hide(r.Account.ID()),
-		"storage_provider", r.Storage.Provider.String())
-
+	ctx = r.addContextClues(ctx)
 	defer func() {
 		if crErr := crash.Recovery(ctx, recover(), "repo connect"); crErr != nil {
 			err = crErr
@@ -277,12 +212,17 @@ func (r *repository) UpdatePassword(ctx context.Context, password string) (err e
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to repository")
 	defer close(progressBar)
 
+	repoNameHash, err := r.GenerateHashForRepositoryConfigFileName()
+	if err != nil {
+		return clues.Wrap(err, "generating repo config hash")
+	}
+
 	kopiaRef := kopia.NewConn(r.Storage)
-	if err := kopiaRef.Connect(ctx, r.Opts.Repo); err != nil {
+	if err := kopiaRef.Connect(ctx, r.Opts.Repo, repoNameHash); err != nil {
 		return clues.Wrap(err, "connecting kopia client")
 	}
 
-	err = kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo)
+	err = kopiaRef.UpdatePassword(ctx, password, r.Opts.Repo, repoNameHash)
 	if err != nil {
 		return clues.Wrap(err, "updating on kopia")
 	}
@@ -343,6 +283,81 @@ func (r repository) NewRetentionConfig(
 
 func (r repository) Counter() *count.Bus {
 	return r.counter
+}
+
+func (r *repository) addContextClues(ctx context.Context) context.Context {
+	return clues.Add(
+		ctx,
+		"acct_provider", r.Account.Provider,
+		"acct_id", clues.Hide(r.Account.ID()),
+		"storage_provider", r.Storage.Provider)
+}
+
+func (r *repository) setupKopia(
+	ctx context.Context,
+	retentionOpts ctrlRepo.Retention,
+	isInitialize bool,
+) error {
+	var err error
+
+	repoHashName, err := r.GenerateHashForRepositoryConfigFileName()
+	if err != nil {
+		return clues.Wrap(err, "generating repo config hash")
+	}
+
+	kopiaRef := kopia.NewConn(r.Storage)
+	if isInitialize {
+		if err := kopiaRef.Initialize(ctx, r.Opts.Repo, retentionOpts, repoHashName); err != nil {
+			// Replace common internal errors so that SDK users can check results with errors.Is()
+			if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
+				return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
+			}
+
+			return clues.Wrap(err, "initializing kopia")
+		}
+	} else {
+		if err := kopiaRef.Connect(ctx, r.Opts.Repo, repoHashName); err != nil {
+			return clues.Wrap(err, "connecting kopia client")
+		}
+	}
+
+	// kopiaRef comes with a count of 1, and NewWrapper/NewModelStore bumps it again, so it's safe to close here.
+	defer kopiaRef.Close(ctx)
+
+	r.dataLayer, err = kopia.NewWrapper(kopiaRef)
+	if err != nil {
+		return clues.Stack(err).WithClues(ctx)
+	}
+
+	r.modelStore, err = kopia.NewModelStore(kopiaRef)
+	if err != nil {
+		return clues.Stack(err).WithClues(ctx)
+	}
+
+	if r.ID == events.RepoIDNotFound {
+		rm, err := getRepoModel(ctx, r.modelStore)
+		if err != nil {
+			return clues.Wrap(err, "retrieving repo model info")
+		}
+
+		r.ID = string(rm.ID)
+	}
+
+	return nil
+}
+
+func (r repository) GenerateHashForRepositoryConfigFileName() (string, error) {
+	accountHash, err := r.Account.GetAccountConfigHash()
+	if err != nil {
+		return "", clues.Wrap(err, "fetch account config hash")
+	}
+
+	storageHash, err := r.Storage.GetStorageConfigHash()
+	if err != nil {
+		return "", clues.Wrap(err, "fetch storage config hash")
+	}
+
+	return fmt.Sprintf("%s-%s", accountHash, storageHash), nil
 }
 
 // ---------------------------------------------------------------------------

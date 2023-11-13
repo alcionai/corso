@@ -11,9 +11,9 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------

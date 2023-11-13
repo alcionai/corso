@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -81,10 +82,11 @@ func prepNewTestRestoreOp(
 			acct: tconfig.NewM365Account(t),
 			st:   backupStore,
 		}
-		k = kopia.NewConn(rod.st)
+		k            = kopia.NewConn(rod.st)
+		repoNameHash = strTD.NewHashForRepoConfigName()
 	)
 
-	err := k.Connect(ctx, repository.Options{})
+	err := k.Connect(ctx, repository.Options{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// kopiaRef comes with a count of 1 and Wrapper bumps it again

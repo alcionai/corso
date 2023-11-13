@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
@@ -21,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // TODO: incremental support
@@ -109,7 +109,7 @@ func populateCollections(
 		el         = errs.Local()
 	)
 
-	logger.Ctx(ctx).Info("filling collections", "len_deltapaths", len(dps))
+	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
 
 	for _, c := range channels {
 		if el.Failure() != nil {
@@ -266,6 +266,8 @@ func populateCollections(
 	}
 
 	collections["metadata"] = col
+
+	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
 
 	return collections, el.Failure()
 }
