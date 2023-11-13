@@ -23,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	metaTD "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata/testdata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	odTD "github.com/alcionai/corso/src/internal/m365/service/onedrive/testdata"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -33,6 +32,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -213,7 +213,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				"drive-id",
 				suite.testStatusUpdater(&wg, &collStatus),
 				control.Options{ToggleFeatures: control.Toggles{}},
-				CollectionScopeFolder,
+				false,
 				true,
 				nil)
 			require.NoError(t, err, clues.ToCore(err))
@@ -335,7 +335,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 		"fakeDriveID",
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
-		CollectionScopeFolder,
+		false,
 		true,
 		nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -413,7 +413,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		"fakeDriveID",
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
-		CollectionScopeFolder,
+		false,
 		true,
 		nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -469,7 +469,7 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 		"drive-id",
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
-		CollectionScopeFolder,
+		false,
 		true,
 		nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -531,60 +531,77 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 	strval := "not-important"
 
 	table := []struct {
-		name     string
-		colScope collectionScope
-		itemSize int64
-		labels   []string
-		err      error
+		name         string
+		isPackage    bool
+		itemMimeType string
+		itemSize     int64
+		labels       []string
+		err          error
 	}{
 		{
-			name:     "Simple item fetch no error",
-			colScope: CollectionScopeFolder,
-			itemSize: 10,
-			err:      nil,
+			name:      "Simple item fetch no error",
+			isPackage: false,
+			itemSize:  10,
+			err:       nil,
 		},
 		{
-			name:     "Simple item fetch error",
-			colScope: CollectionScopeFolder,
-			itemSize: 10,
-			err:      assert.AnError,
+			name:      "Simple item fetch error",
+			isPackage: false,
+			itemSize:  10,
+			err:       assert.AnError,
 		},
 		{
-			name:     "malware error",
-			colScope: CollectionScopeFolder,
-			itemSize: 10,
-			err:      clues.New("malware error").Label(graph.LabelsMalware),
-			labels:   []string{graph.LabelsMalware, graph.LabelsSkippable},
+			name:      "malware error",
+			isPackage: false,
+			itemSize:  10,
+			err:       clues.New("malware error").Label(graph.LabelsMalware),
+			labels:    []string{graph.LabelsMalware, graph.LabelsSkippable},
 		},
 		{
-			name:     "file not found error",
-			colScope: CollectionScopeFolder,
-			itemSize: 10,
-			err:      clues.New("not found error").Label(graph.LabelStatus(http.StatusNotFound)),
-			labels:   []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
+			name:      "file not found error",
+			isPackage: false,
+			itemSize:  10,
+			err:       clues.New("not found error").Label(graph.LabelStatus(http.StatusNotFound)),
+			labels:    []string{graph.LabelStatus(http.StatusNotFound), graph.LabelsSkippable},
 		},
 		{
 			// This should create an error that stops the backup
-			name:     "small OneNote file",
-			colScope: CollectionScopePackage,
-			itemSize: 10,
-			err:      clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
+			name:      "small OneNote file",
+			isPackage: true,
+			itemSize:  10,
+			err:       clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:    []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
-			name:     "big OneNote file",
-			colScope: CollectionScopePackage,
-			itemSize: MaxOneNoteFileSize,
-			err:      clues.New("big onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
+			name:         "small OneNote file with mimetype",
+			isPackage:    true,
+			itemMimeType: oneNoteMimeType,
+			itemSize:     10,
+			err:          clues.New("small onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:       []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
+		},
+		{
+			name:         "big OneNote file with mimetype",
+			isPackage:    true,
+			itemMimeType: oneNoteMimeType,
+			itemSize:     MaxOneNoteFileSize,
+			err:          clues.New("big onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:       []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
+		},
+		{
+			name:      "big OneNote file",
+			isPackage: true,
+			itemSize:  MaxOneNoteFileSize,
+			err:       clues.New("big onenote error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:    []string{graph.LabelStatus(http.StatusServiceUnavailable), graph.LabelsSkippable},
 		},
 		{
 			// This should block backup, only big OneNote files should be a problem
-			name:     "big file",
-			colScope: CollectionScopeFolder,
-			itemSize: MaxOneNoteFileSize,
-			err:      clues.New("big file error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
-			labels:   []string{graph.LabelStatus(http.StatusServiceUnavailable)},
+			name:      "big file",
+			isPackage: false,
+			itemSize:  MaxOneNoteFileSize,
+			err:       clues.New("big file error").Label(graph.LabelStatus(http.StatusServiceUnavailable)),
+			labels:    []string{graph.LabelStatus(http.StatusServiceUnavailable)},
 		},
 	}
 
@@ -597,7 +614,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 
 			var (
 				errs = fault.New(false)
-				col  = &Collection{scope: test.colScope}
+				col  = &Collection{isPackageOrChildOfPackage: test.isPackage}
 				now  = time.Now()
 			)
 
@@ -609,6 +626,8 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 				now,
 				true,
 				false)
+
+			stubItem.GetFile().SetMimeType(&test.itemMimeType)
 
 			mbh := mock.DefaultOneDriveBH("a-user")
 			mbh.GI = mock.GetsItem{Item: stubItem}
@@ -981,7 +1000,7 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 				driveID,
 				suite.testStatusUpdater(&wg, &collStatus),
 				opts,
-				CollectionScopeFolder,
+				false,
 				true,
 				nil)
 			require.NoError(t, err, clues.ToCore(err))

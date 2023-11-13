@@ -95,24 +95,28 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 // AddSiteIDFlag adds the --site-id flag, which accepts site ID values.
 // This flag is hidden, since we expect users to prefer the --site url
 // and do not want to encourage confusion.
-func AddSiteIDFlag(cmd *cobra.Command) {
+func AddSiteIDFlag(cmd *cobra.Command, multiple bool) {
 	fs := cmd.Flags()
+
+	message := "ID of the site to operate on"
+	if multiple {
+		//nolint:lll
+		message += "; accepts '" + Wildcard + "' to select all sites.  Args cannot be comma-delimited and must use multiple flags."
+	}
 
 	// note string ARRAY var.  IDs naturally contain commas, so we cannot accept
 	// duplicate values within a flag declaration.  ie: --site-id a,b,c does not
 	// work.  Users must call --site-id a --site-id b --site-id c.
-	fs.StringArrayVar(
-		&SiteIDFV,
-		SiteIDFN, nil,
-		//nolint:lll
-		"Backup data by site ID; accepts '"+Wildcard+"' to select all sites.  Args cannot be comma-delimited and must use multiple flags.")
+	fs.StringArrayVar(&SiteIDFV, SiteIDFN, nil, message)
 	cobra.CheckErr(fs.MarkHidden(SiteIDFN))
 }
 
 // AddSiteFlag adds the --site flag, which accepts webURL values.
-func AddSiteFlag(cmd *cobra.Command) {
-	cmd.Flags().StringSliceVar(
-		&WebURLFV,
-		SiteFN, nil,
-		"Backup data by site URL; accepts '"+Wildcard+"' to select all sites.")
+func AddSiteFlag(cmd *cobra.Command, multiple bool) {
+	message := "Web URL of the site to operate on"
+	if multiple {
+		message += "; accepts '" + Wildcard + "' to select all sites."
+	}
+
+	cmd.Flags().StringSliceVar(&WebURLFV, SiteFN, nil, message)
 }

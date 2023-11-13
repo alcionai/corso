@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 
+	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -26,12 +28,17 @@ func (r repository) NewExport(
 	sel selectors.Selector,
 	exportCfg control.ExportConfig,
 ) (operations.ExportOperation, error) {
+	handler, err := r.Provider.NewServiceHandler(r.Opts, sel.PathService())
+	if err != nil {
+		return operations.ExportOperation{}, clues.Stack(err)
+	}
+
 	return operations.NewExportOperation(
 		ctx,
 		r.Opts,
 		r.dataLayer,
 		store.NewWrapper(r.modelStore),
-		r.Provider,
+		handler,
 		r.Account,
 		model.StableID(backupID),
 		sel,

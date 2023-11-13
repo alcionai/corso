@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type ErrUnitSuite struct {
@@ -20,20 +20,108 @@ func TestErrUnitSuite(t *testing.T) {
 	suite.Run(t, &ErrUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ErrUnitSuite) TestInternal() {
+func (suite *ErrUnitSuite) TestInternal_errs() {
 	table := []struct {
 		get    errEnum
 		expect []error
 	}{
-		{RepoAlreadyExists, []error{repository.ErrorRepoAlreadyExists}},
-		{BackupNotFound, []error{repository.ErrorBackupNotFound}},
-		{ServiceNotEnabled, []error{graph.ErrServiceNotEnabled}},
-		{ResourceOwnerNotFound, []error{graph.ErrResourceOwnerNotFound}},
-		{ResourceNotAccessible, []error{graph.ErrResourceLocked}},
+		{
+			get:    ApplicationThrottled,
+			expect: []error{graph.ErrApplicationThrottled},
+		},
+		{
+			get:    RepoAlreadyExists,
+			expect: []error{repository.ErrorRepoAlreadyExists},
+		},
+		{
+			get:    BackupNotFound,
+			expect: []error{repository.ErrorBackupNotFound},
+		},
+		{
+			get:    ServiceNotEnabled,
+			expect: []error{graph.ErrServiceNotEnabled},
+		},
+		{
+			get:    ResourceOwnerNotFound,
+			expect: []error{graph.ErrResourceOwnerNotFound},
+		},
+		{
+			get:    ResourceNotAccessible,
+			expect: []error{graph.ErrResourceLocked},
+		},
 	}
 	for _, test := range table {
 		suite.Run(string(test.get), func() {
-			assert.ElementsMatch(suite.T(), test.expect, Internal(test.get))
+			// can't compare func signatures
+			errs, _ := Internal(test.get)
+			assert.ElementsMatch(suite.T(), test.expect, errs)
+		})
+	}
+}
+
+func (suite *ErrUnitSuite) TestInternal_checks() {
+	table := []struct {
+		get             errEnum
+		err             error
+		expectHasChecks assert.ValueAssertionFunc
+		expect          assert.BoolAssertionFunc
+	}{
+		{
+			get:             ApplicationThrottled,
+			err:             graph.ErrApplicationThrottled,
+			expectHasChecks: assert.NotEmpty,
+			expect:          assert.True,
+		},
+		{
+			get:             RepoAlreadyExists,
+			err:             graph.ErrApplicationThrottled,
+			expectHasChecks: assert.Empty,
+			expect:          assert.False,
+		},
+		{
+			get:             BackupNotFound,
+			err:             repository.ErrorBackupNotFound,
+			expectHasChecks: assert.Empty,
+			expect:          assert.False,
+		},
+		{
+			get:             ServiceNotEnabled,
+			err:             graph.ErrServiceNotEnabled,
+			expectHasChecks: assert.Empty,
+			expect:          assert.False,
+		},
+		{
+			get: ResourceOwnerNotFound,
+			// won't match, checks itemNotFound, which isn't an error enum
+			err:             graph.ErrResourceOwnerNotFound,
+			expectHasChecks: assert.NotEmpty,
+			expect:          assert.False,
+		},
+		{
+			get:             ResourceNotAccessible,
+			err:             graph.ErrResourceLocked,
+			expectHasChecks: assert.NotEmpty,
+			expect:          assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(string(test.get), func() {
+			t := suite.T()
+
+			_, checks := Internal(test.get)
+
+			test.expectHasChecks(t, checks)
+
+			var result bool
+
+			for _, check := range checks {
+				if check(test.err) {
+					result = true
+					break
+				}
+			}
+
+			test.expect(t, result)
 		})
 	}
 }
@@ -43,11 +131,30 @@ func (suite *ErrUnitSuite) TestIs() {
 		target errEnum
 		err    error
 	}{
-		{RepoAlreadyExists, repository.ErrorRepoAlreadyExists},
-		{BackupNotFound, repository.ErrorBackupNotFound},
-		{ServiceNotEnabled, graph.ErrServiceNotEnabled},
-		{ResourceOwnerNotFound, graph.ErrResourceOwnerNotFound},
-		{ResourceNotAccessible, graph.ErrResourceLocked},
+		{
+			target: ApplicationThrottled,
+			err:    graph.ErrApplicationThrottled,
+		},
+		{
+			target: RepoAlreadyExists,
+			err:    repository.ErrorRepoAlreadyExists,
+		},
+		{
+			target: BackupNotFound,
+			err:    repository.ErrorBackupNotFound,
+		},
+		{
+			target: ServiceNotEnabled,
+			err:    graph.ErrServiceNotEnabled,
+		},
+		{
+			target: ResourceOwnerNotFound,
+			err:    graph.ErrResourceOwnerNotFound,
+		},
+		{
+			target: ResourceNotAccessible,
+			err:    graph.ErrResourceLocked,
+		},
 	}
 	for _, test := range table {
 		suite.Run(string(test.target), func() {

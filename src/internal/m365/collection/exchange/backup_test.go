@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -27,10 +26,13 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -65,7 +67,7 @@ type (
 	mockGetterResults struct {
 		added    []string
 		removed  []string
-		newDelta api.DeltaUpdate
+		newDelta pagers.DeltaUpdate
 		err      error
 	}
 )
@@ -73,18 +75,11 @@ type (
 func (mg mockGetter) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, cID, prevDelta string,
-	_ bool,
-	_ bool,
-) (
-	map[string]time.Time,
-	bool,
-	[]string,
-	api.DeltaUpdate,
-	error,
-) {
+	_ api.CallConfig,
+) (pagers.AddedAndRemoved, error) {
 	results, ok := mg.results[cID]
 	if !ok {
-		return nil, false, nil, api.DeltaUpdate{}, clues.New("mock not found for " + cID)
+		return pagers.AddedAndRemoved{}, clues.New("mock not found for " + cID)
 	}
 
 	delta := results.newDelta
@@ -97,7 +92,14 @@ func (mg mockGetter) GetAddedAndRemovedItemIDs(
 		resAdded[add] = time.Time{}
 	}
 
-	return resAdded, false, results.removed, delta, results.err
+	aar := pagers.AddedAndRemoved{
+		Added:         resAdded,
+		Removed:       results.removed,
+		ValidModTimes: false,
+		DU:            delta,
+	}
+
+	return aar, results.err
 }
 
 var _ graph.ContainerResolver = &mockResolver{}
@@ -431,7 +433,10 @@ func (suite *BackupIntgSuite) SetupSuite() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
+	suite.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.tenantID = creds.AzureTenantID
@@ -796,53 +801,25 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 // TestEventsSerializationRegression ensures functionality of createCollections
 // to be able to successfully query, download and restore event objects
 func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
 	var (
 		users    = []string{suite.user}
 		handlers = BackupHandlers(suite.ac)
-		calID    string
-		bdayID   string
 	)
 
-	fn := func(gcc graph.CachedContainer) error {
-		if ptr.Val(gcc.GetDisplayName()) == api.DefaultCalendar {
-			calID = ptr.Val(gcc.GetId())
-		}
-
-		if ptr.Val(gcc.GetDisplayName()) == "Birthdays" {
-			bdayID = ptr.Val(gcc.GetId())
-		}
-
-		return nil
-	}
-
-	err := suite.ac.Events().EnumerateContainers(
-		ctx,
-		suite.user,
-		"",
-		false,
-		fn,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-
 	tests := []struct {
-		name, expected string
-		scope          selectors.ExchangeScope
+		name, expectedContainerName string
+		scope                       selectors.ExchangeScope
 	}{
 		{
-			name:     "Default Event Calendar",
-			expected: calID,
+			name:                  "Default Event Calendar",
+			expectedContainerName: api.DefaultCalendar,
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{api.DefaultCalendar},
 				selectors.PrefixMatch())[0],
 		},
 		{
-			name:     "Birthday Calendar",
-			expected: bdayID,
+			name:                  "Birthday Calendar",
+			expectedContainerName: "Birthdays",
 			scope: selectors.NewExchangeBackup(users).EventCalendars(
 				[]string{"Birthdays"},
 				selectors.PrefixMatch())[0],
@@ -879,13 +856,16 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 			wg.Add(len(collections))
 
 			for _, edc := range collections {
+				dlp, isDLP := edc.(data.LocationPather)
+
 				var isMetadata bool
 
-				if edc.FullPath().Service() != path.ExchangeMetadataService {
-					isMetadata = true
-					assert.Equal(t, test.expected, edc.FullPath().Folder(false))
+				if edc.FullPath().Service() == path.ExchangeService {
+					require.True(t, isDLP, "must be a location pather")
+					assert.Contains(t, dlp.LocationPath().Elements(), test.expectedContainerName)
 				} else {
-					assert.Equal(t, "", edc.FullPath().Folder(false))
+					isMetadata = true
+					assert.Empty(t, edc.FullPath().Folder(false))
 				}
 
 				for item := range edc.Items(ctx, fault.New(true)) {
@@ -944,18 +924,18 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 		commonResult  = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
-			newDelta: api.DeltaUpdate{URL: "delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url"},
 		}
 		errorResult = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
-			newDelta: api.DeltaUpdate{URL: "delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url"},
 			err:      assert.AnError,
 		}
 		deletedInFlightResult = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
-			newDelta: api.DeltaUpdate{URL: "delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url"},
 			err:      graph.ErrDeletedInFlight,
 		}
 		container1 = mockContainer{
@@ -1260,12 +1240,12 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 		result1 = mockGetterResults{
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
-			newDelta: api.DeltaUpdate{URL: "delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url"},
 		}
 		result2 = mockGetterResults{
 			added:    []string{"a4", "a5", "a6"},
 			removed:  []string{"r4", "r5", "r6"},
-			newDelta: api.DeltaUpdate{URL: "delta_url2"},
+			newDelta: pagers.DeltaUpdate{URL: "delta_url2"},
 		}
 
 		container1 = mockContainer{
@@ -1548,7 +1528,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 }
 
 func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_repeatedItems() {
-	newDelta := api.DeltaUpdate{URL: "delta_url"}
+	newDelta := pagers.DeltaUpdate{URL: "delta_url"}
 
 	table := []struct {
 		name          string
@@ -1718,11 +1698,11 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 		allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
 		commonResults = mockGetterResults{
 			added:    []string{"added"},
-			newDelta: api.DeltaUpdate{URL: "new_delta_url"},
+			newDelta: pagers.DeltaUpdate{URL: "new_delta_url"},
 		}
 		expiredResults = mockGetterResults{
 			added: []string{"added"},
-			newDelta: api.DeltaUpdate{
+			newDelta: pagers.DeltaUpdate{
 				URL:   "new_delta_url",
 				Reset: true,
 			},

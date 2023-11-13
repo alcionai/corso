@@ -53,7 +53,7 @@ func produceManifestsAndMetadata(
 }
 
 // getManifestsAndMetadata calls kopia to retrieve prior backup manifests,
-// metadata collections to supply backup heuristics.
+// metadata collections to supply backup information.
 func getManifestsAndMetadata(
 	ctx context.Context,
 	bf inject.BaseFinder,
@@ -92,8 +92,11 @@ func getManifestsAndMetadata(
 		return bb, nil, false, nil
 	}
 
-	for _, man := range bb.MergeBases() {
-		mctx := clues.Add(ctx, "manifest_id", man.ID)
+	for _, base := range bb.MergeBases() {
+		mctx := clues.Add(
+			ctx,
+			"base_item_data_snapshot_id", base.ItemDataSnapshot.ID,
+			"base_backup_id", base.Backup.ID)
 
 		// a local fault.Bus intance is used to collect metadata files here.
 		// we avoid the global fault.Bus because all failures here are ignorable,
@@ -103,13 +106,18 @@ func getManifestsAndMetadata(
 		// spread around.  Need to find more idiomatic handling.
 		fb := fault.New(true)
 
-		paths, err := bp.GetMetadataPaths(mctx, rp, man, fb)
+		paths, err := bp.GetMetadataPaths(mctx, rp, base, fb)
 		if err != nil {
 			LogFaultErrors(ctx, fb.Errors(), "collecting metadata paths")
 			return nil, nil, false, err
 		}
 
-		colls, err := rp.ProduceRestoreCollections(ctx, string(man.ID), paths, nil, fb)
+		colls, err := rp.ProduceRestoreCollections(
+			ctx,
+			string(base.ItemDataSnapshot.ID),
+			paths,
+			nil,
+			fb)
 		if err != nil {
 			// Restore is best-effort and we want to keep it that way since we want to
 			// return as much metadata as we can to reduce the work we'll need to do.

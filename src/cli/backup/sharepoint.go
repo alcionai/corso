@@ -76,12 +76,10 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
 
-		flags.AddSiteFlag(c)
-		flags.AddSiteIDFlag(c)
+		flags.AddSiteFlag(c, true)
+		flags.AddSiteIDFlag(c, true)
 		flags.AddDataFlag(c, []string{flags.DataLibraries}, true)
-		flags.AddFailFastFlag(c)
-		flags.AddDisableIncrementalsFlag(c)
-		flags.AddForceItemDataDownloadFlag(c)
+		flags.AddGenericBackupFlags(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, sharePointListCmd())

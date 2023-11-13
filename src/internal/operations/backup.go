@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -33,6 +32,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -68,6 +68,8 @@ type BackupResults struct {
 	stats.ReadWrites
 	stats.StartAndEndTime
 	BackupID model.StableID `json:"backupID"`
+	// keys are found in /pkg/count/keys.go
+	Counts map[string]int64 `json:"counts"`
 }
 
 // NewBackupOperation constructs and validates a backup operation.
@@ -81,9 +83,10 @@ func NewBackupOperation(
 	selector selectors.Selector,
 	owner idname.Provider,
 	bus events.Eventer,
+	counter *count.Bus,
 ) (BackupOperation, error) {
 	op := BackupOperation{
-		operation:           newOperation(opts, bus, count.New(), kw, sw),
+		operation:           newOperation(opts, bus, counter, kw, sw),
 		ResourceOwner:       owner,
 		Selectors:           selector,
 		Version:             "v0",
@@ -202,8 +205,6 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
-	ctx = count.Embed(ctx, op.Counter)
-
 	// Check if the protected resource has the service enabled in order for us
 	// to run a backup.
 	enabled, err := op.bp.IsServiceEnabled(
@@ -237,6 +238,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	op.Results.BackupID = model.StableID(uuid.NewString())
 
+	cats, err := op.Selectors.AllHumanPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for backup")
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.account.ID()),
@@ -244,6 +252,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"resource_owner_name", clues.Hide(op.ResourceOwner.Name()),
 		"backup_id", op.Results.BackupID,
 		"service", op.Selectors.Service,
+		"categories", cats,
 		"incremental", op.incremental,
 		"disable_assist_backup", op.disableAssistBackup)
 
@@ -286,7 +295,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Persistence
 	// -----
 
-	err = op.persistResults(startTime, &opStats)
+	err = op.persistResults(startTime, &opStats, op.Counter)
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
 		return op.Errors.Failure()
@@ -339,6 +348,7 @@ func (op *BackupOperation) do(
 		Info("backing up selection")
 
 	// should always be 1, since backups are 1:1 with resourceOwners.
+	// TODO: this is outdated and needs to be removed.
 	opStats.resourceCount = 1
 
 	kbf, err := op.kopia.NewBaseFinder(op.store)
@@ -357,6 +367,51 @@ func (op *BackupOperation) do(
 		op.disableAssistBackup)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing manifests and metadata")
+	}
+
+	// Force full backups if the base is an older corso version. Those backups
+	// don't have all the data we want to pull forward.
+	//
+	// TODO(ashmrtn): We can push this check further down the stack to either:
+	//   * the metadata fetch code to disable individual bases (requires a
+	//     function to completely remove a base from the set)
+	//   * the base finder code to skip over older bases (breaks isolation a bit
+	//     by requiring knowledge of good/bad backup versions for different
+	//     services)
+	if op.Selectors.PathService() == path.GroupsService {
+		if mans.MinBackupVersion() != version.NoBackup &&
+			mans.MinBackupVersion() < version.Groups9Update {
+			logger.Ctx(ctx).Info("dropping merge bases due to groups version change")
+
+			mans.DisableMergeBases()
+			mans.DisableAssistBases()
+
+			canUseMetadata = false
+			mdColls = nil
+		}
+
+		if mans.MinAssistVersion() != version.NoBackup &&
+			mans.MinAssistVersion() < version.Groups9Update {
+			logger.Ctx(ctx).Info("disabling assist bases due to groups version change")
+			mans.DisableAssistBases()
+		}
+	}
+
+	// Drop merge bases if we're doing a preview backup. Preview backups may use
+	// different delta token parameters so we need to ensure we do a token
+	// refresh. This could eventually be pushed down the stack if we track token
+	// versions.
+	//
+	// TODO(ashmrtn): Until we use token versions to determine this, refactor
+	// input params to produceManifestsAndMetadata and do this in that function
+	// instead of here.
+	if op.Options.ToggleFeatures.PreviewBackup {
+		logger.Ctx(ctx).Info("disabling merge bases for preview backup")
+
+		mans.DisableMergeBases()
+
+		canUseMetadata = false
+		mdColls = nil
 	}
 
 	ctx = clues.Add(
@@ -381,6 +436,7 @@ func (op *BackupOperation) do(
 		mdColls,
 		lastBackupVersion,
 		op.Options,
+		op.Counter,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing backup data collections")
@@ -401,6 +457,7 @@ func (op *BackupOperation) do(
 		ssmb,
 		backupID,
 		op.incremental && canUseMetadata && canUsePreviousBackup,
+		op.Counter,
 		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "persisting collection backups")
@@ -459,6 +516,7 @@ func produceBackupDataCollections(
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	ctrlOpts control.Options,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
 	progressBar := observe.MessageWithCompletion(ctx, "Discovering items to backup")
@@ -472,7 +530,7 @@ func produceBackupDataCollections(
 		Selector:            sel,
 	}
 
-	return bp.ProduceBackupCollections(ctx, bpc, errs)
+	return bp.ProduceBackupCollections(ctx, bpc, counter, errs)
 }
 
 // ---------------------------------------------------------------------------
@@ -490,6 +548,7 @@ func consumeBackupCollections(
 	pmr prefixmatcher.StringSetReader,
 	backupID model.StableID,
 	isIncremental bool,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	ctx = clues.Add(
@@ -513,6 +572,7 @@ func consumeBackupCollections(
 		pmr,
 		tags,
 		isIncremental,
+		counter,
 		errs)
 	if err != nil {
 		if kopiaStats == nil {
@@ -589,7 +649,7 @@ func getNewPathRefs(
 func mergeItemsFromBase(
 	ctx context.Context,
 	checkReason bool,
-	baseBackup kopia.BackupEntry,
+	baseBackup kopia.BackupBase,
 	detailsStore streamstore.Streamer,
 	dataFromBackup kopia.DetailsMergeInfoer,
 	deets *details.Builder,
@@ -602,7 +662,7 @@ func mergeItemsFromBase(
 	)
 
 	// Can't be in the above block else it's counted as a redeclaration.
-	ctx = clues.Add(ctx, "base_backup_id", baseBackup.ID)
+	ctx = clues.Add(ctx, "base_backup_id", baseBackup.Backup.ID)
 
 	baseDeets, err := getDetailsFromBackup(
 		ctx,
@@ -650,7 +710,7 @@ func mergeItemsFromBase(
 			dataFromBackup,
 			entry,
 			rr,
-			baseBackup.Version)
+			baseBackup.Backup.Version)
 		if err != nil {
 			return manifestAddedEntries,
 				clues.Wrap(err, "getting updated info for entry").WithClues(ictx)
@@ -731,7 +791,7 @@ func mergeDetails(
 	// leaves us in a bit of a pickle if the user has run any concurrent backups
 	// with overlapping Reasons that turn into assist bases, but the modTime check
 	// in DetailsMergeInfoer should handle that.
-	for _, base := range bases.UniqueAssistBackups() {
+	for _, base := range bases.UniqueAssistBases() {
 		added, err := mergeItemsFromBase(
 			ctx,
 			false,
@@ -756,7 +816,7 @@ func mergeDetails(
 	// We do want to enable matching entries based on Reasons because we
 	// explicitly control which subtrees from the merge base backup are grafted
 	// onto the hierarchy for the currently running backup.
-	for _, base := range bases.Backups() {
+	for _, base := range bases.MergeBases() {
 		added, err := mergeItemsFromBase(
 			ctx,
 			true,
@@ -791,6 +851,7 @@ func mergeDetails(
 func (op *BackupOperation) persistResults(
 	started time.Time,
 	opStats *backupStats,
+	counter *count.Bus,
 ) error {
 	op.Results.StartedAt = started
 	op.Results.CompletedAt = time.Now()
@@ -808,6 +869,10 @@ func (op *BackupOperation) persistResults(
 		return clues.New("backup persistence never completed")
 	}
 
+	// the summary of all counts collected during backup
+	op.Results.Counts = counter.TotalValues()
+
+	// legacy counting system
 	op.Results.BytesRead = opStats.k.TotalHashedBytes
 	op.Results.BytesUploaded = opStats.k.TotalUploadedBytes
 	op.Results.ItemsWritten = opStats.k.TotalFileCount
@@ -887,24 +952,49 @@ func (op *BackupOperation) createBackupModels(
 		model.ServiceTag: op.Selectors.PathService().String(),
 	}
 
-	// Add tags to mark this backup as either assist or merge. This is used to:
+	// Add tags to mark this backup as preview, assist, or merge. This is used to:
 	// 1. Filter assist backups by tag during base selection process
-	// 2. Differentiate assist backups from merge backups
-	if isMergeBackup(
+	// 2. Differentiate assist backups, merge backups, and preview backups.
+	//
+	// model.BackupTypeTag has more info about how these tags are used.
+	switch {
+	case op.Options.ToggleFeatures.PreviewBackup:
+		// Preview backups need to be successful and without errors to be considered
+		// valid. Just reuse the merge base check for that since it has the same
+		// requirements.
+		if !isMergeBackup(
+			snapID,
+			ssid,
+			op.Options.FailureHandling,
+			op.Errors) {
+			return clues.New("failed preview backup").WithClues(ctx)
+		}
+
+		tags[model.BackupTypeTag] = model.PreviewBackup
+
+	case isMergeBackup(
 		snapID,
 		ssid,
 		op.Options.FailureHandling,
-		op.Errors) {
+		op.Errors):
 		tags[model.BackupTypeTag] = model.MergeBackup
-	} else if isAssistBackup(
+
+	case isAssistBackup(
 		opStats.hasNewDetailEntries,
 		snapID,
 		ssid,
 		op.Options.FailureHandling,
-		op.Errors) {
+		op.Errors):
 		tags[model.BackupTypeTag] = model.AssistBackup
-	} else {
-		return clues.New("backup is neither assist nor merge").WithClues(ctx)
+
+	default:
+		return clues.New("unable to determine backup type due to operation errors").
+			WithClues(ctx)
+	}
+
+	// Additional defensive check to make sure we tag things as expected above.
+	if len(tags[model.BackupTypeTag]) == 0 {
+		return clues.New("empty backup type tag").WithClues(ctx)
 	}
 
 	ctx = clues.Add(ctx, model.BackupTypeTag, tags[model.BackupTypeTag])

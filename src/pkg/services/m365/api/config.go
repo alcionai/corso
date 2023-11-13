@@ -86,6 +86,10 @@ func newEventualConsistencyHeaders() *abstractions.RequestHeaders {
 	return headers
 }
 
+func SelectProps(ss ...string) []string {
+	return idAnd(ss...)
+}
+
 // makes a slice with []string{"id", s...}
 func idAnd(ss ...string) []string {
 	id := []string{"id"}

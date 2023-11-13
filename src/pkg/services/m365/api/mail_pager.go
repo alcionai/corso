@@ -3,23 +3,22 @@ package api
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
 // container pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.MailFolderable] = &mailFoldersPageCtrl{}
+var _ pagers.NonDeltaHandler[models.MailFolderable] = &mailFoldersPageCtrl{}
 
 type mailFoldersPageCtrl struct {
 	gs      graph.Servicer
@@ -31,7 +30,7 @@ func (c Mail) NewMailFoldersPager(
 	userID string,
 	immutableIDs bool,
 	selectProps ...string,
-) Pager[models.MailFolderable] {
+) pagers.NonDeltaHandler[models.MailFolderable] {
 	options := &users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
 		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 		QueryParameters: &users.ItemMailFoldersRequestBuilderGetQueryParameters{},
@@ -51,7 +50,7 @@ func (c Mail) NewMailFoldersPager(
 
 func (p *mailFoldersPageCtrl) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.MailFolderable], error) {
+) (pagers.NextLinkValuer[models.MailFolderable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -64,49 +63,21 @@ func (p *mailFoldersPageCtrl) ValidModTimes() bool {
 	return true
 }
 
-// EnumerateContainers iterates through all of the users current
-// mail folders, transforming each to a graph.CacheFolder, and calling
-// fn(cf).
-// Folder hierarchy is represented in its current state, and does
-// not contain historical data.
+// EnumerateContainers retrieves all of the user's current mail folders.
 func (c Mail) EnumerateContainers(
 	ctx context.Context,
 	userID, _ string, // baseContainerID not needed here
 	immutableIDs bool,
-	fn func(graph.CachedContainer) error,
-	errs *fault.Bus,
-) error {
-	var (
-		el  = errs.Local()
-		pgr = c.NewMailFoldersPager(userID, immutableIDs)
-	)
-
-	containers, err := enumerateItems(ctx, pgr)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
-
-	for _, c := range containers {
-		if el.Failure() != nil {
-			break
-		}
-
-		gncf := graph.NewCacheFolder(c, nil, nil)
-
-		if err := fn(&gncf); err != nil {
-			errs.AddRecoverable(ctx, graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
-			continue
-		}
-	}
-
-	return el.Failure()
+) ([]models.MailFolderable, error) {
+	containers, err := pagers.BatchEnumerateItems(ctx, c.NewMailFoldersPager(userID, immutableIDs))
+	return containers, graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
 // item pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.Messageable] = &mailsPageCtrl{}
+var _ pagers.NonDeltaHandler[models.Messageable] = &mailsPageCtrl{}
 
 type mailsPageCtrl struct {
 	gs      graph.Servicer
@@ -118,7 +89,7 @@ func (c Mail) NewMailPager(
 	userID, containerID string,
 	immutableIDs bool,
 	selectProps ...string,
-) Pager[models.Messageable] {
+) pagers.NonDeltaHandler[models.Messageable] {
 	options := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
 		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{},
@@ -142,7 +113,7 @@ func (c Mail) NewMailPager(
 
 func (p *mailsPageCtrl) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.Messageable], error) {
+) (pagers.NextLinkValuer[models.Messageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -162,7 +133,7 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewMailPager(userID, containerID, false, mailCollisionKeyProps()...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating mails")
 	}
@@ -183,7 +154,7 @@ func (c Mail) GetItemIDsInContainer(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewMailPager(userID, containerID, false, idAnd()...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating mails")
 	}
@@ -201,7 +172,7 @@ func (c Mail) GetItemIDsInContainer(
 // delta item ID pager
 // ---------------------------------------------------------------------------
 
-var _ DeltaPager[models.Messageable] = &mailDeltaPager{}
+var _ pagers.DeltaHandler[models.Messageable] = &mailDeltaPager{}
 
 type mailDeltaPager struct {
 	gs          graph.Servicer
@@ -232,7 +203,7 @@ func (c Mail) NewMailDeltaPager(
 	userID, containerID, prevDeltaLink string,
 	immutableIDs bool,
 	selectProps ...string,
-) DeltaPager[models.Messageable] {
+) pagers.DeltaHandler[models.Messageable] {
 	options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		// do NOT set Top.  It limits the total items received.
 		QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{},
@@ -255,7 +226,7 @@ func (c Mail) NewMailDeltaPager(
 
 func (p *mailDeltaPager) GetPage(
 	ctx context.Context,
-) (DeltaLinkValuer[models.Messageable], error) {
+) (pagers.DeltaLinkValuer[models.Messageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -275,9 +246,8 @@ func (p *mailDeltaPager) ValidModTimes() bool {
 func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	immutableIDs bool,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
+	cc CallConfig,
+) (pagers.AddedAndRemoved, error) {
 	ctx = clues.Add(
 		ctx,
 		"data_category", path.EmailCategory,
@@ -288,19 +258,20 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		immutableIDs,
+		cc.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 	pager := c.NewMailPager(
 		userID,
 		containerID,
-		immutableIDs,
+		cc.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
-	return getAddedAndRemovedItemIDs[models.Messageable](
+	return pagers.GetAddedAndRemovedItemIDs[models.Messageable](
 		ctx,
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		canMakeDeltaQueries,
-		addedAndRemovedByAddtlData[models.Messageable])
+		cc.CanMakeDeltaQueries,
+		0,
+		pagers.AddedAndRemovedByAddtlData[models.Messageable])
 }

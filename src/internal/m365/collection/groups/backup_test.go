@@ -14,7 +14,6 @@ import (
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/testdata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -24,11 +23,14 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -49,22 +51,29 @@ type mockBackupHandler struct {
 	doNotInclude  bool
 }
 
-func (bh mockBackupHandler) getChannels(context.Context) ([]models.Channelable, error) {
+func (bh mockBackupHandler) getContainers(context.Context) ([]models.Channelable, error) {
 	return bh.channels, bh.channelsErr
 }
 
-func (bh mockBackupHandler) getChannelMessageIDs(
+func (bh mockBackupHandler) getContainerItemIDs(
 	_ context.Context,
 	_, _ string,
-	_ bool,
-) (map[string]time.Time, bool, []string, api.DeltaUpdate, error) {
+	_ api.CallConfig,
+) (pagers.AddedAndRemoved, error) {
 	idRes := make(map[string]time.Time, len(bh.messageIDs))
 
 	for _, id := range bh.messageIDs {
 		idRes[id] = time.Time{}
 	}
 
-	return idRes, true, bh.deletedMsgIDs, api.DeltaUpdate{}, bh.messagesErr
+	aar := pagers.AddedAndRemoved{
+		Added:         idRes,
+		Removed:       bh.deletedMsgIDs,
+		ValidModTimes: true,
+		DU:            pagers.DeltaUpdate{},
+	}
+
+	return aar, bh.messagesErr
 }
 
 func (bh mockBackupHandler) includeContainer(
@@ -89,7 +98,7 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh mockBackupHandler) GetChannelMessage(
+func (bh mockBackupHandler) GetItemByID(
 	_ context.Context,
 	_, _, itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
@@ -462,7 +471,10 @@ func (suite *BackupIntgSuite) SetupSuite() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
+	suite.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.tenantID = creds.AzureTenantID
@@ -470,7 +482,7 @@ func (suite *BackupIntgSuite) SetupSuite() {
 
 func (suite *BackupIntgSuite) TestCreateCollections() {
 	var (
-		protectedResource = tconfig.M365GroupID(suite.T())
+		protectedResource = tconfig.M365TeamID(suite.T())
 		resources         = []string{protectedResource}
 		handler           = NewChannelBackupHandler(protectedResource, suite.ac.Channels())
 	)

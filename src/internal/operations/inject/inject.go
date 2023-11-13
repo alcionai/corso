@@ -3,19 +3,20 @@ package inject
 import (
 	"context"
 
+	"github.com/kopia/kopia/repo/manifest"
+
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type (
@@ -23,6 +24,7 @@ type (
 		ProduceBackupCollections(
 			ctx context.Context,
 			bpc BackupProducerConfig,
+			counter *count.Bus,
 			errs *fault.Bus,
 		) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error)
 
@@ -37,7 +39,7 @@ type (
 		GetMetadataPaths(
 			ctx context.Context,
 			r inject.RestoreProducer,
-			man kopia.ManifestEntry,
+			base ReasonAndSnapshotIDer,
 			errs *fault.Bus,
 		) ([]path.RestorePaths, error)
 
@@ -84,15 +86,11 @@ type (
 		ProduceExportCollections(
 			ctx context.Context,
 			backupVersion int,
-			selector selectors.Selector,
 			exportCfg control.ExportConfig,
-			opts control.Options,
 			dcs []data.RestoreCollection,
 			stats *data.ExportStats,
 			errs *fault.Bus,
 		) ([]export.Collectioner, error)
-
-		Wait() *data.CollectionStats
 
 		CacheItemInfoer
 	}
@@ -115,5 +113,23 @@ type (
 
 	RepoMaintenancer interface {
 		RepoMaintenance(ctx context.Context, opts repository.Maintenance) error
+	}
+
+	// ServiceHandler contains the set of functions required to implement all
+	// service-specific functionality for backups, restores, and exports.
+	ServiceHandler interface {
+		ExportConsumer
+	}
+
+	ToServiceHandler interface {
+		NewServiceHandler(
+			opts control.Options,
+			service path.ServiceType,
+		) (ServiceHandler, error)
+	}
+
+	ReasonAndSnapshotIDer interface {
+		GetReasons() []identity.Reasoner
+		GetSnapshotID() manifest.ID
 	}
 )

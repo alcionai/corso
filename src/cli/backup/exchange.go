@@ -80,13 +80,11 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddMailBoxFlag(c)
 		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		flags.AddFetchParallelismFlag(c)
-		flags.AddFailFastFlag(c)
-		flags.AddDisableIncrementalsFlag(c)
-		flags.AddForceItemDataDownloadFlag(c)
 		flags.AddDisableDeltaFlag(c)
 		flags.AddEnableImmutableIDFlag(c)
 		flags.AddDisableConcurrencyLimiterFlag(c)
 		flags.AddDeltaPageSizeFlag(c)
+		flags.AddGenericBackupFlags(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
@@ -165,7 +163,12 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 
 	sel := exchangeBackupCreateSelectors(flags.UserFV, flags.CategoryDataFV)
 
-	ins, err := utils.UsersMap(ctx, *acct, utils.Control(), fault.New(true))
+	ins, err := utils.UsersMap(
+		ctx,
+		*acct,
+		utils.Control(),
+		r.Counter(),
+		fault.New(true))
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}

@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -30,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 const (
@@ -788,7 +788,13 @@ func restoreFile(
 		return "", details.ItemInfo{}, err
 	}
 
-	w, uploadURL, err := driveItemWriter(ctx, ir, driveID, ptr.Val(newItem.GetId()), ss.Size())
+	w, uploadURL, err := driveItemWriter(
+		ctx,
+		ir,
+		driveID,
+		ptr.Val(newItem.GetId()),
+		ss.Size(),
+		ctr)
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "get item upload session")
 	}
@@ -841,7 +847,11 @@ func restoreFile(
 
 		// refresh the io.Writer to restart the upload
 		// TODO: @vkamra verify if var session is the desired input
-		w = graph.NewLargeItemWriter(ptr.Val(newItem.GetId()), uploadURL, ss.Size())
+		w = graph.NewLargeItemWriter(
+			ptr.Val(newItem.GetId()),
+			uploadURL,
+			ss.Size(),
+			ctr)
 	}
 
 	if err != nil {

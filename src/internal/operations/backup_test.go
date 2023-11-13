@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	odMock "github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
@@ -39,12 +39,14 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -135,6 +137,7 @@ func (mbu mockBackupConsumer) ConsumeBackupCollections(
 	excluded prefixmatcher.StringSetReader,
 	tags map[string]string,
 	buildTreeWithBase bool,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) (*kopia.BackupStats, *details.Builder, kopia.DetailsMergeInfoer, error) {
 	if mbu.checkFunc != nil {
@@ -427,19 +430,20 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				acct,
 				sel,
 				sel,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			op.Errors.Fail(test.fail)
 
-			test.expectErr(t, op.persistResults(now, &test.stats))
+			// op.Counter is not incremented in this test.
+			test.expectErr(t, op.persistResults(now, &test.stats, count.New()))
 
 			assert.Equal(t, test.expectStatus.String(), op.Status.String(), "status")
-			assert.Equal(t, test.stats.ctrl.Successes, op.Results.ItemsRead, "items read")
-			assert.Equal(t, test.stats.k.TotalFileCount, op.Results.ItemsWritten, "items written")
-			assert.Equal(t, test.stats.k.TotalHashedBytes, op.Results.BytesRead, "bytes read")
-			assert.Equal(t, test.stats.k.TotalUploadedBytes, op.Results.BytesUploaded, "bytes written")
-			assert.Equal(t, test.stats.resourceCount, op.Results.ResourceOwners, "resource owners")
+			assert.Equal(t, op.Results.ItemsRead, test.stats.ctrl.Successes, "items read")
+			assert.Equal(t, op.Results.ItemsWritten, test.stats.k.TotalFileCount, "items written")
+			assert.Equal(t, op.Results.BytesRead, test.stats.k.TotalHashedBytes, "bytes read")
+			assert.Equal(t, op.Results.BytesUploaded, test.stats.k.TotalUploadedBytes, "bytes written")
 			assert.Equal(t, now, op.Results.StartedAt, "started at")
 			assert.Less(t, now, op.Results.CompletedAt, "completed at")
 		})
@@ -477,14 +481,16 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		}
 
 		bases = kopia.NewMockBackupBases().WithMergeBases(
-			kopia.ManifestEntry{
-				Manifest: manifest1,
+			kopia.BackupBase{
+				Backup:           &backup.Backup{BaseModel: model.BaseModel{ID: "1"}},
+				ItemDataSnapshot: manifest1,
 				Reasons: []identity.Reasoner{
 					emailReason,
 				},
 			}).WithAssistBases(
-			kopia.ManifestEntry{
-				Manifest: manifest2,
+			kopia.BackupBase{
+				Backup:           &backup.Backup{BaseModel: model.BaseModel{ID: "2"}},
+				ItemDataSnapshot: manifest2,
 				Reasons: []identity.Reasoner{
 					contactsReason,
 				},
@@ -525,6 +531,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_ConsumeBackupDataCollections
 		nil,
 		backupID,
 		true,
+		count.New(),
 		fault.New(true))
 }
 
@@ -631,8 +638,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 	table := []struct {
 		name               string
 		populatedDetails   map[string]*details.Details
-		inputBackups       []kopia.BackupEntry
-		inputAssistBackups []kopia.BackupEntry
+		inputBackups       []kopia.BackupBase
+		inputAssistBackups []kopia.BackupBase
 		mdm                *mockDetailsMergeInfoer
 
 		errCheck        assert.ErrorAssertionFunc
@@ -659,7 +666,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup.Backup{
 						BaseModel: model.BaseModel{
@@ -683,7 +690,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -710,7 +717,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -766,7 +773,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -793,7 +800,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -823,7 +830,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -853,7 +860,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -883,7 +890,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -914,7 +921,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -945,7 +952,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -993,7 +1000,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -1002,7 +1009,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					},
 				},
 			},
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []kopia.BackupBase{
 				{Backup: &backup2},
 			},
 			populatedDetails: map[string]*details.Details{
@@ -1037,7 +1044,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputBackups: []kopia.BackupEntry{
+			inputBackups: []kopia.BackupBase{
 				{
 					Backup: &backup1,
 					Reasons: []identity.Reasoner{
@@ -1045,7 +1052,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 					},
 				},
 			},
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []kopia.BackupBase{
 				{Backup: &backup2},
 			},
 			populatedDetails: map[string]*details.Details{
@@ -1077,7 +1084,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []kopia.BackupBase{
 				{Backup: &backup1},
 				{Backup: &backup2},
 			},
@@ -1110,7 +1117,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []kopia.BackupBase{
 				{Backup: &backup1},
 				{Backup: &backup2},
 			},
@@ -1143,7 +1150,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 
 				return res
 			}(),
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []kopia.BackupBase{
 				{Backup: &backup1},
 				{Backup: &backup2},
 			},
@@ -1173,7 +1180,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			mdm: func() *mockDetailsMergeInfoer {
 				return newMockDetailsMergeInfoer()
 			}(),
-			inputAssistBackups: []kopia.BackupEntry{
+			inputAssistBackups: []kopia.BackupBase{
 				{Backup: &backup1},
 			},
 			populatedDetails: map[string]*details.Details{
@@ -1202,8 +1209,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsItems
 			writeStats := kopia.BackupStats{}
 
 			bb := kopia.NewMockBackupBases().
-				WithBackups(test.inputBackups...).
-				WithAssistBackups(test.inputAssistBackups...)
+				WithMergeBases(test.inputBackups...).
+				WithAssistBases(test.inputAssistBackups...)
 
 			err := mergeDetails(
 				ctx,
@@ -1273,7 +1280,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 			itemPath1.Service(),
 			itemPath1.Category())
 
-		backup1 = kopia.BackupEntry{
+		backup1 = kopia.BackupBase{
 			Backup: &backup.Backup{
 				BaseModel: model.BaseModel{
 					ID: "bid1",
@@ -1297,7 +1304,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	// itemDetails.Exchange.Modified = now
 
 	populatedDetails := map[string]*details.Details{
-		backup1.DetailsID: {
+		backup1.Backup.DetailsID: {
 			DetailsModel: details.DetailsModel{
 				Entries: []details.Entry{*itemDetails},
 			},
@@ -1332,7 +1339,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_MergeBackupDetails_AddsFolde
 	err := mergeDetails(
 		ctx,
 		mds,
-		kopia.NewMockBackupBases().WithBackups(backup1),
+		kopia.NewMockBackupBases().WithMergeBases(backup1),
 		mdm,
 		&deets,
 		&writeStats,
@@ -1434,7 +1441,10 @@ func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
+	suite.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -1479,7 +1489,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.acct,
 				sel,
 				sel,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -1504,6 +1515,7 @@ func TestAssistBackupIntegrationSuite(t *testing.T) {
 
 func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -1515,7 +1527,7 @@ func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 
 	suite.acct = tconfig.NewM365Account(t)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -1641,7 +1653,6 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
 		tenantID = acct.Config[account.AzureTenantIDKey]
-		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 	)
 
@@ -1659,6 +1670,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 		collFunc                func() []data.BackupCollection
 		injectNonRecoverableErr bool
 		failurePolicy           control.FailurePolicy
+		previewBackup           bool
 		expectRunErr            assert.ErrorAssertionFunc
 		expectBackupTag         string
 		expectFaults            func(t *testing.T, errs *fault.Bus)
@@ -1821,6 +1833,67 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				assert.Greater(t, len(errs.Recovered()), 0, "recovered errors")
 			},
 		},
+
+		{
+			name: "preview, fail after recovery, no errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]dataMock.Item{
+							makeMockItem("file1", nil, time.Now(), false, nil),
+							makeMockItem("file2", nil, time.Now(), false, nil),
+						}),
+				}
+
+				return bc
+			},
+			failurePolicy:   control.FailAfterRecovery,
+			previewBackup:   true,
+			expectRunErr:    assert.NoError,
+			expectBackupTag: model.PreviewBackup,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Empty(t, errs.Recovered(), "recovered errors")
+			},
+		},
+		{
+			name: "preview, fail after recovery, non-recoverable errors",
+			collFunc: func() []data.BackupCollection {
+				return nil
+			},
+			injectNonRecoverableErr: true,
+			failurePolicy:           control.FailAfterRecovery,
+			previewBackup:           true,
+			expectRunErr:            assert.Error,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
+			},
+		},
+		{
+			name: "preview, fail after recovery, recoverable errors",
+			collFunc: func() []data.BackupCollection {
+				bc := []data.BackupCollection{
+					makeBackupCollection(
+						tmp,
+						locPath,
+						[]dataMock.Item{
+							makeMockItem("file1", nil, time.Now(), false, nil),
+							makeMockItem("file2", nil, time.Now(), false, assert.AnError),
+						}),
+				}
+
+				return bc
+			},
+			failurePolicy: control.FailAfterRecovery,
+			previewBackup: true,
+			expectRunErr:  assert.Error,
+			expectFaults: func(t *testing.T, errs *fault.Bus) {
+				assert.Error(t, errs.Failure(), clues.ToCore(errs.Failure()))
+				assert.Greater(t, len(errs.Recovered()), 0, "recovered errors")
+			},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -1848,7 +1921,9 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			cs = append(cs, mc)
 			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, test.injectNonRecoverableErr)
 
+			opts := control.DefaultOptions()
 			opts.FailureHandling = test.failurePolicy
+			opts.ToggleFeatures.PreviewBackup = test.previewBackup
 
 			bo, err := NewBackupOperation(
 				ctx,
@@ -1859,7 +1934,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = bo.Run(ctx)
@@ -2174,7 +2250,8 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = bo.Run(ctx)

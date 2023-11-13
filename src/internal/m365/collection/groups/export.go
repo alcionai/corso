@@ -61,10 +61,12 @@ func streamItems(
 				stats.UpdateResourceCount(path.ChannelMessagesCategory)
 				body = data.ReaderWithStats(body, path.ChannelMessagesCategory, stats)
 
+				// messages are exported as json and should be named as such
+				name := item.ID() + ".json"
+
 				ch <- export.Item{
-					ID: item.ID(),
-					// channel message items have no name
-					Name: item.ID(),
+					ID:   item.ID(),
+					Name: name,
 					Body: body,
 				}
 			}
@@ -90,15 +92,22 @@ func streamItems(
 
 type (
 	minimumChannelMessage struct {
-		Content              string    `json:"content"`
-		CreatedDateTime      time.Time `json:"createdDateTime"`
-		From                 string    `json:"from"`
-		LastModifiedDateTime time.Time `json:"lastModifiedDateTime"`
+		Attachments          []minimumAttachment `json:"attachments"`
+		Content              string              `json:"content"`
+		CreatedDateTime      time.Time           `json:"createdDateTime"`
+		From                 string              `json:"from"`
+		LastModifiedDateTime time.Time           `json:"lastModifiedDateTime"`
+		Subject              string              `json:"subject"`
 	}
 
 	minimumChannelMessageAndReplies struct {
 		minimumChannelMessage
 		Replies []minimumChannelMessage `json:"replies,omitempty"`
+	}
+
+	minimumAttachment struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
 	}
 )
 
@@ -139,12 +148,27 @@ func formatChannelMessage(
 		mcmar.Replies = append(mcmar.Replies, makeMinimumChannelMesasge(r))
 	}
 
-	bs, err = json.Marshal(mcmar)
+	bs, err = marshalJSONContainingHTML(mcmar)
 	if err != nil {
 		return nil, clues.Wrap(err, "serializing minimized channel message")
 	}
 
 	return io.NopCloser(bytes.NewReader(bs)), nil
+}
+
+// json.Marshal will replace many markup tags (ex: "<" and ">") with their unicode
+// equivalent.  In order to maintain parity with original content that contains html,
+// we have to use this alternative encoding behavior.
+// https://stackoverflow.com/questions/28595664/how-to-stop-json-marshal-from-escaping-and
+func marshalJSONContainingHTML(a any) ([]byte, error) {
+	buffer := &bytes.Buffer{}
+
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+
+	err := encoder.Encode(a)
+
+	return buffer.Bytes(), clues.Stack(err).OrNil()
 }
 
 func makeMinimumChannelMesasge(item models.ChatMessageable) minimumChannelMessage {
@@ -154,10 +178,22 @@ func makeMinimumChannelMesasge(item models.ChatMessageable) minimumChannelMessag
 		content = ptr.Val(item.GetBody().GetContent())
 	}
 
+	attachments := item.GetAttachments()
+	minAttachments := make([]minimumAttachment, 0, len(attachments))
+
+	for _, a := range attachments {
+		minAttachments = append(minAttachments, minimumAttachment{
+			ID:   ptr.Val(a.GetId()),
+			Name: ptr.Val(a.GetName()),
+		})
+	}
+
 	return minimumChannelMessage{
+		Attachments:          minAttachments,
 		Content:              content,
 		CreatedDateTime:      ptr.Val(item.GetCreatedDateTime()),
 		From:                 api.GetChatMessageFrom(item),
 		LastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
+		Subject:              ptr.Val(item.GetSubject()),
 	}
 }

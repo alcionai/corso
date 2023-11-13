@@ -13,12 +13,12 @@ type GetChannelMessage struct {
 	Err error
 }
 
-func (m GetChannelMessage) GetChannelMessage(
+func (m GetChannelMessage) GetItemByID(
 	ctx context.Context,
-	teamID, channelID, itemID string,
+	groupID, channelID, messageID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	msg := models.NewChatMessage()
-	msg.SetId(ptr.To(itemID))
+	msg.SetId(ptr.To(messageID))
 
 	return msg, &details.GroupsInfo{}, m.Err
 }

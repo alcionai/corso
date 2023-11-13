@@ -15,7 +15,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
+	istats "github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -271,7 +273,10 @@ func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			c := &i64counter{}
+			counter := count.New()
+			c := istats.ByteCounter{
+				Counter: counter.AdderFor(count.PersistedUploadedBytes),
+			}
 
 			dc := mergeCollection{fullPath: pth}
 
@@ -279,7 +284,7 @@ func (suite *MergeCollectionUnitSuite) TestFetchItemByName() {
 				col := &kopiaDataCollection{
 					path:            pth,
 					dir:             layout(t),
-					counter:         c,
+					counter:         &c,
 					expectedVersion: readers.DefaultSerializationVersion,
 				}
 

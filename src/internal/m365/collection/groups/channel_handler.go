@@ -2,16 +2,16 @@ package groups
 
 import (
 	"context"
-	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 var _ backupHandler = &channelsBackupHandler{}
@@ -31,18 +31,18 @@ func NewChannelBackupHandler(
 	}
 }
 
-func (bh channelsBackupHandler) getChannels(
+func (bh channelsBackupHandler) getContainers(
 	ctx context.Context,
 ) ([]models.Channelable, error) {
 	return bh.ac.GetChannels(ctx, bh.protectedResource)
 }
 
-func (bh channelsBackupHandler) getChannelMessageIDs(
+func (bh channelsBackupHandler) getContainerItemIDs(
 	ctx context.Context,
 	channelID, prevDelta string,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, api.DeltaUpdate, error) {
-	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, canMakeDeltaQueries)
+	cc api.CallConfig,
+) (pagers.AddedAndRemoved, error) {
+	return bh.ac.GetChannelMessageIDs(ctx, bh.protectedResource, channelID, prevDelta, cc)
 }
 
 func (bh channelsBackupHandler) includeContainer(
@@ -76,9 +76,9 @@ func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
 		false)
 }
 
-func (bh channelsBackupHandler) GetChannelMessage(
+func (bh channelsBackupHandler) GetItemByID(
 	ctx context.Context,
-	teamID, channelID, itemID string,
+	groupID, channelID, itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
-	return bh.ac.GetChannelMessage(ctx, teamID, channelID, itemID)
+	return bh.ac.GetChannelMessage(ctx, groupID, channelID, itemID)
 }

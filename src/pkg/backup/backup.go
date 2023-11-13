@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -72,7 +73,7 @@ var _ print.Printable = &Backup{}
 
 func New(
 	snapshotID, streamStoreID, status string,
-	version int,
+	backupVersion int,
 	id model.StableID,
 	selector selectors.Selector,
 	ownerID, ownerName string,
@@ -118,7 +119,7 @@ func New(
 		ResourceOwnerID:   ownerID,
 		ResourceOwnerName: ownerName,
 
-		Version:       version,
+		Version:       backupVersion,
 		SnapshotID:    snapshotID,
 		StreamStoreID: streamStoreID,
 
@@ -139,6 +140,26 @@ func New(
 			SkippedInvalidOneNoteFile: invalidONFile,
 		},
 	}
+}
+
+// Type returns the type of the backup according to the value stored in the
+// Backup's tags. Backup type is used during base finding to determine if a
+// given backup is eligible to be used for the upcoming incremental backup.
+func (b Backup) Type() string {
+	t, ok := b.Tags[model.BackupTypeTag]
+
+	// Older backups didn't set the backup type tag because we only persisted
+	// backup models for the MergeBackup type. Corso started adding the backup
+	// type tag when it was producing v8 backups. Any backup newer than that that
+	// doesn't have a backup type should just return an empty type and let the
+	// caller figure out what to do.
+	if !ok &&
+		b.Version != version.NoBackup &&
+		b.Version <= version.All8MigrateUserPNToID {
+		t = model.MergeBackup
+	}
+
+	return t
 }
 
 // --------------------------------------------------------------------------------

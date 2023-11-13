@@ -1,8 +1,9 @@
-package api_test
+package api
 
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -12,12 +13,11 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type DriveAPIIntgSuite struct {
@@ -65,12 +65,12 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 		ctx,
 		suite.its.user.driveID,
 		suite.its.user.driveRootFolderID,
-		api.NewDriveItem(rc.Location, true),
+		NewDriveItem(rc.Location, true),
 		control.Replace)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate a folder to use for collision testing
-	folder := api.NewDriveItem("collision", true)
+	folder := NewDriveItem("collision", true)
 	origFolder, err := acd.PostItemInContainer(
 		ctx,
 		suite.its.user.driveID,
@@ -80,7 +80,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// generate an item to use for collision testing
-	file := api.NewDriveItem("collision.txt", false)
+	file := NewDriveItem("collision.txt", false)
 	origFile, err := acd.PostItemInContainer(
 		ctx,
 		suite.its.user.driveID,
@@ -88,6 +88,19 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 		file,
 		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
+
+	// ensure we don't bucket the mod time within a second
+	time.Sleep(2 * time.Second)
+
+	updatedFile := models.NewDriveItem()
+	updatedFile.SetAdditionalData(origFile.GetAdditionalData())
+	updatedFile.SetCreatedBy(origFile.GetCreatedBy())
+	updatedFile.SetCreatedDateTime(origFile.GetCreatedDateTime())
+	updatedFile.SetDescription(origFile.GetDescription())
+	updatedFile.SetFile(origFile.GetFile())
+	updatedFile.SetName(ptr.To("updated" + ptr.Val(origFile.GetName())))
+	updatedFile.SetSize(origFile.GetSize())
+	updatedFile.SetWebUrl(origFile.GetWebUrl())
 
 	table := []struct {
 		name        string
@@ -178,18 +191,41 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 					"renamed item should have a different name")
 			},
 		},
-		// FIXME: this *should* behave the same as folder collision, but there's either a
-		// bug or a deviation in graph api behavior.
+		// Note: this currently behaves the same as folder collision, but there used to be a
+		// bug or a deviation in graph api behavior that prevented it from succeeding.
+		// No response on the ticket below, so this test code is being kept around to showcase
+		// that prior behavior while we're evaluating the permanence of the fix.
 		// See open ticket: https://github.com/OneDrive/onedrive-api-docs/issues/1702
+		// {
+		// 	name:        "replace file",
+		// 	onCollision: control.Replace,
+		// 	postItem:    file,
+		// 	expectErr: func(t *testing.T, err error) {
+		// 		assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+		// 	},
+		// 	expectItem: func(t *testing.T, i models.DriveItemable) {
+		// 		assert.Nil(t, i)
+		// 	},
+		// },
 		{
 			name:        "replace file",
 			onCollision: control.Replace,
-			postItem:    file,
+			postItem:    updatedFile,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+				assert.NoError(t, err, clues.ToCore(err))
 			},
 			expectItem: func(t *testing.T, i models.DriveItemable) {
-				assert.Nil(t, i)
+				// the name was updated
+				assert.Equal(
+					t,
+					"updated"+ptr.Val(origFile.GetName()),
+					ptr.Val(i.GetName()),
+					"replaced item should have the updated name")
+				// the mod time automatically updates
+				assert.True(
+					t,
+					ptr.Val(origFile.GetLastModifiedDateTime()).Before(ptr.Val(i.GetLastModifiedDateTime())),
+					"replaced item should have a later mod time")
 			},
 		},
 	}
@@ -228,7 +264,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 		ctx,
 		suite.its.user.driveID,
 		suite.its.user.driveRootFolderID,
-		api.NewDriveItem(rc.Location, true),
+		NewDriveItem(rc.Location, true),
 		// skip instead of replace here to get
 		// an ErrItemAlreadyExistsConflict, just in case.
 		control.Skip)
@@ -236,7 +272,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 
 	// generate items within that folder
 	for i := 0; i < 5; i++ {
-		file := api.NewDriveItem(fmt.Sprintf("collision_%d.txt", i), false)
+		file := NewDriveItem(fmt.Sprintf("collision_%d.txt", i), false)
 		f, err := acd.PostItemInContainer(
 			ctx,
 			suite.its.user.driveID,
@@ -252,7 +288,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 		ctx,
 		suite.its.user.driveID,
 		ptr.Val(folder.GetParentReference().GetId()),
-		api.NewDriveItem(rc.Location, true),
+		NewDriveItem(rc.Location, true),
 		control.Replace)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, ptr.Val(resultFolder.GetId()))

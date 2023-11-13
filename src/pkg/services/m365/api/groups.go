@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/mail"
 	"net/url"
 	"strings"
 
@@ -14,9 +15,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 const (
@@ -41,7 +42,7 @@ func (c Groups) GetAll(
 	ctx context.Context,
 	errs *fault.Bus,
 ) ([]models.Groupable, error) {
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +79,7 @@ func getGroups(
 			return false
 		}
 
-		err := ValidateGroup(item)
+		err := validateGroup(item)
 		if err != nil {
 			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating groups"))
 		} else {
@@ -95,7 +96,10 @@ func getGroups(
 	return results, el.Failure()
 }
 
-const filterGroupByDisplayNameQueryTmpl = "displayName eq '%s'"
+const (
+	filterGroupByDisplayNameQueryTmpl = "displayName eq '%s'"
+	filterGroupByMailQueryTmpl        = "proxyAddresses/any(a:a eq 'smtp:%s')"
+)
 
 // GetID can look up a group by either its canonical id (a uuid)
 // or by the group's display name.  If looking up the display name
@@ -106,7 +110,7 @@ func (c Groups) GetByID(
 	identifier string,
 	_ CallConfig, // matching standards
 ) (models.Groupable, error) {
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +132,36 @@ func (c Groups) GetByID(
 			return group, nil
 		}
 
-		logger.CtxErr(ctx, err).Info("finding group by id, falling back to display name")
+		if graph.IsErrResourceLocked(err) {
+			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceLocked, err))
+		}
+
+		logger.CtxErr(ctx, err).Info("finding group by id, falling back to secondary identifier")
 	}
 
+	// attempt to find by email address if the identifier looks like an email
+	if isEmail(identifier) {
+		// fall back to display name or email address
+		opts := &groups.GroupsRequestBuilderGetRequestConfiguration{
+			Headers: newEventualConsistencyHeaders(),
+			QueryParameters: &groups.GroupsRequestBuilderGetQueryParameters{
+				Filter: ptr.To(fmt.Sprintf(filterGroupByMailQueryTmpl, identifier)),
+			},
+		}
+
+		resp, err := service.Client().Groups().Get(ctx, opts)
+		if err != nil {
+			if graph.IsErrResourceLocked(err) {
+				err = clues.Stack(graph.ErrResourceLocked, err)
+			}
+
+			logger.CtxErr(ctx, err).Info("finding group by email, falling back to display name")
+		}
+
+		return getGroupFromResponse(ctx, resp)
+	}
+
+	// fall back to display name
 	opts := &groups.GroupsRequestBuilderGetRequestConfiguration{
 		Headers: newEventualConsistencyHeaders(),
 		QueryParameters: &groups.GroupsRequestBuilderGetQueryParameters{
@@ -140,9 +171,17 @@ func (c Groups) GetByID(
 
 	resp, err := service.Client().Groups().Get(ctx, opts)
 	if err != nil {
+		if graph.IsErrResourceLocked(err) {
+			err = clues.Stack(graph.ErrResourceLocked, err)
+		}
+
 		return nil, graph.Wrap(ctx, err, "finding group by display name")
 	}
 
+	return getGroupFromResponse(ctx, resp)
+}
+
+func getGroupFromResponse(ctx context.Context, resp models.GroupCollectionResponseable) (models.Groupable, error) {
 	vs := resp.GetValue()
 
 	if len(vs) == 0 {
@@ -151,9 +190,7 @@ func (c Groups) GetByID(
 		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).WithClues(ctx)
 	}
 
-	group = vs[0]
-
-	return group, nil
+	return vs[0], nil
 }
 
 // GetAllSites gets all the sites that belong to a group. This is
@@ -174,12 +211,25 @@ func (c Groups) GetAllSites(
 
 	sites := []models.Siteable{root}
 
+	group, err := c.Groups().GetByID(
+		ctx,
+		identifier,
+		CallConfig{})
+	if err != nil {
+		return nil, clues.Wrap(err, "getting group").WithClues(ctx)
+	}
+
+	isTeam := IsTeam(ctx, group)
+	if !isTeam {
+		return sites, nil
+	}
+
 	channels, err := Channels(c).GetChannels(ctx, identifier)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting channels")
 	}
 
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, graph.Stack(ctx, err)
 	}
@@ -242,7 +292,7 @@ func (c Groups) GetRootSite(
 	ctx context.Context,
 	identifier string,
 ) (models.Siteable, error) {
-	service, err := c.Service()
+	service, err := c.Service(c.counter)
 	if err != nil {
 		return nil, err
 	}
@@ -265,9 +315,9 @@ func (c Groups) GetRootSite(
 // helpers
 // ---------------------------------------------------------------------------
 
-// ValidateGroup ensures the item is a Groupable, and contains the necessary
+// validateGroup ensures the item is a Groupable, and contains the necessary
 // identifiers that we handle with all groups.
-func ValidateGroup(item models.Groupable) error {
+func validateGroup(item models.Groupable) error {
 	if item.GetId() == nil {
 		return clues.New("missing ID")
 	}
@@ -327,4 +377,9 @@ func (c Groups) GetIDAndName(
 	}
 
 	return ptr.Val(s.GetId()), ptr.Val(s.GetDisplayName()), nil
+}
+
+func isEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
 }

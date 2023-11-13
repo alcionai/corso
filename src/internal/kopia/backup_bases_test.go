@@ -3,10 +3,13 @@ package kopia
 import (
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/slices"
 
@@ -18,17 +21,67 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func makeManifest(id, incmpl, bID string, reasons ...identity.Reasoner) ManifestEntry {
+func makeManifest(id, incmpl, bID string) *snapshot.Manifest {
 	bIDKey, _ := makeTagKV(TagBackupID)
 
-	return ManifestEntry{
-		Manifest: &snapshot.Manifest{
-			ID:               manifest.ID(id),
-			IncompleteReason: incmpl,
-			Tags:             map[string]string{bIDKey: bID},
-		},
-		Reasons: reasons,
+	return &snapshot.Manifest{
+		ID:               manifest.ID(id),
+		IncompleteReason: incmpl,
+		Tags:             map[string]string{bIDKey: bID},
 	}
+}
+
+type testInput struct {
+	tenant            string
+	protectedResource string
+	id                int
+	cat               []path.CategoryType
+	isAssist          bool
+	incompleteReason  string
+}
+
+func makeBase(ti testInput) BackupBase {
+	baseID := fmt.Sprintf("id%d", ti.id)
+	reasons := make([]identity.Reasoner, 0, len(ti.cat))
+
+	for _, c := range ti.cat {
+		reasons = append(
+			reasons,
+			identity.NewReason(
+				ti.tenant,
+				ti.protectedResource,
+				path.ExchangeService,
+				c))
+	}
+
+	return BackupBase{
+		Backup: &backup.Backup{
+			BaseModel:     model.BaseModel{ID: model.StableID("b" + baseID)},
+			SnapshotID:    baseID,
+			StreamStoreID: "ss" + baseID,
+		},
+		ItemDataSnapshot: makeManifest(baseID, ti.incompleteReason, "b"+baseID),
+		Reasons:          reasons,
+	}
+}
+
+// Make a function so tests can modify things without messing with each other.
+func makeBackupBases(
+	mergeInputs []testInput,
+	assistInputs []testInput,
+) *backupBases {
+	res := &backupBases{}
+
+	for _, i := range mergeInputs {
+		res.mergeBases = append(res.mergeBases, makeBase(i))
+	}
+
+	for _, i := range assistInputs {
+		i.isAssist = true
+		res.assistBases = append(res.assistBases, makeBase(i))
+	}
+
+	return res
 }
 
 type BackupBasesUnitSuite struct {
@@ -39,25 +92,28 @@ func TestBackupBasesUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupBasesUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
+func (suite *BackupBasesUnitSuite) TestBackupBases_minVersions() {
 	table := []struct {
-		name            string
-		bb              *backupBases
-		expectedVersion int
+		name                  string
+		bb                    *backupBases
+		expectedBackupVersion int
+		expectedAssistVersion int
 	}{
 		{
-			name:            "Nil BackupBase",
-			expectedVersion: version.NoBackup,
+			name:                  "Nil BackupBase",
+			expectedBackupVersion: version.NoBackup,
+			expectedAssistVersion: version.NoBackup,
 		},
 		{
-			name:            "No Backups",
-			bb:              &backupBases{},
-			expectedVersion: version.NoBackup,
+			name:                  "No Backups",
+			bb:                    &backupBases{},
+			expectedBackupVersion: version.NoBackup,
+			expectedAssistVersion: version.NoBackup,
 		},
 		{
 			name: "Unsorted Backups",
 			bb: &backupBases{
-				backups: []BackupEntry{
+				mergeBases: []BackupBase{
 					{
 						Backup: &backup.Backup{
 							Version: 4,
@@ -75,93 +131,199 @@ func (suite *BackupBasesUnitSuite) TestMinBackupVersion() {
 					},
 				},
 			},
-			expectedVersion: 0,
+			expectedBackupVersion: 0,
+			expectedAssistVersion: version.NoBackup,
+		},
+		{
+			name: "Only Assist Bases",
+			bb: &backupBases{
+				assistBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 4,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 0,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 2,
+						},
+					},
+				},
+			},
+			expectedBackupVersion: version.NoBackup,
+			expectedAssistVersion: 0,
+		},
+		{
+			name: "Assist and Merge Bases, min merge",
+			bb: &backupBases{
+				mergeBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 1,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 5,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 3,
+						},
+					},
+				},
+				assistBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 4,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 2,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 6,
+						},
+					},
+				},
+			},
+			expectedBackupVersion: 1,
+			expectedAssistVersion: 2,
+		},
+		{
+			name: "Assist and Merge Bases, min assist",
+			bb: &backupBases{
+				mergeBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 7,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 5,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 3,
+						},
+					},
+				},
+				assistBases: []BackupBase{
+					{
+						Backup: &backup.Backup{
+							Version: 4,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 2,
+						},
+					},
+					{
+						Backup: &backup.Backup{
+							Version: 6,
+						},
+					},
+				},
+			},
+			expectedBackupVersion: 3,
+			expectedAssistVersion: 2,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			assert.Equal(suite.T(), test.expectedVersion, test.bb.MinBackupVersion())
+			t := suite.T()
+			assert.Equal(t, test.expectedBackupVersion, test.bb.MinBackupVersion(), "backup")
+			assert.Equal(t, test.expectedAssistVersion, test.bb.MinAssistVersion(), "assist")
 		})
 	}
 }
 
 func (suite *BackupBasesUnitSuite) TestConvertToAssistBase() {
-	backups := []BackupEntry{
-		{Backup: &backup.Backup{SnapshotID: "1"}},
-		{Backup: &backup.Backup{SnapshotID: "2"}},
-		{Backup: &backup.Backup{SnapshotID: "3"}},
+	bases := []BackupBase{
+		{
+			Backup: &backup.Backup{
+				BaseModel: model.BaseModel{
+					ID: "1",
+				},
+				SnapshotID: "its1",
+			},
+			ItemDataSnapshot: makeManifest("its1", "", ""),
+		},
+		{
+			Backup: &backup.Backup{
+				BaseModel: model.BaseModel{
+					ID: "2",
+				},
+				SnapshotID: "its2",
+			},
+			ItemDataSnapshot: makeManifest("its2", "", ""),
+		},
+		{
+			Backup: &backup.Backup{
+				BaseModel: model.BaseModel{
+					ID: "3",
+				},
+				SnapshotID: "its3",
+			},
+			ItemDataSnapshot: makeManifest("its3", "", ""),
+		},
 	}
 
-	merges := []ManifestEntry{
-		makeManifest("1", "", ""),
-		makeManifest("2", "", ""),
-		makeManifest("3", "", ""),
-	}
-
-	delID := manifest.ID("3")
+	delID := model.StableID("3")
 
 	table := []struct {
 		name string
 		// Below indices specify which items to add from the defined sets above.
-		backup       []int
 		merge        []int
 		assist       []int
+		expectMerge  []int
 		expectAssist []int
 	}{
 		{
 			name:         "Not In Bases",
-			backup:       []int{0, 1},
 			merge:        []int{0, 1},
 			assist:       []int{0, 1},
+			expectMerge:  []int{0, 1},
 			expectAssist: []int{0, 1},
 		},
 		{
-			name:         "Different Indexes",
-			backup:       []int{2, 0, 1},
-			merge:        []int{0, 2, 1},
-			assist:       []int{0, 1},
-			expectAssist: []int{0, 1, 2},
-		},
-		{
 			name:         "First Item",
-			backup:       []int{2, 0, 1},
 			merge:        []int{2, 0, 1},
 			assist:       []int{0, 1},
+			expectMerge:  []int{0, 1},
 			expectAssist: []int{0, 1, 2},
 		},
 		{
 			name:         "Middle Item",
-			backup:       []int{0, 2, 1},
 			merge:        []int{0, 2, 1},
 			assist:       []int{0, 1},
+			expectMerge:  []int{0, 1},
 			expectAssist: []int{0, 1, 2},
 		},
 		{
 			name:         "Final Item",
-			backup:       []int{0, 1, 2},
 			merge:        []int{0, 1, 2},
 			assist:       []int{0, 1},
+			expectMerge:  []int{0, 1},
 			expectAssist: []int{0, 1, 2},
 		},
 		{
-			name:         "Only In Backups",
-			backup:       []int{0, 1, 2},
-			merge:        []int{0, 1},
-			assist:       []int{0, 1},
-			expectAssist: []int{0, 1},
-		},
-		{
-			name:         "Only In Merges",
-			backup:       []int{0, 1},
-			merge:        []int{0, 1, 2},
-			assist:       []int{0, 1},
-			expectAssist: []int{0, 1},
-		},
-		{
 			name:         "Only In Assists Noops",
-			backup:       []int{0, 1},
 			merge:        []int{0, 1},
 			assist:       []int{0, 1, 2},
+			expectMerge:  []int{0, 1},
 			expectAssist: []int{0, 1, 2},
 		},
 	}
@@ -171,27 +333,22 @@ func (suite *BackupBasesUnitSuite) TestConvertToAssistBase() {
 			t := suite.T()
 			bb := &backupBases{}
 
-			for _, i := range test.backup {
-				bb.backups = append(bb.backups, backups[i])
-			}
-
 			for _, i := range test.merge {
-				bb.mergeBases = append(bb.mergeBases, merges[i])
+				bb.mergeBases = append(bb.mergeBases, bases[i])
 			}
 
 			for _, i := range test.assist {
-				bb.assistBases = append(bb.assistBases, merges[i])
-				bb.assistBackups = append(bb.assistBackups, backups[i])
+				bb.assistBases = append(bb.assistBases, bases[i])
 			}
 
-			expected := &backupBases{
-				backups:    []BackupEntry{backups[0], backups[1]},
-				mergeBases: []ManifestEntry{merges[0], merges[1]},
+			expected := &backupBases{}
+
+			for _, i := range test.expectMerge {
+				expected.mergeBases = append(expected.mergeBases, bases[i])
 			}
 
 			for _, i := range test.expectAssist {
-				expected.assistBases = append(expected.assistBases, merges[i])
-				expected.assistBackups = append(expected.assistBackups, backups[i])
+				expected.assistBases = append(expected.assistBases, bases[i])
 			}
 
 			bb.ConvertToAssistBase(delID)
@@ -203,121 +360,65 @@ func (suite *BackupBasesUnitSuite) TestConvertToAssistBase() {
 func (suite *BackupBasesUnitSuite) TestDisableMergeBases() {
 	t := suite.T()
 
-	merge := []BackupEntry{
-		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "m1"}}},
-		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "m2"}}},
+	merge := []BackupBase{
+		{
+			Backup:           &backup.Backup{BaseModel: model.BaseModel{ID: "m1"}},
+			ItemDataSnapshot: &snapshot.Manifest{ID: "ms1"},
+		},
+		{
+			Backup:           &backup.Backup{BaseModel: model.BaseModel{ID: "m2"}},
+			ItemDataSnapshot: &snapshot.Manifest{ID: "ms2"},
+		},
 	}
-	assist := []BackupEntry{
-		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "a1"}}},
-		{Backup: &backup.Backup{BaseModel: model.BaseModel{ID: "a2"}}},
+
+	assist := []BackupBase{
+		{
+			Backup:           &backup.Backup{BaseModel: model.BaseModel{ID: "a1"}},
+			ItemDataSnapshot: &snapshot.Manifest{ID: "as1"},
+		},
+		{
+			Backup:           &backup.Backup{BaseModel: model.BaseModel{ID: "a2"}},
+			ItemDataSnapshot: &snapshot.Manifest{ID: "as2"},
+		},
 	}
 
 	bb := &backupBases{
-		backups:       slices.Clone(merge),
-		mergeBases:    make([]ManifestEntry, 2),
-		assistBackups: slices.Clone(assist),
-		assistBases:   make([]ManifestEntry, 2),
+		mergeBases:  merge,
+		assistBases: assist,
 	}
 
 	bb.DisableMergeBases()
-	assert.Empty(t, bb.Backups())
 	assert.Empty(t, bb.MergeBases())
 
-	// Assist base set now has what used to be merge bases.
-	assert.Len(t, bb.UniqueAssistBases(), 4)
-	assert.Len(t, bb.SnapshotAssistBases(), 4)
-	// Merge bases should appear in the set of backup bases used for details
-	// merging.
+	// Merge bases should still appear in the assist base set passed in for kopia
+	// snapshots and details merging.
 	assert.ElementsMatch(
 		t,
 		append(slices.Clone(merge), assist...),
-		bb.UniqueAssistBackups())
+		bb.SnapshotAssistBases())
+
+	assert.ElementsMatch(
+		t,
+		append(slices.Clone(merge), assist...),
+		bb.UniqueAssistBases())
 }
 
 func (suite *BackupBasesUnitSuite) TestDisableAssistBases() {
 	t := suite.T()
 	bb := &backupBases{
-		backups:       make([]BackupEntry, 2),
-		mergeBases:    make([]ManifestEntry, 2),
-		assistBases:   make([]ManifestEntry, 2),
-		assistBackups: make([]BackupEntry, 2),
+		mergeBases:  make([]BackupBase, 2),
+		assistBases: make([]BackupBase, 2),
 	}
 
 	bb.DisableAssistBases()
 	assert.Empty(t, bb.UniqueAssistBases())
-	assert.Empty(t, bb.UniqueAssistBackups())
 	assert.Empty(t, bb.SnapshotAssistBases())
 
 	// Merge base should be unchanged.
-	assert.Len(t, bb.Backups(), 2)
 	assert.Len(t, bb.MergeBases(), 2)
 }
 
 func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
-	ro := "resource_owner"
-
-	type testInput struct {
-		id  int
-		cat []path.CategoryType
-	}
-
-	// Make a function so tests can modify things without messing with each other.
-	makeBackupBases := func(mergeInputs []testInput, assistInputs []testInput) *backupBases {
-		res := &backupBases{}
-
-		for _, i := range mergeInputs {
-			baseID := fmt.Sprintf("id%d", i.id)
-			reasons := make([]identity.Reasoner, 0, len(i.cat))
-
-			for _, c := range i.cat {
-				reasons = append(reasons, identity.NewReason("", ro, path.ExchangeService, c))
-			}
-
-			m := makeManifest(baseID, "", "b"+baseID, reasons...)
-
-			b := BackupEntry{
-				Backup: &backup.Backup{
-					BaseModel:     model.BaseModel{ID: model.StableID("b" + baseID)},
-					SnapshotID:    baseID,
-					StreamStoreID: "ss" + baseID,
-				},
-				Reasons: reasons,
-			}
-
-			res.backups = append(res.backups, b)
-			res.mergeBases = append(res.mergeBases, m)
-		}
-
-		for _, i := range assistInputs {
-			baseID := fmt.Sprintf("id%d", i.id)
-
-			reasons := make([]identity.Reasoner, 0, len(i.cat))
-
-			for _, c := range i.cat {
-				reasons = append(reasons, identity.NewReason("", ro, path.ExchangeService, c))
-			}
-
-			m := makeManifest(baseID, "", "a"+baseID, reasons...)
-
-			b := BackupEntry{
-				Backup: &backup.Backup{
-					BaseModel: model.BaseModel{
-						ID:   model.StableID("a" + baseID),
-						Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
-					},
-					SnapshotID:    baseID,
-					StreamStoreID: "ss" + baseID,
-				},
-				Reasons: reasons,
-			}
-
-			res.assistBackups = append(res.assistBackups, b)
-			res.assistBases = append(res.assistBases, m)
-		}
-
-		return res
-	}
-
 	table := []struct {
 		name        string
 		merge       []testInput
@@ -528,44 +629,25 @@ func (suite *BackupBasesUnitSuite) TestMergeBackupBases() {
 func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 	ro := "resource_owner"
 
-	makeMan := func(pct path.CategoryType, id, incmpl, bID string) ManifestEntry {
-		r := identity.NewReason("", ro, path.ExchangeService, pct)
-		return makeManifest(id, incmpl, bID, r)
-	}
-
 	// Make a function so tests can modify things without messing with each other.
 	validMail1 := func() *backupBases {
-		return &backupBases{
-			backups: []BackupEntry{
+		return makeBackupBases(
+			[]testInput{
 				{
-					Backup: &backup.Backup{
-						BaseModel: model.BaseModel{
-							ID: "bid1",
-						},
-						SnapshotID:    "id1",
-						StreamStoreID: "ssid1",
-					},
+					tenant:            "t",
+					protectedResource: ro,
+					id:                1,
+					cat:               []path.CategoryType{path.EmailCategory},
 				},
 			},
-			mergeBases: []ManifestEntry{
-				makeMan(path.EmailCategory, "id1", "", "bid1"),
-			},
-			assistBackups: []BackupEntry{
+			[]testInput{
 				{
-					Backup: &backup.Backup{
-						BaseModel: model.BaseModel{
-							ID:   "bid2",
-							Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
-						},
-						SnapshotID:    "id2",
-						StreamStoreID: "ssid2",
-					},
+					tenant:            "t",
+					protectedResource: ro,
+					id:                2,
+					cat:               []path.CategoryType{path.EmailCategory},
 				},
-			},
-			assistBases: []ManifestEntry{
-				makeMan(path.EmailCategory, "id2", "", "bid2"),
-			},
-		}
+			})
 	}
 
 	table := []struct {
@@ -574,101 +656,111 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 		expect BackupBases
 	}{
 		{
-			name: "empty BaseBackups",
+			name: "EmptyBaseBackups",
 			bb:   &backupBases{},
 		},
 		{
-			name: "Merge Base Without Backup",
+			name: "MergeBase MissingBackup",
 			bb: func() *backupBases {
 				res := validMail1()
-				res.backups = nil
+				res.mergeBases[0].Backup = nil
 
 				return res
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
 				res.mergeBases = nil
-				res.backups = nil
 
 				return res
 			}(),
 		},
 		{
-			name: "Merge Backup Missing Snapshot ID",
+			name: "MergeBase MissingSnapshot",
 			bb: func() *backupBases {
 				res := validMail1()
-				res.backups[0].SnapshotID = ""
+				res.mergeBases[0].ItemDataSnapshot = nil
 
 				return res
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
 				res.mergeBases = nil
-				res.backups = nil
 
 				return res
 			}(),
 		},
 		{
-			name: "Assist backup missing snapshot ID",
+			name: "AssistBase MissingBackup",
 			bb: func() *backupBases {
 				res := validMail1()
-				res.assistBackups[0].SnapshotID = ""
+				res.assistBases[0].Backup = nil
 
 				return res
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
 				res.assistBases = nil
-				res.assistBackups = nil
 
 				return res
 			}(),
 		},
 		{
-			name: "Merge backup missing deets ID",
+			name: "AssistBase MissingSnapshot",
 			bb: func() *backupBases {
 				res := validMail1()
-				res.backups[0].StreamStoreID = ""
-
-				return res
-			}(),
-			expect: func() *backupBases {
-				res := validMail1()
-				res.mergeBases = nil
-				res.backups = nil
-
-				return res
-			}(),
-		},
-		{
-			name: "Assist backup missing deets ID",
-			bb: func() *backupBases {
-				res := validMail1()
-				res.assistBackups[0].StreamStoreID = ""
+				res.assistBases[0].ItemDataSnapshot = nil
 
 				return res
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
 				res.assistBases = nil
-				res.assistBackups = nil
 
 				return res
 			}(),
 		},
 		{
-			name: "Incomplete Snapshot",
+			name: "MergeBase MissingDeetsID",
 			bb: func() *backupBases {
 				res := validMail1()
-				res.mergeBases[0].IncompleteReason = "ir"
-				res.assistBases[0].IncompleteReason = "ir"
+				res.mergeBases[0].Backup.StreamStoreID = ""
+
+				return res
+			}(),
+			expect: func() *backupBases {
+				res := validMail1()
+				res.mergeBases = nil
 
 				return res
 			}(),
 		},
 		{
-			name: "Duplicate Reason",
+			name: "AssistBase MissingDeetsID",
+			bb: func() *backupBases {
+				res := validMail1()
+				res.assistBases[0].Backup.StreamStoreID = ""
+
+				return res
+			}(),
+			expect: func() *backupBases {
+				res := validMail1()
+				res.assistBases = nil
+
+				return res
+			}(),
+		},
+		{
+			name: "MergeAndAssistBase IncompleteSnapshot",
+			bb: func() *backupBases {
+				res := validMail1()
+				res.mergeBases[0].ItemDataSnapshot.IncompleteReason = "ir"
+				res.assistBases[0].ItemDataSnapshot.IncompleteReason = "ir"
+
+				return res
+			}(),
+		},
+		{
+			name: "MergeAndAssistBase DuplicateReasonInBase",
 			bb: func() *backupBases {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
@@ -678,60 +770,79 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res.assistBases[0].Reasons = append(
 					res.assistBases[0].Reasons,
 					res.assistBases[0].Reasons[0])
+
+				return res
+			}(),
+			expect: validMail1(),
+		},
+		{
+			name: "MergeAndAssistBase MissingReason",
+			bb: func() *backupBases {
+				res := validMail1()
+				res.mergeBases[0].Reasons = nil
+				res.assistBases[0].Reasons = nil
+
 				return res
 			}(),
 		},
 		{
-			name:   "Single Valid Entry",
+			name:   "SingleValidEntry",
 			bb:     validMail1(),
 			expect: validMail1(),
 		},
 		{
-			name: "Single Valid Entry With Incomplete Assist With Same Reason",
+			name: "SingleValidEntry IncompleteAssistWithSameReason",
 			bb: func() *backupBases {
 				res := validMail1()
 				res.assistBases = append(
 					res.assistBases,
-					makeMan(path.EmailCategory, "id3", "checkpoint", "bid3"))
+					makeBase(testInput{
+						tenant:            "t",
+						protectedResource: "ro",
+						id:                3,
+						cat:               []path.CategoryType{path.EmailCategory},
+						isAssist:          true,
+						incompleteReason:  "checkpoint",
+					}))
 
 				return res
 			}(),
 			expect: validMail1(),
 		},
 		{
-			name: "Single Valid Entry With Backup With Old Deets ID",
+			name: "SingleValidEntry BackupWithOldDeetsID",
 			bb: func() *backupBases {
 				res := validMail1()
-				res.backups[0].DetailsID = res.backups[0].StreamStoreID
-				res.backups[0].StreamStoreID = ""
+				res.mergeBases[0].Backup.DetailsID = res.mergeBases[0].Backup.StreamStoreID
+				res.mergeBases[0].Backup.StreamStoreID = ""
 
-				res.assistBackups[0].DetailsID = res.assistBackups[0].StreamStoreID
-				res.assistBackups[0].StreamStoreID = ""
+				res.assistBases[0].Backup.DetailsID = res.assistBases[0].Backup.StreamStoreID
+				res.assistBases[0].Backup.StreamStoreID = ""
 
 				return res
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
-				res.backups[0].DetailsID = res.backups[0].StreamStoreID
-				res.backups[0].StreamStoreID = ""
+				res.mergeBases[0].Backup.DetailsID = res.mergeBases[0].Backup.StreamStoreID
+				res.mergeBases[0].Backup.StreamStoreID = ""
 
-				res.assistBackups[0].DetailsID = res.assistBackups[0].StreamStoreID
-				res.assistBackups[0].StreamStoreID = ""
+				res.assistBases[0].Backup.DetailsID = res.assistBases[0].Backup.StreamStoreID
+				res.assistBases[0].Backup.StreamStoreID = ""
 
 				return res
 			}(),
 		},
 		{
-			name: "Single Valid Entry With Multiple Reasons",
+			name: "SingleValidEntry MultipleReasons",
 			bb: func() *backupBases {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					identity.NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					identity.NewReason("t", ro, path.ExchangeService, path.ContactsCategory))
 
 				res.assistBases[0].Reasons = append(
 					res.assistBases[0].Reasons,
-					identity.NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					identity.NewReason("t", ro, path.ExchangeService, path.ContactsCategory))
 
 				return res
 			}(),
@@ -739,127 +850,184 @@ func (suite *BackupBasesUnitSuite) TestFixupAndVerify() {
 				res := validMail1()
 				res.mergeBases[0].Reasons = append(
 					res.mergeBases[0].Reasons,
-					identity.NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					identity.NewReason("t", ro, path.ExchangeService, path.ContactsCategory))
 
 				res.assistBases[0].Reasons = append(
 					res.assistBases[0].Reasons,
-					identity.NewReason("", ro, path.ExchangeService, path.ContactsCategory))
+					identity.NewReason("t", ro, path.ExchangeService, path.ContactsCategory))
 
 				return res
 			}(),
 		},
 		{
-			name: "Two Entries Overlapping Reasons",
+			name: "TwoEntries OverlappingReasons",
 			bb: func() *backupBases {
-				res := validMail1()
-				res.mergeBases = append(
-					res.mergeBases,
-					makeMan(path.EmailCategory, "id3", "", "bid3"))
+				t1, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
+				require.NoError(suite.T(), err, clues.ToCore(err))
 
-				res.assistBases = append(
-					res.assistBases,
-					makeMan(path.EmailCategory, "id4", "", "bid4"))
+				res := validMail1()
+				res.mergeBases[0].Backup.CreationTime = t1
+				res.assistBases[0].Backup.CreationTime = t1.Add(2 * time.Hour)
+
+				other := makeBase(testInput{
+					tenant:            "t",
+					protectedResource: ro,
+					id:                3,
+					cat:               []path.CategoryType{path.EmailCategory},
+				})
+				other.Backup.CreationTime = t1.Add(-time.Minute)
+
+				res.mergeBases = append(res.mergeBases, other)
+
+				other = makeBase(testInput{
+					tenant:            "t",
+					protectedResource: ro,
+					id:                4,
+					cat:               []path.CategoryType{path.EmailCategory},
+					isAssist:          true,
+				})
+				other.Backup.CreationTime = t1.Add(time.Hour)
+
+				res.assistBases = append(res.assistBases, other)
+
+				return res
+			}(),
+			expect: func() *backupBases {
+				t1, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				res := validMail1()
+				res.mergeBases[0].Backup.CreationTime = t1
+				res.assistBases[0].Backup.CreationTime = t1.Add(2 * time.Hour)
 
 				return res
 			}(),
 		},
 		{
-			name: "Merge Backup, Three Entries One Invalid",
+			name: "TwoEntries OverlappingReasons OneInvalid",
 			bb: func() *backupBases {
+				t1, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
 				res := validMail1()
-				res.backups = append(
-					res.backups,
-					BackupEntry{
-						Backup: &backup.Backup{
-							BaseModel: model.BaseModel{
-								ID: "bid3",
-							},
-						},
-					},
-					BackupEntry{
-						Backup: &backup.Backup{
-							BaseModel: model.BaseModel{
-								ID: "bid4",
-							},
-							SnapshotID:    "id4",
-							StreamStoreID: "ssid4",
-						},
-					})
+				res.mergeBases[0].Backup.CreationTime = t1
+				res.assistBases[0].Backup.CreationTime = t1.Add(2 * time.Hour)
+
+				other := makeBase(testInput{
+					tenant:            "t",
+					protectedResource: ro,
+					id:                3,
+					cat:               []path.CategoryType{path.EmailCategory},
+				})
+				other.Backup.CreationTime = t1.Add(time.Minute)
+				other.Backup.StreamStoreID = ""
+
+				res.mergeBases = append(res.mergeBases, other)
+
+				other = makeBase(testInput{
+					tenant:            "t",
+					protectedResource: ro,
+					id:                4,
+					cat:               []path.CategoryType{path.EmailCategory},
+					isAssist:          true,
+				})
+				other.Backup.CreationTime = t1.Add(3 * time.Hour)
+				other.Backup.StreamStoreID = ""
+
+				res.assistBases = append(res.assistBases, other)
+
+				return res
+			}(),
+			expect: func() *backupBases {
+				t1, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
+				require.NoError(suite.T(), err, clues.ToCore(err))
+
+				res := validMail1()
+				res.mergeBases[0].Backup.CreationTime = t1
+				res.assistBases[0].Backup.CreationTime = t1.Add(2 * time.Hour)
+
+				return res
+			}(),
+		},
+		{
+			name: "MergeBase ThreeEntriesOneInvalid",
+			bb: func() *backupBases {
+				invalid := makeBase(testInput{
+					tenant:            "t",
+					protectedResource: ro,
+					id:                3,
+					cat:               []path.CategoryType{path.ContactsCategory},
+					incompleteReason:  "checkpoint",
+				})
+				invalid.Backup.StreamStoreID = ""
+				invalid.Backup.SnapshotID = ""
+
+				res := validMail1()
 				res.mergeBases = append(
 					res.mergeBases,
-					makeMan(path.ContactsCategory, "id3", "checkpoint", "bid3"),
-					makeMan(path.EventsCategory, "id4", "", "bid4"))
+					invalid,
+					makeBase(testInput{
+						tenant:            "t",
+						protectedResource: ro,
+						id:                4,
+						cat:               []path.CategoryType{path.EventsCategory},
+					}))
 
 				return res
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
-				res.backups = append(
-					res.backups,
-					BackupEntry{
-						Backup: &backup.Backup{
-							BaseModel: model.BaseModel{
-								ID: "bid4",
-							},
-							SnapshotID:    "id4",
-							StreamStoreID: "ssid4",
-						},
-					})
 				res.mergeBases = append(
 					res.mergeBases,
-					makeMan(path.EventsCategory, "id4", "", "bid4"))
+					makeBase(testInput{
+						tenant:            "t",
+						protectedResource: ro,
+						id:                4,
+						cat:               []path.CategoryType{path.EventsCategory},
+					}))
 
 				return res
 			}(),
 		},
 		{
-			name: "Assist Backup, Three Entries One Invalid",
+			name: "AssistBase ThreeEntriesOneInvalid",
 			bb: func() *backupBases {
+				invalid := makeBase(testInput{
+					tenant:            "t",
+					protectedResource: ro,
+					id:                3,
+					cat:               []path.CategoryType{path.ContactsCategory},
+					isAssist:          true,
+					incompleteReason:  "checkpoint",
+				})
+				invalid.Backup.StreamStoreID = ""
+				invalid.Backup.SnapshotID = ""
+
 				res := validMail1()
-				res.assistBackups = append(
-					res.assistBackups,
-					BackupEntry{
-						Backup: &backup.Backup{
-							BaseModel: model.BaseModel{
-								ID:   "bid3",
-								Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
-							},
-						},
-					},
-					BackupEntry{
-						Backup: &backup.Backup{
-							BaseModel: model.BaseModel{
-								ID:   "bid4",
-								Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
-							},
-							SnapshotID:    "id4",
-							StreamStoreID: "ssid4",
-						},
-					})
 				res.assistBases = append(
 					res.assistBases,
-					makeMan(path.ContactsCategory, "id3", "checkpoint", "bid3"),
-					makeMan(path.EventsCategory, "id4", "", "bid4"))
+					invalid,
+					makeBase(testInput{
+						tenant:            "t",
+						protectedResource: ro,
+						id:                4,
+						cat:               []path.CategoryType{path.EventsCategory},
+						isAssist:          true,
+					}))
 
 				return res
 			}(),
 			expect: func() *backupBases {
 				res := validMail1()
-				res.assistBackups = append(
-					res.assistBackups,
-					BackupEntry{
-						Backup: &backup.Backup{
-							BaseModel: model.BaseModel{
-								ID:   "bid4",
-								Tags: map[string]string{model.BackupTypeTag: model.AssistBackup},
-							},
-							SnapshotID:    "id4",
-							StreamStoreID: "ssid4",
-						},
-					})
 				res.assistBases = append(
 					res.assistBases,
-					makeMan(path.EventsCategory, "id4", "", "bid4"))
+					makeBase(testInput{
+						tenant:            "t",
+						protectedResource: ro,
+						id:                4,
+						cat:               []path.CategoryType{path.EventsCategory},
+						isAssist:          true,
+					}))
 
 				return res
 			}(),

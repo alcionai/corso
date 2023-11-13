@@ -42,28 +42,28 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 		{
 			name:             "no inputs",
 			opts:             utils.GroupsOpts{},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "empty",
 			opts: utils.GroupsOpts{
 				Groups: empty,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "single inputs",
 			opts: utils.GroupsOpts{
 				Groups: single,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "multi inputs",
 			opts: utils.GroupsOpts{
 				Groups: multi,
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		// sharepoint
 		{
@@ -71,7 +71,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: containsOnly,
-				SiteID:     empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -80,7 +79,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: prefixOnly,
-				SiteID:     empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -89,7 +87,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: containsAndPrefix,
-				SiteID:     empty,
 			},
 			expectIncludeLen: 2,
 		},
@@ -100,7 +97,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 				FolderPath: empty,
 				ListItem:   empty,
 				ListFolder: containsOnly,
-				SiteID:     empty,
 			},
 			expectIncludeLen: 1,
 		},
@@ -123,18 +119,16 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: empty,
-				// SiteID:     empty,  // TODO(meain): Update once we support multiple sites
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "library folder suffixes and contains",
 			opts: utils.GroupsOpts{
 				FileName:   empty,
 				FolderPath: empty,
-				// SiteID:     empty, // TODO(meain): update once we support multiple sites
 			},
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "Page Folder",
@@ -231,10 +225,28 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 		expect   assert.ErrorAssertionFunc
 	}{
 		{
-			name:     "no opts",
+			name:     "just site",
 			backupID: "id",
-			opts:     utils.GroupsOpts{},
+			opts:     utils.GroupsOpts{WebURL: []string{"site"}}, // site is mandatory
 			expect:   assert.NoError,
+		},
+		{
+			name:     "just siteid",
+			backupID: "id",
+			opts:     utils.GroupsOpts{SiteID: []string{"site-id"}},
+			expect:   assert.NoError,
+		},
+		{
+			name:     "multiple sites",
+			backupID: "id",
+			opts:     utils.GroupsOpts{SiteID: []string{"site-id1", "site-id2"}},
+			expect:   assert.Error,
+		},
+		{
+			name:     "site and siteid",
+			backupID: "id",
+			opts:     utils.GroupsOpts{SiteID: []string{"site-id"}, WebURL: []string{"site"}},
+			expect:   assert.Error,
 		},
 		{
 			name:     "no backupID",
@@ -246,6 +258,7 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 			name:     "all valid",
 			backupID: "id",
 			opts: utils.GroupsOpts{
+				WebURL:                 []string{"site"},
 				FileCreatedAfter:       dttm.Now(),
 				FileCreatedBefore:      dttm.Now(),
 				FileModifiedAfter:      dttm.Now(),
@@ -362,7 +375,7 @@ func (suite *GroupsUtilsSuite) TestValidateGroupsRestoreFlags() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			test.expect(t, utils.ValidateGroupsRestoreFlags(test.backupID, test.opts))
+			test.expect(t, utils.ValidateGroupsRestoreFlags(test.backupID, test.opts, true))
 		})
 	}
 }
@@ -376,7 +389,7 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 		{
 			name:           "none",
 			cats:           []string{},
-			expectScopeLen: 2,
+			expectScopeLen: 3,
 		},
 		{
 			name:           "libraries",

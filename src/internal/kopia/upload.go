@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/virtualfs"
-	"github.com/kopia/kopia/repo/manifest"
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"golang.org/x/exp/maps"
 
@@ -21,13 +20,13 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/m365/graph"
-	"github.com/alcionai/corso/src/internal/m365/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 const maxInflateTraversalDepth = 500
@@ -59,6 +58,7 @@ type corsoProgress struct {
 	mu         sync.RWMutex
 	totalBytes int64
 	errs       *fault.Bus
+	counter    *count.Bus
 	// expectedIgnoredErrors is a count of error cases caught in the Error wrapper
 	// which are well known and actually ignorable.  At the end of a run, if the
 	// manifest ignored error count is equal to this count, then everything is good.
@@ -148,6 +148,10 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
+	} else if info.Modified().IsZero() {
+		cp.errs.AddRecoverable(ctx, clues.New("zero-valued mod time").
+			WithClues(ctx).
+			Label(fault.LabelForceNoBackupCreation))
 	}
 
 	err = cp.deets.Add(d.repoPath, d.locationPath, info)
@@ -182,6 +186,7 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 		"finished hashing file",
 		"path", clues.Hide(path.Elements(sl[2:])))
 
+	cp.counter.Add(count.PersistedHashedBytes, bs)
 	atomic.AddInt64(&cp.totalBytes, bs)
 }
 
@@ -210,7 +215,9 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 	// delta query and a fetch.  This is our next point of error
 	// handling, where we can identify and skip over the case.
 	if clues.HasLabel(err, graph.LabelsSkippable) {
+		cp.counter.Inc(count.PersistenceExpectedErrors)
 		cp.incExpectedErrs()
+
 		return
 	}
 
@@ -716,16 +723,25 @@ func addMergeLocation(col data.BackupCollection, toMerge *mergeDetails) error {
 	return nil
 }
 
+type pathUpdate struct {
+	p     path.Path
+	state data.CollectionState
+}
+
 func inflateCollectionTree(
 	ctx context.Context,
 	collections []data.BackupCollection,
 	toMerge *mergeDetails,
-) (map[string]*treeMap, map[string]path.Path, error) {
+) (map[string]*treeMap, map[string]pathUpdate, error) {
+	// failed is temporary and just allows us to log all conflicts before
+	// returning an error.
+	var firstErr error
+
 	roots := make(map[string]*treeMap)
 	// Contains the old path for collections that are not new.
 	// Allows resolving what the new path should be when walking the base
 	// snapshot(s)'s hierarchy. Nil represents a collection that was deleted.
-	updatedPaths := make(map[string]path.Path)
+	updatedPaths := make(map[string]pathUpdate)
 	// Temporary variable just to track the things that have been marked as
 	// changed while keeping a reference to their path.
 	changedPaths := []path.Path{}
@@ -745,24 +761,39 @@ func inflateCollectionTree(
 
 			changedPaths = append(changedPaths, s.PreviousPath())
 
-			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				return nil, nil, clues.New("multiple previous state changes to collection").
-					WithClues(ictx)
+			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
+				err := clues.New("multiple previous state changes").
+					WithClues(ictx).
+					With("updated_path", p, "current_state", data.DeletedState)
+				logger.CtxErr(ictx, err).Error("previous path state collision")
+
+				if firstErr == nil {
+					firstErr = err
+				}
 			}
 
-			updatedPaths[s.PreviousPath().String()] = nil
+			updatedPaths[s.PreviousPath().String()] = pathUpdate{state: data.DeletedState}
 
 			continue
 
 		case data.MovedState:
 			changedPaths = append(changedPaths, s.PreviousPath())
 
-			if _, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				return nil, nil, clues.New("multiple previous state changes to collection").
-					WithClues(ictx)
+			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
+				err := clues.New("multiple previous state changes").
+					WithClues(ictx).
+					With("updated_path", p, "current_state", data.MovedState)
+				logger.CtxErr(ictx, err).Error("previous path state collision")
+
+				if firstErr == nil {
+					firstErr = err
+				}
 			}
 
-			updatedPaths[s.PreviousPath().String()] = s.FullPath()
+			updatedPaths[s.PreviousPath().String()] = pathUpdate{
+				p:     s.FullPath(),
+				state: data.MovedState,
+			}
 
 			// Only safe when collections are moved since we only need prefix matching
 			// if a nested folder's path changed in some way that didn't generate a
@@ -773,14 +804,24 @@ func inflateCollectionTree(
 				return nil, nil, clues.Wrap(err, "adding merge location").
 					WithClues(ictx)
 			}
+
 		case data.NotMovedState:
 			p := s.PreviousPath().String()
-			if _, ok := updatedPaths[p]; ok {
-				return nil, nil, clues.New("multiple previous state changes to collection").
-					WithClues(ictx)
+			if p, ok := updatedPaths[p]; ok {
+				err := clues.New("multiple previous state changes").
+					WithClues(ictx).
+					With("updated_path", p, "current_state", data.NotMovedState)
+				logger.CtxErr(ictx, err).Error("previous path state collision")
+
+				if firstErr == nil {
+					firstErr = err
+				}
 			}
 
-			updatedPaths[p] = s.FullPath()
+			updatedPaths[p] = pathUpdate{
+				p:     s.FullPath(),
+				state: data.NotMovedState,
+			}
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
@@ -814,18 +855,22 @@ func inflateCollectionTree(
 		}
 
 		if node.collection != nil && node.collection.State() == data.NotMovedState {
-			return nil, nil, clues.New("conflicting states for collection").
-				WithClues(ctx).
-				With("changed_path", p)
+			err := clues.New("conflicting states for collection").
+				WithClues(ctx)
+			logger.CtxErr(ctx, err).Error("adding node to tree")
+
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
 
-	return roots, updatedPaths, nil
+	return roots, updatedPaths, clues.Stack(firstErr).OrNil()
 }
 
 func subtreeChanged(
 	roots map[string]*treeMap,
-	updatedPaths map[string]path.Path,
+	updatedPaths map[string]pathUpdate,
 	oldDirPath *path.Builder,
 	currentPath *path.Builder,
 ) bool {
@@ -882,7 +927,7 @@ func subtreeChanged(
 func traverseBaseDir(
 	ctx context.Context,
 	depth int,
-	updatedPaths map[string]path.Path,
+	updatedPaths map[string]pathUpdate,
 	oldDirPath *path.Builder,
 	expectedDirPath *path.Builder,
 	dir fs.Directory,
@@ -927,14 +972,14 @@ func traverseBaseDir(
 
 	if upb, ok := updatedPaths[oldDirPath.String()]; ok {
 		// This directory was deleted.
-		if upb == nil {
+		if upb.p == nil {
 			currentPath = nil
 
 			stats.Inc(statDel)
 		} else {
 			// This directory was explicitly mentioned and the new (possibly
 			// unchanged) location is in upb.
-			currentPath = upb.ToBuilder()
+			currentPath = upb.p.ToBuilder()
 
 			// Below we check if the collection was marked as new or DoNotMerge which
 			// disables merging behavior. That means we can't directly update stats
@@ -1039,26 +1084,20 @@ func traverseBaseDir(
 	return nil
 }
 
-func logBaseInfo(ctx context.Context, m ManifestEntry) {
+func logBaseInfo(ctx context.Context, b BackupBase) {
 	svcs := map[string]struct{}{}
 	cats := map[string]struct{}{}
 
-	for _, r := range m.Reasons {
+	for _, r := range b.Reasons {
 		svcs[r.Service().String()] = struct{}{}
 		cats[r.Category().String()] = struct{}{}
 	}
 
-	mbID, _ := m.GetTag(TagBackupID)
-	if len(mbID) == 0 {
-		mbID = "no_backup_id_tag"
-	}
-
+	// Base backup ID and base snapshot ID are already in context clues.
 	logger.Ctx(ctx).Infow(
 		"using base for backup",
-		"base_snapshot_id", m.ID,
 		"services", maps.Keys(svcs),
-		"categories", maps.Keys(cats),
-		"base_backup_id", mbID)
+		"categories", maps.Keys(cats))
 }
 
 const (
@@ -1085,20 +1124,32 @@ const (
 func inflateBaseTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	snap ManifestEntry,
-	updatedPaths map[string]path.Path,
+	base BackupBase,
+	updatedPaths map[string]pathUpdate,
 	roots map[string]*treeMap,
 ) error {
+	bupID := "no_backup_id"
+	if base.Backup != nil && len(base.Backup.ID) > 0 {
+		bupID = string(base.Backup.ID)
+	}
+
+	ctx = clues.Add(
+		ctx,
+		"base_backup_id", bupID,
+		"base_snapshot_id", base.ItemDataSnapshot.ID)
+
 	// Only complete snapshots should be used to source base information.
 	// Snapshots for checkpoints will rely on kopia-assisted dedupe to efficiently
 	// handle items that were completely uploaded before Corso crashed.
-	if len(snap.IncompleteReason) > 0 {
+	if len(base.ItemDataSnapshot.IncompleteReason) > 0 {
+		logger.Ctx(ctx).Info("skipping incomplete snapshot")
 		return nil
 	}
 
-	ctx = clues.Add(ctx, "snapshot_base_id", snap.ID)
+	// Some logging to help track things.
+	logBaseInfo(ctx, base)
 
-	root, err := loader.SnapshotRoot(snap.Manifest)
+	root, err := loader.SnapshotRoot(base.ItemDataSnapshot)
 	if err != nil {
 		return clues.Wrap(err, "getting snapshot root directory").WithClues(ctx)
 	}
@@ -1108,13 +1159,10 @@ func inflateBaseTree(
 		return clues.New("snapshot root is not a directory").WithClues(ctx)
 	}
 
-	// Some logging to help track things.
-	logBaseInfo(ctx, snap)
-
 	// For each subtree corresponding to the tuple
 	// (resource owner, service, category) merge the directories in the base with
 	// what has been reported in the collections we got.
-	for _, r := range snap.Reasons {
+	for _, r := range base.Reasons {
 		ictx := clues.Add(
 			ctx,
 			"subtree_service", r.Service().String(),
@@ -1148,8 +1196,8 @@ func inflateBaseTree(
 		// otherwise unchecked in tree inflation below this point.
 		newSubtreePath := subtreePath.ToBuilder()
 
-		if p, ok := updatedPaths[subtreePath.String()]; ok {
-			newSubtreePath = p.ToBuilder()
+		if up, ok := updatedPaths[subtreePath.String()]; ok {
+			newSubtreePath = up.p.ToBuilder()
 		}
 
 		stats := count.New()
@@ -1196,7 +1244,7 @@ func inflateBaseTree(
 func inflateDirTree(
 	ctx context.Context,
 	loader snapshotLoader,
-	baseSnaps []ManifestEntry,
+	bases []BackupBase,
 	collections []data.BackupCollection,
 	globalExcludeSet prefixmatcher.StringSetReader,
 	progress *corsoProgress,
@@ -1206,22 +1254,18 @@ func inflateDirTree(
 		return nil, clues.Wrap(err, "inflating collection tree")
 	}
 
-	baseIDs := make([]manifest.ID, 0, len(baseSnaps))
-	for _, snap := range baseSnaps {
-		baseIDs = append(baseIDs, snap.ID)
-	}
+	// Individual backup/snapshot IDs will be logged when merging their hierarchy.
+	ctx = clues.Add(ctx, "len_bases", len(bases))
 
-	ctx = clues.Add(ctx, "len_base_snapshots", len(baseSnaps), "base_snapshot_ids", baseIDs)
-
-	if len(baseIDs) > 0 {
-		logger.Ctx(ctx).Info("merging hierarchies from base snapshots")
+	if len(bases) > 0 {
+		logger.Ctx(ctx).Info("merging hierarchies from base backups")
 	} else {
-		logger.Ctx(ctx).Info("no base snapshots to merge")
+		logger.Ctx(ctx).Info("no base backups to merge")
 	}
 
-	for _, snap := range baseSnaps {
-		if err = inflateBaseTree(ctx, loader, snap, updatedPaths, roots); err != nil {
-			return nil, clues.Wrap(err, "inflating base snapshot tree(s)")
+	for _, base := range bases {
+		if err = inflateBaseTree(ctx, loader, base, updatedPaths, roots); err != nil {
+			return nil, clues.Wrap(err, "inflating base backup tree(s)")
 		}
 	}
 

@@ -2,6 +2,7 @@ package m365
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -42,7 +43,7 @@ func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo
 func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (bool, error) {
 	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
-		return false, clues.Stack(err).WithClues(ctx)
+		return false, clues.Stack(err)
 	}
 
 	return exchange.IsServiceEnabled(ctx, ac.Users(), userID)
@@ -55,7 +56,7 @@ func UserGetMailboxInfo(
 ) (api.MailboxInfo, error) {
 	ac, err := makeAC(ctx, acct, path.ExchangeService)
 	if err != nil {
-		return api.MailboxInfo{}, clues.Stack(err).WithClues(ctx)
+		return api.MailboxInfo{}, clues.Stack(err)
 	}
 
 	return exchange.GetMailboxInfo(ctx, ac.Users(), userID)
@@ -66,7 +67,7 @@ func UserGetMailboxInfo(
 func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bool, error) {
 	ac, err := makeAC(ctx, acct, path.OneDriveService)
 	if err != nil {
-		return false, clues.Stack(err).WithClues(ctx)
+		return false, clues.Stack(err)
 	}
 
 	return onedrive.IsServiceEnabled(ctx, ac.Users(), userID)
@@ -76,7 +77,7 @@ func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bo
 func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*UserNoInfo, error) {
 	ac, err := makeAC(ctx, acct, path.UnknownService)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.Stack(err)
 	}
 
 	us, err := ac.Users().GetAll(ctx, errs)
@@ -102,6 +103,31 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 	}
 
 	return ret, nil
+}
+
+func UserAssignedLicenses(ctx context.Context, acct account.Account, userID string) (int, error) {
+	ac, err := makeAC(ctx, acct, path.UnknownService)
+	if err != nil {
+		return 0, clues.Stack(err).WithClues(ctx)
+	}
+
+	us, err := ac.Users().GetByID(
+		ctx,
+		userID,
+		api.CallConfig{Select: api.SelectProps("assignedLicenses")})
+	if err != nil {
+		return 0, err
+	}
+
+	if us.GetAssignedLicenses() != nil {
+		for _, license := range us.GetAssignedLicenses() {
+			fmt.Println(license.GetSkuId())
+		}
+
+		return len(us.GetAssignedLicenses()), nil
+	}
+
+	return 0, clues.New("user missing assigned licenses")
 }
 
 // parseUser extracts information from `models.Userable` we care about

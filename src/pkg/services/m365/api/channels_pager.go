@@ -2,21 +2,21 @@ package api
 
 import (
 	"context"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
 // channel message pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.ChatMessageable] = &channelMessagePageCtrl{}
+var _ pagers.NonDeltaHandler[models.ChatMessageable] = &channelMessagePageCtrl{}
 
 type channelMessagePageCtrl struct {
 	resourceID, channelID string
@@ -31,7 +31,7 @@ func (p *channelMessagePageCtrl) SetNextLink(nextLink string) {
 
 func (p *channelMessagePageCtrl) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.ChatMessageable], error) {
+) (pagers.NextLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -42,7 +42,7 @@ func (p *channelMessagePageCtrl) ValidModTimes() bool {
 
 func (c Channels) NewChannelMessagePager(
 	teamID, channelID string,
-	selectProps ...string,
+	cc CallConfig,
 ) *channelMessagePageCtrl {
 	builder := c.Stable.
 		Client().
@@ -57,8 +57,12 @@ func (c Channels) NewChannelMessagePager(
 		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
 	}
 
-	if len(selectProps) > 0 {
-		options.QueryParameters.Select = selectProps
+	if len(cc.Select) > 0 {
+		options.QueryParameters.Select = cc.Select
+	}
+
+	if len(cc.Expand) > 0 {
+		options.QueryParameters.Expand = cc.Expand
 	}
 
 	return &channelMessagePageCtrl{
@@ -70,11 +74,24 @@ func (c Channels) NewChannelMessagePager(
 	}
 }
 
+// GetChannelMessages fetches a delta of all messages in the channel.
+func (c Channels) GetChannelMessages(
+	ctx context.Context,
+	teamID, channelID string,
+	cc CallConfig,
+) ([]models.ChatMessageable, error) {
+	ctx = clues.Add(ctx, "channel_id", channelID)
+	pager := c.NewChannelMessagePager(teamID, channelID, cc)
+	items, err := pagers.BatchEnumerateItems[models.ChatMessageable](ctx, pager)
+
+	return items, graph.Stack(ctx, err).OrNil()
+}
+
 // ---------------------------------------------------------------------------
 // channel message delta pager
 // ---------------------------------------------------------------------------
 
-var _ DeltaPager[models.ChatMessageable] = &channelMessageDeltaPageCtrl{}
+var _ pagers.DeltaHandler[models.ChatMessageable] = &channelMessageDeltaPageCtrl{}
 
 type channelMessageDeltaPageCtrl struct {
 	resourceID, channelID string
@@ -89,7 +106,7 @@ func (p *channelMessageDeltaPageCtrl) SetNextLink(nextLink string) {
 
 func (p *channelMessageDeltaPageCtrl) GetPage(
 	ctx context.Context,
-) (DeltaLinkValuer[models.ChatMessageable], error) {
+) (pagers.DeltaLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -144,29 +161,50 @@ func (c Channels) NewChannelMessageDeltaPager(
 	}
 }
 
-// GetChannelMessageIDsDelta fetches a delta of all messages in the channel.
+// this is the message content for system chatMessage entities with type
+// unknownFutureValue.
+const channelMessageSystemMessageContent = "<systemEventMessage/>"
+
+func filterOutSystemMessages(cm models.ChatMessageable) bool {
+	if ptr.Val(cm.GetMessageType()) == models.SYSTEMEVENTMESSAGE_CHATMESSAGETYPE {
+		return false
+	}
+
+	content := ""
+
+	if cm.GetBody() != nil {
+		content = ptr.Val(cm.GetBody().GetContent())
+	}
+
+	return !(ptr.Val(cm.GetMessageType()) == models.UNKNOWNFUTUREVALUE_CHATMESSAGETYPE &&
+		content == channelMessageSystemMessageContent)
+}
+
+// GetChannelMessageIDs fetches a delta of all messages in the channel.
 // returns two maps: addedItems, deletedItems
 func (c Channels) GetChannelMessageIDs(
 	ctx context.Context,
 	teamID, channelID, prevDeltaLink string,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, DeltaUpdate, error) {
-	added, validModTimes, removed, du, err := getAddedAndRemovedItemIDs[models.ChatMessageable](
+	cc CallConfig,
+) (pagers.AddedAndRemoved, error) {
+	aar, err := pagers.GetAddedAndRemovedItemIDs[models.ChatMessageable](
 		ctx,
-		c.NewChannelMessagePager(teamID, channelID),
+		c.NewChannelMessagePager(teamID, channelID, CallConfig{}),
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
 		prevDeltaLink,
-		canMakeDeltaQueries,
-		addedAndRemovedByDeletedDateTime[models.ChatMessageable])
+		cc.CanMakeDeltaQueries,
+		0,
+		pagers.AddedAndRemovedByDeletedDateTime[models.ChatMessageable],
+		filterOutSystemMessages)
 
-	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
+	return aar, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
 // channel message replies pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.ChatMessageable] = &channelMessageRepliesPageCtrl{}
+var _ pagers.NonDeltaHandler[models.ChatMessageable] = &channelMessageRepliesPageCtrl{}
 
 type channelMessageRepliesPageCtrl struct {
 	gs      graph.Servicer
@@ -180,7 +218,7 @@ func (p *channelMessageRepliesPageCtrl) SetNextLink(nextLink string) {
 
 func (p *channelMessageRepliesPageCtrl) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.ChatMessageable], error) {
+) (pagers.NextLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -227,7 +265,7 @@ func (c Channels) GetChannelMessageReplies(
 	ctx context.Context,
 	teamID, channelID, messageID string,
 ) ([]models.ChatMessageable, error) {
-	return enumerateItems[models.ChatMessageable](
+	return pagers.BatchEnumerateItems[models.ChatMessageable](
 		ctx,
 		c.NewChannelMessageRepliesPager(teamID, channelID, messageID))
 }
@@ -236,7 +274,7 @@ func (c Channels) GetChannelMessageReplies(
 // channel pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.Channelable] = &channelPageCtrl{}
+var _ pagers.NonDeltaHandler[models.Channelable] = &channelPageCtrl{}
 
 type channelPageCtrl struct {
 	gs      graph.Servicer
@@ -250,7 +288,7 @@ func (p *channelPageCtrl) SetNextLink(nextLink string) {
 
 func (p *channelPageCtrl) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.Channelable], error) {
+) (pagers.NextLinkValuer[models.Channelable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -284,5 +322,5 @@ func (c Channels) GetChannels(
 	ctx context.Context,
 	teamID string,
 ) ([]models.Channelable, error) {
-	return enumerateItems[models.Channelable](ctx, c.NewChannelPager(teamID))
+	return pagers.BatchEnumerateItems[models.Channelable](ctx, c.NewChannelPager(teamID))
 }

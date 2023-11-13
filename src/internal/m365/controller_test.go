@@ -57,18 +57,18 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	var (
 		itn    = map[string]string{id: name}
 		nti    = map[string]string{name: id}
-		lookup = &resourceClient{
+		lookup = &resourceGetter{
 			enum:   resource.Users,
 			getter: &mock.IDNameGetter{ID: id, Name: name},
 		}
-		noLookup = &resourceClient{enum: resource.Users, getter: &mock.IDNameGetter{}}
+		noLookup = &resourceGetter{enum: resource.Users, getter: &mock.IDNameGetter{}}
 	)
 
 	table := []struct {
 		name              string
 		protectedResource string
 		ins               inMock.Cache
-		rc                *resourceClient
+		rc                *resourceGetter
 		expectID          string
 		expectName        string
 		expectErr         require.ErrorAssertionFunc
@@ -238,7 +238,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ctrl := &Controller{ownerLookup: test.rc}
+			ctrl := &Controller{resourceHandler: test.rc}
 
 			resource, err := ctrl.PopulateProtectedResourceIDAndName(ctx, test.protectedResource, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
@@ -252,6 +252,18 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			assert.Equal(t, test.expectName, resource.Name(), "name")
 		})
 	}
+}
+
+func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom_nilCheck() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	ctrl := &Controller{resourceHandler: nil}
+
+	_, err := ctrl.PopulateProtectedResourceIDAndName(ctx, "", nil)
+	require.ErrorIs(t, err, ErrNoResourceLookup, clues.ToCore(err))
 }
 
 func (suite *ControllerUnitSuite) TestController_Wait() {
@@ -625,6 +637,7 @@ func runBackupAndCompare(
 	dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 		ctx,
 		bpc,
+		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -1220,6 +1233,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 				ctx,
 				bpc,
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")
@@ -1399,6 +1413,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			dcs, excludes, canUsePreviousBackup, err := backupCtrl.ProduceBackupCollections(
 				ctx,
 				bpc,
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.True(t, canUsePreviousBackup, "can use previous backup")

@@ -45,15 +45,17 @@ func configureStorage(
 		return store, clues.Wrap(err, "validating corso credentials")
 	}
 
+	configDir, _ := filepath.Split(vpr.ConfigFileUsed())
+
 	cCfg := storage.CommonConfig{
-		Corso: corso,
+		Corso:       corso,
+		KopiaCfgDir: configDir,
 	}
 	// the following is a hack purely for integration testing.
 	// the value is not required, and if empty, kopia will default
 	// to its routine behavior
 	if t, ok := vpr.Get("corso-testing").(bool); t && ok {
-		dir, _ := filepath.Split(vpr.ConfigFileUsed())
-		cCfg.KopiaCfgDir = dir
+		cCfg.KopiaCfgDir = configDir
 	}
 
 	// ensure required properties are present
@@ -76,7 +78,7 @@ func configureStorage(
 func GetAndInsertCorso(passphase string) credentials.Corso {
 	// fetch data from flag, env var or func param giving priority to func param
 	// Func param generally will be value fetched from config file using viper.
-	corsoPassph := str.First(flags.CorsoPassphraseFV, os.Getenv(credentials.CorsoPassphrase), passphase)
+	corsoPassph := str.First(flags.PassphraseFV, os.Getenv(credentials.CorsoPassphrase), passphase)
 
 	return credentials.Corso{
 		CorsoPassphrase: corsoPassph,

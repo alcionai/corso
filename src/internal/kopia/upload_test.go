@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -569,6 +570,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 				deets:          bd,
 				pending:        map[string]*itemDetails{},
 				errs:           fault.New(true),
+				counter:        count.New(),
 			}
 
 			ci := test.cachedItems(suite.targetFileName, suite.targetFilePath)
@@ -579,6 +581,7 @@ func (suite *CorsoProgressUnitSuite) TestFinishedHashingFile() {
 
 			assert.Empty(t, cp.pending)
 			assert.Equal(t, test.expectedBytes, cp.totalBytes)
+			assert.Equal(t, test.expectedBytes, cp.counter.Get(count.PersistedHashedBytes))
 		})
 	}
 }
@@ -875,19 +878,19 @@ func (msw *mockSnapshotWalker) SnapshotRoot(*snapshot.Manifest) (fs.Entry, error
 	return msw.snapshotRoot, nil
 }
 
-func makeManifestEntry(
+func makeBackupBase(
 	id, tenant, resourceOwner string,
 	service path.ServiceType,
 	categories ...path.CategoryType,
-) ManifestEntry {
+) BackupBase {
 	var reasons []identity.Reasoner
 
 	for _, c := range categories {
 		reasons = append(reasons, identity.NewReason(tenant, resourceOwner, service, c))
 	}
 
-	return ManifestEntry{
-		Manifest: &snapshot.Manifest{
+	return BackupBase{
+		ItemDataSnapshot: &snapshot.Manifest{
 			ID: manifest.ID(id),
 		},
 		Reasons: reasons,
@@ -1198,8 +1201,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSingleSubtree() {
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]ManifestEntry{
-					makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				[]BackupBase{
+					makeBackupBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(),
 				pmMock.NewPrefixMap(nil),
@@ -1913,8 +1916,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeMultipleSubdirecto
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]ManifestEntry{
-					makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				[]BackupBase{
+					makeBackupBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 				},
 				test.inputCollections(t),
 				ie,
@@ -2057,8 +2060,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSkipsDeletedSubtre
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
-			makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		[]BackupBase{
+			makeBackupBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		pmMock.NewPrefixMap(nil),
@@ -2157,8 +2160,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_HandleEmptyBase()
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
-			makeManifestEntry("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		[]BackupBase{
+			makeBackupBase("", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		pmMock.NewPrefixMap(nil),
@@ -2373,9 +2376,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsCorrectSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
-			makeManifestEntry("id1", testTenant, testUser, path.ExchangeService, path.ContactsCategory),
-			makeManifestEntry("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
+		[]BackupBase{
+			makeBackupBase("id1", testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			makeBackupBase("id2", testTenant, testUser, path.ExchangeService, path.EmailCategory),
 		},
 		collections,
 		pmMock.NewPrefixMap(nil),
@@ -2526,8 +2529,8 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTreeSelectsMigrateSubt
 	dirTree, err := inflateDirTree(
 		ctx,
 		msw,
-		[]ManifestEntry{
-			makeManifestEntry("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
+		[]BackupBase{
+			makeBackupBase("id1", testTenant, testUser, path.ExchangeService, path.EmailCategory, path.ContactsCategory),
 		},
 		[]data.BackupCollection{mce, mcc},
 		pmMock.NewPrefixMap(nil),
@@ -2669,7 +2672,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 	getBaseSnapshot := func() (fs.Entry, map[string]*int) {
 		counters := map[string]*int{}
 
-		folder, count := newMockStaticDirectory(
+		folder, dirCount := newMockStaticDirectory(
 			encodeElements(folderID3)[0],
 			[]fs.Entry{
 				virtualfs.StreamingFileWithModTimeFromReader(
@@ -2681,9 +2684,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					time.Time{},
 					io.NopCloser(bytes.NewReader(fileData6))),
 			})
-		counters[folderID3] = count
+		counters[folderID3] = dirCount
 
-		folder, count = newMockStaticDirectory(
+		folder, dirCount = newMockStaticDirectory(
 			encodeElements(folderID2)[0],
 			[]fs.Entry{
 				virtualfs.StreamingFileWithModTimeFromReader(
@@ -2696,14 +2699,14 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					io.NopCloser(bytes.NewReader(fileData4))),
 				folder,
 			})
-		counters[folderID2] = count
+		counters[folderID2] = dirCount
 
-		folder4, count := newMockStaticDirectory(
+		folder4, dirCount := newMockStaticDirectory(
 			encodeElements(folderID4)[0],
 			[]fs.Entry{})
-		counters[folderID4] = count
+		counters[folderID4] = dirCount
 
-		folder, count = newMockStaticDirectory(
+		folder, dirCount = newMockStaticDirectory(
 			encodeElements(folderID1)[0],
 			[]fs.Entry{
 				virtualfs.StreamingFileWithModTimeFromReader(
@@ -2717,9 +2720,9 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 				folder,
 				folder4,
 			})
-		counters[folderID1] = count
+		counters[folderID1] = dirCount
 
-		folder5, count := newMockStaticDirectory(
+		folder5, dirCount := newMockStaticDirectory(
 			encodeElements(folderID5)[0],
 			[]fs.Entry{
 				virtualfs.StreamingFileWithModTimeFromReader(
@@ -2731,7 +2734,7 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 					time.Time{},
 					io.NopCloser(bytes.NewReader(fileData8))),
 			})
-		counters[folderID5] = count
+		counters[folderID5] = dirCount
 
 		return baseWithChildren(
 				prefixFolders,
@@ -3451,8 +3454,13 @@ func (suite *HierarchyBuilderUnitSuite) TestBuildDirectoryTree_SelectiveSubtreeP
 			dirTree, err := inflateDirTree(
 				ctx,
 				msw,
-				[]ManifestEntry{
-					makeManifestEntry("", tenant, user, path.OneDriveService, path.FilesCategory),
+				[]BackupBase{
+					makeBackupBase(
+						"id1",
+						tenant,
+						user,
+						path.OneDriveService,
+						path.FilesCategory),
 				},
 				test.inputCollections(t),
 				ie,

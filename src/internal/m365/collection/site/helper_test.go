@@ -7,9 +7,10 @@ import (
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -50,7 +51,8 @@ func createTestService(t *testing.T, credentials account.M365Config) *graph.Serv
 	adapter, err := graph.CreateAdapter(
 		credentials.AzureTenantID,
 		credentials.AzureClientID,
-		credentials.AzureClientSecret)
+		credentials.AzureClientSecret,
+		count.New())
 	require.NoError(t, err, "creating microsoft graph service for exchange", clues.ToCore(err))
 
 	return graph.NewService(adapter)

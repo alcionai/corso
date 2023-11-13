@@ -8,7 +8,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -17,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 var _ inject.BackupProducer = &Controller{}
@@ -40,6 +38,7 @@ type Controller struct {
 func (ctrl Controller) ProduceBackupCollections(
 	_ context.Context,
 	_ inject.BackupProducerConfig,
+	_ *count.Bus,
 	_ *fault.Bus,
 ) (
 	[]data.BackupCollection,
@@ -53,7 +52,7 @@ func (ctrl Controller) ProduceBackupCollections(
 func (ctrl *Controller) GetMetadataPaths(
 	ctx context.Context,
 	r kinject.RestoreProducer,
-	man kopia.ManifestEntry,
+	base inject.ReasonAndSnapshotIDer,
 	errs *fault.Bus,
 ) ([]path.RestorePaths, error) {
 	return nil, clues.New("not implemented")
@@ -86,9 +85,7 @@ func (ctrl Controller) CacheItemInfo(dii details.ItemInfo) {}
 func (ctrl Controller) ProduceExportCollections(
 	_ context.Context,
 	_ int,
-	_ selectors.Selector,
 	_ control.ExportConfig,
-	_ control.Options,
 	_ []data.RestoreCollection,
 	_ *data.ExportStats,
 	_ *fault.Bus,

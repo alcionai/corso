@@ -11,9 +11,9 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -63,7 +63,7 @@ func (c Contacts) DeleteContainer(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := NewService(c.Credentials)
+	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -230,7 +230,7 @@ func (c Contacts) DeleteItem(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := c.Service()
+	srv, err := c.Service(c.counter)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}

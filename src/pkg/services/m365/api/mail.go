@@ -14,10 +14,10 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 const (
@@ -73,7 +73,7 @@ func (c Mail) DeleteContainer(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := NewService(c.Credentials)
+	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -304,7 +304,7 @@ func (c Mail) GetItem(
 	if err == nil {
 		for _, a := range attached.GetValue() {
 			attachSize := ptr.Val(a.GetSize())
-			size = +int64(attachSize)
+			size += int64(attachSize)
 		}
 
 		mail.SetAttachments(attached.GetValue())
@@ -324,7 +324,7 @@ func (c Mail) GetItem(
 	logger.CtxErr(ctx, err).Info("fetching all attachments by id")
 
 	// Getting size just to log in case of error
-	attachConfig.QueryParameters.Select = []string{"id", "size"}
+	attachConfig.QueryParameters.Select = idAnd("size")
 
 	attachments, err := c.LargeItem.
 		Client().
@@ -348,6 +348,11 @@ func (c Mail) GetItem(
 			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
 		}
 
+		ictx := clues.Add(
+			ctx,
+			"attachment_id", ptr.Val(a.GetId()),
+			"attachment_size", ptr.Val(a.GetSize()))
+
 		att, err := c.Stable.
 			Client().
 			Users().
@@ -356,17 +361,13 @@ func (c Mail) GetItem(
 			ByMessageId(itemID).
 			Attachments().
 			ByAttachmentId(ptr.Val(a.GetId())).
-			Get(ctx, attachConfig)
+			Get(ictx, attachConfig)
 		if err != nil {
 			// CannotOpenFileAttachment errors are not transient and
 			// happens possibly from the original item somehow getting
 			// deleted from M365 and so we can skip these
 			if graph.IsErrCannotOpenFileAttachment(err) {
-				logger.CtxErr(ctx, err).
-					With(
-						"attachment_id", ptr.Val(a.GetId()),
-						"attachment_size", ptr.Val(a.GetSize())).
-					Info("attachment not found")
+				logger.CtxErr(ictx, err).Info("attachment not found")
 				// TODO This should use a `AddSkip` once we have
 				// figured out the semantics for skipping
 				// subcomponents of an item
@@ -374,13 +375,12 @@ func (c Mail) GetItem(
 				continue
 			}
 
-			return nil, nil, graph.Wrap(ctx, err, "getting mail attachment").
-				With("attachment_id", ptr.Val(a.GetId()), "attachment_size", ptr.Val(a.GetSize()))
+			return nil, nil, graph.Wrap(ictx, err, "getting mail attachment")
 		}
 
 		atts = append(atts, att)
 		attachSize := ptr.Val(a.GetSize())
-		size = +int64(attachSize)
+		size += int64(attachSize)
 	}
 
 	mail.SetAttachments(atts)
@@ -442,7 +442,7 @@ func (c Mail) DeleteItem(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := NewService(c.Credentials)
+	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
 		return graph.Stack(ctx, err)
 	}
@@ -508,7 +508,7 @@ func (c Mail) PostLargeAttachment(
 	}
 
 	url := ptr.Val(us.GetUploadUrl())
-	w := graph.NewLargeItemWriter(parentItemID, url, size)
+	w := graph.NewLargeItemWriter(parentItemID, url, size, c.counter)
 	copyBuffer := make([]byte, graph.AttachmentChunkSize)
 
 	_, err = io.CopyBuffer(w, bytes.NewReader(content), copyBuffer)
@@ -565,7 +565,7 @@ func (c Mail) Serialize(
 
 func MailInfo(msg models.Messageable, size int64) *details.ExchangeInfo {
 	var (
-		sender     = UnwrapEmailAddress(msg.GetSender())
+		sender     = unwrapEmailAddress(msg.GetSender())
 		subject    = ptr.Val(msg.GetSubject())
 		received   = ptr.Val(msg.GetReceivedDateTime())
 		created    = ptr.Val(msg.GetCreatedDateTime())
@@ -575,7 +575,7 @@ func MailInfo(msg models.Messageable, size int64) *details.ExchangeInfo {
 	if msg.GetToRecipients() != nil {
 		ppl := msg.GetToRecipients()
 		for _, entry := range ppl {
-			temp := UnwrapEmailAddress(entry)
+			temp := unwrapEmailAddress(entry)
 			if len(temp) > 0 {
 				recipients = append(recipients, temp)
 			}
@@ -594,7 +594,7 @@ func MailInfo(msg models.Messageable, size int64) *details.ExchangeInfo {
 	}
 }
 
-func UnwrapEmailAddress(contact models.Recipientable) string {
+func unwrapEmailAddress(contact models.Recipientable) string {
 	var empty string
 	if contact == nil || contact.GetEmailAddress() == nil {
 		return empty

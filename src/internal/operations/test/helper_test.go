@@ -14,12 +14,12 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
@@ -40,11 +40,36 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	gmock "github.com/alcionai/corso/src/pkg/services/m365/api/graph/mock"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
+
+// ---------------------------------------------------------------------------
+// Gockable client
+// ---------------------------------------------------------------------------
+
+// GockClient produces a new exchange api client that can be
+// mocked using gock.
+func gockClient(creds account.M365Config, counter *count.Bus) (api.Client, error) {
+	s, err := gmock.NewService(creds, counter)
+	if err != nil {
+		return api.Client{}, err
+	}
+
+	li, err := gmock.NewService(creds, counter, graph.NoTimeout())
+	if err != nil {
+		return api.Client{}, err
+	}
+
+	return api.Client{
+		Credentials: creds,
+		Stable:      s,
+		LargeItem:   li,
+	}, nil
+}
 
 // Does not use the tester.DefaultTestRestoreDestination syntax as some of these
 // items are created directly, not as a result of restoration, and we want to ensure
@@ -91,6 +116,7 @@ func prepNewTestBackupOp(
 	sel selectors.Selector,
 	opts control.Options,
 	backupVersion int,
+	counter *count.Bus,
 ) (
 	operations.BackupOperation,
 	*backupOpDependencies,
@@ -99,10 +125,11 @@ func prepNewTestBackupOp(
 		acct: tconfig.NewM365Account(t),
 		st:   storeTD.NewPrefixedS3Storage(t),
 	}
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	k := kopia.NewConn(bod.st)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {
@@ -137,14 +164,17 @@ func prepNewTestBackupOp(
 		bod.acct,
 		sel,
 		nil,
-		bod.close)
+		bod.close,
+		counter)
 
 	bo := newTestBackupOp(
 		t,
 		ctx,
 		bod,
 		bus,
-		opts)
+		opts,
+		counter)
+	bo.BackupVersion = backupVersion
 
 	bod.sss = streamstore.NewStreamer(
 		bod.kw,
@@ -164,6 +194,7 @@ func newTestBackupOp(
 	bod *backupOpDependencies,
 	bus events.Eventer,
 	opts control.Options,
+	counter *count.Bus,
 ) operations.BackupOperation {
 	bod.ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.sel.ID(): bod.sel.Name()})
 
@@ -176,7 +207,8 @@ func newTestBackupOp(
 		bod.acct,
 		bod.sel,
 		bod.sel,
-		bus)
+		bus,
+		counter)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		bod.close(t, ctx)
 		t.FailNow()
@@ -250,8 +282,8 @@ func checkBackupIsInManifests(
 
 			mans := bf.FindBases(ctx, []identity.Reasoner{r}, tags)
 			for _, man := range mans.MergeBases() {
-				bID, ok := man.GetTag(kopia.TagBackupID)
-				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ID) {
+				bID, ok := man.GetSnapshotTag(kopia.TagBackupID)
+				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ItemDataSnapshot.ID) {
 					continue
 				}
 
@@ -536,8 +568,16 @@ func ControllerWithSelector(
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(*testing.T, context.Context),
+	counter *count.Bus,
 ) (*m365.Controller, selectors.Selector) {
-	ctrl, err := m365.NewController(ctx, acct, sel.PathService(), control.DefaultOptions())
+	ctx = clues.Add(ctx, "controller_selector", sel)
+
+	ctrl, err := m365.NewController(
+		ctx,
+		acct,
+		sel.PathService(),
+		control.DefaultOptions(),
+		counter)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)
@@ -598,10 +638,15 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.ac, err = api.NewClient(creds, control.DefaultOptions())
+	counter := count.New()
+
+	its.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		counter)
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.gockAC, err = mock.NewClient(creds)
+	its.gockAC, err = gockClient(creds, counter)
 	require.NoError(t, err, clues.ToCore(err))
 
 	its.user = userIDs(t, tconfig.M365UserID(t), its.ac)
@@ -703,6 +748,7 @@ func verifyExtensionData(
 	case path.OneDriveService:
 		detailsSize = itemInfo.OneDrive.Size
 	case path.GroupsService:
+		// FIXME: needs update for message.
 		detailsSize = itemInfo.Groups.Size
 	default:
 		assert.Fail(t, "unrecognized data type")

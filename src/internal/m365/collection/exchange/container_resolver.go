@@ -6,10 +6,10 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -23,14 +23,12 @@ type containerGetter interface {
 	) (graph.Container, error)
 }
 
-type containersEnumerator interface {
+type containersEnumerator[T any] interface {
 	EnumerateContainers(
 		ctx context.Context,
 		userID, baseDirID string,
 		immutableIDs bool,
-		fn func(graph.CachedContainer) error,
-		errs *fault.Bus,
-	) error
+	) ([]T, error)
 }
 
 type containerRefresher interface {

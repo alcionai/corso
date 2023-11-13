@@ -4,11 +4,12 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var (
@@ -40,7 +41,7 @@ func (r *mailRefresher) refreshContainer(
 // nameLookup map: Key: DisplayName Value: ID
 type mailContainerCache struct {
 	*containerResolver
-	enumer containersEnumerator
+	enumer containersEnumerator[models.MailFolderable]
 	getter containerGetter
 	userID string
 }
@@ -100,20 +101,35 @@ func (mc *mailContainerCache) Populate(
 		return clues.Wrap(err, "initializing")
 	}
 
-	err := mc.enumer.EnumerateContainers(
+	el := errs.Local()
+
+	containers, err := mc.enumer.EnumerateContainers(
 		ctx,
 		mc.userID,
 		"",
-		false,
-		mc.addFolder,
-		errs)
+		false)
 	if err != nil {
 		return clues.Wrap(err, "enumerating containers")
+	}
+
+	for _, c := range containers {
+		if el.Failure() != nil {
+			return el.Failure()
+		}
+
+		cacheFolder := graph.NewCacheFolder(c, nil, nil)
+
+		err := mc.addFolder(&cacheFolder)
+		if err != nil {
+			errs.AddRecoverable(
+				ctx,
+				graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+		}
 	}
 
 	if err := mc.populatePaths(ctx, errs); err != nil {
 		return clues.Wrap(err, "populating paths")
 	}
 
-	return nil
+	return el.Failure()
 }

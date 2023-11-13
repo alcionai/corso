@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ItemSerializationUnitSuite struct {
@@ -43,13 +42,13 @@ func (suite *ItemSerializationUnitSuite) TestConcurrentItemSerialization() {
 				item := models.NewMessage()
 				item.SetSubject(&subject)
 
-				bs, err := api.Mail{}.Serialize(ctx, item, user, subject)
+				bs, err := Mail{}.Serialize(ctx, item, user, subject)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return bs
 			},
 			deserializeAndGetField: func(t *testing.T, bs []byte) string {
-				item, err := api.BytesToMessageable(bs)
+				item, err := BytesToMessageable(bs)
 				require.NoError(
 					t,
 					err,
@@ -68,13 +67,13 @@ func (suite *ItemSerializationUnitSuite) TestConcurrentItemSerialization() {
 				item := models.NewEvent()
 				item.SetSubject(&subject)
 
-				bs, err := api.Events{}.Serialize(ctx, item, user, subject)
+				bs, err := Events{}.Serialize(ctx, item, user, subject)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return bs
 			},
 			deserializeAndGetField: func(t *testing.T, bs []byte) string {
-				item, err := api.BytesToEventable(bs)
+				item, err := BytesToEventable(bs)
 				require.NoError(
 					t,
 					err,
@@ -93,13 +92,13 @@ func (suite *ItemSerializationUnitSuite) TestConcurrentItemSerialization() {
 				item := models.NewContact()
 				item.SetGivenName(&name)
 
-				bs, err := api.Contacts{}.Serialize(ctx, item, user, name)
+				bs, err := Contacts{}.Serialize(ctx, item, user, name)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return bs
 			},
 			deserializeAndGetField: func(t *testing.T, bs []byte) string {
-				item, err := api.BytesToContactable(bs)
+				item, err := BytesToContactable(bs)
 				require.NoError(
 					t,
 					err,

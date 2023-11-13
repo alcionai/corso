@@ -7,12 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Changed
+- Change file extension of messages export to json to match the content
+
+### Fixed
+- Handle OneDrive folders being deleted and recreated midway through a backup
+- Automatically re-run a full delta query on incrmental if the prior backup is found to have malformed prior-state information.
+
+## [v0.15.0] (beta) - 2023-10-31
+
+### Added
+- Added `corso repo update-passphrase` command to update the passphrase of an existing Corso repository
+- Added Subject and Message preview to channel messages detail entries
+
+### Fixed
+- SharePoint backup would fail if any site had an empty display name
+- Fix a bug with exports hanging post completion
+- Handle 503 errors in nested OneDrive packages
+
+### Changed
+- Item Details formatting in Groups and Teams backups
+
+## [v0.14.2] (beta) - 2023-10-17
+
 ### Added
 - Skips graph calls for expired item download URLs.
 - Export operation now shows the stats at the end of the run
 
 ### Fixed
 - Catch and report cases where a protected resource is locked out of access.  SDK consumers have a new errs sentinel that allows them to check for this case.
+- Fix a case where missing item LastModifiedTimes could cause incremental backups to fail.
+- Email size metadata was incorrectly set to the size of the last attachment.  Emails will now correctly report the size of the mail content plus the size of all attachments.
+- Improves the filtering capabilities for Groups restore and backup
+- Improve check to skip OneNote files that cannot be downloaded.
+- Fix Groups backup for non Team groups
+
+### Changed
+- Groups restore now expects the site whose backup we should restore
 
 ## [v0.14.0] (beta) - 2023-10-09
 
@@ -394,7 +425,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.15.0...HEAD
+[v0.15.0]: https://github.com/alcionai/corso/compare/v0.14.0...v0.15.0
 [v0.14.0]: https://github.com/alcionai/corso/compare/v0.13.0...v0.14.0
 [v0.13.0]: https://github.com/alcionai/corso/compare/v0.12.0...v0.13.0
 [v0.12.0]: https://github.com/alcionai/corso/compare/v0.11.1...v0.12.0

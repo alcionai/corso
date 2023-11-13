@@ -10,9 +10,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	onedrive "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 type DriveItemIDType struct {
@@ -24,7 +25,7 @@ type DriveItemIDType struct {
 // non-delta item pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.DriveItemable] = &driveItemPageCtrl{}
+var _ pagers.NonDeltaHandler[models.DriveItemable] = &driveItemPageCtrl{}
 
 type driveItemPageCtrl struct {
 	gs      graph.Servicer
@@ -35,9 +36,11 @@ type driveItemPageCtrl struct {
 func (c Drives) NewDriveItemPager(
 	driveID, containerID string,
 	selectProps ...string,
-) Pager[models.DriveItemable] {
+) pagers.NonDeltaHandler[models.DriveItemable] {
 	options := &drives.ItemItemsItemChildrenRequestBuilderGetRequestConfiguration{
-		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{},
+		QueryParameters: &drives.ItemItemsItemChildrenRequestBuilderGetQueryParameters{
+			Top: ptr.To(maxNonDeltaPageSize),
+		},
 	}
 
 	if len(selectProps) > 0 {
@@ -57,7 +60,7 @@ func (c Drives) NewDriveItemPager(
 
 func (p *driveItemPageCtrl) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.DriveItemable], error) {
+) (pagers.NextLinkValuer[models.DriveItemable], error) {
 	page, err := p.builder.Get(ctx, p.options)
 	return page, graph.Stack(ctx, err).OrNil()
 }
@@ -77,7 +80,7 @@ func (c Drives) GetItemsInContainerByCollisionKey(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewDriveItemPager(driveID, containerID, idAnd("name")...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating drive items")
 	}
@@ -101,7 +104,7 @@ func (c Drives) GetItemIDsInContainer(
 	ctx = clues.Add(ctx, "container_id", containerID)
 	pager := c.NewDriveItemPager(driveID, containerID, idAnd("file", "folder")...)
 
-	items, err := enumerateItems(ctx, pager)
+	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "enumerating contacts")
 	}
@@ -122,7 +125,7 @@ func (c Drives) GetItemIDsInContainer(
 // delta item pager
 // ---------------------------------------------------------------------------
 
-var _ DeltaPager[models.DriveItemable] = &DriveItemDeltaPageCtrl{}
+var _ pagers.DeltaHandler[models.DriveItemable] = &DriveItemDeltaPageCtrl{}
 
 type DriveItemDeltaPageCtrl struct {
 	gs      graph.Servicer
@@ -133,7 +136,7 @@ type DriveItemDeltaPageCtrl struct {
 
 func (c Drives) newDriveItemDeltaPager(
 	driveID, prevDeltaLink string,
-	selectProps ...string,
+	cc CallConfig,
 ) *DriveItemDeltaPageCtrl {
 	preferHeaderItems := []string{
 		"deltashowremovedasdeleted",
@@ -143,12 +146,14 @@ func (c Drives) newDriveItemDeltaPager(
 	}
 
 	options := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferHeaderItems...),
-		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{},
+		Headers: newPreferHeaders(preferHeaderItems...),
+		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
+			Top: ptr.To(maxDeltaPageSize),
+		},
 	}
 
-	if len(selectProps) > 0 {
-		options.QueryParameters.Select = selectProps
+	if len(cc.Select) > 0 {
+		options.QueryParameters.Select = cc.Select
 	}
 
 	builder := c.Stable.
@@ -175,7 +180,7 @@ func (c Drives) newDriveItemDeltaPager(
 
 func (p *DriveItemDeltaPageCtrl) GetPage(
 	ctx context.Context,
-) (DeltaLinkValuer[models.DriveItemable], error) {
+) (pagers.DeltaLinkValuer[models.DriveItemable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -197,33 +202,38 @@ func (p *DriveItemDeltaPageCtrl) ValidModTimes() bool {
 	return true
 }
 
-// EnumerateDriveItems will enumerate all items in the specified drive and hand them to the
-// provided `collector` method
+// EnumerateDriveItems will enumerate all items in the specified drive and stream them page
+// by page, along with the delta update and any errors, to the provided channel.
 func (c Drives) EnumerateDriveItemsDelta(
 	ctx context.Context,
 	driveID string,
 	prevDeltaLink string,
-	selectProps []string,
-) (
-	[]models.DriveItemable,
-	DeltaUpdate,
-	error,
-) {
-	pager := c.newDriveItemDeltaPager(driveID, prevDeltaLink, selectProps...)
+	cc CallConfig,
+) pagers.NextPageResulter[models.DriveItemable] {
+	deltaPager := c.newDriveItemDeltaPager(
+		driveID,
+		prevDeltaLink,
+		cc)
 
-	items, du, err := deltaEnumerateItems[models.DriveItemable](ctx, pager, prevDeltaLink)
-	if err != nil {
-		return nil, du, clues.Stack(err)
-	}
+	npr := pagers.NewNextPageResults[models.DriveItemable]()
 
-	return items, du, nil
+	// asynchronously enumerate pages on the caller's behalf.
+	// they only need to consume the pager and call Results at
+	// the end.
+	go pagers.DeltaEnumerateItems[models.DriveItemable](
+		ctx,
+		deltaPager,
+		npr,
+		prevDeltaLink)
+
+	return npr
 }
 
 // ---------------------------------------------------------------------------
 // user's drives pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.Driveable] = &userDrivePager{}
+var _ pagers.NonDeltaHandler[models.Driveable] = &userDrivePager{}
 
 type userDrivePager struct {
 	userID  string
@@ -270,7 +280,7 @@ func (nl nopUserDrivePage) GetOdataNextLink() *string {
 
 func (p *userDrivePager) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.Driveable], error) {
+) (pagers.NextLinkValuer[models.Driveable], error) {
 	// we only ever want to return the user's default drive.
 	d, err := p.gs.
 		Client().
@@ -294,7 +304,7 @@ func (p *userDrivePager) ValidModTimes() bool {
 // site's libraries pager
 // ---------------------------------------------------------------------------
 
-var _ Pager[models.Driveable] = &siteDrivePager{}
+var _ pagers.NonDeltaHandler[models.Driveable] = &siteDrivePager{}
 
 type siteDrivePager struct {
 	gs      graph.Servicer
@@ -332,7 +342,7 @@ func (c Drives) NewSiteDrivePager(
 
 func (p *siteDrivePager) GetPage(
 	ctx context.Context,
-) (NextLinkValuer[models.Driveable], error) {
+) (pagers.NextLinkValuer[models.Driveable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
 	return resp, graph.Stack(ctx, err).OrNil()
 }
@@ -352,13 +362,19 @@ func (p *siteDrivePager) ValidModTimes() bool {
 // GetAllDrives fetches all drives for the given pager
 func GetAllDrives(
 	ctx context.Context,
-	pager Pager[models.Driveable],
+	pager pagers.NonDeltaHandler[models.Driveable],
 ) ([]models.Driveable, error) {
-	ds, err := enumerateItems(ctx, pager)
-	if err != nil && (clues.HasLabel(err, graph.LabelsMysiteNotFound) ||
-		clues.HasLabel(err, graph.LabelsNoSharePointLicense)) {
+	ds, err := pagers.BatchEnumerateItems(ctx, pager)
+
+	// no license or drives available.
+	// return a non-error and let the caller assume an empty result set.
+	// TODO: is this the best way to handle this?
+	// what about returning a ResourceNotFound error as is standard elsewhere?
+	if err != nil &&
+		(clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense)) {
 		logger.CtxErr(ctx, err).Infof("resource owner does not have a drive")
-		return make([]models.Driveable, 0), nil // no license or drives.
+
+		return make([]models.Driveable, 0), nil
 	}
 
 	return ds, graph.Stack(ctx, err).OrNil()

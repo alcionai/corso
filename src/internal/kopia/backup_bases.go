@@ -5,8 +5,10 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -15,16 +17,52 @@ import (
 // TODO(ashmrtn): Move this into some inject package. Here to avoid import
 // cycles.
 type BackupBases interface {
-	// ConvertToAssistBase converts the base with the given item data snapshot ID
-	// from a merge base to an assist base.
-	ConvertToAssistBase(manifestID manifest.ID)
-	Backups() []BackupEntry
-	UniqueAssistBackups() []BackupEntry
-	MinBackupVersion() int
-	MergeBases() []ManifestEntry
+	// ConvertToAssistBase converts the base with the given backup ID from a merge
+	// base to an assist base.
+	ConvertToAssistBase(backupID model.StableID)
+	// MergeBases returns a []BackupBase that corresponds to all the bases that
+	// will source unchanged information for this backup during hierarchy merging,
+	// snapshot creation, and details merging.
+	MergeBases() []BackupBase
+	// DisableMergeBases converts all merge bases in this BackupBases to assist
+	// bases. These bases can still participate in sourcing data kopia considers
+	// "cached" during the snapshot process and can source backup details entries
+	// for those cached items. However, they won't be used to source unchanged
+	// items during hierarchy merging, snapshot creation, or details merging.
+	//
+	// This call is order sensitive with DisableAssistBases.
 	DisableMergeBases()
-	UniqueAssistBases() []ManifestEntry
+	// UniqueAssistBases returns the set of assist bases for the backup operation.
+	// Assist bases are used to source item data and details entries if the item
+	// is considered "cached" by kopia. They are not used to source unchanged
+	// items during hierarchy merging.
+	UniqueAssistBases() []BackupBase
+	// DisableAssistBases clears the set of assist bases for this backup. Doing so
+	// will result in kopia not finding any "cached" items and assist bases won't
+	// participate in details merging.
+	//
+	// This call is order sensitive with DisableMergeBases.
 	DisableAssistBases()
+	// MinBackupVersion returns the lowest version of all merge backups in the
+	// BackupBases.
+	MinBackupVersion() int
+	// MinAssisttVersion returns the lowest version of all assist backups in the
+	// BackupBases.
+	MinAssistVersion() int
+	// MergeBackupBases takes another BackupBases and merges it's contained assist
+	// and merge bases into this BackupBases. The passed in BackupBases is
+	// considered an older alternative to this BackupBases meaning bases from
+	// other won't be selected unless there's no item in this BackupBases to cover
+	// that Reason.
+	//
+	// Callers pass in reasonToKey to control how individual BackupBase items are
+	// selected. For example, to migrate from using user name to user ID as the
+	// protected resource in the Reason the reasonToKey function could map
+	// BackupBase items with the same tenant, service, and category to the same
+	// key. This works because backup operations are already per protected
+	// resource.
+	//
+	// This call is order sensitive with DisableMergeBases and DisableAssistBases.
 	MergeBackupBases(
 		ctx context.Context,
 		other BackupBases,
@@ -34,77 +72,38 @@ type BackupBases interface {
 	// incremental snapshot operations. It consists of the union of merge bases
 	// and assist bases. If DisableAssistBases has been called then it returns
 	// nil.
-	SnapshotAssistBases() []ManifestEntry
+	SnapshotAssistBases() []BackupBase
 }
 
 type backupBases struct {
-	// backups and mergeBases should be modified together as they relate similar
-	// data.
-	backups       []BackupEntry
-	mergeBases    []ManifestEntry
-	assistBackups []BackupEntry
-	assistBases   []ManifestEntry
+	mergeBases  []BackupBase
+	assistBases []BackupBase
 
 	// disableAssistBases denote whether any assist bases should be returned to
 	// kopia during snapshot operation.
 	disableAssistBases bool
 }
 
-func (bb *backupBases) SnapshotAssistBases() []ManifestEntry {
+func (bb *backupBases) SnapshotAssistBases() []BackupBase {
 	if bb.disableAssistBases {
 		return nil
 	}
 
 	// Need to use the actual variables here because the functions will return nil
 	// depending on what's been marked as disabled.
-	return append(slices.Clone(bb.assistBases), bb.mergeBases...)
+	return append(slices.Clone(bb.mergeBases), bb.assistBases...)
 }
 
-func (bb *backupBases) ConvertToAssistBase(manifestID manifest.ID) {
-	var (
-		snapshotMan ManifestEntry
-		base        BackupEntry
-		snapFound   bool
-	)
-
+func (bb *backupBases) ConvertToAssistBase(backupID model.StableID) {
 	idx := slices.IndexFunc(
 		bb.mergeBases,
-		func(man ManifestEntry) bool {
-			return man.ID == manifestID
+		func(base BackupBase) bool {
+			return base.Backup.ID == backupID
 		})
 	if idx >= 0 {
-		snapFound = true
-		snapshotMan = bb.mergeBases[idx]
+		bb.assistBases = append(bb.assistBases, bb.mergeBases[idx])
 		bb.mergeBases = slices.Delete(bb.mergeBases, idx, idx+1)
 	}
-
-	idx = slices.IndexFunc(
-		bb.backups,
-		func(bup BackupEntry) bool {
-			return bup.SnapshotID == string(manifestID)
-		})
-	if idx >= 0 {
-		base = bb.backups[idx]
-		bb.backups = slices.Delete(bb.backups, idx, idx+1)
-	}
-
-	// Account for whether we found the backup.
-	if idx >= 0 && snapFound {
-		bb.assistBackups = append(bb.assistBackups, base)
-		bb.assistBases = append(bb.assistBases, snapshotMan)
-	}
-}
-
-func (bb backupBases) Backups() []BackupEntry {
-	return slices.Clone(bb.backups)
-}
-
-func (bb backupBases) UniqueAssistBackups() []BackupEntry {
-	if bb.disableAssistBases {
-		return nil
-	}
-
-	return slices.Clone(bb.assistBackups)
 }
 
 func (bb *backupBases) MinBackupVersion() int {
@@ -114,16 +113,32 @@ func (bb *backupBases) MinBackupVersion() int {
 		return min
 	}
 
-	for _, bup := range bb.backups {
-		if min == version.NoBackup || bup.Version < min {
-			min = bup.Version
+	for _, base := range bb.mergeBases {
+		if min == version.NoBackup || base.Backup.Version < min {
+			min = base.Backup.Version
 		}
 	}
 
 	return min
 }
 
-func (bb backupBases) MergeBases() []ManifestEntry {
+func (bb *backupBases) MinAssistVersion() int {
+	min := version.NoBackup
+
+	if bb == nil {
+		return min
+	}
+
+	for _, base := range bb.assistBases {
+		if min == version.NoBackup || base.Backup.Version < min {
+			min = base.Backup.Version
+		}
+	}
+
+	return min
+}
+
+func (bb backupBases) MergeBases() []BackupBase {
 	return slices.Clone(bb.mergeBases)
 }
 
@@ -134,13 +149,11 @@ func (bb *backupBases) DisableMergeBases() {
 	// in the merge set since then we won't return the bases when merging backup
 	// details.
 	bb.assistBases = append(bb.assistBases, bb.mergeBases...)
-	bb.assistBackups = append(bb.assistBackups, bb.backups...)
 
 	bb.mergeBases = nil
-	bb.backups = nil
 }
 
-func (bb backupBases) UniqueAssistBases() []ManifestEntry {
+func (bb backupBases) UniqueAssistBases() []BackupBase {
 	if bb.disableAssistBases {
 		return nil
 	}
@@ -150,6 +163,36 @@ func (bb backupBases) UniqueAssistBases() []ManifestEntry {
 
 func (bb *backupBases) DisableAssistBases() {
 	bb.disableAssistBases = true
+}
+
+func getMissingBases(
+	reasonToKey func(identity.Reasoner) string,
+	seen map[string]struct{},
+	toCheck []BackupBase,
+) []BackupBase {
+	var res []BackupBase
+
+	for _, base := range toCheck {
+		useReasons := []identity.Reasoner{}
+
+		for _, r := range base.Reasons {
+			k := reasonToKey(r)
+			if _, ok := seen[k]; ok {
+				// This Reason is already "covered" by a previously seen base. Skip
+				// adding the Reason to the base being examined.
+				continue
+			}
+
+			useReasons = append(useReasons, r)
+		}
+
+		if len(useReasons) > 0 {
+			base.Reasons = useReasons
+			res = append(res, base)
+		}
+	}
+
+	return res
 }
 
 // MergeBackupBases reduces the two BackupBases into a single BackupBase.
@@ -189,8 +232,12 @@ func (bb *backupBases) MergeBackupBases(
 	toMerge := map[string]struct{}{}
 	assist := map[string]struct{}{}
 
-	// Track the bases in bb.
-	for _, m := range bb.mergeBases {
+	// Track the bases in bb. We need to know the Reason(s) covered by merge bases
+	// and the Reason(s) covered by assist bases separately because the former
+	// dictates whether we need to select a merge base and an assist base from
+	// other while the latter dictates whether we need to select an assist base
+	// from other.
+	for _, m := range bb.MergeBases() {
 		for _, r := range m.Reasons {
 			k := reasonToKey(r)
 
@@ -199,248 +246,214 @@ func (bb *backupBases) MergeBackupBases(
 		}
 	}
 
-	for _, m := range bb.assistBases {
+	for _, m := range bb.UniqueAssistBases() {
 		for _, r := range m.Reasons {
 			k := reasonToKey(r)
 			assist[k] = struct{}{}
 		}
 	}
 
-	var toAdd []ManifestEntry
-
-	// Calculate the set of mergeBases to pull from other into this one.
-	for _, m := range other.MergeBases() {
-		useReasons := []identity.Reasoner{}
-
-		for _, r := range m.Reasons {
-			k := reasonToKey(r)
-			if _, ok := toMerge[k]; ok {
-				// Assume other contains prior manifest versions.
-				// We don't want to stack a prior version incomplete onto
-				// a current version's complete snapshot.
-				continue
-			}
-
-			useReasons = append(useReasons, r)
-		}
-
-		if len(useReasons) > 0 {
-			m.Reasons = useReasons
-			toAdd = append(toAdd, m)
-		}
-	}
+	addMerge := getMissingBases(reasonToKey, toMerge, other.MergeBases())
+	addAssist := getMissingBases(reasonToKey, assist, other.UniqueAssistBases())
 
 	res := &backupBases{
-		backups:     bb.Backups(),
-		mergeBases:  bb.MergeBases(),
-		assistBases: bb.UniqueAssistBases(),
-		// Note that assistBackups are a new feature and don't exist
-		// in prior versions where we were using UPN based reasons i.e.
-		// other won't have any assistBackups.
-		assistBackups: bb.UniqueAssistBackups(),
-	}
-
-	// Add new mergeBases and backups.
-	for _, man := range toAdd {
-		// Will get empty string if not found which is fine, it'll fail one of the
-		// other checks.
-		bID, _ := man.GetTag(TagBackupID)
-
-		bup, ok := getBackupByID(other.Backups(), bID)
-		if !ok {
-			logger.Ctx(ctx).Infow(
-				"not unioning snapshot missing backup",
-				"other_manifest_id", man.ID,
-				"other_backup_id", bID)
-
-			continue
-		}
-
-		bup.Reasons = man.Reasons
-
-		res.backups = append(res.backups, bup)
-		res.mergeBases = append(res.mergeBases, man)
+		mergeBases:  append(addMerge, bb.MergeBases()...),
+		assistBases: append(addAssist, bb.UniqueAssistBases()...),
 	}
 
 	return res
 }
 
-func findNonUniqueManifests(
+func fixupMinRequirements(
 	ctx context.Context,
-	manifests []ManifestEntry,
-) map[manifest.ID]struct{} {
-	// ReasonKey -> manifests with that reason.
-	reasons := map[string][]ManifestEntry{}
-	toDrop := map[manifest.ID]struct{}{}
+	baseSet []BackupBase,
+) []BackupBase {
+	res := make([]BackupBase, 0, len(baseSet))
 
-	for _, man := range manifests {
-		// Incomplete snapshots are used only for kopia-assisted incrementals. The
-		// fact that we need this check here makes it seem like this should live in
-		// the kopia code. However, keeping it here allows for better debugging as
-		// the kopia code only has access to a path builder which means it cannot
-		// remove the resource owner from the error/log output. That is also below
-		// the point where we decide if we should do a full backup or an incremental.
-		if len(man.IncompleteReason) > 0 {
-			logger.Ctx(ctx).Infow(
-				"dropping incomplete manifest",
-				"manifest_id", man.ID)
+	for _, base := range baseSet {
+		var (
+			backupID       model.StableID
+			snapID         manifest.ID
+			snapIncomplete bool
+			deetsID        string
+		)
 
-			toDrop[man.ID] = struct{}{}
+		if base.Backup != nil {
+			backupID = base.Backup.ID
 
-			continue
-		}
-
-		for _, reason := range man.Reasons {
-			mapKey := reasonKey(reason)
-			reasons[mapKey] = append(reasons[mapKey], man)
-		}
-	}
-
-	for reason, mans := range reasons {
-		ictx := clues.Add(ctx, "reason", reason)
-
-		if len(mans) == 0 {
-			// Not sure how this would happen but just in case...
-			continue
-		} else if len(mans) > 1 {
-			mIDs := make([]manifest.ID, 0, len(mans))
-			for _, m := range mans {
-				toDrop[m.ID] = struct{}{}
-				mIDs = append(mIDs, m.ID)
+			deetsID = base.Backup.StreamStoreID
+			if len(deetsID) == 0 {
+				deetsID = base.Backup.DetailsID
 			}
+		}
 
-			// TODO(ashmrtn): We should actually just remove this reason from the
-			// manifests and then if they have no reasons remaining drop them from the
-			// set.
-			logger.Ctx(ictx).Infow(
-				"dropping manifests with duplicate reason",
-				"manifest_ids", mIDs)
+		if base.ItemDataSnapshot != nil {
+			snapID = base.ItemDataSnapshot.ID
 
+			snapIncomplete = len(base.ItemDataSnapshot.IncompleteReason) > 0
+		}
+
+		ictx := clues.Add(
+			ctx,
+			"base_backup_id", backupID,
+			"base_item_data_snapshot_id", snapID,
+			"base_details_id", deetsID)
+
+		switch {
+		case len(backupID) == 0:
+			logger.Ctx(ictx).Info("dropping base missing backup model")
+			continue
+
+		case len(snapID) == 0:
+			logger.Ctx(ictx).Info("dropping base missing item data snapshot")
+			continue
+
+		case snapIncomplete:
+			logger.Ctx(ictx).Info("dropping base with incomplete item data snapshot")
+			continue
+
+		case len(deetsID) == 0:
+			logger.Ctx(ictx).Info("dropping base missing backup details")
+			continue
+
+		case len(base.Reasons) == 0:
+			// Not sure how we'd end up here, but just to make sure we're really
+			// getting what we expect.
+			logger.Ctx(ictx).Info("dropping base with no marked Reasons")
 			continue
 		}
+
+		res = append(res, base)
 	}
 
-	return toDrop
+	return res
 }
 
-func getBackupByID(backups []BackupEntry, bID string) (BackupEntry, bool) {
-	if len(bID) == 0 {
-		return BackupEntry{}, false
+func fixupReasons(
+	ctx context.Context,
+	baseSet []BackupBase,
+) []BackupBase {
+	// Associate a Reason with a set of bases since the basesByReason map needs a
+	// string key.
+	type baseEntry struct {
+		bases  []BackupBase
+		reason identity.Reasoner
 	}
 
-	idx := slices.IndexFunc(backups, func(b BackupEntry) bool {
-		return string(b.ID) == bID
-	})
+	var (
+		basesByReason = map[string]baseEntry{}
+		// res holds a mapping from backup ID -> base. We need this additional level
+		// of indirection when determining what to return because a base may be
+		// selected for multiple reasons. This map allows us to consolidate that
+		// into a single base result for all reasons easily.
+		res = map[model.StableID]BackupBase{}
+	)
 
-	if idx < 0 || idx >= len(backups) {
-		return BackupEntry{}, false
+	// Organize all the base(s) by the Reason(s) they were chosen. A base can
+	// exist in multiple slices in the map if it was selected for multiple
+	// Reasons.
+	for _, base := range baseSet {
+		for _, reason := range base.Reasons {
+			foundBases := basesByReason[reasonKey(reason)]
+			foundBases.reason = reason
+			foundBases.bases = append(foundBases.bases, base)
+
+			basesByReason[reasonKey(reason)] = foundBases
+		}
 	}
 
-	return backups[idx], true
+	// Go through the map and check that the length of each slice is 1. If it's
+	// longer than that then we somehow got multiple bases for the same Reason and
+	// should drop the extras.
+	for _, bases := range basesByReason {
+		ictx := clues.Add(
+			ctx,
+			"verify_service", bases.reason.Service().String(),
+			"verify_category", bases.reason.Category().String())
+
+		// Not sure how we'd actually get here but handle it anyway.
+		if len(bases.bases) == 0 {
+			logger.Ctx(ictx).Info("no bases found for reason")
+			continue
+		}
+
+		// We've got at least one base for this Reason. The below finds which base
+		// to keep based on the creation time of the bases. If there's multiple
+		// bases in the input slice then we'll log information about the ones that
+		// we didn't add to the result set.
+
+		// Sort in reverse chronological order so that it's easy to find the
+		// youngest base.
+		slices.SortFunc(bases.bases, func(a, b BackupBase) int {
+			return -a.Backup.CreationTime.Compare(b.Backup.CreationTime)
+		})
+
+		keepBase := bases.bases[0]
+
+		// Add the youngest base to the result set. We add each Reason for selecting
+		// the base individually so that bases dropped for a particular Reason (or
+		// dropped completely because they overlap for all Reasons) happens without
+		// additional logic. The dropped (Reason, base) pair will just never be
+		// added to the result set to begin with.
+		b, ok := res[keepBase.Backup.ID]
+		if ok {
+			// We've already seen this base, just add this Reason to it as well.
+			b.Reasons = append(b.Reasons, bases.reason)
+			res[keepBase.Backup.ID] = b
+
+			continue
+		}
+
+		// We haven't seen this base before. We want to clear all the Reasons for it
+		// except the one we're currently examining. That allows us to just not add
+		// bases that are duplicates for a Reason to res and still end up with the
+		// correct output.
+		keepBase.Reasons = []identity.Reasoner{bases.reason}
+		res[keepBase.Backup.ID] = keepBase
+
+		// Don't log about dropped bases if there was only one base.
+		if len(bases.bases) == 1 {
+			continue
+		}
+
+		// This is purely for debugging, but log the base(s) that we dropped for
+		// this Reason.
+		var dropped []model.StableID
+
+		for _, b := range bases.bases[1:] {
+			dropped = append(dropped, b.Backup.ID)
+		}
+
+		logger.Ctx(ictx).Infow(
+			"dropping bases for reason",
+			"dropped_backup_ids", dropped)
+	}
+
+	return maps.Values(res)
 }
 
 // fixupAndVerify goes through the set of backups and snapshots used for merging
 // and ensures:
 //   - the reasons for selecting merge snapshots are distinct
-//   - all bases used for merging have a backup model with item and details
-//     snapshot ID
+//   - all bases have a backup model with item and details snapshot IDs
+//   - all bases have both a backup and item data snapshot present
+//   - all bases have item data snapshots with no incomplete reason
 //
 // Backups that have overlapping reasons or that are not complete are removed
 // from the set. Dropping these is safe because it only affects how much data we
 // pull. On the other hand, *not* dropping them is unsafe as it will muck up
 // merging when we add stuff to kopia (possibly multiple entries for the same
 // item etc).
-//
-// TODO(pandeyabs): Refactor common code into a helper as part of #3943.
 func (bb *backupBases) fixupAndVerify(ctx context.Context) {
-	toDrop := findNonUniqueManifests(ctx, bb.mergeBases)
+	// Start off by removing bases that don't meet the minimum requirements of
+	// having a backup model and item data snapshot or having a backup details ID.
+	// These requirements apply to both merge and assist bases.
+	bb.mergeBases = fixupMinRequirements(ctx, bb.mergeBases)
+	bb.assistBases = fixupMinRequirements(ctx, bb.assistBases)
 
-	var (
-		backupsToKeep       []BackupEntry
-		assistBackupsToKeep []BackupEntry
-		mergeToKeep         []ManifestEntry
-		assistToKeep        []ManifestEntry
-	)
-
-	for _, man := range bb.mergeBases {
-		if _, ok := toDrop[man.ID]; ok {
-			continue
-		}
-
-		bID, _ := man.GetTag(TagBackupID)
-
-		bup, ok := getBackupByID(bb.backups, bID)
-		if !ok {
-			toDrop[man.ID] = struct{}{}
-
-			logger.Ctx(ctx).Info(
-				"dropping merge base due to missing backup",
-				"manifest_id", man.ID)
-
-			continue
-		}
-
-		deetsID := bup.StreamStoreID
-		if len(deetsID) == 0 {
-			deetsID = bup.DetailsID
-		}
-
-		if len(bup.SnapshotID) == 0 || len(deetsID) == 0 {
-			toDrop[man.ID] = struct{}{}
-
-			logger.Ctx(ctx).Info(
-				"dropping merge base due to invalid backup",
-				"manifest_id", man.ID)
-
-			continue
-		}
-
-		backupsToKeep = append(backupsToKeep, bup)
-		mergeToKeep = append(mergeToKeep, man)
-	}
-
-	// Drop assist snapshots with overlapping reasons.
-	toDropAssists := findNonUniqueManifests(ctx, bb.assistBases)
-
-	for _, man := range bb.assistBases {
-		if _, ok := toDropAssists[man.ID]; ok {
-			continue
-		}
-
-		bID, _ := man.GetTag(TagBackupID)
-
-		bup, ok := getBackupByID(bb.assistBackups, bID)
-		if !ok {
-			toDrop[man.ID] = struct{}{}
-
-			logger.Ctx(ctx).Info(
-				"dropping assist base due to missing backup",
-				"manifest_id", man.ID)
-
-			continue
-		}
-
-		deetsID := bup.StreamStoreID
-		if len(deetsID) == 0 {
-			deetsID = bup.DetailsID
-		}
-
-		if len(bup.SnapshotID) == 0 || len(deetsID) == 0 {
-			toDrop[man.ID] = struct{}{}
-
-			logger.Ctx(ctx).Info(
-				"dropping assist base due to invalid backup",
-				"manifest_id", man.ID)
-
-			continue
-		}
-
-		assistBackupsToKeep = append(assistBackupsToKeep, bup)
-		assistToKeep = append(assistToKeep, man)
-	}
-
-	bb.backups = backupsToKeep
-	bb.mergeBases = mergeToKeep
-	bb.assistBases = assistToKeep
-	bb.assistBackups = assistBackupsToKeep
+	// Remove merge bases that have overlapping Reasons. It's alright to call this
+	// on assist bases too because we only expect at most one assist base per
+	// Reason.
+	bb.mergeBases = fixupReasons(ctx, bb.mergeBases)
+	bb.assistBases = fixupReasons(ctx, bb.assistBases)
 }

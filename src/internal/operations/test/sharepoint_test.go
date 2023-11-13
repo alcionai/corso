@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -26,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -96,14 +96,15 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic() {
 	defer flush()
 
 	var (
-		mb   = evmock.NewBus()
-		sel  = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts = control.DefaultOptions()
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
+		opts    = control.DefaultOptions()
 	)
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -125,19 +126,20 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 	defer flush()
 
 	var (
-		mb    = evmock.NewBus()
-		sel   = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts  = control.DefaultOptions()
-		tenID = tconfig.M365TenantID(t)
-		svc   = path.SharePointService
-		ws    = deeTD.DriveIDFromRepoRef
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
+		opts    = control.DefaultOptions()
+		tenID   = tconfig.M365TenantID(t)
+		svc     = path.SharePointService
+		ws      = deeTD.DriveIDFromRepoRef
 	)
 
 	opts.ItemExtensionFactory = getTestExtensionFactories()
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -179,6 +181,138 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 			verifyExtensionData(t, ent.ItemInfo, path.SharePointService)
 		}
 	}
+}
+
+type SharePointBackupNightlyIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestSharePointBackupNightlyIntgSuite(t *testing.T) {
+	suite.Run(t, &SharePointBackupNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *SharePointBackupNightlyIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *SharePointBackupNightlyIntgSuite) TestBackup_Run_sharePointBasic_groups9VersionBump() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
+		opts    = control.DefaultOptions()
+		ws      = deeTD.DriveIDFromRepoRef
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	bo, bod := prepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel.Selector,
+		opts,
+		version.All8MigrateUserPNToID,
+		counter)
+	defer bod.close(t, ctx)
+
+	runAndCheckBackup(t, ctx, &bo, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&bo,
+		bod.sel,
+		bod.sel.ID(),
+		path.LibrariesCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.SharePointService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	mb = evmock.NewBus()
+	counter = count.New()
+	notForcedFull := newTestBackupOp(
+		t,
+		ctx,
+		bod,
+		mb,
+		opts,
+		counter)
+	notForcedFull.BackupVersion = version.Groups9Update
+
+	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
+	checkBackupIsInManifests(
+		t,
+		ctx,
+		bod.kw,
+		bod.sw,
+		&notForcedFull,
+		bod.sel,
+		bod.sel.ID(),
+		path.LibrariesCategory)
+
+	_, expectDeets = deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.SharePointService,
+		ws,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		notForcedFull.Results.BackupID,
+		ws,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
+
+	// The number of items backed up in the second backup should be less than the
+	// number of items in the original backup.
+	assert.Greater(
+		t,
+		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
+		notForcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
+		"items written")
+}
+
+func (suite *SharePointBackupNightlyIntgSuite) TestBackup_Run_sharePointVersion9AssistBases() {
+	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, true)
 }
 
 type SharePointRestoreNightlyIntgSuite struct {
@@ -274,6 +408,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 	// run a backup
 	var (
 		mb          = evmock.NewBus()
+		counter     = count.New()
 		opts        = control.DefaultOptions()
 		graphClient = suite.its.ac.Stable.Client()
 	)
@@ -283,7 +418,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 	bsel.Filter(bsel.Library(rc.Location))
 	bsel.DiscreteOwner = suite.its.site.ID
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, bsel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, bsel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)

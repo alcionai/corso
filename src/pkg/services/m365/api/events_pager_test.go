@@ -1,4 +1,4 @@
-package api_test
+package api
 
 import (
 	"testing"
@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type EventsPagerIntgSuite struct {
@@ -56,7 +55,7 @@ func (suite *EventsPagerIntgSuite) TestEvents_GetItemsInContainerByCollisionKey(
 	expectM := map[string]struct{}{}
 
 	for _, e := range es {
-		expectM[api.EventCollisionKey(e)] = struct{}{}
+		expectM[EventCollisionKey(e)] = struct{}{}
 	}
 
 	expect := maps.Keys(expectM)

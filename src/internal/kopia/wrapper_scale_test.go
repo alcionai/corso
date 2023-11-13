@@ -15,6 +15,7 @@ import (
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -79,14 +80,14 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 
 	type testCase struct {
 		name        string
-		baseBackups func(base ManifestEntry) BackupBases
+		baseBackups func(base BackupBase) BackupBases
 		collections []data.BackupCollection
 	}
 
 	// Initial backup. All files should be considered new by kopia.
 	baseBackupCase := testCase{
 		name: "Setup",
-		baseBackups: func(ManifestEntry) BackupBases {
+		baseBackups: func(BackupBase) BackupBases {
 			return NewMockBackupBases()
 		},
 		collections: cols,
@@ -96,9 +97,10 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 		t tester.TestT,
 		ctx context.Context,
 		test testCase,
-		base ManifestEntry,
-	) ManifestEntry {
+		base BackupBase,
+	) BackupBase {
 		bbs := test.baseBackups(base)
+		counter := count.New()
 
 		stats, _, _, err := w.ConsumeBackupCollections(
 			ctx,
@@ -108,11 +110,14 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 			nil,
 			nil,
 			true,
+			counter,
 			fault.New(true))
 		require.NoError(t, err, clues.ToCore(err))
 
-		assert.Equal(t, 0, stats.IgnoredErrorCount)
-		assert.Equal(t, 0, stats.ErrorCount)
+		assert.Zero(t, stats.IgnoredErrorCount)
+		assert.Zero(t, stats.ErrorCount)
+		assert.Zero(t, counter.Get(count.PersistenceIgnoredErrors))
+		assert.Zero(t, counter.Get(count.PersistenceErrors))
 		assert.False(t, stats.Incomplete)
 
 		snap, err := snapshot.LoadSnapshot(
@@ -121,20 +126,20 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 			manifest.ID(stats.SnapshotID))
 		require.NoError(t, err, clues.ToCore(err))
 
-		return ManifestEntry{
-			Manifest: snap,
-			Reasons:  reasons,
+		return BackupBase{
+			ItemDataSnapshot: snap,
+			Reasons:          reasons,
 		}
 	}
 
 	b.Logf("setting up base backup\n")
 
-	base := runAndTestBackup(b, ctx, baseBackupCase, ManifestEntry{})
+	base := runAndTestBackup(b, ctx, baseBackupCase, BackupBase{})
 
 	table := []testCase{
 		{
 			name: "Merge All",
-			baseBackups: func(base ManifestEntry) BackupBases {
+			baseBackups: func(base BackupBase) BackupBases {
 				return NewMockBackupBases().WithMergeBases(base)
 			},
 			collections: func() []data.BackupCollection {

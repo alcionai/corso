@@ -9,8 +9,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -239,7 +239,7 @@ func (c Drives) DeleteItem(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := c.Service()
+	srv, err := c.Service(c.counter)
 	if err != nil {
 		return graph.Wrap(ctx, err, "creating adapter to delete item permission")
 	}
@@ -309,7 +309,7 @@ func (c Drives) DeleteItemPermission(
 ) error {
 	// deletes require unique http clients
 	// https://github.com/alcionai/corso/issues/2707
-	srv, err := c.Service()
+	srv, err := c.Service(c.counter)
 	if err != nil {
 		return graph.Wrap(ctx, err, "creating adapter to delete item permission")
 	}

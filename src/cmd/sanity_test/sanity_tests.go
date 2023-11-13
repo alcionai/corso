@@ -12,8 +12,8 @@ import (
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/export"
 	"github.com/alcionai/corso/src/cmd/sanity_test/restore"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ func main() {
 
 func exportCMD() *cobra.Command {
 	return &cobra.Command{
-		Use:               "restore",
+		Use:               "export",
 		Short:             "run the post-export sanity tests",
 		DisableAutoGenTag: true,
 		RunE:              sanityTestExport,
@@ -117,7 +117,7 @@ func exportGroupsCMD() *cobra.Command {
 }
 
 func sanityTestExportGroups(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := common.SetDebug(cmd.Context())
 	envs := common.EnvVars(ctx)
 
 	ac, err := common.GetAC()
@@ -140,7 +140,7 @@ func exportOneDriveCMD() *cobra.Command {
 }
 
 func sanityTestExportOneDrive(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := common.SetDebug(cmd.Context())
 	envs := common.EnvVars(ctx)
 
 	ac, err := common.GetAC()
@@ -163,7 +163,7 @@ func exportSharePointCMD() *cobra.Command {
 }
 
 func sanityTestExportSharePoint(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := common.SetDebug(cmd.Context())
 	envs := common.EnvVars(ctx)
 
 	ac, err := common.GetAC()
@@ -190,7 +190,7 @@ func restoreExchangeCMD() *cobra.Command {
 }
 
 func sanityTestRestoreExchange(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := common.SetDebug(cmd.Context())
 	envs := common.EnvVars(ctx)
 
 	ac, err := common.GetAC()
@@ -213,7 +213,7 @@ func restoreOneDriveCMD() *cobra.Command {
 }
 
 func sanityTestRestoreOneDrive(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := common.SetDebug(cmd.Context())
 	envs := common.EnvVars(ctx)
 
 	ac, err := common.GetAC()
@@ -236,7 +236,7 @@ func restoreSharePointCMD() *cobra.Command {
 }
 
 func sanityTestRestoreSharePoint(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := common.SetDebug(cmd.Context())
 	envs := common.EnvVars(ctx)
 
 	ac, err := common.GetAC()
@@ -259,7 +259,7 @@ func restoreGroupsCMD() *cobra.Command {
 }
 
 func sanityTestRestoreGroups(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+	ctx := common.SetDebug(cmd.Context())
 	envs := common.EnvVars(ctx)
 
 	ac, err := common.GetAC()

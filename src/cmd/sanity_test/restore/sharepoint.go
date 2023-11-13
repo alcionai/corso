@@ -4,8 +4,7 @@ import (
 	"context"
 
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/cmd/sanity_test/driveish"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -16,17 +15,14 @@ func CheckSharePointRestoration(
 ) {
 	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
 	if err != nil {
-		common.Fatal(ctx, "getting the drive:", err)
+		common.Fatal(ctx, "getting site's default drive:", err)
 	}
 
-	checkDriveRestoration(
+	driveish.CheckRestoration(
 		ctx,
 		ac,
-		path.SharePointService,
-		envs.FolderName,
-		ptr.Val(drive.GetId()),
-		ptr.Val(drive.GetName()),
-		envs.DataFolder,
-		envs.StartTime,
-		true)
+		drive,
+		envs,
+		// skip permissions tests
+		nil)
 }

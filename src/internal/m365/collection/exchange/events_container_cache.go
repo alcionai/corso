@@ -4,19 +4,20 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var _ graph.ContainerResolver = &eventContainerCache{}
 
 type eventContainerCache struct {
 	*containerResolver
-	enumer containersEnumerator
+	enumer containersEnumerator[models.Calendarable]
 	getter containerGetter
 	userID string
 }
@@ -70,22 +71,40 @@ func (ecc *eventContainerCache) Populate(
 		return clues.Wrap(err, "initializing")
 	}
 
-	err := ecc.enumer.EnumerateContainers(
+	el := errs.Local()
+
+	containers, err := ecc.enumer.EnumerateContainers(
 		ctx,
 		ecc.userID,
 		"",
-		false,
-		ecc.addFolder,
-		errs)
+		false)
 	if err != nil {
 		return clues.Wrap(err, "enumerating containers")
 	}
 
-	if err := ecc.populatePaths(ctx, errs); err != nil {
-		return clues.Wrap(err, "establishing calendar paths")
+	for _, c := range containers {
+		if el.Failure() != nil {
+			return el.Failure()
+		}
+
+		cacheFolder := graph.NewCacheFolder(
+			api.CalendarDisplayable{Calendarable: c},
+			path.Builder{}.Append(ptr.Val(c.GetId())),
+			path.Builder{}.Append(ptr.Val(c.GetName())))
+
+		err := ecc.addFolder(&cacheFolder)
+		if err != nil {
+			errs.AddRecoverable(
+				ctx,
+				graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+		}
 	}
 
-	return nil
+	if err := ecc.populatePaths(ctx, errs); err != nil {
+		return clues.Wrap(err, "populating paths")
+	}
+
+	return el.Failure()
 }
 
 // AddToCache adds container to map in field 'cache'

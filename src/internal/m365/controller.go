@@ -9,22 +9,25 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
+
+var ErrNoResourceLookup = clues.New("missing resource lookup client")
 
 // must comply with BackupProducer and RestoreConsumer
 var (
-	_ inject.BackupProducer  = &Controller{}
-	_ inject.RestoreConsumer = &Controller{}
-	_ inject.ExportConsumer  = &Controller{}
+	_ inject.BackupProducer   = &Controller{}
+	_ inject.RestoreConsumer  = &Controller{}
+	_ inject.ToServiceHandler = &Controller{}
 )
 
 // Controller is a struct used to wrap the GraphServiceClient and
@@ -36,7 +39,7 @@ type Controller struct {
 	tenant      string
 	credentials account.M365Config
 
-	ownerLookup idname.GetResourceIDAndNamer
+	resourceHandler idname.GetResourceIDAndNamer
 	// maps of resource owner ids to names, and names to ids.
 	// not guaranteed to be populated, only here as a post-population
 	// reference for processes that choose to populate the values.
@@ -66,6 +69,7 @@ func NewController(
 	acct account.Account,
 	pst path.ServiceType,
 	co control.Options,
+	counter *count.Bus,
 ) (*Controller, error) {
 	graph.InitializeConcurrencyLimiter(ctx, pst == path.ExchangeService, co.Parallelism.ItemFetch)
 
@@ -74,34 +78,9 @@ func NewController(
 		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
 	}
 
-	ac, err := api.NewClient(creds, co)
+	ac, err := api.NewClient(creds, co, counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
-	}
-
-	var rCli *resourceClient
-
-	// no failure for unknown service.
-	// In that case we create a controller that doesn't attempt to look up any resource
-	// data.  This case helps avoid unnecessary service calls when the end user is running
-	// repo init and connect commands via the CLI.  All other callers should be expected
-	// to pass in a known service, or else expect downstream failures.
-	if pst != path.UnknownService {
-		rc := resource.UnknownResource
-
-		switch pst {
-		case path.ExchangeService, path.OneDriveService:
-			rc = resource.Users
-		case path.GroupsService:
-			rc = resource.Groups
-		case path.SharePointService:
-			rc = resource.Sites
-		}
-
-		rCli, err = getResourceClient(rc, ac)
-		if err != nil {
-			return nil, clues.Wrap(err, "creating resource client").WithClues(ctx)
-		}
 	}
 
 	ctrl := Controller{
@@ -109,18 +88,48 @@ func NewController(
 		IDNameLookup: idname.NewCache(nil),
 
 		credentials:        creds,
-		ownerLookup:        rCli,
 		tenant:             acct.ID(),
 		wg:                 &sync.WaitGroup{},
 		backupDriveIDNames: idname.NewCache(nil),
 		backupSiteIDWebURL: idname.NewCache(nil),
 	}
 
+	// TODO: remove in favor of calling setResourceHandler in the newServiceHandler once
+	// all operations types are populated.  When we do that, we can also remove pst from
+	// the func params in this call.
+	ctrl.setResourceHandler(pst)
+
 	return &ctrl, nil
 }
 
 func (ctrl *Controller) VerifyAccess(ctx context.Context) error {
 	return ctrl.AC.Access().GetToken(ctx)
+}
+
+func (ctrl *Controller) setResourceHandler(
+	serviceInOperation path.ServiceType,
+) {
+	var rh *resourceGetter
+
+	switch serviceInOperation {
+	case path.ExchangeService, path.OneDriveService:
+		rh = &resourceGetter{
+			enum:   resource.Users,
+			getter: ctrl.AC.Users(),
+		}
+	case path.GroupsService:
+		rh = &resourceGetter{
+			enum:   resource.Groups,
+			getter: ctrl.AC.Groups(),
+		}
+	case path.SharePointService:
+		rh = &resourceGetter{
+			enum:   resource.Sites,
+			getter: ctrl.AC.Sites(),
+		}
+	}
+
+	ctrl.resourceHandler = rh
 }
 
 // ---------------------------------------------------------------------------
@@ -199,20 +208,9 @@ func (ctrl *Controller) CacheItemInfo(dii details.ItemInfo) {
 // Resource Lookup Handling
 // ---------------------------------------------------------------------------
 
-func getResourceClient(rc resource.Category, ac api.Client) (*resourceClient, error) {
-	switch rc {
-	case resource.Users:
-		return &resourceClient{enum: rc, getter: ac.Users()}, nil
-	case resource.Sites:
-		return &resourceClient{enum: rc, getter: ac.Sites()}, nil
-	case resource.Groups:
-		return &resourceClient{enum: rc, getter: ac.Groups()}, nil
-	default:
-		return nil, clues.New("unrecognized owner resource type").With("resource_enum", rc)
-	}
-}
+var _ idname.GetResourceIDAndNamer = &resourceGetter{}
 
-type resourceClient struct {
+type resourceGetter struct {
 	enum   resource.Category
 	getter getIDAndNamer
 }
@@ -229,15 +227,13 @@ type getIDAndNamer interface {
 	)
 }
 
-var _ idname.GetResourceIDAndNamer = &resourceClient{}
-
 // GetResourceIDAndNameFrom looks up the resource's canonical id and display name.
 // If the resource is present in the idNameSwapper, then that interface's id and
 // name values are returned.  As a fallback, the resource calls the discovery
 // api to fetch the user or site using the resource value. This fallback assumes
 // that the resource is a well formed ID or display name of appropriate design
 // (PrincipalName for users, WebURL for sites).
-func (r resourceClient) GetResourceIDAndNameFrom(
+func (r resourceGetter) GetResourceIDAndNameFrom(
 	ctx context.Context,
 	owner string,
 	ins idname.Cacher,
@@ -290,7 +286,11 @@ func (ctrl *Controller) PopulateProtectedResourceIDAndName(
 	resourceID string, // input value, can be either id or name
 	ins idname.Cacher,
 ) (idname.Provider, error) {
-	pr, err := ctrl.ownerLookup.GetResourceIDAndNameFrom(ctx, resourceID, ins)
+	if ctrl.resourceHandler == nil {
+		return nil, clues.Stack(ErrNoResourceLookup).WithClues(ctx)
+	}
+
+	pr, err := ctrl.resourceHandler.GetResourceIDAndNameFrom(ctx, resourceID, ins)
 	if err != nil {
 		return nil, clues.Wrap(err, "identifying resource owner")
 	}

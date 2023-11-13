@@ -97,7 +97,6 @@ func (op ExportOperation) validate() error {
 // get populated asynchronously.
 type exportStats struct {
 	cs            []data.RestoreCollection
-	ctrl          *data.CollectionStats
 	bytesRead     *stats.ByteCounter
 	resourceCount int
 
@@ -137,11 +136,19 @@ func (op *ExportOperation) Run(ctx context.Context) (
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	cats, err := op.Selectors.AllHumanPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for export")
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
-		"service", op.Selectors.Service)
+		"service", op.Selectors.Service,
+		"categories", cats)
 
 	defer func() {
 		op.bus.Event(
@@ -254,9 +261,7 @@ func (op *ExportOperation) do(
 		ctx,
 		op.ec,
 		bup.Version,
-		op.Selectors,
 		op.ExportCfg,
-		op.Options,
 		dcs,
 		// We also have opStats, but that tracks different data.
 		// Maybe we can look into merging them some time in the future.
@@ -265,10 +270,6 @@ func (op *ExportOperation) do(
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
-
-	opStats.ctrl = op.ec.Wait()
-
-	logger.Ctx(ctx).Debug(opStats.ctrl)
 
 	if op.ExportCfg.Archive {
 		zc, err := archive.ZipExportCollection(ctx, expCollections)
@@ -301,17 +302,11 @@ func (op *ExportOperation) finalizeMetrics(
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.ctrl == nil {
-		op.Status = Failed
-		return clues.New("restoration never completed")
-	}
-
-	if op.Status != Failed && opStats.ctrl.IsZero() {
+	if op.Status != Failed && op.Results.ItemsRead == 0 {
 		op.Status = NoData
 	}
 
 	// We don't have data on what all items were written
-	// op.Results.ItemsWritten = opStats.ctrl.Successes
 
 	return op.Errors.Failure()
 }
@@ -332,9 +327,7 @@ func produceExportCollections(
 	ctx context.Context,
 	ec inject.ExportConsumer,
 	backupVersion int,
-	sel selectors.Selector,
 	exportCfg control.ExportConfig,
-	opts control.Options,
 	dcs []data.RestoreCollection,
 	exportStats *data.ExportStats,
 	errs *fault.Bus,
@@ -345,12 +338,15 @@ func produceExportCollections(
 		close(complete)
 	}()
 
+	ctx, end := diagnostics.Span(ctx, "m365:export")
+	defer end()
+
+	ctx = clues.Add(ctx, "export_config", exportCfg)
+
 	expCollections, err := ec.ProduceExportCollections(
 		ctx,
 		backupVersion,
-		sel,
 		exportCfg,
-		opts,
 		dcs,
 		exportStats,
 		errs)

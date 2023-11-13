@@ -10,6 +10,7 @@ func FlgInputs(in []string) string { return strings.Join(in, ",") }
 
 var (
 	BackupInput = "backup-id"
+	SiteInput   = "site-id"
 
 	GroupsInput  = []string{"team1", "group2"}
 	MailboxInput = []string{"mailbox1", "mailbox2"}

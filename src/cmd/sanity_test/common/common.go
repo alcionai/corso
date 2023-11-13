@@ -2,16 +2,14 @@ package common
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/credentials"
-	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -21,39 +19,40 @@ type PermissionInfo struct {
 }
 
 const (
-	sanityBaseBackup  = "SANITY_BASE_BACKUP"
-	sanityTestData    = "SANITY_TEST_DATA"
-	sanityTestFolder  = "SANITY_TEST_FOLDER"
-	sanityTestService = "SANITY_TEST_SERVICE"
+	sanityBackupID             = "SANITY_BACKUP_ID"
+	sanityTestSourceContainer  = "SANITY_TEST_SOURCE_CONTAINER"
+	sanityTestRestoreContainer = "SANITY_TEST_RESTORE_CONTAINER"
+	sanityTestUser             = "SANITY_TEST_USER"
 )
 
 type Envs struct {
-	BaseBackupFolder string
-	DataFolder       string
-	FolderName       string
-	Service          string
+	BackupID         string
+	SourceContainer  string
+	RestoreContainer string
+	GroupID          string
 	SiteID           string
-	StartTime        time.Time
 	UserID           string
+	TeamSiteID       string
 }
 
 func EnvVars(ctx context.Context) Envs {
-	folder := strings.TrimSpace(os.Getenv(sanityTestFolder))
-	startTime, _ := MustGetTimeFromName(ctx, folder)
+	folder := strings.TrimSpace(os.Getenv(sanityTestRestoreContainer))
 
 	e := Envs{
-		BaseBackupFolder: os.Getenv(sanityBaseBackup),
-		DataFolder:       os.Getenv(sanityTestData),
-		FolderName:       folder,
+		BackupID:         os.Getenv(sanityBackupID),
+		SourceContainer:  os.Getenv(sanityTestSourceContainer),
+		RestoreContainer: folder,
+		GroupID:          tconfig.GetM365TeamID(ctx),
 		SiteID:           tconfig.GetM365SiteID(ctx),
-		Service:          os.Getenv(sanityTestService),
-		StartTime:        startTime,
 		UserID:           tconfig.GetM365UserID(ctx),
+		TeamSiteID:       tconfig.GetM365TeamSiteID(ctx),
 	}
 
-	fmt.Printf("\n-----\nenvs %+v\n-----\n", e)
+	if len(os.Getenv(sanityTestUser)) > 0 {
+		e.UserID = os.Getenv(sanityTestUser)
+	}
 
-	logger.Ctx(ctx).Info("envs", e)
+	Infof(ctx, "test env vars: %+v", e)
 
 	return e
 }
@@ -64,5 +63,5 @@ func GetAC() (api.Client, error) {
 		AzureTenantID: os.Getenv(account.AzureTenantID),
 	}
 
-	return api.NewClient(creds, control.DefaultOptions())
+	return api.NewClient(creds, control.DefaultOptions(), count.New())
 }

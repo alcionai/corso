@@ -6,19 +6,26 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/store"
 )
 
 type DataProvider interface {
 	inject.BackupProducer
-	inject.ExportConsumer
 	inject.RestoreConsumer
 
+	inject.ToServiceHandler
+
 	VerifyAccess(ctx context.Context) error
+	DeserializeMetadataFiles(
+		ctx context.Context,
+		colls []data.RestoreCollection,
+	) ([]store.MetadataFile, error)
 }
 
 type DataProviderConnector interface {
@@ -29,6 +36,12 @@ type DataProviderConnector interface {
 		ctx context.Context,
 		pst path.ServiceType,
 	) error
+	// DataProvider retrieves the data provider.
+	DataProvider() DataProvider
+}
+
+func (r *repository) DataProvider() DataProvider {
+	return r.Provider
 }
 
 func (r *repository) ConnectDataProvider(
@@ -79,7 +92,12 @@ func connectToM365(
 	progressBar := observe.MessageWithCompletion(ctx, "Connecting to M365")
 	defer close(progressBar)
 
-	ctrl, err := m365.NewController(ctx, r.Account, pst, r.Opts)
+	ctrl, err := m365.NewController(
+		ctx,
+		r.Account,
+		pst,
+		r.Opts,
+		r.counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating m365 client controller")
 	}

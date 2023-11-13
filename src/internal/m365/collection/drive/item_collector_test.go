@@ -13,14 +13,15 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
@@ -150,8 +151,10 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 					Err:      assert.AnError,
 				},
 			},
-			expectedErr:     assert.Error,
-			expectedResults: nil,
+			expectedErr: assert.Error,
+			// even though we error, the func will return both the
+			// error and the prior results
+			expectedResults: resultDrives,
 		},
 		{
 			name: "MySiteURLNotFound",
@@ -230,7 +233,10 @@ func (suite *OneDriveIntgSuite) SetupSuite() {
 
 	suite.creds = creds
 
-	suite.ac, err = api.NewClient(creds, control.DefaultOptions())
+	suite.ac, err = api.NewClient(
+		creds,
+		control.DefaultOptions(),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 }
 
