@@ -399,7 +399,8 @@ func runMergeBaseGroupsUpdate(
 		mb,
 		sel,
 		opts,
-		version.All8MigrateUserPNToID)
+		version.All8MigrateUserPNToID,
+		count.New())
 	defer bod.close(t, ctx)
 
 	suite.Run("makeMergeBackup", func() {
@@ -462,7 +463,8 @@ func runMergeBaseGroupsUpdate(
 			ctx,
 			bod,
 			mb,
-			opts)
+			opts,
+			count.New())
 		forcedFull.BackupVersion = version.Groups9Update
 
 		runAndCheckBackup(t, ctx, &forcedFull, mb, false)
