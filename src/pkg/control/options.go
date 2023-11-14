@@ -83,10 +83,6 @@ type Toggles struct {
 
 	RunMigrations bool `json:"runMigrations"`
 
-	// DisableConcurrencyLimiter removes concurrency limits when communicating with
-	// graph API. This flag is only relevant for exchange backups for now
-	DisableConcurrencyLimiter bool `json:"disableConcurrencyLimiter,omitempty"`
-
 	// PreviewBackup denotes that this backup contains a subset of information for
 	// the protected resource. PreviewBackups are used to demonstrate value by
 	// being quick to create.

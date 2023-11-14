@@ -5,38 +5,36 @@ import (
 )
 
 const (
-	AlertsFN                    = "alerts"
-	DeltaPageSizeFN             = "delta-page-size"
-	DisableConcurrencyLimiterFN = "disable-concurrency-limiter"
-	DisableDeltaFN              = "disable-delta"
-	DisableIncrementalsFN       = "disable-incrementals"
-	ForceItemDataDownloadFN     = "force-item-data-download"
-	EnableImmutableIDFN         = "enable-immutable-id"
-	FailFastFN                  = "fail-fast"
-	FailedItemsFN               = "failed-items"
-	FetchParallelismFN          = "fetch-parallelism"
-	NoStatsFN                   = "no-stats"
-	RecoveredErrorsFN           = "recovered-errors"
-	NoPermissionsFN             = "no-permissions"
-	RunModeFN                   = "run-mode"
-	SkippedItemsFN              = "skipped-items"
-	SkipReduceFN                = "skip-reduce"
+	AlertsFN                = "alerts"
+	DeltaPageSizeFN         = "delta-page-size"
+	DisableDeltaFN          = "disable-delta"
+	DisableIncrementalsFN   = "disable-incrementals"
+	ForceItemDataDownloadFN = "force-item-data-download"
+	EnableImmutableIDFN     = "enable-immutable-id"
+	FailFastFN              = "fail-fast"
+	FailedItemsFN           = "failed-items"
+	FetchParallelismFN      = "fetch-parallelism"
+	NoStatsFN               = "no-stats"
+	RecoveredErrorsFN       = "recovered-errors"
+	NoPermissionsFN         = "no-permissions"
+	RunModeFN               = "run-mode"
+	SkippedItemsFN          = "skipped-items"
+	SkipReduceFN            = "skip-reduce"
 )
 
 var (
-	DeltaPageSizeFV             int
-	DisableConcurrencyLimiterFV bool
-	DisableDeltaFV              bool
-	DisableIncrementalsFV       bool
-	ForceItemDataDownloadFV     bool
-	EnableImmutableIDFV         bool
-	FailFastFV                  bool
-	FetchParallelismFV          int
-	ListAlertsFV                string
-	ListFailedItemsFV           string
-	ListSkippedItemsFV          string
-	ListRecoveredErrorsFV       string
-	NoStatsFV                   bool
+	DeltaPageSizeFV         int
+	DisableDeltaFV          bool
+	DisableIncrementalsFV   bool
+	ForceItemDataDownloadFV bool
+	EnableImmutableIDFV     bool
+	FailFastFV              bool
+	FetchParallelismFV      int
+	ListAlertsFV            string
+	ListFailedItemsFV       string
+	ListSkippedItemsFV      string
+	ListRecoveredErrorsFV   string
+	NoStatsFV               bool
 	// RunMode describes the type of run, such as:
 	// flagtest, dry, run.  Should default to 'run'.
 	RunModeFV       string
@@ -149,19 +147,6 @@ func AddEnableImmutableIDFlag(cmd *cobra.Command) {
 		false,
 		"Enable exchange immutable ID.")
 	cobra.CheckErr(fs.MarkHidden(EnableImmutableIDFN))
-}
-
-// AddDisableConcurrencyLimiterFlag adds a hidden cli flag which, when set,
-// removes concurrency limits when communicating with graph API. This
-// flag is only relevant for exchange backups for now
-func AddDisableConcurrencyLimiterFlag(cmd *cobra.Command) {
-	fs := cmd.Flags()
-	fs.BoolVar(
-		&DisableConcurrencyLimiterFV,
-		DisableConcurrencyLimiterFN,
-		false,
-		"Disable concurrency limiter middleware. Default: false")
-	cobra.CheckErr(fs.MarkHidden(DisableConcurrencyLimiterFN))
 }
 
 // AddRunModeFlag adds the hidden --run-mode flag.

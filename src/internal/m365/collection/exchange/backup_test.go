@@ -121,6 +121,16 @@ func newMockResolver(items ...mockContainer) mockResolver {
 	return mockResolver{items: is}
 }
 
+func (m mockResolver) ItemByID(id string) graph.CachedContainer {
+	for _, c := range m.items {
+		if ptr.Val(c.GetId()) == id {
+			return c
+		}
+	}
+
+	return nil
+}
+
 func (m mockResolver) Items() []graph.CachedContainer {
 	return m.items
 }
