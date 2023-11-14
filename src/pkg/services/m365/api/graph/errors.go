@@ -239,11 +239,14 @@ func IsErrConnectionReset(err error) bool {
 }
 
 func IsErrUnauthorizedOrBadToken(err error) bool {
-	// TODO: refine this investigation.  We don't currently know if
-	// a specific item download url expired, or if the full connection
-	// auth expired.
 	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
 		hasErrorCode(err, invalidAuthenticationToken) ||
+		errors.Is(err, ErrTokenExpired) ||
+		errors.Is(err, ErrTokenInvalid)
+}
+
+func IsErrBadJWTToken(err error) bool {
+	return hasErrorCode(err, invalidAuthenticationToken) ||
 		errors.Is(err, ErrTokenExpired) ||
 		errors.Is(err, ErrTokenInvalid)
 }
