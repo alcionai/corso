@@ -9,8 +9,8 @@ import (
 
 	"github.com/alcionai/clues"
 	khttp "github.com/microsoft/kiota-http-go"
-	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -99,9 +99,9 @@ const (
 )
 
 var (
-	driveLimiter = rate.NewLimiter(drivePerSecond, driveMaxCap)
+	driveLimiter = limiters.NewTokenBucketLimiter(drivePerSecond, driveMaxCap)
 	// also used as the exchange service limiter
-	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
+	defaultLimiter = limiters.NewTokenBucketLimiter(defaultPerSecond, defaultMaxCap)
 )
 
 type LimiterCfg struct {
@@ -116,7 +116,7 @@ func BindRateLimiterConfig(ctx context.Context, lc LimiterCfg) context.Context {
 	return context.WithValue(ctx, limiterCfgCtxKey, lc)
 }
 
-func ctxLimiter(ctx context.Context) *rate.Limiter {
+func ctxLimiter(ctx context.Context) limiters.Limiter {
 	lc, ok := extractRateLimiterConfig(ctx)
 	if !ok {
 		return defaultLimiter
