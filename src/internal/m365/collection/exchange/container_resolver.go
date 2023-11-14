@@ -423,7 +423,7 @@ func (cr *containerResolver) populatePaths(
 
 type rankedContainerResolver struct {
 	graph.ContainerResolver
-	// resolvedIncluded is the ordered list of actual container IDs to add to the
+	// resolvedInclude is the ordered list of resolved container IDs to add to the
 	// start of the Items result set.
 	resolvedInclude []string
 	// resolvedExclude is the set of items that shouldn't be included in the
@@ -444,6 +444,10 @@ type rankedContainerResolver struct {
 // excludeIDs is the set of IDs that shouldn't be in the results returned by
 // Items. IDs can either be actual container IDs or well-known container IDs
 // like "inbox".
+//
+// The include set takes priority over the exclude set, so container IDs
+// appearing in both will be considered included and be returned by calls like
+// Items and ItemByID.
 func newRankedContainerResolver(
 	ctx context.Context,
 	base graph.ContainerResolver,
@@ -462,6 +466,10 @@ func newRankedContainerResolver(
 		ContainerResolver: base,
 	}
 
+	// For both includes and excludes we need to get the container IDs from graph.
+	// This is required because the user could hand us one of the "well-known"
+	// IDs, which we don't use in the underlying container resolver. Resolving
+	// these here will allow us to match by ID later on.
 	for _, id := range includeRankedIDs {
 		ictx := clues.Add(ctx, "container_id", id)
 
@@ -472,7 +480,7 @@ func newRankedContainerResolver(
 
 		gotID := ptr.Val(c.GetId())
 		if len(gotID) == 0 {
-			return nil, clues.New("received ranked include container with empty ID").
+			return nil, clues.New("ranked include container missing ID").
 				WithClues(ictx)
 		}
 
@@ -489,7 +497,7 @@ func newRankedContainerResolver(
 
 		gotID := ptr.Val(c.GetId())
 		if len(gotID) == 0 {
-			return nil, clues.New("received exclude container with empty ID").
+			return nil, clues.New("exclude container missing ID").
 				WithClues(ictx)
 		}
 
