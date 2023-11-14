@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -353,6 +354,10 @@ func (cr *containerResolver) addFolder(cf graph.CachedContainer) error {
 	return nil
 }
 
+func (cr *containerResolver) ItemByID(id string) graph.CachedContainer {
+	return cr.cache[id]
+}
+
 func (cr *containerResolver) Items() []graph.CachedContainer {
 	res := make([]graph.CachedContainer, 0, len(cr.cache))
 
@@ -410,4 +415,138 @@ func (cr *containerResolver) populatePaths(
 	}
 
 	return lastErr
+}
+
+// ---------------------------------------------------------------------------
+// rankedContainerResolver
+// ---------------------------------------------------------------------------
+
+type rankedContainerResolver struct {
+	graph.ContainerResolver
+	// resolvedInclude is the ordered list of resolved container IDs to add to the
+	// start of the Items result set.
+	resolvedInclude []string
+	// resolvedExclude is the set of items that shouldn't be included in the
+	// result of Items or ItemByID. Uses actual container IDs instead of
+	// well-known names.
+	resolvedExclude map[string]struct{}
+}
+
+// newRankedContainerResolver creates a wrapper around base that returns results
+// from Items in priority order. Priority is defined by includeRankedIDs. All
+// items that don't appear in includeRankedIDs are considered to have equal
+// priority but lower priority than those in includeRankedIDs.
+//
+// includeRankedIDs is the set of containers to place at the start of the result
+// of Items in the order they should appear. IDs can either be actual
+// container IDs or well-known container IDs like "inbox".
+//
+// excludeIDs is the set of IDs that shouldn't be in the results returned by
+// Items. IDs can either be actual container IDs or well-known container IDs
+// like "inbox".
+//
+// The include set takes priority over the exclude set, so container IDs
+// appearing in both will be considered included and be returned by calls like
+// Items and ItemByID.
+func newRankedContainerResolver(
+	ctx context.Context,
+	base graph.ContainerResolver,
+	getter containerGetter,
+	userID string,
+	includeRankedIDs []string,
+	excludeIDs []string,
+) (*rankedContainerResolver, error) {
+	if base == nil {
+		return nil, clues.New("nil base ContainerResolver")
+	}
+
+	cr := &rankedContainerResolver{
+		resolvedInclude:   make([]string, 0, len(includeRankedIDs)),
+		resolvedExclude:   make(map[string]struct{}, len(excludeIDs)),
+		ContainerResolver: base,
+	}
+
+	// For both includes and excludes we need to get the container IDs from graph.
+	// This is required because the user could hand us one of the "well-known"
+	// IDs, which we don't use in the underlying container resolver. Resolving
+	// these here will allow us to match by ID later on.
+	for _, id := range includeRankedIDs {
+		ictx := clues.Add(ctx, "container_id", id)
+
+		c, err := getter.GetContainerByID(ctx, userID, id)
+		if err != nil {
+			return nil, clues.Wrap(err, "getting ranked container").WithClues(ictx)
+		}
+
+		gotID := ptr.Val(c.GetId())
+		if len(gotID) == 0 {
+			return nil, clues.New("ranked include container missing ID").
+				WithClues(ictx)
+		}
+
+		cr.resolvedInclude = append(cr.resolvedInclude, gotID)
+	}
+
+	for _, id := range excludeIDs {
+		ictx := clues.Add(ctx, "container_id", id)
+
+		c, err := getter.GetContainerByID(ctx, userID, id)
+		if err != nil {
+			return nil, clues.Wrap(err, "getting exclude container").WithClues(ictx)
+		}
+
+		gotID := ptr.Val(c.GetId())
+		if len(gotID) == 0 {
+			return nil, clues.New("exclude container missing ID").
+				WithClues(ictx)
+		}
+
+		cr.resolvedExclude[gotID] = struct{}{}
+	}
+
+	return cr, nil
+}
+
+func (cr *rankedContainerResolver) Items() []graph.CachedContainer {
+	found := cr.ContainerResolver.Items()
+	res := make([]graph.CachedContainer, 0, len(found))
+
+	// Add the ranked items first.
+	//
+	// TODO(ashmrtn): If we need to handle a large number of ranked items we
+	// should think about making a map of the ranked items for fast lookups later
+	// in the function.
+	for _, include := range cr.resolvedInclude {
+		if c := cr.ContainerResolver.ItemByID(include); c != nil {
+			res = append(res, c)
+		}
+	}
+
+	// Add the remaining, filtering out any of the ones we need to exclude or that
+	// we already added because they were ranked.
+	for _, c := range found {
+		if _, ok := cr.resolvedExclude[ptr.Val(c.GetId())]; ok {
+			continue
+		}
+
+		if slices.Contains(cr.resolvedInclude, ptr.Val(c.GetId())) {
+			continue
+		}
+
+		res = append(res, c)
+	}
+
+	return res
+}
+
+func (cr *rankedContainerResolver) ItemByID(id string) graph.CachedContainer {
+	// Includes take priority over excludes so check those too.
+	_, exclude := cr.resolvedExclude[id]
+	includeIdx := slices.Index(cr.resolvedInclude, id)
+
+	if exclude && includeIdx == -1 {
+		return nil
+	}
+
+	return cr.ContainerResolver.ItemByID(id)
 }
