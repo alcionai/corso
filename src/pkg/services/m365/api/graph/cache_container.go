@@ -62,6 +62,11 @@ type ContainerResolver interface {
 
 	AddToCache(ctx context.Context, m365Container Container) error
 
+	// ItemByID returns the container with the given ID if it's in the container
+	// resolver. If the item isn't in the resolver then it returns nil. Assumes
+	// resolved IDs are used not well-known names for containers.
+	ItemByID(id string) CachedContainer
+
 	// Items returns the containers in the cache.
 	Items() []CachedContainer
 }

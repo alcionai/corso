@@ -57,6 +57,7 @@ type corsoProgress struct {
 	toMerge    *mergeDetails
 	mu         sync.RWMutex
 	totalBytes int64
+	totalFiles int64
 	errs       *fault.Bus
 	counter    *count.Bus
 	// expectedIgnoredErrors is a count of error cases caught in the Error wrapper
@@ -89,6 +90,13 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	if err != nil {
 		return
+	}
+
+	atomic.AddInt64(&cp.totalFiles, 1)
+
+	// Log every 1000 items uploaded
+	if cp.totalFiles%1000 == 0 {
+		logger.Ctx(cp.ctx).Infow("finishedfile", "totalFiles", cp.totalFiles, "totalBytes", cp.totalBytes)
 	}
 
 	d := cp.get(relativePath)
