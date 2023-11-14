@@ -115,9 +115,9 @@ func (s *slidingWindow) Shutdown() {
 	})
 }
 
-// Reset resets the limiter to its initial state. Any pending requests will be
-// cancelled. Reset should only be called when the limiter is not in use.
-// No need to shutdown slide goroutine. prev and curr
+// Reset clears the limiter state & refills tokens to original capacity.
+// Reset is transparent to request senders, they can continue to call Wait
+// even while reset is in progress.
 func (s *slidingWindow) Reset() {
 	// Acquire request mutex and slide mutex in order like Wait does.
 	s.requestMu.Lock()
