@@ -100,12 +100,12 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitNSliding() {
 			n:             1,
 		},
 		{
-			Name:          "Request 5 tokens each",
+			Name:          "Request N tokens each",
 			windowSize:    100 * time.Millisecond,
 			slideInterval: 10 * time.Millisecond,
 			capacity:      1000,
-			numRequests:   100,
-			n:             5,
+			numRequests:   200,
+			n:             10,
 		},
 	}
 
