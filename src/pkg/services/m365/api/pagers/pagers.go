@@ -532,7 +532,10 @@ func GetAddedAndRemovedItemIDs[T any](
 		}
 
 		if err != nil && !graph.IsErrInvalidDelta(err) && !graph.IsErrDeltaNotSupported(err) {
-			return AddedAndRemoved{}, graph.Stack(ctx, err)
+			return AddedAndRemoved{
+				DU:            DeltaUpdate{Reset: true},
+				ValidModTimes: deltaPager.ValidModTimes(),
+			}, graph.Stack(ctx, err)
 		} else if err == nil {
 			return aar, graph.Stack(ctx, err).OrNil()
 		}

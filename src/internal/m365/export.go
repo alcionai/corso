@@ -17,6 +17,8 @@ func (ctrl *Controller) NewServiceHandler(
 	opts control.Options,
 	service path.ServiceType,
 ) (inject.ServiceHandler, error) {
+	ctrl.setResourceHandler(service)
+
 	switch service {
 	case path.OneDriveService:
 		return onedrive.NewOneDriveHandler(opts), nil

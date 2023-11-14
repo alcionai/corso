@@ -57,18 +57,18 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 	var (
 		itn    = map[string]string{id: name}
 		nti    = map[string]string{name: id}
-		lookup = &resourceClient{
+		lookup = &resourceGetter{
 			enum:   resource.Users,
 			getter: &mock.IDNameGetter{ID: id, Name: name},
 		}
-		noLookup = &resourceClient{enum: resource.Users, getter: &mock.IDNameGetter{}}
+		noLookup = &resourceGetter{enum: resource.Users, getter: &mock.IDNameGetter{}}
 	)
 
 	table := []struct {
 		name              string
 		protectedResource string
 		ins               inMock.Cache
-		rc                *resourceClient
+		rc                *resourceGetter
 		expectID          string
 		expectName        string
 		expectErr         require.ErrorAssertionFunc
@@ -238,7 +238,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ctrl := &Controller{ownerLookup: test.rc}
+			ctrl := &Controller{resourceHandler: test.rc}
 
 			resource, err := ctrl.PopulateProtectedResourceIDAndName(ctx, test.protectedResource, test.ins)
 			test.expectErr(t, err, clues.ToCore(err))
@@ -260,7 +260,7 @@ func (suite *ControllerUnitSuite) TestPopulateOwnerIDAndNamesFrom_nilCheck() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	ctrl := &Controller{ownerLookup: nil}
+	ctrl := &Controller{resourceHandler: nil}
 
 	_, err := ctrl.PopulateProtectedResourceIDAndName(ctx, "", nil)
 	require.ErrorIs(t, err, ErrNoResourceLookup, clues.ToCore(err))
