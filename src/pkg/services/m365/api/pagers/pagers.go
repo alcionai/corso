@@ -1,8 +1,10 @@
 package pagers
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -277,6 +279,13 @@ func DeltaEnumerateItems[T any](
 
 	// Loop through all pages returned by Graph API.
 	for len(nextLink) > 0 {
+		fmt.Printf("\n\033[0;33mPress enter when you're ready for the next page...\033[0m\n")
+		reader := bufio.NewReader(os.Stdin)
+		// ReadString will block until the user enters a newline
+		if _, err := reader.ReadString('\n'); err != nil {
+			fmt.Printf("\n\033[0;31mSomething went wrong:\033[0m [%v]\n", err)
+		}
+
 		page, err := pager.GetPage(graph.ConsumeNTokens(ctx, consume))
 		if graph.IsErrDeltaNotSupported(err) {
 			logger.Ctx(ctx).Infow("delta queries not supported")

@@ -148,7 +148,7 @@ func (c Drives) newDriveItemDeltaPager(
 	options := &drives.ItemItemsItemDeltaRequestBuilderGetRequestConfiguration{
 		Headers: newPreferHeaders(preferHeaderItems...),
 		QueryParameters: &drives.ItemItemsItemDeltaRequestBuilderGetQueryParameters{
-			Top: ptr.To(maxDeltaPageSize),
+			Top: ptr.To[int32](5),
 		},
 	}
 
