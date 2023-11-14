@@ -37,6 +37,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 			assert.Equal(t, 2, flags.FetchParallelismFV, flags.FetchParallelismFN)
 			assert.True(t, flags.DisableConcurrencyLimiterFV, flags.DisableConcurrencyLimiterFN)
 			assert.Equal(t, 499, flags.DeltaPageSizeFV, flags.DeltaPageSizeFN)
+			assert.True(t, flags.DisableSlidingWindowLimiterFV, flags.DisableSlidingWindowLimiterFN)
 		},
 	}
 
@@ -52,6 +53,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 	flags.AddFetchParallelismFlag(cmd)
 	flags.AddDisableConcurrencyLimiterFlag(cmd)
 	flags.AddDeltaPageSizeFlag(cmd)
+	flags.AddDisableSlidingWindowLimiterFlag(cmd)
 
 	// Test arg parsing for few args
 	cmd.SetArgs([]string{
@@ -66,6 +68,7 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 		"--" + flags.FetchParallelismFN, "2",
 		"--" + flags.DisableConcurrencyLimiterFN,
 		"--" + flags.DeltaPageSizeFN, "499",
+		"--" + flags.DisableSlidingWindowLimiterFN,
 	})
 
 	err := cmd.Execute()
