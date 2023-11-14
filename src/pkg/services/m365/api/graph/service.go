@@ -383,6 +383,7 @@ func (aw *adapterWrap) Send(
 			logger.Ctx(ictx).Debug("http connection error")
 			events.Inc(events.APICall, "connectionerror")
 		case IsErrBadJWTToken(err):
+			logger.Ctx(ictx).Debug("bad jwt token")
 			events.Inc(events.APICall, "badjwttoken")
 		default:
 			return nil, clues.StackWC(ictx, err).WithTrace(1)
@@ -391,5 +392,5 @@ func (aw *adapterWrap) Send(
 		time.Sleep(3 * time.Second)
 	}
 
-	return sp, err
+	return sp, clues.Stack(err).OrNil()
 }

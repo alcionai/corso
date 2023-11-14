@@ -1,12 +1,17 @@
 package graph
 
 import (
+	"bytes"
+	"io"
 	"net/http"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/stretchr/testify/assert"
@@ -244,4 +249,81 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
 	require.Equal(t, 16, retryInc, "number of retries")
+}
+
+func requireParseableToReader(t *testing.T, thing serialization.Parsable) (int64, io.ReadCloser) {
+	sw := kjson.NewJsonSerializationWriter()
+
+	err := sw.WriteObjectValue("", thing)
+	require.NoError(t, err, "serialize")
+
+	content, err := sw.GetSerializedContent()
+	require.NoError(t, err, "deserialize")
+
+	return int64(len(content)), io.NopCloser(bytes.NewReader(content))
+}
+
+func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
+	var (
+		t        = suite.T()
+		retryInc = 0
+		odErr    = odErrMsg(string(invalidAuthenticationToken), "string(invalidAuthenticationToken)")
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// the panics should get caught and returned as errors
+	alwaysBadJWT := mwForceResp{
+		alternate: func(req *http.Request) (bool, *http.Response, error) {
+			retryInc++
+
+			l, b := requireParseableToReader(t, odErr)
+
+			header := http.Header{}
+			header.Set("Content-Length", strconv.Itoa(int(l)))
+			header.Set("Content-Type", "application/json")
+
+			resp := &http.Response{
+				Body:          b,
+				ContentLength: l,
+				Header:        header,
+				Proto:         req.Proto,
+				Request:       req,
+				// avoiding 401 for the test to escape extraneous code paths in graph client
+				StatusCode: http.StatusMethodNotAllowed,
+			}
+
+			return true, resp, nil
+		},
+	}
+
+	adpt, err := CreateAdapter(
+		suite.credentials.AzureTenantID,
+		suite.credentials.AzureClientID,
+		suite.credentials.AzureClientSecret,
+		count.New(),
+		appendMiddleware(&alwaysBadJWT))
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Keeping this test in place for now as a showcase, even though
+	// it kinda proves a failure to handle the error case.  On the bright
+	// side, direct URL lookups are a rarity in corso, so the importance
+	// is not as high.
+	_, err = users.
+		NewItemCalendarsItemEventsDeltaRequestBuilder("https://graph.microsoft.com/fnords/beaux/regard", adpt).
+		Get(ctx, nil)
+	assert.ErrorContains(
+		t,
+		err,
+		"content type application/json does not have a factory registered to be parsed",
+		clues.ToCore(err))
+	assert.Equal(t, 1, retryInc, "number of retries")
+
+	retryInc = 0
+
+	// the query doesn't matter
+	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
+	assert.True(t, IsErrBadJWTToken(err), clues.ToCore(err))
+	assert.Equal(t, 4, retryInc, "number of retries")
 }
