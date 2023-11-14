@@ -424,6 +424,13 @@ func (op *BackupOperation) do(
 		lastBackupVersion = mans.MinBackupVersion()
 	}
 
+	// Select an appropriate rate limiter for the service.
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{
+			Service: op.Selectors.PathService(),
+		})
+
 	// TODO(ashmrtn): This should probably just return a collection that deletes
 	// the entire subtree instead of returning an additional bool. That way base
 	// selection is controlled completely by flags and merging is controlled
