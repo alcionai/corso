@@ -283,3 +283,114 @@ func (suite *SlidingWindowUnitTestSuite) TestShutdown() {
 	// Second call to Shutdown() should be a no-op.
 	s.Shutdown()
 }
+
+// TestReset tests if limiter state is cleared and all tokens are available for
+// use post reset.
+func (suite *SlidingWindowUnitTestSuite) TestReset() {
+	var (
+		t             = suite.T()
+		windowSize    = 100 * time.Millisecond
+		slideInterval = 10 * time.Millisecond
+		capacity      = 10
+		numRequests   = capacity
+		wg            sync.WaitGroup
+	)
+
+	defer goleak.VerifyNone(t)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	s, err := NewSlidingWindowLimiter(windowSize, slideInterval, capacity)
+	require.NoError(t, err)
+
+	// Make some requests to the limiter.
+	for i := 0; i < numRequests; i++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			err := s.Wait(ctx)
+			require.NoError(t, err)
+		}()
+	}
+	wg.Wait()
+
+	// Reset the limiter.
+	s.Reset()
+
+	// Shutdown the ticker before accessing the internal limiter state.
+	s.Shutdown()
+
+	sw := s.(*slidingWindow)
+
+	// Check if state is cleared, and all tokens are available for use post reset.
+	require.Equal(t, capacity, len(sw.permits))
+
+	for i := 0; i < sw.numIntervals; i++ {
+		require.Equal(t, 0, sw.prev.count[i])
+		require.Equal(t, 0, sw.curr.count[i])
+	}
+}
+
+// TestResetDuringActiveRequests tests if reset is transparent to any active
+// requests and they are not affected. It also checks that limiter stays
+// within capacity limits post reset.
+func (suite *SlidingWindowUnitTestSuite) TestResetDuringActiveRequests() {
+	var (
+		t             = suite.T()
+		windowSize    = 100 * time.Millisecond
+		slideInterval = 10 * time.Millisecond
+		capacity      = 10
+		numRequests   = 10 * capacity
+		wg            sync.WaitGroup
+	)
+
+	defer goleak.VerifyNone(t)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	s, err := NewSlidingWindowLimiter(windowSize, slideInterval, capacity)
+	require.NoError(t, err)
+
+	// Make some requests to the limiter as well as reset it concurrently
+	// in 10:1 request to reset ratio.
+	for i := 0; i < numRequests; i++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			err := s.Wait(ctx)
+			require.NoError(t, err)
+		}()
+
+		// Launch a reset every 10th iteration.
+		if i%10 == 0 {
+			wg.Add(1)
+
+			go func() {
+				defer wg.Done()
+
+				s.Reset()
+			}()
+		}
+	}
+	wg.Wait()
+
+	// Shutdown the ticker before accessing the internal limiter state.
+	s.Shutdown()
+
+	// Verify that number of requests allowed in each window is less than or equal
+	// to window capacity
+	sw := s.(*slidingWindow)
+	data := append(sw.prev.count, sw.curr.count...)
+
+	sums := slidingSums(data, sw.numIntervals)
+
+	for _, sum := range sums {
+		require.True(t, sum <= capacity, "sum: %d, capacity: %d", sum, capacity)
+	}
+}

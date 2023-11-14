@@ -47,6 +47,11 @@ type slidingWindow struct {
 
 	// mu synchronizes access to the curr and prev windows
 	mu sync.Mutex
+	// requestMu synchronizes access between requests. This is especially needed
+	// for WaitN to ensure that all N tokens are granted to the same request.
+	// It also allows us to reset the limiter transparently without affecting
+	// any pending requests.
+	requestMu sync.Mutex
 	// stopTicker stops the recurring slide ticker
 	stopTicker chan struct{}
 	closeOnce  sync.Once
@@ -86,6 +91,9 @@ func NewSlidingWindowLimiter(
 // Wait blocks a request until a token is available or the context is cancelled.
 // TODO(pandeyabs): Implement WaitN.
 func (s *slidingWindow) Wait(ctx context.Context) error {
+	s.requestMu.Lock()
+	defer s.requestMu.Unlock()
+
 	select {
 	case <-ctx.Done():
 		return clues.Stack(ctx.Err())
@@ -107,8 +115,42 @@ func (s *slidingWindow) Shutdown() {
 	})
 }
 
+// Reset resets the limiter to its initial state. Any pending requests will be
+// cancelled. Reset should only be called when the limiter is not in use.
+// No need to shutdown slide goroutine. prev and curr
+func (s *slidingWindow) Reset() {
+	// Acquire request mutex and slide mutex in order like Wait does.
+	s.requestMu.Lock()
+	defer s.requestMu.Unlock()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Clear all existing counts
+	s.prev = fixedWindow{
+		count: make([]int, s.numIntervals),
+	}
+	s.curr = fixedWindow{
+		count: make([]int, s.numIntervals),
+	}
+
+	// Reset permits
+	close(s.permits)
+	s.permits = make(chan token, s.capacity)
+
+	// Prefill permits to allow tokens to be granted immediately
+	for i := 0; i < s.capacity; i++ {
+		s.permits <- token{}
+	}
+}
+
 // initialize starts the slide goroutine and prefills tokens to full capacity.
 func (s *slidingWindow) initialize() {
+	// Hold request mutex to ensure that no requests get processed until
+	// we are done initializing.
+	s.requestMu.Lock()
+	defer s.requestMu.Unlock()
+
 	// Ok to not hold the mutex here since nothing else is running yet.
 	s.nextInterval()
 
