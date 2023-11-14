@@ -96,7 +96,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 
 	// Log every 1000 items uploaded
 	if cp.totalFiles%1000 == 0 {
-		logger.Ctx(cp.ctx).Infow("finishedfile", "count", cp.totalFiles, "size", cp.totalBytes)
+		logger.Ctx(cp.ctx).Infow("finishedfile", "totalFiles", cp.totalFiles, "totalBytes", cp.totalBytes)
 	}
 
 	d := cp.get(relativePath)
