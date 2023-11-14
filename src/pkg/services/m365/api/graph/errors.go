@@ -243,6 +243,7 @@ func IsErrUnauthorizedOrBadToken(err error) bool {
 	// a specific item download url expired, or if the full connection
 	// auth expired.
 	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
+		hasErrorCode(err, invalidAuthenticationToken) ||
 		errors.Is(err, ErrTokenExpired) ||
 		errors.Is(err, ErrTokenInvalid)
 }
@@ -576,13 +577,13 @@ const JWTQueryParam = "tempauth"
 // and returns true if it is expired.
 func IsURLExpired(
 	ctx context.Context,
-	url string,
+	urlStr string,
 ) (
 	expiredErr error,
 	err error,
 ) {
 	// Extract the raw JWT string from the download url.
-	rawJWT, err := common.GetQueryParamFromURL(url, JWTQueryParam)
+	rawJWT, err := common.GetQueryParamFromURL(urlStr, JWTQueryParam)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "jwt query param not found")
 	}

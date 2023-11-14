@@ -496,7 +496,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorizedOrBadToken() {
 		{
 			name:   "oDataErr code invalid auth token ",
 			err:    odErr(string(invalidAuthenticationToken)),
-			expect: assert.False,
+			expect: assert.True,
 		},
 		{
 			name:   "err token invalid",
