@@ -200,112 +200,11 @@ func (suite *SharePointBackupNightlyIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *SharePointBackupNightlyIntgSuite) TestBackup_Run_sharePointBasic_groups9VersionBump() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts    = control.DefaultOptions()
-		ws      = deeTD.DriveIDFromRepoRef
-	)
-
+func (suite *SharePointBackupNightlyIntgSuite) TestBackup_Run_sharePointVersion9MergeBase() {
+	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(
-		t,
-		ctx,
-		mb,
-		sel.Selector,
-		opts,
-		version.All8MigrateUserPNToID,
-		counter)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.LibrariesCategory)
-
-	_, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
-		path.SharePointService,
-		ws,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		ws,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	mb = evmock.NewBus()
-	counter = count.New()
-	notForcedFull := newTestBackupOp(
-		t,
-		ctx,
-		bod,
-		mb,
-		opts,
-		counter)
-	notForcedFull.BackupVersion = version.Groups9Update
-
-	runAndCheckBackup(t, ctx, &notForcedFull, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&notForcedFull,
-		bod.sel,
-		bod.sel.ID(),
-		path.LibrariesCategory)
-
-	_, expectDeets = deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		notForcedFull.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
-		path.SharePointService,
-		ws,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		notForcedFull.Results.BackupID,
-		ws,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	// The number of items backed up in the second backup should be less than the
-	// number of items in the original backup.
-	assert.Greater(
-		t,
-		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
-		notForcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
-		"items written")
+	runMergeBaseGroupsUpdate(suite, sel.Selector, true)
 }
 
 func (suite *SharePointBackupNightlyIntgSuite) TestBackup_Run_sharePointVersion9AssistBases() {

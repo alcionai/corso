@@ -35,7 +35,6 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 			assert.True(t, flags.NoPermissionsFV, flags.NoPermissionsFN)
 			assert.True(t, flags.SkipReduceFV, flags.SkipReduceFN)
 			assert.Equal(t, 2, flags.FetchParallelismFV, flags.FetchParallelismFN)
-			assert.True(t, flags.DisableConcurrencyLimiterFV, flags.DisableConcurrencyLimiterFN)
 			assert.Equal(t, 499, flags.DeltaPageSizeFV, flags.DeltaPageSizeFN)
 		},
 	}
@@ -50,7 +49,6 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 	flags.AddNoPermissionsFlag(cmd)
 	flags.AddSkipReduceFlag(cmd)
 	flags.AddFetchParallelismFlag(cmd)
-	flags.AddDisableConcurrencyLimiterFlag(cmd)
 	flags.AddDeltaPageSizeFlag(cmd)
 
 	// Test arg parsing for few args
@@ -64,7 +62,6 @@ func (suite *OptionsUnitSuite) TestAddExchangeCommands() {
 		"--" + flags.NoPermissionsFN,
 		"--" + flags.SkipReduceFN,
 		"--" + flags.FetchParallelismFN, "2",
-		"--" + flags.DisableConcurrencyLimiterFN,
 		"--" + flags.DeltaPageSizeFN, "499",
 	})
 

@@ -50,11 +50,9 @@ func ProduceBackupCollections(
 		bpc.Options.ToggleFeatures.DisableDelta = true
 	}
 
-	// Turn on concurrency limiter middleware for exchange backups
-	// unless explicitly disabled through DisableConcurrencyLimiterFN cli flag
 	graph.InitializeConcurrencyLimiter(
 		ctx,
-		bpc.Options.ToggleFeatures.DisableConcurrencyLimiter,
+		true,
 		bpc.Options.Parallelism.ItemFetch)
 
 	cdps, canUsePreviousBackup, err := exchange.ParseMetadataCollections(ctx, bpc.MetadataCollections)

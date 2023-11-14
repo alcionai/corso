@@ -79,12 +79,11 @@ var (
 
 	FetchParallelism = "3"
 
-	FailFast                  = true
-	DisableIncrementals       = true
-	ForceItemDataDownload     = true
-	DisableDelta              = true
-	EnableImmutableID         = true
-	DisableConcurrencyLimiter = true
+	FailFast              = true
+	DisableIncrementals   = true
+	ForceItemDataDownload = true
+	DisableDelta          = true
+	EnableImmutableID     = true
 )
 
 func WithFlags2(
