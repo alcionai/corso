@@ -89,9 +89,9 @@ const (
 	defaultPerSecond = 16  // 16 * 60 * 10 = 9600
 	defaultMaxCap    = 200 // real cap is 10k-per-10-minutes
 
-	// Sliding window limiter for exchange service. Exchange enforces a
-	// 10-k-per-10-minute limit. We are however keeping it to 9600-per-10-minutes
-	// to give the limits breathing room. It can be slowly increased over time.
+	// Sliding window limiter for exchange service. We are restricting it to 9600 per
+	// 10 mins to give the limits some breathing room. It can be slowly increased
+	// over time to get closer to the 10k limit.
 	exchWindow        = 10 * time.Minute
 	exchSlideInterval = 1 * time.Second
 	exchCapacity      = 9600
@@ -125,8 +125,8 @@ var (
 type LimiterCfg struct {
 	Service path.ServiceType
 	// Experimental flag to enable sliding window rate limiter. It should only be
-	// enabled for Exchange backups. Set to false by default to prevent accidental
-	// enablement for non-backup operations and other services.
+	// enabled for Exchange backups. It's set to false by default to prevent accidental
+	// enablement for non backup operations and other services.
 	EnableSlidingLimiter bool
 }
 
@@ -221,6 +221,11 @@ func QueueRequest(ctx context.Context) {
 	if err := limiter.WaitN(ctx, consume); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
 	}
+}
+
+func ResetLimiter(ctx context.Context) {
+	limiter := ctxLimiter(ctx)
+	limiter.Reset()
 }
 
 // RateLimiterMiddleware is used to ensure we don't overstep per-min request limits.
