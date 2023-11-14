@@ -28,9 +28,11 @@ import (
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -372,6 +374,147 @@ func checkMetadataFilesExist(
 			}
 		})
 	}
+}
+
+func runMergeBaseGroupsUpdate(
+	suite tester.Suite,
+	sel selectors.Selector,
+	expectCached bool,
+) {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb      = evmock.NewBus()
+		opts    = control.DefaultOptions()
+		whatSet = deeTD.CategoryFromRepoRef
+	)
+
+	// Need outside the inner test case so bod lasts for the entire test.
+	bo, bod := prepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel,
+		opts,
+		version.All8MigrateUserPNToID,
+		count.New())
+	defer bod.close(t, ctx)
+
+	suite.Run("makeMergeBackup", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		runAndCheckBackup(t, ctx, &bo, mb, false)
+
+		reasons, err := bod.sel.Reasons(bod.acct.ID(), false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		for _, reason := range reasons {
+			checkBackupIsInManifests(
+				t,
+				ctx,
+				bod.kw,
+				bod.sw,
+				&bo,
+				bod.sel,
+				bod.sel.ID(),
+				reason.Category())
+		}
+
+		_, expectDeets := deeTD.GetDeetsInBackup(
+			t,
+			ctx,
+			bo.Results.BackupID,
+			bod.acct.ID(),
+			bod.sel.ID(),
+			bod.sel.PathService(),
+			whatSet,
+			bod.kms,
+			bod.sss)
+		deeTD.CheckBackupDetails(
+			t,
+			ctx,
+			bo.Results.BackupID,
+			whatSet,
+			bod.kms,
+			bod.sss,
+			expectDeets,
+			false)
+	})
+
+	suite.Run("makeIncrementalBackup", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		var (
+			mb   = evmock.NewBus()
+			opts = control.DefaultOptions()
+		)
+
+		forcedFull := newTestBackupOp(
+			t,
+			ctx,
+			bod,
+			mb,
+			opts,
+			count.New())
+		forcedFull.BackupVersion = version.Groups9Update
+
+		runAndCheckBackup(t, ctx, &forcedFull, mb, false)
+
+		reasons, err := bod.sel.Reasons(bod.acct.ID(), false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		for _, reason := range reasons {
+			checkBackupIsInManifests(
+				t,
+				ctx,
+				bod.kw,
+				bod.sw,
+				&forcedFull,
+				bod.sel,
+				bod.sel.ID(),
+				reason.Category())
+		}
+
+		_, expectDeets := deeTD.GetDeetsInBackup(
+			t,
+			ctx,
+			forcedFull.Results.BackupID,
+			bod.acct.ID(),
+			bod.sel.ID(),
+			bod.sel.PathService(),
+			whatSet,
+			bod.kms,
+			bod.sss)
+		deeTD.CheckBackupDetails(
+			t,
+			ctx,
+			forcedFull.Results.BackupID,
+			whatSet,
+			bod.kms,
+			bod.sss,
+			expectDeets,
+			false)
+
+		check := assert.Zero
+
+		if expectCached {
+			check = assert.NotZero
+		}
+
+		check(
+			t,
+			forcedFull.Results.Counts[string(count.PersistedCachedFiles)],
+			"cached items")
+	})
 }
 
 // ---------------------------------------------------------------------------
