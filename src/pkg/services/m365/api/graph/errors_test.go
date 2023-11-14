@@ -2,24 +2,21 @@ package graph
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 	"syscall"
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type GraphErrorsUnitSuite struct {
@@ -28,41 +25,6 @@ type GraphErrorsUnitSuite struct {
 
 func TestGraphErrorsUnitSuite(t *testing.T) {
 	suite.Run(t, &GraphErrorsUnitSuite{Suite: tester.NewUnitSuite(t)})
-}
-
-func odErr(code string) *odataerrors.ODataError {
-	odErr := odataerrors.NewODataError()
-	merr := odataerrors.NewMainError()
-	merr.SetCode(&code)
-	odErr.SetErrorEscaped(merr)
-
-	return odErr
-}
-
-func odErrMsg(code, message string) *odataerrors.ODataError {
-	odErr := odataerrors.NewODataError()
-	merr := odataerrors.NewMainError()
-	merr.SetCode(&code)
-	merr.SetMessage(&message)
-	odErr.SetErrorEscaped(merr)
-
-	return odErr
-}
-
-func parseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
-	sw := kjson.NewJsonSerializationWriter()
-
-	err := sw.WriteObjectValue("", thing)
-	require.NoError(t, err, "serialize")
-
-	content, err := sw.GetSerializedContent()
-	require.NoError(t, err, "deserialize")
-
-	var out map[string]any
-	err = json.Unmarshal([]byte(content), &out)
-	require.NoError(t, err, "unmarshall")
-
-	return out
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrConnectionReset() {
@@ -112,12 +74,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErr("fnords"),
+			err:    graphTD.ODataErr("fnords"),
 			expect: assert.False,
 		},
 		{
 			name:   "applicationThrottled oDataErr",
-			err:    odErr(string(applicationThrottled)),
+			err:    graphTD.ODataErr(string(applicationThrottled)),
 			expect: assert.True,
 		},
 	}
@@ -146,12 +108,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrAuthenticationError() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErr("fnords"),
+			err:    graphTD.ODataErr("fnords"),
 			expect: assert.False,
 		},
 		{
 			name:   "authenticationError oDataErr",
-			err:    odErr(string(AuthenticationError)),
+			err:    graphTD.ODataErr(string(AuthenticationError)),
 			expect: assert.True,
 		},
 	}
@@ -185,17 +147,17 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErr("fnords"),
+			err:    graphTD.ODataErr("fnords"),
 			expect: assert.False,
 		},
 		{
 			name:   "not-found oDataErr",
-			err:    odErr(string(errorItemNotFound)),
+			err:    graphTD.ODataErr(string(errorItemNotFound)),
 			expect: assert.True,
 		},
 		{
 			name:   "sync-not-found oDataErr",
-			err:    odErr(string(syncFolderNotFound)),
+			err:    graphTD.ODataErr(string(syncFolderNotFound)),
 			expect: assert.True,
 		},
 	}
@@ -223,39 +185,34 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 			expect: assert.False,
 		},
 		{
-			name:   "as",
-			err:    ErrInvalidDelta,
-			expect: assert.True,
-		},
-		{
 			name:   "non-matching oDataErr",
-			err:    odErr("fnords"),
+			err:    graphTD.ODataErr("fnords"),
 			expect: assert.False,
 		},
 		{
 			name:   "non-matching oDataErrMsg",
-			err:    odErrMsg("fnords", "deltatoken not supported"),
+			err:    graphTD.ODataErrWithMsg("fnords", "deltatoken not supported"),
 			expect: assert.False,
 		},
 		{
 			name:   "resync-required oDataErr",
-			err:    odErr(string(resyncRequired)),
+			err:    graphTD.ODataErr(string(resyncRequired)),
 			expect: assert.True,
 		},
 		{
 			name:   "sync state invalid oDataErr",
-			err:    odErr(string(syncStateInvalid)),
+			err:    graphTD.ODataErr(string(syncStateInvalid)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive
 		{
 			name:   "resync-required oDataErr camelcase",
-			err:    odErr("resyncRequired"),
+			err:    graphTD.ODataErr("resyncRequired"),
 			expect: assert.True,
 		},
 		{
 			name:   "resync-required oDataErr lowercase",
-			err:    odErr("resyncrequired"),
+			err:    graphTD.ODataErr("resyncrequired"),
 			expect: assert.True,
 		},
 	}
@@ -283,28 +240,23 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeltaNotSupported() {
 			expect: assert.False,
 		},
 		{
-			name:   "as",
-			err:    ErrDeltaNotSupported,
-			expect: assert.True,
-		},
-		{
 			name:   "non-matching oDataErr",
-			err:    odErr("fnords"),
+			err:    graphTD.ODataErr("fnords"),
 			expect: assert.False,
 		},
 		{
 			name:   "non-matching oDataErrMsg",
-			err:    odErrMsg("fnords", "deltatoken not supported"),
+			err:    graphTD.ODataErrWithMsg("fnords", "deltatoken not supported"),
 			expect: assert.False,
 		},
 		{
 			name:   "deltatoken not supported oDataErrMsg",
-			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)),
+			err:    graphTD.ODataErrWithMsg("fnords", string(ParameterDeltaTokenNotSupported)),
 			expect: assert.True,
 		},
 		{
 			name:   "deltatoken not supported oDataErrMsg with punctuation",
-			err:    odErrMsg("fnords", string(parameterDeltaTokenNotSupported)+"."),
+			err:    graphTD.ODataErrWithMsg("fnords", string(ParameterDeltaTokenNotSupported)+"."),
 			expect: assert.True,
 		},
 	}
@@ -332,18 +284,13 @@ func (suite *GraphErrorsUnitSuite) TestIsErrQuotaExceeded() {
 			expect: assert.False,
 		},
 		{
-			name:   "as",
-			err:    ErrInvalidDelta,
-			expect: assert.False,
-		},
-		{
 			name:   "non-matching oDataErr",
-			err:    odErr("fnords"),
+			err:    graphTD.ODataErr("fnords"),
 			expect: assert.False,
 		},
 		{
 			name:   "quota-exceeded oDataErr",
-			err:    odErr("ErrorQuotaExceeded"),
+			err:    graphTD.ODataErr("ErrorQuotaExceeded"),
 			expect: assert.True,
 		},
 	}
@@ -372,13 +319,13 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErr("fnords"),
+			err:    graphTD.ODataErr("fnords"),
 			expect: assert.False,
 		},
 		{
 			name: "non-matching resource not found",
 			err: func() error {
-				res := odErr(string(ResourceNotFound))
+				res := graphTD.ODataErr(string(ResourceNotFound))
 				res.GetErrorEscaped().SetMessage(ptr.To("Calendar not found"))
 
 				return res
@@ -387,18 +334,18 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		},
 		{
 			name:   "request resource not found oDataErr",
-			err:    odErr(string(RequestResourceNotFound)),
+			err:    graphTD.ODataErr(string(RequestResourceNotFound)),
 			expect: assert.True,
 		},
 		{
 			name:   "invalid user oDataErr",
-			err:    odErr(string(invalidUser)),
+			err:    graphTD.ODataErr(string(invalidUser)),
 			expect: assert.True,
 		},
 		{
 			name: "resource not found oDataErr",
 			err: func() error {
-				res := odErrMsg(string(ResourceNotFound), "User not found")
+				res := graphTD.ODataErrWithMsg(string(ResourceNotFound), "User not found")
 				return res
 			}(),
 			expect: assert.True,
@@ -406,7 +353,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		{
 			name: "resource not found oDataErr wrapped",
 			err: func() error {
-				res := odErrMsg(string(ResourceNotFound), "User not found")
+				res := graphTD.ODataErrWithMsg(string(ResourceNotFound), "User not found")
 				return clues.Wrap(res, "getting mail folder")
 			}(),
 			expect: assert.True,
@@ -414,7 +361,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 		{
 			name: "resource not found oDataErr stacked",
 			err: func() error {
-				res := odErrMsg(string(ResourceNotFound), "User not found")
+				res := graphTD.ODataErrWithMsg(string(ResourceNotFound), "User not found")
 				return clues.Stack(res, assert.AnError)
 			}(),
 			expect: assert.True,
@@ -442,11 +389,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrTimeout() {
 			name:   "non-matching",
 			err:    assert.AnError,
 			expect: assert.False,
-		},
-		{
-			name:   "as",
-			err:    ErrTimeout,
-			expect: assert.True,
 		},
 		{
 			name:   "context deadline",
@@ -479,7 +421,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorizedOrBadToken() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErr("folder doesn't exist"),
+			err:    graphTD.ODataErr("folder doesn't exist"),
 			expect: assert.False,
 		},
 		{
@@ -495,12 +437,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorizedOrBadToken() {
 		},
 		{
 			name:   "oDataErr code invalid auth token ",
-			err:    odErr(string(invalidAuthenticationToken)),
-			expect: assert.True,
-		},
-		{
-			name:   "err token invalid",
-			err:    clues.Stack(assert.AnError, ErrTokenInvalid),
+			err:    graphTD.ODataErr(string(invalidAuthenticationToken)),
 			expect: assert.True,
 		},
 	}
@@ -529,7 +466,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErr("folder doesn't exist"),
+			err:    graphTD.ODataErr("folder doesn't exist"),
 			expect: assert.False,
 		},
 		{
@@ -545,12 +482,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 		},
 		{
 			name:   "oDataErr code invalid auth token ",
-			err:    odErr(string(invalidAuthenticationToken)),
-			expect: assert.True,
-		},
-		{
-			name:   "err token invalid",
-			err:    clues.Stack(assert.AnError, ErrTokenInvalid),
+			err:    graphTD.ODataErr(string(invalidAuthenticationToken)),
 			expect: assert.True,
 		},
 	}
@@ -621,23 +553,23 @@ func (suite *GraphErrorsUnitSuite) TestIsErrFolderExists() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErr("folder doesn't exist"),
+			err:    graphTD.ODataErr("folder doesn't exist"),
 			expect: assert.False,
 		},
 		{
 			name:   "matching oDataErr msg",
-			err:    odErr(string(folderExists)),
+			err:    graphTD.ODataErr(string(folderExists)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive
 		{
 			name:   "oDataErr camelcase",
-			err:    odErr("ErrorFolderExists"),
+			err:    graphTD.ODataErr("ErrorFolderExists"),
 			expect: assert.True,
 		},
 		{
 			name:   "oDataErr lowercase",
-			err:    odErr("errorfolderexists"),
+			err:    graphTD.ODataErr("errorfolderexists"),
 			expect: assert.True,
 		},
 	}
@@ -666,28 +598,28 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUsersCannotBeResolved() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErrMsg("InvalidRequest", "cant resolve users"),
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", "cant resolve users"),
 			expect: assert.False,
 		},
 		{
 			name:   "matching oDataErr code",
-			err:    odErrMsg(string(noResolvedUsers), "usersCannotBeResolved"),
+			err:    graphTD.ODataErrWithMsg(string(noResolvedUsers), "usersCannotBeResolved"),
 			expect: assert.True,
 		},
 		{
 			name:   "matching oDataErr msg",
-			err:    odErrMsg("InvalidRequest", string(usersCannotBeResolved)),
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", string(usersCannotBeResolved)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive
 		{
 			name:   "oDataErr uppercase",
-			err:    odErrMsg("InvalidRequest", strings.ToUpper(string(usersCannotBeResolved))),
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", strings.ToUpper(string(usersCannotBeResolved))),
 			expect: assert.True,
 		},
 		{
 			name:   "oDataErr lowercase",
-			err:    odErrMsg("InvalidRequest", strings.ToLower(string(usersCannotBeResolved))),
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", strings.ToLower(string(usersCannotBeResolved))),
 			expect: assert.True,
 		},
 	}
@@ -716,23 +648,23 @@ func (suite *GraphErrorsUnitSuite) TestIsErrSiteCouldNotBeFound() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErrMsg("InvalidRequest", "cant resolve sites"),
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", "cant resolve sites"),
 			expect: assert.False,
 		},
 		{
 			name:   "matching oDataErr msg",
-			err:    odErrMsg("InvalidRequest", string(requestedSiteCouldNotBeFound)),
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", string(requestedSiteCouldNotBeFound)),
 			expect: assert.True,
 		},
 		// next two tests are to make sure the checks are case insensitive
 		{
 			name:   "oDataErr uppercase",
-			err:    odErrMsg("InvalidRequest", strings.ToUpper(string(requestedSiteCouldNotBeFound))),
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", strings.ToUpper(string(requestedSiteCouldNotBeFound))),
 			expect: assert.True,
 		},
 		{
 			name:   "oDataErr lowercase",
-			err:    odErrMsg("InvalidRequest", strings.ToLower(string(requestedSiteCouldNotBeFound))),
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", strings.ToLower(string(requestedSiteCouldNotBeFound))),
 			expect: assert.True,
 		},
 	}
@@ -760,18 +692,13 @@ func (suite *GraphErrorsUnitSuite) TestIsErrCannotOpenFileAttachment() {
 			expect: assert.False,
 		},
 		{
-			name:   "as",
-			err:    ErrInvalidDelta,
-			expect: assert.False,
-		},
-		{
 			name:   "non-matching oDataErr",
-			err:    odErr("fnords"),
+			err:    graphTD.ODataErr("fnords"),
 			expect: assert.False,
 		},
 		{
 			name:   "quota-exceeded oDataErr",
-			err:    odErr(string(cannotOpenFileAttachment)),
+			err:    graphTD.ODataErr(string(cannotOpenFileAttachment)),
 			expect: assert.True,
 		},
 	}
@@ -800,22 +727,22 @@ func (suite *GraphErrorsUnitSuite) TestGraphStack_labels() {
 		},
 		{
 			name:   "oDataErr matches no labels",
-			err:    odErr("code"),
+			err:    graphTD.ODataErr("code"),
 			expect: []string{},
 		},
 		{
 			name:   "mysite not found",
-			err:    odErrMsg("code", string(MysiteNotFound)),
+			err:    graphTD.ODataErrWithMsg("code", string(MysiteNotFound)),
 			expect: []string{LabelsMysiteNotFound},
 		},
 		{
 			name:   "mysite url not found",
-			err:    odErrMsg("code", string(MysiteURLNotFound)),
+			err:    graphTD.ODataErrWithMsg("code", string(MysiteURLNotFound)),
 			expect: []string{LabelsMysiteNotFound},
 		},
 		{
 			name:   "no sp license",
-			err:    odErrMsg("code", string(NoSPLicense)),
+			err:    graphTD.ODataErrWithMsg("code", string(NoSPLicense)),
 			expect: []string{LabelsNoSharePointLicense},
 		},
 	}
@@ -857,18 +784,13 @@ func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
 			expect: assert.False,
 		},
 		{
-			name:   "as",
-			err:    ErrInvalidDelta,
-			expect: assert.False,
-		},
-		{
 			name:   "non-matching oDataErr",
-			err:    odErr("fnords"),
+			err:    graphTD.ODataErr("fnords"),
 			expect: assert.False,
 		},
 		{
 			name:   "item nott found oDataErr",
-			err:    odErr(string(itemNotFound)),
+			err:    graphTD.ODataErr(string(itemNotFound)),
 			expect: assert.True,
 		},
 	}
@@ -880,7 +802,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
-	innerMatch := odErr("not-match")
+	innerMatch := graphTD.ODataErr("not-match")
 	merr := odataerrors.NewMainError()
 	inerr := odataerrors.NewInnerError()
 	inerr.SetAdditionalData(map[string]any{
@@ -907,12 +829,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 		},
 		{
 			name:   "non-matching oDataErr",
-			err:    odErrMsg("InvalidRequest", "resource is locked"),
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", "resource is locked"),
 			expect: assert.False,
 		},
 		{
 			name:   "matching oDataErr code",
-			err:    odErr(string(NotAllowed)),
+			err:    graphTD.ODataErr(string(NotAllowed)),
 			expect: assert.True,
 		},
 		{

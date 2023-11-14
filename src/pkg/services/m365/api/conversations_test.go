@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 // called by the pager test, since it is already enumerating
@@ -161,7 +162,7 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					"posts",
 					pid).
 					Reply(200).
-					JSON(requireParseableToMap(suite.T(), itm))
+					JSON(graphTD.ParseableToMap(suite.T(), itm))
 			},
 			expect: assert.NoError,
 		},
@@ -187,7 +188,7 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					"posts",
 					pid).
 					Reply(200).
-					JSON(requireParseableToMap(suite.T(), itm))
+					JSON(graphTD.ParseableToMap(suite.T(), itm))
 			},
 			attachmentCount: 1,
 			size:            50,
@@ -217,7 +218,7 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					"posts",
 					pid).
 					Reply(200).
-					JSON(requireParseableToMap(suite.T(), itm))
+					JSON(graphTD.ParseableToMap(suite.T(), itm))
 			},
 			attachmentCount: 5,
 			size:            1000,

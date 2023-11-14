@@ -1,8 +1,6 @@
 package graph
 
 import (
-	"bytes"
-	"io"
 	"net/http"
 	"strconv"
 	"syscall"
@@ -10,8 +8,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/stretchr/testify/assert"
@@ -22,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type GraphIntgSuite struct {
@@ -251,23 +248,11 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 	require.Equal(t, 16, retryInc, "number of retries")
 }
 
-func requireParseableToReader(t *testing.T, thing serialization.Parsable) (int64, io.ReadCloser) {
-	sw := kjson.NewJsonSerializationWriter()
-
-	err := sw.WriteObjectValue("", thing)
-	require.NoError(t, err, "serialize")
-
-	content, err := sw.GetSerializedContent()
-	require.NoError(t, err, "deserialize")
-
-	return int64(len(content)), io.NopCloser(bytes.NewReader(content))
-}
-
 func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 	var (
 		t        = suite.T()
 		retryInc = 0
-		odErr    = odErrMsg(string(invalidAuthenticationToken), string(invalidAuthenticationToken))
+		odErr    = graphTD.ODataErr(string(invalidAuthenticationToken))
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -278,7 +263,7 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 		alternate: func(req *http.Request) (bool, *http.Response, error) {
 			retryInc++
 
-			l, b := requireParseableToReader(t, odErr)
+			l, b := graphTD.ParseableToReader(t, odErr)
 
 			header := http.Header{}
 			header.Set("Content-Length", strconv.Itoa(int(l)))
