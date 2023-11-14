@@ -5,21 +5,22 @@ import (
 )
 
 const (
-	AlertsFN                = "alerts"
-	DeltaPageSizeFN         = "delta-page-size"
-	DisableDeltaFN          = "disable-delta"
-	DisableIncrementalsFN   = "disable-incrementals"
-	ForceItemDataDownloadFN = "force-item-data-download"
-	EnableImmutableIDFN     = "enable-immutable-id"
-	FailFastFN              = "fail-fast"
-	FailedItemsFN           = "failed-items"
-	FetchParallelismFN      = "fetch-parallelism"
-	NoStatsFN               = "no-stats"
-	RecoveredErrorsFN       = "recovered-errors"
-	NoPermissionsFN         = "no-permissions"
-	RunModeFN               = "run-mode"
-	SkippedItemsFN          = "skipped-items"
-	SkipReduceFN            = "skip-reduce"
+	AlertsFN                      = "alerts"
+	DeltaPageSizeFN               = "delta-page-size"
+	DisableSlidingWindowLimiterFN = "disable-sliding-window-limiter"
+	DisableDeltaFN                = "disable-delta"
+	DisableIncrementalsFN         = "disable-incrementals"
+	ForceItemDataDownloadFN       = "force-item-data-download"
+	EnableImmutableIDFN           = "enable-immutable-id"
+	FailFastFN                    = "fail-fast"
+	FailedItemsFN                 = "failed-items"
+	FetchParallelismFN            = "fetch-parallelism"
+	NoStatsFN                     = "no-stats"
+	RecoveredErrorsFN             = "recovered-errors"
+	NoPermissionsFN               = "no-permissions"
+	RunModeFN                     = "run-mode"
+	SkippedItemsFN                = "skipped-items"
+	SkipReduceFN                  = "skip-reduce"
 )
 
 var (
@@ -37,9 +38,10 @@ var (
 	NoStatsFV               bool
 	// RunMode describes the type of run, such as:
 	// flagtest, dry, run.  Should default to 'run'.
-	RunModeFV       string
-	NoPermissionsFV bool
-	SkipReduceFV    bool
+	RunModeFV                     string
+	NoPermissionsFV               bool
+	SkipReduceFV                  bool
+	DisableSlidingWindowLimiterFV bool
 )
 
 // well-known flag values
@@ -158,4 +160,19 @@ func AddRunModeFlag(cmd *cobra.Command, persistent bool) {
 
 	fs.StringVar(&RunModeFV, RunModeFN, "run", "What mode to run: dry, test, run.  Defaults to run.")
 	cobra.CheckErr(fs.MarkHidden(RunModeFN))
+}
+
+// AddDisableSlidingWindowLimiterFN disables the experimental sliding window rate
+// limiter for graph API requests. This is only relevant for exchange backups.
+// Exchange restores continue to use the default token bucket rate limiter.
+// Setting this flag switches exchange backups to use the default token bucket
+// rate limiter.
+func AddDisableSlidingWindowLimiterFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&DisableSlidingWindowLimiterFV,
+		DisableSlidingWindowLimiterFN,
+		false,
+		"Disable sliding window rate limiter. Default: false")
+	cobra.CheckErr(fs.MarkHidden(DisableSlidingWindowLimiterFN))
 }

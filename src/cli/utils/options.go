@@ -26,6 +26,7 @@ func Control() control.Options {
 	opt.ToggleFeatures.ForceItemDataDownload = flags.ForceItemDataDownloadFV
 	opt.ToggleFeatures.DisableDelta = flags.DisableDeltaFV
 	opt.ToggleFeatures.ExchangeImmutableIDs = flags.EnableImmutableIDFV
+	opt.ToggleFeatures.DisableSlidingWindowLimiter = flags.DisableSlidingWindowLimiterFV
 	opt.Parallelism.ItemFetch = flags.FetchParallelismFV
 
 	return opt
