@@ -474,9 +474,12 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 		// maxGetterIdx is the maximum index for the item page getter. Helps ensure
 		// we're stopping enumeration when we reach the item limit.
 		maxGetterIdx int
-		// expectNoDelta should be set if we exit enumeration early due to the item
-		// limit so we don't get a delta token.
+		// noDelta should be set if we exit enumeration early due to the item limit
+		// so we don't get a delta token.
 		noDelta bool
+		// deltaReset should be set if something specific to the error case will
+		// cause the delta to be marked as reset (e.x. error).
+		deltaReset bool
 	}
 
 	table := []struct {
@@ -618,7 +621,30 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 				}
 			},
 			expect: expected{
-				errCheck: assert.Error,
+				errCheck:     assert.Error,
+				maxGetterIdx: 1,
+				noDelta:      true,
+				deltaReset:   true,
+			},
+		},
+		{
+			name: "ErrorDeletedInFlight",
+			pagerGetter: func(t *testing.T, validModTimes bool) *testIDsNonDeltaMultiPager {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							err: graph.ErrDeletedInFlight,
+						},
+					},
+					validModTimes: validModTimes,
+				}
+			},
+			expect: expected{
+				errCheck:     assert.Error,
+				maxGetterIdx: 1,
+				noDelta:      true,
+				deltaReset:   true,
 			},
 		},
 		{
@@ -792,7 +818,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			) *testIDsNonDeltaMultiPager {
 				return &testIDsNonDeltaMultiPager{
 					t:             t,
-					validModTimes: true,
+					validModTimes: validModTimes,
 					pages: []pageResult{
 						{
 							items: []testItem{
@@ -806,6 +832,8 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 			},
 			expect: expected{
 				errCheck:     assert.Error,
+				noDelta:      true,
+				deltaReset:   true,
 				maxGetterIdx: 1,
 			},
 			ctxCancelled: true,
@@ -850,15 +878,19 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 								filters...)
 							test.expect.errCheck(t, err, "getting added and removed item IDs: %+v", clues.ToCore(err))
 
-							if err != nil {
-								return
-							}
+							// Check return values even if we get an error as some handlers
+							// continue to run when some error types are returned.
 
 							assert.Len(t, addRemoved.Added, test.expect.numAdded, "number of added items")
 							assert.GreaterOrEqual(t, test.expect.maxGetterIdx, basePager.pageIdx, "number of pager calls")
 
 							assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
-							assert.Equal(t, pagerTypeTest.expectDeltaReset, addRemoved.DU.Reset, "delta reset")
+
+							assert.Equal(
+								t,
+								test.expect.deltaReset || pagerTypeTest.expectDeltaReset,
+								addRemoved.DU.Reset,
+								"delta reset")
 
 							if pagerTypeTest.expectNoDelta || test.expect.noDelta {
 								assert.Empty(t, addRemoved.DU.URL, "delta link")
@@ -891,10 +923,11 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 // cancellation, etc.
 func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 	type expected struct {
-		errCheck  assert.ErrorAssertionFunc
-		added     []testItem
-		removed   []testItem
-		deltaLink assert.ValueAssertionFunc
+		errCheck      assert.ErrorAssertionFunc
+		added         []testItem
+		removed       []testItem
+		deltaLink     assert.ValueAssertionFunc
+		invertModTime bool
 	}
 
 	tests := []struct {
@@ -1042,6 +1075,61 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 					removedItem2,
 				},
 				deltaLink: assert.Empty,
+			},
+		},
+		{
+			name: "TwoValidPages DeltaNotSupported SwitchModTimeValidity",
+			pagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) NonDeltaHandler[testItem] {
+				return &testIDsNonDeltaMultiPager{
+					t: t,
+					pages: []pageResult{
+						{
+							items: []testItem{
+								addedItem1,
+								removedItem1,
+							},
+						},
+						{
+							items: []testItem{
+								removedItem2,
+								addedItem2,
+							},
+						},
+					},
+					validModTimes: !validModTimes,
+				}
+			},
+			deltaPagerGetter: func(
+				t *testing.T,
+				validModTimes bool,
+			) DeltaHandler[testItem] {
+				return newDeltaPager(
+					&testIDsNonDeltaMultiPager{
+						t: t,
+						pages: []pageResult{
+							{
+								err:        graph.ErrDeltaNotSupported,
+								needsReset: true,
+							},
+						},
+						validModTimes: validModTimes,
+					})
+			},
+			expect: expected{
+				errCheck: assert.NoError,
+				added: []testItem{
+					addedItem1,
+					addedItem2,
+				},
+				removed: []testItem{
+					removedItem1,
+					removedItem2,
+				},
+				deltaLink:     assert.Empty,
+				invertModTime: true,
 			},
 		},
 		{
@@ -1241,7 +1329,12 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						"getting added and removed item IDs: %+v",
 						clues.ToCore(err))
 
-					assert.Equal(t, modTimeTest.validModTimes, addRemoved.ValidModTimes, "valid mod times")
+					wantModTime := modTimeTest.validModTimes
+					if test.expect.invertModTime {
+						wantModTime = !wantModTime
+					}
+
+					assert.Equal(t, wantModTime, addRemoved.ValidModTimes, "valid mod times")
 					assert.True(t, addRemoved.DU.Reset, "delta reset")
 					test.expect.deltaLink(t, addRemoved.DU.URL, "delta link")
 
