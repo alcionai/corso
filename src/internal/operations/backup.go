@@ -338,6 +338,7 @@ func (op *BackupOperation) do(
 	backupID model.StableID,
 ) (*details.Builder, error) {
 	lastBackupVersion := version.NoBackup
+	service := op.Selectors.PathService()
 
 	reasons, err := op.Selectors.Reasons(op.account.ID(), false)
 	if err != nil {
@@ -385,7 +386,7 @@ func (op *BackupOperation) do(
 	//   * the base finder code to skip over older bases (breaks isolation a bit
 	//     by requiring knowledge of good/bad backup versions for different
 	//     services)
-	if op.Selectors.PathService() == path.GroupsService {
+	if service == path.GroupsService {
 		if mans.MinBackupVersion() != version.NoBackup &&
 			mans.MinBackupVersion() < version.Groups9Update {
 			logger.Ctx(ctx).Info("dropping merge bases due to groups version change")
@@ -430,6 +431,22 @@ func (op *BackupOperation) do(
 	if canUseMetadata {
 		lastBackupVersion = mans.MinBackupVersion()
 	}
+
+	// Use sliding window limiter for Exchange if the feature is not explicitly
+	// disabled. For other services we don't use sliding window limiter.
+	enableSlidingLim := false
+	if service == path.ExchangeService &&
+		!op.Options.ToggleFeatures.DisableSlidingWindowLimiter {
+		enableSlidingLim = true
+	}
+
+	// Select an appropriate rate limiter for the service.
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{
+			Service:              service,
+			EnableSlidingLimiter: enableSlidingLim,
+		})
 
 	// TODO(ashmrtn): This should probably just return a collection that deletes
 	// the entire subtree instead of returning an additional bool. That way base
@@ -490,6 +507,12 @@ func (op *BackupOperation) do(
 	opStats.ctrl = op.bp.Wait()
 
 	logger.Ctx(ctx).Debug(opStats.ctrl)
+
+	// For exchange, rate limits are enforced on a mailbox level. Reset the
+	// rate limiter so that it doesn't accidentally throttle following mailboxes.
+	// This is a no-op if we are using token bucket limiter since it refreshes
+	// tokens on a fixed per second basis.
+	graph.ResetLimiter(ctx)
 
 	return deets, nil
 }
