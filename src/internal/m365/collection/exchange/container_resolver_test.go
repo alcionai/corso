@@ -184,6 +184,20 @@ func (suite *RankedContainerResolverUnitSuite) TestItemByID() {
 			itemID:      id1,
 			expectFound: false,
 		},
+		{
+			name:        "IncludedAndExcluded",
+			includes:    []string{id1},
+			excludes:    []string{id1},
+			itemID:      id1,
+			expectFound: true,
+		},
+		{
+			name:        "IncludedAndExcluded NotInBaseResolver",
+			includes:    []string{idNotInBase},
+			excludes:    []string{idNotInBase},
+			itemID:      idNotInBase,
+			expectFound: false,
+		},
 	}
 
 	for _, test := range table {
@@ -293,6 +307,22 @@ func (suite *RankedContainerResolverUnitSuite) TestItems() {
 			includes:             []string{id2, id1, idNotInBase},
 			expectPrefix:         []string{id2, id1},
 			expectExtraUnordered: []string{id3},
+			expectErr:            assert.NoError,
+		},
+		{
+			name:                 "ReturnsRankedItems IncludedAndExcluded",
+			includes:             []string{id2},
+			excludes:             []string{id2},
+			expectPrefix:         []string{id2},
+			expectExtraUnordered: []string{id1, id3},
+			expectErr:            assert.NoError,
+		},
+		{
+			name:                 "ReturnsRankedItems IncludedAndExcluded NotInBase",
+			includes:             []string{idNotInBase},
+			excludes:             []string{idNotInBase},
+			expectPrefix:         []string{},
+			expectExtraUnordered: []string{id1, id2, id3},
 			expectErr:            assert.NoError,
 		},
 		{

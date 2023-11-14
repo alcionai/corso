@@ -540,7 +540,11 @@ func (cr *rankedContainerResolver) Items() []graph.CachedContainer {
 }
 
 func (cr *rankedContainerResolver) ItemByID(id string) graph.CachedContainer {
-	if _, ok := cr.resolvedExclude[id]; ok {
+	// Includes take priority over excludes so check those too.
+	_, exclude := cr.resolvedExclude[id]
+	includeIdx := slices.Index(cr.resolvedInclude, id)
+
+	if exclude && includeIdx == -1 {
 		return nil
 	}
 
