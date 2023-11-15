@@ -134,7 +134,7 @@ func (b *baseFinder) getBackupModel(
 
 	bup, err := b.bg.GetBackup(ctx, model.StableID(bID))
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	return bup, nil

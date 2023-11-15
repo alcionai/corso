@@ -365,17 +365,17 @@ func (aw *adapterWrap) Send(
 	for i := 0; i < aw.config.maxConnectionRetries+1; i++ {
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
-		sp, err = aw.RequestAdapter.Send(ctx, requestInfo, constructor, errorMappings)
+		sp, err = aw.RequestAdapter.Send(ictx, requestInfo, constructor, errorMappings)
 		if err == nil {
 			break
 		}
 
 		if IsErrApplicationThrottled(err) {
-			return nil, clues.Stack(ErrApplicationThrottled, err).WithTrace(1).WithClues(ictx)
+			return nil, clues.StackWC(ictx, ErrApplicationThrottled, err).WithTrace(1)
 		}
 
 		if !IsErrConnectionReset(err) && !connectionEnded.Compare(err.Error()) {
-			return nil, clues.Stack(err).WithTrace(1).WithClues(ictx)
+			return nil, clues.StackWC(ictx, err).WithTrace(1)
 		}
 
 		logger.Ctx(ictx).Debug("http connection error")

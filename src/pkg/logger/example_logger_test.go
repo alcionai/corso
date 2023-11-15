@@ -137,7 +137,7 @@ func Example_logger_clues_standards() {
 	// 2. The last func to handle a context must add the clues to the error.
 	//
 	// preferred
-	err := clues.Wrap(err, "reason").WithClues(ctx)
+	err := clues.WrapWC(ctx, err, "reason")
 	// this dereference added for linter happiness
 	_ = err
 

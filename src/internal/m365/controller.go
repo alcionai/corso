@@ -75,12 +75,12 @@ func NewController(
 
 	creds, err := acct.M365Config()
 	if err != nil {
-		return nil, clues.Wrap(err, "retrieving m365 account configuration").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "retrieving m365 account configuration")
 	}
 
 	ac, err := api.NewClient(creds, co, counter)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating api client").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "creating api client")
 	}
 
 	ctrl := Controller{
@@ -287,7 +287,7 @@ func (ctrl *Controller) PopulateProtectedResourceIDAndName(
 	ins idname.Cacher,
 ) (idname.Provider, error) {
 	if ctrl.resourceHandler == nil {
-		return nil, clues.Stack(ErrNoResourceLookup).WithClues(ctx)
+		return nil, clues.StackWC(ctx, ErrNoResourceLookup)
 	}
 
 	pr, err := ctrl.resourceHandler.GetResourceIDAndNameFrom(ctx, resourceID, ins)

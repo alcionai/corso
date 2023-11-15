@@ -309,8 +309,7 @@ func (oc *Collection) getDriveItemContent(
 
 		errs.AddRecoverable(
 			ctx,
-			clues.Wrap(err, "downloading item content").
-				WithClues(ctx).
+			clues.WrapWC(ctx, err, "downloading item content").
 				Label(fault.LabelForceNoBackupCreation))
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
@@ -508,8 +507,7 @@ func (lig *lazyItemGetter) GetData(
 		*lig.info,
 		lig.itemExtensionFactory)
 	if err != nil {
-		err := clues.Wrap(err, "adding extensions").
-			WithClues(ctx).
+		err := clues.WrapWC(ctx, err, "adding extensions").
 			Label(fault.LabelForceNoBackupCreation)
 
 		return nil, nil, false, err
@@ -637,8 +635,7 @@ func (oc *Collection) streamDriveItem(
 		// permissions change does not update mod time.
 		time.Now())
 	if err != nil {
-		errs.AddRecoverable(ctx, clues.Stack(err).
-			WithClues(ctx).
+		errs.AddRecoverable(ctx, clues.StackWC(ctx, err).
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
