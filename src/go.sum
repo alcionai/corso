@@ -55,8 +55,8 @@ github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1o
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
-github.com/alcionai/clues v0.0.0-20231114181214-c3e9774dd5fc h1:VEctYqzZHi4VUnGt6LfbV9s0RvMBFluCF1jIdtM94Dw=
-github.com/alcionai/clues v0.0.0-20231114181214-c3e9774dd5fc/go.mod h1:hGnRqQtV7YoojQSNMtqFK0TvfcwAljGZhUEQwx1lw34=
+github.com/alcionai/clues v0.0.0-20231115004051-523cbddac8e8 h1:kdpkhcKWWxnZFteGjglHvFTTPCPsvjhKDDY9J1Od6Sg=
+github.com/alcionai/clues v0.0.0-20231115004051-523cbddac8e8/go.mod h1:hGnRqQtV7YoojQSNMtqFK0TvfcwAljGZhUEQwx1lw34=
 github.com/alcionai/kopia v0.12.2-0.20230822191057-17d4deff94a3 h1:6YjRGjEZr/Bmux1XkS13Re1m1LI7VAcbFsA3PiqO2BI=
 github.com/alcionai/kopia v0.12.2-0.20230822191057-17d4deff94a3/go.mod h1:u5wAx1XN07PJsO1BLBkGicwSrbmAC1biONnumSCA210=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
