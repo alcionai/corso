@@ -1784,12 +1784,16 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 	}
 
 	table := []struct {
-		name     string
-		limits   control.Limits
-		data     []itemContainer
-		includes []string
-		excludes []string
-		expect   expected
+		name string
+		// notPreview should be set if the options shouldn't set the PreviewBackup
+		// flag. Using the inverse here since the majority of tests will be testing
+		// with the PreviewBackup flag set.
+		notPreview bool
+		limits     control.Limits
+		data       []itemContainer
+		includes   []string
+		excludes   []string
+		expect     expected
 	}{
 		{
 			name: "IncludeContainer NoItemLimit ContainerLimit",
@@ -1976,6 +1980,47 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 				numItems: 10,
 			},
 		},
+		{
+			name:       "NotPreview IgnoresLimits",
+			notPreview: true,
+			limits: control.Limits{
+				MaxItems:             1,
+				MaxItemsPerContainer: 1,
+				MaxContainers:        1,
+			},
+			excludes: []string{ptr.Val(containers[1].GetId())},
+			data: []itemContainer{
+				{
+					container: containers[0],
+					added:     []string{"a1", "a2", "a3", "a4", "a5"},
+				},
+				{
+					container: containers[1],
+					added:     []string{"a6", "a7", "a8", "a9", "a10"},
+				},
+				{
+					container: containers[2],
+					added:     []string{"a11", "a12", "a13", "a14", "a15"},
+				},
+			},
+			expect: expected{
+				mustHave: []itemContainer{
+					{
+						container: containers[0],
+						added:     []string{"a1", "a2", "a3", "a4", "a5"},
+					},
+					{
+						container: containers[1],
+						added:     []string{"a6", "a7", "a8", "a9", "a10"},
+					},
+					{
+						container: containers[2],
+						added:     []string{"a11", "a12", "a13", "a14", "a15"},
+					},
+				},
+				numItems: 15,
+			},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -2011,7 +2056,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 			// deadlock.
 			opts := control.DefaultOptions()
 			opts.FailureHandling = control.FailFast
-			opts.ToggleFeatures.PreviewBackup = true
+			opts.ToggleFeatures.PreviewBackup = !test.notPreview
 			opts.ItemLimits = test.limits
 
 			resolver := newMockResolver(inputContainers...)
