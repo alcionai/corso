@@ -10,6 +10,7 @@ import (
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -68,4 +69,12 @@ func (mbp mockBackupProducer) GetMetadataPaths(
 ) ([]path.RestorePaths, error) {
 	ctrl := m365.Controller{}
 	return ctrl.GetMetadataPaths(ctx, r, base, errs)
+}
+
+func (mbp mockBackupProducer) SetRateLimiter(
+	ctx context.Context,
+	service path.ServiceType,
+	options control.Options,
+) context.Context {
+	return ctx
 }

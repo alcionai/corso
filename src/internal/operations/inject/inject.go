@@ -44,6 +44,14 @@ type (
 		) ([]path.RestorePaths, error)
 
 		Wait() *data.CollectionStats
+
+		// SetRateLimiter selects a rate limiter type for the service being
+		// backed up and binds it to the context.
+		SetRateLimiter(
+			ctx context.Context,
+			service path.ServiceType,
+			options control.Options,
+		) context.Context
 	}
 
 	RestoreConsumer interface {
