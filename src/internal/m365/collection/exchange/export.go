@@ -36,7 +36,7 @@ func streamItems(
 	ctx context.Context,
 	drc []data.RestoreCollection,
 	backupVersion int,
-	cec control.ExportConfig,
+	config control.ExportConfig,
 	ch chan<- export.Item,
 	stats *data.ExportStats,
 ) {
@@ -71,7 +71,7 @@ func streamItems(
 				continue
 			}
 
-			email, err := eml.ToEml(msg)
+			email, err := eml.ToEml(ctx, msg)
 			if err != nil {
 				ch <- export.Item{
 					ID:    id,

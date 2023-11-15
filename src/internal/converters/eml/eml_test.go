@@ -1,6 +1,7 @@
 package eml
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -30,7 +31,7 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 	msg, err := api.BytesToMessageable(body)
 	require.NoError(t, err, "creating message")
 
-	_, err = ToEml(msg)
+	_, err = ToEml(context.Background(), msg)
 	// TODO(meain): add more tests on the generated content
 	// Cannot test output directly as it contains a random boundary
 	assert.NoError(t, err, "converting to eml")

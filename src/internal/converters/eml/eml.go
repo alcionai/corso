@@ -26,7 +26,7 @@ const (
 )
 
 // ToEml converts a Messageable to .eml format
-func ToEml(data models.Messageable) (string, error) {
+func ToEml(ctx context.Context, data models.Messageable) (string, error) {
 	email := mail.NewMSG()
 
 	if data.GetFrom() != nil {
@@ -70,7 +70,7 @@ func ToEml(data models.Messageable) (string, error) {
 	if data.GetReplyTo() != nil {
 		rts := data.GetReplyTo()
 		if len(rts) > 1 {
-			logger.Ctx(context.TODO()).
+			logger.Ctx(ctx).
 				With("id", ptr.Val(data.GetId()),
 					"reply_to_count", len(rts)).
 				Warn("more than 1 reply to")
@@ -103,7 +103,7 @@ func ToEml(data models.Messageable) (string, error) {
 			default:
 				// https://learn.microsoft.com/en-us/graph/api/resources/itembody?view=graph-rest-1.0#properties
 				// This should not be possible according to the documentation
-				logger.Ctx(context.TODO()).
+				logger.Ctx(ctx).
 					With("body_type", data.GetBody().GetContentType().String(),
 						"id", ptr.Val(data.GetId())).
 					Info("unknown body content type")
