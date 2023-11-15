@@ -110,11 +110,13 @@ func (s *slidingWindow) WaitN(ctx context.Context, n int) error {
 		case <-ctx.Done():
 			return clues.Stack(ctx.Err())
 		case <-s.permits:
-			s.mu.Lock()
-			s.curr.count[s.currentInterval]++
-			s.mu.Unlock()
 		}
 	}
+
+	// Mark n tokens as granted in the current interval.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.curr.count[s.currentInterval] += n
 
 	return nil
 }
