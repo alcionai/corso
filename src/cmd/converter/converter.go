@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -35,7 +36,7 @@ func main() {
 				log.Fatal(err)
 			}
 
-			out, err = eml.ToEml(msg)
+			out, err = eml.ToEml(context.Background(), msg)
 			if err != nil {
 				log.Fatal(err)
 			}
