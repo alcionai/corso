@@ -46,7 +46,7 @@ func CreateCollections(
 
 	handler, ok := handlers[category]
 	if !ok {
-		return nil, clues.New("unsupported backup category type").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "unsupported backup category type")
 	}
 
 	foldersComplete := observe.MessageWithCompletion(
@@ -233,7 +233,7 @@ func populateCollections(
 		)
 
 		if collections[id] != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
+			el.AddRecoverable(ctx, clues.WrapWC(ictx, err, "conflict: tombstone exists for a live collection"))
 			continue
 		}
 

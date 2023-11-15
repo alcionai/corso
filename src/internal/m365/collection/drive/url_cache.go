@@ -201,7 +201,7 @@ func (uc *urlCache) readCache(
 
 	props, ok := uc.idToProps[itemID]
 	if !ok {
-		return itemProps{}, clues.New("item not found in cache").WithClues(ctx)
+		return itemProps{}, clues.NewWC(ctx, "item not found in cache")
 	}
 
 	return props, nil

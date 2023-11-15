@@ -453,8 +453,7 @@ func batchWithMaxItemCount[T any](
 		// cancel the pager because it should see the context cancellation once we
 		// stop attempting to fetch the next page.
 		if ctx.Err() != nil {
-			return nil, nil, DeltaUpdate{}, clues.Stack(ctx.Err(), context.Cause(ctx)).
-				WithClues(ctx)
+			return nil, nil, DeltaUpdate{}, clues.StackWC(ctx, ctx.Err(), context.Cause(ctx))
 		}
 
 		// Get the next page first thing in the loop instead of last thing so we

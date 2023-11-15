@@ -28,15 +28,15 @@ func ConsumeExportCollections(
 		folder := filepath.Join(exportLocation, col.BasePath())
 		ictx := clues.Add(ctx, "dir_name", folder)
 
-		for item := range col.Items(ctx) {
+		for item := range col.Items(ictx) {
 			if item.Error != nil {
-				el.AddRecoverable(ictx, clues.Wrap(item.Error, "getting item").WithClues(ctx))
+				el.AddRecoverable(ictx, clues.Wrap(item.Error, "getting item"))
 			}
 
 			if err := writeItem(ictx, item, folder); err != nil {
 				el.AddRecoverable(
 					ictx,
-					clues.Wrap(err, "writing item").With("file_name", item.Name).WithClues(ctx))
+					clues.Wrap(err, "writing item").With("file_name", item.Name))
 			}
 		}
 	}
@@ -60,19 +60,19 @@ func writeItem(ctx context.Context, item Item, folder string) error {
 
 	err := os.MkdirAll(folder, os.ModePerm)
 	if err != nil {
-		return clues.Wrap(err, "creating directory")
+		return clues.WrapWC(ctx, err, "creating directory")
 	}
 
 	// In case the user tries to restore to a non-clean
 	// directory, we might run into collisions an fail.
 	f, err := os.Create(fpath)
 	if err != nil {
-		return clues.Wrap(err, "creating file")
+		return clues.WrapWC(ctx, err, "creating file")
 	}
 
 	_, err = io.Copy(f, progReader)
 	if err != nil {
-		return clues.Wrap(err, "writing data")
+		return clues.WrapWC(ctx, err, "writing data")
 	}
 
 	return nil

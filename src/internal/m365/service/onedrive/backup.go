@@ -28,7 +28,7 @@ func ProduceBackupCollections(
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	odb, err := bpc.Selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "parsing selector").WithClues(ctx)
+		return nil, nil, false, clues.WrapWC(ctx, err, "parsing selector")
 	}
 
 	var (

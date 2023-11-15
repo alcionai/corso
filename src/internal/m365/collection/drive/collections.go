@@ -177,7 +177,7 @@ func DeserializeMetadata(
 		for breakLoop := false; !breakLoop; {
 			select {
 			case <-ctx.Done():
-				return nil, nil, false, clues.Wrap(ctx.Err(), "deserializing previous backup metadata").WithClues(ctx)
+				return nil, nil, false, clues.WrapWC(ctx, ctx.Err(), "deserializing previous backup metadata")
 
 			case item, ok := <-items:
 				if !ok {
@@ -212,7 +212,7 @@ func DeserializeMetadata(
 				// these cases. We can make the logic for deciding when to continue vs.
 				// when to fail less strict in the future if needed.
 				if err != nil {
-					errs.Fail(clues.Stack(err).WithClues(ictx))
+					errs.Fail(clues.StackWC(ictx, err))
 
 					return map[string]string{}, map[string]map[string]string{}, false, nil
 				}
@@ -408,7 +408,7 @@ func (c *Collections) Get(
 
 			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
 			if err != nil {
-				return nil, false, clues.Wrap(err, "making exclude prefix").WithClues(ictx)
+				return nil, false, clues.WrapWC(ictx, err, "making exclude prefix")
 			}
 
 			ssmb.Add(p.String(), excludedItemIDs)
@@ -433,7 +433,7 @@ func (c *Collections) Get(
 
 			prevPath, err := path.FromDataLayerPath(p, false)
 			if err != nil {
-				err = clues.Wrap(err, "invalid previous path").WithClues(ictx).With("deleted_path", p)
+				err = clues.WrapWC(ictx, err, "invalid previous path").With("deleted_path", p)
 				return nil, false, err
 			}
 
@@ -449,7 +449,7 @@ func (c *Collections) Get(
 				true,
 				nil)
 			if err != nil {
-				return nil, false, clues.Wrap(err, "making collection").WithClues(ictx)
+				return nil, false, clues.WrapWC(ictx, err, "making collection")
 			}
 
 			c.CollectionMap[driveID][fldID] = col
@@ -471,7 +471,7 @@ func (c *Collections) Get(
 	for driveID := range driveTombstones {
 		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, driveID)
 		if err != nil {
-			return nil, false, clues.Wrap(err, "making drive tombstone for previous path").WithClues(ctx)
+			return nil, false, clues.WrapWC(ctx, err, "making drive tombstone for previous path")
 		}
 
 		coll, err := NewCollection(
@@ -486,7 +486,7 @@ func (c *Collections) Get(
 			true,
 			nil)
 		if err != nil {
-			return nil, false, clues.Wrap(err, "making drive tombstone").WithClues(ctx)
+			return nil, false, clues.WrapWC(ctx, err, "making drive tombstone")
 		}
 
 		collections = append(collections, coll)
@@ -814,12 +814,13 @@ func (c *Collections) processItem(
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())
 		isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
-		ictx     = clues.Add(
-			ctx,
-			"item_id", itemID,
-			"item_name", clues.Hide(itemName),
-			"item_is_folder", isFolder)
 	)
+
+	ctx = clues.Add(
+		ctx,
+		"item_id", itemID,
+		"item_name", clues.Hide(itemName),
+		"item_is_folder", isFolder)
 
 	if item.GetMalware() != nil {
 		addtl := graph.ItemInfo(item)
@@ -847,19 +848,18 @@ func (c *Collections) processItem(
 			excludedItemIDs,
 			invalidPrevDelta)
 
-		return clues.Stack(err).WithClues(ictx).OrNil()
+		return clues.StackWC(ctx, err).OrNil()
 	}
 
 	collectionPath, err := c.getCollectionPath(driveID, item)
 	if err != nil {
-		return clues.Stack(err).
-			WithClues(ictx).
+		return clues.StackWC(ctx, err).
 			Label(fault.LabelForceNoBackupCreation)
 	}
 
 	// Skip items that don't match the folder selectors we were given.
 	if shouldSkip(ctx, collectionPath, c.handler, driveName) {
-		logger.Ctx(ictx).Debugw("path not selected", "skipped_path", collectionPath.String())
+		logger.Ctx(ctx).Debugw("path not selected", "skipped_path", collectionPath.String())
 		return nil
 	}
 
@@ -872,8 +872,7 @@ func (c *Collections) processItem(
 		if ok {
 			prevPath, err = path.FromDataLayerPath(prevPathStr, false)
 			if err != nil {
-				return clues.Wrap(err, "invalid previous path").
-					WithClues(ictx).
+				return clues.WrapWC(ctx, err, "invalid previous path").
 					With("prev_path_string", path.LoggableDir(prevPathStr))
 			}
 		} else if item.GetRoot() != nil {
@@ -892,7 +891,7 @@ func (c *Collections) processItem(
 			c.CollectionMap,
 			collectionPath)
 		if err != nil {
-			return clues.Stack(err).WithClues(ictx)
+			return clues.StackWC(ctx, err)
 		}
 
 		if found {
@@ -948,7 +947,7 @@ func (c *Collections) processItem(
 			invalidPrevDelta || collPathAlreadyExists,
 			nil)
 		if err != nil {
-			return clues.Stack(err).WithClues(ictx)
+			return clues.StackWC(ctx, err)
 		}
 
 		col.driveName = driveName
@@ -970,16 +969,16 @@ func (c *Collections) processItem(
 	case item.GetFile() != nil:
 		// Deletions are handled above so this is just moves/renames.
 		if len(ptr.Val(item.GetParentReference().GetId())) == 0 {
-			return clues.New("file without parent ID").WithClues(ictx)
+			return clues.NewWC(ctx, "file without parent ID")
 		}
 
 		// Get the collection for this item.
 		parentID := ptr.Val(item.GetParentReference().GetId())
-		ictx = clues.Add(ictx, "parent_id", parentID)
+		ctx = clues.Add(ctx, "parent_id", parentID)
 
 		collection, ok := c.CollectionMap[driveID][parentID]
 		if !ok {
-			return clues.New("item seen before parent folder").WithClues(ictx)
+			return clues.NewWC(ctx, "item seen before parent folder")
 		}
 
 		// This will only kick in if the file was moved multiple times
@@ -989,15 +988,13 @@ func (c *Collections) processItem(
 		if ok {
 			prevColl, found := c.CollectionMap[driveID][prevParentContainerID]
 			if !found {
-				return clues.New("previous collection not found").
-					With("prev_parent_container_id", prevParentContainerID).
-					WithClues(ictx)
+				return clues.NewWC(ctx, "previous collection not found").
+					With("prev_parent_container_id", prevParentContainerID)
 			}
 
 			if ok := prevColl.Remove(itemID); !ok {
-				return clues.New("removing item from prev collection").
-					With("prev_parent_container_id", prevParentContainerID).
-					WithClues(ictx)
+				return clues.NewWC(ctx, "removing item from prev collection").
+					With("prev_parent_container_id", prevParentContainerID)
 			}
 		}
 
@@ -1022,8 +1019,7 @@ func (c *Collections) processItem(
 		}
 
 	default:
-		return clues.New("item is neither folder nor file").
-			WithClues(ictx).
+		return clues.NewWC(ctx, "item is neither folder nor file").
 			Label(fault.LabelForceNoBackupCreation)
 	}
 
