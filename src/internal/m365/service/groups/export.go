@@ -177,7 +177,7 @@ func (h *groupsHandler) PopulateProtectedResourceIDAndName(
 	ins idname.Cacher,
 ) (idname.Provider, error) {
 	if h.resourceGetter == nil {
-		return nil, clues.Stack(resource.ErrNoResourceLookup).WithClues(ctx)
+		return nil, clues.StackWC(ctx, resource.ErrNoResourceLookup)
 	}
 
 	pr, err := h.resourceGetter.GetResourceIDAndNameFrom(ctx, resourceID, ins)
