@@ -205,6 +205,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	ctx = clues.AddTrace(ctx)
 
+	// Select an appropriate rate limiter for the service.
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{
+			Service: op.Selectors.PathService(),
+		})
+
 	// Check if the protected resource has the service enabled in order for us
 	// to run a backup.
 	enabled, err := op.bp.IsServiceEnabled(
@@ -423,13 +430,6 @@ func (op *BackupOperation) do(
 	if canUseMetadata {
 		lastBackupVersion = mans.MinBackupVersion()
 	}
-
-	// Select an appropriate rate limiter for the service.
-	ctx = graph.BindRateLimiterConfig(
-		ctx,
-		graph.LimiterCfg{
-			Service: op.Selectors.PathService(),
-		})
 
 	// TODO(ashmrtn): This should probably just return a collection that deletes
 	// the entire subtree instead of returning an additional bool. That way base
