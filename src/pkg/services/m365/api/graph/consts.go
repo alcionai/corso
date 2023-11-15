@@ -14,7 +14,7 @@ const (
 	// create buffer pools for each upload. This is not the actual
 	// number of uploads, but the max that can be specified. This is
 	// added as a safeguard in case we misconfigure the values.
-	maxConccurrentUploads = 20
+	maxConcurrentUploads = 20
 
 	// CopyBufferSize is used for chunked upload
 	// Microsoft recommends 5-10MB buffers
@@ -94,8 +94,8 @@ func (p parallelism) ItemUpload() int {
 		return 1
 	}
 
-	if p.itemUpload > maxConccurrentUploads {
-		return maxConccurrentUploads
+	if p.itemUpload > maxConcurrentUploads {
+		return maxConcurrentUploads
 	}
 
 	return p.itemUpload

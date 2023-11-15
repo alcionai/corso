@@ -161,11 +161,19 @@ func (c Client) Post(
 // per-call config
 // ---------------------------------------------------------------------------
 
+// CallConfig defines additional parameters to add to the query like field
+// selection and limiting results.
+//
+// Not all calls may support all options. Check individual implementations to
+// see what's supported and what's not.
 type CallConfig struct {
 	Expand              []string
 	Select              []string
 	CanMakeDeltaQueries bool
 	UseImmutableIDs     bool
+	// LimitResults limits the returned results to the given number. If 0, returns
+	// all results.
+	LimitResults int
 }
 
 // ---------------------------------------------------------------------------
