@@ -24,7 +24,7 @@ var _ inject.ServiceHandler = &sharepointHandler{}
 func NewSharePointHandler(
 	opts control.Options,
 	apiClient api.Client,
-	resourceClient idname.GetResourceIDAndNamer,
+	resourceGetter idname.GetResourceIDAndNamer,
 ) *sharepointHandler {
 	return &sharepointHandler{
 		baseSharePointHandler: baseSharePointHandler{
@@ -32,7 +32,7 @@ func NewSharePointHandler(
 			backupDriveIDNames: idname.NewCache(nil),
 		},
 		apiClient:      apiClient,
-		resourceClient: resourceClient,
+		resourceGetter: resourceGetter,
 	}
 }
 
@@ -113,7 +113,7 @@ func (h *baseSharePointHandler) ProduceExportCollections(
 type sharepointHandler struct {
 	baseSharePointHandler
 	apiClient      api.Client
-	resourceClient idname.GetResourceIDAndNamer
+	resourceGetter idname.GetResourceIDAndNamer
 }
 
 func (h *sharepointHandler) IsServiceEnabled(
@@ -130,11 +130,11 @@ func (h *sharepointHandler) PopulateProtectedResourceIDAndName(
 	resource string, // Can be either ID or name.
 	ins idname.Cacher,
 ) (idname.Provider, error) {
-	if h.resourceClient == nil {
+	if h.resourceGetter == nil {
 		return nil, clues.Stack(graph.ErrNoResourceLookup).WithClues(ctx)
 	}
 
-	pr, err := h.resourceClient.GetResourceIDAndNameFrom(ctx, resource, ins)
+	pr, err := h.resourceGetter.GetResourceIDAndNameFrom(ctx, resource, ins)
 
 	return pr, clues.Wrap(err, "identifying resource owner").OrNil()
 }

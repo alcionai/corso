@@ -26,7 +26,7 @@ var _ inject.ServiceHandler = &groupsHandler{}
 func NewGroupsHandler(
 	opts control.Options,
 	apiClient api.Client,
-	resourceClient idname.GetResourceIDAndNamer,
+	resourceGetter idname.GetResourceIDAndNamer,
 ) *groupsHandler {
 	return &groupsHandler{
 		baseGroupsHandler: baseGroupsHandler{
@@ -35,7 +35,7 @@ func NewGroupsHandler(
 			backupSiteIDWebURL: idname.NewCache(nil),
 		},
 		apiClient:      apiClient,
-		resourceClient: resourceClient,
+		resourceGetter: resourceGetter,
 	}
 }
 
@@ -159,7 +159,7 @@ func (h *baseGroupsHandler) ProduceExportCollections(
 type groupsHandler struct {
 	baseGroupsHandler
 	apiClient      api.Client
-	resourceClient idname.GetResourceIDAndNamer
+	resourceGetter idname.GetResourceIDAndNamer
 }
 
 func (h *groupsHandler) IsServiceEnabled(
@@ -176,11 +176,11 @@ func (h *groupsHandler) PopulateProtectedResourceIDAndName(
 	resource string, // Can be either ID or name.
 	ins idname.Cacher,
 ) (idname.Provider, error) {
-	if h.resourceClient == nil {
+	if h.resourceGetter == nil {
 		return nil, clues.Stack(graph.ErrNoResourceLookup).WithClues(ctx)
 	}
 
-	pr, err := h.resourceClient.GetResourceIDAndNameFrom(ctx, resource, ins)
+	pr, err := h.resourceGetter.GetResourceIDAndNameFrom(ctx, resource, ins)
 
 	return pr, clues.Wrap(err, "identifying resource owner").OrNil()
 }

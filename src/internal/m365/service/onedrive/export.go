@@ -23,7 +23,7 @@ var _ inject.ServiceHandler = &onedriveHandler{}
 func NewOneDriveHandler(
 	opts control.Options,
 	apiClient api.Client,
-	resourceClient idname.GetResourceIDAndNamer,
+	resourceGetter idname.GetResourceIDAndNamer,
 ) *onedriveHandler {
 	return &onedriveHandler{
 		baseOneDriveHandler: baseOneDriveHandler{
@@ -31,7 +31,7 @@ func NewOneDriveHandler(
 			backupDriveIDNames: idname.NewCache(nil),
 		},
 		apiClient:      apiClient,
-		resourceClient: resourceClient,
+		resourceGetter: resourceGetter,
 	}
 }
 
@@ -99,7 +99,7 @@ func (h *baseOneDriveHandler) ProduceExportCollections(
 type onedriveHandler struct {
 	baseOneDriveHandler
 	apiClient      api.Client
-	resourceClient idname.GetResourceIDAndNamer
+	resourceGetter idname.GetResourceIDAndNamer
 }
 
 func (h *onedriveHandler) IsServiceEnabled(
@@ -116,11 +116,11 @@ func (h *onedriveHandler) PopulateProtectedResourceIDAndName(
 	resource string, // Can be either ID or name.
 	ins idname.Cacher,
 ) (idname.Provider, error) {
-	if h.resourceClient == nil {
+	if h.resourceGetter == nil {
 		return nil, clues.Stack(graph.ErrNoResourceLookup).WithClues(ctx)
 	}
 
-	pr, err := h.resourceClient.GetResourceIDAndNameFrom(ctx, resource, ins)
+	pr, err := h.resourceGetter.GetResourceIDAndNameFrom(ctx, resource, ins)
 
 	return pr, clues.Wrap(err, "identifying resource owner").OrNil()
 }
