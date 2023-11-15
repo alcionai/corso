@@ -129,6 +129,17 @@ func driveItem(
 	return coreItem(id, name, parentPath, parentID, it)
 }
 
+func driveItemWithSize(
+	id, name, parentPath, parentID string,
+	size int64,
+	it itemType,
+) models.DriveItemable {
+	res := coreItem(id, name, parentPath, parentID, it)
+	res.SetSize(ptr.To(size))
+
+	return res
+}
+
 func fileItem(
 	id, name, parentPath, parentID, url string,
 	deleted bool,
@@ -3549,6 +3560,645 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			assert.ElementsMatch(t, expectCollPaths, collPaths, "collection paths")
 
 			test.expectedDelList.AssertEqual(t, delList, "deleted items")
+		})
+	}
+}
+
+// TestGet_PreviewLimits checks that the limits set for preview backups in
+// control.Options.ItemLimits are respected. These tests run a reduced set of
+// checks that don't examine metadata, collection states, etc. They really just
+// check the expected items appear.
+func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
+	metadataPath, err := path.BuildMetadata(
+		tenant,
+		user,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
+
+	drive1 := models.NewDrive()
+	drive1.SetId(ptr.To(idx(drive, 1)))
+	drive1.SetName(ptr.To(namex(drive, 1)))
+
+	drive2 := models.NewDrive()
+	drive2.SetId(ptr.To(idx(drive, 2)))
+	drive2.SetName(ptr.To(namex(drive, 2)))
+
+	table := []struct {
+		name       string
+		limits     control.Limits
+		drives     []models.Driveable
+		enumerator mock.EnumerateItemsDeltaByDrive
+		// Collection name -> set of item IDs. We can't check item data because
+		// that's not mocked out. Metadata is checked separately.
+		expectedCollections map[string][]string
+	}{
+		{
+			name: "OneDrive SinglePage ExcludeItemsOverMaxSize",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+				MaxBytes:             5,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{{
+							Items: []models.DriveItemable{
+								driveRootItem(rootID), // will be present, not needed
+								driveItemWithSize(idx("1", "f"), namex("1", "f"), parent(1), rootID, 7, isFile),
+								driveItemWithSize(idx("2", "f"), namex("2", "f"), parent(1), rootID, 1, isFile),
+								driveItemWithSize(idx("3", "f"), namex("3", "f"), parent(1), rootID, 1, isFile),
+							},
+						}},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1): {idx("2", "f"), idx("3", "f")},
+			},
+		},
+		{
+			name: "OneDrive SinglePage SingleFolder ExcludeCombinedItemsOverMaxSize",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+				MaxBytes:             3,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{{
+							Items: []models.DriveItemable{
+								driveRootItem(rootID), // will be present, not needed
+								driveItemWithSize(idx("1", "f"), namex("1", "f"), parent(1), rootID, 1, isFile),
+								driveItemWithSize(idx("2", "f"), namex("2", "f"), parent(1), rootID, 2, isFile),
+								driveItemWithSize(idx("3", "f"), namex("3", "f"), parent(1), rootID, 1, isFile),
+							},
+						}},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1): {idx("1", "f"), idx("2", "f")},
+			},
+		},
+		{
+			name: "OneDrive SinglePage MultipleFolders ExcludeCombinedItemsOverMaxSize",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+				MaxBytes:             3,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{{
+							Items: []models.DriveItemable{
+								driveRootItem(rootID), // will be present, not needed
+								driveItemWithSize(idx("1", "f"), namex("1", "f"), parent(1), rootID, 1, isFile),
+								driveItemWithSize(idx("1", "d"), namex("1", "d"), parent(1), rootID, 1, isFolder),
+								driveItemWithSize(idx("2", "f"), namex("2", "f"), parent(1, namex("1", "d")), idx("1", "d"), 2, isFile),
+								driveItemWithSize(idx("3", "f"), namex("3", "f"), parent(1, namex("1", "d")), idx("1", "d"), 1, isFile),
+							},
+						}},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1):                  {idx("1", "f")},
+				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("2", "f")},
+			},
+		},
+		{
+			name: "OneDrive SinglePage SingleFolder ItemLimit",
+			limits: control.Limits{
+				MaxItems:             3,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+				MaxBytes:             999999,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{{
+							Items: []models.DriveItemable{
+								driveRootItem(rootID), // will be present, not needed
+								driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+								driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+								driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+								driveItem(idx("4", "f"), namex("4", "f"), parent(1), rootID, isFile),
+								driveItem(idx("5", "f"), namex("5", "f"), parent(1), rootID, isFile),
+								driveItem(idx("6", "f"), namex("6", "f"), parent(1), rootID, isFile),
+							},
+						}},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1): {idx("1", "f"), idx("2", "f"), idx("3", "f")},
+			},
+		},
+		{
+			name: "OneDrive MultiplePages MultipleFolders ItemLimit WithRepeatedItem",
+			limits: control.Limits{
+				MaxItems:             3,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+				MaxBytes:             999999,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									// Repeated items shouldn't count against the limit.
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx("6", "f"), namex("6", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1):                  {idx("1", "f"), idx("2", "f")},
+				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("3", "f")},
+			},
+		},
+		{
+			name: "OneDrive MultiplePages PageLimit",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+				MaxBytes:             999999,
+				MaxPages:             1,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx("6", "f"), namex("6", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1): {idx("1", "f"), idx("2", "f")},
+			},
+		},
+		{
+			name: "OneDrive MultiplePages PerContainerItemLimit",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 1,
+				MaxContainers:        999,
+				MaxBytes:             999999,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				// Root has an additional item. It's hard to fix that in the code
+				// though.
+				fullPath(1):                  {idx("1", "f"), idx("2", "f")},
+				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f")},
+			},
+		},
+		{
+			name: "OneDrive MultiplePages PerContainerItemLimit ItemUpdated",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 3,
+				MaxContainers:        999,
+				MaxBytes:             999999,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("0", "d"), namex("0", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("0", "d"), namex("0", "d"), parent(1), rootID, isFolder),
+									// Updated item that shouldn't count against the limit a second time.
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1):                  {},
+				fullPath(1, namex("0", "d")): {idx("0", "d"), idx("1", "f"), idx("2", "f"), idx("3", "f")},
+			},
+		},
+		{
+			name: "OneDrive MultiplePages PerContainerItemLimit MoveItemBetweenFolders",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 2,
+				MaxContainers:        999,
+				MaxBytes:             999999,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									// Put folder 0 at limit.
+									driveItem(idx("0", "d"), namex("0", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("0", "d"), namex("0", "d"), parent(1), rootID, isFolder),
+									// Try to move item from root to folder 0 which is already at the limit.
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1):                  {idx("1", "f"), idx("2", "f")},
+				fullPath(1, namex("0", "d")): {idx("0", "d"), idx("3", "f"), idx("4", "f")},
+			},
+		},
+		{
+			name: "OneDrive MultiplePages ContainerLimit LastContainerSplitAcrossPages",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        2,
+				MaxBytes:             999999,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1):                  {idx("1", "f"), idx("2", "f"), idx("3", "f")},
+				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f"), idx("5", "f")},
+			},
+		},
+		{
+			name: "OneDrive MultiplePages ContainerLimit NextContainerOnSamePage",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        2,
+				MaxBytes:             999999,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									// This container shouldn't be returned.
+									driveItem(idx("2", "d"), namex("2", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("7", "f"), namex("7", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
+									driveItem(idx("8", "f"), namex("8", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
+									driveItem(idx("9", "f"), namex("9", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1):                  {idx("1", "f"), idx("2", "f"), idx("3", "f")},
+				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f"), idx("5", "f")},
+			},
+		},
+		{
+			name: "OneDrive MultiplePages ContainerLimit NextContainerOnNextPage",
+			limits: control.Limits{
+				MaxItems:             999,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        2,
+				MaxBytes:             999999,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									// This container shouldn't be returned.
+									driveItem(idx("2", "d"), namex("2", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("7", "f"), namex("7", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
+									driveItem(idx("8", "f"), namex("8", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
+									driveItem(idx("9", "f"), namex("9", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1):                  {idx("1", "f"), idx("2", "f"), idx("3", "f")},
+				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f"), idx("5", "f")},
+			},
+		},
+		{
+			name: "TwoDrives SeparateLimitAccounting",
+			limits: control.Limits{
+				MaxItems:             3,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+				MaxBytes:             999999,
+				MaxPages:             999,
+			},
+			drives: []models.Driveable{drive1, drive2},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1), rootID, isFile),
+									driveItem(idx("5", "f"), namex("5", "f"), parent(1), rootID, isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+					idx(drive, 2): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(2), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(2), rootID, isFile),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(2), rootID, isFile),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(2), rootID, isFile),
+									driveItem(idx("5", "f"), namex("5", "f"), parent(2), rootID, isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1): {idx("1", "f"), idx("2", "f"), idx("3", "f")},
+				fullPath(2): {idx("1", "f"), idx("2", "f"), idx("3", "f")},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			mockDrivePager := &apiMock.Pager[models.Driveable]{
+				ToReturn: []apiMock.PagerResult[models.Driveable]{
+					{Values: test.drives},
+				},
+			}
+
+			mbh := mock.DefaultOneDriveBH(user)
+			mbh.DrivePagerV = mockDrivePager
+			mbh.DriveItemEnumeration = test.enumerator
+
+			opts := control.DefaultOptions()
+			opts.ToggleFeatures.PreviewBackup = true
+			opts.ItemLimits = test.limits
+
+			c := NewCollections(
+				mbh,
+				tenant,
+				idname.NewProvider(user, user),
+				func(*support.ControllerOperationStatus) {},
+				opts)
+
+			errs := fault.New(true)
+
+			delList := prefixmatcher.NewStringSetBuilder()
+
+			cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.True(t, canUsePreviousBackup, "can use previous backup")
+			assert.Empty(t, errs.Skipped())
+
+			collPaths := []string{}
+
+			for _, baseCol := range cols {
+				// There shouldn't be any deleted collections.
+				if !assert.NotEqual(
+					t,
+					data.DeletedState,
+					baseCol.State(),
+					"collection marked deleted") {
+					continue
+				}
+
+				folderPath := baseCol.FullPath().String()
+
+				if folderPath == metadataPath.String() {
+					continue
+				}
+
+				collPaths = append(collPaths, folderPath)
+
+				// TODO: We should really be getting items in the collection
+				// via the Items() channel. The lack of that makes this check a bit more
+				// bittle since internal details can change.  The wiring to support
+				// mocked GetItems is available.  We just haven't plugged it in yet.
+				col, ok := baseCol.(*Collection)
+				require.True(t, ok, "getting onedrive.Collection handle")
+
+				itemIDs := make([]string, 0, len(col.driveItems))
+
+				for id := range col.driveItems {
+					itemIDs = append(itemIDs, id)
+				}
+
+				assert.ElementsMatchf(
+					t,
+					test.expectedCollections[folderPath],
+					itemIDs,
+					"expected elements to match in collection with path %q",
+					folderPath)
+			}
+
+			assert.ElementsMatch(
+				t,
+				maps.Keys(test.expectedCollections),
+				collPaths,
+				"collection paths")
 		})
 	}
 }
