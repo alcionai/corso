@@ -81,57 +81,83 @@ func (suite *SlidingWindowUnitTestSuite) TestWaitBasic() {
 }
 
 // TestWaitSliding tests the sliding window functionality of the limiter with
-// time distributed Wait() calls.
-func (suite *SlidingWindowUnitTestSuite) TestWaitSliding() {
-	var (
-		t             = suite.T()
-		windowSize    = 1 * time.Second
-		slideInterval = 10 * time.Millisecond
-		capacity      = 100
-		// Test will run for duration of 2 windowSize.
-		numRequests = 2 * capacity
-		wg          sync.WaitGroup
-	)
-
-	defer goleak.VerifyNone(t)
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	s, err := NewSlidingWindowLimiter(windowSize, slideInterval, capacity)
-	require.NoError(t, err)
-
-	// Make concurrent requests to the limiter
-	for i := 0; i < numRequests; i++ {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			// Sleep for a random duration to spread out requests over multiple slide
-			// intervals & windows, so that we can test the sliding window logic better.
-			// Without this, the requests will be bunched up in the very first intervals
-			// of the 2 windows. Rest of the intervals will be empty.
-			time.Sleep(time.Duration(rand.Intn(1500)) * time.Millisecond)
-
-			err := s.Wait(ctx)
-			require.NoError(t, err)
-		}()
+// time distributed WaitN() calls.
+func (suite *SlidingWindowUnitTestSuite) TestWaitNSliding() {
+	tests := []struct {
+		Name          string
+		windowSize    time.Duration
+		slideInterval time.Duration
+		capacity      int
+		numRequests   int
+		n             int
+	}{
+		{
+			Name:          "Request 1 token each",
+			windowSize:    100 * time.Millisecond,
+			slideInterval: 10 * time.Millisecond,
+			capacity:      100,
+			numRequests:   200,
+			n:             1,
+		},
+		{
+			Name:          "Request N tokens each",
+			windowSize:    100 * time.Millisecond,
+			slideInterval: 10 * time.Millisecond,
+			capacity:      1000,
+			numRequests:   200,
+			n:             10,
+		},
 	}
-	wg.Wait()
 
-	// Shutdown the ticker before accessing the internal limiter state.
-	s.Shutdown()
+	for _, test := range tests {
+		suite.Run(test.Name, func() {
+			t := suite.T()
 
-	// Verify that number of requests allowed in each window is less than or equal
-	// to window capacity
-	sw := s.(*slidingWindow)
-	data := append(sw.prev.count, sw.curr.count...)
+			defer goleak.VerifyNone(t)
 
-	sums := slidingSums(data, sw.numIntervals)
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-	for _, sum := range sums {
-		require.True(t, sum <= capacity, "sum: %d, capacity: %d", sum, capacity)
+			s, err := NewSlidingWindowLimiter(test.windowSize, test.slideInterval, test.capacity)
+			require.NoError(t, err)
+
+			var wg sync.WaitGroup
+
+			// Make concurrent requests to the limiter
+			for i := 0; i < test.numRequests; i++ {
+				wg.Add(1)
+
+				go func() {
+					defer wg.Done()
+
+					// Sleep for a random duration to spread out requests over
+					// multiple slide intervals & windows, so that we can test
+					// the sliding window logic better.
+					// Without this, the requests will be bunched up in the very
+					// first interval of the 2 windows. Rest of the intervals
+					// will be empty.
+					time.Sleep(time.Duration(rand.Intn(1500)) * time.Millisecond)
+
+					err := s.WaitN(ctx, test.n)
+					require.NoError(t, err)
+				}()
+			}
+			wg.Wait()
+
+			// Shutdown the ticker before accessing the internal limiter state.
+			s.Shutdown()
+
+			// Verify that number of requests allowed in each window is less than or equal
+			// to window capacity
+			sw := s.(*slidingWindow)
+			data := append(sw.prev.count, sw.curr.count...)
+
+			sums := slidingSums(data, sw.numIntervals)
+
+			for _, sum := range sums {
+				require.True(t, sum <= test.capacity, "sum: %d, capacity: %d", sum, test.capacity)
+			}
+		})
 	}
 }
 
