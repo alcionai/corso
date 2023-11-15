@@ -70,6 +70,12 @@ func NewCollections(
 	}
 }
 
+func (c *Collections) resetStats() {
+	c.NumItems = 0
+	c.NumFiles = 0
+	c.NumContainers = 0
+}
+
 func deserializeAndValidateMetadata(
 	ctx context.Context,
 	cols []data.RestoreCollection,
@@ -756,6 +762,8 @@ func (c *Collections) PopulateDriveCollections(
 			seenFolders = map[string]string{}
 			c.CollectionMap[driveID] = map[string]*Collection{}
 			invalidPrevDelta = true
+
+			c.resetStats()
 		}
 
 		for _, item := range page {
@@ -972,11 +980,12 @@ func (c *Collections) processItem(
 			return clues.NewWC(ctx, "item seen before parent folder")
 		}
 
+
 		// This will only kick in if the file was moved multiple times
 		// within a single delta query.  We delete the file from the previous
 		// collection so that it doesn't appear in two places.
-		prevParentContainerID, ok := currPrevPaths[itemID]
-		if ok {
+		prevParentContainerID, prevAdded := currPrevPaths[itemID]
+		if prevAdded {
 			prevColl, found := c.CollectionMap[driveID][prevParentContainerID]
 			if !found {
 				return clues.NewWC(ctx, "previous collection not found").
@@ -991,7 +1000,9 @@ func (c *Collections) processItem(
 
 		currPrevPaths[itemID] = parentID
 
-		if collection.Add(item) {
+		// Only increment counters if the file didn't already get counted (i.e. it's
+		// not an item that was either updated or moved during the delta query).
+		if collection.Add(item) && !prevAdded {
 			c.NumItems++
 			c.NumFiles++
 		}
