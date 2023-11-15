@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -16,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var _ inject.ServiceHandler = &sharepointHandler{}
@@ -118,23 +118,23 @@ type sharepointHandler struct {
 
 func (h *sharepointHandler) IsServiceEnabled(
 	ctx context.Context,
-	resource string,
+	resourceID string,
 ) (bool, error) {
 	// TODO(ashmrtn): Move free function implementation to this function.
-	res, err := IsServiceEnabled(ctx, h.apiClient.Sites(), resource)
+	res, err := IsServiceEnabled(ctx, h.apiClient.Sites(), resourceID)
 	return res, clues.Stack(err).OrNil()
 }
 
 func (h *sharepointHandler) PopulateProtectedResourceIDAndName(
 	ctx context.Context,
-	resource string, // Can be either ID or name.
+	resourceID string, // Can be either ID or name.
 	ins idname.Cacher,
 ) (idname.Provider, error) {
 	if h.resourceGetter == nil {
-		return nil, clues.Stack(graph.ErrNoResourceLookup).WithClues(ctx)
+		return nil, clues.Stack(resource.ErrNoResourceLookup).WithClues(ctx)
 	}
 
-	pr, err := h.resourceGetter.GetResourceIDAndNameFrom(ctx, resource, ins)
+	pr, err := h.resourceGetter.GetResourceIDAndNameFrom(ctx, resourceID, ins)
 
 	return pr, clues.Wrap(err, "identifying resource owner").OrNil()
 }
