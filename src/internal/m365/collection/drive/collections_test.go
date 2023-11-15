@@ -3586,7 +3586,11 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 	drive2.SetName(ptr.To(namex(drive, 2)))
 
 	table := []struct {
-		name       string
+		name string
+		// notPreview denotes that this preview should set the PreviewBackup flag to
+		// false. Using the negation here since most tests *are* checking backup
+		// preview with limits enabled.
+		notPreview bool
 		limits     control.Limits
 		drives     []models.Driveable
 		enumerator mock.EnumerateItemsDeltaByDrive
@@ -4114,6 +4118,53 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				fullPath(2): {idx("1", "f"), idx("2", "f"), idx("3", "f")},
 			},
 		},
+		{
+			name:       "OneDrive PreviewDisabled MinimumLimitsIgnored",
+			notPreview: true,
+			limits: control.Limits{
+				MaxItems:             1,
+				MaxItemsPerContainer: 1,
+				MaxContainers:        1,
+				MaxBytes:             1,
+				MaxPages:             1,
+			},
+			drives: []models.Driveable{drive1},
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages: []mock.NextPage{
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
+									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+								},
+							},
+							{
+								Items: []models.DriveItemable{
+									driveRootItem(rootID), // will be present, not needed
+									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
+									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+								},
+							},
+						},
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			expectedCollections: map[string][]string{
+				fullPath(1):                  {idx("1", "f"), idx("2", "f"), idx("3", "f")},
+				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f"), idx("5", "f")},
+			},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -4133,7 +4184,7 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 			mbh.DriveItemEnumeration = test.enumerator
 
 			opts := control.DefaultOptions()
-			opts.ToggleFeatures.PreviewBackup = true
+			opts.ToggleFeatures.PreviewBackup = !test.notPreview
 			opts.ItemLimits = test.limits
 
 			c := NewCollections(
