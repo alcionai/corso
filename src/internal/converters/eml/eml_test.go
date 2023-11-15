@@ -45,13 +45,23 @@ func (suite *EMLUnitSuite) TestFormatAddress() {
 			email:    "johndoe@provider.com",
 			expected: "johndoe@provider.com",
 		},
+		{
+			tname:    "only email",
+			name:     "",
+			email:    "johndoe@provider.com",
+			expected: "johndoe@provider.com",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.tname, func(t *testing.T) {
 			entity := models.NewEmailAddress()
-			entity.SetName(ptr.To(tt.name))
-			entity.SetAddress(ptr.To(tt.email))
+			if len(tt.name) != 0 {
+				entity.SetName(ptr.To(tt.name))
+			}
+			if len(tt.email) != 0 {
+				entity.SetAddress(ptr.To(tt.email))
+			}
 
 			assert.Equal(t, tt.expected, formatAddress(entity))
 		})

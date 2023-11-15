@@ -30,7 +30,7 @@ func formatAddress(entry models.EmailAddressable) string {
 	name := ptr.Val(entry.GetName())
 	email := ptr.Val(entry.GetAddress())
 
-	if name == email {
+	if name == email || len(name) == 0 {
 		return email
 	}
 
