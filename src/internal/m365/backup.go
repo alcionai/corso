@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -223,4 +224,27 @@ func (ctrl *Controller) GetMetadataPaths(
 	}
 
 	return paths, nil
+}
+
+func (ctrl *Controller) SetRateLimiter(
+	ctx context.Context,
+	service path.ServiceType,
+	options control.Options,
+) context.Context {
+	// Use sliding window limiter for Exchange if the feature is not explicitly
+	// disabled. For other services we always use token bucket limiter.
+	enableSlidingLim := false
+	if service == path.ExchangeService &&
+		!options.ToggleFeatures.DisableSlidingWindowLimiter {
+		enableSlidingLim = true
+	}
+
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{
+			Service:              service,
+			EnableSlidingLimiter: enableSlidingLim,
+		})
+
+	return ctx
 }
