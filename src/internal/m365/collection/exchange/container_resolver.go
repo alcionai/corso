@@ -68,12 +68,12 @@ func (cr *containerResolver) IDToPath(
 
 	c, ok := cr.cache[folderID]
 	if !ok {
-		return nil, nil, clues.New("container not cached").WithClues(ctx)
+		return nil, nil, clues.NewWC(ctx, "container not cached")
 	}
 
 	p := c.Path()
 	if p == nil {
-		return nil, nil, clues.New("cached container has no path").WithClues(ctx)
+		return nil, nil, clues.NewWC(ctx, "cached container has no path")
 	}
 
 	return p, c.Location(), nil
@@ -91,7 +91,7 @@ func (cr *containerResolver) refreshContainer(
 	logger.Ctx(ctx).Debug("refreshing container")
 
 	if cr.refresher == nil {
-		return nil, false, clues.New("nil refresher").WithClues(ctx)
+		return nil, false, clues.NewWC(ctx, "nil refresher")
 	}
 
 	c, err := cr.refresher.refreshContainer(ctx, id)
@@ -100,7 +100,7 @@ func (cr *containerResolver) refreshContainer(
 		return nil, true, nil
 	} else if err != nil {
 		// This is some other error, just return it.
-		return nil, false, clues.Wrap(err, "refreshing container").WithClues(ctx)
+		return nil, false, clues.WrapWC(ctx, err, "refreshing container")
 	}
 
 	return c, false, nil
@@ -131,7 +131,7 @@ func (cr *containerResolver) recoverContainer(
 	}
 
 	if err := cr.addFolder(c); err != nil {
-		return nil, nil, false, clues.Wrap(err, "adding new container").WithClues(ctx)
+		return nil, nil, false, clues.WrapWC(ctx, err, "adding new container")
 	}
 
 	// Retry populating this container's paths.
@@ -162,11 +162,12 @@ func (cr *containerResolver) idToPath(
 
 	if depth >= maxIterations {
 		return resolvedPath{
-			idPath:  nil,
-			locPath: nil,
-			cached:  false,
-			deleted: false,
-		}, clues.New("path contains cycle or is too tall").WithClues(ctx)
+				idPath:  nil,
+				locPath: nil,
+				cached:  false,
+				deleted: false,
+			},
+			clues.NewWC(ctx, "path contains cycle or is too tall")
 	}
 
 	c, ok := cr.cache[folderID]
@@ -217,7 +218,7 @@ func (cr *containerResolver) idToPath(
 				locPath: nil,
 				cached:  true,
 				deleted: false,
-			}, clues.Wrap(err, "refreshing container").WithClues(ctx)
+			}, clues.WrapWC(ctx, err, "refreshing container")
 		}
 
 		if shouldDelete {
@@ -249,7 +250,7 @@ func (cr *containerResolver) idToPath(
 					locPath: nil,
 					cached:  false,
 					deleted: false,
-				}, clues.Wrap(err, "updating cached container").WithClues(ctx)
+				}, clues.WrapWC(ctx, err, "updating cached container")
 			}
 
 			return cr.idToPath(ctx, folderID, depth)
@@ -378,7 +379,7 @@ func (cr *containerResolver) AddToCache(
 		Container: f,
 	}
 	if err := cr.addFolder(temp); err != nil {
-		return clues.Wrap(err, "adding cache folder").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "adding cache folder")
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter
@@ -475,13 +476,12 @@ func newRankedContainerResolver(
 
 		c, err := getter.GetContainerByID(ctx, userID, id)
 		if err != nil {
-			return nil, clues.Wrap(err, "getting ranked container").WithClues(ictx)
+			return nil, clues.WrapWC(ictx, err, "getting ranked container")
 		}
 
 		gotID := ptr.Val(c.GetId())
 		if len(gotID) == 0 {
-			return nil, clues.New("ranked include container missing ID").
-				WithClues(ictx)
+			return nil, clues.NewWC(ictx, "ranked include container missing ID")
 		}
 
 		cr.resolvedInclude = append(cr.resolvedInclude, gotID)
@@ -492,13 +492,12 @@ func newRankedContainerResolver(
 
 		c, err := getter.GetContainerByID(ctx, userID, id)
 		if err != nil {
-			return nil, clues.Wrap(err, "getting exclude container").WithClues(ictx)
+			return nil, clues.WrapWC(ictx, err, "getting exclude container")
 		}
 
 		gotID := ptr.Val(c.GetId())
 		if len(gotID) == 0 {
-			return nil, clues.New("exclude container missing ID").
-				WithClues(ictx)
+			return nil, clues.NewWC(ictx, "exclude container missing ID")
 		}
 
 		cr.resolvedExclude[gotID] = struct{}{}

@@ -108,7 +108,7 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 func UserAssignedLicenses(ctx context.Context, acct account.Account, userID string) (int, error) {
 	ac, err := makeAC(ctx, acct, path.UnknownService)
 	if err != nil {
-		return 0, clues.Stack(err).WithClues(ctx)
+		return 0, clues.Stack(err)
 	}
 
 	us, err := ac.Users().GetByID(

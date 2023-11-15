@@ -73,12 +73,12 @@ func ConsumeRestoreCollections(
 			webURL, ok := backupSiteIDWebURL.NameOf(siteID)
 			if !ok {
 				// This should not happen, but just in case
-				logger.Ctx(ctx).With("site_id", siteID).Info("site weburl not found, using site id")
+				logger.Ctx(ictx).With("site_id", siteID).Info("site weburl not found, using site id")
 			}
 
-			siteName, err = getSiteName(ctx, siteID, webURL, ac.Sites(), webURLToSiteNames)
+			siteName, err = getSiteName(ictx, siteID, webURL, ac.Sites(), webURLToSiteNames)
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "getting site").
+				el.AddRecoverable(ictx, clues.Wrap(err, "getting site").
 					With("web_url", webURL, "site_id", siteID))
 			} else if len(siteName) == 0 {
 				// Site was deleted in between and restore and is not
@@ -95,7 +95,7 @@ func ConsumeRestoreCollections(
 				Selector:          rcc.Selector,
 			}
 
-			err = caches.Populate(ctx, lrh, srcc.ProtectedResource.ID())
+			err = caches.Populate(ictx, lrh, srcc.ProtectedResource.ID())
 			if err != nil {
 				return nil, clues.Wrap(err, "initializing restore caches")
 			}
@@ -112,17 +112,16 @@ func ConsumeRestoreCollections(
 				ctr)
 		case path.ChannelMessagesCategory:
 			// Message cannot be restored as of now using Graph API.
-			logger.Ctx(ctx).Debug("Skipping restore for channel messages")
+			logger.Ctx(ictx).Debug("Skipping restore for channel messages")
 		default:
-			return nil, clues.New("data category not supported").
-				With("category", category).
-				WithClues(ictx)
+			return nil, clues.NewWC(ictx, "data category not supported").
+				With("category", category)
 		}
 
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
 
 		if err != nil {
-			el.AddRecoverable(ctx, err)
+			el.AddRecoverable(ictx, err)
 		}
 
 		if errors.Is(err, context.Canceled) {

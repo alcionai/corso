@@ -72,7 +72,7 @@ func (h *baseOneDriveHandler) ProduceExportCollections(
 	for _, dc := range dcs {
 		drivePath, err := path.ToDrivePath(dc.FullPath())
 		if err != nil {
-			return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
+			return nil, clues.WrapWC(ctx, err, "transforming path to drive path")
 		}
 
 		baseDir := path.Builder{}.Append(drivePath.Folders...)

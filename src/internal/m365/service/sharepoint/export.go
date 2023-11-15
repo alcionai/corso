@@ -76,7 +76,7 @@ func (h *baseSharePointHandler) ProduceExportCollections(
 	for _, dc := range dcs {
 		drivePath, err := path.ToDrivePath(dc.FullPath())
 		if err != nil {
-			return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
+			return nil, clues.WrapWC(ctx, err, "transforming path to drive path")
 		}
 
 		driveName, ok := h.backupDriveIDNames.NameOf(drivePath.DriveID)

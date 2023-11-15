@@ -80,7 +80,7 @@ func (mc *mailContainerCache) populateMailRoot(ctx context.Context) error {
 		path.Builder{}.Append(), // path of IDs
 		path.Builder{}.Append()) // display location
 	if err := mc.addFolder(&temp); err != nil {
-		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "adding resolver dir")
 	}
 
 	return nil

@@ -219,7 +219,7 @@ func populateCollections(
 		)
 
 		if collections[id] != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
+			el.AddRecoverable(ictx, clues.WrapWC(ictx, err, "conflict: tombstone exists for a live collection"))
 			continue
 		}
 

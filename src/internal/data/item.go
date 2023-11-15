@@ -259,10 +259,9 @@ func (i *lazyItemWithInfo) Info() (details.ItemInfo, error) {
 	defer i.mu.Unlock()
 
 	if i.delInFlight {
-		return details.ItemInfo{}, clues.Stack(ErrNotFound).WithClues(i.ctx)
+		return details.ItemInfo{}, clues.StackWC(i.ctx, ErrNotFound)
 	} else if i.info == nil {
-		return details.ItemInfo{}, clues.New("requesting ItemInfo before data retrieval").
-			WithClues(i.ctx)
+		return details.ItemInfo{}, clues.NewWC(i.ctx, "requesting ItemInfo before data retrieval")
 	}
 
 	return *i.info, nil

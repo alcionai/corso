@@ -128,29 +128,28 @@ func (c Contacts) GetContainerByName(
 		ContactFolders().
 		Get(ctx, options)
 	if err != nil {
-		return nil, graph.Stack(ctx, err).WithClues(ctx)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	gv := resp.GetValue()
 
 	if len(gv) == 0 {
-		return nil, clues.New("container not found").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "container not found")
 	}
 
 	// We only allow the api to match one container with the provided name.
 	// Return an error if multiple container exist (unlikely) or if no container
 	// is found.
 	if len(gv) != 1 {
-		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).
-			With("returned_container_count", len(gv)).
-			WithClues(ctx)
+		return nil, clues.StackWC(ctx, graph.ErrMultipleResultsMatchIdentifier).
+			With("returned_container_count", len(gv))
 	}
 
 	// Sanity check ID and name
 	container := gv[0]
 
 	if err := graph.CheckIDAndName(container); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	return container, nil
