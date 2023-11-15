@@ -19,7 +19,7 @@ type folderyMcFolderFace struct {
 	collections *nodeyMcNodeFace
 
 	// the majority of operations we perform can be handled with
-	// a folder id lookup instead of re-walking the entire tree.
+	// a folder ID lookup instead of re-walking the entire tree.
 	// Ex: adding a new file to its parent folder.
 	folderIDToNode map[string]*nodeyMcNodeFace
 
