@@ -267,7 +267,7 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 	var (
 		t        = suite.T()
 		retryInc = 0
-		odErr    = odErrMsg(string(invalidAuthenticationToken), "string(invalidAuthenticationToken)")
+		odErr    = odErrMsg(string(invalidAuthenticationToken), string(invalidAuthenticationToken))
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -291,6 +291,7 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 				Proto:         req.Proto,
 				Request:       req,
 				// avoiding 401 for the test to escape extraneous code paths in graph client
+				// shouldn't affect the result
 				StatusCode: http.StatusMethodNotAllowed,
 			}
 
@@ -306,19 +307,13 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 		appendMiddleware(&alwaysBadJWT))
 	require.NoError(t, err, clues.ToCore(err))
 
-	// Keeping this test in place for now as a showcase, even though
-	// it kinda proves a failure to handle the error case.  On the bright
-	// side, direct URL lookups are a rarity in corso, so the importance
-	// is not as high.
+	// When run locally this may fail. Not sure why it works in github but not locally.
+	// Pester keepers if it bothers you.
 	_, err = users.
 		NewItemCalendarsItemEventsDeltaRequestBuilder("https://graph.microsoft.com/fnords/beaux/regard", adpt).
 		Get(ctx, nil)
-	assert.ErrorContains(
-		t,
-		err,
-		"content type application/json does not have a factory registered to be parsed",
-		clues.ToCore(err))
-	assert.Equal(t, 1, retryInc, "number of retries")
+	assert.True(t, IsErrBadJWTToken(err), clues.ToCore(err))
+	assert.Equal(t, 4, retryInc, "number of retries")
 
 	retryInc = 0
 
