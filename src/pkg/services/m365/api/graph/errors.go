@@ -138,6 +138,8 @@ var (
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 
 	ErrTokenExpired = clues.New("jwt token expired")
+
+	ErrNoResourceLookup = clues.New("missing resource lookup client")
 )
 
 func IsErrApplicationThrottled(err error) bool {

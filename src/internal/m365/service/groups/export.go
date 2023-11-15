@@ -17,20 +17,34 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var _ inject.ServiceHandler = &baseGroupsHandler{}
+var _ inject.ServiceHandler = &groupsHandler{}
 
 func NewGroupsHandler(
 	opts control.Options,
-) *baseGroupsHandler {
-	return &baseGroupsHandler{
-		opts:               opts,
-		backupDriveIDNames: idname.NewCache(nil),
-		backupSiteIDWebURL: idname.NewCache(nil),
+	apiClient api.Client,
+	resourceClient idname.GetResourceIDAndNamer,
+) *groupsHandler {
+	return &groupsHandler{
+		baseGroupsHandler: baseGroupsHandler{
+			opts:               opts,
+			backupDriveIDNames: idname.NewCache(nil),
+			backupSiteIDWebURL: idname.NewCache(nil),
+		},
+		apiClient:      apiClient,
+		resourceClient: resourceClient,
 	}
 }
 
+// ========================================================================== //
+//                          baseGroupsHandler
+// ========================================================================== //
+
+// baseGroupsHandler contains logic for tracking data and doing operations
+// (e.x. export) that don't require contact with external M356 services.
 type baseGroupsHandler struct {
 	opts control.Options
 
@@ -133,4 +147,40 @@ func (h *baseGroupsHandler) ProduceExportCollections(
 	}
 
 	return ec, el.Failure()
+}
+
+// ========================================================================== //
+//                              groupsHandler
+// ========================================================================== //
+
+// groupsHandler contains logic for handling data and performing operations
+// (e.x. restore) regardless of whether they require contact with external M365
+// services or not.
+type groupsHandler struct {
+	baseGroupsHandler
+	apiClient      api.Client
+	resourceClient idname.GetResourceIDAndNamer
+}
+
+func (h *groupsHandler) IsServiceEnabled(
+	ctx context.Context,
+	resource string,
+) (bool, error) {
+	// TODO(ashmrtn): Move free function implementation to this function.
+	res, err := IsServiceEnabled(ctx, h.apiClient.Groups(), resource)
+	return res, clues.Stack(err).OrNil()
+}
+
+func (h *groupsHandler) PopulateProtectedResourceIDAndName(
+	ctx context.Context,
+	resource string, // Can be either ID or name.
+	ins idname.Cacher,
+) (idname.Provider, error) {
+	if h.resourceClient == nil {
+		return nil, clues.Stack(graph.ErrNoResourceLookup).WithClues(ctx)
+	}
+
+	pr, err := h.resourceClient.GetResourceIDAndNameFrom(ctx, resource, ins)
+
+	return pr, clues.Wrap(err, "identifying resource owner").OrNil()
 }
