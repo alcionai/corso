@@ -205,71 +205,228 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	emailBodyBytes, err := os.ReadFile(testEmailPath)
 	require.NoError(t, err, "read email file")
 
-	var (
-		exportCfg     = control.ExportConfig{}
-		expectedItems = []export.Item{
-			{
-				ID:   "id1",
-				Name: "id1.eml",
-				Body: io.NopCloser(bytes.NewReader(emailBodyBytes)),
-			},
-		}
-	)
-
-	pb := path.Builder{}.Append("exchange")
+	pb := path.Builder{}.Append("Inbox")
 	p, err := pb.ToDataLayerPath("t", "r", path.ExchangeService, path.EmailCategory, false)
 	assert.NoError(t, err, "build path")
 
-	dcs := []data.RestoreCollection{
-		data.FetchRestoreCollection{
-			Collection: dataMock.Collection{
-				Path: p,
-				ItemData: []data.Item{
-					&dataMock.Item{
-						ItemID: "id1",
-						Reader: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+	p2, err := pb.ToDataLayerPath("t", "r", path.OneDriveService, path.FilesCategory, false)
+
+	tests := []struct {
+		name          string
+		dcs           []data.RestoreCollection
+		expectedItems [][]export.Item
+		hasErr        bool
+	}{
+		{
+			name: "single item",
+			dcs: []data.RestoreCollection{
+				data.FetchRestoreCollection{
+					Collection: dataMock.Collection{
+						Path: p,
+						ItemData: []data.Item{
+							&dataMock.Item{
+								ItemID: "id1",
+								Reader: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+							},
+						},
+					},
+				},
+			},
+			expectedItems: [][]export.Item{
+				{
+					{
+						ID:   "id1",
+						Name: "id1.eml",
+						Body: io.NopCloser(bytes.NewReader(emailBodyBytes)),
 					},
 				},
 			},
 		},
+		{
+			name: "multiple items",
+			dcs: []data.RestoreCollection{
+				data.FetchRestoreCollection{
+					Collection: dataMock.Collection{
+						Path: p,
+						ItemData: []data.Item{
+							&dataMock.Item{
+								ItemID: "id1",
+								Reader: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+							},
+							&dataMock.Item{
+								ItemID: "id2",
+								Reader: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+							},
+						},
+					},
+				},
+			},
+			expectedItems: [][]export.Item{
+				{
+					{
+						ID:   "id1",
+						Name: "id1.eml",
+						Body: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+					},
+					{
+						ID:   "id2",
+						Name: "id2.eml",
+						Body: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+					},
+				},
+			},
+		},
+		{
+			name: "items with success and fetch error",
+			dcs: []data.RestoreCollection{
+				data.FetchRestoreCollection{
+					Collection: dataMock.Collection{
+						Path: p,
+						ItemData: []data.Item{
+							&dataMock.Item{
+								ItemID:  "id1",
+								ReadErr: assert.AnError,
+							},
+							&dataMock.Item{
+								ItemID: "id2",
+								Reader: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+							},
+						},
+					},
+				},
+			},
+			expectedItems: [][]export.Item{
+				{
+					{
+						ID:   "id2",
+						Name: "id2.eml",
+						Body: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+					},
+					{
+						ID:    "",
+						Error: assert.AnError,
+					},
+				},
+			},
+		},
+		{
+			name: "multiple collections",
+			dcs: []data.RestoreCollection{
+				data.FetchRestoreCollection{
+					Collection: dataMock.Collection{
+						Path: p,
+						ItemData: []data.Item{
+							&dataMock.Item{
+								ItemID: "id1",
+								Reader: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+							},
+						},
+					},
+				},
+				data.FetchRestoreCollection{
+					Collection: dataMock.Collection{
+						Path: p,
+						ItemData: []data.Item{
+							&dataMock.Item{
+								ItemID: "id2",
+								Reader: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+							},
+						},
+					},
+				},
+			},
+			expectedItems: [][]export.Item{
+				{
+					{
+						ID:   "id1",
+						Name: "id1.eml",
+						Body: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+					},
+				},
+				{
+					{
+						ID:   "id2",
+						Name: "id2.eml",
+						Body: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+					},
+				},
+			},
+		},
+		{
+			name: "collection without exchange category",
+			dcs: []data.RestoreCollection{
+				data.FetchRestoreCollection{
+					Collection: dataMock.Collection{
+						Path: p2,
+						ItemData: []data.Item{
+							&dataMock.Item{
+								ItemID: "id1",
+								Reader: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+							},
+						},
+					},
+				},
+			},
+			expectedItems: [][]export.Item{},
+			hasErr:        true,
+		},
 	}
 
-	stats := data.ExportStats{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exportCfg := control.ExportConfig{}
+			stats := data.ExportStats{}
 
-	ecs, err := NewExchangeHandler(control.DefaultOptions()).
-		ProduceExportCollections(
-			ctx,
-			int(version.Backup),
-			exportCfg,
-			dcs,
-			&stats,
-			fault.New(true))
-	assert.NoError(t, err, "export collections error")
-	assert.Len(t, ecs, 1, "num of collections")
+			ecs, err := NewExchangeHandler(control.DefaultOptions()).
+				ProduceExportCollections(
+					ctx,
+					int(version.Backup),
+					exportCfg,
+					tt.dcs,
+					&stats,
+					fault.New(true))
 
-	fitems := []export.Item{}
-	size := 0
+			if tt.hasErr {
+				assert.Error(t, err, "export collections error")
+				return
+			}
 
-	for item := range ecs[0].Items(ctx) {
-		// unwrap the body from stats reader
-		b, err := io.ReadAll(item.Body)
-		assert.NoError(t, err, clues.ToCore(err))
+			assert.NoError(t, err, "export collections error")
+			assert.Len(t, ecs, len(tt.expectedItems), "num of collections")
 
-		size += len(b)
-		bitem := io.NopCloser(bytes.NewBuffer(b))
-		item.Body = bitem
+			expectedStats := data.ExportStats{}
 
-		fitems = append(fitems, item)
+			for c := range ecs {
+				i := -1
+				for item := range ecs[c].Items(ctx) {
+					i++
+
+					size := 0
+
+					if item.Body == nil {
+						assert.ErrorIs(t, item.Error, tt.expectedItems[c][i].Error)
+						continue
+					}
+
+					// unwrap the body from stats reader
+					b, err := io.ReadAll(item.Body)
+					assert.NoError(t, err, clues.ToCore(err))
+
+					size += len(b)
+					bitem := io.NopCloser(bytes.NewBuffer(b))
+					item.Body = bitem
+
+					expectedStats.UpdateBytes(path.EmailCategory, int64(size))
+					expectedStats.UpdateResourceCount(path.EmailCategory)
+
+					assert.Equal(t, tt.expectedItems[c][i].ID, item.ID, "id")
+					assert.Equal(t, tt.expectedItems[c][i].Name, item.Name, "name")
+					assert.NoError(t, item.Error, "error")
+
+				}
+			}
+
+			assert.Equal(t, expectedStats, stats, "stats")
+		})
 	}
-
-	for i, item := range expectedItems {
-		assert.Equal(t, item.ID, fitems[i].ID, "id")
-		assert.Equal(t, item.Name, fitems[i].Name, "name")
-		assert.NoError(t, fitems[i].Error, "error")
-	}
-
-	expectedStats := data.ExportStats{}
-	expectedStats.UpdateBytes(path.EmailCategory, int64(size))
-	expectedStats.UpdateResourceCount(path.EmailCategory)
-	assert.Equal(t, expectedStats, stats, "stats")
 }

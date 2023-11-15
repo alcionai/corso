@@ -16,25 +16,25 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var _ inject.ServiceHandler = &exchangeHandler{}
+var _ inject.ServiceHandler = &baseExchangeHandler{}
 
 func NewExchangeHandler(
 	opts control.Options,
-) *exchangeHandler {
-	return &exchangeHandler{
+) *baseExchangeHandler {
+	return &baseExchangeHandler{
 		opts: opts,
 	}
 }
 
-type exchangeHandler struct {
+type baseExchangeHandler struct {
 	opts control.Options
 }
 
-func (h *exchangeHandler) CacheItemInfo(v details.ItemInfo) {}
+func (h *baseExchangeHandler) CacheItemInfo(v details.ItemInfo) {}
 
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
-func (h *exchangeHandler) ProduceExportCollections(
+func (h *baseExchangeHandler) ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	exportCfg control.ExportConfig,
@@ -63,7 +63,7 @@ func (h *exchangeHandler) ProduceExportCollections(
 					backupVersion,
 					stats))
 		case path.EventsCategory, path.ContactsCategory:
-			logger.Ctx(ctx).With("category", category).Debug("Skipping restore for category")
+			logger.Ctx(ctx).With("category", category.String()).Debugw("Skipping restore for category")
 		default:
 			return nil, clues.New("data category not supported").
 				With("category", category).
