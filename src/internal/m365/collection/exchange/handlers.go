@@ -29,7 +29,7 @@ type addedAndRemovedItemGetter interface {
 	GetAddedAndRemovedItemIDs(
 		ctx context.Context,
 		user, containerID, oldDeltaToken string,
-		cc api.CallConfig,
+		config api.CallConfig,
 	) (pagers.AddedAndRemoved, error)
 }
 

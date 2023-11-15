@@ -244,7 +244,7 @@ func (p *eventDeltaPager) ValidModTimes() bool {
 func (c Events) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	cc CallConfig,
+	config CallConfig,
 ) (pagers.AddedAndRemoved, error) {
 	ctx = clues.Add(
 		ctx,
@@ -256,12 +256,12 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		cc.UseImmutableIDs,
+		config.UseImmutableIDs,
 		idAnd()...)
 	pager := c.NewEventsPager(
 		userID,
 		containerID,
-		cc.UseImmutableIDs,
+		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Eventable](
@@ -269,7 +269,7 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		cc.CanMakeDeltaQueries,
-		0,
+		config.CanMakeDeltaQueries,
+		config.LimitResults,
 		pagers.AddedAndRemovedByAddtlData[models.Eventable])
 }
