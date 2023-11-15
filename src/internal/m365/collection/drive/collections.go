@@ -29,7 +29,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
-const restrictedDirectory = "Site Pages"
+const (
+	restrictedDirectory = "Site Pages"
+
+	defaultPreviewNumContainers              = 5
+	defaultPreviewNumItemsPerContainer       = 10
+	defaultPreviewNumItems                   = defaultPreviewNumContainers * defaultPreviewNumItemsPerContainer
+	defaultPreviewNumBytes             int64 = 100 * 1024 * 1024
+	defaultPreviewNumPages                   = 50
+)
 
 // Collections is used to retrieve drive data for a
 // resource owner, which can be either a user or a sharepoint site.
@@ -740,6 +748,95 @@ func (c *Collections) getCollectionPath(
 	}
 
 	return collectionPath, nil
+}
+
+type driveEnumerationStats struct {
+	numPages      int
+	numAddedFiles int
+	numContainers int
+	numBytes      int64
+}
+
+func newPagerLimiter(opts control.Options) *pagerLimiter {
+	res := &pagerLimiter{
+		isPreview:            opts.ToggleFeatures.PreviewBackup,
+		maxContainers:        opts.ItemLimits.MaxContainers,
+		maxItemsPerContainer: opts.ItemLimits.MaxItemsPerContainer,
+		maxItems:             opts.ItemLimits.MaxItems,
+		maxBytes:             opts.ItemLimits.MaxBytes,
+		maxPages:             opts.ItemLimits.MaxPages,
+	}
+
+	if res.maxContainers == 0 {
+		res.maxContainers = defaultPreviewNumContainers
+	}
+
+	if res.maxItemsPerContainer == 0 {
+		res.maxItemsPerContainer = defaultPreviewNumItemsPerContainer
+	}
+
+	if res.maxItems == 0 {
+		res.maxItems = defaultPreviewNumItems
+	}
+
+	if res.maxBytes == 0 {
+		res.maxBytes = defaultPreviewNumBytes
+	}
+
+	if res.maxPages == 0 {
+		res.maxPages = defaultPreviewNumPages
+	}
+
+	return res
+}
+
+type pagerLimiter struct {
+	isPreview            bool
+	maxContainers        int
+	maxItemsPerContainer int
+	maxItems             int
+	maxBytes             int64
+	maxPages             int
+}
+
+func (l pagerLimiter) enabled() bool {
+	return l.isPreview
+}
+
+// sizeLimit returns the total number of bytes this backup should try to
+// contain.
+func (l pagerLimiter) sizeLimit() int64 {
+	return l.maxBytes
+}
+
+// atItemLimit returns true if the limiter is enabled and has reached the limit
+// for individual items added to collections for this backup.
+func (l pagerLimiter) atItemLimit(stats *driveEnumerationStats) bool {
+	return l.isPreview &&
+		(stats.numAddedFiles >= l.maxItems ||
+			stats.numBytes >= l.maxBytes)
+}
+
+// atContainerItemsLimit returns true if the limiter is enabled and the current
+// number of items is above the limit for the number of items for a container
+// for this backup.
+func (l pagerLimiter) atContainerItemsLimit(numItems int) bool {
+	return l.isPreview && numItems >= l.maxItemsPerContainer
+}
+
+// atContainerPageLimit returns true if the limiter is enabled and the number of
+// pages processed so far is beyond the limit for this backup.
+func (l pagerLimiter) atPageLimit(stats *driveEnumerationStats) bool {
+	return l.isPreview && stats.numPages >= l.maxPages
+}
+
+// atLimit returns true if the limiter is enabled and meets any of the
+// conditions for max items, containers, etc for this backup.
+func (l pagerLimiter) atLimit(stats *driveEnumerationStats) bool {
+	return l.isPreview &&
+		(l.atItemLimit(stats) ||
+			stats.numContainers >= l.maxContainers ||
+			stats.numPages >= l.maxPages)
 }
 
 // PopulateDriveCollections initializes and adds the provided drive items to Collections
