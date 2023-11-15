@@ -93,13 +93,13 @@ func toEml(data models.Messageable) (string, error) {
 
 	if data.GetBody() != nil {
 		if data.GetBody().GetContentType() != nil {
-			var mct mail.ContentType
+			var contentType mail.ContentType
 
 			switch data.GetBody().GetContentType().String() {
 			case "html":
-				mct = mail.TextHTML
+				contentType = mail.TextHTML
 			case "text":
-				mct = mail.TextPlain
+				contentType = mail.TextPlain
 			default:
 				// https://learn.microsoft.com/en-us/graph/api/resources/itembody?view=graph-rest-1.0#properties
 				// This should not be possible according to the documentation
@@ -108,10 +108,10 @@ func toEml(data models.Messageable) (string, error) {
 						"id", ptr.Val(data.GetId())).
 					Info("unknown body content type")
 
-				mct = mail.TextPlain
+				contentType = mail.TextPlain
 			}
 
-			email.SetBody(mct, ptr.Val(data.GetBody().GetContent()))
+			email.SetBody(contentType, ptr.Val(data.GetBody().GetContent()))
 		}
 	}
 
