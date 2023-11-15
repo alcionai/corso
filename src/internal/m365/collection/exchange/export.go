@@ -51,7 +51,11 @@ func streamItems(
 
 			stats.UpdateResourceCount(path.EmailCategory)
 
-			content, err := io.ReadAll(item.ToReader())
+			reader := item.ToReader()
+			content, err := io.ReadAll(reader)
+
+			reader.Close()
+
 			if err != nil {
 				ch <- export.Item{
 					ID:    id,
@@ -81,8 +85,8 @@ func streamItems(
 				continue
 			}
 
-			reader := io.NopCloser(bytes.NewReader([]byte(email)))
-			body := data.ReaderWithStats(reader, path.EmailCategory, stats)
+			emlReader := io.NopCloser(bytes.NewReader([]byte(email)))
+			body := data.ReaderWithStats(emlReader, path.EmailCategory, stats)
 
 			ch <- export.Item{
 				ID:   id,
