@@ -92,7 +92,7 @@ const (
 	// Sliding window limiter for exchange service. We are restricting it to 9600 per
 	// 10 mins to give the limits some breathing room. It can be slowly increased
 	// over time to get closer to the 10k limit.
-	exchWindow        = 10 * time.Minute
+	exchWindow        = 610 * time.Second
 	exchSlideInterval = 1 * time.Second
 	exchCapacity      = 9600
 
