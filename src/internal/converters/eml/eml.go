@@ -25,7 +25,7 @@ const (
 	dateFormat    = "2006-01-02 15:04:05 MST" // from xhit/go-simple-mail
 )
 
-// FromJSON converts a Messageable(as json) to .eml format
+// FromJSON converts a Messageable (as json) to .eml format
 func FromJSON(ctx context.Context, body []byte) (string, error) {
 	data, err := api.BytesToMessageable(body)
 	if err != nil {

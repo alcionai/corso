@@ -77,6 +77,9 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 				ptr.Val(addr.GetEmailAddress().GetAddress())))
 	}
 
-	// Only fist 30 chars as it the data will be split
+	// Only fist 30 chars as the .eml generator can introduce a
+	// newline in between the text to limit the column width of the
+	// output. It does not affect the data, but can break our tests and
+	// so using 30 as a safe limit to test.
 	assert.Contains(t, out, ptr.Val(msg.GetBody().GetContent())[:30], "body")
 }
