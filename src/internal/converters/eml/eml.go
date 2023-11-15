@@ -44,6 +44,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		return "", clues.Wrap(err, "converting to messageble")
 	}
 
+	ctx = clues.Add(ctx, "id", ptr.Val(data.GetId()))
+
 	email := mail.NewMSG()
 
 	if data.GetFrom() != nil {
@@ -51,7 +53,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 		if email.Error != nil {
 			return "", clues.Wrap(email.Error, "adding from address").
-				With("id", ptr.Val(data.GetId()), "from", data.GetFrom())
+				WithClues(ctx).
+				With("from", data.GetFrom())
 		}
 	}
 
@@ -61,7 +64,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			if email.Error != nil {
 				return "", clues.Wrap(email.Error, "adding to address").
-					With("id", ptr.Val(data.GetId()), "to", recipient)
+					WithClues(ctx).
+					With("to", recipient)
 			}
 		}
 	}
@@ -72,7 +76,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			if email.Error != nil {
 				return "", clues.Wrap(email.Error, "adding cc address").
-					With("id", ptr.Val(data.GetId()), "cc", recipient)
+					WithClues(ctx).
+					With("cc", recipient)
 			}
 		}
 	}
@@ -83,7 +88,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			if email.Error != nil {
 				return "", clues.Wrap(email.Error, "adding bcc address").
-					With("id", ptr.Val(data.GetId()), "bcc", recipient)
+					WithClues(ctx).
+					With("bcc", recipient)
 			}
 		}
 	}
@@ -92,8 +98,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		rts := data.GetReplyTo()
 		if len(rts) > 1 {
 			logger.Ctx(ctx).
-				With("id", ptr.Val(data.GetId()),
-					"reply_to_count", len(rts)).
+				With("reply_to_count", len(rts)).
 				Warn("more than 1 Reply-To, adding only the first one")
 		}
 
@@ -107,7 +112,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 		if email.Error != nil {
 			return "", clues.Wrap(email.Error, "adding subject").
-				With("id", ptr.Val(data.GetId()), "subject", data.GetSubject())
+				WithClues(ctx).
+				With("subject", data.GetSubject())
 		}
 	}
 
@@ -116,7 +122,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 		if email.Error != nil {
 			return "", clues.Wrap(email.Error, "adding date").
-				With("id", ptr.Val(data.GetId()), "date", data.GetSentDateTime())
+				WithClues(ctx).
+				With("date", data.GetSentDateTime())
 		}
 	}
 
@@ -133,8 +140,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				// https://learn.microsoft.com/en-us/graph/api/resources/itembody?view=graph-rest-1.0#properties
 				// This should not be possible according to the documentation
 				logger.Ctx(ctx).
-					With("body_type", data.GetBody().GetContentType().String(),
-						"id", ptr.Val(data.GetId())).
+					With("body_type", data.GetBody().GetContentType().String()).
 					Info("unknown body content type")
 
 				contentType = mail.TextPlain
@@ -144,8 +150,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			if email.Error != nil {
 				return "", clues.Wrap(email.Error, "adding body").
-					With("id", ptr.Val(data.GetId()),
-						"body_type", data.GetBody().GetContentType().String(),
+					WithClues(ctx).
+					With("body_type", data.GetBody().GetContentType().String(),
 						"body_len", len(*data.GetBody().GetContent()))
 			}
 		}
@@ -157,12 +163,12 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			bytes, err := attachment.GetBackingStore().Get("contentBytes")
 			if err != nil {
-				return "", clues.Wrap(err, "failed to get attachment bytes")
+				return "", clues.Wrap(err, "failed to get attachment bytes").WithClues(ctx)
 			}
 
 			bts, ok := bytes.([]byte)
 			if !ok {
-				return "", clues.Wrap(err, "invalid content bytes")
+				return "", clues.Wrap(err, "invalid content bytes").WithClues(ctx)
 			}
 
 			email.Attach(&mail.File{
@@ -174,8 +180,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			if email.Error != nil {
 				return "", clues.Wrap(email.Error, "adding attachment").
-					With("id", ptr.Val(data.GetId()),
-						"attachment_id", ptr.Val(attachment.GetId()),
+					WithClues(ctx).
+					With("attachment_id", ptr.Val(attachment.GetId()),
 						"attachment_name", ptr.Val(attachment.GetName()))
 			}
 		}
