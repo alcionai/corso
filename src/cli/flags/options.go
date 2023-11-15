@@ -7,9 +7,9 @@ import (
 const (
 	AlertsFN                      = "alerts"
 	DeltaPageSizeFN               = "delta-page-size"
-	DisableSlidingWindowLimiterFN = "disable-sliding-window-limiter"
 	DisableDeltaFN                = "disable-delta"
 	DisableIncrementalsFN         = "disable-incrementals"
+	DisableSlidingWindowLimiterFN = "disable-sliding-window-limiter"
 	ForceItemDataDownloadFN       = "force-item-data-download"
 	EnableImmutableIDFN           = "enable-immutable-id"
 	FailFastFN                    = "fail-fast"
@@ -24,24 +24,24 @@ const (
 )
 
 var (
-	DeltaPageSizeFV         int
-	DisableDeltaFV          bool
-	DisableIncrementalsFV   bool
-	ForceItemDataDownloadFV bool
-	EnableImmutableIDFV     bool
-	FailFastFV              bool
-	FetchParallelismFV      int
-	ListAlertsFV            string
-	ListFailedItemsFV       string
-	ListSkippedItemsFV      string
-	ListRecoveredErrorsFV   string
-	NoStatsFV               bool
+	DeltaPageSizeFV               int
+	DisableDeltaFV                bool
+	DisableIncrementalsFV         bool
+	DisableSlidingWindowLimiterFV bool
+	ForceItemDataDownloadFV       bool
+	EnableImmutableIDFV           bool
+	FailFastFV                    bool
+	FetchParallelismFV            int
+	ListAlertsFV                  string
+	ListFailedItemsFV             string
+	ListSkippedItemsFV            string
+	ListRecoveredErrorsFV         string
+	NoStatsFV                     bool
 	// RunMode describes the type of run, such as:
 	// flagtest, dry, run.  Should default to 'run'.
-	RunModeFV                     string
-	NoPermissionsFV               bool
-	SkipReduceFV                  bool
-	DisableSlidingWindowLimiterFV bool
+	RunModeFV       string
+	NoPermissionsFV bool
+	SkipReduceFV    bool
 )
 
 // well-known flag values
@@ -173,6 +173,6 @@ func AddDisableSlidingWindowLimiterFlag(cmd *cobra.Command) {
 		&DisableSlidingWindowLimiterFV,
 		DisableSlidingWindowLimiterFN,
 		false,
-		"Disable sliding window rate limiter. Default: false")
+		"Disable sliding window rate limiter.")
 	cobra.CheckErr(fs.MarkHidden(DisableSlidingWindowLimiterFN))
 }
