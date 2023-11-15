@@ -49,7 +49,7 @@ func (cfc *contactContainerCache) init(
 	baseContainerPath []string,
 ) error {
 	if len(baseNode) == 0 {
-		return clues.New("m365 folderID required for base contact folder").WithClues(ctx)
+		return clues.NewWC(ctx, "m365 folderID required for base contact folder")
 	}
 
 	if cfc.containerResolver == nil {
@@ -77,7 +77,7 @@ func (cfc *contactContainerCache) populateContactRoot(
 		path.Builder{}.Append(ptr.Val(f.GetId())),   // path of IDs
 		path.Builder{}.Append(baseContainerPath...)) // display location
 	if err := cfc.addFolder(&temp); err != nil {
-		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "adding resolver dir")
 	}
 
 	return nil

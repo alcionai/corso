@@ -60,7 +60,7 @@ func ProduceBackupCollections(
 		bpc.ProtectedResource.ID(),
 		api.CallConfig{})
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "getting group").WithClues(ctx)
+		return nil, nil, clues.WrapWC(ctx, err, "getting group")
 	}
 
 	isTeam := api.IsTeam(ctx, group)
@@ -307,9 +307,7 @@ func deserializeSiteMetadata(
 		for breakLoop := false; !breakLoop; {
 			select {
 			case <-ctx.Done():
-				return nil, clues.Wrap(
-					ctx.Err(),
-					"deserializing previous sites metadata").WithClues(ctx)
+				return nil, clues.WrapWC(ctx, ctx.Err(), "deserializing previous sites metadata")
 
 			case item, ok := <-items:
 				if !ok {
@@ -340,7 +338,7 @@ func deserializeSiteMetadata(
 				}
 
 				if err != nil {
-					return nil, clues.Stack(err).WithClues(ictx)
+					return nil, clues.StackWC(ictx, err)
 				}
 			}
 		}

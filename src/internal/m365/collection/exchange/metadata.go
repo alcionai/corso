@@ -48,7 +48,7 @@ func ParseMetadataCollections(
 		for {
 			select {
 			case <-ctx.Done():
-				return nil, false, clues.Wrap(ctx.Err(), "parsing collection metadata").WithClues(ctx)
+				return nil, false, clues.WrapWC(ctx, ctx.Err(), "parsing collection metadata")
 
 			case item, ok := <-items:
 				if !ok || errs.Failure() != nil {
@@ -63,13 +63,13 @@ func ParseMetadataCollections(
 
 				err := json.NewDecoder(item.ToReader()).Decode(&m)
 				if err != nil {
-					return nil, false, clues.New("decoding metadata json").WithClues(ctx)
+					return nil, false, clues.NewWC(ctx, "decoding metadata json")
 				}
 
 				switch item.ID() {
 				case metadata.PreviousPathFileName:
 					if _, ok := found[category][metadata.PathKey]; ok {
-						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of path metadata").WithClues(ctx)
+						return nil, false, clues.Wrap(clues.NewWC(ctx, category.String()), "multiple versions of path metadata")
 					}
 
 					for k, p := range m {
@@ -80,7 +80,7 @@ func ParseMetadataCollections(
 
 				case metadata.DeltaURLsFileName:
 					if _, ok := found[category][metadata.DeltaKey]; ok {
-						return nil, false, clues.Wrap(clues.New(category.String()), "multiple versions of delta metadata").WithClues(ctx)
+						return nil, false, clues.Wrap(clues.NewWC(ctx, category.String()), "multiple versions of delta metadata")
 					}
 
 					for k, d := range m {

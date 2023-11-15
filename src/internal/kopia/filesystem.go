@@ -18,7 +18,7 @@ func filesystemStorage(
 ) (blob.Storage, error) {
 	fsCfg, err := s.ToFilesystemConfig()
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	opts := filesystem.Options{
@@ -27,7 +27,7 @@ func filesystemStorage(
 
 	store, err := filesystem.New(ctx, &opts, true)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	return store, nil

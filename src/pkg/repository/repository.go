@@ -101,7 +101,7 @@ func New(
 
 	bus, err := events.NewBus(ctx, st, acct.ID(), opts)
 	if err != nil {
-		return nil, clues.Wrap(err, "constructing event bus").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "constructing event bus")
 	}
 
 	repoID := configFileRepoID
@@ -310,7 +310,7 @@ func (r *repository) setupKopia(
 		if err := kopiaRef.Initialize(ctx, r.Opts.Repo, retentionOpts, repoHashName); err != nil {
 			// Replace common internal errors so that SDK users can check results with errors.Is()
 			if errors.Is(err, kopia.ErrorRepoAlreadyExists) {
-				return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
+				return clues.Stack(ErrorRepoAlreadyExists, err)
 			}
 
 			return clues.Wrap(err, "initializing kopia")
@@ -326,12 +326,12 @@ func (r *repository) setupKopia(
 
 	r.dataLayer, err = kopia.NewWrapper(kopiaRef)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	r.modelStore, err = kopia.NewModelStore(kopiaRef)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	if r.ID == events.RepoIDNotFound {

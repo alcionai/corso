@@ -126,7 +126,7 @@ func downloadFile(
 	url string,
 ) (io.ReadCloser, error) {
 	if len(url) == 0 {
-		return nil, clues.New("empty file url").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "empty file url")
 	}
 
 	// Precheck for url expiry before we make a call to graph to download the
@@ -178,7 +178,7 @@ func downloadItemMeta(
 
 	metaJSON, err := json.Marshal(meta)
 	if err != nil {
-		return nil, 0, clues.Wrap(err, "serializing item metadata").WithClues(ctx)
+		return nil, 0, clues.WrapWC(ctx, err, "serializing item metadata")
 	}
 
 	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
@@ -231,14 +231,14 @@ func isURLExpired(
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("query param not found")
 
-		return false, clues.Stack(err).WithClues(ctx)
+		return false, clues.StackWC(ctx, err)
 	}
 
 	expired, err := jwt.IsJWTExpired(rawJWT)
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("checking jwt expiry")
 
-		return false, clues.Stack(err).WithClues(ctx)
+		return false, clues.StackWC(ctx, err)
 	}
 
 	return expired, nil
