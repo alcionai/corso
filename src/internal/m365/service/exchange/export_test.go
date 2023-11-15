@@ -210,6 +210,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	assert.NoError(t, err, "build path")
 
 	p2, err := pb.ToDataLayerPath("t", "r", path.OneDriveService, path.FilesCategory, false)
+	assert.NoError(t, err, "build path")
 
 	tests := []struct {
 		name          string

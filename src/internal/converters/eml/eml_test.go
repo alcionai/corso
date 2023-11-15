@@ -1,7 +1,6 @@
 package eml
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -24,6 +23,9 @@ func TestEMLUnitSuite(t *testing.T) {
 func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 	t := suite.T()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	// read test file into body as []bytes
 	body, err := os.ReadFile("testdata/email-with-attachments.json")
 	require.NoError(t, err, "reading test file")
@@ -31,7 +33,7 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 	msg, err := api.BytesToMessageable(body)
 	require.NoError(t, err, "creating message")
 
-	_, err = ToEml(context.Background(), msg)
+	_, err = ToEml(ctx, msg)
 	// TODO(meain): add more tests on the generated content
 	// Cannot test output directly as it contains a random boundary
 	assert.NoError(t, err, "converting to eml")
