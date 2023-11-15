@@ -43,7 +43,8 @@ type PreviewItemLimits struct {
 	MaxItems             int
 	MaxItemsPerContainer int
 	MaxContainers        int
-	MaxBytes             int
+	MaxBytes             int64
+	MaxPages             int
 	Enabled              bool
 }
 
