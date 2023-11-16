@@ -1621,7 +1621,8 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 				mc, err := graph.MakeMetadataCollection(
 					pathPrefix,
 					c(),
-					func(*support.ControllerOperationStatus) {})
+					func(*support.ControllerOperationStatus) {},
+					count.New())
 				require.NoError(t, err, clues.ToCore(err))
 
 				cols = append(cols, dataMock.NewUnversionedRestoreCollection(
@@ -3451,7 +3452,8 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						bupMD.PreviousPathFileName,
 						test.previousPaths),
 				},
-				func(*support.ControllerOperationStatus) {})
+				func(*support.ControllerOperationStatus) {},
+				count.New())
 			assert.NoError(t, err, "creating metadata collection", clues.ToCore(err))
 
 			prevMetadata := []data.RestoreCollection{

@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -90,6 +91,9 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	ctx = clues.Add(ctx, "category", col.Category().String())
 
 	defer func() {
+		logger.Ctx(ctx).Infow(
+			"finished stream backup collection items",
+			"stats", col.Counter.Values())
 		col.finishPopulation(ctx, streamedItems, totalBytes, errs.Failure())
 	}()
 
@@ -117,7 +121,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			col.stream <- data.NewDeletedItem(id)
 
 			atomic.AddInt64(&streamedItems, 1)
-			atomic.AddInt64(&totalBytes, 0)
+			col.Counter.Inc(count.StreamItemsRemoved)
 
 			if colProgress != nil {
 				colProgress <- struct{}{}
@@ -150,26 +154,23 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				parentFolderID,
 				id)
 			if err != nil {
-				el.AddRecoverable(
-					ctx,
-					clues.Wrap(err, "writing channel message to serializer").Label(fault.LabelForceNoBackupCreation))
+				err = clues.Wrap(err, "getting channel message data").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
 
 				return
 			}
 
 			if err := writer.WriteObjectValue("", item); err != nil {
-				el.AddRecoverable(
-					ctx,
-					clues.Wrap(err, "writing channel message to serializer").Label(fault.LabelForceNoBackupCreation))
+				err = clues.Wrap(err, "writing channel message to serializer").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
 
 				return
 			}
 
 			itemData, err := writer.GetSerializedContent()
 			if err != nil {
-				el.AddRecoverable(
-					ctx,
-					clues.Wrap(err, "serializing channel message").Label(fault.LabelForceNoBackupCreation))
+				err = clues.Wrap(err, "serializing channel message").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
 
 				return
 			}
@@ -181,10 +182,8 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				id,
 				details.ItemInfo{Groups: info})
 			if err != nil {
-				el.AddRecoverable(
-					ctx,
-					clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation))
-
+				err := clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
 				return
 			}
 
@@ -192,6 +191,12 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 			atomic.AddInt64(&streamedItems, 1)
 			atomic.AddInt64(&totalBytes, info.Size)
+
+			if col.Counter.IncRead(count.StreamItemsAdded)%1000 == 0 {
+				logger.Ctx(ctx).Infow("item stream progress", "stats", col.Counter.Values())
+			}
+
+			col.Counter.Add(count.StreamBytesAdded, info.Size)
 
 			if colProgress != nil {
 				colProgress <- struct{}{}

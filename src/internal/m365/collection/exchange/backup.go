@@ -299,7 +299,8 @@ func populateCollections(
 			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
 			graph.NewMetadataEntry(metadata.DeltaURLsFileName, deltaURLs),
 		},
-		statusUpdater)
+		statusUpdater,
+		count.New())
 	if err != nil {
 		return nil, clues.Wrap(err, "making metadata collection")
 	}
