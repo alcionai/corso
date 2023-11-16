@@ -1355,7 +1355,7 @@ func testRestoreFolderNamedFolderRegression(
 				collectionsLatest:   expected,
 			}
 
-			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
 			restoreCfg.IncludePermissions = true
 
 			runRestoreTestWithVersion(
