@@ -405,7 +405,7 @@ func (op *BackupOperation) do(
 	// TODO(ashmrtn): Until we use token versions to determine this, refactor
 	// input params to produceManifestsAndMetadata and do this in that function
 	// instead of here.
-	if op.Options.ToggleFeatures.PreviewBackup {
+	if op.Options.PreviewLimits.Enabled {
 		logger.Ctx(ctx).Info("disabling merge bases for preview backup")
 
 		mans.DisableMergeBases()
@@ -958,7 +958,7 @@ func (op *BackupOperation) createBackupModels(
 	//
 	// model.BackupTypeTag has more info about how these tags are used.
 	switch {
-	case op.Options.ToggleFeatures.PreviewBackup:
+	case op.Options.PreviewLimits.Enabled:
 		// Preview backups need to be successful and without errors to be considered
 		// valid. Just reuse the merge base check for that since it has the same
 		// requirements.

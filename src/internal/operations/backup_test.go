@@ -1923,7 +1923,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			opts := control.DefaultOptions()
 			opts.FailureHandling = test.failurePolicy
-			opts.ToggleFeatures.PreviewBackup = test.previewBackup
+			opts.PreviewLimits.Enabled = test.previewBackup
 
 			bo, err := NewBackupOperation(
 				ctx,

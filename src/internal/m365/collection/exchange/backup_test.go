@@ -1784,20 +1784,17 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 	}
 
 	table := []struct {
-		name string
-		// notPreview should be set if the options shouldn't set the PreviewBackup
-		// flag. Using the inverse here since the majority of tests will be testing
-		// with the PreviewBackup flag set.
-		notPreview bool
-		limits     control.Limits
-		data       []itemContainer
-		includes   []string
-		excludes   []string
-		expect     expected
+		name     string
+		limits   control.PreviewItemLimits
+		data     []itemContainer
+		includes []string
+		excludes []string
+		expect   expected
 	}{
 		{
 			name: "IncludeContainer NoItemLimit ContainerLimit",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        1,
@@ -1829,7 +1826,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 		},
 		{
 			name: "IncludeContainer ItemLimit ContainerLimit",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             3,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        1,
@@ -1861,7 +1859,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 		},
 		{
 			name: "IncludeContainer ItemLimit NoContainerLimit",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             8,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        999,
@@ -1903,7 +1902,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 		},
 		{
 			name: "PerContainerItemLimit NoContainerLimit",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 3,
 				MaxContainers:        999,
@@ -1944,7 +1944,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 		},
 		{
 			name: "ExcludeContainer NoLimits",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        999,
@@ -1981,9 +1982,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 			},
 		},
 		{
-			name:       "NotPreview IgnoresLimits",
-			notPreview: true,
-			limits: control.Limits{
+			name: "NotPreview IgnoresLimits",
+			limits: control.PreviewItemLimits{
 				MaxItems:             1,
 				MaxItemsPerContainer: 1,
 				MaxContainers:        1,
@@ -2056,8 +2056,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 			// deadlock.
 			opts := control.DefaultOptions()
 			opts.FailureHandling = control.FailFast
-			opts.ToggleFeatures.PreviewBackup = !test.notPreview
-			opts.ItemLimits = test.limits
+			opts.PreviewLimits = test.limits
 
 			resolver := newMockResolver(inputContainers...)
 			getter := mockGetter{results: inputItems}

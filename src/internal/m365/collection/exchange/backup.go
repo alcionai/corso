@@ -134,7 +134,7 @@ func populateCollections(
 	// Preview backups select a reduced set of data. This is managed by ordering
 	// the set of results from the container resolver and reducing the number of
 	// items selected from each container.
-	if ctrlOpts.ToggleFeatures.PreviewBackup {
+	if ctrlOpts.PreviewLimits.Enabled {
 		resolver, err = newRankedContainerResolver(
 			ctx,
 			resolver,
@@ -221,7 +221,7 @@ func populateCollections(
 
 		// Since part of this is about figuring out how many items to get for this
 		// particular container we need to reconfigure for every container we see.
-		if ctrlOpts.ToggleFeatures.PreviewBackup {
+		if ctrlOpts.PreviewLimits.Enabled {
 			toAdd := maxItems - addedItems
 
 			if addedContainers >= maxContainers || toAdd <= 0 {
