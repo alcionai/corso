@@ -105,7 +105,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
 		flags.AddBackupIDFlag(c, true)
-		flags.AddExchangeDetailsAndRestoreFlags(c)
+		flags.AddExchangeDetailsAndRestoreFlags(c, false)
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, exchangeDeleteCmd())
