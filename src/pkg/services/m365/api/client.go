@@ -51,8 +51,9 @@ func NewClient(
 	creds account.M365Config,
 	co control.Options,
 	counter *count.Bus,
+	opts ...graph.Option,
 ) (Client, error) {
-	s, err := NewService(creds, counter)
+	s, err := NewService(creds, counter, opts...)
 	if err != nil {
 		return Client{}, err
 	}

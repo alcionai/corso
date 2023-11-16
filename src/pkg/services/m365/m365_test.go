@@ -24,6 +24,16 @@ func TestM365IntgSuite(t *testing.T) {
 	})
 }
 
+func (suite *userIntegrationSuite) TestNewM365Client() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	_, err := NewM365Client(ctx, tconfig.NewM365Account(t))
+	assert.NoError(t, err, clues.ToCore(err))
+}
+
 func (suite *userIntegrationSuite) TestNewM365Client_invalidCredentials() {
 	table := []struct {
 		name string

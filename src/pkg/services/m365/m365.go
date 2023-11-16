@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type client struct {
@@ -20,8 +21,9 @@ type client struct {
 func NewM365Client(
 	ctx context.Context,
 	acct account.Account,
+	opts ...graph.Option,
 ) (client, error) {
-	ac, err := makeAC(ctx, acct)
+	ac, err := makeAC(ctx, acct, opts...)
 	return client{ac}, clues.Stack(err).OrNil()
 }
 
@@ -40,6 +42,7 @@ type getAller[T any] interface {
 func makeAC(
 	ctx context.Context,
 	acct account.Account,
+	opts ...graph.Option,
 ) (api.Client, error) {
 	// exchange service inits a limit to concurrency.
 	api.InitConcurrencyLimit(ctx, path.ExchangeService)
