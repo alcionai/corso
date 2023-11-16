@@ -45,12 +45,7 @@ func MakeExportConfig(
 
 // ValidateExportConfigFlags ensures all export config flags that utilize
 // enumerated values match a well-known value.
-func ValidateExportConfigFlags(opts *ExportCfgOpts) error {
-	acceptedFormatTypes := []string{
-		string(control.DefaultFormat),
-		string(control.JSONFormat),
-	}
-
+func ValidateExportConfigFlags(opts *ExportCfgOpts, acceptedFormatTypes []string) error {
 	if _, populated := opts.Populated[flags.FormatFN]; !populated {
 		opts.Format = string(control.DefaultFormat)
 	} else if !filters.Equal(acceptedFormatTypes).Compare(opts.Format) {

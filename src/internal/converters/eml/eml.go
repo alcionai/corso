@@ -18,68 +18,70 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 const (
-	fromFormat = "%s <%s>"
-	dateFormat = "2006-01-02 15:04:05 MST" // from xhit/go-simple-mail
+	addressFormat = `"%s" <%s>`
+	dateFormat    = "2006-01-02 15:04:05 MST" // from xhit/go-simple-mail
 )
 
-// toEml converts a Messageable to .eml format
-func toEml(data models.Messageable) (string, error) {
+func formatAddress(entry models.EmailAddressable) string {
+	name := ptr.Val(entry.GetName())
+	email := ptr.Val(entry.GetAddress())
+
+	if name == email || len(name) == 0 {
+		return email
+	}
+
+	return fmt.Sprintf(addressFormat, name, email)
+}
+
+// FromJSON converts a Messageable (as json) to .eml format
+func FromJSON(ctx context.Context, body []byte) (string, error) {
+	data, err := api.BytesToMessageable(body)
+	if err != nil {
+		return "", clues.Wrap(err, "converting to messageble")
+	}
+
+	ctx = clues.Add(ctx, "id", ptr.Val(data.GetId()))
+
 	email := mail.NewMSG()
+	email.AllowDuplicateAddress = true // More "correct" conversion
+	email.AddBccToHeader = true        // Don't ignore Bcc
 
 	if data.GetFrom() != nil {
-		email.SetFrom(
-			fmt.Sprintf(
-				fromFormat,
-				ptr.Val(data.GetFrom().GetEmailAddress().GetName()),
-				ptr.Val(data.GetFrom().GetEmailAddress().GetAddress())))
+		email.SetFrom(formatAddress(data.GetFrom().GetEmailAddress()))
 	}
 
 	if data.GetToRecipients() != nil {
 		for _, recipient := range data.GetToRecipients() {
-			email.AddTo(
-				fmt.Sprintf(
-					fromFormat,
-					ptr.Val(recipient.GetEmailAddress().GetName()),
-					ptr.Val(recipient.GetEmailAddress().GetAddress())))
+			email.AddTo(formatAddress(recipient.GetEmailAddress()))
 		}
 	}
 
 	if data.GetCcRecipients() != nil {
 		for _, recipient := range data.GetCcRecipients() {
-			email.AddCc(
-				fmt.Sprintf(
-					fromFormat,
-					ptr.Val(recipient.GetEmailAddress().GetName()),
-					ptr.Val(recipient.GetEmailAddress().GetAddress())))
+			email.AddCc(formatAddress(recipient.GetEmailAddress()))
 		}
 	}
 
 	if data.GetBccRecipients() != nil {
 		for _, recipient := range data.GetBccRecipients() {
-			email.AddBcc(
-				fmt.Sprintf(
-					fromFormat,
-					ptr.Val(recipient.GetEmailAddress().GetName()),
-					ptr.Val(recipient.GetEmailAddress().GetAddress())))
+			email.AddBcc(formatAddress(recipient.GetEmailAddress()))
 		}
 	}
 
 	if data.GetReplyTo() != nil {
 		rts := data.GetReplyTo()
 		if len(rts) > 1 {
-			logger.Ctx(context.TODO()).
-				With("id", ptr.Val(data.GetId()),
-					"reply_to_count", len(rts)).
-				Warn("more than 1 reply to")
-		} else if len(rts) != 0 {
-			email.SetReplyTo(
-				fmt.Sprintf(
-					fromFormat,
-					ptr.Val(rts[0].GetEmailAddress().GetName()),
-					ptr.Val(rts[0].GetEmailAddress().GetAddress())))
+			logger.Ctx(ctx).
+				With("reply_to_count", len(rts)).
+				Warn("more than 1 Reply-To, adding only the first one")
+		}
+
+		if len(rts) != 0 {
+			email.SetReplyTo(formatAddress(rts[0].GetEmailAddress()))
 		}
 	}
 
@@ -103,9 +105,8 @@ func toEml(data models.Messageable) (string, error) {
 			default:
 				// https://learn.microsoft.com/en-us/graph/api/resources/itembody?view=graph-rest-1.0#properties
 				// This should not be possible according to the documentation
-				logger.Ctx(context.TODO()).
-					With("body_type", data.GetBody().GetContentType().String(),
-						"id", ptr.Val(data.GetId())).
+				logger.Ctx(ctx).
+					With("body_type", data.GetBody().GetContentType().String()).
 					Info("unknown body content type")
 
 				contentType = mail.TextPlain
@@ -121,12 +122,12 @@ func toEml(data models.Messageable) (string, error) {
 
 			bytes, err := attachment.GetBackingStore().Get("contentBytes")
 			if err != nil {
-				return "", clues.Wrap(err, "failed to get attachment bytes")
+				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes")
 			}
 
 			bts, ok := bytes.([]byte)
 			if !ok {
-				return "", clues.Wrap(err, "invalid content bytes")
+				return "", clues.WrapWC(ctx, err, "invalid content bytes")
 			}
 
 			email.Attach(&mail.File{
@@ -136,6 +137,10 @@ func toEml(data models.Messageable) (string, error) {
 				Inline:   ptr.Val(attachment.GetIsInline()),
 			})
 		}
+	}
+
+	if email.GetError() != nil {
+		return "", clues.WrapWC(ctx, email.Error, "converting to eml")
 	}
 
 	return email.GetMessage(), nil

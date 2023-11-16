@@ -31,6 +31,7 @@ type ExchangeOpts struct {
 	EventSubject      string
 
 	RestoreCfg RestoreCfgOpts
+	ExportCfg  ExportCfgOpts
 
 	Populated flags.PopulatedFlags
 }
@@ -60,6 +61,7 @@ func MakeExchangeOpts(cmd *cobra.Command) ExchangeOpts {
 		EventSubject:      flags.EventSubjectFV,
 
 		RestoreCfg: makeRestoreCfgOpts(cmd),
+		ExportCfg:  makeExportCfgOpts(cmd),
 
 		// populated contains the list of flags that appear in the
 		// command, according to pflags.  Use this to differentiate
