@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type EventsAPIUnitSuite struct {
@@ -362,7 +363,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 		{
 			name: "zero",
 			results: func(t *testing.T) map[string]any {
-				return requireParseableToMap(t, models.NewCalendarCollectionResponse())
+				return graphTD.ParseableToMap(t, models.NewCalendarCollectionResponse())
 			},
 			expectErr: assert.Error,
 		},
@@ -372,7 +373,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 				mfcr := models.NewCalendarCollectionResponse()
 				mfcr.SetValue([]models.Calendarable{c})
 
-				return requireParseableToMap(t, mfcr)
+				return graphTD.ParseableToMap(t, mfcr)
 			},
 			expectErr: assert.NoError,
 		},
@@ -382,7 +383,7 @@ func (suite *EventsAPIIntgSuite) TestEvents_GetContainerByName_mocked() {
 				mfcr := models.NewCalendarCollectionResponse()
 				mfcr.SetValue([]models.Calendarable{c, c})
 
-				return requireParseableToMap(t, mfcr)
+				return graphTD.ParseableToMap(t, mfcr)
 			},
 			expectErr: assert.NoError,
 		},

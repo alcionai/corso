@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -41,7 +42,7 @@ func (suite *MetadataCollectionUnitSuite) TestFullPath() {
 		"foo")
 	require.NoError(t, err, clues.ToCore(err))
 
-	c := NewMetadataCollection(p, nil, nil)
+	c := NewMetadataCollection(p, nil, nil, count.New())
 
 	assert.Equal(t, p.String(), c.FullPath().String())
 }
@@ -99,7 +100,8 @@ func (suite *MetadataCollectionUnitSuite) TestItems() {
 		func(c *support.ControllerOperationStatus) {
 			assert.Equal(t, len(itemNames), c.Metrics.Objects)
 			assert.Equal(t, len(itemNames), c.Metrics.Successes)
-		})
+		},
+		count.New())
 
 	gotData := [][]byte{}
 	gotNames := []string{}
@@ -198,7 +200,8 @@ func (suite *MetadataCollectionUnitSuite) TestMakeMetadataCollection() {
 			col, err := MakeMetadataCollection(
 				pathPrefix,
 				[]MetadataCollectionEntry{test.metadata},
-				func(*support.ControllerOperationStatus) {})
+				func(*support.ControllerOperationStatus) {},
+				count.New())
 
 			test.errCheck(t, err, clues.ToCore(err))
 			if err != nil {
