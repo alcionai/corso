@@ -1058,10 +1058,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						t: t,
 						pages: []pageResult{
 							{
-								err: graphTD.ODataErrWithMsg(
-									string(graph.ParameterDeltaTokenNotSupported),
-									string(graph.ParameterDeltaTokenNotSupported),
-								),
+								err:        graphTD.ODataErr(string(graph.ParameterDeltaTokenNotSupported)),
 								needsReset: true,
 							},
 						},
@@ -1115,7 +1112,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						t: t,
 						pages: []pageResult{
 							{
-								err:        graph.ErrDeltaNotSupported,
+								err:        graphTD.ODataErr(string(graph.ParameterDeltaTokenNotSupported)),
 								needsReset: true,
 							},
 						},
@@ -1172,10 +1169,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 								},
 							},
 							{
-								err: graphTD.ODataErrWithMsg(
-									string(graph.ParameterDeltaTokenNotSupported),
-									string(graph.ParameterDeltaTokenNotSupported),
-								),
+								err:        graphTD.ODataErr(string(graph.ParameterDeltaTokenNotSupported)),
 								needsReset: true,
 							},
 						},
@@ -1290,10 +1284,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 								},
 							},
 							{
-								err: graphTD.ODataErrWithMsg(
-									string(graph.ParameterDeltaTokenNotSupported),
-									string(graph.ParameterDeltaTokenNotSupported),
-								),
+								err:        graphTD.ODataErr(string(graph.ParameterDeltaTokenNotSupported)),
 								needsReset: true,
 							},
 						},
