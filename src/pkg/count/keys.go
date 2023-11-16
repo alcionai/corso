@@ -24,7 +24,9 @@ const (
 	PersistenceErrors             Key = "persistence-errors"
 	PersistenceExpectedErrors     Key = "persistence-expected-errors"
 	PersistenceIgnoredErrors      Key = "persistence-ignored-errors"
+
 	// amounts reported by data providers
+
 	CollectionMoved               Key = "collection-moved"
 	CollectionNew                 Key = "collection-state-new"
 	CollectionNotMoved            Key = "collection-state-not-moved"
@@ -36,6 +38,7 @@ const (
 	DriveTombstones               Key = "drive-tombstones"
 	Files                         Key = "files"
 	Folders                       Key = "folders"
+	ItemDownloadURLRefetch        Key = "item-download-url-refetch"
 	ItemsAdded                    Key = "items-added"
 	ItemsRemoved                  Key = "items-removed"
 	LazyDeletedInFlight           Key = "lazy-deleted-in-flight"
@@ -62,6 +65,9 @@ const (
 	StreamItemsRemoved            Key = "stream-items-removed"
 	URLCacheMiss                  Key = "url-cache-miss"
 	URLCacheRefresh               Key = "url-cache-refresh"
+
+	// miscellaneous
+	RequiresUserPnToIDMigration Key = "requires-user-pn-to-id-migration"
 )
 
 // Counted using clues error labels

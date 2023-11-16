@@ -819,7 +819,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			mbh.GetResps = resps
 			mbh.GetErrs = test.getErr
 
-			r, err := downloadContent(ctx, mbh, test.muc, item, driveID)
+			r, err := downloadContent(ctx, mbh, test.muc, item, driveID, count.New())
 			test.expect(t, r)
 			test.expectErr(t, err, clues.ToCore(err))
 		})

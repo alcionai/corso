@@ -126,7 +126,7 @@ func migrationCollections(
 		return nil, nil
 	}
 
-	counter.Inc("requires_migrate_user_pn_to_id")
+	counter.Inc(count.RequiresUserPnToIDMigration)
 
 	// unlike exchange, which enumerates all folders on every
 	// backup, onedrive needs to force the owner PN -> ID migration

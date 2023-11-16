@@ -269,7 +269,13 @@ func (oc *Collection) getDriveItemContent(
 		itemName = ptr.Val(item.GetName())
 	)
 
-	itemData, err := downloadContent(ctx, oc.handler, oc.urlCache, item, oc.driveID)
+	itemData, err := downloadContent(
+		ctx,
+		oc.handler,
+		oc.urlCache,
+		item,
+		oc.driveID,
+		oc.counter)
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
@@ -340,6 +346,7 @@ func downloadContent(
 	uc getItemPropertyer,
 	item models.DriveItemable,
 	driveID string,
+	counter *count.Bus,
 ) (io.ReadCloser, error) {
 	itemID := ptr.Val(item.GetId())
 	ctx = clues.Add(ctx, "item_id", itemID)
@@ -365,6 +372,7 @@ func downloadContent(
 	// to preserve existing behavior. Fallback to refetching the item using the
 	// API.
 	logger.CtxErr(ctx, err).Info("url cache miss: refetching from API")
+	counter.Inc(count.ItemDownloadURLRefetch)
 
 	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
@@ -604,7 +612,6 @@ func (oc *Collection) streamDriveItem(
 	// Drive content download requests are also rate limited by graph api.
 	// Ensure that this request goes through the drive limiter & not the default
 	// limiter.
-	// TODO: seems like we could do this earlier in the collection processing.
 	ctx = graph.BindRateLimiterConfig(
 		ctx,
 		graph.LimiterCfg{
