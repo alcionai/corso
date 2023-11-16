@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ExportUnitSuite struct {
@@ -96,7 +97,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 
 	stats := data.ExportStats{}
 
-	ecs, err := NewGroupsHandler(control.DefaultOptions()).
+	ecs, err := NewGroupsHandler(control.DefaultOptions(), api.Client{}, nil).
 		ProduceExportCollections(
 			ctx,
 			int(version.Backup),
@@ -196,7 +197,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 		},
 	}
 
-	handler := NewGroupsHandler(control.DefaultOptions())
+	handler := NewGroupsHandler(control.DefaultOptions(), api.Client{}, nil)
 	handler.CacheItemInfo(dii)
 
 	stats := data.ExportStats{}

@@ -34,7 +34,7 @@ func makeAC(
 
 	creds, err := acct.M365Config()
 	if err != nil {
-		return api.Client{}, clues.Wrap(err, "getting m365 account creds").WithClues(ctx)
+		return api.Client{}, clues.WrapWC(ctx, err, "getting m365 account creds")
 	}
 
 	cli, err := api.NewClient(
@@ -42,7 +42,7 @@ func makeAC(
 		control.DefaultOptions(),
 		count.New())
 	if err != nil {
-		return api.Client{}, clues.Wrap(err, "constructing api client").WithClues(ctx)
+		return api.Client{}, clues.WrapWC(ctx, err, "constructing api client")
 	}
 
 	return cli, nil

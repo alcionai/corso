@@ -40,9 +40,10 @@ func (r *Opts) AsConfigs(
 	// Check the new config is valid.
 	if r.blobCfg.IsRetentionEnabled() {
 		if err := maintenance.CheckExtendRetention(ctx, r.blobCfg, &r.params); err != nil {
-			return format.BlobStorageConfiguration{}, maintenance.Params{}, clues.Wrap(
+			return format.BlobStorageConfiguration{}, maintenance.Params{}, clues.WrapWC(
+				ctx,
 				err,
-				"invalid retention config").WithClues(ctx)
+				"invalid retention config")
 		}
 	}
 

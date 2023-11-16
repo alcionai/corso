@@ -46,7 +46,7 @@ func CreateCollections(
 
 	handler, ok := handlers[category]
 	if !ok {
-		return nil, clues.New("unsupported backup category type").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "unsupported backup category type")
 	}
 
 	foldersComplete := observe.MessageWithCompletion(
@@ -122,10 +122,13 @@ func populateCollections(
 			return nil, el.Failure()
 		}
 
-		cID := ptr.Val(c.GetId())
-
 		var (
-			err         error
+			err        error
+			itemConfig = api.CallConfig{
+				CanMakeDeltaQueries: !ctrlOpts.ToggleFeatures.DisableDelta,
+				UseImmutableIDs:     ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
+			}
+			cID         = ptr.Val(c.GetId())
 			dp          = dps[cID]
 			prevDelta   = dp.Delta
 			prevPathStr = dp.Path // do not log: pii; log prevPath instead
@@ -146,6 +149,11 @@ func populateCollections(
 			continue
 		}
 
+		ictx = clues.Add(
+			ictx,
+			"current_path", currPath,
+			"current_location", locPath)
+
 		delete(tombstones, cID)
 
 		if len(prevPathStr) > 0 {
@@ -158,18 +166,13 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		cc := api.CallConfig{
-			CanMakeDeltaQueries: !ctrlOpts.ToggleFeatures.DisableDelta,
-			UseImmutableIDs:     ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
-		}
-
 		addAndRem, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
 				cID,
 				prevDelta,
-				cc)
+				itemConfig)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(ctx, clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
@@ -230,7 +233,7 @@ func populateCollections(
 		)
 
 		if collections[id] != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
+			el.AddRecoverable(ctx, clues.WrapWC(ictx, err, "conflict: tombstone exists for a live collection"))
 			continue
 		}
 

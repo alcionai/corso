@@ -137,13 +137,13 @@ func (c Events) GetContainerByName(
 		Calendars().
 		Get(ctx, options)
 	if err != nil {
-		return nil, graph.Stack(ctx, err).WithClues(ctx)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	gv := resp.GetValue()
 
 	if len(gv) == 0 {
-		return nil, clues.New("container not found").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "container not found")
 	}
 
 	// We only allow the api to match one calendar with the provided name.
@@ -155,7 +155,7 @@ func (c Events) GetContainerByName(
 	container := graph.CalendarDisplayable{Calendarable: cal}
 
 	if err := graph.CheckIDAndName(container); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	return container, nil
@@ -546,7 +546,7 @@ func (c Events) PostLargeAttachment(
 
 	_, err = io.CopyBuffer(w, bytes.NewReader(content), copyBuffer)
 	if err != nil {
-		return "", clues.Wrap(err, "buffering large attachment content").WithClues(ctx)
+		return "", clues.WrapWC(ctx, err, "buffering large attachment content")
 	}
 
 	return w.ID, nil

@@ -124,11 +124,11 @@ func getItemName(
 
 		meta, err := FetchAndReadMetadata(ctx, fin, metaName)
 		if err != nil {
-			return "", clues.Wrap(err, "getting metadata").WithClues(ctx)
+			return "", clues.WrapWC(ctx, err, "getting metadata")
 		}
 
 		return meta.FileName, nil
 	}
 
-	return "", clues.New("invalid item id").WithClues(ctx)
+	return "", clues.NewWC(ctx, "invalid item id")
 }

@@ -53,6 +53,9 @@ linters-settings:
       # Prefer suite.Run(name, func() {}) for subtests as testify has it instead
       # of suite.T().Run(name, func(t *testing.T) {}).
       - '(T\(\)|\st[a-zA-Z0-9]*)\.Run(# prefer testify suite.Run(name, func()) )?'
+      # Prefer packing ctx values into the error using NewWC, WrapWC, or StackWC
+      # instead of New|Stack|Wrap().WithClues(ctx)
+      - 'WithClues(# prefer the builderWC variant - ex: StackWC(ctx, ...))?'
   lll:
     line-length: 120
   revive:

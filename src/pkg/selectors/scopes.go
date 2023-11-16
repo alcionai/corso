@@ -540,7 +540,7 @@ func reduce[T scopeT, C categoryT](
 
 		repoPath, err := path.FromDataLayerPath(ent.RepoRef, true)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "transforming repoRef to path").WithClues(ictx))
+			el.AddRecoverable(ictx, clues.WrapWC(ictx, err, "transforming repoRef to path"))
 			continue
 		}
 
@@ -563,7 +563,7 @@ func reduce[T scopeT, C categoryT](
 
 		pv, err := dc.pathValues(repoPath, *ent, s.Cfg)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "getting path values").WithClues(ictx))
+			el.AddRecoverable(ictx, clues.WrapWC(ictx, err, "getting path values"))
 			continue
 		}
 

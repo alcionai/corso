@@ -227,7 +227,7 @@ func (mw RetryMiddleware) retryRequest(
 	case <-ctx.Done():
 		// Don't retry if the context is marked as done, it will just error out
 		// when we attempt to send the retry anyway.
-		return resp, clues.Stack(ctx.Err()).WithClues(ctx)
+		return resp, clues.StackWC(ctx, ctx.Err())
 
 	case <-timer.C:
 	}

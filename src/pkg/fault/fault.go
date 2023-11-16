@@ -149,7 +149,7 @@ func (e *Bus) logAndAddRecoverable(ctx context.Context, err error, skip int) {
 	isFail := e.addRecoverableErr(err)
 
 	if isFail {
-		log.Errorf("recoverable error: %v", err)
+		log.Errorf("failed on recoverable error: %v", err)
 	} else {
 		log.Infof("recoverable error: %v", err)
 	}
