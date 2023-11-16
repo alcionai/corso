@@ -140,55 +140,63 @@ func (de Entry) MinimumPrintable() any {
 
 // Headers returns the human-readable names of properties in a DetailsEntry
 // for printing out to a terminal in a columnar display.
-func (de Entry) Headers() []string {
-	hs := []string{"ID"}
+func (de Entry) Headers(skipID bool) []string {
+	hs := []string{}
 
 	if de.ItemInfo.Folder != nil {
-		hs = append(hs, de.ItemInfo.Folder.Headers()...)
+		hs = de.ItemInfo.Folder.Headers()
 	}
 
 	if de.ItemInfo.Exchange != nil {
-		hs = append(hs, de.ItemInfo.Exchange.Headers()...)
+		hs = de.ItemInfo.Exchange.Headers()
 	}
 
 	if de.ItemInfo.SharePoint != nil {
-		hs = append(hs, de.ItemInfo.SharePoint.Headers()...)
+		hs = de.ItemInfo.SharePoint.Headers()
 	}
 
 	if de.ItemInfo.OneDrive != nil {
-		hs = append(hs, de.ItemInfo.OneDrive.Headers()...)
+		hs = de.ItemInfo.OneDrive.Headers()
 	}
 
 	if de.ItemInfo.Groups != nil {
-		hs = append(hs, de.ItemInfo.Groups.Headers()...)
+		hs = de.ItemInfo.Groups.Headers()
 	}
 
-	return hs
+	if skipID {
+		return hs
+	}
+
+	return append([]string{"ID"}, hs...)
 }
 
 // Values returns the values matching the Headers list.
-func (de Entry) Values() []string {
-	vs := []string{de.ShortRef}
+func (de Entry) Values(skipID bool) []string {
+	vs := []string{}
 
 	if de.ItemInfo.Folder != nil {
-		vs = append(vs, de.ItemInfo.Folder.Values()...)
+		vs = de.ItemInfo.Folder.Values()
 	}
 
 	if de.ItemInfo.Exchange != nil {
-		vs = append(vs, de.ItemInfo.Exchange.Values()...)
+		vs = de.ItemInfo.Exchange.Values()
 	}
 
 	if de.ItemInfo.SharePoint != nil {
-		vs = append(vs, de.ItemInfo.SharePoint.Values()...)
+		vs = de.ItemInfo.SharePoint.Values()
 	}
 
 	if de.ItemInfo.OneDrive != nil {
-		vs = append(vs, de.ItemInfo.OneDrive.Values()...)
+		vs = de.ItemInfo.OneDrive.Values()
 	}
 
 	if de.ItemInfo.Groups != nil {
-		vs = append(vs, de.ItemInfo.Groups.Values()...)
+		vs = de.ItemInfo.Groups.Values()
 	}
 
-	return vs
+	if skipID {
+		return vs
+	}
+
+	return append([]string{de.ShortRef}, vs...)
 }

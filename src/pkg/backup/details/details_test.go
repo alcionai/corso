@@ -174,10 +174,15 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			hs := test.entry.Headers()
+			hs := test.entry.Headers(false)
 			assert.Equal(t, test.expectHs, hs)
-			vs := test.entry.Values()
+			vs := test.entry.Values(false)
 			assert.Equal(t, test.expectVs, vs)
+
+			hs = test.entry.Headers(true)
+			assert.Equal(t, test.expectHs[1:], hs)
+			vs = test.entry.Values(true)
+			assert.Equal(t, test.expectVs[1:], vs)
 		})
 	}
 }

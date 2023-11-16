@@ -247,7 +247,7 @@ func genericCreateCommand(
 	}
 
 	if len(bups) > 0 {
-		Info(ctx, "Completed Backups:")
+		Info(ctx, "\nCompleted Backups:")
 		backup.PrintAll(ctx, bups)
 	}
 
@@ -420,6 +420,5 @@ func printBackupStats(ctx context.Context, r repository.Repositoryer, bid string
 		logger.CtxErr(ctx, err).Error("finding backup immediately after backup operation completion")
 	}
 
-	b.ToPrintable().Stats.Print(ctx)
-	Info(ctx, " ")
+	b.ToPrintable().Stats.PrintProperties(ctx)
 }
