@@ -60,3 +60,4 @@ subtrees
 anonymized
 unreferenced
 hostname
+zsh
