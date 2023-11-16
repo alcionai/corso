@@ -76,14 +76,13 @@ func getItemAndInfo(
 		useImmutableIDs,
 		fault.New(true)) // temporary way to force a failFast error
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "fetching item").
-			WithClues(ctx).
+		return nil, nil, clues.WrapWC(ctx, err, "fetching item").
 			Label(fault.LabelForceNoBackupCreation)
 	}
 
 	itemData, err := getter.Serialize(ctx, item, userID, id)
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "serializing item").WithClues(ctx)
+		return nil, nil, clues.WrapWC(ctx, err, "serializing item")
 	}
 
 	// In case of mail the size of itemData is calc as- size of body content+size of attachment
@@ -285,8 +284,7 @@ func (col *prefetchCollection) streamItems(
 			if err != nil {
 				el.AddRecoverable(
 					ctx,
-					clues.Stack(err).
-						WithClues(ctx).
+					clues.StackWC(ctx, err).
 						Label(fault.LabelForceNoBackupCreation))
 
 				return

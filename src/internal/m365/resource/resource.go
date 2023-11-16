@@ -1,5 +1,9 @@
 package resource
 
+import "github.com/alcionai/clues"
+
+var ErrNoResourceLookup = clues.New("missing resource lookup client")
+
 type Category string
 
 const (

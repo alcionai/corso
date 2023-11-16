@@ -185,13 +185,13 @@ func RestoreSitePage(
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
 	if err != nil {
-		return dii, clues.Wrap(err, "reading sharepoint data").WithClues(ctx)
+		return dii, clues.WrapWC(ctx, err, "reading sharepoint data")
 	}
 
 	// Hydrate Page
 	page, err := CreatePageFromBytes(byteArray)
 	if err != nil {
-		return dii, clues.Wrap(err, "creating Page object").WithClues(ctx)
+		return dii, clues.WrapWC(ctx, err, "creating Page object")
 	}
 
 	name, ok := ptr.ValOK(page.GetName())
@@ -217,7 +217,7 @@ func RestoreSitePage(
 	// Publish page to make visible
 	// See https://learn.microsoft.com/en-us/graph/api/sitepage-publish?view=graph-rest-beta
 	if restoredPage.GetWebUrl() == nil {
-		return dii, clues.New("webURL not populated during page creation").WithClues(ctx)
+		return dii, clues.NewWC(ctx, "webURL not populated during page creation")
 	}
 
 	err = service.Client().

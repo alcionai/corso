@@ -309,8 +309,7 @@ func (oc *Collection) getDriveItemContent(
 
 		errs.AddRecoverable(
 			ctx,
-			clues.Wrap(err, "downloading item content").
-				WithClues(ctx).
+			clues.WrapWC(ctx, err, "downloading item content").
 				Label(fault.LabelForceNoBackupCreation))
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
@@ -342,7 +341,7 @@ func downloadContent(
 	content, err := downloadItem(ctx, iaag, item)
 	if err == nil {
 		return content, nil
-	} else if !graph.IsErrUnauthorized(err) {
+	} else if !graph.IsErrUnauthorizedOrBadToken(err) {
 		return nil, err
 	}
 
@@ -398,7 +397,7 @@ func readItemContents(
 	}
 
 	rc, err := downloadFile(ctx, iaag, props.downloadURL)
-	if graph.IsErrUnauthorized(err) {
+	if graph.IsErrUnauthorizedOrBadToken(err) {
 		logger.CtxErr(ctx, err).Info("stale item in cache")
 	}
 
@@ -508,8 +507,7 @@ func (lig *lazyItemGetter) GetData(
 		*lig.info,
 		lig.itemExtensionFactory)
 	if err != nil {
-		err := clues.Wrap(err, "adding extensions").
-			WithClues(ctx).
+		err := clues.WrapWC(ctx, err, "adding extensions").
 			Label(fault.LabelForceNoBackupCreation)
 
 		return nil, nil, false, err
@@ -589,14 +587,6 @@ func (oc *Collection) streamDriveItem(
 		parentPath)
 
 	ctx = clues.Add(ctx, "item_info", itemInfo)
-	// Drive content download requests are also rate limited by graph api.
-	// Ensure that this request goes through the drive limiter & not the default
-	// limiter.
-	ctx = graph.BindRateLimiterConfig(
-		ctx,
-		graph.LimiterCfg{
-			Service: path.OneDriveService,
-		})
 
 	if isFile {
 		dataSuffix := metadata.DataFileSuffix
@@ -637,8 +627,7 @@ func (oc *Collection) streamDriveItem(
 		// permissions change does not update mod time.
 		time.Now())
 	if err != nil {
-		errs.AddRecoverable(ctx, clues.Stack(err).
-			WithClues(ctx).
+		errs.AddRecoverable(ctx, clues.StackWC(ctx, err).
 			Label(fault.LabelForceNoBackupCreation))
 
 		return

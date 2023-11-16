@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Handle OneDrive folders being deleted and recreated midway through a backup
 - Automatically re-run a full delta query on incrmental if the prior backup is found to have malformed prior-state information.
+- Retry drive item permission downloads during long-running backups after the jwt token expires and refreshes.
 
 ## [v0.15.0] (beta) - 2023-10-31
 

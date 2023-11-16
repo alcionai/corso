@@ -69,7 +69,7 @@ func RestoreCollection(
 
 	drivePath, err := path.ToDrivePath(directory)
 	if err != nil {
-		return metrics, clues.Wrap(err, "creating drive path").WithClues(ctx)
+		return metrics, clues.WrapWC(ctx, err, "creating drive path")
 	}
 
 	di, err := ensureDriveExists(
@@ -118,7 +118,7 @@ func RestoreCollection(
 		rcc.BackupVersion,
 		rcc.RestoreConfig.IncludePermissions)
 	if err != nil {
-		return metrics, clues.Wrap(err, "getting permissions").WithClues(ctx)
+		return metrics, clues.Wrap(err, "getting permissions")
 	}
 
 	// Create restore folders and get the folder ID of the folder the data stream will be restored in
@@ -193,16 +193,16 @@ func RestoreCollection(
 				defer caches.pool.Put(copyBufferPtr)
 
 				copyBuffer := *copyBufferPtr
-				ictx := clues.Add(ctx, "restore_item_id", itemData.ID())
+				ctx = clues.Add(ctx, "restore_item_id", itemData.ID())
 
 				itemPath, err := dc.FullPath().AppendItem(itemData.ID())
 				if err != nil {
-					el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ictx))
+					el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "appending item to full path"))
 					return
 				}
 
 				itemInfo, skipped, err := restoreItem(
-					ictx,
+					ctx,
 					rh,
 					rcc,
 					dc,
@@ -227,12 +227,12 @@ func RestoreCollection(
 				}
 
 				if skipped {
-					logger.Ctx(ictx).With("item_path", itemPath).Debug("did not restore item")
+					logger.Ctx(ctx).With("item_path", itemPath).Debug("did not restore item")
 					return
 				}
 
 				// TODO: implement locationRef
-				updateDeets(ictx, itemPath, &path.Builder{}, itemInfo)
+				updateDeets(ctx, itemPath, &path.Builder{}, itemInfo)
 
 				atomic.AddInt64(&metricsSuccess, 1)
 			}(ctx, itemData)
@@ -312,7 +312,7 @@ func restoreItem(
 
 		meta, err := getMetadata(metaReader)
 		if err != nil {
-			return details.ItemInfo{}, true, clues.Wrap(err, "getting directory metadata").WithClues(ctx)
+			return details.ItemInfo{}, true, clues.WrapWC(ctx, err, "getting directory metadata")
 		}
 
 		trimmedPath := strings.TrimSuffix(itemPath.String(), metadata.DirMetaFileSuffix)
@@ -729,7 +729,7 @@ func restoreFile(
 	// Get the stream size (needed to create the upload session)
 	ss, ok := itemData.(data.ItemSize)
 	if !ok {
-		return "", details.ItemInfo{}, clues.New("item does not implement DataStreamInfo").WithClues(ctx)
+		return "", details.ItemInfo{}, clues.NewWC(ctx, "item does not implement DataStreamInfo")
 	}
 
 	var (

@@ -65,9 +65,8 @@ func (h *baseExchangeHandler) ProduceExportCollections(
 		case path.EventsCategory, path.ContactsCategory:
 			logger.Ctx(ctx).With("category", category.String()).Debugw("Skipping restore for category")
 		default:
-			return nil, clues.New("data category not supported").
-				With("category", category).
-				WithClues(ctx)
+			return nil, clues.NewWC(ctx, "data category not supported").
+				With("category", category)
 		}
 	}
 

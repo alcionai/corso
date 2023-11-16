@@ -50,7 +50,7 @@ func getDetailsFromBackup(
 	}
 
 	if len(ssid) == 0 {
-		return nil, clues.New("no details or errors in backup").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "no details or errors in backup")
 	}
 
 	if err := detailsStore.Read(ctx, ssid, umt, errs); err != nil {

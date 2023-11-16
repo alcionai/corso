@@ -356,33 +356,41 @@ func (aw *adapterWrap) Send(
 		}
 	}()
 
-	// stream errors from http/2 will fail before we reach
-	// client middleware handling, therefore we don't get to
-	// make use of the retry middleware.  This external
-	// retry wrapper is unsophisticated, but should only
-	// retry in the event of a `stream error`, which is not
-	// a common expectation.
+	// This external retry wrapper is unsophisticated, but should
+	// only retry under certain circumstances
+	// 1. stream errors from http/2, which will fail before we reach
+	// client middleware handling.
+	// 2. jwt token invalidation, which requires a re-auth that's handled
+	// in the Send() call, before reaching client middleware.
 	for i := 0; i < aw.config.maxConnectionRetries+1; i++ {
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
-		sp, err = aw.RequestAdapter.Send(ctx, requestInfo, constructor, errorMappings)
+		sp, err = aw.RequestAdapter.Send(ictx, requestInfo, constructor, errorMappings)
 		if err == nil {
 			break
 		}
 
+		// force an early exit on throttling issues.
+		// those retries are well handled in middleware already. We want to ensure
+		// that the error gets wrapped with the appropriate sentinel here.
 		if IsErrApplicationThrottled(err) {
-			return nil, clues.Stack(ErrApplicationThrottled, err).WithTrace(1).WithClues(ictx)
+			return nil, clues.StackWC(ictx, ErrApplicationThrottled, err).WithTrace(1)
 		}
 
-		if !IsErrConnectionReset(err) && !connectionEnded.Compare(err.Error()) {
-			return nil, clues.Stack(err).WithTrace(1).WithClues(ictx)
+		// exit most errors without retry
+		switch {
+		case IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()):
+			logger.Ctx(ictx).Debug("http connection error")
+			events.Inc(events.APICall, "connectionerror")
+		case IsErrBadJWTToken(err):
+			logger.Ctx(ictx).Debug("bad jwt token")
+			events.Inc(events.APICall, "badjwttoken")
+		default:
+			return nil, clues.StackWC(ictx, err).WithTrace(1)
 		}
-
-		logger.Ctx(ictx).Debug("http connection error")
-		events.Inc(events.APICall, "connectionerror")
 
 		time.Sleep(3 * time.Second)
 	}
 
-	return sp, err
+	return sp, clues.Stack(err).OrNil()
 }

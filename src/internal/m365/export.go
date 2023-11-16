@@ -22,13 +22,13 @@ func (ctrl *Controller) NewServiceHandler(
 
 	switch service {
 	case path.OneDriveService:
-		return onedrive.NewOneDriveHandler(opts), nil
+		return onedrive.NewOneDriveHandler(opts, ctrl.AC, ctrl.resourceHandler), nil
 
 	case path.SharePointService:
-		return sharepoint.NewSharePointHandler(opts), nil
+		return sharepoint.NewSharePointHandler(opts, ctrl.AC, ctrl.resourceHandler), nil
 
 	case path.GroupsService:
-		return groups.NewGroupsHandler(opts), nil
+		return groups.NewGroupsHandler(opts, ctrl.AC, ctrl.resourceHandler), nil
 
 	case path.ExchangeService:
 		return exchange.NewExchangeHandler(opts), nil

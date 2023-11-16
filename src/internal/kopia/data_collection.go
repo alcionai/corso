@@ -44,8 +44,7 @@ func (kdc *kopiaDataCollection) Items(
 		for _, item := range kdc.items {
 			s, err := kdc.FetchItemByName(ctx, item)
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "fetching item").
-					WithClues(ctx).
+				el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "fetching item").
 					Label(fault.LabelForceNoBackupCreation))
 
 				continue
@@ -87,7 +86,7 @@ func (kdc kopiaDataCollection) FetchItemByName(
 	}
 
 	if len(name) == 0 {
-		return nil, clues.Wrap(ErrNoRestorePath, "unknown item").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, ErrNoRestorePath, "unknown item")
 	}
 
 	e, err := kdc.dir.Child(ctx, encodeAsPath(name))
@@ -96,12 +95,12 @@ func (kdc kopiaDataCollection) FetchItemByName(
 			err = clues.Stack(data.ErrNotFound, err)
 		}
 
-		return nil, clues.Wrap(err, "getting item").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "getting item")
 	}
 
 	f, ok := e.(fs.File)
 	if !ok {
-		return nil, clues.New("object is not a file").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "object is not a file")
 	}
 
 	size := f.Size() - int64(readers.VersionFormatSize)
@@ -117,19 +116,18 @@ func (kdc kopiaDataCollection) FetchItemByName(
 
 	r, err := f.Open(ctx)
 	if err != nil {
-		return nil, clues.Wrap(err, "opening file").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "opening file")
 	}
 
 	// TODO(ashmrtn): Remove this when individual services implement checks for
 	// version and deleted items.
 	rr, err := readers.NewVersionedRestoreReader(r)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	if rr.Format().Version != kdc.expectedVersion {
-		return nil, clues.New("unexpected data format").
-			WithClues(ctx).
+		return nil, clues.NewWC(ctx, "unexpected data format").
 			With(
 				"read_version", rr.Format().Version,
 				"expected_version", kdc.expectedVersion)
@@ -138,8 +136,7 @@ func (kdc kopiaDataCollection) FetchItemByName(
 	// This is a conservative check, but we shouldn't be seeing items that were
 	// deleted in flight during restores because there's no way to select them.
 	if rr.Format().DelInFlight {
-		return nil, clues.New("selected item marked as deleted in flight").
-			WithClues(ctx)
+		return nil, clues.NewWC(ctx, "selected item marked as deleted in flight")
 	}
 
 	return &kopiaDataStream{
