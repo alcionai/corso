@@ -19,8 +19,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -356,7 +356,7 @@ func (suite *MiddlewareUnitSuite) TestBindExtractLimiterConfig() {
 		name          string
 		service       path.ServiceType
 		expectOK      require.BoolAssertionFunc
-		expectLimiter *rate.Limiter
+		expectLimiter limiters.Limiter
 	}{
 		{
 			name:          "exchange",
