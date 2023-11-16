@@ -1982,7 +1982,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 			},
 		},
 		{
-			name: "NotPreview IgnoresLimits",
+			name: "NotPreview IgnoresLimitsAndExcludeSet",
 			limits: control.PreviewItemLimits{
 				MaxItems:             1,
 				MaxItemsPerContainer: 1,
