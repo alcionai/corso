@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added export support for emails in exchange backups as `.eml` files
 - More colorful and informational cli output
+- CLI completions for corso commands and flags (bash, zsh, fish, powershell)
 
 ### Changed
 - Change file extension of messages export to json to match the content
@@ -18,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handle OneDrive folders being deleted and recreated midway through a backup
 - Automatically re-run a full delta query on incremental if the prior backup is found to have malformed prior-state information.
 - Retry drive item permission downloads during long-running backups after the jwt token expires and refreshes.
+
+### Known issues
+- CLI completions cannot autocomplete multiple values for flags
 
 ## [v0.15.0] (beta) - 2023-10-31
 
