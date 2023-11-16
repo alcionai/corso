@@ -36,4 +36,4 @@ Below is a list of known Corso issues and limitations:
 
 * Restoring the data into a different Group from the one it was backed up from isn't currently supported
 
-* CLI completions cannot autocomplete multiple values for flags
+* CLI completions can't autocomplete multiple values for flags

@@ -89,7 +89,8 @@ func fatal(err error) {
 // Adapted from https://github.com/spf13/cobra/blob/main/doc/md_docs.go for Corso specific formatting
 func genMarkdownCorso(cmd *cobra.Command, dir string) error {
 	for _, c := range cmd.Commands() {
-		if !isAvailableCommand(c) || c.IsAdditionalHelpTopicCommand() {
+		if c.Use != "completion [bash|zsh|fish|powershell]" &&
+			(!isAvailableCommand(c) || c.IsAdditionalHelpTopicCommand()) {
 			continue
 		}
 

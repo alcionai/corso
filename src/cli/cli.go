@@ -149,10 +149,25 @@ func BuildCommandTree(cmd *cobra.Command) {
 // harder to control it, for example skipping printing "Logging to file"
 // message
 func AddCompletion(cmd *cobra.Command) {
+	longMessage := `Generate shell completion script for Corso.
+
+These need to be hooked into your shell to enable completions for Corso.
+
+For bash, add the following line to your ` + "`~/.bashrc`  \n" + // two spaces for markdown and \n for go
+		"`eval \"$(corso completion bash)\"`  \n" + `
+
+For zsh, add the following line to your ` + "`~/.zshrc`  \n" +
+		"`eval \"$(corso completion zsh)\"`  \n" + `
+
+For fish, add the following line to your ` + "`~/.config/fish/config.fish`  \n" +
+		"`corso completion fish | source`  \n" + `
+
+For powershell, add the following to your ` + "`$PROFILE`  \n" +
+		"`Invoke-Expression \"$(corso completion powershell)\"`"
 	completion := &cobra.Command{
 		Use:                   "completion [bash|zsh|fish|powershell]",
 		Short:                 "Generate completion script",
-		Long:                  "To load completions",
+		Long:                  longMessage,
 		DisableFlagsInUseLine: true,
 		ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 		Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),

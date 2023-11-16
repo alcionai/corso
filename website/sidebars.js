@@ -54,7 +54,8 @@ const sidebars = {
             'cli/corso-repo-connect-filesystem',
             'cli/corso-repo-maintenance',
             'cli/corso-repo-update-passphrase',
-            'cli/corso-env']
+            'cli/corso-env',
+            'cli/corso-completion']
         },
         {
           type: 'category',
