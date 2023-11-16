@@ -3,14 +3,13 @@ package exchange
 import (
 	"bytes"
 	"io"
-	"os"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/converters/eml/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
@@ -22,8 +21,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-const testEmailPath = "../../../converters/eml/testdata/email-with-attachments.json"
-
 type ExportUnitSuite struct {
 	tester.Suite
 }
@@ -33,8 +30,7 @@ func TestExportUnitSuite(t *testing.T) {
 }
 
 func (suite *ExportUnitSuite) TestGetItems() {
-	emailBodyBytes, err := os.ReadFile(testEmailPath)
-	require.NoError(suite.T(), err, "read email file")
+	emailBodyBytes := []byte(testdata.EmailWithAttachments)
 
 	table := []struct {
 		name              string
@@ -202,8 +198,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	emailBodyBytes, err := os.ReadFile(testEmailPath)
-	require.NoError(t, err, "read email file")
+	emailBodyBytes := []byte(testdata.EmailWithAttachments)
 
 	pb := path.Builder{}.Append("Inbox")
 	p, err := pb.ToDataLayerPath("t", "r", path.ExchangeService, path.EmailCategory, false)
@@ -397,6 +392,9 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 
 			expectedStats := data.ExportStats{}
 
+			// We are dependent on the order the collections are
+			// returned in the test which is not necessary for the
+			// correctness out the output.
 			for c := range ecs {
 				i := -1
 				for item := range ecs[c].Items(ctx) {
@@ -414,8 +412,6 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 					assert.NoError(t, err, clues.ToCore(err))
 
 					size += len(b)
-					bitem := io.NopCloser(bytes.NewBuffer(b))
-					item.Body = bitem
 
 					expectedStats.UpdateBytes(path.EmailCategory, int64(size))
 					expectedStats.UpdateResourceCount(path.EmailCategory)
