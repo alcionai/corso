@@ -197,6 +197,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
+	ctx = clues.AddLabelCounter(ctx, op.Counter.PlainAdder())
+
 	ctx, end := diagnostics.Span(ctx, "operations:backup:run")
 	defer end()
 
@@ -543,7 +545,7 @@ func produceBackupDataCollections(
 		Selector:            sel,
 	}
 
-	return bp.ProduceBackupCollections(ctx, bpc, counter, errs)
+	return bp.ProduceBackupCollections(ctx, bpc, counter.Local(), errs)
 }
 
 // ---------------------------------------------------------------------------

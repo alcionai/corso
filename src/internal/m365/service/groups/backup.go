@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -36,6 +37,7 @@ func ProduceBackupCollections(
 	ac api.Client,
 	creds account.M365Config,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
 	b, err := bpc.Selector.ToGroupsBackup()
@@ -71,14 +73,19 @@ func ProduceBackupCollections(
 			break
 		}
 
+		cl := counter.Local()
+		ictx := clues.AddLabelCounter(ctx, cl.PlainAdder())
+
 		var dbcs []data.BackupCollection
 
 		switch scope.Category().PathType() {
 		case path.LibrariesCategory:
-			sites, err := ac.Groups().GetAllSites(ctx, bpc.ProtectedResource.ID(), errs)
+			sites, err := ac.Groups().GetAllSites(ictx, bpc.ProtectedResource.ID(), errs)
 			if err != nil {
 				return nil, nil, err
 			}
+
+			cl.Add(count.Sites, int64(len(sites)))
 
 			siteMetadataCollection := map[string][]data.RestoreCollection{}
 
@@ -89,43 +96,51 @@ func ProduceBackupCollections(
 			}
 
 			for _, s := range sites {
-				pr := idname.NewProvider(ptr.Val(s.GetId()), ptr.Val(s.GetWebUrl()))
-				sbpc := inject.BackupProducerConfig{
-					LastBackupVersion:   bpc.LastBackupVersion,
-					Options:             bpc.Options,
-					ProtectedResource:   pr,
-					Selector:            bpc.Selector,
-					MetadataCollections: siteMetadataCollection[ptr.Val(s.GetId())],
-				}
+				var (
+					scl  = cl.Local()
+					pr   = idname.NewProvider(ptr.Val(s.GetId()), ptr.Val(s.GetWebUrl()))
+					sbpc = inject.BackupProducerConfig{
+						LastBackupVersion:   bpc.LastBackupVersion,
+						Options:             bpc.Options,
+						ProtectedResource:   pr,
+						Selector:            bpc.Selector,
+						MetadataCollections: siteMetadataCollection[ptr.Val(s.GetId())],
+					}
+					bh = drive.NewGroupBackupHandler(
+						bpc.ProtectedResource.ID(),
+						ptr.Val(s.GetId()),
+						ac.Drives(),
+						scope)
+				)
 
-				bh := drive.NewGroupBackupHandler(
-					bpc.ProtectedResource.ID(),
-					ptr.Val(s.GetId()),
-					ac.Drives(),
-					scope)
+				ictx = clues.Add(
+					ictx,
+					"site_id", ptr.Val(s.GetId()),
+					"site_weburl", graph.LoggableURL(ptr.Val(s.GetWebUrl())))
 
 				sp, err := bh.SitePathPrefix(creds.AzureTenantID)
 				if err != nil {
-					return nil, nil, clues.Wrap(err, "getting site path")
+					return nil, nil, clues.WrapWC(ictx, err, "getting site path").Label(count.BadPathPrefix)
 				}
 
 				sitesPreviousPaths[ptr.Val(s.GetId())] = sp.String()
 
 				cs, canUsePreviousBackup, err := site.CollectLibraries(
-					ctx,
+					ictx,
 					sbpc,
 					bh,
 					creds.AzureTenantID,
 					ssmb,
 					su,
+					scl,
 					errs)
 				if err != nil {
-					el.AddRecoverable(ctx, err)
+					el.AddRecoverable(ictx, err)
 					continue
 				}
 
 				if !canUsePreviousBackup {
-					dbcs = append(dbcs, data.NewTombstoneCollection(sp, control.Options{}))
+					dbcs = append(dbcs, data.NewTombstoneCollection(sp, control.Options{}, scl))
 				}
 
 				dbcs = append(dbcs, cs...)
@@ -142,7 +157,7 @@ func ProduceBackupCollections(
 				// TODO(meain): Use number of messages and not channels
 				CompletionMessage: func() string { return fmt.Sprintf("(found %d channels)", len(cs)) },
 			}
-			progressBar := observe.MessageWithCompletion(ctx, pcfg, scope.Category().PathType().HumanString())
+			progressBar := observe.MessageWithCompletion(ictx, pcfg, scope.Category().PathType().HumanString())
 
 			if !isTeam {
 				continue
@@ -151,25 +166,26 @@ func ProduceBackupCollections(
 			bh := groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels())
 
 			cs, canUsePreviousBackup, err = groups.CreateCollections(
-				ctx,
+				ictx,
 				bpc,
 				bh,
 				creds.AzureTenantID,
 				scope,
 				su,
+				cl,
 				errs)
 			if err != nil {
-				el.AddRecoverable(ctx, err)
+				el.AddRecoverable(ictx, err)
 				continue
 			}
 
 			if !canUsePreviousBackup {
 				tp, err := bh.PathPrefix(creds.AzureTenantID)
 				if err != nil {
-					return nil, nil, clues.Wrap(err, "getting message path")
+					return nil, nil, clues.WrapWC(ictx, err, "getting message path").Label(count.BadPathPrefix)
 				}
 
-				dbcs = append(dbcs, data.NewTombstoneCollection(tp, control.Options{}))
+				dbcs = append(dbcs, data.NewTombstoneCollection(tp, control.Options{}, cl))
 			}
 
 			dbcs = append(dbcs, cs...)
@@ -191,6 +207,7 @@ func ProduceBackupCollections(
 			path.GroupsService,
 			categories,
 			su,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, err
@@ -204,12 +221,17 @@ func ProduceBackupCollections(
 		creds.AzureTenantID,
 		bpc.ProtectedResource.ID(),
 		sitesPreviousPaths,
-		su)
+		su,
+		counter)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	collections = append(collections, md)
+
+	counter.Add(count.Collections, int64(len(collections)))
+
+	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
 
 	return collections, ssmb.ToReader(), el.Failure()
 }
@@ -218,6 +240,7 @@ func getSitesMetadataCollection(
 	tenantID, groupID string,
 	sites map[string]string,
 	su support.StatusUpdater,
+	counter *count.Bus,
 ) (data.BackupCollection, error) {
 	p, err := path.BuildMetadata(
 		tenantID,
@@ -239,7 +262,8 @@ func getSitesMetadataCollection(
 		[]graph.MetadataCollectionEntry{
 			graph.NewMetadataEntry(metadata.PreviousPathFileName, sites),
 		},
-		su)
+		su,
+		counter.Local())
 
 	return md, err
 }

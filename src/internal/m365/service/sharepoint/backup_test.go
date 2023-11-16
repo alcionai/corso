@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -119,7 +120,8 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				tenantID,
 				idname.NewProvider(siteID, siteID),
 				nil,
-				control.DefaultOptions())
+				control.DefaultOptions(),
+				count.New())
 
 			c.CollectionMap = collMap
 
@@ -131,6 +133,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				excluded,
 				topLevelPackages,
 				"notempty",
+				count.New(),
 				fault.New(true))
 
 			test.expect(t, err, clues.ToCore(err))

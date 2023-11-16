@@ -148,6 +148,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		du.URL,
 		1*time.Hour,
 		suite.ac.Drives(),
+		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -578,6 +579,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 						"",
 						1*time.Hour,
 						&medi,
+						count.New(),
 						fault.New(true))
 					require.NoError(t, err, clues.ToCore(err))
 
@@ -622,6 +624,7 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 		"",
 		refreshInterval,
 		&mock.EnumerateItemsDeltaByDrive{},
+		count.New(),
 		fault.New(true))
 
 	require.NoError(t, err, clues.ToCore(err))
@@ -694,6 +697,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 				"",
 				test.refreshInt,
 				test.itemPager,
+				count.New(),
 				test.errors)
 
 			test.expectErr(t, err, clues.ToCore(err))

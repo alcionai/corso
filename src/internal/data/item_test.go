@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -74,6 +75,7 @@ func (suite *ItemUnitSuite) TestUnindexedLazyItem() {
 		nil,
 		"foo",
 		time.Time{},
+		count.New(),
 		fault.New(true))
 
 	var item data.Item = lazy
@@ -296,6 +298,7 @@ func (suite *ItemUnitSuite) TestLazyItem() {
 				test.mid,
 				id,
 				now,
+				count.New(),
 				errs)
 
 			assert.Equal(t, id, item.ID(), "ID")
@@ -354,7 +357,7 @@ func (suite *ItemUnitSuite) TestLazyItem_DeletedInFlight() {
 	mid := &mockItemDataGetter{delInFlight: true}
 	defer mid.check(t, true)
 
-	item := data.NewLazyItemWithInfo(ctx, mid, id, now, errs)
+	item := data.NewLazyItemWithInfo(ctx, mid, id, now, count.New(), errs)
 
 	assert.Equal(t, id, item.ID(), "ID")
 	assert.False(t, item.Deleted(), "deleted")
@@ -400,7 +403,7 @@ func (suite *ItemUnitSuite) TestLazyItem_InfoBeforeReadErrors() {
 	mid := &mockItemDataGetter{}
 	defer mid.check(t, false)
 
-	item := data.NewLazyItemWithInfo(ctx, mid, id, now, errs)
+	item := data.NewLazyItemWithInfo(ctx, mid, id, now, count.New(), errs)
 
 	assert.Equal(t, id, item.ID(), "ID")
 	assert.False(t, item.Deleted(), "deleted")
