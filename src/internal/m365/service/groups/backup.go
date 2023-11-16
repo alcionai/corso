@@ -119,9 +119,7 @@ func ProduceBackupCollections(
 
 				sp, err := bh.SitePathPrefix(creds.AzureTenantID)
 				if err != nil {
-					return nil, nil, clues.Wrap(err, "getting site path").
-						WithClues(ictx).
-						Label(count.BadPathPrefix)
+					return nil, nil, clues.WrapWC(ictx, err, "getting site path").Label(count.BadPathPrefix)
 				}
 
 				sitesPreviousPaths[ptr.Val(s.GetId())] = sp.String()
@@ -183,9 +181,7 @@ func ProduceBackupCollections(
 			if !canUsePreviousBackup {
 				tp, err := bh.PathPrefix(creds.AzureTenantID)
 				if err != nil {
-					return nil, nil, clues.Wrap(err, "getting message path").
-						WithClues(ctx).
-						Label(count.BadPathPrefix)
+					return nil, nil, clues.WrapWC(ctx, err, "getting message path").Label(count.BadPathPrefix)
 				}
 
 				dbcs = append(dbcs, data.NewTombstoneCollection(tp, control.Options{}, cl))
