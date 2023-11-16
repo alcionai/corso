@@ -77,12 +77,12 @@ func (c Channels) GetChannelByName(
 		Channels().
 		Get(ctx, options)
 	if err != nil {
-		return nil, graph.Stack(ctx, err).WithClues(ctx)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	gv := resp.GetValue()
 	if len(gv) == 0 {
-		return nil, clues.New("channel not found").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "channel not found")
 	}
 
 	// We only allow the api to match one channel with the provided name.
@@ -93,7 +93,7 @@ func (c Channels) GetChannelByName(
 	cal := gv[0]
 
 	if err := checkIDAndName(cal); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	return cal, nil

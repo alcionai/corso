@@ -107,7 +107,7 @@ func restoreMail(
 ) (*details.ExchangeInfo, error) {
 	msg, err := api.BytesToMessageable(body)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating mail from bytes").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "creating mail from bytes")
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))

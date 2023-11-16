@@ -115,8 +115,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 	// never had to materialize their details in-memory.
 	if d.infoer == nil || d.cached {
 		if d.prevPath == nil {
-			cp.errs.AddRecoverable(ctx, clues.New("finished file sourced from previous backup with no previous path").
-				WithClues(ctx).
+			cp.errs.AddRecoverable(ctx, clues.NewWC(ctx, "finished file sourced from previous backup with no previous path").
 				Label(fault.LabelForceNoBackupCreation))
 
 			return
@@ -131,8 +130,7 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 			d.repoPath,
 			d.locationPath)
 		if err != nil {
-			cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to merge list").
-				WithClues(ctx).
+			cp.errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "adding finished file to merge list").
 				Label(fault.LabelForceNoBackupCreation))
 		}
 
@@ -145,27 +143,23 @@ func (cp *corsoProgress) FinishedFile(relativePath string, err error) {
 		// adding it to details since there's no data for it.
 		return
 	} else if err != nil {
-		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "getting ItemInfo").
-			WithClues(ctx).
+		cp.errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "getting ItemInfo").
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
 	} else if !ptr.Val(d.modTime).Equal(info.Modified()) {
-		cp.errs.AddRecoverable(ctx, clues.New("item modTime mismatch").
-			WithClues(ctx).
+		cp.errs.AddRecoverable(ctx, clues.NewWC(ctx, "item modTime mismatch").
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
 	} else if info.Modified().IsZero() {
-		cp.errs.AddRecoverable(ctx, clues.New("zero-valued mod time").
-			WithClues(ctx).
+		cp.errs.AddRecoverable(ctx, clues.NewWC(ctx, "zero-valued mod time").
 			Label(fault.LabelForceNoBackupCreation))
 	}
 
 	err = cp.deets.Add(d.repoPath, d.locationPath, info)
 	if err != nil {
-		cp.errs.AddRecoverable(ctx, clues.Wrap(err, "adding finished file to details").
-			WithClues(ctx).
+		cp.errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "adding finished file to details").
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
@@ -275,7 +269,7 @@ func collectionEntries(
 	for {
 		select {
 		case <-ctx.Done():
-			return seen, clues.Stack(ctx.Err()).WithClues(ctx)
+			return seen, clues.StackWC(ctx, ctx.Err())
 
 		case e, ok := <-items:
 			if !ok {
@@ -357,8 +351,7 @@ func collectionEntries(
 			if err != nil {
 				// Kopia's uploader swallows errors in most cases, so if we see
 				// something here it's probably a big issue and we should return.
-				return seen, clues.Wrap(err, "executing callback").
-					WithClues(ctx).
+				return seen, clues.WrapWC(ctx, err, "executing callback").
 					With("item_path", itemPath)
 			}
 		}
@@ -397,13 +390,12 @@ func streamBaseEntries(
 		ctx,
 		func(innerCtx context.Context, entry fs.Entry) error {
 			if err := innerCtx.Err(); err != nil {
-				return clues.Stack(err).WithClues(ctx)
+				return clues.StackWC(ctx, err)
 			}
 
 			entName, err := decodeElement(entry.Name())
 			if err != nil {
-				return clues.Wrap(err, "decoding entry name").
-					WithClues(ctx).
+				return clues.WrapWC(ctx, err, "decoding entry name").
 					With("entry_name", entry.Name())
 			}
 
@@ -421,14 +413,12 @@ func streamBaseEntries(
 				// LocationPath information associated with the directory.
 				newP, err := params.currentPath.Append(false, entName)
 				if err != nil {
-					return clues.Wrap(err, "getting current directory path").
-						WithClues(ctx)
+					return clues.WrapWC(ctx, err, "getting current directory path")
 				}
 
 				oldP, err := params.prevPath.Append(false, entName)
 				if err != nil {
-					return clues.Wrap(err, "getting previous directory path").
-						WithClues(ctx)
+					return clues.WrapWC(ctx, err, "getting previous directory path")
 				}
 
 				e := virtualfs.NewStreamingDirectory(
@@ -445,8 +435,7 @@ func streamBaseEntries(
 						globalExcludeSet,
 						progress))
 
-				return clues.Wrap(ctr(ctx, e), "executing callback on subdirectory").
-					WithClues(ctx).
+				return clues.WrapWC(ctx, ctr(ctx, e), "executing callback on subdirectory").
 					With("directory_path", newP).
 					OrNil()
 			}
@@ -467,8 +456,7 @@ func streamBaseEntries(
 			// For now assuming that item IDs don't need escaping.
 			itemPath, err := params.currentPath.AppendItem(entName)
 			if err != nil {
-				return clues.Wrap(err, "getting full item path for base entry").
-					WithClues(ctx)
+				return clues.WrapWC(ctx, err, "getting full item path for base entry")
 			}
 
 			// We need the previous path so we can find this item in the base snapshot's
@@ -477,8 +465,7 @@ func streamBaseEntries(
 			// to look for.
 			prevItemPath, err := params.prevPath.AppendItem(entName)
 			if err != nil {
-				return clues.Wrap(err, "getting previous full item path for base entry").
-					WithClues(ctx)
+				return clues.WrapWC(ctx, err, "getting previous full item path for base entry")
 			}
 
 			// Meta files aren't in backup details since it's the set of items the
@@ -502,16 +489,14 @@ func streamBaseEntries(
 			}
 
 			if err := ctr(ctx, entry); err != nil {
-				return clues.Wrap(err, "executing callback on item").
-					WithClues(ctx).
+				return clues.WrapWC(ctx, err, "executing callback on item").
 					With("item_path", itemPath)
 			}
 
 			return nil
 		})
 	if err != nil {
-		return clues.Wrap(err, "traversing items in base snapshot directory").
-			WithClues(ctx)
+		return clues.WrapWC(ctx, err, "traversing items in base snapshot directory")
 	}
 
 	return nil
@@ -534,8 +519,7 @@ func getStreamItemFunc(
 		// Return static entries in this directory first.
 		for _, d := range staticEnts {
 			if err := ctr(ctx, d); err != nil {
-				return clues.Wrap(err, "executing callback on static directory").
-					WithClues(ctx)
+				return clues.WrapWC(ctx, err, "executing callback on static directory")
 			}
 		}
 
@@ -763,15 +747,13 @@ func inflateCollectionTree(
 		switch s.State() {
 		case data.DeletedState:
 			if s.PreviousPath() == nil {
-				return nil, nil, clues.New("nil previous path on deleted collection").
-					WithClues(ictx)
+				return nil, nil, clues.NewWC(ictx, "nil previous path on deleted collection")
 			}
 
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				err := clues.New("multiple previous state changes").
-					WithClues(ictx).
+				err := clues.NewWC(ictx, "multiple previous state changes").
 					With("updated_path", p, "current_state", data.DeletedState)
 				logger.CtxErr(ictx, err).Error("previous path state collision")
 
@@ -788,8 +770,7 @@ func inflateCollectionTree(
 			changedPaths = append(changedPaths, s.PreviousPath())
 
 			if p, ok := updatedPaths[s.PreviousPath().String()]; ok {
-				err := clues.New("multiple previous state changes").
-					WithClues(ictx).
+				err := clues.NewWC(ictx, "multiple previous state changes").
 					With("updated_path", p, "current_state", data.MovedState)
 				logger.CtxErr(ictx, err).Error("previous path state collision")
 
@@ -809,15 +790,13 @@ func inflateCollectionTree(
 			// changed via one of the ancestor folders being moved. This catches the
 			// ancestor folder move.
 			if err := addMergeLocation(s, toMerge); err != nil {
-				return nil, nil, clues.Wrap(err, "adding merge location").
-					WithClues(ictx)
+				return nil, nil, clues.WrapWC(ictx, err, "adding merge location")
 			}
 
 		case data.NotMovedState:
 			p := s.PreviousPath().String()
 			if p, ok := updatedPaths[p]; ok {
-				err := clues.New("multiple previous state changes").
-					WithClues(ictx).
+				err := clues.NewWC(ictx, "multiple previous state changes").
 					With("updated_path", p, "current_state", data.NotMovedState)
 				logger.CtxErr(ictx, err).Error("previous path state collision")
 
@@ -833,19 +812,18 @@ func inflateCollectionTree(
 		}
 
 		if s.FullPath() == nil || len(s.FullPath().Elements()) == 0 {
-			return nil, nil, clues.New("no identifier for collection").WithClues(ictx)
+			return nil, nil, clues.NewWC(ictx, "no identifier for collection")
 		}
 
 		node := getTreeNode(roots, s.FullPath().Elements())
 		if node == nil {
-			return nil, nil, clues.New("getting tree node").WithClues(ictx)
+			return nil, nil, clues.NewWC(ictx, "getting tree node")
 		}
 
 		// Make sure there's only a single collection adding items for any given
 		// path in the new hierarchy.
 		if node.collection != nil {
-			return nil, nil, clues.New("multiple instances of collection").
-				WithClues(ictx)
+			return nil, nil, clues.NewWC(ictx, "multiple instances of collection")
 		}
 
 		node.collection = s
@@ -863,8 +841,7 @@ func inflateCollectionTree(
 		}
 
 		if node.collection != nil && node.collection.State() == data.NotMovedState {
-			err := clues.New("conflicting states for collection").
-				WithClues(ctx)
+			err := clues.NewWC(ctx, "conflicting states for collection")
 			logger.CtxErr(ctx, err).Error("adding node to tree")
 
 			if firstErr == nil {
@@ -947,7 +924,7 @@ func traverseBaseDir(
 		"expected_parent_dir_path", expectedDirPath)
 
 	if depth >= maxInflateTraversalDepth {
-		return clues.New("base snapshot tree too tall").WithClues(ctx)
+		return clues.NewWC(ctx, "base snapshot tree too tall")
 	}
 
 	// Wrapper base64 encodes all file and folder names to avoid issues with
@@ -955,8 +932,7 @@ func traverseBaseDir(
 	// from kopia we need to do the decoding here.
 	dirName, err := decodeElement(dir.Name())
 	if err != nil {
-		return clues.Wrap(err, "decoding base directory name").
-			WithClues(ctx).
+		return clues.WrapWC(ctx, err, "decoding base directory name").
 			With("dir_name", clues.Hide(dir.Name()))
 	}
 
@@ -1029,7 +1005,7 @@ func traverseBaseDir(
 				stats)
 		})
 		if err != nil {
-			return clues.Wrap(err, "traversing base directory").WithClues(ctx)
+			return clues.WrapWC(ctx, err, "traversing base directory")
 		}
 	} else {
 		stats.Inc(statPruned)
@@ -1049,7 +1025,7 @@ func traverseBaseDir(
 		// in the if-block though as that is an optimization.
 		node := getTreeNode(roots, currentPath.Elements())
 		if node == nil {
-			return clues.New("getting tree node").WithClues(ctx)
+			return clues.NewWC(ctx, "getting tree node")
 		}
 
 		// Now that we have the node we need to check if there is a collection
@@ -1075,12 +1051,12 @@ func traverseBaseDir(
 
 		curP, err := path.PrefixOrPathFromDataLayerPath(currentPath.String(), false)
 		if err != nil {
-			return clues.New("converting current path to path.Path").WithClues(ctx)
+			return clues.NewWC(ctx, "converting current path to path.Path")
 		}
 
 		oldP, err := path.PrefixOrPathFromDataLayerPath(oldDirPath.String(), false)
 		if err != nil {
-			return clues.New("converting old path to path.Path").WithClues(ctx)
+			return clues.NewWC(ctx, "converting old path to path.Path")
 		}
 
 		node.baseDir = dir
@@ -1159,12 +1135,12 @@ func inflateBaseTree(
 
 	root, err := loader.SnapshotRoot(base.ItemDataSnapshot)
 	if err != nil {
-		return clues.Wrap(err, "getting snapshot root directory").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "getting snapshot root directory")
 	}
 
 	dir, ok := root.(fs.Directory)
 	if !ok {
-		return clues.New("snapshot root is not a directory").WithClues(ctx)
+		return clues.NewWC(ctx, "snapshot root is not a directory")
 	}
 
 	// For each subtree corresponding to the tuple
@@ -1178,7 +1154,7 @@ func inflateBaseTree(
 
 		subtreePath, err := r.SubtreePath()
 		if err != nil {
-			return clues.Wrap(err, "building subtree path").WithClues(ictx)
+			return clues.WrapWC(ictx, err, "building subtree path")
 		}
 
 		// We're starting from the root directory so don't need it in the path.
@@ -1191,12 +1167,12 @@ func inflateBaseTree(
 				continue
 			}
 
-			return clues.Wrap(err, "getting subtree root").WithClues(ictx)
+			return clues.WrapWC(ictx, err, "getting subtree root")
 		}
 
 		subtreeDir, ok := ent.(fs.Directory)
 		if !ok {
-			return clues.Wrap(err, "subtree root is not directory").WithClues(ictx)
+			return clues.WrapWC(ictx, err, "subtree root is not directory")
 		}
 
 		// This ensures that a migration on the directory prefix can complete.
@@ -1219,7 +1195,7 @@ func inflateBaseTree(
 			subtreeDir,
 			roots,
 			stats); err != nil {
-			return clues.Wrap(err, "traversing base snapshot").WithClues(ictx)
+			return clues.WrapWC(ictx, err, "traversing base snapshot")
 		}
 
 		logger.Ctx(ctx).Infow(
@@ -1278,7 +1254,7 @@ func inflateDirTree(
 	}
 
 	if len(roots) > 1 {
-		return nil, clues.New("multiple root directories").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "multiple root directories")
 	}
 
 	var res fs.Directory

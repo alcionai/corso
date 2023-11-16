@@ -57,7 +57,7 @@ func (r *repository) ConnectDataProvider(
 	case account.ProviderM365:
 		provider, err = connectToM365(ctx, *r, pst)
 	default:
-		err = clues.New("unrecognized provider").WithClues(ctx)
+		err = clues.NewWC(ctx, "unrecognized provider")
 	}
 
 	if err != nil {
