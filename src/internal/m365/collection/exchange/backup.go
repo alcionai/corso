@@ -160,7 +160,7 @@ func populateCollections(
 				})
 		)
 
-		// ictx = clues.AddLabelCounter(ictx, cl)
+		ictx = clues.AddLabelCounter(ictx, cl.PlainAdder())
 
 		// Only create a collection if the path matches the scope.
 		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)

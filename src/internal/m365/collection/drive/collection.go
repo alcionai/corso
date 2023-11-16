@@ -575,7 +575,7 @@ func (oc *Collection) streamDriveItem(
 	if isFile {
 		atomic.AddInt64(&stats.itemsFound, 1)
 
-		if oc.counter.IncRead(count.StreamItemsFound)%1000 == 0 {
+		if oc.counter.Inc(count.StreamItemsFound)%1000 == 0 {
 			logger.Ctx(ctx).Infow("item stream progress", "stats", oc.counter.Values())
 		}
 

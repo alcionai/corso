@@ -333,6 +333,8 @@ func (c *Collections) Get(
 			packagePaths = map[string]struct{}{}
 		)
 
+		ictx = clues.AddLabelCounter(ictx, cl.PlainAdder())
+
 		delete(driveTombstones, driveID)
 
 		if _, ok := driveIDToPrevPaths[driveID]; !ok {

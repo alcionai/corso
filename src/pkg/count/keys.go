@@ -56,7 +56,6 @@ const (
 	PrevDeltas                    Key = "previous-deltas"
 	PrevPaths                     Key = "previous-paths"
 	PreviousPathMetadataCollision Key = "previous-path-metadata-collision"
-	ProviderItemsRead             Key = "provider-items-read"
 	Sites                         Key = "sites"
 	SkippedContainers             Key = "skipped-containers"
 	StreamBytesAdded              Key = "stream-bytes-added"

@@ -238,7 +238,7 @@ func (col *prefetchCollection) streamItems(
 
 			stream <- data.NewDeletedItem(id)
 
-			if col.Counter.IncRead(count.StreamItemsRemoved)%1000 == 0 {
+			if col.Counter.Inc(count.StreamItemsRemoved)%1000 == 0 {
 				logger.Ctx(ctx).Infow("item removal stream progress", "stats", col.Counter.Values())
 			}
 
@@ -311,7 +311,7 @@ func (col *prefetchCollection) streamItems(
 
 			col.Counter.Add(count.StreamBytesAdded, info.Size)
 
-			if col.Counter.IncRead(count.StreamItemsAdded)%1000 == 0 {
+			if col.Counter.Inc(count.StreamItemsAdded)%1000 == 0 {
 				logger.Ctx(ctx).Infow("item addition stream progress", "stats", col.Counter.Values())
 			}
 

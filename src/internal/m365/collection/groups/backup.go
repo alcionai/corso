@@ -141,6 +141,8 @@ func populateCollections(
 				})
 		)
 
+		ictx = clues.AddLabelCounter(ictx, cl.PlainAdder())
+
 		delete(tombstones, cID)
 
 		// Only create a collection if the path matches the scope.
