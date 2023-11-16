@@ -206,11 +206,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	ctx = clues.AddTrace(ctx)
 
 	// Select an appropriate rate limiter for the service.
-	ctx = graph.BindRateLimiterConfig(
-		ctx,
-		graph.LimiterCfg{
-			Service: op.Selectors.PathService(),
-		})
+	ctx = op.bp.SetRateLimiter(ctx, op.Selectors.PathService(), op.Options)
 
 	// Check if the protected resource has the service enabled in order for us
 	// to run a backup.
@@ -325,6 +321,12 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	if op.Errors.Failure() == nil {
 		logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
 	}
+
+	// For exchange, rate limits are enforced on a mailbox level. Reset the
+	// rate limiter so that it doesn't accidentally throttle following mailboxes.
+	// This is a no-op if we are using token bucket limiter since it refreshes
+	// tokens on a fixed per second basis.
+	graph.ResetLimiter(ctx)
 
 	return op.Errors.Failure()
 }
