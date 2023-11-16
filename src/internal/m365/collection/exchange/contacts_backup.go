@@ -33,13 +33,13 @@ func (h contactBackupHandler) folderGetter() containerGetter {
 	return h.ac
 }
 
-func (h contactBackupHandler) previewIncludeFolders() []string {
+func (h contactBackupHandler) previewIncludeContainers() []string {
 	return []string{
 		"contacts",
 	}
 }
 
-func (h contactBackupHandler) previewExcludeFolders() []string {
+func (h contactBackupHandler) previewExcludeContainers() []string {
 	return nil
 }
 

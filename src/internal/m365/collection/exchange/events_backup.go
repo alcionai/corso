@@ -33,13 +33,13 @@ func (h eventBackupHandler) folderGetter() containerGetter {
 	return h.ac
 }
 
-func (h eventBackupHandler) previewIncludeFolders() []string {
+func (h eventBackupHandler) previewIncludeContainers() []string {
 	return []string{
 		"calendar",
 	}
 }
 
-func (h eventBackupHandler) previewExcludeFolders() []string {
+func (h eventBackupHandler) previewExcludeContainers() []string {
 	return nil
 }
 

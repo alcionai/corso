@@ -123,8 +123,8 @@ func populateCollections(
 		maxItemsPerContainer = ctrlOpts.ItemLimits.MaxItemsPerContainer
 		maxItems             = ctrlOpts.ItemLimits.MaxItems
 
-		addedItems   int
-		addedFolders int
+		addedItems      int
+		addedContainers int
 	)
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
@@ -144,8 +144,8 @@ func populateCollections(
 			// the service not the data category. This is because a single data
 			// handler may be used for multiple services (e.x. drive handler is used
 			// for OneDrive, SharePoint, and Groups/Teams).
-			bh.previewIncludeFolders(),
-			bh.previewExcludeFolders())
+			bh.previewIncludeContainers(),
+			bh.previewExcludeContainers())
 		if err != nil {
 			return nil, clues.Wrap(err, "creating ranked container resolver")
 		}
@@ -224,7 +224,7 @@ func populateCollections(
 		if ctrlOpts.ToggleFeatures.PreviewBackup {
 			toAdd := maxItems - addedItems
 
-			if addedFolders >= maxContainers || toAdd <= 0 {
+			if addedContainers >= maxContainers || toAdd <= 0 {
 				break
 			}
 
@@ -289,7 +289,7 @@ func populateCollections(
 		// as the "previous path", for reference in case of a rename or relocation.
 		currPaths[cID] = currPath.String()
 		addedItems += len(addAndRem.Added)
-		addedFolders++
+		addedContainers++
 	}
 
 	// A tombstone is a folder that needs to be marked for deletion.

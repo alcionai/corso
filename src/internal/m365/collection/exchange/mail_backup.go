@@ -33,13 +33,13 @@ func (h mailBackupHandler) folderGetter() containerGetter {
 	return h.ac
 }
 
-func (h mailBackupHandler) previewIncludeFolders() []string {
+func (h mailBackupHandler) previewIncludeContainers() []string {
 	return []string{
 		"inbox",
 	}
 }
 
-func (h mailBackupHandler) previewExcludeFolders() []string {
+func (h mailBackupHandler) previewExcludeContainers() []string {
 	return []string{
 		"drafts",
 		"sentitems",
