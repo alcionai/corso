@@ -506,6 +506,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_NoRead_GetInfo_Errors() {
 		nil,
 		"itemID",
 		time.Now(),
+		count.New(),
 		fault.New(true))
 
 	_, err := li.Info()
@@ -571,6 +572,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_GetDataErrors() {
 				},
 				"itemID",
 				now,
+				count.New(),
 				fault.New(true))
 
 			assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
@@ -611,6 +613,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 		},
 		"itemID",
 		now,
+		count.New(),
 		fault.New(true))
 
 	assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
@@ -664,6 +667,7 @@ func (suite *CollectionUnitSuite) TestLazyItem() {
 		},
 		"itemID",
 		now,
+		count.New(),
 		fault.New(true))
 
 	assert.False(t, li.Deleted(), "item shouldn't be marked deleted")

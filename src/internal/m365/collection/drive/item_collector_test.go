@@ -284,7 +284,8 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 				service.updateStatus,
 				control.Options{
 					ToggleFeatures: control.Toggles{},
-				})
+				},
+				count.New())
 
 			ssmb := prefixmatcher.NewStringSetBuilder()
 

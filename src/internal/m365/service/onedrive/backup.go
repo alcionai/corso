@@ -59,7 +59,8 @@ func ProduceBackupCollections(
 			tenantID,
 			bpc.ProtectedResource,
 			su,
-			bpc.Options)
+			bpc.Options,
+			counter)
 
 		pcfg := observe.ProgressCfg{
 			Indent:            1,
@@ -104,6 +105,8 @@ func ProduceBackupCollections(
 		collections = append(collections, baseCols...)
 	}
 
+	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
+
 	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
 }
 
@@ -122,6 +125,8 @@ func migrationCollections(
 	if bpc.LastBackupVersion >= version.All8MigrateUserPNToID {
 		return nil, nil
 	}
+
+	counter.Inc(count.RequiresUserPnToIDMigration)
 
 	// unlike exchange, which enumerates all folders on every
 	// backup, onedrive needs to force the owner PN -> ID migration

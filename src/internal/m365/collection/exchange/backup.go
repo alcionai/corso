@@ -165,6 +165,7 @@ func populateCollections(
 		// Only create a collection if the path matches the scope.
 		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		if !ok {
+			cl.Inc(count.SkippedContainers)
 			continue
 		}
 
@@ -298,14 +299,13 @@ func populateCollections(
 			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
 			graph.NewMetadataEntry(metadata.DeltaURLsFileName, deltaURLs),
 		},
-		statusUpdater)
+		statusUpdater,
+		count.New())
 	if err != nil {
 		return nil, clues.Wrap(err, "making metadata collection")
 	}
 
 	collections["metadata"] = col
-
-	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
 
 	return collections, el.Failure()
 }

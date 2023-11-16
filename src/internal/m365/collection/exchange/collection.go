@@ -150,6 +150,7 @@ func NewCollection(
 		removed:        removed,
 		getter:         items,
 		statusUpdater:  statusUpdater,
+		counter:        counter,
 	}
 }
 
@@ -351,6 +352,8 @@ type lazyFetchCollection struct {
 	getter itemGetterSerializer
 
 	statusUpdater support.StatusUpdater
+
+	counter *count.Bus
 }
 
 // Items utility function to asynchronously execute process to fill data channel with
@@ -435,6 +438,7 @@ func (col *lazyFetchCollection) streamItems(
 			},
 			id,
 			modTime,
+			col.counter,
 			errs)
 
 		atomic.AddInt64(&success, 1)
