@@ -1,4 +1,4 @@
-package m365_test
+package m365
 
 import (
 	"testing"
@@ -11,17 +11,14 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/errs"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type GroupsIntgSuite struct {
 	tester.Suite
-	acct account.Account
+	cli client
 }
 
 func TestGroupsIntgSuite(t *testing.T) {
@@ -40,7 +37,13 @@ func (suite *GroupsIntgSuite) SetupSuite() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	suite.acct = tconfig.NewM365Account(t)
+	acct := tconfig.NewM365Account(t)
+
+	var err error
+
+	// will init the concurrency limiter
+	suite.cli, err = NewM365Client(ctx, acct)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *GroupsIntgSuite) TestGroupByID() {
@@ -53,7 +56,7 @@ func (suite *GroupsIntgSuite) TestGroupByID() {
 
 	gid := tconfig.M365TeamID(t)
 
-	group, err := m365.GroupByID(ctx, suite.acct, gid)
+	group, err := suite.cli.GroupByID(ctx, gid)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, group)
 
@@ -71,7 +74,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 
 	gid := tconfig.M365TeamID(t)
 
-	group, err := m365.GroupByID(ctx, suite.acct, gid)
+	group, err := suite.cli.GroupByID(ctx, gid)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, group)
 
@@ -80,7 +83,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 
 	gemail := tconfig.M365TeamEmail(t)
 
-	groupByEmail, err := m365.GroupByID(ctx, suite.acct, gemail)
+	groupByEmail, err := suite.cli.GroupByID(ctx, gemail)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, group)
 
@@ -95,7 +98,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_notFound() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	group, err := m365.GroupByID(ctx, suite.acct, uuid.NewString())
+	group, err := suite.cli.GroupByID(ctx, uuid.NewString())
 	require.Nil(t, group)
 	require.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
 	require.True(t, errs.Is(err, errs.ResourceOwnerNotFound))
@@ -109,10 +112,7 @@ func (suite *GroupsIntgSuite) TestGroups() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	groups, err := m365.Groups(
-		ctx,
-		suite.acct,
-		fault.New(true))
+	groups, err := suite.cli.Groups(ctx, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, groups)
 
@@ -141,11 +141,7 @@ func (suite *GroupsIntgSuite) TestSitesInGroup() {
 
 	gid := tconfig.M365TeamID(t)
 
-	sites, err := m365.SitesInGroup(
-		ctx,
-		suite.acct,
-		gid,
-		fault.New(true))
+	sites, err := suite.cli.SitesInGroup(ctx, gid, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, sites)
 }
@@ -158,10 +154,7 @@ func (suite *GroupsIntgSuite) TestGroupsMap() {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	gm, err := m365.GroupsMap(
-		ctx,
-		suite.acct,
-		fault.New(true))
+	gm, err := suite.cli.GroupsMap(ctx, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, gm)
 
@@ -174,47 +167,6 @@ func (suite *GroupsIntgSuite) TestGroupsMap() {
 			name, ok := gm.NameOf(gid)
 			assert.True(t, ok)
 			assert.NotEmpty(t, name)
-		})
-	}
-}
-
-func (suite *GroupsIntgSuite) TestGroups_InvalidCredentials() {
-	table := []struct {
-		name string
-		acct func(t *testing.T) account.Account
-	}{
-		{
-			name: "Invalid Credentials",
-			acct: func(t *testing.T) account.Account {
-				a, err := account.NewAccount(
-					account.ProviderM365,
-					account.M365Config{
-						M365: credentials.M365{
-							AzureClientID:     "Test",
-							AzureClientSecret: "without",
-						},
-						AzureTenantID: "data",
-					})
-				require.NoError(t, err, clues.ToCore(err))
-
-				return a
-			},
-		},
-	}
-
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			groups, err := m365.Groups(
-				ctx,
-				test.acct(t),
-				fault.New(true))
-			assert.Empty(t, groups, "returned no groups")
-			assert.NotNil(t, err)
 		})
 	}
 }

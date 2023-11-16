@@ -10,9 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -27,10 +25,10 @@ type UserNoInfo struct {
 // UsersCompatNoInfo returns a list of users in the specified M365 tenant.
 // TODO(pandeyabs): Rename this to Users now that `Info` support has been removed. Would
 // need corresponding changes in SDK consumers.
-func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo, error) {
+func (c client) UsersCompatNoInfo(ctx context.Context) ([]*UserNoInfo, error) {
 	errs := fault.New(true)
 
-	us, err := usersNoInfo(ctx, acct, errs)
+	us, err := usersNoInfo(ctx, c.ac, errs)
 	if err != nil {
 		return nil, err
 	}
@@ -40,46 +38,29 @@ func UsersCompatNoInfo(ctx context.Context, acct account.Account) ([]*UserNoInfo
 
 // UserHasMailbox returns true if the user has an exchange mailbox enabled
 // false otherwise, and a nil pointer and an error in case of error
-func UserHasMailbox(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(ctx, acct, path.ExchangeService)
-	if err != nil {
-		return false, clues.Stack(err)
-	}
-
-	return exchange.IsServiceEnabled(ctx, ac.Users(), userID)
+func (c client) UserHasMailbox(ctx context.Context, userID string) (bool, error) {
+	return exchange.IsServiceEnabled(ctx, c.ac.Users(), userID)
 }
 
-func UserGetMailboxInfo(
+func (c client) UserGetMailboxInfo(
 	ctx context.Context,
-	acct account.Account,
 	userID string,
 ) (api.MailboxInfo, error) {
-	ac, err := makeAC(ctx, acct, path.ExchangeService)
-	if err != nil {
-		return api.MailboxInfo{}, clues.Stack(err)
-	}
-
-	return exchange.GetMailboxInfo(ctx, ac.Users(), userID)
+	return exchange.GetMailboxInfo(ctx, c.ac.Users(), userID)
 }
 
 // UserHasDrives returns true if the user has any drives
 // false otherwise, and a nil pointer and an error in case of error
-func UserHasDrives(ctx context.Context, acct account.Account, userID string) (bool, error) {
-	ac, err := makeAC(ctx, acct, path.OneDriveService)
-	if err != nil {
-		return false, clues.Stack(err)
-	}
-
-	return onedrive.IsServiceEnabled(ctx, ac.Users(), userID)
+func (c client) UserHasDrives(ctx context.Context, userID string) (bool, error) {
+	return onedrive.IsServiceEnabled(ctx, c.ac.Users(), userID)
 }
 
 // usersNoInfo returns a list of users in the specified M365 tenant - with no info
-func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*UserNoInfo, error) {
-	ac, err := makeAC(ctx, acct, path.UnknownService)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
+func usersNoInfo(
+	ctx context.Context,
+	ac api.Client,
+	errs *fault.Bus,
+) ([]*UserNoInfo, error) {
 	us, err := ac.Users().GetAll(ctx, errs)
 	if err != nil {
 		return nil, err
@@ -105,13 +86,8 @@ func usersNoInfo(ctx context.Context, acct account.Account, errs *fault.Bus) ([]
 	return ret, nil
 }
 
-func UserAssignedLicenses(ctx context.Context, acct account.Account, userID string) (int, error) {
-	ac, err := makeAC(ctx, acct, path.UnknownService)
-	if err != nil {
-		return 0, clues.Stack(err)
-	}
-
-	us, err := ac.Users().GetByID(
+func (c client) UserAssignedLicenses(ctx context.Context, userID string) (int, error) {
+	us, err := c.ac.Users().GetByID(
 		ctx,
 		userID,
 		api.CallConfig{Select: api.SelectProps("assignedLicenses")})

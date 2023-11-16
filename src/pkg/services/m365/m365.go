@@ -13,6 +13,18 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
+type client struct {
+	ac api.Client
+}
+
+func NewM365Client(
+	ctx context.Context,
+	acct account.Account,
+) (client, error) {
+	ac, err := makeAC(ctx, acct)
+	return client{ac}, clues.Stack(err).OrNil()
+}
+
 // ---------------------------------------------------------------------------
 // interfaces & structs
 // ---------------------------------------------------------------------------
@@ -28,9 +40,9 @@ type getAller[T any] interface {
 func makeAC(
 	ctx context.Context,
 	acct account.Account,
-	pst path.ServiceType,
 ) (api.Client, error) {
-	api.InitConcurrencyLimit(ctx, pst)
+	// exchange service inits a limit to concurrency.
+	api.InitConcurrencyLimit(ctx, path.ExchangeService)
 
 	creds, err := acct.M365Config()
 	if err != nil {
@@ -43,6 +55,11 @@ func makeAC(
 		count.New())
 	if err != nil {
 		return api.Client{}, clues.WrapWC(ctx, err, "constructing api client")
+	}
+
+	// run a test to ensure credentials work for the client
+	if err := cli.Access().GetToken(ctx); err != nil {
+		return api.Client{}, clues.Wrap(err, "checking client connection")
 	}
 
 	return cli, nil
