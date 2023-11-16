@@ -50,47 +50,23 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	if data.GetFrom() != nil {
 		email.SetFrom(formatAddress(data.GetFrom().GetEmailAddress()))
-
-		if email.Error != nil {
-			return "", clues.Wrap(email.Error, "adding from address").
-				WithClues(ctx).
-				With("from", data.GetFrom())
-		}
 	}
 
 	if data.GetToRecipients() != nil {
 		for _, recipient := range data.GetToRecipients() {
 			email.AddTo(formatAddress(recipient.GetEmailAddress()))
-
-			if email.Error != nil {
-				return "", clues.Wrap(email.Error, "adding to address").
-					WithClues(ctx).
-					With("to", recipient)
-			}
 		}
 	}
 
 	if data.GetCcRecipients() != nil {
 		for _, recipient := range data.GetCcRecipients() {
 			email.AddCc(formatAddress(recipient.GetEmailAddress()))
-
-			if email.Error != nil {
-				return "", clues.Wrap(email.Error, "adding cc address").
-					WithClues(ctx).
-					With("Cc", recipient)
-			}
 		}
 	}
 
 	if data.GetBccRecipients() != nil {
 		for _, recipient := range data.GetBccRecipients() {
 			email.AddBcc(formatAddress(recipient.GetEmailAddress()))
-
-			if email.Error != nil {
-				return "", clues.Wrap(email.Error, "adding bcc address").
-					WithClues(ctx).
-					With("Bcc", recipient)
-			}
 		}
 	}
 
@@ -109,22 +85,10 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	if data.GetSubject() != nil {
 		email.SetSubject(ptr.Val(data.GetSubject()))
-
-		if email.Error != nil {
-			return "", clues.Wrap(email.Error, "adding subject").
-				WithClues(ctx).
-				With("subject", data.GetSubject())
-		}
 	}
 
 	if data.GetSentDateTime() != nil {
 		email.SetDate(ptr.Val(data.GetSentDateTime()).Format(dateFormat))
-
-		if email.Error != nil {
-			return "", clues.Wrap(email.Error, "adding date").
-				WithClues(ctx).
-				With("date", data.GetSentDateTime())
-		}
 	}
 
 	if data.GetBody() != nil {
@@ -147,13 +111,6 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			}
 
 			email.SetBody(contentType, ptr.Val(data.GetBody().GetContent()))
-
-			if email.Error != nil {
-				return "", clues.Wrap(email.Error, "adding body").
-					WithClues(ctx).
-					With("body_type", data.GetBody().GetContentType().String(),
-						"body_len", len(*data.GetBody().GetContent()))
-			}
 		}
 	}
 
@@ -177,14 +134,11 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				Data:     bts,
 				Inline:   ptr.Val(attachment.GetIsInline()),
 			})
-
-			if email.Error != nil {
-				return "", clues.Wrap(email.Error, "adding attachment").
-					WithClues(ctx).
-					With("attachment_id", ptr.Val(attachment.GetId()),
-						"attachment_name", ptr.Val(attachment.GetName()))
-			}
 		}
+	}
+
+	if email.GetError() != nil {
+		return "", clues.WrapWC(ctx, email.Error, "converting to eml")
 	}
 
 	return email.GetMessage(), nil
