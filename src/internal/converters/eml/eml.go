@@ -47,6 +47,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	ctx = clues.Add(ctx, "id", ptr.Val(data.GetId()))
 
 	email := mail.NewMSG()
+	email.AllowDuplicateAddress = true // More "correct" conversion
+	email.AddBccToHeader = true        // Don't ignore Bcc
 
 	if data.GetFrom() != nil {
 		email.SetFrom(formatAddress(data.GetFrom().GetEmailAddress()))
