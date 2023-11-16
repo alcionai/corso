@@ -31,7 +31,7 @@ func (ctrl *Controller) NewServiceHandler(
 		return groups.NewGroupsHandler(opts, ctrl.AC, ctrl.resourceHandler), nil
 
 	case path.ExchangeService:
-		return exchange.NewExchangeHandler(opts), nil
+		return exchange.NewExchangeHandler(opts, ctrl.AC, ctrl.resourceHandler), nil
 	}
 
 	return nil, clues.New("unrecognized service").
