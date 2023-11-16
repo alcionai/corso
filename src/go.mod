@@ -14,6 +14,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/h2non/gock v1.2.0
 	github.com/jaytaylor/html2text v0.0.0-20230321000545-74c2419ad056
+	github.com/jhillyerd/enmime v1.0.1
 	github.com/kopia/kopia v0.13.0
 	github.com/microsoft/kiota-abstractions-go v1.4.0
 	github.com/microsoft/kiota-authentication-azure-go v1.0.1
@@ -48,9 +49,11 @@ require (
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/andybalholm/brotli v1.0.6 // indirect
 	github.com/aws/aws-sdk-go v1.47.9 // indirect
+	github.com/cention-sany/utf7 v0.0.0-20170124080048-26cad61bd60a // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-test/deep v1.1.0 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
+	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/hashicorp/cronexpr v1.1.2 // indirect
