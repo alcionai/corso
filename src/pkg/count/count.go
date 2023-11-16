@@ -33,30 +33,18 @@ func (b *Bus) getCounter(k Key) *xsync.Counter {
 }
 
 // Inc increases the count by 1.
-func (b *Bus) Inc(k Key) {
-	if b == nil {
-		return
-	}
-
-	b.Add(k, 1)
-}
-
-// IncRead increases the count by 1.
-// returns the current local value of k.
-func (b *Bus) IncRead(k Key) int64 {
+func (b *Bus) Inc(k Key) int64 {
 	if b == nil {
 		return -1
 	}
 
-	b.Add(k, 1)
-
-	return b.Get(k)
+	return b.Add(k, 1)
 }
 
 // Add increases the count by n.
-func (b *Bus) Add(k Key, n int64) {
+func (b *Bus) Add(k Key, n int64) int64 {
 	if b == nil {
-		return
+		return -1
 	}
 
 	b.getCounter(k).Add(n)
@@ -64,26 +52,8 @@ func (b *Bus) Add(k Key, n int64) {
 	if b.parent != nil {
 		b.parent.Add(k, n)
 	}
-}
-
-// AddRead increases the count by n.
-// returns the current local value of k.
-func (b *Bus) AddRead(k Key, n int64) int64 {
-	if b == nil {
-		return -1
-	}
-
-	b.Add(k, n)
 
 	return b.Get(k)
-}
-
-// AdderFor returns a func that adds any value of i
-// to the bus using the given key.
-func (b *Bus) AdderFor(k Key) func(i int64) {
-	return func(i int64) {
-		b.Add(k, i)
-	}
 }
 
 // Get returns the local count.
@@ -137,4 +107,34 @@ func (b *Bus) TotalValues() map[string]int64 {
 	}
 
 	return b.Values()
+}
+
+// ---------------------------------------------------------------------------
+// compliance with callbacks and external packages
+// ---------------------------------------------------------------------------
+
+// AdderFor returns a func that adds any value of i
+// to the bus using the given key.
+func (b *Bus) AdderFor(k Key) func(i int64) {
+	return func(i int64) {
+		b.Add(k, i)
+	}
+}
+
+type plainAdder struct {
+	bus *Bus
+}
+
+func (pa plainAdder) Add(k string, n int64) {
+	if pa.bus == nil {
+		return
+	}
+
+	pa.bus.Add(Key(k), n)
+}
+
+// PlainAdder provides support to external packages that could take in a count.Bus
+// but don't recognize the `Key` type, and would prefer a string type key.
+func (b *Bus) PlainAdder() *plainAdder {
+	return &plainAdder{b}
 }

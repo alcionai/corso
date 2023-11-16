@@ -192,7 +192,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			atomic.AddInt64(&streamedItems, 1)
 			atomic.AddInt64(&totalBytes, info.Size)
 
-			if col.Counter.IncRead(count.StreamItemsAdded)%1000 == 0 {
+			if col.Counter.Inc(count.StreamItemsAdded)%1000 == 0 {
 				logger.Ctx(ctx).Infow("item stream progress", "stats", col.Counter.Values())
 			}
 

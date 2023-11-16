@@ -128,6 +128,8 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	// Setup
 	// -----
 
+	ctx = clues.AddLabelCounter(ctx, op.Counter.PlainAdder())
+
 	ctx, end := diagnostics.Span(ctx, "operations:restore:run")
 	defer end()
 

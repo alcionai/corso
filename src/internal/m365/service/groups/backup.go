@@ -74,12 +74,13 @@ func ProduceBackupCollections(
 		}
 
 		cl := counter.Local()
+		ictx := clues.AddLabelCounter(ctx, cl.PlainAdder())
 
 		var dbcs []data.BackupCollection
 
 		switch scope.Category().PathType() {
 		case path.LibrariesCategory:
-			sites, err := ac.Groups().GetAllSites(ctx, bpc.ProtectedResource.ID(), errs)
+			sites, err := ac.Groups().GetAllSites(ictx, bpc.ProtectedResource.ID(), errs)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -112,8 +113,8 @@ func ProduceBackupCollections(
 						scope)
 				)
 
-				ictx := clues.Add(
-					ctx,
+				ictx = clues.Add(
+					ictx,
 					"site_id", ptr.Val(s.GetId()),
 					"site_weburl", graph.LoggableURL(ptr.Val(s.GetWebUrl())))
 
@@ -156,7 +157,7 @@ func ProduceBackupCollections(
 				// TODO(meain): Use number of messages and not channels
 				CompletionMessage: func() string { return fmt.Sprintf("(found %d channels)", len(cs)) },
 			}
-			progressBar := observe.MessageWithCompletion(ctx, pcfg, scope.Category().PathType().HumanString())
+			progressBar := observe.MessageWithCompletion(ictx, pcfg, scope.Category().PathType().HumanString())
 
 			if !isTeam {
 				continue
@@ -165,7 +166,7 @@ func ProduceBackupCollections(
 			bh := groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels())
 
 			cs, canUsePreviousBackup, err = groups.CreateCollections(
-				ctx,
+				ictx,
 				bpc,
 				bh,
 				creds.AzureTenantID,
@@ -174,14 +175,14 @@ func ProduceBackupCollections(
 				cl,
 				errs)
 			if err != nil {
-				el.AddRecoverable(ctx, err)
+				el.AddRecoverable(ictx, err)
 				continue
 			}
 
 			if !canUsePreviousBackup {
 				tp, err := bh.PathPrefix(creds.AzureTenantID)
 				if err != nil {
-					return nil, nil, clues.WrapWC(ctx, err, "getting message path").Label(count.BadPathPrefix)
+					return nil, nil, clues.WrapWC(ictx, err, "getting message path").Label(count.BadPathPrefix)
 				}
 
 				dbcs = append(dbcs, data.NewTombstoneCollection(tp, control.Options{}, cl))

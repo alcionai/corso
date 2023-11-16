@@ -71,7 +71,7 @@ func (suite *CountUnitSuite) TestBus_Inc() {
 	}
 }
 
-func (suite *CountUnitSuite) TestBus_IncRead() {
+func (suite *CountUnitSuite) TestBus_Inc_result() {
 	newParent := func() *Bus {
 		parent := New()
 		parent.Inc(testKey)
@@ -102,7 +102,7 @@ func (suite *CountUnitSuite) TestBus_IncRead() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result := test.bus.IncRead(testKey)
+			result := test.bus.Inc(testKey)
 			assert.Equal(t, test.expect, result)
 
 			resultTotal := test.bus.Total(testKey)
@@ -163,7 +163,7 @@ func (suite *CountUnitSuite) TestBus_Add() {
 	}
 }
 
-func (suite *CountUnitSuite) TestBus_AddRead() {
+func (suite *CountUnitSuite) TestBus_Add_result() {
 	newParent := func() *Bus {
 		parent := New()
 		parent.Add(testKey, 2)
@@ -195,7 +195,7 @@ func (suite *CountUnitSuite) TestBus_AddRead() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result := test.bus.AddRead(testKey, 4)
+			result := test.bus.Add(testKey, 4)
 			assert.Equal(t, test.expect, result)
 
 			resultTotal := test.bus.Total(testKey)
