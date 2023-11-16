@@ -121,9 +121,9 @@ func populateCollections(
 
 		// Limits and counters below are currently only used for preview backups
 		// since they only act on a subset of items.
-		maxContainers        = ctrlOpts.ItemLimits.MaxContainers
-		maxItemsPerContainer = ctrlOpts.ItemLimits.MaxItemsPerContainer
-		maxItems             = ctrlOpts.ItemLimits.MaxItems
+		maxContainers        = ctrlOpts.PreviewLimits.MaxContainers
+		maxItemsPerContainer = ctrlOpts.PreviewLimits.MaxItemsPerContainer
+		maxItems             = ctrlOpts.PreviewLimits.MaxItems
 
 		addedItems      int
 		addedContainers int
