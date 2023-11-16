@@ -2173,6 +2173,213 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 	}
 }
 
+// TestFilterContainersAndFillCollections_PreviewBackup_DefaultLimits tests that
+// default limits are applied when making a preview backup if the user doesn't
+// give limits. It doesn't do detailed comparisons on which items/containers
+// were selected for backup. For that, run
+// TestFilterContainersAndFillCollections_PreviewBackup.
+func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_PreviewBackup_DefaultLimits() {
+	type expected struct {
+		// numContainers is the total number of containers expected to be returned.
+		numContainers int
+		// numItemsPerContainer is the total number of items in each container
+		// expected to be returned.
+		numItemsPerContainer int
+		// numItems is the total number of items expected to be returned.
+		numItems int
+	}
+
+	newDelta := pagers.DeltaUpdate{URL: "delta_url"}
+
+	table := []struct {
+		name                 string
+		numContainers        int
+		numItemsPerContainer int
+		limits               control.PreviewItemLimits
+		expect               expected
+	}{
+		{
+			name:                 "DefaultMaxItems",
+			numContainers:        1,
+			numItemsPerContainer: defaultPreviewItemLimit + 1,
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
+				MaxItemsPerContainer: 999,
+				MaxContainers:        999,
+			},
+			expect: expected{
+				numContainers:        1,
+				numItemsPerContainer: defaultPreviewItemLimit,
+				numItems:             defaultPreviewItemLimit,
+			},
+		},
+		{
+			name:                 "DefaultMaxContainers",
+			numContainers:        defaultPreviewContainerLimit + 1,
+			numItemsPerContainer: 1,
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
+				MaxItemsPerContainer: 999,
+				MaxItems:             999,
+			},
+			expect: expected{
+				numContainers:        defaultPreviewContainerLimit,
+				numItemsPerContainer: 1,
+				numItems:             defaultPreviewContainerLimit,
+			},
+		},
+		{
+			name:                 "DefaultMaxItemsPerContainer",
+			numContainers:        5,
+			numItemsPerContainer: defaultPreviewItemsPerContainerLimit,
+			limits: control.PreviewItemLimits{
+				Enabled:       true,
+				MaxItems:      999,
+				MaxContainers: 999,
+			},
+			expect: expected{
+				numContainers:        5,
+				numItemsPerContainer: defaultPreviewItemsPerContainerLimit,
+				numItems:             5 * defaultPreviewItemsPerContainerLimit,
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			var (
+				qp = graph.QueryParams{
+					Category:          path.EmailCategory, // doesn't matter which one we use.
+					ProtectedResource: inMock.NewProvider("user_id", "user_name"),
+					TenantID:          suite.creds.AzureTenantID,
+				}
+				statusUpdater = func(*support.ControllerOperationStatus) {}
+				allScope      = selectors.NewExchangeBackup(nil).MailFolders(selectors.Any())[0]
+				dps           = metadata.DeltaPaths{} // incrementals are tested separately
+			)
+
+			inputContainers := make([]mockContainer, 0, test.numContainers)
+			inputItems := map[string]mockGetterResults{}
+
+			for containerIdx := 0; containerIdx < test.numContainers; containerIdx++ {
+				id := fmt.Sprintf("container_%d", containerIdx)
+				name := fmt.Sprintf("display_name_%d", containerIdx)
+
+				container := mockContainer{
+					id:          strPtr(id),
+					displayName: strPtr(name),
+					p:           path.Builder{}.Append(id),
+					l:           path.Builder{}.Append(name),
+				}
+
+				inputContainers = append(inputContainers, container)
+
+				added := make([]string, 0, test.numItemsPerContainer)
+				for itemIdx := 0; itemIdx < test.numItemsPerContainer; itemIdx++ {
+					added = append(
+						added,
+						fmt.Sprintf("item_%d-%d", containerIdx, itemIdx))
+				}
+
+				inputItems[id] = mockGetterResults{
+					added:    added,
+					newDelta: newDelta,
+				}
+			}
+
+			// Make sure concurrency limit is initialized to a non-zero value or we'll
+			// deadlock.
+			opts := control.DefaultOptions()
+			opts.FailureHandling = control.FailFast
+			opts.PreviewLimits = test.limits
+
+			resolver := newMockResolver(inputContainers...)
+			getter := mockGetter{results: inputItems}
+			mbh := mockBackupHandler{
+				mg:       getter,
+				fg:       resolver,
+				category: qp.Category,
+			}
+
+			require.Equal(t, "user_id", qp.ProtectedResource.ID(), qp.ProtectedResource)
+			require.Equal(t, "user_name", qp.ProtectedResource.Name(), qp.ProtectedResource)
+
+			collections, err := populateCollections(
+				ctx,
+				qp,
+				mbh,
+				statusUpdater,
+				resolver,
+				allScope,
+				dps,
+				opts,
+				fault.New(true))
+			require.NoError(t, err, clues.ToCore(err))
+
+			var (
+				numContainers int
+				numItems      int
+			)
+
+			// collection assertions
+			for _, c := range collections {
+				if c.FullPath().Service() == path.ExchangeMetadataService {
+					continue
+				}
+
+				// We don't expect any deleted containers in this test.
+				if !assert.NotEqual(
+					t,
+					data.DeletedState,
+					c.State(),
+					"container marked deleted") {
+					continue
+				}
+
+				numContainers++
+
+				var (
+					containerItems int
+					errs           = fault.New(true)
+				)
+
+				for item := range c.Items(ctx, errs) {
+					// We don't expect deleted items in the test or in practice because we
+					// never reuse delta tokens for preview backups.
+					if !assert.False(t, item.Deleted(), "deleted item") {
+						continue
+					}
+
+					numItems++
+					containerItems++
+				}
+
+				require.NoError(t, errs.Failure())
+				assert.Equal(
+					t,
+					test.expect.numItemsPerContainer,
+					containerItems,
+					"items in container")
+			}
+
+			assert.Equal(
+				t,
+				test.expect.numItems,
+				numItems,
+				"total items seen across collections")
+			assert.Equal(
+				t,
+				test.expect.numContainers,
+				numContainers,
+				"total number of non-metadata containers")
+		})
+	}
+}
+
 func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_incrementals_nondelta() {
 	var (
 		userID   = "user_id"
