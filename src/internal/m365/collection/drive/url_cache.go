@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -49,7 +50,8 @@ type urlCache struct {
 
 	enumerator EnumerateDriveItemsDeltaer
 
-	errs *fault.Bus
+	counter *count.Bus
+	errs    *fault.Bus
 }
 
 // newURLache creates a new URL cache for the specified drive ID
@@ -57,6 +59,7 @@ func newURLCache(
 	driveID, prevDelta string,
 	refreshInterval time.Duration,
 	enumerator EnumerateDriveItemsDeltaer,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) (*urlCache, error) {
 	err := validateCacheParams(driveID, refreshInterval, enumerator)
@@ -71,6 +74,7 @@ func newURLCache(
 			enumerator:      enumerator,
 			prevDelta:       prevDelta,
 			refreshInterval: refreshInterval,
+			counter:         counter,
 			errs:            errs,
 		},
 		nil
@@ -148,6 +152,8 @@ func (uc *urlCache) refreshCache(
 		return nil
 	}
 
+	uc.counter.Inc(count.URLCacheRefresh)
+
 	// Hold cache lock in write mode for the entire duration of the refresh.
 	// This is to prevent other threads from reading the cache while it is
 	// being updated page by page
@@ -201,6 +207,7 @@ func (uc *urlCache) readCache(
 
 	props, ok := uc.idToProps[itemID]
 	if !ok {
+		uc.counter.Inc(count.URLCacheMiss)
 		return itemProps{}, clues.NewWC(ctx, "item not found in cache")
 	}
 

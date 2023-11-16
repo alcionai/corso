@@ -58,37 +58,39 @@ func (ctrl *Controller) ProduceBackupCollections(
 
 	var (
 		colls                []data.BackupCollection
-		ssmb                 *prefixmatcher.StringSetMatcher
+		excludeItems         *prefixmatcher.StringSetMatcher
 		canUsePreviousBackup bool
 	)
 
 	switch service {
 	case path.ExchangeService:
-		colls, ssmb, canUsePreviousBackup, err = exchange.ProduceBackupCollections(
+		colls, excludeItems, canUsePreviousBackup, err = exchange.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
-			ctrl.credentials.AzureTenantID,
+			ctrl.credentials,
 			ctrl.UpdateStatus,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
 		}
 
 	case path.OneDriveService:
-		colls, ssmb, canUsePreviousBackup, err = onedrive.ProduceBackupCollections(
+		colls, excludeItems, canUsePreviousBackup, err = onedrive.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
-			ctrl.credentials.AzureTenantID,
+			ctrl.credentials,
 			ctrl.UpdateStatus,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
 		}
 
 	case path.SharePointService:
-		colls, ssmb, canUsePreviousBackup, err = sharepoint.ProduceBackupCollections(
+		colls, excludeItems, canUsePreviousBackup, err = sharepoint.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
@@ -101,12 +103,13 @@ func (ctrl *Controller) ProduceBackupCollections(
 		}
 
 	case path.GroupsService:
-		colls, ssmb, err = groups.ProduceBackupCollections(
+		colls, excludeItems, err = groups.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
 			ctrl.credentials,
 			ctrl.UpdateStatus,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
@@ -132,7 +135,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		}
 	}
 
-	return colls, ssmb, canUsePreviousBackup, nil
+	return colls, excludeItems, canUsePreviousBackup, nil
 }
 
 func (ctrl *Controller) IsServiceEnabled(

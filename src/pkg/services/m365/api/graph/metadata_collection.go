@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -27,6 +28,7 @@ type MetadataCollection struct {
 	fullPath      path.Path
 	items         []metadataItem
 	statusUpdater support.StatusUpdater
+	counter       *count.Bus
 }
 
 // MetadataCollectionEntry describes a file that should get added to a metadata
@@ -78,6 +80,7 @@ func MakeMetadataCollection(
 	pathPrefix path.Path,
 	metadata []MetadataCollectionEntry,
 	statusUpdater support.StatusUpdater,
+	counter *count.Bus,
 ) (data.BackupCollection, error) {
 	if len(metadata) == 0 {
 		return nil, nil
@@ -94,7 +97,7 @@ func MakeMetadataCollection(
 		items = append(items, item)
 	}
 
-	coll := NewMetadataCollection(pathPrefix, items, statusUpdater)
+	coll := NewMetadataCollection(pathPrefix, items, statusUpdater, counter)
 
 	return coll, nil
 }
@@ -103,11 +106,13 @@ func NewMetadataCollection(
 	p path.Path,
 	items []metadataItem,
 	statusUpdater support.StatusUpdater,
+	counter *count.Bus,
 ) *MetadataCollection {
 	return &MetadataCollection{
 		fullPath:      p,
 		items:         items,
 		statusUpdater: statusUpdater,
+		counter:       counter,
 	}
 }
 
@@ -155,11 +160,13 @@ func (md MetadataCollection) Items(
 				},
 				md.fullPath.Folder(false))
 
+			md.counter.Add(count.MetadataItems, int64(len(md.items)))
 			md.statusUpdater(status)
 		}()
 		defer close(res)
 
 		for _, item := range md.items {
+			md.counter.Add(count.MetadataBytes, item.size)
 			totalBytes += item.size
 			res <- item
 		}

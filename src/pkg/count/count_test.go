@@ -17,7 +17,7 @@ func TestCountUnitSuite(t *testing.T) {
 	suite.Run(t, &CountUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-const testKey = key("just-for-testing")
+const testKey = Key("just-for-testing")
 
 func (suite *CountUnitSuite) TestBus_Inc() {
 	newParent := func() *Bus {
@@ -71,6 +71,46 @@ func (suite *CountUnitSuite) TestBus_Inc() {
 	}
 }
 
+func (suite *CountUnitSuite) TestBus_Inc_result() {
+	newParent := func() *Bus {
+		parent := New()
+		parent.Inc(testKey)
+
+		return parent
+	}
+
+	table := []struct {
+		name        string
+		bus         *Bus
+		expect      int64
+		expectTotal int64
+	}{
+		{
+			name:        "nil",
+			bus:         nil,
+			expect:      -1,
+			expectTotal: -1,
+		},
+		{
+			name:        "one",
+			bus:         newParent().Local(),
+			expect:      1,
+			expectTotal: 2,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := test.bus.Inc(testKey)
+			assert.Equal(t, test.expect, result)
+
+			resultTotal := test.bus.Total(testKey)
+			assert.Equal(t, test.expectTotal, resultTotal)
+		})
+	}
+}
+
 func (suite *CountUnitSuite) TestBus_Add() {
 	newParent := func() *Bus {
 		parent := New()
@@ -115,6 +155,47 @@ func (suite *CountUnitSuite) TestBus_Add() {
 			}
 
 			result := test.bus.Get(testKey)
+			assert.Equal(t, test.expect, result)
+
+			resultTotal := test.bus.Total(testKey)
+			assert.Equal(t, test.expectTotal, resultTotal)
+		})
+	}
+}
+
+func (suite *CountUnitSuite) TestBus_Add_result() {
+	newParent := func() *Bus {
+		parent := New()
+		parent.Add(testKey, 2)
+
+		return parent
+	}
+
+	table := []struct {
+		name        string
+		skip        bool
+		bus         *Bus
+		expect      int64
+		expectTotal int64
+	}{
+		{
+			name:        "nil",
+			bus:         nil,
+			expect:      -1,
+			expectTotal: -1,
+		},
+		{
+			name:        "some",
+			bus:         newParent().Local(),
+			expect:      4,
+			expectTotal: 6,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := test.bus.Add(testKey, 4)
 			assert.Equal(t, test.expect, result)
 
 			resultTotal := test.bus.Total(testKey)

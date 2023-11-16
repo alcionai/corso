@@ -33,6 +33,7 @@ func CollectLibraries(
 	tenantID string,
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
@@ -44,7 +45,8 @@ func CollectLibraries(
 			tenantID,
 			bpc.ProtectedResource,
 			su,
-			bpc.Options)
+			bpc.Options,
+			counter)
 	)
 
 	msg := fmt.Sprintf(
