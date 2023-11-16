@@ -42,7 +42,6 @@ func (h mailBackupHandler) previewIncludeContainers() []string {
 func (h mailBackupHandler) previewExcludeContainers() []string {
 	return []string{
 		"drafts",
-		"sentitems",
 		"outbox",
 		"recoverableitemsdeletions",
 		"junkemail",
