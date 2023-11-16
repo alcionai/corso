@@ -151,12 +151,12 @@ func restoreListItem(
 
 	byteArray, err := io.ReadAll(itemData.ToReader())
 	if err != nil {
-		return dii, clues.Wrap(err, "reading backup data").WithClues(ctx)
+		return dii, clues.WrapWC(ctx, err, "reading backup data")
 	}
 
 	oldList, err := betaAPI.CreateListFromBytes(byteArray)
 	if err != nil {
-		return dii, clues.Wrap(err, "creating item").WithClues(ctx)
+		return dii, clues.WrapWC(ctx, err, "creating item")
 	}
 
 	if name, ok := ptr.ValOK(oldList.GetDisplayName()); ok {
@@ -233,7 +233,7 @@ func RestoreListCollection(
 
 		select {
 		case <-ctx.Done():
-			return metrics, clues.Stack(ctx.Err()).WithClues(ctx)
+			return metrics, clues.StackWC(ctx, ctx.Err())
 
 		case itemData, ok := <-items:
 			if !ok {
@@ -256,7 +256,7 @@ func RestoreListCollection(
 
 			itemPath, err := dc.FullPath().AppendItem(itemData.ID())
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "appending item to full path"))
 				continue
 			}
 
@@ -312,7 +312,7 @@ func RestorePageCollection(
 
 		select {
 		case <-ctx.Done():
-			return metrics, clues.Stack(ctx.Err()).WithClues(ctx)
+			return metrics, clues.StackWC(ctx, ctx.Err())
 
 		case itemData, ok := <-items:
 			if !ok {
@@ -335,7 +335,7 @@ func RestorePageCollection(
 
 			itemPath, err := dc.FullPath().AppendItem(itemData.ID())
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "appending item to full path").WithClues(ctx))
+				el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "appending item to full path"))
 				continue
 			}
 

@@ -107,7 +107,7 @@ func restoreEvent(
 ) (*details.ExchangeInfo, error) {
 	event, err := api.BytesToEventable(body)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating event from bytes").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "creating event from bytes")
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(event.GetId()))
@@ -176,7 +176,7 @@ func restoreEvent(
 	// removed cancelled and exceptions events form it
 	event, err = api.BytesToEventable(body)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating event from bytes").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "creating event from bytes")
 	}
 
 	// Fix up event instances in case we have a recurring event
@@ -276,8 +276,7 @@ func updateAttachments(
 			err = agdp.DeleteAttachment(ctx, userID, containerID, eventID, id)
 			if err != nil {
 				logger.CtxErr(ctx, err).With("attachment_name", name).Info("attachment delete failed")
-				el.AddRecoverable(ctx, clues.Wrap(err, "deleting event attachment").
-					WithClues(ctx).With("attachment_name", name))
+				el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "deleting event attachment").With("attachment_name", name))
 			}
 		}
 	}

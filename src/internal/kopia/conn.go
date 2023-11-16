@@ -106,12 +106,12 @@ func (w *conn) Initialize(
 
 	cfg, err := w.storage.CommonConfig()
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	rOpts := retention.NewOpts()
 	if err := rOpts.Set(retentionOpts); err != nil {
-		return clues.Wrap(err, "setting retention configuration").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "setting retention configuration")
 	}
 
 	blobCfg, _, err := rOpts.AsConfigs(ctx)
@@ -127,10 +127,10 @@ func (w *conn) Initialize(
 
 	if err = repo.Initialize(ctx, bst, &kopiaOpts, cfg.CorsoPassphrase); err != nil {
 		if errors.Is(err, repo.ErrAlreadyInitialized) {
-			return clues.Stack(ErrorRepoAlreadyExists, err).WithClues(ctx)
+			return clues.StackWC(ctx, ErrorRepoAlreadyExists, err)
 		}
 
-		return clues.Wrap(err, "initializing repo").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "initializing repo")
 	}
 
 	err = w.commonConnect(
@@ -146,7 +146,7 @@ func (w *conn) Initialize(
 	}
 
 	if err := w.setDefaultConfigValues(ctx); err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	// Calling with all parameters here will set extend object locks for
@@ -164,7 +164,7 @@ func (w *conn) Connect(ctx context.Context, opts repository.Options, repoNameHas
 
 	cfg, err := w.storage.CommonConfig()
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	return w.commonConnect(
@@ -210,11 +210,11 @@ func (w *conn) commonConnect(
 		bst,
 		password,
 		kopiaOpts); err != nil {
-		return clues.Wrap(err, "connecting to kopia repo").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "connecting to kopia repo")
 	}
 
 	if err := w.open(ctx, cfgFile, password); err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	return nil
@@ -231,7 +231,7 @@ func blobStoreByProvider(
 	case storage.ProviderFilesystem:
 		return filesystemStorage(ctx, opts, s)
 	default:
-		return nil, clues.New("storage provider details are required").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "storage provider details are required")
 	}
 }
 
@@ -259,7 +259,7 @@ func (w *conn) close(ctx context.Context) error {
 	w.Repository = nil
 
 	if err != nil {
-		return clues.Wrap(err, "closing repository connection").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "closing repository connection")
 	}
 
 	return nil
@@ -274,7 +274,7 @@ func (w *conn) open(ctx context.Context, configPath, password string) error {
 	// TODO(ashmrtnz): issue #75: nil here should be storage.ConnectionOptions().
 	rep, err := repo.Open(ctx, configPath, password, nil)
 	if err != nil {
-		return clues.Wrap(err, "opening repository connection").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "opening repository connection")
 	}
 
 	w.Repository = rep
@@ -332,7 +332,7 @@ func (w *conn) Compression(ctx context.Context, compressor string) error {
 	// compressor was given.
 	comp := compression.Name(compressor)
 	if err := checkCompressor(comp); err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	p, err := w.getGlobalPolicyOrEmpty(ctx)
@@ -342,7 +342,7 @@ func (w *conn) Compression(ctx context.Context, compressor string) error {
 
 	changed, err := updateCompressionOnPolicy(compressor, p)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	if !changed {
@@ -409,7 +409,7 @@ func (w *conn) getPolicyOrEmpty(ctx context.Context, si snapshot.SourceInfo) (*p
 			return &policy.Policy{}, nil
 		}
 
-		return nil, clues.Wrap(err, "getting backup policy").With("source_info", si).WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "getting backup policy").With("source_info", si)
 	}
 
 	return p, nil
@@ -433,16 +433,16 @@ func (w *conn) writePolicy(
 	ctx = clues.Add(ctx, "source_info", si)
 
 	writeOpts := repo.WriteSessionOptions{Purpose: purpose}
-	ctr := func(innerCtx context.Context, rw repo.RepositoryWriter) error {
+	ctr := func(ictx context.Context, rw repo.RepositoryWriter) error {
 		if err := policy.SetPolicy(ctx, rw, si, p); err != nil {
-			return clues.Stack(err).WithClues(innerCtx)
+			return clues.StackWC(ictx, err)
 		}
 
 		return nil
 	}
 
 	if err := repo.WriteSession(ctx, w.Repository, writeOpts, ctr); err != nil {
-		return clues.Wrap(err, "updating policy").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "updating policy")
 	}
 
 	return nil
@@ -470,12 +470,12 @@ func (w *conn) setRetentionParameters(
 	// it acts like we passed in only the duration and returns an error about
 	// having to set both. Return a clearer error here instead.
 	if ptr.Val(rrOpts.Mode) == repository.NoRetention && ptr.Val(rrOpts.Duration) != 0 {
-		return clues.New("duration must be 0 if rrOpts is disabled").WithClues(ctx)
+		return clues.NewWC(ctx, "duration must be 0 if rrOpts is disabled")
 	}
 
 	dr, ok := w.Repository.(repo.DirectRepository)
 	if !ok {
-		return clues.New("getting handle to repo").WithClues(ctx)
+		return clues.NewWC(ctx, "getting handle to repo")
 	}
 
 	blobCfg, params, err := getRetentionConfigs(ctx, dr)
@@ -485,7 +485,7 @@ func (w *conn) setRetentionParameters(
 
 	opts := retention.OptsFromConfigs(*blobCfg, *params)
 	if err := opts.Set(rrOpts); err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	return clues.Stack(persistRetentionConfigs(ctx, dr, opts)).OrNil()
@@ -497,12 +497,12 @@ func getRetentionConfigs(
 ) (*format.BlobStorageConfiguration, *maintenance.Params, error) {
 	blobCfg, err := dr.FormatManager().BlobCfgBlob()
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "getting storage config").WithClues(ctx)
+		return nil, nil, clues.WrapWC(ctx, err, "getting storage config")
 	}
 
 	params, err := maintenance.GetParams(ctx, dr)
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "getting maintenance config").WithClues(ctx)
+		return nil, nil, clues.WrapWC(ctx, err, "getting maintenance config")
 	}
 
 	return &blobCfg, params, nil
@@ -525,19 +525,21 @@ func persistRetentionConfigs(
 
 	mp, err := dr.FormatManager().GetMutableParameters()
 	if err != nil {
-		return clues.Wrap(err, "getting mutable parameters").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "getting mutable parameters")
 	}
 
 	requiredFeatures, err := dr.FormatManager().RequiredFeatures()
 	if err != nil {
-		return clues.Wrap(err, "getting required features").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "getting required features")
 	}
 
 	// Must be the case that only blob changed.
 	if !opts.ParamsChanged() {
-		return clues.Wrap(
+		return clues.WrapWC(
+			ctx,
 			dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
-			"persisting storage config").WithClues(ctx).OrNil()
+			"persisting storage config").
+			OrNil()
 	}
 
 	// Both blob and maintenance changed. A DirectWriteSession is required to
@@ -552,20 +554,21 @@ func persistRetentionConfigs(
 			// Set the maintenance config first as we can bail out of the write
 			// session later.
 			if err := maintenance.SetParams(ctx, dw, &params); err != nil {
-				return clues.Wrap(err, "maintenance config").
-					WithClues(ctx)
+				return clues.WrapWC(ctx, err, "maintenance config")
 			}
 
 			if !opts.BlobChanged() {
 				return nil
 			}
 
-			return clues.Wrap(
+			return clues.WrapWC(
+				ctx,
 				dr.FormatManager().SetParameters(ctx, mp, blobCfg, requiredFeatures),
-				"storage config").WithClues(ctx).OrNil()
+				"storage config").
+				OrNil()
 		})
 
-	return clues.Wrap(err, "persisting config changes").WithClues(ctx).OrNil()
+	return clues.WrapWC(ctx, err, "persisting config changes").OrNil()
 }
 
 func (w *conn) LoadSnapshot(
@@ -574,7 +577,7 @@ func (w *conn) LoadSnapshot(
 ) (*snapshot.Manifest, error) {
 	man, err := snapshot.LoadSnapshot(ctx, w.Repository, id)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	return man, nil

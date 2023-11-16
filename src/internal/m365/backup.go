@@ -46,15 +46,13 @@ func (ctrl *Controller) ProduceBackupCollections(
 		diagnostics.Index("service", bpc.Selector.PathService().String()))
 	defer end()
 
-	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: service})
-
 	// Limit the max number of active requests to graph from this collection.
 	bpc.Options.Parallelism.ItemFetch = graph.Parallelism(service).
 		ItemOverride(ctx, bpc.Options.Parallelism.ItemFetch)
 
 	err := verifyBackupInputs(bpc.Selector, ctrl.IDNameLookup.IDs())
 	if err != nil {
-		return nil, nil, false, clues.Stack(err).WithClues(ctx)
+		return nil, nil, false, clues.StackWC(ctx, err)
 	}
 
 	var (
@@ -118,7 +116,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		canUsePreviousBackup = true
 
 	default:
-		return nil, nil, false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
+		return nil, nil, false, clues.Wrap(clues.NewWC(ctx, service.String()), "service not supported")
 	}
 
 	for _, c := range colls {
@@ -152,7 +150,7 @@ func (ctrl *Controller) IsServiceEnabled(
 		return groups.IsServiceEnabled(ctx, ctrl.AC.Groups(), resourceOwner)
 	}
 
-	return false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
+	return false, clues.Wrap(clues.NewWC(ctx, service.String()), "service not supported")
 }
 
 func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {

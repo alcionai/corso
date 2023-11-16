@@ -84,6 +84,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddEnableImmutableIDFlag(c)
 		flags.AddDeltaPageSizeFlag(c)
 		flags.AddGenericBackupFlags(c)
+		flags.AddDisableSlidingWindowLimiterFlag(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())

@@ -29,7 +29,7 @@ func ProduceBackupCollections(
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	eb, err := bpc.Selector.ToExchangeBackup()
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)
+		return nil, nil, false, clues.WrapWC(ctx, err, "exchange dataCollection selector")
 	}
 
 	var (

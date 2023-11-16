@@ -461,7 +461,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrTimeout() {
 	}
 }
 
-func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
+func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorizedOrBadToken() {
 	table := []struct {
 		name   string
 		err    error
@@ -478,20 +478,85 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorized() {
 			expect: assert.False,
 		},
 		{
+			name:   "non-matching oDataErr",
+			err:    odErr("folder doesn't exist"),
+			expect: assert.False,
+		},
+		{
 			name: "graph 401",
 			err: clues.Stack(assert.AnError).
 				Label(LabelStatus(http.StatusUnauthorized)),
 			expect: assert.True,
 		},
 		{
-			name:   "token expired",
+			name:   "err token expired",
 			err:    clues.Stack(assert.AnError, ErrTokenExpired),
+			expect: assert.True,
+		},
+		{
+			name:   "oDataErr code invalid auth token ",
+			err:    odErr(string(invalidAuthenticationToken)),
+			expect: assert.True,
+		},
+		{
+			name:   "err token invalid",
+			err:    clues.Stack(assert.AnError, ErrTokenInvalid),
 			expect: assert.True,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrUnauthorized(test.err))
+			test.expect(suite.T(), IsErrUnauthorizedOrBadToken(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    odErr("folder doesn't exist"),
+			expect: assert.False,
+		},
+		{
+			name: "graph 401",
+			err: clues.Stack(assert.AnError).
+				Label(LabelStatus(http.StatusUnauthorized)),
+			expect: assert.False,
+		},
+		{
+			name:   "err token expired",
+			err:    clues.Stack(assert.AnError, ErrTokenExpired),
+			expect: assert.True,
+		},
+		{
+			name:   "oDataErr code invalid auth token ",
+			err:    odErr(string(invalidAuthenticationToken)),
+			expect: assert.True,
+		},
+		{
+			name:   "err token invalid",
+			err:    clues.Stack(assert.AnError, ErrTokenInvalid),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrBadJWTToken(test.err))
 		})
 	}
 }

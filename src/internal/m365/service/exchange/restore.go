@@ -55,13 +55,13 @@ func ConsumeRestoreCollections(
 
 		handler, ok := handlers[category]
 		if !ok {
-			el.AddRecoverable(ctx, clues.New("unsupported restore path category").WithClues(ictx))
+			el.AddRecoverable(ictx, clues.NewWC(ictx, "unsupported restore path category"))
 			continue
 		}
 
 		if directoryCache[category] == nil {
 			gcr := handler.NewContainerCache(resourceID)
-			if err := gcr.Populate(ctx, errs, handler.DefaultRootContainer()); err != nil {
+			if err := gcr.Populate(ictx, errs, handler.DefaultRootContainer()); err != nil {
 				return nil, clues.Wrap(err, "populating container cache")
 			}
 
@@ -76,16 +76,16 @@ func ConsumeRestoreCollections(
 			directoryCache[category],
 			errs)
 		if err != nil {
-			el.AddRecoverable(ctx, err)
+			el.AddRecoverable(ictx, err)
 			continue
 		}
 
 		directoryCache[category] = gcc
 		ictx = clues.Add(ictx, "restore_destination_id", containerID)
 
-		collisionKeyToItemID, err := handler.GetItemsInContainerByCollisionKey(ctx, resourceID, containerID)
+		collisionKeyToItemID, err := handler.GetItemsInContainerByCollisionKey(ictx, resourceID, containerID)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "building item collision cache"))
+			el.AddRecoverable(ictx, clues.Wrap(err, "building item collision cache"))
 			continue
 		}
 
@@ -108,7 +108,7 @@ func ConsumeRestoreCollections(
 				break
 			}
 
-			el.AddRecoverable(ctx, err)
+			el.AddRecoverable(ictx, err)
 		}
 	}
 

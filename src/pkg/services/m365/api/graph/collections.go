@@ -82,8 +82,8 @@ func BaseCollections(
 		full, err := path.BuildPrefix(tenant, rOwner, service, cat)
 		if err != nil {
 			// Shouldn't happen.
-			err = clues.Wrap(err, "making path").WithClues(ictx)
-			el.AddRecoverable(ctx, err)
+			err = clues.WrapWC(ictx, err, "making path")
+			el.AddRecoverable(ictx, err)
 			lastErr = err
 
 			continue

@@ -108,6 +108,7 @@ func (suite *ExchangeUnitSuite) TestBackupCreateFlags() {
 				// bool flags
 				"--" + flags.DisableDeltaFN,
 				"--" + flags.EnableImmutableIDFN,
+				"--" + flags.DisableSlidingWindowLimiterFN,
 			},
 			flagsTD.PreparedGenericBackupFlags(),
 			flagsTD.PreparedProviderFlags(),
@@ -124,6 +125,7 @@ func (suite *ExchangeUnitSuite) TestBackupCreateFlags() {
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
 	assert.True(t, co.ToggleFeatures.DisableDelta)
 	assert.True(t, co.ToggleFeatures.ExchangeImmutableIDs)
+	assert.True(t, co.ToggleFeatures.DisableSlidingWindowLimiter)
 	flagsTD.AssertGenericBackupFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)

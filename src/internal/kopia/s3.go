@@ -22,7 +22,7 @@ func s3BlobStorage(
 ) (blob.Storage, error) {
 	cfg, err := s.ToS3Config()
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	endpoint := defaultS3Endpoint
@@ -49,7 +49,7 @@ func s3BlobStorage(
 
 	store, err := s3.New(ctx, &opts, false)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	return store, nil
