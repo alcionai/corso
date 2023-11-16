@@ -59,6 +59,7 @@ func StateOf(
 	}
 
 	counter.Inc(count.CollectionNotMoved)
+
 	return NotMovedState
 }
 

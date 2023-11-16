@@ -640,8 +640,7 @@ func (c *Collections) handleDelete(
 
 		prevPath, err = path.FromDataLayerPath(prevPathStr, false)
 		if err != nil {
-			return clues.Wrap(err, "invalid previous path").
-				WithClues(ctx).
+			return clues.WrapWC(ctx, err, "invalid previous path").
 				With(
 					"drive_id", driveID,
 					"item_id", itemID,
@@ -798,6 +797,7 @@ func (c *Collections) PopulateDriveCollections(
 
 		if reset {
 			counter.Inc(count.PagerResets)
+
 			ctx = clues.Add(ctx, "delta_reset_occurred", true)
 			newPrevPaths = map[string]string{}
 			currPrevPaths = map[string]string{}
@@ -908,6 +908,7 @@ func (c *Collections) processItem(
 	if shouldSkip(ctx, collectionPath, c.handler, driveName) {
 		counter.Inc(count.SkippedContainers)
 		logger.Ctx(ctx).Debugw("path not selected", "skipped_path", collectionPath.String())
+
 		return nil
 	}
 

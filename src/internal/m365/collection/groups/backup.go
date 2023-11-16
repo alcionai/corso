@@ -153,7 +153,7 @@ func populateCollections(
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
-				err = clues.Stack(err).WithClues(ctx).Label(count.BadPrevPath)
+				err = clues.StackWC(ctx, err).Label(count.BadPrevPath)
 				logger.CtxErr(ictx, err).Error("parsing prev path")
 				// if the previous path is unusable, then the delta must be, too.
 				prevDelta = ""
@@ -188,8 +188,9 @@ func populateCollections(
 
 		currPath, err := bh.canonicalPath(path.Builder{}.Append(cID), qp.TenantID)
 		if err != nil {
-			err = clues.Stack(err).WithClues(ctx).Label(count.BadCollPath)
+			err = clues.StackWC(ctx, err).Label(count.BadCollPath)
 			el.AddRecoverable(ctx, err)
+
 			continue
 		}
 
@@ -249,7 +250,7 @@ func populateCollections(
 
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
-			err := clues.Stack(err).WithClues(ctx).Label(count.BadPrevPath)
+			err := clues.StackWC(ctx, err).Label(count.BadPrevPath)
 			// technically shouldn't ever happen.  But just in case...
 			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
 
@@ -271,8 +272,7 @@ func populateCollections(
 		qp.Category,
 		false)
 	if err != nil {
-		return nil, clues.Wrap(err, "making metadata path prefix").
-			WithClues(ctx).
+		return nil, clues.WrapWC(ctx, err, "making metadata path prefix").
 			Label(count.BadPathPrefix)
 	}
 
@@ -285,7 +285,7 @@ func populateCollections(
 		statusUpdater,
 		counter.Local())
 	if err != nil {
-		return nil, clues.Wrap(err, "making metadata collection").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "making metadata collection")
 	}
 
 	collections["metadata"] = col

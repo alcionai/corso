@@ -444,6 +444,7 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("getting drive folder path")
 		oc.reportAsCompleted(ctx, 0, 0, 0)
+
 		return
 	}
 
@@ -505,7 +506,6 @@ type lazyItemGetter struct {
 		driveID string,
 		item models.DriveItemable,
 		errs *fault.Bus) (io.ReadCloser, error)
-	counter *count.Bus
 }
 
 func (lig *lazyItemGetter) GetData(

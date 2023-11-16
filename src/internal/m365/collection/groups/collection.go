@@ -184,6 +184,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			if err != nil {
 				err := clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation)
 				el.AddRecoverable(ctx, err)
+
 				return
 			}
 

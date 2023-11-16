@@ -257,8 +257,10 @@ func populateCollections(
 		)
 
 		if collections[id] != nil {
-			err := clues.WrapWC(ictx, err, "conflict: tombstone exists for a live collection").Label(count.CollectionTombstoneConflict)
+			err := clues.WrapWC(ictx, err, "conflict: tombstone exists for a live collection").
+				Label(count.CollectionTombstoneConflict)
 			el.AddRecoverable(ctx, err)
+
 			continue
 		}
 
@@ -270,7 +272,7 @@ func populateCollections(
 
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
-			err = clues.Stack(err).WithClues(ctx).Label(count.BadPrevPath)
+			err = clues.StackWC(ctx, err).Label(count.BadPrevPath)
 			// technically shouldn't ever happen.  But just in case...
 			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
 
