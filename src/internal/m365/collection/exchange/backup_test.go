@@ -2091,7 +2091,12 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 					continue
 				}
 
-				if c.State() == data.DeletedState {
+				// We don't expect any deleted containers in this test.
+				if !assert.NotEqual(
+					t,
+					data.DeletedState,
+					c.State(),
+					"container marked deleted") {
 					continue
 				}
 
