@@ -7,23 +7,30 @@ import (
 )
 
 var (
-	Red     = color.New(color.FgRed).SprintFunc()
-	Blue    = color.New(color.FgBlue).SprintFunc()
-	Magenta = color.New(color.FgMagenta).SprintFunc()
-	Cyan    = color.New(color.FgCyan).SprintFunc()
-	Green   = color.New(color.FgGreen).SprintFunc()
-	Grey    = color.New(color.FgWhite).SprintFunc()
+	Red     = color.FgRed
+	Blue    = color.FgBlue
+	Magenta = color.FgMagenta
+	Cyan    = color.FgCyan
+	Green   = color.FgGreen
+	White   = color.FgWhite
+
+	RedOutput     = color.New(Red).SprintFunc()
+	BlueOutput    = color.New(Blue).SprintFunc()
+	MagentaOutput = color.New(Magenta).SprintFunc()
+	CyanOutput    = color.New(Cyan).SprintFunc()
+	GreenOutput   = color.New(Green).SprintFunc()
+	GreyOutput    = color.New(White).SprintFunc()
 )
 
 type colorableWriter struct {
-	color  *color.Color
+	color  color.Attribute
 	writer io.Writer
 }
 
-func NewColorableWriter(clr *color.Color, writer io.Writer) io.Writer {
+func NewColorableWriter(clr color.Attribute, writer io.Writer) io.Writer {
 	return &colorableWriter{clr, writer}
 }
 
 func (cw *colorableWriter) Write(p []byte) (n int, err error) {
-	return cw.color.Fprint(cw.writer, string(p))
+	return color.New(cw.color).Fprint(cw.writer, string(p))
 }

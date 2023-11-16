@@ -199,7 +199,7 @@ func Message(ctx context.Context, cfg ProgressCfg, msgs ...any) {
 			"%s %s %s",
 			plain,
 			Bullet,
-			color.Magenta(plainString(cfg.SectionIdentifier)))
+			color.MagentaOutput(plainString(cfg.SectionIdentifier)))
 		loggable = fmt.Sprintf("%s - %v", loggable, cfg.SectionIdentifier)
 	}
 
@@ -264,12 +264,12 @@ func MessageWithCompletion(
 			"%s %s %s",
 			plain,
 			Bullet,
-			color.Magenta(plainString(cfg.SectionIdentifier)))
+			color.MagentaOutput(plainString(cfg.SectionIdentifier)))
 		loggable = fmt.Sprintf("%s - %v", loggable, cfg.SectionIdentifier)
 	}
 
 	if cfg.Indent > 0 {
-		plain = color.Cyan(plain)
+		plain = color.CyanOutput(plain)
 	}
 
 	log.Info(loggable)
@@ -292,12 +292,12 @@ func MessageWithCompletion(
 	frames := []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙"}
 
 	// https://github.com/vbauerster/mpb/issues/71
-	bfoc := mpb.BarFillerOnComplete(color.Green("done"))
+	bfoc := mpb.BarFillerOnComplete(color.GreenOutput("done"))
 	if cfg.CompletionMessage != nil {
 		bfoc = mpb.BarFillerMiddleware(func(base mpb.BarFiller) mpb.BarFiller {
 			filler := func(w io.Writer, st decor.Statistics) error {
 				if st.Completed {
-					msg := fmt.Sprintf("%s %s", color.Green("done"), color.Grey(cfg.CompletionMessage()))
+					msg := fmt.Sprintf("%s %s", color.GreenOutput("done"), color.GreyOutput(cfg.CompletionMessage()))
 					_, err := io.WriteString(w, msg)
 
 					return err
@@ -599,7 +599,7 @@ func CollectionProgress(
 	barOpts := []mpb.BarOption{
 		mpb.PrependDecorators(
 			decor.Name("", decor.WC{W: 2}),
-			decor.Name(color.Cyan(string(category)))),
+			decor.Name(color.CyanOutput(string(category)))),
 		mpb.AppendDecorators(
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
 			decor.Name(plain)),

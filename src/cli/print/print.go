@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
 
-	ccolor "github.com/alcionai/corso/src/internal/common/color"
+	"github.com/alcionai/corso/src/internal/common/color"
 	"github.com/alcionai/corso/src/internal/observe"
 )
 
@@ -85,9 +84,8 @@ func Only(ctx context.Context, e error) error {
 
 // Err prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-// You should ideally be using SimpleError or OperationError.
 func Err(ctx context.Context, s ...any) {
-	cw := ccolor.NewColorableWriter(color.New(color.FgRed), getRootCmd(ctx).ErrOrStderr())
+	cw := color.NewColorableWriter(color.Red, getRootCmd(ctx).ErrOrStderr())
 
 	s = append([]any{"Error:"}, s...)
 
@@ -98,7 +96,7 @@ func Err(ctx context.Context, s ...any) {
 // if s is nil, prints nothing.
 // You should ideally be using SimpleError or OperationError.
 func Errf(ctx context.Context, tmpl string, s ...any) {
-	cw := ccolor.NewColorableWriter(color.New(color.FgRed), getRootCmd(ctx).ErrOrStderr())
+	cw := color.NewColorableWriter(color.Red, getRootCmd(ctx).ErrOrStderr())
 	tmpl = "Error: " + tmpl
 	outf(ctx, cw, tmpl, s...)
 }

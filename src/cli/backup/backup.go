@@ -234,7 +234,7 @@ func genericCreateCommand(
 		bIDs = append(bIDs, string(bo.Results.BackupID))
 
 		if !DisplayJSONFormat() {
-			Infof(ctx, fmt.Sprintf("Backup complete %s %s", observe.Bullet, color.Blue(bo.Results.BackupID)))
+			Infof(ctx, fmt.Sprintf("Backup complete %s %s", observe.Bullet, color.BlueOutput(bo.Results.BackupID)))
 			printBackupStats(ctx, r, string(bo.Results.BackupID))
 		} else {
 			Infof(ctx, "Backup complete - ID: %v\n", bo.Results.BackupID)
