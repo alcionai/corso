@@ -198,7 +198,7 @@ func (col *prefetchCollection) streamItems(
 
 	ctx = clues.Add(
 		ctx,
-		"item_stream_category", col.Category().String())
+		"category", col.Category().String())
 
 	defer func() {
 		close(stream)
@@ -239,7 +239,7 @@ func (col *prefetchCollection) streamItems(
 			stream <- data.NewDeletedItem(id)
 
 			if col.Counter.IncRead(count.StreamItemsRemoved)%1000 == 0 {
-				logger.Ctx(ctx).Infow("item stream progress", "stats", col.Counter.Values())
+				logger.Ctx(ctx).Infow("item removal stream progress", "stats", col.Counter.Values())
 			}
 
 			atomic.AddInt64(&success, 1)
@@ -313,7 +313,7 @@ func (col *prefetchCollection) streamItems(
 			col.Counter.Add(count.StreamBytesAdded, info.Size)
 
 			if col.Counter.IncRead(count.StreamItemsAdded)%1000 == 0 {
-				logger.Ctx(ctx).Infow("item stream progress", "stats", col.Counter.Values())
+				logger.Ctx(ctx).Infow("item addition stream progress", "stats", col.Counter.Values())
 			}
 
 			atomic.AddInt64(&success, 1)
