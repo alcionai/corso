@@ -133,6 +133,8 @@ func (pa plainAdder) Add(k string, n int64) {
 	pa.bus.Add(Key(k), n)
 }
 
+// PlainAdder provides support to external packages that could take in a count.Bus
+// but don't recognize the `Key` type, and would prefer a string type key.
 func (b *Bus) PlainAdder() *plainAdder {
 	return &plainAdder{b}
 }
