@@ -530,7 +530,7 @@ func produceBackupDataCollections(
 		Selector:            sel,
 	}
 
-	return bp.ProduceBackupCollections(ctx, bpc, counter, errs)
+	return bp.ProduceBackupCollections(ctx, bpc, counter.Local(), errs)
 }
 
 // ---------------------------------------------------------------------------

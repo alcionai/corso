@@ -12,6 +12,7 @@ const (
 // Tracked during backup
 const (
 	// amounts reported by kopia
+
 	PersistedCachedFiles          Key = "persisted-cached-files"
 	PersistedDirectories          Key = "persisted-directories"
 	PersistedFiles                Key = "persisted-files"
@@ -23,20 +24,29 @@ const (
 	PersistenceErrors             Key = "persistence-errors"
 	PersistenceExpectedErrors     Key = "persistence-expected-errors"
 	PersistenceIgnoredErrors      Key = "persistence-ignored-errors"
+
 	// amounts reported by producers
+
+	// collection state tracking
 	CollectionMoved      Key = "collection-moved"
 	CollectionNew        Key = "collection-state-new"
 	CollectionNotMoved   Key = "collection-state-not-moved"
 	CollectionTombstoned Key = "collection-state-tombstoned"
 	Collections          Key = "collections"
-	ItemsAdded           Key = "items-added"
-	ItemsRemoved         Key = "items-removed"
-	MissingDelta         Key = "missing-delta-token"
-	NewDeltas            Key = "new-delta-tokens"
-	NewPrevPaths         Key = "new-previous-paths"
-	NoDeltaQueries       Key = "cannot-make-delta-queries"
-	PrevDeltas           Key = "previous-deltas"
+	// count of items categorized as added and removed
+	// in the collections created by the data producer (eg: m365)
+	ItemsAdded   Key = "items-added"
+	ItemsRemoved Key = "items-removed"
+	// metadata: delta and previous paths
+	MissingDelta   Key = "missing-delta-token"
+	NewDeltas      Key = "new-delta-tokens"
+	NewPrevPaths   Key = "new-previous-paths"
+	NoDeltaQueries Key = "cannot-make-delta-queries"
+	PrevDeltas     Key = "previous-deltas"
+
 	// amounts reported by data providers
+
+	// count of items read in kopia through collection.Item() streams.
 	ProviderItemsRead Key = "provider-items-read"
 )
 
