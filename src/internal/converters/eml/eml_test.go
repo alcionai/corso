@@ -1,13 +1,13 @@
 package eml
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/converters/eml/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -23,14 +23,13 @@ func TestEMLUnitSuite(t *testing.T) {
 func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 	t := suite.T()
 
-	// read test file into body as []bytes
-	body, err := os.ReadFile("testdata/email-with-attachments.json")
-	require.NoError(t, err, "reading test file")
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-	msg, err := api.BytesToMessageable(body)
+	msg, err := api.BytesToMessageable([]byte(testdata.EmailWithAttachments))
 	require.NoError(t, err, "creating message")
 
-	_, err = toEml(msg)
+	_, err = ToEml(ctx, msg)
 	// TODO(meain): add more tests on the generated content
 	// Cannot test output directly as it contains a random boundary
 	assert.NoError(t, err, "converting to eml")

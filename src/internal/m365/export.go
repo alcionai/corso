@@ -3,6 +3,7 @@ package m365
 import (
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/m365/service/exchange"
 	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
@@ -28,6 +29,9 @@ func (ctrl *Controller) NewServiceHandler(
 
 	case path.GroupsService:
 		return groups.NewGroupsHandler(opts, ctrl.AC, ctrl.resourceHandler), nil
+
+	case path.ExchangeService:
+		return exchange.NewExchangeHandler(opts), nil
 	}
 
 	return nil, clues.New("unrecognized service").

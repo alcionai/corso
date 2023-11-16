@@ -25,8 +25,8 @@ const (
 	dateFormat = "2006-01-02 15:04:05 MST" // from xhit/go-simple-mail
 )
 
-// toEml converts a Messageable to .eml format
-func toEml(data models.Messageable) (string, error) {
+// ToEml converts a Messageable to .eml format
+func ToEml(ctx context.Context, data models.Messageable) (string, error) {
 	email := mail.NewMSG()
 
 	if data.GetFrom() != nil {
@@ -70,7 +70,7 @@ func toEml(data models.Messageable) (string, error) {
 	if data.GetReplyTo() != nil {
 		rts := data.GetReplyTo()
 		if len(rts) > 1 {
-			logger.Ctx(context.TODO()).
+			logger.Ctx(ctx).
 				With("id", ptr.Val(data.GetId()),
 					"reply_to_count", len(rts)).
 				Warn("more than 1 reply to")
@@ -103,7 +103,7 @@ func toEml(data models.Messageable) (string, error) {
 			default:
 				// https://learn.microsoft.com/en-us/graph/api/resources/itembody?view=graph-rest-1.0#properties
 				// This should not be possible according to the documentation
-				logger.Ctx(context.TODO()).
+				logger.Ctx(ctx).
 					With("body_type", data.GetBody().GetContentType().String(),
 						"id", ptr.Val(data.GetId())).
 					Info("unknown body content type")
