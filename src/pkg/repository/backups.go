@@ -210,7 +210,7 @@ func getBackupDetails(
 	}
 
 	if len(ssid) == 0 {
-		return nil, b, clues.New("no streamstore id in backup").WithClues(ctx)
+		return nil, b, clues.NewWC(ctx, "no streamstore id in backup")
 	}
 
 	var (
@@ -276,7 +276,7 @@ func getBackupErrors(
 
 	ssid := b.StreamStoreID
 	if len(ssid) == 0 {
-		return nil, b, clues.New("missing streamstore id in backup").WithClues(ctx)
+		return nil, b, clues.NewWC(ctx, "missing streamstore id in backup")
 	}
 
 	var (
@@ -335,9 +335,7 @@ func deleteBackups(
 				continue
 			}
 
-			return clues.Stack(errWrapper(err)).
-				WithClues(ctx).
-				With("delete_backup_id", id)
+			return clues.StackWC(ctx, errWrapper(err)).With("delete_backup_id", id)
 		}
 
 		toDelete = append(toDelete, b.ModelStoreID)

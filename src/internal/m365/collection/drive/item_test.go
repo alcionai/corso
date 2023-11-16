@@ -158,10 +158,9 @@ func (suite *ItemIntegrationSuite) TestIsURLExpired() {
 		}
 	}
 
-	expired, err := isURLExpired(ctx, url)
+	expired, err := graph.IsURLExpired(ctx, url)
 	require.NoError(t, err, clues.ToCore(err))
-
-	require.False(t, expired)
+	require.NoError(t, expired, clues.ToCore(err))
 }
 
 // TestItemWriter is an integration test for uploading data to OneDrive

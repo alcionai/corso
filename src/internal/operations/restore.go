@@ -129,12 +129,12 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	// -----
 
 	ctx, end := diagnostics.Span(ctx, "operations:restore:run")
-	defer func() {
-		end()
-	}()
+	defer end()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
+
+	ctx = clues.AddTrace(ctx)
 
 	cats, err := op.Selectors.AllHumanPathCategories()
 	if err != nil {
@@ -243,13 +243,11 @@ func (op *RestoreOperation) do(
 		op.Selectors.PathService(),
 		restoreToProtectedResource.ID())
 	if err != nil {
-		return nil, clues.Wrap(err, "verifying service restore is enabled").WithClues(ctx)
+		return nil, clues.Wrap(err, "verifying service restore is enabled")
 	}
 
 	if !enabled {
-		return nil, clues.Wrap(
-			graph.ErrServiceNotEnabled,
-			"service not enabled for restore").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, graph.ErrServiceNotEnabled, "service not enabled for restore")
 	}
 
 	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(restoreToProtectedResource.Name()))

@@ -115,8 +115,7 @@ func makeRestorePathsForEntry(
 
 	repoRef, err := path.FromDataLayerPath(ent.RepoRef, true)
 	if err != nil {
-		err = clues.Wrap(err, "parsing RepoRef").
-			WithClues(ctx).
+		err = clues.WrapWC(ctx, err, "parsing RepoRef").
 			With("repo_ref", clues.Hide(ent.RepoRef), "location_ref", clues.Hide(ent.LocationRef))
 
 		return res, err
@@ -128,8 +127,7 @@ func makeRestorePathsForEntry(
 	// Get the LocationRef so we can munge it onto our path.
 	locRef, err := locationRef(ent, repoRef, backupVersion)
 	if err != nil {
-		err = clues.Wrap(err, "parsing LocationRef after reduction").
-			WithClues(ctx).
+		err = clues.WrapWC(ctx, err, "parsing LocationRef after reduction").
 			With("location_ref", clues.Hide(ent.LocationRef))
 
 		return res, err
@@ -154,11 +152,11 @@ func makeRestorePathsForEntry(
 		(ent.Groups != nil && ent.Groups.ItemType == details.SharePointLibrary):
 		res.RestorePath, err = drivePathMerge(ent, repoRef, locRef)
 	default:
-		return res, clues.New("unknown entry type").WithClues(ctx)
+		return res, clues.NewWC(ctx, "unknown entry type")
 	}
 
 	if err != nil {
-		return res, clues.Wrap(err, "generating RestorePath").WithClues(ctx)
+		return res, clues.WrapWC(ctx, err, "generating RestorePath")
 	}
 
 	return res, nil
