@@ -223,7 +223,11 @@ func (op *ExportOperation) do(
 		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
-	observe.Message(ctx, "Exporting", observe.Bullet, clues.Hide(bup.Selector.DiscreteOwner))
+	pcfg := observe.ProgressCfg{
+		NewSection:        true,
+		SectionIdentifier: clues.Hide(bup.Selector.DiscreteOwner),
+	}
+	observe.Message(ctx, pcfg, "Exporting")
 
 	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.ec, op.Errors)
 	if err != nil {
@@ -239,9 +243,12 @@ func (op *ExportOperation) do(
 		"backup_snapshot_id", bup.SnapshotID,
 		"backup_version", bup.Version)
 
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to export", len(paths), op.BackupID))
+	observe.Message(
+		ctx,
+		observe.ProgressCfg{},
+		fmt.Sprintf("Discovered %d items in backup %s to export", len(paths), op.BackupID))
 
-	kopiaComplete := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
+	kopiaComplete := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Enumerating items in repository")
 	defer close(kopiaComplete)
 
 	dcs, err := op.kopia.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
@@ -332,7 +339,7 @@ func produceExportCollections(
 	exportStats *data.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
-	complete := observe.MessageWithCompletion(ctx, "Preparing export")
+	complete := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Preparing export")
 	defer func() {
 		complete <- struct{}{}
 		close(complete)

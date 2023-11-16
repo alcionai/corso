@@ -2,6 +2,8 @@ package site
 
 import (
 	"context"
+	"fmt"
+	stdpath "path"
 
 	"github.com/alcionai/clues"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -43,6 +46,18 @@ func CollectLibraries(
 			su,
 			bpc.Options)
 	)
+
+	msg := fmt.Sprintf(
+		"%s (%s)",
+		path.LibrariesCategory.HumanString(),
+		stdpath.Base(bpc.ProtectedResource.Name()))
+
+	pcfg := observe.ProgressCfg{
+		Indent:            1,
+		CompletionMessage: func() string { return fmt.Sprintf("(found %d items)", colls.NumItems) },
+	}
+	progressBar := observe.MessageWithCompletion(ctx, pcfg, msg)
+	close(progressBar)
 
 	odcs, canUsePreviousBackup, err := colls.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 	if err != nil {

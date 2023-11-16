@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -12,8 +13,10 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/internal/common/color"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -187,8 +190,15 @@ func genericCreateCommand(
 
 		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
 		if err != nil {
-			errs = append(errs, clues.WrapWC(ictx, err, owner))
-			Errf(ictx, "%v\n", err)
+			cerr := clues.WrapWC(ictx, err, owner)
+			errs = append(errs, cerr)
+
+			meta, err := json.Marshal(cerr.Core().Values)
+			if err != nil {
+				meta = []byte("Unable to marshal error metadata")
+			}
+
+			Errf(ictx, "%s\nMessage: %v\nMetadata:%s", "Unable to complete backup", err, meta)
 
 			continue
 		}
@@ -208,8 +218,15 @@ func genericCreateCommand(
 				continue
 			}
 
-			errs = append(errs, clues.WrapWC(ictx, err, owner))
-			Errf(ictx, "%v\n", err)
+			cerr := clues.WrapWC(ictx, err, owner)
+			errs = append(errs, cerr)
+
+			meta, err := json.Marshal(cerr.Core().Values)
+			if err != nil {
+				meta = []byte("Unable to marshal error metadata")
+			}
+
+			Errf(ictx, "%s\nMessage: %v\nMetadata:%s", "Unable to complete backup", err, meta)
 
 			continue
 		}
@@ -217,10 +234,10 @@ func genericCreateCommand(
 		bIDs = append(bIDs, string(bo.Results.BackupID))
 
 		if !DisplayJSONFormat() {
-			Infof(ctx, "Done\n")
+			Infof(ctx, fmt.Sprintf("Backup complete %s %s", observe.Bullet, color.BlueOutput(bo.Results.BackupID)))
 			printBackupStats(ctx, r, string(bo.Results.BackupID))
 		} else {
-			Infof(ctx, "Done - ID: %v\n", bo.Results.BackupID)
+			Infof(ctx, "Backup complete - ID: %v\n", bo.Results.BackupID)
 		}
 	}
 
@@ -231,9 +248,8 @@ func genericCreateCommand(
 
 	if len(bups) > 0 {
 		Info(ctx, "Completed Backups:")
+		backup.PrintAll(ctx, bups)
 	}
-
-	backup.PrintAll(ctx, bups)
 
 	if len(errs) > 0 {
 		sb := fmt.Sprintf("%d of %d backups failed:\n", len(errs), len(selectorSet))

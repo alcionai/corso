@@ -10,7 +10,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/support"
-	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -51,11 +50,6 @@ func ProduceBackupCollections(
 		if el.Failure() != nil {
 			break
 		}
-
-		progressBar := observe.MessageWithCompletion(
-			ctx,
-			observe.Bulletf("%s", scope.Category().PathType().HumanString()))
-		defer close(progressBar)
 
 		var spcs []data.BackupCollection
 

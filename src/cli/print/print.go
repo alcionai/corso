@@ -10,6 +10,7 @@ import (
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
 
+	"github.com/alcionai/corso/src/internal/common/color"
 	"github.com/alcionai/corso/src/internal/observe"
 )
 
@@ -83,16 +84,21 @@ func Only(ctx context.Context, e error) error {
 
 // Err prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-// Prepends the message with "Error: "
 func Err(ctx context.Context, s ...any) {
-	out(ctx, getRootCmd(ctx).ErrOrStderr(), s...)
+	cw := color.NewColorableWriter(color.Red, getRootCmd(ctx).ErrOrStderr())
+
+	s = append([]any{"Error:"}, s...)
+
+	out(ctx, cw, s...)
 }
 
 // Errf prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-// Prepends the message with "Error: "
+// You should ideally be using SimpleError or OperationError.
 func Errf(ctx context.Context, tmpl string, s ...any) {
-	outf(ctx, getRootCmd(ctx).ErrOrStderr(), "\nError: \n\t"+tmpl+"\n", s...)
+	cw := color.NewColorableWriter(color.Red, getRootCmd(ctx).ErrOrStderr())
+	tmpl = "Error: " + tmpl
+	outf(ctx, cw, tmpl, s...)
 }
 
 // Out prints the params to cobra's output writer (stdOut by default)

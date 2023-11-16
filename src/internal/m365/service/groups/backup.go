@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
@@ -70,11 +71,6 @@ func ProduceBackupCollections(
 			break
 		}
 
-		progressBar := observe.MessageWithCompletion(
-			ctx,
-			observe.Bulletf("%s", scope.Category().PathType().HumanString()))
-		defer close(progressBar)
-
 		var dbcs []data.BackupCollection
 
 		switch scope.Category().PathType() {
@@ -134,15 +130,27 @@ func ProduceBackupCollections(
 
 				dbcs = append(dbcs, cs...)
 			}
-
 		case path.ChannelMessagesCategory:
+			var (
+				cs                   []data.BackupCollection
+				canUsePreviousBackup bool
+				err                  error
+			)
+
+			pcfg := observe.ProgressCfg{
+				Indent: 1,
+				// TODO(meain): Use number of messages and not channels
+				CompletionMessage: func() string { return fmt.Sprintf("(found %d channels)", len(cs)) },
+			}
+			progressBar := observe.MessageWithCompletion(ctx, pcfg, scope.Category().PathType().HumanString())
+
 			if !isTeam {
 				continue
 			}
 
 			bh := groups.NewChannelBackupHandler(bpc.ProtectedResource.ID(), ac.Channels())
 
-			cs, canUsePreviousBackup, err := groups.CreateCollections(
+			cs, canUsePreviousBackup, err = groups.CreateCollections(
 				ctx,
 				bpc,
 				bh,
@@ -165,6 +173,8 @@ func ProduceBackupCollections(
 			}
 
 			dbcs = append(dbcs, cs...)
+
+			close(progressBar)
 		}
 
 		collections = append(collections, dbcs...)

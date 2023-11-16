@@ -107,7 +107,7 @@ func runExport(
 
 	// It would be better to give a progressbar than a spinner, but we
 	// have any way of knowing how many files are available as of now.
-	diskWriteComplete := observe.MessageWithCompletion(ctx, "Writing data to disk")
+	diskWriteComplete := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Writing data to disk")
 
 	err = export.ConsumeExportCollections(ctx, exportLocation, expColl, eo.Errors)
 

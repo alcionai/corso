@@ -15,13 +15,14 @@ import (
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
+	"github.com/alcionai/corso/src/internal/common/color"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 const (
 	hideProgressBarsFN   = "hide-progress"
 	retainProgressBarsFN = "retain-progress"
-	progressBarWidth     = 32
+	progressBarWidth     = 40
 )
 
 func init() {
@@ -170,8 +171,15 @@ const (
 // Progress Updates
 // ---------------------------------------------------------------------------
 
+type ProgressCfg struct {
+	NewSection        bool
+	SectionIdentifier any
+	Indent            int
+	CompletionMessage func() string
+}
+
 // Message is used to display a progress message
-func Message(ctx context.Context, msgs ...any) {
+func Message(ctx context.Context, cfg ProgressCfg, msgs ...any) {
 	var (
 		obs        = getObserver(ctx)
 		plainSl    = make([]string, 0, len(msgs))
@@ -186,10 +194,27 @@ func Message(ctx context.Context, msgs ...any) {
 	plain := strings.Join(plainSl, " ")
 	loggable := strings.Join(loggableSl, " ")
 
+	if cfg.SectionIdentifier != nil {
+		plain = fmt.Sprintf(
+			"%s %s %s",
+			plain,
+			Bullet,
+			color.MagentaOutput(plainString(cfg.SectionIdentifier)))
+		loggable = fmt.Sprintf("%s - %v", loggable, cfg.SectionIdentifier)
+	}
+
 	logger.Ctx(ctx).Info(loggable)
 
 	if obs.hidden() {
 		return
+	}
+
+	if cfg.NewSection {
+		// Empty bar to separate out section
+		obs.wg.Add(1)
+		empty := obs.mp.New(-1, mpb.NopStyle())
+		empty.SetTotal(-1, true)
+		waitAndCloseBar(ctx, empty, obs.wg, func() {})()
 	}
 
 	obs.wg.Add(1)
@@ -197,12 +222,14 @@ func Message(ctx context.Context, msgs ...any) {
 	bar := obs.mp.New(
 		-1,
 		mpb.NopStyle(),
-		mpb.PrependDecorators(decor.Name(
-			plain,
-			decor.WC{
-				W: len(plain) + 1,
-				C: decor.DidentRight,
-			})))
+		mpb.PrependDecorators(
+			decor.Name("", decor.WC{W: cfg.Indent * 2}),
+			decor.Name(
+				plain,
+				decor.WC{
+					W: len(plain) + 1,
+					C: decor.DidentRight,
+				})))
 
 	// Complete the bar immediately
 	bar.SetTotal(-1, true)
@@ -213,15 +240,37 @@ func Message(ctx context.Context, msgs ...any) {
 // that switches to "done" when the completion channel is signalled
 func MessageWithCompletion(
 	ctx context.Context,
-	msg any,
+	cfg ProgressCfg,
+	msgs ...any,
 ) chan<- struct{} {
 	var (
-		obs      = getObserver(ctx)
-		plain    = plainString(msg)
-		loggable = fmt.Sprintf("%v", msg)
-		log      = logger.Ctx(ctx)
-		ch       = make(chan struct{}, 1)
+		obs        = getObserver(ctx)
+		log        = logger.Ctx(ctx)
+		plainSl    = make([]string, 0, len(msgs))
+		loggableSl = make([]string, 0, len(msgs))
+		ch         = make(chan struct{}, 1)
 	)
+
+	for _, m := range msgs {
+		plainSl = append(plainSl, plainString(m))
+		loggableSl = append(loggableSl, fmt.Sprintf("%v", m))
+	}
+
+	plain := strings.Join(plainSl, " ")
+	loggable := strings.Join(loggableSl, " ")
+
+	if cfg.SectionIdentifier != nil {
+		plain = fmt.Sprintf(
+			"%s %s %s",
+			plain,
+			Bullet,
+			color.MagentaOutput(plainString(cfg.SectionIdentifier)))
+		loggable = fmt.Sprintf("%s - %v", loggable, cfg.SectionIdentifier)
+	}
+
+	if cfg.Indent > 0 {
+		plain = color.CyanOutput(plain)
+	}
 
 	log.Info(loggable)
 
@@ -230,17 +279,45 @@ func MessageWithCompletion(
 		return ch
 	}
 
+	if cfg.NewSection {
+		// Empty bar to separate out section
+		obs.wg.Add(1)
+		empty := obs.mp.New(-1, mpb.NopStyle())
+		empty.SetTotal(-1, true)
+		waitAndCloseBar(ctx, empty, obs.wg, func() {})()
+	}
+
 	obs.wg.Add(1)
 
 	frames := []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙"}
+
+	// https://github.com/vbauerster/mpb/issues/71
+	bfoc := mpb.BarFillerOnComplete(color.GreenOutput("done"))
+	if cfg.CompletionMessage != nil {
+		bfoc = mpb.BarFillerMiddleware(func(base mpb.BarFiller) mpb.BarFiller {
+			filler := func(w io.Writer, st decor.Statistics) error {
+				if st.Completed {
+					msg := fmt.Sprintf("%s %s", color.GreenOutput("done"), color.GreyOutput(cfg.CompletionMessage()))
+					_, err := io.WriteString(w, msg)
+
+					return err
+				}
+
+				return base.Fill(w, st)
+			}
+
+			return mpb.BarFillerFunc(filler)
+		})
+	}
 
 	bar := obs.mp.New(
 		-1,
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
-			decor.Name(plain+":"),
+			decor.Name("", decor.WC{W: cfg.Indent * 2}),
+			decor.Name(plain, decor.WC{W: progressBarWidth - cfg.Indent*2, C: decor.DidentRight}),
 			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8})),
-		mpb.BarFillerOnComplete("done"))
+		bfoc)
 
 	go listen(
 		ctx,
@@ -520,7 +597,9 @@ func CollectionProgress(
 	obs.wg.Add(1)
 
 	barOpts := []mpb.BarOption{
-		mpb.PrependDecorators(decor.Name(string(category))),
+		mpb.PrependDecorators(
+			decor.Name("", decor.WC{W: 2}),
+			decor.Name(color.CyanOutput(string(category)))),
 		mpb.AppendDecorators(
 			decor.CurrentNoUnit("%d - ", decor.WCSyncSpace),
 			decor.Name(plain)),
