@@ -41,7 +41,19 @@ func (b *Bus) Inc(k Key) {
 	b.Add(k, 1)
 }
 
-// Inc increases the count by n.
+// IncRead increases the count by 1.
+// returns the current local value of k.
+func (b *Bus) IncRead(k Key) int64 {
+	if b == nil {
+		return -1
+	}
+
+	b.Add(k, 1)
+
+	return b.Get(k)
+}
+
+// Add increases the count by n.
 func (b *Bus) Add(k Key, n int64) {
 	if b == nil {
 		return
@@ -52,6 +64,18 @@ func (b *Bus) Add(k Key, n int64) {
 	if b.parent != nil {
 		b.parent.Add(k, n)
 	}
+}
+
+// AddRead increases the count by n.
+// returns the current local value of k.
+func (b *Bus) AddRead(k Key, n int64) int64 {
+	if b == nil {
+		return -1
+	}
+
+	b.Add(k, n)
+
+	return b.Get(k)
 }
 
 // AdderFor returns a func that adds any value of i

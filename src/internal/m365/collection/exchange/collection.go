@@ -193,13 +193,17 @@ func (col *prefetchCollection) streamItems(
 		colProgress chan<- struct{}
 
 		user = col.user
-		log  = logger.Ctx(ctx).With(
-			"service", path.ExchangeService.String(),
-			"category", col.Category().String())
 	)
+
+	ctx = clues.Add(
+		ctx,
+		"category", col.Category().String())
 
 	defer func() {
 		close(stream)
+		logger.Ctx(ctx).Infow(
+			"finished stream backup collection items",
+			"stats", col.Counter.Values())
 		updateStatus(
 			ctx,
 			col.statusUpdater,
@@ -232,6 +236,10 @@ func (col *prefetchCollection) streamItems(
 			defer func() { <-semaphoreCh }()
 
 			stream <- data.NewDeletedItem(id)
+
+			if col.Counter.IncRead(count.StreamItemsRemoved)%1000 == 0 {
+				logger.Ctx(ctx).Infow("item removal stream progress", "stats", col.Counter.Values())
+			}
 
 			atomic.AddInt64(&success, 1)
 
@@ -273,9 +281,11 @@ func (col *prefetchCollection) streamItems(
 				// nothing else we can do, and not reporting it will make the status
 				// investigation upset.
 				if graph.IsErrDeletedInFlight(err) {
+					col.Counter.Inc(count.StreamItemsDeletedInFlight)
 					atomic.AddInt64(&success, 1)
-					log.With("err", err).Infow("item not found", clues.InErr(err).Slice()...)
+					logger.CtxErr(ctx, err).Info("item not found")
 				} else {
+					col.Counter.Inc(count.StreamItemsErrored)
 					el.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
 				}
 
@@ -287,6 +297,7 @@ func (col *prefetchCollection) streamItems(
 				id,
 				details.ItemInfo{Exchange: info})
 			if err != nil {
+				col.Counter.Inc(count.StreamItemsErrored)
 				el.AddRecoverable(
 					ctx,
 					clues.StackWC(ctx, err).
@@ -296,6 +307,12 @@ func (col *prefetchCollection) streamItems(
 			}
 
 			stream <- item
+
+			col.Counter.Add(count.StreamBytesAdded, info.Size)
+
+			if col.Counter.IncRead(count.StreamItemsAdded)%1000 == 0 {
+				logger.Ctx(ctx).Infow("item addition stream progress", "stats", col.Counter.Values())
+			}
 
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, info.Size)
