@@ -68,7 +68,8 @@ const sidebars = {
             'cli/corso-backup-list-exchange',
             'cli/corso-backup-details-exchange',
             'cli/corso-backup-delete-exchange',
-            'cli/corso-restore-exchange']
+            'cli/corso-restore-exchange',
+            'cli/corso-export-exchange']
         },
         {
           type: 'category',
@@ -82,7 +83,8 @@ const sidebars = {
             'cli/corso-backup-list-groups',
             'cli/corso-backup-details-groups',
             'cli/corso-backup-delete-groups',
-            'cli/corso-restore-groups']
+            'cli/corso-restore-groups',
+            'cli/corso-export-groups']
         },
         {
           type: 'category',
