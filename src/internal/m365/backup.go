@@ -46,8 +46,6 @@ func (ctrl *Controller) ProduceBackupCollections(
 		diagnostics.Index("service", bpc.Selector.PathService().String()))
 	defer end()
 
-	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: service})
-
 	// Limit the max number of active requests to graph from this collection.
 	bpc.Options.Parallelism.ItemFetch = graph.Parallelism(service).
 		ItemOverride(ctx, bpc.Options.Parallelism.ItemFetch)

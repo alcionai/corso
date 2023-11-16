@@ -205,6 +205,13 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	ctx = clues.AddTrace(ctx)
 
+	// Select an appropriate rate limiter for the service.
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{
+			Service: op.Selectors.PathService(),
+		})
+
 	// Check if the protected resource has the service enabled in order for us
 	// to run a backup.
 	enabled, err := op.bp.IsServiceEnabled(

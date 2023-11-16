@@ -587,14 +587,6 @@ func (oc *Collection) streamDriveItem(
 		parentPath)
 
 	ctx = clues.Add(ctx, "item_info", itemInfo)
-	// Drive content download requests are also rate limited by graph api.
-	// Ensure that this request goes through the drive limiter & not the default
-	// limiter.
-	ctx = graph.BindRateLimiterConfig(
-		ctx,
-		graph.LimiterCfg{
-			Service: path.OneDriveService,
-		})
 
 	if isFile {
 		dataSuffix := metadata.DataFileSuffix
