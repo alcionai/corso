@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
+	"os"
 	"syscall"
 	"time"
 
@@ -29,6 +32,19 @@ const (
 var retryErrs = []error{
 	syscall.ECONNRESET,
 	io.ErrUnexpectedEOF,
+}
+
+// TODO(pandeyabs): Consolidate error funcs with retryErrs slice.
+func isTimeoutErr(err error) bool {
+	switch err := err.(type) {
+	case *url.Error:
+		return err.Timeout()
+	}
+
+	return errors.Is(err, context.Canceled) ||
+		errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, http.ErrHandlerTimeout) ||
+		os.IsTimeout(err)
 }
 
 type Getter interface {
@@ -91,7 +107,8 @@ func isRetriable(err error) bool {
 		}
 	}
 
-	return false
+	// Retry on read connection timeouts.
+	return isTimeoutErr(err)
 }
 
 func (rrh *resetRetryHandler) Read(p []byte) (int, error) {

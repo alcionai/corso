@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
 	"syscall"
 	"testing"
 
@@ -510,52 +514,101 @@ func (suite *ResetRetryHandlerUnitSuite) TestResetRetryHandler() {
 func (suite *ResetRetryHandlerUnitSuite) TestIsRetriable() {
 	table := []struct {
 		name   string
-		err    error
+		err    func() error
 		expect bool
 	}{
 		{
 			name:   "nil",
-			err:    nil,
+			err:    func() error { return nil },
 			expect: false,
 		},
 		{
 			name:   "Connection Reset Error",
-			err:    syscall.ECONNRESET,
+			err:    func() error { return syscall.ECONNRESET },
 			expect: true,
 		},
 		{
 			name:   "Unexpected EOF Error",
-			err:    io.ErrUnexpectedEOF,
+			err:    func() error { return io.ErrUnexpectedEOF },
 			expect: true,
 		},
 		{
 			name:   "Not Retriable Error",
-			err:    assert.AnError,
+			err:    func() error { return assert.AnError },
 			expect: false,
 		},
 		{
-			name:   "Chained Errors With No Retriables",
-			err:    clues.Stack(assert.AnError, clues.New("another error")),
+			name: "Chained Errors With No Retriables",
+			err: func() error {
+				return clues.Stack(assert.AnError, clues.New("another error"))
+			},
 			expect: false,
 		},
 		{
-			name:   "Chained Errors With ECONNRESET",
-			err:    clues.Stack(assert.AnError, syscall.ECONNRESET, assert.AnError),
+			name: "Chained Errors With ECONNRESET",
+			err: func() error {
+				return clues.Stack(assert.AnError, syscall.ECONNRESET, assert.AnError)
+			},
 			expect: true,
 		},
 		{
-			name:   "Chained Errors With ErrUnexpectedEOF",
-			err:    clues.Stack(assert.AnError, io.ErrUnexpectedEOF, assert.AnError),
+			name: "Chained Errors With ErrUnexpectedEOF",
+			err: func() error {
+				return clues.Stack(assert.AnError, io.ErrUnexpectedEOF, assert.AnError)
+			},
 			expect: true,
 		},
 		{
-			name:   "Wrapped ECONNRESET Error",
-			err:    clues.Wrap(syscall.ECONNRESET, "wrapped error"),
+			name: "Wrapped ECONNRESET Error",
+			err: func() error {
+				return clues.Wrap(syscall.ECONNRESET, "wrapped error")
+			},
 			expect: true,
 		},
 		{
-			name:   "Wrapped ErrUnexpectedEOF Error",
-			err:    clues.Wrap(io.ErrUnexpectedEOF, "wrapped error"),
+			name: "Wrapped ErrUnexpectedEOF Error",
+			err: func() error {
+				return clues.Wrap(io.ErrUnexpectedEOF, "wrapped error")
+			},
+			expect: true,
+		},
+		{
+			name:   "Timeout - deadline exceeded",
+			err:    func() error { return context.DeadlineExceeded },
+			expect: true,
+		},
+		{
+			name:   "Timeout - ctx canceled",
+			err:    func() error { return context.Canceled },
+			expect: true,
+		},
+		{
+			name:   "Timeout - http timeout",
+			err:    func() error { return http.ErrHandlerTimeout },
+			expect: true,
+		},
+		{
+			name: "Timeout - url error",
+			err: func() error {
+				return &url.Error{Err: context.DeadlineExceeded}
+			},
+			expect: true,
+		},
+		{
+			name: "Timeout - OS timeout",
+			err: func() error {
+				return &os.PathError{Err: os.ErrDeadlineExceeded}
+			},
+			expect: true,
+		},
+		{
+			name: "Timeout - net timeout",
+			err: func() error {
+				return &net.OpError{
+					Op:  "read",
+					Err: &os.PathError{Err: os.ErrDeadlineExceeded},
+				}
+			},
 			expect: true,
 		},
 	}
@@ -564,7 +617,7 @@ func (suite *ResetRetryHandlerUnitSuite) TestIsRetriable() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, test.expect, isRetriable(test.err))
+			assert.Equal(t, test.expect, isRetriable(test.err()))
 		})
 	}
 }
