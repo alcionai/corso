@@ -223,6 +223,10 @@ func QueueRequest(ctx context.Context) {
 	}
 }
 
+// ResetLimiter resets the limiter to its initial state and refills tokens to
+// initial capacity. This is only relevant for the sliding window limiter, and a
+// no-op for token bucket limiter. The token bucket limiter doesn't need to be
+// reset since it refills tokens at a fixed per-second rate.
 func ResetLimiter(ctx context.Context) {
 	limiter := ctxLimiter(ctx)
 	limiter.Reset()
