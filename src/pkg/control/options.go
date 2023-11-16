@@ -87,4 +87,10 @@ type Toggles struct {
 	// the protected resource. PreviewBackups are used to demonstrate value by
 	// being quick to create.
 	PreviewBackup bool `json:"previewBackup"`
+
+	// DisableSlidingWindowLimiter disables the experimental sliding window rate
+	// limiter for graph API requests. This is only relevant for exchange backups.
+	// Setting this flag switches exchange backups to fallback to the default token
+	// bucket rate limiter.
+	DisableSlidingWindowLimiter bool `json:"disableSlidingWindowLimiter"`
 }

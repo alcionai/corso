@@ -98,7 +98,7 @@ func computePreviousLinkShares(
 
 	parent, err := originDir.Dir()
 	if err != nil {
-		return nil, clues.New("getting parent").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "getting parent")
 	}
 
 	for len(parent.Elements()) > 0 {
@@ -106,7 +106,7 @@ func computePreviousLinkShares(
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return nil, clues.New("transforming dir to drivePath").WithClues(ictx)
+			return nil, clues.NewWC(ictx, "transforming dir to drivePath")
 		}
 
 		if len(drivePath.Folders) == 0 {
@@ -115,7 +115,7 @@ func computePreviousLinkShares(
 
 		meta, ok := parentMetas.Load(parent.String())
 		if !ok {
-			return nil, clues.New("no metadata found in parent").WithClues(ictx)
+			return nil, clues.NewWC(ictx, "no metadata found in parent")
 		}
 
 		// Any change in permissions would change it to custom
@@ -126,7 +126,7 @@ func computePreviousLinkShares(
 
 		parent, err = parent.Dir()
 		if err != nil {
-			return nil, clues.New("getting parent").WithClues(ctx)
+			return nil, clues.NewWC(ictx, "getting parent")
 		}
 	}
 
@@ -156,14 +156,14 @@ func computePreviousMetadata(
 	for {
 		parent, err = parent.Dir()
 		if err != nil {
-			return metadata.Metadata{}, clues.New("getting parent").WithClues(ctx)
+			return metadata.Metadata{}, clues.NewWC(ctx, "getting parent")
 		}
 
 		ictx := clues.Add(ctx, "parent_dir", parent)
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return metadata.Metadata{}, clues.New("transforming dir to drivePath").WithClues(ictx)
+			return metadata.Metadata{}, clues.NewWC(ictx, "transforming dir to drivePath")
 		}
 
 		if len(drivePath.Folders) == 0 {
@@ -172,7 +172,7 @@ func computePreviousMetadata(
 
 		meta, ok = parentMetas.Load(parent.String())
 		if !ok {
-			return metadata.Metadata{}, clues.New("no metadata found for parent folder: " + parent.String()).WithClues(ictx)
+			return metadata.Metadata{}, clues.NewWC(ictx, "no metadata found for parent folder: "+parent.String())
 		}
 
 		if meta.SharingMode == metadata.SharingModeCustom {
@@ -214,7 +214,7 @@ func UpdatePermissions(
 
 		pid, ok := oldPermIDToNewID.Load(p.ID)
 		if !ok {
-			return clues.New("no new permission id").WithClues(ctx)
+			return clues.NewWC(ictx, "no new permission id")
 		}
 
 		err := udip.DeleteItemPermission(

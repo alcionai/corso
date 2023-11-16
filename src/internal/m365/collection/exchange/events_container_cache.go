@@ -52,7 +52,7 @@ func (ecc *eventContainerCache) populateEventRoot(ctx context.Context) error {
 		path.Builder{}.Append(ptr.Val(f.GetId())),          // storage path
 		path.Builder{}.Append(ptr.Val(f.GetDisplayName()))) // display location
 	if err := ecc.addFolder(&temp); err != nil {
-		return clues.Wrap(err, "initializing calendar resolver").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "initializing calendar resolver")
 	}
 
 	return nil
@@ -111,7 +111,7 @@ func (ecc *eventContainerCache) Populate(
 // @returns error iff the required values are not accessible.
 func (ecc *eventContainerCache) AddToCache(ctx context.Context, f graph.Container) error {
 	if err := checkIDAndName(f); err != nil {
-		return clues.Wrap(err, "validating container").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "validating container")
 	}
 
 	temp := graph.NewCacheFolder(
@@ -120,7 +120,7 @@ func (ecc *eventContainerCache) AddToCache(ctx context.Context, f graph.Containe
 		path.Builder{}.Append(ptr.Val(f.GetDisplayName()))) // display location
 
 	if err := ecc.addFolder(&temp); err != nil {
-		return clues.Wrap(err, "adding container").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "adding container")
 	}
 
 	// Populate the path for this entry so calls to PathInCache succeed no matter

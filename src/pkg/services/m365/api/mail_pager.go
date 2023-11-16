@@ -246,7 +246,7 @@ func (p *mailDeltaPager) ValidModTimes() bool {
 func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	cc CallConfig,
+	config CallConfig,
 ) (pagers.AddedAndRemoved, error) {
 	ctx = clues.Add(
 		ctx,
@@ -258,12 +258,12 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		cc.UseImmutableIDs,
+		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 	pager := c.NewMailPager(
 		userID,
 		containerID,
-		cc.UseImmutableIDs,
+		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Messageable](
@@ -271,7 +271,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		cc.CanMakeDeltaQueries,
-		0,
+		config.CanMakeDeltaQueries,
+		config.LimitResults,
 		pagers.AddedAndRemovedByAddtlData[models.Messageable])
 }
