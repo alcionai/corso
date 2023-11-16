@@ -41,7 +41,7 @@ func (b *Bus) Inc(k Key) {
 	b.Add(k, 1)
 }
 
-// Inc increases the count by 1.
+// IncRead increases the count by 1.
 // returns the current local value of k.
 func (b *Bus) IncRead(k Key) int64 {
 	if b == nil {
@@ -66,7 +66,7 @@ func (b *Bus) Add(k Key, n int64) {
 	}
 }
 
-// Add increases the count by n.
+// AddRead increases the count by n.
 // returns the current local value of k.
 func (b *Bus) AddRead(k Key, n int64) int64 {
 	if b == nil {
