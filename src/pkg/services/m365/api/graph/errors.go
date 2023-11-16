@@ -226,8 +226,7 @@ func IsErrUnauthorizedOrBadToken(err error) bool {
 }
 
 func IsErrBadJWTToken(err error) bool {
-	return hasErrorCode(err, invalidAuthenticationToken) ||
-		errors.Is(err, ErrTokenExpired)
+	return hasErrorCode(err, invalidAuthenticationToken)
 }
 
 func IsErrItemAlreadyExistsConflict(err error) bool {

@@ -478,7 +478,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 		{
 			name:   "err token expired",
 			err:    clues.Stack(assert.AnError, ErrTokenExpired),
-			expect: assert.True,
+			expect: assert.False,
 		},
 		{
 			name:   "oDataErr code invalid auth token ",
