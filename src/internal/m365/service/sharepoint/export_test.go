@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ExportUnitSuite struct {
@@ -125,7 +126,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				},
 			}
 
-			handler := NewSharePointHandler(control.DefaultOptions())
+			handler := NewSharePointHandler(control.DefaultOptions(), api.Client{}, nil)
 			handler.CacheItemInfo(test.itemInfo)
 
 			stats := data.ExportStats{}
