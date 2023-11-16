@@ -122,12 +122,12 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			bytes, err := attachment.GetBackingStore().Get("contentBytes")
 			if err != nil {
-				return "", clues.Wrap(err, "failed to get attachment bytes").WithClues(ctx)
+				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes")
 			}
 
 			bts, ok := bytes.([]byte)
 			if !ok {
-				return "", clues.Wrap(err, "invalid content bytes").WithClues(ctx)
+				return "", clues.WrapWC(ctx, err, "invalid content bytes")
 			}
 
 			email.Attach(&mail.File{
