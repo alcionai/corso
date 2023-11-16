@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	addressFormat = "%s <%s>"
+	addressFormat = `"%s" <%s>`
 	dateFormat    = "2006-01-02 15:04:05 MST" // from xhit/go-simple-mail
 )
 
@@ -77,7 +77,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			if email.Error != nil {
 				return "", clues.Wrap(email.Error, "adding cc address").
 					WithClues(ctx).
-					With("cc", recipient)
+					With("Cc", recipient)
 			}
 		}
 	}
@@ -89,7 +89,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			if email.Error != nil {
 				return "", clues.Wrap(email.Error, "adding bcc address").
 					WithClues(ctx).
-					With("bcc", recipient)
+					With("Bcc", recipient)
 			}
 		}
 	}

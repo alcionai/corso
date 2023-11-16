@@ -1,10 +1,12 @@
 package eml
 
 import (
-	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/jhillyerd/enmime"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +39,7 @@ func (suite *EMLUnitSuite) TestFormatAddress() {
 			tname:    "different name and email",
 			name:     "John Doe",
 			email:    "johndoe@provider.com",
-			expected: `John Doe <johndoe@provider.com>`,
+			expected: `"John Doe" <johndoe@provider.com>`,
 		},
 		{
 			tname:    "same name and email",
@@ -82,49 +84,36 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 	msg, err := api.BytesToMessageable(body)
 	require.NoError(t, err, "creating message")
 
-	assert.Contains(t, out, fmt.Sprintf("Subject: %s", ptr.Val(msg.GetSubject())))
-	assert.Contains(t, out, fmt.Sprintf("Date: %s", msg.GetSentDateTime().Format(time.RFC1123Z)))
-	assert.Contains(
-		t,
-		out,
-		fmt.Sprintf(
-			`From: "%s" <%s>`,
-			ptr.Val(msg.GetFrom().GetEmailAddress().GetName()),
-			ptr.Val(msg.GetFrom().GetEmailAddress().GetAddress())))
+	eml, err := enmime.ReadEnvelope(strings.NewReader(out))
+	require.NoError(t, err, "reading created eml")
 
-	for _, addr := range msg.GetToRecipients() {
-		assert.Contains(
-			t,
-			out,
-			fmt.Sprintf(
-				`To: "%s" <%s>`,
-				ptr.Val(addr.GetEmailAddress().GetName()),
-				ptr.Val(addr.GetEmailAddress().GetAddress())))
+	assert.Equal(t, ptr.Val(msg.GetSubject()), eml.GetHeader("Subject"))
+	assert.Equal(t, msg.GetSentDateTime().Format(time.RFC1123Z), eml.GetHeader("Date"))
+
+	assert.Equal(t, formatAddress(msg.GetFrom().GetEmailAddress()), eml.GetHeader("From"))
+
+	ccs := strings.Split(eml.GetHeader("Cc"), ", ")
+	for _, cc := range msg.GetCcRecipients() {
+		assert.Contains(t, ccs, formatAddress(cc.GetEmailAddress()))
 	}
 
-	for _, addr := range msg.GetCcRecipients() {
-		assert.Contains(
-			t,
-			out,
-			fmt.Sprintf(
-				`Cc: "%s" <%s>`,
-				ptr.Val(addr.GetEmailAddress().GetName()),
-				ptr.Val(addr.GetEmailAddress().GetAddress())))
+	bccs := strings.Split(eml.GetHeader("Bcc"), ", ")
+	for _, bcc := range msg.GetBccRecipients() {
+		assert.Contains(t, bccs, formatAddress(bcc.GetEmailAddress()))
 	}
 
-	for _, addr := range msg.GetBccRecipients() {
-		assert.Contains(
-			t,
-			out,
-			fmt.Sprintf(
-				`Bcc: "%s" <%s>`,
-				ptr.Val(addr.GetEmailAddress().GetName()),
-				ptr.Val(addr.GetEmailAddress().GetAddress())))
+	tos := strings.Split(eml.GetHeader("To"), ", ")
+	for _, to := range msg.GetToRecipients() {
+		assert.Contains(t, tos, formatAddress(to.GetEmailAddress()))
 	}
 
-	// Only fist 30 chars as the .eml generator can introduce a
-	// newline in between the text to limit the column width of the
-	// output. It does not affect the data, but can break our tests and
-	// so using 30 as a safe limit to test.
-	assert.Contains(t, out, ptr.Val(msg.GetBody().GetContent())[:30], "body")
+	source := strings.ReplaceAll(eml.HTML, "\n", "")
+	target := strings.ReplaceAll(ptr.Val(msg.GetBody().GetContent()), "\n", "")
+
+	// replace the cid with a constant value to make the comparison
+	re := regexp.MustCompile(`src="cid:[^"]*"`)
+	source = re.ReplaceAllString(source, `src="cid:replaced"`)
+	target = re.ReplaceAllString(target, `src="cid:replaced"`)
+
+	assert.Equal(t, source, target)
 }
