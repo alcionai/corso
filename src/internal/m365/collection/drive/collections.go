@@ -980,12 +980,11 @@ func (c *Collections) processItem(
 			return clues.NewWC(ctx, "item seen before parent folder")
 		}
 
-
 		// This will only kick in if the file was moved multiple times
 		// within a single delta query.  We delete the file from the previous
 		// collection so that it doesn't appear in two places.
-		prevParentContainerID, prevAdded := currPrevPaths[itemID]
-		if prevAdded {
+		prevParentContainerID, alreadyAdded := currPrevPaths[itemID]
+		if alreadyAdded {
 			prevColl, found := c.CollectionMap[driveID][prevParentContainerID]
 			if !found {
 				return clues.NewWC(ctx, "previous collection not found").
@@ -1002,7 +1001,7 @@ func (c *Collections) processItem(
 
 		// Only increment counters if the file didn't already get counted (i.e. it's
 		// not an item that was either updated or moved during the delta query).
-		if collection.Add(item) && !prevAdded {
+		if collection.Add(item) && !alreadyAdded {
 			c.NumItems++
 			c.NumFiles++
 		}
