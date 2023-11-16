@@ -47,7 +47,7 @@ func (c Lists) PostDrive(
 
 	newList, err := builder.Post(ctx, list, nil)
 	if graph.IsErrItemAlreadyExistsConflict(err) {
-		return nil, clues.Stack(graph.ErrItemAlreadyExistsConflict, err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, graph.ErrItemAlreadyExistsConflict, err)
 	}
 
 	if err != nil {

@@ -17,7 +17,7 @@ func IsServiceEnabled(
 ) (bool, error) {
 	resp, err := gbi.GetByID(ctx, resource, api.CallConfig{})
 	if err != nil {
-		return false, clues.Wrap(err, "getting group").WithClues(ctx)
+		return false, clues.WrapWC(ctx, err, "getting group")
 	}
 
 	// according to graph api docs: https://learn.microsoft.com/en-us/graph/api/resources/group?view=graph-rest-1.0

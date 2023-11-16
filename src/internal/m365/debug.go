@@ -34,6 +34,6 @@ func (ctrl *Controller) DeserializeMetadataFiles(
 	case path.GroupsService, path.GroupsMetadataService:
 		return groups.DeserializeMetadataFiles(ctx, colls)
 	default:
-		return nil, clues.New("unrecognized service").With("service", service).WithClues(ctx)
+		return nil, clues.NewWC(ctx, "unrecognized service").With("service", service)
 	}
 }

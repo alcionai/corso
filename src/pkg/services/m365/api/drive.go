@@ -274,11 +274,8 @@ func (c Drives) GetItemPermission(
 		ByDriveItemId(itemID).
 		Permissions().
 		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item permission").With("item_id", itemID)
-	}
 
-	return perm, nil
+	return perm, graph.Wrap(ctx, err, "getting item permissions").OrNil()
 }
 
 func (c Drives) PostItemPermissionUpdate(

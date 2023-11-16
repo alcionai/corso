@@ -102,7 +102,7 @@ func CollectPages(
 			false,
 			tuple.Name)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "creating page collection path").WithClues(ctx))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating page collection path"))
 		}
 
 		collection := NewCollection(
@@ -154,7 +154,7 @@ func CollectLists(
 			false,
 			tuple.Name)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "creating list collection path").WithClues(ctx))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
 		collection := NewCollection(

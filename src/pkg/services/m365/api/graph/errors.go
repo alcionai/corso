@@ -14,6 +14,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -45,6 +47,7 @@ const (
 	// Some datacenters are returning this when we try to get the inbox of a user
 	// that doesn't exist.
 	invalidUser                 errorCode = "ErrorInvalidUser"
+	invalidAuthenticationToken  errorCode = "InvalidAuthenticationToken"
 	itemNotFound                errorCode = "itemNotFound"
 	MailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
@@ -138,6 +141,7 @@ var (
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 
 	ErrTokenExpired = clues.New("jwt token expired")
+	ErrTokenInvalid = clues.New("jwt token invalid")
 )
 
 func IsErrApplicationThrottled(err error) bool {
@@ -234,12 +238,17 @@ func IsErrConnectionReset(err error) bool {
 	return errors.Is(err, syscall.ECONNRESET)
 }
 
-func IsErrUnauthorized(err error) bool {
-	// TODO: refine this investigation.  We don't currently know if
-	// a specific item download url expired, or if the full connection
-	// auth expired.
+func IsErrUnauthorizedOrBadToken(err error) bool {
 	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
-		errors.Is(err, ErrTokenExpired)
+		hasErrorCode(err, invalidAuthenticationToken) ||
+		errors.Is(err, ErrTokenExpired) ||
+		errors.Is(err, ErrTokenInvalid)
+}
+
+func IsErrBadJWTToken(err error) bool {
+	return hasErrorCode(err, invalidAuthenticationToken) ||
+		errors.Is(err, ErrTokenExpired) ||
+		errors.Is(err, ErrTokenInvalid)
 }
 
 func IsErrItemAlreadyExistsConflict(err error) bool {
@@ -373,7 +382,7 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 
 	var oDataError odataerrors.ODataErrorable
 	if !errors.As(e, &oDataError) {
-		return clues.Wrap(e, msg).WithClues(ctx).WithTrace(1)
+		return clues.WrapWC(ctx, e, msg).WithTrace(1)
 	}
 
 	mainMsg, data, innerMsg := errData(oDataError)
@@ -382,7 +391,7 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		e = clues.Stack(e, clues.New(mainMsg))
 	}
 
-	ce := clues.Wrap(e, msg).WithClues(ctx).With(data...).WithTrace(1)
+	ce := clues.WrapWC(ctx, e, msg).With(data...).WithTrace(1)
 
 	return setLabels(ce, innerMsg)
 }
@@ -396,7 +405,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 
 	var oDataError *odataerrors.ODataError
 	if !errors.As(e, &oDataError) {
-		return clues.Stack(e).WithClues(ctx).WithTrace(1)
+		return clues.StackWC(ctx, e).WithTrace(1)
 	}
 
 	mainMsg, data, innerMsg := errData(oDataError)
@@ -405,7 +414,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		e = clues.Stack(e, clues.New(mainMsg))
 	}
 
-	ce := clues.Stack(e).WithClues(ctx).With(data...).WithTrace(1)
+	ce := clues.StackWC(ctx, e).With(data...).WithTrace(1)
 
 	return setLabels(ce, innerMsg)
 }
@@ -557,4 +566,39 @@ func ItemInfo(item models.DriveItemable) map[string]any {
 	}
 
 	return m
+}
+
+// ---------------------------------------------------------------------------
+// other helpers
+// ---------------------------------------------------------------------------
+
+// JWTQueryParam is a query param embed in graph download URLs which holds
+// JWT token.
+const JWTQueryParam = "tempauth"
+
+// IsURLExpired inspects the jwt token embed in the item download url
+// and returns true if it is expired.
+func IsURLExpired(
+	ctx context.Context,
+	urlStr string,
+) (
+	expiredErr error,
+	err error,
+) {
+	// Extract the raw JWT string from the download url.
+	rawJWT, err := common.GetQueryParamFromURL(urlStr, JWTQueryParam)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "jwt query param not found")
+	}
+
+	expired, err := jwt.IsJWTExpired(rawJWT)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "checking jwt expiry")
+	}
+
+	if expired {
+		return clues.StackWC(ctx, ErrTokenExpired), nil
+	}
+
+	return nil, nil
 }
