@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -1057,7 +1058,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						t: t,
 						pages: []pageResult{
 							{
-								err:        graph.ErrDeltaNotSupported,
+								err:        graphTD.ODataErr(string(graph.ParameterDeltaTokenNotSupported)),
 								needsReset: true,
 							},
 						},
@@ -1111,7 +1112,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 						t: t,
 						pages: []pageResult{
 							{
-								err:        graph.ErrDeltaNotSupported,
+								err:        graphTD.ODataErr(string(graph.ParameterDeltaTokenNotSupported)),
 								needsReset: true,
 							},
 						},
@@ -1168,7 +1169,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 								},
 							},
 							{
-								err:        graph.ErrDeltaNotSupported,
+								err:        graphTD.ODataErr(string(graph.ParameterDeltaTokenNotSupported)),
 								needsReset: true,
 							},
 						},
@@ -1283,7 +1284,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs_FallbackPagers() {
 								},
 							},
 							{
-								err:        graph.ErrDeltaNotSupported,
+								err:        graphTD.ODataErr(string(graph.ParameterDeltaTokenNotSupported)),
 								needsReset: true,
 							},
 						},
