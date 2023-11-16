@@ -198,12 +198,12 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}()
 
 	ctx, end := diagnostics.Span(ctx, "operations:backup:run")
-	defer func() {
-		end()
-	}()
+	defer end()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
+
+	ctx = clues.AddTrace(ctx)
 
 	// Check if the protected resource has the service enabled in order for us
 	// to run a backup.
