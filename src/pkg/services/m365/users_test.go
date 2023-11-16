@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type userIntegrationSuite struct {
@@ -48,8 +47,6 @@ func (suite *userIntegrationSuite) TestUsersCompat_HasNoInfo() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
-
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	users, err := suite.cli.UsersCompatNoInfo(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
@@ -204,7 +201,6 @@ func (suite *userIntegrationSuite) TestUserGetMailboxInfo() {
 func (suite *userIntegrationSuite) TestUserAssignedLicenses() {
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	defer flush()
 

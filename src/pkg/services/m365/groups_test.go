@@ -35,8 +35,6 @@ func (suite *GroupsIntgSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
 	acct := tconfig.NewM365Account(t)
 
 	var err error
@@ -51,8 +49,6 @@ func (suite *GroupsIntgSuite) TestGroupByID() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
-
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	gid := tconfig.M365TeamID(t)
 
@@ -69,8 +65,6 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
-
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	gid := tconfig.M365TeamID(t)
 
@@ -96,8 +90,6 @@ func (suite *GroupsIntgSuite) TestGroupByID_notFound() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
 	group, err := suite.cli.GroupByID(ctx, uuid.NewString())
 	require.Nil(t, group)
 	require.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
@@ -109,8 +101,6 @@ func (suite *GroupsIntgSuite) TestGroups() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
-
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	groups, err := suite.cli.Groups(ctx, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
@@ -137,8 +127,6 @@ func (suite *GroupsIntgSuite) TestSitesInGroup() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
 	gid := tconfig.M365TeamID(t)
 
 	sites, err := suite.cli.SitesInGroup(ctx, gid, fault.New(true))
@@ -151,8 +139,6 @@ func (suite *GroupsIntgSuite) TestGroupsMap() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
-
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	gm, err := suite.cli.GroupsMap(ctx, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
