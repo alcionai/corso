@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -14,8 +15,9 @@ import (
 func DeserializeMetadataFiles(
 	ctx context.Context,
 	colls []data.RestoreCollection,
+	counter *count.Bus,
 ) ([]store.MetadataFile, error) {
-	deltas, prevs, _, err := deserializeAndValidateMetadata(ctx, colls, fault.New(true))
+	deltas, prevs, _, err := deserializeAndValidateMetadata(ctx, colls, counter, fault.New(true))
 
 	files := []store.MetadataFile{
 		{

@@ -29,6 +29,20 @@ func (h eventBackupHandler) itemHandler() itemGetterSerializer {
 	return h.ac
 }
 
+func (h eventBackupHandler) folderGetter() containerGetter {
+	return h.ac
+}
+
+func (h eventBackupHandler) previewIncludeContainers() []string {
+	return []string{
+		"calendar",
+	}
+}
+
+func (h eventBackupHandler) previewExcludeContainers() []string {
+	return nil
+}
+
 func (h eventBackupHandler) NewContainerCache(
 	userID string,
 ) (string, graph.ContainerResolver) {

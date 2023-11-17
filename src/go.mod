@@ -10,7 +10,7 @@ require (
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-xray-sdk-go v1.8.3
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/fatih/color v1.15.0
+	github.com/fatih/color v1.16.0
 	github.com/golang-jwt/jwt/v5 v5.1.0
 	github.com/google/uuid v1.4.0
 	github.com/h2non/gock v1.2.0
@@ -25,7 +25,7 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go v1.25.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
 	github.com/pkg/errors v0.9.1
-	github.com/puzpuzpuz/xsync/v2 v2.5.1
+	github.com/puzpuzpuz/xsync/v3 v3.0.2
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
 	github.com/spatialcurrent/go-lazy v0.0.0-20211115014721-47315cc003d1
 	github.com/spf13/cast v1.5.1
@@ -103,7 +103,7 @@ require (
 	github.com/klauspost/reedsolomon v1.11.8 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.19 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect

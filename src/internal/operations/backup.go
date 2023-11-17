@@ -197,6 +197,8 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
+	ctx = clues.AddLabelCounter(ctx, op.Counter.PlainAdder())
+
 	ctx, end := diagnostics.Span(ctx, "operations:backup:run")
 	defer end()
 
@@ -410,23 +412,6 @@ func (op *BackupOperation) do(
 		}
 	}
 
-	// Drop merge bases if we're doing a preview backup. Preview backups may use
-	// different delta token parameters so we need to ensure we do a token
-	// refresh. This could eventually be pushed down the stack if we track token
-	// versions.
-	//
-	// TODO(ashmrtn): Until we use token versions to determine this, refactor
-	// input params to produceManifestsAndMetadata and do this in that function
-	// instead of here.
-	if op.Options.ToggleFeatures.PreviewBackup {
-		logger.Ctx(ctx).Info("disabling merge bases for preview backup")
-
-		mans.DisableMergeBases()
-
-		canUseMetadata = false
-		mdColls = nil
-	}
-
 	ctx = clues.Add(
 		ctx,
 		"can_use_metadata", canUseMetadata,
@@ -513,7 +498,11 @@ func makeFallbackReasons(tenant string, sel selectors.Selector) ([]identity.Reas
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
 func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
-	return !opts.ToggleFeatures.DisableIncrementals
+	// Drop merge bases if we're doing a preview backup. Preview backups may use
+	// different delta token parameters so we need to ensure we do a token
+	// refresh. This could eventually be pushed down the stack if we track token
+	// versions.
+	return !opts.ToggleFeatures.DisableIncrementals && !opts.PreviewLimits.Enabled
 }
 
 // ---------------------------------------------------------------------------
@@ -543,7 +532,7 @@ func produceBackupDataCollections(
 		Selector:            sel,
 	}
 
-	return bp.ProduceBackupCollections(ctx, bpc, counter, errs)
+	return bp.ProduceBackupCollections(ctx, bpc, counter.Local(), errs)
 }
 
 // ---------------------------------------------------------------------------
@@ -969,7 +958,7 @@ func (op *BackupOperation) createBackupModels(
 	//
 	// model.BackupTypeTag has more info about how these tags are used.
 	switch {
-	case op.Options.ToggleFeatures.PreviewBackup:
+	case op.Options.PreviewLimits.Enabled:
 		// Preview backups need to be successful and without errors to be considered
 		// valid. Just reuse the merge base check for that since it has the same
 		// requirements.

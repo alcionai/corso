@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type mwReturns struct {
@@ -304,8 +305,8 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryResponse_maintainBodyAft
 
 	InitializeConcurrencyLimiter(ctx, false, -1)
 
-	odem := odErrMsg("SystemDown", "The System, Is Down, bah-dup-da-woo-woo!")
-	m := parseableToMap(t, odem)
+	odem := graphTD.ODataErrWithMsg("SystemDown", "The System, Is Down, bah-dup-da-woo-woo!")
+	m := graphTD.ParseableToMap(t, odem)
 
 	body, err := json.Marshal(m)
 	require.NoError(t, err, clues.ToCore(err))

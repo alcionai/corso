@@ -1,7 +1,7 @@
 package count
 
 import (
-	"github.com/puzpuzpuz/xsync/v2"
+	"github.com/puzpuzpuz/xsync/v3"
 )
 
 // Bus handles threadsafe counting of arbitrarily keyed metrics.
@@ -12,7 +12,7 @@ type Bus struct {
 
 func New() *Bus {
 	return &Bus{
-		stats: xsync.NewMapOf[*xsync.Counter](),
+		stats: xsync.NewMapOf[string, *xsync.Counter](),
 	}
 }
 
@@ -27,24 +27,24 @@ func (b *Bus) Local() *Bus {
 	return bus
 }
 
-func (b *Bus) getCounter(k key) *xsync.Counter {
+func (b *Bus) getCounter(k Key) *xsync.Counter {
 	xc, _ := b.stats.LoadOrStore(string(k), xsync.NewCounter())
 	return xc
 }
 
 // Inc increases the count by 1.
-func (b *Bus) Inc(k key) {
+func (b *Bus) Inc(k Key) int64 {
 	if b == nil {
-		return
+		return -1
 	}
 
-	b.Add(k, 1)
+	return b.Add(k, 1)
 }
 
-// Inc increases the count by n.
-func (b *Bus) Add(k key, n int64) {
+// Add increases the count by n.
+func (b *Bus) Add(k Key, n int64) int64 {
 	if b == nil {
-		return
+		return -1
 	}
 
 	b.getCounter(k).Add(n)
@@ -52,18 +52,12 @@ func (b *Bus) Add(k key, n int64) {
 	if b.parent != nil {
 		b.parent.Add(k, n)
 	}
-}
 
-// AdderFor returns a func that adds any value of i
-// to the bus using the given key.
-func (b *Bus) AdderFor(k key) func(i int64) {
-	return func(i int64) {
-		b.Add(k, i)
-	}
+	return b.Get(k)
 }
 
 // Get returns the local count.
-func (b *Bus) Get(k key) int64 {
+func (b *Bus) Get(k Key) int64 {
 	if b == nil {
 		return -1
 	}
@@ -72,7 +66,7 @@ func (b *Bus) Get(k key) int64 {
 }
 
 // Total returns the global count.
-func (b *Bus) Total(k key) int64 {
+func (b *Bus) Total(k Key) int64 {
 	if b == nil {
 		return -1
 	}
@@ -113,4 +107,34 @@ func (b *Bus) TotalValues() map[string]int64 {
 	}
 
 	return b.Values()
+}
+
+// ---------------------------------------------------------------------------
+// compliance with callbacks and external packages
+// ---------------------------------------------------------------------------
+
+// AdderFor returns a func that adds any value of i
+// to the bus using the given key.
+func (b *Bus) AdderFor(k Key) func(i int64) {
+	return func(i int64) {
+		b.Add(k, i)
+	}
+}
+
+type plainAdder struct {
+	bus *Bus
+}
+
+func (pa plainAdder) Add(k string, n int64) {
+	if pa.bus == nil {
+		return
+	}
+
+	pa.bus.Add(Key(k), n)
+}
+
+// PlainAdder provides support to external packages that could take in a count.Bus
+// but don't recognize the `Key` type, and would prefer a string type key.
+func (b *Bus) PlainAdder() *plainAdder {
+	return &plainAdder{b}
 }

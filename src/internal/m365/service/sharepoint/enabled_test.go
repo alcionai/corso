@@ -6,13 +6,13 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type EnabledUnitSuite struct {
@@ -37,16 +37,6 @@ func (m mockGSR) GetRoot(
 	return m.response, m.err
 }
 
-func odErrMsg(code, message string) *odataerrors.ODataError {
-	odErr := odataerrors.NewODataError()
-	merr := odataerrors.NewMainError()
-	merr.SetCode(&code)
-	merr.SetMessage(&message)
-	odErr.SetErrorEscaped(merr)
-
-	return odErr
-}
-
 func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 	table := []struct {
 		name      string
@@ -67,7 +57,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "no sharepoint license",
 			mock: func(ctx context.Context) getSiteRooter {
-				odErr := odErrMsg("code", string(graph.NoSPLicense))
+				odErr := graphTD.ODataErrWithMsg("code", string(graph.NoSPLicense))
 
 				return mockGSR{nil, graph.Stack(ctx, odErr)}
 			},
@@ -79,7 +69,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "arbitrary error",
 			mock: func(ctx context.Context) getSiteRooter {
-				odErr := odErrMsg("code", "message")
+				odErr := graphTD.ODataErrWithMsg("code", "message")
 
 				return mockGSR{nil, graph.Stack(ctx, odErr)}
 			},

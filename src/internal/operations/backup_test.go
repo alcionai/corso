@@ -1915,7 +1915,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			mc, err := graph.MakeMetadataCollection(
 				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
-				func(*support.ControllerOperationStatus) {})
+				func(*support.ControllerOperationStatus) {},
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)
@@ -1923,7 +1924,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			opts := control.DefaultOptions()
 			opts.FailureHandling = test.failurePolicy
-			opts.ToggleFeatures.PreviewBackup = test.previewBackup
+			opts.PreviewLimits.Enabled = test.previewBackup
 
 			bo, err := NewBackupOperation(
 				ctx,
@@ -2233,7 +2234,8 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 			mc, err := graph.MakeMetadataCollection(
 				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
-				func(*support.ControllerOperationStatus) {})
+				func(*support.ControllerOperationStatus) {},
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)

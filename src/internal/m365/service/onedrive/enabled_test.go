@@ -6,12 +6,12 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type EnabledUnitSuite struct {
@@ -31,17 +31,6 @@ type mockDGDD struct {
 
 func (m mockDGDD) GetDefaultDrive(context.Context, string) (models.Driveable, error) {
 	return m.response, m.err
-}
-
-// Copied from src/pkg/services/m365/api/graph/errors_test.go
-func odErrMsg(code, message string) *odataerrors.ODataError {
-	odErr := odataerrors.NewODataError()
-	merr := odataerrors.NewMainError()
-	merr.SetCode(&code)
-	merr.SetMessage(&message)
-	odErr.SetErrorEscaped(merr)
-
-	return odErr
 }
 
 func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
@@ -64,7 +53,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "mysite not found",
 			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odErrMsg("code", string(graph.MysiteNotFound))
+				odErr := graphTD.ODataErrWithMsg("code", string(graph.MysiteNotFound))
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
@@ -75,7 +64,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "mysite URL not found",
 			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odErrMsg("code", string(graph.MysiteURLNotFound))
+				odErr := graphTD.ODataErrWithMsg("code", string(graph.MysiteURLNotFound))
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
@@ -86,7 +75,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "no sharepoint license",
 			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odErrMsg("code", string(graph.NoSPLicense))
+				odErr := graphTD.ODataErrWithMsg("code", string(graph.NoSPLicense))
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
@@ -97,7 +86,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "user not found",
 			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odErrMsg(string(graph.RequestResourceNotFound), "message")
+				odErr := graphTD.ODataErrWithMsg(string(graph.RequestResourceNotFound), "message")
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
@@ -108,7 +97,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "resource locked",
 			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odErrMsg(string(graph.NotAllowed), "resource")
+				odErr := graphTD.ODataErrWithMsg(string(graph.NotAllowed), "resource")
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
@@ -119,7 +108,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "arbitrary error",
 			mock: func(ctx context.Context) getDefaultDriver {
-				odErr := odErrMsg("code", "message")
+				odErr := graphTD.ODataErrWithMsg("code", "message")
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
