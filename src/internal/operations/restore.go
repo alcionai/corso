@@ -393,6 +393,9 @@ func consumeRestoreCollections(
 	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Restoring data")
 	defer close(progressBar)
 
+	ctx, end := diagnostics.Span(ctx, "m365:restore")
+	defer end()
+
 	rcc := inject.RestoreConsumerConfig{
 		BackupVersion:     backupVersion,
 		Options:           opts,
@@ -400,6 +403,8 @@ func consumeRestoreCollections(
 		RestoreConfig:     restoreCfg,
 		Selector:          sel,
 	}
+
+	ctx = clues.Add(ctx, "restore_config", rcc.RestoreConfig)
 
 	deets, status, err := rc.ConsumeRestoreCollections(ctx, rcc, dcs, errs, ctr)
 
