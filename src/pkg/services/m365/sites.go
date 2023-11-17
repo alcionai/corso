@@ -10,10 +10,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -52,21 +50,15 @@ type Site struct {
 }
 
 // SiteByID retrieves a specific site.
-func SiteByID(
+func (c client) SiteByID(
 	ctx context.Context,
-	acct account.Account,
 	id string,
 ) (*Site, error) {
-	ac, err := makeAC(ctx, acct, path.SharePointService)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
 	cc := api.CallConfig{
 		Expand: []string{"drive"},
 	}
 
-	return getSiteByID(ctx, ac.Sites(), id, cc)
+	return getSiteByID(ctx, c.ac.Sites(), id, cc)
 }
 
 func getSiteByID(
@@ -84,13 +76,8 @@ func getSiteByID(
 }
 
 // Sites returns a list of Sites in a specified M365 tenant
-func Sites(ctx context.Context, acct account.Account, errs *fault.Bus) ([]*Site, error) {
-	ac, err := makeAC(ctx, acct, path.SharePointService)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
-	return getAllSites(ctx, ac.Sites())
+func (c client) Sites(ctx context.Context, errs *fault.Bus) ([]*Site, error) {
+	return getAllSites(ctx, c.ac.Sites())
 }
 
 func getAllSites(
@@ -174,12 +161,11 @@ func ParseSite(ctx context.Context, item models.Siteable) *Site {
 
 // SitesMap retrieves all sites in the tenant, and returns two maps: one id-to-webURL,
 // and one webURL-to-id.
-func SitesMap(
+func (c client) SitesMap(
 	ctx context.Context,
-	acct account.Account,
 	errs *fault.Bus,
 ) (idname.Cacher, error) {
-	sites, err := Sites(ctx, acct, errs)
+	sites, err := c.Sites(ctx, errs)
 	if err != nil {
 		return idname.NewCache(nil), err
 	}
