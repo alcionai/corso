@@ -157,7 +157,12 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	// TODO: log/print recoverable errors
 	errs := fault.New(false)
 
-	ins, err := m365.SitesMap(ctx, *acct, errs)
+	svcCli, err := m365.NewM365Client(ctx, *acct)
+	if err != nil {
+		return Only(ctx, clues.Stack(err))
+	}
+
+	ins, err := svcCli.SitesMap(ctx, errs)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 sites"))
 	}

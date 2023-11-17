@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Change file extension of messages export to json to match the content
+- SDK consumption of the /services/m365 package has shifted from independent functions to a client-based api.
+- SDK consumers can now configure the /services/m365 graph api client configuration when constructing a new m365 client.
 
 ### Fixed
 - Handle OneDrive folders being deleted and recreated midway through a backup

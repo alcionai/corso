@@ -29,6 +29,20 @@ func (h contactBackupHandler) itemHandler() itemGetterSerializer {
 	return h.ac
 }
 
+func (h contactBackupHandler) folderGetter() containerGetter {
+	return h.ac
+}
+
+func (h contactBackupHandler) previewIncludeContainers() []string {
+	return []string{
+		"contacts",
+	}
+}
+
+func (h contactBackupHandler) previewExcludeContainers() []string {
+	return nil
+}
+
 func (h contactBackupHandler) NewContainerCache(
 	userID string,
 ) (string, graph.ContainerResolver) {

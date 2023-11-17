@@ -6,13 +6,13 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type EnabledUnitSuite struct {
@@ -36,19 +36,6 @@ func (m mockGBI) GetByID(
 	_ api.CallConfig,
 ) (models.Groupable, error) {
 	return m.group, m.err
-}
-
-// TODO(pandeyabs): Duplicate of graph/errors_test.go. Remove
-// this and identical funcs in od/sp and use the one in graph/errors_test.go
-// instead.
-func odErrMsg(code, message string) *odataerrors.ODataError {
-	odErr := odataerrors.NewODataError()
-	merr := odataerrors.NewMainError()
-	merr.SetCode(&code)
-	merr.SetMessage(&message)
-	odErr.SetErrorEscaped(merr)
-
-	return odErr
 }
 
 func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
@@ -89,7 +76,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "group not found",
 			mock: func(ctx context.Context) api.GetByIDer[models.Groupable] {
 				return mockGBI{
-					err: graph.Stack(ctx, odErrMsg(string(graph.RequestResourceNotFound), "message")),
+					err: graph.Stack(ctx, graphTD.ODataErrWithMsg(string(graph.RequestResourceNotFound), "message")),
 				}
 			},
 			expect:    assert.False,

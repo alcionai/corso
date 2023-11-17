@@ -78,7 +78,7 @@ const (
 	MysiteURLNotFound               errorMessage = "unable to retrieve user's mysite url"
 	MysiteNotFound                  errorMessage = "user's mysite not found"
 	NoSPLicense                     errorMessage = "Tenant does not have a SPO license"
-	parameterDeltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request"
+	ParameterDeltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request"
 	usersCannotBeResolved           errorMessage = "One or more users could not be resolved"
 	requestedSiteCouldNotBeFound    errorMessage = "Requested site could not be found"
 )
@@ -100,15 +100,6 @@ var (
 	// The folder or item was deleted between the time we identified
 	// it and when we tried to fetch data for it.
 	ErrDeletedInFlight = clues.New("deleted in flight")
-
-	// Delta tokens can be desycned or expired.  In either case, the token
-	// becomes invalid, and cannot be used again.
-	// https://learn.microsoft.com/en-us/graph/errors#code-property
-	ErrInvalidDelta = clues.New("invalid delta token")
-
-	// Not all systems support delta queries.  This must be handled separately
-	// from invalid delta token cases.
-	ErrDeltaNotSupported = clues.New("delta not supported")
 
 	// ErrItemAlreadyExistsConflict denotes that a post or put attempted to create
 	// an item which already exists by some unique identifier.  The identifier is
@@ -132,16 +123,9 @@ var (
 	// access to a given service.
 	ErrServiceNotEnabled = clues.New("service is not enabled for that resource owner")
 
-	// Timeout errors are identified for tracking the need to retry calls.
-	// Other delay errors, like throttling, are already handled by the
-	// graph client's built-in retries.
-	// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
-	ErrTimeout = clues.New("communication timeout")
-
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 
 	ErrTokenExpired = clues.New("jwt token expired")
-	ErrTokenInvalid = clues.New("jwt token invalid")
 )
 
 func IsErrApplicationThrottled(err error) bool {
@@ -174,13 +158,11 @@ func IsErrItemNotFound(err error) bool {
 }
 
 func IsErrInvalidDelta(err error) bool {
-	return errors.Is(err, ErrInvalidDelta) ||
-		hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid)
+	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid)
 }
 
 func IsErrDeltaNotSupported(err error) bool {
-	return errors.Is(err, ErrDeltaNotSupported) ||
-		hasErrorMessage(err, parameterDeltaTokenNotSupported)
+	return hasErrorMessage(err, ParameterDeltaTokenNotSupported)
 }
 
 func IsErrQuotaExceeded(err error) bool {
@@ -227,8 +209,7 @@ func IsErrTimeout(err error) bool {
 		return err.Timeout()
 	}
 
-	return errors.Is(err, ErrTimeout) ||
-		errors.Is(err, context.Canceled) ||
+	return errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, http.ErrHandlerTimeout) ||
 		os.IsTimeout(err)
@@ -241,14 +222,11 @@ func IsErrConnectionReset(err error) bool {
 func IsErrUnauthorizedOrBadToken(err error) bool {
 	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
 		hasErrorCode(err, invalidAuthenticationToken) ||
-		errors.Is(err, ErrTokenExpired) ||
-		errors.Is(err, ErrTokenInvalid)
+		errors.Is(err, ErrTokenExpired)
 }
 
 func IsErrBadJWTToken(err error) bool {
-	return hasErrorCode(err, invalidAuthenticationToken) ||
-		errors.Is(err, ErrTokenExpired) ||
-		errors.Is(err, ErrTokenInvalid)
+	return hasErrorCode(err, invalidAuthenticationToken)
 }
 
 func IsErrItemAlreadyExistsConflict(err error) bool {
