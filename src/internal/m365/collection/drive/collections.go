@@ -880,8 +880,8 @@ func (c *Collections) PopulateDriveCollections(
 	// Needed since folders are mixed in with items. This allows us to handle
 	// hitting the maxContainer limit while (hopefully) still adding items to the
 	// container we reached the limit on. It may not behave as expected across
-	// page page boundaries if items in other folders have also changed.
-	var lastFolderPath string
+	// page boundaries if items in other folders have also changed.
+	var lastContainerID string
 
 	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
 		if el.Failure() != nil {
@@ -915,23 +915,16 @@ func (c *Collections) PopulateDriveCollections(
 			// processed items for the final container.
 			if limiter.enabled() {
 				if item.GetFolder() != nil || item.GetPackageEscaped() != nil {
+					id := ptr.Val(item.GetId())
+
 					// Don't check for containers we've already seen.
-					if _, ok := c.CollectionMap[driveID][ptr.Val(item.GetId())]; !ok {
-						cp, err := c.getCollectionPath(driveID, item)
-						if err != nil {
-							el.AddRecoverable(ctx, clues.Stack(err).
-								WithClues(ctx).
-								Label(fault.LabelForceNoBackupCreation))
-
-							continue
-						}
-
-						if cp.String() != lastFolderPath {
+					if _, ok := c.CollectionMap[driveID][id]; !ok {
+						if id != lastContainerID {
 							if limiter.atLimit(stats) {
 								break
 							}
 
-							lastFolderPath = cp.String()
+							lastContainerID = id
 							stats.numContainers++
 						}
 					}
@@ -1203,7 +1196,7 @@ func (c *Collections) processItem(
 		// We need to check if the collection already contains the item though since
 		// it could be an item update instead of a move.
 		if !collection.ContainsItem(item) &&
-			limiter.atContainerItemsLimit(collection.AddedItems()) {
+			limiter.atContainerItemsLimit(collection.CountAddedItems()) {
 			return nil
 		}
 

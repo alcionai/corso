@@ -223,7 +223,7 @@ func (oc Collection) ContainsItem(item models.DriveItemable) bool {
 }
 
 // AddedItems returns the number of non-deleted items in the collection.
-func (oc Collection) AddedItems() int {
+func (oc Collection) CountAddedItems() int {
 	// Subtract one since the folder is added to the collection so we get folder
 	// metadata. The collection of the root folder of the drive doesn't have its
 	// own folder reference since it doesn't have permissions the user can change,
