@@ -4199,7 +4199,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				tenant,
 				idname.NewProvider(user, user),
 				func(*support.ControllerOperationStatus) {},
-				opts)
+				opts,
+				count.New())
 
 			errs := fault.New(true)
 
