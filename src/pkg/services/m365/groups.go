@@ -8,9 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -29,19 +27,13 @@ type Group struct {
 }
 
 // GroupByID retrieves a specific group.
-func GroupByID(
+func (c client) GroupByID(
 	ctx context.Context,
-	acct account.Account,
 	id string,
 ) (*Group, error) {
-	ac, err := makeAC(ctx, acct, path.GroupsService)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
 	cc := api.CallConfig{}
 
-	g, err := ac.Groups().GetByID(ctx, id, cc)
+	g, err := c.ac.Groups().GetByID(ctx, id, cc)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -50,10 +42,10 @@ func GroupByID(
 }
 
 // GroupsCompat returns a list of groups in the specified M365 tenant.
-func GroupsCompat(ctx context.Context, acct account.Account) ([]*Group, error) {
+func (c client) GroupsCompat(ctx context.Context) ([]*Group, error) {
 	errs := fault.New(true)
 
-	us, err := Groups(ctx, acct, errs)
+	us, err := c.Groups(ctx, errs)
 	if err != nil {
 		return nil, err
 	}
@@ -62,17 +54,11 @@ func GroupsCompat(ctx context.Context, acct account.Account) ([]*Group, error) {
 }
 
 // Groups returns a list of groups in the specified M365 tenant
-func Groups(
+func (c client) Groups(
 	ctx context.Context,
-	acct account.Account,
 	errs *fault.Bus,
 ) ([]*Group, error) {
-	ac, err := makeAC(ctx, acct, path.GroupsService)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
-	return getAllGroups(ctx, ac.Groups())
+	return getAllGroups(ctx, c.ac.Groups())
 }
 
 func getAllGroups(
@@ -98,18 +84,12 @@ func getAllGroups(
 	return ret, nil
 }
 
-func SitesInGroup(
+func (c client) SitesInGroup(
 	ctx context.Context,
-	acct account.Account,
 	groupID string,
 	errs *fault.Bus,
 ) ([]*Site, error) {
-	ac, err := makeAC(ctx, acct, path.GroupsService)
-	if err != nil {
-		return nil, clues.Stack(err)
-	}
-
-	sites, err := ac.Groups().GetAllSites(ctx, groupID, errs)
+	sites, err := c.ac.Groups().GetAllSites(ctx, groupID, errs)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -144,12 +124,11 @@ func parseGroup(ctx context.Context, mg models.Groupable) (*Group, error) {
 }
 
 // GroupsMap retrieves an id-name cache of all groups in the tenant.
-func GroupsMap(
+func (c client) GroupsMap(
 	ctx context.Context,
-	acct account.Account,
 	errs *fault.Bus,
 ) (idname.Cacher, error) {
-	groups, err := Groups(ctx, acct, errs)
+	groups, err := c.Groups(ctx, errs)
 	if err != nil {
 		return idname.NewCache(nil), err
 	}
