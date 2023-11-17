@@ -2090,6 +2090,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 				allScope,
 				dps,
 				opts,
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -2327,6 +2328,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 				allScope,
 				dps,
 				opts,
+				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
