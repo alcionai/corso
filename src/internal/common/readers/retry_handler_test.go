@@ -573,16 +573,6 @@ func (suite *ResetRetryHandlerUnitSuite) TestIsRetriable() {
 			expect: true,
 		},
 		{
-			name:   "Timeout - deadline exceeded",
-			err:    func() error { return context.DeadlineExceeded },
-			expect: true,
-		},
-		{
-			name:   "Timeout - ctx canceled",
-			err:    func() error { return context.Canceled },
-			expect: true,
-		},
-		{
 			name:   "Timeout - http timeout",
 			err:    func() error { return http.ErrHandlerTimeout },
 			expect: true,
@@ -590,7 +580,7 @@ func (suite *ResetRetryHandlerUnitSuite) TestIsRetriable() {
 		{
 			name: "Timeout - url error",
 			err: func() error {
-				return &url.Error{Err: context.DeadlineExceeded}
+				return &url.Error{Err: os.ErrDeadlineExceeded}
 			},
 			expect: true,
 		},

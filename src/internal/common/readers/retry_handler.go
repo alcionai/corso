@@ -41,8 +41,7 @@ func isTimeoutErr(err error) bool {
 		return err.Timeout()
 	}
 
-	return errors.Is(err, context.Canceled) ||
-		errors.Is(err, context.DeadlineExceeded) ||
+	return errors.Is(err, os.ErrDeadlineExceeded) ||
 		errors.Is(err, http.ErrHandlerTimeout) ||
 		os.IsTimeout(err)
 }
