@@ -25,10 +25,6 @@ func (h *exchangeHandler) ConsumeRestoreCollections(
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.Details, *data.CollectionStats, error) {
-	if len(dcs) == 0 {
-		return nil, nil, clues.New("no data collections to restore")
-	}
-
 	// TODO(ashmrtn): We should stop relying on the context for rate limiter stuff
 	// and instead configure this when we make the handler instance. We can't
 	// initialize it in the NewHandler call right now because those functions

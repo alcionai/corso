@@ -390,6 +390,10 @@ func consumeRestoreCollections(
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.Details, *data.CollectionStats, error) {
+	if len(dcs) == 0 {
+		return nil, nil, clues.New("no data collections to restore")
+	}
+
 	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Restoring data")
 	defer close(progressBar)
 
