@@ -758,85 +758,73 @@ type driveEnumerationStats struct {
 }
 
 func newPagerLimiter(opts control.Options) *pagerLimiter {
-	res := &pagerLimiter{
-		isPreview:            opts.ToggleFeatures.PreviewBackup,
-		maxContainers:        opts.ItemLimits.MaxContainers,
-		maxItemsPerContainer: opts.ItemLimits.MaxItemsPerContainer,
-		maxItems:             opts.ItemLimits.MaxItems,
-		maxBytes:             opts.ItemLimits.MaxBytes,
-		maxPages:             opts.ItemLimits.MaxPages,
+	res := &pagerLimiter{limits: opts.PreviewLimits}
+
+	if res.limits.MaxContainers == 0 {
+		res.limits.MaxContainers = defaultPreviewNumContainers
 	}
 
-	if res.maxContainers == 0 {
-		res.maxContainers = defaultPreviewNumContainers
+	if res.limits.MaxItemsPerContainer == 0 {
+		res.limits.MaxItemsPerContainer = defaultPreviewNumItemsPerContainer
 	}
 
-	if res.maxItemsPerContainer == 0 {
-		res.maxItemsPerContainer = defaultPreviewNumItemsPerContainer
+	if res.limits.MaxItems == 0 {
+		res.limits.MaxItems = defaultPreviewNumItems
 	}
 
-	if res.maxItems == 0 {
-		res.maxItems = defaultPreviewNumItems
+	if res.limits.MaxBytes == 0 {
+		res.limits.MaxBytes = defaultPreviewNumBytes
 	}
 
-	if res.maxBytes == 0 {
-		res.maxBytes = defaultPreviewNumBytes
-	}
-
-	if res.maxPages == 0 {
-		res.maxPages = defaultPreviewNumPages
+	if res.limits.MaxPages == 0 {
+		res.limits.MaxPages = defaultPreviewNumPages
 	}
 
 	return res
 }
 
 type pagerLimiter struct {
-	isPreview            bool
-	maxContainers        int
-	maxItemsPerContainer int
-	maxItems             int
-	maxBytes             int64
-	maxPages             int
+	limits control.PreviewItemLimits
 }
 
 func (l pagerLimiter) enabled() bool {
-	return l.isPreview
+	return l.limits.Enabled
 }
 
 // sizeLimit returns the total number of bytes this backup should try to
 // contain.
 func (l pagerLimiter) sizeLimit() int64 {
-	return l.maxBytes
+	return l.limits.MaxBytes
 }
 
 // atItemLimit returns true if the limiter is enabled and has reached the limit
 // for individual items added to collections for this backup.
 func (l pagerLimiter) atItemLimit(stats *driveEnumerationStats) bool {
-	return l.isPreview &&
-		(stats.numAddedFiles >= l.maxItems ||
-			stats.numBytes >= l.maxBytes)
+	return l.enabled() &&
+		(stats.numAddedFiles >= l.limits.MaxItems ||
+			stats.numBytes >= l.limits.MaxBytes)
 }
 
 // atContainerItemsLimit returns true if the limiter is enabled and the current
 // number of items is above the limit for the number of items for a container
 // for this backup.
 func (l pagerLimiter) atContainerItemsLimit(numItems int) bool {
-	return l.isPreview && numItems >= l.maxItemsPerContainer
+	return l.enabled() && numItems >= l.limits.MaxItemsPerContainer
 }
 
 // atContainerPageLimit returns true if the limiter is enabled and the number of
 // pages processed so far is beyond the limit for this backup.
 func (l pagerLimiter) atPageLimit(stats *driveEnumerationStats) bool {
-	return l.isPreview && stats.numPages >= l.maxPages
+	return l.enabled() && stats.numPages >= l.limits.MaxPages
 }
 
 // atLimit returns true if the limiter is enabled and meets any of the
 // conditions for max items, containers, etc for this backup.
 func (l pagerLimiter) atLimit(stats *driveEnumerationStats) bool {
-	return l.isPreview &&
+	return l.enabled() &&
 		(l.atItemLimit(stats) ||
-			stats.numContainers >= l.maxContainers ||
-			stats.numPages >= l.maxPages)
+			stats.numContainers >= l.limits.MaxContainers ||
+			stats.numPages >= l.limits.MaxPages)
 }
 
 // PopulateDriveCollections initializes and adds the provided drive items to Collections

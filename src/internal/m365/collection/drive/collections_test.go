@@ -3586,12 +3586,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 	drive2.SetName(ptr.To(namex(drive, 2)))
 
 	table := []struct {
-		name string
-		// notPreview denotes that this preview should set the PreviewBackup flag to
-		// false. Using the negation here since most tests *are* checking backup
-		// preview with limits enabled.
-		notPreview bool
-		limits     control.Limits
+		name       string
+		limits     control.PreviewItemLimits
 		drives     []models.Driveable
 		enumerator mock.EnumerateItemsDeltaByDrive
 		// Collection name -> set of item IDs. We can't check item data because
@@ -3600,7 +3596,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 	}{
 		{
 			name: "OneDrive SinglePage ExcludeItemsOverMaxSize",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        999,
@@ -3629,7 +3626,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive SinglePage SingleFolder ExcludeCombinedItemsOverMaxSize",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        999,
@@ -3658,7 +3656,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive SinglePage MultipleFolders ExcludeCombinedItemsOverMaxSize",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        999,
@@ -3689,7 +3688,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive SinglePage SingleFolder ItemLimit",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             3,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        999,
@@ -3721,7 +3721,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive MultiplePages MultipleFolders ItemLimit WithRepeatedItem",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             3,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        999,
@@ -3763,7 +3764,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive MultiplePages PageLimit",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        999,
@@ -3803,7 +3805,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive MultiplePages PerContainerItemLimit",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 1,
 				MaxContainers:        999,
@@ -3845,7 +3848,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive MultiplePages PerContainerItemLimit ItemUpdated",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 3,
 				MaxContainers:        999,
@@ -3887,7 +3891,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive MultiplePages PerContainerItemLimit MoveItemBetweenFolders",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 2,
 				MaxContainers:        999,
@@ -3930,7 +3935,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive MultiplePages ContainerLimit LastContainerSplitAcrossPages",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        2,
@@ -3976,7 +3982,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive MultiplePages ContainerLimit NextContainerOnSamePage",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        2,
@@ -4021,7 +4028,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "OneDrive MultiplePages ContainerLimit NextContainerOnNextPage",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             999,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        2,
@@ -4071,7 +4079,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 		},
 		{
 			name: "TwoDrives SeparateLimitAccounting",
-			limits: control.Limits{
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
 				MaxItems:             3,
 				MaxItemsPerContainer: 999,
 				MaxContainers:        999,
@@ -4119,9 +4128,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 			},
 		},
 		{
-			name:       "OneDrive PreviewDisabled MinimumLimitsIgnored",
-			notPreview: true,
-			limits: control.Limits{
+			name: "OneDrive PreviewDisabled MinimumLimitsIgnored",
+			limits: control.PreviewItemLimits{
 				MaxItems:             1,
 				MaxItemsPerContainer: 1,
 				MaxContainers:        1,
@@ -4184,8 +4192,7 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 			mbh.DriveItemEnumeration = test.enumerator
 
 			opts := control.DefaultOptions()
-			opts.ToggleFeatures.PreviewBackup = !test.notPreview
-			opts.ItemLimits = test.limits
+			opts.PreviewLimits = test.limits
 
 			c := NewCollections(
 				mbh,
