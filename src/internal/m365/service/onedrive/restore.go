@@ -26,11 +26,11 @@ func ConsumeRestoreCollections(
 	rcc inject.RestoreConsumerConfig,
 	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
-	deets *details.Builder,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*support.ControllerOperationStatus, error) {
+) (*details.Details, *support.ControllerOperationStatus, error) {
 	var (
+		deets             = &details.Builder{}
 		restoreMetrics    support.CollectionMetrics
 		el                = errs.Local()
 		caches            = drive.NewRestoreCaches(backupDriveIDNames)
@@ -41,7 +41,7 @@ func ConsumeRestoreCollections(
 
 	err := caches.Populate(ctx, rh, rcc.ProtectedResource.ID())
 	if err != nil {
-		return nil, clues.Wrap(err, "initializing restore caches")
+		return nil, nil, clues.Wrap(err, "initializing restore caches")
 	}
 
 	// Reorder collections so that the parents directories are created
@@ -91,7 +91,7 @@ func ConsumeRestoreCollections(
 		restoreMetrics,
 		rcc.RestoreConfig.Location)
 
-	return status, el.Failure()
+	return deets.Details(), status, el.Failure()
 }
 
 // Augment restore path to add extra files(meta) needed for restore as

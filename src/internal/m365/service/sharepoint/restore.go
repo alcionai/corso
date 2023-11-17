@@ -28,11 +28,11 @@ func ConsumeRestoreCollections(
 	ac api.Client,
 	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
-	deets *details.Builder,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*support.ControllerOperationStatus, error) {
+) (*details.Details, *support.ControllerOperationStatus, error) {
 	var (
+		deets          = &details.Builder{}
 		lrh            = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
 		restoreMetrics support.CollectionMetrics
 		caches         = drive.NewRestoreCaches(backupDriveIDNames)
@@ -41,7 +41,7 @@ func ConsumeRestoreCollections(
 
 	err := caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
 	if err != nil {
-		return nil, clues.Wrap(err, "initializing restore caches")
+		return nil, nil, clues.Wrap(err, "initializing restore caches")
 	}
 
 	// Reorder collections so that the parents directories are created
@@ -97,7 +97,7 @@ func ConsumeRestoreCollections(
 				errs)
 
 		default:
-			return nil, clues.Wrap(clues.New(category.String()), "category not supported").With("category", category)
+			return nil, nil, clues.Wrap(clues.New(category.String()), "category not supported").With("category", category)
 		}
 
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
@@ -118,5 +118,5 @@ func ConsumeRestoreCollections(
 		restoreMetrics,
 		rcc.RestoreConfig.Location)
 
-	return status, el.Failure()
+	return deets.Details(), status, el.Failure()
 }
