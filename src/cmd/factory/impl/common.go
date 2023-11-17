@@ -433,13 +433,6 @@ func generateAndRestoreDriveItems(
 		return nil, err
 	}
 
-	// collections := getCollections(
-	// 	service,
-	// 	tenantID,
-	// 	[]string{resourceOwner},
-	// 	input,
-	// 	version.Backup)
-
 	opts := control.DefaultOptions()
 	restoreCfg.IncludePermissions = true
 
