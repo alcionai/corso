@@ -7,7 +7,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -17,24 +16,39 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive
-func ConsumeRestoreCollections(
+func (h *onedriveHandler) ConsumeRestoreCollections(
 	ctx context.Context,
-	rh drive.RestoreHandler,
 	rcc inject.RestoreConsumerConfig,
-	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.Details, *data.CollectionStats, error) {
+	if len(dcs) == 0 {
+		return nil, nil, clues.New("no data collections to restore")
+	}
+
+	// TODO(ashmrtn): We should stop relying on the context for rate limiter stuff
+	// and instead configure this when we make the handler instance. We can't
+	// initialize it in the NewHandler call right now because those functions
+	// aren't (and shouldn't be) returning a context along with the handler. Since
+	// that call isn't directly calling into this function even if we did
+	// initialize the rate limiter there it would be lost because it wouldn't get
+	// stored in an ancestor of the context passed to this function.
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{Service: path.OneDriveService})
+
 	var (
 		deets             = &details.Builder{}
 		restoreMetrics    support.CollectionMetrics
 		el                = errs.Local()
-		caches            = drive.NewRestoreCaches(backupDriveIDNames)
+		caches            = drive.NewRestoreCaches(h.backupDriveIDNames)
 		fallbackDriveName = rcc.RestoreConfig.Location
+		rh                = drive.NewUserDriveRestoreHandler(h.apiClient)
 	)
 
 	ctx = clues.Add(ctx, "backup_version", rcc.BackupVersion)

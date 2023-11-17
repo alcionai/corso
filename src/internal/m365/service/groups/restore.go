@@ -25,21 +25,35 @@ import (
 )
 
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive
-func ConsumeRestoreCollections(
+func (h *groupsHandler) ConsumeRestoreCollections(
 	ctx context.Context,
 	rcc inject.RestoreConsumerConfig,
-	ac api.Client,
-	backupDriveIDNames idname.Cacher,
-	backupSiteIDWebURL idname.Cacher,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.Details, *data.CollectionStats, error) {
+	if len(dcs) == 0 {
+		return nil, nil, clues.New("no data collections to restore")
+	}
+
+	// TODO(ashmrtn): We should stop relying on the context for rate limiter stuff
+	// and instead configure this when we make the handler instance. We can't
+	// initialize it in the NewHandler call right now because those functions
+	// aren't (and shouldn't be) returning a context along with the handler. Since
+	// that call isn't directly calling into this function even if we did
+	// initialize the rate limiter there it would be lost because it wouldn't get
+	// stored in an ancestor of the context passed to this function.
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{Service: path.GroupsService})
+
 	var (
-		deets             = &details.Builder{}
-		restoreMetrics    support.CollectionMetrics
-		caches            = drive.NewRestoreCaches(backupDriveIDNames)
-		lrh               = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
+		deets          = &details.Builder{}
+		restoreMetrics support.CollectionMetrics
+		caches         = drive.NewRestoreCaches(h.backupDriveIDNames)
+		lrh            = drive.NewSiteRestoreHandler(
+			h.apiClient,
+			rcc.Selector.PathService())
 		el                = errs.Local()
 		webURLToSiteNames = map[string]string{}
 	)
@@ -70,13 +84,13 @@ func ConsumeRestoreCollections(
 		case path.LibrariesCategory:
 			siteID := dc.FullPath().Folders()[1]
 
-			webURL, ok := backupSiteIDWebURL.NameOf(siteID)
+			webURL, ok := h.backupSiteIDWebURL.NameOf(siteID)
 			if !ok {
 				// This should not happen, but just in case
 				logger.Ctx(ictx).With("site_id", siteID).Info("site weburl not found, using site id")
 			}
 
-			siteName, err = getSiteName(ictx, siteID, webURL, ac.Sites(), webURLToSiteNames)
+			siteName, err = getSiteName(ictx, siteID, webURL, h.apiClient.Sites(), webURLToSiteNames)
 			if err != nil {
 				el.AddRecoverable(ictx, clues.Wrap(err, "getting site").
 					With("web_url", webURL, "site_id", siteID))
