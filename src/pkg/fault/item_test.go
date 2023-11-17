@@ -149,8 +149,11 @@ func (suite *ItemUnitSuite) TestItem_HeadersValues() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, []string{"Action", "Type", "Name", "Container", "Cause"}, test.item.Headers())
-			assert.Equal(t, test.expect, test.item.Values())
+			assert.Equal(t, []string{"Action", "Type", "Name", "Container", "Cause"}, test.item.Headers(false))
+			assert.Equal(t, test.expect, test.item.Values(false))
+
+			assert.Equal(t, []string{"Action", "Type", "Name", "Container", "Cause"}, test.item.Headers(true))
+			assert.Equal(t, test.expect, test.item.Values(true))
 		})
 	}
 }

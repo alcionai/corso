@@ -33,14 +33,14 @@ func deleteBackups(
 
 	r, _, err := utils.GetAccountAndConnectWithOverrides(ctx, service, storage.ProviderS3, nil)
 	if err != nil {
-		return nil, clues.Wrap(err, "connecting to account").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "connecting to account")
 	}
 
 	defer r.Close(ctx)
 
 	backups, err := r.BackupsByTag(ctx, store.Service(service))
 	if err != nil {
-		return nil, clues.Wrap(err, "listing backups").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "listing backups")
 	}
 
 	var (
@@ -51,11 +51,11 @@ func deleteBackups(
 	for _, backup := range backups {
 		if backup.StartAndEndTime.CompletedAt.Before(cutoff) {
 			if err := r.DeleteBackups(ctx, true, backup.ID.String()); err != nil {
-				return nil, clues.Wrap(
+				return nil, clues.WrapWC(
+					ctx,
 					err,
 					"deleting backup").
-					With("backup_id", backup.ID).
-					WithClues(ctx)
+					With("backup_id", backup.ID)
 			}
 
 			deleted = append(deleted, backup.ID.String())
@@ -122,7 +122,7 @@ func pitrListBackups(
 
 	backups, err := r.BackupsByTag(ctx, store.Service(pst))
 	if err != nil {
-		return clues.Wrap(err, "listing backups").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "listing backups")
 	}
 
 	bups := map[string]struct{}{}
@@ -135,9 +135,8 @@ func pitrListBackups(
 
 	for _, backupID := range backupIDs {
 		if _, ok := bups[backupID]; !ok {
-			return clues.New("looking for backup").
-				With("search_backup_id", backupID).
-				WithClues(ctx)
+			return clues.NewWC(ctx, "looking for backup").
+				With("search_backup_id", backupID)
 		}
 	}
 

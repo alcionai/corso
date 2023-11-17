@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -28,12 +29,12 @@ func (ctrl *Controller) DeserializeMetadataFiles(
 	case path.ExchangeService, path.ExchangeMetadataService:
 		return exchange.DeserializeMetadataFiles(ctx, colls)
 	case path.OneDriveService, path.OneDriveMetadataService:
-		return drive.DeserializeMetadataFiles(ctx, colls)
+		return drive.DeserializeMetadataFiles(ctx, colls, count.New())
 	case path.SharePointService, path.SharePointMetadataService:
-		return drive.DeserializeMetadataFiles(ctx, colls)
+		return drive.DeserializeMetadataFiles(ctx, colls, count.New())
 	case path.GroupsService, path.GroupsMetadataService:
 		return groups.DeserializeMetadataFiles(ctx, colls)
 	default:
-		return nil, clues.New("unrecognized service").With("service", service).WithClues(ctx)
+		return nil, clues.NewWC(ctx, "unrecognized service").With("service", service)
 	}
 }

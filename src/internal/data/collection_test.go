@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -66,7 +67,7 @@ func (suite *CollectionSuite) TestStateOf() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			state := StateOf(test.prev, test.curr)
+			state := StateOf(test.prev, test.curr, count.New())
 			assert.Equal(suite.T(), test.expect, state)
 		})
 	}
@@ -142,7 +143,8 @@ func (suite *CollectionSuite) TestNewBaseCollection() {
 				test.previous,
 				loc,
 				control.Options{},
-				test.doNotMerge)
+				test.doNotMerge,
+				count.New())
 
 			assert.Equal(t, test.expectCurrent, b.FullPath(), "full path")
 			assert.Equal(t, test.expectPrev, b.PreviousPath(), "previous path")
@@ -160,7 +162,7 @@ func (suite *CollectionSuite) TestNewTombstoneCollection() {
 	fooP, err := path.Build("t", "u", path.ExchangeService, path.EmailCategory, false, "foo")
 	require.NoError(t, err, clues.ToCore(err))
 
-	c := NewTombstoneCollection(fooP, control.Options{})
+	c := NewTombstoneCollection(fooP, control.Options{}, count.New())
 	assert.Nil(t, c.FullPath(), "full path")
 	assert.Equal(t, fooP, c.PreviousPath(), "previous path")
 	assert.Nil(t, c.LocationPath(), "location path")

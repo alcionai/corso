@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -36,6 +38,7 @@ func CreateCollections(
 	scope selectors.ExchangeScope,
 	dps metadata.DeltaPaths,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	ctx = clues.Add(ctx, "category", scope.Category().PathType())
@@ -48,16 +51,24 @@ func CreateCollections(
 			ProtectedResource: bpc.ProtectedResource,
 			TenantID:          tenantID,
 		}
+		collections map[string]data.BackupCollection
+		err         error
 	)
 
 	handler, ok := handlers[category]
 	if !ok {
-		return nil, clues.New("unsupported backup category type").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "unsupported backup category type")
 	}
 
+	pcfg := observe.ProgressCfg{
+		Indent:            1,
+		CompletionMessage: func() string { return fmt.Sprintf("(found %d folders)", len(collections)) },
+	}
 	foldersComplete := observe.MessageWithCompletion(
 		ctx,
-		observe.Bulletf("%s", qp.Category.HumanString()))
+		pcfg,
+		qp.Category.HumanString())
+
 	defer close(foldersComplete)
 
 	rootFolder, cc := handler.NewContainerCache(bpc.ProtectedResource.ID())
@@ -66,7 +77,7 @@ func CreateCollections(
 		return nil, clues.Wrap(err, "populating container cache")
 	}
 
-	collections, err := populateCollections(
+	collections, err = populateCollections(
 		ctx,
 		qp,
 		handler,
@@ -75,10 +86,13 @@ func CreateCollections(
 		scope,
 		dps,
 		bpc.Options,
+		counter,
 		errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "filling collections")
 	}
+
+	counter.Add(count.Collections, int64(len(collections)))
 
 	for _, coll := range collections {
 		allCollections = append(allCollections, coll)
@@ -105,6 +119,7 @@ func populateCollections(
 	scope selectors.ExchangeScope,
 	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
 	var (
@@ -130,6 +145,7 @@ func populateCollections(
 	)
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
+	counter.Add(count.PrevDeltas, int64(len(dps)))
 
 	el := errs.Local()
 
@@ -179,6 +195,7 @@ func populateCollections(
 
 		var (
 			err        error
+			cl         = counter.Local()
 			itemConfig = api.CallConfig{
 				CanMakeDeltaQueries: !ctrlOpts.ToggleFeatures.DisableDelta,
 				UseImmutableIDs:     ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
@@ -198,9 +215,12 @@ func populateCollections(
 				})
 		)
 
+		ictx = clues.AddLabelCounter(ictx, cl.PlainAdder())
+
 		// Only create a collection if the path matches the scope.
 		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		if !ok {
+			cl.Inc(count.SkippedContainers)
 			continue
 		}
 
@@ -213,6 +233,7 @@ func populateCollections(
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
+				err = clues.Stack(err).Label(count.BadPrevPath)
 				logger.CtxErr(ictx, err).Error("parsing prev path")
 				// if the previous path is unusable, then the delta must be, too.
 				prevDelta = ""
@@ -265,6 +286,7 @@ func populateCollections(
 			deltaURLs[cID] = addAndRem.DU.URL
 		} else if !addAndRem.DU.Reset {
 			logger.Ctx(ictx).Info("missing delta url")
+			cl.Inc(count.MissingDelta)
 		}
 
 		edc := NewCollection(
@@ -273,17 +295,19 @@ func populateCollections(
 				prevPath,
 				locPath,
 				ctrlOpts,
-				addAndRem.DU.Reset),
+				addAndRem.DU.Reset,
+				cl),
 			qp.ProtectedResource.ID(),
 			bh.itemHandler(),
 			addAndRem.Added,
 			addAndRem.Removed,
 			// TODO: produce a feature flag that allows selective
 			// enabling of valid modTimes.  This currently produces
-			// rare-case failures with incorrect details merging.
+			// rare failures with incorrect details merging.
 			// Root cause is not yet known.
 			false,
-			statusUpdater)
+			statusUpdater,
+			cl)
 
 		collections[cID] = edc
 
@@ -309,7 +333,10 @@ func populateCollections(
 		)
 
 		if collections[id] != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
+			err := clues.WrapWC(ictx, err, "conflict: tombstone exists for a live collection").
+				Label(count.CollectionTombstoneConflict)
+			el.AddRecoverable(ctx, err)
+
 			continue
 		}
 
@@ -321,18 +348,18 @@ func populateCollections(
 
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
+			err = clues.StackWC(ctx, err).Label(count.BadPrevPath)
 			// technically shouldn't ever happen.  But just in case...
 			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
+
 			continue
 		}
 
-		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts)
+		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts, counter)
 	}
 
-	logger.Ctx(ctx).Infow(
-		"adding metadata collection entries",
-		"num_paths_entries", len(currPaths),
-		"num_deltas_entries", len(deltaURLs))
+	counter.Add(count.NewDeltas, int64(len(deltaURLs)))
+	counter.Add(count.NewPrevPaths, int64(len(currPaths)))
 
 	pathPrefix, err := path.BuildMetadata(
 		qp.TenantID,
@@ -350,14 +377,13 @@ func populateCollections(
 			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
 			graph.NewMetadataEntry(metadata.DeltaURLsFileName, deltaURLs),
 		},
-		statusUpdater)
+		statusUpdater,
+		count.New())
 	if err != nil {
 		return nil, clues.Wrap(err, "making metadata collection")
 	}
 
 	collections["metadata"] = col
-
-	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
 
 	return collections, el.Failure()
 }

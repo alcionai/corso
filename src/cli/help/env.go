@@ -46,11 +46,12 @@ func (ev envVar) MinimumPrintable() any {
 	return ev
 }
 
-func (ev envVar) Headers() []string {
+func (ev envVar) Headers(bool) []string {
+	// NOTE: skipID does not make sense in this context
 	return []string{ev.category, " "}
 }
 
-func (ev envVar) Values() []string {
+func (ev envVar) Values(bool) []string {
 	return []string{ev.name, ev.description}
 }
 

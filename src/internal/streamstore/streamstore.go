@@ -173,14 +173,14 @@ func collect(
 	// construct the path of the container
 	p, err := path.Builder{}.ToStreamStorePath(tenantID, col.purpose, service, false)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	// TODO: We could use an io.Pipe here to avoid a double copy but that
 	// makes error handling a bit complicated
 	bs, err := col.mr.Marshal()
 	if err != nil {
-		return nil, clues.Wrap(err, "marshalling body").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "marshalling body")
 	}
 
 	item, err := data.NewPrefetchedItem(
@@ -188,7 +188,7 @@ func collect(
 		col.itemName,
 		time.Now())
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	dc := streamCollection{
@@ -240,12 +240,12 @@ func read(
 		Append(col.itemName).
 		ToStreamStorePath(tenantID, col.purpose, service, true)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	pd, err := p.Dir()
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	ctx = clues.Add(ctx, "snapshot_id", snapshotID)
@@ -267,8 +267,7 @@ func read(
 
 	// Expect only 1 data collection
 	if len(cs) != 1 {
-		return clues.New("unexpected collection count").
-			WithClues(ctx).
+		return clues.NewWC(ctx, "unexpected collection count").
 			With("collection_count", len(cs))
 	}
 
@@ -281,19 +280,19 @@ func read(
 	for {
 		select {
 		case <-ctx.Done():
-			return clues.New("context cancelled waiting for data").WithClues(ctx)
+			return clues.NewWC(ctx, "context cancelled waiting for data")
 
 		case itemData, ok := <-items:
 			if !ok {
 				if !found {
-					return clues.New("no data found").WithClues(ctx)
+					return clues.NewWC(ctx, "no data found")
 				}
 
 				return nil
 			}
 
 			if err := col.Unmr(itemData.ToReader()); err != nil {
-				return clues.Wrap(err, "unmarshalling data").WithClues(ctx)
+				return clues.WrapWC(ctx, err, "unmarshalling data")
 			}
 
 			found = true

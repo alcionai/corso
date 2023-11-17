@@ -197,13 +197,18 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
+	ctx = clues.AddLabelCounter(ctx, op.Counter.PlainAdder())
+
 	ctx, end := diagnostics.Span(ctx, "operations:backup:run")
-	defer func() {
-		end()
-	}()
+	defer end()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
+
+	ctx = clues.AddTrace(ctx)
+
+	// Select an appropriate rate limiter for the service.
+	ctx = op.bp.SetRateLimiter(ctx, op.Selectors.PathService(), op.Options)
 
 	// Check if the protected resource has the service enabled in order for us
 	// to run a backup.
@@ -276,7 +281,11 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	// Execution
 	// -----
 
-	observe.Message(ctx, "Backing Up", observe.Bullet, clues.Hide(op.ResourceOwner.Name()))
+	pcfg := observe.ProgressCfg{
+		NewSection:        true,
+		SectionIdentifier: clues.Hide(op.ResourceOwner.Name()),
+	}
+	observe.Message(ctx, pcfg, "Backing Up")
 
 	deets, err := op.do(
 		ctx,
@@ -318,6 +327,12 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	if op.Errors.Failure() == nil {
 		logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
 	}
+
+	// For exchange, rate limits are enforced on a mailbox level. Reset the
+	// rate limiter so that it doesn't accidentally throttle following mailboxes.
+	// This is a no-op if we are using token bucket limiter since it refreshes
+	// tokens on a fixed per second basis.
+	graph.ResetLimiter(ctx)
 
 	return op.Errors.Failure()
 }
@@ -519,7 +534,7 @@ func produceBackupDataCollections(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	progressBar := observe.MessageWithCompletion(ctx, "Discovering items to backup")
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Discovering items to backup")
 	defer close(progressBar)
 
 	bpc := inject.BackupProducerConfig{
@@ -530,7 +545,7 @@ func produceBackupDataCollections(
 		Selector:            sel,
 	}
 
-	return bp.ProduceBackupCollections(ctx, bpc, counter, errs)
+	return bp.ProduceBackupCollections(ctx, bpc, counter.Local(), errs)
 }
 
 // ---------------------------------------------------------------------------
@@ -556,7 +571,7 @@ func consumeBackupCollections(
 		"collection_source", "operations",
 		"snapshot_type", "item data")
 
-	progressBar := observe.MessageWithCompletion(ctx, "Backing up data")
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Backing up data")
 	defer close(progressBar)
 
 	tags := map[string]string{
@@ -591,7 +606,7 @@ func consumeBackupCollections(
 		"kopia_expected_ignored_errors", kopiaStats.ExpectedIgnoredErrorCount)
 
 	if kopiaStats.ErrorCount > 0 {
-		err = clues.New("building kopia snapshot").WithClues(ctx)
+		err = clues.NewWC(ctx, "building kopia snapshot")
 	} else if kopiaStats.IgnoredErrorCount > kopiaStats.ExpectedIgnoredErrorCount {
 		logger.Ctx(ctx).Info("recoverable errors were seen during backup")
 	}
@@ -671,7 +686,7 @@ func mergeItemsFromBase(
 		errs)
 	if err != nil {
 		return manifestAddedEntries,
-			clues.New("fetching base details for backup").WithClues(ctx)
+			clues.NewWC(ctx, "fetching base details for backup")
 	}
 
 	for _, entry := range baseDeets.Items() {
@@ -681,8 +696,7 @@ func mergeItemsFromBase(
 
 		rr, err := path.FromDataLayerPath(entry.RepoRef, true)
 		if err != nil {
-			return manifestAddedEntries, clues.New("parsing base item info path").
-				WithClues(ctx).
+			return manifestAddedEntries, clues.NewWC(ctx, "parsing base item info path").
 				With("repo_ref", path.LoggableDir(entry.RepoRef))
 		}
 
@@ -713,7 +727,7 @@ func mergeItemsFromBase(
 			baseBackup.Backup.Version)
 		if err != nil {
 			return manifestAddedEntries,
-				clues.Wrap(err, "getting updated info for entry").WithClues(ictx)
+				clues.WrapWC(ictx, err, "getting updated info for entry")
 		}
 
 		// This entry isn't merged.
@@ -731,7 +745,7 @@ func mergeItemsFromBase(
 			item)
 		if err != nil {
 			return manifestAddedEntries,
-				clues.Wrap(err, "adding item to details").WithClues(ictx)
+				clues.WrapWC(ictx, err, "adding item to details")
 		}
 
 		// Make sure we won't add this again in another base.
@@ -836,8 +850,7 @@ func mergeDetails(
 	checkCount := dataFromBackup.ItemsToMerge()
 
 	if addedEntries != checkCount {
-		return clues.New("incomplete migration of backup details").
-			WithClues(ctx).
+		return clues.NewWC(ctx, "incomplete migration of backup details").
 			With(
 				"item_count", addedEntries,
 				"expected_item_count", checkCount)
@@ -918,32 +931,32 @@ func (op *BackupOperation) createBackupModels(
 	// during the operation, regardless of the failure policy. Unlikely we'd
 	// hit this here as the preceding code should already take care of it.
 	if op.Errors.Failure() != nil {
-		return clues.Wrap(op.Errors.Failure(), "non-recoverable failure").WithClues(ctx)
+		return clues.WrapWC(ctx, op.Errors.Failure(), "non-recoverable failure")
 	}
 
 	if deets == nil {
-		return clues.New("no backup details to record").WithClues(ctx)
+		return clues.NewWC(ctx, "no backup details to record")
 	}
 
 	ctx = clues.Add(ctx, "details_entry_count", len(deets.Entries))
 
 	if len(snapID) == 0 {
-		return clues.New("no snapshot ID to record").WithClues(ctx)
+		return clues.NewWC(ctx, "no snapshot ID to record")
 	}
 
 	err := sscw.Collect(ctx, streamstore.DetailsCollector(deets))
 	if err != nil {
-		return clues.Wrap(err, "collecting details for persistence").WithClues(ctx)
+		return clues.Wrap(err, "collecting details for persistence")
 	}
 
 	err = sscw.Collect(ctx, streamstore.FaultErrorsCollector(op.Errors.Errors()))
 	if err != nil {
-		return clues.Wrap(err, "collecting errors for persistence").WithClues(ctx)
+		return clues.Wrap(err, "collecting errors for persistence")
 	}
 
 	ssid, err := sscw.Write(ctx, errs)
 	if err != nil {
-		return clues.Wrap(err, "persisting details and errors").WithClues(ctx)
+		return clues.Wrap(err, "persisting details and errors")
 	}
 
 	ctx = clues.Add(ctx, "streamstore_snapshot_id", ssid)
@@ -967,7 +980,7 @@ func (op *BackupOperation) createBackupModels(
 			ssid,
 			op.Options.FailureHandling,
 			op.Errors) {
-			return clues.New("failed preview backup").WithClues(ctx)
+			return clues.NewWC(ctx, "failed preview backup")
 		}
 
 		tags[model.BackupTypeTag] = model.PreviewBackup
@@ -988,13 +1001,12 @@ func (op *BackupOperation) createBackupModels(
 		tags[model.BackupTypeTag] = model.AssistBackup
 
 	default:
-		return clues.New("unable to determine backup type due to operation errors").
-			WithClues(ctx)
+		return clues.NewWC(ctx, "unable to determine backup type due to operation errors")
 	}
 
 	// Additional defensive check to make sure we tag things as expected above.
 	if len(tags[model.BackupTypeTag]) == 0 {
-		return clues.New("empty backup type tag").WithClues(ctx)
+		return clues.NewWC(ctx, "empty backup type tag")
 	}
 
 	ctx = clues.Add(ctx, model.BackupTypeTag, tags[model.BackupTypeTag])
@@ -1015,7 +1027,7 @@ func (op *BackupOperation) createBackupModels(
 	logger.Ctx(ctx).Info("creating new backup")
 
 	if err = op.store.Put(ctx, model.BackupSchema, b); err != nil {
-		return clues.Wrap(err, "creating backup model").WithClues(ctx)
+		return clues.Wrap(err, "creating backup model")
 	}
 
 	return nil

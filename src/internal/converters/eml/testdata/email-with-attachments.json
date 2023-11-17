@@ -1,0 +1,109 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('JohannaL%40test-tenant.onmicrosoft.com')/messages(attachments())/$entity",
+  "@odata.etag": "W/\"CQAAABYAAABBFDg0JJk7TY1fmsJrh7tNAAEwI99F\"",
+  "id": "AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAEwbDEWAAA=",
+  "createdDateTime": "2023-11-16T05:35:17Z",
+  "lastModifiedDateTime": "2023-11-16T05:48:06Z",
+  "changeKey": "CQAAABYAAABBFDg0JJk7TY1fmsJrh7tNAAEwI99F",
+  "categories": [],
+  "receivedDateTime": "2023-11-16T05:42:47Z",
+  "sentDateTime": "2023-11-16T05:42:46Z",
+  "hasAttachments": true,
+  "internetMessageId": "<PH0PR04MB728549C32966F13F99565FFEBCB0A@PH0PR04MB7285.namprd04.prod.outlook.com>",
+  "subject": "Mail with everything",
+  "bodyPreview": "What is your opinion on testing email?\r\n\r\nHow about some inline images? (PS: I'll also add another attachment.)\r\n\r\nWhat about more stuff?\r\n\r\nExample link\r\nOr a good quote\r\nAnd a linked file: index.html",
+  "importance": "normal",
+  "parentFolderId": "AQMkAGJiAGZhNjRlOC00OGI5LTQyNTItYjFkMy00NTJjMTgyZGZkMjQALgAAA0V2IruiJ9ZFvgAO6qBJFycBAEEUODQkmTtNjV_awmuHu00AAAIBCQAAAA==",
+  "conversationId": "AAQkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNAAQABLEUCc-BfFDjkNbTbxNhdg=",
+  "conversationIndex": "AQHaGE6uEsRQJz8F8UOOQ1tNvE2F2A==",
+  "isDeliveryReceiptRequested": false,
+  "isReadReceiptRequested": false,
+  "isRead": true,
+  "isDraft": false,
+  "webLink": "https://outlook.office365.com/owa/?ItemID=AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAEwbDEWAAA%3D&exvsurl=1&viewmodel=ReadMessageItem",
+  "inferenceClassification": "focused",
+  "body": {
+    "contentType": "html",
+    "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n-->\r\n</style></head><body dir=\"ltr\"><div><span style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">What is your opinion on </span><span style=\"font-family:Aptos Mono,Aptos_EmbeddedFont,Aptos_MSFontService,monospace; font-size:12pt; color:rgb(0,0,0)\"><b><u>testing</u></b></span><span style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">&nbsp;email?</span></div><div class=\"elementToProof\"><span style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></span></div><div class=\"elementToProof\"><span style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">How about some inline images? (PS: I'll also add another attachment.)</span></div><div class=\"elementToProof\"><span style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><img data-outlook-trace=\"F:1|T:1\" src=\"cid:b2c37924-dcec-4c49-88e0-3a41e0ecf542\" style=\"max-width:1114px; max-height:278px\"></span></div><div class=\"elementToProof\"><span style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></span></div><div class=\"elementToProof\"><span style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">What about more stuff?</span></div><div class=\"elementToProof\"><span style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><br></span></div><div class=\"elementToProof\"><span style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\"><a href=\"https://example.com\" id=\"LPlnk447978\" class=\"OWAAutoLink\" title=\"https://example.com\">Example link</a></span></div><blockquote style=\"margin-right:0px; margin-left:0.8ex; padding-left:1ex; border-left:3px solid rgb(200,200,200)\"><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">Or a good quote</div></blockquote><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">And a linked file: <span><a href=\"https://test-tenant-my.sharepoint.com/:u:/g/personal/johannal_test-tenant_onmicrosoft_com/EXtr63zecPBKhyNO49_rEpcB56ZGPascIHI5RbzJR9ZPXQ\" rel=\"noopener noreferrer\" id=\"OLK_Beautified_2fc5df7e-91ff-7660-bde8-feddba9fde84\" class=\"OWAAutoLink eScj0 none\" data-ogsc=\"\" style=\"padding:0px 1px; border-radius:2px; background-color:rgb(243,242,241)\"><img class=\"suRDx\" alt=\"\" role=\"presentation\" src=\"https://res.cdn.office.net/assets/mail/file-icon/png/code_16x16.png\" style=\"width:16px; height:16px; vertical-align:middle; padding:1px 2px 2px 0px\">index.html</a></span><br></div></body></html>"
+  },
+  "sender": {
+    "emailAddress": {
+      "name": "Johanna Lorenz",
+      "address": "JohannaL@test-tenant.onmicrosoft.com"
+    }
+  },
+  "from": {
+    "emailAddress": {
+      "name": "Johanna Lorenz",
+      "address": "JohannaL@test-tenant.onmicrosoft.com"
+    }
+  },
+  "toRecipients": [
+    {
+      "emailAddress": {
+        "name": "Pradeep Gupta",
+        "address": "PradeepG@test-tenant.onmicrosoft.com"
+      }
+    }
+  ],
+  "ccRecipients": [
+    {
+      "emailAddress": {
+        "name": "Lee Gu",
+        "address": "LeeG@test-tenant.onmicrosoft.com"
+      }
+    },
+    {
+      "emailAddress": {
+        "name": "Henrietta Mueller",
+        "address": "HenriettaM@test-tenant.onmicrosoft.com"
+      }
+    }
+  ],
+  "bccRecipients": [
+    {
+      "emailAddress": {
+        "name": "Nestor Wilke",
+        "address": "NestorW@test-tenant.onmicrosoft.com"
+      }
+    },
+    {
+      "emailAddress": {
+        "name": "Diego Siciliani",
+        "address": "DiegoS@test-tenant.onmicrosoft.com"
+      }
+    }
+  ],
+  "replyTo": [],
+  "flag": {
+    "flagStatus": "notFlagged"
+  },
+  "attachments": [
+    {
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      "@odata.mediaContentType": "image/jpeg",
+      "id": "AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAEwbDEWAAABEgAQAITaKWy_r8ZOrnZNqXqE1S0=",
+      "lastModifiedDateTime": "2023-11-16T05:42:47Z",
+      "name": "k.jpeg",
+      "contentType": "image/jpeg",
+      "size": 266198,
+      "isInline": true,
+      "contentId": "b2c37924-dcec-4c49-88e0-3a41e0ecf542",
+      "contentLocation": null,
+      "contentBytes": "/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wgARCAAUAB8DASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIDBAH/xAAWAQEBAQAAAAAAAAAAAAAAAAAAAQL/2gAMAwEAAhADEAAAAdidlqPfPZXUMqgH/8QAHBABAAICAwEAAAAAAAAAAAAAAgABAxIQERMU/9oACAEBAAEFAsjsym/TdqBbjLXcrb6Kp45iOgRpUQRz/8QAFBEBAAAAAAAAAAAAAAAAAAAAIP/aAAgBAwEBPwEf/8QAFxEAAwEAAAAAAAAAAAAAAAAAAAEQQf/aAAgBAgEBPwHB3//EAB4QAQACAQQDAAAAAAAAAAAAAAEAAhESITFBEFGB/9oACAEBAAY/AgrywpbHyLQMHuFpVELHGYascdRK11HW8CYsTY8//8QAHRAAAwACAgMAAAAAAAAAAAAAAAERIUEQUTFxkf/aAAgBAQABPyGRk3xXwKKc1aFn1p2YtApdFzEPYdufIl6x1sIV117M+CLjk3z/AP/aAAwDAQACAAMAAAAQPkeA/8QAFBEBAAAAAAAAAAAAAAAAAAAAIP/aAAgBAwEBPxAf/8QAGBEAAwEBAAAAAAAAAAAAAAAAAAERECH/2gAIAQIBAT8QSQicK5M//8QAHRABAAIDAQADAAAAAAAAAAAAAQARITFBURCBkf/aAAgBAQABPxBfyXJW1mWzXZn91E7GjZtPK1HQU5XEwzT2msX2Qqyy1C0LTsOWDVZOIxQQbUdVuUcXXTxiwewqq/b8/wD/2Q=="
+    },
+    {
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      "@odata.mediaContentType": "application/octet-stream",
+      "id": "AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAEwbDEWAAABEgAQAD3rU0iyzCdHgz0xmOrWc9g=",
+      "lastModifiedDateTime": "2023-11-16T05:42:47Z",
+      "name": "qt.conf",
+      "contentType": "application/octet-stream",
+      "size": 156,
+      "isInline": false,
+      "contentId": null,
+      "contentLocation": null,
+      "contentBytes": "W1BhdGhzXQpQcmVmaXggPSAuLgo="
+    }
+  ]
+}

@@ -49,7 +49,7 @@ var (
 
 // AddExchangeDetailsAndRestoreFlags adds flags that are common to both the
 // details and restore commands.
-func AddExchangeDetailsAndRestoreFlags(cmd *cobra.Command) {
+func AddExchangeDetailsAndRestoreFlags(cmd *cobra.Command, emailOnly bool) {
 	fs := cmd.Flags()
 
 	// email flags
@@ -77,6 +77,12 @@ func AddExchangeDetailsAndRestoreFlags(cmd *cobra.Command) {
 		&EmailReceivedBeforeFV,
 		EmailReceivedBeforeFN, "",
 		"Select emails received before this datetime.")
+
+	// NOTE: Only temporary until we add support for exporting the
+	// others as well in exchange.
+	if emailOnly {
+		return
+	}
 
 	// event flags
 	fs.StringSliceVar(

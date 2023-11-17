@@ -167,7 +167,8 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 			mc, err := graph.MakeMetadataCollection(
 				prefixPath,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
-				func(*support.ControllerOperationStatus) {})
+				func(*support.ControllerOperationStatus) {},
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)

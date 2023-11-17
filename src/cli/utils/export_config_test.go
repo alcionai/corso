@@ -55,6 +55,11 @@ func (suite *ExportCfgUnitSuite) TestMakeExportConfig() {
 }
 
 func (suite *ExportCfgUnitSuite) TestValidateExportConfigFlags() {
+	acceptedFormatTypes := []string{
+		string(control.DefaultFormat),
+		string(control.JSONFormat),
+	}
+
 	table := []struct {
 		name         string
 		input        ExportCfgOpts
@@ -100,7 +105,8 @@ func (suite *ExportCfgUnitSuite) TestValidateExportConfigFlags() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			err := ValidateExportConfigFlags(&test.input)
+
+			err := ValidateExportConfigFlags(&test.input, acceptedFormatTypes)
 
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectFormat, control.FormatType(test.input.Format))

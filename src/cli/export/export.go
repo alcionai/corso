@@ -23,7 +23,10 @@ var exportCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addOneDriveCommands,
 	addSharePointCommands,
 	addGroupsCommands,
+	addExchangeCommands,
 }
+
+var defaultAcceptedFormatTypes = []string{string(control.DefaultFormat)}
 
 // AddCommands attaches all `corso export * *` commands to the parent.
 func AddCommands(cmd *cobra.Command) {
@@ -63,8 +66,9 @@ func runExport(
 	ueco utils.ExportCfgOpts,
 	sel selectors.Selector,
 	backupID, serviceName string,
+	acceptedFormatTypes []string,
 ) error {
-	if err := utils.ValidateExportConfigFlags(&ueco); err != nil {
+	if err := utils.ValidateExportConfigFlags(&ueco, acceptedFormatTypes); err != nil {
 		return Only(ctx, err)
 	}
 
@@ -103,7 +107,7 @@ func runExport(
 
 	// It would be better to give a progressbar than a spinner, but we
 	// have any way of knowing how many files are available as of now.
-	diskWriteComplete := observe.MessageWithCompletion(ctx, "Writing data to disk")
+	diskWriteComplete := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Writing data to disk")
 
 	err = export.ConsumeExportCollections(ctx, exportLocation, expColl, eo.Errors)
 

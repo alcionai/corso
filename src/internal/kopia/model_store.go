@@ -125,7 +125,7 @@ func putInner(
 	create bool,
 ) error {
 	if !s.Valid() {
-		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
+		return clues.StackWC(ctx, errUnrecognizedSchema)
 	}
 
 	base := m.Base()
@@ -136,13 +136,13 @@ func putInner(
 	tmpTags, err := tagsForModelWithID(s, base.ID, base.ModelVersion, base.Tags)
 	if err != nil {
 		// Will be wrapped at a higher layer.
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	id, err := w.PutManifest(ctx, tmpTags, m)
 	if err != nil {
 		// Will be wrapped at a higher layer.
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	base.ModelStoreID = id
@@ -167,16 +167,16 @@ func (ms *ModelStore) Put(
 		ctx,
 		ms.c,
 		repo.WriteSessionOptions{Purpose: "ModelStorePut"},
-		func(innerCtx context.Context, w repo.RepositoryWriter) error {
-			err := putInner(innerCtx, w, s, m, true)
+		func(ictx context.Context, w repo.RepositoryWriter) error {
+			err := putInner(ictx, w, s, m, true)
 			if err != nil {
-				return clues.Stack(err).WithClues(innerCtx)
+				return clues.StackWC(ictx, err)
 			}
 
 			return nil
 		})
 	if err != nil {
-		return clues.Wrap(err, "putting model").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "putting model")
 	}
 
 	return nil
@@ -237,21 +237,21 @@ func (ms *ModelStore) GetIDsForType(
 	tags map[string]string,
 ) ([]*model.BaseModel, error) {
 	if !s.Valid() {
-		return nil, clues.Stack(errUnrecognizedSchema).WithClues(ctx)
+		return nil, clues.StackWC(ctx, errUnrecognizedSchema)
 	}
 
 	if _, ok := tags[stableIDKey]; ok {
-		return nil, clues.Stack(errBadTagKey).WithClues(ctx)
+		return nil, clues.StackWC(ctx, errBadTagKey)
 	}
 
 	tmpTags, err := tagsForModel(s, tags)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting model metadata").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "getting model metadata")
 	}
 
 	metadata, err := ms.c.FindManifests(ctx, tmpTags)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting model metadata").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "getting model metadata")
 	}
 
 	res := make([]*model.BaseModel, 0, len(metadata))
@@ -259,7 +259,7 @@ func (ms *ModelStore) GetIDsForType(
 	for _, m := range metadata {
 		bm, err := ms.baseModelFromMetadata(m)
 		if err != nil {
-			return nil, clues.Wrap(err, "parsing model metadata").WithClues(ctx)
+			return nil, clues.WrapWC(ctx, err, "parsing model metadata")
 		}
 
 		res = append(res, bm)
@@ -277,30 +277,30 @@ func (ms *ModelStore) getModelStoreID(
 	id model.StableID,
 ) (manifest.ID, error) {
 	if !s.Valid() {
-		return "", clues.Stack(errUnrecognizedSchema).WithClues(ctx)
+		return "", clues.StackWC(ctx, errUnrecognizedSchema)
 	}
 
 	if len(id) == 0 {
-		return "", clues.Stack(errNoStableID).WithClues(ctx)
+		return "", clues.StackWC(ctx, errNoStableID)
 	}
 
 	tags := map[string]string{stableIDKey: string(id)}
 
 	metadata, err := ms.c.FindManifests(ctx, tags)
 	if err != nil {
-		return "", clues.Wrap(err, "getting ModelStoreID").WithClues(ctx)
+		return "", clues.WrapWC(ctx, err, "getting ModelStoreID")
 	}
 
 	if len(metadata) == 0 {
-		return "", clues.Wrap(data.ErrNotFound, "getting ModelStoreID").WithClues(ctx)
+		return "", clues.WrapWC(ctx, data.ErrNotFound, "getting ModelStoreID")
 	}
 
 	if len(metadata) != 1 {
-		return "", clues.New("multiple models with same StableID").WithClues(ctx)
+		return "", clues.NewWC(ctx, "multiple models with same StableID")
 	}
 
 	if metadata[0].Labels[manifest.TypeLabelKey] != s.String() {
-		return "", clues.Stack(errModelTypeMismatch).WithClues(ctx)
+		return "", clues.StackWC(ctx, errModelTypeMismatch)
 	}
 
 	return metadata[0].ID, nil
@@ -316,7 +316,7 @@ func (ms *ModelStore) Get(
 	m model.Model,
 ) error {
 	if !s.Valid() {
-		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
+		return clues.StackWC(ctx, errUnrecognizedSchema)
 	}
 
 	modelID, err := ms.getModelStoreID(ctx, s, id)
@@ -337,11 +337,11 @@ func (ms *ModelStore) GetWithModelStoreID(
 	m model.Model,
 ) error {
 	if !s.Valid() {
-		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
+		return clues.StackWC(ctx, errUnrecognizedSchema)
 	}
 
 	if len(id) == 0 {
-		return clues.Stack(errNoModelStoreID).WithClues(ctx)
+		return clues.StackWC(ctx, errNoModelStoreID)
 	}
 
 	metadata, err := ms.c.GetManifest(ctx, id, m)
@@ -350,18 +350,17 @@ func (ms *ModelStore) GetWithModelStoreID(
 			err = data.ErrNotFound
 		}
 
-		return clues.Wrap(err, "getting model data").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "getting model data")
 	}
 
 	mdlbl := metadata.Labels[manifest.TypeLabelKey]
 	if mdlbl != s.String() {
-		return clues.Stack(errModelTypeMismatch).
-			WithClues(ctx).
+		return clues.StackWC(ctx, errModelTypeMismatch).
 			With("expected_label", s, "got_label", mdlbl)
 	}
 
 	if err := ms.populateBaseModelFromMetadata(m.Base(), metadata); err != nil {
-		return clues.Wrap(err, "getting model by ID").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "getting model by ID")
 	}
 
 	return nil
@@ -378,30 +377,28 @@ func (ms *ModelStore) checkPrevModelVersion(
 	b *model.BaseModel,
 ) error {
 	if !s.Valid() {
-		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
+		return clues.StackWC(ctx, errUnrecognizedSchema)
 	}
 
 	id, err := ms.getModelStoreID(ctx, s, b.ID)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
 	}
 
 	// We actually got something back during our lookup.
 	meta, err := ms.c.GetManifest(ctx, id, nil)
 	if err != nil {
-		return clues.Wrap(err, "getting previous model version").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "getting previous model version")
 	}
 
 	if meta.ID != b.ModelStoreID {
-		return clues.New("updated model has different ModelStoreID").
-			WithClues(ctx).
+		return clues.NewWC(ctx, "updated model has different ModelStoreID").
 			With("expected_id", meta.ID, "model_store_id", b.ModelStoreID)
 	}
 
 	mdlbl := meta.Labels[manifest.TypeLabelKey]
 	if mdlbl != s.String() {
-		return clues.New("updated model has different model type").
-			WithClues(ctx).
+		return clues.NewWC(ctx, "updated model has different model type").
 			With("expected_label", s, "got_label", mdlbl)
 	}
 
@@ -420,12 +417,12 @@ func (ms *ModelStore) Update(
 	m model.Model,
 ) error {
 	if !s.Valid() {
-		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
+		return clues.StackWC(ctx, errUnrecognizedSchema)
 	}
 
 	base := m.Base()
 	if len(base.ModelStoreID) == 0 {
-		return clues.Stack(errNoModelStoreID).WithClues(ctx)
+		return clues.StackWC(ctx, errNoModelStoreID)
 	}
 
 	base.ModelVersion = ms.modelVersion
@@ -468,13 +465,13 @@ func (ms *ModelStore) Update(
 			// collected the next time kopia maintenance is run.
 			innerErr = w.DeleteManifest(innerCtx, oldID)
 			if innerErr != nil {
-				return clues.Stack(innerErr).WithClues(ctx)
+				return clues.StackWC(ctx, innerErr)
 			}
 
 			return nil
 		})
 	if err != nil {
-		return clues.Wrap(err, "updating model").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "updating model")
 	}
 
 	return nil
@@ -485,7 +482,7 @@ func (ms *ModelStore) Update(
 // have the same StableID.
 func (ms *ModelStore) Delete(ctx context.Context, s model.Schema, id model.StableID) error {
 	if !s.Valid() {
-		return clues.Stack(errUnrecognizedSchema).WithClues(ctx)
+		return clues.StackWC(ctx, errUnrecognizedSchema)
 	}
 
 	latest, err := ms.getModelStoreID(ctx, s, id)
@@ -511,14 +508,14 @@ func (ms *ModelStore) DeleteWithModelStoreIDs(
 	ids ...manifest.ID,
 ) error {
 	opts := repo.WriteSessionOptions{Purpose: "ModelStoreDelete"}
-	cb := func(innerCtx context.Context, w repo.RepositoryWriter) error {
+	cb := func(ictx context.Context, w repo.RepositoryWriter) error {
 		for _, id := range ids {
 			if len(id) == 0 {
-				return clues.Stack(errNoModelStoreID).WithClues(ctx)
+				return clues.StackWC(ictx, errNoModelStoreID)
 			}
 
-			if err := w.DeleteManifest(innerCtx, id); err != nil {
-				return clues.Stack(err).WithClues(innerCtx).With("model_store_id", id)
+			if err := w.DeleteManifest(ictx, id); err != nil {
+				return clues.StackWC(ictx, err).With("model_store_id", id)
 			}
 		}
 
@@ -526,7 +523,7 @@ func (ms *ModelStore) DeleteWithModelStoreIDs(
 	}
 
 	if err := repo.WriteSession(ctx, ms.c, opts, cb); err != nil {
-		return clues.Wrap(err, "deleting model").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "deleting model")
 	}
 
 	return nil

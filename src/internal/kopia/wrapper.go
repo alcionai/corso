@@ -132,7 +132,7 @@ func (w *Wrapper) Close(ctx context.Context) error {
 	w.c = nil
 
 	if err != nil {
-		return clues.Wrap(err, "closing Wrapper").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "closing Wrapper")
 	}
 
 	return nil
@@ -156,7 +156,7 @@ func (w Wrapper) ConsumeBackupCollections(
 	errs *fault.Bus,
 ) (*BackupStats, *details.Builder, DetailsMergeInfoer, error) {
 	if w.c == nil {
-		return nil, nil, nil, clues.Stack(errNotConnected).WithClues(ctx)
+		return nil, nil, nil, clues.StackWC(ctx, errNotConnected)
 	}
 
 	ctx, end := diagnostics.Span(ctx, "kopia:consumeBackupCollections")
@@ -304,7 +304,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 
 			policyTree, err := policy.TreeForSourceWithOverride(innerCtx, w.c, si, errPolicy)
 			if err != nil {
-				err = clues.Wrap(err, "get policy tree").WithClues(ctx)
+				err = clues.WrapWC(ctx, err, "get policy tree")
 				logger.CtxErr(innerCtx, err).Error("building kopia backup")
 
 				return err
@@ -318,7 +318,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 
 			man, err = u.Upload(innerCtx, root, policyTree, si, prevSnaps...)
 			if err != nil {
-				err = clues.Wrap(err, "uploading data").WithClues(ctx)
+				err = clues.WrapWC(ctx, err, "uploading data")
 				logger.CtxErr(innerCtx, err).Error("uploading kopia backup")
 
 				return err
@@ -327,7 +327,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 			man.Tags = tags
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
-				err = clues.Wrap(err, "saving snapshot").WithClues(ctx)
+				err = clues.WrapWC(ctx, err, "saving snapshot")
 				logger.CtxErr(innerCtx, err).Error("persisting kopia backup snapshot")
 
 				return err
@@ -338,7 +338,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 	// Telling kopia to always flush may hide other errors if it fails while
 	// flushing the write session (hence logging above).
 	if err != nil {
-		return nil, clues.Wrap(err, "kopia backup").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "kopia backup")
 	}
 
 	res := manifestToStats(man, progress, bc)
@@ -352,12 +352,12 @@ func (w Wrapper) getSnapshotRoot(
 ) (fs.Entry, error) {
 	man, err := snapshot.LoadSnapshot(ctx, w.c, manifest.ID(snapshotID))
 	if err != nil {
-		return nil, clues.Wrap(err, "getting snapshot handle").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "getting snapshot handle")
 	}
 
 	rootDirEntry, err := snapshotfs.SnapshotRoot(w.c, man)
 	if err != nil {
-		return nil, clues.Wrap(err, "getting root directory").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "getting root directory")
 	}
 
 	return rootDirEntry, nil
@@ -373,7 +373,7 @@ func getDir(
 	snapshotRoot fs.Entry,
 ) (fs.Directory, error) {
 	if dirPath == nil {
-		return nil, clues.Wrap(ErrNoRestorePath, "getting directory").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, ErrNoRestorePath, "getting directory")
 	}
 
 	toGet := dirPath.PopFront()
@@ -387,15 +387,15 @@ func getDir(
 		encodeElements(toGet.Elements()...))
 	if err != nil {
 		if isErrEntryNotFound(err) {
-			err = clues.Stack(data.ErrNotFound, err).WithClues(ctx)
+			err = clues.StackWC(ctx, data.ErrNotFound, err)
 		}
 
-		return nil, clues.Wrap(err, "getting nested object handle").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "getting nested object handle")
 	}
 
 	f, ok := e.(fs.Directory)
 	if !ok {
-		return nil, clues.New("requested object is not a directory").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "requested object is not a directory")
 	}
 
 	return f, nil
@@ -452,8 +452,7 @@ func loadDirsAndItems(
 
 			dir, err := getDir(ictx, dirItems.dir, snapshotRoot)
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "loading storage directory").
-					WithClues(ictx).
+				el.AddRecoverable(ctx, clues.WrapWC(ictx, err, "loading storage directory").
 					Label(fault.LabelForceNoBackupCreation))
 
 				continue
@@ -468,8 +467,7 @@ func loadDirsAndItems(
 			}
 
 			if err := mergeCol.addCollection(dirItems.dir.String(), dc); err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "adding collection to merge collection").
-					WithClues(ctx).
+				el.AddRecoverable(ctx, clues.WrapWC(ictx, err, "adding collection to merge collection").
 					Label(fault.LabelForceNoBackupCreation))
 
 				continue
@@ -498,14 +496,14 @@ func (w Wrapper) ProduceRestoreCollections(
 	defer end()
 
 	if len(paths) == 0 {
-		return nil, clues.Stack(ErrNoRestorePath).WithClues(ctx)
+		return nil, clues.StackWC(ctx, ErrNoRestorePath)
 	}
 
 	// Used later on, but less confusing to follow error propagation if we just
 	// load it here.
 	snapshotRoot, err := w.getSnapshotRoot(ctx, snapshotID)
 	if err != nil {
-		return nil, clues.Wrap(err, "loading snapshot root").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "loading snapshot root")
 	}
 
 	var (
@@ -530,8 +528,7 @@ func (w Wrapper) ProduceRestoreCollections(
 
 		parentStoragePath, err := itemPaths.StoragePath.Dir()
 		if err != nil {
-			el.AddRecoverable(ictx, clues.Wrap(err, "getting storage directory path").
-				WithClues(ictx).
+			el.AddRecoverable(ictx, clues.WrapWC(ictx, err, "getting storage directory path").
 				Label(fault.LabelForceNoBackupCreation))
 
 			continue
@@ -570,7 +567,7 @@ func (w Wrapper) ProduceRestoreCollections(
 	// then load the items from the directory.
 	res, err := loadDirsAndItems(ctx, snapshotRoot, bcounter, dirsToItems, errs)
 	if err != nil {
-		return nil, clues.Wrap(err, "loading items").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "loading items")
 	}
 
 	return res, el.Failure()
@@ -598,12 +595,12 @@ func (w Wrapper) RepoMaintenance(
 ) error {
 	kopiaSafety, err := translateSafety(opts.Safety)
 	if err != nil {
-		return clues.Wrap(err, "identifying safety level").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "identifying safety level")
 	}
 
 	mode, err := translateMode(opts.Type)
 	if err != nil {
-		return clues.Wrap(err, "identifying maintenance mode").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "identifying maintenance mode")
 	}
 
 	currentOwner := w.c.ClientOptions().UsernameAtHost()
@@ -633,7 +630,7 @@ func (w Wrapper) RepoMaintenance(
 
 	dr, ok := w.c.Repository.(repo.DirectRepository)
 	if !ok {
-		return clues.New("unable to get valid handle to repo").WithClues(ctx)
+		return clues.NewWC(ctx, "unable to get valid handle to repo")
 	}
 
 	// Below write session options pulled from kopia's CLI code that runs
@@ -647,19 +644,19 @@ func (w Wrapper) RepoMaintenance(
 		func(ctx context.Context, dw repo.DirectRepositoryWriter) error {
 			params, err := maintenance.GetParams(ctx, w.c)
 			if err != nil {
-				return clues.Wrap(err, "getting maintenance user@host").WithClues(ctx)
+				return clues.WrapWC(ctx, err, "getting maintenance user@host")
 			}
 
 			// Need to do some fixup here as the user/host may not have been set.
 			if len(params.Owner) == 0 || (params.Owner != currentOwner && opts.Force) {
 				observe.Message(
 					ctx,
+					observe.ProgressCfg{},
 					"updating maintenance user@host to ",
 					clues.Hide(currentOwner))
 
 				if err := w.setMaintenanceParams(ctx, dw, params, currentOwner); err != nil {
-					return clues.Wrap(err, "updating maintenance parameters").
-						WithClues(ctx)
+					return clues.WrapWC(ctx, err, "updating maintenance parameters")
 				}
 			}
 
@@ -669,7 +666,7 @@ func (w Wrapper) RepoMaintenance(
 
 			err = snapshotmaintenance.Run(ctx, dw, mode, opts.Force, kopiaSafety)
 			if err != nil {
-				return clues.Wrap(err, "running kopia maintenance").WithClues(ctx)
+				return clues.WrapWC(ctx, err, "running kopia maintenance")
 			}
 
 			return nil

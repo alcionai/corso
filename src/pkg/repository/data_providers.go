@@ -57,7 +57,7 @@ func (r *repository) ConnectDataProvider(
 	case account.ProviderM365:
 		provider, err = connectToM365(ctx, *r, pst)
 	default:
-		err = clues.New("unrecognized provider").WithClues(ctx)
+		err = clues.NewWC(ctx, "unrecognized provider")
 	}
 
 	if err != nil {
@@ -89,7 +89,7 @@ func connectToM365(
 		return ctrl, nil
 	}
 
-	progressBar := observe.MessageWithCompletion(ctx, "Connecting to M365")
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Connecting to M365")
 	defer close(progressBar)
 
 	ctrl, err := m365.NewController(

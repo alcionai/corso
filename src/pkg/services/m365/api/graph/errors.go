@@ -14,6 +14,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 
+	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -45,6 +47,7 @@ const (
 	// Some datacenters are returning this when we try to get the inbox of a user
 	// that doesn't exist.
 	invalidUser                 errorCode = "ErrorInvalidUser"
+	invalidAuthenticationToken  errorCode = "InvalidAuthenticationToken"
 	itemNotFound                errorCode = "itemNotFound"
 	MailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
@@ -75,7 +78,7 @@ const (
 	MysiteURLNotFound               errorMessage = "unable to retrieve user's mysite url"
 	MysiteNotFound                  errorMessage = "user's mysite not found"
 	NoSPLicense                     errorMessage = "Tenant does not have a SPO license"
-	parameterDeltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request"
+	ParameterDeltaTokenNotSupported errorMessage = "Parameter 'DeltaToken' not supported for this request"
 	usersCannotBeResolved           errorMessage = "One or more users could not be resolved"
 	requestedSiteCouldNotBeFound    errorMessage = "Requested site could not be found"
 )
@@ -98,15 +101,6 @@ var (
 	// it and when we tried to fetch data for it.
 	ErrDeletedInFlight = clues.New("deleted in flight")
 
-	// Delta tokens can be desycned or expired.  In either case, the token
-	// becomes invalid, and cannot be used again.
-	// https://learn.microsoft.com/en-us/graph/errors#code-property
-	ErrInvalidDelta = clues.New("invalid delta token")
-
-	// Not all systems support delta queries.  This must be handled separately
-	// from invalid delta token cases.
-	ErrDeltaNotSupported = clues.New("delta not supported")
-
 	// ErrItemAlreadyExistsConflict denotes that a post or put attempted to create
 	// an item which already exists by some unique identifier.  The identifier is
 	// not always the id.  For example, in onedrive, this error can be produced
@@ -128,12 +122,6 @@ var (
 	// ErrServiceNotEnabled identifies that a resource owner does not have
 	// access to a given service.
 	ErrServiceNotEnabled = clues.New("service is not enabled for that resource owner")
-
-	// Timeout errors are identified for tracking the need to retry calls.
-	// Other delay errors, like throttling, are already handled by the
-	// graph client's built-in retries.
-	// https://github.com/microsoftgraph/msgraph-sdk-go/issues/302
-	ErrTimeout = clues.New("communication timeout")
 
 	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
 
@@ -170,13 +158,11 @@ func IsErrItemNotFound(err error) bool {
 }
 
 func IsErrInvalidDelta(err error) bool {
-	return errors.Is(err, ErrInvalidDelta) ||
-		hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid)
+	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid)
 }
 
 func IsErrDeltaNotSupported(err error) bool {
-	return errors.Is(err, ErrDeltaNotSupported) ||
-		hasErrorMessage(err, parameterDeltaTokenNotSupported)
+	return hasErrorMessage(err, ParameterDeltaTokenNotSupported)
 }
 
 func IsErrQuotaExceeded(err error) bool {
@@ -223,8 +209,7 @@ func IsErrTimeout(err error) bool {
 		return err.Timeout()
 	}
 
-	return errors.Is(err, ErrTimeout) ||
-		errors.Is(err, context.Canceled) ||
+	return errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, http.ErrHandlerTimeout) ||
 		os.IsTimeout(err)
@@ -234,12 +219,14 @@ func IsErrConnectionReset(err error) bool {
 	return errors.Is(err, syscall.ECONNRESET)
 }
 
-func IsErrUnauthorized(err error) bool {
-	// TODO: refine this investigation.  We don't currently know if
-	// a specific item download url expired, or if the full connection
-	// auth expired.
+func IsErrUnauthorizedOrBadToken(err error) bool {
 	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
+		hasErrorCode(err, invalidAuthenticationToken) ||
 		errors.Is(err, ErrTokenExpired)
+}
+
+func IsErrBadJWTToken(err error) bool {
+	return hasErrorCode(err, invalidAuthenticationToken)
 }
 
 func IsErrItemAlreadyExistsConflict(err error) bool {
@@ -373,7 +360,7 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 
 	var oDataError odataerrors.ODataErrorable
 	if !errors.As(e, &oDataError) {
-		return clues.Wrap(e, msg).WithClues(ctx).WithTrace(1)
+		return clues.WrapWC(ctx, e, msg).WithTrace(1)
 	}
 
 	mainMsg, data, innerMsg := errData(oDataError)
@@ -382,7 +369,7 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		e = clues.Stack(e, clues.New(mainMsg))
 	}
 
-	ce := clues.Wrap(e, msg).WithClues(ctx).With(data...).WithTrace(1)
+	ce := clues.WrapWC(ctx, e, msg).With(data...).WithTrace(1)
 
 	return setLabels(ce, innerMsg)
 }
@@ -396,7 +383,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 
 	var oDataError *odataerrors.ODataError
 	if !errors.As(e, &oDataError) {
-		return clues.Stack(e).WithClues(ctx).WithTrace(1)
+		return clues.StackWC(ctx, e).WithTrace(1)
 	}
 
 	mainMsg, data, innerMsg := errData(oDataError)
@@ -405,7 +392,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		e = clues.Stack(e, clues.New(mainMsg))
 	}
 
-	ce := clues.Stack(e).WithClues(ctx).With(data...).WithTrace(1)
+	ce := clues.StackWC(ctx, e).With(data...).WithTrace(1)
 
 	return setLabels(ce, innerMsg)
 }
@@ -557,4 +544,39 @@ func ItemInfo(item models.DriveItemable) map[string]any {
 	}
 
 	return m
+}
+
+// ---------------------------------------------------------------------------
+// other helpers
+// ---------------------------------------------------------------------------
+
+// JWTQueryParam is a query param embed in graph download URLs which holds
+// JWT token.
+const JWTQueryParam = "tempauth"
+
+// IsURLExpired inspects the jwt token embed in the item download url
+// and returns true if it is expired.
+func IsURLExpired(
+	ctx context.Context,
+	urlStr string,
+) (
+	expiredErr error,
+	err error,
+) {
+	// Extract the raw JWT string from the download url.
+	rawJWT, err := common.GetQueryParamFromURL(urlStr, JWTQueryParam)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "jwt query param not found")
+	}
+
+	expired, err := jwt.IsJWTExpired(rawJWT)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "checking jwt expiry")
+	}
+
+	if expired {
+		return clues.StackWC(ctx, ErrTokenExpired), nil
+	}
+
+	return nil, nil
 }

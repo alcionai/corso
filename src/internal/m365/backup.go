@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
@@ -46,50 +47,50 @@ func (ctrl *Controller) ProduceBackupCollections(
 		diagnostics.Index("service", bpc.Selector.PathService().String()))
 	defer end()
 
-	ctx = graph.BindRateLimiterConfig(ctx, graph.LimiterCfg{Service: service})
-
 	// Limit the max number of active requests to graph from this collection.
 	bpc.Options.Parallelism.ItemFetch = graph.Parallelism(service).
 		ItemOverride(ctx, bpc.Options.Parallelism.ItemFetch)
 
 	err := verifyBackupInputs(bpc.Selector, ctrl.IDNameLookup.IDs())
 	if err != nil {
-		return nil, nil, false, clues.Stack(err).WithClues(ctx)
+		return nil, nil, false, clues.StackWC(ctx, err)
 	}
 
 	var (
 		colls                []data.BackupCollection
-		ssmb                 *prefixmatcher.StringSetMatcher
+		excludeItems         *prefixmatcher.StringSetMatcher
 		canUsePreviousBackup bool
 	)
 
 	switch service {
 	case path.ExchangeService:
-		colls, ssmb, canUsePreviousBackup, err = exchange.ProduceBackupCollections(
+		colls, excludeItems, canUsePreviousBackup, err = exchange.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
-			ctrl.credentials.AzureTenantID,
+			ctrl.credentials,
 			ctrl.UpdateStatus,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
 		}
 
 	case path.OneDriveService:
-		colls, ssmb, canUsePreviousBackup, err = onedrive.ProduceBackupCollections(
+		colls, excludeItems, canUsePreviousBackup, err = onedrive.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
-			ctrl.credentials.AzureTenantID,
+			ctrl.credentials,
 			ctrl.UpdateStatus,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
 		}
 
 	case path.SharePointService:
-		colls, ssmb, canUsePreviousBackup, err = sharepoint.ProduceBackupCollections(
+		colls, excludeItems, canUsePreviousBackup, err = sharepoint.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
@@ -102,12 +103,13 @@ func (ctrl *Controller) ProduceBackupCollections(
 		}
 
 	case path.GroupsService:
-		colls, ssmb, err = groups.ProduceBackupCollections(
+		colls, excludeItems, err = groups.ProduceBackupCollections(
 			ctx,
 			bpc,
 			ctrl.AC,
 			ctrl.credentials,
 			ctrl.UpdateStatus,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
@@ -118,7 +120,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		canUsePreviousBackup = true
 
 	default:
-		return nil, nil, false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
+		return nil, nil, false, clues.Wrap(clues.NewWC(ctx, service.String()), "service not supported")
 	}
 
 	for _, c := range colls {
@@ -133,7 +135,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		}
 	}
 
-	return colls, ssmb, canUsePreviousBackup, nil
+	return colls, excludeItems, canUsePreviousBackup, nil
 }
 
 func (ctrl *Controller) IsServiceEnabled(
@@ -152,7 +154,7 @@ func (ctrl *Controller) IsServiceEnabled(
 		return groups.IsServiceEnabled(ctx, ctrl.AC.Groups(), resourceOwner)
 	}
 
-	return false, clues.Wrap(clues.New(service.String()), "service not supported").WithClues(ctx)
+	return false, clues.Wrap(clues.NewWC(ctx, service.String()), "service not supported")
 }
 
 func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
@@ -225,4 +227,27 @@ func (ctrl *Controller) GetMetadataPaths(
 	}
 
 	return paths, nil
+}
+
+func (ctrl *Controller) SetRateLimiter(
+	ctx context.Context,
+	service path.ServiceType,
+	options control.Options,
+) context.Context {
+	// Use sliding window limiter for Exchange if the feature is not explicitly
+	// disabled. For other services we always use token bucket limiter.
+	enableSlidingLim := false
+	if service == path.ExchangeService &&
+		!options.ToggleFeatures.DisableSlidingWindowLimiter {
+		enableSlidingLim = true
+	}
+
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{
+			Service:              service,
+			EnableSlidingLimiter: enableSlidingLim,
+		})
+
+	return ctx
 }

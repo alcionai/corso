@@ -101,3 +101,11 @@ func (ctrl Controller) PopulateProtectedResourceIDAndName(
 	return idname.NewProvider(ctrl.ProtectedResourceID, ctrl.ProtectedResourceName),
 		ctrl.ProtectedResourceErr
 }
+
+func (ctrl Controller) SetRateLimiter(
+	ctx context.Context,
+	service path.ServiceType,
+	options control.Options,
+) context.Context {
+	return ctx
+}

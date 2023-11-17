@@ -9,8 +9,8 @@ import (
 
 	"github.com/alcionai/clues"
 	khttp "github.com/microsoft/kiota-http-go"
-	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -88,6 +88,14 @@ const (
 	// but doing so risks timeouts.  It's better to give the limits breathing room.
 	defaultPerSecond = 16  // 16 * 60 * 10 = 9600
 	defaultMaxCap    = 200 // real cap is 10k-per-10-minutes
+
+	// Sliding window limiter for exchange service. We are restricting it to 9600 per
+	// 10 mins to give the limits some breathing room. It can be slowly increased
+	// over time to get closer to the 10k limit.
+	exchWindow        = 10 * time.Minute
+	exchSlideInterval = 1 * time.Second
+	exchCapacity      = 9600
+
 	// since drive runs on a per-minute, rather than per-10-minute bucket, we have
 	// to keep the max cap equal to the per-second cap.  A large maxCap pool (say,
 	// 1200, similar to the per-minute cap) would allow us to make a flood of 2400
@@ -99,13 +107,27 @@ const (
 )
 
 var (
-	driveLimiter = rate.NewLimiter(drivePerSecond, driveMaxCap)
-	// also used as the exchange service limiter
-	defaultLimiter = rate.NewLimiter(defaultPerSecond, defaultMaxCap)
+	driveLimiter = limiters.NewTokenBucketLimiter(drivePerSecond, driveMaxCap)
+	// Exchange service token bucket rate limiter
+	defaultLimiter = limiters.NewTokenBucketLimiter(defaultPerSecond, defaultMaxCap)
+
+	// Exchange service sliding window rate limiter.
+	//
+	// TODO(pandeyabs): We are swallowing the error here. It's a limitation of
+	// using global limiters. For now, we'll catch any errors in the regression
+	// test until we look into managing limiter life cycles.
+	exchSlidingLimiter, _ = limiters.NewSlidingWindowLimiter(
+		exchWindow,
+		exchSlideInterval,
+		exchCapacity)
 )
 
 type LimiterCfg struct {
 	Service path.ServiceType
+	// Experimental flag to enable sliding window rate limiter. It should only be
+	// enabled for Exchange backups. It's set to false by default to prevent accidental
+	// enablement for non backup operations and other services.
+	EnableSlidingLimiter bool
 }
 
 type limiterCfgKey string
@@ -116,19 +138,27 @@ func BindRateLimiterConfig(ctx context.Context, lc LimiterCfg) context.Context {
 	return context.WithValue(ctx, limiterCfgCtxKey, lc)
 }
 
-func ctxLimiter(ctx context.Context) *rate.Limiter {
+func ctxLimiter(ctx context.Context) limiters.Limiter {
 	lc, ok := extractRateLimiterConfig(ctx)
 	if !ok {
 		return defaultLimiter
 	}
 
+	lim := defaultLimiter
+
 	switch lc.Service {
 	// FIXME: Handle based on category once we add chat backup
 	case path.OneDriveService, path.SharePointService, path.GroupsService:
-		return driveLimiter
-	default:
-		return defaultLimiter
+		lim = driveLimiter
+	case path.ExchangeService:
+		if lc.EnableSlidingLimiter {
+			// Return sliding window limiter for Exchange if enabled. Otherwise,
+			// return the default token bucket limiter.
+			lim = exchSlidingLimiter
+		}
 	}
+
+	return lim
 }
 
 func extractRateLimiterConfig(ctx context.Context) (LimiterCfg, bool) {
@@ -191,6 +221,15 @@ func QueueRequest(ctx context.Context) {
 	if err := limiter.WaitN(ctx, consume); err != nil {
 		logger.CtxErr(ctx, err).Error("graph middleware waiting on the limiter")
 	}
+}
+
+// ResetLimiter resets the limiter to its initial state and refills tokens to
+// initial capacity. This is only relevant for the sliding window limiter, and a
+// no-op for token bucket limiter. The token bucket limiter doesn't need to be
+// reset since it refills tokens at a fixed per-second rate.
+func ResetLimiter(ctx context.Context) {
+	limiter := ctxLimiter(ctx)
+	limiter.Reset()
 }
 
 // RateLimiterMiddleware is used to ensure we don't overstep per-min request limits.

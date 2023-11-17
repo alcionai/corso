@@ -19,14 +19,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/time/rate"
 
+	"github.com/alcionai/corso/src/internal/common/limiters"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type mwReturns struct {
@@ -304,8 +305,8 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryResponse_maintainBodyAft
 
 	InitializeConcurrencyLimiter(ctx, false, -1)
 
-	odem := odErrMsg("SystemDown", "The System, Is Down, bah-dup-da-woo-woo!")
-	m := parseableToMap(t, odem)
+	odem := graphTD.ODataErrWithMsg("SystemDown", "The System, Is Down, bah-dup-da-woo-woo!")
+	m := graphTD.ParseableToMap(t, odem)
 
 	body, err := json.Marshal(m)
 	require.NoError(t, err, clues.ToCore(err))
@@ -353,10 +354,10 @@ func (suite *MiddlewareUnitSuite) TestBindExtractLimiterConfig() {
 	assert.Equal(t, defaultLimiter, ctxLimiter(ctx))
 
 	table := []struct {
-		name          string
-		service       path.ServiceType
-		expectOK      require.BoolAssertionFunc
-		expectLimiter *rate.Limiter
+		name             string
+		service          path.ServiceType
+		enableSlidingLim bool
+		expectLimiter    limiters.Limiter
 	}{
 		{
 			name:          "exchange",
@@ -388,12 +389,30 @@ func (suite *MiddlewareUnitSuite) TestBindExtractLimiterConfig() {
 			service:       path.ServiceType(-1),
 			expectLimiter: defaultLimiter,
 		},
+		{
+			name:             "exchange sliding limiter",
+			service:          path.ExchangeService,
+			enableSlidingLim: true,
+			expectLimiter:    exchSlidingLimiter,
+		},
+		// Sliding limiter flag is ignored for non-exchange services
+		{
+			name:             "onedrive with sliding limiter flag set",
+			service:          path.OneDriveService,
+			enableSlidingLim: true,
+			expectLimiter:    driveLimiter,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			tctx := BindRateLimiterConfig(ctx, LimiterCfg{Service: test.service})
+			tctx := BindRateLimiterConfig(
+				ctx,
+				LimiterCfg{
+					Service:              test.service,
+					EnableSlidingLimiter: test.enableSlidingLim,
+				})
 			lc, ok := extractRateLimiterConfig(tctx)
 			require.True(t, ok, "found rate limiter in ctx")
 			assert.Equal(t, test.service, lc.Service)

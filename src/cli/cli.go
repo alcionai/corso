@@ -73,7 +73,7 @@ func preRun(cc *cobra.Command, args []string) error {
 
 func handleMailBoxFlag(ctx context.Context, c *cobra.Command, flagNames []string) {
 	if !slices.Contains(flagNames, "user") && !slices.Contains(flagNames, "mailbox") {
-		print.Errf(ctx, "either --user or --mailbox flag is required")
+		print.Err(ctx, "either --user or --mailbox flag is required")
 		os.Exit(1)
 	}
 

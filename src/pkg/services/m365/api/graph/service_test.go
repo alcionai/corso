@@ -2,6 +2,7 @@ package graph
 
 import (
 	"net/http"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type GraphIntgSuite struct {
@@ -244,4 +246,64 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
 	require.Equal(t, 16, retryInc, "number of retries")
+}
+
+func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
+	var (
+		t        = suite.T()
+		retryInc = 0
+		odErr    = graphTD.ODataErr(string(invalidAuthenticationToken))
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// the panics should get caught and returned as errors
+	alwaysBadJWT := mwForceResp{
+		alternate: func(req *http.Request) (bool, *http.Response, error) {
+			retryInc++
+
+			l, b := graphTD.ParseableToReader(t, odErr)
+
+			header := http.Header{}
+			header.Set("Content-Length", strconv.Itoa(int(l)))
+			header.Set("Content-Type", "application/json")
+
+			resp := &http.Response{
+				Body:          b,
+				ContentLength: l,
+				Header:        header,
+				Proto:         req.Proto,
+				Request:       req,
+				// avoiding 401 for the test to escape extraneous code paths in graph client
+				// shouldn't affect the result
+				StatusCode: http.StatusMethodNotAllowed,
+			}
+
+			return true, resp, nil
+		},
+	}
+
+	adpt, err := CreateAdapter(
+		suite.credentials.AzureTenantID,
+		suite.credentials.AzureClientID,
+		suite.credentials.AzureClientSecret,
+		count.New(),
+		appendMiddleware(&alwaysBadJWT))
+	require.NoError(t, err, clues.ToCore(err))
+
+	// When run locally this may fail. Not sure why it works in github but not locally.
+	// Pester keepers if it bothers you.
+	_, err = users.
+		NewItemCalendarsItemEventsDeltaRequestBuilder("https://graph.microsoft.com/fnords/beaux/regard", adpt).
+		Get(ctx, nil)
+	assert.True(t, IsErrBadJWTToken(err), clues.ToCore(err))
+	assert.Equal(t, 4, retryInc, "number of retries")
+
+	retryInc = 0
+
+	// the query doesn't matter
+	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
+	assert.True(t, IsErrBadJWTToken(err), clues.ToCore(err))
+	assert.Equal(t, 4, retryInc, "number of retries")
 }

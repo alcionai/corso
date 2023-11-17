@@ -2,6 +2,8 @@ package site
 
 import (
 	"context"
+	"fmt"
+	stdpath "path"
 
 	"github.com/alcionai/clues"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -30,6 +33,7 @@ func CollectLibraries(
 	tenantID string,
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	logger.Ctx(ctx).Debug("creating SharePoint Library collections")
@@ -41,8 +45,21 @@ func CollectLibraries(
 			tenantID,
 			bpc.ProtectedResource,
 			su,
-			bpc.Options)
+			bpc.Options,
+			counter)
 	)
+
+	msg := fmt.Sprintf(
+		"%s (%s)",
+		path.LibrariesCategory.HumanString(),
+		stdpath.Base(bpc.ProtectedResource.Name()))
+
+	pcfg := observe.ProgressCfg{
+		Indent:            1,
+		CompletionMessage: func() string { return fmt.Sprintf("(found %d items)", colls.NumItems) },
+	}
+	progressBar := observe.MessageWithCompletion(ctx, pcfg, msg)
+	close(progressBar)
 
 	odcs, canUsePreviousBackup, err := colls.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 	if err != nil {
@@ -102,7 +119,7 @@ func CollectPages(
 			false,
 			tuple.Name)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "creating page collection path").WithClues(ctx))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating page collection path"))
 		}
 
 		collection := NewCollection(
@@ -154,7 +171,7 @@ func CollectLists(
 			false,
 			tuple.Name)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "creating list collection path").WithClues(ctx))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
 		collection := NewCollection(

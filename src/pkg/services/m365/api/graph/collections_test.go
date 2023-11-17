@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -93,7 +94,7 @@ func (suite *CollectionsUnitSuite) TestNewPrefixCollection() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			_, err := NewPrefixCollection(test.prev, test.full, nil)
+			_, err := NewPrefixCollection(test.prev, test.full, nil, count.New())
 			test.expectErr(suite.T(), err, clues.ToCore(err))
 		})
 	}

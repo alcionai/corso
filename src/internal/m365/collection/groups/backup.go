@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -38,6 +39,7 @@ func CreateCollections(
 	tenantID string,
 	scope selectors.GroupsScope,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	ctx = clues.Add(ctx, "category", scope.Category().PathType())
@@ -64,6 +66,8 @@ func CreateCollections(
 		return nil, false, clues.Stack(err)
 	}
 
+	counter.Add(count.Channels, int64(len(channels)))
+
 	collections, err := populateCollections(
 		ctx,
 		qp,
@@ -73,6 +77,7 @@ func CreateCollections(
 		scope,
 		cdps[scope.Category().PathType()],
 		bpc.Options,
+		counter,
 		errs)
 	if err != nil {
 		return nil, false, clues.Wrap(err, "filling collections")
@@ -94,6 +99,7 @@ func populateCollections(
 	scope selectors.GroupsScope,
 	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
 	var (
@@ -117,6 +123,7 @@ func populateCollections(
 		}
 
 		var (
+			cl          = counter.Local()
 			cID         = ptr.Val(c.GetId())
 			cName       = ptr.Val(c.GetDisplayName())
 			err         error
@@ -134,15 +141,19 @@ func populateCollections(
 				})
 		)
 
+		ictx = clues.AddLabelCounter(ictx, cl.PlainAdder())
+
 		delete(tombstones, cID)
 
 		// Only create a collection if the path matches the scope.
 		if !bh.includeContainer(ictx, qp, c, scope) {
+			cl.Inc(count.SkippedContainers)
 			continue
 		}
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
+				err = clues.StackWC(ctx, err).Label(count.BadPrevPath)
 				logger.CtxErr(ictx, err).Error("parsing prev path")
 				// if the previous path is unusable, then the delta must be, too.
 				prevDelta = ""
@@ -166,6 +177,9 @@ func populateCollections(
 		added := str.SliceToMap(maps.Keys(addAndRem.Added))
 		removed := str.SliceToMap(addAndRem.Removed)
 
+		cl.Add(count.ItemsAdded, int64(len(added)))
+		cl.Add(count.ItemsRemoved, int64(len(removed)))
+
 		if len(addAndRem.DU.URL) > 0 {
 			deltaURLs[cID] = addAndRem.DU.URL
 		} else if !addAndRem.DU.Reset {
@@ -174,7 +188,9 @@ func populateCollections(
 
 		currPath, err := bh.canonicalPath(path.Builder{}.Append(cID), qp.TenantID)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Stack(err))
+			err = clues.StackWC(ctx, err).Label(count.BadCollPath)
+			el.AddRecoverable(ctx, err)
+
 			continue
 		}
 
@@ -191,7 +207,8 @@ func populateCollections(
 				prevPath,
 				path.Builder{}.Append(cName),
 				ctrlOpts,
-				addAndRem.DU.Reset),
+				addAndRem.DU.Reset,
+				cl),
 			bh,
 			qp.ProtectedResource.ID(),
 			added,
@@ -219,7 +236,9 @@ func populateCollections(
 		)
 
 		if collections[id] != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
+			err := clues.NewWC(ictx, "conflict: tombstone exists for a live collection").Label(count.CollectionTombstoneConflict)
+			el.AddRecoverable(ctx, err)
+
 			continue
 		}
 
@@ -231,12 +250,14 @@ func populateCollections(
 
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
+			err := clues.StackWC(ctx, err).Label(count.BadPrevPath)
 			// technically shouldn't ever happen.  But just in case...
 			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
+
 			continue
 		}
 
-		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts)
+		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts, counter.Local())
 	}
 
 	logger.Ctx(ctx).Infow(
@@ -251,7 +272,8 @@ func populateCollections(
 		qp.Category,
 		false)
 	if err != nil {
-		return nil, clues.Wrap(err, "making metadata path prefix")
+		return nil, clues.WrapWC(ctx, err, "making metadata path prefix").
+			Label(count.BadPathPrefix)
 	}
 
 	col, err := graph.MakeMetadataCollection(
@@ -260,14 +282,13 @@ func populateCollections(
 			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
 			graph.NewMetadataEntry(metadata.DeltaURLsFileName, deltaURLs),
 		},
-		statusUpdater)
+		statusUpdater,
+		counter.Local())
 	if err != nil {
-		return nil, clues.Wrap(err, "making metadata collection")
+		return nil, clues.WrapWC(ctx, err, "making metadata collection")
 	}
 
 	collections["metadata"] = col
-
-	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
 
 	return collections, el.Failure()
 }

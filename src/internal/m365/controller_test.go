@@ -1073,7 +1073,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 				suite.ctrl.tenant,
 				[]string{suite.user},
 				control.DefaultOptions(),
-				control.DefaultRestoreConfig(dttm.HumanReadableDriveItem))
+				control.DefaultRestoreConfig(dttm.SafeForTesting))
 		})
 	}
 }
@@ -1242,7 +1242,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 
 			t.Log("Backup enumeration complete")
 
-			restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+			restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
 			restoreCfg.IncludePermissions = true
 
 			ci := stub.ConfigInfo{
@@ -1285,7 +1285,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 		},
 	}
 
-	restoreCfg := control.DefaultRestoreConfig(dttm.HumanReadableDriveItem)
+	restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
 	restoreCfg.IncludePermissions = true
 
 	runRestoreBackupTest(

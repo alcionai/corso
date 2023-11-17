@@ -81,8 +81,11 @@ func (suite *AlertUnitSuite) TestAlert_HeadersValues() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			assert.Equal(t, []string{"Action", "Message", "Container", "Name", "ID"}, test.alert.Headers())
-			assert.Equal(t, test.expect, test.alert.Values())
+			assert.Equal(t, []string{"Action", "Message", "Container", "Name", "ID"}, test.alert.Headers(false))
+			assert.Equal(t, test.expect, test.alert.Values(false))
+
+			assert.Equal(t, []string{"Action", "Message", "Container", "Name", "ID"}, test.alert.Headers(true))
+			assert.Equal(t, test.expect, test.alert.Values(true))
 		})
 	}
 }

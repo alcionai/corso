@@ -99,7 +99,7 @@ func uploadAttachment(
 		// Max attachment size is 150MB.
 		content, err := api.GetAttachmentContent(attachment)
 		if err != nil {
-			return clues.Wrap(err, "serializing attachment content").WithClues(ctx)
+			return clues.WrapWC(ctx, err, "serializing attachment content")
 		}
 
 		_, err = ap.PostLargeAttachment(ctx, userID, containerID, parentItemID, name, content)

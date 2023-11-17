@@ -114,8 +114,7 @@ func (mc *mergeCollection) FetchItemByName(
 		if err == nil {
 			return s, nil
 		} else if err != nil && !errors.Is(err, data.ErrNotFound) {
-			return nil, clues.Wrap(err, "fetching from merged collection").
-				WithClues(ictx)
+			return nil, clues.WrapWC(ctx, err, "fetching from merged collection")
 		}
 	}
 
