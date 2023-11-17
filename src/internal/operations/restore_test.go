@@ -51,7 +51,7 @@ func (suite *RestoreOpUnitSuite) TestRestoreOperation_PersistResults() {
 	var (
 		kw         = &kopia.Wrapper{}
 		sw         = store.NewWrapper(&kopia.ModelStore{})
-		ctrl       = &mock.Controller{}
+		ctrl       = &mock.RestoreConsumer{}
 		now        = time.Now()
 		restoreCfg = testdata.DefaultRestoreConfig("")
 	)
@@ -286,7 +286,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	var (
 		kw         = &kopia.Wrapper{}
 		sw         = store.NewWrapper(&kopia.ModelStore{})
-		ctrl       = &mock.Controller{}
+		rc         = &mock.RestoreConsumer{}
 		restoreCfg = testdata.DefaultRestoreConfig("")
 		opts       = control.DefaultOptions()
 	)
@@ -299,9 +299,9 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", kw, sw, ctrl, nil, assert.NoError},
-		{"missing kopia", nil, sw, ctrl, nil, assert.Error},
-		{"missing modelstore", kw, nil, ctrl, nil, assert.Error},
+		{"good", kw, sw, rc, nil, assert.NoError},
+		{"missing kopia", nil, sw, rc, nil, assert.Error},
+		{"missing modelstore", kw, nil, rc, nil, assert.Error},
 		{"missing restore consumer", kw, sw, nil, nil, assert.Error},
 	}
 	for _, test := range table {
