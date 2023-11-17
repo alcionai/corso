@@ -3611,9 +3611,9 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 						Pages: []mock.NextPage{{
 							Items: []models.DriveItemable{
 								driveRootItem(rootID), // will be present, not needed
-								driveItemWithSize(idx("1", "f"), namex("1", "f"), parent(1), rootID, 7, isFile),
-								driveItemWithSize(idx("2", "f"), namex("2", "f"), parent(1), rootID, 1, isFile),
-								driveItemWithSize(idx("3", "f"), namex("3", "f"), parent(1), rootID, 1, isFile),
+								driveItemWithSize(idx(file, 1), namex(file, 1), parent(1), rootID, 7, isFile),
+								driveItemWithSize(idx(file, 2), namex(file, 2), parent(1), rootID, 1, isFile),
+								driveItemWithSize(idx(file, 3), namex(file, 3), parent(1), rootID, 1, isFile),
 							},
 						}},
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
@@ -3621,7 +3621,7 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1): {idx("2", "f"), idx("3", "f")},
+				fullPath(1): {idx(file, 2), idx(file, 3)},
 			},
 		},
 		{
@@ -3641,9 +3641,9 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 						Pages: []mock.NextPage{{
 							Items: []models.DriveItemable{
 								driveRootItem(rootID), // will be present, not needed
-								driveItemWithSize(idx("1", "f"), namex("1", "f"), parent(1), rootID, 1, isFile),
-								driveItemWithSize(idx("2", "f"), namex("2", "f"), parent(1), rootID, 2, isFile),
-								driveItemWithSize(idx("3", "f"), namex("3", "f"), parent(1), rootID, 1, isFile),
+								driveItemWithSize(idx(file, 1), namex(file, 1), parent(1), rootID, 1, isFile),
+								driveItemWithSize(idx(file, 2), namex(file, 2), parent(1), rootID, 2, isFile),
+								driveItemWithSize(idx(file, 3), namex(file, 3), parent(1), rootID, 1, isFile),
 							},
 						}},
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
@@ -3651,7 +3651,7 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1): {idx("1", "f"), idx("2", "f")},
+				fullPath(1): {idx(file, 1), idx(file, 2)},
 			},
 		},
 		{
@@ -3671,10 +3671,10 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 						Pages: []mock.NextPage{{
 							Items: []models.DriveItemable{
 								driveRootItem(rootID), // will be present, not needed
-								driveItemWithSize(idx("1", "f"), namex("1", "f"), parent(1), rootID, 1, isFile),
-								driveItemWithSize(idx("1", "d"), namex("1", "d"), parent(1), rootID, 1, isFolder),
-								driveItemWithSize(idx("2", "f"), namex("2", "f"), parent(1, namex("1", "d")), idx("1", "d"), 2, isFile),
-								driveItemWithSize(idx("3", "f"), namex("3", "f"), parent(1, namex("1", "d")), idx("1", "d"), 1, isFile),
+								driveItemWithSize(idx(file, 1), namex(file, 1), parent(1), rootID, 1, isFile),
+								driveItemWithSize(idx(folder, 1), namex(folder, 1), parent(1), rootID, 1, isFolder),
+								driveItemWithSize(idx(file, 2), namex(file, 2), parent(1, namex(folder, 1)), idx(folder, 1), 2, isFile),
+								driveItemWithSize(idx(file, 3), namex(file, 3), parent(1, namex(folder, 1)), idx(folder, 1), 1, isFile),
 							},
 						}},
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
@@ -3682,8 +3682,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1):                  {idx("1", "f")},
-				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("2", "f")},
+				fullPath(1):                   {idx(file, 1)},
+				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 2)},
 			},
 		},
 		{
@@ -3703,12 +3703,12 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 						Pages: []mock.NextPage{{
 							Items: []models.DriveItemable{
 								driveRootItem(rootID), // will be present, not needed
-								driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-								driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
-								driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
-								driveItem(idx("4", "f"), namex("4", "f"), parent(1), rootID, isFile),
-								driveItem(idx("5", "f"), namex("5", "f"), parent(1), rootID, isFile),
-								driveItem(idx("6", "f"), namex("6", "f"), parent(1), rootID, isFile),
+								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+								driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
+								driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile),
+								driveItem(idx(file, 4), namex(file, 4), parent(1), rootID, isFile),
+								driveItem(idx(file, 5), namex(file, 5), parent(1), rootID, isFile),
+								driveItem(idx(file, 6), namex(file, 6), parent(1), rootID, isFile),
 							},
 						}},
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
@@ -3716,7 +3716,7 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1): {idx("1", "f"), idx("2", "f"), idx("3", "f")},
+				fullPath(1): {idx(file, 1), idx(file, 2), idx(file, 3)},
 			},
 		},
 		{
@@ -3737,19 +3737,19 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									// Repeated items shouldn't count against the limit.
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
-									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
-									driveItem(idx("6", "f"), namex("6", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
+									driveItem(idx(file, 3), namex(file, 3), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+									driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+									driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+									driveItem(idx(file, 6), namex(file, 6), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
 								},
 							},
 						},
@@ -3758,8 +3758,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1):                  {idx("1", "f"), idx("2", "f")},
-				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("3", "f")},
+				fullPath(1):                   {idx(file, 1), idx(file, 2)},
+				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 3)},
 			},
 		},
 		{
@@ -3780,18 +3780,18 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
-									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
-									driveItem(idx("6", "f"), namex("6", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
+									driveItem(idx(file, 3), namex(file, 3), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+									driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+									driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+									driveItem(idx(file, 6), namex(file, 6), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
 								},
 							},
 						},
@@ -3800,7 +3800,7 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1): {idx("1", "f"), idx("2", "f")},
+				fullPath(1): {idx(file, 1), idx(file, 2)},
 			},
 		},
 		{
@@ -3821,17 +3821,17 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
+									driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
-									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
+									driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+									driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
 								},
 							},
 						},
@@ -3842,8 +3842,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 			expectedCollections: map[string][]string{
 				// Root has an additional item. It's hard to fix that in the code
 				// though.
-				fullPath(1):                  {idx("1", "f"), idx("2", "f")},
-				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f")},
+				fullPath(1):                   {idx(file, 1), idx(file, 2)},
+				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4)},
 			},
 		},
 		{
@@ -3864,19 +3864,19 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("0", "d"), namex("0", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+									driveItem(idx(folder, 0), namex(folder, 0), parent(1), rootID, isFolder),
+									driveItem(idx(file, 1), namex(file, 1), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("0", "d"), namex("0", "d"), parent(1), rootID, isFolder),
+									driveItem(idx(folder, 0), namex(folder, 0), parent(1), rootID, isFolder),
 									// Updated item that shouldn't count against the limit a second time.
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
+									driveItem(idx(file, 3), namex(file, 3), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
+									driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
 								},
 							},
 						},
@@ -3885,8 +3885,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1):                  {},
-				fullPath(1, namex("0", "d")): {idx("0", "d"), idx("1", "f"), idx("2", "f"), idx("3", "f")},
+				fullPath(1):                   {},
+				fullPath(1, namex(folder, 0)): {idx(folder, 0), idx(file, 1), idx(file, 2), idx(file, 3)},
 			},
 		},
 		{
@@ -3907,20 +3907,20 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
 									// Put folder 0 at limit.
-									driveItem(idx("0", "d"), namex("0", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+									driveItem(idx(folder, 0), namex(folder, 0), parent(1), rootID, isFolder),
+									driveItem(idx(file, 3), namex(file, 3), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
+									driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("0", "d"), namex("0", "d"), parent(1), rootID, isFolder),
+									driveItem(idx(folder, 0), namex(folder, 0), parent(1), rootID, isFolder),
 									// Try to move item from root to folder 0 which is already at the limit.
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1, namex("0", "d")), idx("0", "d"), isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
 								},
 							},
 						},
@@ -3929,8 +3929,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1):                  {idx("1", "f"), idx("2", "f")},
-				fullPath(1, namex("0", "d")): {idx("0", "d"), idx("3", "f"), idx("4", "f")},
+				fullPath(1):                   {idx(file, 1), idx(file, 2)},
+				fullPath(1, namex(folder, 0)): {idx(folder, 0), idx(file, 3), idx(file, 4)},
 			},
 		},
 		{
@@ -3951,23 +3951,23 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
+									driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
+									driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
+									driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
 								},
 							},
 						},
@@ -3976,8 +3976,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1):                  {idx("1", "f"), idx("2", "f"), idx("3", "f")},
-				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f"), idx("5", "f")},
+				fullPath(1):                   {idx(file, 1), idx(file, 2), idx(file, 3)},
+				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
 			},
 		},
 		{
@@ -3998,22 +3998,22 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
+									driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
-									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
+									driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+									driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
 									// This container shouldn't be returned.
-									driveItem(idx("2", "d"), namex("2", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("7", "f"), namex("7", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
-									driveItem(idx("8", "f"), namex("8", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
-									driveItem(idx("9", "f"), namex("9", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
+									driveItem(idx(folder, 2), namex(folder, 2), parent(1), rootID, isFolder),
+									driveItem(idx(file, 7), namex(file, 7), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
+									driveItem(idx(file, 8), namex(file, 8), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
+									driveItem(idx(file, 9), namex(file, 9), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
 								},
 							},
 						},
@@ -4022,8 +4022,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1):                  {idx("1", "f"), idx("2", "f"), idx("3", "f")},
-				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f"), idx("5", "f")},
+				fullPath(1):                   {idx(file, 1), idx(file, 2), idx(file, 3)},
+				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
 			},
 		},
 		{
@@ -4044,27 +4044,27 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
+									driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
-									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
+									driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+									driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
 									// This container shouldn't be returned.
-									driveItem(idx("2", "d"), namex("2", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("7", "f"), namex("7", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
-									driveItem(idx("8", "f"), namex("8", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
-									driveItem(idx("9", "f"), namex("9", "f"), parent(1, namex("2", "d")), idx("2", "d"), isFile),
+									driveItem(idx(folder, 2), namex(folder, 2), parent(1), rootID, isFolder),
+									driveItem(idx(file, 7), namex(file, 7), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
+									driveItem(idx(file, 8), namex(file, 8), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
+									driveItem(idx(file, 9), namex(file, 9), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
 								},
 							},
 						},
@@ -4073,8 +4073,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1):                  {idx("1", "f"), idx("2", "f"), idx("3", "f")},
-				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f"), idx("5", "f")},
+				fullPath(1):                   {idx(file, 1), idx(file, 2), idx(file, 3)},
+				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
 			},
 		},
 		{
@@ -4095,11 +4095,11 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1), rootID, isFile),
-									driveItem(idx("5", "f"), namex("5", "f"), parent(1), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
+									driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile),
+									driveItem(idx(file, 4), namex(file, 4), parent(1), rootID, isFile),
+									driveItem(idx(file, 5), namex(file, 5), parent(1), rootID, isFile),
 								},
 							},
 						},
@@ -4110,11 +4110,11 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(2), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(2), rootID, isFile),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(2), rootID, isFile),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(2), rootID, isFile),
-									driveItem(idx("5", "f"), namex("5", "f"), parent(2), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(2), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(2), rootID, isFile),
+									driveItem(idx(file, 3), namex(file, 3), parent(2), rootID, isFile),
+									driveItem(idx(file, 4), namex(file, 4), parent(2), rootID, isFile),
+									driveItem(idx(file, 5), namex(file, 5), parent(2), rootID, isFile),
 								},
 							},
 						},
@@ -4123,8 +4123,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1): {idx("1", "f"), idx("2", "f"), idx("3", "f")},
-				fullPath(2): {idx("1", "f"), idx("2", "f"), idx("3", "f")},
+				fullPath(1): {idx(file, 1), idx(file, 2), idx(file, 3)},
+				fullPath(2): {idx(file, 1), idx(file, 2), idx(file, 3)},
 			},
 		},
 		{
@@ -4144,23 +4144,23 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "f"), namex("1", "f"), parent(1), rootID, isFile),
-									driveItem(idx("2", "f"), namex("2", "f"), parent(1), rootID, isFile),
-									driveItem(idx("3", "f"), namex("3", "f"), parent(1), rootID, isFile),
+									driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
+									driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
+									driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("4", "f"), namex("4", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
+									driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
 								},
 							},
 							{
 								Items: []models.DriveItemable{
 									driveRootItem(rootID), // will be present, not needed
-									driveItem(idx("1", "d"), namex("1", "d"), parent(1), rootID, isFolder),
-									driveItem(idx("5", "f"), namex("5", "f"), parent(1, namex("1", "d")), idx("1", "d"), isFile),
+									driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
+									driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
 								},
 							},
 						},
@@ -4169,8 +4169,8 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 				},
 			},
 			expectedCollections: map[string][]string{
-				fullPath(1):                  {idx("1", "f"), idx("2", "f"), idx("3", "f")},
-				fullPath(1, namex("1", "d")): {idx("1", "d"), idx("4", "f"), idx("5", "f")},
+				fullPath(1):                   {idx(file, 1), idx(file, 2), idx(file, 3)},
+				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
 			},
 		},
 	}
