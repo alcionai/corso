@@ -135,24 +135,21 @@ func populateCollections(
 		category   = qp.Category
 
 		// Limits and counters below are currently only used for preview backups
-		// since they only act on a subset of items.
-		maxContainers        = ctrlOpts.PreviewLimits.MaxContainers
-		maxItemsPerContainer = ctrlOpts.PreviewLimits.MaxItemsPerContainer
-		maxItems             = ctrlOpts.PreviewLimits.MaxItems
+		// since they only act on a subset of items. Make a copy of the passed in
+		// limits so we can log both the passed in options and what they were set to
+		// if we used default values for some things.
+		effectiveLimits = ctrlOpts.PreviewLimits
 
 		addedItems      int
 		addedContainers int
 	)
-
-	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
-	counter.Add(count.PrevDeltas, int64(len(dps)))
 
 	el := errs.Local()
 
 	// Preview backups select a reduced set of data. This is managed by ordering
 	// the set of results from the container resolver and reducing the number of
 	// items selected from each container.
-	if ctrlOpts.PreviewLimits.Enabled {
+	if effectiveLimits.Enabled {
 		resolver, err = newRankedContainerResolver(
 			ctx,
 			resolver,
@@ -169,24 +166,25 @@ func populateCollections(
 		}
 
 		// Configure limits with reasonable defaults if they're not set.
-		if maxContainers == 0 {
-			maxContainers = defaultPreviewContainerLimit
+		if effectiveLimits.MaxContainers == 0 {
+			effectiveLimits.MaxContainers = defaultPreviewContainerLimit
 		}
 
-		if maxItemsPerContainer == 0 {
-			maxItemsPerContainer = defaultPreviewItemsPerContainerLimit
+		if effectiveLimits.MaxItemsPerContainer == 0 {
+			effectiveLimits.MaxItemsPerContainer = defaultPreviewItemsPerContainerLimit
 		}
 
-		if maxItems == 0 {
-			maxItems = defaultPreviewItemLimit
+		if effectiveLimits.MaxItems == 0 {
+			effectiveLimits.MaxItems = defaultPreviewItemLimit
 		}
-
-		logger.Ctx(ctx).Infow(
-			"running preview backup",
-			"item_limit", maxItems,
-			"container_limit", maxContainers,
-			"items_per_container_limit", maxItemsPerContainer)
 	}
+
+	logger.Ctx(ctx).Infow(
+		"filling collections",
+		"len_deltapaths", len(dps),
+		"limits", ctrlOpts.PreviewLimits,
+		"effective_limits", effectiveLimits)
+	counter.Add(count.PrevDeltas, int64(len(dps)))
 
 	for _, c := range resolver.Items() {
 		if el.Failure() != nil {
@@ -244,15 +242,15 @@ func populateCollections(
 
 		// Since part of this is about figuring out how many items to get for this
 		// particular container we need to reconfigure for every container we see.
-		if ctrlOpts.PreviewLimits.Enabled {
-			toAdd := maxItems - addedItems
+		if effectiveLimits.Enabled {
+			toAdd := effectiveLimits.MaxItems - addedItems
 
-			if addedContainers >= maxContainers || toAdd <= 0 {
+			if addedContainers >= effectiveLimits.MaxContainers || toAdd <= 0 {
 				break
 			}
 
-			if toAdd > maxItemsPerContainer {
-				toAdd = maxItemsPerContainer
+			if toAdd > effectiveLimits.MaxItemsPerContainer {
+				toAdd = effectiveLimits.MaxItemsPerContainer
 			}
 
 			// Delta tokens generated with this CallConfig shouldn't be used for
