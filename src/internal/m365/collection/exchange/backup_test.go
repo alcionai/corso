@@ -2212,7 +2212,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 		{
 			name:                 "DefaultMaxItems",
 			numContainers:        1,
-			numItemsPerContainer: defaultPreviewItemLimit + 1,
+			numItemsPerContainer: defaultPreviewMaxItems + 1,
 			limits: control.PreviewItemLimits{
 				Enabled:              true,
 				MaxItemsPerContainer: 999,
@@ -2220,13 +2220,13 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 			},
 			expect: expected{
 				numContainers:        1,
-				numItemsPerContainer: defaultPreviewItemLimit,
-				numItems:             defaultPreviewItemLimit,
+				numItemsPerContainer: defaultPreviewMaxItems,
+				numItems:             defaultPreviewMaxItems,
 			},
 		},
 		{
 			name:                 "DefaultMaxContainers",
-			numContainers:        defaultPreviewContainerLimit + 1,
+			numContainers:        defaultPreviewMaxContainers + 1,
 			numItemsPerContainer: 1,
 			limits: control.PreviewItemLimits{
 				Enabled:              true,
@@ -2234,15 +2234,15 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 				MaxItems:             999,
 			},
 			expect: expected{
-				numContainers:        defaultPreviewContainerLimit,
+				numContainers:        defaultPreviewMaxContainers,
 				numItemsPerContainer: 1,
-				numItems:             defaultPreviewContainerLimit,
+				numItems:             defaultPreviewMaxContainers,
 			},
 		},
 		{
 			name:                 "DefaultMaxItemsPerContainer",
 			numContainers:        5,
-			numItemsPerContainer: defaultPreviewItemsPerContainerLimit,
+			numItemsPerContainer: defaultPreviewMaxItemsPerContainer,
 			limits: control.PreviewItemLimits{
 				Enabled:       true,
 				MaxItems:      999,
@@ -2250,8 +2250,8 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 			},
 			expect: expected{
 				numContainers:        5,
-				numItemsPerContainer: defaultPreviewItemsPerContainerLimit,
-				numItems:             5 * defaultPreviewItemsPerContainerLimit,
+				numItemsPerContainer: defaultPreviewMaxItemsPerContainer,
+				numItems:             5 * defaultPreviewMaxItemsPerContainer,
 			},
 		},
 	}

@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	defaultPreviewContainerLimit         = 5
-	defaultPreviewItemsPerContainerLimit = 10
-	defaultPreviewItemLimit              = defaultPreviewContainerLimit * defaultPreviewItemsPerContainerLimit
+	defaultPreviewMaxContainers        = 5
+	defaultPreviewMaxItemsPerContainer = 10
+	defaultPreviewMaxItems             = defaultPreviewMaxContainers * defaultPreviewMaxItemsPerContainer
 )
 
 func CreateCollections(
@@ -167,15 +167,15 @@ func populateCollections(
 
 		// Configure limits with reasonable defaults if they're not set.
 		if effectiveLimits.MaxContainers == 0 {
-			effectiveLimits.MaxContainers = defaultPreviewContainerLimit
+			effectiveLimits.MaxContainers = defaultPreviewMaxContainers
 		}
 
 		if effectiveLimits.MaxItemsPerContainer == 0 {
-			effectiveLimits.MaxItemsPerContainer = defaultPreviewItemsPerContainerLimit
+			effectiveLimits.MaxItemsPerContainer = defaultPreviewMaxItemsPerContainer
 		}
 
 		if effectiveLimits.MaxItems == 0 {
-			effectiveLimits.MaxItems = defaultPreviewItemLimit
+			effectiveLimits.MaxItems = defaultPreviewMaxItems
 		}
 	}
 
