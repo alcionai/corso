@@ -240,10 +240,7 @@ func (op *RestoreOperation) do(
 		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
 
 	// Check if the resource has the service enabled to be able to restore.
-	enabled, err := op.rc.IsServiceEnabled(
-		ctx,
-		op.Selectors.PathService(),
-		restoreToProtectedResource.ID())
+	enabled, err := op.rc.IsServiceEnabled(ctx, restoreToProtectedResource.ID())
 	if err != nil {
 		return nil, clues.Wrap(err, "verifying service restore is enabled")
 	}

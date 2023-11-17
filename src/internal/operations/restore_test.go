@@ -350,12 +350,17 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
+	rc, err := ctrl.NewServiceHandler(
+		control.DefaultOptions(),
+		rsel.PathService())
+	require.NoError(t, err, clues.ToCore(err))
+
 	ro, err := NewRestoreOperation(
 		ctx,
 		control.DefaultOptions(),
 		suite.kw,
 		suite.sw,
-		ctrl,
+		rc,
 		tconfig.NewM365Account(t),
 		"backupID",
 		rsel.Selector,
