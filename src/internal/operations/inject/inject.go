@@ -61,7 +61,7 @@ type (
 			dcs []data.RestoreCollection,
 			errs *fault.Bus,
 			ctr *count.Bus,
-		) (*details.Details, error)
+		) (*details.Details, *data.CollectionStats, error)
 
 		IsServiceEnableder
 

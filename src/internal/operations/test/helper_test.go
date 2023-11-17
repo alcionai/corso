@@ -590,17 +590,13 @@ func generateContainerOfItems(
 		Selector:          sel,
 	}
 
-	deets, err := ctrl.ConsumeRestoreCollections(
+	deets, _, err := ctrl.ConsumeRestoreCollections(
 		ctx,
 		rcc,
 		dataColls,
 		fault.New(true),
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
-
-	// have to wait here, both to ensure the process
-	// finishes, and also to clean up the status
-	ctrl.Wait()
 
 	return deets
 }
