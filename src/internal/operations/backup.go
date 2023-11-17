@@ -7,6 +7,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 
+	size "github.com/DmitriyVTitov/size"
+
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -16,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
 	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -439,67 +442,104 @@ func (op *BackupOperation) do(
 		lastBackupVersion = mans.MinBackupVersion()
 	}
 
-	// TODO(ashmrtn): This should probably just return a collection that deletes
-	// the entire subtree instead of returning an additional bool. That way base
-	// selection is controlled completely by flags and merging is controlled
-	// completely by collections.
-	cs, ssmb, canUsePreviousBackup, err := produceBackupDataCollections(
-		ctx,
-		op.bp,
-		op.ResourceOwner,
-		op.Selectors,
-		mdColls,
-		lastBackupVersion,
-		op.Options,
-		op.Counter,
-		op.Errors)
-	if err != nil {
-		return nil, clues.Wrap(err, "producing backup data collections")
+	iterations := 3
+
+	for i := 0; i < iterations; i++ {
+		// TODO(ashmrtn): This should probably just return a collection that deletes
+		// the entire subtree instead of returning an additional bool. That way base
+		// selection is controlled completely by flags and merging is controlled
+		// completely by collections.
+		cs, _, _, err := produceBackupDataCollections(
+			ctx,
+			op.bp,
+			op.ResourceOwner,
+			op.Selectors,
+			mdColls,
+			lastBackupVersion,
+			op.Options,
+			op.Counter,
+			op.Errors)
+		if err != nil {
+			return nil, clues.Wrap(err, "producing backup data collections")
+		}
+
+		sum := 0
+		numItems := 0
+		mapSum := 0
+
+		for _, c := range cs {
+			v, ok := c.(*drive.Collection)
+			if !ok {
+				continue
+			}
+
+			m := v.GetDriveItemsMap()
+			for _, val := range m {
+				s := size.Of(val)
+				sum += s
+				numItems++
+			}
+
+			ms := size.Of(m)
+			mapSum += ms
+
+			logger.Ctx(ctx).Debugf("coll drive map size %d, num drive items %d\n", ms, len(m))
+		}
+
+		// print total sum
+		logger.Ctx(ctx).Debugf("itemSum %d, map sum %d, total items %d, mem used per item %f mem per item in map %f \n", sum, mapSum, numItems, float64(sum)/float64(numItems), float64(mapSum)/float64(numItems))
+
+		// Sleep for 4 mins to let the memory usage settle down so that we have a better
+		// picture. Also allows pprof to run twice during this time.
+		// time.Sleep(4 * time.Minute)
 	}
 
-	ctx = clues.Add(
-		ctx,
-		"can_use_previous_backup", canUsePreviousBackup,
-		"collection_count", len(cs))
+	return nil, clues.New("failed")
 
-	writeStats, deets, toMerge, err := consumeBackupCollections(
-		ctx,
-		op.kopia,
-		op.account.ID(),
-		reasons,
-		mans,
-		cs,
-		ssmb,
-		backupID,
-		op.incremental && canUseMetadata && canUsePreviousBackup,
-		op.Counter,
-		op.Errors)
-	if err != nil {
-		return nil, clues.Wrap(err, "persisting collection backups")
-	}
+	// ctx = clues.Add(
+	// 	ctx,
+	// 	"can_use_previous_backup", canUsePreviousBackup,
+	// 	"collection_count", len(cs))
 
-	opStats.hasNewDetailEntries = (deets != nil && !deets.Empty()) ||
-		(toMerge != nil && toMerge.ItemsToMerge() > 0)
-	opStats.k = writeStats
+	// writeStats, deets, toMerge, err := consumeBackupCollections(
+	// 	ctx,
+	// 	op.kopia,
+	// 	op.account.ID(),
+	// 	reasons,
+	// 	mans,
+	// 	cs,
+	// 	ssmb,
+	// 	backupID,
+	// 	op.incremental && canUseMetadata && canUsePreviousBackup,
+	// 	op.Counter,
+	// 	op.Errors)
+	// if err != nil {
+	// 	return nil, clues.Wrap(err, "persisting collection backups")
+	// }
 
-	err = mergeDetails(
-		ctx,
-		detailsStore,
-		mans,
-		toMerge,
-		deets,
-		writeStats,
-		op.Selectors.PathService(),
-		op.Errors)
-	if err != nil {
-		return nil, clues.Wrap(err, "merging details")
-	}
+	// opStats.hasNewDetailEntries = (deets != nil && !deets.Empty()) ||
+	// 	(toMerge != nil && toMerge.ItemsToMerge() > 0)
+	// opStats.k = writeStats
 
-	opStats.ctrl = op.bp.Wait()
+	// err = mergeDetails(
+	// 	ctx,
+	// 	detailsStore,
+	// 	mans,
+	// 	toMerge,
+	// 	deets,
+	// 	writeStats,
+	// 	op.Selectors.PathService(),
+	// 	op.Errors)
+	// if err != nil {
+	// 	return nil, clues.Wrap(err, "merging details")
+	// }
 
-	logger.Ctx(ctx).Debug(opStats.ctrl)
+	// opStats.ctrl = op.bp.Wait()
 
-	return deets, nil
+	// logger.Ctx(ctx).Debug(opStats.ctrl)
+
+	// return deets, nil
+
 }
 
 func makeFallbackReasons(tenant string, sel selectors.Selector) ([]identity.Reasoner, error) {

@@ -92,6 +92,10 @@ type Collection struct {
 	counter *count.Bus
 }
 
+func (c *Collection) GetDriveItemsMap() map[string]models.DriveItemable {
+	return c.driveItems
+}
+
 func pathToLocation(p path.Path) (*path.Builder, error) {
 	if p == nil {
 		return nil, nil
