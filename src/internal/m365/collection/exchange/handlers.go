@@ -22,6 +22,9 @@ import (
 type backupHandler interface {
 	itemEnumerator() addedAndRemovedItemGetter
 	itemHandler() itemGetterSerializer
+	folderGetter() containerGetter
+	previewIncludeContainers() []string
+	previewExcludeContainers() []string
 	NewContainerCache(userID string) (string, graph.ContainerResolver)
 }
 
