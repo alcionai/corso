@@ -913,20 +913,18 @@ func (c *Collections) PopulateDriveCollections(
 
 			// Check if we got the max number of containers we're looking for and also
 			// processed items for the final container.
-			if limiter.enabled() {
-				if item.GetFolder() != nil || item.GetPackageEscaped() != nil {
-					id := ptr.Val(item.GetId())
+			if item.GetFolder() != nil || item.GetPackageEscaped() != nil {
+				id := ptr.Val(item.GetId())
 
-					// Don't check for containers we've already seen.
-					if _, ok := c.CollectionMap[driveID][id]; !ok {
-						if id != lastContainerID {
-							if limiter.atLimit(stats) {
-								break
-							}
-
-							lastContainerID = id
-							stats.numContainers++
+				// Don't check for containers we've already seen.
+				if _, ok := c.CollectionMap[driveID][id]; !ok {
+					if id != lastContainerID {
+						if limiter.atLimit(stats) {
+							break
 						}
+
+						lastContainerID = id
+						stats.numContainers++
 					}
 				}
 			}
