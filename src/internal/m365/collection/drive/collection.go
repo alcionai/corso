@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -99,8 +98,8 @@ type CorsoDriveItemable interface {
 	GetId() *string
 	GetName() *string
 	GetSize() *int64
-	GetFile() models.Fileable
-	GetFolder() models.Folderable
+	GetFile() interface{}
+	GetFolder() interface{}
 	GetAdditionalData() map[string]interface{}
 	GetParentReference() models.ItemReferenceable
 	SetParentReference(models.ItemReferenceable)
@@ -118,8 +117,8 @@ type CorsoDriveItem struct {
 	ID                   *string
 	Name                 *string
 	Size                 *int64
-	File                 models.Fileable
-	Folder               models.Folderable
+	File                 interface{}
+	Folder               interface{}
 	AdditionalData       map[string]interface{}
 	ParentReference      models.ItemReferenceable
 	Shared               models.Sharedable
@@ -143,11 +142,11 @@ func (c *CorsoDriveItem) GetSize() *int64 {
 	return c.Size
 }
 
-func (c *CorsoDriveItem) GetFile() models.Fileable {
+func (c *CorsoDriveItem) GetFile() interface{} {
 	return c.File
 }
 
-func (c *CorsoDriveItem) GetFolder() models.Folderable {
+func (c *CorsoDriveItem) GetFolder() interface{} {
 	return c.Folder
 }
 
@@ -197,12 +196,12 @@ func (c *CorsoDriveItem) GetRoot() models.Rootable {
 
 // models.DriveItemable to CorsoDriveItemable
 func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
-	return &CorsoDriveItem{
+	cdi := &CorsoDriveItem{
 		ID:                   item.GetId(),
 		Name:                 item.GetName(),
 		Size:                 item.GetSize(),
-		File:                 item.GetFile(),
-		Folder:               item.GetFolder(),
+		File:                 true,
+		Folder:               true,
 		ParentReference:      item.GetParentReference(),
 		Shared:               item.GetShared(),
 		CreatedBy:            item.GetCreatedBy(),
@@ -213,6 +212,16 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 		Deleted:              item.GetDeleted(),
 		Root:                 item.GetRoot(),
 	}
+
+	if item.GetFolder() == nil {
+		cdi.Folder = nil
+	}
+
+	if item.GetFile() == nil {
+		cdi.File = nil
+	}
+
+	return cdi
 }
 
 func (c *Collection) GetDriveItemsMap() map[string]CorsoDriveItemable {
@@ -420,35 +429,35 @@ func (oc *Collection) getDriveItemContent(
 			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
 
-		var itemMimeType string
-		if item.GetFile() != nil {
-			itemMimeType = ptr.Val(item.GetFile().GetMimeType())
-		}
-		// Skip big OneNote files as they can't be downloaded
-		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
-			// oc.isPackageOrChildOfPackage && *item.GetSize() >= MaxOneNoteFileSize {
-			// TODO: We've removed the file size check because it looks like we've seen persistent
-			// 503's with smaller OneNote files also.
-			oc.isPackageOrChildOfPackage || strings.EqualFold(itemMimeType, oneNoteMimeType) {
-			// FIXME: It is possible that in case of a OneNote file we
-			// will end up just backing up the `onetoc2` file without
-			// the one file which is the important part of the OneNote
-			// "item". This will have to be handled during the
-			// restore, or we have to handle it separately by somehow
-			// deleting the entire collection.
-			logger.
-				CtxErr(ctx, err).
-				With("skipped_reason", fault.SkipOneNote).
-				Info("inaccessible one note file")
-			// errs.AddSkip(ctx, fault.FileSkip(
-			// 	fault.SkipOneNote,
-			// 	driveID,
-			// 	itemID,
-			// 	itemName,
-			// 	graph.ItemInfo(item)))
+		// var itemMimeType string
+		// if item.GetFile() != nil {
+		// 	itemMimeType = ptr.Val(item.GetFile().GetMimeType())
+		// }
+		// // Skip big OneNote files as they can't be downloaded
+		// if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
+		// 	// oc.isPackageOrChildOfPackage && *item.GetSize() >= MaxOneNoteFileSize {
+		// 	// TODO: We've removed the file size check because it looks like we've seen persistent
+		// 	// 503's with smaller OneNote files also.
+		// 	oc.isPackageOrChildOfPackage || strings.EqualFold(itemMimeType, oneNoteMimeType) {
+		// 	// FIXME: It is possible that in case of a OneNote file we
+		// 	// will end up just backing up the `onetoc2` file without
+		// 	// the one file which is the important part of the OneNote
+		// 	// "item". This will have to be handled during the
+		// 	// restore, or we have to handle it separately by somehow
+		// 	// deleting the entire collection.
+		// 	logger.
+		// 		CtxErr(ctx, err).
+		// 		With("skipped_reason", fault.SkipOneNote).
+		// 		Info("inaccessible one note file")
+		// 	// errs.AddSkip(ctx, fault.FileSkip(
+		// 	// 	fault.SkipOneNote,
+		// 	// 	driveID,
+		// 	// 	itemID,
+		// 	// 	itemName,
+		// 	// 	graph.ItemInfo(item)))
 
-			return nil, clues.Wrap(err, "inaccesible oneNote item").Label(graph.LabelsSkippable)
-		}
+		// 	return nil, clues.Wrap(err, "inaccesible oneNote item").Label(graph.LabelsSkippable)
+		// }
 
 		errs.AddRecoverable(
 			ctx,
