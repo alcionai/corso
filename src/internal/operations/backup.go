@@ -7,8 +7,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 
-	size "github.com/DmitriyVTitov/size"
-
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -465,11 +463,12 @@ func (op *BackupOperation) do(
 
 		// Sleep for 4 mins to let the memory usage settle down so that we have a better
 		// picture. Also allows pprof to run twice during this time.
+		// Do some meaningless work after to make sure the collections dont get garbage collected
 		time.Sleep(4 * time.Minute)
 
-		sum := 0
-		numItems := 0
-		mapSum := 0
+		// sum := 0
+		// numItems := 0
+		// mapSum := 0
 
 		for _, c := range cs {
 			v, ok := c.(*drive.Collection)
@@ -478,20 +477,26 @@ func (op *BackupOperation) do(
 			}
 
 			m := v.GetDriveItemsMap()
-			for _, val := range m {
-				s := size.Of(val)
-				sum += s
-				numItems++
+			for key := range m {
+				logger.Ctx(ctx).Debug(key)
 			}
 
-			ms := size.Of(m)
-			mapSum += ms
+			// Get sizeof recursively using reflect
+			// m := v.GetDriveItemsMap()
+			// for _, val := range m {
+			// 	s := size.Of(val)
+			// 	sum += s
+			// 	numItems++
+			// }
 
-			logger.Ctx(ctx).Debugf("coll drive map size %d, num drive items %d\n", ms, len(m))
+			// ms := size.Of(m)
+			// mapSum += ms
+
+			// logger.Ctx(ctx).Debugf("coll drive map size %d, num drive items %d\n", ms, len(m))
 		}
 
 		// print total sum
-		logger.Ctx(ctx).Debugf("itemSum %d, map sum %d, total items %d, mem used per item %f mem per item in map %f \n", sum, mapSum, numItems, float64(sum)/float64(numItems), float64(mapSum)/float64(numItems))
+		// logger.Ctx(ctx).Debugf("itemSum %d, map sum %d, total items %d, mem used per item %f mem per item in map %f \n", sum, mapSum, numItems, float64(sum)/float64(numItems), float64(mapSum)/float64(numItems))
 	}
 
 	return nil, clues.New("failed")
