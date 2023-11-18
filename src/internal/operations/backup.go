@@ -491,7 +491,7 @@ func (op *BackupOperation) do(
 
 		// Sleep for 4 mins to let the memory usage settle down so that we have a better
 		// picture. Also allows pprof to run twice during this time.
-		// time.Sleep(4 * time.Minute)
+		time.Sleep(3 * time.Minute)
 	}
 
 	return nil, clues.New("failed")
