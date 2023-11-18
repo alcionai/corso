@@ -331,6 +331,8 @@ func (edi *DriveItemsDeltaPager) NextPage() ([]models.DriveItemable, bool, bool)
 	return np.Items, np.Reset, false
 }
 
+func (edi *DriveItemsDeltaPager) Cancel() {}
+
 func (edi *DriveItemsDeltaPager) Results() (pagers.DeltaUpdate, error) {
 	return edi.DeltaUpdate, edi.Err
 }

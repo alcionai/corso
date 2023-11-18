@@ -43,7 +43,8 @@ type PreviewItemLimits struct {
 	MaxItems             int
 	MaxItemsPerContainer int
 	MaxContainers        int
-	MaxBytes             int
+	MaxBytes             int64
+	MaxPages             int
 	Enabled              bool
 }
 
@@ -109,4 +110,7 @@ type Toggles struct {
 	// Setting this flag switches exchange backups to fallback to the default token
 	// bucket rate limiter.
 	DisableSlidingWindowLimiter bool `json:"disableSlidingWindowLimiter"`
+
+	// see: https://github.com/alcionai/corso/issues/4688
+	UseDeltaTree bool `json:"useDeltaTree"`
 }
