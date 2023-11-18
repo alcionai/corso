@@ -34,9 +34,9 @@ func main() {
 				var m runtime.MemStats
 				runtime.ReadMemStats(&m)
 
-				// if mem > 5GB and we havent captured a profile this min, capture it
+				// if mem > 3GB and we havent captured a profile this min, capture it
 				t := time.Now().Truncate(time.Minute)
-				if m.HeapAlloc > 5*1024*1024*1024 && perMinuteMap[t] == 0 {
+				if m.HeapAlloc > 3*1024*1024*1024 && perMinuteMap[t] == 0 {
 					filename := "mem." + strconv.Itoa(profileCounter) + ".pprof"
 
 					f, _ := os.Create(filename)
