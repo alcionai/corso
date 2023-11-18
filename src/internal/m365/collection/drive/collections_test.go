@@ -4262,6 +4262,283 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits() {
 	}
 }
 
+// TestGet_PreviewLimits_Defaults checks that default values are used when
+// making a preview backup if the user didn't provide some options.
+// These tests run a reduced set of checks that really just look for item counts
+// and such. Other tests are expected to provide more comprehensive checks.
+func (suite *CollectionsUnitSuite) TestGet_PreviewLimits_Defaults() {
+	// Add a check that will fail if we make the default smaller than expected.
+	require.LessOrEqual(
+		suite.T(),
+		int64(1024*1024),
+		defaultPreviewNumBytes,
+		"default number of bytes changed; DefaultNumBytes test case may need updating!")
+	require.Zero(
+		suite.T(),
+		defaultPreviewNumBytes%(1024*1024),
+		"default number of bytes isn't divisible by 1MB; DefaultNumBytes test case may need updating!")
+
+	// The number of pages returned can be indirectly tested by checking how many
+	// containers/items were returned.
+	type expected struct {
+		numItems             int
+		numContainers        int
+		numItemsPerContainer int
+	}
+
+	metadataPath, err := path.BuildMetadata(
+		tenant,
+		user,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
+
+	drive1 := models.NewDrive()
+	drive1.SetId(ptr.To(idx(drive, 1)))
+	drive1.SetName(ptr.To(namex(drive, 1)))
+
+	// The number of pages the test generates can be controlled by setting the
+	// number of containers. The test will put one (non-root) container per page.
+	table := []struct {
+		name                 string
+		numContainers        int
+		numItemsPerContainer int
+		itemSize             int64
+		limits               control.PreviewItemLimits
+		expect               expected
+	}{
+		{
+			name:                 "DefaultNumItems",
+			numContainers:        1,
+			numItemsPerContainer: defaultPreviewNumItems + 1,
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
+				MaxItemsPerContainer: 99999999,
+				MaxContainers:        99999999,
+				MaxBytes:             99999999,
+				MaxPages:             99999999,
+			},
+			expect: expected{
+				numItems:             defaultPreviewNumItems,
+				numContainers:        1,
+				numItemsPerContainer: defaultPreviewNumItems,
+			},
+		},
+		{
+			name:                 "DefaultNumContainers",
+			numContainers:        defaultPreviewNumContainers + 1,
+			numItemsPerContainer: 1,
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
+				MaxItems:             99999999,
+				MaxItemsPerContainer: 99999999,
+				MaxBytes:             99999999,
+				MaxPages:             99999999,
+			},
+			expect: expected{
+				// Root is counted as a container in the code but won't be counted or
+				// have items in the test.
+				numItems:             defaultPreviewNumContainers - 1,
+				numContainers:        defaultPreviewNumContainers - 1,
+				numItemsPerContainer: 1,
+			},
+		},
+		{
+			name:                 "DefaultNumItemsPerContainer",
+			numContainers:        1,
+			numItemsPerContainer: defaultPreviewNumItemsPerContainer + 1,
+			limits: control.PreviewItemLimits{
+				Enabled:       true,
+				MaxItems:      99999999,
+				MaxContainers: 99999999,
+				MaxBytes:      99999999,
+				MaxPages:      99999999,
+			},
+			expect: expected{
+				numItems:             defaultPreviewNumItemsPerContainer,
+				numContainers:        1,
+				numItemsPerContainer: defaultPreviewNumItemsPerContainer,
+			},
+		},
+		{
+			name:                 "DefaultNumPages",
+			numContainers:        defaultPreviewNumPages + 1,
+			numItemsPerContainer: 1,
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
+				MaxItems:             99999999,
+				MaxContainers:        99999999,
+				MaxItemsPerContainer: 99999999,
+				MaxBytes:             99999999,
+			},
+			expect: expected{
+				numItems:             defaultPreviewNumPages,
+				numContainers:        defaultPreviewNumPages,
+				numItemsPerContainer: 1,
+			},
+		},
+		{
+			name:                 "DefaultNumBytes",
+			numContainers:        1,
+			numItemsPerContainer: int(defaultPreviewNumBytes/1024/1024) + 1,
+			itemSize:             1024 * 1024,
+			limits: control.PreviewItemLimits{
+				Enabled:              true,
+				MaxItems:             99999999,
+				MaxContainers:        99999999,
+				MaxItemsPerContainer: 99999999,
+				MaxPages:             99999999,
+			},
+			expect: expected{
+				numItems:             int(defaultPreviewNumBytes) / 1024 / 1024,
+				numContainers:        1,
+				numItemsPerContainer: int(defaultPreviewNumBytes) / 1024 / 1024,
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			mockDrivePager := &apiMock.Pager[models.Driveable]{
+				ToReturn: []apiMock.PagerResult[models.Driveable]{
+					{Values: []models.Driveable{drive1}},
+				},
+			}
+
+			mbh := mock.DefaultOneDriveBH(user)
+			mbh.DrivePagerV = mockDrivePager
+
+			pages := make([]mock.NextPage, 0, test.numContainers)
+
+			for containerIdx := 0; containerIdx < test.numContainers; containerIdx++ {
+				page := mock.NextPage{
+					Items: []models.DriveItemable{
+						driveRootItem(rootID),
+						driveItem(
+							idx(folder, containerIdx),
+							namex(folder, containerIdx),
+							parent(1),
+							rootID,
+							isFolder),
+					},
+				}
+
+				for itemIdx := 0; itemIdx < test.numItemsPerContainer; itemIdx++ {
+					itemSuffix := fmt.Sprintf("%d-%d", containerIdx, itemIdx)
+
+					page.Items = append(page.Items, driveItemWithSize(
+						idx(file, itemSuffix),
+						namex(file, itemSuffix),
+						parent(1, namex(folder, containerIdx)),
+						idx(folder, containerIdx),
+						test.itemSize,
+						isFile))
+				}
+
+				pages = append(pages, page)
+			}
+
+			mbh.DriveItemEnumeration = mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					idx(drive, 1): {
+						Pages:       pages,
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			}
+
+			opts := control.DefaultOptions()
+			opts.PreviewLimits = test.limits
+
+			c := NewCollections(
+				mbh,
+				tenant,
+				idname.NewProvider(user, user),
+				func(*support.ControllerOperationStatus) {},
+				opts,
+				count.New())
+
+			errs := fault.New(true)
+
+			delList := prefixmatcher.NewStringSetBuilder()
+
+			cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.True(t, canUsePreviousBackup, "can use previous backup")
+			assert.Empty(t, errs.Skipped())
+
+			var (
+				numContainers int
+				numItems      int
+			)
+
+			for _, baseCol := range cols {
+				// There shouldn't be any deleted collections.
+				if !assert.NotEqual(
+					t,
+					data.DeletedState,
+					baseCol.State(),
+					"collection marked deleted") {
+					continue
+				}
+
+				folderPath := baseCol.FullPath().String()
+
+				if folderPath == metadataPath.String() {
+					continue
+				}
+
+				// Skip the root container and don't count it because we don't put
+				// anything in it.
+				dp, err := path.ToDrivePath(baseCol.FullPath())
+				require.NoError(t, err, clues.ToCore(err))
+
+				if len(dp.Folders) == 0 {
+					continue
+				}
+
+				numContainers++
+
+				// TODO: We should really be getting items in the collection
+				// via the Items() channel. The lack of that makes this check a bit more
+				// bittle since internal details can change.  The wiring to support
+				// mocked GetItems is available.  We just haven't plugged it in yet.
+				col, ok := baseCol.(*Collection)
+				require.True(t, ok, "getting onedrive.Collection handle")
+
+				numItems += len(col.driveItems)
+
+				// Add one to account for the folder permissions item.
+				assert.Len(
+					t,
+					col.driveItems,
+					test.expect.numItemsPerContainer+1,
+					"items in container %v",
+					col.FullPath())
+			}
+
+			assert.Equal(
+				t,
+				test.expect.numContainers,
+				numContainers,
+				"total containers")
+
+			// Each container also gets an item so account for that here.
+			assert.Equal(
+				t,
+				test.expect.numItems+test.expect.numContainers,
+				numItems,
+				"total items across all containers")
+		})
+	}
+}
+
 func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 	drive1 := models.NewDrive()
 	drive1.SetId(ptr.To(idx(drive, 1)))
