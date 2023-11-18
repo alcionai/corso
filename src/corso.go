@@ -15,7 +15,11 @@ import (
 	"github.com/pkg/profile"
 )
 
-var profileTicker = time.NewTicker(120 * time.Second)
+var profileTicker = time.NewTicker(1 * time.Second)
+var perMinuteMap = make(map[time.Time]int)
+
+//var profileTicker = time.NewTicker(120 * time.Second)
+
 var printTicker = time.NewTicker(1 * time.Second)
 var profileCounter = 0
 
@@ -27,16 +31,24 @@ func main() {
 		for {
 			select {
 			case <-profileTicker.C:
-				filename := "mem." + strconv.Itoa(profileCounter) + ".pprof"
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
 
-				f, _ := os.Create(filename)
-				if err := pprof.WriteHeapProfile(f); err != nil {
-					log.Fatal("could not write memory profile: ", err)
+				// if mem > 5GB and we havent captured a profile this min, capture it
+				t := time.Now().Truncate(time.Minute)
+				if m.HeapAlloc > 5*1024*1024*1024 && perMinuteMap[t] == 0 {
+					filename := "mem." + strconv.Itoa(profileCounter) + ".pprof"
+
+					f, _ := os.Create(filename)
+					if err := pprof.WriteHeapProfile(f); err != nil {
+						log.Fatal("could not write memory profile: ", err)
+					}
+
+					f.Close()
+
+					profileCounter++
+					perMinuteMap[t] = 1
 				}
-
-				f.Close()
-
-				profileCounter++
 
 			}
 		}
