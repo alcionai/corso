@@ -863,7 +863,7 @@ func restoreFile(
 	dii := ir.AugmentItemInfo(
 		details.ItemInfo{},
 		rcc.ProtectedResource,
-		newItem,
+		nil,
 		written,
 		nil)
 

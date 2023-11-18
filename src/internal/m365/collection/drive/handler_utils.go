@@ -3,12 +3,10 @@ package drive
 import (
 	"strings"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-
 	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
-func getItemCreator(item models.DriveItemable) string {
+func getItemCreator(item CorsoDriveItemable) string {
 	if item.GetCreatedBy() == nil || item.GetCreatedBy().GetUser() == nil {
 		return ""
 	}
@@ -30,7 +28,7 @@ func getItemCreator(item models.DriveItemable) string {
 	return *ed.(*string)
 }
 
-func getItemDriveInfo(item models.DriveItemable) (string, string) {
+func getItemDriveInfo(item CorsoDriveItemable) (string, string) {
 	if item.GetParentReference() == nil {
 		return "", ""
 	}

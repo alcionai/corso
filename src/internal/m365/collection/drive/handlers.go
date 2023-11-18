@@ -23,7 +23,7 @@ type ItemInfoAugmenter interface {
 	AugmentItemInfo(
 		dii details.ItemInfo,
 		resource idname.Provider,
-		item models.DriveItemable,
+		item CorsoDriveItemable,
 		size int64,
 		parentPath *path.Builder,
 	) details.ItemInfo

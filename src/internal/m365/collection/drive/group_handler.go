@@ -2,7 +2,6 @@ package drive
 
 import (
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -105,7 +104,7 @@ func (h groupBackupHandler) SitePathPrefix(tenantID string) (path.Path, error) {
 func (h groupBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	resource idname.Provider,
-	item models.DriveItemable,
+	item CorsoDriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
