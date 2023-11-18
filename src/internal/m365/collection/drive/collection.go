@@ -119,6 +119,7 @@ type CorsoDriveItem struct {
 	Name                 *string
 	Size                 *int64
 	File                 models.Fileable
+	Folder               models.Folderable
 	AdditionalData       map[string]interface{}
 	ParentReference      models.ItemReferenceable
 	Shared               models.Sharedable
@@ -146,8 +147,8 @@ func (c *CorsoDriveItem) GetFile() models.Fileable {
 	return c.File
 }
 
-func (c *CorsoDriveItem) GetFolder() *models.Folder {
-	return nil
+func (c *CorsoDriveItem) GetFolder() models.Folderable {
+	return c.Folder
 }
 
 func (c *CorsoDriveItem) GetAdditionalData() map[string]interface{} {
@@ -201,6 +202,7 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 		Name:                 item.GetName(),
 		Size:                 item.GetSize(),
 		File:                 item.GetFile(),
+		Folder:               item.GetFolder(),
 		ParentReference:      item.GetParentReference(),
 		Shared:               item.GetShared(),
 		CreatedBy:            item.GetCreatedBy(),
