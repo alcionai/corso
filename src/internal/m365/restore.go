@@ -44,49 +44,45 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	var (
 		service = rcc.Selector.PathService()
 		status  *support.ControllerOperationStatus
-		deets   = &details.Builder{}
+		deets   *details.Details
 		err     error
 	)
 
 	switch service {
 	case path.ExchangeService:
-		status, err = exchange.ConsumeRestoreCollections(
+		deets, status, err = exchange.ConsumeRestoreCollections(
 			ctx,
 			ctrl.AC,
 			rcc,
 			dcs,
-			deets,
 			errs,
 			ctr)
 	case path.OneDriveService:
-		status, err = onedrive.ConsumeRestoreCollections(
+		deets, status, err = onedrive.ConsumeRestoreCollections(
 			ctx,
 			drive.NewUserDriveRestoreHandler(ctrl.AC),
 			rcc,
 			ctrl.backupDriveIDNames,
 			dcs,
-			deets,
 			errs,
 			ctr)
 	case path.SharePointService:
-		status, err = sharepoint.ConsumeRestoreCollections(
+		deets, status, err = sharepoint.ConsumeRestoreCollections(
 			ctx,
 			rcc,
 			ctrl.AC,
 			ctrl.backupDriveIDNames,
 			dcs,
-			deets,
 			errs,
 			ctr)
 	case path.GroupsService:
-		status, err = groups.ConsumeRestoreCollections(
+		deets, status, err = groups.ConsumeRestoreCollections(
 			ctx,
 			rcc,
 			ctrl.AC,
 			ctrl.backupDriveIDNames,
 			ctrl.backupSiteIDWebURL,
 			dcs,
-			deets,
 			errs,
 			ctr)
 	default:
@@ -96,5 +92,5 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	ctrl.incrementAwaitingMessages()
 	ctrl.UpdateStatus(status)
 
-	return deets.Details(), err
+	return deets, err
 }

@@ -32,11 +32,11 @@ func ConsumeRestoreCollections(
 	backupDriveIDNames idname.Cacher,
 	backupSiteIDWebURL idname.Cacher,
 	dcs []data.RestoreCollection,
-	deets *details.Builder,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*support.ControllerOperationStatus, error) {
+) (*details.Details, *support.ControllerOperationStatus, error) {
 	var (
+		deets             = &details.Builder{}
 		restoreMetrics    support.CollectionMetrics
 		caches            = drive.NewRestoreCaches(backupDriveIDNames)
 		lrh               = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
@@ -97,7 +97,7 @@ func ConsumeRestoreCollections(
 
 			err = caches.Populate(ictx, lrh, srcc.ProtectedResource.ID())
 			if err != nil {
-				return nil, clues.Wrap(err, "initializing restore caches")
+				return nil, nil, clues.Wrap(err, "initializing restore caches")
 			}
 
 			metrics, err = drive.RestoreCollection(
@@ -114,7 +114,7 @@ func ConsumeRestoreCollections(
 			// Message cannot be restored as of now using Graph API.
 			logger.Ctx(ictx).Debug("Skipping restore for channel messages")
 		default:
-			return nil, clues.NewWC(ictx, "data category not supported").
+			return nil, nil, clues.NewWC(ictx, "data category not supported").
 				With("category", category)
 		}
 
@@ -136,7 +136,7 @@ func ConsumeRestoreCollections(
 		restoreMetrics,
 		rcc.RestoreConfig.Location)
 
-	return status, el.Failure()
+	return deets.Details(), status, el.Failure()
 }
 
 func getSiteName(

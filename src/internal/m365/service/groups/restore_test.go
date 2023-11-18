@@ -53,14 +53,13 @@ func (suite *GroupsUnitSuite) TestConsumeRestoreCollections_noErrorOnGroups() {
 		mock.Collection{Path: pth},
 	}
 
-	_, err = ConsumeRestoreCollections(
+	_, _, err = ConsumeRestoreCollections(
 		ctx,
 		rcc,
 		api.Client{},
 		idname.NewCache(map[string]string{}),
 		idname.NewCache(map[string]string{}),
 		dcs,
-		nil,
 		fault.New(false),
 		nil)
 	assert.NoError(t, err, "Groups Channels restore")
