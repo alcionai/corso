@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
 	"time"
@@ -20,6 +21,7 @@ var profileCounter = 0
 
 func main() {
 	defer profile.Start(profile.MemProfile).Stop()
+	debug.SetMemoryLimit(2 * 1024 * 1024 * 1024)
 
 	go func() {
 		for {
@@ -59,8 +61,8 @@ func PrintMemUsage() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	logger.Ctx(ctx).Info("Alloc = ", bToMb(m.Alloc), " MB")
-	logger.Ctx(ctx).Info("TotalAlloc = ", bToMb(m.TotalAlloc), " MB")
+	// logger.Ctx(ctx).Info("Alloc = ", bToMb(m.Alloc), " MB")
+	// logger.Ctx(ctx).Info("TotalAlloc = ", bToMb(m.TotalAlloc), " MB")
 	logger.Ctx(ctx).Info("HeapAlloc = ", bToMb(m.HeapAlloc), " MB") // same as Alloc
 
 	logger.Ctx(ctx).Info("HeapReleased = ", bToMb(m.HeapReleased), " MB")
@@ -69,13 +71,13 @@ func PrintMemUsage() {
 	logger.Ctx(ctx).Info("HeapIdle = ", bToMb(m.HeapIdle), " MB")
 	logger.Ctx(ctx).Info("HeapInuse = ", bToMb(m.HeapInuse), " MB")
 
-	logger.Ctx(ctx).Info("Mallocs = ", bToMb(m.Mallocs), " MB")
-	logger.Ctx(ctx).Info("Frees = ", bToMb(m.Frees), " MB")
+	// logger.Ctx(ctx).Info("Mallocs = ", bToMb(m.Mallocs), " MB")
+	// logger.Ctx(ctx).Info("Frees = ", bToMb(m.Frees), " MB")
 
-	logger.Ctx(ctx).Info("StackInuse = ", bToMb(m.StackInuse), " MB")
-	logger.Ctx(ctx).Info("StackSys = ", bToMb(m.StackSys), " MB")
+	// logger.Ctx(ctx).Info("StackInuse = ", bToMb(m.StackInuse), " MB")
+	// logger.Ctx(ctx).Info("StackSys = ", bToMb(m.StackSys), " MB")
 
-	logger.Ctx(ctx).Info("Sys = ", bToMb(m.Sys), " MB")
+	// logger.Ctx(ctx).Info("Sys = ", bToMb(m.Sys), " MB")
 	logger.Ctx(ctx).Info("NumGC = ", m.NumGC)
 }
 
