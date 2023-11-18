@@ -463,6 +463,10 @@ func (op *BackupOperation) do(
 			return nil, clues.Wrap(err, "producing backup data collections")
 		}
 
+		// Sleep for 4 mins to let the memory usage settle down so that we have a better
+		// picture. Also allows pprof to run twice during this time.
+		time.Sleep(4 * time.Minute)
+
 		sum := 0
 		numItems := 0
 		mapSum := 0
@@ -488,10 +492,6 @@ func (op *BackupOperation) do(
 
 		// print total sum
 		logger.Ctx(ctx).Debugf("itemSum %d, map sum %d, total items %d, mem used per item %f mem per item in map %f \n", sum, mapSum, numItems, float64(sum)/float64(numItems), float64(mapSum)/float64(numItems))
-
-		// Sleep for 4 mins to let the memory usage settle down so that we have a better
-		// picture. Also allows pprof to run twice during this time.
-		time.Sleep(3 * time.Minute)
 	}
 
 	return nil, clues.New("failed")

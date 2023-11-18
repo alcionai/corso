@@ -38,7 +38,8 @@ func main() {
 				// if mem > 3GB and we havent captured a profile this min, capture it
 				// or if its been 2 mins since last profile, capture it
 				t := time.Now().Truncate(time.Minute)
-				if (m.HeapAlloc > uint64(3*1024*1024*1024) && perMinuteMap[t] == 0) || time.Since(timeSinceRefresh) > 2*time.Minute {
+				//if (m.HeapAlloc > uint64(3*1024*1024*1024) && perMinuteMap[t] == 0) || time.Since(timeSinceRefresh) > 2*time.Minute {
+				if time.Since(timeSinceRefresh) > 2*time.Minute {
 					filename := "mem." + strconv.Itoa(profileCounter) + ".pprof"
 
 					f, _ := os.Create(filename)
