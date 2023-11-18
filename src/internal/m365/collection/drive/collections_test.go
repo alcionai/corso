@@ -4271,11 +4271,11 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits_Defaults() {
 	require.LessOrEqual(
 		suite.T(),
 		int64(1024*1024),
-		defaultPreviewNumBytes,
+		defaultPreviewMaxBytes,
 		"default number of bytes changed; DefaultNumBytes test case may need updating!")
 	require.Zero(
 		suite.T(),
-		defaultPreviewNumBytes%(1024*1024),
+		defaultPreviewMaxBytes%(1024*1024),
 		"default number of bytes isn't divisible by 1MB; DefaultNumBytes test case may need updating!")
 
 	// The number of pages returned can be indirectly tested by checking how many
@@ -4311,7 +4311,7 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits_Defaults() {
 		{
 			name:                 "DefaultNumItems",
 			numContainers:        1,
-			numItemsPerContainer: defaultPreviewNumItems + 1,
+			numItemsPerContainer: defaultPreviewMaxItems + 1,
 			limits: control.PreviewItemLimits{
 				Enabled:              true,
 				MaxItemsPerContainer: 99999999,
@@ -4320,14 +4320,14 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits_Defaults() {
 				MaxPages:             99999999,
 			},
 			expect: expected{
-				numItems:             defaultPreviewNumItems,
+				numItems:             defaultPreviewMaxItems,
 				numContainers:        1,
-				numItemsPerContainer: defaultPreviewNumItems,
+				numItemsPerContainer: defaultPreviewMaxItems,
 			},
 		},
 		{
 			name:                 "DefaultNumContainers",
-			numContainers:        defaultPreviewNumContainers + 1,
+			numContainers:        defaultPreviewMaxContainers + 1,
 			numItemsPerContainer: 1,
 			limits: control.PreviewItemLimits{
 				Enabled:              true,
@@ -4339,15 +4339,15 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits_Defaults() {
 			expect: expected{
 				// Root is counted as a container in the code but won't be counted or
 				// have items in the test.
-				numItems:             defaultPreviewNumContainers - 1,
-				numContainers:        defaultPreviewNumContainers - 1,
+				numItems:             defaultPreviewMaxContainers - 1,
+				numContainers:        defaultPreviewMaxContainers - 1,
 				numItemsPerContainer: 1,
 			},
 		},
 		{
 			name:                 "DefaultNumItemsPerContainer",
 			numContainers:        1,
-			numItemsPerContainer: defaultPreviewNumItemsPerContainer + 1,
+			numItemsPerContainer: defaultPreviewMaxItemsPerContainer + 1,
 			limits: control.PreviewItemLimits{
 				Enabled:       true,
 				MaxItems:      99999999,
@@ -4356,14 +4356,14 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits_Defaults() {
 				MaxPages:      99999999,
 			},
 			expect: expected{
-				numItems:             defaultPreviewNumItemsPerContainer,
+				numItems:             defaultPreviewMaxItemsPerContainer,
 				numContainers:        1,
-				numItemsPerContainer: defaultPreviewNumItemsPerContainer,
+				numItemsPerContainer: defaultPreviewMaxItemsPerContainer,
 			},
 		},
 		{
 			name:                 "DefaultNumPages",
-			numContainers:        defaultPreviewNumPages + 1,
+			numContainers:        defaultPreviewMaxPages + 1,
 			numItemsPerContainer: 1,
 			limits: control.PreviewItemLimits{
 				Enabled:              true,
@@ -4373,15 +4373,15 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits_Defaults() {
 				MaxBytes:             99999999,
 			},
 			expect: expected{
-				numItems:             defaultPreviewNumPages,
-				numContainers:        defaultPreviewNumPages,
+				numItems:             defaultPreviewMaxPages,
+				numContainers:        defaultPreviewMaxPages,
 				numItemsPerContainer: 1,
 			},
 		},
 		{
 			name:                 "DefaultNumBytes",
 			numContainers:        1,
-			numItemsPerContainer: int(defaultPreviewNumBytes/1024/1024) + 1,
+			numItemsPerContainer: int(defaultPreviewMaxBytes/1024/1024) + 1,
 			itemSize:             1024 * 1024,
 			limits: control.PreviewItemLimits{
 				Enabled:              true,
@@ -4391,9 +4391,9 @@ func (suite *CollectionsUnitSuite) TestGet_PreviewLimits_Defaults() {
 				MaxPages:             99999999,
 			},
 			expect: expected{
-				numItems:             int(defaultPreviewNumBytes) / 1024 / 1024,
+				numItems:             int(defaultPreviewMaxBytes) / 1024 / 1024,
 				numContainers:        1,
-				numItemsPerContainer: int(defaultPreviewNumBytes) / 1024 / 1024,
+				numItemsPerContainer: int(defaultPreviewMaxBytes) / 1024 / 1024,
 			},
 		},
 	}

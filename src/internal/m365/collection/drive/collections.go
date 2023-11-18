@@ -32,11 +32,11 @@ import (
 const (
 	restrictedDirectory = "Site Pages"
 
-	defaultPreviewNumContainers              = 5
-	defaultPreviewNumItemsPerContainer       = 10
-	defaultPreviewNumItems                   = defaultPreviewNumContainers * defaultPreviewNumItemsPerContainer
-	defaultPreviewNumBytes             int64 = 100 * 1024 * 1024
-	defaultPreviewNumPages                   = 50
+	defaultPreviewMaxContainers              = 5
+	defaultPreviewMaxItemsPerContainer       = 10
+	defaultPreviewMaxItems                   = defaultPreviewMaxContainers * defaultPreviewMaxItemsPerContainer
+	defaultPreviewMaxBytes             int64 = 100 * 1024 * 1024
+	defaultPreviewMaxPages                   = 50
 )
 
 // Collections is used to retrieve drive data for a
@@ -761,23 +761,23 @@ func newPagerLimiter(opts control.Options) *pagerLimiter {
 	res := &pagerLimiter{limits: opts.PreviewLimits}
 
 	if res.limits.MaxContainers == 0 {
-		res.limits.MaxContainers = defaultPreviewNumContainers
+		res.limits.MaxContainers = defaultPreviewMaxContainers
 	}
 
 	if res.limits.MaxItemsPerContainer == 0 {
-		res.limits.MaxItemsPerContainer = defaultPreviewNumItemsPerContainer
+		res.limits.MaxItemsPerContainer = defaultPreviewMaxItemsPerContainer
 	}
 
 	if res.limits.MaxItems == 0 {
-		res.limits.MaxItems = defaultPreviewNumItems
+		res.limits.MaxItems = defaultPreviewMaxItems
 	}
 
 	if res.limits.MaxBytes == 0 {
-		res.limits.MaxBytes = defaultPreviewNumBytes
+		res.limits.MaxBytes = defaultPreviewMaxBytes
 	}
 
 	if res.limits.MaxPages == 0 {
-		res.limits.MaxPages = defaultPreviewNumPages
+		res.limits.MaxPages = defaultPreviewMaxPages
 	}
 
 	return res
