@@ -442,7 +442,7 @@ func (op *BackupOperation) do(
 		lastBackupVersion = mans.MinBackupVersion()
 	}
 
-	iterations := 3
+	iterations := 1
 
 	for i := 0; i < iterations; i++ {
 		// TODO(ashmrtn): This should probably just return a collection that deletes
