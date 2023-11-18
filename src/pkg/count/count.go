@@ -1,7 +1,7 @@
 package count
 
 import (
-	"github.com/puzpuzpuz/xsync/v2"
+	"github.com/puzpuzpuz/xsync/v3"
 )
 
 // Bus handles threadsafe counting of arbitrarily keyed metrics.
@@ -12,7 +12,7 @@ type Bus struct {
 
 func New() *Bus {
 	return &Bus{
-		stats: xsync.NewMapOf[*xsync.Counter](),
+		stats: xsync.NewMapOf[string, *xsync.Counter](),
 	}
 }
 

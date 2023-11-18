@@ -7,9 +7,9 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/puzpuzpuz/xsync/v2"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/syncd"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
@@ -21,7 +21,7 @@ import (
 
 func getParentMetadata(
 	parentPath path.Path,
-	parentDirToMeta *xsync.MapOf[string, metadata.Metadata],
+	parentDirToMeta syncd.MapTo[metadata.Metadata],
 ) (metadata.Metadata, error) {
 	parentMeta, ok := parentDirToMeta.Load(parentPath.String())
 	if !ok {
@@ -91,7 +91,7 @@ func getCollectionMetadata(
 func computePreviousLinkShares(
 	ctx context.Context,
 	originDir path.Path,
-	parentMetas *xsync.MapOf[string, metadata.Metadata],
+	parentMetas syncd.MapTo[metadata.Metadata],
 ) ([]metadata.LinkShare, error) {
 	linkShares := []metadata.LinkShare{}
 	ctx = clues.Add(ctx, "origin_dir", originDir)
@@ -141,7 +141,7 @@ func computePreviousMetadata(
 	ctx context.Context,
 	originDir path.Path,
 	// map parent dir -> parent's metadata
-	parentMetas *xsync.MapOf[string, metadata.Metadata],
+	parentMetas syncd.MapTo[metadata.Metadata],
 ) (metadata.Metadata, error) {
 	var (
 		parent path.Path
@@ -194,7 +194,7 @@ func UpdatePermissions(
 	driveID string,
 	itemID string,
 	permAdded, permRemoved []metadata.Permission,
-	oldPermIDToNewID *xsync.MapOf[string, string],
+	oldPermIDToNewID syncd.MapTo[string],
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
@@ -303,7 +303,7 @@ func UpdateLinkShares(
 	driveID string,
 	itemID string,
 	lsAdded, lsRemoved []metadata.LinkShare,
-	oldLinkShareIDToNewID *xsync.MapOf[string, string],
+	oldLinkShareIDToNewID syncd.MapTo[string],
 	errs *fault.Bus,
 ) (bool, error) {
 	// You can only delete inherited sharing links the first time you
