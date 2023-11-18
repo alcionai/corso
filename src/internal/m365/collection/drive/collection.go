@@ -100,7 +100,7 @@ type CorsoDriveItemable interface {
 	GetName() *string
 	GetSize() *int64
 	GetFile() models.Fileable
-	GetFolder() *models.Folder
+	GetFolder() models.Folderable
 	GetAdditionalData() map[string]interface{}
 	GetParentReference() models.ItemReferenceable
 	SetParentReference(models.ItemReferenceable)
