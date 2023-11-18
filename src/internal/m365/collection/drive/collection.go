@@ -215,6 +215,22 @@ func (oc *Collection) IsEmpty() bool {
 	return len(oc.driveItems) == 0
 }
 
+// ContainsItem returns true if the collection has the given item as one of its
+// children.
+func (oc Collection) ContainsItem(item models.DriveItemable) bool {
+	_, ok := oc.driveItems[ptr.Val(item.GetId())]
+	return ok
+}
+
+// AddedItems returns the number of non-deleted items in the collection.
+func (oc Collection) CountAddedItems() int {
+	// Subtract one since the folder is added to the collection so we get folder
+	// metadata. The collection of the root folder of the drive doesn't have its
+	// own folder reference since it doesn't have permissions the user can change,
+	// but it's close enough for our purposes.
+	return len(oc.driveItems) - 1
+}
+
 // Items() returns the channel containing M365 Exchange objects
 func (oc *Collection) Items(
 	ctx context.Context,
