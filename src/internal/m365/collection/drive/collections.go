@@ -787,6 +787,10 @@ type pagerLimiter struct {
 	limits control.PreviewItemLimits
 }
 
+func (l pagerLimiter) effectiveLimits() control.PreviewItemLimits {
+	return l.limits
+}
+
 func (l pagerLimiter) enabled() bool {
 	return l.limits.Enabled
 }
@@ -863,7 +867,10 @@ func (c *Collections) PopulateDriveCollections(
 	)
 
 	ctx = clues.Add(ctx, "invalid_prev_delta", invalidPrevDelta)
-	logger.Ctx(ctx).Infow("running backup with limiter", "limiter", limiter)
+	logger.Ctx(ctx).Infow(
+		"running backup",
+		"limits", c.ctrl.PreviewLimits,
+		"effective_limits", limiter.effectiveLimits())
 
 	if !invalidPrevDelta {
 		maps.Copy(newPrevPaths, oldPrevPaths)
