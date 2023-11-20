@@ -65,7 +65,7 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 		return nil, false, clues.Stack(err)
 	}
 
-	counter.Add(count.Channels, int64(len(channels)))
+	counter.Add(count.Channels, int64(len(containers)))
 
 	collections, err := populateCollections(
 		ctx,
