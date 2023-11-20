@@ -21,7 +21,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -699,45 +698,45 @@ func (c *Collections) getCollectionPath(
 	item models.DriveItemable,
 ) (path.Path, error) {
 	var (
-		pb     = odConsts.DriveFolderPrefixBuilder(driveID)
-		isRoot = item.GetRoot() != nil
-		isFile = item.GetFile() != nil
+		pb = odConsts.DriveFolderPrefixBuilder(driveID)
+		// isRoot = item.GetRoot() != nil
+		// isFile = item.GetFile() != nil
 	)
 
-	if !isRoot {
-		if item.GetParentReference() == nil ||
-			item.GetParentReference().GetPath() == nil {
-			err := clues.New("no parent reference").
-				With("item_name", clues.Hide(ptr.Val(item.GetName())))
+	// if !isRoot {
+	// 	if item.GetParentReference() == nil ||
+	// 		item.GetParentReference().GetPath() == nil {
+	// 		err := clues.New("no parent reference").
+	// 			With("item_name", clues.Hide(ptr.Val(item.GetName())))
 
-			return nil, err
-		}
+	// 		return nil, err
+	// 	}
 
-		pb = path.Builder{}.Append(path.Split(ptr.Val(item.GetParentReference().GetPath()))...)
-	}
+	// 	pb = path.Builder{}.Append(path.Split(ptr.Val(item.GetParentReference().GetPath()))...)
+	// }
 
 	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
 	if err != nil {
 		return nil, clues.Wrap(err, "making item path")
 	}
 
-	if isRoot || isFile {
-		return collectionPath, nil
-	}
+	// if isRoot || isFile {
+	// 	return collectionPath, nil
+	// }
 
-	// Append folder name to path since we want the path for the collection, not
-	// the path for the parent of the collection. The root and files don't need
-	// to append an extra element because the root already refers to itself and
-	// the collection containing the item is the parent path.
-	name := ptr.Val(item.GetName())
-	if len(name) == 0 {
-		return nil, clues.New("folder with empty name")
-	}
+	// // Append folder name to path since we want the path for the collection, not
+	// // the path for the parent of the collection. The root and files don't need
+	// // to append an extra element because the root already refers to itself and
+	// // the collection containing the item is the parent path.
+	// name := ptr.Val(item.GetName())
+	// if len(name) == 0 {
+	// 	return nil, clues.New("folder with empty name")
+	// }
 
-	collectionPath, err = collectionPath.Append(false, name)
-	if err != nil {
-		return nil, clues.Wrap(err, "making non-root folder path")
-	}
+	// collectionPath, err = collectionPath.Append(false, name)
+	// if err != nil {
+	// 	return nil, clues.Wrap(err, "making non-root folder path")
+	// }
 
 	return collectionPath, nil
 }
@@ -779,6 +778,24 @@ func (c *Collections) PopulateDriveCollections(
 	if !invalidPrevDelta {
 		maps.Copy(newPrevPaths, oldPrevPaths)
 	}
+
+	col, err := NewCollection(
+		c.handler,
+		c.protectedResource,
+		nil,
+		nil,
+		driveID,
+		c.statusUpdater,
+		c.ctrl,
+		false,
+		false,
+		nil,
+		counter.Local())
+	if err != nil {
+		return pagers.DeltaUpdate{}, newPrevPaths, el.Failure()
+	}
+
+	c.CollectionMap[driveID][driveID] = col
 
 	pager := c.handler.EnumerateDriveItemsDelta(
 		ctx,
@@ -855,233 +872,246 @@ func (c *Collections) processItem(
 	counter *count.Bus,
 	skipper fault.AddSkipper,
 ) error {
-	var (
-		itemID   = ptr.Val(item.GetId())
-		itemName = ptr.Val(item.GetName())
-		isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
-	)
 
-	ctx = clues.Add(
-		ctx,
-		"item_id", itemID,
-		"item_name", clues.Hide(itemName),
-		"item_is_folder", isFolder)
-
-	if item.GetMalware() != nil {
-		addtl := graph.ItemInfo(item)
-		skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
-
-		if isFolder {
-			skip = fault.ContainerSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
-		}
-
-		skipper.AddSkip(ctx, skip)
-		logger.Ctx(ctx).Infow("malware detected", "item_details", addtl)
-		counter.Inc(count.Malware)
-
-		return nil
+	collection, ok := c.CollectionMap[driveID][driveID]
+	if !ok {
+		return clues.New("no collection for drive").With("drive_id", driveID)
 	}
 
-	// Deleted file or folder.
-	if item.GetDeleted() != nil {
-		err := c.handleDelete(
-			ctx,
-			itemID,
-			driveID,
-			oldPrevPaths,
-			currPrevPaths,
-			newPrevPaths,
-			isFolder,
-			excludedItemIDs,
-			invalidPrevDelta,
-			counter)
-
-		return clues.StackWC(ctx, err).OrNil()
-	}
-
-	collectionPath, err := c.getCollectionPath(driveID, item)
-	if err != nil {
-		return clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation, count.BadCollPath)
-	}
-
-	// Skip items that don't match the folder selectors we were given.
-	if shouldSkip(ctx, collectionPath, c.handler, driveName) {
-		counter.Inc(count.SkippedContainers)
-		logger.Ctx(ctx).Debugw("path not selected", "skipped_path", collectionPath.String())
-
-		return nil
-	}
-
-	switch {
-	case isFolder:
-		// Deletions are handled above so this is just moves/renames.
-		var prevPath path.Path
-
-		prevPathStr, ok := oldPrevPaths[itemID]
-		if ok {
-			prevPath, err = path.FromDataLayerPath(prevPathStr, false)
-			if err != nil {
-				return clues.WrapWC(ctx, err, "invalid previous path").
-					With("prev_path_string", path.LoggableDir(prevPathStr)).
-					Label(count.BadPrevPath)
-			}
-		} else if item.GetRoot() != nil {
-			// Root doesn't move or get renamed.
-			prevPath = collectionPath
-		}
-
-		// Moved folders don't cause delta results for any subfolders nested in
-		// them. We need to go through and update paths to handle that. We only
-		// update newPaths so we don't accidentally clobber previous deletes.
-		updatePath(newPrevPaths, itemID, collectionPath.String())
-
-		found, err := updateCollectionPaths(
-			driveID,
-			itemID,
-			c.CollectionMap,
-			collectionPath)
-		if err != nil {
-			return clues.StackWC(ctx, err)
-		}
-
-		if found {
-			return nil
-		}
-
-		isPackage := item.GetPackageEscaped() != nil
-		if isPackage {
-			counter.Inc(count.Packages)
-			// mark this path as a package type for all other collections.
-			// any subfolder should get marked as a childOfPackage below.
-			topLevelPackages[collectionPath.String()] = struct{}{}
-		} else {
-			counter.Inc(count.Folders)
-		}
-
-		childOfPackage := filters.
-			PathPrefix(maps.Keys(topLevelPackages)).
-			Compare(collectionPath.String())
-
-		// This check is to ensure that if a folder was deleted and
-		// recreated multiple times between a backup, we only use the
-		// final one.
-		alreadyHandledFolderID, collPathAlreadyExists := seenFolders[collectionPath.String()]
-		collPathAlreadyExists = collPathAlreadyExists && alreadyHandledFolderID != itemID
-
-		if collPathAlreadyExists {
-			// we don't have a good way of juggling multiple previous paths
-			// at this time.  If a path was declared twice, it's a bit ambiguous
-			// which prior data the current folder now contains.  Safest thing to
-			// do is to call it a new folder and ingest items fresh.
-			prevPath = nil
-
-			c.NumContainers--
-			c.NumItems--
-
-			delete(c.CollectionMap[driveID], alreadyHandledFolderID)
-			delete(newPrevPaths, alreadyHandledFolderID)
-		}
-
-		if invalidPrevDelta {
-			prevPath = nil
-		}
-
-		seenFolders[collectionPath.String()] = itemID
-
-		col, err := NewCollection(
-			c.handler,
-			c.protectedResource,
-			collectionPath,
-			prevPath,
-			driveID,
-			c.statusUpdater,
-			c.ctrl,
-			isPackage || childOfPackage,
-			invalidPrevDelta || collPathAlreadyExists,
-			nil,
-			counter.Local())
-		if err != nil {
-			return clues.StackWC(ctx, err)
-		}
-
-		col.driveName = driveName
-
-		c.CollectionMap[driveID][itemID] = col
-		c.NumContainers++
-
-		if item.GetRoot() != nil {
-			return nil
-		}
-
-		// Add an entry to fetch permissions into this collection. This assumes
-		// that OneDrive always returns all folders on the path of an item
-		// before the item. This seems to hold true for now at least.
-		if col.Add(item) {
-			c.NumItems++
-		}
-
-	case item.GetFile() != nil:
-		counter.Inc(count.Files)
-
-		// Deletions are handled above so this is just moves/renames.
-		if len(ptr.Val(item.GetParentReference().GetId())) == 0 {
-			return clues.NewWC(ctx, "file without parent ID").Label(count.MissingParent)
-		}
-
-		// Get the collection for this item.
-		parentID := ptr.Val(item.GetParentReference().GetId())
-		ctx = clues.Add(ctx, "parent_id", parentID)
-
-		collection, ok := c.CollectionMap[driveID][parentID]
-		if !ok {
-			return clues.NewWC(ctx, "item seen before parent folder").Label(count.ItemBeforeParent)
-		}
-
-		// This will only kick in if the file was moved multiple times
-		// within a single delta query.  We delete the file from the previous
-		// collection so that it doesn't appear in two places.
-		prevParentContainerID, alreadyAdded := currPrevPaths[itemID]
-		if alreadyAdded {
-			prevColl, found := c.CollectionMap[driveID][prevParentContainerID]
-			if !found {
-				return clues.NewWC(ctx, "previous collection not found").
-					With("prev_parent_container_id", prevParentContainerID)
-			}
-
-			if ok := prevColl.Remove(itemID); !ok {
-				return clues.NewWC(ctx, "removing item from prev collection").
-					With("prev_parent_container_id", prevParentContainerID)
-			}
-		}
-
-		currPrevPaths[itemID] = parentID
-
-		// Only increment counters if the file didn't already get counted (i.e. it's
-		// not an item that was either updated or moved during the delta query).
-		if collection.Add(item) && !alreadyAdded {
-			c.NumItems++
-			c.NumFiles++
-		}
-
-		// Do this after adding the file to the collection so if we fail to add
-		// the item to the collection for some reason and we're using best effort
-		// we don't just end up deleting the item in the resulting backup. The
-		// resulting backup will be slightly incorrect, but it will have the most
-		// data that we were able to preserve.
-		if !invalidPrevDelta {
-			// Always add a file to the excluded list. The file may have been
-			// renamed/moved/modified, so we still have to drop the
-			// original one and download a fresh copy.
-			excludedItemIDs[itemID+metadata.DataFileSuffix] = struct{}{}
-			excludedItemIDs[itemID+metadata.MetaFileSuffix] = struct{}{}
-		}
-
-	default:
-		return clues.NewWC(ctx, "item is neither folder nor file").
-			Label(fault.LabelForceNoBackupCreation, count.UnknownItemType)
+	if collection.Add(item) {
+		c.NumItems++
+		c.NumFiles++
 	}
 
 	return nil
+
+	// var (
+	// 	itemID   = ptr.Val(item.GetId())
+	// 	itemName = ptr.Val(item.GetName())
+	// 	isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
+	// )
+
+	// ctx = clues.Add(
+	// 	ctx,
+	// 	"item_id", itemID,
+	// 	"item_name", clues.Hide(itemName),
+	// 	"item_is_folder", isFolder)
+
+	// if item.GetMalware() != nil {
+	// 	addtl := graph.ItemInfo(item)
+	// 	skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
+
+	// 	if isFolder {
+	// 		skip = fault.ContainerSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
+	// 	}
+
+	// 	skipper.AddSkip(ctx, skip)
+	// 	logger.Ctx(ctx).Infow("malware detected", "item_details", addtl)
+	// 	counter.Inc(count.Malware)
+
+	// 	return nil
+	// }
+
+	// // Deleted file or folder.
+	// if item.GetDeleted() != nil {
+	// 	err := c.handleDelete(
+	// 		ctx,
+	// 		itemID,
+	// 		driveID,
+	// 		oldPrevPaths,
+	// 		currPrevPaths,
+	// 		newPrevPaths,
+	// 		isFolder,
+	// 		excludedItemIDs,
+	// 		invalidPrevDelta,
+	// 		counter)
+
+	// 	return clues.StackWC(ctx, err).OrNil()
+	// }
+
+	// collectionPath, err := c.getCollectionPath(driveID, item)
+	// if err != nil {
+	// 	return clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation, count.BadCollPath)
+	// }
+
+	// // Skip items that don't match the folder selectors we were given.
+	// if shouldSkip(ctx, collectionPath, c.handler, driveName) {
+	// 	counter.Inc(count.SkippedContainers)
+	// 	logger.Ctx(ctx).Debugw("path not selected", "skipped_path", collectionPath.String())
+
+	// 	return nil
+	// }
+
+	// switch {
+	// // case isFolder:
+	// // 	// Deletions are handled above so this is just moves/renames.
+	// // 	var prevPath path.Path
+
+	// // 	prevPathStr, ok := oldPrevPaths[itemID]
+	// // 	if ok {
+	// // 		prevPath, err = path.FromDataLayerPath(prevPathStr, false)
+	// // 		if err != nil {
+	// // 			return clues.WrapWC(ctx, err, "invalid previous path").
+	// // 				With("prev_path_string", path.LoggableDir(prevPathStr)).
+	// // 				Label(count.BadPrevPath)
+	// // 		}
+	// // 	} else if item.GetRoot() != nil {
+	// // 		// Root doesn't move or get renamed.
+	// // 		prevPath = collectionPath
+	// // 	}
+
+	// // 	// Moved folders don't cause delta results for any subfolders nested in
+	// // 	// them. We need to go through and update paths to handle that. We only
+	// // 	// update newPaths so we don't accidentally clobber previous deletes.
+	// // 	updatePath(newPrevPaths, itemID, collectionPath.String())
+
+	// // 	found, err := updateCollectionPaths(
+	// // 		driveID,
+	// // 		itemID,
+	// // 		c.CollectionMap,
+	// // 		collectionPath)
+	// // 	if err != nil {
+	// // 		return clues.StackWC(ctx, err)
+	// // 	}
+
+	// // 	if found {
+	// // 		return nil
+	// // 	}
+
+	// // 	isPackage := item.GetPackageEscaped() != nil
+	// // 	if isPackage {
+	// // 		counter.Inc(count.Packages)
+	// // 		// mark this path as a package type for all other collections.
+	// // 		// any subfolder should get marked as a childOfPackage below.
+	// // 		topLevelPackages[collectionPath.String()] = struct{}{}
+	// // 	} else {
+	// // 		counter.Inc(count.Folders)
+	// // 	}
+
+	// // 	childOfPackage := filters.
+	// // 		PathPrefix(maps.Keys(topLevelPackages)).
+	// // 		Compare(collectionPath.String())
+
+	// // 	// This check is to ensure that if a folder was deleted and
+	// // 	// recreated multiple times between a backup, we only use the
+	// // 	// final one.
+	// // 	alreadyHandledFolderID, collPathAlreadyExists := seenFolders[collectionPath.String()]
+	// // 	collPathAlreadyExists = collPathAlreadyExists && alreadyHandledFolderID != itemID
+
+	// // 	if collPathAlreadyExists {
+	// // 		// we don't have a good way of juggling multiple previous paths
+	// // 		// at this time.  If a path was declared twice, it's a bit ambiguous
+	// // 		// which prior data the current folder now contains.  Safest thing to
+	// // 		// do is to call it a new folder and ingest items fresh.
+	// // 		prevPath = nil
+
+	// // 		c.NumContainers--
+	// // 		c.NumItems--
+
+	// // 		delete(c.CollectionMap[driveID], alreadyHandledFolderID)
+	// // 		delete(newPrevPaths, alreadyHandledFolderID)
+	// // 	}
+
+	// // 	if invalidPrevDelta {
+	// // 		prevPath = nil
+	// // 	}
+
+	// // 	seenFolders[collectionPath.String()] = itemID
+
+	// // 	col, err := NewCollection(
+	// // 		c.handler,
+	// // 		c.protectedResource,
+	// // 		collectionPath,
+	// // 		prevPath,
+	// // 		driveID,
+	// // 		c.statusUpdater,
+	// // 		c.ctrl,
+	// // 		isPackage || childOfPackage,
+	// // 		invalidPrevDelta || collPathAlreadyExists,
+	// // 		nil,
+	// // 		counter.Local())
+	// // 	if err != nil {
+	// // 		return clues.StackWC(ctx, err)
+	// // 	}
+
+	// // 	col.driveName = driveName
+
+	// // 	c.CollectionMap[driveID][itemID] = col
+	// // 	c.NumContainers++
+
+	// // 	if item.GetRoot() != nil {
+	// // 		return nil
+	// // 	}
+
+	// // 	// Add an entry to fetch permissions into this collection. This assumes
+	// // 	// that OneDrive always returns all folders on the path of an item
+	// // 	// before the item. This seems to hold true for now at least.
+	// // 	if col.Add(item) {
+	// // 		c.NumItems++
+	// // 	}
+
+	// case item.GetFile() != nil:
+	// 	counter.Inc(count.Files)
+
+	// 	// Deletions are handled above so this is just moves/renames.
+	// 	if len(ptr.Val(item.GetParentReference().GetId())) == 0 {
+	// 		return clues.NewWC(ctx, "file without parent ID").Label(count.MissingParent)
+	// 	}
+
+	// 	// Get the collection for this item.
+	// 	parentID := ptr.Val(item.GetParentReference().GetId())
+	// 	ctx = clues.Add(ctx, "parent_id", parentID)
+
+	// 	collection, ok := c.CollectionMap[driveID][parentID]
+	// 	if !ok {
+	// 		return clues.NewWC(ctx, "item seen before parent folder").Label(count.ItemBeforeParent)
+	// 	}
+
+	// 	// This will only kick in if the file was moved multiple times
+	// 	// within a single delta query.  We delete the file from the previous
+	// 	// collection so that it doesn't appear in two places.
+	// 	prevParentContainerID, alreadyAdded := currPrevPaths[itemID]
+	// 	if alreadyAdded {
+	// 		prevColl, found := c.CollectionMap[driveID][prevParentContainerID]
+	// 		if !found {
+	// 			return clues.NewWC(ctx, "previous collection not found").
+	// 				With("prev_parent_container_id", prevParentContainerID)
+	// 		}
+
+	// 		if ok := prevColl.Remove(itemID); !ok {
+	// 			return clues.NewWC(ctx, "removing item from prev collection").
+	// 				With("prev_parent_container_id", prevParentContainerID)
+	// 		}
+	// 	}
+
+	// 	currPrevPaths[itemID] = parentID
+
+	// 	// Only increment counters if the file didn't already get counted (i.e. it's
+	// 	// not an item that was either updated or moved during the delta query).
+	// 	if collection.Add(item) && !alreadyAdded {
+	// 		c.NumItems++
+	// 		c.NumFiles++
+	// 	}
+
+	// 	// Do this after adding the file to the collection so if we fail to add
+	// 	// the item to the collection for some reason and we're using best effort
+	// 	// we don't just end up deleting the item in the resulting backup. The
+	// 	// resulting backup will be slightly incorrect, but it will have the most
+	// 	// data that we were able to preserve.
+	// 	if !invalidPrevDelta {
+	// 		// Always add a file to the excluded list. The file may have been
+	// 		// renamed/moved/modified, so we still have to drop the
+	// 		// original one and download a fresh copy.
+	// 		excludedItemIDs[itemID+metadata.DataFileSuffix] = struct{}{}
+	// 		excludedItemIDs[itemID+metadata.MetaFileSuffix] = struct{}{}
+	// 	}
+
+	// default:
+	// 	return clues.NewWC(ctx, "item is neither folder nor file").
+	// 		Label(fault.LabelForceNoBackupCreation, count.UnknownItemType)
+	// }
+
+	// return nil
 }
 
 type dirScopeChecker interface {
