@@ -104,7 +104,8 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups9VersionBumpBackup() {
 		mb,
 		sel.Selector,
 		opts,
-		version.All8MigrateUserPNToID)
+		version.All8MigrateUserPNToID,
+		count.New())
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -144,7 +145,8 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups9VersionBumpBackup() {
 		ctx,
 		bod,
 		mb,
-		opts)
+		opts,
+		count.New())
 	forcedFull.BackupVersion = version.Groups9Update
 
 	runAndCheckBackup(t, ctx, &forcedFull, mb, false)
