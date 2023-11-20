@@ -291,6 +291,17 @@ func (c *Collections) Get(
 	ssmb *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
+	if c.ctrl.ToggleFeatures.UseDeltaTree {
+		_, _, err := c.getTree(ctx, prevMetadata, ssmb, errs)
+		if err != nil {
+			return nil, false, clues.Wrap(err, "processing backup using tree")
+		}
+
+		return nil,
+			false,
+			clues.New("forced error: cannot run tree-based backup: incomplete implementation")
+	}
+
 	deltasByDriveID, prevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(
 		ctx,
 		prevMetadata,

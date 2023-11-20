@@ -260,6 +260,12 @@ func parent(driveID any, elems ...string) string {
 		elems...)...)
 }
 
+// just for readability
+const (
+	doMergeItems    = true
+	doNotMergeItems = false
+)
+
 // common item names
 const (
 	bar       = "bar"
@@ -1671,9 +1677,35 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata_ReadFailure() {
 
 	fc := failingColl{}
 
-	_, _, canUsePreviousBackup, err := deserializeAndValidateMetadata(ctx, []data.RestoreCollection{fc}, count.New(), fault.New(true))
+	_, _, canUsePreviousBackup, err := deserializeAndValidateMetadata(
+		ctx,
+		[]data.RestoreCollection{fc},
+		count.New(),
+		fault.New(true))
 	require.NoError(t, err)
 	require.False(t, canUsePreviousBackup)
+}
+
+func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	mbh := mock.DefaultOneDriveBH(user)
+
+	c := NewCollections(
+		mbh,
+		tenant,
+		idname.NewProvider(user, user),
+		func(*support.ControllerOperationStatus) {},
+		control.Options{ToggleFeatures: control.Toggles{
+			UseDeltaTree: true,
+		}},
+		count.New())
+
+	_, _, err := c.Get(ctx, nil, nil, fault.New(true))
+	require.ErrorContains(t, err, "cannot run tree-based backup", clues.ToCore(err))
 }
 
 func (suite *CollectionsUnitSuite) TestGet() {
