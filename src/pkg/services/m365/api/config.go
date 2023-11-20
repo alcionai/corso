@@ -107,21 +107,22 @@ func idAnd(ss ...string) []string {
 
 func DefaultDriveItemProps() []string {
 	return idAnd(
-		"content.downloadUrl",
-		"createdBy",
-		"createdDateTime",
-		"file",
-		"folder",
-		"lastModifiedDateTime",
-		"name",
-		"package",
-		"parentReference",
-		"root",
-		"sharepointIds",
-		"size",
-		"deleted",
-		"malware",
-		"shared")
+	// "content.downloadUrl",
+	// "createdBy",
+	// "createdDateTime",
+	// "file",
+	// "folder",
+	// "lastModifiedDateTime",
+	// "name",
+	// "package",
+	// "parentReference",
+	// "root",
+	// "sharepointIds",
+	// "size",
+	// "deleted",
+	// "malware",
+	// "shared")
+	)
 }
 
 // URL cache only needs to fetch a small subset of item properties
