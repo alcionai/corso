@@ -290,9 +290,15 @@ func validateGroupsBackupCreateFlags(groups, cats []string) error {
 				flags.GroupFN + " *")
 	}
 
+	// TODO(keepers): release conversations support
+
 	msg := fmt.Sprintf(
-		" is an unrecognized data type; only %s, %s and %s are supported",
-		flags.DataLibraries, flags.DataMessages, flags.DataConversations)
+		" is an unrecognized data type; only %s and %s are supported",
+		flags.DataLibraries, flags.DataMessages)
+
+	// msg := fmt.Sprintf(
+	// 	" is an unrecognized data type; only %s, %s and %s are supported",
+	// 	flags.DataLibraries, flags.DataMessages, flags.DataConversations)
 
 	allowedCats := utils.GroupsAllowedCategories()
 
