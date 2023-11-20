@@ -332,8 +332,8 @@ func (suite *DrivePagerIntgSuite) TestDriveDeltaPagerQueryParams() {
 				str := "deltaLink"
 				delta.SetOdataDeltaLink(&str)
 
-				// This is a copy of DefaultDriveItemProps. This list should be
-				// adjusted while changing DefaultDriveItemProps.
+				// This is a copy of URLCacheDriveItemProps. This list should be
+				// adjusted while changing URLCacheDriveItemProps.
 				params := idAnd(
 					"content.downloadUrl",
 					"deleted",
