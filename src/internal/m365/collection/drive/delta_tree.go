@@ -36,6 +36,9 @@ type folderyMcFolderFace struct {
 	// it's just a sensible place to store the data, since we're
 	// already pushing file additions through the api.
 	excludeFileIDs map[string]struct{}
+
+	// true if Reset() was called
+	hadReset bool
 }
 
 func newFolderyMcFolderFace(
@@ -47,6 +50,18 @@ func newFolderyMcFolderFace(
 		tombstones:     map[string]*nodeyMcNodeFace{},
 		excludeFileIDs: map[string]struct{}{},
 	}
+}
+
+// Reset erases all data contained in the tree.  This is intended for
+// tracking a delta enumeration reset, not for tree re-use, and will
+// cause the tree to flag itself as dirty in order to appropriately
+// post-process the data.
+func (face *folderyMcFolderFace) Reset() {
+	face.hadReset = true
+	face.root = nil
+	face.folderIDToNode = map[string]*nodeyMcNodeFace{}
+	face.tombstones = map[string]*nodeyMcNodeFace{}
+	face.excludeFileIDs = map[string]struct{}{}
 }
 
 type nodeyMcNodeFace struct {
@@ -88,6 +103,21 @@ func newNodeyMcNodeFace(
 // ---------------------------------------------------------------------------
 // folder handling
 // ---------------------------------------------------------------------------
+
+// ContainsFolder returns true if the given folder id is present as either
+// a live node or a tombstone.
+func (face *folderyMcFolderFace) ContainsFolder(id string) bool {
+	_, stillKicking := face.folderIDToNode[id]
+	_, alreadyBuried := face.tombstones[id]
+
+	return stillKicking || alreadyBuried
+}
+
+// CountNodes returns a count that is the sum of live folders and
+// tombstones recorded in the tree.
+func (face *folderyMcFolderFace) CountFolders() int {
+	return len(face.tombstones) + len(face.folderIDToNode)
+}
 
 // SetFolder adds a node with the following details to the tree.
 // If the node already exists with the given ID, the name and parent
@@ -251,4 +281,39 @@ func (face *folderyMcFolderFace) SetTombstone(
 	}
 
 	return nil
+}
+
+// DeleteFolder is a special case unrelated to Tombstone creation.  It should
+// only be called under two conditions:
+// 1. on multiple delta enumeration, if a folder was added on the first delta
+// enumeration, then deleted on the next delta.  The folder will have no previous
+// path, and no presence in our storage layer, and can be safely removed from the
+// tree.
+// 2. as a safety measure in mid-enumeration mutation.  If, during a delta
+// enumeration, the end user deletes a folder before the pager visits the item,
+// then the folder won't show up in the enumeration at all.  However, the next
+// delta will still contain a delete marker.  If this happens and we have no
+// previousPath metadata for the folder id, then there's nothing to tombstone
+// and this method can be safely called with a no-op.
+func (face *folderyMcFolderFace) DeleteFolder(id string) {
+	if nodey, stillKicking := face.folderIDToNode[id]; stillKicking {
+		// recurse for every child
+		for _, child := range nodey.children {
+			face.DeleteFolder(child.id)
+		}
+
+		// finally, delete this node
+		delete(face.folderIDToNode, id)
+		delete(nodey.parent.children, id)
+	}
+
+	if zombey, alreadyBuried := face.tombstones[id]; alreadyBuried {
+		// recurse for every child
+		for _, child := range zombey.children {
+			face.DeleteFolder(child.id)
+		}
+
+		// finally, delete this node
+		delete(face.tombstones, id)
+	}
 }
