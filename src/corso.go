@@ -26,7 +26,7 @@ var profileCounter = 0
 
 func main() {
 	defer profile.Start(profile.MemProfile).Stop()
-	debug.SetMemoryLimit(1 * 1024 * 1024 * 1024)
+	debug.SetMemoryLimit(0.5 * 1024 * 1024 * 1024)
 
 	go func() {
 		for {
