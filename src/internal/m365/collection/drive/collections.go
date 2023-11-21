@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -859,7 +860,7 @@ func (c *Collections) processItem(
 	var (
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())
-		isFolder = item.GetFolder() != nil
+		isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
 	)
 
 	ctx = clues.Add(
@@ -869,16 +870,16 @@ func (c *Collections) processItem(
 		"item_is_folder", isFolder)
 
 	if item.GetMalware() != nil {
-		// addtl := graph.ItemInfo(item)
-		// skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
+		addtl := graph.ItemInfo(di)
+		skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 
-		// if isFolder {
-		// 	skip = fault.ContainerSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
-		// }
+		if isFolder {
+			skip = fault.ContainerSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
+		}
 
-		// skipper.AddSkip(ctx, skip)
-		// logger.Ctx(ctx).Infow("malware detected", "item_details", addtl)
-		// counter.Inc(count.Malware)
+		skipper.AddSkip(ctx, skip)
+		logger.Ctx(ctx).Infow("malware detected", "item_details", addtl)
+		counter.Inc(count.Malware)
 
 		return nil
 	}
@@ -949,9 +950,19 @@ func (c *Collections) processItem(
 			return nil
 		}
 
-		// childOfPackage := filters.
-		// 	PathPrefix(maps.Keys(topLevelPackages)).
-		// 	Compare(collectionPath.String())
+		isPackage := item.GetPackageEscaped() != nil
+		if isPackage {
+			counter.Inc(count.Packages)
+			// mark this path as a package type for all other collections.
+			// any subfolder should get marked as a childOfPackage below.
+			topLevelPackages[collectionPath.String()] = struct{}{}
+		} else {
+			counter.Inc(count.Folders)
+		}
+
+		childOfPackage := filters.
+			PathPrefix(maps.Keys(topLevelPackages)).
+			Compare(collectionPath.String())
 
 		// This check is to ensure that if a folder was deleted and
 		// recreated multiple times between a backup, we only use the
@@ -987,7 +998,7 @@ func (c *Collections) processItem(
 			driveID,
 			c.statusUpdater,
 			c.ctrl,
-			false,
+			isPackage || childOfPackage,
 			invalidPrevDelta || collPathAlreadyExists,
 			nil,
 			counter.Local())

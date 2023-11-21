@@ -4,15 +4,13 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
-
-	i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e "time"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -91,137 +89,6 @@ type Collection struct {
 	urlCache getItemPropertyer
 
 	counter *count.Bus
-}
-
-// Replica of models.DriveItemable
-type CorsoDriveItemable interface {
-	GetId() *string
-	GetName() *string
-	GetSize() *int64
-	GetFile() interface{}
-	GetFolder() interface{}
-	GetAdditionalData() map[string]interface{}
-	GetParentReference() models.ItemReferenceable
-	SetParentReference(models.ItemReferenceable)
-	GetShared() models.Sharedable
-	GetCreatedBy() models.IdentitySetable
-	GetCreatedDateTime() *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
-	GetLastModifiedDateTime() *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
-	GetMalware() models.Malwareable
-	GetSharepointIds() models.SharepointIdsable
-	GetDeleted() models.Deletedable
-	GetRoot() models.Rootable
-}
-
-type CorsoDriveItem struct {
-	ID                   *string
-	Name                 *string
-	Size                 *int64
-	File                 interface{}
-	Folder               interface{}
-	AdditionalData       map[string]interface{}
-	ParentReference      models.ItemReferenceable
-	Shared               models.Sharedable
-	CreatedBy            models.IdentitySetable
-	CreatedDateTime      *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
-	LastModifiedDateTime *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time
-	Malware              models.Malwareable
-	Deleted              models.Deletedable
-	Root                 models.Rootable
-}
-
-func (c *CorsoDriveItem) GetId() *string {
-	return c.ID
-}
-
-func (c *CorsoDriveItem) GetName() *string {
-	return c.Name
-}
-
-func (c *CorsoDriveItem) GetSize() *int64 {
-	return c.Size
-}
-
-func (c *CorsoDriveItem) GetFile() interface{} {
-	return c.File
-}
-
-func (c *CorsoDriveItem) GetFolder() interface{} {
-	return c.Folder
-}
-
-func (c *CorsoDriveItem) GetAdditionalData() map[string]interface{} {
-	return c.AdditionalData
-}
-
-func (c *CorsoDriveItem) GetParentReference() models.ItemReferenceable {
-	return c.ParentReference
-}
-
-func (c *CorsoDriveItem) SetParentReference(parent models.ItemReferenceable) {
-	c.ParentReference = parent
-}
-
-func (c *CorsoDriveItem) GetShared() models.Sharedable {
-	return c.Shared
-}
-
-func (c *CorsoDriveItem) GetCreatedBy() models.IdentitySetable {
-	return c.CreatedBy
-}
-
-func (c *CorsoDriveItem) GetCreatedDateTime() *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time {
-	return c.CreatedDateTime
-}
-
-func (c *CorsoDriveItem) GetLastModifiedDateTime() *i336074805fc853987abe6f7fe3ad97a6a6f3077a16391fec744f671a015fbd7e.Time {
-	return c.LastModifiedDateTime
-}
-
-func (c *CorsoDriveItem) GetMalware() models.Malwareable {
-	return c.Malware
-}
-
-func (c *CorsoDriveItem) GetSharepointIds() models.SharepointIdsable {
-	return nil
-}
-
-func (c *CorsoDriveItem) GetDeleted() models.Deletedable {
-	return c.Deleted
-}
-
-func (c *CorsoDriveItem) GetRoot() models.Rootable {
-	return c.Root
-}
-
-// models.DriveItemable to CorsoDriveItemable
-func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
-	cdi := &CorsoDriveItem{
-		ID:                   item.GetId(),
-		Name:                 item.GetName(),
-		Size:                 item.GetSize(),
-		File:                 true,
-		Folder:               true,
-		ParentReference:      item.GetParentReference(),
-		Shared:               item.GetShared(),
-		CreatedBy:            item.GetCreatedBy(),
-		CreatedDateTime:      item.GetCreatedDateTime(),
-		LastModifiedDateTime: item.GetLastModifiedDateTime(),
-		Malware:              item.GetMalware(),
-		AdditionalData:       item.GetAdditionalData(),
-		Deleted:              item.GetDeleted(),
-		Root:                 item.GetRoot(),
-	}
-
-	if item.GetFolder() == nil {
-		cdi.Folder = nil
-	}
-
-	if item.GetFile() == nil {
-		cdi.File = nil
-	}
-
-	return cdi
 }
 
 func (c *Collection) GetDriveItemsMap() map[string]CorsoDriveItemable {
@@ -429,35 +296,35 @@ func (oc *Collection) getDriveItemContent(
 			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
 
-		// var itemMimeType string
-		// if item.GetFile() != nil {
-		// 	itemMimeType = ptr.Val(item.GetFile().GetMimeType())
-		// }
-		// // Skip big OneNote files as they can't be downloaded
-		// if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
-		// 	// oc.isPackageOrChildOfPackage && *item.GetSize() >= MaxOneNoteFileSize {
-		// 	// TODO: We've removed the file size check because it looks like we've seen persistent
-		// 	// 503's with smaller OneNote files also.
-		// 	oc.isPackageOrChildOfPackage || strings.EqualFold(itemMimeType, oneNoteMimeType) {
-		// 	// FIXME: It is possible that in case of a OneNote file we
-		// 	// will end up just backing up the `onetoc2` file without
-		// 	// the one file which is the important part of the OneNote
-		// 	// "item". This will have to be handled during the
-		// 	// restore, or we have to handle it separately by somehow
-		// 	// deleting the entire collection.
-		// 	logger.
-		// 		CtxErr(ctx, err).
-		// 		With("skipped_reason", fault.SkipOneNote).
-		// 		Info("inaccessible one note file")
-		// 	// errs.AddSkip(ctx, fault.FileSkip(
-		// 	// 	fault.SkipOneNote,
-		// 	// 	driveID,
-		// 	// 	itemID,
-		// 	// 	itemName,
-		// 	// 	graph.ItemInfo(item)))
+		var itemMimeType string
+		if item.GetFile() != nil {
+			itemMimeType = ptr.Val(item.GetFile().GetMimeType())
+		}
+		// Skip big OneNote files as they can't be downloaded
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) &&
+			// oc.isPackageOrChildOfPackage && *item.GetSize() >= MaxOneNoteFileSize {
+			// TODO: We've removed the file size check because it looks like we've seen persistent
+			// 503's with smaller OneNote files also.
+			oc.isPackageOrChildOfPackage || strings.EqualFold(itemMimeType, oneNoteMimeType) {
+			// FIXME: It is possible that in case of a OneNote file we
+			// will end up just backing up the `onetoc2` file without
+			// the one file which is the important part of the OneNote
+			// "item". This will have to be handled during the
+			// restore, or we have to handle it separately by somehow
+			// deleting the entire collection.
+			logger.
+				CtxErr(ctx, err).
+				With("skipped_reason", fault.SkipOneNote).
+				Info("inaccessible one note file")
+			// errs.AddSkip(ctx, fault.FileSkip(
+			// 	fault.SkipOneNote,
+			// 	driveID,
+			// 	itemID,
+			// 	itemName,
+			// 	graph.ItemInfo(item)))
 
-		// 	return nil, clues.Wrap(err, "inaccesible oneNote item").Label(graph.LabelsSkippable)
-		// }
+			return nil, clues.Wrap(err, "inaccesible oneNote item").Label(graph.LabelsSkippable)
+		}
 
 		errs.AddRecoverable(
 			ctx,
@@ -710,7 +577,7 @@ func (oc *Collection) streamDriveItem(
 		"item_name", clues.Hide(itemName),
 		"item_size", itemSize)
 
-	item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
+	// item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
 
 	isFile := item.GetFile() != nil
 
