@@ -205,12 +205,16 @@ func driveItemWriter(
 	return iw, ptr.Val(icu.GetUploadUrl()), nil
 }
 
-func setName(orig models.ItemReferenceable, driveName string) models.ItemReferenceable {
+func setName(orig parentReferenceable, driveName string) models.ItemReferenceable {
 	if orig == nil {
 		return nil
 	}
 
-	orig.SetName(&driveName)
+	mod := models.NewItemReference()
+	mod.SetDriveId(orig.GetDriveId())
+	mod.SetId(orig.GetId())
+	mod.SetPath(orig.GetPath())
+	mod.SetName(&driveName)
 
-	return orig
+	return mod
 }

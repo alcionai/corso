@@ -577,7 +577,7 @@ func (oc *Collection) streamDriveItem(
 		"item_name", clues.Hide(itemName),
 		"item_size", itemSize)
 
-	// item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
+	item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
 
 	isFile := item.GetFile() != nil
 

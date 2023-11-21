@@ -10,19 +10,23 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pkg/profile"
+
 	"github.com/alcionai/corso/src/cli"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/pkg/profile"
 )
 
-var profileTicker = time.NewTicker(1 * time.Second)
-var perMinuteMap = make(map[time.Time]int)
-var timeSinceRefresh = time.Now()
+var (
+	profileTicker    = time.NewTicker(1 * time.Second)
+	perMinuteMap     = make(map[time.Time]int)
+	timeSinceRefresh = time.Now()
+)
 
-//var profileTicker = time.NewTicker(120 * time.Second)
-
-var printTicker = time.NewTicker(1 * time.Second)
-var profileCounter = 0
+// var profileTicker = time.NewTicker(120 * time.Second)
+var (
+	printTicker    = time.NewTicker(1 * time.Second)
+	profileCounter = 0
+)
 
 func main() {
 	defer profile.Start(profile.MemProfile).Stop()
@@ -38,8 +42,8 @@ func main() {
 				// if mem > 3GB and we havent captured a profile this min, capture it
 				// or if its been 2 mins since last profile, capture it
 				t := time.Now().Truncate(time.Minute)
-				//if (m.HeapAlloc > uint64(3*1024*1024*1024) && perMinuteMap[t] == 0) || time.Since(timeSinceRefresh) > 2*time.Minute {
-				if time.Since(timeSinceRefresh) > 2*time.Minute {
+				// if (m.HeapAlloc > uint64(3*1024*1024*1024) && perMinuteMap[t] == 0) || time.Since(timeSinceRefresh) > 2*time.Minute {
+				if time.Since(timeSinceRefresh) > 3*time.Minute {
 					filename := "mem." + strconv.Itoa(profileCounter) + ".pprof"
 
 					f, _ := os.Create(filename)
@@ -53,7 +57,6 @@ func main() {
 					perMinuteMap[t] = 1
 					timeSinceRefresh = time.Now()
 				}
-
 			}
 		}
 	}()
