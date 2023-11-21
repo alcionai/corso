@@ -761,87 +761,6 @@ func (c *Collections) getCollectionPath(
 	return collectionPath, nil
 }
 
-type driveEnumerationStats struct {
-	numPages      int
-	numAddedFiles int
-	numContainers int
-	numBytes      int64
-}
-
-func newPagerLimiter(opts control.Options) *pagerLimiter {
-	res := &pagerLimiter{limits: opts.PreviewLimits}
-
-	if res.limits.MaxContainers == 0 {
-		res.limits.MaxContainers = defaultPreviewMaxContainers
-	}
-
-	if res.limits.MaxItemsPerContainer == 0 {
-		res.limits.MaxItemsPerContainer = defaultPreviewMaxItemsPerContainer
-	}
-
-	if res.limits.MaxItems == 0 {
-		res.limits.MaxItems = defaultPreviewMaxItems
-	}
-
-	if res.limits.MaxBytes == 0 {
-		res.limits.MaxBytes = defaultPreviewMaxBytes
-	}
-
-	if res.limits.MaxPages == 0 {
-		res.limits.MaxPages = defaultPreviewMaxPages
-	}
-
-	return res
-}
-
-type pagerLimiter struct {
-	limits control.PreviewItemLimits
-}
-
-func (l pagerLimiter) effectiveLimits() control.PreviewItemLimits {
-	return l.limits
-}
-
-func (l pagerLimiter) enabled() bool {
-	return l.limits.Enabled
-}
-
-// sizeLimit returns the total number of bytes this backup should try to
-// contain.
-func (l pagerLimiter) sizeLimit() int64 {
-	return l.limits.MaxBytes
-}
-
-// atItemLimit returns true if the limiter is enabled and has reached the limit
-// for individual items added to collections for this backup.
-func (l pagerLimiter) atItemLimit(stats *driveEnumerationStats) bool {
-	return l.enabled() &&
-		(stats.numAddedFiles >= l.limits.MaxItems ||
-			stats.numBytes >= l.limits.MaxBytes)
-}
-
-// atContainerItemsLimit returns true if the limiter is enabled and the current
-// number of items is above the limit for the number of items for a container
-// for this backup.
-func (l pagerLimiter) atContainerItemsLimit(numItems int) bool {
-	return l.enabled() && numItems >= l.limits.MaxItemsPerContainer
-}
-
-// atContainerPageLimit returns true if the limiter is enabled and the number of
-// pages processed so far is beyond the limit for this backup.
-func (l pagerLimiter) atPageLimit(stats *driveEnumerationStats) bool {
-	return l.enabled() && stats.numPages >= l.limits.MaxPages
-}
-
-// atLimit returns true if the limiter is enabled and meets any of the
-// conditions for max items, containers, etc for this backup.
-func (l pagerLimiter) atLimit(stats *driveEnumerationStats) bool {
-	return l.enabled() &&
-		(l.atItemLimit(stats) ||
-			stats.numContainers >= l.limits.MaxContainers ||
-			stats.numPages >= l.limits.MaxPages)
-}
-
 // PopulateDriveCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder.
 // Along with populating the collection items and updating the excluded item IDs, this func
@@ -937,7 +856,7 @@ func (c *Collections) PopulateDriveCollections(
 				// Don't check for containers we've already seen.
 				if _, ok := c.CollectionMap[driveID][id]; !ok {
 					if id != lastContainerID {
-						if limiter.atLimit(stats) {
+						if limiter.atLimit(stats, ignoreMe) {
 							break
 						}
 
