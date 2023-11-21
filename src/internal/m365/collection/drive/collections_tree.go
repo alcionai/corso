@@ -9,14 +9,20 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
+
+// ---------------------------------------------------------------------------
+// Processing
+// ---------------------------------------------------------------------------
 
 // this file is used to separate the collections handling between the previous
 // (list-based) design, and the in-progress (tree-based) redesign.
@@ -97,8 +103,9 @@ func (c *Collections) getTree(
 			ictx,
 			drv,
 			prevPathsByDriveID[driveID],
+			deltasByDriveID[driveID],
 			cl,
-			el.Local())
+			el)
 		if err != nil {
 			el.AddRecoverable(ictx, clues.Stack(err))
 			continue
@@ -142,37 +149,48 @@ func (c *Collections) getTree(
 
 func (c *Collections) makeDriveCollections(
 	ctx context.Context,
-	d models.Driveable,
+	drv models.Driveable,
 	prevPaths map[string]string,
+	prevDeltaLink string,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]string, pagers.DeltaUpdate, error) {
-	cl := c.counter.Local()
+	ppfx, err := c.handler.PathPrefix(c.tenantID, ptr.Val(drv.GetId()))
+	if err != nil {
+		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "generating backup tree prefix")
+	}
 
-	cl.Add(count.PrevPaths, int64(len(prevPaths)))
-	logger.Ctx(ctx).Infow(
-		"previous metadata for drive",
-		"count_old_prev_paths", len(prevPaths))
+	var (
+		tree    = newFolderyMcFolderFace(ppfx)
+		limiter = newPagerLimiter(c.ctrl)
+		stats   = &driveEnumerationStats{}
+	)
 
-	// TODO(keepers): leaving this code around for now as a guide
-	// while implementation progresses.
+	counter.Add(count.PrevPaths, int64(len(prevPaths)))
 
-	// --- pager aggregation
+	// --- delta item aggregation
 
-	// du, newPrevPaths, err := c.PopulateDriveCollections(
-	// 	ctx,
-	// 	d,
-	// 	tree,
-	// 	cl.Local(),
-	// 	errs)
-	// if err != nil {
-	// 	return nil, false, clues.Stack(err)
-	// }
+	du, err := c.populateTree(
+		ctx,
+		tree,
+		limiter,
+		stats,
+		drv,
+		prevPaths,
+		prevDeltaLink,
+		counter,
+		errs)
+	if err != nil {
+		return nil, nil, pagers.DeltaUpdate{}, clues.Stack(err)
+	}
 
 	// numDriveItems := c.NumItems - numPrevItems
 	// numPrevItems = c.NumItems
 
 	// cl.Add(count.NewPrevPaths, int64(len(newPrevPaths)))
+
+	// TODO(keepers): leaving this code around for now as a guide
+	// while implementation progresses.
 
 	// --- prev path incorporation
 
@@ -227,7 +245,321 @@ func (c *Collections) makeDriveCollections(
 	// 	}
 	// }
 
-	return nil, nil, pagers.DeltaUpdate{}, clues.New("not yet implemented")
+	return nil, nil, du, clues.New("not yet implemented")
+}
+
+// populateTree constructs a new tree and populates it with items
+// retrieved by enumerating the delta query for the drive.
+func (c *Collections) populateTree(
+	ctx context.Context,
+	tree *folderyMcFolderFace,
+	limiter *pagerLimiter,
+	stats *driveEnumerationStats,
+	drv models.Driveable,
+	prevPaths map[string]string,
+	prevDeltaLink string,
+	counter *count.Bus,
+	errs *fault.Bus,
+) (pagers.DeltaUpdate, error) {
+	ctx = clues.Add(ctx, "invalid_prev_delta", len(prevDeltaLink) == 0)
+
+	logger.Ctx(ctx).Infow(
+		"running backup",
+		"limits", c.ctrl.PreviewLimits,
+		"effective_limits", limiter.effectiveLimits(),
+		"preview_mode", limiter.enabled())
+
+	var (
+		driveID = ptr.Val(drv.GetId())
+		el      = errs.Local()
+	)
+
+	// TODO(keepers): to end in a correct state, we'll eventually need to run this
+	// query multiple times over, until it ends in an empty change set.
+	pager := c.handler.EnumerateDriveItemsDelta(
+		ctx,
+		driveID,
+		prevDeltaLink,
+		api.CallConfig{
+			Select: api.DefaultDriveItemProps(),
+		})
+
+	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
+		if el.Failure() != nil {
+			break
+		}
+
+		counter.Inc(count.PagesEnumerated)
+
+		if reset {
+			counter.Inc(count.PagerResets)
+			tree.Reset()
+			c.resetStats()
+
+			*stats = driveEnumerationStats{}
+		}
+
+		err := c.enumeratePageOfItems(
+			ctx,
+			tree,
+			limiter,
+			stats,
+			drv,
+			page,
+			prevPaths,
+			counter,
+			errs)
+		if err != nil {
+			el.AddRecoverable(ctx, clues.Stack(err))
+		}
+
+		// Stop enumeration early if we've reached the item or page limit. Do this
+		// at the end of the loop so we don't request another page in the
+		// background.
+		//
+		// We don't want to break on just the container limit here because it's
+		// possible that there's more items in the current (final) container that
+		// we're processing. We need to see the next page to determine if we've
+		// reached the end of the container. Note that this doesn't take into
+		// account the number of items in the current container, so it's possible it
+		// will fetch more data when it doesn't really need to.
+		if limiter.atPageLimit(stats) || limiter.atItemLimit(stats) {
+			break
+		}
+	}
+
+	// Always cancel the pager so that even if we exit early from the loop above
+	// we don't deadlock. Cancelling a pager that's already completed is
+	// essentially a noop.
+	pager.Cancel()
+
+	du, err := pager.Results()
+	if err != nil {
+		return du, clues.Stack(err)
+	}
+
+	logger.Ctx(ctx).Infow("enumerated collection delta", "stats", counter.Values())
+
+	return du, el.Failure()
+}
+
+func (c *Collections) enumeratePageOfItems(
+	ctx context.Context,
+	tree *folderyMcFolderFace,
+	limiter *pagerLimiter,
+	stats *driveEnumerationStats,
+	drv models.Driveable,
+	page []models.DriveItemable,
+	prevPaths map[string]string,
+	counter *count.Bus,
+	errs *fault.Bus,
+) error {
+	ctx = clues.Add(ctx, "page_lenth", len(page))
+	el := errs.Local()
+
+	for i, item := range page {
+		if el.Failure() != nil {
+			break
+		}
+
+		var (
+			isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
+			itemID   = ptr.Val(item.GetId())
+		)
+
+		ictx := clues.Add(
+			ctx,
+			"item_id", itemID,
+			"item_name", clues.Hide(ptr.Val(item.GetName())),
+			"item_index", i,
+			"item_is_folder", isFolder,
+			"item_is_package", item.GetPackageEscaped() != nil)
+
+		if isFolder {
+			// check if the preview needs to exit before adding each folder
+			if !tree.ContainsFolder(itemID) && limiter.atLimit(stats, len(tree.folderIDToNode)) {
+				break
+			}
+
+			err := c.addFolderToTree(ictx, tree, drv, item, prevPaths, stats, counter, el)
+			if err != nil {
+				el.AddRecoverable(ictx, clues.Wrap(err, "adding folder"))
+			}
+		} else {
+			err := c.addFileToTree(ictx, tree, drv, item, stats, counter, el)
+			if err != nil {
+				el.AddRecoverable(ictx, clues.Wrap(err, "adding file"))
+			}
+		}
+
+		// Check if we reached the item or size limit while processing this page.
+		// The check after this loop will get us out of the pager.
+		// We don't want to check all limits because it's possible we've reached
+		// the container limit but haven't reached the item limit or really added
+		// items to the last container we found.
+		if limiter.atItemLimit(stats) {
+			break
+		}
+	}
+
+	stats.numPages++
+
+	return clues.Stack(el.Failure()).OrNil()
+}
+
+func (c *Collections) addFolderToTree(
+	ctx context.Context,
+	tree *folderyMcFolderFace,
+	drv models.Driveable,
+	folder models.DriveItemable,
+	prevPaths map[string]string,
+	stats *driveEnumerationStats,
+	counter *count.Bus,
+	skipper fault.AddSkipper,
+) error {
+	var (
+		driveID     = ptr.Val(drv.GetId())
+		folderID    = ptr.Val(folder.GetId())
+		folderName  = ptr.Val(folder.GetName())
+		isDeleted   = folder.GetDeleted() != nil
+		isMalware   = folder.GetMalware() != nil
+		isPkg       = folder.GetPackageEscaped() != nil
+		parent      = folder.GetParentReference()
+		parentID    string
+		notSelected bool
+	)
+
+	if parent != nil {
+		parentID = ptr.Val(parent.GetId())
+	}
+
+	defer func() {
+		switch {
+		case notSelected:
+			counter.Inc(count.TotalContainersSkipped)
+		case isMalware:
+			counter.Inc(count.TotalMalwareProcessed)
+		case isDeleted:
+			counter.Inc(count.TotalDeleteFoldersProcessed)
+		case isPkg:
+			counter.Inc(count.TotalPackagesProcessed)
+		default:
+			counter.Inc(count.TotalFoldersProcessed)
+		}
+	}()
+
+	// FIXME(keepers): if we don't track this as previously visited,
+	// we could add a skip multiple times, every time we visit the
+	// folder again at the top of the page.
+	if isMalware {
+		skip := fault.ContainerSkip(
+			fault.SkipMalware,
+			driveID,
+			folderID,
+			folderName,
+			graph.ItemInfo(folder))
+		skipper.AddSkip(ctx, skip)
+
+		logger.Ctx(ctx).Infow("malware detected")
+
+		return nil
+	}
+
+	if isDeleted {
+		err := c.tombstoneOrDeleteFolder(ctx, tree, folder, prevPaths)
+		return clues.Stack(err).OrNil()
+	}
+
+	collectionPath, err := c.makeFolderCollectionPath(driveID, folder)
+	if err != nil {
+		return clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation, count.BadCollPath)
+	}
+
+	// Skip items that don't match the folder selectors we were given.
+	notSelected = shouldSkip(ctx, collectionPath, c.handler, ptr.Val(drv.GetName()))
+	if notSelected {
+		logger.Ctx(ctx).Debugw("path not selected", "skipped_path", collectionPath.String())
+		return nil
+	}
+
+	err = tree.SetFolder(ctx, parentID, folderID, folderName, isPkg)
+
+	return clues.Stack(err).OrNil()
+}
+
+func (c *Collections) tombstoneOrDeleteFolder(
+	ctx context.Context,
+	tree *folderyMcFolderFace,
+	folder models.DriveItemable,
+	prevPaths map[string]string,
+) error {
+	folderID := ptr.Val(folder.GetId())
+	pp, ok := prevPaths[folderID]
+
+	// its possible to see a deletion marker for a folder that was not
+	// included in the prior delta. That means the folder was either
+	// deleted during the prior enumeration, before paging reached the
+	// folder, in which case we'll still get the deletion marker on the
+	// next delta. Or, in the case of multiple delta enumerations, if we
+	// added the folder on the first delta, and deleted it on the second.
+	if !ok {
+		tree.DeleteFolder(folderID)
+		return nil
+	}
+
+	pPath, err := path.FromDataLayerPath(pp, false)
+	if err != nil {
+		return clues.WrapWC(ctx, err, "invalid previous path").
+			With("prev_path_string", pp).
+			Label(count.BadPrevPath).
+			OrNil()
+	}
+
+	err = tree.SetTombstone(ctx, folderID, pPath.Folders())
+
+	return clues.Stack(err).OrNil()
+}
+
+func (c *Collections) makeFolderCollectionPath(
+	driveID string,
+	folder models.DriveItemable,
+) (path.Path, error) {
+	if folder.GetRoot() != nil {
+		pb := odConsts.DriveFolderPrefixBuilder(driveID)
+		collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
+
+		return collectionPath, clues.Wrap(err, "making canonical root path").OrNil()
+	}
+
+	if folder.GetParentReference() == nil || folder.GetParentReference().GetPath() == nil {
+		return nil, clues.New("no parent reference in folder").Label(count.MissingParent)
+	}
+
+	// Append folder name to path since we want the path for the collection, not
+	// the path for the parent of the collection.
+	name := ptr.Val(folder.GetName())
+	if len(name) == 0 {
+		return nil, clues.New("folder has no name")
+	}
+
+	folderPath := path.Split(ptr.Val(folder.GetParentReference().GetPath()))
+	folderPath = append(folderPath, name)
+	pb := path.Builder{}.Append(folderPath...)
+	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
+
+	return collectionPath, clues.Wrap(err, "making folder collection path").OrNil()
+}
+
+func (c *Collections) addFileToTree(
+	ctx context.Context,
+	tree *folderyMcFolderFace,
+	drv models.Driveable,
+	item models.DriveItemable,
+	stats *driveEnumerationStats,
+	counter *count.Bus,
+	el *fault.Bus,
+) error {
+	return clues.New("not yet implemented")
 }
 
 // quality-of-life wrapper that transforms each tombstone in the map

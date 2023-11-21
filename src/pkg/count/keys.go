@@ -66,6 +66,12 @@ const (
 	StreamItemsErrored            Key = "stream-items-errored"
 	StreamItemsFound              Key = "stream-items-found"
 	StreamItemsRemoved            Key = "stream-items-removed"
+	Tombstones                    Key = "tombstones"
+	TotalContainersSkipped        Key = "total-containers-skipped"
+	TotalDeleteFoldersProcessed   Key = "total-delete-folders-processed"
+	TotalFoldersProcessed         Key = "total-folders-processed"
+	TotalMalwareProcessed         Key = "total-malware-processed"
+	TotalPackagesProcessed        Key = "total-packages-processed"
 	URLCacheMiss                  Key = "url-cache-miss"
 	URLCacheRefresh               Key = "url-cache-refresh"
 

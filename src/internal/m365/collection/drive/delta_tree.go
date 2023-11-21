@@ -237,6 +237,10 @@ func (face *folderyMcFolderFace) SetTombstone(
 
 		delete(face.folderIDToNode, id)
 
+		if len(zombey.prev) == 0 {
+			zombey.prev = loc
+		}
+
 		zombey.parent = nil
 		face.tombstones[id] = zombey
 

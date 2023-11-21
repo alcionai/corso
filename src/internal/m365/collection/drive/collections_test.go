@@ -172,7 +172,7 @@ func malwareItem(
 }
 
 func driveRootItem(id string) models.DriveItemable {
-	name := "root"
+	name := rootName
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&id)
@@ -279,8 +279,8 @@ const (
 	malware   = "malware"
 	nav       = "nav"
 	pkg       = "package"
-	rootName  = "root"
-	rootID    = "root_id"
+	rootID    = odConsts.RootID
+	rootName  = odConsts.RootPathDir
 	subfolder = "subfolder"
 	tenant    = "t"
 	user      = "u"
