@@ -538,14 +538,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 	folderPath, err := basePath.Append(false, namex(folder, "parent"), name(folder))
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
-	minLimitOpts := control.DefaultOptions()
-	minLimitOpts.PreviewLimits.Enabled = true
-	minLimitOpts.PreviewLimits.MaxBytes = 1
-	minLimitOpts.PreviewLimits.MaxContainers = 1
-	minLimitOpts.PreviewLimits.MaxItems = 1
-	minLimitOpts.PreviewLimits.MaxItemsPerContainer = 1
-	minLimitOpts.PreviewLimits.MaxPages = 1
-
 	type expected struct {
 		counts                   countTD.Expected
 		err                      require.ErrorAssertionFunc
@@ -599,6 +591,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 1,
+					count.PagesEnumerated:       1,
 				},
 				err:      require.NoError,
 				treeSize: 1,
@@ -624,6 +617,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 2,
+					count.PagesEnumerated:       2,
 				},
 				err:      require.NoError,
 				treeSize: 1,
@@ -649,6 +643,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 2,
+					count.PagesEnumerated:       1,
 				},
 				err:      require.NoError,
 				treeSize: 2,
@@ -680,6 +675,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 7,
+					count.PagesEnumerated:       3,
 				},
 				err:      require.NoError,
 				treeSize: 4,
@@ -711,6 +707,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       1,
 					count.TotalDeleteFoldersProcessed: 1,
+					count.PagesEnumerated:             1,
 				},
 				err:      require.NoError,
 				treeSize: 2,
@@ -741,6 +738,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       1,
 					count.TotalDeleteFoldersProcessed: 1,
+					count.PagesEnumerated:             1,
 				},
 				err:      require.NoError,
 				treeSize: 3,
@@ -772,6 +770,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       3,
 					count.TotalDeleteFoldersProcessed: 1,
+					count.PagesEnumerated:             2,
 				},
 				err:      require.NoError,
 				treeSize: 1,
@@ -804,6 +803,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       4,
 					count.TotalDeleteFoldersProcessed: 1,
+					count.PagesEnumerated:             2,
 				},
 				err:      require.NoError,
 				treeSize: 3,
@@ -837,6 +837,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 				counts: countTD.Expected{
 					count.TotalDeleteFoldersProcessed: 1,
 					count.TotalFoldersProcessed:       3,
+					count.PagesEnumerated:             2,
 				},
 				err:      require.NoError,
 				treeSize: 2,
@@ -866,12 +867,77 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 				counts: countTD.Expected{
 					count.TotalDeleteFoldersProcessed: 1,
 					count.TotalFoldersProcessed:       3,
+					count.PagesEnumerated:             2,
 				},
 				err:      require.NoError,
 				treeSize: 2,
 				treeContainsFolderIDs: []string{
 					rootID,
 					id(folder),
+				},
+				treeContainsTombstoneIDs: []string{},
+			},
+		},
+		{
+			name: "at limit before enumeration",
+			tree: treeWithRoot(),
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					id(drive): {
+						Pages: pagesOf(
+							rootAnd(driveItem(id(folder), name(folder), parent(0), rootID, isFolder)),
+							rootAnd(driveItem(idx(folder, "sib"), namex(folder, "sib"), parent(0), rootID, isFolder)),
+							rootAnd(
+								driveItem(id(folder), name(folder), parent(0), rootID, isFolder),
+								driveItem(idx(folder, "chld"), namex(folder, "chld"), parent(0), id(folder), isFolder))),
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			prevPaths: map[string]string{},
+			limiter:   newPagerLimiter(minimumLimitOpts()),
+			expect: expected{
+				counts: countTD.Expected{
+					count.TotalDeleteFoldersProcessed: 0,
+					count.TotalFoldersProcessed:       1,
+					count.PagesEnumerated:             1,
+				},
+				err:      require.NoError,
+				treeSize: 1,
+				treeContainsFolderIDs: []string{
+					rootID,
+				},
+				treeContainsTombstoneIDs: []string{},
+			},
+		},
+		{
+			name: "hit limit during enumeration",
+			tree: newFolderyMcFolderFace(nil),
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					id(drive): {
+						Pages: pagesOf(
+							rootAnd(driveItem(id(folder), name(folder), parent(0), rootID, isFolder)),
+							rootAnd(driveItem(idx(folder, "sib"), namex(folder, "sib"), parent(0), rootID, isFolder)),
+							rootAnd(
+								driveItem(id(folder), name(folder), parent(0), rootID, isFolder),
+								driveItem(idx(folder, "chld"), namex(folder, "chld"), parent(0), id(folder), isFolder))),
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
+			prevPaths: map[string]string{},
+			limiter:   newPagerLimiter(minimumLimitOpts()),
+			expect: expected{
+				counts: countTD.Expected{
+					count.TotalDeleteFoldersProcessed: 0,
+					count.TotalFoldersProcessed:       1,
+					count.PagesEnumerated:             1,
+				},
+				err:      require.NoError,
+				treeSize: 1,
+				treeContainsFolderIDs: []string{
+					rootID,
 				},
 				treeContainsTombstoneIDs: []string{},
 			},
@@ -931,14 +997,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 
 	folderPath, err := basePath.Append(false, namex(folder, "parent"), name(folder))
 	require.NoError(suite.T(), err, clues.ToCore(err))
-
-	minLimitOpts := control.DefaultOptions()
-	minLimitOpts.PreviewLimits.Enabled = true
-	minLimitOpts.PreviewLimits.MaxBytes = 1
-	minLimitOpts.PreviewLimits.MaxContainers = 1
-	minLimitOpts.PreviewLimits.MaxItems = 1
-	minLimitOpts.PreviewLimits.MaxItemsPerContainer = 1
-	minLimitOpts.PreviewLimits.MaxPages = 1
 
 	type expected struct {
 		counts                   countTD.Expected
@@ -1057,7 +1115,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				driveItem(idx(folder, "sib"), namex(folder, "sib"), parent(0), rootID, isFolder),
 				driveItem(idx(folder, "chld"), namex(folder, "chld"), parent(0), id(folder), isFolder)),
 			prevPaths: map[string]string{},
-			limiter:   newPagerLimiter(minLimitOpts),
+			limiter:   newPagerLimiter(minimumLimitOpts()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 1,

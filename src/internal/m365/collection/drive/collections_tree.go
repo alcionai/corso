@@ -147,6 +147,8 @@ func (c *Collections) getTree(
 	return collections, canUsePrevBackup, nil
 }
 
+var errTreeNotImplemented = clues.New("backup tree not implemented")
+
 func (c *Collections) makeDriveCollections(
 	ctx context.Context,
 	drv models.Driveable,
@@ -245,7 +247,7 @@ func (c *Collections) makeDriveCollections(
 	// 	}
 	// }
 
-	return nil, nil, du, clues.New("not yet implemented")
+	return nil, nil, du, errTreeNotImplemented
 }
 
 // populateTree constructs a new tree and populates it with items
