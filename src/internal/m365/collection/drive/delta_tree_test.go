@@ -2,6 +2,7 @@ package drive
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +73,7 @@ func (suite *DeltaTreeUnitSuite) TestNewFolderyMcFolderFace() {
 	assert.Nil(t, folderFace.root)
 	assert.NotNil(t, folderFace.folderIDToNode)
 	assert.NotNil(t, folderFace.tombstones)
-	assert.NotNil(t, folderFace.excludeFileIDs)
+	assert.NotNil(t, folderFace.fileIDToParentID)
 }
 
 func (suite *DeltaTreeUnitSuite) TestNewNodeyMcNodeFace() {
@@ -88,8 +89,12 @@ func (suite *DeltaTreeUnitSuite) TestNewNodeyMcNodeFace() {
 	assert.NotEqual(t, loc, nodeFace.prev)
 	assert.True(t, nodeFace.isPackage)
 	assert.NotNil(t, nodeFace.children)
-	assert.NotNil(t, nodeFace.items)
+	assert.NotNil(t, nodeFace.files)
 }
+
+// ---------------------------------------------------------------------------
+// folder tests
+// ---------------------------------------------------------------------------
 
 // note that this test is focused on the SetFolder function,
 // and intentionally does not verify the resulting node tree
@@ -104,10 +109,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
-			tname: "add root",
-			tree: &folderyMcFolderFace{
-				folderIDToNode: map[string]*nodeyMcNodeFace{},
-			},
+			tname:     "add root",
+			tree:      newFolderyMcFolderFace(nil),
 			id:        rootID,
 			name:      rootName,
 			isPackage: true,
@@ -196,7 +199,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			err := test.tree.SetFolder(
+			err := test.tree.setFolder(
 				ctx,
 				test.parentID,
 				test.id,
@@ -269,7 +272,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			err := test.tree.SetTombstone(ctx, test.id)
+			err := test.tree.setTombstone(ctx, test.id)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if err != nil {
@@ -404,7 +407,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 		parentID, fid, fname string,
 		isPackage bool,
 	) {
-		err := tree.SetFolder(ctx, parentID, fid, fname, isPackage)
+		err := tree.setFolder(ctx, parentID, fid, fname, isPackage)
 		require.NoError(t, err, clues.ToCore(err))
 	}
 
@@ -490,7 +493,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 		parentID, fid, fname string,
 		isPackage bool,
 	) {
-		err := tree.SetFolder(ctx, parentID, fid, fname, isPackage)
+		err := tree.setFolder(ctx, parentID, fid, fname, isPackage)
 		require.NoError(t, err, clues.ToCore(err))
 	}
 
@@ -498,7 +501,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 		tid string,
 		loc path.Elements,
 	) {
-		err := tree.SetTombstone(ctx, tid)
+		err := tree.setTombstone(ctx, tid)
 		require.NoError(t, err, clues.ToCore(err))
 	}
 
@@ -650,4 +653,195 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 		compare(t, tree, true)
 
 	entomb().compare(t, tree.tombstones)
+}
+
+// ---------------------------------------------------------------------------
+// file tests
+// ---------------------------------------------------------------------------
+
+func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
+	treeWithFileAtRoot := func() *folderyMcFolderFace {
+		tree := treeWithFolders()
+		tree.root.files[id(file)] = time.Now()
+		tree.fileIDToParentID[id(file)] = rootID
+
+		return tree
+	}
+
+	treeWithFileInTombstone := func() *folderyMcFolderFace {
+		tree := treeWithTombstone()
+		tree.tombstones[id(folder)].files[id(file)] = time.Now()
+		tree.fileIDToParentID[id(file)] = id(folder)
+
+		return tree
+	}
+
+	table := []struct {
+		tname       string
+		tree        *folderyMcFolderFace
+		oldParentID string
+		parentID    string
+		expectErr   assert.ErrorAssertionFunc
+		expectFiles map[string]string
+	}{
+		{
+			tname:       "add file to root",
+			tree:        treeWithRoot(),
+			oldParentID: "",
+			parentID:    rootID,
+			expectErr:   assert.NoError,
+			expectFiles: map[string]string{id(file): rootID},
+		},
+		{
+			tname:       "add file to folder",
+			tree:        treeWithFolders(),
+			oldParentID: "",
+			parentID:    id(folder),
+			expectErr:   assert.NoError,
+			expectFiles: map[string]string{id(file): id(folder)},
+		},
+		{
+			tname:       "re-add file at the same location",
+			tree:        treeWithFileAtRoot(),
+			oldParentID: "",
+			parentID:    rootID,
+			expectErr:   assert.NoError,
+			expectFiles: map[string]string{id(file): rootID},
+		},
+		{
+			tname:       "move file from root to folder",
+			tree:        treeWithFileAtRoot(),
+			oldParentID: rootID,
+			parentID:    id(folder),
+			expectErr:   assert.NoError,
+			expectFiles: map[string]string{id(file): id(folder)},
+		},
+		{
+			tname:       "move file from tombstone to root",
+			tree:        treeWithFileInTombstone(),
+			oldParentID: id(folder),
+			parentID:    rootID,
+			expectErr:   assert.NoError,
+			expectFiles: map[string]string{id(file): rootID},
+		},
+		{
+			tname:       "error adding file to tombstone",
+			tree:        treeWithTombstone(),
+			oldParentID: "",
+			parentID:    id(folder),
+			expectErr:   assert.Error,
+			expectFiles: map[string]string{},
+		},
+		{
+			tname:       "error adding file before parent",
+			tree:        treeWithTombstone(),
+			oldParentID: "",
+			parentID:    idx(folder, 1),
+			expectErr:   assert.Error,
+			expectFiles: map[string]string{},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.tname, func() {
+			t := suite.T()
+
+			err := test.tree.addFile(
+				test.parentID,
+				id(file),
+				time.Now())
+			test.expectErr(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expectFiles, test.tree.fileIDToParentID)
+
+			if err != nil {
+				return
+			}
+
+			parent, ok := test.tree.folderIDToNode[test.parentID]
+			if !ok {
+				parent = test.tree.tombstones[test.parentID]
+			}
+
+			require.NotNil(t, parent)
+			assert.Contains(t, parent.files, id(file))
+
+			if len(test.oldParentID) > 0 {
+				old, ok := test.tree.folderIDToNode[test.oldParentID]
+				if !ok {
+					old = test.tree.tombstones[test.oldParentID]
+				}
+
+				require.NotNil(t, old)
+				assert.NotContains(t, old.files, id(file))
+			}
+		})
+	}
+}
+
+func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
+	treeWithFileAtRoot := func() *folderyMcFolderFace {
+		tree := treeWithFolders()
+		tree.root.files[id(file)] = time.Now()
+		tree.fileIDToParentID[id(file)] = rootID
+
+		return tree
+	}
+
+	treeWithFileInFolder := func() *folderyMcFolderFace {
+		tree := treeWithFileAtRoot()
+		err := tree.addFile(id(folder), id(file), time.Now())
+		require.NoError(suite.T(), err, clues.ToCore(err))
+
+		return tree
+	}
+
+	treeWithFileInTombstone := func() *folderyMcFolderFace {
+		tree := treeWithTombstone()
+		tree.tombstones[id(folder)].files[id(file)] = time.Now()
+		tree.fileIDToParentID[id(file)] = id(folder)
+
+		return tree
+	}
+
+	table := []struct {
+		tname    string
+		tree     *folderyMcFolderFace
+		parentID string
+	}{
+		{
+			tname:    "delete unseen file",
+			tree:     treeWithRoot(),
+			parentID: rootID,
+		},
+		{
+			tname:    "delete file from root",
+			tree:     treeWithFolders(),
+			parentID: rootID,
+		},
+		{
+			tname:    "delete file from folder",
+			tree:     treeWithFileInFolder(),
+			parentID: id(folder),
+		},
+		{
+			tname:    "delete file from tombstone",
+			tree:     treeWithFileInTombstone(),
+			parentID: id(folder),
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.tname, func() {
+			t := suite.T()
+
+			test.tree.deleteFile(id(file))
+
+			parent, ok := test.tree.folderIDToNode[test.parentID]
+			if !ok {
+				parent = test.tree.tombstones[test.parentID]
+			}
+
+			require.NotNil(t, parent)
+			assert.NotContains(t, parent.files, id(file))
+			assert.NotContains(t, test.tree.fileIDToParentID, id(file))
+		})
+	}
 }

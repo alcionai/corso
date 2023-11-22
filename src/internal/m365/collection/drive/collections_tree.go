@@ -300,7 +300,7 @@ func (c *Collections) populateTree(
 
 		if reset {
 			counter.Inc(count.PagerResets)
-			tree.Reset()
+			tree.reset()
 			c.resetStats()
 
 			*stats = driveEnumerationStats{}
@@ -384,7 +384,7 @@ func (c *Collections) enumeratePageOfItems(
 
 		if isFolder {
 			// check if the preview needs to exit before adding each folder
-			if !tree.ContainsFolder(itemID) && limiter.atLimit(stats, len(tree.folderIDToNode)) {
+			if !tree.containsFolder(itemID) && limiter.atLimit(stats, len(tree.folderIDToNode)) {
 				break
 			}
 
@@ -472,7 +472,7 @@ func (c *Collections) addFolderToTree(
 	}
 
 	if isDeleted {
-		err := tree.SetTombstone(ctx, folderID)
+		err := tree.setTombstone(ctx, folderID)
 		return nil, clues.Stack(err).OrNil()
 	}
 
@@ -488,7 +488,7 @@ func (c *Collections) addFolderToTree(
 		return nil, nil
 	}
 
-	err = tree.SetFolder(ctx, parentID, folderID, folderName, isPkg)
+	err = tree.setFolder(ctx, parentID, folderID, folderName, isPkg)
 
 	return nil, clues.Stack(err).OrNil()
 }

@@ -824,7 +824,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 				counter,
 				fault.New(true))
 			test.expect.err(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expect.treeSize, test.tree.CountFolders(), "count folders in tree")
+			assert.Equal(t, test.expect.treeSize, test.tree.countFolders(), "count folders in tree")
 			test.expect.counts.Compare(t, counter)
 
 			for _, id := range test.expect.treeContainsFolderIDs {
@@ -1036,7 +1036,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				counter,
 				fault.New(true))
 			test.expect.err(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expect.treeSize, test.tree.CountFolders(), "count folders in tree")
+			assert.Equal(t, test.expect.treeSize, test.tree.countFolders(), "count folders in tree")
 			test.expect.counts.Compare(t, counter)
 
 			for _, id := range test.expect.treeContainsFolderIDs {
@@ -1181,8 +1181,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			test.expect.err(t, err, clues.ToCore(err))
 			test.expect.skipped(t, skipped)
 			test.expect.counts.Compare(t, counter)
-			assert.Equal(t, test.expect.treeSize, test.tree.CountFolders(), "folders in tree")
-			test.expect.treeContainsFolder(t, test.tree.ContainsFolder(ptr.Val(test.folder.GetId())))
+			assert.Equal(t, test.expect.treeSize, test.tree.countFolders(), "folders in tree")
+			test.expect.treeContainsFolder(t, test.tree.containsFolder(ptr.Val(test.folder.GetId())))
 		})
 	}
 }

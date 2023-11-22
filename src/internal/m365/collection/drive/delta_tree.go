@@ -33,9 +33,9 @@ type folderyMcFolderFace struct {
 	// and forth between live and tombstoned states.
 	tombstones map[string]*nodeyMcNodeFace
 
-	// it's just a sensible place to store the data, since we're
-	// already pushing file additions through the api.
-	excludeFileIDs map[string]struct{}
+	// will also be used to construct the excluded file id map
+	// during the post-processing step
+	fileIDToParentID map[string]string
 
 	// true if Reset() was called
 	hadReset bool
@@ -45,23 +45,23 @@ func newFolderyMcFolderFace(
 	prefix path.Path,
 ) *folderyMcFolderFace {
 	return &folderyMcFolderFace{
-		prefix:         prefix,
-		folderIDToNode: map[string]*nodeyMcNodeFace{},
-		tombstones:     map[string]*nodeyMcNodeFace{},
-		excludeFileIDs: map[string]struct{}{},
+		prefix:           prefix,
+		folderIDToNode:   map[string]*nodeyMcNodeFace{},
+		tombstones:       map[string]*nodeyMcNodeFace{},
+		fileIDToParentID: map[string]string{},
 	}
 }
 
-// Reset erases all data contained in the tree.  This is intended for
+// reset erases all data contained in the tree.  This is intended for
 // tracking a delta enumeration reset, not for tree re-use, and will
 // cause the tree to flag itself as dirty in order to appropriately
 // post-process the data.
-func (face *folderyMcFolderFace) Reset() {
+func (face *folderyMcFolderFace) reset() {
 	face.hadReset = true
 	face.root = nil
 	face.folderIDToNode = map[string]*nodeyMcNodeFace{}
 	face.tombstones = map[string]*nodeyMcNodeFace{}
-	face.excludeFileIDs = map[string]struct{}{}
+	face.fileIDToParentID = map[string]string{}
 }
 
 type nodeyMcNodeFace struct {
@@ -75,10 +75,10 @@ type nodeyMcNodeFace struct {
 	name string
 	// only contains the folders starting at and including '/root:'
 	prev path.Elements
-	// map folderID -> node
+	// folderID -> node
 	children map[string]*nodeyMcNodeFace
-	// items are keyed by item ID
-	items map[string]time.Time
+	// file item ID -> last modified time
+	files map[string]time.Time
 	// for special handling protocols around packages
 	isPackage bool
 }
@@ -93,7 +93,7 @@ func newNodeyMcNodeFace(
 		id:        id,
 		name:      name,
 		children:  map[string]*nodeyMcNodeFace{},
-		items:     map[string]time.Time{},
+		files:     map[string]time.Time{},
 		isPackage: isPackage,
 	}
 }
@@ -102,9 +102,9 @@ func newNodeyMcNodeFace(
 // folder handling
 // ---------------------------------------------------------------------------
 
-// ContainsFolder returns true if the given folder id is present as either
+// containsFolder returns true if the given folder id is present as either
 // a live node or a tombstone.
-func (face *folderyMcFolderFace) ContainsFolder(id string) bool {
+func (face *folderyMcFolderFace) containsFolder(id string) bool {
 	_, stillKicking := face.folderIDToNode[id]
 	_, alreadyBuried := face.tombstones[id]
 
@@ -113,14 +113,14 @@ func (face *folderyMcFolderFace) ContainsFolder(id string) bool {
 
 // CountNodes returns a count that is the sum of live folders and
 // tombstones recorded in the tree.
-func (face *folderyMcFolderFace) CountFolders() int {
+func (face *folderyMcFolderFace) countFolders() int {
 	return len(face.tombstones) + len(face.folderIDToNode)
 }
 
-// SetFolder adds a node with the following details to the tree.
+// setFolder adds a node with the following details to the tree.
 // If the node already exists with the given ID, the name and parent
 // values are updated to match (isPackage is assumed not to change).
-func (face *folderyMcFolderFace) SetFolder(
+func (face *folderyMcFolderFace) setFolder(
 	ctx context.Context,
 	parentID, id, name string,
 	isPackage bool,
@@ -217,7 +217,7 @@ func (face *folderyMcFolderFace) SetFolder(
 	return nil
 }
 
-func (face *folderyMcFolderFace) SetTombstone(
+func (face *folderyMcFolderFace) setTombstone(
 	ctx context.Context,
 	id string,
 ) error {
@@ -251,4 +251,60 @@ func (face *folderyMcFolderFace) SetTombstone(
 	}
 
 	return nil
+}
+
+// addFile places the file in the correct parent node.  If the
+// file was already added to the tree and is getting relocated,
+// this func will make the movement and clean up all old referces.
+func (face *folderyMcFolderFace) addFile(
+	parentID, id string,
+	lastModifed time.Time,
+) error {
+	// in case of file movement, clean up any references
+	// to the file in the old parent
+	oldParentID, ok := face.fileIDToParentID[id]
+	if ok && oldParentID != parentID {
+		if nodey, ok := face.folderIDToNode[oldParentID]; ok {
+			delete(nodey.files, id)
+		}
+
+		if zombey, ok := face.tombstones[oldParentID]; ok {
+			delete(zombey.files, id)
+		}
+	}
+
+	parent, ok := face.folderIDToNode[parentID]
+	if !ok {
+		return clues.New("item added before parent")
+	}
+
+	face.fileIDToParentID[id] = parentID
+	parent.files[id] = lastModifed
+
+	return nil
+}
+
+// files don't get tombstoned because their deletion will get handled
+// in one of two ways in the storage system:
+//
+// 1. an ancestor folder was tombstoned, causing a delete cascade
+// that includes this file and all its siblings.
+// 2. the item does not appear in the exclude map, which would protect
+// the file from deletion.
+//
+// thanks to these behaviors, files only need to have their references
+// when a delete marker shows up.
+func (face *folderyMcFolderFace) deleteFile(id string) {
+	parentID, ok := face.fileIDToParentID[id]
+	if ok {
+		if nodey, ok := face.folderIDToNode[parentID]; ok {
+			delete(nodey.files, id)
+		}
+
+		if zombey, ok := face.tombstones[parentID]; ok {
+			delete(zombey.files, id)
+		}
+	}
+
+	delete(face.fileIDToParentID, id)
 }
