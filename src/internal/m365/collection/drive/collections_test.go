@@ -112,6 +112,7 @@ func coreItem(
 
 	switch it {
 	case isFile:
+		item.SetSize(ptr.To[int64](42))
 		item.SetFile(models.NewFile())
 	case isFolder:
 		item.SetFolder(models.NewFolder())

@@ -48,6 +48,30 @@ func treeWithFolders() *folderyMcFolderFace {
 	return tree
 }
 
+func treeWithFileAtRoot() *folderyMcFolderFace {
+	tree := treeWithFolders()
+	tree.root.files[id(file)] = time.Now()
+	tree.fileIDToParentID[id(file)] = rootID
+
+	return tree
+}
+
+func treeWithFileInFolder() *folderyMcFolderFace {
+	tree := treeWithFileAtRoot()
+	tree.folderIDToNode[id(folder)].files[id(file)] = time.Now()
+	tree.fileIDToParentID[id(file)] = id(folder)
+
+	return tree
+}
+
+func treeWithFileInTombstone() *folderyMcFolderFace {
+	tree := treeWithTombstone()
+	tree.tombstones[id(folder)].files[id(file)] = time.Now()
+	tree.fileIDToParentID[id(file)] = id(folder)
+
+	return tree
+}
+
 // ---------------------------------------------------------------------------
 // tests
 // ---------------------------------------------------------------------------
@@ -660,30 +684,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 // ---------------------------------------------------------------------------
 
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
-	treeWithFileAtRoot := func() *folderyMcFolderFace {
-		tree := treeWithRoot()
-		tree.root.files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = rootID
-
-		return tree
-	}
-
-	treeWithFileInFolder := func() *folderyMcFolderFace {
-		tree := treeWithFolders()
-		tree.root.files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = id(folder)
-
-		return tree
-	}
-
-	treeWithFileInTombstone := func() *folderyMcFolderFace {
-		tree := treeWithTombstone()
-		tree.tombstones[id(folder)].files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = id(folder)
-
-		return tree
-	}
-
 	table := []struct {
 		tname       string
 		tree        *folderyMcFolderFace
@@ -748,6 +748,14 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			expectErr:   assert.Error,
 			expectFiles: map[string]string{},
 		},
+		{
+			tname:       "error adding file without parentt id",
+			tree:        treeWithTombstone(),
+			oldParentID: "",
+			parentID:    "",
+			expectErr:   assert.Error,
+			expectFiles: map[string]string{},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.tname, func() {
@@ -786,30 +794,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 }
 
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
-	treeWithFileAtRoot := func() *folderyMcFolderFace {
-		tree := treeWithFolders()
-		tree.root.files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = rootID
-
-		return tree
-	}
-
-	treeWithFileInFolder := func() *folderyMcFolderFace {
-		tree := treeWithFileAtRoot()
-		err := tree.addFile(id(folder), id(file), time.Now())
-		require.NoError(suite.T(), err, clues.ToCore(err))
-
-		return tree
-	}
-
-	treeWithFileInTombstone := func() *folderyMcFolderFace {
-		tree := treeWithTombstone()
-		tree.tombstones[id(folder)].files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = id(folder)
-
-		return tree
-	}
-
 	table := []struct {
 		tname    string
 		tree     *folderyMcFolderFace

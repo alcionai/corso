@@ -260,6 +260,14 @@ func (face *folderyMcFolderFace) addFile(
 	parentID, id string,
 	lastModifed time.Time,
 ) error {
+	if len(parentID) == 0 {
+		return clues.New("item added without parent folder ID")
+	}
+
+	if len(id) == 0 {
+		return clues.New("item added without ID")
+	}
+
 	// in case of file movement, clean up any references
 	// to the file in the old parent
 	oldParentID, ok := face.fileIDToParentID[id]
