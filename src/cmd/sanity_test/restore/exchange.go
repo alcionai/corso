@@ -19,8 +19,8 @@ func CheckEmailRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	restoredTree := buildSanitree(ctx, ac, envs.UserID, envs.RestoreContainer)
-	sourceTree := buildSanitree(ctx, ac, envs.UserID, envs.SourceContainer)
+	restoredTree := BuildEmailSanitree(ctx, ac, envs.UserID, envs.RestoreContainer)
+	sourceTree := BuildEmailSanitree(ctx, ac, envs.UserID, envs.SourceContainer)
 
 	ctx = clues.Add(
 		ctx,
@@ -39,7 +39,7 @@ func CheckEmailRestoration(
 	common.Infof(ctx, "Success")
 }
 
-func buildSanitree(
+func BuildEmailSanitree(
 	ctx context.Context,
 	ac api.Client,
 	userID, folderName string,
