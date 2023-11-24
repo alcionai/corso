@@ -95,6 +95,7 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 // AddSiteIDFlag adds the --site-id flag, which accepts site ID values.
 // This flag is hidden, since we expect users to prefer the --site url
 // and do not want to encourage confusion.
+// TODO(meain): --site is the primary one, but it would be useful to have comepletion for this as well
 func AddSiteIDFlag(cmd *cobra.Command, multiple bool) {
 	fs := cmd.Flags()
 
@@ -112,11 +113,17 @@ func AddSiteIDFlag(cmd *cobra.Command, multiple bool) {
 }
 
 // AddSiteFlag adds the --site flag, which accepts webURL values.
-func AddSiteFlag(cmd *cobra.Command, multiple bool) {
+func AddSiteFlag(
+	cmd *cobra.Command,
+	multiple bool,
+	completionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective),
+) {
 	message := "Web URL of the site to operate on"
 	if multiple {
 		message += "; accepts '" + Wildcard + "' to select all sites."
 	}
 
 	cmd.Flags().StringSliceVar(&WebURLFV, SiteFN, nil, message)
+
+	cobra.CheckErr(cmd.RegisterFlagCompletionFunc(SiteFN, completionFunc))
 }

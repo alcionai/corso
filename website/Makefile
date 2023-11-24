@@ -55,8 +55,8 @@ _validatemdgen: # in case we have a different architecture
 
 ${MDGEN_BINARY}: $(shell find ${CORSO_LOCAL_PATH}/src -type f -name *.go) $(shell find ${CORSO_LOCAL_PATH}/src -type d )
 	@echo 'Re-building Corso CLI docs auto-gen tooling...'
-		$(GOC) go mod download 
-		$(GOC) go build -o ${MDGEN_BINARY} ${MDGEN_SRC}
+	$(GOC) go mod download 
+	$(GOC) go build -o ${MDGEN_BINARY} ${MDGEN_SRC}
 
 clean:
 	$(WEBC) rm -rf docs/cli build node_modules

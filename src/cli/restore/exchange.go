@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -26,7 +27,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		// general flags
 		fs.SortFlags = false
 
-		flags.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true, utils.BackupIDCompletionFunc(path.ExchangeService))
 		flags.AddExchangeDetailsAndRestoreFlags(c, false)
 		flags.AddRestoreConfigFlags(c, true)
 		flags.AddFailFastFlag(c)

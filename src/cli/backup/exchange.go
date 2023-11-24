@@ -77,7 +77,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		flags.AddMailBoxFlag(c)
+		flags.AddMailBoxFlag(c, utils.MailboxCompletionFunc(path.ExchangeService))
 		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddDisableDeltaFlag(c)
@@ -90,7 +90,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
 		fs.SortFlags = false
 
-		flags.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false, utils.BackupIDCompletionFunc(path.ExchangeService))
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
@@ -104,7 +104,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		flags.AddBackupIDFlag(c, true)
+		flags.AddBackupIDFlag(c, true, utils.BackupIDCompletionFunc(path.ExchangeService))
 		flags.AddExchangeDetailsAndRestoreFlags(c, false)
 
 	case deleteCommand:
@@ -115,7 +115,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Example = exchangeServiceCommandDeleteExamples
 
 		flags.AddMultipleBackupIDsFlag(c, false)
-		flags.AddBackupIDFlag(c, false)
+		flags.AddBackupIDFlag(c, false, utils.BackupIDCompletionFunc(path.ExchangeService))
 	}
 
 	return c
