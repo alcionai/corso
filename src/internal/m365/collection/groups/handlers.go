@@ -50,7 +50,7 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 	// canonicalPath constructs the service and category specific path for
 	// the given builder.
 	canonicalPath(
-		folders path.Elements,
+		storageDir path.Elements,
 		tenantID string,
 	) (path.Path, error)
 
@@ -73,8 +73,8 @@ type getItemer[I groupsItemer] interface {
 // ---------------------------------------------------------------------------
 
 type container[C graph.GetIDer] struct {
-	folders             path.Elements
-	location            path.Elements
+	storageDirFolders   path.Elements
+	humanLocation       path.Elements
 	canMakeDeltaQueries bool
 	container           C
 }

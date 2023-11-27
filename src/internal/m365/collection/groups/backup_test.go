@@ -104,10 +104,10 @@ func (bh mockBackupHandler) includeContainer(
 }
 
 func (bh mockBackupHandler) canonicalPath(
-	folders path.Elements,
+	storageDirFolders path.Elements,
 	tenantID string,
 ) (path.Path, error) {
-	return folders.
+	return storageDirFolders.
 		Builder().
 		ToDataLayerPath(
 			tenantID,

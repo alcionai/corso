@@ -3,9 +3,9 @@ package groups
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -74,10 +74,10 @@ func (bh channelsBackupHandler) includeContainer(
 }
 
 func (bh channelsBackupHandler) canonicalPath(
-	folders path.Elements,
+	storageDirFolders path.Elements,
 	tenantID string,
 ) (path.Path, error) {
-	return folders.
+	return storageDirFolders.
 		Builder().
 		ToDataLayerPath(
 			tenantID,
@@ -107,8 +107,8 @@ func (bh channelsBackupHandler) GetItem(
 
 func channelContainer(ch models.Channelable) container[models.Channelable] {
 	return container[models.Channelable]{
-		folders:             path.Elements{ptr.Val(ch.GetId())},
-		location:            path.Elements{ptr.Val(ch.GetDisplayName())},
+		storageDirFolders:   path.Elements{ptr.Val(ch.GetId())},
+		humanLocation:       path.Elements{ptr.Val(ch.GetDisplayName())},
 		canMakeDeltaQueries: len(ptr.Val(ch.GetEmail())) > 0,
 		container:           ch,
 	}

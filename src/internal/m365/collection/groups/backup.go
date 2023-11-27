@@ -127,7 +127,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			cl          = counter.Local()
 			cID         = ptr.Val(c.container.GetId())
 			err         error
-			dp          = dps[c.folders.String()]
+			dp          = dps[c.storageDirFolders.String()]
 			prevDelta   = dp.Delta
 			prevPathStr = dp.Path // do not log: pii; log prevPath instead
 			prevPath    path.Path
@@ -168,7 +168,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			CanMakeDeltaQueries: bh.canMakeDeltaQueries() && c.canMakeDeltaQueries,
 		}
 
-		addAndRem, err := bh.getContainerItemIDs(ctx, c.folders, prevDelta, cc)
+		addAndRem, err := bh.getContainerItemIDs(ctx, c.storageDirFolders, prevDelta, cc)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
@@ -181,12 +181,12 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 		cl.Add(count.ItemsRemoved, int64(len(removed)))
 
 		if len(addAndRem.DU.URL) > 0 {
-			deltaURLs[c.folders.String()] = addAndRem.DU.URL
+			deltaURLs[c.storageDirFolders.String()] = addAndRem.DU.URL
 		} else if !addAndRem.DU.Reset {
 			logger.Ctx(ictx).Info("missing delta url")
 		}
 
-		currPath, err := bh.canonicalPath(c.folders, qp.TenantID)
+		currPath, err := bh.canonicalPath(c.storageDirFolders, qp.TenantID)
 		if err != nil {
 			err = clues.StackWC(ctx, err).Label(count.BadCollPath)
 			el.AddRecoverable(ctx, err)
@@ -205,7 +205,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			data.NewBaseCollection(
 				currPath,
 				prevPath,
-				c.location.Builder(),
+				c.humanLocation.Builder(),
 				ctrlOpts,
 				addAndRem.DU.Reset,
 				cl),
@@ -215,11 +215,11 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			removed,
 			statusUpdater)
 
-		collections[c.folders.String()] = &edc
+		collections[c.storageDirFolders.String()] = &edc
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
-		currPaths[c.folders.String()] = currPath.String()
+		currPaths[c.storageDirFolders.String()] = currPath.String()
 	}
 
 	// A tombstone is a channel that needs to be marked for deletion.

@@ -73,7 +73,7 @@ func ProduceBackupCollections(
 
 		cl := counter.Local()
 		ictx := clues.AddLabelCounter(ctx, cl.PlainAdder())
-		ictx = clues.Add(ctx, "category", scope.Category().PathType())
+		ictx = clues.Add(ictx, "category", scope.Category().PathType())
 
 		var dbcs []data.BackupCollection
 

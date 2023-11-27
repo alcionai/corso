@@ -91,10 +91,10 @@ func (bh conversationsBackupHandler) includeContainer(
 }
 
 func (bh conversationsBackupHandler) canonicalPath(
-	folders path.Elements,
+	storageDirFolders path.Elements,
 	tenantID string,
 ) (path.Path, error) {
-	return folders.
+	return storageDirFolders.
 		Builder().
 		ToDataLayerPath(
 			tenantID,
@@ -133,8 +133,8 @@ func conversationThreadContainer(
 	t models.ConversationThreadable,
 ) container[models.Conversationable] {
 	return container[models.Conversationable]{
-		folders:             path.Elements{ptr.Val(c.GetId()), ptr.Val(t.GetId())},
-		location:            path.Elements{"TODO(keepers)"},
+		storageDirFolders:   path.Elements{ptr.Val(c.GetId()), ptr.Val(t.GetId())},
+		humanLocation:       path.Elements{"TODO(keepers)"},
 		canMakeDeltaQueries: false,
 		container:           c,
 	}
