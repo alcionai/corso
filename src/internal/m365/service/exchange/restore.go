@@ -26,9 +26,9 @@ func ConsumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*details.Details, *support.ControllerOperationStatus, error) {
+) (*details.Details, *data.CollectionStats, error) {
 	if len(dcs) == 0 {
-		return nil, support.CreateStatus(ctx, support.Restore, 0, support.CollectionMetrics{}, ""), nil
+		return nil, nil, clues.New("no data collections to restore")
 	}
 
 	var (
@@ -119,5 +119,5 @@ func ConsumeRestoreCollections(
 		metrics,
 		rcc.RestoreConfig.Location)
 
-	return deets.Details(), status, el.Failure()
+	return deets.Details(), status.ToCollectionStats(), el.Failure()
 }

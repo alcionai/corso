@@ -76,8 +76,8 @@ func (ctrl Controller) ConsumeRestoreCollections(
 	_ []data.RestoreCollection,
 	_ *fault.Bus,
 	_ *count.Bus,
-) (*details.Details, error) {
-	return ctrl.Deets, ctrl.Err
+) (*details.Details, *data.CollectionStats, error) {
+	return ctrl.Deets, &ctrl.Stats, ctrl.Err
 }
 
 func (ctrl Controller) CacheItemInfo(dii details.ItemInfo) {}
