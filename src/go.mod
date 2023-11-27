@@ -17,7 +17,7 @@ require (
 	github.com/jaytaylor/html2text v0.0.0-20230321000545-74c2419ad056
 	github.com/jhillyerd/enmime v1.0.1
 	github.com/kopia/kopia v0.13.0
-	github.com/microsoft/kiota-abstractions-go v1.5.2
+	github.com/microsoft/kiota-abstractions-go v1.5.3
 	github.com/microsoft/kiota-authentication-azure-go v1.0.1
 	github.com/microsoft/kiota-http-go v1.1.1
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
