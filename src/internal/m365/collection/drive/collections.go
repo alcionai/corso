@@ -856,7 +856,7 @@ func (c *Collections) PopulateDriveCollections(
 				// Don't check for containers we've already seen.
 				if _, ok := c.CollectionMap[driveID][id]; !ok {
 					if id != lastContainerID {
-						if limiter.atLimit(stats, ignoreMe) {
+						if limiter.atLimit(stats) {
 							break
 						}
 

@@ -391,7 +391,7 @@ func (c *Collections) enumeratePageOfItems(
 		switch {
 		case isFolder:
 			// check limits before adding the next new folder
-			if !tree.containsFolder(itemID) && limiter.atLimit(stats, len(tree.folderIDToNode)) {
+			if !tree.containsFolder(itemID) && limiter.atLimit(stats) {
 				return errHitLimit
 			}
 
@@ -612,7 +612,7 @@ func (c *Collections) addFileToTree(
 	}
 
 	// Skip large files that don't fit within the size limit.
-	if limiter.aboveSizeLimit(fileSize + stats.numBytes) {
+	if limiter.hitTotalBytesLimit(fileSize + stats.numBytes) {
 		return nil, nil
 	}
 
