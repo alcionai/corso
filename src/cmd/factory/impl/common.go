@@ -111,7 +111,14 @@ func generateAndRestoreItems(
 		Selector:          sel,
 	}
 
-	return ctrl.ConsumeRestoreCollections(ctx, rcc, dataColls, errs, ctr)
+	deets, _, err := ctrl.ConsumeRestoreCollections(
+		ctx,
+		rcc,
+		dataColls,
+		errs,
+		ctr)
+
+	return deets, clues.Wrap(err, "restoring items").OrNil()
 }
 
 // ------------------------------------------------------------------------------------------
@@ -455,5 +462,12 @@ func generateAndRestoreDriveItems(
 		Selector:          sel,
 	}
 
-	return ctrl.ConsumeRestoreCollections(ctx, rcc, collections, errs, ctr)
+	deets, _, err := ctrl.ConsumeRestoreCollections(
+		ctx,
+		rcc,
+		collections,
+		errs,
+		ctr)
+
+	return deets, clues.Wrap(err, "restoring items").OrNil()
 }

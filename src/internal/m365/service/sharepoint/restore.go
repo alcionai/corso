@@ -30,7 +30,7 @@ func ConsumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*details.Details, *support.ControllerOperationStatus, error) {
+) (*details.Details, *data.CollectionStats, error) {
 	var (
 		deets          = &details.Builder{}
 		lrh            = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
@@ -118,5 +118,5 @@ func ConsumeRestoreCollections(
 		restoreMetrics,
 		rcc.RestoreConfig.Location)
 
-	return deets.Details(), status, el.Failure()
+	return deets.Details(), status.ToCollectionStats(), el.Failure()
 }

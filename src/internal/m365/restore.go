@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
-	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -23,14 +22,13 @@ import (
 
 // ConsumeRestoreCollections restores data from the specified collections
 // into M365 using the GraphAPI.
-// SideEffect: status is updated at the completion of operation
 func (ctrl *Controller) ConsumeRestoreCollections(
 	ctx context.Context,
 	rcc inject.RestoreConsumerConfig,
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*details.Details, error) {
+) (*details.Details, *data.CollectionStats, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:restore")
 	defer end()
 
@@ -38,19 +36,19 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 	ctx = clues.Add(ctx, "restore_config", rcc.RestoreConfig)
 
 	if len(dcs) == 0 {
-		return nil, clues.New("no data collections to restore")
+		return nil, nil, clues.New("no data collections to restore")
 	}
 
 	var (
 		service = rcc.Selector.PathService()
-		status  *support.ControllerOperationStatus
+		stats   *data.CollectionStats
 		deets   *details.Details
 		err     error
 	)
 
 	switch service {
 	case path.ExchangeService:
-		deets, status, err = exchange.ConsumeRestoreCollections(
+		deets, stats, err = exchange.ConsumeRestoreCollections(
 			ctx,
 			ctrl.AC,
 			rcc,
@@ -58,7 +56,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 			errs,
 			ctr)
 	case path.OneDriveService:
-		deets, status, err = onedrive.ConsumeRestoreCollections(
+		deets, stats, err = onedrive.ConsumeRestoreCollections(
 			ctx,
 			drive.NewUserDriveRestoreHandler(ctrl.AC),
 			rcc,
@@ -67,7 +65,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 			errs,
 			ctr)
 	case path.SharePointService:
-		deets, status, err = sharepoint.ConsumeRestoreCollections(
+		deets, stats, err = sharepoint.ConsumeRestoreCollections(
 			ctx,
 			rcc,
 			ctrl.AC,
@@ -76,7 +74,7 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 			errs,
 			ctr)
 	case path.GroupsService:
-		deets, status, err = groups.ConsumeRestoreCollections(
+		deets, stats, err = groups.ConsumeRestoreCollections(
 			ctx,
 			rcc,
 			ctrl.AC,
@@ -89,8 +87,5 @@ func (ctrl *Controller) ConsumeRestoreCollections(
 		err = clues.Wrap(clues.New(service.String()), "service not supported")
 	}
 
-	ctrl.incrementAwaitingMessages()
-	ctrl.UpdateStatus(status)
-
-	return deets, err
+	return deets, stats, err
 }
