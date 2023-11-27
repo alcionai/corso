@@ -56,7 +56,7 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 
 	// canMakeDeltaQueries evaluates whether the container can support a
 	// delta query when enumerating its items.
-	canMakeDeltaQueries(C) bool
+	canMakeDeltaQueries(c C) bool
 }
 
 type getItemer[I groupsItemer] interface {
