@@ -146,7 +146,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 		delete(tombstones, cID)
 
 		// Only create a collection if the path matches the scope.
-		if !bh.includeContainer(ictx, qp, c.container, scope) {
+		if !bh.includeContainer(c.container, scope) {
 			cl.Inc(count.SkippedContainers)
 			continue
 		}

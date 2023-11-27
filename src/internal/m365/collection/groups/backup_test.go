@@ -95,8 +95,6 @@ func (bh mockBackupHandler) getContainerItemIDs(
 }
 
 func (bh mockBackupHandler) includeContainer(
-	context.Context,
-	graph.QueryParams,
 	models.Channelable,
 	selectors.GroupsScope,
 ) bool {

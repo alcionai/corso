@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -65,8 +64,6 @@ func (bh channelsBackupHandler) getContainerItemIDs(
 }
 
 func (bh channelsBackupHandler) includeContainer(
-	ctx context.Context,
-	qp graph.QueryParams,
 	ch models.Channelable,
 	scope selectors.GroupsScope,
 ) bool {

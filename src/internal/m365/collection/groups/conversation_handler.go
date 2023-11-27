@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -33,6 +32,7 @@ func NewConversationBackupHandler(
 }
 
 func (bh conversationsBackupHandler) canMakeDeltaQueries() bool {
+	// not supported for conversations
 	return false
 }
 
@@ -82,8 +82,6 @@ func (bh conversationsBackupHandler) getContainerItemIDs(
 }
 
 func (bh conversationsBackupHandler) includeContainer(
-	ctx context.Context,
-	qp graph.QueryParams,
 	conv models.Conversationable,
 	scope selectors.GroupsScope,
 ) bool {
@@ -104,6 +102,14 @@ func (bh conversationsBackupHandler) canonicalPath(
 			false)
 }
 
+func (bh conversationsBackupHandler) locationPath(c models.Conversationable) *path.Builder {
+	// microsoft UX doesn't display any sort of container name that would make a reasonable
+	// "location" for the posts in the conversation.  We may need to revisit this, perhaps
+	// the subject is sufficiently acceptable.  But at this time it's left empty so that
+	// we don't populate it with problematic data.
+	return &path.Builder{}
+}
+
 func (bh conversationsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
 	return path.Build(
 		tenantID,
@@ -116,7 +122,7 @@ func (bh conversationsBackupHandler) PathPrefix(tenantID string) (path.Path, err
 func (bh conversationsBackupHandler) GetItem(
 	ctx context.Context,
 	groupID string,
-	containerIDs path.Elements,
+	containerIDs path.Elements, // expects: [conversationID, threadID]
 	postID string,
 ) (models.Postable, *details.GroupsInfo, error) {
 	return bh.ac.GetConversationPost(

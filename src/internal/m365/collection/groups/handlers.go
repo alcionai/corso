@@ -41,8 +41,6 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 	// includeContainer evaluates whether the container is included
 	// in the provided scope.
 	includeContainer(
-		ctx context.Context,
-		qp graph.QueryParams,
 		c C,
 		scope selectors.GroupsScope,
 	) bool

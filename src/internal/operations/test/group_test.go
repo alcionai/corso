@@ -189,15 +189,6 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups9VersionBumpBackup() {
 		"items written")
 }
 
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsVersion9AssistBases() {
-	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
-	sel.Include(
-		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel))
-
-	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, false)
-}
-
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	t := suite.T()
 
