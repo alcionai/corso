@@ -29,7 +29,7 @@ type folderyMcFolderFace struct {
 	folderIDToNode map[string]*nodeyMcNodeFace
 
 	// tombstones don't need to form a tree.
-	// but we want to maintain the node data in case we swap back
+	// We maintain the node data in case we swap back
 	// and forth between live and tombstoned states.
 	tombstones map[string]*nodeyMcNodeFace
 
@@ -106,6 +106,11 @@ func (face *folderyMcFolderFace) SetFolder(
 		return clues.NewWC(ctx, "missing folder name")
 	}
 
+	// drive doesn't normally allow the `:` character in folder names.
+	// so `root:` is, by default, the only folder that can match this
+	// name.  That makes this check a little bit brittle, but generally
+	// reliable, since we should always see the root first and can rely
+	// on the naming structure.
 	if len(parentID) == 0 && name != odConsts.RootPathDir {
 		return clues.NewWC(ctx, "non-root folder missing parent id")
 	}
@@ -202,7 +207,7 @@ func (face *folderyMcFolderFace) SetTombstone(
 	// since we run mutiple enumerations, it's possible to see a folder added on the
 	// first enumeration that then gets deleted on the next.  This means that the folder
 	// was deleted while the first enumeration was in flight, and will show up even if
-	// the folder gets restored after deltion.
+	// the folder gets restored after deletion.
 	// When this happens, we have to adjust the original tree accordingly.
 	if zombey, stillKicking := face.folderIDToNode[id]; stillKicking {
 		if zombey.parent != nil {

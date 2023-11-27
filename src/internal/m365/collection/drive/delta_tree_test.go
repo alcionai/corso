@@ -316,7 +316,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 }
 
 // ---------------------------------------------------------------------------
-// tree sructure assertions tests
+// tree structure assertions tests
 // ---------------------------------------------------------------------------
 
 type assertNode struct {
@@ -483,7 +483,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 		an(righty),
 	).compare(t, tree, true)
 
-	// add a child to righty
+	// add another child to lefty
 	set(lefty.id, "brightly", "br", false)
 
 	brightly := tree.folderIDToNode["brightly"]
