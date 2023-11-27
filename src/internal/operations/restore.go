@@ -304,7 +304,7 @@ func (op *RestoreOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	deets, err = consumeRestoreCollections(
+	deets, colStats, err := consumeRestoreCollections(
 		ctx,
 		op.rc,
 		bup.Version,
@@ -319,7 +319,7 @@ func (op *RestoreOperation) do(
 		return nil, clues.Stack(err)
 	}
 
-	opStats.ctrl = op.rc.Wait()
+	opStats.ctrl = colStats
 
 	logger.Ctx(ctx).Debug(opStats.ctrl)
 
@@ -392,7 +392,7 @@ func consumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*details.Details, error) {
+) (*details.Details, *data.CollectionStats, error) {
 	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Restoring data")
 	defer close(progressBar)
 
@@ -404,12 +404,9 @@ func consumeRestoreCollections(
 		Selector:          sel,
 	}
 
-	deets, err := rc.ConsumeRestoreCollections(ctx, rcc, dcs, errs, ctr)
-	if err != nil {
-		return nil, clues.Wrap(err, "restoring collections")
-	}
+	deets, status, err := rc.ConsumeRestoreCollections(ctx, rcc, dcs, errs, ctr)
 
-	return deets, nil
+	return deets, status, clues.Wrap(err, "restoring collections").OrNil()
 }
 
 // formatDetailsForRestoration reduces the provided detail entries according to the

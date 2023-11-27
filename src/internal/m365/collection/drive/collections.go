@@ -29,7 +29,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
-const restrictedDirectory = "Site Pages"
+const (
+	restrictedDirectory = "Site Pages"
+
+	defaultPreviewMaxContainers              = 5
+	defaultPreviewMaxItemsPerContainer       = 10
+	defaultPreviewMaxItems                   = defaultPreviewMaxContainers * defaultPreviewMaxItemsPerContainer
+	defaultPreviewMaxBytes             int64 = 100 * 1024 * 1024
+	defaultPreviewMaxPages                   = 50
+)
 
 // Collections is used to retrieve drive data for a
 // resource owner, which can be either a user or a sharepoint site.
@@ -742,6 +750,87 @@ func (c *Collections) getCollectionPath(
 	return collectionPath, nil
 }
 
+type driveEnumerationStats struct {
+	numPages      int
+	numAddedFiles int
+	numContainers int
+	numBytes      int64
+}
+
+func newPagerLimiter(opts control.Options) *pagerLimiter {
+	res := &pagerLimiter{limits: opts.PreviewLimits}
+
+	if res.limits.MaxContainers == 0 {
+		res.limits.MaxContainers = defaultPreviewMaxContainers
+	}
+
+	if res.limits.MaxItemsPerContainer == 0 {
+		res.limits.MaxItemsPerContainer = defaultPreviewMaxItemsPerContainer
+	}
+
+	if res.limits.MaxItems == 0 {
+		res.limits.MaxItems = defaultPreviewMaxItems
+	}
+
+	if res.limits.MaxBytes == 0 {
+		res.limits.MaxBytes = defaultPreviewMaxBytes
+	}
+
+	if res.limits.MaxPages == 0 {
+		res.limits.MaxPages = defaultPreviewMaxPages
+	}
+
+	return res
+}
+
+type pagerLimiter struct {
+	limits control.PreviewItemLimits
+}
+
+func (l pagerLimiter) effectiveLimits() control.PreviewItemLimits {
+	return l.limits
+}
+
+func (l pagerLimiter) enabled() bool {
+	return l.limits.Enabled
+}
+
+// sizeLimit returns the total number of bytes this backup should try to
+// contain.
+func (l pagerLimiter) sizeLimit() int64 {
+	return l.limits.MaxBytes
+}
+
+// atItemLimit returns true if the limiter is enabled and has reached the limit
+// for individual items added to collections for this backup.
+func (l pagerLimiter) atItemLimit(stats *driveEnumerationStats) bool {
+	return l.enabled() &&
+		(stats.numAddedFiles >= l.limits.MaxItems ||
+			stats.numBytes >= l.limits.MaxBytes)
+}
+
+// atContainerItemsLimit returns true if the limiter is enabled and the current
+// number of items is above the limit for the number of items for a container
+// for this backup.
+func (l pagerLimiter) atContainerItemsLimit(numItems int) bool {
+	return l.enabled() && numItems >= l.limits.MaxItemsPerContainer
+}
+
+// atContainerPageLimit returns true if the limiter is enabled and the number of
+// pages processed so far is beyond the limit for this backup.
+func (l pagerLimiter) atPageLimit(stats *driveEnumerationStats) bool {
+	return l.enabled() && stats.numPages >= l.limits.MaxPages
+}
+
+// atLimit returns true if the limiter is enabled and meets any of the
+// conditions for max items, containers, etc for this backup.
+func (l pagerLimiter) atLimit(stats *driveEnumerationStats) bool {
+	return l.enabled() &&
+		(l.atItemLimit(stats) ||
+			stats.numContainers >= l.limits.MaxContainers ||
+			stats.numPages >= l.limits.MaxPages)
+}
+
 // PopulateDriveCollections initializes and adds the provided drive items to Collections
 // A new collection is created for every drive folder.
 // Along with populating the collection items and updating the excluded item IDs, this func
@@ -772,9 +861,16 @@ func (c *Collections) PopulateDriveCollections(
 		// already seen. This will help us track in case a folder was
 		// recreated multiple times in between a run.
 		seenFolders = map[string]string{}
+
+		limiter = newPagerLimiter(c.ctrl)
+		stats   = &driveEnumerationStats{}
 	)
 
 	ctx = clues.Add(ctx, "invalid_prev_delta", invalidPrevDelta)
+	logger.Ctx(ctx).Infow(
+		"running backup",
+		"limits", c.ctrl.PreviewLimits,
+		"effective_limits", limiter.effectiveLimits())
 
 	if !invalidPrevDelta {
 		maps.Copy(newPrevPaths, oldPrevPaths)
@@ -787,6 +883,12 @@ func (c *Collections) PopulateDriveCollections(
 		api.CallConfig{
 			Select: api.DefaultDriveItemProps(),
 		})
+
+	// Needed since folders are mixed in with items. This allows us to handle
+	// hitting the maxContainer limit while (hopefully) still adding items to the
+	// container we reached the limit on. It may not behave as expected across
+	// page boundaries if items in other folders have also changed.
+	var lastContainerID string
 
 	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
 		if el.Failure() != nil {
@@ -805,12 +907,33 @@ func (c *Collections) PopulateDriveCollections(
 			c.CollectionMap[driveID] = map[string]*Collection{}
 			invalidPrevDelta = true
 
+			// Reset collections and stats counts since we're starting over.
 			c.resetStats()
+
+			stats = &driveEnumerationStats{}
 		}
 
 		for _, item := range page {
 			if el.Failure() != nil {
 				break
+			}
+
+			// Check if we got the max number of containers we're looking for and also
+			// processed items for the final container.
+			if item.GetFolder() != nil || item.GetPackageEscaped() != nil {
+				id := ptr.Val(item.GetId())
+
+				// Don't check for containers we've already seen.
+				if _, ok := c.CollectionMap[driveID][id]; !ok {
+					if id != lastContainerID {
+						if limiter.atLimit(stats) {
+							break
+						}
+
+						lastContainerID = id
+						stats.numContainers++
+					}
+				}
 			}
 
 			err := c.processItem(
@@ -826,12 +949,44 @@ func (c *Collections) PopulateDriveCollections(
 				topLevelPackages,
 				invalidPrevDelta,
 				counter,
+				stats,
+				limiter,
 				el)
 			if err != nil {
 				el.AddRecoverable(ctx, clues.Stack(err))
 			}
+
+			// Check if we reached the item or size limit while processing this page.
+			// The check after this loop will get us out of the pager.
+			// We don't want to check all limits because it's possible we've reached
+			// the container limit but haven't reached the item limit or really added
+			// items to the last container we found.
+			if limiter.atItemLimit(stats) {
+				break
+			}
+		}
+
+		stats.numPages++
+
+		// Stop enumeration early if we've reached the item or page limit. Do this
+		// at the end of the loop so we don't request another page in the
+		// background.
+		//
+		// We don't want to break on just the container limit here because it's
+		// possible that there's more items in the current (final) container that
+		// we're processing. We need to see the next page to determine if we've
+		// reached the end of the container. Note that this doesn't take into
+		// account the number of items in the current container, so it's possible it
+		// will fetch more data when it doesn't really need to.
+		if limiter.atPageLimit(stats) || limiter.atItemLimit(stats) {
+			break
 		}
 	}
+
+	// Always cancel the pager so that even if we exit early from the loop above
+	// we don't deadlock. Cancelling a pager that's already completed is
+	// essentially a noop.
+	pager.Cancel()
 
 	du, err := pager.Results()
 	if err != nil {
@@ -853,6 +1008,8 @@ func (c *Collections) processItem(
 	topLevelPackages map[string]struct{},
 	invalidPrevDelta bool,
 	counter *count.Bus,
+	stats *driveEnumerationStats,
+	limiter *pagerLimiter,
 	skipper fault.AddSkipper,
 ) error {
 	var (
@@ -1037,6 +1194,23 @@ func (c *Collections) processItem(
 			return clues.NewWC(ctx, "item seen before parent folder").Label(count.ItemBeforeParent)
 		}
 
+		// Don't move items if the new collection's already reached it's limit. This
+		// helps ensure we don't get some pathological case where we end up dropping
+		// a bunch of items that got moved.
+		//
+		// We need to check if the collection already contains the item though since
+		// it could be an item update instead of a move.
+		if !collection.ContainsItem(item) &&
+			limiter.atContainerItemsLimit(collection.CountAddedItems()) {
+			return nil
+		}
+
+		// Skip large files that don't fit within the size limit.
+		if limiter.enabled() &&
+			limiter.sizeLimit() < ptr.Val(item.GetSize())+stats.numBytes {
+			return nil
+		}
+
 		// This will only kick in if the file was moved multiple times
 		// within a single delta query.  We delete the file from the previous
 		// collection so that it doesn't appear in two places.
@@ -1061,6 +1235,8 @@ func (c *Collections) processItem(
 		if collection.Add(item) && !alreadyAdded {
 			c.NumItems++
 			c.NumFiles++
+			stats.numAddedFiles++
+			stats.numBytes += ptr.Val(item.GetSize())
 		}
 
 		// Do this after adding the file to the collection so if we fail to add

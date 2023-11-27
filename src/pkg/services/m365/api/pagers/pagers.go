@@ -51,6 +51,7 @@ type nextPage[T any] struct {
 type NextPageResulter[T any] interface {
 	NextPager[T]
 
+	Cancel()
 	Results() (DeltaUpdate, error)
 }
 

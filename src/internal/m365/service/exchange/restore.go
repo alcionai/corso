@@ -24,15 +24,15 @@ func ConsumeRestoreCollections(
 	ac api.Client,
 	rcc inject.RestoreConsumerConfig,
 	dcs []data.RestoreCollection,
-	deets *details.Builder,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*support.ControllerOperationStatus, error) {
+) (*details.Details, *data.CollectionStats, error) {
 	if len(dcs) == 0 {
-		return support.CreateStatus(ctx, support.Restore, 0, support.CollectionMetrics{}, ""), nil
+		return nil, nil, clues.New("no data collections to restore")
 	}
 
 	var (
+		deets          = &details.Builder{}
 		resourceID     = rcc.ProtectedResource.ID()
 		directoryCache = make(map[path.CategoryType]graph.ContainerResolver)
 		handlers       = exchange.RestoreHandlers(ac)
@@ -62,7 +62,7 @@ func ConsumeRestoreCollections(
 		if directoryCache[category] == nil {
 			gcr := handler.NewContainerCache(resourceID)
 			if err := gcr.Populate(ictx, errs, handler.DefaultRootContainer()); err != nil {
-				return nil, clues.Wrap(err, "populating container cache")
+				return nil, nil, clues.Wrap(err, "populating container cache")
 			}
 
 			directoryCache[category] = gcr
@@ -119,5 +119,5 @@ func ConsumeRestoreCollections(
 		metrics,
 		rcc.RestoreConfig.Location)
 
-	return status, el.Failure()
+	return deets.Details(), status.ToCollectionStats(), el.Failure()
 }

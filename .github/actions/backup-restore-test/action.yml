@@ -26,7 +26,7 @@ inputs:
     required: true
   on-collision:
     description: Value for the --collisions flag
-    requried: false
+    required: false
     default: "replace"
   with-export:
     description: Runs export tests when true
