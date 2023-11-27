@@ -179,31 +179,36 @@ func AddGroupsFilter(
 // inclusions for Group commands.
 func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *selectors.GroupsRestore {
 	var (
-		groups     = opts.Groups
-		lfp, lfn   = len(opts.FolderPath), len(opts.FileName)
-		llf, lli   = len(opts.ListFolder), len(opts.ListItem)
-		lpf, lpi   = len(opts.PageFolder), len(opts.Page)
-		lg         = len(opts.Groups)
-		lch, lm    = len(opts.Channels), len(opts.Messages)
-		lcon, lpst = len(opts.Conversations), len(opts.Posts)
+		groups                 = opts.Groups
+		folderPaths, fileNames = len(opts.FolderPath), len(opts.FileName)
+		listFolders, listItems = len(opts.ListFolder), len(opts.ListItem)
+		pageFolders, pageItems = len(opts.PageFolder), len(opts.Page)
+		chans, chanMsgs        = len(opts.Channels), len(opts.Messages)
+		convs, convPosts       = len(opts.Conversations), len(opts.Posts)
 	)
 
-	if lg == 0 {
+	if len(opts.Groups) == 0 {
 		groups = selectors.Any()
 	}
 
 	sel := selectors.NewGroupsRestore(groups)
 
-	if lfp+lfn+llf+lli+lpf+lpi+lch+lm+lcon+lpst == 0 {
+	if folderPaths+fileNames+
+		listFolders+listItems+
+		pageFolders+pageItems+
+		chans+chanMsgs+
+		convs+convPosts == 0 {
 		sel.Include(sel.AllData())
 		return sel
 	}
 
 	// sharepoint site selectors
 
-	if lfp+lfn+llf+lli+lpf+lpi > 0 {
-		if lfp+lfn > 0 {
-			if lfn == 0 {
+	if folderPaths+fileNames+
+		listFolders+listItems+
+		pageFolders+pageItems > 0 {
+		if folderPaths+fileNames > 0 {
+			if fileNames == 0 {
 				opts.FileName = selectors.Any()
 			}
 
@@ -219,8 +224,8 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 			}
 		}
 
-		if llf+lli > 0 {
-			if lli == 0 {
+		if listFolders+listItems > 0 {
+			if listItems == 0 {
 				opts.ListItem = selectors.Any()
 			}
 
@@ -236,8 +241,8 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 			}
 		}
 
-		if lpf+lpi > 0 {
-			if lpi == 0 {
+		if pageFolders+pageItems > 0 {
+			if pageItems == 0 {
 				opts.Page = selectors.Any()
 			}
 
@@ -256,15 +261,15 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 
 	// channel and message selectors
 
-	if lch+lm > 0 {
+	if chans+chanMsgs > 0 {
 		// if no channel is specified, include all channels
-		if lch == 0 {
+		if chans == 0 {
 			opts.Channels = selectors.Any()
 		}
 
 		// if no message is specified, only select channels
 		// otherwise, look for channel/message pairs
-		if lm == 0 {
+		if chanMsgs == 0 {
 			sel.Include(sel.Channels(opts.Channels))
 		} else {
 			sel.Include(sel.ChannelMessages(opts.Channels, opts.Messages))
@@ -273,15 +278,15 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 
 	// conversation and post selectors
 
-	if lcon+lpst > 0 {
+	if convs+convPosts > 0 {
 		// if no conversation is specified, include all conversations
-		if lcon == 0 {
+		if convs == 0 {
 			opts.Conversations = selectors.Any()
 		}
 
 		// if no post is specified, only select conversations;
 		// otherwise, look for channel/message pairs
-		if lm == 0 {
+		if chanMsgs == 0 {
 			sel.Include(sel.Conversation(opts.Conversations))
 		} else {
 			sel.Include(sel.ConversationPosts(opts.Conversations, opts.Posts))

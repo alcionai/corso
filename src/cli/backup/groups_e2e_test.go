@@ -314,7 +314,7 @@ func (suite *PreparedBackupGroupsE2ESuite) SetupSuite() {
 			scopes = selTD.GroupsBackupChannelScope(sel)
 
 		case path.ConversationPostsCategory:
-			scopes = selTD.GroupsBackupChannelScope(sel)
+			scopes = selTD.GroupsBackupConversationScope(sel)
 
 		case path.LibrariesCategory:
 			scopes = selTD.GroupsBackupLibraryFolderScope(sel)
