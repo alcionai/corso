@@ -44,6 +44,19 @@ func collWithMBH(mbh BackupHandler) *Collections {
 		count.New())
 }
 
+func collWithMBHAndOpts(
+	mbh BackupHandler,
+	opts control.Options,
+) *Collections {
+	return NewCollections(
+		mbh,
+		tenant,
+		idname.NewProvider(user, user),
+		func(*support.ControllerOperationStatus) {},
+		opts,
+		count.New())
+}
+
 // func fullOrPrevPath(
 // 	t *testing.T,
 // 	coll data.BackupCollection,
