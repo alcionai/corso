@@ -2,6 +2,7 @@ package api
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -278,10 +279,7 @@ func (suite *DrivePagerIntgSuite) TestDriveDeltaPagerQueryParams() {
 					"malware",
 					"shared")
 
-				selectParams := params[0]
-				for _, p := range params[1:] {
-					selectParams += "," + p
-				}
+				selectParams := strings.Join(params, ",")
 
 				interceptV1Path("drives", "drive", "items", "root", "delta()").
 					MatchParam("$select", selectParams).
@@ -307,10 +305,7 @@ func (suite *DrivePagerIntgSuite) TestDriveDeltaPagerQueryParams() {
 					"deltashowsharingchanges",
 					"hierarchicalsharing",
 				}
-				preferParams := preferHeaderItems[0]
-				for _, p := range preferHeaderItems[1:] {
-					preferParams += "," + p
-				}
+				preferParams := strings.Join(preferHeaderItems, ",")
 
 				interceptV1Path("drives", "drive", "items", "root", "delta()").
 					MatchHeaders(map[string]string{
@@ -340,10 +335,7 @@ func (suite *DrivePagerIntgSuite) TestDriveDeltaPagerQueryParams() {
 					"file",
 					"folder")
 
-				selectParams := params[0]
-				for _, p := range params[1:] {
-					selectParams += "," + p
-				}
+				selectParams := strings.Join(params, ",")
 
 				interceptV1Path("drives", "drive", "items", "root", "delta()").
 					MatchParam("$select", selectParams).
