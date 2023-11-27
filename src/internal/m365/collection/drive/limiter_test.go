@@ -11,15 +11,12 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
-	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
@@ -606,37 +603,26 @@ func runGetPreviewLimits(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	mockDrivePager := &apiMock.Pager[models.Driveable]{
-		ToReturn: []apiMock.PagerResult[models.Driveable]{
-			{Values: test.drives},
-		},
-	}
-
-	mbh := mock.DefaultOneDriveBH(user)
-	mbh.DrivePagerV = mockDrivePager
-	mbh.DriveItemEnumeration = test.enumerator
-
 	opts.PreviewLimits = test.limits
 
-	c := NewCollections(
-		mbh,
-		tenant,
-		idname.NewProvider(user, user),
-		func(*support.ControllerOperationStatus) {},
-		opts,
-		count.New())
-
-	errs := fault.New(true)
-
-	delList := prefixmatcher.NewStringSetBuilder()
+	var (
+		mockDrivePager = &apiMock.Pager[models.Driveable]{
+			ToReturn: []apiMock.PagerResult[models.Driveable]{
+				{Values: test.drives},
+			},
+		}
+		mbh       = mock.DefaultDriveBHWith(user, mockDrivePager, test.enumerator)
+		c         = collWithMBHAndOpts(mbh, opts)
+		errs      = fault.New(true)
+		delList   = prefixmatcher.NewStringSetBuilder()
+		collPaths = []string{}
+	)
 
 	cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Empty(t, errs.Skipped())
-
-	collPaths := []string{}
 
 	for _, baseCol := range cols {
 		// There shouldn't be any deleted collections.
@@ -892,15 +878,6 @@ func runGetPreviewLimitsDefaults(
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	mockDrivePager := &apiMock.Pager[models.Driveable]{
-		ToReturn: []apiMock.PagerResult[models.Driveable]{
-			{Values: []models.Driveable{drv}},
-		},
-	}
-
-	mbh := mock.DefaultOneDriveBH(user)
-	mbh.DrivePagerV = mockDrivePager
-
 	pages := make([]mock.NextPage, 0, test.numContainers)
 
 	for containerIdx := 0; containerIdx < test.numContainers; containerIdx++ {
@@ -931,28 +908,29 @@ func runGetPreviewLimitsDefaults(
 		pages = append(pages, page)
 	}
 
-	mbh.DriveItemEnumeration = mock.EnumerateItemsDeltaByDrive{
-		DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-			idx(drive, 1): {
-				Pages:       pages,
-				DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
-			},
-		},
-	}
-
 	opts.PreviewLimits = test.limits
 
-	c := NewCollections(
-		mbh,
-		tenant,
-		idname.NewProvider(user, user),
-		func(*support.ControllerOperationStatus) {},
-		opts,
-		count.New())
-
-	errs := fault.New(true)
-
-	delList := prefixmatcher.NewStringSetBuilder()
+	var (
+		mockDrivePager = &apiMock.Pager[models.Driveable]{
+			ToReturn: []apiMock.PagerResult[models.Driveable]{
+				{Values: []models.Driveable{drv}},
+			},
+		}
+		mockEnumerator = mock.EnumerateItemsDeltaByDrive{
+			DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+				idx(drive, 1): {
+					Pages:       pages,
+					DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+				},
+			},
+		}
+		mbh           = mock.DefaultDriveBHWith(user, mockDrivePager, mockEnumerator)
+		c             = collWithMBHAndOpts(mbh, opts)
+		errs          = fault.New(true)
+		delList       = prefixmatcher.NewStringSetBuilder()
+		numContainers int
+		numItems      int
+	)
 
 	cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
 	require.NoError(t, err, clues.ToCore(err))
@@ -960,18 +938,12 @@ func runGetPreviewLimitsDefaults(
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Empty(t, errs.Skipped())
 
-	var (
-		numContainers int
-		numItems      int
-	)
-
 	for _, baseCol := range cols {
-		// There shouldn't be any deleted collections.
 		require.NotEqual(
 			t,
 			data.DeletedState,
 			baseCol.State(),
-			"collection marked deleted")
+			"no collections should be marked deleted")
 
 		folderPath := baseCol.FullPath().String()
 
@@ -995,7 +967,7 @@ func runGetPreviewLimitsDefaults(
 		// bittle since internal details can change.  The wiring to support
 		// mocked GetItems is available.  We just haven't plugged it in yet.
 		col, ok := baseCol.(*Collection)
-		require.True(t, ok, "getting onedrive.Collection handle")
+		require.True(t, ok, "baseCol must be type *Collection")
 
 		numItems += len(col.driveItems)
 
