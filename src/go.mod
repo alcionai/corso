@@ -23,7 +23,7 @@ require (
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
 	github.com/microsoftgraph/msgraph-sdk-go v1.25.0
-	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0
+	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v3 v3.0.2
 	github.com/rudderlabs/analytics-go v3.3.3+incompatible
