@@ -63,9 +63,9 @@ type (
 			ctr *count.Bus,
 		) (*details.Details, *data.CollectionStats, error)
 
-		IsServiceEnableder
-
-		Wait() *data.CollectionStats
+		// TODO(ashmrtn): Update the IsServiceEnableder interface once
+		// BackupProducer is also switched to service handlers.
+		IsServiceEnabled(ctx context.Context, resourceOwner string) (bool, error)
 
 		CacheItemInfoer
 		PopulateProtectedResourceIDAndNamer
@@ -127,6 +127,7 @@ type (
 	// service-specific functionality for backups, restores, and exports.
 	ServiceHandler interface {
 		ExportConsumer
+		RestoreConsumer
 	}
 
 	ToServiceHandler interface {

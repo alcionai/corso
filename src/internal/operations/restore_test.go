@@ -51,7 +51,7 @@ func (suite *RestoreOpUnitSuite) TestRestoreOperation_PersistResults() {
 	var (
 		kw         = &kopia.Wrapper{}
 		sw         = store.NewWrapper(&kopia.ModelStore{})
-		ctrl       = &mock.Controller{}
+		ctrl       = &mock.RestoreConsumer{}
 		now        = time.Now()
 		restoreCfg = testdata.DefaultRestoreConfig("")
 	)
@@ -286,7 +286,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	var (
 		kw         = &kopia.Wrapper{}
 		sw         = store.NewWrapper(&kopia.ModelStore{})
-		ctrl       = &mock.Controller{}
+		rc         = &mock.RestoreConsumer{}
 		restoreCfg = testdata.DefaultRestoreConfig("")
 		opts       = control.DefaultOptions()
 	)
@@ -299,9 +299,9 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", kw, sw, ctrl, nil, assert.NoError},
-		{"missing kopia", nil, sw, ctrl, nil, assert.Error},
-		{"missing modelstore", kw, nil, ctrl, nil, assert.Error},
+		{"good", kw, sw, rc, nil, assert.NoError},
+		{"missing kopia", nil, sw, rc, nil, assert.Error},
+		{"missing modelstore", kw, nil, rc, nil, assert.Error},
 		{"missing restore consumer", kw, sw, nil, nil, assert.Error},
 	}
 	for _, test := range table {
@@ -350,12 +350,17 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
+	rc, err := ctrl.NewServiceHandler(
+		control.DefaultOptions(),
+		rsel.PathService())
+	require.NoError(t, err, clues.ToCore(err))
+
 	ro, err := NewRestoreOperation(
 		ctx,
 		control.DefaultOptions(),
 		suite.kw,
 		suite.sw,
-		ctrl,
+		rc,
 		tconfig.NewM365Account(t),
 		"backupID",
 		rsel.Selector,
