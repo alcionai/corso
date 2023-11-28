@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SDK consumption of the /services/m365 package has shifted from independent functions to a client-based api.
 - SDK consumers can now configure the /services/m365 graph api client configuration when constructing a new m365 client.
 - Dynamic api rate limiting allows small-scale Exchange backups to complete more quickly.
+- Kopia's local config files now uses unique filenames that match Corso configurations.  This can protect concurrent Corso operations from mistakenly clobbering storage configs during runtime.
 
 ### Fixed
 - Handle OneDrive folders being deleted and recreated midway through a backup.
