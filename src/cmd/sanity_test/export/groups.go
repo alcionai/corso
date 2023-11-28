@@ -118,12 +118,20 @@ func populateMessagesSanitree(
 			common.Fatal(ctx, "getting channel messages", err)
 		}
 
-		if len(msgs) == 0 {
+		filteredMsgs := []models.ChatMessageable{}
+		for _, msg := range msgs {
+			// filter out system messages (we don't really work with them)
+			if api.IsNotSystemMessage(msg) {
+				filteredMsgs = append(filteredMsgs, msg)
+			}
+		}
+
+		if len(filteredMsgs) == 0 {
 			common.Infof(ctx, "skipped empty channel: %s", ptr.Val(ch.GetDisplayName()))
 			continue
 		}
 
-		for _, msg := range msgs {
+		for _, msg := range filteredMsgs {
 			child.Leaves[ptr.Val(msg.GetId())] = &common.Sanileaf[
 				models.Channelable,
 				models.ChatMessageable,
