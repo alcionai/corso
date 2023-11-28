@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -66,7 +67,19 @@ func checkChannelMessagesExport(
 		expect *common.Sanitree[models.Channelable, models.ChatMessageable],
 		result *common.Sanitree[fs.FileInfo, fs.FileInfo],
 	) {
-		common.CompareLeaves(ctx, expect.Leaves, result.Leaves, nil)
+		for key := range expect.Leaves {
+			expect.Leaves[key].Size = 0 // msg sizes cannot be compared
+		}
+
+		updatedResultLeaves := map[string]*common.Sanileaf[fs.FileInfo, fs.FileInfo]{}
+
+		for key, leaf := range result.Leaves {
+			key = strings.TrimSuffix(key, ".json")
+			leaf.Size = 0 // we cannot compare sizes
+			updatedResultLeaves[key] = leaf
+		}
+
+		common.CompareLeaves(ctx, expect.Leaves, updatedResultLeaves, nil)
 	}
 
 	common.CompareDiffTrees(
@@ -119,6 +132,7 @@ func populateMessagesSanitree(
 		}
 
 		filteredMsgs := []models.ChatMessageable{}
+
 		for _, msg := range msgs {
 			// filter out system messages (we don't really work with them)
 			if api.IsNotSystemMessage(msg) {
