@@ -14,16 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.16.0] (beta) - 2023-11-28
 
 ### Added
-- Added export support for emails in exchange backups as `.eml` files
-- More colorful and informational cli output
+- Export support for emails in exchange backups as `.eml` files.
+- More colorful and informational cli display.
 
 ### Changed
-- Change file extension of messages export to json to match the content
+- The file extension in Teams messages exports has switched to json to match the content type.
 - SDK consumption of the /services/m365 package has shifted from independent functions to a client-based api.
 - SDK consumers can now configure the /services/m365 graph api client configuration when constructing a new m365 client.
+- Dynamic api rate limiting allows small-scale Exchange backups to complete more quickly.
 
 ### Fixed
-- Handle OneDrive folders being deleted and recreated midway through a backup
+- Handle OneDrive folders being deleted and recreated midway through a backup.
 - Automatically re-run a full delta query on incremental if the prior backup is found to have malformed prior-state information.
 - Retry drive item permission downloads during long-running backups after the jwt token expires and refreshes.
 - Retry item downloads during connection timeouts.
