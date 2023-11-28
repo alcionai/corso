@@ -2,7 +2,9 @@ package export
 
 import (
 	"context"
+	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
@@ -28,12 +30,33 @@ func CheckEmailExport(
 		"source_container_id", sourceTree.ID,
 		"source_container_name", sourceTree.Name)
 
-	common.AssertEqualTrees[models.MailFolderable, any](
+	comparator := func(
+		ctx context.Context,
+		expect *common.Sanitree[models.MailFolderable, any],
+		result *common.Sanitree[fs.FileInfo, fs.FileInfo],
+	) {
+		modifiedExpectedLeaves := map[string]*common.Sanileaf[models.MailFolderable, any]{}
+		for key, val := range expect.Leaves {
+			val.Size = 0 // we cannot match up sizes
+			modifiedExpectedLeaves[key] = val
+		}
+
+		modifiedResultLeaves := map[string]*common.Sanileaf[fs.FileInfo, fs.FileInfo]{}
+		for key, val := range result.Leaves {
+			fixedName := strings.TrimSuffix(key, ".eml")
+			val.Size = 0
+
+			modifiedResultLeaves[fixedName] = val
+		}
+
+		common.CompareLeaves(ctx, expect.Leaves, modifiedResultLeaves, nil)
+	}
+
+	common.CompareDiffTrees(
 		ctx,
 		sourceTree,
 		exportedTree.Children[envs.SourceContainer],
-		nil,
-		nil)
+		comparator)
 
 	common.Infof(ctx, "Success")
 }
