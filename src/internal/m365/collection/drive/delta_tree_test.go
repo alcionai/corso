@@ -20,7 +20,7 @@ import (
 var loc = path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
 
 func treeWithRoot() *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(nil)
+	tree := newFolderyMcFolderFace(nil, rootID)
 	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
 	tree.root = rootey
 	tree.folderIDToNode[rootID] = rootey
@@ -38,13 +38,13 @@ func treeWithTombstone() *folderyMcFolderFace {
 func treeWithFolders() *folderyMcFolderFace {
 	tree := treeWithRoot()
 
-	o := newNodeyMcNodeFace(tree.root, idx(folder, "parent"), namex(folder, "parent"), true)
-	tree.folderIDToNode[o.id] = o
-	tree.root.children[o.id] = o
+	parent := newNodeyMcNodeFace(tree.root, idx(folder, "parent"), namex(folder, "parent"), true)
+	tree.folderIDToNode[parent.id] = parent
+	tree.root.children[parent.id] = parent
 
-	f := newNodeyMcNodeFace(o, id(folder), name(folder), false)
+	f := newNodeyMcNodeFace(parent, id(folder), name(folder), false)
 	tree.folderIDToNode[f.id] = f
-	o.children[f.id] = f
+	parent.children[f.id] = f
 
 	return tree
 }
@@ -102,7 +102,7 @@ func (suite *DeltaTreeUnitSuite) TestNewFolderyMcFolderFace() {
 
 	require.NoError(t, err, clues.ToCore(err))
 
-	folderFace := newFolderyMcFolderFace(p)
+	folderFace := newFolderyMcFolderFace(p, rootID)
 	assert.Equal(t, p, folderFace.prefix)
 	assert.Nil(t, folderFace.root)
 	assert.NotNil(t, folderFace.folderIDToNode)
@@ -144,7 +144,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 	}{
 		{
 			tname:     "add root",
-			tree:      newFolderyMcFolderFace(nil),
+			tree:      newFolderyMcFolderFace(nil, rootID),
 			id:        rootID,
 			name:      rootName,
 			isPackage: true,
@@ -272,7 +272,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 		{
 			name:      "add tombstone",
 			id:        id(folder),
-			tree:      newFolderyMcFolderFace(nil),
+			tree:      newFolderyMcFolderFace(nil, rootID),
 			expectErr: assert.NoError,
 		},
 		{
@@ -283,7 +283,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 		},
 		{
 			name:      "missing ID",
-			tree:      newFolderyMcFolderFace(nil),
+			tree:      newFolderyMcFolderFace(nil, rootID),
 			expectErr: assert.Error,
 		},
 		{

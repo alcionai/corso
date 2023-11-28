@@ -173,9 +173,8 @@ func malwareItem(
 }
 
 func driveRootItem() models.DriveItemable {
-	name := rootName
 	item := models.NewDriveItem()
-	item.SetName(&name)
+	item.SetName(ptr.To(rootName))
 	item.SetId(ptr.To(rootID))
 	item.SetRoot(models.NewRoot())
 	item.SetFolder(models.NewFolder())
