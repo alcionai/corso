@@ -2,7 +2,7 @@ module github.com/alcionai/corso/src
 
 go 1.21
 
-replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20230822191057-17d4deff94a3
+replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231128180219-e763f7c81f23
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
