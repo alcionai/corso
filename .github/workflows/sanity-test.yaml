@@ -391,7 +391,7 @@ jobs:
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
 
-      # generate some more enteries for incremental check
+      # generate some more entries for incremental check
       - name: Groups - Create new data (for incremental)
         timeout-minutes: 30
         working-directory: ./src/cmd/factory

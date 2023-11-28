@@ -3,6 +3,7 @@ package export
 import (
 	"context"
 	"io/fs"
+	"path/filepath"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -21,11 +22,21 @@ func CheckGroupsExport(
 	// assumes we only need to sanity check the default site.
 	// should we expand this to check all sites in the group?
 	// are we backing up / restoring more than the default site?
+	site, err := ac.Sites().GetByID(ctx, envs.TeamSiteID, api.CallConfig{})
+	if err != nil {
+		common.Fatal(ctx, "getting the drive:", err)
+	}
+
 	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.TeamSiteID)
 	if err != nil {
 		common.Fatal(ctx, "getting the drive:", err)
 	}
 
+	envs.RestoreContainer = filepath.Join(
+		envs.RestoreContainer,
+		"Libraries",
+		ptr.Val(site.GetName()),
+		"Documents") // check in default loc
 	driveish.CheckExport(
 		ctx,
 		ac,
