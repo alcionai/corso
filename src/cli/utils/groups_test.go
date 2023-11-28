@@ -40,30 +40,34 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 	}{
 		// resource
 		{
-			name:             "no inputs",
-			opts:             utils.GroupsOpts{},
-			expectIncludeLen: 3,
+			name: "no inputs",
+			opts: utils.GroupsOpts{},
+			// TODO: bump to 3 when we release conversations
+			expectIncludeLen: 2,
 		},
 		{
 			name: "empty",
 			opts: utils.GroupsOpts{
 				Groups: empty,
 			},
-			expectIncludeLen: 3,
+			// TODO: bump to 3 when we release conversations
+			expectIncludeLen: 2,
 		},
 		{
 			name: "single inputs",
 			opts: utils.GroupsOpts{
 				Groups: single,
 			},
-			expectIncludeLen: 3,
+			// TODO: bump to 3 when we release conversations
+			expectIncludeLen: 2,
 		},
 		{
 			name: "multi inputs",
 			opts: utils.GroupsOpts{
 				Groups: multi,
 			},
-			expectIncludeLen: 3,
+			// TODO: bump to 3 when we release conversations
+			expectIncludeLen: 2,
 		},
 		// sharepoint
 		{
@@ -417,7 +421,7 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 		{
 			name:           "none",
 			cats:           []string{},
-			expectScopeLen: 3,
+			expectScopeLen: 2,
 		},
 		{
 			name:           "libraries",
@@ -439,9 +443,10 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 			cats: []string{
 				flags.DataLibraries,
 				flags.DataMessages,
-				flags.DataConversations,
+				// flags.DataConversations,
 			},
-			expectScopeLen: 3,
+			// TODO: bump to 3 when we include conversations in all data
+			expectScopeLen: 2,
 		},
 		{
 			name:           "bad inputs",
