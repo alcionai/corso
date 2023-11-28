@@ -145,6 +145,8 @@ func (i *GroupsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 		loc, err = NewGroupsLocationIDer(path.LibrariesCategory, i.DriveID, baseLoc.Elements()...)
 	case GroupsChannelMessage:
 		loc, err = NewGroupsLocationIDer(path.ChannelMessagesCategory, "", baseLoc.Elements()...)
+	case GroupsConversationPost:
+		loc, err = NewGroupsLocationIDer(path.ConversationPostsCategory, "", baseLoc.Elements()...)
 	}
 
 	return &loc, err
@@ -156,7 +158,7 @@ func (i *GroupsInfo) updateFolder(f *FolderInfo) error {
 	switch i.ItemType {
 	case SharePointLibrary:
 		return updateFolderWithinDrive(SharePointLibrary, i.DriveName, i.DriveID, f)
-	case GroupsChannelMessage:
+	case GroupsChannelMessage, GroupsConversationPost:
 		return nil
 	}
 

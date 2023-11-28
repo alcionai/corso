@@ -73,12 +73,16 @@ func ProduceBackupCollections(
 
 		cl := counter.Local()
 		ictx := clues.AddLabelCounter(ctx, cl.PlainAdder())
+		ictx = clues.Add(ictx, "category", scope.Category().PathType())
 
 		var dbcs []data.BackupCollection
 
 		switch scope.Category().PathType() {
 		case path.LibrariesCategory:
-			sites, err := ac.Groups().GetAllSites(ictx, bpc.ProtectedResource.ID(), errs)
+			sites, err := ac.Groups().GetAllSites(
+				ictx,
+				bpc.ProtectedResource.ID(),
+				errs)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -157,7 +161,7 @@ func ProduceBackupCollections(
 			}
 			progressBar := observe.MessageWithCompletion(ictx, pcfg, scope.Category().PathType().HumanString())
 
-			if !api.IsTeam(ctx, group) {
+			if !api.IsTeam(ictx, group) {
 				continue
 			}
 
@@ -203,7 +207,7 @@ func ProduceBackupCollections(
 			progressBar := observe.MessageWithCompletion(ictx, pcfg, scope.Category().PathType().HumanString())
 
 			cs, canUsePreviousBackup, err := groups.CreateCollections(
-				ctx,
+				ictx,
 				bpc,
 				bh,
 				creds.AzureTenantID,
@@ -212,7 +216,7 @@ func ProduceBackupCollections(
 				counter,
 				errs)
 			if err != nil {
-				el.AddRecoverable(ctx, err)
+				el.AddRecoverable(ictx, err)
 				continue
 			}
 
