@@ -460,8 +460,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 	lefty := tree.folderIDToNode["lefty"]
 	an(
 		tree.root,
-		an(lefty),
-	).compare(t, tree, true)
+		an(lefty)).
+		compare(t, tree, true)
 
 	// add another child at the root
 	set(tree.root.id, "righty", "r", false)
@@ -470,8 +470,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 	an(
 		tree.root,
 		an(lefty),
-		an(righty),
-	).compare(t, tree, true)
+		an(righty)).
+		compare(t, tree, true)
 
 	// add a child to lefty
 	set(lefty.id, "bloaty", "bl", false)
@@ -480,8 +480,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 	an(
 		tree.root,
 		an(lefty, an(bloaty)),
-		an(righty),
-	).compare(t, tree, true)
+		an(righty)).
+		compare(t, tree, true)
 
 	// add another child to lefty
 	set(lefty.id, "brightly", "br", false)
@@ -490,8 +490,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 	an(
 		tree.root,
 		an(lefty, an(bloaty), an(brightly)),
-		an(righty),
-	).compare(t, tree, true)
+		an(righty)).
+		compare(t, tree, true)
 
 	// relocate brightly underneath righty
 	set(righty.id, brightly.id, brightly.name, false)
@@ -499,8 +499,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 	an(
 		tree.root,
 		an(lefty, an(bloaty)),
-		an(righty, an(brightly)),
-	).compare(t, tree, true)
+		an(righty, an(brightly))).
+		compare(t, tree, true)
 
 	// relocate righty and subtree beneath lefty
 	set(lefty.id, righty.id, righty.name, false)
@@ -510,8 +510,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 		an(
 			lefty,
 			an(bloaty),
-			an(righty, an(brightly))),
-	).compare(t, tree, true)
+			an(righty, an(brightly)))).
+		compare(t, tree, true)
 }
 
 // this test focuses on whether the tree is correct when bouncing back and forth
@@ -562,8 +562,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 		an(
 			branchy,
 			an(leafy),
-			an(bob)),
-	).compare(t, tree, true)
+			an(bob))).
+		compare(t, tree, true)
 
 	entomb().compare(t, tree.tombstones)
 
@@ -577,8 +577,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 	tomb(bob.id, bobLoc)
 	an(
 		tree.root,
-		an(branchy, an(leafy)),
-	).compare(t, tree, true)
+		an(branchy, an(leafy))).
+		compare(t, tree, true)
 
 	entomb(an(bob)).compare(t, tree.tombstones)
 
@@ -586,8 +586,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 	tomb(leafy.id, leafyLoc)
 	an(
 		tree.root,
-		an(branchy),
-	).compare(t, tree, true)
+		an(branchy)).
+		compare(t, tree, true)
 
 	entomb(an(bob), an(leafy)).compare(t, tree.tombstones)
 
@@ -596,8 +596,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 
 	an(
 		tree.root,
-		an(branchy, an(leafy)),
-	).compare(t, tree, true)
+		an(branchy, an(leafy))).
+		compare(t, tree, true)
 
 	entomb(an(bob)).compare(t, tree.tombstones)
 
@@ -609,17 +609,15 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 		an(
 			branchy,
 			an(leafy),
-			an(bob)),
-	).compare(t, tree, true)
+			an(bob))).
+		compare(t, tree, true)
 
 	entomb().compare(t, tree.tombstones)
 
 	// tombstone branchy
 	tomb(branchy.id, branchyLoc)
 
-	an(
-		tree.root,
-	).compare(t, tree, false)
+	an(tree.root).compare(t, tree, false)
 	// note: the folder count here *will be wrong*.
 	// since we've only tombstoned branchy, both leafy
 	// and bob will remain in the folderIDToNode map.
@@ -636,8 +634,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 		an(
 			branchy,
 			an(leafy),
-			an(bob)),
-	).compare(t, tree.tombstones)
+			an(bob))).
+		compare(t, tree.tombstones)
 
 	// resurrect branchy
 	set(tree.root.id, branchy.id, branchy.name, false)
@@ -647,44 +645,40 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 		an(
 			branchy,
 			an(leafy),
-			an(bob)),
-	).compare(t, tree, true)
+			an(bob))).
+		compare(t, tree, true)
 
 	entomb().compare(t, tree.tombstones)
 
 	// tombstone branchy
 	tomb(branchy.id, branchyLoc)
 
-	an(
-		tree.root,
-	).compare(t, tree, false)
+	an(tree.root).compare(t, tree, false)
 
 	entomb(
 		an(
 			branchy,
 			an(leafy),
-			an(bob)),
-	).compare(t, tree.tombstones)
+			an(bob))).
+		compare(t, tree.tombstones)
 
 	// tombstone bob
 	tomb(bob.id, bobLoc)
 
-	an(
-		tree.root,
-	).compare(t, tree, false)
+	an(tree.root).compare(t, tree, false)
 
 	entomb(
 		an(branchy, an(leafy)),
-		an(bob),
-	).compare(t, tree.tombstones)
+		an(bob)).
+		compare(t, tree.tombstones)
 
 	// resurrect branchy
 	set(tree.root.id, branchy.id, branchy.name, false)
 
 	an(
 		tree.root,
-		an(branchy, an(leafy)),
-	).compare(t, tree, false)
+		an(branchy, an(leafy))).
+		compare(t, tree, false)
 
 	entomb(an(bob)).compare(t, tree.tombstones)
 
@@ -696,8 +690,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 		an(
 			branchy,
 			an(leafy),
-			an(bob)),
-	).compare(t, tree, true)
+			an(bob))).
+		compare(t, tree, true)
 
 	entomb().compare(t, tree.tombstones)
 }
