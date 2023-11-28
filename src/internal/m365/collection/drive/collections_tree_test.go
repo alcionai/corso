@@ -585,7 +585,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 	}{
 		{
 			name: "nil page",
-			tree: newFolderyMcFolderFace(nil),
+			tree: newFolderyMcFolderFace(nil, rootID),
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
@@ -608,7 +608,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 		},
 		{
 			name: "root only",
-			tree: newFolderyMcFolderFace(nil),
+			tree: newFolderyMcFolderFace(nil, rootID),
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
@@ -637,7 +637,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 		},
 		{
 			name: "root only on two pages",
-			tree: newFolderyMcFolderFace(nil),
+			tree: newFolderyMcFolderFace(nil, rootID),
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
@@ -666,7 +666,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 		},
 		{
 			name: "many folders in a hierarchy across multiple pages",
-			tree: newFolderyMcFolderFace(nil),
+			tree: newFolderyMcFolderFace(nil, rootID),
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
@@ -703,7 +703,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 		},
 		{
 			name: "many folders with files",
-			tree: newFolderyMcFolderFace(nil),
+			tree: newFolderyMcFolderFace(nil, rootID),
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
@@ -751,7 +751,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 			// technically you won't see this behavior from graph deltas, since deletes always
 			// precede creates/updates.  But it's worth checking that we can handle it anyways.
 			name: "create, delete on next page",
-			tree: newFolderyMcFolderFace(nil),
+			tree: newFolderyMcFolderFace(nil, rootID),
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
@@ -870,7 +870,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 		},
 		{
 			name: "hit folder limit during enumeration",
-			tree: newFolderyMcFolderFace(nil),
+			tree: newFolderyMcFolderFace(nil, rootID),
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
@@ -1305,7 +1305,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 		},
 		{
 			name:    "tombstone new folder in unpopulated tree",
-			tree:    newFolderyMcFolderFace(nil),
+			tree:    newFolderyMcFolderFace(nil, rootID),
 			folder:  del,
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
@@ -1553,7 +1553,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 		},
 		{
 			name: "one file in a folder",
-			tree: newFolderyMcFolderFace(nil),
+			tree: newFolderyMcFolderFace(nil, rootID),
 			page: pageItems(
 				driveItem(id(folder), name(folder), parentDir(), rootID, isFolder),
 				driveItem(id(file), name(file), parentDir(name(folder)), id(folder), isFile)),

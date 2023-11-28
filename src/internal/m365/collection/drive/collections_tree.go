@@ -171,7 +171,12 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "generating backup tree prefix")
 	}
 
-	tree := newFolderyMcFolderFace(ppfx)
+	root, err := c.handler.GetRootFolder(ctx, ptr.Val(drv.GetId()))
+	if err != nil {
+		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "getting root folder")
+	}
+
+	tree := newFolderyMcFolderFace(ppfx, ptr.Val(root.GetId()))
 
 	counter.Add(count.PrevPaths, int64(len(prevPaths)))
 

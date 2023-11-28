@@ -9,6 +9,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -57,6 +58,18 @@ type BackupHandler[T any] struct {
 	getCall  int
 	GetResps []*http.Response
 	GetErrs  []error
+
+	RootFolder models.DriveItemable
+}
+
+func stubRootFolder() models.DriveItemable {
+	item := models.NewDriveItem()
+	item.SetName(ptr.To(odConsts.RootPathDir))
+	item.SetId(ptr.To(odConsts.RootID))
+	item.SetRoot(models.NewRoot())
+	item.SetFolder(models.NewFolder())
+
+	return item
 }
 
 func DefaultOneDriveBH(resourceOwner string) *BackupHandler[models.DriveItemable] {
@@ -81,6 +94,7 @@ func DefaultOneDriveBH(resourceOwner string) *BackupHandler[models.DriveItemable
 		LocationIDFn:         defaultOneDriveLocationIDer,
 		GetResps:             []*http.Response{nil},
 		GetErrs:              []error{clues.New("not defined")},
+		RootFolder:           stubRootFolder(),
 	}
 }
 
@@ -105,6 +119,7 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler[models.DriveItemab
 		LocationIDFn:         defaultSharePointLocationIDer,
 		GetResps:             []*http.Response{nil},
 		GetErrs:              []error{clues.New("not defined")},
+		RootFolder:           stubRootFolder(),
 	}
 }
 
@@ -285,6 +300,10 @@ func (h BackupHandler[T]) IncludesDir(dir string) bool {
 	scope := h.Sel.Includes[0]
 	return selectors.SharePointScope(scope).Matches(selectors.SharePointLibraryFolder, dir) ||
 		selectors.OneDriveScope(scope).Matches(selectors.OneDriveFolder, dir)
+}
+
+func (h BackupHandler[T]) GetRootFolder(context.Context, string) (models.DriveItemable, error) {
+	return h.RootFolder, nil
 }
 
 // ---------------------------------------------------------------------------
