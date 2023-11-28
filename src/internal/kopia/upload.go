@@ -557,8 +557,7 @@ func (d *corsoDirectoryIterator) nextBaseEnt(
 	for entry, err = d.baseDirIter.Next(ctx); entry != nil && err == nil; entry, err = d.baseDirIter.Next(ctx) {
 		entName, err := decodeElement(entry.Name())
 		if err != nil {
-			err = clues.Wrap(err, "decoding entry name").
-				WithClues(ctx).
+			err = clues.WrapWC(ctx, err, "decoding entry name").
 				With("entry_name", clues.Hide(entry.Name()))
 			d.progress.errs.AddRecoverable(ctx, err)
 
@@ -581,8 +580,7 @@ func (d *corsoDirectoryIterator) nextBaseEnt(
 			// LocationPath information associated with the directory.
 			newP, err := d.params.currentPath.Append(false, entName)
 			if err != nil {
-				err = clues.Wrap(err, "getting current directory path").
-					WithClues(ctx)
+				err = clues.WrapWC(ctx, err, "getting current directory path")
 				d.progress.errs.AddRecoverable(ctx, err)
 
 				continue
@@ -592,8 +590,7 @@ func (d *corsoDirectoryIterator) nextBaseEnt(
 
 			oldP, err := d.params.prevPath.Append(false, entName)
 			if err != nil {
-				err = clues.Wrap(err, "getting previous directory path").
-					WithClues(ctx)
+				err = clues.WrapWC(ctx, err, "getting previous directory path")
 				d.progress.errs.AddRecoverable(ctx, err)
 
 				continue
@@ -632,8 +629,7 @@ func (d *corsoDirectoryIterator) nextBaseEnt(
 		// item name.
 		itemPath, err := d.params.currentPath.AppendItem(entName)
 		if err != nil {
-			err = clues.Wrap(err, "getting full item path for base entry").
-				WithClues(ctx)
+			err = clues.WrapWC(ctx, err, "getting full item path for base entry")
 			d.progress.errs.AddRecoverable(ctx, err)
 
 			continue
@@ -647,8 +643,10 @@ func (d *corsoDirectoryIterator) nextBaseEnt(
 		// to look for.
 		prevItemPath, err := d.params.prevPath.AppendItem(entName)
 		if err != nil {
-			err = clues.Wrap(err, "getting previous full item path for base entry").
-				WithClues(ctx)
+			err = clues.WrapWC(
+				ctx,
+				err,
+				"getting previous full item path for base entry")
 			d.progress.errs.AddRecoverable(ctx, err)
 
 			continue
