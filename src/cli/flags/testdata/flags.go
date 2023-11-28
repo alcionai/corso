@@ -22,9 +22,19 @@ var (
 	SharepointCategoryDataInput = []string{"files", "lists", "pages"}
 	GroupsCategoryDataInput     = []string{"files", "lists", "pages", "messages"}
 
+	ChannelInput                = []string{"channel1", "channel2"}
+	MessageInput                = []string{"message1", "message2"}
+	MessageCreatedAfterInput    = "messageCreatedAfter"
+	MessageCreatedBeforeInput   = "messageCreatedBefore"
+	MessageLastReplyAfterInput  = "messageLastReplyAfter"
+	MessageLastReplyBeforeInput = "messageLastReplyBefore"
+
 	ContactInput     = []string{"contact1", "contact2"}
 	ContactFldInput  = []string{"contactFld1", "contactFld2"}
 	ContactNameInput = "contactName"
+
+	ConversationInput = []string{"conversation1", "conversation2"}
+	PostInput         = []string{"post1", "post2"}
 
 	EmailInput               = []string{"mail1", "mail2"}
 	EmailFldInput            = []string{"mailFld1", "mailFld2"}

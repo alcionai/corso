@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/testdata"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -42,7 +41,7 @@ var _ backupHandler[models.Channelable, models.ChatMessageable] = &mockBackupHan
 
 type mockBackupHandler struct {
 	channels      []models.Channelable
-	channelsErr   error
+	containersErr error
 	messageIDs    []string
 	deletedMsgIDs []string
 	messagesErr   error
@@ -52,17 +51,31 @@ type mockBackupHandler struct {
 	doNotInclude  bool
 }
 
-func (bh mockBackupHandler) canMakeDeltaQueries(models.Channelable) bool {
+func (bh mockBackupHandler) canMakeDeltaQueries() bool {
 	return true
 }
 
-func (bh mockBackupHandler) getContainers(context.Context) ([]models.Channelable, error) {
-	return bh.channels, bh.channelsErr
+func (bh mockBackupHandler) containers() []container[models.Channelable] {
+	containers := make([]container[models.Channelable], 0, len(bh.channels))
+
+	for _, ch := range bh.channels {
+		containers = append(containers, channelContainer(ch))
+	}
+
+	return containers
+}
+
+func (bh mockBackupHandler) getContainers(
+	context.Context,
+	api.CallConfig,
+) ([]container[models.Channelable], error) {
+	return bh.containers(), bh.containersErr
 }
 
 func (bh mockBackupHandler) getContainerItemIDs(
 	_ context.Context,
-	_, _ string,
+	_ path.Elements,
+	_ string,
 	_ api.CallConfig,
 ) (pagers.AddedAndRemoved, error) {
 	idRes := make(map[string]time.Time, len(bh.messageIDs))
@@ -82,8 +95,6 @@ func (bh mockBackupHandler) getContainerItemIDs(
 }
 
 func (bh mockBackupHandler) includeContainer(
-	context.Context,
-	graph.QueryParams,
 	models.Channelable,
 	selectors.GroupsScope,
 ) bool {
@@ -91,22 +102,17 @@ func (bh mockBackupHandler) includeContainer(
 }
 
 func (bh mockBackupHandler) canonicalPath(
-	folders *path.Builder,
+	storageDirFolders path.Elements,
 	tenantID string,
 ) (path.Path, error) {
-	return folders.
+	return storageDirFolders.
+		Builder().
 		ToDataLayerPath(
 			tenantID,
 			"protectedResource",
 			path.GroupsService,
 			path.ChannelMessagesCategory,
 			false)
-}
-
-func (bh mockBackupHandler) locationPath(
-	c models.Channelable,
-) *path.Builder {
-	return path.Builder{}.Append(ptr.Val(c.GetDisplayName()))
 }
 
 func (bh mockBackupHandler) GetItem(
@@ -255,7 +261,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 				qp,
 				test.mock,
 				statusUpdater,
-				test.mock.channels,
+				test.mock.containers(),
 				selectors.NewGroupsBackup(nil).Channels(selectors.Any())[0],
 				nil,
 				ctrlOpts,
@@ -415,7 +421,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_incremental() {
 				qp,
 				test.mock,
 				statusUpdater,
-				test.mock.channels,
+				test.mock.containers(),
 				allScope,
 				test.deltaPaths,
 				ctrlOpts,

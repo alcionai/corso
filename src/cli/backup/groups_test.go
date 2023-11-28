@@ -107,8 +107,17 @@ func (suite *GroupsUnitSuite) TestValidateGroupsBackupCreateFlags() {
 			expect: assert.NoError,
 		},
 		{
-			name:   "all allowed",
-			cats:   []string{flags.DataLibraries, flags.DataMessages},
+			name:   "conversations",
+			cats:   []string{flags.DataConversations},
+			expect: assert.NoError,
+		},
+		{
+			name: "all allowed",
+			cats: []string{
+				flags.DataLibraries,
+				flags.DataMessages,
+				flags.DataConversations,
+			},
 			expect: assert.NoError,
 		},
 		{
@@ -208,8 +217,11 @@ func (suite *GroupsUnitSuite) TestBackupDetailsFlags() {
 				"--" + flags.BackupFN, flagsTD.BackupInput,
 				"--" + flags.SkipReduceFN,
 			},
+			flagsTD.PreparedChannelFlags(),
+			flagsTD.PreparedConversationFlags(),
 			flagsTD.PreparedProviderFlags(),
-			flagsTD.PreparedStorageFlags()))
+			flagsTD.PreparedStorageFlags(),
+			flagsTD.PreparedLibraryFlags()))
 
 	co := utils.Control()
 
@@ -217,6 +229,9 @@ func (suite *GroupsUnitSuite) TestBackupDetailsFlags() {
 	assert.True(t, co.SkipReduce)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)
+	flagsTD.AssertChannelFlags(t, cmd)
+	flagsTD.AssertConversationFlags(t, cmd)
+	flagsTD.AssertLibraryFlags(t, cmd)
 }
 
 func (suite *GroupsUnitSuite) TestBackupDeleteFlags() {

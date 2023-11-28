@@ -27,20 +27,20 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 	// gets all containers for the resource
 	getContainers(
 		ctx context.Context,
-	) ([]C, error)
+		cc api.CallConfig,
+	) ([]container[C], error)
 
 	// gets all item IDs (by delta, if possible) in the container
 	getContainerItemIDs(
 		ctx context.Context,
-		containerID, prevDelta string,
+		containerPath path.Elements,
+		prevDelta string,
 		cc api.CallConfig,
 	) (pagers.AddedAndRemoved, error)
 
 	// includeContainer evaluates whether the container is included
 	// in the provided scope.
 	includeContainer(
-		ctx context.Context,
-		qp graph.QueryParams,
 		c C,
 		scope selectors.GroupsScope,
 	) bool
@@ -48,15 +48,13 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 	// canonicalPath constructs the service and category specific path for
 	// the given builder.
 	canonicalPath(
-		folders *path.Builder,
+		storageDir path.Elements,
 		tenantID string,
 	) (path.Path, error)
 
-	locationPath(c C) *path.Builder
-
-	// canMakeDeltaQueries evaluates whether the container can support a
+	// canMakeDeltaQueries evaluates whether the handler can support a
 	// delta query when enumerating its items.
-	canMakeDeltaQueries(c C) bool
+	canMakeDeltaQueries() bool
 }
 
 type getItemer[I groupsItemer] interface {
@@ -66,4 +64,15 @@ type getItemer[I groupsItemer] interface {
 		containerIDs path.Elements,
 		itemID string,
 	) (I, *details.GroupsInfo, error)
+}
+
+// ---------------------------------------------------------------------------
+// Container management
+// ---------------------------------------------------------------------------
+
+type container[C graph.GetIDer] struct {
+	storageDirFolders   path.Elements
+	humanLocation       path.Elements
+	canMakeDeltaQueries bool
+	container           C
 }
