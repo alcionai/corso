@@ -1,9 +1,13 @@
 package api
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/h2non/gock"
+	msDrive "github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type DrivePagerIntgSuite struct {
@@ -209,4 +214,218 @@ func (suite *DrivePagerIntgSuite) TestEnumerateDriveItems() {
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, items, "should find items in user's drive")
 	assert.NotEmpty(t, du.URL, "should have a delta link")
+}
+
+// TestDriveDeltaPagerQueryParams is a regression test to check if
+// the delta pager is setting query params and prefer headers as
+// expected.
+func (suite *DrivePagerIntgSuite) TestDriveDeltaPagerQueryParams() {
+	tests := []struct {
+		name        string
+		setupf      func()
+		forURLCache bool
+		expect      assert.ErrorAssertionFunc
+	}{
+		// Separate out tests for $select and $prefer because otherwise
+		// it's hard to tell which gock check is failing.
+		{
+			name: "check $top",
+			setupf: func() {
+				delta := msDrive.NewItemItemsItemDeltaResponse()
+				delta.SetValue([]models.DriveItemable{
+					models.NewDriveItem(),
+				})
+
+				str := "deltaLink"
+				delta.SetOdataDeltaLink(&str)
+
+				interceptV1Path("drives", "drive", "items", "root", "delta()").
+					MatchParam("$top", strconv.Itoa(int(maxDeltaPageSize))).
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), delta))
+			},
+			expect: assert.NoError,
+		},
+		{
+			name: "check $select",
+			setupf: func() {
+				delta := msDrive.NewItemItemsItemDeltaResponse()
+				delta.SetValue([]models.DriveItemable{
+					models.NewDriveItem(),
+				})
+
+				str := "deltaLink"
+				delta.SetOdataDeltaLink(&str)
+
+				// This is a copy of DefaultDriveItemProps. This list should be
+				// adjusted while changing DefaultDriveItemProps. This however
+				// doesn't protect against adding new params to DefaultDriveItemProps
+				// since gock doesn't allow asserting for presence of unexpected
+				// params.
+				params := idAnd(
+					"content.downloadUrl",
+					"createdBy",
+					"createdDateTime",
+					"file",
+					"folder",
+					"lastModifiedDateTime",
+					"name",
+					"package",
+					"parentReference",
+					"root",
+					"sharepointIds",
+					"size",
+					"deleted",
+					"malware",
+					"shared")
+
+				selectParams := strings.Join(params, ",")
+
+				interceptV1Path("drives", "drive", "items", "root", "delta()").
+					MatchParam("$select", selectParams).
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), delta))
+			},
+			expect: assert.NoError,
+		},
+		{
+			name: "prefer headers",
+			setupf: func() {
+				delta := msDrive.NewItemItemsItemDeltaResponse()
+				delta.SetValue([]models.DriveItemable{
+					models.NewDriveItem(),
+				})
+
+				str := "deltaLink"
+				delta.SetOdataDeltaLink(&str)
+
+				preferHeaderItems := []string{
+					"deltashowremovedasdeleted",
+					"deltatraversepermissiongaps",
+					"deltashowsharingchanges",
+					"hierarchicalsharing",
+				}
+				preferParams := strings.Join(preferHeaderItems, ",")
+
+				interceptV1Path("drives", "drive", "items", "root", "delta()").
+					MatchHeaders(map[string]string{
+						"Prefer": preferParams,
+					}).
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), delta))
+			},
+			expect: assert.NoError,
+		},
+		{
+			name: "check url cache $select",
+			setupf: func() {
+				delta := msDrive.NewItemItemsItemDeltaResponse()
+				delta.SetValue([]models.DriveItemable{
+					models.NewDriveItem(),
+				})
+
+				str := "deltaLink"
+				delta.SetOdataDeltaLink(&str)
+
+				// This is a copy of URLCacheDriveItemProps. This list should be
+				// adjusted while changing URLCacheDriveItemProps.
+				params := idAnd(
+					"content.downloadUrl",
+					"deleted",
+					"file",
+					"folder")
+
+				selectParams := strings.Join(params, ",")
+
+				interceptV1Path("drives", "drive", "items", "root", "delta()").
+					MatchParam("$select", selectParams).
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), delta))
+			},
+			forURLCache: true,
+			expect:      assert.NoError,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			defer gock.Off()
+			test.setupf()
+
+			cfg := CallConfig{
+				Select: DefaultDriveItemProps(),
+			}
+
+			if test.forURLCache {
+				cfg = CallConfig{
+					Select: URLCacheDriveItemProps(),
+				}
+			}
+
+			pager := suite.
+				its.
+				gockAC.
+				Drives().
+				EnumerateDriveItemsDelta(
+					ctx,
+					"drive",
+					"",
+					cfg)
+			for _, reset, done := pager.NextPage(); !done; _, reset, done = pager.NextPage() {
+				assert.False(t, reset, "should not reset")
+			}
+
+			_, err := pager.Results()
+			require.NoError(t, err, clues.ToCore(err))
+		})
+	}
+}
+
+// Non delta pager equivalent of above test.
+func (suite *DrivePagerIntgSuite) TestDriveNonDeltaPagerQueryParams() {
+	tests := []struct {
+		name        string
+		setupf      func()
+		forURLCache bool
+		expect      assert.ErrorAssertionFunc
+	}{
+		{
+			name: "check $top",
+			setupf: func() {
+				resp := models.NewDriveItemCollectionResponse()
+				resp.SetValue([]models.DriveItemable{
+					models.NewDriveItem(),
+				})
+
+				interceptV1Path("drives", "drive", "items", "root", "children").
+					MatchParam("$top", strconv.Itoa(int(maxNonDeltaPageSize))).
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), resp))
+			},
+			expect: assert.NoError,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			defer gock.Off()
+			test.setupf()
+
+			_, err := suite.its.gockAC.
+				Drives().
+				GetItemIDsInContainer(ctx, "drive", "root")
+
+			require.NoError(t, err, clues.ToCore(err))
+		})
+	}
 }
