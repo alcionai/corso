@@ -52,11 +52,9 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 		tenantID string,
 	) (path.Path, error)
 
-	locationPath(c C) *path.Builder
-
-	// canMakeDeltaQueries evaluates whether the container can support a
+	// canMakeDeltaQueries evaluates whether the handler can support a
 	// delta query when enumerating its items.
-	canMakeDeltaQueries(c C) bool
+	canMakeDeltaQueries() bool
 }
 
 type getItemer[I groupsItemer] interface {
