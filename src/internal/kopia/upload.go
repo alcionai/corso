@@ -244,11 +244,10 @@ func (cp *corsoProgress) get(k string) *itemDetails {
 	return cp.pending[k]
 }
 
-// These define a small state machine as to which source to return an entry from
-// next. Since these are in-memory only values we can use iota. Phases are
-// traversed in the order defined unless the underlying data source isn't
-// present. If an underlying data source is missing, the non-pre/post phase
-// associated with that data source is skipped.
+// These define a small state machine describing which source to return an entry
+// from next. Phases are traversed in the order defined unless the underlying
+// data source isn't present. If an underlying data source is missing, the
+// non-pre/post phase associated with that data source is skipped.
 //
 // Since some phases require initialization of the underlying data source we
 // insert additional phases to allow that. Once initialization is completed the
@@ -257,15 +256,15 @@ func (cp *corsoProgress) get(k string) *itemDetails {
 // A similar tactic can be used to handle tearing down resources for underlying
 // data sources if needed.
 const (
-	initPhase = iota
-	staticEntsPhase
-	preStreamEntsPhase
-	streamEntsPhase
-	postStreamEntsPhase
-	preBaseDirEntsPhase
-	baseDirEntsPhase
-	postBaseDirEntsPhase
-	terminationPhase
+	initPhase            = 0
+	staticEntsPhase      = 1
+	preStreamEntsPhase   = 2
+	streamEntsPhase      = 3
+	postStreamEntsPhase  = 4
+	preBaseDirEntsPhase  = 5
+	baseDirEntsPhase     = 6
+	postBaseDirEntsPhase = 7
+	terminationPhase     = 8
 )
 
 type corsoDirectoryIterator struct {
@@ -284,18 +283,23 @@ type corsoDirectoryIterator struct {
 	endSpan func()
 
 	// seenEnts contains the encoded names of entries that we've already streamed
-	// so we can skip returning them again when looking at base entries.
+	// so we can skip returning them again when looking at base entries. Since
+	// this struct already deals with a single directory these can directly be
+	// file names instead of paths.
 	seenEnts map[string]struct{}
 	// locationPath contains the human-readable location of the underlying
 	// collection.
 	locationPath *path.Builder
 
-	// excludeSet is the individual exclude set to use for the longest prefix for
-	// this iterator.
+	// excludeSet is the individual exclude set to use for the longest path prefix
+	// for this iterator. We use path prefixes because some services (e.x.
+	// OneDrive) can only provide excluded items for the entire service backup not
+	// individual directories (e.x. OneDrive deleted items are reported as
+	// children of the root folder).
 	excludeSet map[string]struct{}
 
-	// traversalPhase is the current state in the state machine.
-	traversalPhase int
+	// currentPhase is the current state in the state machine.
+	currentPhase int
 
 	// streamItemsChan contains the channel for the backing collection if there is
 	// one. Once the backing collection has been traversed this is set to nil.
@@ -333,11 +337,11 @@ func (d *corsoDirectoryIterator) Next(ctx context.Context) (fs.Entry, error) {
 	// these errors since doing so will result in kopia stopping iteration of the
 	// directory. Since these errors are recorded we won't lose track of them at
 	// the end of the backup.
-	for d.traversalPhase != terminationPhase {
-		switch d.traversalPhase {
+	for d.currentPhase != terminationPhase {
+		switch d.currentPhase {
 		case initPhase:
 			d.ctx, d.endSpan = diagnostics.Span(d.ctx, "kopia:DirectoryIterator")
-			d.traversalPhase = staticEntsPhase
+			d.currentPhase = staticEntsPhase
 
 		case staticEntsPhase:
 			if d.staticEntsIdx < len(d.staticEnts) {
@@ -347,11 +351,11 @@ func (d *corsoDirectoryIterator) Next(ctx context.Context) (fs.Entry, error) {
 				return ent, nil
 			}
 
-			d.traversalPhase = preStreamEntsPhase
+			d.currentPhase = preStreamEntsPhase
 
 		case preStreamEntsPhase:
 			if d.params.collection == nil {
-				d.traversalPhase = preBaseDirEntsPhase
+				d.currentPhase = preBaseDirEntsPhase
 				break
 			}
 
@@ -361,7 +365,7 @@ func (d *corsoDirectoryIterator) Next(ctx context.Context) (fs.Entry, error) {
 
 			d.streamItemsChan = d.params.collection.Items(d.ctx, d.progress.errs)
 			d.seenEnts = map[string]struct{}{}
-			d.traversalPhase = streamEntsPhase
+			d.currentPhase = streamEntsPhase
 
 		case streamEntsPhase:
 			ent, err := d.nextStreamEnt(d.ctx)
@@ -377,17 +381,17 @@ func (d *corsoDirectoryIterator) Next(ctx context.Context) (fs.Entry, error) {
 			}
 
 			// Done iterating through stream entries, advance the state machine state.
-			d.traversalPhase = postStreamEntsPhase
+			d.currentPhase = postStreamEntsPhase
 
 		case postStreamEntsPhase:
 			d.streamItemsChan = nil
-			d.traversalPhase = preBaseDirEntsPhase
+			d.currentPhase = preBaseDirEntsPhase
 
 		case preBaseDirEntsPhase:
 			// We have no iterator from which to pull entries, switch to the next
 			// state machine state.
 			if d.params.baseDir == nil {
-				d.traversalPhase = postBaseDirEntsPhase
+				d.currentPhase = postBaseDirEntsPhase
 				break
 			}
 
@@ -397,7 +401,7 @@ func (d *corsoDirectoryIterator) Next(ctx context.Context) (fs.Entry, error) {
 			if err != nil {
 				// We have no iterator from which to pull entries, switch to the next
 				// state machine state.
-				d.traversalPhase = postBaseDirEntsPhase
+				d.currentPhase = postBaseDirEntsPhase
 				d.progress.errs.AddRecoverable(
 					d.ctx,
 					clues.Wrap(err, "getting base directory iterator"))
@@ -413,7 +417,7 @@ func (d *corsoDirectoryIterator) Next(ctx context.Context) (fs.Entry, error) {
 				logger.Ctx(d.ctx).Debugw("found exclude set", "set_prefix", longest)
 			}
 
-			d.traversalPhase = baseDirEntsPhase
+			d.currentPhase = baseDirEntsPhase
 
 		case baseDirEntsPhase:
 			ent, err := d.nextBaseEnt(d.ctx)
@@ -429,7 +433,7 @@ func (d *corsoDirectoryIterator) Next(ctx context.Context) (fs.Entry, error) {
 			}
 
 			// Done iterating through base entries, advance the state machine state.
-			d.traversalPhase = postBaseDirEntsPhase
+			d.currentPhase = postBaseDirEntsPhase
 
 		case postBaseDirEntsPhase:
 			// Making a separate phase so adding additional phases after this one is
@@ -442,7 +446,7 @@ func (d *corsoDirectoryIterator) Next(ctx context.Context) (fs.Entry, error) {
 			d.seenEnts = nil
 			d.excludeSet = nil
 
-			d.traversalPhase = terminationPhase
+			d.currentPhase = terminationPhase
 		}
 	}
 
