@@ -32,6 +32,11 @@ func CheckGroupsExport(
 		common.Fatal(ctx, "getting the drive:", err)
 	}
 
+	checkChannelMessagesExport(
+		ctx,
+		ac,
+		envs)
+
 	envs.RestoreContainer = filepath.Join(
 		envs.RestoreContainer,
 		"Libraries",
@@ -41,11 +46,6 @@ func CheckGroupsExport(
 		ctx,
 		ac,
 		drive,
-		envs)
-
-	checkChannelMessagesExport(
-		ctx,
-		ac,
 		envs)
 }
 
@@ -116,6 +116,11 @@ func populateMessagesSanitree(
 			})
 		if err != nil {
 			common.Fatal(ctx, "getting channel messages", err)
+		}
+
+		if len(msgs) == 0 {
+			common.Infof(ctx, "skipped empty channel: %s", ptr.Val(ch.GetDisplayName()))
+			continue
 		}
 
 		for _, msg := range msgs {
