@@ -58,7 +58,7 @@ func BuildFilepathSanitree(
 				Children: map[string]*Sanitree[fs.FileInfo, fs.FileInfo]{},
 			}
 		} else {
-			node.CountLeaves += 1
+			node.CountLeaves++
 			node.Leaves[info.Name()] = &Sanileaf[fs.FileInfo, fs.FileInfo]{
 				Parent: node,
 				Self:   info,

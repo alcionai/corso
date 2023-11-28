@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/restore"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 func CheckEmailExport(
@@ -36,12 +37,13 @@ func CheckEmailExport(
 		result *common.Sanitree[fs.FileInfo, fs.FileInfo],
 	) {
 		modifiedExpectedLeaves := map[string]*common.Sanileaf[models.MailFolderable, any]{}
+		modifiedResultLeaves := map[string]*common.Sanileaf[fs.FileInfo, fs.FileInfo]{}
+
 		for key, val := range expect.Leaves {
 			val.Size = 0 // we cannot match up sizes
 			modifiedExpectedLeaves[key] = val
 		}
 
-		modifiedResultLeaves := map[string]*common.Sanileaf[fs.FileInfo, fs.FileInfo]{}
 		for key, val := range result.Leaves {
 			fixedName := strings.TrimSuffix(key, ".eml")
 			val.Size = 0
