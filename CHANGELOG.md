@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+### Changed
+### Fixed
+
+## [v0.16.0] (beta) - 2023-11-28
+
+### Added
 - Added export support for emails in exchange backups as `.eml` files
 - More colorful and informational cli output
 
