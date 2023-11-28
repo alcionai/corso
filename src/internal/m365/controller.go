@@ -26,7 +26,6 @@ var ErrNoResourceLookup = clues.New("missing resource lookup client")
 // must comply with BackupProducer and RestoreConsumer
 var (
 	_ inject.BackupProducer   = &Controller{}
-	_ inject.RestoreConsumer  = &Controller{}
 	_ inject.ToServiceHandler = &Controller{}
 )
 

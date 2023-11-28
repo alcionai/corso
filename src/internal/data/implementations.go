@@ -11,7 +11,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var ErrNotFound = clues.New("not found")
+var (
+	ErrNotFound = clues.New("not found")
+	ErrNoData   = clues.New("no data")
+)
 
 type CollectionState int
 

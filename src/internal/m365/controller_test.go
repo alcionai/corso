@@ -520,7 +520,12 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 				Selector:          test.sel,
 			}
 
-			deets, _, err := suite.ctrl.ConsumeRestoreCollections(
+			handler, err := suite.ctrl.NewServiceHandler(
+				control.DefaultOptions(),
+				test.sel.PathService())
+			require.NoError(t, err, clues.ToCore(err))
+
+			deets, _, err := handler.ConsumeRestoreCollections(
 				ctx,
 				rcc,
 				test.col,
@@ -562,7 +567,12 @@ func runRestore(
 		Selector:          restoreSel,
 	}
 
-	deets, status, err := restoreCtrl.ConsumeRestoreCollections(
+	handler, err := restoreCtrl.NewServiceHandler(
+		control.DefaultOptions(),
+		sci.Service)
+	require.NoError(t, err, clues.ToCore(err))
+
+	deets, status, err := handler.ConsumeRestoreCollections(
 		ctx,
 		rcc,
 		collections,
@@ -1194,7 +1204,12 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					Selector:          restoreSel,
 				}
 
-				deets, status, err := restoreCtrl.ConsumeRestoreCollections(
+				handler, err := restoreCtrl.NewServiceHandler(
+					control.DefaultOptions(),
+					test.service)
+				require.NoError(t, err, clues.ToCore(err))
+
+				deets, status, err := handler.ConsumeRestoreCollections(
 					ctx,
 					rcc,
 					collections,

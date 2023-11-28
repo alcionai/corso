@@ -240,10 +240,7 @@ func (op *RestoreOperation) do(
 		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
 
 	// Check if the resource has the service enabled to be able to restore.
-	enabled, err := op.rc.IsServiceEnabled(
-		ctx,
-		op.Selectors.PathService(),
-		restoreToProtectedResource.ID())
+	enabled, err := op.rc.IsServiceEnabled(ctx, restoreToProtectedResource.ID())
 	if err != nil {
 		return nil, clues.Wrap(err, "verifying service restore is enabled")
 	}
@@ -393,8 +390,15 @@ func consumeRestoreCollections(
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.Details, *data.CollectionStats, error) {
+	if len(dcs) == 0 {
+		return nil, nil, clues.New("no data collections to restore")
+	}
+
 	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Restoring data")
 	defer close(progressBar)
+
+	ctx, end := diagnostics.Span(ctx, "operations:restore")
+	defer end()
 
 	rcc := inject.RestoreConsumerConfig{
 		BackupVersion:     backupVersion,
@@ -403,6 +407,8 @@ func consumeRestoreCollections(
 		RestoreConfig:     restoreCfg,
 		Selector:          sel,
 	}
+
+	ctx = clues.Add(ctx, "restore_config", rcc.RestoreConfig)
 
 	deets, status, err := rc.ConsumeRestoreCollections(ctx, rcc, dcs, errs, ctr)
 
