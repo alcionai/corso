@@ -2,6 +2,7 @@ package export
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
@@ -16,7 +17,9 @@ func CheckEmailExport(
 	envs common.Envs,
 ) {
 	sourceTree := restore.BuildEmailSanitree(ctx, ac, envs.UserID, envs.SourceContainer)
-	exportedTree := common.BuildFilepathSanitree(ctx, envs.RestoreContainer)
+
+	emailsExportDir := filepath.Join(envs.RestoreContainer, "Emails")
+	exportedTree := common.BuildFilepathSanitree(ctx, emailsExportDir)
 
 	ctx = clues.Add(
 		ctx,
