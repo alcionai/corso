@@ -141,6 +141,7 @@ type collectionAssertion struct {
 
 type statesToItemIDs map[data.CollectionState][]string
 
+// TODO(keepers): move excludeItems to a more global position.
 func newCollAssertion(
 	doNotMerge bool,
 	itemsByState statesToItemIDs,
@@ -184,21 +185,9 @@ func (cas collectionAssertions) compare(
 		itemIDs = []string{}
 	)
 
-	var p path.Path
+	p := fullOrPrevPath(t, coll)
 
-	switch coll.State() {
-	case data.DeletedState:
-		p = coll.PreviousPath()
-	default:
-		p = coll.FullPath()
-	}
-
-	for {
-		itm, ok := <-itemCh
-		if !ok {
-			break
-		}
-
+	for itm := range itemCh {
 		itemIDs = append(itemIDs, itm.ID())
 	}
 

@@ -258,6 +258,7 @@ func (c *Collections) makeDriveTombstones(
 			continue
 		}
 
+		// TODO: call NewTombstoneCollection
 		coll, err := NewCollection(
 			c.handler,
 			c.protectedResource,
