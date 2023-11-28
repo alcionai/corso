@@ -93,18 +93,6 @@ func (l pagerLimiter) atLimit(stats *driveEnumerationStats) bool {
 // Used by the tree version limit handling
 // ---------------------------------------------------------------------------
 
-// hitLimit returns true if the limiter is enabled and meets any of the
-// conditions for max items, containers, etc for this backup.
-func (l pagerLimiter) hitLimit(
-	pageCount, containerCount, itemCount int,
-	totalBytesCount int64,
-) bool {
-	return l.hitItemLimit(itemCount) ||
-		l.hitTotalBytesLimit(totalBytesCount) ||
-		l.hitContainerLimit(containerCount) ||
-		l.hitPageLimit(pageCount)
-}
-
 // hitPageLimit returns true if the limiter is enabled and the number of
 // pages processed so far is beyond the limit for this backup.
 func (l pagerLimiter) hitPageLimit(pageCount int) bool {
