@@ -25,6 +25,23 @@ const (
 	DeletedState  CollectionState = 3
 )
 
+func (cs CollectionState) String() string {
+	s := "Unknown State"
+
+	switch cs {
+	case 0:
+		s = "New"
+	case 1:
+		s = "Not Moved"
+	case 2:
+		s = "Moved"
+	case 3:
+		s = "Deleted"
+	}
+
+	return s
+}
+
 type FetchRestoreCollection struct {
 	Collection
 	FetchItemByNamer
