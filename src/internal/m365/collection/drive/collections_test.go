@@ -1692,20 +1692,27 @@ func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	mbh := mock.DefaultOneDriveBH(user)
+	drive := models.NewDrive()
+	drive.SetId(ptr.To("id"))
+	drive.SetName(ptr.To("name"))
 
-	c := NewCollections(
-		mbh,
-		tenant,
-		idname.NewProvider(user, user),
-		func(*support.ControllerOperationStatus) {},
-		control.Options{ToggleFeatures: control.Toggles{
-			UseDeltaTree: true,
-		}},
-		count.New())
+	mbh := mock.DefaultOneDriveBH(user)
+	opts := control.DefaultOptions()
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	mockDrivePager := &apiMock.Pager[models.Driveable]{
+		ToReturn: []apiMock.PagerResult[models.Driveable]{
+			{Values: []models.Driveable{drive}},
+		},
+	}
+
+	mbh.DrivePagerV = mockDrivePager
+
+	c := collWithMBH(mbh)
+	c.ctrl = opts
 
 	_, _, err := c.Get(ctx, nil, nil, fault.New(true))
-	require.ErrorContains(t, err, "cannot run tree-based backup", clues.ToCore(err))
+	require.ErrorContains(t, err, "not yet implemented", clues.ToCore(err))
 }
 
 func (suite *CollectionsUnitSuite) TestGet() {
