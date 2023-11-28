@@ -567,7 +567,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 	type expected struct {
 		counts                        countTD.Expected
 		err                           require.ErrorAssertionFunc
-		treeSize                      int
+		numLiveFiles                  int
+		numLiveFolders                int
+		shouldHitLimit                bool
+		sizeBytes                     int64
 		treeContainsFolderIDs         []string
 		treeContainsTombstoneIDs      []string
 		treeContainsFileIDsWithParent map[string]string
@@ -595,7 +598,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 			expect: expected{
 				counts:                        countTD.Expected{},
 				err:                           require.NoError,
-				treeSize:                      0,
+				numLiveFiles:                  0,
+				numLiveFolders:                0,
+				sizeBytes:                     0,
 				treeContainsFolderIDs:         []string{},
 				treeContainsTombstoneIDs:      []string{},
 				treeContainsFileIDsWithParent: map[string]string{},
@@ -619,8 +624,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 					count.TotalFilesProcessed:   0,
 					count.PagesEnumerated:       1,
 				},
-				err:      require.NoError,
-				treeSize: 1,
+				err:            require.NoError,
+				numLiveFiles:   0,
+				numLiveFolders: 1,
+				sizeBytes:      0,
 				treeContainsFolderIDs: []string{
 					rootID,
 				},
@@ -646,8 +653,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 					count.TotalFilesProcessed:   0,
 					count.PagesEnumerated:       2,
 				},
-				err:      require.NoError,
-				treeSize: 1,
+				err:            require.NoError,
+				numLiveFiles:   0,
+				numLiveFolders: 1,
+				sizeBytes:      0,
 				treeContainsFolderIDs: []string{
 					rootID,
 				},
@@ -678,8 +687,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 					count.PagesEnumerated:       3,
 					count.TotalFilesProcessed:   0,
 				},
-				err:      require.NoError,
-				treeSize: 4,
+				err:            require.NoError,
+				numLiveFiles:   0,
+				numLiveFolders: 4,
+				sizeBytes:      0,
 				treeContainsFolderIDs: []string{
 					rootID,
 					id(folder),
@@ -718,8 +729,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 					count.TotalFilesProcessed:   3,
 					count.PagesEnumerated:       3,
 				},
-				err:      require.NoError,
-				treeSize: 4,
+				err:            require.NoError,
+				numLiveFiles:   3,
+				numLiveFolders: 4,
+				sizeBytes:      3 * defaultItemSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 					id(folder),
@@ -759,8 +772,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 					count.TotalDeleteFoldersProcessed: 1,
 					count.PagesEnumerated:             2,
 				},
-				err:      require.NoError,
-				treeSize: 2,
+				err:            require.NoError,
+				numLiveFiles:   0,
+				numLiveFolders: 2,
+				sizeBytes:      0,
 				treeContainsFolderIDs: []string{
 					rootID,
 				},
@@ -796,8 +811,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 					count.TotalFilesProcessed:         1,
 					count.PagesEnumerated:             2,
 				},
-				err:      require.NoError,
-				treeSize: 3,
+				err:            require.NoError,
+				numLiveFiles:   0,
+				numLiveFolders: 2,
+				sizeBytes:      0,
 				treeContainsFolderIDs: []string{
 					rootID,
 					idx(folder, "parent"),
@@ -812,7 +829,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 		},
 		{
 			name: "at folder limit before enumeration",
-			tree: treeWithRoot(),
+			tree: treeWithFileAtRoot(),
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
@@ -837,10 +854,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 					count.TotalDeleteFoldersProcessed: 0,
 					count.TotalFoldersProcessed:       1,
 					count.TotalFilesProcessed:         0,
-					count.PagesEnumerated:             1,
+					count.PagesEnumerated:             0,
 				},
-				err:      require.NoError,
-				treeSize: 1,
+				err:            require.NoError,
+				shouldHitLimit: true,
+				numLiveFiles:   1,
+				numLiveFolders: 1,
+				sizeBytes:      defaultItemSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 				},
@@ -875,10 +895,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 					count.TotalDeleteFoldersProcessed: 0,
 					count.TotalFoldersProcessed:       1,
 					count.TotalFilesProcessed:         0,
-					count.PagesEnumerated:             1,
+					count.PagesEnumerated:             0,
 				},
-				err:      require.NoError,
-				treeSize: 1,
+				err:            require.NoError,
+				shouldHitLimit: true,
+				numLiveFiles:   0,
+				numLiveFolders: 1,
+				sizeBytes:      0,
 				treeContainsFolderIDs: []string{
 					rootID,
 				},
@@ -907,14 +930,31 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 			_, err := c.populateTree(
 				ctx,
 				test.tree,
-				test.limiter,
-				&driveEnumerationStats{},
 				drv,
 				id(delta),
+				test.limiter,
 				counter,
 				fault.New(true))
+
 			test.expect.err(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expect.treeSize, test.tree.countFolders(), "count folders in tree")
+
+			assert.Equal(
+				t,
+				test.expect.numLiveFolders,
+				test.tree.countLiveFolders(),
+				"count folders in tree")
+
+			countFiles, totalBytes := test.tree.countLiveFilesAndSizes()
+			assert.Equal(
+				t,
+				test.expect.numLiveFiles,
+				countFiles,
+				"count files in tree")
+			assert.Equal(
+				t,
+				test.expect.sizeBytes,
+				totalBytes,
+				"count total bytes in tree")
 			test.expect.counts.Compare(t, counter)
 
 			for _, id := range test.expect.treeContainsFolderIDs {
@@ -926,8 +966,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 			}
 
 			for iID, pID := range test.expect.treeContainsFileIDsWithParent {
-				assert.Contains(t, test.tree.fileIDToParentID, iID)
-				assert.Equal(t, pID, test.tree.fileIDToParentID[iID])
+				assert.Contains(t, test.tree.fileIDToParentID, iID, "file should exist in tree")
+				assert.Equal(t, pID, test.tree.fileIDToParentID[iID], "file should reference correct parent")
 			}
 		})
 	}
@@ -947,6 +987,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 	type expected struct {
 		counts                   countTD.Expected
 		err                      require.ErrorAssertionFunc
+		shouldHitLimit           bool
 		treeSize                 int
 		treeContainsFolderIDs    []string
 		treeContainsTombstoneIDs []string
@@ -1041,8 +1082,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 1,
 				},
-				err:      require.Error,
-				treeSize: 1,
+				err:            require.Error,
+				shouldHitLimit: true,
+				treeSize:       1,
 				treeContainsFolderIDs: []string{
 					rootID,
 				},
@@ -1128,14 +1170,22 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			err := c.enumeratePageOfItems(
 				ctx,
 				test.tree,
-				test.limiter,
-				&driveEnumerationStats{},
 				drv,
 				test.page,
+				test.limiter,
 				counter,
 				fault.New(true))
+
 			test.expect.err(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expect.treeSize, test.tree.countFolders(), "count folders in tree")
+			if test.expect.shouldHitLimit {
+				assert.ErrorIs(t, err, errHitLimit, clues.ToCore(err))
+			}
+
+			assert.Equal(
+				t,
+				test.expect.treeSize,
+				len(test.tree.tombstones)+len(test.tree.folderIDToNode),
+				"count folders in tree")
 			test.expect.counts.Compare(t, counter)
 
 			for _, id := range test.expect.treeContainsFolderIDs {
@@ -1161,24 +1211,29 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 	mal := malwareItem(idx(folder, "mal"), namex(folder, "mal"), parent(0), rootID, isFolder)
 
 	type expected struct {
+		countLiveFolders   int
 		counts             countTD.Expected
 		err                require.ErrorAssertionFunc
+		shouldHitLimit     bool
 		treeSize           int
 		treeContainsFolder assert.BoolAssertionFunc
 		skipped            assert.ValueAssertionFunc
 	}
 
 	table := []struct {
-		name   string
-		tree   *folderyMcFolderFace
-		folder models.DriveItemable
-		expect expected
+		name    string
+		tree    *folderyMcFolderFace
+		folder  models.DriveItemable
+		limiter *pagerLimiter
+		expect  expected
 	}{
 		{
-			name:   "add folder",
-			tree:   treeWithRoot(),
-			folder: fld,
+			name:    "add folder",
+			tree:    treeWithRoot(),
+			folder:  fld,
+			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
+				countLiveFolders:   2,
 				err:                require.NoError,
 				counts:             countTD.Expected{count.TotalFoldersProcessed: 1},
 				treeSize:           2,
@@ -1187,10 +1242,12 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			},
 		},
 		{
-			name:   "re-add folder that already exists",
-			tree:   treeWithFolders(),
-			folder: subFld,
+			name:    "re-add folder that already exists",
+			tree:    treeWithFolders(),
+			folder:  subFld,
+			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
+				countLiveFolders:   3,
 				err:                require.NoError,
 				counts:             countTD.Expected{count.TotalFoldersProcessed: 1},
 				treeSize:           3,
@@ -1199,10 +1256,12 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			},
 		},
 		{
-			name:   "add package",
-			tree:   treeWithRoot(),
-			folder: pack,
+			name:    "add package",
+			tree:    treeWithRoot(),
+			folder:  pack,
+			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
+				countLiveFolders:   2,
 				err:                require.NoError,
 				counts:             countTD.Expected{count.TotalPackagesProcessed: 1},
 				treeSize:           2,
@@ -1211,10 +1270,12 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			},
 		},
 		{
-			name:   "tombstone a folder in a populated tree",
-			tree:   treeWithFolders(),
-			folder: del,
+			name:    "tombstone a folder in a populated tree",
+			tree:    treeWithFolders(),
+			folder:  del,
+			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
+				countLiveFolders:   2,
 				err:                require.NoError,
 				counts:             countTD.Expected{count.TotalDeleteFoldersProcessed: 1},
 				treeSize:           3,
@@ -1235,10 +1296,12 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			},
 		},
 		{
-			name:   "re-add tombstone that already exists",
-			tree:   treeWithTombstone(),
-			folder: del,
+			name:    "re-add tombstone that already exists",
+			tree:    treeWithTombstone(),
+			folder:  del,
+			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
+				countLiveFolders:   1,
 				err:                require.NoError,
 				counts:             countTD.Expected{count.TotalDeleteFoldersProcessed: 1},
 				treeSize:           2,
@@ -1247,15 +1310,34 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			},
 		},
 		{
-			name:   "add malware",
-			tree:   treeWithRoot(),
-			folder: mal,
+			name:    "add malware",
+			tree:    treeWithRoot(),
+			folder:  mal,
+			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
+				countLiveFolders:   1,
 				err:                require.NoError,
 				counts:             countTD.Expected{count.TotalMalwareProcessed: 1},
 				treeSize:           1,
 				treeContainsFolder: assert.False,
 				skipped:            assert.NotNil,
+			},
+		},
+		{
+			name:    "over container limit",
+			tree:    treeWithFolders(),
+			folder:  pack,
+			limiter: newPagerLimiter(minimumLimitOpts()),
+			expect: expected{
+				countLiveFolders: 3,
+				err:              require.Error,
+				counts: countTD.Expected{
+					count.TotalPackagesProcessed: 0,
+					count.TotalFoldersProcessed:  0,
+				},
+				shouldHitLimit:     true,
+				treeSize:           3,
+				treeContainsFolder: assert.False,
 			},
 		},
 	}
@@ -1268,19 +1350,29 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 
 			c := collWithMBH(mock.DefaultOneDriveBH(user))
 			counter := count.New()
-			des := &driveEnumerationStats{}
 
 			skipped, err := c.addFolderToTree(
 				ctx,
 				test.tree,
 				drv,
 				test.folder,
-				des,
+				test.limiter,
 				counter)
+
 			test.expect.err(t, err, clues.ToCore(err))
 			test.expect.skipped(t, skipped)
+
+			if test.expect.shouldHitLimit {
+				assert.ErrorIs(t, err, errHitLimit, clues.ToCore(err))
+			}
+
 			test.expect.counts.Compare(t, counter)
-			assert.Equal(t, test.expect.treeSize, test.tree.countFolders(), "folders in tree")
+			assert.Equal(t, test.expect.countLiveFolders, test.tree.countLiveFolders(), "live folders")
+			assert.Equal(
+				t,
+				test.expect.treeSize,
+				len(test.tree.tombstones)+len(test.tree.folderIDToNode),
+				"folders in tree")
 			test.expect.treeContainsFolder(t, test.tree.containsFolder(ptr.Val(test.folder.GetId())))
 		})
 	}
@@ -1352,8 +1444,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 		counts                        countTD.Expected
 		err                           require.ErrorAssertionFunc
 		treeContainsFileIDsWithParent map[string]string
-		statsNumAddedFiles            int
-		statsNumBytes                 int64
+		countLiveFiles                int
+		countTotalBytes               int64
 	}
 
 	table := []struct {
@@ -1376,8 +1468,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
-				statsNumAddedFiles: 1,
-				statsNumBytes:      defaultItemSize,
+				countLiveFiles:  1,
+				countTotalBytes: defaultItemSize,
 			},
 		},
 		{
@@ -1418,8 +1510,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 					id(file):          rootID,
 					idx(file, "chld"): id(folder),
 				},
-				statsNumAddedFiles: 2,
-				statsNumBytes:      defaultItemSize * 2,
+				countLiveFiles:  2,
+				countTotalBytes: defaultItemSize * 2,
 			},
 		},
 		{
@@ -1439,8 +1531,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
-				statsNumAddedFiles: 1,
-				statsNumBytes:      defaultItemSize,
+				countLiveFiles:  1,
+				countTotalBytes: defaultItemSize,
 			},
 		},
 		{
@@ -1455,8 +1547,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				},
 				err:                           require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{},
-				statsNumAddedFiles:            -1,
-				statsNumBytes:                 0,
+				countLiveFiles:                0,
+				countTotalBytes:               0,
 			},
 		},
 		{
@@ -1473,8 +1565,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				},
 				err:                           require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{},
-				statsNumAddedFiles:            -1,
-				statsNumBytes:                 0,
+				countLiveFiles:                0,
+				countTotalBytes:               0,
 			},
 		},
 		{
@@ -1491,8 +1583,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				},
 				err:                           require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{},
-				statsNumAddedFiles:            0,
-				statsNumBytes:                 defaultItemSize,
+				countLiveFiles:                0,
+				countTotalBytes:               0,
 			},
 		},
 		{
@@ -1510,8 +1602,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				},
 				err:                           require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{},
-				statsNumAddedFiles:            -1,
-				statsNumBytes:                 0,
+				countLiveFiles:                0,
+				countTotalBytes:               0,
 			},
 		},
 		{
@@ -1530,8 +1622,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
-				statsNumAddedFiles: 0,
-				statsNumBytes:      defaultItemSize,
+				countLiveFiles:  1,
+				countTotalBytes: defaultItemSize,
 			},
 		},
 		{
@@ -1550,8 +1642,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
-				statsNumAddedFiles: 1,
-				statsNumBytes:      defaultItemSize,
+				countLiveFiles:  1,
+				countTotalBytes: defaultItemSize,
 			},
 		},
 	}
@@ -1564,20 +1656,20 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 
 			c := collWithMBH(mock.DefaultOneDriveBH(user))
 			counter := count.New()
-			stats := &driveEnumerationStats{}
 
 			err := c.enumeratePageOfItems(
 				ctx,
 				test.tree,
-				newPagerLimiter(control.DefaultOptions()),
-				stats,
 				drv,
 				test.page,
+				newPagerLimiter(control.DefaultOptions()),
 				counter,
 				fault.New(true))
 			test.expect.err(t, err, clues.ToCore(err))
-			assert.Equal(t, test.expect.statsNumAddedFiles, stats.numAddedFiles, "num added files")
-			assert.Equal(t, test.expect.statsNumBytes, stats.numBytes, "num bytes")
+
+			countFiles, sizeBytes := test.tree.countLiveFilesAndSizes()
+			assert.Equal(t, test.expect.countLiveFiles, countFiles, "count of files")
+			assert.Equal(t, test.expect.countTotalBytes, sizeBytes, "total size in bytes")
 			assert.Equal(t, test.expect.treeContainsFileIDsWithParent, test.tree.fileIDToParentID)
 			test.expect.counts.Compare(t, counter)
 		})
@@ -1592,11 +1684,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 	type expected struct {
 		counts                        countTD.Expected
 		err                           require.ErrorAssertionFunc
+		shouldHitLimit                bool
 		skipped                       assert.ValueAssertionFunc
-		treeFileCount                 int
 		treeContainsFileIDsWithParent map[string]string
-		statsNumAddedFiles            int
-		statsNumBytes                 int64
+		countLiveFiles                int
+		countTotalBytes               int64
 	}
 
 	table := []struct {
@@ -1615,14 +1707,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				counts: countTD.Expected{
 					count.TotalFilesProcessed: 1,
 				},
-				err:           require.NoError,
-				skipped:       assert.Nil,
-				treeFileCount: 1,
+				err:     require.NoError,
+				skipped: assert.Nil,
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
-				statsNumAddedFiles: 1,
-				statsNumBytes:      defaultItemSize,
+				countLiveFiles:  1,
+				countTotalBytes: defaultItemSize,
 			},
 		},
 		{
@@ -1634,14 +1725,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				counts: countTD.Expected{
 					count.TotalFilesProcessed: 1,
 				},
-				err:           require.NoError,
-				skipped:       assert.Nil,
-				treeFileCount: 1,
+				err:     require.NoError,
+				skipped: assert.Nil,
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
-				statsNumAddedFiles: 0,
-				statsNumBytes:      0,
+				countLiveFiles:  1,
+				countTotalBytes: defaultItemSize,
 			},
 		},
 		{
@@ -1655,10 +1745,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				},
 				err:                           require.Error,
 				skipped:                       assert.Nil,
-				treeFileCount:                 0,
 				treeContainsFileIDsWithParent: map[string]string{},
-				statsNumAddedFiles:            0,
-				statsNumBytes:                 0,
+				countLiveFiles:                0,
+				countTotalBytes:               0,
 			},
 		},
 		{
@@ -1672,10 +1761,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				},
 				err:                           require.NoError,
 				skipped:                       assert.NotNil,
-				treeFileCount:                 0,
 				treeContainsFileIDsWithParent: map[string]string{},
-				statsNumAddedFiles:            0,
-				statsNumBytes:                 0,
+				countLiveFiles:                0,
+				countTotalBytes:               0,
 			},
 		},
 		{
@@ -1689,10 +1777,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				},
 				err:                           require.NoError,
 				skipped:                       assert.Nil,
-				treeFileCount:                 0,
 				treeContainsFileIDsWithParent: map[string]string{},
-				statsNumAddedFiles:            0,
-				statsNumBytes:                 0,
+				countLiveFiles:                0,
+				countTotalBytes:               0,
 			},
 		},
 		{
@@ -1706,29 +1793,28 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				},
 				err:                           require.NoError,
 				skipped:                       assert.Nil,
-				treeFileCount:                 0,
 				treeContainsFileIDsWithParent: map[string]string{},
-				statsNumAddedFiles:            -1,
-				statsNumBytes:                 0,
+				countLiveFiles:                0,
+				countTotalBytes:               0,
 			},
 		},
 		{
 			name:    "already at container file limit",
 			tree:    treeWithFileAtRoot(),
-			file:    driveItem(id(file), name(file), parent(0), rootID, isFile),
+			file:    driveItem(idx(file, 2), namex(file, 2), parent(0), rootID, isFile),
 			limiter: newPagerLimiter(minimumLimitOpts()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFilesProcessed: 1,
 				},
-				err:           require.NoError,
-				skipped:       assert.Nil,
-				treeFileCount: 1,
+				err:            require.Error,
+				shouldHitLimit: true,
+				skipped:        assert.Nil,
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
-				statsNumAddedFiles: 0,
-				statsNumBytes:      0,
+				countLiveFiles:  1,
+				countTotalBytes: defaultItemSize,
 			},
 		},
 		{
@@ -1740,12 +1826,12 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				counts: countTD.Expected{
 					count.TotalFilesProcessed: 1,
 				},
-				err:                           require.NoError,
+				err:                           require.Error,
+				shouldHitLimit:                true,
 				skipped:                       assert.Nil,
-				treeFileCount:                 0,
 				treeContainsFileIDsWithParent: map[string]string{},
-				statsNumAddedFiles:            0,
-				statsNumBytes:                 0,
+				countLiveFiles:                0,
+				countTotalBytes:               0,
 			},
 		},
 	}
@@ -1758,7 +1844,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 
 			c := collWithMBH(mock.DefaultOneDriveBH(user))
 			counter := count.New()
-			stats := &driveEnumerationStats{}
 
 			skipped, err := c.addFileToTree(
 				ctx,
@@ -1766,15 +1851,22 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				drv,
 				test.file,
 				test.limiter,
-				stats,
-				counter)
+				counter,
+				fault.New(true))
+
 			test.expect.err(t, err, clues.ToCore(err))
 			test.expect.skipped(t, skipped)
-			assert.Len(t, test.tree.fileIDToParentID, test.expect.treeFileCount, "count of files in tree")
+
+			if test.expect.shouldHitLimit {
+				require.ErrorIs(t, err, errHitLimit, clues.ToCore(err))
+			}
+
 			assert.Equal(t, test.expect.treeContainsFileIDsWithParent, test.tree.fileIDToParentID)
 			test.expect.counts.Compare(t, counter)
-			assert.Equal(t, test.expect.statsNumAddedFiles, stats.numAddedFiles)
-			assert.Equal(t, test.expect.statsNumBytes, stats.numBytes)
+
+			countFiles, sizeBytes := test.tree.countLiveFilesAndSizes()
+			assert.Equal(t, test.expect.countLiveFiles, countFiles, "count of files")
+			assert.Equal(t, test.expect.countTotalBytes, sizeBytes, "total size in bytes")
 		})
 	}
 }
