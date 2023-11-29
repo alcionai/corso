@@ -277,65 +277,94 @@ func (c *Collections) populateTree(
 	ctx = clues.Add(ctx, "invalid_prev_delta", len(prevDeltaLink) == 0)
 
 	var (
-		driveID = ptr.Val(drv.GetId())
-		el      = errs.Local()
+		currDeltaLink = prevDeltaLink
+		driveID       = ptr.Val(drv.GetId())
+		el            = errs.Local()
+		du            pagers.DeltaUpdate
+		finished      bool
+		hitLimit      bool
 	)
 
-	// TODO(keepers): to end in a correct state, we'll eventually need to run this
-	// query multiple times over, until it ends in an empty change set.
-	pager := c.handler.EnumerateDriveItemsDelta(
-		ctx,
-		driveID,
-		prevDeltaLink,
-		api.CallConfig{
-			Select: api.DefaultDriveItemProps(),
-		})
+	for !hitLimit && !finished && el.Failure() == nil {
+		var (
+			pageCount     int
+			pageItemCount int
+			hadReset      bool
+			err           error
+		)
 
-	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
-		if el.Failure() != nil {
-			break
-		}
-
-		if reset {
-			counter.Inc(count.PagerResets)
-			tree.reset()
-			c.resetStats()
-		}
-
-		err := c.enumeratePageOfItems(
+		// TODO(keepers): to end in a correct state, we'll eventually need to run this
+		// query multiple times over, until it ends in an empty change set.
+		pager := c.handler.EnumerateDriveItemsDelta(
 			ctx,
-			tree,
-			drv,
-			page,
-			limiter,
-			counter,
-			errs)
-		if err != nil {
-			if errors.Is(err, errHitLimit) {
+			driveID,
+			currDeltaLink,
+			api.CallConfig{
+				Select: api.DefaultDriveItemProps(),
+			})
+
+		for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
+			if el.Failure() != nil {
+				return du, el.Failure()
+			}
+
+			if reset {
+				counter.Inc(count.PagerResets)
+				tree.reset()
+				c.resetStats()
+
+				pageCount = 0
+				pageItemCount = 0
+				hadReset = true
+			}
+
+			err = c.enumeratePageOfItems(
+				ctx,
+				tree,
+				drv,
+				page,
+				limiter,
+				counter,
+				errs)
+			if err != nil {
+				if errors.Is(err, errHitLimit) {
+					hitLimit = true
+					break
+				}
+
+				el.AddRecoverable(ctx, clues.Stack(err))
+			}
+
+			counter.Inc(count.PagesEnumerated)
+
+			// Stop enumeration early if we've reached the page limit. Keep this
+			// at the end of the loop so we don't request another page (pager.NextPage)
+			// before seeing we've passed the limit.
+			if limiter.hitPageLimit(int(counter.Get(count.PagesEnumerated))) {
+				hitLimit = true
 				break
 			}
 
-			el.AddRecoverable(ctx, clues.Stack(err))
+			pageCount++
+
+			pageItemCount += len(page)
 		}
 
-		counter.Inc(count.PagesEnumerated)
+		// Always cancel the pager so that even if we exit early from the loop above
+		// we don't deadlock. Cancelling a pager that's already completed is
+		// essentially a noop.
+		pager.Cancel()
 
-		// Stop enumeration early if we've reached the page limit. Keep this
-		// at the end of the loop so we don't request another page (pager.NextPage)
-		// before seeing we've passed the limit.
-		if limiter.hitPageLimit(int(counter.Get(count.PagesEnumerated))) {
-			break
+		du, err = pager.Results()
+		if err != nil {
+			return du, clues.Stack(err)
 		}
-	}
 
-	// Always cancel the pager so that even if we exit early from the loop above
-	// we don't deadlock. Cancelling a pager that's already completed is
-	// essentially a noop.
-	pager.Cancel()
+		currDeltaLink = du.URL
 
-	du, err := pager.Results()
-	if err != nil {
-		return du, clues.Stack(err)
+		// 0 pages is never expected.  We should at least have one (empty) page to
+		// consume.  But checking pageCount == 1 is brittle in a non-helpful way.
+		finished = pageCount < 2 && pageItemCount == 0 && !hadReset
 	}
 
 	logger.Ctx(ctx).Infow("enumerated collection delta", "stats", counter.Values())
