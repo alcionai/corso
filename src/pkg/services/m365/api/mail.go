@@ -242,32 +242,6 @@ func (c Mail) GetContainerChildren(
 	return resp.GetValue(), nil
 }
 
-// TODO: needs pager implementation for completion (currently only used for sanity test)
-func (c Mail) GetMessagesInContainer(
-	ctx context.Context,
-	userID, containerID string,
-) ([]models.Messageable, error) {
-	config := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
-			Top: ptr.To(maxNonDeltaPageSize),
-		},
-	}
-
-	resp, err := c.Stable.
-		Client().
-		Users().
-		ByUserId(userID).
-		MailFolders().
-		ByMailFolderId(containerID).
-		Messages().
-		Get(ctx, config)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting container messages")
-	}
-
-	return resp.GetValue(), nil
-}
-
 // ---------------------------------------------------------------------------
 // items
 // ---------------------------------------------------------------------------

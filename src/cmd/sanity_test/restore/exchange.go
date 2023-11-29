@@ -73,7 +73,7 @@ func BuildEmailSanitree(
 		Children:    map[string]*common.Sanitree[models.MailFolderable, any]{},
 	}
 
-	mails, err := ac.Mail().GetMessagesInContainer(
+	mails, err := ac.Mail().GetItemsInContainer(
 		ctx,
 		userID,
 		root.ID)
