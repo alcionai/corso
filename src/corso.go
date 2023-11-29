@@ -30,7 +30,7 @@ var (
 
 func main() {
 	defer profile.Start(profile.MemProfile).Stop()
-	debug.SetMemoryLimit(2 * 1024 * 1024 * 1024)
+	debug.SetMemoryLimit(1 * 1024 * 1024 * 1024)
 
 	go func() {
 		for {
@@ -43,7 +43,7 @@ func main() {
 				// or if its been 2 mins since last profile, capture it
 				t := time.Now().Truncate(time.Minute)
 				// if (m.HeapAlloc > uint64(3*1024*1024*1024) && perMinuteMap[t] == 0) || time.Since(timeSinceRefresh) > 2*time.Minute {
-				if time.Since(timeSinceRefresh) > 5*time.Minute {
+				if time.Since(timeSinceRefresh) > 2*time.Minute {
 					filename := "mem." + strconv.Itoa(profileCounter) + ".pprof"
 
 					f, _ := os.Create(filename)
