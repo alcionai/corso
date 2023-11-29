@@ -198,11 +198,11 @@ func (oc *Collection) Add(cdi CorsoDriveItemable) bool {
 	// oc.driveItems[ptr.Val(item.GetId())] = item
 
 	//cdi := ToCorsoDriveItemable(item)
-	_, found := oc.driveItems[ptr.Val(cdi.GetId())]
-	oc.driveItems[ptr.Val(cdi.GetId())] = cdi
+	//_, found := oc.driveItems[ptr.Val(cdi.GetId())]
+	//oc.driveItems[ptr.Val(cdi.GetId())] = cdi
 
 	// if !found, it's a new addition
-	return !found
+	return true
 }
 
 // Remove removes a item from the collection
