@@ -178,7 +178,6 @@ func (c *Collections) makeDriveCollections(
 		limiter,
 		stats,
 		drv,
-		prevPaths,
 		prevDeltaLink,
 		counter,
 		errs)
@@ -258,7 +257,6 @@ func (c *Collections) populateTree(
 	limiter *pagerLimiter,
 	stats *driveEnumerationStats,
 	drv models.Driveable,
-	prevPaths map[string]string,
 	prevDeltaLink string,
 	counter *count.Bus,
 	errs *fault.Bus,
@@ -308,7 +306,6 @@ func (c *Collections) populateTree(
 			stats,
 			drv,
 			page,
-			prevPaths,
 			counter,
 			errs)
 		if err != nil {
@@ -352,7 +349,6 @@ func (c *Collections) enumeratePageOfItems(
 	stats *driveEnumerationStats,
 	drv models.Driveable,
 	page []models.DriveItemable,
-	prevPaths map[string]string,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) error {
@@ -383,7 +379,7 @@ func (c *Collections) enumeratePageOfItems(
 				break
 			}
 
-			err := c.addFolderToTree(ictx, tree, drv, item, prevPaths, stats, counter, el)
+			err := c.addFolderToTree(ictx, tree, drv, item, stats, counter, el)
 			if err != nil {
 				el.AddRecoverable(ictx, clues.Wrap(err, "adding folder"))
 			}
@@ -414,7 +410,6 @@ func (c *Collections) addFolderToTree(
 	tree *folderyMcFolderFace,
 	drv models.Driveable,
 	folder models.DriveItemable,
-	prevPaths map[string]string,
 	stats *driveEnumerationStats,
 	counter *count.Bus,
 	skipper fault.AddSkipper,
@@ -468,7 +463,7 @@ func (c *Collections) addFolderToTree(
 	}
 
 	if isDeleted {
-		err := c.tombstoneOrDeleteFolder(ctx, tree, folder, prevPaths)
+		err := tree.SetTombstone(ctx, folderID)
 		return clues.Stack(err).OrNil()
 	}
 
@@ -485,39 +480,6 @@ func (c *Collections) addFolderToTree(
 	}
 
 	err = tree.SetFolder(ctx, parentID, folderID, folderName, isPkg)
-
-	return clues.Stack(err).OrNil()
-}
-
-func (c *Collections) tombstoneOrDeleteFolder(
-	ctx context.Context,
-	tree *folderyMcFolderFace,
-	folder models.DriveItemable,
-	prevPaths map[string]string,
-) error {
-	folderID := ptr.Val(folder.GetId())
-	pp, ok := prevPaths[folderID]
-
-	// its possible to see a deletion marker for a folder that was not
-	// included in the prior delta. That means the folder was either
-	// deleted during the prior enumeration, before paging reached the
-	// folder, in which case we'll still get the deletion marker on the
-	// next delta. Or, in the case of multiple delta enumerations, if we
-	// added the folder on the first delta, and deleted it on the second.
-	if !ok {
-		tree.DeleteFolder(folderID)
-		return nil
-	}
-
-	pPath, err := path.FromDataLayerPath(pp, false)
-	if err != nil {
-		return clues.WrapWC(ctx, err, "invalid previous path").
-			With("prev_path_string", pp).
-			Label(count.BadPrevPath).
-			OrNil()
-	}
-
-	err = tree.SetTombstone(ctx, folderID, pPath.Folders())
 
 	return clues.Stack(err).OrNil()
 }
