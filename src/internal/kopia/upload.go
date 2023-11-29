@@ -1124,7 +1124,7 @@ func traverseBaseDir(
 	if changed {
 		iter, err := dir.Iterate(ctx)
 		if err != nil {
-			return clues.Wrap(err, "getting directory iterator").WithClues(ctx)
+			return clues.WrapWC(ctx, err, "getting directory iterator")
 		}
 
 		// Need to keep err for the check after the loop as well so we also need to
@@ -1150,7 +1150,7 @@ func traverseBaseDir(
 			if err != nil {
 				// Break here instead of just returning so we can close the iterator.
 				// The error will be returned below.
-				err = clues.Wrap(err, "traversing child directory").WithClues(ctx)
+				err = clues.WrapWC(ctx, err, "traversing child directory")
 				break
 			}
 		}
