@@ -2,6 +2,7 @@ package export
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/driveish"
@@ -18,6 +19,7 @@ func CheckSharePointExport(
 		common.Fatal(ctx, "getting the drive:", err)
 	}
 
+	envs.RestoreContainer = filepath.Join(envs.RestoreContainer, "Libraries/Documents") // check in default loc
 	driveish.CheckExport(
 		ctx,
 		ac,
