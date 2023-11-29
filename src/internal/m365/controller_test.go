@@ -520,7 +520,12 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 				Selector:          test.sel,
 			}
 
-			deets, err := suite.ctrl.ConsumeRestoreCollections(
+			handler, err := suite.ctrl.NewServiceHandler(
+				control.DefaultOptions(),
+				test.sel.PathService())
+			require.NoError(t, err, clues.ToCore(err))
+
+			deets, _, err := handler.ConsumeRestoreCollections(
 				ctx,
 				rcc,
 				test.col,
@@ -562,7 +567,12 @@ func runRestore(
 		Selector:          restoreSel,
 	}
 
-	deets, err := restoreCtrl.ConsumeRestoreCollections(
+	handler, err := restoreCtrl.NewServiceHandler(
+		control.DefaultOptions(),
+		sci.Service)
+	require.NoError(t, err, clues.ToCore(err))
+
+	deets, status, err := handler.ConsumeRestoreCollections(
 		ctx,
 		rcc,
 		collections,
@@ -571,7 +581,6 @@ func runRestore(
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, deets)
 
-	status := restoreCtrl.Wait()
 	runTime := time.Since(start)
 
 	assert.Equal(t, numRestoreItems, status.Objects, "restored status.Objects")
@@ -1195,7 +1204,12 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					Selector:          restoreSel,
 				}
 
-				deets, err := restoreCtrl.ConsumeRestoreCollections(
+				handler, err := restoreCtrl.NewServiceHandler(
+					control.DefaultOptions(),
+					test.service)
+				require.NoError(t, err, clues.ToCore(err))
+
+				deets, status, err := handler.ConsumeRestoreCollections(
 					ctx,
 					rcc,
 					collections,
@@ -1204,7 +1218,6 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 				require.NoError(t, err, clues.ToCore(err))
 				require.NotNil(t, deets)
 
-				status := restoreCtrl.Wait()
 				// Always just 1 because it's just 1 collection.
 				assert.Equal(t, totalItems, status.Objects, "status.Objects")
 				assert.Equal(t, totalItems, status.Successes, "status.Successes")

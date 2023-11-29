@@ -17,7 +17,8 @@ import (
 
 type DataProvider interface {
 	inject.BackupProducer
-	inject.RestoreConsumer
+	// Required for backups right now.
+	inject.PopulateProtectedResourceIDAndNamer
 
 	inject.ToServiceHandler
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/dustin/go-humanize"
+
+	"github.com/alcionai/corso/src/internal/data"
 )
 
 // ControllerOperationStatus is a data type used to describe the state of
@@ -104,4 +106,19 @@ func (cos *ControllerOperationStatus) String() string {
 		cos.Folders,
 		operationStatement,
 		cos.details)
+}
+
+// ToCollectionStats turns the called ControllerOperationStatus into a
+// *data.CollectionStats instance
+//
+// TODO(ashmrtn): Remove this when we rework status handling. It's really here
+// to avoid repeated code in each service handler.
+func (cos ControllerOperationStatus) ToCollectionStats() *data.CollectionStats {
+	return &data.CollectionStats{
+		Folders:   cos.Folders,
+		Objects:   cos.Metrics.Objects,
+		Successes: cos.Metrics.Successes,
+		Bytes:     cos.Metrics.Bytes,
+		Details:   cos.String(),
+	}
 }
