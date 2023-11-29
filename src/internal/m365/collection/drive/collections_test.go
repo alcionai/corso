@@ -1,8 +1,6 @@
 package drive
 
 import (
-	"context"
-	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -18,8 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -33,301 +29,6 @@ import (
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
-
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
-
-type statePath struct {
-	state    data.CollectionState
-	currPath path.Path
-	prevPath path.Path
-}
-
-func toODPath(t *testing.T, s string) path.Path {
-	spl := path.Split(s)
-	p, err := path.Builder{}.
-		Append(spl[4:]...).
-		ToDataLayerPath(
-			spl[0],
-			spl[2],
-			path.OneDriveService,
-			path.FilesCategory,
-			false)
-	require.NoError(t, err, clues.ToCore(err))
-
-	return p
-}
-
-func asDeleted(t *testing.T, prev string) statePath {
-	return statePath{
-		state:    data.DeletedState,
-		prevPath: toODPath(t, prev),
-	}
-}
-
-func asMoved(t *testing.T, prev, curr string) statePath {
-	return statePath{
-		state:    data.MovedState,
-		prevPath: toODPath(t, prev),
-		currPath: toODPath(t, curr),
-	}
-}
-
-func asNew(t *testing.T, curr string) statePath {
-	return statePath{
-		state:    data.NewState,
-		currPath: toODPath(t, curr),
-	}
-}
-
-func asNotMoved(t *testing.T, p string) statePath {
-	return statePath{
-		state:    data.NotMovedState,
-		prevPath: toODPath(t, p),
-		currPath: toODPath(t, p),
-	}
-}
-
-type itemType int
-
-const (
-	isFile    itemType = 1
-	isFolder  itemType = 2
-	isPackage itemType = 3
-)
-
-func coreItem(
-	id, name, parentPath, parentID string,
-	it itemType,
-) *models.DriveItem {
-	item := models.NewDriveItem()
-	item.SetName(&name)
-	item.SetId(&id)
-
-	parentReference := models.NewItemReference()
-	parentReference.SetPath(&parentPath)
-	parentReference.SetId(&parentID)
-	item.SetParentReference(parentReference)
-
-	switch it {
-	case isFile:
-		item.SetSize(ptr.To[int64](defaultItemSize))
-		item.SetFile(models.NewFile())
-	case isFolder:
-		item.SetFolder(models.NewFolder())
-	case isPackage:
-		item.SetPackageEscaped(models.NewPackageEscaped())
-	}
-
-	return item
-}
-
-func driveItem(
-	id, name, parentPath, parentID string,
-	it itemType,
-) models.DriveItemable {
-	return coreItem(id, name, parentPath, parentID, it)
-}
-
-func driveItemWithSize(
-	id, name, parentPath, parentID string,
-	size int64,
-	it itemType,
-) models.DriveItemable {
-	res := coreItem(id, name, parentPath, parentID, it)
-	res.SetSize(ptr.To(size))
-
-	return res
-}
-
-func fileItem(
-	id, name, parentPath, parentID, url string,
-	deleted bool,
-) models.DriveItemable {
-	di := driveItem(id, name, parentPath, parentID, isFile)
-	di.SetAdditionalData(map[string]any{
-		"@microsoft.graph.downloadUrl": url,
-	})
-
-	if deleted {
-		di.SetDeleted(models.NewDeleted())
-	}
-
-	return di
-}
-
-func malwareItem(
-	id, name, parentPath, parentID string,
-	it itemType,
-) models.DriveItemable {
-	c := coreItem(id, name, parentPath, parentID, it)
-
-	mal := models.NewMalware()
-	malStr := "test malware"
-	mal.SetDescription(&malStr)
-
-	c.SetMalware(mal)
-
-	return c
-}
-
-func driveRootItem() models.DriveItemable {
-	item := models.NewDriveItem()
-	item.SetName(ptr.To(rootName))
-	item.SetId(ptr.To(rootID))
-	item.SetRoot(models.NewRoot())
-	item.SetFolder(models.NewFolder())
-
-	return item
-}
-
-// delItem creates a DriveItemable that is marked as deleted. path must be set
-// to the base drive path.
-func delItem(
-	id string,
-	parentPath string,
-	parentID string,
-	it itemType,
-) models.DriveItemable {
-	item := models.NewDriveItem()
-	item.SetId(&id)
-	item.SetDeleted(models.NewDeleted())
-
-	parentReference := models.NewItemReference()
-	parentReference.SetId(&parentID)
-	item.SetParentReference(parentReference)
-
-	switch it {
-	case isFile:
-		item.SetFile(models.NewFile())
-	case isFolder:
-		item.SetFolder(models.NewFolder())
-	case isPackage:
-		item.SetPackageEscaped(models.NewPackageEscaped())
-	}
-
-	return item
-}
-
-func id(v string) string {
-	return fmt.Sprintf("id_%s_0", v)
-}
-
-func idx(v string, sfx any) string {
-	return fmt.Sprintf("id_%s_%v", v, sfx)
-}
-
-func name(v string) string {
-	return fmt.Sprintf("n_%s_0", v)
-}
-
-func namex(v string, sfx any) string {
-	return fmt.Sprintf("n_%s_%v", v, sfx)
-}
-
-func toPath(elems ...string) string {
-	es := []string{}
-	for _, elem := range elems {
-		es = append(es, path.Split(elem)...)
-	}
-
-	switch len(es) {
-	case 0:
-		return ""
-	case 1:
-		return es[0]
-	default:
-		return path.Builder{}.Append(es...).String()
-	}
-}
-
-func fullPath(elems ...string) string {
-	return toPath(append(
-		[]string{
-			tenant,
-			path.OneDriveService.String(),
-			user,
-			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(id(drive)).String(),
-		},
-		elems...)...)
-}
-
-func driveFullPath(driveID any, elems ...string) string {
-	return toPath(append(
-		[]string{
-			tenant,
-			path.OneDriveService.String(),
-			user,
-			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(idx(drive, driveID)).String(),
-		},
-		elems...)...)
-}
-
-func parentDir(elems ...string) string {
-	return toPath(append(
-		[]string{odConsts.DriveFolderPrefixBuilder(id(drive)).String()},
-		elems...)...)
-}
-
-func driveParentDir(driveID any, elems ...string) string {
-	return toPath(append(
-		[]string{odConsts.DriveFolderPrefixBuilder(idx(drive, driveID)).String()},
-		elems...)...)
-}
-
-// just for readability
-const (
-	doMergeItems    = true
-	doNotMergeItems = false
-)
-
-// common item names
-const (
-	bar       = "bar"
-	delta     = "delta_url"
-	drive     = "drive"
-	fanny     = "fanny"
-	file      = "file"
-	folder    = "folder"
-	foo       = "foo"
-	item      = "item"
-	malware   = "malware"
-	nav       = "nav"
-	pkg       = "package"
-	rootID    = odConsts.RootID
-	rootName  = odConsts.RootPathDir
-	subfolder = "subfolder"
-	tenant    = "t"
-	user      = "u"
-)
-
-var anyFolderScope = (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
-
-type failingColl struct{}
-
-func (f failingColl) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
-	ic := make(chan data.Item)
-	defer close(ic)
-
-	errs.AddRecoverable(ctx, assert.AnError)
-
-	return ic
-}
-func (f failingColl) FullPath() path.Path                                        { return nil }
-func (f failingColl) FetchItemByName(context.Context, string) (data.Item, error) { return nil, nil }
-
-func makeExcludeMap(files ...string) map[string]struct{} {
-	delList := map[string]struct{}{}
-	for _, file := range files {
-		delList[file+metadata.DataFileSuffix] = struct{}{}
-		delList[file+metadata.MetaFileSuffix] = struct{}{}
-	}
-
-	return delList
-}
 
 // ---------------------------------------------------------------------------
 // tests
@@ -1165,24 +866,17 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			defer flush()
 
 			var (
-				driveID = idx(drive, drive)
-				mbh     = mock.DefaultOneDriveBH(user)
-				du      = pagers.DeltaUpdate{
-					URL:   "notempty",
-					Reset: false,
-				}
+				driveID  = idx(drive, drive)
+				mbh      = mock.DefaultOneDriveBH(user)
 				excludes = map[string]struct{}{}
 				errs     = fault.New(true)
 			)
 
-			mbh.DriveItemEnumeration = mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					driveID: {
-						Pages:       []mock.NextPage{{Items: test.items}},
-						DeltaUpdate: du,
-					},
-				},
-			}
+			mbh.DriveItemEnumeration = mock.DriveEnumerator(
+				mock.Drive(driveID).With(
+					mock.Delta("notempty", nil).With(
+						aPage(test.items...),
+					)))
 
 			sel := selectors.NewOneDriveBackup([]string{user})
 			sel.Include([]selectors.OneDriveScope{test.scope})
@@ -1760,7 +1454,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 	table := []struct {
 		name                 string
 		drives               []models.Driveable
-		enumerator           mock.EnumerateItemsDeltaByDrive
+		enumerator           mock.EnumerateDriveItemsDelta
 		canUsePreviousBackup bool
 		errCheck             assert.ErrorAssertionFunc
 		previousPaths        map[string]map[string]string
@@ -1779,19 +1473,11 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_DelFileOnly_NoFolders_NoErrors",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(), // will be present, not needed
-								delItem(id(file), driveParentDir(1), rootID, isFile),
-							},
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage(
+						delItem(id(file), driveParentDir(1), rootID, isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1813,19 +1499,11 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_NoFolderDeltas_NoErrors",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(),
-								driveItem(id(file), name(file), driveParentDir(1), rootID, isFile),
-							},
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage(
+						driveItem(id(file), name(file), driveParentDir(1), rootID, isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1847,20 +1525,12 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_NoErrors",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(),
-								driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-								driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-							},
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths:        map[string]map[string]string{},
@@ -1886,21 +1556,13 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_NoErrors_FileRenamedMultiple",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(),
-								driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-								driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								driveItem(id(file), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile),
-							},
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
+						driveItem(id(file), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths:        map[string]map[string]string{},
@@ -1926,19 +1588,13 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_NoErrors_FileMovedMultiple",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-							driveItem(id(file), namex(file, 2), driveParentDir(1), rootID, isFile),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
+						driveItem(id(file), namex(file, 2), driveParentDir(1), rootID, isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1966,18 +1622,12 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_EmptyDelta_NoErrors",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: "", Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2003,29 +1653,16 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_TwoItemPages_NoErrors",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2053,41 +1690,21 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_TwoItemPages_WithReset",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-									driveItem(idx(file, 3), namex(file, 3), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{},
-								Reset: true,
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
+							driveItem(idx(file, 3), namex(file, 3), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aReset(),
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2115,37 +1732,19 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_TwoItemPages_WithResetCombinedWithItems",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-								Reset: true,
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPageWReset(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2176,26 +1775,17 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				drive1,
 				drive2,
 			},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-					idx(drive, 2): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							driveItem(idx(folder, 2), name(folder), driveParentDir(2), rootID, isFolder),
-							driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), idx(folder, 2), isFile),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+					)),
+				mock.Drive(idx(drive, 2)).With(
+					mock.DeltaWReset(idx(delta, 2), nil).With(aPage(
+						driveItem(idx(folder, 2), name(folder), driveParentDir(2), rootID, isFolder),
+						driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), idx(folder, 2), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2236,26 +1826,17 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				drive1,
 				drive2,
 			},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-					idx(drive, 2): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							driveItem(id(folder), name(folder), driveParentDir(2), rootID, isFolder),
-							driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), id(folder), isFile),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+					)),
+				mock.Drive(idx(drive, 2)).With(
+					mock.DeltaWReset(idx(delta, 2), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(2), rootID, isFolder),
+						driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), id(folder), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2293,15 +1874,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_Errors",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages:       []mock.NextPage{{Items: []models.DriveItemable{}}},
-						DeltaUpdate: pagers.DeltaUpdate{},
-						Err:         assert.AnError,
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(id(drive)).With(
+					mock.Delta("", assert.AnError))),
 			canUsePreviousBackup: false,
 			errCheck:             assert.Error,
 			previousPaths: map[string]map[string]string{
@@ -2315,26 +1890,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_InvalidPrevDelta_DeleteNonExistentFolder",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{},
-								Reset: true,
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aReset(),
+						aPage(
+							driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2367,26 +1930,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_InvalidPrevDeltaCombinedWithItems_DeleteNonExistentFolder",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{},
-								Reset: true,
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aReset(),
+						aPage(
+							driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2419,37 +1970,17 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								// on the first page, if this is the total data, we'd expect both folder and folder2
-								// since new previousPaths merge with the old previousPaths.
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{},
-								Reset: true,
-							},
-							{
-								// but after a delta reset, we treat this as the total end set of folders, which means
-								// we don't expect folder to exist any longer.
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aPage(
+							driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile)),
+						aReset(),
+						aPage(
+							driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2485,33 +2016,17 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtExistingLocation",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{},
-								Reset: true,
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aReset(),
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2527,7 +2042,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDeltaURLs: map[string]string{
-				idx(drive, 1): delta,
+				idx(drive, 1): id(delta),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				idx(drive, 1): {
@@ -2544,26 +2059,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_ImmediateInvalidPrevDelta_MoveFolderToPreviouslyExistingPath",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{},
-								Reset: true,
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(idx(file, 2), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: delta, Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aReset(),
+						aPage(
+							driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(idx(file, 2), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2580,7 +2083,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDeltaURLs: map[string]string{
-				idx(drive, 1): delta,
+				idx(drive, 1): id(delta),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				idx(drive, 1): {
@@ -2597,26 +2100,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{},
-								Reset: true,
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aReset(),
+						aPage(
+							driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2652,31 +2143,18 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "OneDrive Two Item Pages with Malware",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-									malwareItem(id(malware), name(malware), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile),
-									malwareItem(idx(malware, 2), namex(malware, 2), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
+							malwareItem(id(malware), name(malware), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile),
+							malwareItem(idx(malware, 2), namex(malware, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2705,36 +2183,21 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Deleted Folder In New Results With Invalid Delta",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-									driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
-									driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile),
-								},
-							},
-							{
-								Reset: true,
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-									delItem(idx(folder, 2), driveParentDir(1), rootID, isFolder),
-									delItem(namex(file, 2), driveParentDir(1), rootID, isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(idx(delta, 2), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
+							driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
+							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile)),
+						aReset(),
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
+							delItem(idx(folder, 2), driveParentDir(1), rootID, isFolder),
+							delItem(namex(file, 2), driveParentDir(1), rootID, isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2768,20 +2231,11 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Folder Delete After Invalid Delta",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(),
-								delItem(id(folder), driveParentDir(1), rootID, isFolder),
-							},
-							Reset: true,
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(aPageWReset(
+						delItem(id(folder), driveParentDir(1), rootID, isFolder)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2811,22 +2265,11 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Item Delete After Invalid Delta",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									delItem(id(file), driveParentDir(1), rootID, isFile),
-								},
-								Reset: true,
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(aPageWReset(
+						delItem(id(file), driveParentDir(1), rootID, isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2853,29 +2296,16 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Folder Made And Deleted",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									delItem(id(folder), driveParentDir(1), rootID, isFolder),
-									delItem(id(file), driveParentDir(1), rootID, isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(idx(delta, 2), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPage(
+							delItem(id(folder), driveParentDir(1), rootID, isFolder),
+							delItem(id(file), driveParentDir(1), rootID, isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2900,36 +2330,19 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Folder Created -> Deleted -> Created",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									delItem(id(folder), driveParentDir(1), rootID, isFolder),
-									delItem(id(file), driveParentDir(1), rootID, isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(idx(folder, 1), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(idx(file, 1), name(file), driveParentDir(1, name(folder)), idx(folder, 1), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(idx(delta, 2), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPage(
+							delItem(id(folder), driveParentDir(1), rootID, isFolder),
+							delItem(id(file), driveParentDir(1), rootID, isFile)),
+						aPage(
+							driveItem(idx(folder, 1), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(idx(file, 1), name(file), driveParentDir(1, name(folder)), idx(folder, 1), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2957,36 +2370,19 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Folder Deleted -> Created -> Deleted",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									delItem(id(folder), driveParentDir(1), rootID, isFolder),
-									delItem(id(file), driveParentDir(1, name(folder)), rootID, isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									delItem(id(folder), driveParentDir(1), rootID, isFolder),
-									delItem(id(file), driveParentDir(1, name(folder)), rootID, isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(idx(delta, 2), nil).With(
+						aPage(
+							delItem(id(folder), driveParentDir(1), rootID, isFolder),
+							delItem(id(file), driveParentDir(1, name(folder)), rootID, isFile)),
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPage(
+							delItem(id(folder), driveParentDir(1), rootID, isFolder),
+							delItem(id(file), driveParentDir(1, name(folder)), rootID, isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3013,36 +2409,19 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Folder Created -> Deleted -> Created with prev",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									delItem(id(folder), driveParentDir(1), rootID, isFolder),
-									delItem(id(file), driveParentDir(1), rootID, isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(idx(folder, 1), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(idx(file, 1), name(file), driveParentDir(1, name(folder)), idx(folder, 1), isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(idx(delta, 2), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPage(
+							delItem(id(folder), driveParentDir(1), rootID, isFolder),
+							delItem(id(file), driveParentDir(1), rootID, isFile)),
+						aPage(
+							driveItem(idx(folder, 1), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(idx(file, 1), name(file), driveParentDir(1, name(folder)), idx(folder, 1), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3073,28 +2452,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Item Made And Deleted",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-									driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								},
-							},
-							{
-								Items: []models.DriveItemable{
-									driveRootItem(),
-									delItem(id(file), driveParentDir(1), rootID, isFile),
-								},
-							},
-						},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aPage(
+							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+						aPage(delItem(id(file), driveParentDir(1), rootID, isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3122,17 +2487,11 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Random Folder Delete",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							delItem(id(folder), driveParentDir(1), rootID, isFolder),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.DeltaWReset(id(delta), nil).With(aPage(
+						delItem(id(folder), driveParentDir(1), rootID, isFolder)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3157,17 +2516,11 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "One Drive Random Item Delete",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							delItem(id(file), driveParentDir(1), rootID, isFile),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage(
+						delItem(id(file), driveParentDir(1), rootID, isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3192,16 +2545,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "TwoPriorDrives_OneTombstoned",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(), // will be present
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage()))), // root only
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3224,36 +2570,21 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "duplicate previous paths in metadata",
 			drives: []models.Driveable{drive1, drive2},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					// contains duplicates in previousPath
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(),
-								driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-								driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-								driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
-								driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile),
-							},
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
-					},
-					// does not contain duplicates
-					idx(drive, 2): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(),
-								driveItem(id(folder), name(folder), driveParentDir(2), rootID, isFolder),
-								driveItem(id(file), name(file), driveParentDir(2, name(folder)), id(folder), isFile),
-								driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(2), rootID, isFolder),
-								driveItem(idx(file, 2), namex(file, 2), driveParentDir(2, namex(folder, 2)), idx(folder, 2), isFile),
-							},
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2)},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
+						driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
+						driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile)),
+					)),
+				mock.Drive(idx(drive, 2)).With(
+					mock.Delta(idx(delta, 2), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(2), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(2, name(folder)), id(folder), isFile),
+						driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(2), rootID, isFolder),
+						driveItem(idx(file, 2), namex(file, 2), driveParentDir(2, namex(folder, 2)), idx(folder, 2), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3315,22 +2646,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "out of order item enumeration causes prev path collisions",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(),
-								driveItem(idx(fanny, 2), name(fanny), driveParentDir(1), rootID, isFolder),
-								driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(fanny)), idx(fanny, 2), isFile),
-								driveItem(id(nav), name(nav), driveParentDir(1), rootID, isFolder),
-								driveItem(id(file), name(file), driveParentDir(1, name(nav)), id(nav), isFile),
-							},
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage(
+						driveItem(idx(fanny, 2), name(fanny), driveParentDir(1), rootID, isFolder),
+						driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(fanny)), idx(fanny, 2), isFile),
+						driveItem(id(nav), name(nav), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(nav)), id(nav), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3368,22 +2691,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "out of order item enumeration causes prev path collisions",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(),
-								driveItem(idx(fanny, 2), name(fanny), driveParentDir(1), rootID, isFolder),
-								driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(fanny)), idx(fanny, 2), isFile),
-								driveItem(id(nav), name(nav), driveParentDir(1), rootID, isFolder),
-								driveItem(id(file), name(file), driveParentDir(1, name(nav)), id(nav), isFile),
-							},
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage(
+						driveItem(idx(fanny, 2), name(fanny), driveParentDir(1), rootID, isFolder),
+						driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(fanny)), idx(fanny, 2), isFile),
+						driveItem(id(nav), name(nav), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(nav)), id(nav), isFile)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3421,23 +2736,15 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		{
 			name:   "out of order item enumeration causes opposite prev path collisions",
 			drives: []models.Driveable{drive1},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{
-							Items: []models.DriveItemable{
-								driveRootItem(),
-								driveItem(idx(file, 1), namex(file, 1), driveParentDir(1), rootID, isFile),
-								driveItem(id(fanny), name(fanny), driveParentDir(1), rootID, isFolder),
-								driveItem(id(nav), name(nav), driveParentDir(1), rootID, isFolder),
-								driveItem(id(foo), name(foo), driveParentDir(1, name(fanny)), id(fanny), isFolder),
-								driveItem(id(bar), name(foo), driveParentDir(1, name(nav)), id(nav), isFolder),
-							},
-						}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage(
+						driveItem(idx(file, 1), namex(file, 1), driveParentDir(1), rootID, isFile),
+						driveItem(id(fanny), name(fanny), driveParentDir(1), rootID, isFolder),
+						driveItem(id(nav), name(nav), driveParentDir(1), rootID, isFolder),
+						driveItem(id(foo), name(foo), driveParentDir(1, name(fanny)), id(fanny), isFolder),
+						driveItem(id(bar), name(foo), driveParentDir(1, name(nav)), id(nav), isFolder)),
+					))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -3640,7 +2947,7 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 	table := []struct {
 		name       string
 		drives     []models.Driveable
-		enumerator mock.EnumerateItemsDeltaByDrive
+		enumerator mock.EnumerateDriveItemsDelta
 		errCheck   assert.ErrorAssertionFunc
 	}{
 		{
@@ -3649,26 +2956,17 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 				drive1,
 				drive2,
 			},
-			enumerator: mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta), Reset: true},
-					},
-					idx(drive, 2): {
-						Pages: []mock.NextPage{{Items: []models.DriveItemable{
-							driveRootItem(),
-							driveItem(idx(folder, 2), name(folder), driveParentDir(2), rootID, isFolder),
-							driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), idx(folder, 2), isFile),
-						}}},
-						DeltaUpdate: pagers.DeltaUpdate{URL: idx(delta, 2), Reset: true},
-					},
-				},
-			},
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(idx(drive, 1)).With(
+					mock.Delta(id(delta), nil).With(aPage(
+						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
+					)),
+				mock.Drive(idx(drive, 2)).With(
+					mock.Delta(idx(delta, 2), nil).With(aPage(
+						driveItem(idx(folder, 2), name(folder), driveParentDir(2), rootID, isFolder),
+						driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), idx(folder, 2), isFile)),
+					))),
 			errCheck: assert.NoError,
 		},
 		// TODO(pandeyabs): Add a test case to check that the cache is not attached
