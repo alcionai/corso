@@ -274,9 +274,22 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 	}
 
 	if item.GetCreatedBy() != nil && item.GetCreatedBy().GetUser() != nil {
+		additionalData := item.GetCreatedBy().GetUser().GetAdditionalData()
+		ad := make(map[string]interface{})
+		var str string
+
+		ed, ok := additionalData["email"]
+		if ok {
+			str = ptr.Val(ed.(*string))
+			ad["email"] = &str
+		} else if ed, ok = additionalData["displayName"]; ok {
+			str = ptr.Val(ed.(*string))
+			ad["displayName"] = &str
+		}
+
 		cdi.CreatedBy = &itemIdentitySet{
 			user: &itemUser{
-				additionalData: item.GetCreatedBy().GetUser().GetAdditionalData(),
+				additionalData: ad,
 			},
 		}
 	}
