@@ -86,14 +86,12 @@ type nodeyMcNodeFace struct {
 func newNodeyMcNodeFace(
 	parent *nodeyMcNodeFace,
 	id, name string,
-	prev path.Elements,
 	isPackage bool,
 ) *nodeyMcNodeFace {
 	return &nodeyMcNodeFace{
 		parent:    parent,
 		id:        id,
 		name:      name,
-		prev:      prev,
 		children:  map[string]*nodeyMcNodeFace{},
 		items:     map[string]time.Time{},
 		isPackage: isPackage,
@@ -148,7 +146,7 @@ func (face *folderyMcFolderFace) SetFolder(
 	// only set the root node once.
 	if name == odConsts.RootPathDir {
 		if face.root == nil {
-			root := newNodeyMcNodeFace(nil, id, name, nil, isPackage)
+			root := newNodeyMcNodeFace(nil, id, name, isPackage)
 			face.root = root
 			face.folderIDToNode[id] = root
 		}
@@ -208,9 +206,7 @@ func (face *folderyMcFolderFace) SetFolder(
 		nodey.parent = parent
 	} else {
 		// change type 1: new addition
-		// the previous location is always nil, since previous path additions get their
-		// own setter func.
-		nodey = newNodeyMcNodeFace(parent, id, name, nil, isPackage)
+		nodey = newNodeyMcNodeFace(parent, id, name, isPackage)
 	}
 
 	// ensure the parent points to this node, and that the node is registered
@@ -224,14 +220,9 @@ func (face *folderyMcFolderFace) SetFolder(
 func (face *folderyMcFolderFace) SetTombstone(
 	ctx context.Context,
 	id string,
-	loc path.Elements,
 ) error {
 	if len(id) == 0 {
 		return clues.NewWC(ctx, "missing tombstone folder ID")
-	}
-
-	if len(loc) == 0 {
-		return clues.NewWC(ctx, "missing tombstone location")
 	}
 
 	// since we run mutiple enumerations, it's possible to see a folder added on the
@@ -255,65 +246,9 @@ func (face *folderyMcFolderFace) SetTombstone(
 		return nil
 	}
 
-	zombey, alreadyBuried := face.tombstones[id]
-	if alreadyBuried {
-		if zombey.prev.String() != loc.String() {
-			// logging for sanity
-			logger.Ctx(ctx).Infow(
-				"attempted to tombstone two paths with the same ID",
-				"first_tombstone_path", zombey.prev,
-				"second_tombstone_path", loc)
-		}
-
-		// since we're storing drive data by folder name in kopia, not id, we need
-		// to make sure to preserve the original tombstone location.  If we get a
-		// conflicting set of locations in the same delta enumeration, we can always
-		// treat the original one as the canonical one.  IE: what we're deleting is
-		// the original location as it exists in kopia.  So even if we get a newer
-		// location in the drive enumeration, the original location is the one that
-		// kopia uses, and the one we need to tombstone.
-		//
-		// this should also be asserted in the second step, where we compare the delta
-		// changes to the backup previous paths metadata.
-		face.tombstones[id] = zombey
-	} else {
-		face.tombstones[id] = newNodeyMcNodeFace(nil, id, "", loc, false)
+	if _, alreadyBuried := face.tombstones[id]; !alreadyBuried {
+		face.tombstones[id] = newNodeyMcNodeFace(nil, id, "", false)
 	}
 
 	return nil
-}
-
-// DeleteFolder is a special case unrelated to Tombstone creation.  It should
-// only be called under two conditions:
-// 1. on multiple delta enumeration, if a folder was added on the first delta
-// enumeration, then deleted on the next delta.  The folder will have no previous
-// path, and no presence in our storage layer, and can be safely removed from the
-// tree.
-// 2. as a safety measure in mid-enumeration mutation.  If, during a delta
-// enumeration, the end user deletes a folder before the pager visits the item,
-// then the folder won't show up in the enumeration at all.  However, the next
-// delta will still contain a delete marker.  If this happens and we have no
-// previousPath metadata for the folder id, then there's nothing to tombstone
-// and this method can be safely called with a no-op.
-func (face *folderyMcFolderFace) DeleteFolder(id string) {
-	if nodey, stillKicking := face.folderIDToNode[id]; stillKicking {
-		// recurse for every child
-		for _, child := range nodey.children {
-			face.DeleteFolder(child.id)
-		}
-
-		// finally, delete this node
-		delete(face.folderIDToNode, id)
-		delete(nodey.parent.children, id)
-	}
-
-	if zombey, alreadyBuried := face.tombstones[id]; alreadyBuried {
-		// recurse for every child
-		for _, child := range zombey.children {
-			face.DeleteFolder(child.id)
-		}
-
-		// finally, delete this node
-		delete(face.tombstones, id)
-	}
 }

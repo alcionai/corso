@@ -19,7 +19,7 @@ import (
 var loc = path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
 
 func treeWithRoot() *folderyMcFolderFace {
-	rootey := newNodeyMcNodeFace(nil, rootID, rootName, nil, false)
+	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
 	tree := newFolderyMcFolderFace(nil)
 	tree.root = rootey
 	tree.folderIDToNode[rootID] = rootey
@@ -29,7 +29,7 @@ func treeWithRoot() *folderyMcFolderFace {
 
 func treeWithTombstone() *folderyMcFolderFace {
 	tree := treeWithRoot()
-	tree.tombstones[id(folder)] = newNodeyMcNodeFace(nil, id(folder), "", loc, false)
+	tree.tombstones[id(folder)] = newNodeyMcNodeFace(nil, id(folder), "", false)
 
 	return tree
 }
@@ -37,10 +37,10 @@ func treeWithTombstone() *folderyMcFolderFace {
 func treeWithFolders() *folderyMcFolderFace {
 	tree := treeWithRoot()
 
-	o := newNodeyMcNodeFace(tree.root, idx(folder, "parent"), namex(folder, "parent"), nil, true)
+	o := newNodeyMcNodeFace(tree.root, idx(folder, "parent"), namex(folder, "parent"), true)
 	tree.folderIDToNode[o.id] = o
 
-	f := newNodeyMcNodeFace(o, id(folder), name(folder), nil, false)
+	f := newNodeyMcNodeFace(o, id(folder), name(folder), false)
 	tree.folderIDToNode[f.id] = f
 	o.children[f.id] = f
 
@@ -81,11 +81,11 @@ func (suite *DeltaTreeUnitSuite) TestNewNodeyMcNodeFace() {
 		parent = &nodeyMcNodeFace{}
 	)
 
-	nodeFace := newNodeyMcNodeFace(parent, "id", "name", loc, true)
+	nodeFace := newNodeyMcNodeFace(parent, "id", "name", true)
 	assert.Equal(t, parent, nodeFace.parent)
 	assert.Equal(t, "id", nodeFace.id)
 	assert.Equal(t, "name", nodeFace.name)
-	assert.Equal(t, loc, nodeFace.prev)
+	assert.NotEqual(t, loc, nodeFace.prev)
 	assert.True(t, nodeFace.isPackage)
 	assert.NotNil(t, nodeFace.children)
 	assert.NotNil(t, nodeFace.items)
@@ -300,7 +300,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			err := test.tree.SetTombstone(ctx, test.id, test.loc)
+			err := test.tree.SetTombstone(ctx, test.id)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if err != nil {
@@ -311,56 +311,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 			require.NotNil(t, result)
 			require.NotEmpty(t, result.prev)
 			assert.Equal(t, loc, result.prev)
-		})
-	}
-}
-
-func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFolder() {
-	table := []struct {
-		name                 string
-		id                   string
-		tree                 *folderyMcFolderFace
-		expectNodeCount      int
-		expectTombstoneCount int
-	}{
-		{
-			name:                 "delete nothing",
-			id:                   id(folder),
-			tree:                 treeWithRoot(),
-			expectNodeCount:      1,
-			expectTombstoneCount: 0,
-		},
-		{
-			name:                 "delete folder",
-			id:                   id(folder),
-			tree:                 treeWithFolders(),
-			expectNodeCount:      2,
-			expectTombstoneCount: 0,
-		},
-		{
-			name:                 "delete folder with subtree",
-			id:                   idx(folder, "parent"),
-			tree:                 treeWithFolders(),
-			expectNodeCount:      1,
-			expectTombstoneCount: 0,
-		},
-		{
-			name:                 "delete tombstone",
-			id:                   id(folder),
-			tree:                 treeWithTombstone(),
-			expectNodeCount:      1,
-			expectTombstoneCount: 0,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			test.tree.DeleteFolder(test.id)
-			assert.Equal(t, test.expectNodeCount, len(test.tree.folderIDToNode))
-			assert.Equal(t, test.expectTombstoneCount, len(test.tree.tombstones))
-			assert.Nil(t, test.tree.folderIDToNode[test.id])
-			assert.Nil(t, test.tree.tombstones[test.id])
 		})
 	}
 }
@@ -581,7 +531,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 		tid string,
 		loc path.Elements,
 	) {
-		err := tree.SetTombstone(ctx, tid, loc)
+		err := tree.SetTombstone(ctx, tid)
 		require.NoError(t, err, clues.ToCore(err))
 	}
 
@@ -731,138 +681,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 			an(leafy),
 			an(bob))).
 		compare(t, tree, true)
-
-	entomb().compare(t, tree.tombstones)
-}
-
-// this test focuses on whether the tree is correct when bouncing back and forth
-// between live and tombstoned states on the same folder
-func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctDeletions() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	tree := treeWithRoot()
-
-	set := func(
-		parentID, fid, fname string,
-		isPackage bool,
-	) {
-		err := tree.SetFolder(ctx, parentID, fid, fname, isPackage)
-		require.NoError(t, err, clues.ToCore(err))
-	}
-
-	tomb := func(
-		tid string,
-		loc path.Elements,
-	) {
-		err := tree.SetTombstone(ctx, tid, loc)
-		require.NoError(t, err, clues.ToCore(err))
-	}
-
-	// create a simple tree
-	// root > branchy > [leafy, bob]
-	set(tree.root.id, id("branchy"), name("br"), false)
-	branchy := tree.folderIDToNode[id("branchy")]
-
-	set(branchy.id, id("leafy"), name("l"), false)
-	set(branchy.id, id("bob"), name("bobbers"), false)
-
-	leafy := tree.folderIDToNode[id("leafy")]
-	bob := tree.folderIDToNode[id("bob")]
-
-	an(
-		tree.root,
-		an(
-			branchy,
-			an(leafy),
-			an(bob)),
-	).compare(t, tree, true)
-
-	entomb().compare(t, tree.tombstones)
-
-	// delete leafy
-	tree.DeleteFolder(leafy.id)
-
-	an(
-		tree.root,
-		an(
-			branchy,
-			an(bob)),
-	).compare(t, tree, true)
-
-	entomb().compare(t, tree.tombstones)
-
-	// delete branchy
-	tree.DeleteFolder(branchy.id)
-
-	an(tree.root).compare(t, tree, true)
-
-	entomb().compare(t, tree.tombstones)
-
-	// reconstruct the tree for tombstone checks
-	// root > branchy > [leafy, bob]
-	set(tree.root.id, id("branchy"), name("br"), false)
-	branchy = tree.folderIDToNode[id("branchy")]
-
-	set(branchy.id, id("leafy"), name("l"), false)
-	set(branchy.id, id("bob"), name("bobbers"), false)
-
-	leafy = tree.folderIDToNode[id("leafy")]
-	bob = tree.folderIDToNode[id("bob")]
-
-	// tombstone then delete bob
-	tomb(bob.id, path.NewElements("root/branchy/bob"))
-
-	an(
-		tree.root,
-		an(branchy, an(leafy)),
-	).compare(t, tree, true)
-
-	entomb(an(bob)).compare(t, tree.tombstones)
-
-	tree.DeleteFolder(bob.id)
-
-	an(
-		tree.root,
-		an(branchy, an(leafy)),
-	).compare(t, tree, true)
-
-	entomb().compare(t, tree.tombstones)
-
-	// re-add bob
-	set(branchy.id, id("bob"), name("bobbers"), false)
-	bob = tree.folderIDToNode[id("bob")]
-
-	// tombstone then delete branchy
-	tomb(branchy.id, path.NewElements("root/branchy"))
-
-	an(
-		tree.root,
-	).compare(t, tree, false)
-	// note: the folder count here *will be wrong*.
-	// since we've only tombstoned branchy, both leafy
-	// and bob will remain in the folderIDToNode map.
-	// If this were real graph behavior, the delete would
-	// necessarily cascade and those children would get
-	// tombstoned next.
-	// So we skip the check here, just to minimize code.
-	// It's safe to do so, for the scope of this test.
-	// This should be part of the consideration for prev-
-	// path iteration that could create improper state in
-	// the post-processing stage if we're nott careful.
-
-	entomb(
-		an(
-			branchy,
-			an(leafy),
-			an(bob)),
-	).compare(t, tree.tombstones)
-
-	tree.DeleteFolder(branchy.id)
-
-	an(tree.root).compare(t, tree, true)
 
 	entomb().compare(t, tree.tombstones)
 }
