@@ -213,7 +213,7 @@ func (c *CorsoDriveItem) GetRoot() itemRootable {
 
 func workaroundAliasing(item models.DriveItemable) string {
 	val := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
-	v := ptr.Val(val.(*string))
+	v := ptr.Val(val.(*string)) + "hello"
 
 	return v
 }
