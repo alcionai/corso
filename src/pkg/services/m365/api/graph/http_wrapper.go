@@ -54,7 +54,6 @@ func NewHTTPWrapper(
 		}
 		hc = &http.Client{
 			CheckRedirect: redirect,
-			Timeout:       defaultHTTPClientTimeout,
 			Transport:     rt,
 		}
 	)

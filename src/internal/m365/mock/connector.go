@@ -76,8 +76,8 @@ func (ctrl Controller) ConsumeRestoreCollections(
 	_ []data.RestoreCollection,
 	_ *fault.Bus,
 	_ *count.Bus,
-) (*details.Details, error) {
-	return ctrl.Deets, ctrl.Err
+) (*details.Details, *data.CollectionStats, error) {
+	return ctrl.Deets, &ctrl.Stats, ctrl.Err
 }
 
 func (ctrl Controller) CacheItemInfo(dii details.ItemInfo) {}
@@ -108,4 +108,46 @@ func (ctrl Controller) SetRateLimiter(
 	options control.Options,
 ) context.Context {
 	return ctx
+}
+
+var _ inject.RestoreConsumer = &RestoreConsumer{}
+
+type RestoreConsumer struct {
+	Deets *details.Details
+
+	Err error
+
+	Stats data.CollectionStats
+
+	ProtectedResourceID   string
+	ProtectedResourceName string
+	ProtectedResourceErr  error
+}
+
+func (rc RestoreConsumer) IsServiceEnabled(
+	context.Context,
+	string,
+) (bool, error) {
+	return true, rc.Err
+}
+
+func (rc RestoreConsumer) PopulateProtectedResourceIDAndName(
+	ctx context.Context,
+	protectedResource string, // input value, can be either id or name
+	ins idname.Cacher,
+) (idname.Provider, error) {
+	return idname.NewProvider(rc.ProtectedResourceID, rc.ProtectedResourceName),
+		rc.ProtectedResourceErr
+}
+
+func (rc RestoreConsumer) CacheItemInfo(dii details.ItemInfo) {}
+
+func (rc RestoreConsumer) ConsumeRestoreCollections(
+	ctx context.Context,
+	rcc inject.RestoreConsumerConfig,
+	dcs []data.RestoreCollection,
+	errs *fault.Bus,
+	ctr *count.Bus,
+) (*details.Details, *data.CollectionStats, error) {
+	return rc.Deets, &rc.Stats, rc.Err
 }
