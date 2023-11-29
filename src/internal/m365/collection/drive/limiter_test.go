@@ -342,7 +342,7 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 							filexAtRoot(2),
 							filexAtRoot(3)),
 						aPage(
-							folderxAtRoot(0),
+							folderxAtRoot(1),
 							filexAt(4, 1),
 							filexAt(5, 1),
 							// This container shouldn't be returned.

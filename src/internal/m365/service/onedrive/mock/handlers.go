@@ -512,7 +512,21 @@ func (dde *DriveDeltaEnumerator) With(ds ...*DeltaQuery) *DriveDeltaEnumerator {
 }
 
 func (dde *DriveDeltaEnumerator) nextDelta() *DeltaQuery {
-	if dde.idx >= len(dde.DeltaQueries) {
+	if dde.idx == len(dde.DeltaQueries) {
+		// at the end of the enumeration, return an empty page with no items,
+		// not even the root.  This is what graph api would do to signify an absence
+		// of changes in the delta.
+		lastDU := dde.DeltaQueries[dde.idx-1].DeltaUpdate
+
+		return &DeltaQuery{
+			DeltaUpdate: lastDU,
+			Pages: []NextPage{{
+				Items: []models.DriveItemable{},
+			}},
+		}
+	}
+
+	if dde.idx > len(dde.DeltaQueries) {
 		// a panic isn't optimal here, but since this mechanism is internal to testing,
 		// it's an acceptable way to have the tests ensure we don't over-enumerate deltas.
 		panic(fmt.Sprintf("delta index %d larger than count of delta iterations in mock", dde.idx))
