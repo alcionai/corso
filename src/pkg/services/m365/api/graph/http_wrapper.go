@@ -193,26 +193,28 @@ func internalMiddleware(
 		counter: counter,
 	}
 
+	// We use default kiota retry handler for 503 and 504 errors
+	kiotaRetryHandler := khttp.NewRetryHandlerWithOptions(
+		khttp.RetryHandlerOptions{
+			ShouldRetry: func(
+				delay time.Duration,
+				executionCount int,
+				request *http.Request,
+				response *http.Response,
+			) bool {
+				return true
+			},
+			MaxRetries:   cc.maxRetries,
+			DelaySeconds: int(cc.minDelay.Seconds()),
+		},
+	)
+
 	mw := []khttp.Middleware{
 		&RetryMiddleware{
 			MaxRetries: cc.maxRetries,
 			Delay:      cc.minDelay,
 		},
-		// We use default retry handler for 503 and 504 errors
-		khttp.NewRetryHandlerWithOptions(
-			khttp.RetryHandlerOptions{
-				ShouldRetry: func(
-					delay time.Duration,
-					executionCount int,
-					request *http.Request,
-					response *http.Response,
-				) bool {
-					return true
-				},
-				MaxRetries:   cc.maxRetries,
-				DelaySeconds: int(cc.minDelay.Seconds()),
-			},
-		),
+		kiotaRetryHandler,
 		khttp.NewRedirectHandler(),
 		&LoggingMiddleware{},
 		throttler,
