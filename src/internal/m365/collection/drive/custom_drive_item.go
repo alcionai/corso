@@ -211,6 +211,13 @@ func (c *CorsoDriveItem) GetRoot() itemRootable {
 // 	return nil
 // }
 
+func workaroundAliasing(item models.DriveItemable) string {
+	val := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
+	v := ptr.Val(val.(*string))
+
+	return v
+}
+
 // models.DriveItemable to CorsoDriveItemable
 func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 	cdi := &CorsoDriveItem{
@@ -235,25 +242,26 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 
 		// val := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
 		// v := ptr.Val(val.(*string))
-		v := `fjdklsoieruwy387wy4htkfjdhsoufysghreiut23879tyjkdlsjfsdhgsuehfnsgyfhdsjkfhsdkgjhds
-		fgkjhdsfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjh
-		sdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfg
-		kjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjh
-		sdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdf
-		gkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkj
-		hsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsd
-		fgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgk
-		jhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhs
-		dfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfg
-		kjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjh
-		sdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdf
-		gkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkj
-		hsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsd
-		fgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgk
-		jhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhs
-		dfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfg
-		kjhsdfgkjhsdfgkj`
+		// v := `fjdklsoieruwy387wy4htkfjdhsoufysghreiut23879tyjkdlsjfsdhgsuehfnsgyfhdsjkfhsdkgjhds
+		// fgkjhdsfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjh
+		// sdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfg
+		// kjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjh
+		// sdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdf
+		// gkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkj
+		// hsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsd
+		// fgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgk
+		// jhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhs
+		// dfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfg
+		// kjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjh
+		// sdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdf
+		// gkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkj
+		// hsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsd
+		// fgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgk
+		// jhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhs
+		// dfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfg
+		// kjhsdfgkjhsdfgkj`
 
+		v := workaroundAliasing(item)
 		cdi.AdditionalData = map[string]interface{}{
 			"@microsoft.graph.downloadUrl": &v,
 		}
