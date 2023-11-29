@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
@@ -58,11 +59,11 @@ type folderDriveItem struct {
 
 type fileDriveItem struct {
 	isFile   bool
-	mimeType *string
+	mimeType string
 }
 
 func (fdi *fileDriveItem) GetMimeType() *string {
-	return fdi.mimeType
+	return &fdi.mimeType
 }
 
 type packageDriveItem struct {
@@ -70,26 +71,26 @@ type packageDriveItem struct {
 }
 
 type parentReference struct {
-	path    *string
-	id      *string
-	name    *string
-	driveId *string
+	path    string
+	id      string
+	name    string
+	driveId string
 }
 
 func (pr *parentReference) GetPath() *string {
-	return pr.path
+	return &pr.path
 }
 
 func (pr *parentReference) GetId() *string {
-	return pr.id
+	return &pr.id
 }
 
 func (pr *parentReference) GetName() *string {
-	return pr.name
+	return &pr.name
 }
 
 func (pr *parentReference) GetDriveId() *string {
-	return pr.driveId
+	return &pr.driveId
 }
 
 type itemShared struct {
@@ -135,8 +136,8 @@ type CorsoDriveItem struct {
 	ParentReference      parentReferenceable
 	Shared               itemSharedable
 	CreatedBy            itemIdentitySetable
-	CreatedDateTime      *time.Time
-	LastModifiedDateTime *time.Time
+	CreatedDateTime      time.Time
+	LastModifiedDateTime time.Time
 	Malware              malwareable
 	Deleted              deletedable
 	Root                 itemRootable
@@ -170,6 +171,7 @@ func (c *CorsoDriveItem) GetParentReference() parentReferenceable {
 	return c.ParentReference
 }
 
+// TODO: Should we only support GETs?
 func (c *CorsoDriveItem) SetParentReference(parent parentReferenceable) {
 	c.ParentReference = parent
 }
@@ -187,11 +189,11 @@ func (c *CorsoDriveItem) GetCreatedBy() itemIdentitySetable {
 }
 
 func (c *CorsoDriveItem) GetCreatedDateTime() *time.Time {
-	return c.CreatedDateTime
+	return &c.CreatedDateTime
 }
 
 func (c *CorsoDriveItem) GetLastModifiedDateTime() *time.Time {
-	return c.LastModifiedDateTime
+	return &c.LastModifiedDateTime
 }
 
 func (c *CorsoDriveItem) GetMalware() malwareable {
@@ -216,9 +218,23 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 		ID:                   ptr.Val(item.GetId()),
 		Name:                 ptr.Val(item.GetName()),
 		Size:                 ptr.Val(item.GetSize()),
-		CreatedDateTime:      item.GetCreatedDateTime(),
-		LastModifiedDateTime: item.GetLastModifiedDateTime(),
-		AdditionalData:       item.GetAdditionalData(),
+		CreatedDateTime:      ptr.Val(item.GetCreatedDateTime()),
+		LastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
+	}
+
+	// Hacky way to cache the download url. Thats all we use from additional data
+	// Otherwise, we'll hold a reference to the underlying store which will consume
+	// lot more memory.
+	if item.GetFile() != nil {
+		ad := make(map[string]interface{})
+		for _, key := range downloadURLKeys {
+			if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
+				ad[key] = v
+				break
+			}
+		}
+
+		cdi.AdditionalData = ad
 	}
 
 	if item.GetFolder() != nil {
@@ -230,7 +246,7 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 	if item.GetFile() != nil {
 		cdi.File = &fileDriveItem{
 			isFile:   true,
-			mimeType: item.GetFile().GetMimeType(),
+			mimeType: ptr.Val(item.GetFile().GetMimeType()),
 		}
 	}
 
@@ -242,10 +258,10 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 
 	if item.GetParentReference() != nil {
 		cdi.ParentReference = &parentReference{
-			id:      item.GetParentReference().GetId(),
-			path:    item.GetParentReference().GetPath(),
-			name:    item.GetParentReference().GetName(),
-			driveId: item.GetParentReference().GetDriveId(),
+			id:      ptr.Val(item.GetParentReference().GetId()),
+			path:    ptr.Val(item.GetParentReference().GetPath()),
+			name:    ptr.Val(item.GetParentReference().GetName()),
+			driveId: ptr.Val(item.GetParentReference().GetDriveId()),
 		}
 	}
 
