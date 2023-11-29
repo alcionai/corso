@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
@@ -226,15 +225,20 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 	// Otherwise, we'll hold a reference to the underlying store which will consume
 	// lot more memory.
 	if item.GetFile() != nil {
-		ad := make(map[string]interface{})
-		for _, key := range downloadURLKeys {
-			if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
-				ad[key] = v
-				break
-			}
-		}
+		//ad := make(map[string]interface{})
+		// for _, key := range downloadURLKeys {
+		// 	if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
+		// 		ad[key] = v
+		// 		break
+		// 	}
+		// }
 
-		cdi.AdditionalData = ad
+		val := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
+		v := ptr.Val(val.(*string))
+
+		cdi.AdditionalData = map[string]interface{}{
+			"@microsoft.graph.downloadUrl": &v,
+		}
 	}
 
 	if item.GetFolder() != nil {
