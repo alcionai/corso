@@ -233,8 +233,26 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 		// 	}
 		// }
 
-		val := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
-		v := ptr.Val(val.(*string))
+		// val := item.GetAdditionalData()["@microsoft.graph.downloadUrl"]
+		// v := ptr.Val(val.(*string))
+		v := `fjdklsoieruwy387wy4htkfjdhsoufysghreiut23879tyjkdlsjfsdhgsuehfnsgyfhdsjkfhsdkgjhds
+		fgkjhdsfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjh
+		sdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfg
+		kjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjh
+		sdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdf
+		gkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkj
+		hsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsd
+		fgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgk
+		jhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhs
+		dfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfg
+		kjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjh
+		sdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdf
+		gkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkj
+		hsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsd
+		fgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgk
+		jhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhs
+		dfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfgkjhsdfg
+		kjhsdfgkjhsdfgkj`
 
 		cdi.AdditionalData = map[string]interface{}{
 			"@microsoft.graph.downloadUrl": &v,
