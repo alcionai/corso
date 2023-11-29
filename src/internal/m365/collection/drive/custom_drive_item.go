@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
@@ -225,17 +224,17 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 	// Hacky way to cache the download url. Thats all we use from additional data
 	// Otherwise, we'll hold a reference to the underlying store which will consume
 	// lot more memory.
-	if item.GetFile() != nil {
-		ad := make(map[string]interface{})
-		for _, key := range downloadURLKeys {
-			if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
-				ad[key] = v
-				break
-			}
-		}
+	// if item.GetFile() != nil {
+	// 	ad := make(map[string]interface{})
+	// 	for _, key := range downloadURLKeys {
+	// 		if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
+	// 			ad[key] = v
+	// 			break
+	// 		}
+	// 	}
 
-		cdi.AdditionalData = ad
-	}
+	// 	cdi.AdditionalData = ad
+	// }
 
 	if item.GetFolder() != nil {
 		cdi.Folder = &folderDriveItem{
@@ -289,26 +288,26 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 		}
 	}
 
-	if item.GetCreatedBy() != nil && item.GetCreatedBy().GetUser() != nil {
-		additionalData := item.GetCreatedBy().GetUser().GetAdditionalData()
-		ad := make(map[string]interface{})
-		var str string
+	// if item.GetCreatedBy() != nil && item.GetCreatedBy().GetUser() != nil {
+	// 	additionalData := item.GetCreatedBy().GetUser().GetAdditionalData()
+	// 	ad := make(map[string]interface{})
+	// 	var str string
 
-		ed, ok := additionalData["email"]
-		if ok {
-			str = ptr.Val(ed.(*string))
-			ad["email"] = &str
-		} else if ed, ok = additionalData["displayName"]; ok {
-			str = ptr.Val(ed.(*string))
-			ad["displayName"] = &str
-		}
+	// 	ed, ok := additionalData["email"]
+	// 	if ok {
+	// 		str = ptr.Val(ed.(*string))
+	// 		ad["email"] = &str
+	// 	} else if ed, ok = additionalData["displayName"]; ok {
+	// 		str = ptr.Val(ed.(*string))
+	// 		ad["displayName"] = &str
+	// 	}
 
-		cdi.CreatedBy = &itemIdentitySet{
-			user: &itemUser{
-				additionalData: ad,
-			},
-		}
-	}
+	// 	cdi.CreatedBy = &itemIdentitySet{
+	// 		user: &itemUser{
+	// 			additionalData: ad,
+	// 		},
+	// 	}
+	// }
 
 	return cdi
 }
