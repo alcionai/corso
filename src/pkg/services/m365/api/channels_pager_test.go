@@ -152,7 +152,7 @@ func testEnumerateChannelMessageReplies(
 	assert.Equal(t, replyIDs, msgReplyIDs)
 }
 
-func (suite *ChannelsPagerIntgSuite) TestFilterOutSystemMessages() {
+func (suite *ChannelsPagerIntgSuite) TestIsSystemMessage() {
 	systemMessage := models.NewChatMessage()
 	systemMessage.SetMessageType(ptr.To(models.SYSTEMEVENTMESSAGE_CHATMESSAGETYPE))
 
@@ -211,7 +211,7 @@ func (suite *ChannelsPagerIntgSuite) TestFilterOutSystemMessages() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), filterOutSystemMessages(test.cm))
+			test.expect(suite.T(), IsNotSystemMessage(test.cm))
 		})
 	}
 }

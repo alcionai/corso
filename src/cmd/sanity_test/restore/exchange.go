@@ -19,8 +19,8 @@ func CheckEmailRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	restoredTree := buildSanitree(ctx, ac, envs.UserID, envs.RestoreContainer)
-	sourceTree := buildSanitree(ctx, ac, envs.UserID, envs.SourceContainer)
+	restoredTree := BuildEmailSanitree(ctx, ac, envs.UserID, envs.RestoreContainer)
+	sourceTree := BuildEmailSanitree(ctx, ac, envs.UserID, envs.SourceContainer)
 
 	ctx = clues.Add(
 		ctx,
@@ -39,7 +39,7 @@ func CheckEmailRestoration(
 	common.Infof(ctx, "Success")
 }
 
-func buildSanitree(
+func BuildEmailSanitree(
 	ctx context.Context,
 	ac api.Client,
 	userID, folderName string,
@@ -69,7 +69,35 @@ func buildSanitree(
 		ID:          ptr.Val(mmf.GetId()),
 		Name:        ptr.Val(mmf.GetDisplayName()),
 		CountLeaves: int(ptr.Val(mmf.GetTotalItemCount())),
+		Leaves:      map[string]*common.Sanileaf[models.MailFolderable, any]{},
 		Children:    map[string]*common.Sanitree[models.MailFolderable, any]{},
+	}
+
+	mails, err := ac.Mail().GetItemsInContainer(
+		ctx,
+		userID,
+		root.ID)
+	if err != nil {
+		common.Fatal(ctx, "getting child containers", err)
+	}
+
+	if len(mails) != root.CountLeaves {
+		common.Fatal(
+			ctx,
+			"mails count mismatch",
+			clues.New("mail message count mismatch from API"))
+	}
+
+	for _, mail := range mails {
+		m := &common.Sanileaf[models.MailFolderable, any]{
+			Parent: root,
+			Self:   mail,
+			ID:     ptr.Val(mail.GetId()),
+			Name:   ptr.Val(mail.GetSubject()),
+			Size:   int64(len(ptr.Val(mail.GetBody().GetContent()))),
+		}
+
+		root.Leaves[m.ID] = m
 	}
 
 	recursivelyBuildTree(ctx, ac, root, userID, root.Name+"/")
@@ -94,6 +122,11 @@ func recursivelyBuildTree(
 	}
 
 	for _, child := range childFolders {
+		if int(ptr.Val(child.GetTotalItemCount())) == 0 {
+			common.Infof(ctx, "skipped empty folder: %s/%s", location, ptr.Val(child.GetDisplayName()))
+			continue
+		}
+
 		c := &common.Sanitree[models.MailFolderable, any]{
 			Parent:      stree,
 			Self:        child,

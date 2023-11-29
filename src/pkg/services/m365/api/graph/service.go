@@ -24,15 +24,12 @@ import (
 )
 
 const (
-	defaultMaxRetries        = 3
-	defaultDelay             = 3 * time.Second
-	locationHeader           = "Location"
-	rateLimitHeader          = "RateLimit-Limit"
-	rateRemainingHeader      = "RateLimit-Remaining"
-	rateResetHeader          = "RateLimit-Reset"
-	retryAfterHeader         = "Retry-After"
-	retryAttemptHeader       = "Retry-Attempt"
-	defaultHTTPClientTimeout = 1 * time.Hour
+	locationHeader      = "Location"
+	rateLimitHeader     = "RateLimit-Limit"
+	rateRemainingHeader = "RateLimit-Remaining"
+	rateResetHeader     = "RateLimit-Reset"
+	retryAfterHeader    = "Retry-After"
+	retryAttemptHeader  = "Retry-Attempt"
 )
 
 type QueryParams struct {
@@ -161,8 +158,6 @@ func KiotaHTTPClient(
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
 
-	httpClient.Timeout = defaultHTTPClientTimeout
-
 	cc.apply(httpClient)
 
 	return httpClient, cc
@@ -172,8 +167,19 @@ func KiotaHTTPClient(
 // HTTP Client Config
 // ---------------------------------------------------------------------------
 
+const (
+	defaultDelay             = 3 * time.Second
+	defaultHTTPClientTimeout = 1 * time.Hour
+	defaultMaxRetries        = 3
+	// FIXME: This should ideally be 0, but if we set to 0, graph
+	// client with automatically set the context timeout to 0 as
+	// well which will make the client unusable.
+	// https://github.com/microsoft/kiota-http-go/pull/71
+	defaultNoTimeout = 48 * time.Hour
+)
+
 type clientConfig struct {
-	noTimeout bool
+	timeout time.Duration
 	// MaxConnectionRetries is the number of connection-level retries that
 	// attempt to re-run the request due to a broken or closed connection.
 	maxConnectionRetries int
@@ -194,6 +200,7 @@ func populateConfig(opts ...Option) *clientConfig {
 		maxConnectionRetries: defaultMaxRetries,
 		maxRetries:           defaultMaxRetries,
 		minDelay:             defaultDelay,
+		timeout:              defaultHTTPClientTimeout,
 	}
 
 	for _, opt := range opts {
@@ -205,22 +212,22 @@ func populateConfig(opts ...Option) *clientConfig {
 
 // apply updates the http.Client with the expected options.
 func (c *clientConfig) apply(hc *http.Client) {
-	if c.noTimeout {
-		// FIXME: This should ideally be 0, but if we set to 0, graph
-		// client with automatically set the context timeout to 0 as
-		// well which will make the client unusable.
-		// https://github.com/microsoft/kiota-http-go/pull/71
-		hc.Timeout = 48 * time.Hour
-	}
+	hc.Timeout = c.timeout
 }
 
-// NoTimeout sets the httpClient.Timeout to 0 (unlimited).
+// NoTimeout sets the httpClient.Timeout to 48 hours (eg: unlimited).
 // The resulting client isn't suitable for most queries, due to the
 // capacity for a call to persist forever.  This configuration should
 // only be used when downloading very large files.
 func NoTimeout() Option {
 	return func(c *clientConfig) {
-		c.noTimeout = true
+		c.timeout = defaultNoTimeout
+	}
+}
+
+func Timeout(timeout time.Duration) Option {
+	return func(c *clientConfig) {
+		c.timeout = timeout
 	}
 }
 

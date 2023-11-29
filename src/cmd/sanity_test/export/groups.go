@@ -3,6 +3,8 @@ package export
 import (
 	"context"
 	"io/fs"
+	"path/filepath"
+	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
@@ -21,20 +23,30 @@ func CheckGroupsExport(
 	// assumes we only need to sanity check the default site.
 	// should we expand this to check all sites in the group?
 	// are we backing up / restoring more than the default site?
+	site, err := ac.Sites().GetByID(ctx, envs.TeamSiteID, api.CallConfig{})
+	if err != nil {
+		common.Fatal(ctx, "getting the drive:", err)
+	}
+
 	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.TeamSiteID)
 	if err != nil {
 		common.Fatal(ctx, "getting the drive:", err)
 	}
 
+	checkChannelMessagesExport(
+		ctx,
+		ac,
+		envs)
+
+	envs.RestoreContainer = filepath.Join(
+		envs.RestoreContainer,
+		"Libraries",
+		ptr.Val(site.GetName()),
+		"Documents") // check in default loc
 	driveish.CheckExport(
 		ctx,
 		ac,
 		drive,
-		envs)
-
-	checkChannelMessagesExport(
-		ctx,
-		ac,
 		envs)
 }
 
@@ -55,7 +67,19 @@ func checkChannelMessagesExport(
 		expect *common.Sanitree[models.Channelable, models.ChatMessageable],
 		result *common.Sanitree[fs.FileInfo, fs.FileInfo],
 	) {
-		common.CompareLeaves(ctx, expect.Leaves, result.Leaves, nil)
+		for key := range expect.Leaves {
+			expect.Leaves[key].Size = 0 // msg sizes cannot be compared
+		}
+
+		updatedResultLeaves := map[string]*common.Sanileaf[fs.FileInfo, fs.FileInfo]{}
+
+		for key, leaf := range result.Leaves {
+			key = strings.TrimSuffix(key, ".json")
+			leaf.Size = 0 // we cannot compare sizes
+			updatedResultLeaves[key] = leaf
+		}
+
+		common.CompareLeaves(ctx, expect.Leaves, updatedResultLeaves, nil)
 	}
 
 	common.CompareDiffTrees(
@@ -107,7 +131,21 @@ func populateMessagesSanitree(
 			common.Fatal(ctx, "getting channel messages", err)
 		}
 
+		filteredMsgs := []models.ChatMessageable{}
+
 		for _, msg := range msgs {
+			// filter out system messages (we don't really work with them)
+			if api.IsNotSystemMessage(msg) {
+				filteredMsgs = append(filteredMsgs, msg)
+			}
+		}
+
+		if len(filteredMsgs) == 0 {
+			common.Infof(ctx, "skipped empty channel: %s", ptr.Val(ch.GetDisplayName()))
+			continue
+		}
+
+		for _, msg := range filteredMsgs {
 			child.Leaves[ptr.Val(msg.GetId())] = &common.Sanileaf[
 				models.Channelable,
 				models.ChatMessageable,

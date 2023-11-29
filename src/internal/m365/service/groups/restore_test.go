@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/data/mock"
@@ -53,15 +52,13 @@ func (suite *GroupsUnitSuite) TestConsumeRestoreCollections_noErrorOnGroups() {
 		mock.Collection{Path: pth},
 	}
 
-	_, _, err = ConsumeRestoreCollections(
-		ctx,
-		rcc,
-		api.Client{},
-		idname.NewCache(map[string]string{}),
-		idname.NewCache(map[string]string{}),
-		dcs,
-		fault.New(false),
-		nil)
+	_, _, err = NewGroupsHandler(control.DefaultOptions(), api.Client{}, nil).
+		ConsumeRestoreCollections(
+			ctx,
+			rcc,
+			dcs,
+			fault.New(false),
+			nil)
 	assert.NoError(t, err, "Groups Channels restore")
 }
 

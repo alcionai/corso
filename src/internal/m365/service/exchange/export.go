@@ -19,7 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-var _ inject.ServiceHandler = &baseExchangeHandler{}
+var _ inject.ServiceHandler = &exchangeHandler{}
 
 func NewExchangeHandler(
 	opts control.Options,
