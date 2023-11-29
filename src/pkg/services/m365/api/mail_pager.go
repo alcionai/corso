@@ -147,6 +147,21 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 	return m, nil
 }
 
+func (c Mail) GetItemsInContainer(
+	ctx context.Context,
+	userID, containerID string,
+) ([]models.Messageable, error) {
+	ctx = clues.Add(ctx, "container_id", containerID)
+	pager := c.NewMailPager(userID, containerID, false)
+
+	items, err := pagers.BatchEnumerateItems(ctx, pager)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "enumerating mails")
+	}
+
+	return items, nil
+}
+
 func (c Mail) GetItemIDsInContainer(
 	ctx context.Context,
 	userID, containerID string,
