@@ -377,7 +377,6 @@ func driveRootItem() models.DriveItemable {
 // to the base drive path.
 func delItem(
 	id string,
-	parentPath string,
 	parentID string,
 	it itemType,
 ) models.DriveItemable {
