@@ -686,15 +686,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 	}
 }
 
-// TODO: remove when unifying test tree structs
-type populateTreeTestMulti struct {
-	name       string
-	enumerator mock.EnumerateDriveItemsDelta
-	tree       *folderyMcFolderFace
-	limiter    *pagerLimiter
-	expect     populateTreeExpected
-}
-
 // this test focuses on quirks that can only arise from cases that occur across
 // multiple delta enumerations.
 // It is not concerned with unifying previous paths or post-processing collections.
@@ -703,7 +694,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 	drv.SetId(ptr.To(id(drive)))
 	drv.SetName(ptr.To(name(drive)))
 
-	table := []populateTreeTestMulti{
+	table := []populateTreeTest{
 		{
 			name: "sanity case: normal enumeration split across multiple deltas",
 			tree: newFolderyMcFolderFace(nil, rootID),
@@ -756,22 +747,19 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 			tree: newFolderyMcFolderFace(nil, rootID),
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).
-						With(
-							aPage(
-								folderAtRoot(),
-								fileAt(folder))),
+					mock.Delta(id(delta), nil).With(
+						aPage(
+							folderAtRoot(),
+							fileAt(folder))),
 					// a (delete,create) pair in the same delta can occur when
 					// a user deletes and restores an item in-between deltas.
-					mock.Delta(id(delta), nil).
-						With(
-							aPage(
-								delItem(id(folder), rootID, isFolder),
-								delItem(id(file), id(folder), isFile))).
-						With(
-							aPage(
-								folderAtRoot(),
-								fileAt(folder))),
+					mock.Delta(id(delta), nil).With(
+						aPage(
+							delItem(id(folder), rootID, isFolder),
+							delItem(id(file), id(folder), isFile)),
+						aPage(
+							folderAtRoot(),
+							fileAt(folder))),
 				)),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
@@ -800,16 +788,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 			tree: newFolderyMcFolderFace(nil, rootID),
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).
-						With(
-							aPage(
-								folderAtRoot(),
-								fileAt(folder))),
-					mock.Delta(id(delta), nil).
-						With(
-							aPage(
-								driveItem(id(folder), namex(folder, "rename"), parentDir(), rootID, isFolder),
-								driveItem(id(file), namex(file, "rename"), parentDir(namex(folder, "rename")), id(folder), isFile))),
+					mock.Delta(id(delta), nil).With(
+						aPage(
+							folderAtRoot(),
+							fileAt(folder))),
+					mock.Delta(id(delta), nil).With(
+						aPage(
+							driveItem(id(folder), namex(folder, "rename"), parentDir(), rootID, isFolder),
+							driveItem(id(file), namex(file, "rename"), parentDir(namex(folder, "rename")), id(folder), isFile))),
 				)),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
@@ -855,10 +841,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 							driveItem(idx(folder, 2), name(folder), parentDir(), rootID, isFolder),
 							driveItem(id(file), name(file), parentDir(name(folder)), idx(folder, 2), isFile))),
 					// the next delta, containing the delete marker for the original /root/folder
-					mock.Delta(id(delta), nil).
-						With(aPage(
-							delItem(id(folder), rootID, isFolder),
-						)),
+					mock.Delta(id(delta), nil).With(
+						aPage(
+							delItem(id(folder), rootID, isFolder))),
 				)),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
@@ -887,7 +872,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			runPopulateTreeTestMulti(suite.T(), drv, test)
+			runPopulateTreeTest(suite.T(), drv, test)
 		})
 	}
 }
@@ -896,62 +881,6 @@ func runPopulateTreeTest(
 	t *testing.T,
 	drv models.Driveable,
 	test populateTreeTest,
-) {
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	mbh := mock.DefaultDriveBHWith(user, pagerForDrives(drv), test.enumerator)
-	c := collWithMBH(mbh)
-	counter := count.New()
-
-	_, err := c.populateTree(
-		ctx,
-		test.tree,
-		drv,
-		id(delta),
-		test.limiter,
-		counter,
-		fault.New(true))
-
-	test.expect.err(t, err, clues.ToCore(err))
-
-	assert.Equal(
-		t,
-		test.expect.numLiveFolders,
-		test.tree.countLiveFolders(),
-		"count live folders in tree")
-
-	cAndS := test.tree.countLiveFilesAndSizes()
-	assert.Equal(
-		t,
-		test.expect.numLiveFiles,
-		cAndS.numFiles,
-		"count live files in tree")
-	assert.Equal(
-		t,
-		test.expect.sizeBytes,
-		cAndS.totalBytes,
-		"count total bytes in tree")
-	test.expect.counts.Compare(t, counter)
-
-	for _, id := range test.expect.treeContainsFolderIDs {
-		assert.NotNil(t, test.tree.folderIDToNode[id], "node exists")
-	}
-
-	for _, id := range test.expect.treeContainsTombstoneIDs {
-		assert.NotNil(t, test.tree.tombstones[id], "tombstone exists")
-	}
-
-	for iID, pID := range test.expect.treeContainsFileIDsWithParent {
-		assert.Contains(t, test.tree.fileIDToParentID, iID, "file should exist in tree")
-		assert.Equal(t, pID, test.tree.fileIDToParentID[iID], "file should reference correct parent")
-	}
-}
-
-func runPopulateTreeTestMulti(
-	t *testing.T,
-	drv models.Driveable,
-	test populateTreeTestMulti,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
