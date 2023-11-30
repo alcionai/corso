@@ -250,6 +250,102 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 	}
 }
 
+func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
+	table := []struct {
+		name            string
+		id              string
+		loc             path.Elements
+		tree            *folderyMcFolderFace
+		expectErr       assert.ErrorAssertionFunc
+		expectLive      bool
+		expectTombstone bool
+	}{
+		{
+			name:            "no changes become a no-op",
+			id:              id(folder),
+			loc:             loc,
+			tree:            newFolderyMcFolderFace(nil, rootID),
+			expectErr:       assert.NoError,
+			expectLive:      false,
+			expectTombstone: false,
+		},
+		{
+			name:            "create tombstone after reset",
+			id:              id(folder),
+			loc:             loc,
+			tree:            treeAfterReset(),
+			expectErr:       assert.NoError,
+			expectLive:      false,
+			expectTombstone: true,
+		},
+		{
+			name:            "missing ID",
+			loc:             loc,
+			tree:            newFolderyMcFolderFace(nil, rootID),
+			expectErr:       assert.Error,
+			expectLive:      false,
+			expectTombstone: false,
+		},
+		{
+			name:            "missing loc",
+			id:              id(folder),
+			tree:            newFolderyMcFolderFace(nil, rootID),
+			expectErr:       assert.Error,
+			expectLive:      false,
+			expectTombstone: false,
+		},
+		{
+			name:            "empty loc",
+			id:              id(folder),
+			loc:             path.Elements{},
+			tree:            newFolderyMcFolderFace(nil, rootID),
+			expectErr:       assert.Error,
+			expectLive:      false,
+			expectTombstone: false,
+		},
+		{
+			name:            "update live folder",
+			id:              id(folder),
+			loc:             loc,
+			tree:            treeWithFolders(),
+			expectErr:       assert.NoError,
+			expectLive:      true,
+			expectTombstone: false,
+		},
+		{
+			name:            "update tombstone",
+			id:              id(folder),
+			loc:             loc,
+			tree:            treeWithTombstone(),
+			expectErr:       assert.NoError,
+			expectLive:      false,
+			expectTombstone: true,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			err := test.tree.setPreviousPath(test.id, test.loc)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if test.expectLive {
+				require.Contains(t, test.tree.folderIDToNode, test.id)
+				assert.Equal(t, test.loc, test.tree.folderIDToNode[test.id].prev)
+			} else {
+				require.NotContains(t, test.tree.folderIDToNode, test.id)
+			}
+
+			if test.expectTombstone {
+				require.Contains(t, test.tree.tombstones, test.id)
+				assert.Equal(t, test.loc, test.tree.tombstones[test.id].prev)
+			} else {
+				require.NotContains(t, test.tree.tombstones, test.id)
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // tree structure assertions tests
 // ---------------------------------------------------------------------------

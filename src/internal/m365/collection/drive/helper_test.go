@@ -789,6 +789,13 @@ func treeWithRoot() *folderyMcFolderFace {
 	return tree
 }
 
+func treeAfterReset() *folderyMcFolderFace {
+	tree := newFolderyMcFolderFace(nil, rootID)
+	tree.reset()
+
+	return tree
+}
+
 func treeWithTombstone() *folderyMcFolderFace {
 	tree := treeWithRoot()
 	tree.tombstones[id(folder)] = newNodeyMcNodeFace(nil, id(folder), "", false)
