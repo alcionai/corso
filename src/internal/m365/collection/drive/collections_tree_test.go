@@ -23,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	countTD "github.com/alcionai/corso/src/pkg/count/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
@@ -45,28 +44,25 @@ func collWithMBH(mbh BackupHandler) *Collections {
 		count.New())
 }
 
-// will implement later
-//
-//nolint:unused
-func fullOrPrevPath(
-	t *testing.T,
-	coll data.BackupCollection,
-) path.Path {
-	var collPath path.Path
+// func fullOrPrevPath(
+// 	t *testing.T,
+// 	coll data.BackupCollection,
+// ) path.Path {
+// 	var collPath path.Path
 
-	if coll.State() != data.DeletedState {
-		collPath = coll.FullPath()
-	} else {
-		collPath = coll.PreviousPath()
-	}
+// 	if coll.State() != data.DeletedState {
+// 		collPath = coll.FullPath()
+// 	} else {
+// 		collPath = coll.PreviousPath()
+// 	}
 
-	require.False(
-		t,
-		len(collPath.Elements()) < 4,
-		"malformed or missing collection path")
+// 	require.False(
+// 		t,
+// 		len(collPath.Elements()) < 4,
+// 		"malformed or missing collection path")
 
-	return collPath
-}
+// 	return collPath
+// }
 
 func pagerForDrives(drives ...models.Driveable) *apiMock.Pager[models.Driveable] {
 	return &apiMock.Pager[models.Driveable]{
@@ -105,31 +101,28 @@ func makePrevMetadataColls(
 	}
 }
 
-// will implement later
-//
-//nolint:unused
-func compareMetadata(
-	t *testing.T,
-	mdColl data.Collection,
-	expectDeltas map[string]string,
-	expectPrevPaths map[string]map[string]string,
-) {
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+// func compareMetadata(
+// 	t *testing.T,
+// 	mdColl data.Collection,
+// 	expectDeltas map[string]string,
+// 	expectPrevPaths map[string]map[string]string,
+// ) {
+// 	ctx, flush := tester.NewContext(t)
+// 	defer flush()
 
-	colls := []data.RestoreCollection{
-		dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: mdColl}),
-	}
+// 	colls := []data.RestoreCollection{
+// 		dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: mdColl}),
+// 	}
 
-	deltas, prevs, _, err := deserializeAndValidateMetadata(
-		ctx,
-		colls,
-		count.New(),
-		fault.New(true))
-	require.NoError(t, err, "deserializing metadata", clues.ToCore(err))
-	assert.Equal(t, expectDeltas, deltas, "delta urls")
-	assert.Equal(t, expectPrevPaths, prevs, "previous paths")
-}
+// 	deltas, prevs, _, err := deserializeAndValidateMetadata(
+// 		ctx,
+// 		colls,
+// 		count.New(),
+// 		fault.New(true))
+// 	require.NoError(t, err, "deserializing metadata", clues.ToCore(err))
+// 	assert.Equal(t, expectDeltas, deltas, "delta urls")
+// 	assert.Equal(t, expectPrevPaths, prevs, "previous paths")
+// }
 
 // for comparisons done by collection state
 type stateAssertion struct {
@@ -137,10 +130,7 @@ type stateAssertion struct {
 	// should never get set by the user.
 	// this flag gets flipped when calling assertions.compare.
 	// any unseen collection will error on requireNoUnseenCollections
-	// will implement later
-	//
-	//nolint:unused
-	sawCollection bool
+	// sawCollection bool
 }
 
 // for comparisons done by a given collection path
@@ -183,72 +173,66 @@ func newCollAssertion(
 type collectionAssertions map[string]collectionAssertion
 
 // ensure the provided collection matches expectations as set by the test.
-// will implement later
-//
-//nolint:unused
-func (cas collectionAssertions) compare(
-	t *testing.T,
-	coll data.BackupCollection,
-	excludes *prefixmatcher.StringSetMatchBuilder,
-) {
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+// func (cas collectionAssertions) compare(
+// 	t *testing.T,
+// 	coll data.BackupCollection,
+// 	excludes *prefixmatcher.StringSetMatchBuilder,
+// ) {
+// 	ctx, flush := tester.NewContext(t)
+// 	defer flush()
 
-	var (
-		itemCh  = coll.Items(ctx, fault.New(true))
-		itemIDs = []string{}
-	)
+// 	var (
+// 		itemCh  = coll.Items(ctx, fault.New(true))
+// 		itemIDs = []string{}
+// 	)
 
-	p := fullOrPrevPath(t, coll)
+// 	p := fullOrPrevPath(t, coll)
 
-	for itm := range itemCh {
-		itemIDs = append(itemIDs, itm.ID())
-	}
+// 	for itm := range itemCh {
+// 		itemIDs = append(itemIDs, itm.ID())
+// 	}
 
-	expect := cas[p.String()]
-	expectState := expect.states[coll.State()]
-	expectState.sawCollection = true
+// 	expect := cas[p.String()]
+// 	expectState := expect.states[coll.State()]
+// 	expectState.sawCollection = true
 
-	assert.ElementsMatchf(
-		t,
-		expectState.itemIDs,
-		itemIDs,
-		"expected all items to match in collection with:\nstate %q\npath %q",
-		coll.State(),
-		p)
+// 	assert.ElementsMatchf(
+// 		t,
+// 		expectState.itemIDs,
+// 		itemIDs,
+// 		"expected all items to match in collection with:\nstate %q\npath %q",
+// 		coll.State(),
+// 		p)
 
-	expect.doNotMerge(
-		t,
-		coll.DoNotMergeItems(),
-		"expected collection to have the appropariate doNotMerge flag")
+// 	expect.doNotMerge(
+// 		t,
+// 		coll.DoNotMergeItems(),
+// 		"expected collection to have the appropariate doNotMerge flag")
 
-	if result, ok := excludes.Get(p.String()); ok {
-		assert.Equal(
-			t,
-			expect.excludedItems,
-			result,
-			"excluded items")
-	}
-}
+// 	if result, ok := excludes.Get(p.String()); ok {
+// 		assert.Equal(
+// 			t,
+// 			expect.excludedItems,
+// 			result,
+// 			"excluded items")
+// 	}
+// }
 
 // ensure that no collections in the expected set are still flagged
 // as sawCollection == false.
-// will implement later
-//
-//nolint:unused
-func (cas collectionAssertions) requireNoUnseenCollections(
-	t *testing.T,
-) {
-	for p, withPath := range cas {
-		for _, state := range withPath.states {
-			require.True(
-				t,
-				state.sawCollection,
-				"results should have contained collection:\n\t%q\t\n%q",
-				state, p)
-		}
-	}
-}
+// func (cas collectionAssertions) requireNoUnseenCollections(
+// 	t *testing.T,
+// ) {
+// 	for p, withPath := range cas {
+// 		for _, state := range withPath.states {
+// 			require.True(
+// 				t,
+// 				state.sawCollection,
+// 				"results should have contained collection:\n\t%q\t\n%q",
+// 				state, p)
+// 		}
+// 	}
+// }
 
 func rootAnd(items ...models.DriveItemable) []models.DriveItemable {
 	return append([]models.DriveItemable{driveItem(rootID, rootName, parent(0), "", isFolder)}, items...)
