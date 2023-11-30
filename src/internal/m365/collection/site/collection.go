@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"sync"
+	"sync/atomic"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -41,25 +44,33 @@ const (
 
 var _ data.BackupCollection = &Collection{}
 
-// Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
-// by the oneDrive.Collection as the calls are identical for populating the Collection
+// Collection is the SharePoint.List or SharePoint.Page implementation of data.Collection.
+
+// SharePoint.Libraries collections are supported by the oneDrive.Collection
+// as the calls are identical for populating the Collection
 type Collection struct {
-	// data is the container for each individual SharePoint.List
-	data chan data.Item
+	data.BaseCollection
+	// stream is the container for each individual SharePoint item of (page/list)
+	stream chan data.Item
+
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
-	// jobs contain the SharePoint.Site.ListIDs for the associated list(s).
+
+	// jobs contain the SharePoint.List.IDs or SharePoint.Page.IDs
 	jobs []string
+
 	// M365 IDs of the items of this collection
 	category      path.CategoryType
 	client        api.Sites
 	ctrl          control.Options
 	betaService   *betaAPI.BetaService
 	statusUpdater support.StatusUpdater
+	getter        getItemByIDer
 }
 
 // NewCollection helper function for creating a Collection
 func NewCollection(
+	getter getItemByIDer,
 	folderPath path.Path,
 	ac api.Client,
 	scope selectors.SharePointScope,
@@ -69,7 +80,8 @@ func NewCollection(
 	c := &Collection{
 		fullPath:      folderPath,
 		jobs:          make([]string, 0),
-		data:          make(chan data.Item, collectionChannelBufferSize),
+		getter:        getter,
+		stream:        make(chan data.Item, collectionChannelBufferSize),
 		client:        ac.Sites(),
 		statusUpdater: statusUpdater,
 		category:      scope.Category().PathType(),
@@ -106,19 +118,13 @@ func (sc Collection) DoNotMergeItems() bool {
 	return false
 }
 
-func (sc *Collection) Items(
-	ctx context.Context,
-	errs *fault.Bus,
-) <-chan data.Item {
-	go sc.populate(ctx, errs)
-	return sc.data
+func (sc *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+	go sc.streamItems(ctx, errs)
+	return sc.stream
 }
 
-func (sc *Collection) finishPopulation(
-	ctx context.Context,
-	metrics support.CollectionMetrics,
-) {
-	close(sc.data)
+func (sc *Collection) finishPopulation(ctx context.Context, metrics support.CollectionMetrics) {
+	close(sc.stream)
 
 	status := support.CreateStatus(
 		ctx,
@@ -134,128 +140,145 @@ func (sc *Collection) finishPopulation(
 	}
 }
 
-// populate utility function to retrieve data from back store for a given collection
-func (sc *Collection) populate(ctx context.Context, errs *fault.Bus) {
-	metrics, _ := sc.runPopulate(ctx, errs)
-	sc.finishPopulation(ctx, metrics)
-}
-
-func (sc *Collection) runPopulate(
-	ctx context.Context,
-	errs *fault.Bus,
-) (support.CollectionMetrics, error) {
-	var (
-		err     error
-		metrics support.CollectionMetrics
-		writer  = kjson.NewJsonSerializationWriter()
-	)
-
-	// TODO: Insert correct ID for CollectionProgress
-	colProgress := observe.CollectionProgress(
-		ctx,
-		sc.fullPath.Category().HumanString(),
-		sc.fullPath.Folders())
-	defer close(colProgress)
-
+// streamItems utility function to retrieve data from back store for a given collection
+func (sc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	// Switch retrieval function based on category
 	switch sc.category {
 	case path.ListsCategory:
-		metrics, err = sc.retrieveLists(ctx, writer, colProgress, errs)
+		sc.streamLists(ctx, errs)
 	case path.PagesCategory:
-		metrics, err = sc.retrievePages(ctx, sc.client, writer, colProgress, errs)
+		sc.retrievePages(ctx, sc.client, errs)
 	}
-
-	return metrics, err
 }
 
-// retrieveLists utility function for collection that downloads and serializes
+// streamLists utility function for collection that fetches and serializes
 // models.Listable objects based on M365 IDs from the jobs field.
-func (sc *Collection) retrieveLists(
-	ctx context.Context,
-	wtr *kjson.JsonSerializationWriter,
-	progress chan<- struct{},
-	errs *fault.Bus,
-) (support.CollectionMetrics, error) {
+func (sc *Collection) streamLists(ctx context.Context, errs *fault.Bus) {
 	var (
 		metrics support.CollectionMetrics
+		objects int64
+		wg      sync.WaitGroup
 		el      = errs.Local()
 	)
 
-	lists, err := loadSiteLists(
-		ctx,
-		sc.client.Stable,
-		sc.fullPath.ProtectedResource(),
-		sc.jobs,
-		errs)
-	if err != nil {
-		return metrics, err
-	}
+	defer sc.finishPopulation(ctx, metrics)
 
-	metrics.Objects += len(lists)
-	// For each models.Listable, object is serialized and the metrics are collected.
-	// The progress is objected via the passed in channel.
-	for _, lst := range lists {
+	// TODO: Insert correct ID for CollectionProgress
+	colProgress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
+	defer close(colProgress)
+
+	semaphoreCh := make(chan struct{}, fetchChannelSize)
+	defer close(semaphoreCh)
+
+	for _, listID := range sc.jobs {
 		if el.Failure() != nil {
 			break
 		}
 
-		byteArray, err := serializeContent(ctx, wtr, lst)
-		if err != nil {
-			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "serializing list").Label(fault.LabelForceNoBackupCreation))
-			continue
-		}
+		wg.Add(1)
+		semaphoreCh <- struct{}{}
 
-		size := int64(len(byteArray))
+		go func(id string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
 
-		if size > 0 {
-			metrics.Bytes += size
+			writer := kjson.NewJsonSerializationWriter()
+			defer writer.Close()
 
-			metrics.Successes++
+			var (
+				entry models.Listable
+				err   error
+			)
 
-			item, err := data.NewPrefetchedItemWithInfo(
-				io.NopCloser(bytes.NewReader(byteArray)),
-				ptr.Val(lst.GetId()),
-				details.ItemInfo{SharePoint: ListToSPInfo(lst, size)})
+			entry, err = sc.getter.GetItemByID(ctx, id)
 			if err != nil {
-				el.AddRecoverable(ctx, clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
+				err = clues.Wrap(err, "getting list data").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
+
+				return
 			}
 
-			sc.data <- item
-			progress <- struct{}{}
-		}
+			atomic.AddInt64(&objects, 1)
+
+			if err := writer.WriteObjectValue("", entry); err != nil {
+				err = clues.Wrap(err, "writing list to serializer").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
+
+				return
+			}
+
+			entryBytes, err := writer.GetSerializedContent()
+			if err != nil {
+				err = clues.Wrap(err, "serializing list").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
+
+				return
+			}
+
+			size := int64(len(entryBytes))
+
+			if size > 0 {
+				metrics.Bytes += size
+				metrics.Successes++
+
+				rc := io.NopCloser(bytes.NewReader(entryBytes))
+				itemID := ptr.Val(entry.GetId())
+				itemInfo := details.ItemInfo{SharePoint: ListToSPInfo(entry, size)}
+
+				item, err := data.NewPrefetchedItemWithInfo(rc, itemID, itemInfo)
+				if err != nil {
+					el.AddRecoverable(ctx, clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation))
+
+					return
+				}
+
+				sc.stream <- item
+				colProgress <- struct{}{}
+			}
+		}(listID)
 	}
 
-	return metrics, el.Failure()
+	wg.Wait()
+
+	metrics.Objects += int(objects)
 }
 
-func (sc *Collection) retrievePages(
-	ctx context.Context,
-	as api.Sites,
-	wtr *kjson.JsonSerializationWriter,
-	progress chan<- struct{},
-	errs *fault.Bus,
-) (support.CollectionMetrics, error) {
+func (sc *Collection) retrievePages(ctx context.Context, as api.Sites, errs *fault.Bus) {
 	var (
 		metrics support.CollectionMetrics
 		el      = errs.Local()
 	)
 
+	defer sc.finishPopulation(ctx, metrics)
+
+	// TODO: Insert correct ID for CollectionProgress
+	colProgress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
+	defer close(colProgress)
+
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
 	betaService := sc.betaService
 	if betaService == nil {
-		return metrics, clues.NewWC(ctx, "beta service required")
+		logger.Ctx(ctx).Error(clues.New("beta service required"))
+
+		return
 	}
 
 	parent, err := as.GetByID(ctx, sc.fullPath.ProtectedResource(), api.CallConfig{})
 	if err != nil {
-		return metrics, err
+		logger.Ctx(ctx).Error(err)
+
+		return
 	}
 
 	root := ptr.Val(parent.GetWebUrl())
 
 	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ProtectedResource(), sc.jobs, errs)
 	if err != nil {
-		return metrics, err
+		logger.Ctx(ctx).Error(err)
+
+		return
 	}
 
 	metrics.Objects = len(pages)
@@ -267,7 +290,7 @@ func (sc *Collection) retrievePages(
 			break
 		}
 
-		byteArray, err := serializeContent(ctx, wtr, pg)
+		byteArray, err := serializeContent(ctx, writer, pg)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "serializing page").Label(fault.LabelForceNoBackupCreation))
 			continue
@@ -279,21 +302,21 @@ func (sc *Collection) retrievePages(
 			metrics.Bytes += size
 			metrics.Successes++
 
-			item, err := data.NewPrefetchedItemWithInfo(
-				io.NopCloser(bytes.NewReader(byteArray)),
-				ptr.Val(pg.GetId()),
-				details.ItemInfo{SharePoint: pageToSPInfo(pg, root, size)})
+			rc := io.NopCloser(bytes.NewReader(byteArray))
+			itemID := ptr.Val(pg.GetId())
+			itemInfo := details.ItemInfo{SharePoint: pageToSPInfo(pg, root, size)}
+
+			item, err := data.NewPrefetchedItemWithInfo(rc, itemID, itemInfo)
 			if err != nil {
 				el.AddRecoverable(ctx, clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation))
+
 				continue
 			}
 
-			sc.data <- item
-			progress <- struct{}{}
+			sc.stream <- item
+			colProgress <- struct{}{}
 		}
 	}
-
-	return metrics, el.Failure()
 }
 
 func serializeContent(
