@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"strings"
 	"time"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -26,8 +27,6 @@ type CorsoDriveItemable interface {
 	GetMalware() malwareable
 	GetDeleted() deletedable
 	GetRoot() itemRootable
-	// Not used anywhere
-	//GetSharepointIds() sharepointIdsable
 }
 
 type fileDriveItemable interface {
@@ -208,15 +207,11 @@ func (c *CorsoDriveItem) GetRoot() itemRootable {
 	return c.Root
 }
 
-// func (c *CorsoDriveItem) GetSharepointIds() sharepointIdsable {
-// 	return nil
-// }
-
 // models.DriveItemable to CorsoDriveItemable
 func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 	cdi := &CorsoDriveItem{
-		ID:                   ptr.Val(item.GetId()),
-		Name:                 ptr.Val(item.GetName()),
+		ID:                   strings.Clone(ptr.Val(item.GetId())),
+		Name:                 strings.Clone(ptr.Val(item.GetName())),
 		Size:                 ptr.Val(item.GetSize()),
 		CreatedDateTime:      ptr.Val(item.GetCreatedDateTime()),
 		LastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
@@ -229,7 +224,7 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 		ad := make(map[string]interface{})
 		for _, key := range downloadURLKeys {
 			if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
-				ad[key] = v
+				ad[key] = strings.Clone(v)
 				break
 			}
 		}
@@ -246,7 +241,7 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 	if item.GetFile() != nil {
 		cdi.File = &fileDriveItem{
 			isFile:   true,
-			mimeType: ptr.Val(item.GetFile().GetMimeType()),
+			mimeType: strings.Clone(ptr.Val(item.GetFile().GetMimeType())),
 		}
 	}
 
@@ -258,10 +253,10 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 
 	if item.GetParentReference() != nil {
 		cdi.ParentReference = &parentReference{
-			id:      ptr.Val(item.GetParentReference().GetId()),
-			path:    ptr.Val(item.GetParentReference().GetPath()),
-			name:    ptr.Val(item.GetParentReference().GetName()),
-			driveId: ptr.Val(item.GetParentReference().GetDriveId()),
+			id:      strings.Clone(ptr.Val(item.GetParentReference().GetId())),
+			path:    strings.Clone(ptr.Val(item.GetParentReference().GetPath())),
+			name:    strings.Clone(ptr.Val(item.GetParentReference().GetName())),
+			driveId: strings.Clone(ptr.Val(item.GetParentReference().GetDriveId())),
 		}
 	}
 
@@ -296,10 +291,10 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 
 		ed, ok := additionalData["email"]
 		if ok {
-			str = ptr.Val(ed.(*string))
+			str = strings.Clone(ptr.Val(ed.(*string)))
 			ad["email"] = &str
 		} else if ed, ok = additionalData["displayName"]; ok {
-			str = ptr.Val(ed.(*string))
+			str = strings.Clone(ptr.Val(ed.(*string)))
 			ad["displayName"] = &str
 		}
 
