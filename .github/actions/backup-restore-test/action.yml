@@ -99,7 +99,7 @@ runs:
         ./sanity-test restore ${{ inputs.service }}
 
     - name: Export ${{ inputs.service }} ${{ inputs.kind }}
-      if: inputs.with-export == true
+      if: ${{ inputs.with-export == 'true' }}
       id: export
       shell: bash
       working-directory: src
@@ -119,7 +119,7 @@ runs:
           cat /tmp/corsologs
 
     - name: Check export ${{ inputs.service }} ${{ inputs.kind }}
-      if: inputs.with-export == true
+      if: ${{ inputs.with-export == 'true' }}
       shell: bash
       working-directory: src
       env:
@@ -134,7 +134,7 @@ runs:
         ./sanity-test export ${{ inputs.service }}
 
     - name: Export archive ${{ inputs.service }} ${{ inputs.kind }}
-      if: inputs.with-export == true
+      if: ${{ inputs.with-export == 'true' }}
       id: export-archive
       shell: bash
       working-directory: src
@@ -157,7 +157,7 @@ runs:
           cat /tmp/corsologs
 
     - name: Check archive export ${{ inputs.service }} ${{ inputs.kind }}
-      if: inputs.with-export == true
+      if: ${{ inputs.with-export == 'true' }}
       shell: bash
       working-directory: src
       env:
