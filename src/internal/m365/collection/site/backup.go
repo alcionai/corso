@@ -123,6 +123,7 @@ func CollectPages(
 		}
 
 		collection := NewCollection(
+			nil,
 			dir,
 			ac,
 			scope,
@@ -139,6 +140,7 @@ func CollectPages(
 
 func CollectLists(
 	ctx context.Context,
+	bh backupHandler,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
 	tenantID string,
@@ -175,6 +177,7 @@ func CollectLists(
 		}
 
 		collection := NewCollection(
+			bh,
 			dir,
 			ac,
 			scope,
