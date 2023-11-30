@@ -590,7 +590,10 @@ func generateContainerOfItems(
 		Selector:          sel,
 	}
 
-	deets, _, err := ctrl.ConsumeRestoreCollections(
+	handler, err := ctrl.NewServiceHandler(opts, service)
+	require.NoError(t, err, clues.ToCore(err))
+
+	deets, _, err := handler.ConsumeRestoreCollections(
 		ctx,
 		rcc,
 		dataColls,

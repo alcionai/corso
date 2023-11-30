@@ -25,7 +25,7 @@ type SharePointSuite struct {
 	tester.Suite
 }
 
-func TestSharePointPagesSuite(t *testing.T) {
+func TestSharePointSuite(t *testing.T) {
 	suite.Run(t, &SharePointSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,

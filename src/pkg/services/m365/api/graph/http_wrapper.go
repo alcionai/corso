@@ -54,7 +54,6 @@ func NewHTTPWrapper(
 		}
 		hc = &http.Client{
 			CheckRedirect: redirect,
-			Timeout:       defaultHTTPClientTimeout,
 			Transport:     rt,
 		}
 	)
@@ -194,12 +193,26 @@ func internalMiddleware(
 		counter: counter,
 	}
 
+	retryOptions := khttp.RetryHandlerOptions{
+		ShouldRetry: func(
+			delay time.Duration,
+			executionCount int,
+			request *http.Request,
+			response *http.Response,
+		) bool {
+			return true
+		},
+		MaxRetries:   cc.maxRetries,
+		DelaySeconds: int(cc.minDelay.Seconds()),
+	}
+
 	mw := []khttp.Middleware{
 		&RetryMiddleware{
 			MaxRetries: cc.maxRetries,
 			Delay:      cc.minDelay,
 		},
-		khttp.NewRetryHandler(),
+		// We use default kiota retry handler for 503 and 504 errors
+		khttp.NewRetryHandlerWithOptions(retryOptions),
 		khttp.NewRedirectHandler(),
 		&LoggingMiddleware{},
 		throttler,

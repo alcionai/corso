@@ -11,7 +11,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var ErrNotFound = clues.New("not found")
+var (
+	ErrNotFound = clues.New("not found")
+	ErrNoData   = clues.New("no data")
+)
 
 type CollectionState int
 
@@ -21,6 +24,23 @@ const (
 	MovedState    CollectionState = 2
 	DeletedState  CollectionState = 3
 )
+
+func (cs CollectionState) String() string {
+	s := "Unknown State"
+
+	switch cs {
+	case 0:
+		s = "New"
+	case 1:
+		s = "Not Moved"
+	case 2:
+		s = "Moved"
+	case 3:
+		s = "Deleted"
+	}
+
+	return s
+}
 
 type FetchRestoreCollection struct {
 	Collection

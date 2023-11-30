@@ -49,7 +49,6 @@ var _ data.BackupCollection = &Collection{}
 // SharePoint.Libraries collections are supported by the oneDrive.Collection
 // as the calls are identical for populating the Collection
 type Collection struct {
-	data.BaseCollection
 	// stream is the container for each individual SharePoint item of (page/list)
 	stream chan data.Item
 

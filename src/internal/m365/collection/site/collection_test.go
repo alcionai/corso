@@ -221,7 +221,7 @@ func (suite *SharePointCollectionSuite) TestCollection_streamItems() {
 		},
 		{
 			name:     "with jobs",
-			jobs:     []string{"site1", "site2", "site3"},
+			jobs:     []string{"list1", "list2", "list3"},
 			category: path.ListsCategory,
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(

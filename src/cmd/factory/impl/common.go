@@ -111,7 +111,12 @@ func generateAndRestoreItems(
 		Selector:          sel,
 	}
 
-	deets, _, err := ctrl.ConsumeRestoreCollections(
+	handler, err := ctrl.NewServiceHandler(opts, service)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	deets, _, err := handler.ConsumeRestoreCollections(
 		ctx,
 		rcc,
 		dataColls,
@@ -428,13 +433,6 @@ func generateAndRestoreDriveItems(
 		return nil, err
 	}
 
-	// collections := getCollections(
-	// 	service,
-	// 	tenantID,
-	// 	[]string{resourceOwner},
-	// 	input,
-	// 	version.Backup)
-
 	opts := control.DefaultOptions()
 	restoreCfg.IncludePermissions = true
 
@@ -462,7 +460,12 @@ func generateAndRestoreDriveItems(
 		Selector:          sel,
 	}
 
-	deets, _, err := ctrl.ConsumeRestoreCollections(
+	handler, err := ctrl.NewServiceHandler(opts, service)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	deets, _, err := handler.ConsumeRestoreCollections(
 		ctx,
 		rcc,
 		collections,
