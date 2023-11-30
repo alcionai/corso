@@ -254,6 +254,11 @@ func (c *Collections) makeDriveCollections(
 	// 	}
 	// }
 
+	// this is a dumb hack to satisfy the linter.
+	if ctx == nil {
+		return nil, nil, du, nil
+	}
+
 	return nil, nil, du, errTreeNotImplemented
 }
 
