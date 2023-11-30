@@ -661,9 +661,17 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 	treeWithFileAtRoot := func() *folderyMcFolderFace {
-		tree := treeWithFolders()
+		tree := treeWithRoot()
 		tree.root.files[id(file)] = time.Now()
 		tree.fileIDToParentID[id(file)] = rootID
+
+		return tree
+	}
+
+	treeWithFileInFolder := func() *folderyMcFolderFace {
+		tree := treeWithFolders()
+		tree.root.files[id(file)] = time.Now()
+		tree.fileIDToParentID[id(file)] = id(folder)
 
 		return tree
 	}
@@ -703,18 +711,18 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "re-add file at the same location",
 			tree:        treeWithFileAtRoot(),
-			oldParentID: "",
+			oldParentID: rootID,
 			parentID:    rootID,
 			expectErr:   assert.NoError,
 			expectFiles: map[string]string{id(file): rootID},
 		},
 		{
-			tname:       "move file from root to folder",
-			tree:        treeWithFileAtRoot(),
-			oldParentID: rootID,
-			parentID:    id(folder),
+			tname:       "move file from folder to root",
+			tree:        treeWithFileInFolder(),
+			oldParentID: id(folder),
+			parentID:    rootID,
 			expectErr:   assert.NoError,
-			expectFiles: map[string]string{id(file): id(folder)},
+			expectFiles: map[string]string{id(file): rootID},
 		},
 		{
 			tname:       "move file from tombstone to root",
@@ -764,7 +772,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			require.NotNil(t, parent)
 			assert.Contains(t, parent.files, id(file))
 
-			if len(test.oldParentID) > 0 {
+			if len(test.oldParentID) > 0 && test.oldParentID != test.parentID {
 				old, ok := test.tree.folderIDToNode[test.oldParentID]
 				if !ok {
 					old = test.tree.tombstones[test.oldParentID]

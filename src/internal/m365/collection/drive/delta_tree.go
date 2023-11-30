@@ -255,7 +255,7 @@ func (face *folderyMcFolderFace) setTombstone(
 
 // addFile places the file in the correct parent node.  If the
 // file was already added to the tree and is getting relocated,
-// this func will make the movement and clean up all old referces.
+// this func will update and/or clean up all the old references.
 func (face *folderyMcFolderFace) addFile(
 	parentID, id string,
 	lastModifed time.Time,
