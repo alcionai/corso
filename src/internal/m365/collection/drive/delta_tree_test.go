@@ -19,8 +19,8 @@ import (
 var loc = path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
 
 func treeWithRoot() *folderyMcFolderFace {
-	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
 	tree := newFolderyMcFolderFace(nil)
+	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
 	tree.root = rootey
 	tree.folderIDToNode[rootID] = rootey
 
@@ -95,109 +95,98 @@ func (suite *DeltaTreeUnitSuite) TestNewNodeyMcNodeFace() {
 // and intentionally does not verify the resulting node tree
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 	table := []struct {
-		tname      string
-		tree       *folderyMcFolderFace
-		parentID   string
-		id         string
-		name       string
-		isPackage  bool
-		expectErr  assert.ErrorAssertionFunc
-		expectPrev assert.ValueAssertionFunc
+		tname     string
+		tree      *folderyMcFolderFace
+		parentID  string
+		id        string
+		name      string
+		isPackage bool
+		expectErr assert.ErrorAssertionFunc
 	}{
 		{
 			tname: "add root",
 			tree: &folderyMcFolderFace{
 				folderIDToNode: map[string]*nodeyMcNodeFace{},
 			},
-			id:         rootID,
-			name:       rootName,
-			isPackage:  true,
-			expectErr:  assert.NoError,
-			expectPrev: assert.Nil,
+			id:        rootID,
+			name:      rootName,
+			isPackage: true,
+			expectErr: assert.NoError,
 		},
 		{
-			tname:      "root already exists",
-			tree:       treeWithRoot(),
-			id:         rootID,
-			name:       rootName,
-			expectErr:  assert.NoError,
-			expectPrev: assert.Nil,
+			tname:     "root already exists",
+			tree:      treeWithRoot(),
+			id:        rootID,
+			name:      rootName,
+			expectErr: assert.NoError,
 		},
 		{
-			tname:      "add folder",
-			tree:       treeWithRoot(),
-			parentID:   rootID,
-			id:         id(folder),
-			name:       name(folder),
-			expectErr:  assert.NoError,
-			expectPrev: assert.Nil,
+			tname:     "add folder",
+			tree:      treeWithRoot(),
+			parentID:  rootID,
+			id:        id(folder),
+			name:      name(folder),
+			expectErr: assert.NoError,
 		},
 		{
-			tname:      "add package",
-			tree:       treeWithRoot(),
-			parentID:   rootID,
-			id:         id(folder),
-			name:       name(folder),
-			isPackage:  true,
-			expectErr:  assert.NoError,
-			expectPrev: assert.Nil,
+			tname:     "add package",
+			tree:      treeWithRoot(),
+			parentID:  rootID,
+			id:        id(folder),
+			name:      name(folder),
+			isPackage: true,
+			expectErr: assert.NoError,
 		},
 		{
-			tname:      "missing ID",
-			tree:       treeWithRoot(),
-			parentID:   rootID,
-			name:       name(folder),
-			isPackage:  true,
-			expectErr:  assert.Error,
-			expectPrev: assert.Nil,
+			tname:     "missing ID",
+			tree:      treeWithRoot(),
+			parentID:  rootID,
+			name:      name(folder),
+			isPackage: true,
+			expectErr: assert.Error,
 		},
 		{
-			tname:      "missing name",
-			tree:       treeWithRoot(),
-			parentID:   rootID,
-			id:         id(folder),
-			isPackage:  true,
-			expectErr:  assert.Error,
-			expectPrev: assert.Nil,
+			tname:     "missing name",
+			tree:      treeWithRoot(),
+			parentID:  rootID,
+			id:        id(folder),
+			isPackage: true,
+			expectErr: assert.Error,
 		},
 		{
-			tname:      "missing parentID",
-			tree:       treeWithRoot(),
-			id:         id(folder),
-			name:       name(folder),
-			isPackage:  true,
-			expectErr:  assert.Error,
-			expectPrev: assert.Nil,
+			tname:     "missing parentID",
+			tree:      treeWithRoot(),
+			id:        id(folder),
+			name:      name(folder),
+			isPackage: true,
+			expectErr: assert.Error,
 		},
 		{
-			tname:      "already tombstoned",
-			tree:       treeWithTombstone(),
-			parentID:   rootID,
-			id:         id(folder),
-			name:       name(folder),
-			expectErr:  assert.NoError,
-			expectPrev: assert.NotNil,
+			tname:     "already tombstoned",
+			tree:      treeWithTombstone(),
+			parentID:  rootID,
+			id:        id(folder),
+			name:      name(folder),
+			expectErr: assert.NoError,
 		},
 		{
 			tname: "add folder before parent",
 			tree: &folderyMcFolderFace{
 				folderIDToNode: map[string]*nodeyMcNodeFace{},
 			},
-			parentID:   rootID,
-			id:         id(folder),
-			name:       name(folder),
-			isPackage:  true,
-			expectErr:  assert.Error,
-			expectPrev: assert.Nil,
+			parentID:  rootID,
+			id:        id(folder),
+			name:      name(folder),
+			isPackage: true,
+			expectErr: assert.Error,
 		},
 		{
-			tname:      "folder already exists",
-			tree:       treeWithFolders(),
-			parentID:   idx(folder, "parent"),
-			id:         id(folder),
-			name:       name(folder),
-			expectErr:  assert.NoError,
-			expectPrev: assert.Nil,
+			tname:     "folder already exists",
+			tree:      treeWithFolders(),
+			parentID:  idx(folder, "parent"),
+			id:        id(folder),
+			name:      name(folder),
+			expectErr: assert.NoError,
 		},
 	}
 	for _, test := range table {
@@ -221,7 +210,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 
 			result := test.tree.folderIDToNode[test.id]
 			require.NotNil(t, result)
-			test.expectPrev(t, result.prev)
 			assert.Equal(t, test.id, result.id)
 			assert.Equal(t, test.name, result.name)
 			assert.Equal(t, test.isPackage, result.isPackage)
@@ -241,54 +229,35 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 	table := []struct {
 		name      string
 		id        string
-		loc       path.Elements
 		tree      *folderyMcFolderFace
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
 			name:      "add tombstone",
 			id:        id(folder),
-			loc:       loc,
 			tree:      newFolderyMcFolderFace(nil),
 			expectErr: assert.NoError,
 		},
 		{
 			name:      "duplicate tombstone",
 			id:        id(folder),
-			loc:       loc,
 			tree:      treeWithTombstone(),
 			expectErr: assert.NoError,
 		},
 		{
 			name:      "missing ID",
-			loc:       loc,
-			tree:      newFolderyMcFolderFace(nil),
-			expectErr: assert.Error,
-		},
-		{
-			name:      "missing loc",
-			id:        id(folder),
-			tree:      newFolderyMcFolderFace(nil),
-			expectErr: assert.Error,
-		},
-		{
-			name:      "empty loc",
-			id:        id(folder),
-			loc:       path.Elements{},
 			tree:      newFolderyMcFolderFace(nil),
 			expectErr: assert.Error,
 		},
 		{
 			name:      "conflict: folder alive",
 			id:        id(folder),
-			loc:       loc,
 			tree:      treeWithTombstone(),
 			expectErr: assert.NoError,
 		},
 		{
-			name:      "already tombstoned with different path",
+			name:      "already tombstoned",
 			id:        id(folder),
-			loc:       append(path.Elements{"foo"}, loc...),
 			tree:      treeWithTombstone(),
 			expectErr: assert.NoError,
 		},
@@ -309,8 +278,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 
 			result := test.tree.tombstones[test.id]
 			require.NotNil(t, result)
-			require.NotEmpty(t, result.prev)
-			assert.Equal(t, loc, result.prev)
 		})
 	}
 }
