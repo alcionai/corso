@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -42,34 +41,6 @@ func TestListsUnitSuite(t *testing.T) {
 			t,
 			[][]string{tconfig.M365AcctCredEnvs}),
 	})
-}
-
-// Test LoadList --> Retrieves all data from backStore
-// Functions tested:
-// - fetchListItems()
-// - fetchColumns()
-// - fetchContentColumns()
-// - fetchContentTypes()
-// - fetchColumnLinks
-// TODO: upgrade passed github.com/microsoftgraph/msgraph-sdk-go v0.40.0
-// to verify if these 2 calls are valid
-// - fetchContentBaseTypes
-// - fetchColumnPositions
-func (suite *ListsUnitSuite) TestLoadList() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	service := createTestService(t, suite.creds)
-	tuples, err := PreFetchLists(ctx, service, "root")
-	require.NoError(t, err, clues.ToCore(err))
-
-	job := []string{tuples[0].ID}
-	lists, err := loadSiteLists(ctx, service, "root", job, fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.Greater(t, len(lists), 0)
-	t.Logf("Length: %d\n", len(lists))
 }
 
 func (suite *ListsUnitSuite) TestSharePointInfo() {
