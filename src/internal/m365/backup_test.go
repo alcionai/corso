@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -52,6 +53,10 @@ func TestDataCollectionIntgSuite(t *testing.T) {
 
 func (suite *DataCollectionIntgSuite) SetupSuite() {
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+	graph.InitializeConcurrencyLimiter(ctx, false, 4)
 
 	suite.user = tconfig.M365UserID(t)
 	suite.site = tconfig.M365SiteID(t)
@@ -274,7 +279,6 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 	ctrl := newController(ctx, suite.T(), path.SharePointService)
 	tests := []struct {
 		name        string
-		expected    int
 		getSelector func() selectors.Selector
 	}{
 		{
@@ -286,8 +290,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 			},
 		},
 		{
-			name:     "Lists",
-			expected: 0,
+			name: "Lists",
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Lists(selectors.Any()))
@@ -329,8 +332,8 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 			}
 
 			// we don't know an exact count of drives this will produce,
-			// but it should be more than one.
-			assert.Less(t, test.expected, len(collections))
+			// but it should be more than zero.
+			assert.Less(t, 0, len(collections))
 
 			for _, coll := range collections {
 				for object := range coll.Items(ctx, fault.New(true)) {
@@ -465,11 +468,10 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	assert.True(t, excludes.Empty())
 
 	for _, collection := range cols {
-		t.Logf("Path: %s\n", collection.FullPath().String())
+		assert.Equal(t, path.SharePointService.String(), collection.FullPath().Service().String())
+		assert.Equal(t, path.ListsCategory.String(), collection.FullPath().Category().String())
 
 		for item := range collection.Items(ctx, fault.New(true)) {
-			t.Log("File: " + item.ID())
-
 			_, err := io.ReadAll(item.ToReader())
 			require.NoError(t, err, clues.ToCore(err))
 		}
