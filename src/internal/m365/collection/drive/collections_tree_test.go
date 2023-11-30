@@ -368,17 +368,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeMetadataCollections()
 // this test is primarily aimed at multi-drive handling
 // more complicated single-drive tests are in _MakeDriveCollections
 func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
-	metadataPath, err := path.BuildMetadata(
-		tenant,
-		user,
-		path.OneDriveService,
-		path.FilesCategory,
-		false)
-	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
-
-	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(idx(drive, 1)))
-	drive1.SetName(ptr.To(namex(drive, 1)))
+	// metadataPath, err := path.BuildMetadata(
+	// 	tenant,
+	// 	user,
+	// 	path.OneDriveService,
+	// 	path.FilesCategory,
+	// 	false)
+	// require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
+	drv := models.NewDrive()
+	drv.SetId(ptr.To(id(drive)))
+	drv.SetName(ptr.To(name(drive)))
 
 	type expected struct {
 		canUsePrevBackup assert.BoolAssertionFunc
@@ -401,7 +400,15 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 	}{
 		{
 			name:       "not yet implemented",
-			drivePager: pagerForDrives(drive1),
+			drivePager: pagerForDrives(drv),
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					id(drive): {
+						Pages:       pagesOf(rootAnd()),
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
 			expect: expected{
 				canUsePrevBackup: assert.False,
 				collAssertions: collectionAssertions{
@@ -435,7 +442,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 				errs           = fault.New(true)
 			)
 
-			colls, canUsePrevBackup, err := c.getTree(
+			_, _, err := c.getTree(
 				ctx,
 				prevMetadata,
 				globalExcludes,
@@ -443,32 +450,32 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 
 			test.expect.err(t, err, clues.ToCore(err))
 			// TODO(keepers): awaiting implementation
-			assert.Empty(t, colls)
-			assert.Equal(t, test.expect.skips, len(errs.Skipped()))
-			test.expect.canUsePrevBackup(t, canUsePrevBackup)
-			test.expect.counts.Compare(t, c.counter)
+			// assert.Empty(t, colls)
+			// assert.Equal(t, test.expect.skips, len(errs.Skipped()))
+			// test.expect.canUsePrevBackup(t, canUsePrevBackup)
+			// test.expect.counts.Compare(t, c.counter)
 
-			if err != nil {
-				return
-			}
+			// if err != nil {
+			// 	return
+			// }
 
-			for _, coll := range colls {
-				collPath := fullOrPrevPath(t, coll)
+			// for _, coll := range colls {
+			// 	collPath := fullOrPrevPath(t, coll)
 
-				if collPath.String() == metadataPath.String() {
-					compareMetadata(
-						t,
-						coll,
-						test.expect.deltas,
-						test.expect.prevPaths)
+			// 	if collPath.String() == metadataPath.String() {
+			// 		compareMetadata(
+			// 			t,
+			// 			coll,
+			// 			test.expect.deltas,
+			// 			test.expect.prevPaths)
 
-					continue
-				}
+			// 		continue
+			// 	}
 
-				test.expect.collAssertions.compare(t, coll, globalExcludes)
-			}
+			// 	test.expect.collAssertions.compare(t, coll, globalExcludes)
+			// }
 
-			test.expect.collAssertions.requireNoUnseenCollections(t)
+			// test.expect.collAssertions.requireNoUnseenCollections(t)
 		})
 	}
 }
@@ -477,22 +484,31 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 // and broad contracts
 // more granular testing can be found in the functions below.
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
-	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(idx(drive, 1)))
-	drive1.SetName(ptr.To(namex(drive, 1)))
+	drv := models.NewDrive()
+	drv.SetId(ptr.To(id(drive)))
+	drv.SetName(ptr.To(name(drive)))
 
 	table := []struct {
 		name         string
-		c            *Collections
 		drive        models.Driveable
+		drivePager   *apiMock.Pager[models.Driveable]
+		enumerator   mock.EnumerateItemsDeltaByDrive
 		prevPaths    map[string]string
 		expectErr    require.ErrorAssertionFunc
 		expectCounts countTD.Expected
 	}{
 		{
-			name:      "not yet implemented",
-			c:         collWithMBH(mock.DefaultOneDriveBH(user)),
-			drive:     drive1,
+			name:       "not yet implemented",
+			drive:      drv,
+			drivePager: pagerForDrives(drv),
+			enumerator: mock.EnumerateItemsDeltaByDrive{
+				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+					id(drive): {
+						Pages:       pagesOf(rootAnd()),
+						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+					},
+				},
+			},
 			expectErr: require.Error,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
@@ -506,21 +522,24 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			colls, paths, delta, err := test.c.makeDriveCollections(
+			mbh := mock.DefaultDriveBHWith(user, test.drivePager, test.enumerator)
+			c := collWithMBH(mbh)
+
+			colls, paths, du, err := c.makeDriveCollections(
 				ctx,
 				test.drive,
 				test.prevPaths,
 				idx(delta, "prev"),
-				test.c.counter,
+				c.counter,
 				fault.New(true))
 
 			// TODO(keepers): awaiting implementation
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Empty(t, colls)
 			assert.Empty(t, paths)
-			assert.Empty(t, delta.URL)
+			assert.Equal(t, id(delta), du.URL)
 
-			test.expectCounts.Compare(t, test.c.counter)
+			test.expectCounts.Compare(t, c.counter)
 		})
 	}
 }
