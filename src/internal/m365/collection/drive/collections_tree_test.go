@@ -482,7 +482,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 
 // This test is primarily aimed exercising the full breadth of single-drive delta enumeration
 // and broad contracts.
-// mMre granular testing can be found in the lower level test functions below.
+// More granular testing can be found in the lower level test functions below.
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 	drv := models.NewDrive()
 	drv.SetId(ptr.To(id(drive)))

@@ -9,10 +9,8 @@ const (
 	ThrottledAPICalls Key = "throttled-api-calls"
 )
 
-// Tracked during backup
+// backup amounts reported by kopia
 const (
-	// amounts reported by kopia
-
 	PersistedCachedFiles          Key = "persisted-cached-files"
 	PersistedDirectories          Key = "persisted-directories"
 	PersistedFiles                Key = "persisted-files"
@@ -24,9 +22,10 @@ const (
 	PersistenceErrors             Key = "persistence-errors"
 	PersistenceExpectedErrors     Key = "persistence-expected-errors"
 	PersistenceIgnoredErrors      Key = "persistence-ignored-errors"
+)
 
-	// amounts reported by data providers
-
+// backup amounts reported by data providers
+const (
 	Channels                      Key = "channels"
 	CollectionMoved               Key = "collection-moved"
 	CollectionNew                 Key = "collection-state-new"
@@ -67,14 +66,26 @@ const (
 	StreamItemsFound              Key = "stream-items-found"
 	StreamItemsRemoved            Key = "stream-items-removed"
 	TotalContainersSkipped        Key = "total-containers-skipped"
-	TotalDeleteFoldersProcessed   Key = "total-delete-folders-processed"
-	TotalFoldersProcessed         Key = "total-folders-processed"
-	TotalMalwareProcessed         Key = "total-malware-processed"
-	TotalPackagesProcessed        Key = "total-packages-processed"
 	URLCacheMiss                  Key = "url-cache-miss"
 	URLCacheRefresh               Key = "url-cache-refresh"
+)
 
-	// miscellaneous
+// Total___Processed counts are used to track raw processing numbers
+// for values that may have a similar, but different, end result count.
+// For example: a delta query may add the same folder to many different pages.
+// instead of adding logic to catch folder duplications and only count new
+// entries, we can increment TotalFoldersProcessed for every duplication,
+// and use a separate Key (Folders) for the end count of folders produced
+// at the end of the delta enumeration.
+const (
+	TotalDeleteFoldersProcessed Key = "total-delete-folders-processed"
+	TotalFoldersProcessed       Key = "total-folders-processed"
+	TotalMalwareProcessed       Key = "total-malware-processed"
+	TotalPackagesProcessed      Key = "total-packages-processed"
+)
+
+// miscellaneous
+const (
 	RequiresUserPnToIDMigration Key = "requires-user-pn-to-id-migration"
 )
 
