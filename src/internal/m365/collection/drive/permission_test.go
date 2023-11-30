@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puzpuzpuz/xsync/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/syncd"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -157,7 +157,7 @@ func runComputeParentPermissionsTest(
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			input := xsync.NewMapOf[metadata.Metadata]()
+			input := syncd.NewMapTo[metadata.Metadata]()
 			for k, v := range test.parentPerms {
 				input.Store(k, v)
 			}

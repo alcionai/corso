@@ -173,11 +173,17 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 	b.StartAndEndTime.CompletedAt = later
 
 	// single skipped malware
-	hs := b.Headers()
+	hs := b.Headers(false)
 	assert.Equal(t, expectHs, hs)
 
-	vs := b.Values()
+	vs := b.Values(false)
 	assert.Equal(t, expectVs, vs)
+
+	hs = b.Headers(true)
+	assert.Equal(t, expectHs[1:], hs)
+
+	vs = b.Values(true)
+	assert.Equal(t, expectVs[1:], vs)
 }
 
 func (suite *BackupUnitSuite) TestBackup_HeadersValues_onlyResourceOwners() {
@@ -209,11 +215,17 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues_onlyResourceOwners() {
 	b.StartAndEndTime.CompletedAt = later
 
 	// single skipped malware
-	hs := b.Headers()
+	hs := b.Headers(false)
 	assert.Equal(t, expectHs, hs)
 
-	vs := b.Values()
+	vs := b.Values(false)
 	assert.Equal(t, expectVs, vs)
+
+	hs = b.Headers(true)
+	assert.Equal(t, expectHs[1:], hs)
+
+	vs = b.Values(true)
+	assert.Equal(t, expectVs[1:], vs)
 }
 
 func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
@@ -297,8 +309,11 @@ func (suite *BackupUnitSuite) TestBackup_Values_statusVariations() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			result := test.bup.Values()
+			result := test.bup.Values(false)
 			assert.Equal(suite.T(), test.expect, result[3], "status value")
+
+			result = test.bup.Values(true)
+			assert.Equal(suite.T(), test.expect, result[2], "status value")
 		})
 	}
 }
@@ -355,7 +370,8 @@ func (suite *BackupUnitSuite) TestStats_headersValues() {
 		"Errors",
 	}
 
-	assert.Equal(t, expectHeaders, s.Headers())
+	assert.Equal(t, expectHeaders, s.Headers(false))
+	assert.Equal(t, expectHeaders[1:], s.Headers(true))
 
 	expectValues := []string{
 		"id",
@@ -365,5 +381,6 @@ func (suite *BackupUnitSuite) TestStats_headersValues() {
 		strconv.Itoa(b.ErrorCount),
 	}
 
-	assert.Equal(t, expectValues, s.Values())
+	assert.Equal(t, expectValues, s.Values(false))
+	assert.Equal(t, expectValues[1:], s.Values(true))
 }

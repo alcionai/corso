@@ -8,13 +8,15 @@ import (
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ProduceBackupCollections returns a DataCollection which the caller can
@@ -23,18 +25,20 @@ func ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
-	tenantID string,
+	creds account.M365Config,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	eb, err := bpc.Selector.ToExchangeBackup()
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "exchange dataCollection selector").WithClues(ctx)
+		return nil, nil, false, clues.WrapWC(ctx, err, "exchange dataCollection selector")
 	}
 
 	var (
 		collections = []data.BackupCollection{}
 		el          = errs.Local()
+		tenantID    = creds.AzureTenantID
 		categories  = map[path.CategoryType]struct{}{}
 		handlers    = exchange.BackupHandlers(ac)
 	)
@@ -46,15 +50,14 @@ func ProduceBackupCollections(
 
 	if !canMakeDeltaQueries {
 		logger.Ctx(ctx).Info("delta requests not available")
+		counter.Inc(count.NoDeltaQueries)
 
 		bpc.Options.ToggleFeatures.DisableDelta = true
 	}
 
-	// Turn on concurrency limiter middleware for exchange backups
-	// unless explicitly disabled through DisableConcurrencyLimiterFN cli flag
 	graph.InitializeConcurrencyLimiter(
 		ctx,
-		bpc.Options.ToggleFeatures.DisableConcurrencyLimiter,
+		true,
 		bpc.Options.Parallelism.ItemFetch)
 
 	cdps, canUsePreviousBackup, err := exchange.ParseMetadataCollections(ctx, bpc.MetadataCollections)
@@ -77,6 +80,7 @@ func ProduceBackupCollections(
 			scope,
 			cdps[scope.Category().PathType()],
 			su,
+			counter,
 			errs)
 		if err != nil {
 			el.AddRecoverable(ctx, err)
@@ -97,6 +101,7 @@ func ProduceBackupCollections(
 			path.ExchangeService,
 			categories,
 			su,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
@@ -104,6 +109,8 @@ func ProduceBackupCollections(
 
 		collections = append(collections, baseCols...)
 	}
+
+	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
 
 	return collections, nil, canUsePreviousBackup, el.Failure()
 }

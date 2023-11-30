@@ -16,7 +16,6 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -32,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -128,13 +128,15 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	// Setup
 	// -----
 
+	ctx = clues.AddLabelCounter(ctx, op.Counter.PlainAdder())
+
 	ctx, end := diagnostics.Span(ctx, "operations:restore:run")
-	defer func() {
-		end()
-	}()
+	defer end()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
+
+	ctx = clues.AddTrace(ctx)
 
 	cats, err := op.Selectors.AllHumanPathCategories()
 	if err != nil {
@@ -238,21 +240,20 @@ func (op *RestoreOperation) do(
 		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
 
 	// Check if the resource has the service enabled to be able to restore.
-	enabled, err := op.rc.IsServiceEnabled(
-		ctx,
-		op.Selectors.PathService(),
-		restoreToProtectedResource.ID())
+	enabled, err := op.rc.IsServiceEnabled(ctx, restoreToProtectedResource.ID())
 	if err != nil {
-		return nil, clues.Wrap(err, "verifying service restore is enabled").WithClues(ctx)
+		return nil, clues.Wrap(err, "verifying service restore is enabled")
 	}
 
 	if !enabled {
-		return nil, clues.Wrap(
-			graph.ErrServiceNotEnabled,
-			"service not enabled for restore").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, graph.ErrServiceNotEnabled, "service not enabled for restore")
 	}
 
-	observe.Message(ctx, "Restoring", observe.Bullet, clues.Hide(restoreToProtectedResource.Name()))
+	pcfg := observe.ProgressCfg{
+		NewSection:        true,
+		SectionIdentifier: clues.Hide(restoreToProtectedResource.Name()),
+	}
+	observe.Message(ctx, pcfg, "Restoring")
 
 	paths, err := formatDetailsForRestoration(
 		ctx,
@@ -272,9 +273,16 @@ func (op *RestoreOperation) do(
 		"backup_snapshot_id", bup.SnapshotID,
 		"backup_version", bup.Version)
 
-	observe.Message(ctx, fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+	if len(paths) == 0 {
+		return nil, clues.New("no items match the provided filters")
+	}
 
-	progressBar := observe.MessageWithCompletion(ctx, "Enumerating items in repository")
+	observe.Message(
+		ctx,
+		observe.ProgressCfg{},
+		fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
+
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Enumerating items in repository")
 	defer close(progressBar)
 
 	dcs, err := op.kopia.ProduceRestoreCollections(
@@ -293,7 +301,7 @@ func (op *RestoreOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	deets, err = consumeRestoreCollections(
+	deets, colStats, err := consumeRestoreCollections(
 		ctx,
 		op.rc,
 		bup.Version,
@@ -308,7 +316,7 @@ func (op *RestoreOperation) do(
 		return nil, clues.Stack(err)
 	}
 
-	opStats.ctrl = op.rc.Wait()
+	opStats.ctrl = colStats
 
 	logger.Ctx(ctx).Debug(opStats.ctrl)
 
@@ -381,9 +389,16 @@ func consumeRestoreCollections(
 	dcs []data.RestoreCollection,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*details.Details, error) {
-	progressBar := observe.MessageWithCompletion(ctx, "Restoring data")
+) (*details.Details, *data.CollectionStats, error) {
+	if len(dcs) == 0 {
+		return nil, nil, clues.New("no data collections to restore")
+	}
+
+	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Restoring data")
 	defer close(progressBar)
+
+	ctx, end := diagnostics.Span(ctx, "operations:restore")
+	defer end()
 
 	rcc := inject.RestoreConsumerConfig{
 		BackupVersion:     backupVersion,
@@ -393,12 +408,11 @@ func consumeRestoreCollections(
 		Selector:          sel,
 	}
 
-	deets, err := rc.ConsumeRestoreCollections(ctx, rcc, dcs, errs, ctr)
-	if err != nil {
-		return nil, clues.Wrap(err, "restoring collections")
-	}
+	ctx = clues.Add(ctx, "restore_config", rcc.RestoreConfig)
 
-	return deets, nil
+	deets, status, err := rc.ConsumeRestoreCollections(ctx, rcc, dcs, errs, ctr)
+
+	return deets, status, clues.Wrap(err, "restoring collections").OrNil()
 }
 
 // formatDetailsForRestoration reduces the provided detail entries according to the

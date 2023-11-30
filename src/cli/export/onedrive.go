@@ -90,5 +90,13 @@ func exportOneDriveCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	return runExport(ctx, cmd, args, opts.ExportCfg, sel.Selector, flags.BackupIDFV, "OneDrive")
+	return runExport(
+		ctx,
+		cmd,
+		args,
+		opts.ExportCfg,
+		sel.Selector,
+		flags.BackupIDFV,
+		"OneDrive",
+		defaultAcceptedFormatTypes)
 }

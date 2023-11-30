@@ -23,16 +23,17 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	metaTD "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata/testdata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	odTD "github.com/alcionai/corso/src/internal/m365/service/onedrive/testdata"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -215,7 +216,8 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				control.Options{ToggleFeatures: control.Toggles{}},
 				false,
 				true,
-				nil)
+				nil,
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotNil(t, coll)
 			assert.Equal(t, folderPath, coll.FullPath())
@@ -337,7 +339,8 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
 		true,
-		nil)
+		nil,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	stubItem := odTD.NewStubDriveItem(
@@ -415,7 +418,8 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
 		true,
-		nil)
+		nil,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	coll.Add(stubItem)
@@ -471,7 +475,8 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
 		true,
-		nil)
+		nil,
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	mtime := time.Now().AddDate(0, -1, 0)
@@ -814,7 +819,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			mbh.GetResps = resps
 			mbh.GetErrs = test.getErr
 
-			r, err := downloadContent(ctx, mbh, test.muc, item, driveID)
+			r, err := downloadContent(ctx, mbh, test.muc, item, driveID, count.New())
 			test.expect(t, r)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
@@ -1002,7 +1007,8 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 				opts,
 				false,
 				true,
-				nil)
+				nil,
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			stubItem := odTD.NewStubDriveItem(

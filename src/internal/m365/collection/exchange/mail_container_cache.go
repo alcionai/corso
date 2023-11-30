@@ -6,10 +6,10 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var (
@@ -80,7 +80,7 @@ func (mc *mailContainerCache) populateMailRoot(ctx context.Context) error {
 		path.Builder{}.Append(), // path of IDs
 		path.Builder{}.Append()) // display location
 	if err := mc.addFolder(&temp); err != nil {
-		return clues.Wrap(err, "adding resolver dir").WithClues(ctx)
+		return clues.WrapWC(ctx, err, "adding resolver dir")
 	}
 
 	return nil

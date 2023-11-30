@@ -13,8 +13,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // Variables
@@ -112,15 +112,29 @@ func (c Users) GetAll(
 	return us, el.Failure()
 }
 
-// GetByID looks up the user matching the given identifier.  The identifier can be either a
-// canonical user id or a princpalName.
-func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable, error) {
+func (c Users) GetByID(
+	ctx context.Context,
+	identifier string,
+	cc CallConfig,
+) (models.Userable, error) {
 	var (
 		resp models.Userable
 		err  error
 	)
 
-	resp, err = c.Stable.Client().Users().ByUserId(identifier).Get(ctx, nil)
+	options := &users.UserItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.UserItemRequestBuilderGetQueryParameters{},
+	}
+
+	if len(cc.Select) > 0 {
+		options.QueryParameters.Select = cc.Select
+	}
+
+	resp, err = c.Stable.
+		Client().
+		Users().
+		ByUserId(identifier).
+		Get(ctx, options)
 	if err != nil {
 		if graph.IsErrResourceLocked(err) {
 			err = clues.Stack(graph.ErrResourceLocked, err)
@@ -137,9 +151,9 @@ func (c Users) GetByID(ctx context.Context, identifier string) (models.Userable,
 func (c Users) GetIDAndName(
 	ctx context.Context,
 	userID string,
-	_ CallConfig, // not currently supported
+	cc CallConfig,
 ) (string, string, error) {
-	u, err := c.GetByID(ctx, userID)
+	u, err := c.GetByID(ctx, userID, cc)
 	if err != nil {
 		return "", "", err
 	}

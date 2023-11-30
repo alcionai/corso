@@ -7,21 +7,21 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/puzpuzpuz/xsync/v2"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/syncd"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 func getParentMetadata(
 	parentPath path.Path,
-	parentDirToMeta *xsync.MapOf[string, metadata.Metadata],
+	parentDirToMeta syncd.MapTo[metadata.Metadata],
 ) (metadata.Metadata, error) {
 	parentMeta, ok := parentDirToMeta.Load(parentPath.String())
 	if !ok {
@@ -91,14 +91,14 @@ func getCollectionMetadata(
 func computePreviousLinkShares(
 	ctx context.Context,
 	originDir path.Path,
-	parentMetas *xsync.MapOf[string, metadata.Metadata],
+	parentMetas syncd.MapTo[metadata.Metadata],
 ) ([]metadata.LinkShare, error) {
 	linkShares := []metadata.LinkShare{}
 	ctx = clues.Add(ctx, "origin_dir", originDir)
 
 	parent, err := originDir.Dir()
 	if err != nil {
-		return nil, clues.New("getting parent").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "getting parent")
 	}
 
 	for len(parent.Elements()) > 0 {
@@ -106,7 +106,7 @@ func computePreviousLinkShares(
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return nil, clues.New("transforming dir to drivePath").WithClues(ictx)
+			return nil, clues.NewWC(ictx, "transforming dir to drivePath")
 		}
 
 		if len(drivePath.Folders) == 0 {
@@ -115,7 +115,7 @@ func computePreviousLinkShares(
 
 		meta, ok := parentMetas.Load(parent.String())
 		if !ok {
-			return nil, clues.New("no metadata found in parent").WithClues(ictx)
+			return nil, clues.NewWC(ictx, "no metadata found in parent")
 		}
 
 		// Any change in permissions would change it to custom
@@ -126,7 +126,7 @@ func computePreviousLinkShares(
 
 		parent, err = parent.Dir()
 		if err != nil {
-			return nil, clues.New("getting parent").WithClues(ctx)
+			return nil, clues.NewWC(ictx, "getting parent")
 		}
 	}
 
@@ -141,7 +141,7 @@ func computePreviousMetadata(
 	ctx context.Context,
 	originDir path.Path,
 	// map parent dir -> parent's metadata
-	parentMetas *xsync.MapOf[string, metadata.Metadata],
+	parentMetas syncd.MapTo[metadata.Metadata],
 ) (metadata.Metadata, error) {
 	var (
 		parent path.Path
@@ -156,14 +156,14 @@ func computePreviousMetadata(
 	for {
 		parent, err = parent.Dir()
 		if err != nil {
-			return metadata.Metadata{}, clues.New("getting parent").WithClues(ctx)
+			return metadata.Metadata{}, clues.NewWC(ctx, "getting parent")
 		}
 
 		ictx := clues.Add(ctx, "parent_dir", parent)
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return metadata.Metadata{}, clues.New("transforming dir to drivePath").WithClues(ictx)
+			return metadata.Metadata{}, clues.NewWC(ictx, "transforming dir to drivePath")
 		}
 
 		if len(drivePath.Folders) == 0 {
@@ -172,7 +172,7 @@ func computePreviousMetadata(
 
 		meta, ok = parentMetas.Load(parent.String())
 		if !ok {
-			return metadata.Metadata{}, clues.New("no metadata found for parent folder: " + parent.String()).WithClues(ictx)
+			return metadata.Metadata{}, clues.NewWC(ictx, "no metadata found for parent folder: "+parent.String())
 		}
 
 		if meta.SharingMode == metadata.SharingModeCustom {
@@ -194,7 +194,7 @@ func UpdatePermissions(
 	driveID string,
 	itemID string,
 	permAdded, permRemoved []metadata.Permission,
-	oldPermIDToNewID *xsync.MapOf[string, string],
+	oldPermIDToNewID syncd.MapTo[string],
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
@@ -214,7 +214,7 @@ func UpdatePermissions(
 
 		pid, ok := oldPermIDToNewID.Load(p.ID)
 		if !ok {
-			return clues.New("no new permission id").WithClues(ctx)
+			return clues.NewWC(ictx, "no new permission id")
 		}
 
 		err := udip.DeleteItemPermission(
@@ -303,7 +303,7 @@ func UpdateLinkShares(
 	driveID string,
 	itemID string,
 	lsAdded, lsRemoved []metadata.LinkShare,
-	oldLinkShareIDToNewID *xsync.MapOf[string, string],
+	oldLinkShareIDToNewID syncd.MapTo[string],
 	errs *fault.Bus,
 ) (bool, error) {
 	// You can only delete inherited sharing links the first time you

@@ -60,13 +60,17 @@ func metadataFilesGroupsCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// opts := utils.MakeGroupsOpts(cmd)
-
 	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
 	sel := selectors.NewGroupsBackup([]string{"unused-placeholder"})
+	sel.Include(sel.AllData())
 
-	return runMetadataFiles(ctx, cmd, args, sel.Selector, flags.BackupIDFV, "Groups")
+	return genericMetadataFiles(
+		ctx,
+		cmd,
+		args,
+		sel.Selector,
+		flags.BackupIDFV)
 }

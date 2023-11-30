@@ -149,7 +149,7 @@ func (e *Bus) logAndAddRecoverable(ctx context.Context, err error, skip int) {
 	isFail := e.addRecoverableErr(err)
 
 	if isFail {
-		log.Errorf("recoverable error: %v", err)
+		log.Errorf("failed on recoverable error: %v", err)
 	} else {
 		log.Infof("recoverable error: %v", err)
 	}
@@ -208,7 +208,6 @@ func (e *Bus) AddAlert(ctx context.Context, a *Alert) {
 	e.logAndAddAlert(ctx, a, 1)
 }
 
-// logs the error and adds an alert.
 func (e *Bus) logAndAddAlert(ctx context.Context, a *Alert, trace int) {
 	logger.CtxStack(ctx, trace+1).
 		With("alert", a).
@@ -492,11 +491,12 @@ func (pec printableErrCore) MinimumPrintable() any {
 	return pec
 }
 
-func (pec printableErrCore) Headers() []string {
+func (pec printableErrCore) Headers(bool) []string {
+	// NOTE: skipID does not make sense in this context
 	return []string{"Error"}
 }
 
-func (pec printableErrCore) Values() []string {
+func (pec printableErrCore) Values(bool) []string {
 	if pec.ErrCore == nil {
 		return []string{"<nil>"}
 	}

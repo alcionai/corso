@@ -56,30 +56,34 @@ func (suite *ChannelsPagerIntgSuite) TestEnumerateChannelMessages() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	addedIDs, _, _, du, err := ac.GetChannelMessageIDs(
+	cc := CallConfig{
+		CanMakeDeltaQueries: true,
+	}
+
+	aar, err := ac.GetChannelMessageIDs(
 		ctx,
 		suite.its.group.id,
 		suite.its.group.testContainerID,
 		"",
-		true)
+		cc)
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, addedIDs)
-	require.NotZero(t, du.URL, "delta link")
-	require.True(t, du.Reset, "reset due to empty prev delta link")
+	require.NotEmpty(t, aar.Added)
+	require.NotZero(t, aar.DU.URL, "delta link")
+	require.True(t, aar.DU.Reset, "reset due to empty prev delta link")
 
-	addedIDs, _, deletedIDs, du, err := ac.GetChannelMessageIDs(
+	aar, err = ac.GetChannelMessageIDs(
 		ctx,
 		suite.its.group.id,
 		suite.its.group.testContainerID,
-		du.URL,
-		true)
+		aar.DU.URL,
+		cc)
 	require.NoError(t, err, clues.ToCore(err))
-	require.Empty(t, addedIDs, "should have no new messages from delta")
-	require.Empty(t, deletedIDs, "should have no deleted messages from delta")
-	require.NotZero(t, du.URL, "delta link")
-	require.False(t, du.Reset, "prev delta link should be valid")
+	require.Empty(t, aar.Added, "should have no new messages from delta")
+	require.Empty(t, aar.Removed, "should have no deleted messages from delta")
+	require.NotZero(t, aar.DU.URL, "delta link")
+	require.False(t, aar.DU.Reset, "prev delta link should be valid")
 
-	for id := range addedIDs {
+	for id := range aar.Added {
 		suite.Run(id+"-replies", func() {
 			testEnumerateChannelMessageReplies(
 				suite.T(),
@@ -148,7 +152,7 @@ func testEnumerateChannelMessageReplies(
 	assert.Equal(t, replyIDs, msgReplyIDs)
 }
 
-func (suite *ChannelsPagerIntgSuite) TestFilterOutSystemMessages() {
+func (suite *ChannelsPagerIntgSuite) TestIsSystemMessage() {
 	systemMessage := models.NewChatMessage()
 	systemMessage.SetMessageType(ptr.To(models.SYSTEMEVENTMESSAGE_CHATMESSAGETYPE))
 
@@ -207,7 +211,7 @@ func (suite *ChannelsPagerIntgSuite) TestFilterOutSystemMessages() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), filterOutSystemMessages(test.cm))
+			test.expect(suite.T(), IsNotSystemMessage(test.cm))
 		})
 	}
 }

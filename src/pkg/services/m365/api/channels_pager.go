@@ -2,14 +2,13 @@ package api
 
 import (
 	"context"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/teams"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -76,7 +75,6 @@ func (c Channels) NewChannelMessagePager(
 }
 
 // GetChannelMessages fetches a delta of all messages in the channel.
-// returns two maps: addedItems, deletedItems
 func (c Channels) GetChannelMessages(
 	ctx context.Context,
 	teamID, channelID string,
@@ -167,7 +165,7 @@ func (c Channels) NewChannelMessageDeltaPager(
 // unknownFutureValue.
 const channelMessageSystemMessageContent = "<systemEventMessage/>"
 
-func filterOutSystemMessages(cm models.ChatMessageable) bool {
+func IsNotSystemMessage(cm models.ChatMessageable) bool {
 	if ptr.Val(cm.GetMessageType()) == models.SYSTEMEVENTMESSAGE_CHATMESSAGETYPE {
 		return false
 	}
@@ -187,18 +185,19 @@ func filterOutSystemMessages(cm models.ChatMessageable) bool {
 func (c Channels) GetChannelMessageIDs(
 	ctx context.Context,
 	teamID, channelID, prevDeltaLink string,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
-	added, validModTimes, removed, du, err := pagers.GetAddedAndRemovedItemIDs[models.ChatMessageable](
+	cc CallConfig,
+) (pagers.AddedAndRemoved, error) {
+	aar, err := pagers.GetAddedAndRemovedItemIDs[models.ChatMessageable](
 		ctx,
 		c.NewChannelMessagePager(teamID, channelID, CallConfig{}),
 		c.NewChannelMessageDeltaPager(teamID, channelID, prevDeltaLink),
 		prevDeltaLink,
-		canMakeDeltaQueries,
+		cc.CanMakeDeltaQueries,
+		0,
 		pagers.AddedAndRemovedByDeletedDateTime[models.ChatMessageable],
-		filterOutSystemMessages)
+		IsNotSystemMessage)
 
-	return added, validModTimes, removed, du, clues.Stack(err).OrNil()
+	return aar, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

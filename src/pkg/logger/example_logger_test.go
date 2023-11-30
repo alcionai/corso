@@ -5,10 +5,10 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -137,7 +137,7 @@ func Example_logger_clues_standards() {
 	// 2. The last func to handle a context must add the clues to the error.
 	//
 	// preferred
-	err := clues.Wrap(err, "reason").WithClues(ctx)
+	err := clues.WrapWC(ctx, err, "reason")
 	// this dereference added for linter happiness
 	_ = err
 

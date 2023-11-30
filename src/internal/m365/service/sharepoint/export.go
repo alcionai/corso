@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -15,25 +16,38 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var _ inject.ServiceHandler = &sharepointHandler{}
 
 func NewSharePointHandler(
 	opts control.Options,
+	apiClient api.Client,
+	resourceGetter idname.GetResourceIDAndNamer,
 ) *sharepointHandler {
 	return &sharepointHandler{
-		opts:               opts,
-		backupDriveIDNames: idname.NewCache(nil),
+		baseSharePointHandler: baseSharePointHandler{
+			opts:               opts,
+			backupDriveIDNames: idname.NewCache(nil),
+		},
+		apiClient:      apiClient,
+		resourceGetter: resourceGetter,
 	}
 }
 
-type sharepointHandler struct {
+// ========================================================================== //
+//                          baseSharePointHandler
+// ========================================================================== //
+
+// baseSharePointHandler contains logic for tracking data and doing operations
+// (e.x. export) that don't require contact with external M356 services.
+type baseSharePointHandler struct {
 	opts               control.Options
 	backupDriveIDNames idname.CacheBuilder
 }
 
-func (h *sharepointHandler) CacheItemInfo(v details.ItemInfo) {
+func (h *baseSharePointHandler) CacheItemInfo(v details.ItemInfo) {
 	// Old versions would store SharePoint data as OneDrive.
 	switch {
 	case v.SharePoint != nil:
@@ -46,7 +60,7 @@ func (h *sharepointHandler) CacheItemInfo(v details.ItemInfo) {
 
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
-func (h *sharepointHandler) ProduceExportCollections(
+func (h *baseSharePointHandler) ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	exportCfg control.ExportConfig,
@@ -62,7 +76,7 @@ func (h *sharepointHandler) ProduceExportCollections(
 	for _, dc := range dcs {
 		drivePath, err := path.ToDrivePath(dc.FullPath())
 		if err != nil {
-			return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
+			return nil, clues.WrapWC(ctx, err, "transforming path to drive path")
 		}
 
 		driveName, ok := h.backupDriveIDNames.NameOf(drivePath.DriveID)
@@ -87,4 +101,40 @@ func (h *sharepointHandler) ProduceExportCollections(
 	}
 
 	return ec, el.Failure()
+}
+
+// ========================================================================== //
+//                            sharepointHandler
+// ========================================================================== //
+
+// sharepointHandler contains logic for handling data and performing operations
+// (e.x. restore) regardless of whether they require contact with external M365
+// services or not.
+type sharepointHandler struct {
+	baseSharePointHandler
+	apiClient      api.Client
+	resourceGetter idname.GetResourceIDAndNamer
+}
+
+func (h *sharepointHandler) IsServiceEnabled(
+	ctx context.Context,
+	resourceID string,
+) (bool, error) {
+	// TODO(ashmrtn): Move free function implementation to this function.
+	res, err := IsServiceEnabled(ctx, h.apiClient.Sites(), resourceID)
+	return res, clues.Stack(err).OrNil()
+}
+
+func (h *sharepointHandler) PopulateProtectedResourceIDAndName(
+	ctx context.Context,
+	resourceID string, // Can be either ID or name.
+	ins idname.Cacher,
+) (idname.Provider, error) {
+	if h.resourceGetter == nil {
+		return nil, clues.StackWC(ctx, resource.ErrNoResourceLookup)
+	}
+
+	pr, err := h.resourceGetter.GetResourceIDAndNameFrom(ctx, resourceID, ins)
+
+	return pr, clues.Wrap(err, "identifying resource owner").OrNil()
 }

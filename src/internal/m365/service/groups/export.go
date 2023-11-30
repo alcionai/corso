@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups"
+	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -17,28 +18,41 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 var _ inject.ServiceHandler = &groupsHandler{}
 
 func NewGroupsHandler(
 	opts control.Options,
+	apiClient api.Client,
+	resourceGetter idname.GetResourceIDAndNamer,
 ) *groupsHandler {
 	return &groupsHandler{
-		opts:               opts,
-		backupDriveIDNames: idname.NewCache(nil),
-		backupSiteIDWebURL: idname.NewCache(nil),
+		baseGroupsHandler: baseGroupsHandler{
+			opts:               opts,
+			backupDriveIDNames: idname.NewCache(nil),
+			backupSiteIDWebURL: idname.NewCache(nil),
+		},
+		apiClient:      apiClient,
+		resourceGetter: resourceGetter,
 	}
 }
 
-type groupsHandler struct {
+// ========================================================================== //
+//                          baseGroupsHandler
+// ========================================================================== //
+
+// baseGroupsHandler contains logic for tracking data and doing operations
+// (e.x. export) that don't require contact with external M356 services.
+type baseGroupsHandler struct {
 	opts control.Options
 
 	backupDriveIDNames idname.CacheBuilder
 	backupSiteIDWebURL idname.CacheBuilder
 }
 
-func (h *groupsHandler) CacheItemInfo(v details.ItemInfo) {
+func (h *baseGroupsHandler) CacheItemInfo(v details.ItemInfo) {
 	if v.Groups == nil {
 		return
 	}
@@ -49,7 +63,7 @@ func (h *groupsHandler) CacheItemInfo(v details.ItemInfo) {
 
 // ProduceExportCollections will create the export collections for the
 // given restore collections.
-func (h *groupsHandler) ProduceExportCollections(
+func (h *baseGroupsHandler) ProduceExportCollections(
 	ctx context.Context,
 	backupVersion int,
 	exportCfg control.ExportConfig,
@@ -84,7 +98,7 @@ func (h *groupsHandler) ProduceExportCollections(
 		case path.LibrariesCategory:
 			drivePath, err := path.ToDrivePath(restoreColl.FullPath())
 			if err != nil {
-				return nil, clues.Wrap(err, "transforming path to drive path").WithClues(ctx)
+				return nil, clues.WrapWC(ctx, err, "transforming path to drive path")
 			}
 
 			driveName, ok := h.backupDriveIDNames.NameOf(drivePath.DriveID)
@@ -133,4 +147,40 @@ func (h *groupsHandler) ProduceExportCollections(
 	}
 
 	return ec, el.Failure()
+}
+
+// ========================================================================== //
+//                              groupsHandler
+// ========================================================================== //
+
+// groupsHandler contains logic for handling data and performing operations
+// (e.x. restore) regardless of whether they require contact with external M365
+// services or not.
+type groupsHandler struct {
+	baseGroupsHandler
+	apiClient      api.Client
+	resourceGetter idname.GetResourceIDAndNamer
+}
+
+func (h *groupsHandler) IsServiceEnabled(
+	ctx context.Context,
+	resourceID string,
+) (bool, error) {
+	// TODO(ashmrtn): Move free function implementation to this function.
+	res, err := IsServiceEnabled(ctx, h.apiClient.Groups(), resourceID)
+	return res, clues.Stack(err).OrNil()
+}
+
+func (h *groupsHandler) PopulateProtectedResourceIDAndName(
+	ctx context.Context,
+	resourceID string, // Can be either ID or name.
+	ins idname.Cacher,
+) (idname.Provider, error) {
+	if h.resourceGetter == nil {
+		return nil, clues.StackWC(ctx, resource.ErrNoResourceLookup)
+	}
+
+	pr, err := h.resourceGetter.GetResourceIDAndNameFrom(ctx, resourceID, ins)
+
+	return pr, clues.Wrap(err, "identifying resource owner").OrNil()
 }

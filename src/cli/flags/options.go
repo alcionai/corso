@@ -5,38 +5,38 @@ import (
 )
 
 const (
-	AlertsFN                    = "alerts"
-	DeltaPageSizeFN             = "delta-page-size"
-	DisableConcurrencyLimiterFN = "disable-concurrency-limiter"
-	DisableDeltaFN              = "disable-delta"
-	DisableIncrementalsFN       = "disable-incrementals"
-	ForceItemDataDownloadFN     = "force-item-data-download"
-	EnableImmutableIDFN         = "enable-immutable-id"
-	FailFastFN                  = "fail-fast"
-	FailedItemsFN               = "failed-items"
-	FetchParallelismFN          = "fetch-parallelism"
-	NoStatsFN                   = "no-stats"
-	RecoveredErrorsFN           = "recovered-errors"
-	NoPermissionsFN             = "no-permissions"
-	RunModeFN                   = "run-mode"
-	SkippedItemsFN              = "skipped-items"
-	SkipReduceFN                = "skip-reduce"
+	AlertsFN                      = "alerts"
+	DeltaPageSizeFN               = "delta-page-size"
+	DisableDeltaFN                = "disable-delta"
+	DisableIncrementalsFN         = "disable-incrementals"
+	DisableSlidingWindowLimiterFN = "disable-sliding-window-limiter"
+	ForceItemDataDownloadFN       = "force-item-data-download"
+	EnableImmutableIDFN           = "enable-immutable-id"
+	FailFastFN                    = "fail-fast"
+	FailedItemsFN                 = "failed-items"
+	FetchParallelismFN            = "fetch-parallelism"
+	NoStatsFN                     = "no-stats"
+	RecoveredErrorsFN             = "recovered-errors"
+	NoPermissionsFN               = "no-permissions"
+	RunModeFN                     = "run-mode"
+	SkippedItemsFN                = "skipped-items"
+	SkipReduceFN                  = "skip-reduce"
 )
 
 var (
-	DeltaPageSizeFV             int
-	DisableConcurrencyLimiterFV bool
-	DisableDeltaFV              bool
-	DisableIncrementalsFV       bool
-	ForceItemDataDownloadFV     bool
-	EnableImmutableIDFV         bool
-	FailFastFV                  bool
-	FetchParallelismFV          int
-	ListAlertsFV                string
-	ListFailedItemsFV           string
-	ListSkippedItemsFV          string
-	ListRecoveredErrorsFV       string
-	NoStatsFV                   bool
+	DeltaPageSizeFV               int
+	DisableDeltaFV                bool
+	DisableIncrementalsFV         bool
+	DisableSlidingWindowLimiterFV bool
+	ForceItemDataDownloadFV       bool
+	EnableImmutableIDFV           bool
+	FailFastFV                    bool
+	FetchParallelismFV            int
+	ListAlertsFV                  string
+	ListFailedItemsFV             string
+	ListSkippedItemsFV            string
+	ListRecoveredErrorsFV         string
+	NoStatsFV                     bool
 	// RunMode describes the type of run, such as:
 	// flagtest, dry, run.  Should default to 'run'.
 	RunModeFV       string
@@ -151,19 +151,6 @@ func AddEnableImmutableIDFlag(cmd *cobra.Command) {
 	cobra.CheckErr(fs.MarkHidden(EnableImmutableIDFN))
 }
 
-// AddDisableConcurrencyLimiterFlag adds a hidden cli flag which, when set,
-// removes concurrency limits when communicating with graph API. This
-// flag is only relevant for exchange backups for now
-func AddDisableConcurrencyLimiterFlag(cmd *cobra.Command) {
-	fs := cmd.Flags()
-	fs.BoolVar(
-		&DisableConcurrencyLimiterFV,
-		DisableConcurrencyLimiterFN,
-		false,
-		"Disable concurrency limiter middleware. Default: false")
-	cobra.CheckErr(fs.MarkHidden(DisableConcurrencyLimiterFN))
-}
-
 // AddRunModeFlag adds the hidden --run-mode flag.
 func AddRunModeFlag(cmd *cobra.Command, persistent bool) {
 	fs := cmd.Flags()
@@ -173,4 +160,19 @@ func AddRunModeFlag(cmd *cobra.Command, persistent bool) {
 
 	fs.StringVar(&RunModeFV, RunModeFN, "run", "What mode to run: dry, test, run.  Defaults to run.")
 	cobra.CheckErr(fs.MarkHidden(RunModeFN))
+}
+
+// AddDisableSlidingWindowLimiterFN disables the experimental sliding window rate
+// limiter for graph API requests. This is only relevant for exchange backups.
+// Exchange restores continue to use the default token bucket rate limiter.
+// Setting this flag switches exchange backups to use the default token bucket
+// rate limiter.
+func AddDisableSlidingWindowLimiterFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&DisableSlidingWindowLimiterFV,
+		DisableSlidingWindowLimiterFN,
+		false,
+		"Disable sliding window rate limiter.")
+	cobra.CheckErr(fs.MarkHidden(DisableSlidingWindowLimiterFN))
 }

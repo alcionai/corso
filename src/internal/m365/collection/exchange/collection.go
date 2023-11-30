@@ -15,13 +15,14 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var (
@@ -76,14 +77,13 @@ func getItemAndInfo(
 		useImmutableIDs,
 		fault.New(true)) // temporary way to force a failFast error
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "fetching item").
-			WithClues(ctx).
+		return nil, nil, clues.WrapWC(ctx, err, "fetching item").
 			Label(fault.LabelForceNoBackupCreation)
 	}
 
 	itemData, err := getter.Serialize(ctx, item, userID, id)
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "serializing item").WithClues(ctx)
+		return nil, nil, clues.WrapWC(ctx, err, "serializing item")
 	}
 
 	// In case of mail the size of itemData is calc as- size of body content+size of attachment
@@ -111,6 +111,7 @@ func NewCollection(
 	origRemoved []string,
 	validModTimes bool,
 	statusUpdater support.StatusUpdater,
+	counter *count.Bus,
 ) data.BackupCollection {
 	added := maps.Clone(origAdded)
 	removed := make(map[string]struct{}, len(origRemoved))
@@ -127,6 +128,9 @@ func NewCollection(
 
 		removed[r] = struct{}{}
 	}
+
+	counter.Add(count.ItemsAdded, int64(len(added)))
+	counter.Add(count.ItemsRemoved, int64(len(removed)))
 
 	if !validModTimes {
 		return &prefetchCollection{
@@ -146,6 +150,7 @@ func NewCollection(
 		removed:        removed,
 		getter:         items,
 		statusUpdater:  statusUpdater,
+		counter:        counter,
 	}
 }
 
@@ -189,13 +194,17 @@ func (col *prefetchCollection) streamItems(
 		colProgress chan<- struct{}
 
 		user = col.user
-		log  = logger.Ctx(ctx).With(
-			"service", path.ExchangeService.String(),
-			"category", col.Category().String())
 	)
+
+	ctx = clues.Add(
+		ctx,
+		"category", col.Category().String())
 
 	defer func() {
 		close(stream)
+		logger.Ctx(ctx).Infow(
+			"finished stream backup collection items",
+			"stats", col.Counter.Values())
 		updateStatus(
 			ctx,
 			col.statusUpdater,
@@ -228,6 +237,10 @@ func (col *prefetchCollection) streamItems(
 			defer func() { <-semaphoreCh }()
 
 			stream <- data.NewDeletedItem(id)
+
+			if col.Counter.Inc(count.StreamItemsRemoved)%1000 == 0 {
+				logger.Ctx(ctx).Infow("item removal stream progress", "stats", col.Counter.Values())
+			}
 
 			atomic.AddInt64(&success, 1)
 
@@ -269,9 +282,11 @@ func (col *prefetchCollection) streamItems(
 				// nothing else we can do, and not reporting it will make the status
 				// investigation upset.
 				if graph.IsErrDeletedInFlight(err) {
+					col.Counter.Inc(count.StreamItemsDeletedInFlight)
 					atomic.AddInt64(&success, 1)
-					log.With("err", err).Infow("item not found", clues.InErr(err).Slice()...)
+					logger.CtxErr(ctx, err).Info("item not found")
 				} else {
+					col.Counter.Inc(count.StreamItemsErrored)
 					el.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
 				}
 
@@ -283,16 +298,22 @@ func (col *prefetchCollection) streamItems(
 				id,
 				details.ItemInfo{Exchange: info})
 			if err != nil {
+				col.Counter.Inc(count.StreamItemsErrored)
 				el.AddRecoverable(
 					ctx,
-					clues.Stack(err).
-						WithClues(ctx).
+					clues.StackWC(ctx, err).
 						Label(fault.LabelForceNoBackupCreation))
 
 				return
 			}
 
 			stream <- item
+
+			col.Counter.Add(count.StreamBytesAdded, info.Size)
+
+			if col.Counter.Inc(count.StreamItemsAdded)%1000 == 0 {
+				logger.Ctx(ctx).Infow("item addition stream progress", "stats", col.Counter.Values())
+			}
 
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, info.Size)
@@ -331,6 +352,8 @@ type lazyFetchCollection struct {
 	getter itemGetterSerializer
 
 	statusUpdater support.StatusUpdater
+
+	counter *count.Bus
 }
 
 // Items utility function to asynchronously execute process to fill data channel with
@@ -415,6 +438,7 @@ func (col *lazyFetchCollection) streamItems(
 			},
 			id,
 			modTime,
+			col.counter,
 			errs)
 
 		atomic.AddInt64(&success, 1)

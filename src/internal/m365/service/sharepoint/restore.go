@@ -7,7 +7,6 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/site"
@@ -18,30 +17,45 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive
-func ConsumeRestoreCollections(
+func (h *sharepointHandler) ConsumeRestoreCollections(
 	ctx context.Context,
 	rcc inject.RestoreConsumerConfig,
-	ac api.Client,
-	backupDriveIDNames idname.Cacher,
 	dcs []data.RestoreCollection,
-	deets *details.Builder,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*support.ControllerOperationStatus, error) {
+) (*details.Details, *data.CollectionStats, error) {
+	if len(dcs) == 0 {
+		return nil, nil, clues.WrapWC(ctx, data.ErrNoData, "performing restore")
+	}
+
+	// TODO(ashmrtn): We should stop relying on the context for rate limiter stuff
+	// and instead configure this when we make the handler instance. We can't
+	// initialize it in the NewHandler call right now because those functions
+	// aren't (and shouldn't be) returning a context along with the handler. Since
+	// that call isn't directly calling into this function even if we did
+	// initialize the rate limiter there it would be lost because it wouldn't get
+	// stored in an ancestor of the context passed to this function.
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{Service: path.SharePointService})
+
 	var (
-		lrh            = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
+		deets = &details.Builder{}
+		lrh   = drive.NewSiteRestoreHandler(
+			h.apiClient,
+			rcc.Selector.PathService())
 		restoreMetrics support.CollectionMetrics
-		caches         = drive.NewRestoreCaches(backupDriveIDNames)
+		caches         = drive.NewRestoreCaches(h.backupDriveIDNames)
 		el             = errs.Local()
 	)
 
 	err := caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
 	if err != nil {
-		return nil, clues.Wrap(err, "initializing restore caches")
+		return nil, nil, clues.Wrap(err, "initializing restore caches")
 	}
 
 	// Reorder collections so that the parents directories are created
@@ -81,7 +95,7 @@ func ConsumeRestoreCollections(
 		case path.ListsCategory:
 			metrics, err = site.RestoreListCollection(
 				ictx,
-				ac.Stable,
+				h.apiClient.Stable,
 				dc,
 				rcc.RestoreConfig.Location,
 				deets,
@@ -90,14 +104,14 @@ func ConsumeRestoreCollections(
 		case path.PagesCategory:
 			metrics, err = site.RestorePageCollection(
 				ictx,
-				ac.Stable,
+				h.apiClient.Stable,
 				dc,
 				rcc.RestoreConfig.Location,
 				deets,
 				errs)
 
 		default:
-			return nil, clues.Wrap(clues.New(category.String()), "category not supported").With("category", category)
+			return nil, nil, clues.Wrap(clues.New(category.String()), "category not supported").With("category", category)
 		}
 
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
@@ -118,5 +132,5 @@ func ConsumeRestoreCollections(
 		restoreMetrics,
 		rcc.RestoreConfig.Location)
 
-	return status, el.Failure()
+	return deets.Details(), status.ToCollectionStats(), el.Failure()
 }

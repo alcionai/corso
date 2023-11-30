@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -22,24 +21,39 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive
-func ConsumeRestoreCollections(
+func (h *groupsHandler) ConsumeRestoreCollections(
 	ctx context.Context,
 	rcc inject.RestoreConsumerConfig,
-	ac api.Client,
-	backupDriveIDNames idname.Cacher,
-	backupSiteIDWebURL idname.Cacher,
 	dcs []data.RestoreCollection,
-	deets *details.Builder,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*support.ControllerOperationStatus, error) {
+) (*details.Details, *data.CollectionStats, error) {
+	if len(dcs) == 0 {
+		return nil, nil, clues.WrapWC(ctx, data.ErrNoData, "performing restore")
+	}
+
+	// TODO(ashmrtn): We should stop relying on the context for rate limiter stuff
+	// and instead configure this when we make the handler instance. We can't
+	// initialize it in the NewHandler call right now because those functions
+	// aren't (and shouldn't be) returning a context along with the handler. Since
+	// that call isn't directly calling into this function even if we did
+	// initialize the rate limiter there it would be lost because it wouldn't get
+	// stored in an ancestor of the context passed to this function.
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{Service: path.GroupsService})
+
 	var (
-		restoreMetrics    support.CollectionMetrics
-		caches            = drive.NewRestoreCaches(backupDriveIDNames)
-		lrh               = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
+		deets          = &details.Builder{}
+		restoreMetrics support.CollectionMetrics
+		caches         = drive.NewRestoreCaches(h.backupDriveIDNames)
+		lrh            = drive.NewSiteRestoreHandler(
+			h.apiClient,
+			rcc.Selector.PathService())
 		el                = errs.Local()
 		webURLToSiteNames = map[string]string{}
 	)
@@ -70,15 +84,15 @@ func ConsumeRestoreCollections(
 		case path.LibrariesCategory:
 			siteID := dc.FullPath().Folders()[1]
 
-			webURL, ok := backupSiteIDWebURL.NameOf(siteID)
+			webURL, ok := h.backupSiteIDWebURL.NameOf(siteID)
 			if !ok {
 				// This should not happen, but just in case
-				logger.Ctx(ctx).With("site_id", siteID).Info("site weburl not found, using site id")
+				logger.Ctx(ictx).With("site_id", siteID).Info("site weburl not found, using site id")
 			}
 
-			siteName, err = getSiteName(ctx, siteID, webURL, ac.Sites(), webURLToSiteNames)
+			siteName, err = getSiteName(ictx, siteID, webURL, h.apiClient.Sites(), webURLToSiteNames)
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "getting site").
+				el.AddRecoverable(ictx, clues.Wrap(err, "getting site").
 					With("web_url", webURL, "site_id", siteID))
 			} else if len(siteName) == 0 {
 				// Site was deleted in between and restore and is not
@@ -95,9 +109,9 @@ func ConsumeRestoreCollections(
 				Selector:          rcc.Selector,
 			}
 
-			err = caches.Populate(ctx, lrh, srcc.ProtectedResource.ID())
+			err = caches.Populate(ictx, lrh, srcc.ProtectedResource.ID())
 			if err != nil {
-				return nil, clues.Wrap(err, "initializing restore caches")
+				return nil, nil, clues.Wrap(err, "initializing restore caches")
 			}
 
 			metrics, err = drive.RestoreCollection(
@@ -112,17 +126,16 @@ func ConsumeRestoreCollections(
 				ctr)
 		case path.ChannelMessagesCategory:
 			// Message cannot be restored as of now using Graph API.
-			logger.Ctx(ctx).Debug("Skipping restore for channel messages")
+			logger.Ctx(ictx).Debug("Skipping restore for channel messages")
 		default:
-			return nil, clues.New("data category not supported").
-				With("category", category).
-				WithClues(ictx)
+			return nil, nil, clues.NewWC(ictx, "data category not supported").
+				With("category", category)
 		}
 
 		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
 
 		if err != nil {
-			el.AddRecoverable(ctx, err)
+			el.AddRecoverable(ictx, err)
 		}
 
 		if errors.Is(err, context.Canceled) {
@@ -137,7 +150,7 @@ func ConsumeRestoreCollections(
 		restoreMetrics,
 		rcc.RestoreConfig.Location)
 
-	return status, el.Failure()
+	return deets.Details(), status.ToCollectionStats(), el.Failure()
 }
 
 func getSiteName(

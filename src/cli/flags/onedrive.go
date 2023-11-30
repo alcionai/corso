@@ -12,6 +12,8 @@ const (
 	FileCreatedBeforeFN  = "file-created-before"
 	FileModifiedAfterFN  = "file-modified-after"
 	FileModifiedBeforeFN = "file-modified-before"
+
+	UseDeltaTreeFN = "use-delta-tree"
 )
 
 var (
@@ -22,6 +24,8 @@ var (
 	FileCreatedBeforeFV  string
 	FileModifiedAfterFV  string
 	FileModifiedBeforeFV string
+
+	UseDeltaTreeFV bool
 )
 
 // AddOneDriveDetailsAndRestoreFlags adds flags that are common to both the

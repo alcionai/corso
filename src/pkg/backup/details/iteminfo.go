@@ -39,7 +39,8 @@ const (
 	FolderItem ItemType = 306
 
 	// Groups/Teams(40x)
-	GroupsChannelMessage ItemType = 401
+	GroupsChannelMessage   ItemType = 401
+	GroupsConversationPost ItemType = 402
 )
 
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {

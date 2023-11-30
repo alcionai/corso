@@ -1,8 +1,8 @@
 package exchange
 
 import (
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var _ backupHandler = &mailBackupHandler{}
@@ -27,6 +27,25 @@ func (h mailBackupHandler) itemEnumerator() addedAndRemovedItemGetter {
 
 func (h mailBackupHandler) itemHandler() itemGetterSerializer {
 	return h.ac
+}
+
+func (h mailBackupHandler) folderGetter() containerGetter {
+	return h.ac
+}
+
+func (h mailBackupHandler) previewIncludeContainers() []string {
+	return []string{
+		"inbox",
+	}
+}
+
+func (h mailBackupHandler) previewExcludeContainers() []string {
+	return []string{
+		"drafts",
+		"outbox",
+		"recoverableitemsdeletions",
+		"junkemail",
+	}
 }
 
 func (h mailBackupHandler) NewContainerCache(

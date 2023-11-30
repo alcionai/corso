@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -33,14 +34,15 @@ func (suite *RetentionConfigOpIntegrationSuite) TestRepoRetentionConfig() {
 	var (
 		t = suite.T()
 		// need to initialize the repository before we can test connecting to it.
-		st = storeTD.NewPrefixedS3Storage(t)
-		k  = kopia.NewConn(st)
+		st           = storeTD.NewPrefixedS3Storage(t)
+		k            = kopia.NewConn(st)
+		repoNameHash = strTD.NewHashForRepoConfigName()
 	)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	kw, err := kopia.NewWrapper(k)

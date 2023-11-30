@@ -1,4 +1,3 @@
-// Package drive provides support for retrieving M365 Drive objects
 package drive
 
 import (
@@ -18,16 +17,17 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 const (
@@ -88,6 +88,8 @@ type Collection struct {
 	doNotMergeItems bool
 
 	urlCache getItemPropertyer
+
+	counter *count.Bus
 }
 
 func pathToLocation(p path.Path) (*path.Builder, error) {
@@ -115,6 +117,7 @@ func NewCollection(
 	isPackageOrChildOfPackage bool,
 	doNotMergeItems bool,
 	urlCache getItemPropertyer,
+	counter *count.Bus,
 ) (*Collection, error) {
 	// TODO(ashmrtn): If OneDrive switches to using folder IDs then this will need
 	// to be changed as we won't be able to extract path information from the
@@ -140,7 +143,8 @@ func NewCollection(
 		ctrlOpts,
 		isPackageOrChildOfPackage,
 		doNotMergeItems,
-		urlCache)
+		urlCache,
+		counter)
 
 	c.locPath = locPath
 	c.prevLocPath = prevLocPath
@@ -159,6 +163,7 @@ func newColl(
 	isPackageOrChildOfPackage bool,
 	doNotMergeItems bool,
 	urlCache getItemPropertyer,
+	counter *count.Bus,
 ) *Collection {
 	dataCh := make(chan data.Item, graph.Parallelism(path.OneDriveMetadataService).CollectionBufferSize())
 
@@ -172,10 +177,11 @@ func newColl(
 		data:                      dataCh,
 		statusUpdater:             statusUpdater,
 		ctrl:                      ctrlOpts,
-		state:                     data.StateOf(prevPath, currPath),
+		state:                     data.StateOf(prevPath, currPath, counter),
 		isPackageOrChildOfPackage: isPackageOrChildOfPackage,
 		doNotMergeItems:           doNotMergeItems,
 		urlCache:                  urlCache,
+		counter:                   counter,
 	}
 
 	return c
@@ -209,6 +215,22 @@ func (oc *Collection) IsEmpty() bool {
 	return len(oc.driveItems) == 0
 }
 
+// ContainsItem returns true if the collection has the given item as one of its
+// children.
+func (oc Collection) ContainsItem(item models.DriveItemable) bool {
+	_, ok := oc.driveItems[ptr.Val(item.GetId())]
+	return ok
+}
+
+// AddedItems returns the number of non-deleted items in the collection.
+func (oc Collection) CountAddedItems() int {
+	// Subtract one since the folder is added to the collection so we get folder
+	// metadata. The collection of the root folder of the drive doesn't have its
+	// own folder reference since it doesn't have permissions the user can change,
+	// but it's close enough for our purposes.
+	return len(oc.driveItems) - 1
+}
+
 // Items() returns the channel containing M365 Exchange objects
 func (oc *Collection) Items(
 	ctx context.Context,
@@ -228,7 +250,7 @@ func (oc Collection) PreviousPath() path.Path {
 
 func (oc *Collection) SetFullPath(curPath path.Path) {
 	oc.folderPath = curPath
-	oc.state = data.StateOf(oc.prevPath, curPath)
+	oc.state = data.StateOf(oc.prevPath, curPath, oc.counter)
 }
 
 func (oc Collection) LocationPath() *path.Builder {
@@ -263,7 +285,13 @@ func (oc *Collection) getDriveItemContent(
 		itemName = ptr.Val(item.GetName())
 	)
 
-	itemData, err := downloadContent(ctx, oc.handler, oc.urlCache, item, oc.driveID)
+	itemData, err := downloadContent(
+		ctx,
+		oc.handler,
+		oc.urlCache,
+		item,
+		oc.driveID,
+		oc.counter)
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsMalware) || (item != nil && item.GetMalware() != nil) {
 			logger.CtxErr(ctx, err).With("skipped_reason", fault.SkipMalware).Info("item flagged as malware")
@@ -309,8 +337,7 @@ func (oc *Collection) getDriveItemContent(
 
 		errs.AddRecoverable(
 			ctx,
-			clues.Wrap(err, "downloading item content").
-				WithClues(ctx).
+			clues.WrapWC(ctx, err, "downloading item content").
 				Label(fault.LabelForceNoBackupCreation))
 
 		// return err, not el.Err(), because the lazy reader needs to communicate to
@@ -335,6 +362,7 @@ func downloadContent(
 	uc getItemPropertyer,
 	item models.DriveItemable,
 	driveID string,
+	counter *count.Bus,
 ) (io.ReadCloser, error) {
 	itemID := ptr.Val(item.GetId())
 	ctx = clues.Add(ctx, "item_id", itemID)
@@ -342,7 +370,7 @@ func downloadContent(
 	content, err := downloadItem(ctx, iaag, item)
 	if err == nil {
 		return content, nil
-	} else if !graph.IsErrUnauthorized(err) {
+	} else if !graph.IsErrUnauthorizedOrBadToken(err) {
 		return nil, err
 	}
 
@@ -360,6 +388,7 @@ func downloadContent(
 	// to preserve existing behavior. Fallback to refetching the item using the
 	// API.
 	logger.CtxErr(ctx, err).Info("url cache miss: refetching from API")
+	counter.Inc(count.ItemDownloadURLRefetch)
 
 	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
@@ -398,7 +427,7 @@ func readItemContents(
 	}
 
 	rc, err := downloadFile(ctx, iaag, props.downloadURL)
-	if graph.IsErrUnauthorized(err) {
+	if graph.IsErrUnauthorizedOrBadToken(err) {
 		logger.CtxErr(ctx, err).Info("stale item in cache")
 	}
 
@@ -429,7 +458,9 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 	// `details.OneDriveInfo`
 	parentPath, err := path.GetDriveFolderPath(oc.folderPath)
 	if err != nil {
+		logger.CtxErr(ctx, err).Info("getting drive folder path")
 		oc.reportAsCompleted(ctx, 0, 0, 0)
+
 		return
 	}
 
@@ -508,8 +539,7 @@ func (lig *lazyItemGetter) GetData(
 		*lig.info,
 		lig.itemExtensionFactory)
 	if err != nil {
-		err := clues.Wrap(err, "adding extensions").
-			WithClues(ctx).
+		err := clues.WrapWC(ctx, err, "adding extensions").
 			Label(fault.LabelForceNoBackupCreation)
 
 		return nil, nil, false, err
@@ -561,10 +591,15 @@ func (oc *Collection) streamDriveItem(
 	if isFile {
 		atomic.AddInt64(&stats.itemsFound, 1)
 
+		if oc.counter.Inc(count.StreamItemsFound)%1000 == 0 {
+			logger.Ctx(ctx).Infow("item stream progress", "stats", oc.counter.Values())
+		}
+
 		metaFileName = itemID
 		metaSuffix = metadata.MetaFileSuffix
 	} else {
 		atomic.AddInt64(&stats.dirsFound, 1)
+		oc.counter.Inc(count.StreamDirsFound)
 
 		// metaFileName not set for directories so we get just ".dirmeta"
 		metaSuffix = metadata.DirMetaFileSuffix
@@ -589,6 +624,7 @@ func (oc *Collection) streamDriveItem(
 		parentPath)
 
 	ctx = clues.Add(ctx, "item_info", itemInfo)
+
 	// Drive content download requests are also rate limited by graph api.
 	// Ensure that this request goes through the drive limiter & not the default
 	// limiter.
@@ -617,6 +653,7 @@ func (oc *Collection) streamDriveItem(
 			},
 			itemID+dataSuffix,
 			itemInfo.Modified(),
+			oc.counter,
 			errs)
 	}
 
@@ -637,8 +674,7 @@ func (oc *Collection) streamDriveItem(
 		// permissions change does not update mod time.
 		time.Now())
 	if err != nil {
-		errs.AddRecoverable(ctx, clues.Stack(err).
-			WithClues(ctx).
+		errs.AddRecoverable(ctx, clues.StackWC(ctx, err).
 			Label(fault.LabelForceNoBackupCreation))
 
 		return
@@ -651,11 +687,14 @@ func (oc *Collection) streamDriveItem(
 
 	// Item read successfully, add to collection
 	if isFile {
+		oc.counter.Inc(count.StreamItemsAdded)
 		atomic.AddInt64(&stats.itemsRead, 1)
 	} else {
+		oc.counter.Inc(count.StreamDirsAdded)
 		atomic.AddInt64(&stats.dirsRead, 1)
 	}
 
+	oc.counter.Add(count.StreamBytesAdded, itemSize)
 	atomic.AddInt64(&stats.byteCount, itemSize)
 }
 

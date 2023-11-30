@@ -3,15 +3,14 @@ package api
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -148,6 +147,21 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 	return m, nil
 }
 
+func (c Mail) GetItemsInContainer(
+	ctx context.Context,
+	userID, containerID string,
+) ([]models.Messageable, error) {
+	ctx = clues.Add(ctx, "container_id", containerID)
+	pager := c.NewMailPager(userID, containerID, false)
+
+	items, err := pagers.BatchEnumerateItems(ctx, pager)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "enumerating mails")
+	}
+
+	return items, nil
+}
+
 func (c Mail) GetItemIDsInContainer(
 	ctx context.Context,
 	userID, containerID string,
@@ -247,9 +261,8 @@ func (p *mailDeltaPager) ValidModTimes() bool {
 func (c Mail) GetAddedAndRemovedItemIDs(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	immutableIDs bool,
-	canMakeDeltaQueries bool,
-) (map[string]time.Time, bool, []string, pagers.DeltaUpdate, error) {
+	config CallConfig,
+) (pagers.AddedAndRemoved, error) {
 	ctx = clues.Add(
 		ctx,
 		"data_category", path.EmailCategory,
@@ -260,12 +273,12 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		immutableIDs,
+		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 	pager := c.NewMailPager(
 		userID,
 		containerID,
-		immutableIDs,
+		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Messageable](
@@ -273,6 +286,7 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		pager,
 		deltaPager,
 		prevDeltaLink,
-		canMakeDeltaQueries,
+		config.CanMakeDeltaQueries,
+		config.LimitResults,
 		pagers.AddedAndRemovedByAddtlData[models.Messageable])
 }

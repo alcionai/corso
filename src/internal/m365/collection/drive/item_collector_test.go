@@ -6,14 +6,12 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -22,6 +20,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
@@ -38,15 +38,6 @@ const (
 	userMysiteNotFound    = "ResourceNotFound User's mysite not found"
 )
 
-func odErr(code string) *odataerrors.ODataError {
-	odErr := odataerrors.NewODataError()
-	merr := odataerrors.NewMainError()
-	merr.SetCode(&code)
-	odErr.SetErrorEscaped(merr)
-
-	return odErr
-}
-
 func (suite *ItemCollectorUnitSuite) TestDrives() {
 	t := suite.T()
 
@@ -60,8 +51,8 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 	// These errors won't be the "correct" format when compared to what graph
 	// returns, but they're close enough to have the same info when the inner
 	// details are extracted via support package.
-	mySiteURLNotFound := odErr(userMysiteURLNotFound)
-	mySiteNotFound := odErr(userMysiteNotFound)
+	mySiteURLNotFound := graphTD.ODataErr(userMysiteURLNotFound)
+	mySiteNotFound := graphTD.ODataErr(userMysiteNotFound)
 
 	resultDrives := make([]models.Driveable, 0, numDriveResults)
 
@@ -284,7 +275,8 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 				service.updateStatus,
 				control.Options{
 					ToggleFeatures: control.Toggles{},
-				})
+				},
+				count.New())
 
 			ssmb := prefixmatcher.NewStringSetBuilder()
 

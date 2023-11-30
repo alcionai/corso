@@ -12,12 +12,12 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -30,6 +30,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -50,7 +51,7 @@ func (suite *RestoreOpUnitSuite) TestRestoreOperation_PersistResults() {
 	var (
 		kw         = &kopia.Wrapper{}
 		sw         = store.NewWrapper(&kopia.ModelStore{})
-		ctrl       = &mock.Controller{}
+		ctrl       = &mock.RestoreConsumer{}
 		now        = time.Now()
 		restoreCfg = testdata.DefaultRestoreConfig("")
 	)
@@ -236,13 +237,14 @@ func (suite *RestoreOpIntegrationSuite) SetupSuite() {
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	var (
-		st = storeTD.NewPrefixedS3Storage(t)
-		k  = kopia.NewConn(st)
+		st           = storeTD.NewPrefixedS3Storage(t)
+		k            = kopia.NewConn(st)
+		repoNameHash = strTD.NewHashForRepoConfigName()
 	)
 
 	suite.acct = tconfig.NewM365Account(t)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -284,7 +286,7 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 	var (
 		kw         = &kopia.Wrapper{}
 		sw         = store.NewWrapper(&kopia.ModelStore{})
-		ctrl       = &mock.Controller{}
+		rc         = &mock.RestoreConsumer{}
 		restoreCfg = testdata.DefaultRestoreConfig("")
 		opts       = control.DefaultOptions()
 	)
@@ -297,9 +299,9 @@ func (suite *RestoreOpIntegrationSuite) TestNewRestoreOperation() {
 		targets  []string
 		errCheck assert.ErrorAssertionFunc
 	}{
-		{"good", kw, sw, ctrl, nil, assert.NoError},
-		{"missing kopia", nil, sw, ctrl, nil, assert.Error},
-		{"missing modelstore", kw, nil, ctrl, nil, assert.Error},
+		{"good", kw, sw, rc, nil, assert.NoError},
+		{"missing kopia", nil, sw, rc, nil, assert.Error},
+		{"missing modelstore", kw, nil, rc, nil, assert.Error},
 		{"missing restore consumer", kw, sw, nil, nil, assert.Error},
 	}
 	for _, test := range table {
@@ -348,12 +350,17 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
+	rc, err := ctrl.NewServiceHandler(
+		control.DefaultOptions(),
+		rsel.PathService())
+	require.NoError(t, err, clues.ToCore(err))
+
 	ro, err := NewRestoreOperation(
 		ctx,
 		control.DefaultOptions(),
 		suite.kw,
 		suite.sw,
-		ctrl,
+		rc,
 		tconfig.NewM365Account(t),
 		"backupID",
 		rsel.Selector,

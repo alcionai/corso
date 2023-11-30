@@ -107,7 +107,7 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, co control.Opt
 			})
 
 		if err != nil {
-			return Bus{}, clues.Wrap(err, "configuring event bus").WithClues(ctx)
+			return Bus{}, clues.WrapWC(ctx, err, "configuring event bus")
 		}
 	}
 

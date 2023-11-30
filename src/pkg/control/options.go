@@ -17,6 +17,16 @@ type Options struct {
 	Repo                 repository.Options                 `json:"repo"`
 	SkipReduce           bool                               `json:"skipReduce"`
 	ToggleFeatures       Toggles                            `json:"toggleFeatures"`
+	// PreviewItemLimits defines the number of items and/or amount of data to
+	// fetch on a best-effort basis. Right now it's used for preview backups.
+	//
+	// Since this is not split out by service or data categories these limits
+	// apply independently to all data categories that appear in a single backup
+	// where they are set. For example, if doing a teams backup and there's both a
+	// SharePoint site and Messages available, both data categories would try to
+	// backup data until the set limits without paying attention to what the other
+	// had already backed up.
+	PreviewLimits PreviewItemLimits `json:"previewItemLimits"`
 }
 
 type Parallelism struct {
@@ -24,6 +34,18 @@ type Parallelism struct {
 	CollectionBuffer int
 	// sets the parallelism of item population within a collection.
 	ItemFetch int
+}
+
+// PreviewItemLimits describes best-effort maximum values to attempt to reach in
+// this backup. Preview backups are used to demonstrate value by being quick to
+// create.
+type PreviewItemLimits struct {
+	MaxItems             int
+	MaxItemsPerContainer int
+	MaxContainers        int
+	MaxBytes             int64
+	MaxPages             int
+	Enabled              bool
 }
 
 type FailurePolicy string
@@ -83,12 +105,12 @@ type Toggles struct {
 
 	RunMigrations bool `json:"runMigrations"`
 
-	// DisableConcurrencyLimiter removes concurrency limits when communicating with
-	// graph API. This flag is only relevant for exchange backups for now
-	DisableConcurrencyLimiter bool `json:"disableConcurrencyLimiter,omitempty"`
+	// DisableSlidingWindowLimiter disables the experimental sliding window rate
+	// limiter for graph API requests. This is only relevant for exchange backups.
+	// Setting this flag switches exchange backups to fallback to the default token
+	// bucket rate limiter.
+	DisableSlidingWindowLimiter bool `json:"disableSlidingWindowLimiter"`
 
-	// PreviewBackup denotes that this backup contains a subset of information for
-	// the protected resource. PreviewBackups are used to demonstrate value by
-	// being quick to create.
-	PreviewBackup bool `json:"previewBackup"`
+	// see: https://github.com/alcionai/corso/issues/4688
+	UseDeltaTree bool `json:"useDeltaTree"`
 }

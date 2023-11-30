@@ -9,17 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type userIntegrationSuite struct {
 	tester.Suite
-	acct account.Account
+	cli client
 }
 
 func TestUserIntegrationSuite(t *testing.T) {
@@ -31,12 +28,18 @@ func TestUserIntegrationSuite(t *testing.T) {
 }
 
 func (suite *userIntegrationSuite) SetupSuite() {
-	ctx, flush := tester.NewContext(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+	acct := tconfig.NewM365Account(t)
 
-	suite.acct = tconfig.NewM365Account(suite.T())
+	var err error
+
+	// will init the concurrency limiter
+	suite.cli, err = NewM365Client(ctx, acct)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *userIntegrationSuite) TestUsersCompat_HasNoInfo() {
@@ -45,11 +48,7 @@ func (suite *userIntegrationSuite) TestUsersCompat_HasNoInfo() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	acct := tconfig.NewM365Account(suite.T())
-
-	users, err := UsersCompatNoInfo(ctx, acct)
+	users, err := suite.cli.UsersCompatNoInfo(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, users)
 
@@ -66,7 +65,6 @@ func (suite *userIntegrationSuite) TestUsersCompat_HasNoInfo() {
 
 func (suite *userIntegrationSuite) TestUserHasMailbox() {
 	t := suite.T()
-	acct := tconfig.NewM365Account(t)
 	userID := tconfig.M365UserID(t)
 
 	table := []struct {
@@ -92,7 +90,7 @@ func (suite *userIntegrationSuite) TestUserHasMailbox() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			enabled, err := UserHasMailbox(ctx, acct, test.user)
+			enabled, err := suite.cli.UserHasMailbox(ctx, test.user)
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect, enabled)
 		})
@@ -101,7 +99,6 @@ func (suite *userIntegrationSuite) TestUserHasMailbox() {
 
 func (suite *userIntegrationSuite) TestUserHasDrive() {
 	t := suite.T()
-	acct := tconfig.NewM365Account(t)
 	userID := tconfig.M365UserID(t)
 
 	table := []struct {
@@ -130,7 +127,7 @@ func (suite *userIntegrationSuite) TestUserHasDrive() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			enabled, err := UserHasDrives(ctx, acct, test.user)
+			enabled, err := suite.cli.UserHasDrives(ctx, test.user)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect, enabled)
 		})
@@ -139,7 +136,6 @@ func (suite *userIntegrationSuite) TestUserHasDrive() {
 
 func (suite *userIntegrationSuite) TestUserGetMailboxInfo() {
 	t := suite.T()
-	acct := tconfig.NewM365Account(t)
 	userID := tconfig.M365UserID(t)
 
 	table := []struct {
@@ -195,47 +191,50 @@ func (suite *userIntegrationSuite) TestUserGetMailboxInfo() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			info, err := UserGetMailboxInfo(ctx, acct, test.user)
+			info, err := suite.cli.UserGetMailboxInfo(ctx, test.user)
 			test.expectErr(t, err, clues.ToCore(err))
 			test.expect(t, info)
 		})
 	}
 }
 
-func (suite *userIntegrationSuite) TestUsers_InvalidCredentials() {
-	table := []struct {
-		name string
-		acct func(t *testing.T) account.Account
+func (suite *userIntegrationSuite) TestUserAssignedLicenses() {
+	t := suite.T()
+	ctx, flush := tester.NewContext(t)
+
+	defer flush()
+
+	runs := []struct {
+		name      string
+		userID    string
+		expect    int
+		expectErr require.ErrorAssertionFunc
 	}{
 		{
-			name: "Invalid Credentials",
-			acct: func(t *testing.T) account.Account {
-				a, err := account.NewAccount(
-					account.ProviderM365,
-					account.M365Config{
-						M365: credentials.M365{
-							AzureClientID:     "Test",
-							AzureClientSecret: "without",
-						},
-						AzureTenantID: "data",
-					})
-				require.NoError(t, err, clues.ToCore(err))
-
-				return a
-			},
+			name:      "user with no licenses",
+			userID:    tconfig.UnlicensedM365UserID(t),
+			expect:    0,
+			expectErr: require.NoError,
+		},
+		{
+			name:      "user with licenses",
+			userID:    tconfig.M365UserID(t),
+			expect:    2,
+			expectErr: require.NoError,
+		},
+		{
+			name:      "User does not exist",
+			userID:    "fake",
+			expect:    0,
+			expectErr: require.Error,
 		},
 	}
 
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			users, err := UsersCompatNoInfo(ctx, test.acct(t))
-			assert.Empty(t, users, "returned some users")
-			assert.NotNil(t, err)
+	for _, run := range runs {
+		t.Run(run.name, func(t *testing.T) {
+			user, err := suite.cli.UserAssignedLicenses(ctx, run.userID)
+			run.expectErr(t, err, clues.ToCore(err))
+			assert.Equal(t, run.expect, user)
 		})
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
@@ -80,121 +79,6 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
 		true)
 }
 
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic_groups9VersionBump() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts    = control.DefaultOptions()
-		whatSet = deeTD.CategoryFromRepoRef
-	)
-
-	sel.Include(
-		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel))
-
-	bo, bod := prepNewTestBackupOp(
-		t,
-		ctx,
-		mb,
-		sel.Selector,
-		opts,
-		version.All8MigrateUserPNToID)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.ChannelMessagesCategory)
-
-	_, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
-		path.GroupsService,
-		whatSet,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		whatSet,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	mb = evmock.NewBus()
-	forcedFull := newTestBackupOp(
-		t,
-		ctx,
-		bod,
-		mb,
-		opts)
-	forcedFull.BackupVersion = version.Groups9Update
-
-	runAndCheckBackup(t, ctx, &forcedFull, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&forcedFull,
-		bod.sel,
-		bod.sel.ID(),
-		path.ChannelMessagesCategory)
-
-	_, expectDeets = deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		forcedFull.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
-		path.GroupsService,
-		whatSet,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		forcedFull.Results.BackupID,
-		whatSet,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	// The number of items backed up in the forced full backup should be roughly
-	// the same as the number of items in the original backup.
-	assert.Equal(
-		t,
-		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
-		forcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
-		"items written")
-}
-
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsVersion9AssistBases() {
-	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
-	sel.Include(
-		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel))
-
-	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, false)
-}
-
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	t := suite.T()
 
@@ -203,6 +87,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 
 	var (
 		mb      = evmock.NewBus()
+		counter = count.New()
 		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
 		opts    = control.DefaultOptions()
 		whatSet = deeTD.CategoryFromRepoRef
@@ -212,7 +97,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 		selTD.GroupsBackupLibraryFolderScope(sel),
 		selTD.GroupsBackupChannelScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -254,12 +139,13 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 	defer flush()
 
 	var (
-		mb    = evmock.NewBus()
-		sel   = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts  = control.DefaultOptions()
-		tenID = tconfig.M365TenantID(t)
-		svc   = path.GroupsService
-		ws    = deeTD.DriveIDFromRepoRef
+		mb      = evmock.NewBus()
+		counter = count.New()
+		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
+		opts    = control.DefaultOptions()
+		tenID   = tconfig.M365TenantID(t)
+		svc     = path.GroupsService
+		ws      = deeTD.DriveIDFromRepoRef
 	)
 
 	opts.ItemExtensionFactory = getTestExtensionFactories()
@@ -267,7 +153,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 	// does not apply to channel messages
 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup)
+	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
 
 	runAndCheckBackup(t, ctx, &bo, mb, false)
@@ -309,6 +195,41 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 			verifyExtensionData(t, ent.ItemInfo, path.GroupsService)
 		}
 	}
+}
+
+type GroupsBackupNightlyIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestGroupsBackupNightlyIntgSuite(t *testing.T) {
+	suite.Run(t, &GroupsBackupNightlyIntgSuite{
+		Suite: tester.NewNightlySuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *GroupsBackupNightlyIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9MergeBase() {
+	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel.Include(
+		selTD.GroupsBackupLibraryFolderScope(sel),
+		selTD.GroupsBackupChannelScope(sel))
+
+	runMergeBaseGroupsUpdate(suite, sel.Selector, false)
+}
+
+func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9AssistBases() {
+	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel.Include(
+		selTD.GroupsBackupLibraryFolderScope(sel),
+		selTD.GroupsBackupChannelScope(sel))
+
+	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, false)
 }
 
 type GroupsRestoreNightlyIntgSuite struct {

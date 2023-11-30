@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -16,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var _ itemRestorer = &mailRestoreHandler{}
@@ -107,7 +107,7 @@ func restoreMail(
 ) (*details.ExchangeInfo, error) {
 	msg, err := api.BytesToMessageable(body)
 	if err != nil {
-		return nil, clues.Wrap(err, "creating mail from bytes").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "creating mail from bytes")
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(msg.GetId()))

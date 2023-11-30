@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/backup"
 	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/debug"
 	"github.com/alcionai/corso/src/cli/export"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/help"
@@ -72,7 +73,7 @@ func preRun(cc *cobra.Command, args []string) error {
 
 func handleMailBoxFlag(ctx context.Context, c *cobra.Command, flagNames []string) {
 	if !slices.Contains(flagNames, "user") && !slices.Contains(flagNames, "mailbox") {
-		print.Errf(ctx, "either --user or --mailbox flag is required")
+		print.Err(ctx, "either --user or --mailbox flag is required")
 		os.Exit(1)
 	}
 
@@ -125,6 +126,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	backup.AddCommands(cmd)
 	restore.AddCommands(cmd)
 	export.AddCommands(cmd)
+	debug.AddCommands(cmd)
 	help.AddCommands(cmd)
 }
 

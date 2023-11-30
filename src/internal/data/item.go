@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -136,6 +137,7 @@ func NewLazyItem(
 	itemGetter ItemDataGetter,
 	itemID string,
 	modTime time.Time,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) *lazyItem {
 	return &lazyItem{
@@ -143,6 +145,7 @@ func NewLazyItem(
 		id:         itemID,
 		itemGetter: itemGetter,
 		modTime:    modTime,
+		counter:    counter,
 		errs:       errs,
 	}
 }
@@ -157,6 +160,7 @@ type lazyItem struct {
 	ctx        context.Context
 	mu         sync.Mutex
 	id         string
+	counter    *count.Bus
 	errs       *fault.Bus
 	itemGetter ItemDataGetter
 
@@ -203,6 +207,7 @@ func (i *lazyItem) ToReader() io.ReadCloser {
 		// etc.) and the item isn't enumerated in that set.
 		if delInFlight {
 			logger.Ctx(i.ctx).Info("item not found")
+			i.counter.Inc(count.LazyDeletedInFlight)
 
 			i.delInFlight = true
 			format.DelInFlight = true
@@ -232,6 +237,7 @@ func NewLazyItemWithInfo(
 	itemGetter ItemDataGetter,
 	itemID string,
 	modTime time.Time,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) *lazyItemWithInfo {
 	return &lazyItemWithInfo{
@@ -240,6 +246,7 @@ func NewLazyItemWithInfo(
 			itemGetter,
 			itemID,
 			modTime,
+			counter,
 			errs),
 	}
 }
@@ -259,10 +266,9 @@ func (i *lazyItemWithInfo) Info() (details.ItemInfo, error) {
 	defer i.mu.Unlock()
 
 	if i.delInFlight {
-		return details.ItemInfo{}, clues.Stack(ErrNotFound).WithClues(i.ctx)
+		return details.ItemInfo{}, clues.StackWC(i.ctx, ErrNotFound)
 	} else if i.info == nil {
-		return details.ItemInfo{}, clues.New("requesting ItemInfo before data retrieval").
-			WithClues(i.ctx)
+		return details.ItemInfo{}, clues.NewWC(i.ctx, "requesting ItemInfo before data retrieval")
 	}
 
 	return *i.info, nil

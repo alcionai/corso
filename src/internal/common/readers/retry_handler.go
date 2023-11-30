@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
+	"os"
 	"syscall"
 	"time"
 
@@ -29,6 +32,18 @@ const (
 var retryErrs = []error{
 	syscall.ECONNRESET,
 	io.ErrUnexpectedEOF,
+}
+
+// TODO(pandeyabs): Consolidate error funcs with retryErrs slice.
+func isTimeoutErr(err error) bool {
+	switch err := err.(type) {
+	case *url.Error:
+		return err.Timeout()
+	}
+
+	return errors.Is(err, os.ErrDeadlineExceeded) ||
+		errors.Is(err, http.ErrHandlerTimeout) ||
+		os.IsTimeout(err)
 }
 
 type Getter interface {
@@ -91,7 +106,8 @@ func isRetriable(err error) bool {
 		}
 	}
 
-	return false
+	// Retry on read connection timeouts.
+	return isTimeoutErr(err)
 }
 
 func (rrh *resetRetryHandler) Read(p []byte) (int, error) {
@@ -128,7 +144,7 @@ func (rrh *resetRetryHandler) Read(p []byte) (int, error) {
 				return read, io.EOF
 			}
 
-			return read, clues.Stack(err).WithClues(rrh.ctx).OrNil()
+			return read, clues.StackWC(rrh.ctx, err).OrNil()
 		}
 
 		logger.Ctx(rrh.ctx).Infow(
@@ -192,8 +208,7 @@ func (rrh *resetRetryHandler) reconnect(maxRetries int) (int, error) {
 
 		r, err = rrh.getter.Get(ctx, headers)
 		if err != nil {
-			err = clues.Wrap(err, "retrying connection").
-				WithClues(ctx).
+			err = clues.WrapWC(ctx, err, "retrying connection").
 				With("attempt_num", attempts)
 
 			continue
@@ -211,8 +226,7 @@ func (rrh *resetRetryHandler) reconnect(maxRetries int) (int, error) {
 		if skip > 0 {
 			_, err = io.CopyN(io.Discard, rrh.innerReader, skip)
 			if err != nil {
-				err = clues.Wrap(err, "seeking to correct offset").
-					WithClues(ctx).
+				err = clues.WrapWC(ctx, err, "seeking to correct offset").
 					With("attempt_num", attempts)
 			}
 		}

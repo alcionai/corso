@@ -13,9 +13,9 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -52,11 +52,8 @@ func (c Channels) GetChannel(
 		Channels().
 		ByChannelId(containerID).
 		Get(ctx, config)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	return resp, nil
+	return resp, graph.Stack(ctx, err).OrNil()
 }
 
 // GetChannelByName fetches a channel by name
@@ -80,12 +77,12 @@ func (c Channels) GetChannelByName(
 		Channels().
 		Get(ctx, options)
 	if err != nil {
-		return nil, graph.Stack(ctx, err).WithClues(ctx)
+		return nil, graph.Stack(ctx, err)
 	}
 
 	gv := resp.GetValue()
 	if len(gv) == 0 {
-		return nil, clues.New("channel not found").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "channel not found")
 	}
 
 	// We only allow the api to match one channel with the provided name.
@@ -96,7 +93,7 @@ func (c Channels) GetChannelByName(
 	cal := gv[0]
 
 	if err := checkIDAndName(cal); err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	return cal, nil

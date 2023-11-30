@@ -12,8 +12,8 @@ import (
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/export"
 	"github.com/alcionai/corso/src/cmd/sanity_test/restore"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -65,6 +65,7 @@ func main() {
 
 	expCMD.AddCommand(exportOneDriveCMD())
 	expCMD.AddCommand(exportSharePointCMD())
+	expCMD.AddCommand(exportExchangeCMD())
 	expCMD.AddCommand(exportGroupsCMD())
 	root.AddCommand(expCMD)
 
@@ -172,6 +173,29 @@ func sanityTestExportSharePoint(cmd *cobra.Command, args []string) error {
 	}
 
 	export.CheckSharePointExport(ctx, ac, envs)
+
+	return nil
+}
+
+func exportExchangeCMD() *cobra.Command {
+	return &cobra.Command{
+		Use:               "exchange",
+		Short:             "run the exchange export sanity tests",
+		DisableAutoGenTag: true,
+		RunE:              sanityTestExportExchange,
+	}
+}
+
+func sanityTestExportExchange(cmd *cobra.Command, args []string) error {
+	ctx := common.SetDebug(cmd.Context())
+	envs := common.EnvVars(ctx)
+
+	ac, err := common.GetAC()
+	if err != nil {
+		return print.Only(ctx, err)
+	}
+
+	export.CheckEmailExport(ctx, ac, envs)
 
 	return nil
 }

@@ -3,12 +3,14 @@ package inject
 import (
 	"context"
 
+	"github.com/kopia/kopia/repo/manifest"
+
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -37,11 +39,19 @@ type (
 		GetMetadataPaths(
 			ctx context.Context,
 			r inject.RestoreProducer,
-			base kopia.BackupBase,
+			base ReasonAndSnapshotIDer,
 			errs *fault.Bus,
 		) ([]path.RestorePaths, error)
 
 		Wait() *data.CollectionStats
+
+		// SetRateLimiter selects a rate limiter type for the service being
+		// backed up and binds it to the context.
+		SetRateLimiter(
+			ctx context.Context,
+			service path.ServiceType,
+			options control.Options,
+		) context.Context
 	}
 
 	RestoreConsumer interface {
@@ -51,11 +61,11 @@ type (
 			dcs []data.RestoreCollection,
 			errs *fault.Bus,
 			ctr *count.Bus,
-		) (*details.Details, error)
+		) (*details.Details, *data.CollectionStats, error)
 
-		IsServiceEnableder
-
-		Wait() *data.CollectionStats
+		// TODO(ashmrtn): Update the IsServiceEnableder interface once
+		// BackupProducer is also switched to service handlers.
+		IsServiceEnabled(ctx context.Context, resourceOwner string) (bool, error)
 
 		CacheItemInfoer
 		PopulateProtectedResourceIDAndNamer
@@ -117,6 +127,7 @@ type (
 	// service-specific functionality for backups, restores, and exports.
 	ServiceHandler interface {
 		ExportConsumer
+		RestoreConsumer
 	}
 
 	ToServiceHandler interface {
@@ -124,5 +135,10 @@ type (
 			opts control.Options,
 			service path.ServiceType,
 		) (ServiceHandler, error)
+	}
+
+	ReasonAndSnapshotIDer interface {
+		GetReasons() []identity.Reasoner
+		GetSnapshotID() manifest.ID
 	}
 )

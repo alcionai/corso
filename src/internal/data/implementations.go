@@ -6,11 +6,15 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-var ErrNotFound = clues.New("not found")
+var (
+	ErrNotFound = clues.New("not found")
+	ErrNoData   = clues.New("no data")
+)
 
 type CollectionState int
 
@@ -20,6 +24,23 @@ const (
 	MovedState    CollectionState = 2
 	DeletedState  CollectionState = 3
 )
+
+func (cs CollectionState) String() string {
+	s := "Unknown State"
+
+	switch cs {
+	case 0:
+		s = "New"
+	case 1:
+		s = "Not Moved"
+	case 2:
+		s = "Moved"
+	case 3:
+		s = "Deleted"
+	}
+
+	return s
+}
 
 type FetchRestoreCollection struct {
 	Collection
@@ -38,18 +59,26 @@ func (c NoFetchRestoreCollection) FetchItemByName(context.Context, string) (Item
 
 // StateOf lets us figure out the state of the collection from the
 // previous and current path
-func StateOf(prev, curr path.Path) CollectionState {
+func StateOf(
+	prev, curr path.Path,
+	counter *count.Bus,
+) CollectionState {
 	if curr == nil || len(curr.String()) == 0 {
+		counter.Inc(count.CollectionTombstoned)
 		return DeletedState
 	}
 
 	if prev == nil || len(prev.String()) == 0 {
+		counter.Inc(count.CollectionNew)
 		return NewState
 	}
 
 	if curr.String() != prev.String() {
+		counter.Inc(count.CollectionMoved)
 		return MovedState
 	}
+
+	counter.Inc(count.CollectionNotMoved)
 
 	return NotMovedState
 }
@@ -63,6 +92,7 @@ func NewBaseCollection(
 	location *path.Builder,
 	ctrlOpts control.Options,
 	doNotMergeItems bool,
+	counter *count.Bus,
 ) BaseCollection {
 	return BaseCollection{
 		opts:            ctrlOpts,
@@ -70,7 +100,8 @@ func NewBaseCollection(
 		fullPath:        curr,
 		locationPath:    location,
 		prevPath:        prev,
-		state:           StateOf(prev, curr),
+		state:           StateOf(prev, curr, counter),
+		Counter:         counter.Local(),
 	}
 }
 
@@ -98,6 +129,8 @@ type BaseCollection struct {
 
 	// doNotMergeItems should only be true if the old delta token expired.
 	doNotMergeItems bool
+
+	Counter *count.Bus
 }
 
 // FullPath returns the BaseCollection's fullPath []string
@@ -145,9 +178,16 @@ func (col BaseCollection) Opts() control.Options {
 func NewTombstoneCollection(
 	prev path.Path,
 	opts control.Options,
+	counter *count.Bus,
 ) *tombstoneCollection {
 	return &tombstoneCollection{
-		BaseCollection: NewBaseCollection(nil, prev, nil, opts, false),
+		BaseCollection: NewBaseCollection(
+			nil,
+			prev,
+			nil,
+			opts,
+			false,
+			counter),
 	}
 }
 

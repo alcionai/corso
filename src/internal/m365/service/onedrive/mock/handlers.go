@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -106,6 +107,18 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler[models.DriveItemab
 	}
 }
 
+func DefaultDriveBHWith(
+	resource string,
+	drivePager *apiMock.Pager[models.Driveable],
+	enumerator EnumerateItemsDeltaByDrive,
+) *BackupHandler[models.DriveItemable] {
+	mbh := DefaultOneDriveBH(resource)
+	mbh.DrivePagerV = drivePager
+	mbh.DriveItemEnumeration = enumerator
+
+	return mbh
+}
+
 func (h BackupHandler[T]) PathPrefix(tID, driveID string) (path.Path, error) {
 	pp, err := h.PathPrefixFn(tID, h.ProtectedResource.ID(), driveID)
 	if err != nil {
@@ -121,7 +134,7 @@ func (h BackupHandler[T]) MetadataPathPrefix(tID string) (path.Path, error) {
 		return nil, err
 	}
 
-	return pp, h.PathPrefixErr
+	return pp, h.MetadataPathPrefixErr
 }
 
 func (h BackupHandler[T]) CanonicalPath(pb *path.Builder, tID string) (path.Path, error) {
@@ -330,6 +343,8 @@ func (edi *DriveItemsDeltaPager) NextPage() ([]models.DriveItemable, bool, bool)
 
 	return np.Items, np.Reset, false
 }
+
+func (edi *DriveItemsDeltaPager) Cancel() {}
 
 func (edi *DriveItemsDeltaPager) Results() (pagers.DeltaUpdate, error) {
 	return edi.DeltaUpdate, edi.Err

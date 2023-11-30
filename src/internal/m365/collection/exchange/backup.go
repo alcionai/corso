@@ -2,23 +2,32 @@ package exchange
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+)
+
+const (
+	defaultPreviewMaxContainers        = 5
+	defaultPreviewMaxItemsPerContainer = 10
+	defaultPreviewMaxItems             = defaultPreviewMaxContainers * defaultPreviewMaxItemsPerContainer
 )
 
 func CreateCollections(
@@ -29,6 +38,7 @@ func CreateCollections(
 	scope selectors.ExchangeScope,
 	dps metadata.DeltaPaths,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	ctx = clues.Add(ctx, "category", scope.Category().PathType())
@@ -41,16 +51,24 @@ func CreateCollections(
 			ProtectedResource: bpc.ProtectedResource,
 			TenantID:          tenantID,
 		}
+		collections map[string]data.BackupCollection
+		err         error
 	)
 
 	handler, ok := handlers[category]
 	if !ok {
-		return nil, clues.New("unsupported backup category type").WithClues(ctx)
+		return nil, clues.NewWC(ctx, "unsupported backup category type")
 	}
 
+	pcfg := observe.ProgressCfg{
+		Indent:            1,
+		CompletionMessage: func() string { return fmt.Sprintf("(found %d folders)", len(collections)) },
+	}
 	foldersComplete := observe.MessageWithCompletion(
 		ctx,
-		observe.Bulletf("%s", qp.Category.HumanString()))
+		pcfg,
+		qp.Category.HumanString())
+
 	defer close(foldersComplete)
 
 	rootFolder, cc := handler.NewContainerCache(bpc.ProtectedResource.ID())
@@ -59,7 +77,7 @@ func CreateCollections(
 		return nil, clues.Wrap(err, "populating container cache")
 	}
 
-	collections, err := populateCollections(
+	collections, err = populateCollections(
 		ctx,
 		qp,
 		handler,
@@ -68,10 +86,13 @@ func CreateCollections(
 		scope,
 		dps,
 		bpc.Options,
+		counter,
 		errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "filling collections")
 	}
+
+	counter.Add(count.Collections, int64(len(collections)))
 
 	for _, coll := range collections {
 		allCollections = append(allCollections, coll)
@@ -98,9 +119,11 @@ func populateCollections(
 	scope selectors.ExchangeScope,
 	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
 	var (
+		err error
 		// folder ID -> BackupCollection.
 		collections = map[string]data.BackupCollection{}
 		// folder ID -> delta url or folder path lookups
@@ -110,21 +133,72 @@ func populateCollections(
 		// deleted from this map, leaving only the deleted folders behind
 		tombstones = makeTombstones(dps)
 		category   = qp.Category
+
+		// Limits and counters below are currently only used for preview backups
+		// since they only act on a subset of items. Make a copy of the passed in
+		// limits so we can log both the passed in options and what they were set to
+		// if we used default values for some things.
+		effectiveLimits = ctrlOpts.PreviewLimits
+
+		addedItems      int
+		addedContainers int
 	)
 
-	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
-
 	el := errs.Local()
+
+	// Preview backups select a reduced set of data. This is managed by ordering
+	// the set of results from the container resolver and reducing the number of
+	// items selected from each container.
+	if effectiveLimits.Enabled {
+		resolver, err = newRankedContainerResolver(
+			ctx,
+			resolver,
+			bh.folderGetter(),
+			qp.ProtectedResource.ID(),
+			// TODO(ashmrtn): Includes and excludes should really be associated with
+			// the service not the data category. This is because a single data
+			// handler may be used for multiple services (e.x. drive handler is used
+			// for OneDrive, SharePoint, and Groups/Teams).
+			bh.previewIncludeContainers(),
+			bh.previewExcludeContainers())
+		if err != nil {
+			return nil, clues.Wrap(err, "creating ranked container resolver")
+		}
+
+		// Configure limits with reasonable defaults if they're not set.
+		if effectiveLimits.MaxContainers == 0 {
+			effectiveLimits.MaxContainers = defaultPreviewMaxContainers
+		}
+
+		if effectiveLimits.MaxItemsPerContainer == 0 {
+			effectiveLimits.MaxItemsPerContainer = defaultPreviewMaxItemsPerContainer
+		}
+
+		if effectiveLimits.MaxItems == 0 {
+			effectiveLimits.MaxItems = defaultPreviewMaxItems
+		}
+	}
+
+	logger.Ctx(ctx).Infow(
+		"filling collections",
+		"len_deltapaths", len(dps),
+		"limits", ctrlOpts.PreviewLimits,
+		"effective_limits", effectiveLimits)
+	counter.Add(count.PrevDeltas, int64(len(dps)))
 
 	for _, c := range resolver.Items() {
 		if el.Failure() != nil {
 			return nil, el.Failure()
 		}
 
-		cID := ptr.Val(c.GetId())
-
 		var (
-			err         error
+			err        error
+			cl         = counter.Local()
+			itemConfig = api.CallConfig{
+				CanMakeDeltaQueries: !ctrlOpts.ToggleFeatures.DisableDelta,
+				UseImmutableIDs:     ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
+			}
+			cID         = ptr.Val(c.GetId())
 			dp          = dps[cID]
 			prevDelta   = dp.Delta
 			prevPathStr = dp.Path // do not log: pii; log prevPath instead
@@ -139,16 +213,25 @@ func populateCollections(
 				})
 		)
 
+		ictx = clues.AddLabelCounter(ictx, cl.PlainAdder())
+
 		// Only create a collection if the path matches the scope.
 		currPath, locPath, ok := includeContainer(ictx, qp, c, scope, category)
 		if !ok {
+			cl.Inc(count.SkippedContainers)
 			continue
 		}
+
+		ictx = clues.Add(
+			ictx,
+			"current_path", currPath,
+			"current_location", locPath)
 
 		delete(tombstones, cID)
 
 		if len(prevPathStr) > 0 {
 			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
+				err = clues.Stack(err).Label(count.BadPrevPath)
 				logger.CtxErr(ictx, err).Error("parsing prev path")
 				// if the previous path is unusable, then the delta must be, too.
 				prevDelta = ""
@@ -157,14 +240,32 @@ func populateCollections(
 
 		ictx = clues.Add(ictx, "previous_path", prevPath)
 
-		added, _, removed, newDelta, err := bh.itemEnumerator().
+		// Since part of this is about figuring out how many items to get for this
+		// particular container we need to reconfigure for every container we see.
+		if effectiveLimits.Enabled {
+			toAdd := effectiveLimits.MaxItems - addedItems
+
+			if addedContainers >= effectiveLimits.MaxContainers || toAdd <= 0 {
+				break
+			}
+
+			if toAdd > effectiveLimits.MaxItemsPerContainer {
+				toAdd = effectiveLimits.MaxItemsPerContainer
+			}
+
+			// Delta tokens generated with this CallConfig shouldn't be used for
+			// regular backups. They may have different query parameters which will
+			// cause incorrect output for regular backups.
+			itemConfig.LimitResults = toAdd
+		}
+
+		addAndRem, err := bh.itemEnumerator().
 			GetAddedAndRemovedItemIDs(
 				ictx,
 				qp.ProtectedResource.ID(),
 				cID,
 				prevDelta,
-				ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
-				!ctrlOpts.ToggleFeatures.DisableDelta)
+				itemConfig)
 		if err != nil {
 			if !graph.IsErrDeletedInFlight(err) {
 				el.AddRecoverable(ctx, clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
@@ -176,13 +277,14 @@ func populateCollections(
 			// to reset. This prevents any old items from being retained in
 			// storage.  If the container (or its children) are sill missing
 			// on the next backup, they'll get tombstoned.
-			newDelta = pagers.DeltaUpdate{Reset: true}
+			addAndRem.DU = pagers.DeltaUpdate{Reset: true}
 		}
 
-		if len(newDelta.URL) > 0 {
-			deltaURLs[cID] = newDelta.URL
-		} else if !newDelta.Reset {
+		if len(addAndRem.DU.URL) > 0 {
+			deltaURLs[cID] = addAndRem.DU.URL
+		} else if !addAndRem.DU.Reset {
 			logger.Ctx(ictx).Info("missing delta url")
+			cl.Inc(count.MissingDelta)
 		}
 
 		edc := NewCollection(
@@ -191,23 +293,27 @@ func populateCollections(
 				prevPath,
 				locPath,
 				ctrlOpts,
-				newDelta.Reset),
+				addAndRem.DU.Reset,
+				cl),
 			qp.ProtectedResource.ID(),
 			bh.itemHandler(),
-			added,
-			removed,
+			addAndRem.Added,
+			addAndRem.Removed,
 			// TODO: produce a feature flag that allows selective
 			// enabling of valid modTimes.  This currently produces
-			// rare-case failures with incorrect details merging.
+			// rare failures with incorrect details merging.
 			// Root cause is not yet known.
 			false,
-			statusUpdater)
+			statusUpdater,
+			cl)
 
 		collections[cID] = edc
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
 		currPaths[cID] = currPath.String()
+		addedItems += len(addAndRem.Added)
+		addedContainers++
 	}
 
 	// A tombstone is a folder that needs to be marked for deletion.
@@ -225,7 +331,10 @@ func populateCollections(
 		)
 
 		if collections[id] != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "conflict: tombstone exists for a live collection").WithClues(ictx))
+			err := clues.WrapWC(ictx, err, "conflict: tombstone exists for a live collection").
+				Label(count.CollectionTombstoneConflict)
+			el.AddRecoverable(ctx, err)
+
 			continue
 		}
 
@@ -237,18 +346,18 @@ func populateCollections(
 
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
+			err = clues.StackWC(ctx, err).Label(count.BadPrevPath)
 			// technically shouldn't ever happen.  But just in case...
 			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
+
 			continue
 		}
 
-		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts)
+		collections[id] = data.NewTombstoneCollection(prevPath, ctrlOpts, counter)
 	}
 
-	logger.Ctx(ctx).Infow(
-		"adding metadata collection entries",
-		"num_paths_entries", len(currPaths),
-		"num_deltas_entries", len(deltaURLs))
+	counter.Add(count.NewDeltas, int64(len(deltaURLs)))
+	counter.Add(count.NewPrevPaths, int64(len(currPaths)))
 
 	pathPrefix, err := path.BuildMetadata(
 		qp.TenantID,
@@ -266,7 +375,8 @@ func populateCollections(
 			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
 			graph.NewMetadataEntry(metadata.DeltaURLsFileName, deltaURLs),
 		},
-		statusUpdater)
+		statusUpdater,
+		count.New())
 	if err != nil {
 		return nil, clues.Wrap(err, "making metadata collection")
 	}

@@ -4,6 +4,10 @@ import (
 	"github.com/alcionai/corso/src/cli/print"
 )
 
+const (
+	AlertPreviousPathCollision = "previous_path_collision"
+)
+
 var _ print.Printable = &Alert{}
 
 // Alerts are informational-only notifications.  The purpose of alerts is to
@@ -38,12 +42,13 @@ func (a Alert) MinimumPrintable() any {
 
 // Headers returns the human-readable names of properties of a skipped Item
 // for printing out to a terminal.
-func (a Alert) Headers() []string {
+func (a Alert) Headers(bool) []string {
+	// NOTE: skipID does not make sense in this context and is skipped
 	return []string{"Action", "Message", "Container", "Name", "ID"}
 }
 
 // Values populates the printable values matching the Headers list.
-func (a Alert) Values() []string {
+func (a Alert) Values(bool) []string {
 	var cn string
 
 	acn, ok := a.Item.Additional[AddtlContainerName]

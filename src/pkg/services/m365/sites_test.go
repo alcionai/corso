@@ -12,18 +12,17 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/credentials"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 type siteIntegrationSuite struct {
 	tester.Suite
+	cli client
 }
 
 func TestSiteIntegrationSuite(t *testing.T) {
@@ -35,10 +34,18 @@ func TestSiteIntegrationSuite(t *testing.T) {
 }
 
 func (suite *siteIntegrationSuite) SetupSuite() {
-	ctx, flush := tester.NewContext(suite.T())
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+	acct := tconfig.NewM365Account(t)
+
+	var err error
+
+	// will init the concurrency limiter
+	suite.cli, err = NewM365Client(ctx, acct)
+	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *siteIntegrationSuite) TestSites() {
@@ -47,9 +54,7 @@ func (suite *siteIntegrationSuite) TestSites() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := tconfig.NewM365Account(t)
-
-	sites, err := Sites(ctx, acct, fault.New(true))
+	sites, err := suite.cli.Sites(ctx, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, sites)
 
@@ -68,66 +73,18 @@ func (suite *siteIntegrationSuite) TestSites_GetByID() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := tconfig.NewM365Account(t)
-
-	sites, err := Sites(ctx, acct, fault.New(true))
+	sites, err := suite.cli.Sites(ctx, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, sites)
 
 	for _, s := range sites {
 		suite.Run("site_"+s.ID, func() {
 			t := suite.T()
-			site, err := SiteByID(ctx, acct, s.ID)
-			assert.NoError(t, err, clues.ToCore(err))
+			site, err := suite.cli.SiteByID(ctx, s.ID)
+			require.NoError(t, err, clues.ToCore(err))
 			assert.NotEmpty(t, site.WebURL)
 			assert.NotEmpty(t, site.ID)
 			assert.NotEmpty(t, site.OwnerType)
-		})
-	}
-}
-
-func (suite *siteIntegrationSuite) TestSites_InvalidCredentials() {
-	table := []struct {
-		name string
-		acct func(t *testing.T) account.Account
-	}{
-		{
-			name: "Invalid Credentials",
-			acct: func(t *testing.T) account.Account {
-				a, err := account.NewAccount(
-					account.ProviderM365,
-					account.M365Config{
-						M365: credentials.M365{
-							AzureClientID:     "Test",
-							AzureClientSecret: "without",
-						},
-						AzureTenantID: "data",
-					})
-				require.NoError(t, err, clues.ToCore(err))
-
-				return a
-			},
-		},
-		{
-			name: "Empty Credentials",
-			acct: func(t *testing.T) account.Account {
-				// intentionally swallowing the error here
-				a, _ := account.NewAccount(account.ProviderM365)
-				return a
-			},
-		},
-	}
-
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			sites, err := Sites(ctx, test.acct(t), fault.New(true))
-			assert.Empty(t, sites, "returned some sites")
-			assert.NotNil(t, err)
 		})
 	}
 }

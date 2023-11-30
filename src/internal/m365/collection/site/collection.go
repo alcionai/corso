@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
@@ -22,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type DataCategory int
@@ -201,7 +201,7 @@ func (sc *Collection) retrieveLists(
 
 		byteArray, err := serializeContent(ctx, wtr, lst)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "serializing list").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "serializing list").Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 
@@ -217,7 +217,7 @@ func (sc *Collection) retrieveLists(
 				ptr.Val(lst.GetId()),
 				details.ItemInfo{SharePoint: ListToSPInfo(lst, size)})
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+				el.AddRecoverable(ctx, clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 
@@ -243,7 +243,7 @@ func (sc *Collection) retrievePages(
 
 	betaService := sc.betaService
 	if betaService == nil {
-		return metrics, clues.New("beta service required").WithClues(ctx)
+		return metrics, clues.NewWC(ctx, "beta service required")
 	}
 
 	parent, err := as.GetByID(ctx, sc.fullPath.ProtectedResource(), api.CallConfig{})
@@ -269,7 +269,7 @@ func (sc *Collection) retrievePages(
 
 		byteArray, err := serializeContent(ctx, wtr, pg)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "serializing page").WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "serializing page").Label(fault.LabelForceNoBackupCreation))
 			continue
 		}
 
@@ -284,7 +284,7 @@ func (sc *Collection) retrievePages(
 				ptr.Val(pg.GetId()),
 				details.ItemInfo{SharePoint: pageToSPInfo(pg, root, size)})
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Stack(err).WithClues(ctx).Label(fault.LabelForceNoBackupCreation))
+				el.AddRecoverable(ctx, clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
 

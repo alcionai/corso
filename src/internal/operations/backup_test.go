@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	odMock "github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
@@ -46,6 +46,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
 )
@@ -429,7 +430,8 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 				acct,
 				sel,
 				sel,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			op.Errors.Fail(test.fail)
@@ -1487,7 +1489,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 				test.acct,
 				sel,
 				sel,
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			test.errCheck(t, err, clues.ToCore(err))
 		})
 	}
@@ -1512,6 +1515,7 @@ func TestAssistBackupIntegrationSuite(t *testing.T) {
 
 func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -1523,7 +1527,7 @@ func (suite *AssistBackupIntegrationSuite) SetupSuite() {
 
 	suite.acct = tconfig.NewM365Account(t)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kopiaCloser = func(ctx context.Context) {
@@ -1911,7 +1915,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			mc, err := graph.MakeMetadataCollection(
 				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
-				func(*support.ControllerOperationStatus) {})
+				func(*support.ControllerOperationStatus) {},
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)
@@ -1919,7 +1924,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			opts := control.DefaultOptions()
 			opts.FailureHandling = test.failurePolicy
-			opts.ToggleFeatures.PreviewBackup = test.previewBackup
+			opts.PreviewLimits.Enabled = test.previewBackup
 
 			bo, err := NewBackupOperation(
 				ctx,
@@ -1930,7 +1935,8 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = bo.Run(ctx)
@@ -2228,7 +2234,8 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 			mc, err := graph.MakeMetadataCollection(
 				pathPrefix,
 				makeMetadataCollectionEntries("url/1", driveID, folderID, tmp),
-				func(*support.ControllerOperationStatus) {})
+				func(*support.ControllerOperationStatus) {},
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			cs = append(cs, mc)
@@ -2245,7 +2252,8 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 				acct,
 				osel.Selector,
 				selectors.Selector{DiscreteOwner: userID},
-				evmock.NewBus())
+				evmock.NewBus(),
+				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
 			err = bo.Run(ctx)

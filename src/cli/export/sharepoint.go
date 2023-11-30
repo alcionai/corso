@@ -94,5 +94,13 @@ func exportSharePointCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	return runExport(ctx, cmd, args, opts.ExportCfg, sel.Selector, flags.BackupIDFV, "SharePoint")
+	return runExport(
+		ctx,
+		cmd,
+		args,
+		opts.ExportCfg,
+		sel.Selector,
+		flags.BackupIDFV,
+		"SharePoint",
+		defaultAcceptedFormatTypes)
 }

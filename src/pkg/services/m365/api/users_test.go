@@ -8,8 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type UsersUnitSuite struct {
@@ -79,35 +80,35 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 		},
 		{
 			name: "mail inbox err - user not found",
-			err:  odErr(string(graph.RequestResourceNotFound)),
+			err:  graphTD.ODataErr(string(graph.RequestResourceNotFound)),
 			expect: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
 			},
 		},
 		{
 			name: "mail inbox err - resoruceLocked",
-			err:  odErr(string(graph.NotAllowed)),
+			err:  graphTD.ODataErr(string(graph.NotAllowed)),
 			expect: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, graph.ErrResourceLocked, clues.ToCore(err))
 			},
 		},
 		{
 			name: "mail inbox err - user not found",
-			err:  odErr(string(graph.MailboxNotEnabledForRESTAPI)),
+			err:  graphTD.ODataErr(string(graph.MailboxNotEnabledForRESTAPI)),
 			expect: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
 		},
 		{
 			name: "mail inbox err - authenticationError",
-			err:  odErr(string(graph.AuthenticationError)),
+			err:  graphTD.ODataErr(string(graph.AuthenticationError)),
 			expect: func(t *testing.T, err error) {
 				assert.NoError(t, err, clues.ToCore(err))
 			},
 		},
 		{
 			name: "mail inbox err - other error",
-			err:  odErrMsg("somecode", "somemessage"),
+			err:  graphTD.ODataErrWithMsg("somecode", "somemessage"),
 			expect: func(t *testing.T, err error) {
 				assert.Error(t, err, clues.ToCore(err))
 			},

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
@@ -68,7 +69,7 @@ func prepNewTestRestoreOp(
 	backupStore storage.Storage,
 	backupID model.StableID,
 	bus events.Eventer,
-	ctr *count.Bus,
+	counter *count.Bus,
 	sel selectors.Selector,
 	opts control.Options,
 	restoreCfg control.RestoreConfig,
@@ -81,10 +82,11 @@ func prepNewTestRestoreOp(
 			acct: tconfig.NewM365Account(t),
 			st:   backupStore,
 		}
-		k = kopia.NewConn(rod.st)
+		k            = kopia.NewConn(rod.st)
+		repoNameHash = strTD.NewHashForRepoConfigName()
 	)
 
-	err := k.Connect(ctx, repository.Options{})
+	err := k.Connect(ctx, repository.Options{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// kopiaRef comes with a count of 1 and Wrapper bumps it again
@@ -112,7 +114,8 @@ func prepNewTestRestoreOp(
 		rod.acct,
 		sel,
 		nil,
-		rod.close)
+		rod.close,
+		counter)
 
 	ro := newTestRestoreOp(
 		t,
@@ -120,7 +123,7 @@ func prepNewTestRestoreOp(
 		rod,
 		backupID,
 		bus,
-		ctr,
+		counter,
 		opts,
 		restoreCfg)
 
@@ -142,24 +145,27 @@ func newTestRestoreOp(
 	rod *restoreOpDependencies,
 	backupID model.StableID,
 	bus events.Eventer,
-	ctr *count.Bus,
+	counter *count.Bus,
 	opts control.Options,
 	restoreCfg control.RestoreConfig,
 ) operations.RestoreOperation {
 	rod.ctrl.IDNameLookup = idname.NewCache(map[string]string{rod.sel.ID(): rod.sel.Name()})
+
+	handler, err := rod.ctrl.NewServiceHandler(opts, rod.sel.PathService())
+	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := operations.NewRestoreOperation(
 		ctx,
 		opts,
 		rod.kw,
 		rod.sw,
-		rod.ctrl,
+		handler,
 		rod.acct,
 		backupID,
 		rod.sel,
 		restoreCfg,
 		bus,
-		ctr)
+		counter)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		rod.close(t, ctx)
 		t.FailNow()

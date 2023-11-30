@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // RestoreCollection handles restoration of an individual collection.
@@ -54,7 +54,7 @@ func RestoreCollection(
 	for {
 		select {
 		case <-ctx.Done():
-			return metrics, clues.Wrap(ctx.Err(), "context cancelled").WithClues(ctx)
+			return metrics, clues.WrapWC(ctx, ctx.Err(), "context cancelled")
 
 		case itemData, ok := <-items:
 			if !ok || el.Failure() != nil {
@@ -69,7 +69,7 @@ func RestoreCollection(
 
 			_, err := buf.ReadFrom(itemData.ToReader())
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "reading item bytes").WithClues(ictx))
+				el.AddRecoverable(ictx, clues.WrapWC(ictx, err, "reading item bytes"))
 				continue
 			}
 
@@ -99,7 +99,7 @@ func RestoreCollection(
 			// destination folder, then the restore path no longer matches the fullPath.
 			itemPath, err := fullPath.AppendItem(itemData.ID())
 			if err != nil {
-				el.AddRecoverable(ctx, clues.Wrap(err, "adding item to collection path").WithClues(ctx))
+				el.AddRecoverable(ictx, clues.WrapWC(ictx, err, "adding item to collection path"))
 				continue
 			}
 
@@ -114,7 +114,7 @@ func RestoreCollection(
 			if err != nil {
 				// These deets additions are for cli display purposes only.
 				// no need to fail out on error.
-				logger.Ctx(ctx).Infow("accounting for restored item", "error", err)
+				logger.Ctx(ictx).Infow("accounting for restored item", "error", err)
 			}
 
 			colProgress <- struct{}{}
@@ -247,7 +247,7 @@ func uploadAttachments(
 				continue
 			}
 
-			el.AddRecoverable(ctx, clues.Wrap(err, "uploading mail attachment").WithClues(ctx))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "uploading mail attachment"))
 		}
 	}
 

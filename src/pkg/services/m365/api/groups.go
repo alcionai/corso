@@ -15,9 +15,9 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 const (
@@ -185,9 +185,9 @@ func getGroupFromResponse(ctx context.Context, resp models.GroupCollectionRespon
 	vs := resp.GetValue()
 
 	if len(vs) == 0 {
-		return nil, clues.Stack(graph.ErrResourceOwnerNotFound).WithClues(ctx)
+		return nil, clues.StackWC(ctx, graph.ErrResourceOwnerNotFound)
 	} else if len(vs) > 1 {
-		return nil, clues.Stack(graph.ErrMultipleResultsMatchIdentifier).WithClues(ctx)
+		return nil, clues.StackWC(ctx, graph.ErrMultipleResultsMatchIdentifier)
 	}
 
 	return vs[0], nil
@@ -216,7 +216,7 @@ func (c Groups) GetAllSites(
 		identifier,
 		CallConfig{})
 	if err != nil {
-		return nil, clues.Wrap(err, "getting group").WithClues(ctx)
+		return nil, clues.Wrap(err, "getting group")
 	}
 
 	isTeam := IsTeam(ctx, group)
@@ -256,8 +256,7 @@ func (c Groups) GetAllSites(
 			FilesFolder().
 			Get(ictx, nil)
 		if err != nil {
-			return nil, clues.Wrap(err, "getting files folder for channel").
-				WithClues(ictx)
+			return nil, clues.WrapWC(ictx, err, "getting files folder for channel")
 		}
 
 		// WebURL returned here is the url to the documents folder, we
@@ -267,8 +266,7 @@ func (c Groups) GetAllSites(
 
 		u, err := url.Parse(documentWebURL)
 		if err != nil {
-			return nil, clues.Wrap(err, "parsing document web url").
-				WithClues(ictx)
+			return nil, clues.WrapWC(ictx, err, "parsing document web url")
 		}
 
 		pathSegments := strings.Split(u.Path, "/") // pathSegments[0] == ""
@@ -278,7 +276,7 @@ func (c Groups) GetAllSites(
 
 		site, err := Sites(c).GetByID(ictx, siteWebURL, CallConfig{})
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "getting site"))
+			el.AddRecoverable(ictx, clues.Wrap(err, "getting site"))
 			continue
 		}
 

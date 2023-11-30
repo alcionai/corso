@@ -18,7 +18,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -27,6 +26,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -54,6 +54,8 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
+	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
 	suite.user = tconfig.SecondaryM365UserID(t)
 
@@ -111,9 +113,14 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			Select: api.URLCacheDriveItemProps(),
 		})
 
-	// normally we'd page through all the pager.NextPage
-	// enumerations first.  But Results should make sure
-	// that we don't need to drain lower-level communication first.
+	// We need to go through all the pages of results so we don't get stuck. This
+	// is the only way to get a delta token since getting one requires going
+	// through all request results.
+	//
+	//revive:disable-next-line:empty-block
+	for _, _, done := pager.NextPage(); !done; _, _, done = pager.NextPage() {
+	}
+
 	du, err := pager.Results()
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotEmpty(t, du.URL)
@@ -141,6 +148,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 		du.URL,
 		1*time.Hour,
 		suite.ac.Drives(),
+		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -531,7 +539,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			pages: []mock.NextPage{
 				{Items: []models.DriveItemable{
 					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					driveItem("2", "folder2", "root", "root", false, true, false),
+					driveItem("2", "folder2", "root", "root", isFolder),
 				}},
 			},
 			expectedItemProps: map[string]itemProps{
@@ -571,6 +579,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 						"",
 						1*time.Hour,
 						&medi,
+						count.New(),
 						fault.New(true))
 					require.NoError(t, err, clues.ToCore(err))
 
@@ -615,6 +624,7 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 		"",
 		refreshInterval,
 		&mock.EnumerateItemsDeltaByDrive{},
+		count.New(),
 		fault.New(true))
 
 	require.NoError(t, err, clues.ToCore(err))
@@ -687,6 +697,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 				"",
 				test.refreshInt,
 				test.itemPager,
+				count.New(),
 				test.errors)
 
 			test.expectErr(t, err, clues.ToCore(err))

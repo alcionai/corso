@@ -7,35 +7,44 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ConsumeRestoreCollections restores M365 objects in data.RestoreCollection to MSFT
 // store through GraphAPI.
-func ConsumeRestoreCollections(
+func (h *exchangeHandler) ConsumeRestoreCollections(
 	ctx context.Context,
-	ac api.Client,
 	rcc inject.RestoreConsumerConfig,
 	dcs []data.RestoreCollection,
-	deets *details.Builder,
 	errs *fault.Bus,
 	ctr *count.Bus,
-) (*support.ControllerOperationStatus, error) {
+) (*details.Details, *data.CollectionStats, error) {
 	if len(dcs) == 0 {
-		return support.CreateStatus(ctx, support.Restore, 0, support.CollectionMetrics{}, ""), nil
+		return nil, nil, clues.WrapWC(ctx, data.ErrNoData, "performing restore")
 	}
 
+	// TODO(ashmrtn): We should stop relying on the context for rate limiter stuff
+	// and instead configure this when we make the handler instance. We can't
+	// initialize it in the NewHandler call right now because those functions
+	// aren't (and shouldn't be) returning a context along with the handler. Since
+	// that call isn't directly calling into this function even if we did
+	// initialize the rate limiter there it would be lost because it wouldn't get
+	// stored in an ancestor of the context passed to this function.
+	ctx = graph.BindRateLimiterConfig(
+		ctx,
+		graph.LimiterCfg{Service: path.ExchangeService})
+
 	var (
+		deets          = &details.Builder{}
 		resourceID     = rcc.ProtectedResource.ID()
 		directoryCache = make(map[path.CategoryType]graph.ContainerResolver)
-		handlers       = exchange.RestoreHandlers(ac)
+		handlers       = exchange.RestoreHandlers(h.apiClient)
 		metrics        support.CollectionMetrics
 		el             = errs.Local()
 	)
@@ -55,14 +64,14 @@ func ConsumeRestoreCollections(
 
 		handler, ok := handlers[category]
 		if !ok {
-			el.AddRecoverable(ctx, clues.New("unsupported restore path category").WithClues(ictx))
+			el.AddRecoverable(ictx, clues.NewWC(ictx, "unsupported restore path category"))
 			continue
 		}
 
 		if directoryCache[category] == nil {
 			gcr := handler.NewContainerCache(resourceID)
-			if err := gcr.Populate(ctx, errs, handler.DefaultRootContainer()); err != nil {
-				return nil, clues.Wrap(err, "populating container cache")
+			if err := gcr.Populate(ictx, errs, handler.DefaultRootContainer()); err != nil {
+				return nil, nil, clues.Wrap(err, "populating container cache")
 			}
 
 			directoryCache[category] = gcr
@@ -76,16 +85,16 @@ func ConsumeRestoreCollections(
 			directoryCache[category],
 			errs)
 		if err != nil {
-			el.AddRecoverable(ctx, err)
+			el.AddRecoverable(ictx, err)
 			continue
 		}
 
 		directoryCache[category] = gcc
 		ictx = clues.Add(ictx, "restore_destination_id", containerID)
 
-		collisionKeyToItemID, err := handler.GetItemsInContainerByCollisionKey(ctx, resourceID, containerID)
+		collisionKeyToItemID, err := handler.GetItemsInContainerByCollisionKey(ictx, resourceID, containerID)
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Wrap(err, "building item collision cache"))
+			el.AddRecoverable(ictx, clues.Wrap(err, "building item collision cache"))
 			continue
 		}
 
@@ -108,7 +117,7 @@ func ConsumeRestoreCollections(
 				break
 			}
 
-			el.AddRecoverable(ctx, err)
+			el.AddRecoverable(ictx, err)
 		}
 	}
 
@@ -119,5 +128,5 @@ func ConsumeRestoreCollections(
 		metrics,
 		rcc.RestoreConfig.Location)
 
-	return status, el.Failure()
+	return deets.Details(), status.ToCollectionStats(), el.Failure()
 }

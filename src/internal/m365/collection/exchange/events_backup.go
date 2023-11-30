@@ -1,8 +1,8 @@
 package exchange
 
 import (
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var _ backupHandler = &eventBackupHandler{}
@@ -27,6 +27,20 @@ func (h eventBackupHandler) itemEnumerator() addedAndRemovedItemGetter {
 
 func (h eventBackupHandler) itemHandler() itemGetterSerializer {
 	return h.ac
+}
+
+func (h eventBackupHandler) folderGetter() containerGetter {
+	return h.ac
+}
+
+func (h eventBackupHandler) previewIncludeContainers() []string {
+	return []string{
+		"calendar",
+	}
+}
+
+func (h eventBackupHandler) previewExcludeContainers() []string {
+	return nil
 }
 
 func (h eventBackupHandler) NewContainerCache(

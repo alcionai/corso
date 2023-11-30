@@ -2,37 +2,43 @@ package onedrive
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 func ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
-	tenant string,
+	creds account.M365Config,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	odb, err := bpc.Selector.ToOneDriveBackup()
 	if err != nil {
-		return nil, nil, false, clues.Wrap(err, "parsing selector").WithClues(ctx)
+		return nil, nil, false, clues.WrapWC(ctx, err, "parsing selector")
 	}
 
 	var (
 		el                   = errs.Local()
+		tenantID             = creds.AzureTenantID
 		categories           = map[path.CategoryType]struct{}{}
 		collections          = []data.BackupCollection{}
 		ssmb                 = prefixmatcher.NewStringSetBuilder()
@@ -50,10 +56,19 @@ func ProduceBackupCollections(
 
 		nc := drive.NewCollections(
 			drive.NewUserDriveBackupHandler(ac.Drives(), bpc.ProtectedResource.ID(), scope),
-			tenant,
+			tenantID,
 			bpc.ProtectedResource,
 			su,
-			bpc.Options)
+			bpc.Options,
+			counter)
+
+		pcfg := observe.ProgressCfg{
+			Indent:            1,
+			CompletionMessage: func() string { return fmt.Sprintf("(found %d files)", nc.NumFiles) },
+		}
+		progressBar := observe.MessageWithCompletion(ctx, pcfg, path.FilesCategory.HumanString())
+
+		defer close(progressBar)
 
 		odcs, canUsePreviousBackup, err = nc.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 		if err != nil {
@@ -65,7 +80,7 @@ func ProduceBackupCollections(
 		collections = append(collections, odcs...)
 	}
 
-	mcs, err := migrationCollections(bpc, tenant, su)
+	mcs, err := migrationCollections(bpc, tenantID, su, counter)
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -76,11 +91,12 @@ func ProduceBackupCollections(
 		baseCols, err := graph.BaseCollections(
 			ctx,
 			collections,
-			tenant,
+			tenantID,
 			bpc.ProtectedResource.ID(),
 			path.OneDriveService,
 			categories,
 			su,
+			counter,
 			errs)
 		if err != nil {
 			return nil, nil, false, err
@@ -88,6 +104,8 @@ func ProduceBackupCollections(
 
 		collections = append(collections, baseCols...)
 	}
+
+	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
 
 	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
 }
@@ -97,6 +115,7 @@ func migrationCollections(
 	bpc inject.BackupProducerConfig,
 	tenant string,
 	su support.StatusUpdater,
+	counter *count.Bus,
 ) ([]data.BackupCollection, error) {
 	// assume a version < 0 implies no prior backup, thus nothing to migrate.
 	if version.IsNoBackup(bpc.LastBackupVersion) {
@@ -106,6 +125,8 @@ func migrationCollections(
 	if bpc.LastBackupVersion >= version.All8MigrateUserPNToID {
 		return nil, nil
 	}
+
+	counter.Inc(count.RequiresUserPnToIDMigration)
 
 	// unlike exchange, which enumerates all folders on every
 	// backup, onedrive needs to force the owner PN -> ID migration
@@ -127,7 +148,7 @@ func migrationCollections(
 		return nil, clues.Wrap(err, "creating user name migration path")
 	}
 
-	mgn, err := graph.NewPrefixCollection(mpc, mc, su)
+	mgn, err := graph.NewPrefixCollection(mpc, mc, su, counter)
 	if err != nil {
 		return nil, clues.Wrap(err, "creating migration collection")
 	}

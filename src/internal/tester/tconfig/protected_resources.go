@@ -245,7 +245,7 @@ func UnlicensedM365UserID(t *testing.T) string {
 	cfg, err := ReadTestConfig()
 	require.NoError(t, err, "retrieving unlicensed m365 user id from test configuration: %+v", clues.ToCore(err))
 
-	return strings.ToLower(cfg[TestCfgSecondaryUserID])
+	return strings.ToLower(cfg[TestCfgUnlicensedUserID])
 }
 
 // Teams

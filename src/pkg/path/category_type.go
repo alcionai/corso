@@ -17,28 +17,30 @@ type CategoryType int
 
 //go:generate stringer -type=CategoryType -linecomment
 const (
-	UnknownCategory         CategoryType = 0
-	EmailCategory           CategoryType = 1 // email
-	ContactsCategory        CategoryType = 2 // contacts
-	EventsCategory          CategoryType = 3 // events
-	FilesCategory           CategoryType = 4 // files
-	ListsCategory           CategoryType = 5 // lists
-	LibrariesCategory       CategoryType = 6 // libraries
-	PagesCategory           CategoryType = 7 // pages
-	DetailsCategory         CategoryType = 8 // details
-	ChannelMessagesCategory CategoryType = 9 // channelMessages
+	UnknownCategory           CategoryType = 0
+	EmailCategory             CategoryType = 1  // email
+	ContactsCategory          CategoryType = 2  // contacts
+	EventsCategory            CategoryType = 3  // events
+	FilesCategory             CategoryType = 4  // files
+	ListsCategory             CategoryType = 5  // lists
+	LibrariesCategory         CategoryType = 6  // libraries
+	PagesCategory             CategoryType = 7  // pages
+	DetailsCategory           CategoryType = 8  // details
+	ChannelMessagesCategory   CategoryType = 9  // channelMessages
+	ConversationPostsCategory CategoryType = 10 // conversationPosts
 )
 
 var strToCat = map[string]CategoryType{
-	strings.ToLower(EmailCategory.String()):           EmailCategory,
-	strings.ToLower(ContactsCategory.String()):        ContactsCategory,
-	strings.ToLower(EventsCategory.String()):          EventsCategory,
-	strings.ToLower(FilesCategory.String()):           FilesCategory,
-	strings.ToLower(LibrariesCategory.String()):       LibrariesCategory,
-	strings.ToLower(ListsCategory.String()):           ListsCategory,
-	strings.ToLower(PagesCategory.String()):           PagesCategory,
-	strings.ToLower(DetailsCategory.String()):         DetailsCategory,
-	strings.ToLower(ChannelMessagesCategory.String()): ChannelMessagesCategory,
+	strings.ToLower(EmailCategory.String()):             EmailCategory,
+	strings.ToLower(ContactsCategory.String()):          ContactsCategory,
+	strings.ToLower(EventsCategory.String()):            EventsCategory,
+	strings.ToLower(FilesCategory.String()):             FilesCategory,
+	strings.ToLower(LibrariesCategory.String()):         LibrariesCategory,
+	strings.ToLower(ListsCategory.String()):             ListsCategory,
+	strings.ToLower(PagesCategory.String()):             PagesCategory,
+	strings.ToLower(DetailsCategory.String()):           DetailsCategory,
+	strings.ToLower(ChannelMessagesCategory.String()):   ChannelMessagesCategory,
+	strings.ToLower(ConversationPostsCategory.String()): ConversationPostsCategory,
 }
 
 func ToCategoryType(s string) CategoryType {
@@ -51,15 +53,16 @@ func ToCategoryType(s string) CategoryType {
 }
 
 var catToHuman = map[CategoryType]string{
-	EmailCategory:           "Emails",
-	ContactsCategory:        "Contacts",
-	EventsCategory:          "Events",
-	FilesCategory:           "Files",
-	LibrariesCategory:       "Libraries",
-	ListsCategory:           "Lists",
-	PagesCategory:           "Pages",
-	DetailsCategory:         "Details",
-	ChannelMessagesCategory: "Messages",
+	EmailCategory:             "Emails",
+	ContactsCategory:          "Contacts",
+	EventsCategory:            "Events",
+	FilesCategory:             "Files",
+	LibrariesCategory:         "Libraries",
+	ListsCategory:             "Lists",
+	PagesCategory:             "Pages",
+	DetailsCategory:           "Details",
+	ChannelMessagesCategory:   "Messages",
+	ConversationPostsCategory: "Posts",
 }
 
 // HumanString produces a more human-readable string version of the category.
@@ -93,8 +96,9 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		PagesCategory:     {},
 	},
 	GroupsService: {
-		ChannelMessagesCategory: {},
-		LibrariesCategory:       {},
+		ChannelMessagesCategory:   {},
+		ConversationPostsCategory: {},
+		LibrariesCategory:         {},
 	},
 }
 

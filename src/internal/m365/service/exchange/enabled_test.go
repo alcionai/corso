@@ -6,13 +6,13 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
@@ -46,19 +46,6 @@ func (m mockGMB) GetFirstInboxMessage(context.Context, string, string) error {
 	return m.inboxMessageErr
 }
 
-// TODO(pandeyabs): Duplicate of graph/errors_test.go. Remove
-// this and identical funcs in od/sp and use the one in graph/errors_test.go
-// instead.
-func odErrMsg(code, message string) *odataerrors.ODataError {
-	odErr := odataerrors.NewODataError()
-	merr := odataerrors.NewMainError()
-	merr.SetCode(&code)
-	merr.SetMessage(&message)
-	odErr.SetErrorEscaped(merr)
-
-	return odErr
-}
-
 func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 	table := []struct {
 		name      string
@@ -79,7 +66,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "user has no mailbox",
 			mock: func(ctx context.Context) getMailInboxer {
-				odErr := odErrMsg(string(graph.ResourceNotFound), "message")
+				odErr := graphTD.ODataErrWithMsg(string(graph.ResourceNotFound), "message")
 
 				return mockGMB{
 					mailboxErr: graph.Stack(ctx, odErr),
@@ -91,7 +78,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "user not found",
 			mock: func(ctx context.Context) getMailInboxer {
-				odErr := odErrMsg(string(graph.RequestResourceNotFound), "message")
+				odErr := graphTD.ODataErrWithMsg(string(graph.RequestResourceNotFound), "message")
 
 				return mockGMB{
 					mailboxErr: graph.Stack(ctx, odErr),
@@ -103,7 +90,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "overlapping resourcenotfound",
 			mock: func(ctx context.Context) getMailInboxer {
-				odErr := odErrMsg(string(graph.ResourceNotFound), "User not found")
+				odErr := graphTD.ODataErrWithMsg(string(graph.ResourceNotFound), "User not found")
 
 				return mockGMB{
 					mailboxErr: graph.Stack(ctx, odErr),
@@ -115,7 +102,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 		{
 			name: "arbitrary error",
 			mock: func(ctx context.Context) getMailInboxer {
-				odErr := odErrMsg("code", "message")
+				odErr := graphTD.ODataErrWithMsg("code", "message")
 
 				return mockGMB{
 					mailboxErr: graph.Stack(ctx, odErr),
@@ -166,7 +153,7 @@ func (suite *EnabledUnitSuite) TestGetMailboxInfo() {
 		{
 			name: "user has no mailbox",
 			mock: func(ctx context.Context) getMailboxer {
-				err := odErrMsg(string(graph.ResourceNotFound), "message")
+				err := graphTD.ODataErrWithMsg(string(graph.ResourceNotFound), "message")
 
 				return mockGMB{
 					mailboxErr: graph.Stack(ctx, err),
@@ -187,7 +174,7 @@ func (suite *EnabledUnitSuite) TestGetMailboxInfo() {
 		{
 			name: "settings access denied",
 			mock: func(ctx context.Context) getMailboxer {
-				err := odErrMsg(string(graph.ErrorAccessDenied), "message")
+				err := graphTD.ODataErrWithMsg(string(graph.ErrorAccessDenied), "message")
 
 				return mockGMB{
 					mailbox:     models.NewMailFolder(),
@@ -226,7 +213,7 @@ func (suite *EnabledUnitSuite) TestGetMailboxInfo() {
 		{
 			name: "mailbox quota exceeded",
 			mock: func(ctx context.Context) getMailboxer {
-				err := odErrMsg(string(graph.QuotaExceeded), "message")
+				err := graphTD.ODataErrWithMsg(string(graph.QuotaExceeded), "message")
 				return mockGMB{
 					mailbox:         models.NewMailFolder(),
 					settings:        mock.UserSettings(),

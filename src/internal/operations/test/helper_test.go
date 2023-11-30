@@ -14,13 +14,12 @@ import (
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/m365/graph"
-	gmock "github.com/alcionai/corso/src/internal/m365/graph/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
@@ -29,9 +28,11 @@ import (
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -41,6 +42,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	gmock "github.com/alcionai/corso/src/pkg/services/m365/api/graph/mock"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -115,6 +118,7 @@ func prepNewTestBackupOp(
 	sel selectors.Selector,
 	opts control.Options,
 	backupVersion int,
+	counter *count.Bus,
 ) (
 	operations.BackupOperation,
 	*backupOpDependencies,
@@ -123,10 +127,11 @@ func prepNewTestBackupOp(
 		acct: tconfig.NewM365Account(t),
 		st:   storeTD.NewPrefixedS3Storage(t),
 	}
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	k := kopia.NewConn(bod.st)
 
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{})
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {
@@ -161,14 +166,16 @@ func prepNewTestBackupOp(
 		bod.acct,
 		sel,
 		nil,
-		bod.close)
+		bod.close,
+		counter)
 
 	bo := newTestBackupOp(
 		t,
 		ctx,
 		bod,
 		bus,
-		opts)
+		opts,
+		counter)
 	bo.BackupVersion = backupVersion
 
 	bod.sss = streamstore.NewStreamer(
@@ -189,6 +196,7 @@ func newTestBackupOp(
 	bod *backupOpDependencies,
 	bus events.Eventer,
 	opts control.Options,
+	counter *count.Bus,
 ) operations.BackupOperation {
 	bod.ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.sel.ID(): bod.sel.Name()})
 
@@ -201,7 +209,8 @@ func newTestBackupOp(
 		bod.acct,
 		bod.sel,
 		bod.sel,
-		bus)
+		bus,
+		counter)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		bod.close(t, ctx)
 		t.FailNow()
@@ -367,6 +376,147 @@ func checkMetadataFilesExist(
 	}
 }
 
+func runMergeBaseGroupsUpdate(
+	suite tester.Suite,
+	sel selectors.Selector,
+	expectCached bool,
+) {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		mb      = evmock.NewBus()
+		opts    = control.DefaultOptions()
+		whatSet = deeTD.CategoryFromRepoRef
+	)
+
+	// Need outside the inner test case so bod lasts for the entire test.
+	bo, bod := prepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel,
+		opts,
+		version.All8MigrateUserPNToID,
+		count.New())
+	defer bod.close(t, ctx)
+
+	suite.Run("makeMergeBackup", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		runAndCheckBackup(t, ctx, &bo, mb, false)
+
+		reasons, err := bod.sel.Reasons(bod.acct.ID(), false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		for _, reason := range reasons {
+			checkBackupIsInManifests(
+				t,
+				ctx,
+				bod.kw,
+				bod.sw,
+				&bo,
+				bod.sel,
+				bod.sel.ID(),
+				reason.Category())
+		}
+
+		_, expectDeets := deeTD.GetDeetsInBackup(
+			t,
+			ctx,
+			bo.Results.BackupID,
+			bod.acct.ID(),
+			bod.sel.ID(),
+			bod.sel.PathService(),
+			whatSet,
+			bod.kms,
+			bod.sss)
+		deeTD.CheckBackupDetails(
+			t,
+			ctx,
+			bo.Results.BackupID,
+			whatSet,
+			bod.kms,
+			bod.sss,
+			expectDeets,
+			false)
+	})
+
+	suite.Run("makeIncrementalBackup", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		var (
+			mb   = evmock.NewBus()
+			opts = control.DefaultOptions()
+		)
+
+		forcedFull := newTestBackupOp(
+			t,
+			ctx,
+			bod,
+			mb,
+			opts,
+			count.New())
+		forcedFull.BackupVersion = version.Groups9Update
+
+		runAndCheckBackup(t, ctx, &forcedFull, mb, false)
+
+		reasons, err := bod.sel.Reasons(bod.acct.ID(), false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		for _, reason := range reasons {
+			checkBackupIsInManifests(
+				t,
+				ctx,
+				bod.kw,
+				bod.sw,
+				&forcedFull,
+				bod.sel,
+				bod.sel.ID(),
+				reason.Category())
+		}
+
+		_, expectDeets := deeTD.GetDeetsInBackup(
+			t,
+			ctx,
+			forcedFull.Results.BackupID,
+			bod.acct.ID(),
+			bod.sel.ID(),
+			bod.sel.PathService(),
+			whatSet,
+			bod.kms,
+			bod.sss)
+		deeTD.CheckBackupDetails(
+			t,
+			ctx,
+			forcedFull.Results.BackupID,
+			whatSet,
+			bod.kms,
+			bod.sss,
+			expectDeets,
+			false)
+
+		check := assert.Zero
+
+		if expectCached {
+			check = assert.NotZero
+		}
+
+		check(
+			t,
+			forcedFull.Results.Counts[string(count.PersistedCachedFiles)],
+			"cached items")
+	})
+}
+
 // ---------------------------------------------------------------------------
 // Incremental Item Generators
 // TODO: this is ripped from factory.go, which is ripped from other tests.
@@ -440,17 +590,16 @@ func generateContainerOfItems(
 		Selector:          sel,
 	}
 
-	deets, err := ctrl.ConsumeRestoreCollections(
+	handler, err := ctrl.NewServiceHandler(opts, service)
+	require.NoError(t, err, clues.ToCore(err))
+
+	deets, _, err := handler.ConsumeRestoreCollections(
 		ctx,
 		rcc,
 		dataColls,
 		fault.New(true),
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
-
-	// have to wait here, both to ensure the process
-	// finishes, and also to clean up the status
-	ctrl.Wait()
 
 	return deets
 }
@@ -561,13 +710,16 @@ func ControllerWithSelector(
 	sel selectors.Selector,
 	ins idname.Cacher,
 	onFail func(*testing.T, context.Context),
+	counter *count.Bus,
 ) (*m365.Controller, selectors.Selector) {
+	ctx = clues.Add(ctx, "controller_selector", sel)
+
 	ctrl, err := m365.NewController(
 		ctx,
 		acct,
 		sel.PathService(),
 		control.DefaultOptions(),
-		count.New())
+		counter)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
 		if onFail != nil {
 			onFail(t, ctx)
@@ -738,6 +890,7 @@ func verifyExtensionData(
 	case path.OneDriveService:
 		detailsSize = itemInfo.OneDrive.Size
 	case path.GroupsService:
+		// FIXME: needs update for message.
 		detailsSize = itemInfo.Groups.Size
 	default:
 		assert.Fail(t, "unrecognized data type")

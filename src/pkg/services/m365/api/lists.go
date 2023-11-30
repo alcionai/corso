@@ -7,7 +7,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ func (c Lists) PostDrive(
 
 	newList, err := builder.Post(ctx, list, nil)
 	if graph.IsErrItemAlreadyExistsConflict(err) {
-		return nil, clues.Stack(graph.ErrItemAlreadyExistsConflict, err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, graph.ErrItemAlreadyExistsConflict, err)
 	}
 
 	if err != nil {

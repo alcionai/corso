@@ -9,8 +9,8 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -274,11 +274,8 @@ func (c Drives) GetItemPermission(
 		ByDriveItemId(itemID).
 		Permissions().
 		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item permission").With("item_id", itemID)
-	}
 
-	return perm, nil
+	return perm, graph.Wrap(ctx, err, "getting item permissions").OrNil()
 }
 
 func (c Drives) PostItemPermissionUpdate(

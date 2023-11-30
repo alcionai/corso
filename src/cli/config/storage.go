@@ -45,15 +45,17 @@ func configureStorage(
 		return store, clues.Wrap(err, "validating corso credentials")
 	}
 
+	configDir, _ := filepath.Split(vpr.ConfigFileUsed())
+
 	cCfg := storage.CommonConfig{
-		Corso: corso,
+		Corso:       corso,
+		KopiaCfgDir: configDir,
 	}
 	// the following is a hack purely for integration testing.
 	// the value is not required, and if empty, kopia will default
 	// to its routine behavior
 	if t, ok := vpr.Get("corso-testing").(bool); t && ok {
-		dir, _ := filepath.Split(vpr.ConfigFileUsed())
-		cCfg.KopiaCfgDir = dir
+		cCfg.KopiaCfgDir = configDir
 	}
 
 	// ensure required properties are present

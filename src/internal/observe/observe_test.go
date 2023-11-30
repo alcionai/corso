@@ -127,6 +127,30 @@ func (suite *ObserveProgressUnitSuite) TestCollectionProgress_unblockOnChannelCl
 	}()
 }
 
+func (suite *ObserveProgressUnitSuite) TestObserve_section() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	recorder := strings.Builder{}
+	ctx = SeedObserver(ctx, &recorder, config{})
+
+	process := uuid.NewString()[:8]
+	target := uuid.NewString()[:8]
+
+	pcfg := ProgressCfg{
+		NewSection:        true,
+		SectionIdentifier: target,
+	}
+	Message(ctx, pcfg, process)
+
+	Flush(ctx)
+	assert.NotEmpty(t, recorder)
+	assert.Contains(t, recorder.String(), process)
+	assert.Contains(t, recorder.String(), target)
+}
+
 func (suite *ObserveProgressUnitSuite) TestObserve_message() {
 	t := suite.T()
 
@@ -138,7 +162,7 @@ func (suite *ObserveProgressUnitSuite) TestObserve_message() {
 
 	message := uuid.NewString()[:8]
 
-	Message(ctx, message)
+	Message(ctx, ProgressCfg{}, message)
 	Flush(ctx)
 	assert.NotEmpty(t, recorder)
 	assert.Contains(t, recorder.String(), message)
@@ -155,7 +179,7 @@ func (suite *ObserveProgressUnitSuite) TestObserve_progressWithChannelClosed() {
 
 	message := uuid.NewString()[:8]
 
-	ch := MessageWithCompletion(ctx, message)
+	ch := MessageWithCompletion(ctx, ProgressCfg{}, message)
 
 	// Close channel without completing
 	close(ch)
@@ -180,7 +204,7 @@ func (suite *ObserveProgressUnitSuite) TestObserve_progressWithContextCancelled(
 
 	message := uuid.NewString()[:8]
 
-	_ = MessageWithCompletion(ctx, message)
+	_ = MessageWithCompletion(ctx, ProgressCfg{}, message)
 
 	// cancel context
 	cancel()

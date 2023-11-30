@@ -7,11 +7,11 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -51,8 +51,9 @@ func NewClient(
 	creds account.M365Config,
 	co control.Options,
 	counter *count.Bus,
+	opts ...graph.Option,
 ) (Client, error) {
-	s, err := NewService(creds, counter)
+	s, err := NewService(creds, counter, opts...)
 	if err != nil {
 		return Client{}, err
 	}
@@ -93,8 +94,11 @@ func InitConcurrencyLimit(ctx context.Context, pst path.ServiceType) {
 // so that in-flight state within the adapter doesn't get clobbered.
 // Most calls should use the Client.Stable property instead of calling this
 // func, unless it is explicitly necessary.
-func (c Client) Service(counter *count.Bus) (graph.Servicer, error) {
-	return NewService(c.Credentials, counter)
+func (c Client) Service(
+	counter *count.Bus,
+	opts ...graph.Option,
+) (graph.Servicer, error) {
+	return NewService(c.Credentials, counter, opts...)
 }
 
 func NewService(
@@ -158,9 +162,19 @@ func (c Client) Post(
 // per-call config
 // ---------------------------------------------------------------------------
 
+// CallConfig defines additional parameters to add to the query like field
+// selection and limiting results.
+//
+// Not all calls may support all options. Check individual implementations to
+// see what's supported and what's not.
 type CallConfig struct {
-	Expand []string
-	Select []string
+	Expand              []string
+	Select              []string
+	CanMakeDeltaQueries bool
+	UseImmutableIDs     bool
+	// LimitResults limits the returned results to the given number. If 0, returns
+	// all results.
+	LimitResults int
 }
 
 // ---------------------------------------------------------------------------

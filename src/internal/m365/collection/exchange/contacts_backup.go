@@ -1,8 +1,8 @@
 package exchange
 
 import (
-	"github.com/alcionai/corso/src/internal/m365/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var _ backupHandler = &contactBackupHandler{}
@@ -27,6 +27,20 @@ func (h contactBackupHandler) itemEnumerator() addedAndRemovedItemGetter {
 
 func (h contactBackupHandler) itemHandler() itemGetterSerializer {
 	return h.ac
+}
+
+func (h contactBackupHandler) folderGetter() containerGetter {
+	return h.ac
+}
+
+func (h contactBackupHandler) previewIncludeContainers() []string {
+	return []string{
+		"contacts",
+	}
+}
+
+func (h contactBackupHandler) previewExcludeContainers() []string {
+	return nil
 }
 
 func (h contactBackupHandler) NewContainerCache(
