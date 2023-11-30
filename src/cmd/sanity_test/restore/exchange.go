@@ -122,7 +122,7 @@ func recursivelyBuildTree(
 	}
 
 	for _, child := range childFolders {
-		if int(ptr.Val(child.GetTotalItemCount())) == 0 {
+		if int(ptr.Val(child.GetTotalItemCount()))+len(childFolders) == 0 {
 			common.Infof(ctx, "skipped empty folder: %s/%s", location, ptr.Val(child.GetDisplayName()))
 			continue
 		}
