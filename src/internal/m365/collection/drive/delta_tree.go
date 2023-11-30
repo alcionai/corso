@@ -36,6 +36,8 @@ type folderyMcFolderFace struct {
 	// will also be used to construct the excluded file id map
 	// during the post-processing step
 	fileIDToParentID map[string]string
+	// required for populating the excluded file id map
+	deletedFileIDs map[string]struct{}
 
 	// true if Reset() was called
 	hadReset bool
@@ -49,6 +51,7 @@ func newFolderyMcFolderFace(
 		folderIDToNode:   map[string]*nodeyMcNodeFace{},
 		tombstones:       map[string]*nodeyMcNodeFace{},
 		fileIDToParentID: map[string]string{},
+		deletedFileIDs:   map[string]struct{}{},
 	}
 }
 
@@ -289,19 +292,11 @@ func (face *folderyMcFolderFace) addFile(
 	face.fileIDToParentID[id] = parentID
 	parent.files[id] = lastModifed
 
+	delete(face.deletedFileIDs, id)
+
 	return nil
 }
 
-// files don't get tombstoned because their deletion will get handled
-// in one of two ways in the storage system:
-//
-// 1. an ancestor folder was tombstoned, causing a delete cascade
-// that includes this file and all its siblings.
-// 2. the item does not appear in the exclude map, which would protect
-// the file from deletion.
-//
-// thanks to these behaviors, files only need to have their references
-// when a delete marker shows up.
 func (face *folderyMcFolderFace) deleteFile(id string) {
 	parentID, ok := face.fileIDToParentID[id]
 	if ok {
@@ -315,4 +310,6 @@ func (face *folderyMcFolderFace) deleteFile(id string) {
 	}
 
 	delete(face.fileIDToParentID, id)
+
+	face.deletedFileIDs[id] = struct{}{}
 }

@@ -834,6 +834,38 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
 			require.NotNil(t, parent)
 			assert.NotContains(t, parent.files, id(file))
 			assert.NotContains(t, test.tree.fileIDToParentID, id(file))
+			assert.Contains(t, test.tree.deletedFileIDs, id(file))
 		})
 	}
+}
+
+func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
+	t := suite.T()
+	tree := treeWithRoot()
+	fID := id(file)
+
+	require.Len(t, tree.fileIDToParentID, 0)
+	require.Len(t, tree.deletedFileIDs, 0)
+
+	tree.deleteFile(fID)
+
+	assert.Len(t, tree.fileIDToParentID, 0)
+	assert.NotContains(t, tree.fileIDToParentID, fID)
+	assert.Len(t, tree.deletedFileIDs, 1)
+	assert.Contains(t, tree.deletedFileIDs, fID)
+
+	err := tree.addFile(rootID, fID, time.Now())
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Len(t, tree.fileIDToParentID, 1)
+	assert.Contains(t, tree.fileIDToParentID, fID)
+	assert.Len(t, tree.deletedFileIDs, 0)
+	assert.NotContains(t, tree.deletedFileIDs, fID)
+
+	tree.deleteFile(fID)
+
+	assert.Len(t, tree.fileIDToParentID, 0)
+	assert.NotContains(t, tree.fileIDToParentID, fID)
+	assert.Len(t, tree.deletedFileIDs, 1)
+	assert.Contains(t, tree.deletedFileIDs, fID)
 }
