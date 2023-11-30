@@ -64,6 +64,7 @@ func (bh mockBackupHandler) containers() []container[models.Channelable] {
 	return containers
 }
 
+//lint:ignore U1000 required for interface compliance
 func (bh mockBackupHandler) getContainers(
 	context.Context,
 	api.CallConfig,
@@ -93,6 +94,7 @@ func (bh mockBackupHandler) getContainerItemIDs(
 	return aar, bh.messagesErr
 }
 
+//lint:ignore U1000 required for interface compliance
 func (bh mockBackupHandler) includeContainer(
 	models.Channelable,
 	selectors.GroupsScope,

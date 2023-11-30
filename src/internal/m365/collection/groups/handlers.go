@@ -23,38 +23,11 @@ type groupsItemer interface {
 
 type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 	getItemer[I]
-
-	// gets all containers for the resource
-	getContainers(
-		ctx context.Context,
-		cc api.CallConfig,
-	) ([]container[C], error)
-
-	// gets all item IDs (by delta, if possible) in the container
-	getContainerItemIDs(
-		ctx context.Context,
-		containerPath path.Elements,
-		prevDelta string,
-		cc api.CallConfig,
-	) (pagers.AddedAndRemoved, error)
-
-	// includeContainer evaluates whether the container is included
-	// in the provided scope.
-	includeContainer(
-		c C,
-		scope selectors.GroupsScope,
-	) bool
-
-	// canonicalPath constructs the service and category specific path for
-	// the given builder.
-	canonicalPath(
-		storageDir path.Elements,
-		tenantID string,
-	) (path.Path, error)
-
-	// canMakeDeltaQueries evaluates whether the handler can support a
-	// delta query when enumerating its items.
-	canMakeDeltaQueries() bool
+	getContainerser[C]
+	getContainerItemIDser
+	includeContainerer[C]
+	canonicalPather
+	canMakeDeltaQuerieser
 }
 
 type getItemer[I groupsItemer] interface {
@@ -64,6 +37,48 @@ type getItemer[I groupsItemer] interface {
 		containerIDs path.Elements,
 		itemID string,
 	) (I, *details.GroupsInfo, error)
+}
+
+// gets all containers for the resource
+type getContainerser[C graph.GetIDer] interface {
+	getContainers(
+		ctx context.Context,
+		cc api.CallConfig,
+	) ([]container[C], error)
+}
+
+// gets all item IDs (by delta, if possible) in the container
+type getContainerItemIDser interface {
+	getContainerItemIDs(
+		ctx context.Context,
+		containerPath path.Elements,
+		prevDelta string,
+		cc api.CallConfig,
+	) (pagers.AddedAndRemoved, error)
+}
+
+// includeContainer evaluates whether the container is included
+// in the provided scope.
+type includeContainerer[C graph.GetIDer] interface {
+	includeContainer(
+		c C,
+		scope selectors.GroupsScope,
+	) bool
+}
+
+// canonicalPath constructs the service and category specific path for
+// the given builder.
+type canonicalPather interface {
+	canonicalPath(
+		storageDir path.Elements,
+		tenantID string,
+	) (path.Path, error)
+}
+
+// canMakeDeltaQueries evaluates whether the handler can support a
+// delta query when enumerating its items.
+type canMakeDeltaQuerieser interface {
+	canMakeDeltaQueries() bool
 }
 
 // ---------------------------------------------------------------------------

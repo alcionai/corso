@@ -128,11 +128,6 @@ issues:
       linters:
         - forbidigo
       text: "context.(Background|TODO)"
-    # the linter doesn't seem to know howo read these funcs as used now that
-    # they include generics
-    - path: internal/m365/collection/groups/(.*_handler|backup_test).go
-      linters:
-        - unused
     - path: internal/m365/collection/drive/collections_test.go
       linters:
         - lll

@@ -35,6 +35,7 @@ func (bh channelsBackupHandler) canMakeDeltaQueries() bool {
 	return true
 }
 
+//lint:ignore U1000 required for interface compliance
 func (bh channelsBackupHandler) getContainers(
 	ctx context.Context,
 	_ api.CallConfig,
@@ -63,6 +64,7 @@ func (bh channelsBackupHandler) getContainerItemIDs(
 		cc)
 }
 
+//lint:ignore U1000 required for interface compliance
 func (bh channelsBackupHandler) includeContainer(
 	ch models.Channelable,
 	scope selectors.GroupsScope,
