@@ -98,7 +98,7 @@ func (mw *testMW) Intercept(
 func mockAdapter(
 	creds account.M365Config,
 	mw khttp.Middleware,
-	timeout time.Duration,
+	cc *clientConfig,
 ) (*msgraphsdkgo.GraphRequestAdapter, error) {
 	auth, err := GetAuth(
 		creds.AzureTenantID,
@@ -110,12 +110,9 @@ func mockAdapter(
 
 	var (
 		clientOptions = msgraphsdkgo.GetDefaultClientOptions()
-		cc            = populateConfig(MinimumBackoff(10 * time.Millisecond))
 		middlewares   = append(kiotaMiddlewares(&clientOptions, cc, count.New()), mw)
 		httpClient    = msgraphgocore.GetDefaultClient(&clientOptions, middlewares...)
 	)
-
-	httpClient.Timeout = timeout
 
 	cc.apply(httpClient)
 
@@ -145,6 +142,11 @@ func (suite *RetryMWIntgSuite) SetupSuite() {
 		a   = tconfig.NewM365Account(suite.T())
 		err error
 	)
+
+	ctx, flush := tester.NewContext(suite.T())
+	defer flush()
+
+	InitializeConcurrencyLimiter(ctx, false, -1)
 
 	suite.creds, err = a.M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
@@ -239,7 +241,12 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 				newMWReturns(test.status, nil, test.providedErr))
 			mw.repeatReturn0 = true
 
-			adpt, err := mockAdapter(suite.creds, mw, 25*time.Second)
+			cc := populateConfig(
+				MinimumBackoff(10*time.Millisecond),
+				Timeout(25*time.Second),
+				MaxRetries(test.expectRetryCount))
+
+			adpt, err := mockAdapter(suite.creds, mw, cc)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// url doesn't fit the builder, but that shouldn't matter
@@ -283,7 +290,11 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 		newMWReturns(http.StatusInternalServerError, nil, nil),
 		newMWReturns(http.StatusOK, nil, nil))
 
-	adpt, err := mockAdapter(suite.creds, mw, 15*time.Second)
+	cc := populateConfig(
+		MinimumBackoff(10*time.Millisecond),
+		Timeout(15*time.Second))
+
+	adpt, err := mockAdapter(suite.creds, mw, cc)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// no api package needed here, this is a mocked request that works
@@ -303,8 +314,6 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryResponse_maintainBodyAft
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	InitializeConcurrencyLimiter(ctx, false, -1)
-
 	odem := graphTD.ODataErrWithMsg("SystemDown", "The System, Is Down, bah-dup-da-woo-woo!")
 	m := graphTD.ParseableToMap(t, odem)
 
@@ -319,7 +328,11 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryResponse_maintainBodyAft
 		newMWReturns(http.StatusServiceUnavailable, body, nil),
 		newMWReturns(http.StatusServiceUnavailable, body, nil))
 
-	adpt, err := mockAdapter(suite.creds, mw, 55*time.Second)
+	cc := populateConfig(
+		MinimumBackoff(10*time.Millisecond),
+		Timeout(55*time.Second))
+
+	adpt, err := mockAdapter(suite.creds, mw, cc)
 	require.NoError(t, err, clues.ToCore(err))
 
 	// no api package needed here,
