@@ -144,7 +144,7 @@ func recursivelyBuildTree(
 
 		for _, mail := range mails {
 			m := &common.Sanileaf[models.MailFolderable, any]{
-				Parent: stree,
+				Parent: c,
 				Self:   mail,
 				ID:     ptr.Val(mail.GetId()),
 				Name:   ptr.Val(mail.GetSubject()),
