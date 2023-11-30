@@ -41,7 +41,6 @@ var _ backupHandler[models.Channelable, models.ChatMessageable] = &mockBackupHan
 
 type mockBackupHandler struct {
 	channels      []models.Channelable
-	containersErr error
 	messageIDs    []string
 	deletedMsgIDs []string
 	messagesErr   error
@@ -69,7 +68,7 @@ func (bh mockBackupHandler) getContainers(
 	context.Context,
 	api.CallConfig,
 ) ([]container[models.Channelable], error) {
-	return bh.containers(), bh.containersErr
+	return bh.containers(), nil
 }
 
 func (bh mockBackupHandler) getContainerItemIDs(
