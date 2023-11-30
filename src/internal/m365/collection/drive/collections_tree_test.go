@@ -45,6 +45,7 @@ func collWithMBH(mbh BackupHandler) *Collections {
 		count.New())
 }
 
+//nolint:unused
 func fullOrPrevPath(
 	t *testing.T,
 	coll data.BackupCollection,
@@ -102,6 +103,7 @@ func makePrevMetadataColls(
 	}
 }
 
+//nolint:unused
 func compareMetadata(
 	t *testing.T,
 	mdColl data.Collection,
@@ -131,6 +133,8 @@ type stateAssertion struct {
 	// should never get set by the user.
 	// this flag gets flipped when calling assertions.compare.
 	// any unseen collection will error on requireNoUnseenCollections
+	//
+	//nolint:unused
 	sawCollection bool
 }
 
@@ -174,6 +178,8 @@ func newCollAssertion(
 type collectionAssertions map[string]collectionAssertion
 
 // ensure the provided collection matches expectations as set by the test.
+//
+//nolint:unused
 func (cas collectionAssertions) compare(
 	t *testing.T,
 	coll data.BackupCollection,
@@ -221,6 +227,8 @@ func (cas collectionAssertions) compare(
 
 // ensure that no collections in the expected set are still flagged
 // as sawCollection == false.
+//
+//nolint:unused
 func (cas collectionAssertions) requireNoUnseenCollections(
 	t *testing.T,
 ) {
