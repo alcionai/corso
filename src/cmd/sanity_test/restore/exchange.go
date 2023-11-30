@@ -133,7 +133,25 @@ func recursivelyBuildTree(
 			ID:          ptr.Val(child.GetId()),
 			Name:        ptr.Val(child.GetDisplayName()),
 			CountLeaves: int(ptr.Val(child.GetTotalItemCount())),
+			Leaves:      map[string]*common.Sanileaf[models.MailFolderable, any]{},
 			Children:    map[string]*common.Sanitree[models.MailFolderable, any]{},
+		}
+
+		mails, err := ac.Mail().GetItemsInContainer(ctx, userID, c.ID)
+		if err != nil {
+			common.Fatal(ctx, "getting child containers", err)
+		}
+
+		for _, mail := range mails {
+			m := &common.Sanileaf[models.MailFolderable, any]{
+				Parent: stree,
+				Self:   mail,
+				ID:     ptr.Val(mail.GetId()),
+				Name:   ptr.Val(mail.GetSubject()),
+				Size:   int64(len(ptr.Val(mail.GetBody().GetContent()))),
+			}
+
+			c.Leaves[m.ID] = m
 		}
 
 		stree.Children[c.Name] = c
