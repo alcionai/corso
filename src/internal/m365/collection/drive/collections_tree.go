@@ -35,6 +35,13 @@ func (c *Collections) getTree(
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	ctx = clues.AddTraceName(ctx, "GetTree")
+	limiter := newPagerLimiter(c.ctrl)
+
+	logger.Ctx(ctx).Infow(
+		"running backup: getting collection data using tree structure",
+		"limits", c.ctrl.PreviewLimits,
+		"effective_limits", limiter.effectiveLimits(),
+		"preview_mode", limiter.enabled())
 
 	// extract the previous backup's metadata like: deltaToken urls and previousPath maps.
 	// We'll need these to reconstruct / ensure the correct state of the world, after
@@ -104,6 +111,7 @@ func (c *Collections) getTree(
 			drv,
 			prevPathsByDriveID[driveID],
 			deltasByDriveID[driveID],
+			limiter,
 			cl,
 			el)
 		if err != nil {
@@ -154,6 +162,7 @@ func (c *Collections) makeDriveCollections(
 	drv models.Driveable,
 	prevPaths map[string]string,
 	prevDeltaLink string,
+	limiter *pagerLimiter,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]string, pagers.DeltaUpdate, error) {
@@ -163,9 +172,8 @@ func (c *Collections) makeDriveCollections(
 	}
 
 	var (
-		tree    = newFolderyMcFolderFace(ppfx)
-		limiter = newPagerLimiter(c.ctrl)
-		stats   = &driveEnumerationStats{}
+		tree  = newFolderyMcFolderFace(ppfx)
+		stats = &driveEnumerationStats{}
 	)
 
 	counter.Add(count.PrevPaths, int64(len(prevPaths)))
@@ -263,12 +271,6 @@ func (c *Collections) populateTree(
 ) (pagers.DeltaUpdate, error) {
 	ctx = clues.Add(ctx, "invalid_prev_delta", len(prevDeltaLink) == 0)
 
-	logger.Ctx(ctx).Infow(
-		"running backup",
-		"limits", c.ctrl.PreviewLimits,
-		"effective_limits", limiter.effectiveLimits(),
-		"preview_mode", limiter.enabled())
-
 	var (
 		driveID = ptr.Val(drv.GetId())
 		el      = errs.Local()
@@ -363,6 +365,8 @@ func (c *Collections) enumeratePageOfItems(
 		var (
 			isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
 			itemID   = ptr.Val(item.GetId())
+			err      error
+			skipped  *fault.Skipped
 		)
 
 		ictx := clues.Add(
@@ -379,15 +383,17 @@ func (c *Collections) enumeratePageOfItems(
 				break
 			}
 
-			err := c.addFolderToTree(ictx, tree, drv, item, stats, counter, el)
-			if err != nil {
-				el.AddRecoverable(ictx, clues.Wrap(err, "adding folder"))
-			}
+			skipped, err = c.addFolderToTree(ictx, tree, drv, item, stats, counter)
 		} else {
-			err := c.addFileToTree(ictx, tree, drv, item, stats, counter, el)
-			if err != nil {
-				el.AddRecoverable(ictx, clues.Wrap(err, "adding file"))
-			}
+			skipped, err = c.addFileToTree(ictx, tree, drv, item, stats, counter)
+		}
+
+		if skipped != nil {
+			el.AddSkip(ctx, skipped)
+		}
+
+		if err != nil {
+			el.AddRecoverable(ictx, clues.Wrap(err, "adding folder"))
 		}
 
 		// Check if we reached the item or size limit while processing this page.
@@ -412,8 +418,7 @@ func (c *Collections) addFolderToTree(
 	folder models.DriveItemable,
 	stats *driveEnumerationStats,
 	counter *count.Bus,
-	skipper fault.AddSkipper,
-) error {
+) (*fault.Skipped, error) {
 	var (
 		driveID     = ptr.Val(drv.GetId())
 		folderID    = ptr.Val(folder.GetId())
@@ -455,36 +460,36 @@ func (c *Collections) addFolderToTree(
 			folderID,
 			folderName,
 			graph.ItemInfo(folder))
-		skipper.AddSkip(ctx, skip)
 
 		logger.Ctx(ctx).Infow("malware detected")
 
-		return nil
+		return skip, nil
 	}
 
 	if isDeleted {
 		err := tree.SetTombstone(ctx, folderID)
-		return clues.Stack(err).OrNil()
+		return nil, clues.Stack(err).OrNil()
 	}
 
-	collectionPath, err := c.makeFolderCollectionPath(driveID, folder)
+	collectionPath, err := c.makeFolderCollectionPath(ctx, driveID, folder)
 	if err != nil {
-		return clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation, count.BadCollPath)
+		return nil, clues.Stack(err).Label(fault.LabelForceNoBackupCreation, count.BadCollPath)
 	}
 
 	// Skip items that don't match the folder selectors we were given.
 	notSelected = shouldSkip(ctx, collectionPath, c.handler, ptr.Val(drv.GetName()))
 	if notSelected {
 		logger.Ctx(ctx).Debugw("path not selected", "skipped_path", collectionPath.String())
-		return nil
+		return nil, nil
 	}
 
 	err = tree.SetFolder(ctx, parentID, folderID, folderName, isPkg)
 
-	return clues.Stack(err).OrNil()
+	return nil, clues.Stack(err).OrNil()
 }
 
 func (c *Collections) makeFolderCollectionPath(
+	ctx context.Context,
 	driveID string,
 	folder models.DriveItemable,
 ) (path.Path, error) {
@@ -492,18 +497,18 @@ func (c *Collections) makeFolderCollectionPath(
 		pb := odConsts.DriveFolderPrefixBuilder(driveID)
 		collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
 
-		return collectionPath, clues.Wrap(err, "making canonical root path").OrNil()
+		return collectionPath, clues.WrapWC(ctx, err, "making canonical root path").OrNil()
 	}
 
 	if folder.GetParentReference() == nil || folder.GetParentReference().GetPath() == nil {
-		return nil, clues.New("no parent reference in folder").Label(count.MissingParent)
+		return nil, clues.NewWC(ctx, "no parent reference in folder").Label(count.MissingParent)
 	}
 
 	// Append folder name to path since we want the path for the collection, not
 	// the path for the parent of the collection.
 	name := ptr.Val(folder.GetName())
 	if len(name) == 0 {
-		return nil, clues.New("folder has no name")
+		return nil, clues.NewWC(ctx, "missing folder name")
 	}
 
 	folderPath := path.Split(ptr.Val(folder.GetParentReference().GetPath()))
@@ -511,7 +516,7 @@ func (c *Collections) makeFolderCollectionPath(
 	pb := path.Builder{}.Append(folderPath...)
 	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
 
-	return collectionPath, clues.Wrap(err, "making folder collection path").OrNil()
+	return collectionPath, clues.WrapWC(ctx, err, "making folder collection path").OrNil()
 }
 
 func (c *Collections) addFileToTree(
@@ -521,9 +526,8 @@ func (c *Collections) addFileToTree(
 	item models.DriveItemable,
 	stats *driveEnumerationStats,
 	counter *count.Bus,
-	el *fault.Bus,
-) error {
-	return clues.New("not yet implemented")
+) (*fault.Skipped, error) {
+	return nil, clues.New("not yet implemented")
 }
 
 // quality-of-life wrapper that transforms each tombstone in the map
