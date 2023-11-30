@@ -285,21 +285,21 @@ func kiotaMiddlewares(
 	cc *clientConfig,
 	counter *count.Bus,
 ) []khttp.Middleware {
-	// We use default kiota retry handler for 503 and 504 errors
-	kiotaRetryHandler := khttp.NewRetryHandlerWithOptions(
-		khttp.RetryHandlerOptions{
-			ShouldRetry: func(
-				delay time.Duration,
-				executionCount int,
-				request *http.Request,
-				response *http.Response,
-			) bool {
-				return true
-			},
-			MaxRetries:   cc.maxRetries,
-			DelaySeconds: int(cc.minDelay.Seconds()),
+	ro := khttp.RetryHandlerOptions{
+		ShouldRetry: func(
+			delay time.Duration,
+			executionCount int,
+			request *http.Request,
+			response *http.Response,
+		) bool {
+			return true
 		},
-	)
+		MaxRetries:   cc.maxRetries,
+		DelaySeconds: int(cc.minDelay.Seconds()),
+	}
+
+	// We use default kiota retry handler for 503 and 504 errors
+	kiotaRetryHandler := khttp.NewRetryHandlerWithOptions(ro)
 
 	mw := []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),

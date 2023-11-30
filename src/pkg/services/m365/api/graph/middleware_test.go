@@ -182,11 +182,28 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 			expectErr:        assert.Error,
 		},
 		{
-			// don't test 504: gets intercepted by graph client for long waits.
 			name:             "502",
 			status:           http.StatusBadGateway,
 			providedErr:      nil,
 			expectRetryCount: defaultMaxRetries,
+			expectErr:        assert.Error,
+		},
+		// 503 and 504 retries are handled by kiota retry handler. Adding
+		// tests here to ensure we don't regress on retrying these errors.
+		// Configure retry count to 1 so that the test case doesn't run for too
+		// long due to exponential backoffs.
+		{
+			name:             "503",
+			status:           http.StatusServiceUnavailable,
+			providedErr:      nil,
+			expectRetryCount: 1,
+			expectErr:        assert.Error,
+		},
+		{
+			name:             "504",
+			status:           http.StatusGatewayTimeout,
+			providedErr:      nil,
+			expectRetryCount: 1,
 			expectErr:        assert.Error,
 		},
 		{
@@ -241,9 +258,14 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 				newMWReturns(test.status, nil, test.providedErr))
 			mw.repeatReturn0 = true
 
+			// Add a large timeout of 100 seconds to ensure that the ctx deadline
+			// doesn't exceed. Otherwise, we'll end up retrying due to ctx deadline
+			// exceeded, instead of the actual test case. This is also important
+			// for 503 and 504 test cases which are handled by kiota retry handler.
+			// We don't want corso retry handler to kick in for these cases.
 			cc := populateConfig(
 				MinimumBackoff(10*time.Millisecond),
-				Timeout(25*time.Second),
+				Timeout(100*time.Second),
 				MaxRetries(test.expectRetryCount))
 
 			adpt, err := mockAdapter(suite.creds, mw, cc)
@@ -292,7 +314,7 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryRequest_resetBodyAfter50
 
 	cc := populateConfig(
 		MinimumBackoff(10*time.Millisecond),
-		Timeout(15*time.Second))
+		Timeout(100*time.Second))
 
 	adpt, err := mockAdapter(suite.creds, mw, cc)
 	require.NoError(t, err, clues.ToCore(err))
@@ -324,13 +346,16 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_RetryResponse_maintainBodyAft
 		// intentional no-op, just need to conrol the response code
 		func(*http.Request) {},
 		newMWReturns(http.StatusServiceUnavailable, body, nil),
-		newMWReturns(http.StatusServiceUnavailable, body, nil),
-		newMWReturns(http.StatusServiceUnavailable, body, nil),
 		newMWReturns(http.StatusServiceUnavailable, body, nil))
 
+	// Configure max retries to 1 so that the test case doesn't run for too
+	// long due to exponential backoffs. Also, add a large timeout of 100 seconds
+	// to ensure that the ctx deadline doesn't exceed. Otherwise, we'll end up
+	// retrying due to timeout exceeded, instead of 503s.
 	cc := populateConfig(
-		MinimumBackoff(10*time.Millisecond),
-		Timeout(55*time.Second))
+		MaxRetries(1),
+		MinimumBackoff(1*time.Second),
+		Timeout(100*time.Second))
 
 	adpt, err := mockAdapter(suite.creds, mw, cc)
 	require.NoError(t, err, clues.ToCore(err))
