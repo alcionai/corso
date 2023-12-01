@@ -1028,7 +1028,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 1,
 				},
-				err:      require.NoError,
+				err:      require.Error,
 				treeSize: 1,
 				treeContainsFolderIDs: []string{
 					rootID,

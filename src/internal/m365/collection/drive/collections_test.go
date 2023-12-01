@@ -1720,7 +1720,7 @@ func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
 	c.ctrl = opts
 
 	_, _, err := c.Get(ctx, nil, nil, fault.New(true))
-	require.ErrorContains(t, err, "not yet implemented", clues.ToCore(err))
+	require.ErrorContains(t, err, "not implemented", clues.ToCore(err))
 }
 
 func (suite *CollectionsUnitSuite) TestGet() {
