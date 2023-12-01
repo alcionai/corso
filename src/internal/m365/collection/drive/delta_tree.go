@@ -379,11 +379,12 @@ func (face *folderyMcFolderFace) deleteFile(id string) {
 // ---------------------------------------------------------------------------
 
 type collectable struct {
-	currPath path.Path
-	files    map[string]fileyMcFileFace
-	folderID string
-	loc      path.Elements
-	prevPath path.Path
+	currPath                  path.Path
+	files                     map[string]fileyMcFileFace
+	folderID                  string
+	isPackageOrChildOfPackage bool
+	loc                       path.Elements
+	prevPath                  path.Path
 }
 
 // produces a map of folderID -> collectable
@@ -393,6 +394,7 @@ func (face *folderyMcFolderFace) generateCollectables() (map[string]collectable,
 		face.root,
 		face.prefix,
 		&path.Builder{},
+		false,
 		result)
 
 	for id, tombstone := range face.tombstones {
@@ -409,6 +411,7 @@ func walkTreeAndBuildCollections(
 	node *nodeyMcNodeFace,
 	pathPfx path.Path,
 	parentPath *path.Builder,
+	isChildOfPackage bool,
 	result map[string]collectable,
 ) error {
 	if node == nil {
@@ -423,6 +426,7 @@ func walkTreeAndBuildCollections(
 			child,
 			pathPfx,
 			parentPath,
+			node.isPackage || isChildOfPackage,
 			result)
 		if err != nil {
 			return err
@@ -436,11 +440,12 @@ func walkTreeAndBuildCollections(
 	}
 
 	cbl := collectable{
-		currPath: currPath,
-		files:    node.files,
-		folderID: node.id,
-		loc:      loc,
-		prevPath: node.prev,
+		currPath:                  currPath,
+		files:                     node.files,
+		folderID:                  node.id,
+		isPackageOrChildOfPackage: node.isPackage || isChildOfPackage,
+		loc:                       loc,
+		prevPath:                  node.prev,
 	}
 
 	result[node.id] = cbl

@@ -955,10 +955,11 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath: fullPathPath(t),
-					files:    map[string]fileyMcFileFace{},
-					folderID: rootID,
-					loc:      path.Elements{},
+					currPath:                  fullPathPath(t),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  rootID,
+					isPackageOrChildOfPackage: false,
+					loc:                       path.Elements{},
 				},
 			},
 		},
@@ -972,8 +973,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					files: map[string]fileyMcFileFace{
 						id(file): {},
 					},
-					folderID: rootID,
-					loc:      path.Elements{},
+					folderID:                  rootID,
+					isPackageOrChildOfPackage: false,
+					loc:                       path.Elements{},
 				},
 			},
 		},
@@ -983,24 +985,64 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath: fullPathPath(t),
-					files:    map[string]fileyMcFileFace{},
-					folderID: rootID,
-					loc:      path.Elements{},
+					currPath:                  fullPathPath(t),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  rootID,
+					isPackageOrChildOfPackage: false,
+					loc:                       path.Elements{},
 				},
 				idx(folder, "parent"): {
-					currPath: fullPathPath(t, namex(folder, "parent")),
-					files:    map[string]fileyMcFileFace{},
-					folderID: idx(folder, "parent"),
-					loc:      path.Elements{rootName},
+					currPath:                  fullPathPath(t, namex(folder, "parent")),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  idx(folder, "parent"),
+					isPackageOrChildOfPackage: false,
+					loc:                       path.Elements{rootName},
 				},
 				id(folder): {
 					currPath: fullPathPath(t, namex(folder, "parent"), name(folder)),
 					files: map[string]fileyMcFileFace{
 						id(file): {},
 					},
-					folderID: id(folder),
-					loc:      path.Elements{rootName, namex(folder, "parent")},
+					folderID:                  id(folder),
+					isPackageOrChildOfPackage: false,
+					loc:                       path.Elements{rootName, namex(folder, "parent")},
+				},
+			},
+		},
+		{
+			name: "package in hierarchy",
+			tree: func(t *testing.T) *folderyMcFolderFace {
+				ctx, flush := tester.NewContext(t)
+				defer flush()
+
+				tree := treeWithRoot(t)
+				tree.setFolder(ctx, rootID, id(pkg), name(pkg), true)
+				tree.setFolder(ctx, id(pkg), id(folder), name(folder), false)
+
+				return tree
+			},
+			expectErr: require.NoError,
+			expect: map[string]collectable{
+				rootID: {
+					currPath:                  fullPathPath(t),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  rootID,
+					isPackageOrChildOfPackage: false,
+					loc:                       path.Elements{},
+				},
+				id(pkg): {
+					currPath:                  fullPathPath(t, name(pkg)),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  id(pkg),
+					isPackageOrChildOfPackage: true,
+					loc:                       path.Elements{rootName},
+				},
+				id(folder): {
+					currPath:                  fullPathPath(t, name(pkg), name(folder)),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  id(folder),
+					isPackageOrChildOfPackage: true,
+					loc:                       path.Elements{rootName, name(pkg)},
 				},
 			},
 		},
@@ -1015,22 +1057,25 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			},
 			expect: map[string]collectable{
 				rootID: {
-					currPath: fullPathPath(t),
-					files:    map[string]fileyMcFileFace{},
-					folderID: rootID,
-					loc:      path.Elements{},
-					prevPath: fullPathPath(t),
+					currPath:                  fullPathPath(t),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  rootID,
+					isPackageOrChildOfPackage: false,
+					loc:                       path.Elements{},
+					prevPath:                  fullPathPath(t),
 				},
 				idx(folder, "parent"): {
-					currPath: fullPathPath(t, namex(folder, "parent")),
-					files:    map[string]fileyMcFileFace{},
-					folderID: idx(folder, "parent"),
-					loc:      path.Elements{rootName},
-					prevPath: fullPathPath(t, namex(folder, "parent-prev")),
+					currPath:                  fullPathPath(t, namex(folder, "parent")),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  idx(folder, "parent"),
+					isPackageOrChildOfPackage: false,
+					loc:                       path.Elements{rootName},
+					prevPath:                  fullPathPath(t, namex(folder, "parent-prev")),
 				},
 				id(folder): {
-					currPath: fullPathPath(t, namex(folder, "parent"), name(folder)),
-					folderID: id(folder),
+					currPath:                  fullPathPath(t, namex(folder, "parent"), name(folder)),
+					folderID:                  id(folder),
+					isPackageOrChildOfPackage: false,
 					files: map[string]fileyMcFileFace{
 						id(file): {},
 					},
@@ -1049,16 +1094,18 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath: fullPathPath(t),
-					files:    map[string]fileyMcFileFace{},
-					folderID: rootID,
-					loc:      path.Elements{},
-					prevPath: fullPathPath(t),
+					currPath:                  fullPathPath(t),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  rootID,
+					isPackageOrChildOfPackage: false,
+					loc:                       path.Elements{},
+					prevPath:                  fullPathPath(t),
 				},
 				id(folder): {
-					files:    map[string]fileyMcFileFace{},
-					folderID: id(folder),
-					prevPath: fullPathPath(t, name(folder)),
+					files:                     map[string]fileyMcFileFace{},
+					folderID:                  id(folder),
+					isPackageOrChildOfPackage: false,
+					prevPath:                  fullPathPath(t, name(folder)),
 				},
 			},
 		},
