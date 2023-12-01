@@ -375,6 +375,80 @@ func (face *folderyMcFolderFace) deleteFile(id string) {
 }
 
 // ---------------------------------------------------------------------------
+// post-processing
+// ---------------------------------------------------------------------------
+
+type collectable struct {
+	currPath path.Path
+	files    map[string]fileyMcFileFace
+	folderID string
+	loc      path.Elements
+	prevPath path.Path
+}
+
+// produces a map of folderID -> collectable
+func (face *folderyMcFolderFace) generateCollectables() (map[string]collectable, error) {
+	result := map[string]collectable{}
+	err := walkTreeAndBuildCollections(
+		face.root,
+		face.prefix,
+		&path.Builder{},
+		result)
+
+	for id, tombstone := range face.tombstones {
+		result[id] = collectable{
+			folderID: id,
+			prevPath: tombstone.prev,
+		}
+	}
+
+	return result, clues.Stack(err).OrNil()
+}
+
+func walkTreeAndBuildCollections(
+	node *nodeyMcNodeFace,
+	pathPfx path.Path,
+	parentPath *path.Builder,
+	result map[string]collectable,
+) error {
+	if node == nil {
+		return nil
+	}
+
+	loc := parentPath.Elements()
+	parentPath = parentPath.Append(node.name)
+
+	for _, child := range node.children {
+		err := walkTreeAndBuildCollections(
+			child,
+			pathPfx,
+			parentPath,
+			result)
+		if err != nil {
+			return err
+		}
+	}
+
+	currPath, err := pathPfx.Append(false, parentPath.Elements()...)
+	if err != nil {
+		return clues.Wrap(err, "building collection path").
+			With("path_prefix", pathPfx, "path_suffix", parentPath.Elements())
+	}
+
+	cbl := collectable{
+		currPath: currPath,
+		files:    node.files,
+		folderID: node.id,
+		loc:      loc,
+		prevPath: node.prev,
+	}
+
+	result[node.id] = cbl
+
+	return nil
+}
+
+// ---------------------------------------------------------------------------
 // quantification
 // ---------------------------------------------------------------------------
 

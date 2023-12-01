@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -345,7 +346,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 
 			if test.expectLive {
 				require.Contains(t, tree.folderIDToNode, test.id)
-				assert.Equal(t, test.prev, tree.folderIDToNode[test.id].prev)
+				assert.Equal(t, test.prev.String(), tree.folderIDToNode[test.id].prev.String())
 			} else {
 				require.NotContains(t, tree.folderIDToNode, test.id)
 			}
@@ -926,4 +927,187 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 	assert.NotContains(t, tree.fileIDToParentID, fID)
 	assert.Len(t, tree.deletedFileIDs, 1)
 	assert.Contains(t, tree.deletedFileIDs, fID)
+}
+
+// ---------------------------------------------------------------------------
+// post-processing tests
+// ---------------------------------------------------------------------------
+
+func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() {
+	t := suite.T()
+
+	table := []struct {
+		name      string
+		tree      func(t *testing.T) *folderyMcFolderFace
+		prevPaths map[string]string
+		expectErr require.ErrorAssertionFunc
+		expect    map[string]collectable
+	}{
+		{
+			name:      "empty tree",
+			tree:      newTree,
+			expectErr: require.NoError,
+			expect:    map[string]collectable{},
+		},
+		{
+			name:      "root only",
+			tree:      treeWithRoot,
+			expectErr: require.NoError,
+			expect: map[string]collectable{
+				rootID: {
+					currPath: fullPathPath(t),
+					files:    map[string]fileyMcFileFace{},
+					folderID: rootID,
+					loc:      path.Elements{},
+				},
+			},
+		},
+		{
+			name:      "root with files",
+			tree:      treeWithFileAtRoot,
+			expectErr: require.NoError,
+			expect: map[string]collectable{
+				rootID: {
+					currPath: fullPathPath(t),
+					files: map[string]fileyMcFileFace{
+						id(file): {},
+					},
+					folderID: rootID,
+					loc:      path.Elements{},
+				},
+			},
+		},
+		{
+			name:      "folder hierarchy, no previous",
+			tree:      treeWithFileInFolder,
+			expectErr: require.NoError,
+			expect: map[string]collectable{
+				rootID: {
+					currPath: fullPathPath(t),
+					files:    map[string]fileyMcFileFace{},
+					folderID: rootID,
+					loc:      path.Elements{},
+				},
+				idx(folder, "parent"): {
+					currPath: fullPathPath(t, namex(folder, "parent")),
+					files:    map[string]fileyMcFileFace{},
+					folderID: idx(folder, "parent"),
+					loc:      path.Elements{rootName},
+				},
+				id(folder): {
+					currPath: fullPathPath(t, namex(folder, "parent"), name(folder)),
+					files: map[string]fileyMcFileFace{
+						id(file): {},
+					},
+					folderID: id(folder),
+					loc:      path.Elements{rootName, namex(folder, "parent")},
+				},
+			},
+		},
+		{
+			name:      "folder hierarchy with previous paths",
+			tree:      treeWithFileInFolder,
+			expectErr: require.NoError,
+			prevPaths: map[string]string{
+				rootID:                fullPath(),
+				idx(folder, "parent"): fullPath(namex(folder, "parent-prev")),
+				id(folder):            fullPath(namex(folder, "parent-prev"), name(folder)),
+			},
+			expect: map[string]collectable{
+				rootID: {
+					currPath: fullPathPath(t),
+					files:    map[string]fileyMcFileFace{},
+					folderID: rootID,
+					loc:      path.Elements{},
+					prevPath: fullPathPath(t),
+				},
+				idx(folder, "parent"): {
+					currPath: fullPathPath(t, namex(folder, "parent")),
+					files:    map[string]fileyMcFileFace{},
+					folderID: idx(folder, "parent"),
+					loc:      path.Elements{rootName},
+					prevPath: fullPathPath(t, namex(folder, "parent-prev")),
+				},
+				id(folder): {
+					currPath: fullPathPath(t, namex(folder, "parent"), name(folder)),
+					folderID: id(folder),
+					files: map[string]fileyMcFileFace{
+						id(file): {},
+					},
+					loc:      path.Elements{rootName, namex(folder, "parent")},
+					prevPath: fullPathPath(t, namex(folder, "parent-prev"), name(folder)),
+				},
+			},
+		},
+		{
+			name: "root and tombstones",
+			tree: treeWithFileInTombstone,
+			prevPaths: map[string]string{
+				rootID:     fullPath(),
+				id(folder): fullPath(name(folder)),
+			},
+			expectErr: require.NoError,
+			expect: map[string]collectable{
+				rootID: {
+					currPath: fullPathPath(t),
+					files:    map[string]fileyMcFileFace{},
+					folderID: rootID,
+					loc:      path.Elements{},
+					prevPath: fullPathPath(t),
+				},
+				id(folder): {
+					files:    map[string]fileyMcFileFace{},
+					folderID: id(folder),
+					prevPath: fullPathPath(t, name(folder)),
+				},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			tree := test.tree(t)
+
+			if len(test.prevPaths) > 0 {
+				for id, ps := range test.prevPaths {
+					pp, err := path.FromDataLayerPath(ps, false)
+					require.NoError(t, err, clues.ToCore(err))
+
+					err = tree.setPreviousPath(id, pp)
+					require.NoError(t, err, clues.ToCore(err))
+				}
+			}
+
+			results, err := tree.generateCollectables()
+			test.expectErr(t, err, clues.ToCore(err))
+			assert.Len(t, results, len(test.expect))
+
+			for id, expect := range test.expect {
+				require.Contains(t, results, id)
+
+				result := results[id]
+				assert.Equal(t, id, result.folderID)
+
+				if expect.currPath == nil {
+					assert.Nil(t, result.currPath)
+				} else {
+					assert.Equal(t, expect.currPath.String(), result.currPath.String())
+				}
+
+				if expect.prevPath == nil {
+					assert.Nil(t, result.prevPath)
+				} else {
+					assert.Equal(t, expect.prevPath.String(), result.prevPath.String())
+				}
+
+				if expect.loc == nil {
+					assert.Nil(t, result.loc)
+				} else {
+					assert.Equal(t, expect.loc.PlainString(), result.loc.PlainString())
+				}
+
+				assert.ElementsMatch(t, maps.Keys(expect.files), maps.Keys(result.files))
+			}
+		})
+	}
 }

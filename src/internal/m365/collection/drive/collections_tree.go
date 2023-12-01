@@ -214,7 +214,7 @@ func (c *Collections) makeDriveCollections(
 		if err != nil {
 			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "invalid previous path").
 				With("folderID", folderID, "prev_path", p).
-				Label(fault.LabelForceNoBackupCreation))
+				Label(fault.LabelForceNoBackupCreation, count.BadPrevPath))
 
 			continue
 		}

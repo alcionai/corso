@@ -785,16 +785,28 @@ func aReset(items ...models.DriveItemable) mock.NextPage {
 // delta trees
 // ---------------------------------------------------------------------------
 
+func defaultTreePfx(t *testing.T) path.Path {
+	fpb := fullPathPath(t).ToBuilder()
+	fpe := fpb.Elements()
+	fpe = fpe[:len(fpe)-1]
+	fpb = path.Builder{}.Append(fpe...)
+
+	p, err := path.FromDataLayerPath(fpb.String(), false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return p
+}
+
 func defaultLoc() path.Elements {
 	return path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
 }
 
 func newTree(t *testing.T) *folderyMcFolderFace {
-	return newFolderyMcFolderFace(fullPathPath(t), rootID)
+	return newFolderyMcFolderFace(defaultTreePfx(t), rootID)
 }
 
 func treeWithRoot(t *testing.T) *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(fullPathPath(t), rootID)
+	tree := newFolderyMcFolderFace(defaultTreePfx(t), rootID)
 	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
 	tree.root = rootey
 	tree.folderIDToNode[rootID] = rootey
@@ -803,7 +815,7 @@ func treeWithRoot(t *testing.T) *folderyMcFolderFace {
 }
 
 func treeAfterReset(t *testing.T) *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(fullPathPath(t), rootID)
+	tree := newFolderyMcFolderFace(defaultTreePfx(t), rootID)
 	tree.reset()
 
 	return tree
