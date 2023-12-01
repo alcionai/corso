@@ -150,15 +150,15 @@ func (c Groups) GetByID(
 		}
 
 		resp, err := service.Client().Groups().Get(ctx, opts)
-		if err != nil {
-			if graph.IsErrResourceLocked(err) {
-				err = clues.Stack(graph.ErrResourceLocked, err)
-			}
-
-			logger.CtxErr(ctx, err).Info("finding group by email, falling back to display name")
+		if err == nil {
+			return getGroupFromResponse(ctx, resp)
 		}
 
-		return getGroupFromResponse(ctx, resp)
+		if graph.IsErrResourceLocked(err) {
+			err = clues.Stack(graph.ErrResourceLocked, err)
+		}
+
+		logger.CtxErr(ctx, err).Info("finding group by email, falling back to display name")
 	}
 
 	// fall back to display name
