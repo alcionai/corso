@@ -62,9 +62,10 @@ func (b *Builder) addFolderEntries(
 		b.knownFolders = map[string]Entry{}
 	}
 
-	// Need a unique location because we want to have separate folders for
-	// different drives and categories even if there's duplicate folder names in
-	// them.
+	// Unique location ensures that the location reference includes all
+	// possible hierarchy.  In many handlers, the location ref is only partially
+	// constructed (ex: drive locations do not contain the drive ID).  This
+	// transformer ensures that the location is complete and fully populated.
 	uniqueLoc, err := entry.uniqueLocation(locationRef)
 	if err != nil {
 		return clues.Wrap(err, "getting LocationIDer")

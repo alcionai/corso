@@ -65,6 +65,11 @@ func NewElements(p string) Elements {
 	return Split(p)
 }
 
+// Builder produces a *Builder{} containing the elements.
+func (el Elements) Builder() *Builder {
+	return Builder{}.Append(el...)
+}
+
 // Conceal produces a concealed representation of the elements, suitable for
 // logging, storing in errors, and other output.
 func (el Elements) Conceal() string {

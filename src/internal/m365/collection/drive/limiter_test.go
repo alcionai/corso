@@ -26,6 +26,26 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+func minimumLimitOpts() control.Options {
+	minLimitOpts := control.DefaultOptions()
+	minLimitOpts.PreviewLimits.Enabled = true
+	minLimitOpts.PreviewLimits.MaxBytes = 1
+	minLimitOpts.PreviewLimits.MaxContainers = 1
+	minLimitOpts.PreviewLimits.MaxItems = 1
+	minLimitOpts.PreviewLimits.MaxItemsPerContainer = 1
+	minLimitOpts.PreviewLimits.MaxPages = 1
+
+	return minLimitOpts
+}
+
+// ---------------------------------------------------------------------------
+// tests
+// ---------------------------------------------------------------------------
+
 type LimiterUnitSuite struct {
 	tester.Suite
 }

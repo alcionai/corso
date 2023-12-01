@@ -172,7 +172,7 @@ func malwareItem(
 }
 
 func driveRootItem(id string) models.DriveItemable {
-	name := "root"
+	name := rootName
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&id)
@@ -279,8 +279,8 @@ const (
 	malware   = "malware"
 	nav       = "nav"
 	pkg       = "package"
-	rootName  = "root"
-	rootID    = "root_id"
+	rootID    = odConsts.RootID
+	rootName  = odConsts.RootPathDir
 	subfolder = "subfolder"
 	tenant    = "t"
 	user      = "u"
@@ -1692,21 +1692,28 @@ func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	drive := models.NewDrive()
-	drive.SetId(ptr.To("id"))
-	drive.SetName(ptr.To("name"))
+	drv := models.NewDrive()
+	drv.SetId(ptr.To("id"))
+	drv.SetName(ptr.To("name"))
 
 	mbh := mock.DefaultOneDriveBH(user)
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
-	mockDrivePager := &apiMock.Pager[models.Driveable]{
-		ToReturn: []apiMock.PagerResult[models.Driveable]{
-			{Values: []models.Driveable{drive}},
+	mbh.DrivePagerV = pagerForDrives(drv)
+	mbh.DriveItemEnumeration = mock.EnumerateItemsDeltaByDrive{
+		DrivePagers: map[string]*mock.DriveItemsDeltaPager{
+			"id": {
+				Pages: []mock.NextPage{{
+					Items: []models.DriveItemable{
+						driveRootItem(rootID), // will be present, not needed
+						delItem(id(file), parent(1), rootID, isFile),
+					},
+				}},
+				DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+			},
 		},
 	}
-
-	mbh.DrivePagerV = mockDrivePager
 
 	c := collWithMBH(mbh)
 	c.ctrl = opts

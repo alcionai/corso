@@ -13,12 +13,13 @@ import (
 type errEnum string
 
 const (
-	ApplicationThrottled  errEnum = "application-throttled"
-	BackupNotFound        errEnum = "backup-not-found"
-	RepoAlreadyExists     errEnum = "repository-already-exists"
-	ResourceNotAccessible errEnum = "resource-not-accesible"
-	ResourceOwnerNotFound errEnum = "resource-owner-not-found"
-	ServiceNotEnabled     errEnum = "service-not-enabled"
+	ApplicationThrottled      errEnum = "application-throttled"
+	BackupNotFound            errEnum = "backup-not-found"
+	InsufficientAuthorization errEnum = "insufficient-authorization"
+	RepoAlreadyExists         errEnum = "repository-already-exists"
+	ResourceNotAccessible     errEnum = "resource-not-accesible"
+	ResourceOwnerNotFound     errEnum = "resource-owner-not-found"
+	ServiceNotEnabled         errEnum = "service-not-enabled"
 )
 
 // map of enums to errors.  We might want to re-use an enum for multiple
@@ -41,9 +42,10 @@ type ErrCheck func(error) bool
 // checks.  This allows us to apply those comparison checks instead of relying
 // only on sentinels.
 var externalToInternalCheck = map[errEnum][]ErrCheck{
-	ApplicationThrottled:  {graph.IsErrApplicationThrottled},
-	ResourceNotAccessible: {graph.IsErrResourceLocked},
-	ResourceOwnerNotFound: {graph.IsErrItemNotFound},
+	ApplicationThrottled:      {graph.IsErrApplicationThrottled},
+	ResourceNotAccessible:     {graph.IsErrResourceLocked},
+	ResourceOwnerNotFound:     {graph.IsErrItemNotFound},
+	InsufficientAuthorization: {graph.IsErrInsufficientAuthorization},
 }
 
 // Internal returns the internal errors and error checking functions which
