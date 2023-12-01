@@ -51,7 +51,7 @@ func CheckEmailExport(
 			modifiedResultLeaves[fixedName] = val
 		}
 
-		common.CompareLeaves(ctx, expect.Leaves, modifiedResultLeaves, nil)
+		common.CompareLeaves(ctx, modifiedExpectedLeaves, modifiedResultLeaves, nil)
 	}
 
 	common.CompareDiffTrees(

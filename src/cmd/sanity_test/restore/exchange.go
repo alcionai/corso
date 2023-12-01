@@ -29,11 +29,12 @@ func CheckEmailRestoration(
 		"source_container_id", sourceTree.ID,
 		"source_container_name", sourceTree.Name)
 
-	common.AssertEqualTrees[models.MailFolderable, any](
+	// NOTE: We cannot compare leaves as the IDs of the restored items
+	// differ from the original ones.
+	common.CompareDiffTrees[models.MailFolderable, any](
 		ctx,
 		sourceTree,
 		restoredTree.Children[envs.SourceContainer],
-		nil,
 		nil)
 
 	common.Infof(ctx, "Success")

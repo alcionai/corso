@@ -149,7 +149,7 @@ type NodeComparator[ET, EL, RT, RL any] func(
 // different data types.  The two trees are expected to represent
 // a common hierarchy.
 //
-// Additional comparisons besides the tre hierarchy are optionally
+// Additional comparisons besides the tree hierarchy are optionally
 // left to the caller by population of the NodeComparator func.
 func CompareDiffTrees[ET, EL, RT, RL any](
 	ctx context.Context,
