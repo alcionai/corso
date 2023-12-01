@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
@@ -32,18 +31,16 @@ import (
 // it's simpler to comment them for tracking than to delete
 // and re-discover them later.
 
-func CreateCollections(
+func CreateCollections[C graph.GetIDer, I groupsItemer](
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
-	bh backupHandler,
+	bh backupHandler[C, I],
 	tenantID string,
 	scope selectors.GroupsScope,
 	su support.StatusUpdater,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	ctx = clues.Add(ctx, "category", scope.Category().PathType())
-
 	var (
 		allCollections = make([]data.BackupCollection, 0)
 		category       = scope.Category().PathType()
@@ -61,19 +58,23 @@ func CreateCollections(
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
 
-	channels, err := bh.getContainers(ctx)
+	cc := api.CallConfig{
+		CanMakeDeltaQueries: bh.canMakeDeltaQueries(),
+	}
+
+	containers, err := bh.getContainers(ctx, cc)
 	if err != nil {
 		return nil, false, clues.Stack(err)
 	}
 
-	counter.Add(count.Channels, int64(len(channels)))
+	counter.Add(count.Channels, int64(len(containers)))
 
 	collections, err := populateCollections(
 		ctx,
 		qp,
 		bh,
 		su,
-		channels,
+		containers,
 		scope,
 		cdps[scope.Category().PathType()],
 		bpc.Options,
@@ -90,12 +91,12 @@ func CreateCollections(
 	return allCollections, canUsePreviousBackup, nil
 }
 
-func populateCollections(
+func populateCollections[C graph.GetIDer, I groupsItemer](
 	ctx context.Context,
 	qp graph.QueryParams,
-	bh backupHandler,
+	bh backupHandler[C, I],
 	statusUpdater support.StatusUpdater,
-	channels []models.Channelable,
+	containers []container[C],
 	scope selectors.GroupsScope,
 	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
@@ -117,23 +118,22 @@ func populateCollections(
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
 
-	for _, c := range channels {
+	for _, c := range containers {
 		if el.Failure() != nil {
 			return nil, el.Failure()
 		}
 
 		var (
 			cl          = counter.Local()
-			cID         = ptr.Val(c.GetId())
-			cName       = ptr.Val(c.GetDisplayName())
+			cID         = ptr.Val(c.container.GetId())
 			err         error
-			dp          = dps[cID]
+			dp          = dps[c.storageDirFolders.String()]
 			prevDelta   = dp.Delta
 			prevPathStr = dp.Path // do not log: pii; log prevPath instead
 			prevPath    path.Path
 			ictx        = clues.Add(
 				ctx,
-				"channel_id", cID,
+				"collection_path", c,
 				"previous_delta", pii.SafeURL{
 					URL:           prevDelta,
 					SafePathElems: graph.SafeURLPathParams,
@@ -146,7 +146,7 @@ func populateCollections(
 		delete(tombstones, cID)
 
 		// Only create a collection if the path matches the scope.
-		if !bh.includeContainer(ictx, qp, c, scope) {
+		if !bh.includeContainer(c.container, scope) {
 			cl.Inc(count.SkippedContainers)
 			continue
 		}
@@ -165,10 +165,10 @@ func populateCollections(
 		// if the channel has no email property, it is unable to process delta tokens
 		// and will return an error if a delta token is queried.
 		cc := api.CallConfig{
-			CanMakeDeltaQueries: len(ptr.Val(c.GetEmail())) > 0,
+			CanMakeDeltaQueries: bh.canMakeDeltaQueries() && c.canMakeDeltaQueries,
 		}
 
-		addAndRem, err := bh.getContainerItemIDs(ctx, cID, prevDelta, cc)
+		addAndRem, err := bh.getContainerItemIDs(ctx, c.storageDirFolders, prevDelta, cc)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.Stack(err))
 			continue
@@ -181,12 +181,12 @@ func populateCollections(
 		cl.Add(count.ItemsRemoved, int64(len(removed)))
 
 		if len(addAndRem.DU.URL) > 0 {
-			deltaURLs[cID] = addAndRem.DU.URL
+			deltaURLs[c.storageDirFolders.String()] = addAndRem.DU.URL
 		} else if !addAndRem.DU.Reset {
 			logger.Ctx(ictx).Info("missing delta url")
 		}
 
-		currPath, err := bh.canonicalPath(path.Builder{}.Append(cID), qp.TenantID)
+		currPath, err := bh.canonicalPath(c.storageDirFolders, qp.TenantID)
 		if err != nil {
 			err = clues.StackWC(ctx, err).Label(count.BadCollPath)
 			el.AddRecoverable(ctx, err)
@@ -205,7 +205,7 @@ func populateCollections(
 			data.NewBaseCollection(
 				currPath,
 				prevPath,
-				path.Builder{}.Append(cName),
+				c.humanLocation.Builder(),
 				ctrlOpts,
 				addAndRem.DU.Reset,
 				cl),
@@ -215,11 +215,11 @@ func populateCollections(
 			removed,
 			statusUpdater)
 
-		collections[cID] = &edc
+		collections[c.storageDirFolders.String()] = &edc
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.
-		currPaths[cID] = currPath.String()
+		currPaths[c.storageDirFolders.String()] = currPath.String()
 	}
 
 	// A tombstone is a channel that needs to be marked for deletion.
