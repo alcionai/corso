@@ -246,9 +246,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 	}
 }
 
-// This test is primarily aimed exercising the full breadth of single-drive delta enumeration
-// and broad contracts.
-// More granular testing can be found in the lower level test functions below.
+// this test is expressly aimed exercising coarse combinations of delta enumeration,
+// previous path management, and post processing. Coarse here means the intent is not
+// to evaluate every possible combination of inputs and outputs.  More granular tests
+// at lower levels are better for verifing fine-grained concerns.  This test only needs
+// to ensure we stitch the parts together correctly.
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 	drv := models.NewDrive()
 	drv.SetId(ptr.To(id(drive)))
@@ -257,17 +259,133 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 	table := []struct {
 		name         string
 		drive        models.Driveable
-		drivePager   *apiMock.Pager[models.Driveable]
+		enumerator   mock.EnumerateDriveItemsDelta
 		prevPaths    map[string]string
 		expectErr    require.ErrorAssertionFunc
 		expectCounts countTD.Expected
 	}{
 		{
-			name:      "not yet implemented",
-			drive:     drv,
+			name:  "only root in delta, no prev paths",
+			drive: drv,
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(id(drive)).With(
+					mock.Delta(id(delta), nil).With(
+						aPage(),
+					))),
+			prevPaths: map[string]string{},
 			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
+			},
+		},
+		{
+			name:  "only root in delta, with prev paths",
+			drive: drv,
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(id(drive)).With(
+					mock.Delta(id(delta), nil).With(
+						aPage(),
+					))),
+			prevPaths: map[string]string{
+				id(folder): fullPath(id(folder)),
+			},
+			expectErr: require.NoError,
+			expectCounts: countTD.Expected{
+				count.PrevPaths: 1,
+			},
+		},
+		{
+			name:  "some items, no prev paths",
+			drive: drv,
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(id(drive)).With(
+					mock.Delta(id(delta), nil).With(
+						aPage(folderAtRoot(), fileAt(folder)),
+					))),
+			prevPaths: map[string]string{},
+			expectErr: require.NoError,
+			expectCounts: countTD.Expected{
+				count.PrevPaths: 0,
+			},
+		},
+		{
+			name:  "some items, with prev paths",
+			drive: drv,
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(id(drive)).With(
+					mock.Delta(id(delta), nil).With(
+						aPage(folderAtRoot(), fileAt(folder)),
+					))),
+			prevPaths: map[string]string{
+				id(folder): fullPath(id(folder)),
+			},
+			expectErr: require.NoError,
+			expectCounts: countTD.Expected{
+				count.PrevPaths: 1,
+			},
+		},
+		{
+			name:  "tree had delta reset, only root after, no prev paths",
+			drive: drv,
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(id(drive)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aReset(),
+						aPage(),
+					))),
+			prevPaths: map[string]string{},
+			expectErr: require.NoError,
+			expectCounts: countTD.Expected{
+				count.PrevPaths: 0,
+			},
+		},
+		{
+			name:  "tree had delta reset, only root after, with prev paths",
+			drive: drv,
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(id(drive)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aReset(),
+						aPage(),
+					))),
+			prevPaths: map[string]string{
+				id(folder): fullPath(id(folder)),
+			},
+			expectErr: require.NoError,
+			expectCounts: countTD.Expected{
+				count.PrevPaths: 1,
+			},
+		},
+		{
+			name:  "tree had delta reset, enumerate items after, no prev paths",
+			drive: drv,
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(id(drive)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aReset(),
+						aPage(folderAtRoot(), fileAt(folder)),
+					))),
+			prevPaths: map[string]string{},
+			expectErr: require.NoError,
+			expectCounts: countTD.Expected{
+				count.PrevPaths: 0,
+			},
+		},
+		{
+			name:  "tree had delta reset, enumerate items after, with prev paths",
+			drive: drv,
+			enumerator: mock.DriveEnumerator(
+				mock.Drive(id(drive)).With(
+					mock.DeltaWReset(id(delta), nil).With(
+						aReset(),
+						aPage(folderAtRoot(), fileAt(folder)),
+					))),
+			prevPaths: map[string]string{
+				id(folder): fullPath(id(folder)),
+			},
+			expectErr: require.NoError,
+			expectCounts: countTD.Expected{
+				count.PrevPaths: 1,
 			},
 		},
 	}
@@ -280,10 +398,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 
 			mbh := mock.DefaultOneDriveBH(user)
 			mbh.DrivePagerV = pagerForDrives(drv)
-			mbh.DriveItemEnumeration = mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
-						aPage())))
+			mbh.DriveItemEnumeration = test.enumerator
 
 			c := collWithMBH(mbh)
 
@@ -296,13 +411,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				c.counter,
 				fault.New(true))
 
-			// TODO(keepers): awaiting implementation
+			// TODO(keepers): implementation is incomplete
+			// an error check is the best we can get at the moment.
 			test.expectErr(t, err, clues.ToCore(err))
-			// assert.Empty(t, colls)
-			// assert.Empty(t, paths)
-			// assert.Empty(t, delta.URL)
 
-			// test.expectCounts.Compare(t, c.counter)
+			test.expectCounts.Compare(t, c.counter)
 		})
 	}
 }

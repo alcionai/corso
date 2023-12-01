@@ -81,8 +81,8 @@ type nodeyMcNodeFace struct {
 	id string
 	// single directory name, not a path
 	name string
-	// only contains the folders starting at and including '/root:'
-	prev path.Elements
+	// contains the complete previous path
+	prev path.Path
 	// folderID -> node
 	children map[string]*nodeyMcNodeFace
 	// file item ID -> file metadata
@@ -272,24 +272,23 @@ func (face *folderyMcFolderFace) setTombstone(
 // deltas, and gets turned into a tombstone.
 func (face *folderyMcFolderFace) setPreviousPath(
 	folderID string,
-	prevDir path.Elements,
+	prev path.Path,
 ) error {
 	if len(folderID) == 0 {
 		return clues.New("missing folder id")
 	}
 
-	// the previous dir should contain the root folder reference, at least.
-	if len(prevDir) == 0 {
+	if prev == nil {
 		return clues.New("missing previous path")
 	}
 
 	if zombey, isDie := face.tombstones[folderID]; isDie {
-		zombey.prev = prevDir
+		zombey.prev = prev
 		return nil
 	}
 
 	if nodey, exists := face.folderIDToNode[folderID]; exists {
-		nodey.prev = prevDir
+		nodey.prev = prev
 		return nil
 	}
 
@@ -303,7 +302,7 @@ func (face *folderyMcFolderFace) setPreviousPath(
 	}
 
 	zombey := newNodeyMcNodeFace(nil, folderID, "", false)
-	zombey.prev = prevDir
+	zombey.prev = prev
 	face.tombstones[folderID] = zombey
 
 	return nil

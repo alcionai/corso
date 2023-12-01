@@ -251,10 +251,17 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 }
 
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
+	pathWith := func(loc path.Elements) path.Path {
+		p, err := path.Build(tenant, user, path.OneDriveService, path.FilesCategory, false, loc...)
+		require.NoError(suite.T(), err, clues.ToCore(err))
+
+		return p
+	}
+
 	table := []struct {
 		name            string
 		id              string
-		loc             path.Elements
+		prev            path.Path
 		tree            *folderyMcFolderFace
 		expectErr       assert.ErrorAssertionFunc
 		expectLive      bool
@@ -263,7 +270,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 		{
 			name:            "no changes become a no-op",
 			id:              id(folder),
-			loc:             loc,
+			prev:            pathWith(loc),
 			tree:            newFolderyMcFolderFace(nil, rootID),
 			expectErr:       assert.NoError,
 			expectLive:      false,
@@ -272,7 +279,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 		{
 			name:            "create tombstone after reset",
 			id:              id(folder),
-			loc:             loc,
+			prev:            pathWith(loc),
 			tree:            treeAfterReset(),
 			expectErr:       assert.NoError,
 			expectLive:      false,
@@ -280,24 +287,15 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 		},
 		{
 			name:            "missing ID",
-			loc:             loc,
+			prev:            pathWith(loc),
 			tree:            newFolderyMcFolderFace(nil, rootID),
 			expectErr:       assert.Error,
 			expectLive:      false,
 			expectTombstone: false,
 		},
 		{
-			name:            "missing loc",
+			name:            "missing prev",
 			id:              id(folder),
-			tree:            newFolderyMcFolderFace(nil, rootID),
-			expectErr:       assert.Error,
-			expectLive:      false,
-			expectTombstone: false,
-		},
-		{
-			name:            "empty loc",
-			id:              id(folder),
-			loc:             path.Elements{},
 			tree:            newFolderyMcFolderFace(nil, rootID),
 			expectErr:       assert.Error,
 			expectLive:      false,
@@ -306,7 +304,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 		{
 			name:            "update live folder",
 			id:              id(folder),
-			loc:             loc,
+			prev:            pathWith(loc),
 			tree:            treeWithFolders(),
 			expectErr:       assert.NoError,
 			expectLive:      true,
@@ -315,7 +313,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 		{
 			name:            "update tombstone",
 			id:              id(folder),
-			loc:             loc,
+			prev:            pathWith(loc),
 			tree:            treeWithTombstone(),
 			expectErr:       assert.NoError,
 			expectLive:      false,
@@ -326,19 +324,19 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			err := test.tree.setPreviousPath(test.id, test.loc)
+			err := test.tree.setPreviousPath(test.id, test.prev)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if test.expectLive {
 				require.Contains(t, test.tree.folderIDToNode, test.id)
-				assert.Equal(t, test.loc, test.tree.folderIDToNode[test.id].prev)
+				assert.Equal(t, test.prev, test.tree.folderIDToNode[test.id].prev)
 			} else {
 				require.NotContains(t, test.tree.folderIDToNode, test.id)
 			}
 
 			if test.expectTombstone {
 				require.Contains(t, test.tree.tombstones, test.id)
-				assert.Equal(t, test.loc, test.tree.tombstones[test.id].prev)
+				assert.Equal(t, test.prev, test.tree.tombstones[test.id].prev)
 			} else {
 				require.NotContains(t, test.tree.tombstones, test.id)
 			}

@@ -199,32 +199,33 @@ func (c *Collections) makeDriveCollections(
 
 	// cl.Add(count.NewPrevPaths, int64(len(newPrevPaths)))
 
-	// TODO(keepers): leaving this code around for now as a guide
-	// while implementation progresses.
-
 	// --- prev path incorporation
 
-	// For both cases we don't need to do set difference on folder map if the
-	// delta token was valid because we should see all the changes.
-	// if !du.Reset {
-	// 	if len(excludedItemIDs) == 0 {
-	// 		continue
-	// 	}
+	for folderID, p := range prevPaths {
+		// no check for errs.Failure here, despite the addRecoverable below.
+		// it's fine if we run through all of the collection generation even
+		// with failures present, and let the backup finish out.
+		prevPath, err := path.FromDataLayerPath(p, false)
+		if err != nil {
+			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "invalid previous path").
+				With("folderID", folderID, "prev_path", p).
+				Label(fault.LabelForceNoBackupCreation))
 
-	// 	p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
-	// 	if err != nil {
-	// 		return nil, false, clues.WrapWC(ictx, err, "making exclude prefix")
-	// 	}
+			continue
+		}
 
-	// 	ssmb.Add(p.String(), excludedItemIDs)
+		err = tree.setPreviousPath(folderID, prevPath)
+		if err != nil {
+			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "setting previous path").
+				With("folderID", folderID, "prev_path", p).
+				Label(fault.LabelForceNoBackupCreation))
 
-	// 	continue
-	// }
+			continue
+		}
+	}
 
-	// Set all folders in previous backup but not in the current one with state
-	// deleted. Need to compare by ID because it's possible to make new folders
-	// with the same path as deleted old folders. We shouldn't merge items or
-	// subtrees if that happens though.
+	// TODO(keepers): leaving this code around for now as a guide
+	// while implementation progresses.
 
 	// --- post-processing
 
