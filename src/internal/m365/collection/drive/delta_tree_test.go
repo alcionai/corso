@@ -1016,8 +1016,11 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 				defer flush()
 
 				tree := treeWithRoot(t)
-				tree.setFolder(ctx, rootID, id(pkg), name(pkg), true)
-				tree.setFolder(ctx, id(pkg), id(folder), name(folder), false)
+				err := tree.setFolder(ctx, rootID, id(pkg), name(pkg), true)
+				require.NoError(t, err, clues.ToCore(err))
+
+				err = tree.setFolder(ctx, id(pkg), id(folder), name(folder), false)
+				require.NoError(t, err, clues.ToCore(err))
 
 				return tree
 			},

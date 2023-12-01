@@ -171,12 +171,14 @@ func (c *Collections) makeDriveCollections(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]string, pagers.DeltaUpdate, error) {
-	ppfx, err := c.handler.PathPrefix(c.tenantID, ptr.Val(drv.GetId()))
+	driveID := ptr.Val(drv.GetId())
+
+	ppfx, err := c.handler.PathPrefix(c.tenantID, driveID)
 	if err != nil {
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "generating backup tree prefix")
 	}
 
-	root, err := c.handler.GetRootFolder(ctx, ptr.Val(drv.GetId()))
+	root, err := c.handler.GetRootFolder(ctx, driveID)
 	if err != nil {
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "getting root folder")
 	}
@@ -199,38 +201,16 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, pagers.DeltaUpdate{}, clues.Stack(err)
 	}
 
-	// numDriveItems := c.NumItems - numPrevItems
-	// numPrevItems = c.NumItems
-
-	// cl.Add(count.NewPrevPaths, int64(len(newPrevPaths)))
-
 	// --- prev path incorporation
 
-	for folderID, p := range prevPaths {
-		// no check for errs.Failure here, despite the addRecoverable below.
-		// it's fine if we run through all of the collection generation even
-		// with failures present, and let the backup finish out.
-		prevPath, err := path.FromDataLayerPath(p, false)
-		if err != nil {
-			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "invalid previous path").
-				With("folderID", folderID, "prev_path", p).
-				Label(fault.LabelForceNoBackupCreation, count.BadPrevPath))
-
-			continue
-		}
-
-		err = tree.setPreviousPath(folderID, prevPath)
-		if err != nil {
-			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "setting previous path").
-				With("folderID", folderID, "prev_path", p).
-				Label(fault.LabelForceNoBackupCreation))
-
-			continue
-		}
+	err = addPrevPathsToTree(
+		ctx,
+		tree,
+		prevPaths,
+		errs)
+	if err != nil {
+		return nil, nil, pagers.DeltaUpdate{}, clues.Stack(err).Label(fault.LabelForceNoBackupCreation)
 	}
-
-	// TODO(keepers): leaving this code around for now as a guide
-	// while implementation progresses.
 
 	// --- post-processing
 
@@ -736,4 +716,38 @@ func (c *Collections) makeMetadataCollections(
 	}
 
 	return append(colls, md)
+}
+
+func addPrevPathsToTree(
+	ctx context.Context,
+	tree *folderyMcFolderFace,
+	prevPaths map[string]string,
+	errs *fault.Bus,
+) error {
+	el := errs.Local()
+
+	for folderID, p := range prevPaths {
+		if el.Failure() != nil {
+			break
+		}
+
+		prevPath, err := path.FromDataLayerPath(p, false)
+		if err != nil {
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "invalid previous path").
+				With("folderID", folderID, "prev_path", p).
+				Label(count.BadPrevPath))
+
+			continue
+		}
+
+		err = tree.setPreviousPath(folderID, prevPath)
+		if err != nil {
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "setting previous path").
+				With("folderID", folderID, "prev_path", p))
+
+			continue
+		}
+	}
+
+	return el.Failure()
 }
