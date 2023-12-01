@@ -696,7 +696,7 @@ func (c *Collections) handleDelete(
 
 func (c *Collections) getCollectionPath(
 	driveID string,
-	item CorsoDriveItemable,
+	item models.DriveItemable,
 ) (path.Path, error) {
 	var (
 		pb     = odConsts.DriveFolderPrefixBuilder(driveID)
@@ -845,7 +845,7 @@ func (c *Collections) PopulateDriveCollections(
 
 func (c *Collections) processItem(
 	ctx context.Context,
-	di models.DriveItemable,
+	item models.DriveItemable,
 	driveID, driveName string,
 	oldPrevPaths, currPrevPaths, newPrevPaths map[string]string,
 	seenFolders map[string]string,
@@ -855,7 +855,7 @@ func (c *Collections) processItem(
 	counter *count.Bus,
 	skipper fault.AddSkipper,
 ) error {
-	item := ToCorsoDriveItemable(di)
+	// item := ToCorsoDriveItemable(di)
 
 	var (
 		itemID   = ptr.Val(item.GetId())
@@ -870,7 +870,7 @@ func (c *Collections) processItem(
 		"item_is_folder", isFolder)
 
 	if item.GetMalware() != nil {
-		addtl := graph.ItemInfo(di)
+		addtl := graph.ItemInfo(item)
 		skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 
 		if isFolder {

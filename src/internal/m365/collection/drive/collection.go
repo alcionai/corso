@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -193,11 +194,11 @@ func newColl(
 // Adds an itemID to the collection.  This will make it eligible to be
 // populated. The return values denotes if the item was previously
 // present or is new one.
-func (oc *Collection) Add(cdi CorsoDriveItemable) bool {
+func (oc *Collection) Add(item models.DriveItemable) bool {
 	// _, found := oc.driveItems[ptr.Val(item.GetId())]
 	// oc.driveItems[ptr.Val(item.GetId())] = item
 
-	//cdi := ToCorsoDriveItemable(item)
+	cdi := ToCorsoDriveItemable(item)
 	_, found := oc.driveItems[ptr.Val(cdi.GetId())]
 	oc.driveItems[ptr.Val(cdi.GetId())] = cdi
 
