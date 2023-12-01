@@ -27,7 +27,7 @@ type LiteDriveItemable interface {
 	GetMalware() interface{}
 	GetDeleted() interface{}
 	GetRoot() interface{}
-	GetFile() fileItemable
+	GetFile() *fileItema
 	GetParentReference() parentReferenceable
 	SetParentReference(parentReferenceable)
 	GetCreatedBy() itemIdentitySetable
@@ -39,34 +39,34 @@ type LiteDriveItemable interface {
 var _ LiteDriveItemable = &driveItema{}
 
 type driveItema struct {
-	id                   string
-	name                 string
-	size                 int64
+	id                   *string
+	name                 *string
+	size                 *int64
 	folder               interface{}
 	pkg                  interface{}
 	shared               interface{}
 	malware              interface{}
 	deleted              interface{}
 	root                 interface{}
-	file                 fileItemable
+	file                 *fileItema
 	parentRef            parentReferenceable
 	createdBy            itemIdentitySetable
-	createdDateTime      time.Time
-	lastModifiedDateTime time.Time
+	createdDateTime      *time.Time
+	lastModifiedDateTime *time.Time
 	additionalData       map[string]interface{}
 }
 
 // nolint
 func (c *driveItema) GetId() *string {
-	return &c.id
+	return c.id
 }
 
 func (c *driveItema) GetName() *string {
-	return &c.name
+	return c.name
 }
 
 func (c *driveItema) GetSize() *int64 {
-	return &c.size
+	return c.size
 }
 
 func (c *driveItema) GetFolder() interface{} {
@@ -93,7 +93,7 @@ func (c *driveItema) GetRoot() interface{} {
 	return c.root
 }
 
-func (c *driveItema) GetFile() fileItemable {
+func (c *driveItema) GetFile() *fileItema {
 	return c.file
 }
 
@@ -111,11 +111,11 @@ func (c *driveItema) GetCreatedBy() itemIdentitySetable {
 }
 
 func (c *driveItema) GetCreatedDateTime() *time.Time {
-	return &c.createdDateTime
+	return c.createdDateTime
 }
 
 func (c *driveItema) GetLastModifiedDateTime() *time.Time {
-	return &c.lastModifiedDateTime
+	return c.lastModifiedDateTime
 }
 
 func (c *driveItema) GetAdditionalData() map[string]interface{} {
@@ -123,9 +123,6 @@ func (c *driveItema) GetAdditionalData() map[string]interface{} {
 }
 
 type (
-	fileItemable interface {
-		GetMimeType() *string
-	}
 	parentReferenceable interface {
 		GetPath() *string
 		GetId() *string
@@ -142,13 +139,11 @@ type (
 
 // Concrete implementations
 
-var _ fileItemable = &fileItem{}
-
-type fileItem struct {
+type fileItema struct {
 	mimeType string
 }
 
-func (f *fileItem) GetMimeType() *string {
+func (f *fileItema) GetMimeType() *string {
 	return &f.mimeType
 }
 
@@ -198,18 +193,24 @@ func (iu *itemUser) GetAdditionalData() map[string]interface{} {
 }
 
 func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
-	cdi := &driveItema{
-		id:                   strings.Clone(ptr.Val(item.GetId())),
-		name:                 strings.Clone(ptr.Val(item.GetName())),
-		size:                 ptr.Val(item.GetSize()),
-		createdDateTime:      ptr.Val(item.GetCreatedDateTime()),
-		lastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
-	}
+	cdi := &driveItema{}
+
+	id := strings.Clone(ptr.Val(item.GetId()))
+	name := strings.Clone(ptr.Val(item.GetName()))
+	size := ptr.Val(item.GetSize())
+	createdDateTime := ptr.Val(item.GetCreatedDateTime())
+	lastModifiedDateTime := ptr.Val(item.GetLastModifiedDateTime())
+
+	cdi.id = &id
+	cdi.name = &name
+	cdi.size = &size
+	cdi.createdDateTime = &createdDateTime
+	cdi.lastModifiedDateTime = &lastModifiedDateTime
 
 	if item.GetFolder() != nil {
 		cdi.folder = &struct{}{}
 	} else if item.GetFile() != nil {
-		cdi.file = &fileItem{
+		cdi.file = &fileItema{
 			mimeType: strings.Clone(ptr.Val(item.GetFile().GetMimeType())),
 		}
 	} else if item.GetPackageEscaped() != nil {
