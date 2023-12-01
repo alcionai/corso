@@ -36,6 +36,9 @@ type folderyMcFolderFace struct {
 	// it's just a sensible place to store the data, since we're
 	// already pushing file additions through the api.
 	excludeFileIDs map[string]struct{}
+
+	// true if Reset() was called
+	hadReset bool
 }
 
 func newFolderyMcFolderFace(
@@ -47,6 +50,18 @@ func newFolderyMcFolderFace(
 		tombstones:     map[string]*nodeyMcNodeFace{},
 		excludeFileIDs: map[string]struct{}{},
 	}
+}
+
+// Reset erases all data contained in the tree.  This is intended for
+// tracking a delta enumeration reset, not for tree re-use, and will
+// cause the tree to flag itself as dirty in order to appropriately
+// post-process the data.
+func (face *folderyMcFolderFace) Reset() {
+	face.hadReset = true
+	face.root = nil
+	face.folderIDToNode = map[string]*nodeyMcNodeFace{}
+	face.tombstones = map[string]*nodeyMcNodeFace{}
+	face.excludeFileIDs = map[string]struct{}{}
 }
 
 type nodeyMcNodeFace struct {
@@ -71,14 +86,12 @@ type nodeyMcNodeFace struct {
 func newNodeyMcNodeFace(
 	parent *nodeyMcNodeFace,
 	id, name string,
-	prev path.Elements,
 	isPackage bool,
 ) *nodeyMcNodeFace {
 	return &nodeyMcNodeFace{
 		parent:    parent,
 		id:        id,
 		name:      name,
-		prev:      prev,
 		children:  map[string]*nodeyMcNodeFace{},
 		items:     map[string]time.Time{},
 		isPackage: isPackage,
@@ -88,6 +101,21 @@ func newNodeyMcNodeFace(
 // ---------------------------------------------------------------------------
 // folder handling
 // ---------------------------------------------------------------------------
+
+// ContainsFolder returns true if the given folder id is present as either
+// a live node or a tombstone.
+func (face *folderyMcFolderFace) ContainsFolder(id string) bool {
+	_, stillKicking := face.folderIDToNode[id]
+	_, alreadyBuried := face.tombstones[id]
+
+	return stillKicking || alreadyBuried
+}
+
+// CountNodes returns a count that is the sum of live folders and
+// tombstones recorded in the tree.
+func (face *folderyMcFolderFace) CountFolders() int {
+	return len(face.tombstones) + len(face.folderIDToNode)
+}
 
 // SetFolder adds a node with the following details to the tree.
 // If the node already exists with the given ID, the name and parent
@@ -118,7 +146,7 @@ func (face *folderyMcFolderFace) SetFolder(
 	// only set the root node once.
 	if name == odConsts.RootPathDir {
 		if face.root == nil {
-			root := newNodeyMcNodeFace(nil, id, name, nil, isPackage)
+			root := newNodeyMcNodeFace(nil, id, name, isPackage)
 			face.root = root
 			face.folderIDToNode[id] = root
 		}
@@ -178,9 +206,7 @@ func (face *folderyMcFolderFace) SetFolder(
 		nodey.parent = parent
 	} else {
 		// change type 1: new addition
-		// the previous location is always nil, since previous path additions get their
-		// own setter func.
-		nodey = newNodeyMcNodeFace(parent, id, name, nil, isPackage)
+		nodey = newNodeyMcNodeFace(parent, id, name, isPackage)
 	}
 
 	// ensure the parent points to this node, and that the node is registered
@@ -194,14 +220,9 @@ func (face *folderyMcFolderFace) SetFolder(
 func (face *folderyMcFolderFace) SetTombstone(
 	ctx context.Context,
 	id string,
-	loc path.Elements,
 ) error {
 	if len(id) == 0 {
 		return clues.NewWC(ctx, "missing tombstone folder ID")
-	}
-
-	if len(loc) == 0 {
-		return clues.NewWC(ctx, "missing tombstone location")
 	}
 
 	// since we run mutiple enumerations, it's possible to see a folder added on the
@@ -225,29 +246,8 @@ func (face *folderyMcFolderFace) SetTombstone(
 		return nil
 	}
 
-	zombey, alreadyBuried := face.tombstones[id]
-	if alreadyBuried {
-		if zombey.prev.String() != loc.String() {
-			// logging for sanity
-			logger.Ctx(ctx).Infow(
-				"attempted to tombstone two paths with the same ID",
-				"first_tombstone_path", zombey.prev,
-				"second_tombstone_path", loc)
-		}
-
-		// since we're storing drive data by folder name in kopia, not id, we need
-		// to make sure to preserve the original tombstone location.  If we get a
-		// conflicting set of locations in the same delta enumeration, we can always
-		// treat the original one as the canonical one.  IE: what we're deleting is
-		// the original location as it exists in kopia.  So even if we get a newer
-		// location in the drive enumeration, the original location is the one that
-		// kopia uses, and the one we need to tombstone.
-		//
-		// this should also be asserted in the second step, where we compare the delta
-		// changes to the backup previous paths metadata.
-		face.tombstones[id] = zombey
-	} else {
-		face.tombstones[id] = newNodeyMcNodeFace(nil, id, "", loc, false)
+	if _, alreadyBuried := face.tombstones[id]; !alreadyBuried {
+		face.tombstones[id] = newNodeyMcNodeFace(nil, id, "", false)
 	}
 
 	return nil
