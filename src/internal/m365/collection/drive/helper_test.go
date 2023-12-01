@@ -444,6 +444,13 @@ func fullPath(elems ...string) string {
 		elems...)...)
 }
 
+func fullPathPath(t *testing.T, elems ...string) path.Path {
+	p, err := path.FromDataLayerPath(fullPath(elems...), false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return p
+}
+
 func driveFullPath(driveID any, elems ...string) string {
 	return toPath(append(
 		[]string{
@@ -778,10 +785,16 @@ func aReset(items ...models.DriveItemable) mock.NextPage {
 // delta trees
 // ---------------------------------------------------------------------------
 
-var loc = path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
+func defaultLoc() path.Elements {
+	return path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
+}
 
-func treeWithRoot() *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(nil, rootID)
+func newTree(t *testing.T) *folderyMcFolderFace {
+	return newFolderyMcFolderFace(fullPathPath(t), rootID)
+}
+
+func treeWithRoot(t *testing.T) *folderyMcFolderFace {
+	tree := newFolderyMcFolderFace(fullPathPath(t), rootID)
 	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
 	tree.root = rootey
 	tree.folderIDToNode[rootID] = rootey
@@ -789,29 +802,29 @@ func treeWithRoot() *folderyMcFolderFace {
 	return tree
 }
 
-func treeAfterReset() *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(nil, rootID)
+func treeAfterReset(t *testing.T) *folderyMcFolderFace {
+	tree := newFolderyMcFolderFace(fullPathPath(t), rootID)
 	tree.reset()
 
 	return tree
 }
 
-func treeWithFoldersAfterReset() *folderyMcFolderFace {
-	tree := treeWithFolders()
+func treeWithFoldersAfterReset(t *testing.T) *folderyMcFolderFace {
+	tree := treeWithFolders(t)
 	tree.hadReset = true
 
 	return tree
 }
 
-func treeWithTombstone() *folderyMcFolderFace {
-	tree := treeWithRoot()
+func treeWithTombstone(t *testing.T) *folderyMcFolderFace {
+	tree := treeWithRoot(t)
 	tree.tombstones[id(folder)] = newNodeyMcNodeFace(nil, id(folder), "", false)
 
 	return tree
 }
 
-func treeWithFolders() *folderyMcFolderFace {
-	tree := treeWithRoot()
+func treeWithFolders(t *testing.T) *folderyMcFolderFace {
+	tree := treeWithRoot(t)
 
 	parent := newNodeyMcNodeFace(tree.root, idx(folder, "parent"), namex(folder, "parent"), true)
 	tree.folderIDToNode[parent.id] = parent
@@ -824,8 +837,8 @@ func treeWithFolders() *folderyMcFolderFace {
 	return tree
 }
 
-func treeWithFileAtRoot() *folderyMcFolderFace {
-	tree := treeWithRoot()
+func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
+	tree := treeWithRoot(t)
 	tree.root.files[id(file)] = fileyMcFileFace{
 		lastModified: time.Now(),
 		contentSize:  42,
@@ -835,8 +848,8 @@ func treeWithFileAtRoot() *folderyMcFolderFace {
 	return tree
 }
 
-func treeWithFileInFolder() *folderyMcFolderFace {
-	tree := treeWithFolders()
+func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
+	tree := treeWithFolders(t)
 	tree.folderIDToNode[id(folder)].files[id(file)] = fileyMcFileFace{
 		lastModified: time.Now(),
 		contentSize:  42,
@@ -846,8 +859,8 @@ func treeWithFileInFolder() *folderyMcFolderFace {
 	return tree
 }
 
-func treeWithFileInTombstone() *folderyMcFolderFace {
-	tree := treeWithTombstone()
+func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
+	tree := treeWithTombstone(t)
 	tree.tombstones[id(folder)].files[id(file)] = fileyMcFileFace{
 		lastModified: time.Now(),
 		contentSize:  42,
