@@ -72,6 +72,7 @@ func NewStorageUsingRole(
 	roleARN string,
 	sessionName string,
 	sessionTags map[string]string,
+	queryParams map[string]string,
 	duration string,
 	cfgs ...common.StringConfigurer,
 ) (Storage, error) {
@@ -82,6 +83,7 @@ func NewStorageUsingRole(
 		Config:          cs,
 		Role:            roleARN,
 		SessionTags:     sessionTags,
+		QueryParams:     queryParams,
 		SessionName:     sessionName,
 		SessionDuration: duration,
 	}, err
