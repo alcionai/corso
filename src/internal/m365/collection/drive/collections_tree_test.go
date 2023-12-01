@@ -1355,14 +1355,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			page: rootAnd(driveItem(id(file), name(file), parent(0, name(folder)), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFilesProcessed: 1,
+					count.TotalDeleteFilesProcessed: 0,
+					count.TotalFoldersProcessed:     1,
+					count.TotalFilesProcessed:       1,
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
 				statsNumAddedFiles: 1,
-				statsNumBytes:      42,
+				statsNumBytes:      defaultItemSize,
 			},
 		},
 		{
@@ -1373,16 +1375,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				driveItem(id(file), name(file), parent(0, name(folder)), id(folder), isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFoldersProcessed: 2,
-					count.TotalFilesProcessed:   1,
-					count.PagesEnumerated:       1,
+					count.TotalDeleteFilesProcessed: 0,
+					count.TotalFoldersProcessed:     2,
+					count.TotalFilesProcessed:       1,
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): id(folder),
 				},
 				statsNumAddedFiles: 1,
-				statsNumBytes:      42,
+				statsNumBytes:      defaultItemSize,
 			},
 		},
 		{
@@ -1394,7 +1396,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				driveItem(idx(file, "chld"), namex(file, "chld"), parent(0, name(folder)), id(folder), isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFilesProcessed: 2,
+					count.TotalDeleteFilesProcessed: 0,
+					count.TotalFoldersProcessed:     2,
+					count.TotalFilesProcessed:       2,
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
@@ -1402,7 +1406,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 					idx(file, "chld"): id(folder),
 				},
 				statsNumAddedFiles: 2,
-				statsNumBytes:      42 * 2,
+				statsNumBytes:      defaultItemSize * 2,
 			},
 		},
 		{
@@ -1414,14 +1418,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				driveItem(id(file), namex(file, 2), parent(0), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFilesProcessed: 3,
+					count.TotalDeleteFilesProcessed: 0,
+					count.TotalFoldersProcessed:     1,
+					count.TotalFilesProcessed:       3,
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
 				statsNumAddedFiles: 1,
-				statsNumBytes:      42,
+				statsNumBytes:      defaultItemSize,
 			},
 		},
 		{
@@ -1430,8 +1436,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			page: rootAnd(delItem(id(file), parent(0), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFilesProcessed:       0,
 					count.TotalDeleteFilesProcessed: 1,
+					count.TotalFoldersProcessed:     1,
+					count.TotalFilesProcessed:       0,
 				},
 				err:                           require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{},
@@ -1447,8 +1454,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				delItem(id(file), parent(0), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFilesProcessed:       0,
 					count.TotalDeleteFilesProcessed: 2,
+					count.TotalFoldersProcessed:     1,
+					count.TotalFilesProcessed:       0,
 				},
 				err:                           require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{},
@@ -1464,13 +1472,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				delItem(id(file), parent(0), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFilesProcessed:       1,
 					count.TotalDeleteFilesProcessed: 1,
+					count.TotalFoldersProcessed:     1,
+					count.TotalFilesProcessed:       1,
 				},
 				err:                           require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{},
 				statsNumAddedFiles:            0,
-				statsNumBytes:                 42,
+				statsNumBytes:                 defaultItemSize,
 			},
 		},
 		{
@@ -1482,8 +1491,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				delItem(id(file), parent(0, name(folder)), id(folder), isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFilesProcessed:       1,
 					count.TotalDeleteFilesProcessed: 1,
+					count.TotalFoldersProcessed:     2,
+					count.TotalFilesProcessed:       1,
 				},
 				err:                           require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{},
@@ -1499,15 +1509,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				driveItem(id(file), name(file), parent(0), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFilesProcessed:       1,
 					count.TotalDeleteFilesProcessed: 1,
+					count.TotalFoldersProcessed:     1,
+					count.TotalFilesProcessed:       1,
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
 				statsNumAddedFiles: 0,
-				statsNumBytes:      42,
+				statsNumBytes:      defaultItemSize,
 			},
 		},
 		{
@@ -1518,15 +1529,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				driveItem(id(file), name(file), parent(0), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
-					count.TotalFilesProcessed:       1,
 					count.TotalDeleteFilesProcessed: 1,
+					count.TotalFoldersProcessed:     1,
+					count.TotalFilesProcessed:       1,
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): rootID,
 				},
 				statsNumAddedFiles: 1,
-				statsNumBytes:      42,
+				statsNumBytes:      defaultItemSize,
 			},
 		},
 	}
@@ -1597,7 +1609,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 					id(file): rootID,
 				},
 				statsNumAddedFiles: 1,
-				statsNumBytes:      42,
+				statsNumBytes:      defaultItemSize,
 			},
 		},
 		{

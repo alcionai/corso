@@ -117,6 +117,14 @@ func (face *folderyMcFolderFace) countFolders() int {
 	return len(face.tombstones) + len(face.folderIDToNode)
 }
 
+func (face *folderyMcFolderFace) getNode(id string) *nodeyMcNodeFace {
+	if zombey, alreadyBuried := face.tombstones[id]; alreadyBuried {
+		return zombey
+	}
+
+	return face.folderIDToNode[id]
+}
+
 // setFolder adds a node with the following details to the tree.
 // If the node already exists with the given ID, the name and parent
 // values are updated to match (isPackage is assumed not to change).

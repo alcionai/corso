@@ -749,7 +749,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			expectFiles: map[string]string{},
 		},
 		{
-			tname:       "error adding file without parentt id",
+			tname:       "error adding file without parent id",
 			tree:        treeWithTombstone(),
 			oldParentID: "",
 			parentID:    "",
@@ -772,10 +772,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 				return
 			}
 
-			parent, ok := test.tree.folderIDToNode[test.parentID]
-			if !ok {
-				parent = test.tree.tombstones[test.parentID]
-			}
+			parent := test.tree.getNode(test.parentID)
 
 			require.NotNil(t, parent)
 			assert.Contains(t, parent.files, id(file))
@@ -826,10 +823,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
 
 			test.tree.deleteFile(id(file))
 
-			parent, ok := test.tree.folderIDToNode[test.parentID]
-			if !ok {
-				parent = test.tree.tombstones[test.parentID]
-			}
+			parent := test.tree.getNode(test.parentID)
 
 			require.NotNil(t, parent)
 			assert.NotContains(t, parent.files, id(file))
