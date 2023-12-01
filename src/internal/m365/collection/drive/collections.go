@@ -696,7 +696,7 @@ func (c *Collections) handleDelete(
 
 func (c *Collections) getCollectionPath(
 	driveID string,
-	item CorsoDriveItemable,
+	item LiteDriveItemable,
 ) (path.Path, error) {
 	var (
 		pb     = odConsts.DriveFolderPrefixBuilder(driveID)
@@ -855,7 +855,7 @@ func (c *Collections) processItem(
 	counter *count.Bus,
 	skipper fault.AddSkipper,
 ) error {
-	item := ToCorsoDriveItemable(di)
+	item := ToLiteDriveItemable(di)
 
 	var (
 		itemID   = ptr.Val(item.GetId())

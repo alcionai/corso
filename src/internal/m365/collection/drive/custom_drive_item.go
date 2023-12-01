@@ -1,112 +1,183 @@
+// Disable revive linter since any structs in this file will expose the same
+// funcs as the original structs in the msgraph-sdk-go package, which do not
+// follow some of the golint rules.
+//
+//nolint:revive
 package drive
 
 import (
 	"strings"
 	"time"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
 // Replica of models.DriveItemable
-type CorsoDriveItemable interface {
+type LiteDriveItemable interface {
 	GetId() *string
 	GetName() *string
 	GetSize() *int64
-	GetFile() fileDriveItemable
-	GetFolder() folderDriveItemable
-	GetPackageEscaped() packageDriveItemable
+	// TODO(pandeyabs): replace with any
+	GetFolder() interface{}
+	GetPackageEscaped() interface{}
+	GetShared() interface{}
+	GetMalware() interface{}
+	GetDeleted() interface{}
+	GetRoot() interface{}
+	GetFile() fileItemable
 	GetParentReference() parentReferenceable
-	GetAdditionalData() map[string]interface{}
 	SetParentReference(parentReferenceable)
-	GetShared() itemSharedable
 	GetCreatedBy() itemIdentitySetable
 	GetCreatedDateTime() *time.Time
 	GetLastModifiedDateTime() *time.Time
-	GetMalware() malwareable
-	GetDeleted() deletedable
-	GetRoot() itemRootable
-}
-
-type fileDriveItemable interface {
-	GetMimeType() *string
-}
-type folderDriveItemable interface{}
-type packageDriveItemable interface{}
-type parentReferenceable interface {
-	GetPath() *string
-	GetId() *string
-	GetName() *string
-	GetDriveId() *string
-}
-type itemSharedable interface{}
-type malwareable interface{}
-type deletedable interface{}
-type itemRootable interface{}
-type itemIdentitySetable interface {
-	GetUser() itemUserable
-}
-type itemUserable interface {
 	GetAdditionalData() map[string]interface{}
 }
 
-// Concrete implementations
-type folderDriveItem struct {
-	isFolder bool
+var _ LiteDriveItemable = &driveItema{}
+
+type driveItema struct {
+	id                   string
+	name                 string
+	size                 int64
+	folder               interface{}
+	pkg                  interface{}
+	shared               interface{}
+	malware              interface{}
+	deleted              interface{}
+	root                 interface{}
+	file                 fileItemable
+	parentRef            parentReferenceable
+	createdBy            itemIdentitySetable
+	createdDateTime      time.Time
+	lastModifiedDateTime time.Time
+	additionalData       map[string]interface{}
 }
 
-type fileDriveItem struct {
-	isFile   bool
+// nolint
+func (c *driveItema) GetId() *string {
+	return &c.id
+}
+
+func (c *driveItema) GetName() *string {
+	return &c.name
+}
+
+func (c *driveItema) GetSize() *int64 {
+	return &c.size
+}
+
+func (c *driveItema) GetFolder() interface{} {
+	return c.folder
+}
+
+func (c *driveItema) GetPackageEscaped() interface{} {
+	return c.pkg
+}
+
+func (c *driveItema) GetShared() interface{} {
+	return c.shared
+}
+
+func (c *driveItema) GetMalware() interface{} {
+	return c.malware
+}
+
+func (c *driveItema) GetDeleted() interface{} {
+	return c.deleted
+}
+
+func (c *driveItema) GetRoot() interface{} {
+	return c.root
+}
+
+func (c *driveItema) GetFile() fileItemable {
+	return c.file
+}
+
+func (c *driveItema) GetParentReference() parentReferenceable {
+	return c.parentRef
+}
+
+// TODO(pandeyabs): Should we only support GETs?
+func (c *driveItema) SetParentReference(parent parentReferenceable) {
+	c.parentRef = parent
+}
+
+func (c *driveItema) GetCreatedBy() itemIdentitySetable {
+	return c.createdBy
+}
+
+func (c *driveItema) GetCreatedDateTime() *time.Time {
+	return &c.createdDateTime
+}
+
+func (c *driveItema) GetLastModifiedDateTime() *time.Time {
+	return &c.lastModifiedDateTime
+}
+
+func (c *driveItema) GetAdditionalData() map[string]interface{} {
+	return c.additionalData
+}
+
+type (
+	fileItemable interface {
+		GetMimeType() *string
+	}
+	parentReferenceable interface {
+		GetPath() *string
+		GetId() *string
+		GetName() *string
+		GetDriveId() *string
+	}
+	itemIdentitySetable interface {
+		GetUser() itemUserable
+	}
+	itemUserable interface {
+		GetAdditionalData() map[string]interface{}
+	}
+)
+
+// Concrete implementations
+
+var _ fileItemable = &fileItem{}
+
+type fileItem struct {
 	mimeType string
 }
 
-func (fdi *fileDriveItem) GetMimeType() *string {
-	return &fdi.mimeType
+func (f *fileItem) GetMimeType() *string {
+	return &f.mimeType
 }
 
-type packageDriveItem struct {
-	isPackage bool
-}
+var _ parentReferenceable = &parentRef{}
 
-type parentReference struct {
+type parentRef struct {
 	path    string
 	id      string
 	name    string
-	driveId string
+	driveID string
 }
 
-func (pr *parentReference) GetPath() *string {
+func (pr *parentRef) GetPath() *string {
 	return &pr.path
 }
 
-func (pr *parentReference) GetId() *string {
+func (pr *parentRef) GetId() *string {
 	return &pr.id
 }
 
-func (pr *parentReference) GetName() *string {
+func (pr *parentRef) GetName() *string {
 	return &pr.name
 }
 
-func (pr *parentReference) GetDriveId() *string {
-	return &pr.driveId
+func (pr *parentRef) GetDriveId() *string {
+	return &pr.driveID
 }
 
-type itemShared struct {
-	isShared bool
-}
-
-type itemMalware struct {
-	isMalware bool
-}
-
-type itemDeleted struct {
-	isDeleted bool
-}
-
-type itemRoot struct {
-	isRoot bool
-}
+var _ itemIdentitySetable = &itemIdentitySet{}
 
 type itemIdentitySet struct {
 	user itemUserable
@@ -116,6 +187,8 @@ func (iis *itemIdentitySet) GetUser() itemUserable {
 	return iis.user
 }
 
+var _ itemUserable = &itemUser{}
+
 type itemUser struct {
 	additionalData map[string]interface{}
 }
@@ -124,97 +197,70 @@ func (iu *itemUser) GetAdditionalData() map[string]interface{} {
 	return iu.additionalData
 }
 
-type CorsoDriveItem struct {
-	ID                   string
-	Name                 string
-	Size                 int64
-	File                 fileDriveItemable
-	Folder               folderDriveItemable
-	Package              packageDriveItemable
-	AdditionalData       map[string]interface{}
-	ParentReference      parentReferenceable
-	Shared               itemSharedable
-	CreatedBy            itemIdentitySetable
-	CreatedDateTime      time.Time
-	LastModifiedDateTime time.Time
-	Malware              malwareable
-	Deleted              deletedable
-	Root                 itemRootable
-}
+func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
+	cdi := &driveItema{
+		id:                   strings.Clone(ptr.Val(item.GetId())),
+		name:                 strings.Clone(ptr.Val(item.GetName())),
+		size:                 ptr.Val(item.GetSize()),
+		createdDateTime:      ptr.Val(item.GetCreatedDateTime()),
+		lastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
+	}
 
-func (c *CorsoDriveItem) GetId() *string {
-	return &c.ID
-}
+	if item.GetFolder() != nil {
+		cdi.folder = &struct{}{}
+	} else if item.GetFile() != nil {
+		cdi.file = &fileItem{
+			mimeType: strings.Clone(ptr.Val(item.GetFile().GetMimeType())),
+		}
+	} else if item.GetPackageEscaped() != nil {
+		cdi.pkg = &struct{}{}
+	}
 
-func (c *CorsoDriveItem) GetName() *string {
-	return &c.Name
-}
+	if item.GetParentReference() != nil {
+		cdi.parentRef = &parentRef{
+			id:      strings.Clone(ptr.Val(item.GetParentReference().GetId())),
+			path:    strings.Clone(ptr.Val(item.GetParentReference().GetPath())),
+			name:    strings.Clone(ptr.Val(item.GetParentReference().GetName())),
+			driveID: strings.Clone(ptr.Val(item.GetParentReference().GetDriveId())),
+		}
+	}
 
-func (c *CorsoDriveItem) GetSize() *int64 {
-	return &c.Size
-}
+	if item.GetShared() != nil {
+		cdi.shared = &struct{}{}
+	}
 
-func (c *CorsoDriveItem) GetFile() fileDriveItemable {
-	return c.File
-}
+	if item.GetMalware() != nil {
+		cdi.malware = &struct{}{}
+	}
 
-func (c *CorsoDriveItem) GetFolder() folderDriveItemable {
-	return c.Folder
-}
+	if item.GetDeleted() != nil {
+		cdi.deleted = &struct{}{}
+	}
 
-func (c *CorsoDriveItem) GetPackageEscaped() packageDriveItemable {
-	return c.Package
-}
+	if item.GetRoot() != nil {
+		cdi.root = &struct{}{}
+	}
 
-func (c *CorsoDriveItem) GetParentReference() parentReferenceable {
-	return c.ParentReference
-}
+	if item.GetCreatedBy() != nil && item.GetCreatedBy().GetUser() != nil {
+		additionalData := item.GetCreatedBy().GetUser().GetAdditionalData()
+		ad := make(map[string]interface{})
 
-// TODO: Should we only support GETs?
-func (c *CorsoDriveItem) SetParentReference(parent parentReferenceable) {
-	c.ParentReference = parent
-}
+		var s string
 
-func (c *CorsoDriveItem) GetAdditionalData() map[string]interface{} {
-	return c.AdditionalData
-}
+		ed, ok := additionalData["email"]
+		if ok {
+			s = strings.Clone(ptr.Val(ed.(*string)))
+			ad["email"] = &s
+		} else if ed, ok = additionalData["displayName"]; ok {
+			s = strings.Clone(ptr.Val(ed.(*string)))
+			ad["displayName"] = &s
+		}
 
-func (c *CorsoDriveItem) GetShared() itemSharedable {
-	return c.Shared
-}
-
-func (c *CorsoDriveItem) GetCreatedBy() itemIdentitySetable {
-	return c.CreatedBy
-}
-
-func (c *CorsoDriveItem) GetCreatedDateTime() *time.Time {
-	return &c.CreatedDateTime
-}
-
-func (c *CorsoDriveItem) GetLastModifiedDateTime() *time.Time {
-	return &c.LastModifiedDateTime
-}
-
-func (c *CorsoDriveItem) GetMalware() malwareable {
-	return c.Malware
-}
-
-func (c *CorsoDriveItem) GetDeleted() deletedable {
-	return c.Deleted
-}
-
-func (c *CorsoDriveItem) GetRoot() itemRootable {
-	return c.Root
-}
-
-// models.DriveItemable to CorsoDriveItemable
-func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
-	cdi := &CorsoDriveItem{
-		ID:                   strings.Clone(ptr.Val(item.GetId())),
-		Name:                 strings.Clone(ptr.Val(item.GetName())),
-		Size:                 ptr.Val(item.GetSize()),
-		CreatedDateTime:      ptr.Val(item.GetCreatedDateTime()),
-		LastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
+		cdi.createdBy = &itemIdentitySet{
+			user: &itemUser{
+				additionalData: ad,
+			},
+		}
 	}
 
 	// Hacky way to cache the download url. Thats all we use from additional data
@@ -222,6 +268,7 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 	// lot more memory.
 	if item.GetFile() != nil {
 		ad := make(map[string]interface{})
+
 		for _, key := range downloadURLKeys {
 			if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
 				ad[key] = strings.Clone(v)
@@ -229,80 +276,7 @@ func ToCorsoDriveItemable(item models.DriveItemable) CorsoDriveItemable {
 			}
 		}
 
-		cdi.AdditionalData = ad
-	}
-
-	if item.GetFolder() != nil {
-		cdi.Folder = &folderDriveItem{
-			isFolder: true,
-		}
-	}
-
-	if item.GetFile() != nil {
-		cdi.File = &fileDriveItem{
-			isFile:   true,
-			mimeType: strings.Clone(ptr.Val(item.GetFile().GetMimeType())),
-		}
-	}
-
-	if item.GetPackageEscaped() != nil {
-		cdi.Package = &packageDriveItem{
-			isPackage: true,
-		}
-	}
-
-	if item.GetParentReference() != nil {
-		cdi.ParentReference = &parentReference{
-			id:      strings.Clone(ptr.Val(item.GetParentReference().GetId())),
-			path:    strings.Clone(ptr.Val(item.GetParentReference().GetPath())),
-			name:    strings.Clone(ptr.Val(item.GetParentReference().GetName())),
-			driveId: strings.Clone(ptr.Val(item.GetParentReference().GetDriveId())),
-		}
-	}
-
-	if item.GetShared() != nil {
-		cdi.Shared = &itemShared{
-			isShared: true,
-		}
-	}
-
-	if item.GetMalware() != nil {
-		cdi.Malware = &itemMalware{
-			isMalware: true,
-		}
-	}
-
-	if item.GetDeleted() != nil {
-		cdi.Deleted = &itemDeleted{
-			isDeleted: true,
-		}
-	}
-
-	if item.GetRoot() != nil {
-		cdi.Root = &itemRoot{
-			isRoot: true,
-		}
-	}
-
-	if item.GetCreatedBy() != nil && item.GetCreatedBy().GetUser() != nil {
-		additionalData := item.GetCreatedBy().GetUser().GetAdditionalData()
-		ad := make(map[string]interface{})
-		var str string
-
-		ed, ok := additionalData["email"]
-		if ok {
-			str = strings.Clone(ptr.Val(ed.(*string)))
-			ad["email"] = &str
-		} else if ed, ok = additionalData["displayName"]; ok {
-			str = strings.Clone(ptr.Val(ed.(*string)))
-			ad["displayName"] = &str
-		}
-
-		cdi.CreatedBy = &itemIdentitySet{
-			user: &itemUser{
-				additionalData: ad,
-			},
-		}
+		cdi.additionalData = ad
 	}
 
 	return cdi

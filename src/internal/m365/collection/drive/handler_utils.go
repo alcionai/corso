@@ -6,7 +6,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
-func getItemCreator(item CorsoDriveItemable) string {
+func getItemCreator(item LiteDriveItemable) string {
 	if item.GetCreatedBy() == nil || item.GetCreatedBy().GetUser() == nil {
 		return ""
 	}
@@ -28,7 +28,7 @@ func getItemCreator(item CorsoDriveItemable) string {
 	return *ed.(*string)
 }
 
-func getItemDriveInfo(item CorsoDriveItemable) (string, string) {
+func getItemDriveInfo(item LiteDriveItemable) (string, string) {
 	if item.GetParentReference() == nil {
 		return "", ""
 	}

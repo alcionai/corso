@@ -34,7 +34,7 @@ var downloadURLKeys = []string{
 func downloadItem(
 	ctx context.Context,
 	ag api.Getter,
-	item CorsoDriveItemable,
+	item LiteDriveItemable,
 ) (io.ReadCloser, error) {
 	if item == nil {
 		return nil, clues.New("nil item")
@@ -152,7 +152,7 @@ func downloadItemMeta(
 	ctx context.Context,
 	getter GetItemPermissioner,
 	driveID string,
-	item CorsoDriveItemable,
+	item LiteDriveItemable,
 ) (io.ReadCloser, int, error) {
 	meta := metadata.Metadata{
 		FileName:    ptr.Val(item.GetName()),

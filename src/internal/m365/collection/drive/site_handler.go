@@ -33,7 +33,7 @@ func (h baseSiteHandler) NewDrivePager(
 func (h baseSiteHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	resource idname.Provider,
-	item CorsoDriveItemable,
+	item LiteDriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
