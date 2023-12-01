@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -116,7 +117,7 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			c := NewCollection(
+			c := NewCollection[models.ChatMessageable](
 				data.NewBaseCollection(
 					test.curr,
 					test.prev,
@@ -198,7 +199,7 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			col := &Collection{
+			col := &Collection[models.ChatMessageable]{
 				BaseCollection: data.NewBaseCollection(
 					fullPath,
 					nil,
