@@ -49,7 +49,7 @@ func logResp(ctx context.Context, resp *http.Response) {
 		if logBody {
 			// only dump the body if it's under a size limit.  We don't want to copy gigs into memory for a log.
 			dump := getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != "" && resp.ContentLength < logMBLimit)
-			log.Infow("graph api 2xx", "response", dump)
+			log.Infow("2xx graph api resp", "response", dump)
 		}
 	case 3:
 		log.With("redirect_location", LoggableURL(resp.Header.Get(locationHeader))).
