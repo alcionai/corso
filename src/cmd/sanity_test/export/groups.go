@@ -146,6 +146,7 @@ func populateMessagesSanitree(
 		}
 
 		for _, msg := range filteredMsgs {
+			child.CountLeaves++
 			child.Leaves[ptr.Val(msg.GetId())] = &common.Sanileaf[
 				models.Channelable,
 				models.ChatMessageable,
