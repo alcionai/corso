@@ -124,6 +124,40 @@ func (suite *GraphErrorsUnitSuite) TestIsErrAuthenticationError() {
 	}
 }
 
+func (suite *GraphErrorsUnitSuite) TestIsErrInsufficientAuthorization() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    graphTD.ODataErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "AuthorizationRequestDenied oDataErr",
+			err:    graphTD.ODataErr(string(AuthorizationRequestDenied)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrInsufficientAuthorization(test.err))
+		})
+	}
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 	table := []struct {
 		name   string
