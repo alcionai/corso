@@ -36,6 +36,8 @@ type folderyMcFolderFace struct {
 	// will also be used to construct the excluded file id map
 	// during the post-processing step
 	fileIDToParentID map[string]string
+	// required for populating the excluded file id map
+	deletedFileIDs map[string]struct{}
 
 	// true if Reset() was called
 	hadReset bool
@@ -49,6 +51,7 @@ func newFolderyMcFolderFace(
 		folderIDToNode:   map[string]*nodeyMcNodeFace{},
 		tombstones:       map[string]*nodeyMcNodeFace{},
 		fileIDToParentID: map[string]string{},
+		deletedFileIDs:   map[string]struct{}{},
 	}
 }
 
@@ -115,6 +118,14 @@ func (face *folderyMcFolderFace) containsFolder(id string) bool {
 // tombstones recorded in the tree.
 func (face *folderyMcFolderFace) countFolders() int {
 	return len(face.tombstones) + len(face.folderIDToNode)
+}
+
+func (face *folderyMcFolderFace) getNode(id string) *nodeyMcNodeFace {
+	if zombey, alreadyBuried := face.tombstones[id]; alreadyBuried {
+		return zombey
+	}
+
+	return face.folderIDToNode[id]
 }
 
 // setFolder adds a node with the following details to the tree.
@@ -260,6 +271,14 @@ func (face *folderyMcFolderFace) addFile(
 	parentID, id string,
 	lastModifed time.Time,
 ) error {
+	if len(parentID) == 0 {
+		return clues.New("item added without parent folder ID")
+	}
+
+	if len(id) == 0 {
+		return clues.New("item added without ID")
+	}
+
 	// in case of file movement, clean up any references
 	// to the file in the old parent
 	oldParentID, ok := face.fileIDToParentID[id]
@@ -281,19 +300,11 @@ func (face *folderyMcFolderFace) addFile(
 	face.fileIDToParentID[id] = parentID
 	parent.files[id] = lastModifed
 
+	delete(face.deletedFileIDs, id)
+
 	return nil
 }
 
-// files don't get tombstoned because their deletion will get handled
-// in one of two ways in the storage system:
-//
-// 1. an ancestor folder was tombstoned, causing a delete cascade
-// that includes this file and all its siblings.
-// 2. the item does not appear in the exclude map, which would protect
-// the file from deletion.
-//
-// thanks to these behaviors, files only need to have their references
-// when a delete marker shows up.
 func (face *folderyMcFolderFace) deleteFile(id string) {
 	parentID, ok := face.fileIDToParentID[id]
 	if ok {
@@ -307,4 +318,6 @@ func (face *folderyMcFolderFace) deleteFile(id string) {
 	}
 
 	delete(face.fileIDToParentID, id)
+
+	face.deletedFileIDs[id] = struct{}{}
 }

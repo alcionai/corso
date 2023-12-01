@@ -48,6 +48,30 @@ func treeWithFolders() *folderyMcFolderFace {
 	return tree
 }
 
+func treeWithFileAtRoot() *folderyMcFolderFace {
+	tree := treeWithFolders()
+	tree.root.files[id(file)] = time.Now()
+	tree.fileIDToParentID[id(file)] = rootID
+
+	return tree
+}
+
+func treeWithFileInFolder() *folderyMcFolderFace {
+	tree := treeWithFileAtRoot()
+	tree.folderIDToNode[id(folder)].files[id(file)] = time.Now()
+	tree.fileIDToParentID[id(file)] = id(folder)
+
+	return tree
+}
+
+func treeWithFileInTombstone() *folderyMcFolderFace {
+	tree := treeWithTombstone()
+	tree.tombstones[id(folder)].files[id(file)] = time.Now()
+	tree.fileIDToParentID[id(file)] = id(folder)
+
+	return tree
+}
+
 // ---------------------------------------------------------------------------
 // tests
 // ---------------------------------------------------------------------------
@@ -660,30 +684,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 // ---------------------------------------------------------------------------
 
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
-	treeWithFileAtRoot := func() *folderyMcFolderFace {
-		tree := treeWithRoot()
-		tree.root.files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = rootID
-
-		return tree
-	}
-
-	treeWithFileInFolder := func() *folderyMcFolderFace {
-		tree := treeWithFolders()
-		tree.root.files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = id(folder)
-
-		return tree
-	}
-
-	treeWithFileInTombstone := func() *folderyMcFolderFace {
-		tree := treeWithTombstone()
-		tree.tombstones[id(folder)].files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = id(folder)
-
-		return tree
-	}
-
 	table := []struct {
 		tname       string
 		tree        *folderyMcFolderFace
@@ -748,6 +748,14 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			expectErr:   assert.Error,
 			expectFiles: map[string]string{},
 		},
+		{
+			tname:       "error adding file without parent id",
+			tree:        treeWithTombstone(),
+			oldParentID: "",
+			parentID:    "",
+			expectErr:   assert.Error,
+			expectFiles: map[string]string{},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.tname, func() {
@@ -764,10 +772,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 				return
 			}
 
-			parent, ok := test.tree.folderIDToNode[test.parentID]
-			if !ok {
-				parent = test.tree.tombstones[test.parentID]
-			}
+			parent := test.tree.getNode(test.parentID)
 
 			require.NotNil(t, parent)
 			assert.Contains(t, parent.files, id(file))
@@ -786,30 +791,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 }
 
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
-	treeWithFileAtRoot := func() *folderyMcFolderFace {
-		tree := treeWithFolders()
-		tree.root.files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = rootID
-
-		return tree
-	}
-
-	treeWithFileInFolder := func() *folderyMcFolderFace {
-		tree := treeWithFileAtRoot()
-		err := tree.addFile(id(folder), id(file), time.Now())
-		require.NoError(suite.T(), err, clues.ToCore(err))
-
-		return tree
-	}
-
-	treeWithFileInTombstone := func() *folderyMcFolderFace {
-		tree := treeWithTombstone()
-		tree.tombstones[id(folder)].files[id(file)] = time.Now()
-		tree.fileIDToParentID[id(file)] = id(folder)
-
-		return tree
-	}
-
 	table := []struct {
 		tname    string
 		tree     *folderyMcFolderFace
@@ -842,14 +823,43 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
 
 			test.tree.deleteFile(id(file))
 
-			parent, ok := test.tree.folderIDToNode[test.parentID]
-			if !ok {
-				parent = test.tree.tombstones[test.parentID]
-			}
+			parent := test.tree.getNode(test.parentID)
 
 			require.NotNil(t, parent)
 			assert.NotContains(t, parent.files, id(file))
 			assert.NotContains(t, test.tree.fileIDToParentID, id(file))
+			assert.Contains(t, test.tree.deletedFileIDs, id(file))
 		})
 	}
+}
+
+func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
+	t := suite.T()
+	tree := treeWithRoot()
+	fID := id(file)
+
+	require.Len(t, tree.fileIDToParentID, 0)
+	require.Len(t, tree.deletedFileIDs, 0)
+
+	tree.deleteFile(fID)
+
+	assert.Len(t, tree.fileIDToParentID, 0)
+	assert.NotContains(t, tree.fileIDToParentID, fID)
+	assert.Len(t, tree.deletedFileIDs, 1)
+	assert.Contains(t, tree.deletedFileIDs, fID)
+
+	err := tree.addFile(rootID, fID, time.Now())
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Len(t, tree.fileIDToParentID, 1)
+	assert.Contains(t, tree.fileIDToParentID, fID)
+	assert.Len(t, tree.deletedFileIDs, 0)
+	assert.NotContains(t, tree.deletedFileIDs, fID)
+
+	tree.deleteFile(fID)
+
+	assert.Len(t, tree.fileIDToParentID, 0)
+	assert.NotContains(t, tree.fileIDToParentID, fID)
+	assert.Len(t, tree.deletedFileIDs, 1)
+	assert.Contains(t, tree.deletedFileIDs, fID)
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -316,6 +317,10 @@ func (c *Collections) populateTree(
 			counter,
 			errs)
 		if err != nil {
+			if errors.Is(err, errHitLimit) {
+				break
+			}
+
 			el.AddRecoverable(ctx, clues.Stack(err))
 		}
 
@@ -369,6 +374,7 @@ func (c *Collections) enumeratePageOfItems(
 
 		var (
 			isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
+			isFile   = item.GetFile() != nil
 			itemID   = ptr.Val(item.GetId())
 			err      error
 			skipped  *fault.Skipped
@@ -382,15 +388,19 @@ func (c *Collections) enumeratePageOfItems(
 			"item_is_folder", isFolder,
 			"item_is_package", item.GetPackageEscaped() != nil)
 
-		if isFolder {
-			// check if the preview needs to exit before adding each folder
+		switch {
+		case isFolder:
+			// check limits before adding the next new folder
 			if !tree.containsFolder(itemID) && limiter.atLimit(stats, len(tree.folderIDToNode)) {
-				break
+				return errHitLimit
 			}
 
 			skipped, err = c.addFolderToTree(ictx, tree, drv, item, stats, counter)
-		} else {
-			skipped, err = c.addFileToTree(ictx, tree, drv, item, stats, counter)
+		case isFile:
+			skipped, err = c.addFileToTree(ictx, tree, drv, item, limiter, stats, counter)
+		default:
+			err = clues.NewWC(ictx, "item is neither folder nor file").
+				Label(fault.LabelForceNoBackupCreation, count.UnknownItemType)
 		}
 
 		if skipped != nil {
@@ -398,7 +408,7 @@ func (c *Collections) enumeratePageOfItems(
 		}
 
 		if err != nil {
-			el.AddRecoverable(ictx, clues.Wrap(err, "adding folder"))
+			el.AddRecoverable(ictx, clues.Wrap(err, "adding item"))
 		}
 
 		// Check if we reached the item or size limit while processing this page.
@@ -406,8 +416,9 @@ func (c *Collections) enumeratePageOfItems(
 		// We don't want to check all limits because it's possible we've reached
 		// the container limit but haven't reached the item limit or really added
 		// items to the last container we found.
+		// FIXME(keepers): this isn't getting handled properly at the moment
 		if limiter.atItemLimit(stats) {
-			break
+			return errHitLimit
 		}
 	}
 
@@ -466,7 +477,7 @@ func (c *Collections) addFolderToTree(
 			folderName,
 			graph.ItemInfo(folder))
 
-		logger.Ctx(ctx).Infow("malware detected")
+		logger.Ctx(ctx).Infow("malware folder detected")
 
 		return skip, nil
 	}
@@ -528,11 +539,98 @@ func (c *Collections) addFileToTree(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
 	drv models.Driveable,
-	item models.DriveItemable,
+	file models.DriveItemable,
+	limiter *pagerLimiter,
 	stats *driveEnumerationStats,
 	counter *count.Bus,
 ) (*fault.Skipped, error) {
-	return nil, clues.New("not yet implemented")
+	var (
+		driveID   = ptr.Val(drv.GetId())
+		fileID    = ptr.Val(file.GetId())
+		fileName  = ptr.Val(file.GetName())
+		fileSize  = ptr.Val(file.GetSize())
+		isDeleted = file.GetDeleted() != nil
+		isMalware = file.GetMalware() != nil
+		parent    = file.GetParentReference()
+		parentID  string
+	)
+
+	if parent != nil {
+		parentID = ptr.Val(parent.GetId())
+	}
+
+	defer func() {
+		switch {
+		case isMalware:
+			counter.Inc(count.TotalMalwareProcessed)
+		case isDeleted:
+			counter.Inc(count.TotalDeleteFilesProcessed)
+		default:
+			counter.Inc(count.TotalFilesProcessed)
+		}
+	}()
+
+	if isMalware {
+		skip := fault.FileSkip(
+			fault.SkipMalware,
+			driveID,
+			fileID,
+			fileName,
+			graph.ItemInfo(file))
+
+		logger.Ctx(ctx).Infow("malware file detected")
+
+		return skip, nil
+	}
+
+	_, alreadySeen := tree.fileIDToParentID[fileID]
+
+	if isDeleted {
+		tree.deleteFile(fileID)
+
+		if alreadySeen {
+			stats.numAddedFiles--
+			// FIXME(keepers): this might be faulty,
+			// since deletes may not include the file size.
+			// it will likely need to be tracked in
+			// the tree alongside the file modtime.
+			stats.numBytes -= fileSize
+		} else {
+			c.NumItems++
+			c.NumFiles++
+		}
+
+		return nil, nil
+	}
+
+	parentNode, ok := tree.folderIDToNode[parentID]
+
+	// Don't add new items if the new collection is already reached it's limit.
+	// item moves and updates are generally allowed through.
+	if ok && !alreadySeen && limiter.atContainerItemsLimit(len(parentNode.files)) {
+		return nil, nil
+	}
+
+	// Skip large files that don't fit within the size limit.
+	if limiter.aboveSizeLimit(fileSize + stats.numBytes) {
+		return nil, nil
+	}
+
+	err := tree.addFile(parentID, fileID, ptr.Val(file.GetLastModifiedDateTime()))
+	if err != nil {
+		return nil, clues.StackWC(ctx, err)
+	}
+
+	// Only increment counters for new files
+	if !alreadySeen {
+		// todo: remmove c.NumItems/Files in favor of counter and tree counting.
+		c.NumItems++
+		c.NumFiles++
+		stats.numAddedFiles++
+		stats.numBytes += fileSize
+	}
+
+	return nil, nil
 }
 
 // quality-of-life wrapper that transforms each tombstone in the map
