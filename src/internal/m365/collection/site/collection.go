@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -181,15 +182,8 @@ func (sc *Collection) retrieveLists(
 		el      = errs.Local()
 	)
 
-	lists, err := loadSiteLists(
-		ctx,
-		sc.client.Stable,
-		sc.fullPath.ProtectedResource(),
-		sc.jobs,
-		errs)
-	if err != nil {
-		return metrics, err
-	}
+	// TODO: Fetch lists via Lists client wrapper
+	var lists = []models.Listable{}
 
 	metrics.Objects += len(lists)
 	// For each models.Listable, object is serialized and the metrics are collected.
