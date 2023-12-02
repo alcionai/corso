@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"sync"
+	"sync/atomic"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -116,7 +118,7 @@ func (sc *Collection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
 ) <-chan data.Item {
-	go sc.runPopulate(ctx, errs)
+	go sc.streamItems(ctx, errs)
 	return sc.stream
 }
 
@@ -140,75 +142,116 @@ func (sc *Collection) finishPopulation(
 	}
 }
 
-func (sc *Collection) runPopulate(
+// streamItems utility function to retrieve data from back store for a given collection
+func (sc *Collection) streamItems(
 	ctx context.Context,
 	errs *fault.Bus,
 ) {
 	// Switch retrieval function based on category
 	switch sc.category {
 	case path.ListsCategory:
-		sc.retrieveLists(ctx, errs)
+		sc.streamLists(ctx, errs)
 	case path.PagesCategory:
 		sc.retrievePages(ctx, sc.client, errs)
 	}
 }
 
-// retrieveLists utility function for collection that downloads and serializes
+// streamLists utility function for collection that downloads and serializes
 // models.Listable objects based on M365 IDs from the jobs field.
-func (sc *Collection) retrieveLists(
+func (sc *Collection) streamLists(
 	ctx context.Context,
 	errs *fault.Bus,
 ) {
 	var (
 		metrics support.CollectionMetrics
 		el      = errs.Local()
-		wtr     = kjson.NewJsonSerializationWriter()
+		objects int64
+		wg      sync.WaitGroup
 	)
 
 	defer sc.finishPopulation(ctx, metrics)
-	defer wtr.Close()
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
 	defer close(progress)
 
-	// TODO: Fetch lists via Lists client wrapper
-	var lists = []models.Listable{}
+	semaphoreCh := make(chan struct{}, fetchChannelSize)
+	defer close(semaphoreCh)
 
-	metrics.Objects += len(lists)
 	// For each models.Listable, object is serialized and the metrics are collected.
 	// The progress is objected via the passed in channel.
-	for _, lst := range lists {
+	for _, listID := range sc.jobs {
 		if el.Failure() != nil {
 			break
 		}
 
-		byteArray, err := serializeContent(ctx, wtr, lst)
-		if err != nil {
-			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "serializing list").Label(fault.LabelForceNoBackupCreation))
-			continue
-		}
+		wg.Add(1)
+		semaphoreCh <- struct{}{}
 
-		size := int64(len(byteArray))
+		go func(id string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
 
-		if size > 0 {
-			metrics.Bytes += size
+			writer := kjson.NewJsonSerializationWriter()
+			defer writer.Close()
 
-			metrics.Successes++
+			var (
+				entry models.Listable
+				err   error
+			)
 
-			item, err := data.NewPrefetchedItemWithInfo(
-				io.NopCloser(bytes.NewReader(byteArray)),
-				ptr.Val(lst.GetId()),
-				details.ItemInfo{SharePoint: ListToSPInfo(lst, size)})
+			entry, err = sc.getter.GetItemByID(ctx, id)
 			if err != nil {
-				el.AddRecoverable(ctx, clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation))
-				continue
+				err = clues.Wrap(err, "getting list data").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
+
+				return
 			}
 
-			sc.stream <- item
-			progress <- struct{}{}
-		}
+			atomic.AddInt64(&objects, 1)
+
+			if err := writer.WriteObjectValue("", entry); err != nil {
+				err = clues.Wrap(err, "writing list to serializer").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
+
+				return
+			}
+
+			entryBytes, err := writer.GetSerializedContent()
+			if err != nil {
+				err = clues.Wrap(err, "serializing list").Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ctx, err)
+
+				return
+			}
+
+			size := int64(len(entryBytes))
+
+			if size > 0 {
+				metrics.Bytes += size
+				metrics.Successes++
+
+				rc := io.NopCloser(bytes.NewReader(entryBytes))
+				itemID := ptr.Val(entry.GetId())
+				itemInfo := details.ItemInfo{SharePoint: ListToSPInfo(entry, size)}
+
+				item, err := data.NewPrefetchedItemWithInfo(rc, itemID, itemInfo)
+				if err != nil {
+					el.AddRecoverable(ctx, clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation))
+
+					return
+				}
+
+				sc.stream <- item
+				progress <- struct{}{}
+			}
+		}(listID)
 	}
+
+	wg.Wait()
+
+	metrics.Objects += int(objects)
+
 }
 
 func (sc *Collection) retrievePages(
@@ -219,15 +262,16 @@ func (sc *Collection) retrievePages(
 	var (
 		metrics support.CollectionMetrics
 		el      = errs.Local()
-		wtr     = kjson.NewJsonSerializationWriter()
 	)
 
 	defer sc.finishPopulation(ctx, metrics)
-	defer wtr.Close()
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
 	defer close(progress)
+
+	wtr := kjson.NewJsonSerializationWriter()
+	defer wtr.Close()
 
 	betaService := sc.betaService
 	if betaService == nil {
