@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 const (
@@ -52,7 +53,7 @@ type Collection struct {
 	// represents
 	folderPath path.Path
 	// M365 IDs of file items within this collection
-	driveItems map[string]models.DriveItemable
+	driveItems map[string]custom.LiteDriveItemable
 
 	// Primary M365 ID of the drive this collection was created from
 	driveID   string
@@ -172,7 +173,7 @@ func newColl(
 		protectedResource:         resource,
 		folderPath:                currPath,
 		prevPath:                  prevPath,
-		driveItems:                map[string]models.DriveItemable{},
+		driveItems:                map[string]custom.LiteDriveItemable{},
 		driveID:                   driveID,
 		data:                      dataCh,
 		statusUpdater:             statusUpdater,
@@ -191,8 +192,10 @@ func newColl(
 // populated. The return values denotes if the item was previously
 // present or is new one.
 func (oc *Collection) Add(item models.DriveItemable) bool {
-	_, found := oc.driveItems[ptr.Val(item.GetId())]
-	oc.driveItems[ptr.Val(item.GetId())] = item
+	liteItem := custom.ToLiteDriveItemable(item)
+
+	_, found := oc.driveItems[ptr.Val(liteItem.GetId())]
+	oc.driveItems[ptr.Val(liteItem.GetId())] = liteItem
 
 	// if !found, it's a new addition
 	return !found
@@ -277,7 +280,7 @@ func (oc Collection) DoNotMergeItems() bool {
 func (oc *Collection) getDriveItemContent(
 	ctx context.Context,
 	driveID string,
-	item models.DriveItemable,
+	item custom.LiteDriveItemable,
 	errs *fault.Bus,
 ) (io.ReadCloser, error) {
 	var (
@@ -360,7 +363,7 @@ func downloadContent(
 	ctx context.Context,
 	iaag itemAndAPIGetter,
 	uc getItemPropertyer,
-	item models.DriveItemable,
+	item custom.LiteDriveItemable,
 	driveID string,
 	counter *count.Bus,
 ) (io.ReadCloser, error) {
@@ -395,7 +398,9 @@ func downloadContent(
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	content, err = downloadItem(ctx, iaag, di)
+	ldi := custom.ToLiteDriveItemable(di)
+
+	content, err = downloadItem(ctx, iaag, ldi)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}
@@ -489,7 +494,7 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 		wg.Add(1)
 
-		go func(item models.DriveItemable) {
+		go func(item custom.LiteDriveItemable) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
@@ -513,14 +518,14 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 type lazyItemGetter struct {
 	info                 *details.ItemInfo
-	item                 models.DriveItemable
+	item                 custom.LiteDriveItemable
 	driveID              string
 	suffix               string
 	itemExtensionFactory []extensions.CreateItemExtensioner
 	contentGetter        func(
 		ctx context.Context,
 		driveID string,
-		item models.DriveItemable,
+		item custom.LiteDriveItemable,
 		errs *fault.Bus) (io.ReadCloser, error)
 }
 
@@ -561,7 +566,7 @@ func (lig *lazyItemGetter) GetData(
 func (oc *Collection) streamDriveItem(
 	ctx context.Context,
 	parentPath *path.Builder,
-	item models.DriveItemable,
+	item custom.LiteDriveItemable,
 	stats *driveStats,
 	itemExtensionFactory []extensions.CreateItemExtensioner,
 	errs *fault.Bus,
@@ -584,7 +589,7 @@ func (oc *Collection) streamDriveItem(
 		"item_name", clues.Hide(itemName),
 		"item_size", itemSize)
 
-	item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
+	item.SetParentReference(custom.SetParentName(item.GetParentReference(), oc.driveName))
 
 	isFile := item.GetFile() != nil
 

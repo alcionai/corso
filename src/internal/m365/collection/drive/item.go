@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -18,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 const (
@@ -34,7 +34,7 @@ var downloadURLKeys = []string{
 func downloadItem(
 	ctx context.Context,
 	ag api.Getter,
-	item models.DriveItemable,
+	item custom.LiteDriveItemable,
 ) (io.ReadCloser, error) {
 	if item == nil {
 		return nil, clues.New("nil item")
@@ -152,7 +152,7 @@ func downloadItemMeta(
 	ctx context.Context,
 	getter GetItemPermissioner,
 	driveID string,
-	item models.DriveItemable,
+	item custom.LiteDriveItemable,
 ) (io.ReadCloser, int, error) {
 	meta := metadata.Metadata{
 		FileName:    ptr.Val(item.GetName()),
@@ -203,14 +203,4 @@ func driveItemWriter(
 		counter)
 
 	return iw, ptr.Val(icu.GetUploadUrl()), nil
-}
-
-func setName(orig models.ItemReferenceable, driveName string) models.ItemReferenceable {
-	if orig == nil {
-		return nil
-	}
-
-	orig.SetName(&driveName)
-
-	return orig
 }

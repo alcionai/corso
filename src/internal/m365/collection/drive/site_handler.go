@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 type baseSiteHandler struct {
@@ -33,7 +34,7 @@ func (h baseSiteHandler) NewDrivePager(
 func (h baseSiteHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	resource idname.Provider,
-	item models.DriveItemable,
+	item custom.LiteDriveItemable,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {

@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 const (
@@ -955,7 +956,9 @@ func (c *Collections) processItem(
 		"item_is_folder", isFolder)
 
 	if item.GetMalware() != nil {
-		addtl := graph.ItemInfo(item)
+		// TODO(pandeyabs): Fix this after we move conversion logic to the top of this
+		// func.
+		addtl := graph.ItemInfo(custom.ToLiteDriveItemable(item))
 		skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 
 		if isFolder {
