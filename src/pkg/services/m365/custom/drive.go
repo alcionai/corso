@@ -15,13 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 )
 
-// TODO(pandeyabs): Remove this duplicate
-// downloadUrlKeys is used to find the download URL in a DriveItem response.
-var downloadURLKeys = []string{
-	"@microsoft.graph.downloadUrl",
-	"@content.downloadUrl",
-}
-
 // Replica of models.DriveItemable
 type LiteDriveItemable interface {
 	GetId() *string
@@ -63,7 +56,6 @@ type driveItem struct {
 	additionalData       map[string]interface{}
 }
 
-// nolint
 func (c *driveItem) GetId() *string {
 	return &c.id
 }
@@ -204,6 +196,13 @@ func (iu *itemUser) GetAdditionalData() map[string]interface{} {
 	return iu.additionalData
 }
 
+// TODO(pandeyabs): This is duplicated from collection/drive package.
+// Move to common pkg
+var downloadURLKeys = []string{
+	"@microsoft.graph.downloadUrl",
+	"@content.downloadUrl",
+}
+
 func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
 	cdi := &driveItem{
 		id:                   strings.Clone(ptr.Val(item.GetId())),
@@ -254,12 +253,11 @@ func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
 
 		var s string
 
-		ed, ok := additionalData["email"]
-		if ok {
-			s = strings.Clone(ptr.Val(ed.(*string)))
+		if v, err := str.AnyValueToString("email", additionalData); err == nil {
+			s = strings.Clone(v)
 			ad["email"] = &s
-		} else if ed, ok = additionalData["displayName"]; ok {
-			s = strings.Clone(ptr.Val(ed.(*string)))
+		} else if v, err := str.AnyValueToString("userPrincipalName", additionalData); err == nil {
+			s = strings.Clone(v)
 			ad["displayName"] = &s
 		}
 
@@ -270,20 +268,22 @@ func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
 		}
 	}
 
-	// Hacky way to cache the download url. Thats all we use from additional data
-	// Otherwise, we'll hold a reference to the underlying store which will consume
-	// lot more memory.
-	if item.GetFile() != nil {
-		ad := make(map[string]interface{})
+	// We only use the download URL from additional data
+	var downloadURL, mapKey string
 
-		for _, key := range downloadURLKeys {
-			if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
-				ad[key] = strings.Clone(v)
-				break
-			}
+	for _, key := range downloadURLKeys {
+		if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
+			downloadURL = strings.Clone(v)
+			mapKey = key
+
+			break
 		}
+	}
 
-		cdi.additionalData = ad
+	if len(downloadURL) != 0 {
+		cdi.additionalData = map[string]interface{}{
+			mapKey: &downloadURL,
+		}
 	}
 
 	return cdi
