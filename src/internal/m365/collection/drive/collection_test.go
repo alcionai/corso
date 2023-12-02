@@ -34,6 +34,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -641,7 +642,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 
 			col.handler = mbh
 
-			_, err := col.getDriveItemContent(ctx, "driveID", stubItem, errs)
+			_, err := col.getDriveItemContent(ctx, "driveID", custom.ToLiteDriveItemable(stubItem), errs)
 			if test.err == nil {
 				assert.NoError(t, err, clues.ToCore(err))
 				return
@@ -819,7 +820,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			mbh.GetResps = resps
 			mbh.GetErrs = test.getErr
 
-			r, err := downloadContent(ctx, mbh, test.muc, item, driveID, count.New())
+			r, err := downloadContent(ctx, mbh, test.muc, custom.ToLiteDriveItemable(item), driveID, count.New())
 			test.expect(t, r)
 			test.expectErr(t, err, clues.ToCore(err))
 		})

@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 type ItemIntegrationSuite struct {
@@ -123,7 +124,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	}
 
 	// Read data for the file
-	itemData, err := downloadItem(ctx, bh, driveItem)
+	itemData, err := downloadItem(ctx, bh, custom.ToLiteDriveItemable(driveItem))
 	require.NoError(t, err, clues.ToCore(err))
 
 	size, err := io.Copy(io.Discard, itemData)
@@ -462,7 +463,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			mg := mockGetter{
 				GetFunc: test.GetFunc,
 			}
-			rc, err := downloadItem(ctx, mg, test.itemFunc())
+			rc, err := downloadItem(ctx, mg, custom.ToLiteDriveItemable(test.itemFunc()))
 			test.errorExpected(t, err, clues.ToCore(err))
 			test.rcExpected(t, rc)
 		})
@@ -521,7 +522,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem_ConnectionResetErrorOnFirstRead
 	mg := mockGetter{
 		GetFunc: GetFunc,
 	}
-	rc, err := downloadItem(ctx, mg, itemFunc())
+	rc, err := downloadItem(ctx, mg, custom.ToLiteDriveItemable(itemFunc()))
 	errorExpected(t, err, clues.ToCore(err))
 	rcExpected(t, rc)
 

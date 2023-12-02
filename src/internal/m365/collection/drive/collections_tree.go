@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -475,7 +476,7 @@ func (c *Collections) addFolderToTree(
 			driveID,
 			folderID,
 			folderName,
-			graph.ItemInfo(folder))
+			graph.ItemInfo(custom.ToLiteDriveItemable(folder)))
 
 		logger.Ctx(ctx).Infow("malware folder detected")
 

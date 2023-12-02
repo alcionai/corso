@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -165,7 +166,7 @@ func (h BackupHandler[T]) NewLocationIDer(driveID string, elems ...string) detai
 func (h BackupHandler[T]) AugmentItemInfo(
 	details.ItemInfo,
 	idname.Provider,
-	models.DriveItemable,
+	custom.LiteDriveItemable,
 	int64,
 	*path.Builder,
 ) details.ItemInfo {
@@ -405,7 +406,7 @@ func (h RestoreHandler) NewDrivePager(string, []string) pagers.NonDeltaHandler[m
 func (h *RestoreHandler) AugmentItemInfo(
 	details.ItemInfo,
 	idname.Provider,
-	models.DriveItemable,
+	custom.LiteDriveItemable,
 	int64,
 	*path.Builder,
 ) details.ItemInfo {

@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 type ItemInfoAugmenter interface {
@@ -23,7 +24,7 @@ type ItemInfoAugmenter interface {
 	AugmentItemInfo(
 		dii details.ItemInfo,
 		resource idname.Provider,
-		item models.DriveItemable,
+		item custom.LiteDriveItemable,
 		size int64,
 		parentPath *path.Builder,
 	) details.ItemInfo

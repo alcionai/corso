@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -517,18 +517,20 @@ func appendIf(a []any, k string, v *string) []any {
 
 // ItemInfo gathers potentially useful information about a drive item,
 // and aggregates that data into a map.
-func ItemInfo(item models.DriveItemable) map[string]any {
+func ItemInfo(item custom.LiteDriveItemable) map[string]any {
 	m := map[string]any{}
 
-	creator := item.GetCreatedByUser()
-	if creator != nil {
-		m[fault.AddtlCreatedBy] = ptr.Val(creator.GetId())
-	}
+	// TODO(pandeyabs): These fields are not available in the LiteDriveItemable
+	// yet. We need to add them.
+	// creator := item.GetCreatedByUser()
+	// if creator != nil {
+	// 	m[fault.AddtlCreatedBy] = ptr.Val(creator.GetId())
+	// }
 
-	lastmodder := item.GetLastModifiedByUser()
-	if lastmodder != nil {
-		m[fault.AddtlLastModBy] = ptr.Val(lastmodder.GetId())
-	}
+	// lastmodder := item.GetLastModifiedByUser()
+	// if lastmodder != nil {
+	// 	m[fault.AddtlLastModBy] = ptr.Val(lastmodder.GetId())
+	// }
 
 	parent := item.GetParentReference()
 	if parent != nil {
@@ -545,10 +547,10 @@ func ItemInfo(item models.DriveItemable) map[string]any {
 		m[fault.AddtlContainerPath] = containerPath
 	}
 
-	malware := item.GetMalware()
-	if malware != nil {
-		m[fault.AddtlMalwareDesc] = ptr.Val(malware.GetDescription())
-	}
+	// malware := item.GetMalware()
+	// if malware != nil {
+	// 	m[fault.AddtlMalwareDesc] = ptr.Val(malware.GetDescription())
+	// }
 
 	return m
 }
