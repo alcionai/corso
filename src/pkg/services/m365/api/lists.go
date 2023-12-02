@@ -77,7 +77,13 @@ func (c Lists) PostDrive(
 // - ContentTypes
 // - List Items
 func (c Lists) GetListByID(ctx context.Context, siteID, listID string) (models.Listable, error) {
-	list, err := c.Stable.Client().Sites().BySiteId(siteID).Lists().ByListId(listID).Get(ctx, nil)
+	list, err := c.Stable.
+		Client().
+		Sites().
+		BySiteId(siteID).
+		Lists().
+		ByListId(listID).
+		Get(ctx, nil)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "fetching list")
 	}
@@ -127,7 +133,12 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 // * Fields
 func (c Lists) getListItems(ctx context.Context, siteID, listID string) ([]models.ListItemable, error) {
 	var (
-		prefix  = c.Stable.Client().Sites().BySiteId(siteID).Lists().ByListId(listID)
+		prefix = c.Stable.
+			Client().
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID)
 		builder = prefix.Items()
 		itms    = make([]models.ListItemable, 0)
 	)
@@ -169,7 +180,12 @@ func (c Lists) getListItems(ctx context.Context, siteID, listID string) ([]model
 func (c Lists) getColumns(ctx context.Context, siteID, listID, cTypeID string) ([]models.ColumnDefinitionable, error) {
 	cs := make([]models.ColumnDefinitionable, 0)
 
-	prefixBuilder := c.Stable.Client().Sites().BySiteId(siteID).Lists().ByListId(listID)
+	prefixBuilder := c.Stable.
+		Client().
+		Sites().
+		BySiteId(siteID).
+		Lists().
+		ByListId(listID)
 
 	if len(cTypeID) == 0 {
 		builder := prefixBuilder.Columns()
@@ -221,7 +237,13 @@ func (c Lists) getColumns(ctx context.Context, siteID, listID, cTypeID string) (
 func (c Lists) getContentTypes(ctx context.Context, siteID, listID string) ([]models.ContentTypeable, error) {
 	var (
 		cTypes  = make([]models.ContentTypeable, 0)
-		builder = c.Stable.Client().Sites().BySiteId(siteID).Lists().ByListId(listID).ContentTypes()
+		builder = c.Stable.
+			Client().
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID).
+			ContentTypes()
 	)
 
 	for {
@@ -265,9 +287,14 @@ func (c Lists) getColumnLinks(ctx context.Context,
 	siteID, listID, cTypeID string,
 ) ([]models.ColumnLinkable, error) {
 	var (
-		prefixBuilder = c.Stable.Client().Sites().BySiteId(siteID).Lists().ByListId(listID)
-		builder       = prefixBuilder.ContentTypes().ByContentTypeId(cTypeID).ColumnLinks()
-		links         = make([]models.ColumnLinkable, 0)
+		prefixBuilder = c.Stable.
+				Client().
+				Sites().
+				BySiteId(siteID).
+				Lists().
+				ByListId(listID)
+		builder = prefixBuilder.ContentTypes().ByContentTypeId(cTypeID).ColumnLinks()
+		links   = make([]models.ColumnLinkable, 0)
 	)
 
 	for {
