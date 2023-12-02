@@ -251,7 +251,6 @@ func (sc *Collection) streamLists(
 	wg.Wait()
 
 	metrics.Objects += int(objects)
-
 }
 
 func (sc *Collection) retrievePages(
