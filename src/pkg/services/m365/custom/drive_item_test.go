@@ -40,6 +40,19 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			got LiteDriveItemable)
 	}{
 		{
+			name: "nil item",
+			itemFunc: func() models.DriveItemable {
+				return nil
+			},
+			validateFunc: func(
+				t *testing.T,
+				expected models.DriveItemable,
+				got LiteDriveItemable,
+			) {
+				require.Nil(t, got)
+			},
+		},
+		{
 			name: "uninitialized values",
 			itemFunc: func() models.DriveItemable {
 				di := models.NewDriveItem()

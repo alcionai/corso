@@ -20,7 +20,6 @@ type LiteDriveItemable interface {
 	GetId() *string
 	GetName() *string
 	GetSize() *int64
-	// TODO(pandeyabs): replace with any
 	GetFolder() interface{}
 	GetPackageEscaped() interface{}
 	GetShared() interface{}
@@ -204,6 +203,10 @@ var downloadURLKeys = []string{
 }
 
 func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
+	if item == nil {
+		return nil
+	}
+
 	cdi := &driveItem{
 		id:                   strings.Clone(ptr.Val(item.GetId())),
 		name:                 strings.Clone(ptr.Val(item.GetName())),
