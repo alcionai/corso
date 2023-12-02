@@ -116,7 +116,7 @@ func (sc *Collection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
 ) <-chan data.Item {
-	go sc.populate(ctx, errs)
+	go sc.runPopulate(ctx, errs)
 	return sc.stream
 }
 
@@ -140,52 +140,37 @@ func (sc *Collection) finishPopulation(
 	}
 }
 
-// populate utility function to retrieve data from back store for a given collection
-func (sc *Collection) populate(ctx context.Context, errs *fault.Bus) {
-	metrics, _ := sc.runPopulate(ctx, errs)
-	sc.finishPopulation(ctx, metrics)
-}
-
 func (sc *Collection) runPopulate(
 	ctx context.Context,
 	errs *fault.Bus,
-) (support.CollectionMetrics, error) {
-	var (
-		err     error
-		metrics support.CollectionMetrics
-		writer  = kjson.NewJsonSerializationWriter()
-	)
-
-	// TODO: Insert correct ID for CollectionProgress
-	colProgress := observe.CollectionProgress(
-		ctx,
-		sc.fullPath.Category().HumanString(),
-		sc.fullPath.Folders())
-	defer close(colProgress)
-
+) {
 	// Switch retrieval function based on category
 	switch sc.category {
 	case path.ListsCategory:
-		metrics, err = sc.retrieveLists(ctx, writer, colProgress, errs)
+		sc.retrieveLists(ctx, errs)
 	case path.PagesCategory:
-		metrics, err = sc.retrievePages(ctx, sc.client, writer, colProgress, errs)
+		sc.retrievePages(ctx, sc.client, errs)
 	}
-
-	return metrics, err
 }
 
 // retrieveLists utility function for collection that downloads and serializes
 // models.Listable objects based on M365 IDs from the jobs field.
 func (sc *Collection) retrieveLists(
 	ctx context.Context,
-	wtr *kjson.JsonSerializationWriter,
-	progress chan<- struct{},
 	errs *fault.Bus,
-) (support.CollectionMetrics, error) {
+) {
 	var (
 		metrics support.CollectionMetrics
 		el      = errs.Local()
+		wtr     = kjson.NewJsonSerializationWriter()
 	)
+
+	defer sc.finishPopulation(ctx, metrics)
+	defer wtr.Close()
+
+	// TODO: Insert correct ID for CollectionProgress
+	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
+	defer close(progress)
 
 	// TODO: Fetch lists via Lists client wrapper
 	var lists = []models.Listable{}
@@ -224,37 +209,47 @@ func (sc *Collection) retrieveLists(
 			progress <- struct{}{}
 		}
 	}
-
-	return metrics, el.Failure()
 }
 
 func (sc *Collection) retrievePages(
 	ctx context.Context,
 	as api.Sites,
-	wtr *kjson.JsonSerializationWriter,
-	progress chan<- struct{},
 	errs *fault.Bus,
-) (support.CollectionMetrics, error) {
+) {
 	var (
 		metrics support.CollectionMetrics
 		el      = errs.Local()
+		wtr     = kjson.NewJsonSerializationWriter()
 	)
+
+	defer sc.finishPopulation(ctx, metrics)
+	defer wtr.Close()
+
+	// TODO: Insert correct ID for CollectionProgress
+	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
+	defer close(progress)
 
 	betaService := sc.betaService
 	if betaService == nil {
-		return metrics, clues.NewWC(ctx, "beta service required")
+		logger.Ctx(ctx).Error(clues.New("beta service required"))
+
+		return
 	}
 
 	parent, err := as.GetByID(ctx, sc.fullPath.ProtectedResource(), api.CallConfig{})
 	if err != nil {
-		return metrics, err
+		logger.Ctx(ctx).Error(err)
+
+		return
 	}
 
 	root := ptr.Val(parent.GetWebUrl())
 
 	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ProtectedResource(), sc.jobs, errs)
 	if err != nil {
-		return metrics, err
+		logger.Ctx(ctx).Error(err)
+
+		return
 	}
 
 	metrics.Objects = len(pages)
@@ -291,8 +286,6 @@ func (sc *Collection) retrievePages(
 			progress <- struct{}{}
 		}
 	}
-
-	return metrics, el.Failure()
 }
 
 func serializeContent(
