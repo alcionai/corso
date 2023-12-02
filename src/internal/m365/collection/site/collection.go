@@ -42,14 +42,16 @@ const (
 
 var _ data.BackupCollection = &Collection{}
 
-// Collection is the SharePoint.List implementation of data.Collection. SharePoint.Libraries collections are supported
-// by the oneDrive.Collection as the calls are identical for populating the Collection
+// Collection is the SharePoint.List or SharePoint.Page implementation of data.Collection.
+
+// SharePoint.Libraries collections are supported by the oneDrive.Collection
+// as the calls are identical for populating the Collection
 type Collection struct {
-	// data is the container for each individual SharePoint.List
-	data chan data.Item
+	// stream is the container for each individual SharePoint item of (page/list)
+	stream chan data.Item
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
-	// jobs contain the SharePoint.Site.ListIDs for the associated list(s).
+	// jobs contain the SharePoint.List.IDs or SharePoint.Page.IDs
 	jobs []string
 	// M365 IDs of the items of this collection
 	category      path.CategoryType
@@ -73,7 +75,7 @@ func NewCollection(
 		fullPath:      folderPath,
 		jobs:          make([]string, 0),
 		getter:        getter,
-		data:          make(chan data.Item, collectionChannelBufferSize),
+		stream:        make(chan data.Item, collectionChannelBufferSize),
 		client:        ac.Sites(),
 		statusUpdater: statusUpdater,
 		category:      scope.Category().PathType(),
@@ -115,14 +117,14 @@ func (sc *Collection) Items(
 	errs *fault.Bus,
 ) <-chan data.Item {
 	go sc.populate(ctx, errs)
-	return sc.data
+	return sc.stream
 }
 
 func (sc *Collection) finishPopulation(
 	ctx context.Context,
 	metrics support.CollectionMetrics,
 ) {
-	close(sc.data)
+	close(sc.stream)
 
 	status := support.CreateStatus(
 		ctx,
@@ -218,7 +220,7 @@ func (sc *Collection) retrieveLists(
 				continue
 			}
 
-			sc.data <- item
+			sc.stream <- item
 			progress <- struct{}{}
 		}
 	}
@@ -285,7 +287,7 @@ func (sc *Collection) retrievePages(
 				continue
 			}
 
-			sc.data <- item
+			sc.stream <- item
 			progress <- struct{}{}
 		}
 	}

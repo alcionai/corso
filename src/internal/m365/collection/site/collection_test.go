@@ -166,7 +166,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				test.scope,
 				nil,
 				control.DefaultOptions())
-			col.data <- test.getItem(t, test.itemName)
+			col.stream <- test.getItem(t, test.itemName)
 
 			readItems := []data.Item{}
 
