@@ -48,6 +48,11 @@ type Storage struct {
 	Role            string
 	SessionName     string
 	SessionDuration string
+	// QueryParams allows passing custom query parameters to S3 GET object
+	// requests. Parameters prefixed by `x-` will be ignored by S3 (no functional
+	// changes) but added to server access logs. These KV-pairs are session
+	// specific and won't be persisted to or sourced from the corso config file.
+	QueryParams map[string]string
 }
 
 // NewStorage aggregates all the supplied configurations into a single configuration.
@@ -67,6 +72,7 @@ func NewStorageUsingRole(
 	roleARN string,
 	sessionName string,
 	sessionTags map[string]string,
+	queryParams map[string]string,
 	duration string,
 	cfgs ...common.StringConfigurer,
 ) (Storage, error) {
@@ -77,6 +83,7 @@ func NewStorageUsingRole(
 		Config:          cs,
 		Role:            roleARN,
 		SessionTags:     sessionTags,
+		QueryParams:     queryParams,
 		SessionName:     sessionName,
 		SessionDuration: duration,
 	}, err
