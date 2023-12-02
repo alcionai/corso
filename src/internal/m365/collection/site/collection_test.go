@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/site/mock"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
+	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -185,6 +186,99 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			assert.NotNil(t, info)
 			assert.NotNil(t, info.SharePoint)
 			assert.Equal(t, test.itemName, info.SharePoint.ItemName)
+		})
+	}
+}
+
+func (suite *SharePointCollectionSuite) TestCollection_streamItems() {
+	var (
+		t             = suite.T()
+		statusUpdater = func(*support.ControllerOperationStatus) {}
+		tenant        = "some"
+		resource      = "siteid"
+		list          = "list"
+	)
+
+	table := []struct {
+		name     string
+		category path.CategoryType
+		jobs     []string
+		getDir   func(t *testing.T) path.Path
+	}{
+		{
+			name:     "no jobs",
+			jobs:     []string{},
+			category: path.ListsCategory,
+			getDir: func(t *testing.T) path.Path {
+				dir, err := path.Build(
+					tenant,
+					resource,
+					path.SharePointService,
+					path.ListsCategory,
+					false,
+					list)
+				require.NoError(t, err, clues.ToCore(err))
+
+				return dir
+			},
+		},
+		{
+			name:     "with jobs",
+			jobs:     []string{"list1", "list2", "list3"},
+			category: path.ListsCategory,
+			getDir: func(t *testing.T) path.Path {
+				dir, err := path.Build(
+					tenant,
+					resource,
+					path.SharePointService,
+					path.ListsCategory,
+					false,
+					list)
+				require.NoError(t, err, clues.ToCore(err))
+
+				return dir
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t.Log("running test", test)
+
+			var (
+				errs      = fault.New(true)
+				itemCount int
+			)
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			col := &Collection{
+				fullPath:      test.getDir(t),
+				category:      test.category,
+				jobs:          test.jobs,
+				getter:        mock.GetList{},
+				stream:        make(chan data.Item),
+				statusUpdater: statusUpdater,
+			}
+
+			jobMap := func(js []string) map[string]struct{} {
+				m := make(map[string]struct{})
+				for _, j := range js {
+					m[j] = struct{}{}
+				}
+				return m
+			}(test.jobs)
+
+			go col.streamItems(ctx, errs)
+
+			for item := range col.stream {
+				itemCount++
+				_, ok := jobMap[item.ID()]
+				assert.True(t, ok, "should fetch item")
+			}
+
+			assert.NoError(t, errs.Failure())
+			assert.Equal(t, len(test.jobs), itemCount, "should see all expected items")
 		})
 	}
 }
