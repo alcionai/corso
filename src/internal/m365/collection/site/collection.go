@@ -183,7 +183,7 @@ func (sc *Collection) retrieveLists(
 	)
 
 	// TODO: Fetch lists via Lists client wrapper
-	var lists = []models.Listable{}
+	lists := []models.Listable{}
 
 	metrics.Objects += len(lists)
 	// For each models.Listable, object is serialized and the metrics are collected.
