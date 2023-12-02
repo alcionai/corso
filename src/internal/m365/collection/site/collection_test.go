@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/collection/site/mock"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -77,6 +78,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 	tables := []struct {
 		name, itemName string
 		scope          selectors.SharePointScope
+		getter         getItemByIDer
 		getDir         func(t *testing.T) path.Path
 		getItem        func(t *testing.T, itemName string) data.Item
 	}{
@@ -84,6 +86,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			name:     "List",
 			itemName: "MockListing",
 			scope:    sel.Lists(selectors.Any())[0],
+			getter:   mock.GetList{},
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
@@ -120,6 +123,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			name:     "Pages",
 			itemName: "MockPages",
 			scope:    sel.Pages(selectors.Any())[0],
+			getter:   nil,
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
@@ -156,6 +160,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			defer flush()
 
 			col := NewCollection(
+				test.getter,
 				test.getDir(t),
 				suite.ac,
 				test.scope,

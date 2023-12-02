@@ -57,10 +57,12 @@ type Collection struct {
 	ctrl          control.Options
 	betaService   *betaAPI.BetaService
 	statusUpdater support.StatusUpdater
+	getter        getItemByIDer
 }
 
 // NewCollection helper function for creating a Collection
 func NewCollection(
+	getter getItemByIDer,
 	folderPath path.Path,
 	ac api.Client,
 	scope selectors.SharePointScope,
@@ -70,6 +72,7 @@ func NewCollection(
 	c := &Collection{
 		fullPath:      folderPath,
 		jobs:          make([]string, 0),
+		getter:        getter,
 		data:          make(chan data.Item, collectionChannelBufferSize),
 		client:        ac.Sites(),
 		statusUpdater: statusUpdater,
