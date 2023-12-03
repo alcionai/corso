@@ -1,4 +1,4 @@
-FROM ubuntu:mantic-20231011
+FROM ubuntu:mantic
 LABEL MAINTAINER="Niraj Tolia"
 
 ARG DEBIAN_FRONTEND=noninteractive
