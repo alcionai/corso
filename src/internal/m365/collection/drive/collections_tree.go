@@ -575,15 +575,14 @@ func (c *Collections) addFileToTree(
 	counter *count.Bus,
 ) (*fault.Skipped, error) {
 	var (
-		driveID      = ptr.Val(drv.GetId())
-		fileID       = ptr.Val(file.GetId())
-		fileName     = ptr.Val(file.GetName())
-		fileSize     = ptr.Val(file.GetSize())
-		lastModified = ptr.Val(file.GetLastModifiedDateTime())
-		isDeleted    = file.GetDeleted() != nil
-		isMalware    = file.GetMalware() != nil
-		parent       = file.GetParentReference()
-		parentID     string
+		driveID   = ptr.Val(drv.GetId())
+		fileID    = ptr.Val(file.GetId())
+		fileName  = ptr.Val(file.GetName())
+		fileSize  = ptr.Val(file.GetSize())
+		isDeleted = file.GetDeleted() != nil
+		isMalware = file.GetMalware() != nil
+		parent    = file.GetParentReference()
+		parentID  string
 	)
 
 	if parent != nil {
@@ -640,7 +639,7 @@ func (c *Collections) addFileToTree(
 		}
 	}
 
-	err := tree.addFile(parentID, fileID, lastModified, fileSize)
+	err := tree.addFile(parentID, fileID, file)
 	if err != nil {
 		return nil, clues.StackWC(ctx, err)
 	}
@@ -846,6 +845,8 @@ func (c *Collections) turnTreeIntoCollections(
 		if err != nil {
 			return nil, nil, clues.StackWC(ctx, err)
 		}
+
+		coll.driveItems = cbl.files
 
 		collections = append(collections, coll)
 	}

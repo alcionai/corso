@@ -2,9 +2,9 @@ package drive
 
 import (
 	"testing"
-	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -826,8 +826,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			err := tree.addFile(
 				test.parentID,
 				id(file),
-				time.Now(),
-				test.contentSize)
+				driveFile(file, parentDir(), test.parentID))
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectFiles, tree.fileIDToParentID)
 
@@ -956,7 +955,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expect: map[string]collectable{
 				rootID: {
 					currPath:                  fullPathPath(t),
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{},
@@ -970,8 +969,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expect: map[string]collectable{
 				rootID: {
 					currPath: fullPathPath(t),
-					files: map[string]fileyMcFileFace{
-						id(file): {},
+					files: map[string]models.DriveItemable{
+						id(file): fileAtRoot(),
 					},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
@@ -986,22 +985,22 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expect: map[string]collectable{
 				rootID: {
 					currPath:                  fullPathPath(t),
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{},
 				},
 				idx(folder, "parent"): {
 					currPath:                  fullPathPath(t, namex(folder, "parent")),
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  idx(folder, "parent"),
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{rootName},
 				},
 				id(folder): {
 					currPath: fullPathPath(t, namex(folder, "parent"), name(folder)),
-					files: map[string]fileyMcFileFace{
-						id(file): {},
+					files: map[string]models.DriveItemable{
+						id(file): fileAt("parent"),
 					},
 					folderID:                  id(folder),
 					isPackageOrChildOfPackage: false,
@@ -1028,21 +1027,21 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expect: map[string]collectable{
 				rootID: {
 					currPath:                  fullPathPath(t),
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{},
 				},
 				id(pkg): {
 					currPath:                  fullPathPath(t, name(pkg)),
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  id(pkg),
 					isPackageOrChildOfPackage: true,
 					loc:                       path.Elements{rootName},
 				},
 				id(folder): {
 					currPath:                  fullPathPath(t, name(pkg), name(folder)),
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  id(folder),
 					isPackageOrChildOfPackage: true,
 					loc:                       path.Elements{rootName, name(pkg)},
@@ -1061,7 +1060,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expect: map[string]collectable{
 				rootID: {
 					currPath:                  fullPathPath(t),
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{},
@@ -1069,7 +1068,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 				},
 				idx(folder, "parent"): {
 					currPath:                  fullPathPath(t, namex(folder, "parent")),
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  idx(folder, "parent"),
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{rootName},
@@ -1079,8 +1078,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					currPath:                  fullPathPath(t, namex(folder, "parent"), name(folder)),
 					folderID:                  id(folder),
 					isPackageOrChildOfPackage: false,
-					files: map[string]fileyMcFileFace{
-						id(file): {},
+					files: map[string]models.DriveItemable{
+						id(file): fileAt("parent"),
 					},
 					loc:      path.Elements{rootName, namex(folder, "parent")},
 					prevPath: fullPathPath(t, namex(folder, "parent-prev"), name(folder)),
@@ -1098,14 +1097,14 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expect: map[string]collectable{
 				rootID: {
 					currPath:                  fullPathPath(t),
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{},
 					prevPath:                  fullPathPath(t),
 				},
 				id(folder): {
-					files:                     map[string]fileyMcFileFace{},
+					files:                     map[string]models.DriveItemable{},
 					folderID:                  id(folder),
 					isPackageOrChildOfPackage: false,
 					prevPath:                  fullPathPath(t, name(folder)),

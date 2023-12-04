@@ -498,12 +498,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 		expect         expected
 	}{
 		{
-			name: "all new collections",
-			tree: fullTree,
-			prevPaths: map[string]string{
-				// required for NPE avoidance
-				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone-prev")),
-			},
+			name:           "all new collections",
+			tree:           fullTree,
+			prevPaths:      map[string]string{},
 			enableURLCache: true,
 			expect: expected{
 				prevPaths: map[string]string{
@@ -526,8 +523,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 						aColl(
 							fullPathPath(t, namex(folder, "parent"), name(folder)),
 							nil,
-							id(file)),
-						aColl(nil, fullPathPath(t, namex(folder, "tombstone-prev"))))
+							id(file)))
 				},
 			},
 		},

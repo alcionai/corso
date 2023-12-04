@@ -153,6 +153,7 @@ func coreItem(
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&id)
+	item.SetLastModifiedDateTime(ptr.To(time.Now()))
 
 	parentReference := models.NewItemReference()
 	parentReference.SetPath(&parentPath)
@@ -177,6 +178,21 @@ func driveItem(
 	it itemType,
 ) models.DriveItemable {
 	return coreItem(id, name, parentPath, parentID, it)
+}
+
+func driveFile(
+	idX any,
+	parentPath, parentID string,
+) models.DriveItemable {
+	i := id(file)
+	n := name(file)
+
+	if idX != file {
+		i = idx(file, idX)
+		n = namex(file, idX)
+	}
+
+	return driveItem(i, n, parentPath, parentID, isFile)
 }
 
 func fileAtRoot() models.DriveItemable {
@@ -659,7 +675,7 @@ type collectionAssertion struct {
 	curr    path.Path
 	prev    path.Path
 	state   data.CollectionState
-	itemIDs []string
+	fileIDs []string
 	// should never get set by the user.
 	// this flag gets flipped when calling assertions.compare.
 	// any unseen collection will error on requireNoUnseenCollections
@@ -668,13 +684,20 @@ type collectionAssertion struct {
 
 func aColl(
 	curr, prev path.Path,
-	itemIDs ...string,
+	fileIDs ...string,
 ) *collectionAssertion {
+	ids := make([]string, 0, 2*len(fileIDs))
+
+	for _, fUD := range fileIDs {
+		ids = append(ids, fUD+metadata.DataFileSuffix)
+		ids = append(ids, fUD+metadata.MetaFileSuffix)
+	}
+
 	return &collectionAssertion{
 		curr:    curr,
 		prev:    prev,
 		state:   data.StateOf(prev, curr, count.New()),
-		itemIDs: itemIDs,
+		fileIDs: ids,
 	}
 }
 
@@ -750,7 +773,7 @@ func (ecs expectedCollections) compareColl(t *testing.T, coll data.BackupCollect
 
 	assert.ElementsMatchf(
 		t,
-		expect.itemIDs,
+		expect.fileIDs,
 		itemIDs,
 		"expected all items to match in collection with:\n\tstate %q\n\tpath %q",
 		coll.State(),
@@ -865,10 +888,7 @@ func treeWithFolders(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithRoot(t)
-	tree.root.files[id(file)] = fileyMcFileFace{
-		lastModified: time.Now(),
-		contentSize:  42,
-	}
+	tree.root.files[id(file)] = fileAtRoot()
 	tree.fileIDToParentID[id(file)] = rootID
 
 	return tree
@@ -876,10 +896,7 @@ func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithFolders(t)
-	tree.folderIDToNode[id(folder)].files[id(file)] = fileyMcFileFace{
-		lastModified: time.Now(),
-		contentSize:  42,
-	}
+	tree.folderIDToNode[id(folder)].files[id(file)] = fileAt(folder)
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
@@ -887,10 +904,7 @@ func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithTombstone(t)
-	tree.tombstones[id(folder)].files[id(file)] = fileyMcFileFace{
-		lastModified: time.Now(),
-		contentSize:  42,
-	}
+	tree.tombstones[id(folder)].files[id(file)] = fileAt("tombstone")
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
@@ -915,7 +929,10 @@ func fullTreeWithNames(
 		tree := treeWithRoot(t)
 
 		// file in root
-		err := tree.addFile(rootID, idx(file, "r"), time.Now(), 42)
+		err := tree.addFile(
+			rootID,
+			idx(file, "r"),
+			driveFile("r", parentDir(), rootID))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// root -> idx(folder, parent)
@@ -923,7 +940,10 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in idx(folder, parent)
-		err = tree.addFile(idx(folder, parentFolderX), idx(file, "p"), time.Now(), 42)
+		err = tree.addFile(
+			idx(folder, parentFolderX),
+			idx(file, "p"),
+			driveFile("p", parentDir(namex(folder, parentFolderX)), idx(folder, parentFolderX)))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// idx(folder, parent) -> id(folder)
@@ -931,7 +951,10 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in id(folder)
-		err = tree.addFile(id(folder), id(file), time.Now(), 42)
+		err = tree.addFile(
+			id(folder),
+			id(file),
+			driveFile(file, parentDir(name(folder)), id(folder)))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// tombstone - have to set a non-tombstone folder first, then add the item, then tombstone the folder
@@ -939,7 +962,10 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in tombstone
-		err = tree.addFile(idx(folder, tombstoneX), idx(file, "t"), time.Now(), 42)
+		err = tree.addFile(
+			idx(folder, tombstoneX),
+			idx(file, "t"),
+			driveFile("t", parentDir(namex(folder, tombstoneX)), idx(folder, tombstoneX)))
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = tree.setTombstone(ctx, idx(folder, tombstoneX))

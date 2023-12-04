@@ -2,10 +2,11 @@ package drive
 
 import (
 	"context"
-	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -86,7 +87,7 @@ type nodeyMcNodeFace struct {
 	// folderID -> node
 	children map[string]*nodeyMcNodeFace
 	// file item ID -> file metadata
-	files map[string]fileyMcFileFace
+	files map[string]models.DriveItemable
 	// for special handling protocols around packages
 	isPackage bool
 }
@@ -101,14 +102,9 @@ func newNodeyMcNodeFace(
 		id:        id,
 		name:      name,
 		children:  map[string]*nodeyMcNodeFace{},
-		files:     map[string]fileyMcFileFace{},
+		files:     map[string]models.DriveItemable{},
 		isPackage: isPackage,
 	}
-}
-
-type fileyMcFileFace struct {
-	lastModified time.Time
-	contentSize  int64
 }
 
 // ---------------------------------------------------------------------------
@@ -317,8 +313,7 @@ func (face *folderyMcFolderFace) setPreviousPath(
 // this func will update and/or clean up all the old references.
 func (face *folderyMcFolderFace) addFile(
 	parentID, id string,
-	lastModified time.Time,
-	contentSize int64,
+	file models.DriveItemable,
 ) error {
 	if len(parentID) == 0 {
 		return clues.New("item added without parent folder ID")
@@ -347,10 +342,7 @@ func (face *folderyMcFolderFace) addFile(
 	}
 
 	face.fileIDToParentID[id] = parentID
-	parent.files[id] = fileyMcFileFace{
-		lastModified: lastModified,
-		contentSize:  contentSize,
-	}
+	parent.files[id] = file
 
 	delete(face.deletedFileIDs, id)
 
@@ -380,7 +372,7 @@ func (face *folderyMcFolderFace) deleteFile(id string) {
 
 type collectable struct {
 	currPath                  path.Path
-	files                     map[string]fileyMcFileFace
+	files                     map[string]models.DriveItemable
 	folderID                  string
 	isPackageOrChildOfPackage bool
 	loc                       path.Elements
@@ -398,9 +390,14 @@ func (face *folderyMcFolderFace) generateCollectables() (map[string]collectable,
 		result)
 
 	for id, tombstone := range face.tombstones {
-		result[id] = collectable{
-			folderID: id,
-			prevPath: tombstone.prev,
+		// in case we got a folder deletion marker for a folder
+		// that has no previous path, drop the entry entirely.
+		// it doesn't exist in storage, so there's nothing to delete.
+		if tombstone.prev != nil {
+			result[id] = collectable{
+				folderID: id,
+				prevPath: tombstone.prev,
+			}
 		}
 	}
 
@@ -493,7 +490,7 @@ func countFilesAndSizes(nodey *nodeyMcNodeFace) countAndSize {
 	}
 
 	for _, file := range nodey.files {
-		sumContentSize += file.contentSize
+		sumContentSize += ptr.Val(file.GetSize())
 	}
 
 	return countAndSize{
