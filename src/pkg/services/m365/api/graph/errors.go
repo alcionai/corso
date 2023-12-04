@@ -520,17 +520,15 @@ func appendIf(a []any, k string, v *string) []any {
 func ItemInfo(item custom.LiteDriveItemable) map[string]any {
 	m := map[string]any{}
 
-	// TODO(pandeyabs): These fields are not available in the LiteDriveItemable
-	// yet. We need to add them.
-	// creator := item.GetCreatedByUser()
-	// if creator != nil {
-	// 	m[fault.AddtlCreatedBy] = ptr.Val(creator.GetId())
-	// }
+	creator := item.GetCreatedByUser()
+	if creator != nil {
+		m[fault.AddtlCreatedBy] = ptr.Val(creator.GetId())
+	}
 
-	// lastmodder := item.GetLastModifiedByUser()
-	// if lastmodder != nil {
-	// 	m[fault.AddtlLastModBy] = ptr.Val(lastmodder.GetId())
-	// }
+	lastmodder := item.GetLastModifiedByUser()
+	if lastmodder != nil {
+		m[fault.AddtlLastModBy] = ptr.Val(lastmodder.GetId())
+	}
 
 	parent := item.GetParentReference()
 	if parent != nil {
@@ -547,10 +545,10 @@ func ItemInfo(item custom.LiteDriveItemable) map[string]any {
 		m[fault.AddtlContainerPath] = containerPath
 	}
 
-	// malware := item.GetMalware()
-	// if malware != nil {
-	// 	m[fault.AddtlMalwareDesc] = ptr.Val(malware.GetDescription())
-	// }
+	malware := item.GetMalware()
+	if malware != nil {
+		m[fault.AddtlMalwareDesc] = ptr.Val(malware.GetDescription())
+	}
 
 	return m
 }

@@ -956,8 +956,8 @@ func (c *Collections) processItem(
 		"item_is_folder", isFolder)
 
 	if item.GetMalware() != nil {
-		// TODO(pandeyabs): Fix this after we move conversion logic to the top of this
-		// func.
+		// TODO(pandeyabs): Fix this after we move the ToLiteDriveItemable call
+		// to the beginning of this func.
 		addtl := graph.ItemInfo(custom.ToLiteDriveItemable(item))
 		skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 
