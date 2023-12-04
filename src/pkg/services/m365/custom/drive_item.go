@@ -1,8 +1,3 @@
-// Disable revive linter since any structs in this file will expose the same
-// funcs as the original structs in the msgraph-sdk-go package, which do not
-// follow some of the golint rules.
-//
-//nolint:revive
 package custom
 
 import (
@@ -15,271 +10,286 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 )
 
-// Replica of models.DriveItemable
-type LiteDriveItemable interface {
-	GetId() *string
-	GetName() *string
-	GetSize() *int64
-	GetFolder() interface{}
-	GetPackageEscaped() interface{}
-	GetShared() interface{}
-	GetMalware() malwareable
-	GetDeleted() interface{}
-	GetRoot() interface{}
-	GetFile() fileItemable
-	GetParentReference() itemReferenceable
-	SetParentReference(itemReferenceable)
-	GetCreatedBy() identitySetable
-	GetCreatedByUser() userable
-	GetLastModifiedByUser() userable
-	GetCreatedDateTime() *time.Time
-	GetLastModifiedDateTime() *time.Time
-	GetAdditionalData() map[string]interface{}
+// ---------------------------------------------------------------------------
+// DriveItem
+// ---------------------------------------------------------------------------
+type DriveItem struct {
+	id                   *string
+	name                 *string
+	size                 *int64
+	createdDateTime      *time.Time
+	lastModifiedDateTime *time.Time
+	folder               *struct{}
+	pkg                  *struct{}
+	shared               *struct{}
+	deleted              *struct{}
+	root                 *struct{}
+	malware              *malware
+	file                 *fileItem
+	parentRef            *itemReference
+	createdBy            *identitySet
+	createdByUser        *user
+	lastModifiedByUser   *user
+	additionalData       map[string]any
 }
 
-var _ LiteDriveItemable = &driveItem{}
-
-type driveItem struct {
-	id                   string
-	name                 string
-	size                 int64
-	folder               interface{}
-	pkg                  interface{}
-	shared               interface{}
-	deleted              interface{}
-	root                 interface{}
-	malware              malwareable
-	file                 fileItemable
-	parentRef            itemReferenceable
-	createdBy            identitySetable
-	createdByUser        userable
-	lastModifiedByUser   userable
-	createdDateTime      time.Time
-	lastModifiedDateTime time.Time
-	additionalData       map[string]interface{}
+// Disable revive linter since we want to follow naming scheme used by graph SDK here.
+// nolint: revive
+func (c *DriveItem) GetId() *string {
+	return c.id
 }
 
-func (c *driveItem) GetId() *string {
-	return &c.id
+func (c *DriveItem) GetName() *string {
+	return c.name
 }
 
-func (c *driveItem) GetName() *string {
-	return &c.name
+func (c *DriveItem) GetSize() *int64 {
+	return c.size
 }
 
-func (c *driveItem) GetSize() *int64 {
-	return &c.size
+func (c *DriveItem) GetCreatedDateTime() *time.Time {
+	return c.createdDateTime
 }
 
-func (c *driveItem) GetFolder() interface{} {
+func (c *DriveItem) GetLastModifiedDateTime() *time.Time {
+	return c.lastModifiedDateTime
+}
+
+func (c *DriveItem) GetFolder() any {
 	return c.folder
 }
 
-func (c *driveItem) GetPackageEscaped() interface{} {
+func (c *DriveItem) GetPackageEscaped() any {
 	return c.pkg
 }
 
-func (c *driveItem) GetShared() interface{} {
+func (c *DriveItem) GetShared() any {
 	return c.shared
 }
 
-func (c *driveItem) GetMalware() malwareable {
-	return c.malware
-}
-
-func (c *driveItem) GetDeleted() interface{} {
+func (c *DriveItem) GetDeleted() any {
 	return c.deleted
 }
 
-func (c *driveItem) GetRoot() interface{} {
+func (c *DriveItem) GetRoot() any {
 	return c.root
 }
 
-func (c *driveItem) GetFile() fileItemable {
+func (c *DriveItem) GetMalware() *malware {
+	return c.malware
+}
+
+func (c *DriveItem) GetFile() *fileItem {
 	return c.file
 }
 
-func (c *driveItem) GetParentReference() itemReferenceable {
+func (c *DriveItem) GetParentReference() *itemReference {
 	return c.parentRef
 }
 
-// TODO(pandeyabs): Should we only support GETs?
-func (c *driveItem) SetParentReference(parent itemReferenceable) {
+func (c *DriveItem) SetParentReference(parent *itemReference) {
 	c.parentRef = parent
 }
 
-func (c *driveItem) GetCreatedBy() identitySetable {
+func (c *DriveItem) GetCreatedBy() *identitySet {
 	return c.createdBy
 }
 
-func (c *driveItem) GetCreatedByUser() userable {
+func (c *DriveItem) GetCreatedByUser() *user {
 	return c.createdByUser
 }
 
-func (c *driveItem) GetLastModifiedByUser() userable {
+func (c *DriveItem) GetLastModifiedByUser() *user {
 	return c.lastModifiedByUser
 }
 
-func (c *driveItem) GetCreatedDateTime() *time.Time {
-	return &c.createdDateTime
-}
-
-func (c *driveItem) GetLastModifiedDateTime() *time.Time {
-	return &c.lastModifiedDateTime
-}
-
-func (c *driveItem) GetAdditionalData() map[string]interface{} {
+func (c *DriveItem) GetAdditionalData() map[string]any {
 	return c.additionalData
 }
 
-type (
-	malwareable interface {
-		GetDescription() *string
-	}
-	fileItemable interface {
-		GetMimeType() *string
-	}
-	itemReferenceable interface {
-		GetPath() *string
-		GetId() *string
-		GetName() *string
-		GetDriveId() *string
-	}
-	identitySetable interface {
-		GetUser() identityable
-	}
-	identityable interface {
-		GetAdditionalData() map[string]interface{}
-	}
-	userable interface {
-		GetId() *string
-	}
-)
-
-// Concrete implementations
-
-var _ malwareable = &malware{}
-
+// ---------------------------------------------------------------------------
+// malware
+// ---------------------------------------------------------------------------
 type malware struct {
-	description string
+	description *string
 }
 
 func (m *malware) GetDescription() *string {
-	return &m.description
+	return m.description
 }
 
-var _ fileItemable = &fileItem{}
-
+// ---------------------------------------------------------------------------
+// fileItem
+// ---------------------------------------------------------------------------
 type fileItem struct {
-	mimeType string
+	mimeType *string
 }
 
 func (f *fileItem) GetMimeType() *string {
-	return &f.mimeType
+	return f.mimeType
 }
 
-var _ itemReferenceable = &parentRef{}
-
-type parentRef struct {
-	path    string
-	id      string
-	name    string
-	driveID string
+// ---------------------------------------------------------------------------
+// itemReference
+// ---------------------------------------------------------------------------
+type itemReference struct {
+	path    *string
+	id      *string
+	name    *string
+	driveID *string
 }
 
-func (pr *parentRef) GetPath() *string {
-	return &pr.path
+func (ir *itemReference) GetPath() *string {
+	return ir.path
 }
 
-func (pr *parentRef) GetId() *string {
-	return &pr.id
+// nolint: revive
+func (ir *itemReference) GetId() *string {
+	return ir.id
 }
 
-func (pr *parentRef) GetName() *string {
-	return &pr.name
+func (ir *itemReference) GetName() *string {
+	return ir.name
 }
 
-func (pr *parentRef) GetDriveId() *string {
-	return &pr.driveID
+// nolint: revive
+func (ir *itemReference) GetDriveId() *string {
+	return ir.driveID
 }
 
-var _ identitySetable = &identitySet{}
-
+// ---------------------------------------------------------------------------
+// identitySet
+// ---------------------------------------------------------------------------
 type identitySet struct {
-	identity identityable
+	identity *identity
 }
 
-func (iis *identitySet) GetUser() identityable {
+func (iis *identitySet) GetUser() *identity {
 	return iis.identity
 }
 
-var _ identityable = &identity{}
-
+// ---------------------------------------------------------------------------
+// identity
+// ---------------------------------------------------------------------------
 type identity struct {
-	additionalData map[string]interface{}
+	additionalData map[string]any
 }
 
-func (iu *identity) GetAdditionalData() map[string]interface{} {
-	return iu.additionalData
+func (i *identity) GetAdditionalData() map[string]any {
+	return i.additionalData
 }
 
-var _ userable = &user{}
-
+// ---------------------------------------------------------------------------
+// user
+// ---------------------------------------------------------------------------
 type user struct {
-	id string
+	id *string
 }
 
+// nolint: revive
 func (u *user) GetId() *string {
-	return &u.id
+	return u.id
 }
 
 // TODO(pandeyabs): This is duplicated from collection/drive package.
-// Move to common pkg
+// Move to api/graph.
 var downloadURLKeys = []string{
 	"@microsoft.graph.downloadUrl",
 	"@content.downloadUrl",
 }
 
-func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
+// ToCustomDriveItem converts a DriveItemable to a flattened DriveItem struct
+// that stores only the properties we care about during the backup operation.
+func ToCustomDriveItem(item models.DriveItemable) *DriveItem {
 	if item == nil {
 		return nil
 	}
 
-	di := &driveItem{
-		id:                   strings.Clone(ptr.Val(item.GetId())),
-		name:                 strings.Clone(ptr.Val(item.GetName())),
-		size:                 ptr.Val(item.GetSize()),
-		createdDateTime:      ptr.Val(item.GetCreatedDateTime()),
-		lastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
+	di := &DriveItem{}
+
+	if item.GetId() != nil {
+		s := strings.Clone(ptr.Val(item.GetId()))
+		di.id = &s
+	}
+
+	if item.GetName() != nil {
+		s := strings.Clone(ptr.Val(item.GetName()))
+		di.name = &s
+	}
+
+	if item.GetSize() != nil {
+		i := ptr.Val(item.GetSize())
+		di.size = &i
+	}
+
+	if item.GetCreatedDateTime() != nil {
+		t := ptr.Val(item.GetCreatedDateTime())
+		di.createdDateTime = &t
+	}
+
+	if item.GetLastModifiedDateTime() != nil {
+		t := ptr.Val(item.GetLastModifiedDateTime())
+		di.lastModifiedDateTime = &t
 	}
 
 	if item.GetFolder() != nil {
 		di.folder = &struct{}{}
-	} else if item.GetFile() != nil {
-		di.file = &fileItem{
-			mimeType: strings.Clone(ptr.Val(item.GetFile().GetMimeType())),
-		}
-	} else if item.GetPackageEscaped() != nil {
+	}
+
+	if item.GetPackageEscaped() != nil {
 		di.pkg = &struct{}{}
 	}
 
-	if item.GetParentReference() != nil {
-		di.parentRef = &parentRef{
-			id:      strings.Clone(ptr.Val(item.GetParentReference().GetId())),
-			path:    strings.Clone(ptr.Val(item.GetParentReference().GetPath())),
-			name:    strings.Clone(ptr.Val(item.GetParentReference().GetName())),
-			driveID: strings.Clone(ptr.Val(item.GetParentReference().GetDriveId())),
+	if item.GetMalware() != nil {
+		mw := &malware{}
+
+		if item.GetMalware().GetDescription() != nil {
+			desc := strings.Clone(ptr.Val(item.GetMalware().GetDescription()))
+			mw.description = &desc
 		}
+
+		di.malware = mw
+	}
+
+	if item.GetFile() != nil {
+		fi := &fileItem{}
+
+		if item.GetFile().GetMimeType() != nil {
+			mimeType := strings.Clone(ptr.Val(item.GetFile().GetMimeType()))
+			fi.mimeType = &mimeType
+		}
+
+		di.file = fi
+	}
+
+	if item.GetParentReference() != nil {
+		ir := &itemReference{}
+
+		if item.GetParentReference().GetId() != nil {
+			parentID := strings.Clone(ptr.Val(item.GetParentReference().GetId()))
+			ir.id = &parentID
+		}
+
+		if item.GetParentReference().GetPath() != nil {
+			parentPath := strings.Clone(ptr.Val(item.GetParentReference().GetPath()))
+			ir.path = &parentPath
+		}
+
+		if item.GetParentReference().GetName() != nil {
+			parentName := strings.Clone(ptr.Val(item.GetParentReference().GetName()))
+			ir.name = &parentName
+		}
+
+		if item.GetParentReference().GetDriveId() != nil {
+			parentDriveID := strings.Clone(ptr.Val(item.GetParentReference().GetDriveId()))
+			ir.driveID = &parentDriveID
+		}
+
+		di.parentRef = ir
 	}
 
 	if item.GetShared() != nil {
 		di.shared = &struct{}{}
-	}
-
-	if item.GetMalware() != nil {
-		di.malware = &malware{
-			description: strings.Clone(ptr.Val(item.GetMalware().GetDescription())),
-		}
 	}
 
 	if item.GetDeleted() != nil {
@@ -292,7 +302,7 @@ func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
 
 	if item.GetCreatedBy() != nil && item.GetCreatedBy().GetUser() != nil {
 		additionalData := item.GetCreatedBy().GetUser().GetAdditionalData()
-		ad := make(map[string]interface{})
+		ad := make(map[string]any)
 
 		if v, err := str.AnyValueToString("email", additionalData); err == nil {
 			email := strings.Clone(v)
@@ -312,19 +322,29 @@ func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
 	}
 
 	if item.GetCreatedByUser() != nil {
-		di.createdByUser = &user{
-			id: strings.Clone(ptr.Val(item.GetCreatedByUser().GetId())),
+		createdByUser := &user{}
+
+		if item.GetCreatedByUser().GetId() != nil {
+			userID := strings.Clone(ptr.Val(item.GetCreatedByUser().GetId()))
+			createdByUser.id = &userID
 		}
+
+		di.createdByUser = createdByUser
 	}
 
 	if item.GetLastModifiedByUser() != nil {
-		di.lastModifiedByUser = &user{
-			id: strings.Clone(ptr.Val(item.GetLastModifiedByUser().GetId())),
+		lastModifiedByUser := &user{}
+
+		if item.GetLastModifiedByUser().GetId() != nil {
+			userID := strings.Clone(ptr.Val(item.GetLastModifiedByUser().GetId()))
+			lastModifiedByUser.id = &userID
 		}
+
+		di.lastModifiedByUser = lastModifiedByUser
 	}
 
 	// We only use the download URL from additional data
-	ad := make(map[string]interface{})
+	ad := make(map[string]any)
 
 	for _, key := range downloadURLKeys {
 		if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {

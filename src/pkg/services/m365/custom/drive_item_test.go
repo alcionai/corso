@@ -1,3 +1,4 @@
+// Disable revive linter since any structs in this file will expose the same
 // funcs as the original structs in the msgraph-sdk-go package, which do not
 // follow some of the golint rules.
 //
@@ -18,17 +19,17 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
-type driveUnitSuite struct {
+type driveItemUnitSuite struct {
 	tester.Suite
 }
 
-func TestDriveUnitSuite(t *testing.T) {
-	suite.Run(t, &driveUnitSuite{
+func TestDriveItemUnitSuite(t *testing.T) {
+	suite.Run(t, &driveItemUnitSuite{
 		Suite: tester.NewUnitSuite(t),
 	})
 }
 
-func (suite *driveUnitSuite) TestToLiteDriveItemable() {
+func (suite *driveItemUnitSuite) TestToLiteDriveItemable() {
 	id := "itemID"
 
 	table := []struct {
@@ -37,7 +38,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 		validateFunc func(
 			t *testing.T,
 			expected models.DriveItemable,
-			got LiteDriveItemable)
+			got *DriveItem)
 	}{
 		{
 			name: "nil item",
@@ -47,7 +48,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.Nil(t, got)
 			},
@@ -62,13 +63,13 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
-				assert.Equal(t, ptr.Val(got.GetId()), "")
-				assert.Equal(t, ptr.Val(got.GetName()), "")
-				assert.Equal(t, ptr.Val(got.GetSize()), int64(0))
-				assert.Equal(t, ptr.Val(got.GetCreatedDateTime()), time.Time{})
-				assert.Equal(t, ptr.Val(got.GetLastModifiedDateTime()), time.Time{})
+				assert.Equal(t, got.GetId(), (*string)(nil))
+				assert.Equal(t, got.GetName(), (*string)(nil))
+				assert.Equal(t, got.GetSize(), (*int64)(nil))
+				assert.Equal(t, got.GetCreatedDateTime(), (*time.Time)(nil))
+				assert.Equal(t, got.GetLastModifiedDateTime(), (*time.Time)(nil))
 				require.Nil(t, got.GetFolder())
 				require.Nil(t, got.GetFile())
 				require.Nil(t, got.GetPackageEscaped())
@@ -104,7 +105,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				assert.Equal(t, ptr.Val(got.GetId()), ptr.Val(expected.GetId()))
 				assert.Equal(t, ptr.Val(got.GetName()), ptr.Val(expected.GetName()))
@@ -130,7 +131,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetFolder())
 				require.Nil(t, got.GetFile())
@@ -151,7 +152,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetPackageEscaped())
 				require.Nil(t, got.GetFile())
@@ -172,7 +173,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 				// Intentionally set different URLs for the two keys to test
 				// for correctness. It's unlikely that a) both will be set,
 				// b) URLs will be different, but it's not the responsibility
-				// of function being tested, which is simply copying over key, val
+				// of function being tested here, which is simply copying over key, val
 				// pairs useful to callers.
 				di.SetAdditionalData(map[string]interface{}{
 					"@microsoft.graph.downloadUrl": "downloadURL",
@@ -184,7 +185,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetFile())
 				require.Nil(t, got.GetFolder())
@@ -241,7 +242,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetShared())
 				assert.Equal(t, ptr.Val(got.GetId()), ptr.Val(expected.GetId()))
@@ -264,7 +265,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetMalware())
 				assert.Equal(
@@ -288,7 +289,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetDeleted())
 				assert.Equal(t, ptr.Val(got.GetId()), ptr.Val(expected.GetId()))
@@ -309,7 +310,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetRoot())
 				require.NotNil(t, got.GetFolder())
@@ -340,7 +341,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetParentReference())
 				assert.Equal(
@@ -382,7 +383,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetCreatedBy())
 				require.NotNil(t, got.GetCreatedBy().GetUser())
@@ -433,7 +434,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			validateFunc: func(
 				t *testing.T,
 				expected models.DriveItemable,
-				got LiteDriveItemable,
+				got *DriveItem,
 			) {
 				require.NotNil(t, got.GetCreatedByUser())
 				require.NotNil(t, got.GetLastModifiedByUser())
@@ -452,7 +453,7 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			expected := test.itemFunc()
-			got := ToLiteDriveItemable(expected)
+			got := ToCustomDriveItem(expected)
 			test.validateFunc(suite.T(), expected, got)
 		})
 	}
