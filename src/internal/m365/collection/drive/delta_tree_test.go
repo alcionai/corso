@@ -941,11 +941,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateExcludeItemIDs(
 			expect: map[string]struct{}{},
 		},
 		{
-			name: "one file in a folder",
-			tree: treeWithFileInFolder,
-			expect: map[string]struct{}{
-				id(file): {},
-			},
+			name:   "one file in a folder",
+			tree:   treeWithFileInFolder,
+			expect: makeExcludeMap(id(file)),
 		},
 		{
 			name:   "one file in a tombstone",
@@ -953,21 +951,18 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateExcludeItemIDs(
 			expect: map[string]struct{}{},
 		},
 		{
-			name: "one deleted file",
-			tree: treeWithDeletedFile,
-			expect: map[string]struct{}{
-				id(file, "d"): {},
-			},
+			name:   "one deleted file",
+			tree:   treeWithDeletedFile,
+			expect: makeExcludeMap(idx(file, "d")),
 		},
 		{
 			name: "files in folders and tombstones",
 			tree: fullTree,
-			expect: map[string]struct{}{
-				id(file):       {},
-				idx(file, "r"): {},
-				idx(file, "p"): {},
-				idx(file, "d"): {},
-			},
+			expect: makeExcludeMap(
+				id(file),
+				idx(file, "r"),
+				idx(file, "p"),
+				idx(file, "d")),
 		},
 	}
 	for _, test := range table {

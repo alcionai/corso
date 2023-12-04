@@ -457,7 +457,7 @@ func (c *Collections) Get(
 				return nil, false, clues.WrapWC(ictx, err, "making exclude prefix")
 			}
 
-			globalExcludeItemIDs.Add(p.String(), excludedItemIDs)
+			ssmb.Add(p.String(), excludedItemIDs)
 
 			continue
 		}

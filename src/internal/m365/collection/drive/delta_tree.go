@@ -7,6 +7,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -460,7 +461,8 @@ func (face *folderyMcFolderFace) generateExcludeItemIDs() map[string]struct{} {
 			continue
 		}
 
-		result[iID] = struct{}{}
+		result[iID+metadata.DataFileSuffix] = struct{}{}
+		result[iID+metadata.MetaFileSuffix] = struct{}{}
 	}
 
 	for iID := range face.deletedFileIDs {
