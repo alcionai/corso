@@ -122,69 +122,52 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 				fields.SetAdditionalData(fieldsData)
 
 				interceptV1Path(
-					"sites",
-					siteID,
-					"lists",
-					listID).
+					"sites", siteID,
+					"lists", listID).
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), list))
 
 				interceptV1Path(
-					"sites",
-					siteID,
-					"lists",
-					listID,
+					"sites", siteID,
+					"lists", listID,
 					"columns").
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), columnDefCol))
 
 				interceptV1Path(
-					"sites",
-					siteID,
-					"lists",
-					listID,
+					"sites", siteID,
+					"lists", listID,
 					"items").
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), listItemCol))
 
 				interceptV1Path(
-					"sites",
-					siteID,
-					"lists",
-					listID,
-					"items",
-					listItemID,
+					"sites", siteID,
+					"lists", listID,
+					"items", listItemID,
 					"fields").
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), fields))
 
 				interceptV1Path(
-					"sites",
-					siteID,
-					"lists",
-					listID,
+					"sites", siteID,
+					"lists", listID,
 					"contentTypes").
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), cTypesCol))
 
 				interceptV1Path(
-					"sites",
-					siteID,
-					"lists",
-					listID,
-					"contentTypes",
-					cTypeID,
+					"sites", siteID,
+					"lists", listID,
+					"contentTypes", cTypeID,
 					"columns").
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), columnDefCol2))
 
 				interceptV1Path(
-					"sites",
-					siteID,
-					"lists",
-					listID,
-					"contentTypes",
-					cTypeID,
+					"sites", siteID,
+					"lists", listID,
+					"contentTypes", cTypeID,
 					"columnLinks").
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), colLinkCol))
@@ -208,7 +191,6 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			assert.Equal(t, listID, *list.GetId())
 
 			items := list.GetItems()
-			assert.NotEmpty(t, items)
 			assert.Equal(t, 1, len(items))
 			assert.Equal(t, listItemID, *items[0].GetId())
 
@@ -218,22 +200,18 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			assert.Equal(t, expectedItemData, itemData)
 
 			columns := list.GetColumns()
-			assert.NotEmpty(t, columns)
 			assert.Equal(t, 1, len(columns))
 			assert.Equal(t, textColumnDefID, *columns[0].GetId())
 
 			cTypes := list.GetContentTypes()
-			assert.NotEmpty(t, cTypes)
 			assert.Equal(t, 1, len(cTypes))
 			assert.Equal(t, cTypeID, *cTypes[0].GetId())
 
 			colLinks := cTypes[0].GetColumnLinks()
-			assert.NotEmpty(t, colLinks)
 			assert.Equal(t, 1, len(colLinks))
 			assert.Equal(t, colLinkID, *colLinks[0].GetId())
 
 			columns = cTypes[0].GetColumns()
-			assert.NotEmpty(t, columns)
 			assert.Equal(t, 1, len(columns))
 			assert.Equal(t, numColumnDefID, *columns[0].GetId())
 		})
