@@ -269,35 +269,43 @@ func (face *folderyMcFolderFace) setTombstone(
 	return nil
 }
 
+type countAndSize struct {
+	numFiles   int
+	totalBytes int64
+}
+
 // countLiveFilesAndSizes returns a count of the number of files in the tree
-// and the sum of all of their sizes.  Only includes filesthat are not
+// and the sum of all of their sizes.  Only includes files that are not
 // children of tombstoned containers.  If running an incremental backup, a
 // live file may be either a creation or an update.
-func (face *folderyMcFolderFace) countLiveFilesAndSizes() (int, int64) {
+func (face *folderyMcFolderFace) countLiveFilesAndSizes() countAndSize {
 	return countFilesAndSizes(face.root)
 }
 
-func countFilesAndSizes(nodey *nodeyMcNodeFace) (int, int64) {
+func countFilesAndSizes(nodey *nodeyMcNodeFace) countAndSize {
 	if nodey == nil {
-		return 0, 0
+		return countAndSize{}
 	}
 
 	var (
-		c int
-		s int64
+		fileCount      int
+		sumContentSize int64
 	)
 
 	for _, child := range nodey.children {
-		cc, cs := countFilesAndSizes(child)
-		c += cc
-		s += cs
+		countSize := countFilesAndSizes(child)
+		fileCount += countSize.numFiles
+		sumContentSize += countSize.totalBytes
 	}
 
 	for _, file := range nodey.files {
-		s += file.contentSize
+		sumContentSize += file.contentSize
 	}
 
-	return c + len(nodey.files), s
+	return countAndSize{
+		numFiles:   fileCount + len(nodey.files),
+		totalBytes: sumContentSize,
+	}
 }
 
 // addFile places the file in the correct parent node.  If the

@@ -385,12 +385,6 @@ func (c *Collections) enumeratePageOfItems(
 		}
 
 		if err != nil {
-			el.AddRecoverable(ictx, clues.Wrap(err, "adding item"))
-
-			return nil
-		}
-
-		if err != nil {
 			if errors.Is(err, errHitLimit) {
 				return err
 			}
@@ -572,11 +566,11 @@ func (c *Collections) addFileToTree(
 	parentNode, parentNotNil := tree.folderIDToNode[parentID]
 
 	if parentNotNil && !alreadySeen {
-		fileCount, totalBytes := tree.countLiveFilesAndSizes()
+		countSize := tree.countLiveFilesAndSizes()
 
 		// Don't add new items if the new collection has already reached it's limit.
 		// item moves and updates are generally allowed through.
-		if limiter.atContainerItemsLimit(len(parentNode.files)) || limiter.hitItemLimit(fileCount) {
+		if limiter.atContainerItemsLimit(len(parentNode.files)) || limiter.hitItemLimit(countSize.numFiles) {
 			return nil, errHitLimit
 		}
 
@@ -584,7 +578,7 @@ func (c *Collections) addFileToTree(
 		// unlike the other checks, which see if we're already at the limit, this check
 		// needs to be forward-facing to ensure we don't go far over the limit.
 		// Example case: a 1gb limit and a 25gb file.
-		if limiter.hitTotalBytesLimit(fileSize + totalBytes) {
+		if limiter.hitTotalBytesLimit(fileSize + countSize.totalBytes) {
 			return nil, errHitLimit
 		}
 	}
