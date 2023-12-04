@@ -77,6 +77,8 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 				require.Nil(t, got.GetDeleted())
 				require.Nil(t, got.GetRoot())
 				require.Nil(t, got.GetCreatedBy())
+				require.Nil(t, got.GetCreatedByUser())
+				require.Nil(t, got.GetLastModifiedByUser())
 				require.Nil(t, got.GetParentReference())
 				assert.Equal(t, len(got.GetAdditionalData()), 0)
 			},
@@ -85,9 +87,9 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			name: "ID, name, size, created, modified",
 			itemFunc: func() models.DriveItemable {
 				name := "itemName"
-				size := int64(123)
-				created := time.Now().Add(-time.Second).Truncate(time.Nanosecond)
-				modified := time.Now().Truncate(time.Nanosecond)
+				size := int64(6)
+				created := time.Now().Add(-time.Second)
+				modified := time.Now()
 
 				di := models.NewDriveItem()
 
@@ -167,9 +169,14 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 				di.SetFile(models.NewFile())
 				di.GetFile().SetMimeType(&mime)
 
-				// additional data
+				// Intentionally set different URLs for the two keys to test
+				// for correctness. It's unlikely that a) both will be set,
+				// b) URLs will be different, but it's not the responsibility
+				// of function being tested, which is simply copying over key, val
+				// pairs useful to callers.
 				di.SetAdditionalData(map[string]interface{}{
 					"@microsoft.graph.downloadUrl": "downloadURL",
+					"@content.downloadUrl":         "contentURL",
 				})
 
 				return di
@@ -201,8 +208,23 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 
 				assert.Equal(
 					t,
-					urlExpected,
-					urlGot)
+					urlGot,
+					urlExpected)
+
+				contentExpected, err := str.AnyValueToString(
+					"@content.downloadUrl",
+					expected.GetAdditionalData())
+				require.NoError(t, err)
+
+				contentGot, err := str.AnyValueToString(
+					"@content.downloadUrl",
+					got.GetAdditionalData())
+				require.NoError(t, err)
+
+				assert.Equal(
+					t,
+					contentGot,
+					contentExpected)
 			},
 		},
 
@@ -213,7 +235,6 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 
 				di.SetId(&id)
 				di.SetShared(models.NewShared())
-				di.SetFile(models.NewFile())
 
 				return di
 			},
@@ -223,7 +244,6 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 				got LiteDriveItemable,
 			) {
 				require.NotNil(t, got.GetShared())
-				require.NotNil(t, got.GetFile())
 				assert.Equal(t, ptr.Val(got.GetId()), ptr.Val(expected.GetId()))
 			},
 		},
@@ -232,9 +252,12 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 			itemFunc: func() models.DriveItemable {
 				di := models.NewDriveItem()
 
+				mw := models.NewMalware()
+				desc := "malware description"
+				mw.SetDescription(&desc)
+
 				di.SetId(&id)
-				di.SetMalware(models.NewMalware())
-				di.SetFile(models.NewFile())
+				di.SetMalware(mw)
 
 				return di
 			},
@@ -244,7 +267,11 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 				got LiteDriveItemable,
 			) {
 				require.NotNil(t, got.GetMalware())
-				require.NotNil(t, got.GetFile())
+				assert.Equal(
+					t,
+					ptr.Val(expected.GetMalware().GetDescription()),
+					ptr.Val(got.GetMalware().GetDescription()))
+
 				assert.Equal(t, ptr.Val(got.GetId()), ptr.Val(expected.GetId()))
 			},
 		},
@@ -255,7 +282,6 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 
 				di.SetId(&id)
 				di.SetDeleted(models.NewDeleted())
-				di.SetFile(models.NewFile())
 
 				return di
 			},
@@ -265,7 +291,6 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 				got LiteDriveItemable,
 			) {
 				require.NotNil(t, got.GetDeleted())
-				require.NotNil(t, got.GetFile())
 				assert.Equal(t, ptr.Val(got.GetId()), ptr.Val(expected.GetId()))
 			},
 		},
@@ -343,7 +368,8 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 
 				createdBy.SetUser(models.NewUser())
 				createdBy.GetUser().SetAdditionalData(map[string]interface{}{
-					"email": "email@me",
+					"email":       "email@user",
+					"displayName": "username",
 				})
 
 				di := models.NewDriveItem()
@@ -370,7 +396,55 @@ func (suite *driveUnitSuite) TestToLiteDriveItemable() {
 					got.GetCreatedBy().GetUser().GetAdditionalData())
 				require.NoError(t, err)
 
-				assert.Equal(t, emailExpected, emailGot)
+				assert.Equal(t, emailGot, emailExpected)
+
+				displayNameExpected, err := str.AnyValueToString(
+					"displayName",
+					expected.GetCreatedBy().GetUser().GetAdditionalData())
+				require.NoError(t, err)
+
+				displayNameGot, err := str.AnyValueToString(
+					"displayName",
+					got.GetCreatedBy().GetUser().GetAdditionalData())
+				require.NoError(t, err)
+
+				assert.Equal(t, displayNameGot, displayNameExpected)
+			},
+		},
+		{
+			name: "Created & last modified by users",
+			itemFunc: func() models.DriveItemable {
+				createdByUser := models.NewUser()
+				uid := "creatorUserID"
+				createdByUser.SetId(&uid)
+
+				lastModifiedByUser := models.NewUser()
+				luid := "lastModifierUserID"
+				lastModifiedByUser.SetId(&luid)
+
+				di := models.NewDriveItem()
+
+				di.SetId(&id)
+				di.SetCreatedByUser(createdByUser)
+				di.SetLastModifiedByUser(lastModifiedByUser)
+
+				return di
+			},
+			validateFunc: func(
+				t *testing.T,
+				expected models.DriveItemable,
+				got LiteDriveItemable,
+			) {
+				require.NotNil(t, got.GetCreatedByUser())
+				require.NotNil(t, got.GetLastModifiedByUser())
+				assert.Equal(
+					t,
+					ptr.Val(got.GetCreatedByUser().GetId()),
+					ptr.Val(expected.GetCreatedByUser().GetId()))
+				assert.Equal(
+					t,
+					ptr.Val(got.GetLastModifiedByUser().GetId()),
+					ptr.Val(expected.GetLastModifiedByUser().GetId()))
 			},
 		},
 	}
