@@ -61,8 +61,16 @@ type backupLimitTest struct {
 	expectedCollections map[string][]string
 }
 
-func backupLimitTable(drive1, drive2 models.Driveable) []backupLimitTest {
-	return []backupLimitTest{
+func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) {
+	drive1 := models.NewDrive()
+	drive1.SetId(ptr.To(idx(drive, 1)))
+	drive1.SetName(ptr.To(namex(drive, 1)))
+
+	drive2 := models.NewDrive()
+	drive2.SetId(ptr.To(idx(drive, 2)))
+	drive2.SetName(ptr.To(namex(drive, 2)))
+
+	tbl := []backupLimitTest{
 		{
 			name: "OneDrive SinglePage ExcludeItemsOverMaxSize",
 			limits: control.PreviewItemLimits{
@@ -525,6 +533,8 @@ func backupLimitTable(drive1, drive2 models.Driveable) []backupLimitTest {
 			},
 		},
 	}
+
+	return drive1, drive2, tbl
 }
 
 // TestGet_PreviewLimits checks that the limits set for preview backups in
@@ -532,28 +542,13 @@ func backupLimitTable(drive1, drive2 models.Driveable) []backupLimitTest {
 // checks that don't examine metadata, collection states, etc. They really just
 // check the expected items appear.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_noTree() {
-	metadataPath, err := path.BuildMetadata(
-		tenant,
-		user,
-		path.OneDriveService,
-		path.FilesCategory,
-		false)
-	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
+	_, _, tbl := backupLimitTable()
 
-	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(idx(drive, 1)))
-	drive1.SetName(ptr.To(namex(drive, 1)))
-
-	drive2 := models.NewDrive()
-	drive2.SetId(ptr.To(idx(drive, 2)))
-	drive2.SetName(ptr.To(namex(drive, 2)))
-
-	for _, test := range backupLimitTable(drive1, drive2) {
+	for _, test := range tbl {
 		suite.Run(test.name, func() {
 			runGetPreviewLimits(
 				suite.T(),
 				test,
-				metadataPath,
 				control.DefaultOptions())
 		})
 	}
@@ -564,31 +559,16 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_noTree() {
 // checks that don't examine metadata, collection states, etc. They really just
 // check the expected items appear.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_tree() {
-	metadataPath, err := path.BuildMetadata(
-		tenant,
-		user,
-		path.OneDriveService,
-		path.FilesCategory,
-		false)
-	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
-
-	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(idx(drive, 1)))
-	drive1.SetName(ptr.To(namex(drive, 1)))
-
-	drive2 := models.NewDrive()
-	drive2.SetId(ptr.To(idx(drive, 2)))
-	drive2.SetName(ptr.To(namex(drive, 2)))
-
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
-	for _, test := range backupLimitTable(drive1, drive2) {
+	_, _, tbl := backupLimitTable()
+
+	for _, test := range tbl {
 		suite.Run(test.name, func() {
 			runGetPreviewLimits(
 				suite.T(),
 				test,
-				metadataPath,
 				opts)
 		})
 	}
@@ -597,11 +577,18 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_tree() {
 func runGetPreviewLimits(
 	t *testing.T,
 	test backupLimitTest,
-	metadata path.Path,
 	opts control.Options,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
+	metadataPath, err := path.BuildMetadata(
+		tenant,
+		user,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+	require.NoError(t, err, "making metadata path", clues.ToCore(err))
 
 	opts.PreviewLimits = test.limits
 
@@ -636,7 +623,7 @@ func runGetPreviewLimits(
 
 		folderPath := baseCol.FullPath().String()
 
-		if folderPath == metadata.String() {
+		if folderPath == metadataPath.String() {
 			continue
 		}
 
@@ -796,28 +783,11 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_Defaults_noTree() {
 		defaultPreviewMaxBytes%(1024*1024),
 		"default number of bytes isn't divisible by 1MB; DefaultNumBytes test case may need updating!")
 
-	metadataPath, err := path.BuildMetadata(
-		tenant,
-		user,
-		path.OneDriveService,
-		path.FilesCategory,
-		false)
-	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
-
-	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(idx(drive, 1)))
-	drive1.SetName(ptr.To(namex(drive, 1)))
-
-	// The number of pages the test generates can be controlled by setting the
-	// number of containers. The test will put one (non-root) container per page.
-
 	for _, test := range defaultLimitsTable() {
 		suite.Run(test.name, func() {
 			runGetPreviewLimitsDefaults(
 				suite.T(),
 				test,
-				drive1,
-				metadataPath,
 				control.DefaultOptions())
 		})
 	}
@@ -839,20 +809,6 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_Defaults_tree() {
 		defaultPreviewMaxBytes%(1024*1024),
 		"default number of bytes isn't divisible by 1MB; DefaultNumBytes test case may need updating!")
 
-	metadataPath, err := path.BuildMetadata(
-		tenant,
-		user,
-		path.OneDriveService,
-		path.FilesCategory,
-		false)
-	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
-
-	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(idx(drive, 1)))
-	drive1.SetName(ptr.To(namex(drive, 1)))
-
-	// The number of pages the test generates can be controlled by setting the
-	// number of containers. The test will put one (non-root) container per page.
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
@@ -861,8 +817,6 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_Defaults_tree() {
 			runGetPreviewLimitsDefaults(
 				suite.T(),
 				test,
-				drive1,
-				metadataPath,
 				opts)
 		})
 	}
@@ -871,12 +825,22 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_Defaults_tree() {
 func runGetPreviewLimitsDefaults(
 	t *testing.T,
 	test defaultLimitTest,
-	drv models.Driveable,
-	metadata path.Path,
 	opts control.Options,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
+	metadataPath, err := path.BuildMetadata(
+		tenant,
+		user,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+	require.NoError(t, err, "making metadata path", clues.ToCore(err))
+
+	drv := models.NewDrive()
+	drv.SetId(ptr.To(idx(drive, 1)))
+	drv.SetName(ptr.To(namex(drive, 1)))
 
 	pages := make([]mock.NextPage, 0, test.numContainers)
 
@@ -947,7 +911,7 @@ func runGetPreviewLimitsDefaults(
 
 		folderPath := baseCol.FullPath().String()
 
-		if folderPath == metadata.String() {
+		if folderPath == metadataPath.String() {
 			continue
 		}
 

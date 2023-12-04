@@ -118,7 +118,7 @@ func (l pagerLimiter) hitContainerLimit(containerCount int) bool {
 }
 
 // hitItemLimit returns true if the limiter is enabled and has reached the limit
-// for unique items, or their accumulated size in bytes, added to collections for this backup.
+// for unique items added to collections for this backup.
 func (l pagerLimiter) hitItemLimit(itemCount int) bool {
 	return l.enabled() && itemCount >= l.limits.MaxItems
 }
