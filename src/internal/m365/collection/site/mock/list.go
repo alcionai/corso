@@ -8,13 +8,16 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
-type GetList struct {
-	Err error
+type ListHandler struct {
+	ListItem models.Listable
+	Err      error
 }
 
-func (m GetList) GetItemByID(ctx context.Context, itemID string) (models.Listable, error) {
-	lst := models.NewList()
-	lst.SetId(ptr.To(itemID))
+func (lh *ListHandler) GetItemByID(ctx context.Context, itemID string) (models.Listable, error) {
+	ls := models.NewList()
 
-	return lst, m.Err
+	lh.ListItem = ls
+	lh.ListItem.SetId(ptr.To(itemID))
+
+	return ls, lh.Err
 }

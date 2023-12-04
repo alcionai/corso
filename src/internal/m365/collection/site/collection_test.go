@@ -86,7 +86,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			name:     "List",
 			itemName: "MockListing",
 			scope:    sel.Lists(selectors.Any())[0],
-			getter:   mock.GetList{},
+			getter:   &mock.ListHandler{},
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
