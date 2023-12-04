@@ -871,7 +871,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 	assert.Len(t, tree.deletedFileIDs, 1)
 	assert.Contains(t, tree.deletedFileIDs, fID)
 
-	err := tree.addFile(rootID, fID, time.Now())
+	err := tree.addFile(rootID, fID, time.Now(), defaultItemSize)
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Len(t, tree.fileIDToParentID, 1)

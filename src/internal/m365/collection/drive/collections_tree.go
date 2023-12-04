@@ -170,10 +170,7 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "generating backup tree prefix")
 	}
 
-	var (
-		tree    = newFolderyMcFolderFace(ppfx)
-		limiter = newPagerLimiter(c.ctrl)
-	)
+	tree := newFolderyMcFolderFace(ppfx)
 
 	counter.Add(count.PrevPaths, int64(len(prevPaths)))
 
@@ -257,7 +254,7 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, du, nil
 	}
 
-	return nil, nil, du, errTreeNotImplemented
+	return nil, nil, du, errGetTreeNotImplemented
 }
 
 // populateTree constructs a new tree and populates it with items
@@ -350,11 +347,7 @@ func (c *Collections) enumeratePageOfItems(
 	errs *fault.Bus,
 ) error {
 	ctx = clues.Add(ctx, "page_lenth", len(page))
-
-	var (
-		el  = errs.Local()
-		err error
-	)
+	el := errs.Local()
 
 	for i, item := range page {
 		if el.Failure() != nil {
@@ -379,9 +372,9 @@ func (c *Collections) enumeratePageOfItems(
 
 		switch {
 		case isFolder:
-			err = c.addFolderToTree(ictx, tree, drv, item, limiter, counter, el)
+			skipped, err = c.addFolderToTree(ictx, tree, drv, item, limiter, counter)
 		case isFile:
-			err = c.addFileToTree(ictx, tree, drv, item, limiter, counter, el)
+			skipped, err = c.addFileToTree(ictx, tree, drv, item, limiter, counter)
 		default:
 			err = clues.NewWC(ictx, "item is neither folder nor file").
 				Label(fault.LabelForceNoBackupCreation, count.UnknownItemType)
@@ -431,7 +424,7 @@ func (c *Collections) addFolderToTree(
 
 	// check container limits before adding the next new folder
 	if !tree.containsFolder(folderID) && limiter.hitContainerLimit(tree.countLiveFolders()) {
-		return errHitLimit
+		return nil, errHitLimit
 	}
 
 	if parent != nil {

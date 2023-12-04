@@ -1488,8 +1488,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				treeContainsFileIDsWithParent: map[string]string{
 					id(file): id(folder),
 				},
-				statsNumAddedFiles: 1,
-				statsNumBytes:      defaultItemSize,
+				countLiveFiles:  1,
+				countTotalBytes: defaultItemSize,
 			},
 		},
 		{
@@ -1851,8 +1851,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				drv,
 				test.file,
 				test.limiter,
-				counter,
-				fault.New(true))
+				counter)
 
 			test.expect.err(t, err, clues.ToCore(err))
 			test.expect.skipped(t, skipped)
