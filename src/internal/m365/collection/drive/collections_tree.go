@@ -33,7 +33,7 @@ import (
 func (c *Collections) getTree(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
-	ssmb *prefixmatcher.StringSetMatchBuilder,
+	globalExcludeItemIDsByDrivePrefix *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	ctx = clues.AddTraceName(ctx, "GetTree")
@@ -114,6 +114,7 @@ func (c *Collections) getTree(
 			prevPathsByDriveID[driveID],
 			deltasByDriveID[driveID],
 			limiter,
+			globalExcludeItemIDsByDrivePrefix,
 			cl,
 			el)
 		if err != nil {
@@ -168,6 +169,7 @@ func (c *Collections) makeDriveCollections(
 	prevPaths map[string]string,
 	prevDeltaLink string,
 	limiter *pagerLimiter,
+	globalExcludeItemIDsByDrivePrefix *prefixmatcher.StringSetMatchBuilder,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]string, pagers.DeltaUpdate, error) {
@@ -214,7 +216,7 @@ func (c *Collections) makeDriveCollections(
 
 	// --- post-processing
 
-	collections, _, err := c.turnTreeIntoCollections(
+	collections, newPrevs, excludedItemIDs, err := c.turnTreeIntoCollections(
 		ctx,
 		tree,
 		driveID,
@@ -225,12 +227,25 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, pagers.DeltaUpdate{}, clues.Stack(err).Label(fault.LabelForceNoBackupCreation)
 	}
 
+	// only populate the global excluded items if no delta reset occurred.
+	// if a reset did occur, the collections should already be marked as
+	// "do not merge", therefore everything will get processed as a new addition.
+	if !tree.hadReset {
+		p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
+		if err != nil {
+			err = clues.WrapWC(ctx, err, "making canonical path for item exclusions")
+			return nil, nil, pagers.DeltaUpdate{}, err
+		}
+
+		globalExcludeItemIDsByDrivePrefix.Add(p.String(), excludedItemIDs)
+	}
+
 	// this is a dumb hack to satisfy the linter.
 	if ctx == nil {
 		return nil, nil, du, nil
 	}
 
-	return collections, nil, du, errGetTreeNotImplemented
+	return collections, newPrevs, du, errGetTreeNotImplemented
 }
 
 // populateTree constructs a new tree and populates it with items
@@ -756,10 +771,16 @@ func (c *Collections) turnTreeIntoCollections(
 	prevDeltaLink string,
 	countPagesInDelta int,
 	errs *fault.Bus,
-) ([]data.BackupCollection, map[string]string, error) {
+) (
+	[]data.BackupCollection,
+	map[string]string,
+	map[string]struct{},
+	error,
+) {
 	collectables, err := tree.generateCollectables()
 	if err != nil {
-		return nil, nil, clues.WrapWC(ctx, err, "generating backup collection data")
+		err = clues.WrapWC(ctx, err, "generating backup collection data")
+		return nil, nil, nil, err
 	}
 
 	var (
@@ -784,7 +805,7 @@ func (c *Collections) turnTreeIntoCollections(
 			c.counter.Local(),
 			errs)
 		if err != nil {
-			return nil, nil, clues.StackWC(ctx, err)
+			return nil, nil, nil, clues.StackWC(ctx, err)
 		}
 	}
 
@@ -810,7 +831,7 @@ func (c *Collections) turnTreeIntoCollections(
 			uc,
 			c.counter.Local())
 		if err != nil {
-			return nil, nil, clues.StackWC(ctx, err)
+			return nil, nil, nil, clues.StackWC(ctx, err)
 		}
 
 		coll.driveItems = cbl.files
@@ -818,5 +839,5 @@ func (c *Collections) turnTreeIntoCollections(
 		collections = append(collections, coll)
 	}
 
-	return collections, newPrevPaths, el.Failure()
+	return collections, newPrevPaths, tree.generateExcludeItemIDs(), el.Failure()
 }

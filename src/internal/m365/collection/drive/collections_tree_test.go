@@ -398,6 +398,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				test.prevPaths,
 				idx(delta, "prev"),
 				newPagerLimiter(control.DefaultOptions()),
+				prefixmatcher.NewStringSetBuilder(),
 				c.counter,
 				fault.New(true))
 
@@ -486,9 +487,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections() {
 	type expected struct {
-		err         require.ErrorAssertionFunc
-		prevPaths   map[string]string
-		collections func(t *testing.T) expectedCollections
+		err                   require.ErrorAssertionFunc
+		prevPaths             map[string]string
+		collections           func(t *testing.T) expectedCollections
+		globalExcludedFileIDs map[string]struct{}
 	}
 
 	table := []struct {
@@ -527,6 +529,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 							nil,
 							id(file)))
 				},
+				globalExcludedFileIDs: makeExcludeMap(
+					idx(file, "r"),
+					idx(file, "p"),
+					id(file)),
 			},
 		},
 		{
@@ -564,6 +570,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 							id(file)),
 						aColl(nil, fullPathPath(t, namex(folder, "tombstone-prev"))))
 				},
+				globalExcludedFileIDs: makeExcludeMap(
+					idx(file, "r"),
+					idx(file, "p"),
+					id(file)),
 			},
 		},
 		{
@@ -601,6 +611,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 							id(file)),
 						aColl(nil, fullPathPath(t, namex(folder, "tombstone"))))
 				},
+				globalExcludedFileIDs: makeExcludeMap(
+					idx(file, "r"),
+					idx(file, "p"),
+					id(file)),
 			},
 		},
 	}
@@ -623,7 +637,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 				countPages = 1
 			}
 
-			colls, newPrevPaths, err := c.turnTreeIntoCollections(
+			colls, newPrevPaths, excluded, err := c.turnTreeIntoCollections(
 				ctx,
 				tree,
 				id(drive),
@@ -636,6 +650,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			expectColls := test.expect.collections(t)
 			expectColls.compare(t, colls)
 			expectColls.requireNoUnseenCollections(t)
+
+			assert.Equal(t, test.expect.globalExcludedFileIDs, excluded)
 		})
 	}
 }
