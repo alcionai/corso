@@ -28,11 +28,6 @@ import (
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
-var (
-	channelMessages = path.ChannelMessagesCategory
-	libraries       = path.LibrariesCategory
-)
-
 // ---------------------------------------------------------------------------
 // tests that require no existing backups
 // ---------------------------------------------------------------------------
@@ -114,11 +109,15 @@ func (suite *BackupGroupsE2ESuite) SetupSuite() {
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_channelMessages() {
-	runGroupsBackupCategoryTest(suite, "messages")
+	runGroupsBackupCategoryTest(suite, flags.DataMessages)
+}
+
+func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_conversations() {
+	runGroupsBackupCategoryTest(suite, flags.DataConversations)
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_libraries() {
-	runGroupsBackupCategoryTest(suite, libraries.String())
+	runGroupsBackupCategoryTest(suite, flags.DataLibraries)
 }
 
 func runGroupsBackupCategoryTest(suite *BackupGroupsE2ESuite, category string) {
@@ -148,11 +147,15 @@ func runGroupsBackupCategoryTest(suite *BackupGroupsE2ESuite, category string) {
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_groupNotFound_channelMessages() {
-	runGroupsBackupGroupNotFoundTest(suite, "messages")
+	runGroupsBackupGroupNotFoundTest(suite, flags.DataMessages)
+}
+
+func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_groupNotFound_conversations() {
+	runGroupsBackupGroupNotFoundTest(suite, flags.DataConversations)
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_groupNotFound_libraries() {
-	runGroupsBackupGroupNotFoundTest(suite, libraries.String())
+	runGroupsBackupGroupNotFoundTest(suite, flags.DataLibraries)
 }
 
 func runGroupsBackupGroupNotFoundTest(suite *BackupGroupsE2ESuite, category string) {
@@ -293,19 +296,27 @@ func (suite *PreparedBackupGroupsE2ESuite) SetupSuite() {
 	var (
 		groups = []string{suite.its.group.ID}
 		ins    = idname.NewCache(map[string]string{suite.its.group.ID: suite.its.group.ID})
+		cats   = []path.CategoryType{
+			path.ChannelMessagesCategory,
+			path.ConversationPostsCategory,
+			path.LibrariesCategory,
+		}
 	)
 
-	for _, set := range []path.CategoryType{channelMessages, libraries} {
+	for _, set := range cats {
 		var (
 			sel    = selectors.NewGroupsBackup(groups)
 			scopes []selectors.GroupsScope
 		)
 
 		switch set {
-		case channelMessages:
+		case path.ChannelMessagesCategory:
 			scopes = selTD.GroupsBackupChannelScope(sel)
 
-		case libraries:
+		case path.ConversationPostsCategory:
+			scopes = selTD.GroupsBackupConversationScope(sel)
+
+		case path.LibrariesCategory:
 			scopes = selTD.GroupsBackupLibraryFolderScope(sel)
 		}
 
@@ -334,11 +345,15 @@ func (suite *PreparedBackupGroupsE2ESuite) SetupSuite() {
 }
 
 func (suite *PreparedBackupGroupsE2ESuite) TestGroupsListCmd_channelMessages() {
-	runGroupsListCmdTest(suite, channelMessages)
+	runGroupsListCmdTest(suite, path.ChannelMessagesCategory)
+}
+
+func (suite *PreparedBackupGroupsE2ESuite) TestGroupsListCmd_conversations() {
+	runGroupsListCmdTest(suite, path.ConversationPostsCategory)
 }
 
 func (suite *PreparedBackupGroupsE2ESuite) TestGroupsListCmd_libraries() {
-	runGroupsListCmdTest(suite, libraries)
+	runGroupsListCmdTest(suite, path.LibrariesCategory)
 }
 
 func runGroupsListCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.CategoryType) {
@@ -369,11 +384,15 @@ func runGroupsListCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.Cat
 }
 
 func (suite *PreparedBackupGroupsE2ESuite) TestGroupsListCmd_singleID_channelMessages() {
-	runGroupsListSingleCmdTest(suite, channelMessages)
+	runGroupsListSingleCmdTest(suite, path.ChannelMessagesCategory)
+}
+
+func (suite *PreparedBackupGroupsE2ESuite) TestGroupsListCmd_singleID_conversations() {
+	runGroupsListSingleCmdTest(suite, path.ConversationPostsCategory)
 }
 
 func (suite *PreparedBackupGroupsE2ESuite) TestGroupsListCmd_singleID_libraries() {
-	runGroupsListSingleCmdTest(suite, libraries)
+	runGroupsListSingleCmdTest(suite, path.LibrariesCategory)
 }
 
 func runGroupsListSingleCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.CategoryType) {
@@ -429,17 +448,25 @@ func (suite *PreparedBackupGroupsE2ESuite) TestGroupsListCmd_badID() {
 }
 
 func (suite *PreparedBackupGroupsE2ESuite) TestGroupsDetailsCmd_channelMessages() {
-	runGroupsDetailsCmdTest(suite, channelMessages)
+	runGroupsDetailsCmdTest(suite, path.ChannelMessagesCategory)
+}
+
+func (suite *PreparedBackupGroupsE2ESuite) TestGroupsDetailsCmd_conversations() {
+	runGroupsDetailsCmdTest(suite, path.ConversationPostsCategory)
 }
 
 func (suite *PreparedBackupGroupsE2ESuite) TestGroupsDetailsCmd_libraries() {
-	runGroupsDetailsCmdTest(suite, libraries)
+	runGroupsDetailsCmdTest(suite, path.LibrariesCategory)
 }
 
 func runGroupsDetailsCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.CategoryType) {
 	suite.dpnd.recorder.Reset()
 
 	t := suite.T()
+
+	if category == path.ConversationPostsCategory {
+		t.Skip("skipping conversation details test, see issue #4780")
+	}
 
 	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.dpnd.vpr)

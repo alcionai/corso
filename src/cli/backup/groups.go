@@ -71,7 +71,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		flags.AddGroupFlag(c)
-		flags.AddDataFlag(c, []string{flags.DataLibraries, flags.DataMessages}, false)
+		flags.AddDataFlag(c, []string{flags.DataLibraries, flags.DataMessages, flags.DataConversations}, false)
 		flags.AddFetchParallelismFlag(c)
 		flags.AddDisableDeltaFlag(c)
 		flags.AddGenericBackupFlags(c)
@@ -121,7 +121,7 @@ func groupsCreateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     groupsServiceCommand,
 		Aliases: []string{teamsServiceCommand},
-		Short:   "Backup M365 Group service data",
+		Short:   "Backup M365 Groups & Teams service data",
 		RunE:    createGroupsCmd,
 		Args:    cobra.NoArgs,
 	}
@@ -290,9 +290,15 @@ func validateGroupsBackupCreateFlags(groups, cats []string) error {
 				flags.GroupFN + " *")
 	}
 
+	// TODO(keepers): release conversations support
+
 	msg := fmt.Sprintf(
 		" is an unrecognized data type; only %s and %s are supported",
 		flags.DataLibraries, flags.DataMessages)
+
+	// msg := fmt.Sprintf(
+	// 	" is an unrecognized data type; only %s, %s and %s are supported",
+	// 	flags.DataLibraries, flags.DataMessages, flags.DataConversations)
 
 	allowedCats := utils.GroupsAllowedCategories()
 

@@ -37,6 +37,7 @@ func s3BlobStorage(
 		DoNotUseTLS:         cfg.DoNotUseTLS,
 		DoNotVerifyTLS:      cfg.DoNotVerifyTLS,
 		Tags:                s.SessionTags,
+		QueryParams:         s.QueryParams,
 		SessionName:         s.SessionName,
 		RoleARN:             s.Role,
 		RoleDuration:        s.SessionDuration,

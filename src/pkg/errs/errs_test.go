@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type ErrUnitSuite struct {
@@ -103,6 +104,12 @@ func (suite *ErrUnitSuite) TestInternal_checks() {
 			expectHasChecks: assert.NotEmpty,
 			expect:          assert.True,
 		},
+		{
+			get:             InsufficientAuthorization,
+			err:             graphTD.ODataErr(string(graph.AuthorizationRequestDenied)),
+			expectHasChecks: assert.NotEmpty,
+			expect:          assert.True,
+		},
 	}
 	for _, test := range table {
 		suite.Run(string(test.get), func() {
@@ -154,6 +161,10 @@ func (suite *ErrUnitSuite) TestIs() {
 		{
 			target: ResourceNotAccessible,
 			err:    graph.ErrResourceLocked,
+		},
+		{
+			target: InsufficientAuthorization,
+			err:    graphTD.ODataErr(string(graph.AuthorizationRequestDenied)),
 		},
 	}
 	for _, test := range table {

@@ -22,9 +22,7 @@ const (
 func shouldLogRespBody(resp *http.Response) bool {
 	return logger.DebugAPIFV ||
 		os.Getenv(logGraphRequestsEnvKey) != "" ||
-		resp.StatusCode == http.StatusBadRequest ||
-		resp.StatusCode == http.StatusForbidden ||
-		resp.StatusCode == http.StatusConflict
+		resp.StatusCode > 399
 }
 
 func logResp(ctx context.Context, resp *http.Response) {
@@ -47,6 +45,7 @@ func logResp(ctx context.Context, resp *http.Response) {
 	// Log api calls according to api debugging configurations.
 	switch respClass {
 	case 2:
+		// only log 2xx's if we want the full response body.
 		if logBody {
 			// only dump the body if it's under a size limit.  We don't want to copy gigs into memory for a log.
 			dump := getRespDump(ctx, resp, os.Getenv(log2xxGraphResponseEnvKey) != "" && resp.ContentLength < logMBLimit)

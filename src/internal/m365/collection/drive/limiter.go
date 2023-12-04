@@ -1,9 +1,15 @@
 package drive
 
-import "github.com/alcionai/corso/src/pkg/control"
+import (
+	"github.com/alcionai/clues"
+
+	"github.com/alcionai/corso/src/pkg/control"
+)
 
 // used to mark an unused variable while we transition handling.
 const ignoreMe = -1
+
+var errHitLimit = clues.New("hit limiter limits")
 
 type driveEnumerationStats struct {
 	numPages      int
@@ -54,6 +60,10 @@ func (l pagerLimiter) enabled() bool {
 // contain.
 func (l pagerLimiter) sizeLimit() int64 {
 	return l.limits.MaxBytes
+}
+
+func (l pagerLimiter) aboveSizeLimit(i int64) bool {
+	return l.limits.Enabled && (i >= l.limits.MaxBytes)
 }
 
 // atItemLimit returns true if the limiter is enabled and has reached the limit

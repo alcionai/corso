@@ -19,14 +19,14 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
-var _ data.BackupCollection = &Collection{}
+var _ data.BackupCollection = &Collection[groupsItemer]{}
 
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
 )
 
-type Collection struct {
+type Collection[I groupsItemer] struct {
 	data.BaseCollection
 	protectedResource string
 	stream            chan data.Item
@@ -36,7 +36,7 @@ type Collection struct {
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	getter getItemByIDer
+	getter getItemer[I]
 
 	statusUpdater support.StatusUpdater
 }
@@ -47,15 +47,15 @@ type Collection struct {
 // to be deleted.  If the prev path is nil, it is assumed newly created.
 // If both are populated, then state is either moved (if they differ),
 // or notMoved (if they match).
-func NewCollection(
+func NewCollection[I groupsItemer](
 	baseCol data.BaseCollection,
-	getter getItemByIDer,
+	getter getItemer[I],
 	protectedResource string,
 	added map[string]struct{},
 	removed map[string]struct{},
 	statusUpdater support.StatusUpdater,
-) Collection {
-	collection := Collection{
+) Collection[I] {
+	collection := Collection[I]{
 		BaseCollection:    baseCol,
 		added:             added,
 		getter:            getter,
@@ -70,7 +70,7 @@ func NewCollection(
 
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
-func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+func (col *Collection[I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	go col.streamItems(ctx, errs)
 	return col.stream
 }
@@ -79,7 +79,7 @@ func (col *Collection) Items(ctx context.Context, errs *fault.Bus) <-chan data.I
 // items() production
 // ---------------------------------------------------------------------------
 
-func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
+func (col *Collection[I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
 		streamedItems int64
 		totalBytes    int64
@@ -145,13 +145,10 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 			writer := kjson.NewJsonSerializationWriter()
 			defer writer.Close()
 
-			flds := col.FullPath().Folders()
-			parentFolderID := flds[len(flds)-1]
-
-			item, info, err := col.getter.GetItemByID(
+			item, info, err := col.getter.GetItem(
 				ctx,
 				col.protectedResource,
-				parentFolderID,
+				col.FullPath().Folders(),
 				id)
 			if err != nil {
 				err = clues.Wrap(err, "getting channel message data").Label(fault.LabelForceNoBackupCreation)
@@ -210,7 +207,7 @@ func (col *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 // finishPopulation is a utility function used to close a Collection's data channel
 // and to send the status update through the channel.
-func (col *Collection) finishPopulation(
+func (col *Collection[I]) finishPopulation(
 	ctx context.Context,
 	streamedItems, totalBytes int64,
 	err error,

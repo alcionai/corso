@@ -40,30 +40,34 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 	}{
 		// resource
 		{
-			name:             "no inputs",
-			opts:             utils.GroupsOpts{},
-			expectIncludeLen: 3,
+			name: "no inputs",
+			opts: utils.GroupsOpts{},
+			// TODO: bump to 3 when we release conversations
+			expectIncludeLen: 2,
 		},
 		{
 			name: "empty",
 			opts: utils.GroupsOpts{
 				Groups: empty,
 			},
-			expectIncludeLen: 3,
+			// TODO: bump to 3 when we release conversations
+			expectIncludeLen: 2,
 		},
 		{
 			name: "single inputs",
 			opts: utils.GroupsOpts{
 				Groups: single,
 			},
-			expectIncludeLen: 3,
+			// TODO: bump to 3 when we release conversations
+			expectIncludeLen: 2,
 		},
 		{
 			name: "multi inputs",
 			opts: utils.GroupsOpts{
 				Groups: multi,
 			},
-			expectIncludeLen: 3,
+			// TODO: bump to 3 when we release conversations
+			expectIncludeLen: 2,
 		},
 		// sharepoint
 		{
@@ -113,22 +117,6 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 				ListFolder: containsAndPrefix,
 			},
 			expectIncludeLen: 2,
-		},
-		{
-			name: "library folder suffixes",
-			opts: utils.GroupsOpts{
-				FileName:   empty,
-				FolderPath: empty,
-			},
-			expectIncludeLen: 3,
-		},
-		{
-			name: "library folder suffixes and contains",
-			opts: utils.GroupsOpts{
-				FileName:   empty,
-				FolderPath: empty,
-			},
-			expectIncludeLen: 3,
 		},
 		{
 			name: "Page Folder",
@@ -200,6 +188,50 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			opts: utils.GroupsOpts{
 				Groups:   single,
 				Channels: single,
+			},
+			expectIncludeLen: 1,
+		},
+		// conversations
+		{
+			name: "multiple conversations multiple posts",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: multi,
+				Posts:         multi,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "single conversations multiple post",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: single,
+				Posts:         multi,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "single conversations and post",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: single,
+				Posts:         single,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "multiple conversations only",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: multi,
+			},
+			expectIncludeLen: 1,
+		},
+		{
+			name: "single conversations only",
+			opts: utils.GroupsOpts{
+				Groups:        single,
+				Conversations: single,
 			},
 			expectIncludeLen: 1,
 		},
@@ -389,7 +421,7 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 		{
 			name:           "none",
 			cats:           []string{},
-			expectScopeLen: 3,
+			expectScopeLen: 2,
 		},
 		{
 			name:           "libraries",
@@ -402,8 +434,18 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 			expectScopeLen: 1,
 		},
 		{
-			name:           "all allowed",
-			cats:           []string{flags.DataLibraries, flags.DataMessages},
+			name:           "conversations",
+			cats:           []string{flags.DataConversations},
+			expectScopeLen: 1,
+		},
+		{
+			name: "all allowed",
+			cats: []string{
+				flags.DataLibraries,
+				flags.DataMessages,
+				// flags.DataConversations,
+			},
+			// TODO: bump to 3 when we include conversations in all data
 			expectScopeLen: 2,
 		},
 		{

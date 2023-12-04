@@ -2,7 +2,11 @@ module github.com/alcionai/corso/src
 
 go 1.21
 
-replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231128180219-e763f7c81f23
+replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231130213928-e62eca5816db
+
+// No tags in the alcion fork of the repo so use v7 as that's in the import
+// path.
+replace github.com/minio/minio-go/v7 => github.com/alcionai/minio-go/v7 v7.0.0-20231130221740-c745a3d084aa
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
@@ -11,7 +15,7 @@ require (
 	github.com/aws/aws-xray-sdk-go v1.8.3
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/fatih/color v1.16.0
-	github.com/golang-jwt/jwt/v5 v5.1.0
+	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/google/uuid v1.4.0
 	github.com/h2non/gock v1.2.0
 	github.com/jaytaylor/html2text v0.0.0-20230321000545-74c2419ad056
@@ -22,7 +26,7 @@ require (
 	github.com/microsoft/kiota-http-go v1.1.1
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.25.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.26.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v3 v3.0.2
