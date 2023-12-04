@@ -55,23 +55,23 @@ func (c *DriveItem) GetLastModifiedDateTime() *time.Time {
 	return c.lastModifiedDateTime
 }
 
-func (c *DriveItem) GetFolder() any {
+func (c *DriveItem) GetFolder() *struct{} {
 	return c.folder
 }
 
-func (c *DriveItem) GetPackageEscaped() any {
+func (c *DriveItem) GetPackageEscaped() *struct{} {
 	return c.pkg
 }
 
-func (c *DriveItem) GetShared() any {
+func (c *DriveItem) GetShared() *struct{} {
 	return c.shared
 }
 
-func (c *DriveItem) GetDeleted() any {
+func (c *DriveItem) GetDeleted() *struct{} {
 	return c.deleted
 }
 
-func (c *DriveItem) GetRoot() any {
+func (c *DriveItem) GetRoot() *struct{} {
 	return c.root
 }
 
