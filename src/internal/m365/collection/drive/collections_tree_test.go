@@ -944,16 +944,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree() {
 				test.tree.countLiveFolders(),
 				"count folders in tree")
 
-			countFiles, totalBytes := test.tree.countLiveFilesAndSizes()
+			countSize := test.tree.countLiveFilesAndSizes()
 			assert.Equal(
 				t,
 				test.expect.numLiveFiles,
-				countFiles,
+				countSize.numFiles,
 				"count files in tree")
 			assert.Equal(
 				t,
 				test.expect.sizeBytes,
-				totalBytes,
+				countSize.totalBytes,
 				"count total bytes in tree")
 			test.expect.counts.Compare(t, counter)
 
@@ -1184,7 +1184,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			assert.Equal(
 				t,
 				test.expect.treeSize,
-				len(test.tree.tombstones)+len(test.tree.folderIDToNode),
+				len(test.tree.tombstones)+test.tree.countLiveFolders(),
 				"count folders in tree")
 			test.expect.counts.Compare(t, counter)
 
@@ -1371,7 +1371,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			assert.Equal(
 				t,
 				test.expect.treeSize,
-				len(test.tree.tombstones)+len(test.tree.folderIDToNode),
+				len(test.tree.tombstones)+test.tree.countLiveFolders(),
 				"folders in tree")
 			test.expect.treeContainsFolder(t, test.tree.containsFolder(ptr.Val(test.folder.GetId())))
 		})
@@ -1667,9 +1667,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				fault.New(true))
 			test.expect.err(t, err, clues.ToCore(err))
 
-			countFiles, sizeBytes := test.tree.countLiveFilesAndSizes()
-			assert.Equal(t, test.expect.countLiveFiles, countFiles, "count of files")
-			assert.Equal(t, test.expect.countTotalBytes, sizeBytes, "total size in bytes")
+			countSize := test.tree.countLiveFilesAndSizes()
+			assert.Equal(t, test.expect.countLiveFiles, countSize.numFiles, "count of files")
+			assert.Equal(t, test.expect.countTotalBytes, countSize.totalBytes, "total size in bytes")
 			assert.Equal(t, test.expect.treeContainsFileIDsWithParent, test.tree.fileIDToParentID)
 			test.expect.counts.Compare(t, counter)
 		})
@@ -1863,9 +1863,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			assert.Equal(t, test.expect.treeContainsFileIDsWithParent, test.tree.fileIDToParentID)
 			test.expect.counts.Compare(t, counter)
 
-			countFiles, sizeBytes := test.tree.countLiveFilesAndSizes()
-			assert.Equal(t, test.expect.countLiveFiles, countFiles, "count of files")
-			assert.Equal(t, test.expect.countTotalBytes, sizeBytes, "total size in bytes")
+			countSize := test.tree.countLiveFilesAndSizes()
+			assert.Equal(t, test.expect.countLiveFiles, countSize.numFiles, "count of files")
+			assert.Equal(t, test.expect.countTotalBytes, countSize.totalBytes, "total size in bytes")
 		})
 	}
 }

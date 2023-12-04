@@ -796,9 +796,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			require.NotNil(t, parent)
 			assert.Contains(t, parent.files, id(file))
 
-			count, size := test.tree.countLiveFilesAndSizes()
-			assert.Equal(t, 1, count, "should have one file in the tree")
-			assert.Equal(t, test.contentSize, size, "should have one file in the tree")
+			countSize := test.tree.countLiveFilesAndSizes()
+			assert.Equal(t, 1, countSize.numFiles, "should have one file in the tree")
+			assert.Equal(t, test.contentSize, countSize.totalBytes, "should have one file in the tree")
 
 			if len(test.oldParentID) > 0 {
 				old, ok := test.tree.folderIDToNode[test.oldParentID]
