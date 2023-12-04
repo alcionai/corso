@@ -1712,8 +1712,8 @@ func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
 	defer flush()
 
 	drv := models.NewDrive()
-	drv.SetId(ptr.To("id"))
-	drv.SetName(ptr.To("name"))
+	drv.SetId(ptr.To(id(drive)))
+	drv.SetName(ptr.To(name(drive)))
 
 	mbh := mock.DefaultOneDriveBH(user)
 	opts := control.DefaultOptions()
@@ -1722,11 +1722,11 @@ func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
 	mbh.DrivePagerV = pagerForDrives(drv)
 	mbh.DriveItemEnumeration = mock.EnumerateItemsDeltaByDrive{
 		DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-			"id": {
+			id(drive): {
 				Pages: []mock.NextPage{{
 					Items: []models.DriveItemable{
-						driveRootItem(rootID), // will be present, not needed
-						delItem(id(file), parent(1), rootID, isFile),
+						driveRootItem(), // will be present, not needed
+						delItem(id(file), parentDir(), rootID, isFile),
 					},
 				}},
 				DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},

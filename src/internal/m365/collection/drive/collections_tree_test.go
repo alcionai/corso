@@ -249,7 +249,6 @@ type collectionAssertions map[string]collectionAssertion
 
 func pageItems(items ...models.DriveItemable) []models.DriveItemable {
 	return append([]models.DriveItemable{driveRootItem()}, items...)
-
 }
 
 func drivePageItems(driveID any, items ...models.DriveItemable) []models.DriveItemable {
@@ -421,7 +420,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
-						Pages:       pagesOf(rootAnd()),
+						Pages:       pagesOf(pageItems()),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
@@ -521,7 +520,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
 					id(drive): {
-						Pages:       pagesOf(rootAnd()),
+						Pages:       pagesOf(pageItems()),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
@@ -1501,9 +1500,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 		{
 			name: "one file in a folder",
 			tree: newFolderyMcFolderFace(nil),
-			page: rootAnd(
-				driveItem(id(folder), name(folder), parent(0), rootID, isFolder),
-				driveItem(id(file), name(file), parent(0, name(folder)), id(folder), isFile)),
+			page: pageItems(
+				driveItem(id(folder), name(folder), parentDir(), rootID, isFolder),
+				driveItem(id(file), name(file), parentDir(name(folder)), id(folder), isFile)),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 0,
