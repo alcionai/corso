@@ -492,8 +492,8 @@ jobs:
 
       # I could not find a way to install tree-grepper without nix
       # https://github.com/BrianHicks/tree-grepper/issues/293
-      - uses: cachix/install-nix-action@v23
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/install-nix-action@v24
+      - uses: cachix/cachix-action@v13
         with:
             name: tree-grepper
       - run: nix-env -if https://github.com/BrianHicks/tree-grepper/archive/refs/heads/main.tar.gz
@@ -556,7 +556,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           rudderstack_write_key: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
           rudderstack_data_plane_url: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
-          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   Publish-Image:
     needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]

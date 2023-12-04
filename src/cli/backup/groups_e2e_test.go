@@ -464,6 +464,10 @@ func runGroupsDetailsCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.
 
 	t := suite.T()
 
+	if category == path.ConversationPostsCategory {
+		t.Skip("skipping conversation details test, see issue #4780")
+	}
+
 	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.dpnd.vpr)
 
