@@ -153,8 +153,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		}
 	}
 
-	err = email.GetError()
-	if err != nil {
+	if err = email.GetError(); err != nil {
 		return "", clues.WrapWC(ctx, err, "converting to eml")
 	}
 
