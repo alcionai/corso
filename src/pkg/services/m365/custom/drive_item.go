@@ -338,7 +338,7 @@ func ToLiteDriveItemable(item models.DriveItemable) LiteDriveItemable {
 	return di
 }
 
-func SetParentName(orig parentReferenceable, driveName string) parentReferenceable {
+func SetParentName(orig itemReferenceable, driveName string) itemReferenceable {
 	if orig == nil {
 		return nil
 	}
