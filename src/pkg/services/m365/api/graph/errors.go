@@ -517,7 +517,7 @@ func appendIf(a []any, k string, v *string) []any {
 
 // ItemInfo gathers potentially useful information about a drive item,
 // and aggregates that data into a map.
-func ItemInfo(item custom.LiteDriveItemable) map[string]any {
+func ItemInfo(item *custom.DriveItem) map[string]any {
 	m := map[string]any{}
 
 	creator := item.GetCreatedByUser()

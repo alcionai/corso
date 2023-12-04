@@ -864,7 +864,7 @@ func restoreFile(
 	dii := ir.AugmentItemInfo(
 		details.ItemInfo{},
 		rcc.ProtectedResource,
-		custom.ToLiteDriveItemable(newItem),
+		custom.ToCustomDriveItem(newItem),
 		written,
 		nil)
 

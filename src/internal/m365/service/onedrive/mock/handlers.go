@@ -166,7 +166,7 @@ func (h BackupHandler[T]) NewLocationIDer(driveID string, elems ...string) detai
 func (h BackupHandler[T]) AugmentItemInfo(
 	details.ItemInfo,
 	idname.Provider,
-	custom.LiteDriveItemable,
+	*custom.DriveItem,
 	int64,
 	*path.Builder,
 ) details.ItemInfo {
@@ -406,7 +406,7 @@ func (h RestoreHandler) NewDrivePager(string, []string) pagers.NonDeltaHandler[m
 func (h *RestoreHandler) AugmentItemInfo(
 	details.ItemInfo,
 	idname.Provider,
-	custom.LiteDriveItemable,
+	*custom.DriveItem,
 	int64,
 	*path.Builder,
 ) details.ItemInfo {

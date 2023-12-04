@@ -567,7 +567,7 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 		fault.AddtlMalwareDesc:   malDesc,
 	}
 
-	assert.Equal(suite.T(), expect, ItemInfo(custom.ToLiteDriveItemable(i)))
+	assert.Equal(suite.T(), expect, ItemInfo(custom.ToCustomDriveItem(i)))
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrFolderExists() {

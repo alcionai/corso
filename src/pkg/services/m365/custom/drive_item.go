@@ -362,13 +362,13 @@ func ToCustomDriveItem(item models.DriveItemable) *DriveItem {
 	return di
 }
 
-func SetParentName(orig itemReferenceable, driveName string) itemReferenceable {
+// TODO(pandeyabs): This could replace `SetParentReference` method.
+func SetParentName(orig *itemReference, driveName string) *itemReference {
 	if orig == nil {
 		return nil
 	}
 
-	pr := orig.(*parentRef)
-	pr.name = driveName
+	orig.name = &driveName
 
-	return pr
+	return orig
 }

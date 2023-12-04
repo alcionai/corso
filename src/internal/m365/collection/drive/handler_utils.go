@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
-func getItemCreator(item custom.LiteDriveItemable) string {
+func getItemCreator(item *custom.DriveItem) string {
 	if item.GetCreatedBy() == nil || item.GetCreatedBy().GetUser() == nil {
 		return ""
 	}
@@ -29,7 +29,7 @@ func getItemCreator(item custom.LiteDriveItemable) string {
 	return *ed.(*string)
 }
 
-func getItemDriveInfo(item custom.LiteDriveItemable) (string, string) {
+func getItemDriveInfo(item *custom.DriveItem) (string, string) {
 	if item.GetParentReference() == nil {
 		return "", ""
 	}

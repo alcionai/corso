@@ -52,7 +52,7 @@ type Collection struct {
 	// represents
 	folderPath path.Path
 	// M365 IDs of file items within this collection
-	driveItems map[string]custom.LiteDriveItemable
+	driveItems map[string]*custom.DriveItem
 
 	// Primary M365 ID of the drive this collection was created from
 	driveID   string
@@ -172,7 +172,7 @@ func newColl(
 		protectedResource:         resource,
 		folderPath:                currPath,
 		prevPath:                  prevPath,
-		driveItems:                map[string]custom.LiteDriveItemable{},
+		driveItems:                map[string]*custom.DriveItem{},
 		driveID:                   driveID,
 		data:                      dataCh,
 		statusUpdater:             statusUpdater,
@@ -190,7 +190,7 @@ func newColl(
 // Adds an itemID to the collection.  This will make it eligible to be
 // populated. The return values denotes if the item was previously
 // present or is new one.
-func (oc *Collection) Add(item custom.LiteDriveItemable) bool {
+func (oc *Collection) Add(item *custom.DriveItem) bool {
 	_, found := oc.driveItems[ptr.Val(item.GetId())]
 	oc.driveItems[ptr.Val(item.GetId())] = item
 
@@ -217,7 +217,7 @@ func (oc *Collection) IsEmpty() bool {
 
 // ContainsItem returns true if the collection has the given item as one of its
 // children.
-func (oc Collection) ContainsItem(item custom.LiteDriveItemable) bool {
+func (oc Collection) ContainsItem(item *custom.DriveItem) bool {
 	_, ok := oc.driveItems[ptr.Val(item.GetId())]
 	return ok
 }
@@ -277,7 +277,7 @@ func (oc Collection) DoNotMergeItems() bool {
 func (oc *Collection) getDriveItemContent(
 	ctx context.Context,
 	driveID string,
-	item custom.LiteDriveItemable,
+	item *custom.DriveItem,
 	errs *fault.Bus,
 ) (io.ReadCloser, error) {
 	var (
@@ -355,7 +355,7 @@ func downloadContent(
 	ctx context.Context,
 	iaag itemAndAPIGetter,
 	uc getItemPropertyer,
-	item custom.LiteDriveItemable,
+	item *custom.DriveItem,
 	driveID string,
 	counter *count.Bus,
 ) (io.ReadCloser, error) {
@@ -389,7 +389,7 @@ func downloadContent(
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	ldi := custom.ToLiteDriveItemable(di)
+	ldi := custom.ToCustomDriveItem(di)
 
 	content, err = downloadItem(ctx, iaag, ldi)
 	if err != nil {
@@ -485,7 +485,7 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 		wg.Add(1)
 
-		go func(item custom.LiteDriveItemable) {
+		go func(item *custom.DriveItem) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
@@ -509,14 +509,14 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 type lazyItemGetter struct {
 	info                 *details.ItemInfo
-	item                 custom.LiteDriveItemable
+	item                 *custom.DriveItem
 	driveID              string
 	suffix               string
 	itemExtensionFactory []extensions.CreateItemExtensioner
 	contentGetter        func(
 		ctx context.Context,
 		driveID string,
-		item custom.LiteDriveItemable,
+		item *custom.DriveItem,
 		errs *fault.Bus) (io.ReadCloser, error)
 }
 
@@ -557,7 +557,7 @@ func (lig *lazyItemGetter) GetData(
 func (oc *Collection) streamDriveItem(
 	ctx context.Context,
 	parentPath *path.Builder,
-	item custom.LiteDriveItemable,
+	item *custom.DriveItem,
 	stats *driveStats,
 	itemExtensionFactory []extensions.CreateItemExtensioner,
 	errs *fault.Bus,

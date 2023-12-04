@@ -43,7 +43,7 @@ func (h baseUserDriveHandler) NewDrivePager(
 func (h baseUserDriveHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	resource idname.Provider,
-	item custom.LiteDriveItemable,
+	item *custom.DriveItem,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {

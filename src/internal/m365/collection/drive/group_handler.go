@@ -105,7 +105,7 @@ func (h groupBackupHandler) SitePathPrefix(tenantID string) (path.Path, error) {
 func (h groupBackupHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	resource idname.Provider,
-	item custom.LiteDriveItemable,
+	item *custom.DriveItem,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {

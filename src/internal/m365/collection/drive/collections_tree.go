@@ -476,7 +476,7 @@ func (c *Collections) addFolderToTree(
 			driveID,
 			folderID,
 			folderName,
-			graph.ItemInfo(custom.ToLiteDriveItemable(folder)))
+			graph.ItemInfo(custom.ToCustomDriveItem(folder)))
 
 		logger.Ctx(ctx).Infow("malware folder detected")
 

@@ -716,7 +716,7 @@ func (c *Collections) handleDelete(
 
 func (c *Collections) getCollectionPath(
 	driveID string,
-	item custom.LiteDriveItemable,
+	item *custom.DriveItem,
 ) (path.Path, error) {
 	var (
 		pb     = odConsts.DriveFolderPrefixBuilder(driveID)
@@ -944,7 +944,7 @@ func (c *Collections) processItem(
 	skipper fault.AddSkipper,
 ) error {
 	var (
-		item     = custom.ToLiteDriveItemable(di)
+		item     = custom.ToCustomDriveItem(di)
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())
 		isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
