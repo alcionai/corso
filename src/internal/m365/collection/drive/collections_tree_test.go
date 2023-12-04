@@ -151,7 +151,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 
 	type expected struct {
 		canUsePrevBackup assert.BoolAssertionFunc
-		collAssertions   collectionAssertions
 		counts           countTD.Expected
 		deltas           map[string]string
 		prevPaths        map[string]map[string]string
@@ -176,12 +175,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 						aPage()))),
 			expect: expected{
 				canUsePrevBackup: assert.False,
-				collAssertions: collectionAssertions{
-					driveFullPath(1): newCollAssertion(
-						doNotMergeItems,
-						statesToItemIDs{data.NotMovedState: {}},
-						id(file)),
-				},
 				counts: countTD.Expected{
 					count.PrevPaths: 0,
 				},
@@ -284,7 +277,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aPage(),
 					))),
 			prevPaths: map[string]string{
-				id(folder): fullPath(id(folder)),
+				id(folder): fullPath(name(folder)),
 			},
 			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
@@ -314,7 +307,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aPage(folderAtRoot(), fileAt(folder)),
 					))),
 			prevPaths: map[string]string{
-				id(folder): fullPath(id(folder)),
+				id(folder): fullPath(name(folder)),
 			},
 			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
@@ -346,7 +339,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aPage(),
 					))),
 			prevPaths: map[string]string{
-				id(folder): fullPath(id(folder)),
+				id(folder): fullPath(name(folder)),
 			},
 			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
@@ -378,7 +371,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aPage(folderAtRoot(), fileAt(folder)),
 					))),
 			prevPaths: map[string]string{
-				id(folder): fullPath(id(folder)),
+				id(folder): fullPath(name(folder)),
 			},
 			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
@@ -413,6 +406,240 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			test.expectErr(t, err, clues.ToCore(err))
 
 			test.expectCounts.Compare(t, c.counter)
+		})
+	}
+}
+
+func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors() {
+	table := []struct {
+		name      string
+		tree      func(t *testing.T) *folderyMcFolderFace
+		prevPaths map[string]string
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "no error - normal usage",
+			tree: treeWithFolders,
+			prevPaths: map[string]string{
+				idx(folder, "parent"): fullPath(namex(folder, "parent")),
+				id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+			},
+			expectErr: require.NoError,
+		},
+		{
+			name:      "no error - prev paths are empty",
+			tree:      treeWithFolders,
+			prevPaths: map[string]string{},
+			expectErr: require.NoError,
+		},
+		{
+			name: "no error - folder not visited in this delta",
+			tree: treeWithFolders,
+			prevPaths: map[string]string{
+				id("santa"): fullPath(name("santa")),
+			},
+			expectErr: require.NoError,
+		},
+		{
+			name: "empty key in previous paths",
+			tree: treeWithFolders,
+			prevPaths: map[string]string{
+				"": fullPath(namex(folder, "parent")),
+			},
+			expectErr: require.Error,
+		},
+		{
+			name: "empty value in previous paths",
+			tree: treeWithFolders,
+			prevPaths: map[string]string{
+				id(folder): "",
+			},
+			expectErr: require.Error,
+		},
+		{
+			name: "malformed value in previous paths",
+			tree: treeWithFolders,
+			prevPaths: map[string]string{
+				id(folder): "not a path",
+			},
+			expectErr: require.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			tree := test.tree(t)
+
+			err := addPrevPathsToTree(
+				ctx,
+				tree,
+				test.prevPaths,
+				fault.New(true))
+			test.expectErr(t, err, clues.ToCore(err))
+		})
+	}
+}
+
+func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections() {
+	type expected struct {
+		err         require.ErrorAssertionFunc
+		prevPaths   map[string]string
+		collections func(t *testing.T) expectedCollections
+	}
+
+	table := []struct {
+		name           string
+		tree           func(t *testing.T) *folderyMcFolderFace
+		prevPaths      map[string]string
+		enableURLCache bool
+		expect         expected
+	}{
+		{
+			name: "all new collections",
+			tree: fullTree,
+			prevPaths: map[string]string{
+				// required for NPE avoidance
+				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone-prev")),
+			},
+			enableURLCache: true,
+			expect: expected{
+				err: require.NoError,
+				prevPaths: map[string]string{
+					rootID:                fullPath(),
+					idx(folder, "parent"): fullPath(namex(folder, "parent")),
+					id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+				},
+				collections: func(t *testing.T) expectedCollections {
+					return expectCollections(
+						false,
+						true,
+						aColl(
+							fullPathPath(t),
+							nil,
+							idx(file, "r")),
+						aColl(
+							fullPathPath(t, namex(folder, "parent")),
+							nil,
+							idx(file, "p")),
+						aColl(
+							fullPathPath(t, namex(folder, "parent"), name(folder)),
+							nil,
+							id(file)),
+						aColl(nil, fullPathPath(t, namex(folder, "tombstone-prev"))))
+				},
+			},
+		},
+		{
+			name:           "all folders moved",
+			tree:           fullTree,
+			enableURLCache: true,
+			prevPaths: map[string]string{
+				rootID:                   fullPath(),
+				idx(folder, "parent"):    fullPath(namex(folder, "parent-prev")),
+				id(folder):               fullPath(namex(folder, "parent-prev"), name(folder)),
+				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone-prev")),
+			},
+			expect: expected{
+				err: require.NoError,
+				prevPaths: map[string]string{
+					rootID:                fullPath(),
+					idx(folder, "parent"): fullPath(namex(folder, "parent")),
+					id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+				},
+				collections: func(t *testing.T) expectedCollections {
+					return expectCollections(
+						false,
+						true,
+						aColl(
+							fullPathPath(t),
+							fullPathPath(t),
+							idx(file, "r")),
+						aColl(
+							fullPathPath(t, namex(folder, "parent")),
+							fullPathPath(t, namex(folder, "parent-prev")),
+							idx(file, "p")),
+						aColl(
+							fullPathPath(t, namex(folder, "parent"), name(folder)),
+							fullPathPath(t, namex(folder, "parent-prev"), name(folder)),
+							id(file)),
+						aColl(nil, fullPathPath(t, namex(folder, "tombstone-prev"))))
+				},
+			},
+		},
+		{
+			name:           "no folders moved",
+			tree:           fullTree,
+			enableURLCache: true,
+			prevPaths: map[string]string{
+				rootID:                   fullPath(),
+				idx(folder, "parent"):    fullPath(namex(folder, "parent")),
+				id(folder):               fullPath(namex(folder, "parent"), name(folder)),
+				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone")),
+			},
+			expect: expected{
+				err: require.NoError,
+				prevPaths: map[string]string{
+					rootID:                fullPath(),
+					idx(folder, "parent"): fullPath(namex(folder, "parent")),
+					id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+				},
+				collections: func(t *testing.T) expectedCollections {
+					return expectCollections(
+						false,
+						true,
+						aColl(
+							fullPathPath(t),
+							fullPathPath(t),
+							idx(file, "r")),
+						aColl(
+							fullPathPath(t, namex(folder, "parent")),
+							fullPathPath(t, namex(folder, "parent")),
+							idx(file, "p")),
+						aColl(
+							fullPathPath(t, namex(folder, "parent"), name(folder)),
+							fullPathPath(t, namex(folder, "parent"), name(folder)),
+							id(file)),
+						aColl(nil, fullPathPath(t, namex(folder, "tombstone"))))
+				},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			tree := test.tree(t)
+
+			err := addPrevPathsToTree(ctx, tree, test.prevPaths, fault.New(true))
+			require.NoError(t, err, clues.ToCore(err))
+
+			c := collWithMBH(mock.DefaultOneDriveBH(user))
+
+			countPages := 9001
+			if test.enableURLCache {
+				countPages = 1
+			}
+
+			colls, newPrevPaths, err := c.turnTreeIntoCollections(
+				ctx,
+				tree,
+				id(drive),
+				delta,
+				countPages,
+				fault.New(true))
+			test.expect.err(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expect.prevPaths, newPrevPaths, "new previous paths")
+
+			expectColls := test.expect.collections(t)
+			expectColls.compare(t, colls)
+			expectColls.requireNoUnseenCollections(t)
 		})
 	}
 }
@@ -989,7 +1216,7 @@ func runPopulateTreeTest(
 		tree    = test.tree(t)
 	)
 
-	_, err := c.populateTree(
+	_, _, err := c.populateTree(
 		ctx,
 		tree,
 		drv,
