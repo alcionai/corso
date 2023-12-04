@@ -450,6 +450,26 @@ func walkTreeAndBuildCollections(
 	return nil
 }
 
+func (face *folderyMcFolderFace) generateExcludeItemIDs() map[string]struct{} {
+	result := map[string]struct{}{}
+
+	for iID, pID := range face.fileIDToParentID {
+		if _, itsAlive := face.folderIDToNode[pID]; !itsAlive {
+			// don't worry about items whose parents are tombstoned.
+			// those will get handled in the delete cascade.
+			continue
+		}
+
+		result[iID] = struct{}{}
+	}
+
+	for iID := range face.deletedFileIDs {
+		result[iID] = struct{}{}
+	}
+
+	return result
+}
+
 // ---------------------------------------------------------------------------
 // quantification
 // ---------------------------------------------------------------------------

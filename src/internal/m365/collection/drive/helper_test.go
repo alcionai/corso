@@ -889,6 +889,13 @@ func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
 	return tree
 }
 
+func treeWithDeletedFile(t *testing.T) *folderyMcFolderFace {
+	tree := treeWithRoot(t)
+	tree.deleteFile(idx(file, "d"))
+
+	return tree
+}
+
 func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithFolders(t)
 	tree.folderIDToNode[id(folder)].files[id(file)] = fileAt(folder)

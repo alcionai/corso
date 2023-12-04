@@ -2,6 +2,7 @@ package drive
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -844,7 +845,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			assert.Equal(t, test.contentSize, countSize.totalBytes, "tree should be sized to test file contents")
 
 			if len(test.oldParentID) > 0 && test.oldParentID != test.parentID {
-				old, := tree.GetNode(test.oldParentID)
+				old := tree.GetNode(test.oldParentID)
 
 				require.NotNil(t, old)
 				assert.NotContains(t, old.files, id(file))
@@ -926,6 +927,58 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 	assert.NotContains(t, tree.fileIDToParentID, fID)
 	assert.Len(t, tree.deletedFileIDs, 1)
 	assert.Contains(t, tree.deletedFileIDs, fID)
+}
+
+func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateExcludeItemIDs() {
+	table := []struct {
+		name   string
+		tree   func(t *testing.T) *folderyMcFolderFace
+		expect map[string]struct{}
+	}{
+		{
+			name:   "no files",
+			tree:   treeWithRoot,
+			expect: map[string]struct{}{},
+		},
+		{
+			name: "one file in a folder",
+			tree: treeWithFileInFolder,
+			expect: map[string]struct{}{
+				id(file): {},
+			},
+		},
+		{
+			name:   "one file in a tombstone",
+			tree:   treeWithFileInTombstone,
+			expect: map[string]struct{}{},
+		},
+		{
+			name: "one deleted file",
+			tree: treeWithDeletedFile,
+			expect: map[string]struct{}{
+				id(file, "d"): {},
+			},
+		},
+		{
+			name: "files in folders and tombstones",
+			tree: fullTree,
+			expect: map[string]struct{}{
+				id(file):       {},
+				idx(file, "r"): {},
+				idx(file, "p"): {},
+				idx(file, "d"): {},
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			tree := test.tree(t)
+
+			result := tree.generateExcludeItemIDs()
+			assert.Equal(t, test.expect, result)
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------

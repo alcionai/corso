@@ -292,11 +292,11 @@ func DeserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
-	ssmb *prefixmatcher.StringSetMatchBuilder,
+	globalExcludeItemIDs *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	if c.ctrl.ToggleFeatures.UseDeltaTree {
-		colls, canUsePrevBackup, err := c.getTree(ctx, prevMetadata, ssmb, errs)
+		colls, canUsePrevBackup, err := c.getTree(ctx, prevMetadata, globalExcludeItemIDs, errs)
 		if err != nil && !errors.Is(err, errGetTreeNotImplemented) {
 			return nil, false, clues.Wrap(err, "processing backup using tree")
 		}
@@ -457,7 +457,7 @@ func (c *Collections) Get(
 				return nil, false, clues.WrapWC(ictx, err, "making exclude prefix")
 			}
 
-			ssmb.Add(p.String(), excludedItemIDs)
+			globalExcludeItemIDs.Add(p.String(), excludedItemIDs)
 
 			continue
 		}
