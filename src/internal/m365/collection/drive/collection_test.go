@@ -233,7 +233,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				true)
 
 			for i := 0; i < test.numInstances; i++ {
-				coll.Add(stubItem)
+				coll.Add(custom.ToLiteDriveItemable(stubItem))
 			}
 
 			// Read items from the collection
@@ -353,7 +353,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 		true,
 		false)
 
-	coll.Add(stubItem)
+	coll.Add(custom.ToLiteDriveItemable(stubItem))
 
 	collItem, ok := <-coll.Items(ctx, fault.New(true))
 	assert.True(t, ok)
@@ -423,7 +423,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
-	coll.Add(stubItem)
+	coll.Add(custom.ToLiteDriveItemable(stubItem))
 
 	collItem, ok := <-coll.Items(ctx, fault.New(true))
 	assert.True(t, ok)
@@ -491,7 +491,7 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 		true,
 		false)
 
-	coll.Add(stubItem)
+	coll.Add(custom.ToLiteDriveItemable(stubItem))
 
 	coll.handler = mbh
 
@@ -1021,7 +1021,7 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 				true,
 				false)
 
-			coll.Add(stubItem)
+			coll.Add(custom.ToLiteDriveItemable(stubItem))
 
 			collItem, ok := <-coll.Items(ctx, fault.New(true))
 			assert.True(t, ok)

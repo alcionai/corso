@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -191,11 +190,9 @@ func newColl(
 // Adds an itemID to the collection.  This will make it eligible to be
 // populated. The return values denotes if the item was previously
 // present or is new one.
-func (oc *Collection) Add(item models.DriveItemable) bool {
-	liteItem := custom.ToLiteDriveItemable(item)
-
-	_, found := oc.driveItems[ptr.Val(liteItem.GetId())]
-	oc.driveItems[ptr.Val(liteItem.GetId())] = liteItem
+func (oc *Collection) Add(item custom.LiteDriveItemable) bool {
+	_, found := oc.driveItems[ptr.Val(item.GetId())]
+	oc.driveItems[ptr.Val(item.GetId())] = item
 
 	// if !found, it's a new addition
 	return !found
@@ -220,7 +217,7 @@ func (oc *Collection) IsEmpty() bool {
 
 // ContainsItem returns true if the collection has the given item as one of its
 // children.
-func (oc Collection) ContainsItem(item models.DriveItemable) bool {
+func (oc Collection) ContainsItem(item custom.LiteDriveItemable) bool {
 	_, ok := oc.driveItems[ptr.Val(item.GetId())]
 	return ok
 }

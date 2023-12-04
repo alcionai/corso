@@ -716,7 +716,7 @@ func (c *Collections) handleDelete(
 
 func (c *Collections) getCollectionPath(
 	driveID string,
-	item models.DriveItemable,
+	item custom.LiteDriveItemable,
 ) (path.Path, error) {
 	var (
 		pb     = odConsts.DriveFolderPrefixBuilder(driveID)
@@ -931,7 +931,7 @@ func (c *Collections) PopulateDriveCollections(
 
 func (c *Collections) processItem(
 	ctx context.Context,
-	item models.DriveItemable,
+	di models.DriveItemable,
 	driveID, driveName string,
 	oldPrevPaths, currPrevPaths, newPrevPaths map[string]string,
 	seenFolders map[string]string,
@@ -944,6 +944,7 @@ func (c *Collections) processItem(
 	skipper fault.AddSkipper,
 ) error {
 	var (
+		item     = custom.ToLiteDriveItemable(di)
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())
 		isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
@@ -956,9 +957,7 @@ func (c *Collections) processItem(
 		"item_is_folder", isFolder)
 
 	if item.GetMalware() != nil {
-		// TODO(pandeyabs): Fix this after we move the ToLiteDriveItemable call
-		// to the beginning of this func.
-		addtl := graph.ItemInfo(custom.ToLiteDriveItemable(item))
+		addtl := graph.ItemInfo(item)
 		skip := fault.FileSkip(fault.SkipMalware, driveID, itemID, itemName, addtl)
 
 		if isFolder {
