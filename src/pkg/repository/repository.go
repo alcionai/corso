@@ -60,6 +60,10 @@ type Repositoryer interface {
 		ctx context.Context,
 		rcOpts ctrlRepo.Retention,
 	) (operations.RetentionConfigOperation, error)
+	NewPersistentConfig(
+		ctx context.Context,
+		configOpts ctrlRepo.PersistentConfig,
+	) (operations.PersistentConfigOperation, error)
 
 	Counter() *count.Bus
 }
@@ -279,6 +283,18 @@ func (r repository) NewRetentionConfig(
 		r.Opts,
 		r.dataLayer,
 		rcOpts,
+		r.Bus)
+}
+
+func (r repository) NewPersistentConfig(
+	ctx context.Context,
+	configOpts ctrlRepo.PersistentConfig,
+) (operations.PersistentConfigOperation, error) {
+	return operations.NewPersistentConfigOperation(
+		ctx,
+		r.Opts,
+		r.dataLayer,
+		configOpts,
 		r.Bus)
 }
 
