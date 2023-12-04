@@ -4,12 +4,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const DataMessages = "messages"
+const (
+	DataMessages      = "messages"
+	DataConversations = "conversations"
+)
 
 const (
-	ChannelFN = "channel"
-	GroupFN   = "group"
-	MessageFN = "message"
+	ChannelFN      = "channel"
+	ConversationFN = "conversation"
+	GroupFN        = "group"
+	MessageFN      = "message"
+	PostFN         = "post"
 
 	MessageCreatedAfterFN    = "message-created-after"
 	MessageCreatedBeforeFN   = "message-created-before"
@@ -18,9 +23,11 @@ const (
 )
 
 var (
-	ChannelFV []string
-	GroupFV   []string
-	MessageFV []string
+	ChannelFV      []string
+	ConversationFV []string
+	GroupFV        []string
+	MessageFV      []string
+	PostFV         []string
 
 	MessageCreatedAfterFV    string
 	MessageCreatedBeforeFV   string
@@ -60,14 +67,24 @@ func AddGroupDetailsAndRestoreFlags(cmd *cobra.Command) {
 		&MessageLastReplyBeforeFV,
 		MessageLastReplyBeforeFN, "",
 		"Select messages with replies before this datetime.")
+
+	fs.StringSliceVar(
+		&ConversationFV,
+		ConversationFN, nil,
+		"Select data within a Group's Conversation.")
+
+	fs.StringSliceVar(
+		&PostFV,
+		PostFN, nil,
+		"Select Conversation Posts by reference.")
 }
 
-// AddGroupFlag adds the --group flag, which accepts id or name values.
-// TODO: need to decide what the appropriate "name" to accept here is.
-// keepers thinks its either DisplayName or MailNickname or Mail
-// Mail is most accurate, MailNickame is accurate and shorter, but the end user
-// may not see either one visibly.
-// https://learn.microsoft.com/en-us/graph/api/group-list?view=graph-rest-1.0&tabs=http
+// AddGroupFlag adds the --group flag, which accepts either the id,
+// the display name, or the mailbox address as its values.  Users are
+// expected to supply the display name.  The ID is supported becase, well,
+// IDs.  The mailbox address is supported as a lookup fallback for certain
+// SDK cases, therefore it's also supported here, though that support
+// isn't exposed to end users.
 func AddGroupFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSliceVar(
 		&GroupFV,

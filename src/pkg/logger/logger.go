@@ -491,6 +491,7 @@ func CtxStack(ctx context.Context, skip int) *zap.SugaredLogger {
 // CtxErr retrieves the logger embedded in the context
 // and packs all of the structured data in the error inside it.
 func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
+	// TODO(keepers): only log the err values, not the ctx.
 	return Ctx(ctx).
 		With(
 			"error", err,

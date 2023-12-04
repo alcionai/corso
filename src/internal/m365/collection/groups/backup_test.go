@@ -37,11 +37,10 @@ import (
 // mocks
 // ---------------------------------------------------------------------------
 
-var _ backupHandler = &mockBackupHandler{}
+var _ backupHandler[models.Channelable, models.ChatMessageable] = &mockBackupHandler{}
 
 type mockBackupHandler struct {
 	channels      []models.Channelable
-	channelsErr   error
 	messageIDs    []string
 	deletedMsgIDs []string
 	messagesErr   error
@@ -51,13 +50,32 @@ type mockBackupHandler struct {
 	doNotInclude  bool
 }
 
-func (bh mockBackupHandler) getContainers(context.Context) ([]models.Channelable, error) {
-	return bh.channels, bh.channelsErr
+func (bh mockBackupHandler) canMakeDeltaQueries() bool {
+	return true
+}
+
+func (bh mockBackupHandler) containers() []container[models.Channelable] {
+	containers := make([]container[models.Channelable], 0, len(bh.channels))
+
+	for _, ch := range bh.channels {
+		containers = append(containers, channelContainer(ch))
+	}
+
+	return containers
+}
+
+//lint:ignore U1000 required for interface compliance
+func (bh mockBackupHandler) getContainers(
+	context.Context,
+	api.CallConfig,
+) ([]container[models.Channelable], error) {
+	return bh.containers(), nil
 }
 
 func (bh mockBackupHandler) getContainerItemIDs(
 	_ context.Context,
-	_, _ string,
+	_ path.Elements,
+	_ string,
 	_ api.CallConfig,
 ) (pagers.AddedAndRemoved, error) {
 	idRes := make(map[string]time.Time, len(bh.messageIDs))
@@ -76,9 +94,8 @@ func (bh mockBackupHandler) getContainerItemIDs(
 	return aar, bh.messagesErr
 }
 
+//lint:ignore U1000 required for interface compliance
 func (bh mockBackupHandler) includeContainer(
-	context.Context,
-	graph.QueryParams,
 	models.Channelable,
 	selectors.GroupsScope,
 ) bool {
@@ -86,10 +103,11 @@ func (bh mockBackupHandler) includeContainer(
 }
 
 func (bh mockBackupHandler) canonicalPath(
-	folders *path.Builder,
+	storageDirFolders path.Elements,
 	tenantID string,
 ) (path.Path, error) {
-	return folders.
+	return storageDirFolders.
+		Builder().
 		ToDataLayerPath(
 			tenantID,
 			"protectedResource",
@@ -98,9 +116,11 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh mockBackupHandler) GetItemByID(
+func (bh mockBackupHandler) GetItem(
 	_ context.Context,
-	_, _, itemID string,
+	_ string,
+	_ path.Elements,
+	itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	return bh.messages[itemID], bh.info[itemID], bh.getMessageErr[itemID]
 }
@@ -242,7 +262,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 				qp,
 				test.mock,
 				statusUpdater,
-				test.mock.channels,
+				test.mock.containers(),
 				selectors.NewGroupsBackup(nil).Channels(selectors.Any())[0],
 				nil,
 				ctrlOpts,
@@ -402,7 +422,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_incremental() {
 				qp,
 				test.mock,
 				statusUpdater,
-				test.mock.channels,
+				test.mock.containers(),
 				allScope,
 				test.deltaPaths,
 				ctrlOpts,

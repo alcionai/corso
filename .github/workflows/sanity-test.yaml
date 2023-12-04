@@ -196,6 +196,7 @@ jobs:
           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
       - name: Exchange - Incremental backup
         timeout-minutes: 30
@@ -209,6 +210,7 @@ jobs:
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
           log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
       - name: Exchange - Non delta backup
         timeout-minutes: 30
@@ -222,6 +224,7 @@ jobs:
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
           log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
       - name: Exchange - Incremental backup after non-delta
         timeout-minutes: 30
@@ -235,6 +238,7 @@ jobs:
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
           backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
           log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
 
 ##########################################################################################################################################
@@ -391,7 +395,7 @@ jobs:
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
 
-      # generate some more enteries for incremental check
+      # generate some more entries for incremental check
       - name: Groups - Create new data (for incremental)
         timeout-minutes: 30
         working-directory: ./src/cmd/factory
@@ -431,9 +435,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Notify failure in slack
+      - name: Notify failure in teams
         if: failure()
         uses: ./.github/actions/teams-message
         with:
           msg: "[FAILED] Sanity Tests"
-          teams_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

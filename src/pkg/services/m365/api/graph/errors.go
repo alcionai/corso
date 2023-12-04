@@ -30,9 +30,12 @@ type errorCode string
 
 const (
 	applicationThrottled errorCode = "ApplicationThrottled"
-	// this auth error is a catch-all used by graph in a variety of cases:
+	// this authN error is a catch-all used by graph in a variety of cases:
 	// users without licenses, bad jwts, missing account permissions, etc.
 	AuthenticationError errorCode = "AuthenticationError"
+	// on the other hand, authZ errors apply specifically to authenticated,
+	// but unauthorized, user requests
+	AuthorizationRequestDenied errorCode = "Authorization_RequestDenied"
 	// cannotOpenFileAttachment happen when an attachment is
 	// inaccessible. The error message is usually "OLE conversion
 	// failed for an attachment."
@@ -135,6 +138,10 @@ func IsErrApplicationThrottled(err error) bool {
 
 func IsErrAuthenticationError(err error) bool {
 	return hasErrorCode(err, AuthenticationError)
+}
+
+func IsErrInsufficientAuthorization(err error) bool {
+	return hasErrorCode(err, AuthorizationRequestDenied)
 }
 
 func IsErrDeletedInFlight(err error) bool {
