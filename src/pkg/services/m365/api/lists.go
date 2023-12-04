@@ -131,6 +131,7 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 // data. Additional call append data to the tracked items, and do not create additional collections.
 // Additional Call:
 // * Fields
+// [TODO: Hitesh] Implement pager for list items
 func (c Lists) getListItems(ctx context.Context, siteID, listID string) ([]models.ListItemable, error) {
 	var (
 		prefix = c.Stable.
@@ -177,6 +178,7 @@ func (c Lists) getListItems(ctx context.Context, siteID, listID string) ([]model
 // An additional call required to check for details concerning the SourceColumn.
 // For additional details:  https://learn.microsoft.com/en-us/graph/api/resources/columndefinition?view=graph-rest-1.0
 // TODO: Refactor on if/else (dadams39)
+// [TODO: Hitesh] Implement pager for list columns
 func (c Lists) getColumns(ctx context.Context, siteID, listID, cTypeID string) ([]models.ColumnDefinitionable, error) {
 	cs := make([]models.ColumnDefinitionable, 0)
 
@@ -234,6 +236,7 @@ func (c Lists) getColumns(ctx context.Context, siteID, listID, cTypeID string) (
 // - Columns
 // Expand queries not used to retrieve the above. Possibly more than 20.
 // Known Limitations: https://learn.microsoft.com/en-us/graph/known-issues#query-parameters
+// [TODO: Hitesh] Implement pager for list content types
 func (c Lists) getContentTypes(ctx context.Context, siteID, listID string) ([]models.ContentTypeable, error) {
 	var (
 		cTypes  = make([]models.ContentTypeable, 0)
@@ -283,6 +286,7 @@ func (c Lists) getContentTypes(ctx context.Context, siteID, listID string) ([]mo
 	return cTypes, nil
 }
 
+// [TODO: Hitesh] Implement pager for column links
 func (c Lists) getColumnLinks(ctx context.Context,
 	siteID, listID, cTypeID string,
 ) ([]models.ColumnLinkable, error) {
