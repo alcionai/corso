@@ -647,7 +647,6 @@ func (w *conn) getPersistentConfig(
 
 	formatManager := directRepo.FormatManager()
 
-	// Get currently config structs.
 	mutableParams, err := formatManager.GetMutableParameters()
 	if err != nil {
 		return format.MutableParameters{},
@@ -671,7 +670,7 @@ func (w *conn) updatePersistentConfig(
 ) error {
 	directRepo, ok := w.Repository.(repo.DirectRepository)
 	if !ok {
-		return clues.NewWC(ctx, "getting handle to repo")
+		return clues.NewWC(ctx, "getting repo handle")
 	}
 
 	formatManager := directRepo.FormatManager()

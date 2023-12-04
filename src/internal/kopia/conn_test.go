@@ -602,8 +602,8 @@ func (suite *WrapperIntegrationSuite) TestUpdatePersistentConfig() {
 			err = connection.updatePersistentConfig(ctx, opts)
 			test.expectErr(t, err, clues.ToCore(err))
 
-			// TODO(ashmrtn): Check values prior to closing kopia. There's currently a
-			// bug in kopia where stale params can be returned.
+			// Need to close and reopen the repo since the format manager will cache
+			// the old value for some amount of time.
 			err = connection.Close(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
