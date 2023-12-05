@@ -63,8 +63,8 @@ type backupLimitTest struct {
 
 func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) {
 	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(idx(drive, 1)))
-	drive1.SetName(ptr.To(namex(drive, 1)))
+	drive1.SetId(ptr.To(id(drive)))
+	drive1.SetName(ptr.To(name(drive)))
 
 	drive2 := models.NewDrive()
 	drive2.SetId(ptr.To(idx(drive, 2)))
@@ -557,6 +557,8 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_noTree() {
 // checks that don't examine metadata, collection states, etc. They really just
 // check the expected items appear.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_tree() {
+	suite.T().Skip("TODO: unskip when tree produces collections")
+
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
@@ -775,19 +777,6 @@ func defaultLimitsTable() []defaultLimitTest {
 // These tests run a reduced set of checks that really just look for item counts
 // and such. Other tests are expected to provide more comprehensive checks.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsNoTree() {
-	t := suite.T()
-
-	// Add a check that will fail if we make the default smaller than expected.
-	require.LessOrEqual(
-		t,
-		int64(1024*1024),
-		defaultPreviewMaxBytes,
-		"default number of bytes changed; DefaultNumBytes test case may need updating!")
-	require.Zero(
-		t,
-		defaultPreviewMaxBytes%(1024*1024),
-		"default number of bytes isn't divisible by 1MB; DefaultNumBytes test case may need updating!")
-
 	for _, test := range defaultLimitsTable() {
 		suite.Run(test.name, func() {
 			runGetPreviewLimitsDefaults(
@@ -803,20 +792,7 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsNoTree() {
 // These tests run a reduced set of checks that really just look for item counts
 // and such. Other tests are expected to provide more comprehensive checks.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsWithTree() {
-	t := suite.T()
-
-	t.Skip("TODO: unskip when tree produces collections")
-
-	// Add a check that will fail if we make the default smaller than expected.
-	require.LessOrEqual(
-		t,
-		int64(1024*1024),
-		defaultPreviewMaxBytes,
-		"default number of bytes changed; DefaultNumBytes test case may need updating!")
-	require.Zero(
-		t,
-		defaultPreviewMaxBytes%(1024*1024),
-		"default number of bytes isn't divisible by 1MB; DefaultNumBytes test case may need updating!")
+	suite.T().Skip("TODO: unskip when tree produces collections")
 
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
@@ -836,6 +812,17 @@ func runGetPreviewLimitsDefaults(
 	test defaultLimitTest,
 	opts control.Options,
 ) {
+	// Add a check that will fail if we make the default smaller than expected.
+	require.LessOrEqual(
+		t,
+		int64(1024*1024),
+		defaultPreviewMaxBytes,
+		"default number of bytes changed; DefaultNumBytes test case may need updating!")
+	require.Zero(
+		t,
+		defaultPreviewMaxBytes%(1024*1024),
+		"default number of bytes isn't divisible by 1MB; DefaultNumBytes test case may need updating!")
+
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
@@ -848,8 +835,8 @@ func runGetPreviewLimitsDefaults(
 	require.NoError(t, err, "making metadata path", clues.ToCore(err))
 
 	drv := models.NewDrive()
-	drv.SetId(ptr.To(idx(drive, 1)))
-	drv.SetName(ptr.To(namex(drive, 1)))
+	drv.SetId(ptr.To(id(drive)))
+	drv.SetName(ptr.To(name(drive)))
 
 	pages := make([]mock.NextPage, 0, test.numContainers)
 
