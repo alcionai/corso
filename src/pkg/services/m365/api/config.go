@@ -117,7 +117,6 @@ func DefaultDriveItemProps() []string {
 		"package",
 		"parentReference",
 		"root",
-		"sharepointIds",
 		"size",
 		"deleted",
 		"malware",

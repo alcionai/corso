@@ -112,6 +112,7 @@ func coreItem(
 
 	switch it {
 	case isFile:
+		item.SetSize(ptr.To[int64](defaultItemSize))
 		item.SetFile(models.NewFile())
 	case isFolder:
 		item.SetFolder(models.NewFolder())
@@ -1719,7 +1720,7 @@ func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
 	c.ctrl = opts
 
 	_, _, err := c.Get(ctx, nil, nil, fault.New(true))
-	require.ErrorContains(t, err, "not yet implemented", clues.ToCore(err))
+	require.ErrorContains(t, err, "not implemented", clues.ToCore(err))
 }
 
 func (suite *CollectionsUnitSuite) TestGet() {
