@@ -202,12 +202,12 @@ func (suite *SharePointCollectionSuite) TestCollection_streamItems() {
 	table := []struct {
 		name     string
 		category path.CategoryType
-		jobs     []string
+		items    []string
 		getDir   func(t *testing.T) path.Path
 	}{
 		{
-			name:     "no jobs",
-			jobs:     []string{},
+			name:     "no items",
+			items:    []string{},
 			category: path.ListsCategory,
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
@@ -223,8 +223,8 @@ func (suite *SharePointCollectionSuite) TestCollection_streamItems() {
 			},
 		},
 		{
-			name:     "with jobs",
-			jobs:     []string{"list1", "list2", "list3"},
+			name:     "with items",
+			items:    []string{"list1", "list2", "list3"},
 			category: path.ListsCategory,
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
@@ -255,30 +255,30 @@ func (suite *SharePointCollectionSuite) TestCollection_streamItems() {
 			col := &Collection{
 				fullPath:      test.getDir(t),
 				category:      test.category,
-				jobs:          test.jobs,
+				items:         test.items,
 				getter:        mock.GetList{},
 				stream:        make(chan data.Item),
 				statusUpdater: statusUpdater,
 			}
 
-			jobMap := func(js []string) map[string]struct{} {
+			itemMap := func(js []string) map[string]struct{} {
 				m := make(map[string]struct{})
 				for _, j := range js {
 					m[j] = struct{}{}
 				}
 				return m
-			}(test.jobs)
+			}(test.items)
 
 			go col.streamItems(ctx, errs)
 
 			for item := range col.stream {
 				itemCount++
-				_, ok := jobMap[item.ID()]
+				_, ok := itemMap[item.ID()]
 				assert.True(t, ok, "should fetch item")
 			}
 
 			assert.NoError(t, errs.Failure())
-			assert.Equal(t, len(test.jobs), itemCount, "should see all expected items")
+			assert.Equal(t, len(test.items), itemCount, "should see all expected items")
 		})
 	}
 }

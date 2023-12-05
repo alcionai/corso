@@ -333,7 +333,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 
 			// we don't know an exact count of drives this will produce,
 			// but it should be more than zero.
-			assert.Less(t, 0, len(collections))
+			assert.NotEmpty(t, collections)
 
 			for _, coll := range collections {
 				for object := range coll.Items(ctx, fault.New(true)) {
@@ -468,8 +468,8 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	assert.True(t, excludes.Empty())
 
 	for _, collection := range cols {
-		assert.Equal(t, path.SharePointService.String(), collection.FullPath().Service().String())
-		assert.Equal(t, path.ListsCategory.String(), collection.FullPath().Category().String())
+		assert.Equal(t, path.SharePointService, collection.FullPath().Service())
+		assert.Equal(t, path.ListsCategory, collection.FullPath().Category())
 
 		for item := range collection.Items(ctx, fault.New(true)) {
 			t.Log("File: " + item.ID())
