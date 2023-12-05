@@ -35,4 +35,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           rudderstack_write_key: ${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}
           rudderstack_data_plane_url: ${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}
-          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify failure in teams
+        if: failure()
+        uses: ./.github/actions/teams-message
+        with:
+          msg: "[FAILED] Publishing Binary"
+          teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

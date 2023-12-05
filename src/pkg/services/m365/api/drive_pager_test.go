@@ -273,7 +273,6 @@ func (suite *DrivePagerIntgSuite) TestDriveDeltaPagerQueryParams() {
 					"package",
 					"parentReference",
 					"root",
-					"sharepointIds",
 					"size",
 					"deleted",
 					"malware",

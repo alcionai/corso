@@ -125,6 +125,20 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes")
 			}
 
+			if bytes == nil {
+				// Some attachments have an "item" field instead of
+				// "contentBytes". There are items like contacts, emails
+				// or calendar events which will not be a normal format
+				// and will have to be converted to a text format.
+				// TODO(meain): Handle custom attachments
+				// https://github.com/alcionai/corso/issues/4772
+				logger.Ctx(ctx).
+					With("attachment_id", ptr.Val(attachment.GetId())).
+					Info("unhandled attachment type")
+
+				continue
+			}
+
 			bts, ok := bytes.([]byte)
 			if !ok {
 				return "", clues.WrapWC(ctx, err, "invalid content bytes")
@@ -139,8 +153,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		}
 	}
 
-	if email.GetError() != nil {
-		return "", clues.WrapWC(ctx, email.Error, "converting to eml")
+	if err = email.GetError(); err != nil {
+		return "", clues.WrapWC(ctx, err, "converting to eml")
 	}
 
 	return email.GetMessage(), nil

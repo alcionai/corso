@@ -335,14 +335,9 @@ func (oc *Collection) getDriveItemContent(
 			return nil, clues.Wrap(err, "inaccesible oneNote item").Label(graph.LabelsSkippable)
 		}
 
-		errs.AddRecoverable(
-			ctx,
-			clues.WrapWC(ctx, err, "downloading item content").
-				Label(fault.LabelForceNoBackupCreation))
-
 		// return err, not el.Err(), because the lazy reader needs to communicate to
 		// the data consumer that this item is unreadable, regardless of the fault state.
-		return nil, clues.Wrap(err, "fetching item content")
+		return nil, clues.Wrap(err, "downloading item content")
 	}
 
 	return itemData, nil
@@ -384,11 +379,10 @@ func downloadContent(
 		return content, nil
 	}
 
-	// Consider cache errors(including deleted items) as cache misses. This is
-	// to preserve existing behavior. Fallback to refetching the item using the
-	// API.
-	logger.CtxErr(ctx, err).Info("url cache miss: refetching from API")
-	counter.Inc(count.ItemDownloadURLRefetch)
+	// Consider cache errors(including deleted items) as cache misses.
+	// Fallback to refetching the item using the graph API.
+	logger.CtxErr(ctx, err).Debug("url cache miss: refetching from API")
+	counter.Inc(count.URLCacheMiss)
 
 	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
@@ -428,7 +422,7 @@ func readItemContents(
 
 	rc, err := downloadFile(ctx, iaag, props.downloadURL)
 	if graph.IsErrUnauthorizedOrBadToken(err) {
-		logger.CtxErr(ctx, err).Info("stale item in cache")
+		logger.CtxErr(ctx, err).Debug("stale item in cache")
 	}
 
 	if err != nil {
