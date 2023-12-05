@@ -9,6 +9,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/repo/blob"
+	"github.com/kopia/kopia/repo/format"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/stretchr/testify/assert"
@@ -473,6 +474,153 @@ func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
 
 	err = k.Close(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *WrapperIntegrationSuite) TestUpdatePersistentConfig() {
+	table := []struct {
+		name string
+		opts func(
+			startParams format.MutableParameters,
+			startBlobConfig format.BlobStorageConfiguration,
+		) repository.PersistentConfig
+		expectErr    assert.ErrorAssertionFunc
+		expectConfig func(
+			startParams format.MutableParameters,
+			startBlobConfig format.BlobStorageConfiguration,
+		) (format.MutableParameters, format.BlobStorageConfiguration)
+	}{
+		{
+			name: "NoOptionsSet NoChange",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{}
+			},
+			expectErr: assert.NoError,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				return startParams, startBlobConfig
+			},
+		},
+		{
+			name: "NoValueChange NoChange",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{
+					MinEpochDuration: ptr.To(startParams.EpochParameters.MinEpochDuration),
+				}
+			},
+			expectErr: assert.NoError,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				return startParams, startBlobConfig
+			},
+		},
+		{
+			name: "MinEpochLessThanLowerBound Errors",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{
+					MinEpochDuration: ptr.To(minEpochDurationLowerBound - time.Second),
+				}
+			},
+			expectErr: assert.Error,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				return startParams, startBlobConfig
+			},
+		},
+		{
+			name: "MinEpochGreaterThanUpperBound Errors",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{
+					MinEpochDuration: ptr.To(minEpochDurationUpperBound + time.Second),
+				}
+			},
+			expectErr: assert.Error,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				return startParams, startBlobConfig
+			},
+		},
+		{
+			name: "UpdateMinEpoch Succeeds",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{
+					MinEpochDuration: ptr.To(minEpochDurationLowerBound),
+				}
+			},
+			expectErr: assert.NoError,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				startParams.EpochParameters.MinEpochDuration = minEpochDurationLowerBound
+				return startParams, startBlobConfig
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			repoNameHash := strTD.NewHashForRepoConfigName()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			st1 := storeTD.NewPrefixedS3Storage(t)
+
+			connection := NewConn(st1)
+			err := connection.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
+			require.NoError(t, err, "initializing repo: %v", clues.ToCore(err))
+
+			startParams, startBlobConfig, err := connection.getPersistentConfig(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			opts := test.opts(startParams, startBlobConfig)
+
+			err = connection.updatePersistentConfig(ctx, opts)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			// Need to close and reopen the repo since the format manager will cache
+			// the old value for some amount of time.
+			err = connection.Close(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			// Open another connection to the repo to verify params are as expected
+			// across repo connect calls.
+			err = connection.Connect(ctx, repository.Options{}, repoNameHash)
+			require.NoError(t, err, clues.ToCore(err))
+
+			gotParams, gotBlobConfig, err := connection.getPersistentConfig(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			expectParams, expectBlobConfig := test.expectConfig(startParams, startBlobConfig)
+
+			assert.Equal(t, expectParams, gotParams)
+			assert.Equal(t, expectBlobConfig, gotBlobConfig)
+		})
+	}
 }
 
 // ---------------

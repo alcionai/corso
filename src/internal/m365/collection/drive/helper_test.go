@@ -14,6 +14,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
+const defaultItemSize int64 = 42
+
 // TODO(ashmrtn): Merge with similar structs in graph and exchange packages.
 type oneDriveService struct {
 	credentials account.M365Config
