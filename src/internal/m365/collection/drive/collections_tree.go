@@ -577,7 +577,7 @@ func (c *Collections) addFileToTree(
 			driveID,
 			fileID,
 			fileName,
-			graph.ItemInfo(file))
+			graph.ItemInfo(custom.ToCustomDriveItem(file)))
 
 		logger.Ctx(ctx).Infow("malware file detected")
 
