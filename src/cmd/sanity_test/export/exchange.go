@@ -36,12 +36,10 @@ func CheckEmailExport(
 		expect *common.Sanitree[models.MailFolderable, any],
 		result *common.Sanitree[fs.FileInfo, fs.FileInfo],
 	) {
-		modifiedExpectedLeaves := map[string]*common.Sanileaf[models.MailFolderable, any]{}
 		modifiedResultLeaves := map[string]*common.Sanileaf[fs.FileInfo, fs.FileInfo]{}
 
-		for key, val := range expect.Leaves {
+		for _, val := range expect.Leaves {
 			val.Size = 0 // we cannot match up sizes
-			modifiedExpectedLeaves[key] = val
 		}
 
 		for key, val := range result.Leaves {
