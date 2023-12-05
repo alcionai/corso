@@ -160,6 +160,29 @@ func (suite *driveItemUnitSuite) TestToLiteDriveItemable() {
 				assert.Equal(t, ptr.Val(got.GetId()), ptr.Val(expected.GetId()))
 			},
 		},
+		// Unlikely but possible that an item is both a folder and a package.
+		{
+			name: "Folder as well as Package",
+			itemFunc: func() models.DriveItemable {
+				di := models.NewDriveItem()
+
+				di.SetId(&id)
+				di.SetPackageEscaped(models.NewPackageEscaped())
+				di.SetFolder(models.NewFolder())
+
+				return di
+			},
+			validateFunc: func(
+				t *testing.T,
+				expected models.DriveItemable,
+				got *DriveItem,
+			) {
+				require.NotNil(t, got.GetPackageEscaped())
+				require.NotNil(t, got.GetFolder())
+				require.Nil(t, got.GetFile())
+				assert.Equal(t, ptr.Val(got.GetId()), ptr.Val(expected.GetId()))
+			},
+		},
 		{
 			name: "File item",
 			itemFunc: func() models.DriveItemable {
@@ -173,8 +196,8 @@ func (suite *driveItemUnitSuite) TestToLiteDriveItemable() {
 				// Intentionally set different URLs for the two keys to test
 				// for correctness. It's unlikely that a) both will be set,
 				// b) URLs will be different, but it's not the responsibility
-				// of function being tested here, which is simply copying over key, val
-				// pairs useful to callers.
+				// of the function being tested here, which is simply copying over
+				// kv pairs useful to callers.
 				di.SetAdditionalData(map[string]interface{}{
 					"@microsoft.graph.downloadUrl": "downloadURL",
 					"@content.downloadUrl":         "contentURL",
@@ -212,23 +235,22 @@ func (suite *driveItemUnitSuite) TestToLiteDriveItemable() {
 					urlGot,
 					urlExpected)
 
-				contentExpected, err := str.AnyValueToString(
+				contentURLExpected, err := str.AnyValueToString(
 					"@content.downloadUrl",
 					expected.GetAdditionalData())
 				require.NoError(t, err)
 
-				contentGot, err := str.AnyValueToString(
+				contentURLGot, err := str.AnyValueToString(
 					"@content.downloadUrl",
 					got.GetAdditionalData())
 				require.NoError(t, err)
 
 				assert.Equal(
 					t,
-					contentGot,
-					contentExpected)
+					contentURLGot,
+					contentURLExpected)
 			},
 		},
-
 		{
 			name: "Shared item",
 			itemFunc: func() models.DriveItemable {
@@ -318,7 +340,7 @@ func (suite *driveItemUnitSuite) TestToLiteDriveItemable() {
 			},
 		},
 		{
-			name: "Parent reference",
+			name: "Get parent reference",
 			itemFunc: func() models.DriveItemable {
 				parentID := "parentID"
 				parentPath := "/parentPath"
@@ -363,14 +385,41 @@ func (suite *driveItemUnitSuite) TestToLiteDriveItemable() {
 			},
 		},
 		{
+			name: "Get parent reference with nil fields",
+			itemFunc: func() models.DriveItemable {
+				parentRef := models.NewItemReference()
+
+				di := models.NewDriveItem()
+
+				di.SetId(&id)
+				di.SetParentReference(parentRef)
+
+				return di
+			},
+			validateFunc: func(
+				t *testing.T,
+				expected models.DriveItemable,
+				got *DriveItem,
+			) {
+				require.NotNil(t, got.GetParentReference())
+				require.Nil(t, got.GetParentReference().GetId())
+				require.Nil(t, got.GetParentReference().GetPath())
+				require.Nil(t, got.GetParentReference().GetName())
+				require.Nil(t, got.GetParentReference().GetDriveId())
+			},
+		},
+		{
 			name: "Created by",
 			itemFunc: func() models.DriveItemable {
+				email := "email@user"
+				displayName := "username"
+
 				createdBy := models.NewIdentitySet()
 
 				createdBy.SetUser(models.NewUser())
 				createdBy.GetUser().SetAdditionalData(map[string]interface{}{
-					"email":       "email@user",
-					"displayName": "username",
+					"email":       &email,
+					"displayName": &displayName,
 				})
 
 				di := models.NewDriveItem()
@@ -410,6 +459,26 @@ func (suite *driveItemUnitSuite) TestToLiteDriveItemable() {
 				require.NoError(t, err)
 
 				assert.Equal(t, displayNameGot, displayNameExpected)
+			},
+		},
+		{
+			name: "Created by with nil fields",
+			itemFunc: func() models.DriveItemable {
+				createdBy := models.NewIdentitySet()
+				di := models.NewDriveItem()
+
+				di.SetId(&id)
+				di.SetCreatedBy(createdBy)
+
+				return di
+			},
+			validateFunc: func(
+				t *testing.T,
+				expected models.DriveItemable,
+				got *DriveItem,
+			) {
+				require.NotNil(t, got.GetCreatedBy())
+				require.Nil(t, got.GetCreatedBy().GetUser())
 			},
 		},
 		{

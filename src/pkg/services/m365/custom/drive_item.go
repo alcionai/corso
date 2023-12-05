@@ -208,28 +208,28 @@ func ToCustomDriveItem(item models.DriveItemable) *DriveItem {
 	di := &DriveItem{}
 
 	if item.GetId() != nil {
-		s := strings.Clone(ptr.Val(item.GetId()))
-		di.id = &s
+		itemID := strings.Clone(ptr.Val(item.GetId()))
+		di.id = &itemID
 	}
 
 	if item.GetName() != nil {
-		s := strings.Clone(ptr.Val(item.GetName()))
-		di.name = &s
+		itemName := strings.Clone(ptr.Val(item.GetName()))
+		di.name = &itemName
 	}
 
 	if item.GetSize() != nil {
-		i := ptr.Val(item.GetSize())
-		di.size = &i
+		itemSize := ptr.Val(item.GetSize())
+		di.size = &itemSize
 	}
 
 	if item.GetCreatedDateTime() != nil {
-		t := ptr.Val(item.GetCreatedDateTime())
-		di.createdDateTime = &t
+		createdTime := ptr.Val(item.GetCreatedDateTime())
+		di.createdDateTime = &createdTime
 	}
 
 	if item.GetLastModifiedDateTime() != nil {
-		t := ptr.Val(item.GetLastModifiedDateTime())
-		di.lastModifiedDateTime = &t
+		lastModifiedTime := ptr.Val(item.GetLastModifiedDateTime())
+		di.lastModifiedDateTime = &lastModifiedTime
 	}
 
 	if item.GetFolder() != nil {
@@ -263,29 +263,29 @@ func ToCustomDriveItem(item models.DriveItemable) *DriveItem {
 	}
 
 	if item.GetParentReference() != nil {
-		ir := &itemReference{}
+		iRef := &itemReference{}
 
 		if item.GetParentReference().GetId() != nil {
 			parentID := strings.Clone(ptr.Val(item.GetParentReference().GetId()))
-			ir.id = &parentID
+			iRef.id = &parentID
 		}
 
 		if item.GetParentReference().GetPath() != nil {
 			parentPath := strings.Clone(ptr.Val(item.GetParentReference().GetPath()))
-			ir.path = &parentPath
+			iRef.path = &parentPath
 		}
 
 		if item.GetParentReference().GetName() != nil {
 			parentName := strings.Clone(ptr.Val(item.GetParentReference().GetName()))
-			ir.name = &parentName
+			iRef.name = &parentName
 		}
 
 		if item.GetParentReference().GetDriveId() != nil {
 			parentDriveID := strings.Clone(ptr.Val(item.GetParentReference().GetDriveId()))
-			ir.driveID = &parentDriveID
+			iRef.driveID = &parentDriveID
 		}
 
-		di.parentRef = ir
+		di.parentRef = iRef
 	}
 
 	if item.GetShared() != nil {
@@ -300,25 +300,29 @@ func ToCustomDriveItem(item models.DriveItemable) *DriveItem {
 		di.root = &struct{}{}
 	}
 
-	if item.GetCreatedBy() != nil && item.GetCreatedBy().GetUser() != nil {
-		additionalData := item.GetCreatedBy().GetUser().GetAdditionalData()
-		ad := make(map[string]any)
+	if item.GetCreatedBy() != nil {
+		createdBy := &identitySet{}
 
-		if v, err := str.AnyValueToString("email", additionalData); err == nil {
-			email := strings.Clone(v)
-			ad["email"] = &email
-		}
+		if item.GetCreatedBy().GetUser() != nil {
+			additionalData := item.GetCreatedBy().GetUser().GetAdditionalData()
+			ad := make(map[string]any)
 
-		if v, err := str.AnyValueToString("displayName", additionalData); err == nil {
-			displayName := strings.Clone(v)
-			ad["displayName"] = &displayName
-		}
+			if v, err := str.AnyValueToString("email", additionalData); err == nil {
+				email := strings.Clone(v)
+				ad["email"] = &email
+			}
 
-		di.createdBy = &identitySet{
-			identity: &identity{
+			if v, err := str.AnyValueToString("displayName", additionalData); err == nil {
+				displayName := strings.Clone(v)
+				ad["displayName"] = &displayName
+			}
+
+			createdBy.identity = &identity{
 				additionalData: ad,
-			},
+			}
 		}
+
+		di.createdBy = createdBy
 	}
 
 	if item.GetCreatedByUser() != nil {
@@ -344,16 +348,16 @@ func ToCustomDriveItem(item models.DriveItemable) *DriveItem {
 	}
 
 	// We only use the download URL from additional data
-	ad := make(map[string]any)
+	aData := make(map[string]any)
 
 	for _, key := range downloadURLKeys {
 		if v, err := str.AnyValueToString(key, item.GetAdditionalData()); err == nil {
 			downloadURL := strings.Clone(v)
-			ad[key] = &downloadURL
+			aData[key] = &downloadURL
 		}
 	}
 
-	di.additionalData = ad
+	di.additionalData = aData
 
 	return di
 }
