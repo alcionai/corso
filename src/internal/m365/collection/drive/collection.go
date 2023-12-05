@@ -379,11 +379,10 @@ func downloadContent(
 		return content, nil
 	}
 
-	// Consider cache errors(including deleted items) as cache misses. This is
-	// to preserve existing behavior. Fallback to refetching the item using the
-	// API.
-	logger.CtxErr(ctx, err).Info("url cache miss: refetching from API")
-	counter.Inc(count.ItemDownloadURLRefetch)
+	// Consider cache errors(including deleted items) as cache misses.
+	// Fallback to refetching the item using the graph API.
+	logger.CtxErr(ctx, err).Debug("url cache miss: refetching from API")
+	counter.Inc(count.URLCacheMiss)
 
 	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
@@ -423,7 +422,7 @@ func readItemContents(
 
 	rc, err := downloadFile(ctx, iaag, props.downloadURL)
 	if graph.IsErrUnauthorizedOrBadToken(err) {
-		logger.CtxErr(ctx, err).Info("stale item in cache")
+		logger.CtxErr(ctx, err).Debug("stale item in cache")
 	}
 
 	if err != nil {
