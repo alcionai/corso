@@ -40,6 +40,7 @@ func treeWithFolders() *folderyMcFolderFace {
 
 	o := newNodeyMcNodeFace(tree.root, idx(folder, "parent"), namex(folder, "parent"), true)
 	tree.folderIDToNode[o.id] = o
+	tree.root.children[o.id] = o
 
 	f := newNodeyMcNodeFace(o, id(folder), name(folder), false)
 	tree.folderIDToNode[f.id] = f
@@ -730,10 +731,10 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			expectFiles: map[string]string{id(file): rootID},
 		},
 		{
-			tname:       "move file from root to folder",
-			tree:        treeWithFileAtRoot(),
-			oldParentID: rootID,
-			parentID:    id(folder),
+			tname:       "move file from folder to root",
+			tree:        treeWithFileInFolder(),
+			oldParentID: id(folder),
+			parentID:    rootID,
 			contentSize: 48,
 			expectErr:   assert.NoError,
 			expectFiles: map[string]string{id(file): rootID},
@@ -798,9 +799,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 
 			countSize := test.tree.countLiveFilesAndSizes()
 			assert.Equal(t, 1, countSize.numFiles, "should have one file in the tree")
-			assert.Equal(t, test.contentSize, countSize.totalBytes, "should have one file in the tree")
+			assert.Equal(t, test.contentSize, countSize.totalBytes, "tree should be sized to test file contents")
 
-			if len(test.oldParentID) > 0 {
+			if len(test.oldParentID) > 0 && test.oldParentID != test.parentID {
 				old, ok := test.tree.folderIDToNode[test.oldParentID]
 				if !ok {
 					old = test.tree.tombstones[test.oldParentID]
