@@ -106,6 +106,10 @@ func (sc Collection) PreviousPath() path.Path {
 	return nil
 }
 
+func (sc Collection) LocationPath() *path.Builder {
+	return path.Builder{}.Append(sc.fullPath.Folders()...)
+}
+
 func (sc Collection) State() data.CollectionState {
 	return data.NewState
 }

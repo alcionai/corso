@@ -320,6 +320,12 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 			data:   []string{flags.DataPages},
 			expect: bothIDs,
 		},
+		{
+			name:   "Lists",
+			site:   bothIDs,
+			data:   []string{flags.DataLists},
+			expect: bothIDs,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {

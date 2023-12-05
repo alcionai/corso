@@ -66,6 +66,12 @@ func (i *SharePointInfo) UpdateParentPath(newLocPath *path.Builder) {
 }
 
 func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
+	if i.ItemType == SharePointList {
+		loc := NewSharePointLocationIDer(path.ListsCategory.HumanString(), baseLoc.Elements()...)
+
+		return &loc, nil
+	}
+
 	if len(i.DriveID) == 0 {
 		return nil, clues.New("empty drive ID")
 	}
@@ -78,8 +84,11 @@ func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, erro
 func (i *SharePointInfo) updateFolder(f *FolderInfo) error {
 	// TODO(ashmrtn): Change to just SharePointLibrary when the code that
 	// generates the item type is fixed.
-	if i.ItemType == OneDriveItem || i.ItemType == SharePointLibrary {
+	switch i.ItemType {
+	case OneDriveItem, SharePointLibrary:
 		return updateFolderWithinDrive(SharePointLibrary, i.DriveName, i.DriveID, f)
+	case SharePointList:
+		return nil
 	}
 
 	return clues.New("unsupported non-SharePoint ItemType").With("item_type", i.ItemType)

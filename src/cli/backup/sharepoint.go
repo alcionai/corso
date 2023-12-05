@@ -195,9 +195,9 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 	}
 
 	for _, d := range cats {
-		if d != flags.DataLibraries && d != flags.DataPages {
+		if d != flags.DataLibraries && d != flags.DataPages && d != flags.DataLists {
 			return clues.New(
-				d + " is an unrecognized data type; either  " + flags.DataLibraries + "or " + flags.DataPages)
+				d + " is an unrecognized data type; either  " + flags.DataLibraries + " or " + flags.DataPages + " or " + flags.DataLists)
 		}
 	}
 
@@ -243,6 +243,8 @@ func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.Sh
 			sel.Include(sel.LibraryFolders(selectors.Any()))
 		case flags.DataPages:
 			sel.Include(sel.Pages(selectors.Any()))
+		case flags.DataLists:
+			sel.Include(sel.Lists(selectors.Any()))
 		}
 	}
 
