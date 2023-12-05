@@ -35,7 +35,7 @@ type itemProps struct {
 
 var _ getItemPropertyer = &urlCache{}
 
-// urlCache caches download URLs for drive items
+// urlCache caches download URLs for onedrive file items
 type urlCache struct {
 	driveID         string
 	prevDelta       string
@@ -207,7 +207,7 @@ func (uc *urlCache) readCache(
 
 	props, ok := uc.idToProps[itemID]
 	if !ok {
-		uc.counter.Inc(count.URLCacheMiss)
+		uc.counter.Inc(count.URLCacheItemNotFound)
 		return itemProps{}, clues.NewWC(ctx, "item not found in cache")
 	}
 

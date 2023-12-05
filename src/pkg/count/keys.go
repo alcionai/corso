@@ -38,7 +38,6 @@ const (
 	DriveTombstones               Key = "drive-tombstones"
 	Files                         Key = "files"
 	Folders                       Key = "folders"
-	ItemDownloadURLRefetch        Key = "item-download-url-refetch"
 	ItemsAdded                    Key = "items-added"
 	ItemsRemoved                  Key = "items-removed"
 	LazyDeletedInFlight           Key = "lazy-deleted-in-flight"
@@ -68,6 +67,7 @@ const (
 	TotalContainersSkipped        Key = "total-containers-skipped"
 	URLCacheMiss                  Key = "url-cache-miss"
 	URLCacheRefresh               Key = "url-cache-refresh"
+	URLCacheItemNotFound          Key = "url-cache-item-not-found"
 )
 
 // Total___Processed counts are used to track raw processing numbers
