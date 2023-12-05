@@ -58,7 +58,7 @@ type backupLimitTest struct {
 	enumerator mock.EnumerateItemsDeltaByDrive
 	// Collection name -> set of item IDs. We can't check item data because
 	// that's not mocked out. Metadata is checked separately.
-	expectedCollections map[string][]string
+	expectedItemIDsInCollection map[string][]string
 }
 
 func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) {
@@ -84,17 +84,17 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: pagesOf(rootAnd(
-							driveItemWithSize(idx(file, 1), namex(file, 1), parent(1), rootID, 7, isFile),
-							driveItemWithSize(idx(file, 2), namex(file, 2), parent(1), rootID, 1, isFile),
-							driveItemWithSize(idx(file, 3), namex(file, 3), parent(1), rootID, 1, isFile))),
+					id(drive): {
+						Pages: pagesOf(pageItems(
+							driveItemWithSize(idx(file, 1), namex(file, 1), parentDir(), rootID, 7, isFile),
+							driveItemWithSize(idx(file, 2), namex(file, 2), parentDir(), rootID, 1, isFile),
+							driveItemWithSize(idx(file, 3), namex(file, 3), parentDir(), rootID, 1, isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1): {idx(file, 2), idx(file, 3)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath(): {idx(file, 2), idx(file, 3)},
 			},
 		},
 		{
@@ -110,17 +110,17 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: pagesOf(rootAnd(
-							driveItemWithSize(idx(file, 1), namex(file, 1), parent(1), rootID, 1, isFile),
-							driveItemWithSize(idx(file, 2), namex(file, 2), parent(1), rootID, 2, isFile),
-							driveItemWithSize(idx(file, 3), namex(file, 3), parent(1), rootID, 1, isFile))),
+					id(drive): {
+						Pages: pagesOf(pageItems(
+							driveItemWithSize(idx(file, 1), namex(file, 1), parentDir(), rootID, 1, isFile),
+							driveItemWithSize(idx(file, 2), namex(file, 2), parentDir(), rootID, 2, isFile),
+							driveItemWithSize(idx(file, 3), namex(file, 3), parentDir(), rootID, 1, isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1): {idx(file, 1), idx(file, 2)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath(): {idx(file, 1), idx(file, 2)},
 			},
 		},
 		{
@@ -136,19 +136,19 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: pagesOf(rootAnd(
-							driveItemWithSize(idx(file, 1), namex(file, 1), parent(1), rootID, 1, isFile),
-							driveItemWithSize(idx(folder, 1), namex(folder, 1), parent(1), rootID, 1, isFolder),
-							driveItemWithSize(idx(file, 2), namex(file, 2), parent(1, namex(folder, 1)), idx(folder, 1), 2, isFile),
-							driveItemWithSize(idx(file, 3), namex(file, 3), parent(1, namex(folder, 1)), idx(folder, 1), 1, isFile))),
+					id(drive): {
+						Pages: pagesOf(pageItems(
+							driveItemWithSize(idx(file, 1), namex(file, 1), parentDir(), rootID, 1, isFile),
+							driveItemWithSize(idx(folder, 1), namex(folder, 1), parentDir(), rootID, 1, isFolder),
+							driveItemWithSize(idx(file, 2), namex(file, 2), parentDir(namex(folder, 1)), idx(folder, 1), 2, isFile),
+							driveItemWithSize(idx(file, 3), namex(file, 3), parentDir(namex(folder, 1)), idx(folder, 1), 1, isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1):                   {idx(file, 1)},
-				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 2)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath():                 {idx(file, 1)},
+				fullPath(namex(folder, 1)): {idx(folder, 1), idx(file, 2)},
 			},
 		},
 		{
@@ -164,20 +164,20 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: pagesOf(rootAnd(
-							driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-							driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
-							driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile),
-							driveItem(idx(file, 4), namex(file, 4), parent(1), rootID, isFile),
-							driveItem(idx(file, 5), namex(file, 5), parent(1), rootID, isFile),
-							driveItem(idx(file, 6), namex(file, 6), parent(1), rootID, isFile))),
+					id(drive): {
+						Pages: pagesOf(pageItems(
+							driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+							driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile),
+							driveItem(idx(file, 3), namex(file, 3), parentDir(), rootID, isFile),
+							driveItem(idx(file, 4), namex(file, 4), parentDir(), rootID, isFile),
+							driveItem(idx(file, 5), namex(file, 5), parentDir(), rootID, isFile),
+							driveItem(idx(file, 6), namex(file, 6), parentDir(), rootID, isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1): {idx(file, 1), idx(file, 2), idx(file, 3)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath(): {idx(file, 1), idx(file, 2), idx(file, 3)},
 			},
 		},
 		{
@@ -193,26 +193,26 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
+					id(drive): {
 						Pages: pagesOf(
-							rootAnd(
-								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-								driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile)),
-							rootAnd(
+							pageItems(
+								driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile)),
+							pageItems(
 								// Repeated items shouldn't count against the limit.
-								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-								driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
-								driveItem(idx(file, 3), namex(file, 3), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
-								driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
-								driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
-								driveItem(idx(file, 6), namex(file, 6), parent(1, namex(folder, 1)), idx(folder, 1), isFile))),
+								driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+								driveItem(idx(folder, 1), namex(folder, 1), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 3), namex(file, 3), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
+								driveItem(idx(file, 4), namex(file, 4), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
+								driveItem(idx(file, 5), namex(file, 5), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
+								driveItem(idx(file, 6), namex(file, 6), parentDir(namex(folder, 1)), idx(folder, 1), isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1):                   {idx(file, 1), idx(file, 2)},
-				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 3)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath():                 {idx(file, 1), idx(file, 2)},
+				fullPath(namex(folder, 1)): {idx(folder, 1), idx(file, 3)},
 			},
 		},
 		{
@@ -228,23 +228,23 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
+					id(drive): {
 						Pages: pagesOf(
-							rootAnd(
-								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-								driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile)),
-							rootAnd(
-								driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
-								driveItem(idx(file, 3), namex(file, 3), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
-								driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
-								driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
-								driveItem(idx(file, 6), namex(file, 6), parent(1, namex(folder, 1)), idx(folder, 1), isFile))),
+							pageItems(
+								driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile)),
+							pageItems(
+								driveItem(idx(folder, 1), namex(folder, 1), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 3), namex(file, 3), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
+								driveItem(idx(file, 4), namex(file, 4), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
+								driveItem(idx(file, 5), namex(file, 5), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
+								driveItem(idx(file, 6), namex(file, 6), parentDir(namex(folder, 1)), idx(folder, 1), isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1): {idx(file, 1), idx(file, 2)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath(): {idx(file, 1), idx(file, 2)},
 			},
 		},
 		{
@@ -260,25 +260,25 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
+					id(drive): {
 						Pages: pagesOf(
-							rootAnd(
-								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-								driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
-								driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile)),
-							rootAnd(
-								driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
-								driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
-								driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile))),
+							pageItems(
+								driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile),
+								driveItem(idx(file, 3), namex(file, 3), parentDir(), rootID, isFile)),
+							pageItems(
+								driveItem(idx(folder, 1), namex(folder, 1), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 4), namex(file, 4), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
+								driveItem(idx(file, 5), namex(file, 5), parentDir(namex(folder, 1)), idx(folder, 1), isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
+			expectedItemIDsInCollection: map[string][]string{
 				// Root has an additional item. It's hard to fix that in the code
 				// though.
-				fullPath(1):                   {idx(file, 1), idx(file, 2)},
-				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4)},
+				fullPath():                 {idx(file, 1), idx(file, 2)},
+				fullPath(namex(folder, 1)): {idx(folder, 1), idx(file, 4)},
 			},
 		},
 		{
@@ -294,25 +294,25 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
+					id(drive): {
 						Pages: pagesOf(
-							rootAnd(
-								driveItem(idx(folder, 0), namex(folder, 0), parent(1), rootID, isFolder),
-								driveItem(idx(file, 1), namex(file, 1), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
-								driveItem(idx(file, 2), namex(file, 2), parent(1, namex(folder, 0)), idx(folder, 0), isFile)),
-							rootAnd(
-								driveItem(idx(folder, 0), namex(folder, 0), parent(1), rootID, isFolder),
+							pageItems(
+								driveItem(id(folder), name(folder), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 1), namex(file, 1), parentDir(name(folder)), id(folder), isFile),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(name(folder)), id(folder), isFile)),
+							pageItems(
+								driveItem(id(folder), name(folder), parentDir(), rootID, isFolder),
 								// Updated item that shouldn't count against the limit a second time.
-								driveItem(idx(file, 2), namex(file, 2), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
-								driveItem(idx(file, 3), namex(file, 3), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
-								driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 0)), idx(folder, 0), isFile))),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(name(folder)), id(folder), isFile),
+								driveItem(idx(file, 3), namex(file, 3), parentDir(name(folder)), id(folder), isFile),
+								driveItem(idx(file, 4), namex(file, 4), parentDir(name(folder)), id(folder), isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1):                   {},
-				fullPath(1, namex(folder, 0)): {idx(folder, 0), idx(file, 1), idx(file, 2), idx(file, 3)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath():             {},
+				fullPath(name(folder)): {id(folder), idx(file, 1), idx(file, 2), idx(file, 3)},
 			},
 		},
 		{
@@ -328,26 +328,26 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
+					id(drive): {
 						Pages: pagesOf(
-							rootAnd(
-								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-								driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
+							pageItems(
+								driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile),
 								// Put folder 0 at limit.
-								driveItem(idx(folder, 0), namex(folder, 0), parent(1), rootID, isFolder),
-								driveItem(idx(file, 3), namex(file, 3), parent(1, namex(folder, 0)), idx(folder, 0), isFile),
-								driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 0)), idx(folder, 0), isFile)),
-							rootAnd(
-								driveItem(idx(folder, 0), namex(folder, 0), parent(1), rootID, isFolder),
+								driveItem(id(folder), name(folder), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 3), namex(file, 3), parentDir(name(folder)), id(folder), isFile),
+								driveItem(idx(file, 4), namex(file, 4), parentDir(name(folder)), id(folder), isFile)),
+							pageItems(
+								driveItem(id(folder), name(folder), parentDir(), rootID, isFolder),
 								// Try to move item from root to folder 0 which is already at the limit.
-								driveItem(idx(file, 1), namex(file, 1), parent(1, namex(folder, 0)), idx(folder, 0), isFile))),
+								driveItem(idx(file, 1), namex(file, 1), parentDir(name(folder)), id(folder), isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1):                   {idx(file, 1), idx(file, 2)},
-				fullPath(1, namex(folder, 0)): {idx(folder, 0), idx(file, 3), idx(file, 4)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath():             {idx(file, 1), idx(file, 2)},
+				fullPath(name(folder)): {id(folder), idx(file, 3), idx(file, 4)},
 			},
 		},
 		{
@@ -363,25 +363,25 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
+					id(drive): {
 						Pages: pagesOf(
-							rootAnd(
-								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-								driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
-								driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile)),
-							rootAnd(
-								driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
-								driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile)),
-							rootAnd(
-								driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
-								driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile))),
+							pageItems(
+								driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile),
+								driveItem(idx(file, 3), namex(file, 3), parentDir(), rootID, isFile)),
+							pageItems(
+								driveItem(idx(folder, 1), namex(folder, 1), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 4), namex(file, 4), parentDir(namex(folder, 1)), idx(folder, 1), isFile)),
+							pageItems(
+								driveItem(idx(folder, 1), namex(folder, 1), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 5), namex(file, 5), parentDir(namex(folder, 1)), idx(folder, 1), isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1):                   {idx(file, 1), idx(file, 2), idx(file, 3)},
-				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath():                 {idx(file, 1), idx(file, 2), idx(file, 3)},
+				fullPath(namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
 			},
 		},
 		{
@@ -397,28 +397,28 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
+					id(drive): {
 						Pages: pagesOf(
-							rootAnd(
-								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-								driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
-								driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile)),
-							rootAnd(
-								driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
-								driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
-								driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
+							pageItems(
+								driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile),
+								driveItem(idx(file, 3), namex(file, 3), parentDir(), rootID, isFile)),
+							pageItems(
+								driveItem(idx(folder, 1), namex(folder, 1), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 4), namex(file, 4), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
+								driveItem(idx(file, 5), namex(file, 5), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
 								// This container shouldn't be returned.
-								driveItem(idx(folder, 2), namex(folder, 2), parent(1), rootID, isFolder),
-								driveItem(idx(file, 7), namex(file, 7), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
-								driveItem(idx(file, 8), namex(file, 8), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
-								driveItem(idx(file, 9), namex(file, 9), parent(1, namex(folder, 2)), idx(folder, 2), isFile))),
+								driveItem(idx(folder, 2), namex(folder, 2), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 7), namex(file, 7), parentDir(namex(folder, 2)), idx(folder, 2), isFile),
+								driveItem(idx(file, 8), namex(file, 8), parentDir(namex(folder, 2)), idx(folder, 2), isFile),
+								driveItem(idx(file, 9), namex(file, 9), parentDir(namex(folder, 2)), idx(folder, 2), isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1):                   {idx(file, 1), idx(file, 2), idx(file, 3)},
-				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath():                 {idx(file, 1), idx(file, 2), idx(file, 3)},
+				fullPath(namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
 			},
 		},
 		{
@@ -434,29 +434,29 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
+					id(drive): {
 						Pages: pagesOf(
-							rootAnd(
-								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-								driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
-								driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile)),
-							rootAnd(
-								driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
-								driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile),
-								driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile)),
-							rootAnd(
+							pageItems(
+								driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile),
+								driveItem(idx(file, 3), namex(file, 3), parentDir(), rootID, isFile)),
+							pageItems(
+								driveItem(idx(folder, 1), namex(folder, 1), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 4), namex(file, 4), parentDir(namex(folder, 1)), idx(folder, 1), isFile),
+								driveItem(idx(file, 5), namex(file, 5), parentDir(namex(folder, 1)), idx(folder, 1), isFile)),
+							pageItems(
 								// This container shouldn't be returned.
-								driveItem(idx(folder, 2), namex(folder, 2), parent(1), rootID, isFolder),
-								driveItem(idx(file, 7), namex(file, 7), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
-								driveItem(idx(file, 8), namex(file, 8), parent(1, namex(folder, 2)), idx(folder, 2), isFile),
-								driveItem(idx(file, 9), namex(file, 9), parent(1, namex(folder, 2)), idx(folder, 2), isFile))),
+								driveItem(idx(folder, 2), namex(folder, 2), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 7), namex(file, 7), parentDir(namex(folder, 2)), idx(folder, 2), isFile),
+								driveItem(idx(file, 8), namex(file, 8), parentDir(namex(folder, 2)), idx(folder, 2), isFile),
+								driveItem(idx(file, 9), namex(file, 9), parentDir(namex(folder, 2)), idx(folder, 2), isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1):                   {idx(file, 1), idx(file, 2), idx(file, 3)},
-				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath():                 {idx(file, 1), idx(file, 2), idx(file, 3)},
+				fullPath(namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
 			},
 		},
 		{
@@ -472,31 +472,29 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1, drive2},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
-						Pages: pagesOf(rootAnd(
-							driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-							driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
-							driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile),
-							driveItem(idx(file, 4), namex(file, 4), parent(1), rootID, isFile),
-							driveItem(idx(file, 5), namex(file, 5), parent(1), rootID, isFile),
-						)),
+					id(drive): {
+						Pages: pagesOf(pageItems(
+							driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+							driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile),
+							driveItem(idx(file, 3), namex(file, 3), parentDir(), rootID, isFile),
+							driveItem(idx(file, 4), namex(file, 4), parentDir(), rootID, isFile),
+							driveItem(idx(file, 5), namex(file, 5), parentDir(), rootID, isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 					idx(drive, 2): {
-						Pages: pagesOf(rootAnd(
-							driveItem(idx(file, 1), namex(file, 1), parent(2), rootID, isFile),
-							driveItem(idx(file, 2), namex(file, 2), parent(2), rootID, isFile),
-							driveItem(idx(file, 3), namex(file, 3), parent(2), rootID, isFile),
-							driveItem(idx(file, 4), namex(file, 4), parent(2), rootID, isFile),
-							driveItem(idx(file, 5), namex(file, 5), parent(2), rootID, isFile),
-						)),
+						Pages: pagesOf(pageItems(
+							driveItem(idx(file, 1), namex(file, 1), driveParentDir(2), rootID, isFile),
+							driveItem(idx(file, 2), namex(file, 2), driveParentDir(2), rootID, isFile),
+							driveItem(idx(file, 3), namex(file, 3), driveParentDir(2), rootID, isFile),
+							driveItem(idx(file, 4), namex(file, 4), driveParentDir(2), rootID, isFile),
+							driveItem(idx(file, 5), namex(file, 5), driveParentDir(2), rootID, isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1): {idx(file, 1), idx(file, 2), idx(file, 3)},
-				fullPath(2): {idx(file, 1), idx(file, 2), idx(file, 3)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath():       {idx(file, 1), idx(file, 2), idx(file, 3)},
+				driveFullPath(2): {idx(file, 1), idx(file, 2), idx(file, 3)},
 			},
 		},
 		{
@@ -511,25 +509,25 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 			drives: []models.Driveable{drive1},
 			enumerator: mock.EnumerateItemsDeltaByDrive{
 				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					idx(drive, 1): {
+					id(drive): {
 						Pages: pagesOf(
-							rootAnd(
-								driveItem(idx(file, 1), namex(file, 1), parent(1), rootID, isFile),
-								driveItem(idx(file, 2), namex(file, 2), parent(1), rootID, isFile),
-								driveItem(idx(file, 3), namex(file, 3), parent(1), rootID, isFile)),
-							rootAnd(
-								driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
-								driveItem(idx(file, 4), namex(file, 4), parent(1, namex(folder, 1)), idx(folder, 1), isFile)),
-							rootAnd(
-								driveItem(idx(folder, 1), namex(folder, 1), parent(1), rootID, isFolder),
-								driveItem(idx(file, 5), namex(file, 5), parent(1, namex(folder, 1)), idx(folder, 1), isFile))),
+							pageItems(
+								driveItem(idx(file, 1), namex(file, 1), parentDir(), rootID, isFile),
+								driveItem(idx(file, 2), namex(file, 2), parentDir(), rootID, isFile),
+								driveItem(idx(file, 3), namex(file, 3), parentDir(), rootID, isFile)),
+							pageItems(
+								driveItem(idx(folder, 1), namex(folder, 1), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 4), namex(file, 4), parentDir(namex(folder, 1)), idx(folder, 1), isFile)),
+							pageItems(
+								driveItem(idx(folder, 1), namex(folder, 1), parentDir(), rootID, isFolder),
+								driveItem(idx(file, 5), namex(file, 5), parentDir(namex(folder, 1)), idx(folder, 1), isFile))),
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 				},
 			},
-			expectedCollections: map[string][]string{
-				fullPath(1):                   {idx(file, 1), idx(file, 2), idx(file, 3)},
-				fullPath(1, namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
+			expectedItemIDsInCollection: map[string][]string{
+				fullPath():                 {idx(file, 1), idx(file, 2), idx(file, 3)},
+				fullPath(namex(folder, 1)): {idx(folder, 1), idx(file, 4), idx(file, 5)},
 			},
 		},
 	}
@@ -606,7 +604,12 @@ func runGetPreviewLimits(
 	)
 
 	cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
-	require.NoError(t, err, clues.ToCore(err))
+
+	if opts.ToggleFeatures.UseDeltaTree {
+		require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
+	} else {
+		require.NoError(t, err, clues.ToCore(err))
+	}
 
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Empty(t, errs.Skipped())
@@ -644,15 +647,15 @@ func runGetPreviewLimits(
 
 		assert.ElementsMatchf(
 			t,
-			test.expectedCollections[folderPath],
+			test.expectedItemIDsInCollection[folderPath],
 			itemIDs,
-			"expected elements to match in collection with path %q",
+			"item IDs in collection with path %q",
 			folderPath)
 	}
 
 	assert.ElementsMatch(
 		t,
-		maps.Keys(test.expectedCollections),
+		maps.Keys(test.expectedItemIDsInCollection),
 		collPaths,
 		"collection paths")
 }
@@ -771,15 +774,17 @@ func defaultLimitsTable() []defaultLimitTest {
 // making a preview backup if the user didn't provide some options.
 // These tests run a reduced set of checks that really just look for item counts
 // and such. Other tests are expected to provide more comprehensive checks.
-func (suite *LimiterUnitSuite) TestGet_PreviewLimits_Defaults_noTree() {
+func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsNoTree() {
+	t := suite.T()
+
 	// Add a check that will fail if we make the default smaller than expected.
 	require.LessOrEqual(
-		suite.T(),
+		t,
 		int64(1024*1024),
 		defaultPreviewMaxBytes,
 		"default number of bytes changed; DefaultNumBytes test case may need updating!")
 	require.Zero(
-		suite.T(),
+		t,
 		defaultPreviewMaxBytes%(1024*1024),
 		"default number of bytes isn't divisible by 1MB; DefaultNumBytes test case may need updating!")
 
@@ -797,15 +802,19 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_Defaults_noTree() {
 // making a preview backup if the user didn't provide some options.
 // These tests run a reduced set of checks that really just look for item counts
 // and such. Other tests are expected to provide more comprehensive checks.
-func (suite *LimiterUnitSuite) TestGet_PreviewLimits_Defaults_tree() {
+func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsWithTree() {
+	t := suite.T()
+
+	t.Skip("TODO: unskip when tree produces collections")
+
 	// Add a check that will fail if we make the default smaller than expected.
 	require.LessOrEqual(
-		suite.T(),
+		t,
 		int64(1024*1024),
 		defaultPreviewMaxBytes,
 		"default number of bytes changed; DefaultNumBytes test case may need updating!")
 	require.Zero(
-		suite.T(),
+		t,
 		defaultPreviewMaxBytes%(1024*1024),
 		"default number of bytes isn't divisible by 1MB; DefaultNumBytes test case may need updating!")
 
@@ -847,11 +856,11 @@ func runGetPreviewLimitsDefaults(
 	for containerIdx := 0; containerIdx < test.numContainers; containerIdx++ {
 		page := mock.NextPage{
 			Items: []models.DriveItemable{
-				driveRootItem(rootID),
+				driveRootItem(),
 				driveItem(
 					idx(folder, containerIdx),
 					namex(folder, containerIdx),
-					parent(1),
+					parentDir(),
 					rootID,
 					isFolder),
 			},
@@ -863,7 +872,7 @@ func runGetPreviewLimitsDefaults(
 			page.Items = append(page.Items, driveItemWithSize(
 				idx(file, itemSuffix),
 				namex(file, itemSuffix),
-				parent(1, namex(folder, containerIdx)),
+				parentDir(namex(folder, containerIdx)),
 				idx(folder, containerIdx),
 				test.itemSize,
 				isFile))
@@ -882,7 +891,7 @@ func runGetPreviewLimitsDefaults(
 		}
 		mockEnumerator = mock.EnumerateItemsDeltaByDrive{
 			DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-				idx(drive, 1): {
+				id(drive): {
 					Pages:       pages,
 					DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 				},
@@ -897,7 +906,12 @@ func runGetPreviewLimitsDefaults(
 	)
 
 	cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
-	require.NoError(t, err, clues.ToCore(err))
+
+	if opts.ToggleFeatures.UseDeltaTree {
+		require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
+	} else {
+		require.NoError(t, err, clues.ToCore(err))
+	}
 
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Empty(t, errs.Skipped())

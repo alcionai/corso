@@ -29,6 +29,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
+var errGetTreeNotImplemented = clues.New("forced error: cannot run tree-based backup: incomplete implementation")
+
 const (
 	restrictedDirectory = "Site Pages"
 
@@ -292,14 +294,14 @@ func (c *Collections) Get(
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	if c.ctrl.ToggleFeatures.UseDeltaTree {
-		_, _, err := c.getTree(ctx, prevMetadata, ssmb, errs)
+		colls, canUsePrevBackup, err := c.getTree(ctx, prevMetadata, ssmb, errs)
 		if err != nil {
 			return nil, false, clues.Wrap(err, "processing backup using tree")
 		}
 
-		return nil,
-			false,
-			clues.New("forced error: cannot run tree-based backup: incomplete implementation")
+		return colls,
+			canUsePrevBackup,
+			errGetTreeNotImplemented
 	}
 
 	deltasByDriveID, prevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(
