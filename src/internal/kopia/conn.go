@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/kopia/retention"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
@@ -38,6 +39,24 @@ const (
 var (
 	ErrSettingDefaultConfig = clues.New("setting default repo config values")
 	ErrorRepoAlreadyExists  = clues.New("repo already exists")
+
+	// minEpochDurationLowerBound is the minimum corso will allow the kopia epoch
+	// duration to be set to. This number can still be tuned further, right now
+	// it's just to make sure it's not set to something totally wild.
+	//
+	// Note that there are still other parameters kopia checks when deciding if
+	// the epoch should be changed. This is just the min amount of time since the
+	// last epoch change that's required.
+	minEpochDurationLowerBound = 2 * time.Hour
+
+	// minEpochDurationUpperBound is the maximum corso will allow the kopia epoch
+	// duration to be set to. This number can still be tuned further, right now
+	// it's just to make sure it's not set to something totally wild.
+	//
+	// Note that there are still other parameters kopia checks when deciding if
+	// the epoch should be changed. This is just the min amount of time since the
+	// last epoch change that's required.
+	minEpochDurationUpperBound = 7 * 24 * time.Hour
 )
 
 // Having all fields set to 0 causes it to keep max-int versions of snapshots.
@@ -610,4 +629,97 @@ func (w *conn) UpdatePassword(
 	}
 
 	return nil
+}
+
+// getPersistentConfig returns the current mutable parameters and blob storage
+// config for the repo. It doesn't return the required parameters because it's
+// unable to name the type they represent since it's in the internal kopia
+// package.
+func (w *conn) getPersistentConfig(
+	ctx context.Context,
+) (format.MutableParameters, format.BlobStorageConfiguration, error) {
+	directRepo, ok := w.Repository.(repo.DirectRepository)
+	if !ok {
+		return format.MutableParameters{},
+			format.BlobStorageConfiguration{},
+			clues.NewWC(ctx, "getting repo handle")
+	}
+
+	formatManager := directRepo.FormatManager()
+
+	mutableParams, err := formatManager.GetMutableParameters()
+	if err != nil {
+		return format.MutableParameters{},
+			format.BlobStorageConfiguration{},
+			clues.WrapWC(ctx, err, "getting mutable parameters")
+	}
+
+	blobCfg, err := formatManager.BlobCfgBlob()
+	if err != nil {
+		return format.MutableParameters{},
+			format.BlobStorageConfiguration{},
+			clues.WrapWC(ctx, err, "getting blob config")
+	}
+
+	return mutableParams, blobCfg, nil
+}
+
+func (w *conn) updatePersistentConfig(
+	ctx context.Context,
+	config repository.PersistentConfig,
+) error {
+	directRepo, ok := w.Repository.(repo.DirectRepository)
+	if !ok {
+		return clues.NewWC(ctx, "getting repo handle")
+	}
+
+	formatManager := directRepo.FormatManager()
+
+	// Get current config structs.
+	mutableParams, blobCfg, err := w.getPersistentConfig(ctx)
+	if err != nil {
+		return clues.Stack(err)
+	}
+
+	reqFeatures, err := formatManager.RequiredFeatures()
+	if err != nil {
+		return clues.WrapWC(ctx, err, "getting required features")
+	}
+
+	// Apply requested updates.
+	var changed bool
+
+	if d, ok := ptr.ValOK(config.MinEpochDuration); ok {
+		// Don't let the user set this value too small or too large.
+		if d < minEpochDurationLowerBound || d > minEpochDurationUpperBound {
+			return clues.NewWC(ctx, fmt.Sprintf(
+				"min epoch duration outside allowed limits of [%v, %v]",
+				minEpochDurationLowerBound,
+				minEpochDurationUpperBound))
+		}
+
+		if d != mutableParams.EpochParameters.MinEpochDuration {
+			ctx = clues.Add(
+				ctx,
+				"old_min_epoch_duration", mutableParams.EpochParameters.MinEpochDuration,
+				"new_min_epoch_duration", d)
+
+			changed = true
+			mutableParams.EpochParameters.MinEpochDuration = d
+		}
+	}
+
+	// Exit or update config structs if there were changes.
+	if !changed {
+		logger.Ctx(ctx).Info("no config parameter changes")
+		return nil
+	}
+
+	logger.Ctx(ctx).Info("persisting config parameter changes")
+
+	return clues.WrapWC(
+		ctx,
+		formatManager.SetParameters(ctx, mutableParams, blobCfg, reqFeatures),
+		"persisting updated config").
+		OrNil()
 }

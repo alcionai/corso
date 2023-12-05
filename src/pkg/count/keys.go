@@ -78,7 +78,9 @@ const (
 // and use a separate Key (Folders) for the end count of folders produced
 // at the end of the delta enumeration.
 const (
+	TotalDeleteFilesProcessed   Key = "total-delete-files-processed"
 	TotalDeleteFoldersProcessed Key = "total-delete-folders-processed"
+	TotalFilesProcessed         Key = "total-files-processed"
 	TotalFoldersProcessed       Key = "total-folders-processed"
 	TotalMalwareProcessed       Key = "total-malware-processed"
 	TotalPackagesProcessed      Key = "total-packages-processed"
