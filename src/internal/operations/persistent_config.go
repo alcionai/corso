@@ -54,14 +54,14 @@ func (op *PersistentConfigOperation) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	op.Results.StartedAt = time.Now()
-
 	// TODO(ashmrtn): Send telemetry?
 
 	return op.do(ctx)
 }
 
 func (op *PersistentConfigOperation) do(ctx context.Context) error {
+	op.Results.StartedAt = time.Now()
+
 	defer func() {
 		op.Results.CompletedAt = time.Now()
 	}()
@@ -69,7 +69,7 @@ func (op *PersistentConfigOperation) do(ctx context.Context) error {
 	err := op.operation.kopia.UpdatePersistentConfig(ctx, op.configOpts)
 	if err != nil {
 		op.Status = Failed
-		return clues.Wrap(err, "running retention config operation")
+		return clues.Wrap(err, "running update persistent config operation")
 	}
 
 	op.Status = Completed
