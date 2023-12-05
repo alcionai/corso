@@ -1309,9 +1309,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			},
 		},
 		{
-			name:   "tombstone new folder in unpopulated tree",
-			tree:   newFolderyMcFolderFace(nil),
-			folder: del,
+			name:    "tombstone new folder in unpopulated tree",
+			tree:    newFolderyMcFolderFace(nil),
+			folder:  del,
+			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				err:                require.NoError,
 				counts:             countTD.Expected{count.TotalDeleteFoldersProcessed: 1},
@@ -1361,6 +1362,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 					count.TotalFoldersProcessed:  0,
 				},
 				shouldHitLimit:     true,
+				skipped:            assert.Nil,
 				treeSize:           3,
 				treeContainsFolder: assert.False,
 			},
