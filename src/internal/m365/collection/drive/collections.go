@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 var errGetTreeNotImplemented = clues.New("forced error: cannot run tree-based backup: incomplete implementation")
@@ -717,7 +718,7 @@ func (c *Collections) handleDelete(
 
 func (c *Collections) getCollectionPath(
 	driveID string,
-	item models.DriveItemable,
+	item *custom.DriveItem,
 ) (path.Path, error) {
 	var (
 		pb     = odConsts.DriveFolderPrefixBuilder(driveID)
@@ -932,7 +933,7 @@ func (c *Collections) PopulateDriveCollections(
 
 func (c *Collections) processItem(
 	ctx context.Context,
-	item models.DriveItemable,
+	di models.DriveItemable,
 	driveID, driveName string,
 	oldPrevPaths, currPrevPaths, newPrevPaths map[string]string,
 	seenFolders map[string]string,
@@ -945,6 +946,10 @@ func (c *Collections) processItem(
 	skipper fault.AddSkipper,
 ) error {
 	var (
+		// Convert the DriveItemable retrieved from graph SDK to custom DriveItem
+		// which only stores the properties corso cares about during the backup
+		// operation. This is a memory optimization.
+		item     = custom.ToCustomDriveItem(di)
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())
 		isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil

@@ -30,6 +30,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 const (
@@ -863,7 +864,7 @@ func restoreFile(
 	dii := ir.AugmentItemInfo(
 		details.ItemInfo{},
 		rcc.ProtectedResource,
-		newItem,
+		custom.ToCustomDriveItem(newItem),
 		written,
 		nil)
 

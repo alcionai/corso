@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 type GraphErrorsUnitSuite struct {
@@ -566,7 +567,7 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 		fault.AddtlMalwareDesc:   malDesc,
 	}
 
-	assert.Equal(suite.T(), expect, ItemInfo(i))
+	assert.Equal(suite.T(), expect, ItemInfo(custom.ToCustomDriveItem(i)))
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrFolderExists() {

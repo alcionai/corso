@@ -34,6 +34,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -232,7 +233,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				true)
 
 			for i := 0; i < test.numInstances; i++ {
-				coll.Add(stubItem)
+				coll.Add(custom.ToCustomDriveItem(stubItem))
 			}
 
 			// Read items from the collection
@@ -352,7 +353,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 		true,
 		false)
 
-	coll.Add(stubItem)
+	coll.Add(custom.ToCustomDriveItem(stubItem))
 
 	collItem, ok := <-coll.Items(ctx, fault.New(true))
 	assert.True(t, ok)
@@ -422,7 +423,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
-	coll.Add(stubItem)
+	coll.Add(custom.ToCustomDriveItem(stubItem))
 
 	collItem, ok := <-coll.Items(ctx, fault.New(true))
 	assert.True(t, ok)
@@ -490,7 +491,7 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 		true,
 		false)
 
-	coll.Add(stubItem)
+	coll.Add(custom.ToCustomDriveItem(stubItem))
 
 	coll.handler = mbh
 
@@ -641,7 +642,7 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 
 			col.handler = mbh
 
-			_, err := col.getDriveItemContent(ctx, "driveID", stubItem, errs)
+			_, err := col.getDriveItemContent(ctx, "driveID", custom.ToCustomDriveItem(stubItem), errs)
 			if test.err == nil {
 				assert.NoError(t, err, clues.ToCore(err))
 				return
@@ -819,7 +820,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			mbh.GetResps = resps
 			mbh.GetErrs = test.getErr
 
-			r, err := downloadContent(ctx, mbh, test.muc, item, driveID, count.New())
+			r, err := downloadContent(ctx, mbh, test.muc, custom.ToCustomDriveItem(item), driveID, count.New())
 			test.expect(t, r)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
@@ -1020,7 +1021,7 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 				true,
 				false)
 
-			coll.Add(stubItem)
+			coll.Add(custom.ToCustomDriveItem(stubItem))
 
 			collItem, ok := <-coll.Items(ctx, fault.New(true))
 			assert.True(t, ok)
