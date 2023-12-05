@@ -739,3 +739,10 @@ func (w *Wrapper) SetRetentionParameters(
 ) error {
 	return clues.Stack(w.c.setRetentionParameters(ctx, retention)).OrNil()
 }
+
+func (w *Wrapper) UpdatePersistentConfig(
+	ctx context.Context,
+	config repository.PersistentConfig,
+) error {
+	return clues.Stack(w.c.updatePersistentConfig(ctx, config)).OrNil()
+}

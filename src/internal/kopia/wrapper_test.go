@@ -336,6 +336,45 @@ func (suite *BasicKopiaIntegrationSuite) TestSetRetentionParameters_NoChangesOnF
 		assert.False)
 }
 
+func (suite *BasicKopiaIntegrationSuite) TestUpdatePersistentConfig() {
+	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	k, err := openLocalKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	config := repository.PersistentConfig{
+		MinEpochDuration: ptr.To(8 * time.Hour),
+	}
+	w := &Wrapper{k}
+
+	err = w.UpdatePersistentConfig(ctx, config)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Close and reopen the repo to make sure it's the same.
+	err = w.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Connect(ctx, repository.Options{}, repoNameHash)
+	require.NoError(t, err, clues.ToCore(err))
+
+	defer k.Close(ctx)
+
+	mutableParams, _, err := k.getPersistentConfig(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(
+		t,
+		ptr.Val(config.MinEpochDuration),
+		mutableParams.EpochParameters.MinEpochDuration)
+}
+
 // ---------------
 // integration tests that require object locking to be enabled on the bucket.
 // ---------------
