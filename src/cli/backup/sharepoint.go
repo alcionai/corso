@@ -197,7 +197,8 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 	for _, d := range cats {
 		if d != flags.DataLibraries && d != flags.DataPages && d != flags.DataLists {
 			return clues.New(
-				d + " is an unrecognized data type; either  " + flags.DataLibraries + " or " + flags.DataPages + " or " + flags.DataLists)
+				d + " is an unrecognized data type; either  " +
+					flags.DataLibraries + " or " + flags.DataPages + " or " + flags.DataLists)
 		}
 	}
 
