@@ -527,3 +527,65 @@ func (suite *driveItemUnitSuite) TestToLiteDriveItemable() {
 		})
 	}
 }
+
+func (suite *driveItemUnitSuite) TestSetParentName() {
+	parentID := "parentID"
+	parentPath := "/parentPath"
+	parentName := "parentName"
+	parentDriveID := "parentDriveID"
+
+	table := []struct {
+		name         string
+		driveName    string
+		itemFunc     func() *itemReference
+		validateFunc func(
+			t *testing.T,
+			expected *itemReference,
+			got *itemReference)
+	}{
+		{
+			name: "nil item",
+			itemFunc: func() *itemReference {
+				return nil
+			},
+			validateFunc: func(
+				t *testing.T,
+				expected *itemReference,
+				got *itemReference,
+			) {
+				require.Nil(t, got)
+			},
+		},
+		{
+			name:      "set name",
+			driveName: "testDrive",
+			itemFunc: func() *itemReference {
+				return &itemReference{
+					id:      &parentID,
+					path:    &parentPath,
+					name:    &parentName,
+					driveID: &parentDriveID,
+				}
+			},
+			validateFunc: func(
+				t *testing.T,
+				expected *itemReference,
+				got *itemReference,
+			) {
+				assert.Equal(t, ptr.Val(got.name), "testDrive")
+				assert.Equal(t, ptr.Val(got.id), ptr.Val(expected.id))
+				assert.Equal(t, ptr.Val(got.path), ptr.Val(expected.path))
+				assert.Equal(t, ptr.Val(got.driveID), ptr.Val(expected.driveID))
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			orig := test.itemFunc()
+
+			got := SetParentName(orig, test.driveName)
+			test.validateFunc(suite.T(), orig, got)
+		})
+	}
+}

@@ -944,6 +944,9 @@ func (c *Collections) processItem(
 	skipper fault.AddSkipper,
 ) error {
 	var (
+		// Convert the DriveItemable retrieved from graph SDK to custom DriveItem
+		// which only stores the properties corso cares about during the backup
+		// operation. This is a memory optimization.
 		item     = custom.ToCustomDriveItem(di)
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())

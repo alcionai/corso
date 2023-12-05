@@ -389,9 +389,9 @@ func downloadContent(
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	ldi := custom.ToCustomDriveItem(di)
+	cdi := custom.ToCustomDriveItem(di)
 
-	content, err = downloadItem(ctx, iaag, ldi)
+	content, err = downloadItem(ctx, iaag, cdi)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}
