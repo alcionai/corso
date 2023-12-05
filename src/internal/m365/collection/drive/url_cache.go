@@ -35,7 +35,7 @@ type itemProps struct {
 
 var _ getItemPropertyer = &urlCache{}
 
-// urlCache caches download URLs for onedrive file items
+// urlCache caches download URLs for drive file items
 type urlCache struct {
 	driveID         string
 	prevDelta       string
