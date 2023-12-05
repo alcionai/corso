@@ -80,8 +80,8 @@ type nodeyMcNodeFace struct {
 	prev path.Elements
 	// folderID -> node
 	children map[string]*nodeyMcNodeFace
-	// file item ID -> last modified time
-	files map[string]time.Time
+	// file item ID -> file metadata
+	files map[string]fileyMcFileFace
 	// for special handling protocols around packages
 	isPackage bool
 }
@@ -96,9 +96,14 @@ func newNodeyMcNodeFace(
 		id:        id,
 		name:      name,
 		children:  map[string]*nodeyMcNodeFace{},
-		files:     map[string]time.Time{},
+		files:     map[string]fileyMcFileFace{},
 		isPackage: isPackage,
 	}
+}
+
+type fileyMcFileFace struct {
+	lastModified time.Time
+	contentSize  int64
 }
 
 // ---------------------------------------------------------------------------
@@ -114,10 +119,10 @@ func (face *folderyMcFolderFace) containsFolder(id string) bool {
 	return stillKicking || alreadyBuried
 }
 
-// CountNodes returns a count that is the sum of live folders and
-// tombstones recorded in the tree.
-func (face *folderyMcFolderFace) countFolders() int {
-	return len(face.tombstones) + len(face.folderIDToNode)
+// countLiveFolders returns a count of the number of folders held in the tree.
+// Tombstones are not included in the count.  Only live folders.
+func (face *folderyMcFolderFace) countLiveFolders() int {
+	return len(face.folderIDToNode)
 }
 
 func (face *folderyMcFolderFace) getNode(id string) *nodeyMcNodeFace {
@@ -264,12 +269,52 @@ func (face *folderyMcFolderFace) setTombstone(
 	return nil
 }
 
+type countAndSize struct {
+	numFiles   int
+	totalBytes int64
+}
+
+// countLiveFilesAndSizes returns a count of the number of files in the tree
+// and the sum of all of their sizes.  Only includes files that are not
+// children of tombstoned containers.  If running an incremental backup, a
+// live file may be either a creation or an update.
+func (face *folderyMcFolderFace) countLiveFilesAndSizes() countAndSize {
+	return countFilesAndSizes(face.root)
+}
+
+func countFilesAndSizes(nodey *nodeyMcNodeFace) countAndSize {
+	if nodey == nil {
+		return countAndSize{}
+	}
+
+	var (
+		fileCount      int
+		sumContentSize int64
+	)
+
+	for _, child := range nodey.children {
+		countSize := countFilesAndSizes(child)
+		fileCount += countSize.numFiles
+		sumContentSize += countSize.totalBytes
+	}
+
+	for _, file := range nodey.files {
+		sumContentSize += file.contentSize
+	}
+
+	return countAndSize{
+		numFiles:   fileCount + len(nodey.files),
+		totalBytes: sumContentSize,
+	}
+}
+
 // addFile places the file in the correct parent node.  If the
 // file was already added to the tree and is getting relocated,
 // this func will update and/or clean up all the old references.
 func (face *folderyMcFolderFace) addFile(
 	parentID, id string,
-	lastModifed time.Time,
+	lastModified time.Time,
+	contentSize int64,
 ) error {
 	if len(parentID) == 0 {
 		return clues.New("item added without parent folder ID")
@@ -298,7 +343,10 @@ func (face *folderyMcFolderFace) addFile(
 	}
 
 	face.fileIDToParentID[id] = parentID
-	parent.files[id] = lastModifed
+	parent.files[id] = fileyMcFileFace{
+		lastModified: lastModified,
+		contentSize:  contentSize,
+	}
 
 	delete(face.deletedFileIDs, id)
 

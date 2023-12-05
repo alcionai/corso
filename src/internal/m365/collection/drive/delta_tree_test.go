@@ -40,6 +40,7 @@ func treeWithFolders() *folderyMcFolderFace {
 
 	o := newNodeyMcNodeFace(tree.root, idx(folder, "parent"), namex(folder, "parent"), true)
 	tree.folderIDToNode[o.id] = o
+	tree.root.children[o.id] = o
 
 	f := newNodeyMcNodeFace(o, id(folder), name(folder), false)
 	tree.folderIDToNode[f.id] = f
@@ -49,16 +50,22 @@ func treeWithFolders() *folderyMcFolderFace {
 }
 
 func treeWithFileAtRoot() *folderyMcFolderFace {
-	tree := treeWithFolders()
-	tree.root.files[id(file)] = time.Now()
+	tree := treeWithRoot()
+	tree.root.files[id(file)] = fileyMcFileFace{
+		lastModified: time.Now(),
+		contentSize:  42,
+	}
 	tree.fileIDToParentID[id(file)] = rootID
 
 	return tree
 }
 
 func treeWithFileInFolder() *folderyMcFolderFace {
-	tree := treeWithFileAtRoot()
-	tree.folderIDToNode[id(folder)].files[id(file)] = time.Now()
+	tree := treeWithFolders()
+	tree.folderIDToNode[id(folder)].files[id(file)] = fileyMcFileFace{
+		lastModified: time.Now(),
+		contentSize:  42,
+	}
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
@@ -66,7 +73,10 @@ func treeWithFileInFolder() *folderyMcFolderFace {
 
 func treeWithFileInTombstone() *folderyMcFolderFace {
 	tree := treeWithTombstone()
-	tree.tombstones[id(folder)].files[id(file)] = time.Now()
+	tree.tombstones[id(folder)].files[id(file)] = fileyMcFileFace{
+		lastModified: time.Now(),
+		contentSize:  42,
+	}
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
@@ -689,6 +699,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		tree        *folderyMcFolderFace
 		oldParentID string
 		parentID    string
+		contentSize int64
 		expectErr   assert.ErrorAssertionFunc
 		expectFiles map[string]string
 	}{
@@ -697,6 +708,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			tree:        treeWithRoot(),
 			oldParentID: "",
 			parentID:    rootID,
+			contentSize: 42,
 			expectErr:   assert.NoError,
 			expectFiles: map[string]string{id(file): rootID},
 		},
@@ -705,6 +717,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			tree:        treeWithFolders(),
 			oldParentID: "",
 			parentID:    id(folder),
+			contentSize: 24,
 			expectErr:   assert.NoError,
 			expectFiles: map[string]string{id(file): id(folder)},
 		},
@@ -713,6 +726,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			tree:        treeWithFileAtRoot(),
 			oldParentID: rootID,
 			parentID:    rootID,
+			contentSize: 84,
 			expectErr:   assert.NoError,
 			expectFiles: map[string]string{id(file): rootID},
 		},
@@ -721,6 +735,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			tree:        treeWithFileInFolder(),
 			oldParentID: id(folder),
 			parentID:    rootID,
+			contentSize: 48,
 			expectErr:   assert.NoError,
 			expectFiles: map[string]string{id(file): rootID},
 		},
@@ -729,6 +744,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			tree:        treeWithFileInTombstone(),
 			oldParentID: id(folder),
 			parentID:    rootID,
+			contentSize: 2,
 			expectErr:   assert.NoError,
 			expectFiles: map[string]string{id(file): rootID},
 		},
@@ -737,6 +753,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			tree:        treeWithTombstone(),
 			oldParentID: "",
 			parentID:    id(folder),
+			contentSize: 4,
 			expectErr:   assert.Error,
 			expectFiles: map[string]string{},
 		},
@@ -745,6 +762,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			tree:        treeWithTombstone(),
 			oldParentID: "",
 			parentID:    idx(folder, 1),
+			contentSize: 8,
 			expectErr:   assert.Error,
 			expectFiles: map[string]string{},
 		},
@@ -753,6 +771,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			tree:        treeWithTombstone(),
 			oldParentID: "",
 			parentID:    "",
+			contentSize: 16,
 			expectErr:   assert.Error,
 			expectFiles: map[string]string{},
 		},
@@ -764,7 +783,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			err := test.tree.addFile(
 				test.parentID,
 				id(file),
-				time.Now())
+				time.Now(),
+				test.contentSize)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectFiles, test.tree.fileIDToParentID)
 
@@ -776,6 +796,10 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 
 			require.NotNil(t, parent)
 			assert.Contains(t, parent.files, id(file))
+
+			countSize := test.tree.countLiveFilesAndSizes()
+			assert.Equal(t, 1, countSize.numFiles, "should have one file in the tree")
+			assert.Equal(t, test.contentSize, countSize.totalBytes, "tree should be sized to test file contents")
 
 			if len(test.oldParentID) > 0 && test.oldParentID != test.parentID {
 				old, ok := test.tree.folderIDToNode[test.oldParentID]
@@ -848,7 +872,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 	assert.Len(t, tree.deletedFileIDs, 1)
 	assert.Contains(t, tree.deletedFileIDs, fID)
 
-	err := tree.addFile(rootID, fID, time.Now())
+	err := tree.addFile(rootID, fID, time.Now(), defaultItemSize)
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Len(t, tree.fileIDToParentID, 1)
