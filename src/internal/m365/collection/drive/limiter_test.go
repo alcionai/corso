@@ -474,8 +474,7 @@ func backupLimitTable(drive1, drive2 models.Driveable) []backupLimitTest {
 						DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
 					},
 					idx(drive, 2): {
-						Pages: pagesOf(drivePageItems(
-							1,
+						Pages: pagesOf(pageItems(
 							driveItem(idx(file, 1), namex(file, 1), driveParentDir(2), rootID, isFile),
 							driveItem(idx(file, 2), namex(file, 2), driveParentDir(2), rootID, isFile),
 							driveItem(idx(file, 3), namex(file, 3), driveParentDir(2), rootID, isFile),
@@ -552,7 +551,7 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_noTree() {
 	for _, test := range backupLimitTable(drive1, drive2) {
 		suite.Run(test.name, func() {
 			runGetPreviewLimits(
-				t,
+				suite.T(),
 				test,
 				metadataPath,
 				control.DefaultOptions())
@@ -591,7 +590,7 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_tree() {
 	for _, test := range backupLimitTable(drive1, drive2) {
 		suite.Run(test.name, func() {
 			runGetPreviewLimits(
-				t,
+				suite.T(),
 				test,
 				metadataPath,
 				opts)
@@ -826,7 +825,7 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsNoTree() {
 	for _, test := range defaultLimitsTable() {
 		suite.Run(test.name, func() {
 			runGetPreviewLimitsDefaults(
-				t,
+				suite.T(),
 				test,
 				drive1,
 				metadataPath,
@@ -875,7 +874,7 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsWithTree() {
 	for _, test := range defaultLimitsTable() {
 		suite.Run(test.name, func() {
 			runGetPreviewLimitsDefaults(
-				t,
+				suite.T(),
 				test,
 				drive1,
 				metadataPath,

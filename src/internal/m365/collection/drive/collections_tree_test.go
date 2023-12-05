@@ -251,10 +251,6 @@ func pageItems(items ...models.DriveItemable) []models.DriveItemable {
 	return append([]models.DriveItemable{driveRootItem()}, items...)
 }
 
-func drivePageItems(driveID any, items ...models.DriveItemable) []models.DriveItemable {
-	return append([]models.DriveItemable{driveRootItem()}, items...)
-}
-
 func pagesOf(pages ...[]models.DriveItemable) []mock.NextPage {
 	mnp := []mock.NextPage{}
 
