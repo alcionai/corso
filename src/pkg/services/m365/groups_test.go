@@ -96,18 +96,6 @@ func (suite *GroupsIntgSuite) TestGroupByID_notFound() {
 	require.True(t, errs.Is(err, errs.ResourceOwnerNotFound))
 }
 
-func (suite *GroupsIntgSuite) TestGroupByID_notLicensed() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	group, err := suite.cli.GroupByID(ctx, uuid.NewString())
-	require.Nil(t, group)
-	require.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
-	require.True(t, errs.Is(err, errs.ResourceOwnerNotFound))
-}
-
 func (suite *GroupsIntgSuite) TestGroups() {
 	t := suite.T()
 
