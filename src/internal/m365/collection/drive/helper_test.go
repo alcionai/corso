@@ -136,7 +136,7 @@ func asNotMoved(t *testing.T, p string) statePath {
 }
 
 // ---------------------------------------------------------------------------
-// stub drive items
+// stub drive item factories
 // ---------------------------------------------------------------------------
 
 type itemType int
@@ -181,165 +181,7 @@ func driveItem(
 	return coreItem(id, name, parentPath, parentID, it)
 }
 
-func driveFile(
-	idX any,
-	parentPath, parentID string,
-) models.DriveItemable {
-	i := id(file)
-	n := name(file)
-
-	if idX != file {
-		i = idx(file, idX)
-		n = namex(file, idX)
-	}
-
-	return driveItem(i, n, parentPath, parentID, isFile)
-}
-
-func fileAtRoot() models.DriveItemable {
-	return driveItem(id(file), name(file), parentDir(), rootID, isFile)
-}
-
-func fileAt(
-	parentX any,
-) models.DriveItemable {
-	pd := parentDir(namex(folder, parentX))
-	pid := idx(folder, parentX)
-
-	if parentX == folder {
-		pd = parentDir(name(folder))
-		pid = id(folder)
-	}
-
-	return driveItem(
-		id(file),
-		name(file),
-		pd,
-		pid,
-		isFile)
-}
-
-func fileAtDeep(
-	parentDir, parentID string,
-) models.DriveItemable {
-	return driveItem(
-		id(file),
-		name(file),
-		parentDir,
-		parentID,
-		isFile)
-}
-
-func filexAtRoot(
-	x any,
-) models.DriveItemable {
-	return driveItem(
-		idx(file, x),
-		namex(file, x),
-		parentDir(),
-		rootID,
-		isFile)
-}
-
-func filexAt(
-	x, parentX any,
-) models.DriveItemable {
-	pd := parentDir(namex(folder, parentX))
-	pid := idx(folder, parentX)
-
-	if parentX == folder {
-		pd = parentDir(name(folder))
-		pid = id(folder)
-	}
-
-	return driveItem(
-		idx(file, x),
-		namex(file, x),
-		pd,
-		pid,
-		isFile)
-}
-
-func filexWSizeAtRoot(
-	x any,
-	size int64,
-) models.DriveItemable {
-	return driveItemWithSize(
-		idx(file, x),
-		namex(file, x),
-		parentDir(),
-		rootID,
-		size,
-		isFile)
-}
-
-func filexWSizeAt(
-	x, parentX any,
-	size int64,
-) models.DriveItemable {
-	pd := parentDir(namex(folder, parentX))
-	pid := idx(folder, parentX)
-
-	if parentX == folder {
-		pd = parentDir(name(folder))
-		pid = id(folder)
-	}
-
-	return driveItemWithSize(
-		idx(file, x),
-		namex(file, x),
-		pd,
-		pid,
-		size,
-		isFile)
-}
-
-func folderAtRoot() models.DriveItemable {
-	return driveItem(id(folder), name(folder), parentDir(), rootID, isFolder)
-}
-
-func folderAtDeep(
-	parentDir, parentID string,
-) models.DriveItemable {
-	return driveItem(
-		id(folder),
-		name(folder),
-		parentDir,
-		parentID,
-		isFolder)
-}
-
-func folderxAt(
-	x, parentX any,
-) models.DriveItemable {
-	pd := parentDir(namex(folder, parentX))
-	pid := idx(folder, parentX)
-
-	if parentX == folder {
-		pd = parentDir(name(folder))
-		pid = id(folder)
-	}
-
-	return driveItem(
-		idx(folder, x),
-		namex(folder, x),
-		pd,
-		pid,
-		isFolder)
-}
-
-func folderxAtRoot(
-	x any,
-) models.DriveItemable {
-	return driveItem(
-		idx(folder, x),
-		namex(folder, x),
-		parentDir(),
-		rootID,
-		isFolder)
-}
-
-func driveItemWithSize(
+func driveItemWSize(
 	id, name, parentPath, parentID string,
 	size int64,
 	it itemType,
@@ -348,22 +190,6 @@ func driveItemWithSize(
 	res.SetSize(ptr.To(size))
 
 	return res
-}
-
-func fileItem(
-	id, name, parentPath, parentID, url string,
-	deleted bool,
-) models.DriveItemable {
-	di := driveItem(id, name, parentPath, parentID, isFile)
-	di.SetAdditionalData(map[string]any{
-		"@microsoft.graph.downloadUrl": url,
-	})
-
-	if deleted {
-		di.SetDeleted(models.NewDeleted())
-	}
-
-	return di
 }
 
 func malwareItem(
@@ -379,16 +205,6 @@ func malwareItem(
 	c.SetMalware(mal)
 
 	return c
-}
-
-func driveRootItem() models.DriveItemable {
-	item := models.NewDriveItem()
-	item.SetName(ptr.To(rootName))
-	item.SetId(ptr.To(rootID))
-	item.SetRoot(models.NewRoot())
-	item.SetFolder(models.NewFolder())
-
-	return item
 }
 
 // delItem creates a DriveItemable that is marked as deleted. path must be set
@@ -418,20 +234,196 @@ func delItem(
 	return item
 }
 
-func id(v string) string {
-	return fmt.Sprintf("id_%s_0", v)
+// ---------------------------------------------------------------------------
+// file factories
+// ---------------------------------------------------------------------------
+
+func fileID(fileSuffixes ...any) string {
+	return id(file, fileSuffixes...)
 }
 
-func idx(v string, sfx any) string {
-	return fmt.Sprintf("id_%s_%v", v, sfx)
+func fileName(fileSuffixes ...any) string {
+	return name(file, fileSuffixes...)
 }
 
-func name(v string) string {
-	return fmt.Sprintf("n_%s_0", v)
+func driveFile(
+	parentPath, parentID string,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		parentPath,
+		parentID,
+		isFile)
 }
 
-func namex(v string, sfx any) string {
-	return fmt.Sprintf("n_%s_%v", v, sfx)
+func fileAt(
+	parentSuffix any,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		parentDir(folderName(parentSuffix)),
+		folderID(parentSuffix),
+		isFile)
+}
+
+func fileAtRoot(
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		parentDir(),
+		rootID,
+		isFile)
+}
+
+func fileWURLAtRoot(
+	url string,
+	isDeleted bool,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	di := driveFile(parentDir(), rootID, fileSuffixes...)
+	di.SetAdditionalData(map[string]any{
+		"@microsoft.graph.downloadUrl": url,
+	})
+
+	if isDeleted {
+		di.SetDeleted(models.NewDeleted())
+	}
+
+	return di
+}
+
+func fileWSizeAtRoot(
+	size int64,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItemWSize(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		parentDir(),
+		rootID,
+		size,
+		isFile)
+}
+
+func fileWSizeAt(
+	size int64,
+	parentSuffix any,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItemWSize(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		parentDir(folderName(parentSuffix)),
+		folderID(parentSuffix),
+		size,
+		isFile)
+}
+
+// ---------------------------------------------------------------------------
+// folder factories
+// ---------------------------------------------------------------------------
+
+func folderID(folderSuffixes ...any) string {
+	return id(folder, folderSuffixes...)
+}
+
+func folderName(folderSuffixes ...any) string {
+	return name(folder, folderSuffixes...)
+}
+
+func driveFolder(
+	parentPath, parentID string,
+	folderSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		folderID(folderSuffixes...),
+		folderName(folderSuffixes...),
+		parentPath,
+		parentID,
+		isFolder)
+}
+
+func driveRootFolder() models.DriveItemable {
+	rootFolder := models.NewDriveItem()
+	rootFolder.SetName(ptr.To(rootName))
+	rootFolder.SetId(ptr.To(rootID))
+	rootFolder.SetRoot(models.NewRoot())
+	rootFolder.SetFolder(models.NewFolder())
+
+	return rootFolder
+}
+
+func folderAtRoot(
+	folderSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		folderID(folderSuffixes...),
+		folderName(folderSuffixes...),
+		parentDir(),
+		rootID,
+		isFolder)
+}
+
+func folderAt(
+	parentSuffix any,
+	folderSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		folderID(folderSuffixes...),
+		folderName(folderSuffixes...),
+		parentDir(folderName(parentSuffix)),
+		folderID(parentSuffix),
+		isFolder)
+}
+
+// ---------------------------------------------------------------------------
+// id, name, path factories
+// ---------------------------------------------------------------------------
+
+// assumption is only one suffix per id.  Mostly using
+// the variadic as an "optional" extension.
+func id(v string, suffixes ...any) string {
+	id := fmt.Sprintf("id_%s", v)
+
+	// a bit weird, but acts as a quality of life
+	// that allows some funcs to take in the `file`
+	// or `folder` or etc monikers as the suffix
+	// without producing weird outputs.
+	if len(suffixes) == 1 && suffixes[0] == v {
+		return id
+	}
+
+	for _, sfx := range suffixes {
+		id = fmt.Sprintf("%s_%s", v, sfx)
+	}
+
+	return id
+}
+
+// assumption is only one suffix per name.  Mostly using
+// the variadic as an "optional" extension.
+func name(v string, suffixes ...any) string {
+	name := fmt.Sprintf("n_%s", v)
+
+	// a bit weird, but acts as a quality of life
+	// that allows some funcs to take in the `file`
+	// or `folder` or etc monikers as the suffix
+	// without producing weird outputs.
+	if len(suffixes) == 1 && suffixes[0] == v {
+		return name
+	}
+
+	for _, sfx := range suffixes {
+		name = fmt.Sprintf("%s_%s", v, sfx)
+	}
+
+	return name
 }
 
 func toPath(elems ...string) string {
@@ -476,7 +468,7 @@ func driveFullPath(driveID any, elems ...string) string {
 			path.OneDriveService.String(),
 			user,
 			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(idx(drive, driveID)).String(),
+			odConsts.DriveFolderPrefixBuilder(id(drive, driveID)).String(),
 		},
 		elems...)...)
 }
@@ -489,7 +481,7 @@ func parentDir(elems ...string) string {
 
 func driveParentDir(driveID any, elems ...string) string {
 	return toPath(append(
-		[]string{odConsts.DriveFolderPrefixBuilder(idx(drive, driveID)).String()},
+		[]string{odConsts.DriveFolderPrefixBuilder(id(drive, driveID)).String()},
 		elems...)...)
 }
 
@@ -512,6 +504,10 @@ const (
 	tenant    = "t"
 	user      = "u"
 )
+
+// ---------------------------------------------------------------------------
+// misc helpers
+// ---------------------------------------------------------------------------
 
 var anyFolderScope = (&selectors.OneDriveBackup{}).Folders(selectors.Any())[0]
 
@@ -593,13 +589,13 @@ func pagerForDrives(drives ...models.Driveable) *apiMock.Pager[models.Driveable]
 
 func aPage(items ...models.DriveItemable) mock.NextPage {
 	return mock.NextPage{
-		Items: append([]models.DriveItemable{driveRootItem()}, items...),
+		Items: append([]models.DriveItemable{driveRootFolder()}, items...),
 	}
 }
 
 func aPageWReset(items ...models.DriveItemable) mock.NextPage {
 	return mock.NextPage{
-		Items: append([]models.DriveItemable{driveRootItem()}, items...),
+		Items: append([]models.DriveItemable{driveRootFolder()}, items...),
 		Reset: true,
 	}
 }
@@ -626,7 +622,7 @@ func makePrevMetadataColls(
 	prevDeltas := map[string]string{}
 
 	for driveID := range previousPaths {
-		prevDeltas[driveID] = idx(delta, "prev")
+		prevDeltas[driveID] = id(delta, "prev")
 	}
 
 	mdColl, err := graph.MakeMetadataCollection(
@@ -868,7 +864,7 @@ func treeWithFoldersAfterReset(t *testing.T) *folderyMcFolderFace {
 
 func treeWithTombstone(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithRoot(t)
-	tree.tombstones[id(folder)] = newNodeyMcNodeFace(nil, id(folder), "", false)
+	tree.tombstones[folderID()] = newNodeyMcNodeFace(nil, folderID(), "", false)
 
 	return tree
 }
@@ -876,11 +872,11 @@ func treeWithTombstone(t *testing.T) *folderyMcFolderFace {
 func treeWithFolders(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithRoot(t)
 
-	parent := newNodeyMcNodeFace(tree.root, idx(folder, "parent"), namex(folder, "parent"), true)
+	parent := newNodeyMcNodeFace(tree.root, folderID("parent"), folderName("parent"), true)
 	tree.folderIDToNode[parent.id] = parent
 	tree.root.children[parent.id] = parent
 
-	f := newNodeyMcNodeFace(parent, id(folder), name(folder), false)
+	f := newNodeyMcNodeFace(parent, folderID(), folderName(), false)
 	tree.folderIDToNode[f.id] = f
 	parent.children[f.id] = f
 
@@ -889,36 +885,36 @@ func treeWithFolders(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithRoot(t)
-	tree.root.files[id(file)] = custom.ToCustomDriveItem(fileAtRoot())
-	tree.fileIDToParentID[id(file)] = rootID
+	tree.root.files[fileID()] = custom.ToCustomDriveItem(fileAtRoot())
+	tree.fileIDToParentID[fileID()] = rootID
 
 	return tree
 }
 
 func treeWithDeletedFile(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithRoot(t)
-	tree.deleteFile(idx(file, "d"))
+	tree.deleteFile(fileID("d"))
 
 	return tree
 }
 
 func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithFolders(t)
-	tree.folderIDToNode[id(folder)].files[id(file)] = custom.ToCustomDriveItem(fileAt(folder))
-	tree.fileIDToParentID[id(file)] = id(folder)
+	tree.folderIDToNode[folderID()].files[fileID()] = custom.ToCustomDriveItem(fileAt(folder))
+	tree.fileIDToParentID[fileID()] = folderID()
 
 	return tree
 }
 
 func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithTombstone(t)
-	tree.tombstones[id(folder)].files[id(file)] = custom.ToCustomDriveItem(fileAt("tombstone"))
-	tree.fileIDToParentID[id(file)] = id(folder)
+	tree.tombstones[folderID()].files[fileID()] = custom.ToCustomDriveItem(fileAt("tombstone"))
+	tree.fileIDToParentID[fileID()] = folderID()
 
 	return tree
 }
 
-// root -> idx(folder, parent) -> id(folder)
+// root -> idx(folder, parent) -> folderID()
 // one item at each dir
 // one tombstone: idx(folder, tombstone)
 // one item in the tombstone
@@ -937,54 +933,54 @@ func fullTreeWithNames(
 		tree := treeWithRoot(t)
 
 		// file in root
-		df := driveFile("r", parentDir(), rootID)
+		df := driveFile(parentDir(), rootID, "r")
 		err := tree.addFile(
 			rootID,
-			idx(file, "r"),
+			fileID("r"),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// root -> idx(folder, parent)
-		err = tree.setFolder(ctx, rootID, idx(folder, parentFolderX), namex(folder, parentFolderX), false)
+		err = tree.setFolder(ctx, rootID, folderID(parentFolderX), folderName(parentFolderX), false)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in idx(folder, parent)
-		df = driveFile("p", parentDir(namex(folder, parentFolderX)), idx(folder, parentFolderX))
+		df = driveFile(parentDir(folderName(parentFolderX)), folderID(parentFolderX), "p")
 		err = tree.addFile(
-			idx(folder, parentFolderX),
-			idx(file, "p"),
+			folderID(parentFolderX),
+			fileID("p"),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// idx(folder, parent) -> id(folder)
-		err = tree.setFolder(ctx, idx(folder, parentFolderX), id(folder), name(folder), false)
+		err = tree.setFolder(ctx, folderID(parentFolderX), folderID(), folderName(), false)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in id(folder)
-		df = driveFile(file, parentDir(name(folder)), id(folder))
+		df = driveFile(parentDir(folderName()), folderID())
 		err = tree.addFile(
-			id(folder),
-			id(file),
+			folderID(),
+			fileID(),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// tombstone - have to set a non-tombstone folder first, then add the item, then tombstone the folder
-		err = tree.setFolder(ctx, rootID, idx(folder, tombstoneX), namex(folder, tombstoneX), false)
+		err = tree.setFolder(ctx, rootID, folderID(tombstoneX), folderName(tombstoneX), false)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in tombstone
-		df = driveFile("t", parentDir(namex(folder, tombstoneX)), idx(folder, tombstoneX))
+		df = driveFile(parentDir(folderName(tombstoneX)), folderID(tombstoneX), "t")
 		err = tree.addFile(
-			idx(folder, tombstoneX),
-			idx(file, "t"),
+			folderID(tombstoneX),
+			fileID("t"),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
-		err = tree.setTombstone(ctx, idx(folder, tombstoneX))
+		err = tree.setTombstone(ctx, folderID(tombstoneX))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// deleted file
-		tree.deleteFile(idx(file, "d"))
+		tree.deleteFile(fileID("d"))
 
 		return tree
 	}

@@ -214,8 +214,9 @@ func TestURLCacheUnitSuite(t *testing.T) {
 }
 
 func (suite *URLCacheUnitSuite) TestGetItemProperties() {
-	deltaString := "delta"
-	driveID := "drive1"
+	aURL := func(n int) string {
+		return fmt.Sprintf("https://dummy%d.com", n)
+	}
 
 	table := []struct {
 		name              string
@@ -228,13 +229,11 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "single item in cache",
 			pages: []mock.NextPage{
-				{Items: []models.DriveItemable{
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-				}},
+				aPage(fileWURLAtRoot(aURL(1), false, 1)),
 			},
 			expectedItemProps: map[string]itemProps{
-				"1": {
-					downloadURL: "https://dummy1.com",
+				fileID(1): {
+					downloadURL: aURL(1),
 					isDeleted:   false,
 				},
 			},
@@ -248,33 +247,32 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "multiple items in cache",
 			pages: []mock.NextPage{
-				{Items: []models.DriveItemable{
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-					fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
-					fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
-					fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
-				}},
+				aPage(
+					fileWURLAtRoot(aURL(1), false, 1),
+					fileWURLAtRoot(aURL(2), false, 2),
+					fileWURLAtRoot(aURL(3), false, 3),
+					fileWURLAtRoot(aURL(4), false, 4),
+					fileWURLAtRoot(aURL(5), false, 5)),
 			},
 			expectedItemProps: map[string]itemProps{
-				"1": {
-					downloadURL: "https://dummy1.com",
+				fileID(1): {
+					downloadURL: aURL(1),
 					isDeleted:   false,
 				},
-				"2": {
-					downloadURL: "https://dummy2.com",
+				fileID(2): {
+					downloadURL: aURL(2),
 					isDeleted:   false,
 				},
-				"3": {
-					downloadURL: "https://dummy3.com",
+				fileID(3): {
+					downloadURL: aURL(3),
 					isDeleted:   false,
 				},
-				"4": {
-					downloadURL: "https://dummy4.com",
+				fileID(4): {
+					downloadURL: aURL(4),
 					isDeleted:   false,
 				},
-				"5": {
-					downloadURL: "https://dummy5.com",
+				fileID(5): {
+					downloadURL: aURL(5),
 					isDeleted:   false,
 				},
 			},
@@ -288,35 +286,33 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "multiple pages",
 			pages: []mock.NextPage{
-				{Items: []models.DriveItemable{
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-					fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
-				}},
-				{Items: []models.DriveItemable{
-					fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
-					fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
-				}},
+				aPage(
+					fileWURLAtRoot(aURL(1), false, 1),
+					fileWURLAtRoot(aURL(2), false, 2),
+					fileWURLAtRoot(aURL(3), false, 3)),
+				aPage(
+					fileWURLAtRoot(aURL(4), false, 4),
+					fileWURLAtRoot(aURL(5), false, 5)),
 			},
 			expectedItemProps: map[string]itemProps{
-				"1": {
-					downloadURL: "https://dummy1.com",
+				fileID(1): {
+					downloadURL: aURL(1),
 					isDeleted:   false,
 				},
-				"2": {
-					downloadURL: "https://dummy2.com",
+				fileID(2): {
+					downloadURL: aURL(2),
 					isDeleted:   false,
 				},
-				"3": {
-					downloadURL: "https://dummy3.com",
+				fileID(3): {
+					downloadURL: aURL(3),
 					isDeleted:   false,
 				},
-				"4": {
-					downloadURL: "https://dummy4.com",
+				fileID(4): {
+					downloadURL: aURL(4),
 					isDeleted:   false,
 				},
-				"5": {
-					downloadURL: "https://dummy5.com",
+				fileID(5): {
+					downloadURL: aURL(5),
 					isDeleted:   false,
 				},
 			},
@@ -330,52 +326,40 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "multiple pages with resets",
 			pages: []mock.NextPage{
-				{
-					Items: []models.DriveItemable{
-						fileItem("-1", "file-1", "root", "root", "https://dummy-1.com", false),
-						fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-						fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-						fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
-					},
-				},
-				{
-					Items: []models.DriveItemable{},
-					Reset: true,
-				},
-				{
-					Items: []models.DriveItemable{
-						fileItem("0", "file1", "root", "root", "https://dummy0.com", false),
-						fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-						fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-						fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
-					},
-				},
-				{
-					Items: []models.DriveItemable{
-						fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
-						fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
-					},
-				},
+				aPage(
+					fileWURLAtRoot(aURL(-1), false, -1),
+					fileWURLAtRoot(aURL(1), false, 1),
+					fileWURLAtRoot(aURL(2), false, 2),
+					fileWURLAtRoot(aURL(3), false, 3)),
+				aReset(),
+				aPage(
+					fileWURLAtRoot(aURL(0), false, 0),
+					fileWURLAtRoot(aURL(1), false, 1),
+					fileWURLAtRoot(aURL(2), false, 2),
+					fileWURLAtRoot(aURL(3), false, 3)),
+				aPage(
+					fileWURLAtRoot(aURL(4), false, 4),
+					fileWURLAtRoot(aURL(5), false, 5)),
 			},
 			expectedItemProps: map[string]itemProps{
-				"1": {
-					downloadURL: "https://dummy1.com",
+				fileID(1): {
+					downloadURL: aURL(1),
 					isDeleted:   false,
 				},
-				"2": {
-					downloadURL: "https://dummy2.com",
+				fileID(2): {
+					downloadURL: aURL(2),
 					isDeleted:   false,
 				},
-				"3": {
-					downloadURL: "https://dummy3.com",
+				fileID(3): {
+					downloadURL: aURL(3),
 					isDeleted:   false,
 				},
-				"4": {
-					downloadURL: "https://dummy4.com",
+				fileID(4): {
+					downloadURL: aURL(4),
 					isDeleted:   false,
 				},
-				"5": {
-					downloadURL: "https://dummy5.com",
+				fileID(5): {
+					downloadURL: aURL(5),
 					isDeleted:   false,
 				},
 			},
@@ -389,47 +373,37 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "multiple pages with resets and combo reset+items in page",
 			pages: []mock.NextPage{
-				{
-					Items: []models.DriveItemable{
-						fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-						fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-						fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
-					},
-				},
-				{
-					Items: []models.DriveItemable{
-						fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-						fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-						fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
-					},
-					Reset: true,
-				},
-				{
-					Items: []models.DriveItemable{
-						fileItem("4", "file4", "root", "root", "https://dummy4.com", false),
-						fileItem("5", "file5", "root", "root", "https://dummy5.com", false),
-					},
-				},
+				aPage(
+					fileWURLAtRoot(aURL(1), false, 1),
+					fileWURLAtRoot(aURL(2), false, 2),
+					fileWURLAtRoot(aURL(3), false, 3)),
+				aPageWReset(
+					fileWURLAtRoot(aURL(1), false, 1),
+					fileWURLAtRoot(aURL(2), false, 2),
+					fileWURLAtRoot(aURL(3), false, 3)),
+				aPage(
+					fileWURLAtRoot(aURL(4), false, 4),
+					fileWURLAtRoot(aURL(5), false, 5)),
 			},
 			expectedItemProps: map[string]itemProps{
-				"1": {
-					downloadURL: "https://dummy1.com",
+				fileID(1): {
+					downloadURL: aURL(1),
 					isDeleted:   false,
 				},
-				"2": {
-					downloadURL: "https://dummy2.com",
+				fileID(2): {
+					downloadURL: aURL(2),
 					isDeleted:   false,
 				},
-				"3": {
-					downloadURL: "https://dummy3.com",
+				fileID(3): {
+					downloadURL: aURL(3),
 					isDeleted:   false,
 				},
-				"4": {
-					downloadURL: "https://dummy4.com",
+				fileID(4): {
+					downloadURL: aURL(4),
 					isDeleted:   false,
 				},
-				"5": {
-					downloadURL: "https://dummy5.com",
+				fileID(5): {
+					downloadURL: aURL(5),
 					isDeleted:   false,
 				},
 			},
@@ -443,25 +417,24 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "duplicate items with potentially new urls",
 			pages: []mock.NextPage{
-				{Items: []models.DriveItemable{
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-					fileItem("3", "file3", "root", "root", "https://dummy3.com", false),
-					fileItem("1", "file1", "root", "root", "https://test1.com", false),
-					fileItem("2", "file2", "root", "root", "https://test2.com", false),
-				}},
+				aPage(
+					fileWURLAtRoot(aURL(1), false, 1),
+					fileWURLAtRoot(aURL(2), false, 2),
+					fileWURLAtRoot(aURL(3), false, 3),
+					fileWURLAtRoot(aURL(100), false, 1),
+					fileWURLAtRoot(aURL(200), false, 2)),
 			},
 			expectedItemProps: map[string]itemProps{
-				"1": {
-					downloadURL: "https://test1.com",
+				fileID(1): {
+					downloadURL: aURL(100),
 					isDeleted:   false,
 				},
-				"2": {
-					downloadURL: "https://test2.com",
+				fileID(2): {
+					downloadURL: aURL(200),
 					isDeleted:   false,
 				},
-				"3": {
-					downloadURL: "https://dummy3.com",
+				fileID(3): {
+					downloadURL: aURL(3),
 					isDeleted:   false,
 				},
 			},
@@ -475,19 +448,18 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "deleted items",
 			pages: []mock.NextPage{
-				{Items: []models.DriveItemable{
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					fileItem("2", "file2", "root", "root", "https://dummy2.com", false),
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", true),
-				}},
+				aPage(
+					fileWURLAtRoot(aURL(1), false, 1),
+					fileWURLAtRoot(aURL(2), false, 2),
+					fileWURLAtRoot(aURL(1), true, 1)),
 			},
 			expectedItemProps: map[string]itemProps{
-				"1": {
+				fileID(1): {
 					downloadURL: "",
 					isDeleted:   true,
 				},
-				"2": {
-					downloadURL: "https://dummy2.com",
+				fileID(2): {
+					downloadURL: aURL(2),
 					isDeleted:   false,
 				},
 			},
@@ -501,12 +473,10 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "item not found in cache",
 			pages: []mock.NextPage{
-				{Items: []models.DriveItemable{
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-				}},
+				aPage(fileWURLAtRoot(aURL(1), false, 1)),
 			},
 			expectedItemProps: map[string]itemProps{
-				"2": {},
+				fileID(2): {},
 			},
 			expectErr: assert.Error,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
@@ -518,12 +488,12 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "delta query error",
 			pages: []mock.NextPage{
-				{Items: []models.DriveItemable{}},
+				aPage(),
 			},
 			pagerErr: errors.New("delta query error"),
 			expectedItemProps: map[string]itemProps{
-				"1": {},
-				"2": {},
+				fileID(1): {},
+				fileID(2): {},
 			},
 			expectErr: assert.Error,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
@@ -535,13 +505,12 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "folder item",
 			pages: []mock.NextPage{
-				{Items: []models.DriveItemable{
-					fileItem("1", "file1", "root", "root", "https://dummy1.com", false),
-					driveItem("2", "folder2", "root", "root", isFolder),
-				}},
+				aPage(
+					fileWURLAtRoot(aURL(1), false, 1),
+					driveItem("2", "folder2", "root", "root", isFolder)),
 			},
 			expectedItemProps: map[string]itemProps{
-				"2": {},
+				fileID(2): {},
 			},
 			expectErr: assert.Error,
 			expect: func(t *testing.T, uc *urlCache, startTime time.Time) {
@@ -563,13 +532,14 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 					defer flush()
 
 					driveEnumer := mock.DriveEnumerator(
-						mock.Drive(driveID).
+						mock.Drive(id(drive)).
 							WithErr(test.pagerErr).
-							With(mock.Delta(deltaString, test.pagerErr).
-								With(test.pages...)))
+							With(
+								mock.Delta(delta, test.pagerErr).
+									With(test.pages...)))
 
 					cache, err := newURLCache(
-						driveID,
+						id(drive),
 						"",
 						1*time.Hour,
 						driveEnumer,
@@ -609,18 +579,16 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 	var (
 		t               = suite.T()
-		driveID         = "drive1"
 		refreshInterval = 1 * time.Second
 	)
 
 	cache, err := newURLCache(
-		driveID,
+		id(drive),
 		"",
 		refreshInterval,
 		&mock.EnumerateDriveItemsDelta{},
 		count.New(),
 		fault.New(true))
-
 	require.NoError(t, err, clues.ToCore(err))
 
 	// cache is empty
@@ -659,7 +627,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		},
 		{
 			name:       "invalid refresh interval",
-			driveID:    "drive1",
+			driveID:    id(drive),
 			refreshInt: 100 * time.Millisecond,
 			itemPager:  &mock.EnumerateDriveItemsDelta{},
 			errors:     fault.New(true),
@@ -667,7 +635,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		},
 		{
 			name:       "invalid item enumerator",
-			driveID:    "drive1",
+			driveID:    id(drive),
 			refreshInt: 1 * time.Hour,
 			itemPager:  nil,
 			errors:     fault.New(true),
@@ -675,7 +643,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		},
 		{
 			name:       "valid",
-			driveID:    "drive1",
+			driveID:    id(drive),
 			refreshInt: 1 * time.Hour,
 			itemPager:  &mock.EnumerateDriveItemsDelta{},
 			errors:     fault.New(true),

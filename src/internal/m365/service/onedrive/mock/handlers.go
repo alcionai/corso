@@ -455,7 +455,7 @@ func (dq *DeltaQuery) NextPage() ([]models.DriveItemable, bool, bool) {
 	}
 
 	np := dq.Pages[dq.idx]
-	dq.idx = dq.idx + 1
+	dq.idx++
 
 	return np.Items, np.Reset, false
 }
