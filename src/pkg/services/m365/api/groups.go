@@ -110,20 +110,18 @@ func (c Groups) GetByID(
 	identifier string,
 	_ CallConfig, // matching standards
 ) (models.Groupable, error) {
-	service, err := c.Service(c.counter)
-	if err != nil {
-		return nil, err
-	}
-
 	ctx = clues.Add(ctx, "resource_identifier", identifier)
 
-	var group models.Groupable
+	var (
+		group models.Groupable
+		err   error
+	)
 
 	// prefer lookup by id, but fallback to lookup by display name,
 	// even in the case of a uuid, just in case the display name itself
 	// is a uuid.
 	if uuidRE.MatchString(identifier) {
-		group, err = service.
+		group, err = c.Stable.
 			Client().
 			Groups().
 			ByGroupId(identifier).
@@ -149,7 +147,7 @@ func (c Groups) GetByID(
 			},
 		}
 
-		resp, err := service.Client().Groups().Get(ctx, opts)
+		resp, err := c.Stable.Client().Groups().Get(ctx, opts)
 		if err == nil {
 			return getGroupFromResponse(ctx, resp)
 		}
@@ -169,7 +167,7 @@ func (c Groups) GetByID(
 		},
 	}
 
-	resp, err := service.Client().Groups().Get(ctx, opts)
+	resp, err := c.Stable.Client().Groups().Get(ctx, opts)
 	if err != nil {
 		if graph.IsErrResourceLocked(err) {
 			err = clues.Stack(graph.ErrResourceLocked, err)
