@@ -136,18 +136,6 @@ func DefaultDriveBHWith(
 	return mbh
 }
 
-func DefaultDriveBHWithMulti(
-	resource string,
-	drivePager *apiMock.Pager[models.Driveable],
-	enumerator EnumerateDriveItemsDelta,
-) *BackupHandler[models.DriveItemable] {
-	mbh := DefaultOneDriveBH(resource)
-	mbh.DrivePagerV = drivePager
-	mbh.DriveItemEnumerationMulti = enumerator
-
-	return mbh
-}
-
 func (h BackupHandler[T]) PathPrefix(tID, driveID string) (path.Path, error) {
 	pp, err := h.PathPrefixFn(tID, h.ProtectedResource.ID(), driveID)
 	if err != nil {
@@ -218,14 +206,6 @@ func (h BackupHandler[T]) EnumerateDriveItemsDelta(
 	driveID, prevDeltaLink string,
 	cc api.CallConfig,
 ) pagers.NextPageResulter[models.DriveItemable] {
-	if h.DriveItemEnumerationMulti.DrivePagers != nil {
-		return h.DriveItemEnumerationMulti.EnumerateDriveItemsDelta(
-			ctx,
-			driveID,
-			prevDeltaLink,
-			cc)
-	}
-
 	return h.DriveItemEnumeration.EnumerateDriveItemsDelta(
 		ctx,
 		driveID,
@@ -345,123 +325,6 @@ func (m GetsItem) GetItem(
 
 // ---------------------------------------------------------------------------
 // Drive Items Enumerator
-// ---------------------------------------------------------------------------
-
-type EnumerateDriveItemsDelta struct {
-	DrivePagers map[string]*DriveDeltaEnumerator
-}
-
-func DriveEnumerator(
-	ds ...*DriveDeltaEnumerator,
-) EnumerateDriveItemsDelta {
-	enumerator := EnumerateDriveItemsDelta{
-		DrivePagers: map[string]*DriveDeltaEnumerator{},
-	}
-
-	for _, drive := range ds {
-		enumerator.DrivePagers[drive.DriveID] = drive
-	}
-
-	return enumerator
-}
-
-func (en EnumerateDriveItemsDelta) EnumerateDriveItemsDelta(
-	_ context.Context,
-	driveID, _ string,
-	_ api.CallConfig,
-) pagers.NextPageResulter[models.DriveItemable] {
-	iterator := en.DrivePagers[driveID]
-	return iterator.nextDelta()
-}
-
-type DriveDeltaEnumerator struct {
-	DriveID      string
-	idx          int
-	DeltaQueries []*DeltaQuery
-}
-
-func Drive(driveID string) *DriveDeltaEnumerator {
-	return &DriveDeltaEnumerator{DriveID: driveID}
-}
-
-func (dde *DriveDeltaEnumerator) With(ds ...*DeltaQuery) *DriveDeltaEnumerator {
-	dde.DeltaQueries = ds
-	return dde
-}
-
-func (dde *DriveDeltaEnumerator) nextDelta() *DeltaQuery {
-	if dde.idx == len(dde.DeltaQueries) {
-		// at the end of the enumeration, return an empty page with no items,
-		// not even the root.  This is what graph api would do to signify an absence
-		// of changes in the delta.
-		lastDU := dde.DeltaQueries[dde.idx-1].DeltaUpdate
-
-		return &DeltaQuery{
-			DeltaUpdate: lastDU,
-			Pages: []NextPage{{
-				Items: []models.DriveItemable{},
-			}},
-		}
-	}
-
-	if dde.idx > len(dde.DeltaQueries) {
-		// a panic isn't optimal here, but since this mechanism is internal to testing,
-		// it's an acceptable way to have the tests ensure we don't over-enumerate deltas.
-		panic(fmt.Sprintf("delta index %d larger than count of delta iterations in mock", dde.idx))
-	}
-
-	pages := dde.DeltaQueries[dde.idx]
-
-	dde.idx++
-
-	return pages
-}
-
-var _ pagers.NextPageResulter[models.DriveItemable] = &DeltaQuery{}
-
-type DeltaQuery struct {
-	idx         int
-	Pages       []NextPage
-	DeltaUpdate pagers.DeltaUpdate
-	Err         error
-}
-
-func Delta(
-	resultDeltaID string,
-	err error,
-) *DeltaQuery {
-	return &DeltaQuery{
-		DeltaUpdate: pagers.DeltaUpdate{URL: resultDeltaID},
-		Err:         err,
-	}
-}
-
-func (dq *DeltaQuery) NextPage() ([]models.DriveItemable, bool, bool) {
-	if dq.idx >= len(dq.Pages) {
-		return nil, false, true
-	}
-
-	np := dq.Pages[dq.idx]
-	dq.idx = dq.idx + 1
-
-	return np.Items, np.Reset, false
-}
-
-func (dq *DeltaQuery) With(
-	pages ...NextPage,
-) *DeltaQuery {
-	dq.Pages = append(dq.Pages, pages...)
-	return dq
-}
-
-func (dq *DeltaQuery) Cancel() {}
-
-func (dq *DeltaQuery) Results() (pagers.DeltaUpdate, error) {
-	return dq.DeltaUpdate, dq.Err
-}
-
-// ---------------------------------------------------------------------------
-// old version - Enumerates Drive Items
 // ---------------------------------------------------------------------------
 
 type NextPage struct {
@@ -589,10 +452,10 @@ func (dq *DeltaQuery) NextPage() ([]models.DriveItemable, bool, bool) {
 	return np.Items, np.Reset, false
 }
 
-func (pid *DeltaQuery) Cancel() {}
+func (dq *DeltaQuery) Cancel() {}
 
-func (pid *DeltaQuery) Results() (pagers.DeltaUpdate, error) {
-	return pid.DeltaUpdate, pid.Err
+func (dq *DeltaQuery) Results() (pagers.DeltaUpdate, error) {
+	return dq.DeltaUpdate, dq.Err
 }
 
 // ---------------------------------------------------------------------------

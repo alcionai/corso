@@ -178,9 +178,9 @@ func driveItem(
 	return coreItem(id, name, parentPath, parentID, it)
 }
 
-// func fileAtRoot() models.DriveItemable {
-// 	return driveItem(id(file), name(file), parentDir(), rootID, isFile)
-// }
+func fileAtRoot() models.DriveItemable {
+	return driveItem(id(file), name(file), parentDir(), rootID, isFile)
+}
 
 func fileAt(
 	parentX any,
