@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/klauspost/compress/zstd"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,6 +67,66 @@ func CompressWithGZIP(input []byte) (bytes.Buffer, error) {
 	}
 
 	return tmpBuffer, nil
+}
+
+func DecompressWithGZIP(compressedData []byte) ([]byte, error) {
+	reader, err := gzip.NewReader(bytes.NewBuffer(compressedData))
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	decompressedData, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return decompressedData, nil
+}
+
+func CompressWithZstd(input []byte) (bytes.Buffer, error) {
+	var tmpBuffer bytes.Buffer
+
+	var encoder, err = zstd.NewWriter(&tmpBuffer, zstd.WithEncoderLevel(zstd.SpeedBestCompression))
+	if err != nil {
+		return tmpBuffer, err
+	}
+	defer encoder.Close()
+
+	_, err = encoder.Write(input)
+	if err != nil {
+		return tmpBuffer, err
+	}
+
+	err = encoder.Close()
+	if err != nil {
+		return tmpBuffer, err
+	}
+
+	return tmpBuffer, nil
+}
+
+func DecompressWithZstd(compressedData []byte) ([]byte, error) {
+	decoder, err := zstd.NewReader(bytes.NewReader(compressedData))
+	if err != nil {
+		return nil, err
+	}
+	defer decoder.Close()
+
+	decompressedData, err := io.ReadAll(decoder)
+	if err != nil {
+		return nil, err
+	}
+
+	return decompressedData, nil
+
+	// var decompressedBuffer bytes.Buffer
+	// _, err = decoder.WriteTo(&decompressedBuffer)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// return decompressedBuffer.Bytes(), nil
 }
 
 func TestURLCacheIntegrationSuite(t *testing.T) {
@@ -202,14 +263,24 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 			newDownloadUrl := compressed.String()
 
-			fmt.Printf("download url size, orig %d compressed %d\n", len(props.downloadURL), len(newDownloadUrl))
+			ztsdCompressed, err := CompressWithZstd([]byte(props.downloadURL))
+			require.NoError(t, err, clues.ToCore(err))
+
+			ztsdDownloadUrl := ztsdCompressed.String()
+
+			fmt.Printf("download url size, orig %d compressed gzip %d ztsd %d \n", len(props.downloadURL), len(newDownloadUrl), len(ztsdDownloadUrl))
 			// Validate download URL
+
+			// Decompress url
+			decompressed, err := DecompressWithGZIP([]byte(newDownloadUrl))
+			require.NoError(t, err, clues.ToCore(err))
+
 			c := graph.NewNoTimeoutHTTPWrapper(count.New())
 
 			resp, err := c.Request(
 				ctx,
 				http.MethodGet,
-				props.downloadURL,
+				string(decompressed),
 				nil,
 				nil)
 			require.NoError(t, err, clues.ToCore(err))
