@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -541,7 +541,7 @@ func appendIf(a []any, k string, v *string) []any {
 
 // ItemInfo gathers potentially useful information about a drive item,
 // and aggregates that data into a map.
-func ItemInfo(item models.DriveItemable) map[string]any {
+func ItemInfo(item *custom.DriveItem) map[string]any {
 	m := map[string]any{}
 
 	creator := item.GetCreatedByUser()

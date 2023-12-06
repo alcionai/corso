@@ -361,3 +361,13 @@ func ToCustomDriveItem(item models.DriveItemable) *DriveItem {
 
 	return di
 }
+
+func SetParentName(orig *itemReference, driveName string) *itemReference {
+	if orig == nil {
+		return nil
+	}
+
+	orig.name = &driveName
+
+	return orig
+}
