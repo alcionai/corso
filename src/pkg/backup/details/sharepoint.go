@@ -13,16 +13,24 @@ import (
 // NewSharePointLocationIDer builds a LocationIDer for the drive and folder
 // path. The path denoted by the folders should be unique within the drive.
 func NewSharePointLocationIDer(
+	category path.CategoryType,
 	driveID string,
 	escapedFolders ...string,
 ) uniqueLoc {
-	pb := path.Builder{}.
-		Append(path.LibrariesCategory.String(), driveID).
-		Append(escapedFolders...)
+	pb := path.Builder{}.Append(category.String())
+	prefixElems := 1
+
+	if len(driveID) > 0 { // for library category
+		pb = pb.Append(driveID)
+
+		prefixElems = 2
+	}
+
+	pb = pb.Append(escapedFolders...)
 
 	return uniqueLoc{
 		pb:          pb,
-		prefixElems: 2,
+		prefixElems: prefixElems,
 	}
 }
 
@@ -44,21 +52,40 @@ type SharePointInfo struct {
 // Headers returns the human-readable names of properties in a SharePointInfo
 // for printing out to a terminal in a columnar display.
 func (i SharePointInfo) Headers() []string {
-	return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
+	switch i.ItemType {
+	case SharePointLibrary:
+		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
+	case SharePointList:
+		return []string{"ItemName", "Size", "Created", "Modified"}
+	}
+
+	return []string{}
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
 func (i SharePointInfo) Values() []string {
-	return []string{
-		i.ItemName,
-		i.DriveName,
-		i.ParentPath,
-		humanize.Bytes(uint64(i.Size)),
-		i.Owner,
-		dttm.FormatToTabularDisplay(i.Created),
-		dttm.FormatToTabularDisplay(i.Modified),
+	switch i.ItemType {
+	case SharePointLibrary:
+		return []string{
+			i.ItemName,
+			i.DriveName,
+			i.ParentPath,
+			humanize.Bytes(uint64(i.Size)),
+			i.Owner,
+			dttm.FormatToTabularDisplay(i.Created),
+			dttm.FormatToTabularDisplay(i.Modified),
+		}
+	case SharePointList:
+		return []string{
+			i.ItemName,
+			humanize.Bytes(uint64(i.Size)),
+			dttm.FormatToTabularDisplay(i.Created),
+			dttm.FormatToTabularDisplay(i.Modified),
+		}
 	}
+
+	return []string{}
 }
 
 func (i *SharePointInfo) UpdateParentPath(newLocPath *path.Builder) {
@@ -66,17 +93,14 @@ func (i *SharePointInfo) UpdateParentPath(newLocPath *path.Builder) {
 }
 
 func (i *SharePointInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
-	if i.ItemType == SharePointList {
-		loc := NewSharePointLocationIDer(path.ListsCategory.HumanString(), baseLoc.Elements()...)
+	var loc uniqueLoc
 
-		return &loc, nil
+	switch i.ItemType {
+	case SharePointLibrary, OneDriveItem:
+		loc = NewSharePointLocationIDer(path.LibrariesCategory, i.DriveID, baseLoc.Elements()...)
+	case SharePointList:
+		loc = NewSharePointLocationIDer(path.ListsCategory, "", baseLoc.Elements()...)
 	}
-
-	if len(i.DriveID) == 0 {
-		return nil, clues.New("empty drive ID")
-	}
-
-	loc := NewSharePointLocationIDer(i.DriveID, baseLoc.Elements()...)
 
 	return &loc, nil
 }
