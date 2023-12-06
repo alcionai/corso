@@ -50,7 +50,6 @@ type BackupHandler[T any] struct {
 	Service           path.ServiceType
 	Category          path.CategoryType
 
-	DrivePagerV pagers.NonDeltaHandler[models.Driveable]
 	// driveID -> itemPager
 	ItemPagerV map[string]pagers.DeltaHandler[models.DriveItemable]
 
@@ -126,11 +125,9 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler[models.DriveItemab
 
 func DefaultDriveBHWith(
 	resource string,
-	drivePager *apiMock.Pager[models.Driveable],
 	enumerator EnumerateDriveItemsDelta,
 ) *BackupHandler[models.DriveItemable] {
 	mbh := DefaultOneDriveBH(resource)
-	mbh.DrivePagerV = drivePager
 	mbh.DriveItemEnumeration = enumerator
 
 	return mbh
@@ -168,7 +165,7 @@ func (h BackupHandler[T]) ServiceCat() (path.ServiceType, path.CategoryType) {
 }
 
 func (h BackupHandler[T]) NewDrivePager(string, []string) pagers.NonDeltaHandler[models.Driveable] {
-	return h.DrivePagerV
+	return h.DriveItemEnumeration.DrivePager()
 }
 
 func (h BackupHandler[T]) FormatDisplayPath(_ string, pb *path.Builder) string {
@@ -333,18 +330,18 @@ type NextPage struct {
 }
 
 type EnumerateDriveItemsDelta struct {
-	DrivePagers map[string]*DriveDeltaEnumerator
+	DrivePagers map[string]*DeltaDriveEnumerator
 }
 
 func DriveEnumerator(
-	ds ...*DriveDeltaEnumerator,
+	ds ...*DeltaDriveEnumerator,
 ) EnumerateDriveItemsDelta {
 	enumerator := EnumerateDriveItemsDelta{
-		DrivePagers: map[string]*DriveDeltaEnumerator{},
+		DrivePagers: map[string]*DeltaDriveEnumerator{},
 	}
 
 	for _, drive := range ds {
-		enumerator.DrivePagers[drive.DriveID] = drive
+		enumerator.DrivePagers[drive.Drive.ID] = drive
 	}
 
 	return enumerator
@@ -359,29 +356,73 @@ func (en EnumerateDriveItemsDelta) EnumerateDriveItemsDelta(
 	return iterator.nextDelta()
 }
 
-type DriveDeltaEnumerator struct {
-	DriveID      string
+func (en EnumerateDriveItemsDelta) DrivePager() *apiMock.Pager[models.Driveable] {
+	drives := []models.Driveable{}
+
+	for _, dp := range en.DrivePagers {
+		drives = append(drives, dp.Drive.Able)
+	}
+
+	return &apiMock.Pager[models.Driveable]{
+		ToReturn: []apiMock.PagerResult[models.Driveable]{
+			{Values: drives},
+		},
+	}
+}
+
+func (en EnumerateDriveItemsDelta) Drives() []*DeltaDrive {
+	drives := []*DeltaDrive{}
+
+	for _, dp := range en.DrivePagers {
+		drives = append(drives, dp.Drive)
+	}
+
+	return drives
+}
+
+type DeltaDrive struct {
+	ID   string
+	Able models.Driveable
+}
+
+func Drive(driveSuffix ...any) *DeltaDrive {
+	driveID := id("drive", driveSuffix...)
+
+	able := models.NewDrive()
+	able.SetId(ptr.To(driveID))
+	able.SetName(ptr.To(name("drive", driveSuffix...)))
+
+	return &DeltaDrive{
+		ID:   driveID,
+		Able: able,
+	}
+}
+
+func (dd *DeltaDrive) NewEnumer() *DeltaDriveEnumerator {
+	copy := &DeltaDrive{}
+	*copy = *dd
+	return &DeltaDriveEnumerator{Drive: copy}
+}
+
+type DeltaDriveEnumerator struct {
+	Drive        *DeltaDrive
 	idx          int
 	DeltaQueries []*DeltaQuery
 	Err          error
 }
 
-func Drive(driveID string) *DriveDeltaEnumerator {
-	return &DriveDeltaEnumerator{DriveID: driveID}
-}
-
-func (dde *DriveDeltaEnumerator) With(ds ...*DeltaQuery) *DriveDeltaEnumerator {
+func (dde *DeltaDriveEnumerator) With(ds ...*DeltaQuery) *DeltaDriveEnumerator {
 	dde.DeltaQueries = ds
 	return dde
 }
 
 // WithErr adds an error that is always returned in the last delta index.
-func (dde *DriveDeltaEnumerator) WithErr(err error) *DriveDeltaEnumerator {
+func (dde *DeltaDriveEnumerator) WithErr(err error) *DeltaDriveEnumerator {
 	dde.Err = err
 	return dde
 }
 
-func (dde *DriveDeltaEnumerator) nextDelta() *DeltaQuery {
+func (dde *DeltaDriveEnumerator) nextDelta() *DeltaQuery {
 	if dde.idx == len(dde.DeltaQueries) {
 		// at the end of the enumeration, return an empty page with no items,
 		// not even the root.  This is what graph api would do to signify an absence
@@ -597,4 +638,50 @@ func (h *RestoreHandler) GetRootFolder(
 	string,
 ) (models.DriveItemable, error) {
 	return models.NewDriveItem(), nil
+}
+
+// assumption is only one suffix per id.  Mostly using
+// the variadic as an "optional" extension.
+func id(v string, suffixes ...any) string {
+	id := fmt.Sprintf("id_%s", v)
+
+	// a bit weird, but acts as a quality of life
+	// that allows some funcs to take in the `file`
+	// or `folder` or etc monikers as the suffix
+	// without producing weird outputs.
+	if len(suffixes) == 1 {
+		sfx0, ok := suffixes[0].(string)
+		if ok && sfx0 == v {
+			return id
+		}
+	}
+
+	for _, sfx := range suffixes {
+		id = fmt.Sprintf("%s_%v", id, sfx)
+	}
+
+	return id
+}
+
+// assumption is only one suffix per name.  Mostly using
+// the variadic as an "optional" extension.
+func name(v string, suffixes ...any) string {
+	name := fmt.Sprintf("n_%s", v)
+
+	// a bit weird, but acts as a quality of life
+	// that allows some funcs to take in the `file`
+	// or `folder` or etc monikers as the suffix
+	// without producing weird outputs.
+	if len(suffixes) == 1 {
+		sfx0, ok := suffixes[0].(string)
+		if ok && sfx0 == v {
+			return name
+		}
+	}
+
+	for _, sfx := range suffixes {
+		name = fmt.Sprintf("%s_%v", name, sfx)
+	}
+
+	return name
 }

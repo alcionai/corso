@@ -532,15 +532,17 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 					ctx, flush := tester.NewContext(t)
 					defer flush()
 
+					drive := mock.Drive()
+
 					driveEnumer := mock.DriveEnumerator(
-						mock.Drive(id(drive)).
+						drive.NewEnumer().
 							WithErr(test.pagerErr).
 							With(
 								mock.Delta(delta, test.pagerErr).
 									With(test.pages...)))
 
 					cache, err := newURLCache(
-						id(drive),
+						drive.ID,
 						"",
 						1*time.Hour,
 						driveEnumer,
@@ -581,10 +583,11 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 	var (
 		t               = suite.T()
 		refreshInterval = 1 * time.Second
+		drv             = mock.Drive()
 	)
 
 	cache, err := newURLCache(
-		id(drive),
+		drv.ID,
 		"",
 		refreshInterval,
 		&mock.EnumerateDriveItemsDelta{},
@@ -610,6 +613,8 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 }
 
 func (suite *URLCacheUnitSuite) TestNewURLCache() {
+	drv := mock.Drive()
+
 	table := []struct {
 		name       string
 		driveID    string
@@ -628,7 +633,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		},
 		{
 			name:       "invalid refresh interval",
-			driveID:    id(drive),
+			driveID:    drv.ID,
 			refreshInt: 100 * time.Millisecond,
 			itemPager:  &mock.EnumerateDriveItemsDelta{},
 			errors:     fault.New(true),
@@ -636,7 +641,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		},
 		{
 			name:       "invalid item enumerator",
-			driveID:    id(drive),
+			driveID:    drv.ID,
 			refreshInt: 1 * time.Hour,
 			itemPager:  nil,
 			errors:     fault.New(true),
@@ -644,7 +649,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		},
 		{
 			name:       "valid",
-			driveID:    id(drive),
+			driveID:    drv.ID,
 			refreshInt: 1 * time.Hour,
 			itemPager:  &mock.EnumerateDriveItemsDelta{},
 			errors:     fault.New(true),

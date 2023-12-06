@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
@@ -26,7 +25,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 // ---------------------------------------------------------------------------
@@ -865,14 +863,14 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			defer flush()
 
 			var (
-				driveID  = id(drive, drive)
+				drive    = mock.Drive()
 				mbh      = mock.DefaultOneDriveBH(user)
 				excludes = map[string]struct{}{}
 				errs     = fault.New(true)
 			)
 
 			mbh.DriveItemEnumeration = mock.DriveEnumerator(
-				mock.Drive(driveID).With(
+				drive.NewEnumer().With(
 					mock.Delta("notempty", nil).With(
 						aPage(test.items...))))
 
@@ -889,11 +887,11 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 				control.Options{ToggleFeatures: control.Toggles{}},
 				count.New())
 
-			c.CollectionMap[driveID] = map[string]*Collection{}
+			c.CollectionMap[drive.ID] = map[string]*Collection{}
 
 			_, newPrevPaths, err := c.PopulateDriveCollections(
 				ctx,
-				driveID,
+				drive.ID,
 				"General",
 				test.previousPaths,
 				excludes,
@@ -905,7 +903,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			assert.ElementsMatch(
 				t,
 				maps.Keys(test.expectedCollectionIDs),
-				maps.Keys(c.CollectionMap[driveID]),
+				maps.Keys(c.CollectionMap[drive.ID]),
 				"expected collection IDs")
 			assert.Equal(t, test.expectedItemCount, c.NumItems, "item count")
 			assert.Equal(t, test.expectedFileCount, c.NumFiles, "file count")
@@ -913,14 +911,14 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			assert.Equal(t, test.expectedSkippedCount, len(errs.Skipped()), "skipped item count")
 
 			for id, sp := range test.expectedCollectionIDs {
-				if !assert.Containsf(t, c.CollectionMap[driveID], id, "missing collection with id %s", id) {
+				if !assert.Containsf(t, c.CollectionMap[drive.ID], id, "missing collection with id %s", id) {
 					// Skip collections we don't find so we don't get an NPE.
 					continue
 				}
 
-				assert.Equalf(t, sp.state, c.CollectionMap[driveID][id].State(), "state for collection %s", id)
-				assert.Equalf(t, sp.currPath, c.CollectionMap[driveID][id].FullPath(), "current path for collection %s", id)
-				assert.Equalf(t, sp.prevPath, c.CollectionMap[driveID][id].PreviousPath(), "prev path for collection %s", id)
+				assert.Equalf(t, sp.state, c.CollectionMap[drive.ID][id].State(), "state for collection %s", id)
+				assert.Equalf(t, sp.currPath, c.CollectionMap[drive.ID][id].FullPath(), "current path for collection %s", id)
+				assert.Equalf(t, sp.prevPath, c.CollectionMap[drive.ID][id].PreviousPath(), "prev path for collection %s", id)
 			}
 
 			assert.Equal(t, test.expectedPrevPaths, newPrevPaths, "previous paths")
@@ -1402,17 +1400,12 @@ func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
-
 	mbh := mock.DefaultOneDriveBH(user)
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
-	mbh.DrivePagerV = pagerForDrives(drv)
 	mbh.DriveItemEnumeration = mock.DriveEnumerator(
-		mock.Drive(id(drive)).With(
+		mock.Drive().NewEnumer().With(
 			mock.Delta(id(delta), nil).With(
 				aPage(delItem(fileID(), rootID, isFile)))))
 
@@ -1432,17 +1425,11 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		false)
 	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
 
-	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(id(drive, 1)))
-	drive1.SetName(ptr.To(name(drive, 1)))
-
-	drive2 := models.NewDrive()
-	drive2.SetId(ptr.To(id(drive, 2)))
-	drive2.SetName(ptr.To(name(drive, 2)))
+	drive1 := mock.Drive(1)
+	drive2 := mock.Drive(2)
 
 	table := []struct {
 		name                 string
-		drives               []models.Driveable
 		enumerator           mock.EnumerateDriveItemsDelta
 		canUsePreviousBackup bool
 		errCheck             assert.ErrorAssertionFunc
@@ -1460,10 +1447,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		doNotMergeItems map[string]bool
 	}{
 		{
-			name:   "OneDrive_OneItemPage_DelFileOnly_NoFolders_NoErrors",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_DelFileOnly_NoFolders_NoErrors",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta(id(delta), nil).With(aPage(
 						delItem(fileID(), rootID, isFile))))),
 			canUsePreviousBackup: true,
@@ -1485,10 +1471,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			}),
 		},
 		{
-			name:   "OneDrive_OneItemPage_NoFolderDeltas_NoErrors",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_NoFolderDeltas_NoErrors",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta(id(delta), nil).With(aPage(
 						driveFile(driveParentDir(1), rootID))))),
 			canUsePreviousBackup: true,
@@ -1510,10 +1495,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			}),
 		},
 		{
-			name:   "OneDrive_OneItemPage_NoErrors",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_NoErrors",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(aPage(
 						driveFolder(driveParentDir(1), rootID),
 						driveFile(driveParentDir(1, folderName()), folderID()))))),
@@ -1540,10 +1524,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_OneItemPage_NoErrors_FileRenamedMultiple",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_NoErrors_FileRenamedMultiple",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(aPage(
 						driveFolder(driveParentDir(1), rootID),
 						driveFile(driveParentDir(1, folderName()), folderID()),
@@ -1571,10 +1554,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_OneItemPage_NoErrors_FileMovedMultiple",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_NoErrors_FileMovedMultiple",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta(id(delta), nil).With(aPage(
 						driveFolder(driveParentDir(1), rootID),
 						driveFile(driveParentDir(1, folderName()), folderID()),
@@ -1604,10 +1586,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			}),
 		},
 		{
-			name:   "OneDrive_TwoItemPages_NoErrors",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_TwoItemPages_NoErrors",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -1640,10 +1621,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_TwoItemPages_WithReset",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_TwoItemPages_WithReset",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -1681,10 +1661,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_TwoItemPages_WithResetCombinedWithItems",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_TwoItemPages_WithResetCombinedWithItems",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -1721,16 +1700,12 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		},
 		{
 			name: "TwoDrives_OneItemPageEach_NoErrors",
-			drives: []models.Driveable{
-				drive1,
-				drive2,
-			},
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(aPage(
 						driveFolder(driveParentDir(1), rootID),
 						driveFile(driveParentDir(1, folderName()), folderID())))),
-				mock.Drive(id(drive, 2)).With(
+				drive2.NewEnumer().With(
 					mock.DeltaWReset(id(delta, 2), nil).With(aPage(
 						driveItem(folderID(2), folderName(), driveParentDir(2), rootID, isFolder),
 						driveItem(fileID(2), fileName(), driveParentDir(2, folderName()), folderID(2), isFile))))),
@@ -1770,16 +1745,12 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		},
 		{
 			name: "TwoDrives_DuplicateIDs_OneItemPageEach_NoErrors",
-			drives: []models.Driveable{
-				drive1,
-				drive2,
-			},
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(aPage(
 						driveFolder(driveParentDir(1), rootID),
 						driveFile(driveParentDir(1, folderName()), folderID())))),
-				mock.Drive(id(drive, 2)).With(
+				drive2.NewEnumer().With(
 					mock.DeltaWReset(id(delta, 2), nil).With(aPage(
 						driveFolder(driveParentDir(2), rootID),
 						driveItem(fileID(2), fileName(), driveParentDir(2, folderName()), folderID(), isFile))))),
@@ -1818,10 +1789,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_OneItemPage_Errors",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_Errors",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta("", assert.AnError))),
 			canUsePreviousBackup: false,
 			errCheck:             assert.Error,
@@ -1834,10 +1804,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			expectedDelList:       nil,
 		},
 		{
-			name:   "OneDrive_OneItemPage_InvalidPrevDelta_DeleteNonExistentFolder",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_InvalidPrevDelta_DeleteNonExistentFolder",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
 						aPage(
@@ -1873,10 +1842,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_OneItemPage_InvalidPrevDeltaCombinedWithItems_DeleteNonExistentFolder",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_InvalidPrevDeltaCombinedWithItems_DeleteNonExistentFolder",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
 						aPage(
@@ -1912,10 +1880,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aPage(
 							driveItem(folderID(2), folderName(), driveParentDir(1), rootID, isFolder),
@@ -1957,10 +1924,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtExistingLocation",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtExistingLocation",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -1999,10 +1965,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_OneItemPage_ImmediateInvalidPrevDelta_MoveFolderToPreviouslyExistingPath",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_ImmediateInvalidPrevDelta_MoveFolderToPreviouslyExistingPath",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
 						aPage(
@@ -2039,10 +2004,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
 						aPage(
@@ -2081,10 +2045,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "OneDrive Two Item Pages with Malware",
-			drives: []models.Driveable{drive1},
+			name: "OneDrive Two Item Pages with Malware",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -2120,10 +2083,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			expectedSkippedCount: 2,
 		},
 		{
-			name:   "One Drive Deleted Folder In New Results With Invalid Delta",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Deleted Folder In New Results With Invalid Delta",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta, 2), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -2167,10 +2129,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Folder Delete After Invalid Delta",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Folder Delete After Invalid Delta",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(aPageWReset(
 						delItem(folderID(), rootID, isFolder))))),
 			canUsePreviousBackup: true,
@@ -2200,10 +2161,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Item Delete After Invalid Delta",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Item Delete After Invalid Delta",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(aPageWReset(
 						delItem(fileID(), rootID, isFile))))),
 			canUsePreviousBackup: true,
@@ -2230,10 +2190,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Folder Made And Deleted",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Folder Made And Deleted",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta, 2), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -2263,10 +2222,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Folder Created -> Deleted -> Created",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Folder Created -> Deleted -> Created",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta, 2), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -2302,10 +2260,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Folder Deleted -> Created -> Deleted",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Folder Deleted -> Created -> Deleted",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta, 2), nil).With(
 						aPage(
 							delItem(folderID(), rootID, isFolder),
@@ -2340,10 +2297,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			doNotMergeItems: map[string]bool{},
 		},
 		{
-			name:   "One Drive Folder Created -> Deleted -> Created with prev",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Folder Created -> Deleted -> Created with prev",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta, 2), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -2382,10 +2338,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Item Made And Deleted",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Item Made And Deleted",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aPage(
 							driveFolder(driveParentDir(1), rootID),
@@ -2416,10 +2371,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Random Folder Delete",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Random Folder Delete",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.DeltaWReset(id(delta), nil).With(aPage(
 						delItem(folderID(), rootID, isFolder))))),
 			canUsePreviousBackup: true,
@@ -2444,10 +2398,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "One Drive Random Item Delete",
-			drives: []models.Driveable{drive1},
+			name: "One Drive Random Item Delete",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta(id(delta), nil).With(aPage(
 						delItem(fileID(), rootID, isFile))))),
 			canUsePreviousBackup: true,
@@ -2472,10 +2425,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "TwoPriorDrives_OneTombstoned",
-			drives: []models.Driveable{drive1},
+			name: "TwoPriorDrives_OneTombstoned",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta(id(delta), nil).With(aPage()))), // root only
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
@@ -2497,16 +2449,15 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 		},
 		{
-			name:   "duplicate previous paths in metadata",
-			drives: []models.Driveable{drive1, drive2},
+			name: "duplicate previous paths in metadata",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta(id(delta), nil).With(aPage(
 						driveFolder(driveParentDir(1), rootID),
 						driveFile(driveParentDir(1, folderName()), folderID()),
 						driveFolder(driveParentDir(1), rootID, 2),
 						driveFile(driveParentDir(1, folderName(2)), folderID(2), 2)))),
-				mock.Drive(id(drive, 2)).With(
+				drive2.NewEnumer().With(
 					mock.Delta(id(delta, 2), nil).With(aPage(
 						driveFolder(driveParentDir(2), rootID),
 						driveFile(driveParentDir(2, folderName()), folderID()),
@@ -2571,10 +2522,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			doNotMergeItems: map[string]bool{},
 		},
 		{
-			name:   "out of order item enumeration causes prev path collisions",
-			drives: []models.Driveable{drive1},
+			name: "out of order item enumeration causes prev path collisions",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta(id(delta), nil).With(aPage(
 						driveItem(folderID(fanny, 2), folderName(fanny), driveParentDir(1), rootID, isFolder),
 						driveFile(driveParentDir(1, folderName(fanny)), folderID(fanny, 2), 2),
@@ -2615,10 +2565,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			doNotMergeItems: map[string]bool{},
 		},
 		{
-			name:   "out of order item enumeration causes opposite prev path collisions",
-			drives: []models.Driveable{drive1},
+			name: "out of order item enumeration causes opposite prev path collisions",
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta(id(delta), nil).With(aPage(
 						driveFile(driveParentDir(1), rootID, 1),
 						driveFolder(driveParentDir(1), rootID, fanny),
@@ -2678,14 +2627,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			mockDrivePager := &apiMock.Pager[models.Driveable]{
-				ToReturn: []apiMock.PagerResult[models.Driveable]{
-					{Values: test.drives},
-				},
-			}
-
 			mbh := mock.DefaultOneDriveBH(user)
-			mbh.DrivePagerV = mockDrivePager
 			mbh.DriveItemEnumeration = test.enumerator
 
 			c := NewCollections(
@@ -2816,32 +2758,22 @@ func (suite *CollectionsUnitSuite) TestGet() {
 }
 
 func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
-	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(id(drive, 1)))
-	drive1.SetName(ptr.To(name(drive, 1)))
-
-	drive2 := models.NewDrive()
-	drive2.SetId(ptr.To(id(drive, 2)))
-	drive2.SetName(ptr.To(name(drive, 2)))
+	drive1 := mock.Drive(1)
+	drive2 := mock.Drive(2)
 
 	table := []struct {
 		name       string
-		drives     []models.Driveable
 		enumerator mock.EnumerateDriveItemsDelta
 		errCheck   assert.ErrorAssertionFunc
 	}{
 		{
 			name: "Two drives with unique url cache instances",
-			drives: []models.Driveable{
-				drive1,
-				drive2,
-			},
 			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive, 1)).With(
+				drive1.NewEnumer().With(
 					mock.Delta(id(delta), nil).With(aPage(
 						driveFolder(driveParentDir(1), rootID),
 						driveFile(driveParentDir(1, folderName()), folderID())))),
-				mock.Drive(id(drive, 2)).With(
+				drive2.NewEnumer().With(
 					mock.Delta(id(delta, 2), nil).With(aPage(
 						driveItem(folderID(2), folderName(), driveParentDir(2), rootID, isFolder),
 						driveItem(fileID(2), fileName(), driveParentDir(2, folderName()), folderID(2), isFile))))),
@@ -2859,14 +2791,7 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			mockDrivePager := &apiMock.Pager[models.Driveable]{
-				ToReturn: []apiMock.PagerResult[models.Driveable]{
-					{Values: test.drives},
-				},
-			}
-
 			mbh := mock.DefaultOneDriveBH(user)
-			mbh.DrivePagerV = mockDrivePager
 			mbh.DriveItemEnumeration = test.enumerator
 
 			c := NewCollections(
@@ -2924,7 +2849,7 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			// Check that we have the expected number of caches. One per drive.
 			require.Equal(
 				t,
-				len(test.drives),
+				len(test.enumerator.Drives()),
 				len(caches),
 				"expected one cache per drive")
 		})

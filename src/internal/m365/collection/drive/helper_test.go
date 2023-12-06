@@ -30,7 +30,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
@@ -394,12 +393,15 @@ func id(v string, suffixes ...any) string {
 	// that allows some funcs to take in the `file`
 	// or `folder` or etc monikers as the suffix
 	// without producing weird outputs.
-	if len(suffixes) == 1 && suffixes[0] == v {
-		return id
+	if len(suffixes) == 1 {
+		sfx0, ok := suffixes[0].(string)
+		if ok && sfx0 == v {
+			return id
+		}
 	}
 
 	for _, sfx := range suffixes {
-		id = fmt.Sprintf("%s_%s", v, sfx)
+		id = fmt.Sprintf("%s_%v", id, sfx)
 	}
 
 	return id
@@ -414,12 +416,15 @@ func name(v string, suffixes ...any) string {
 	// that allows some funcs to take in the `file`
 	// or `folder` or etc monikers as the suffix
 	// without producing weird outputs.
-	if len(suffixes) == 1 && suffixes[0] == v {
-		return name
+	if len(suffixes) == 1 {
+		sfx0, ok := suffixes[0].(string)
+		if ok && sfx0 == v {
+			return name
+		}
 	}
 
 	for _, sfx := range suffixes {
-		name = fmt.Sprintf("%s_%s", v, sfx)
+		name = fmt.Sprintf("%s_%v", name, sfx)
 	}
 
 	return name
@@ -576,14 +581,6 @@ func collWithMBHAndOpts(
 		func(*support.ControllerOperationStatus) {},
 		opts,
 		count.New())
-}
-
-func pagerForDrives(drives ...models.Driveable) *apiMock.Pager[models.Driveable] {
-	return &apiMock.Pager[models.Driveable]{
-		ToReturn: []apiMock.PagerResult[models.Driveable]{
-			{Values: drives},
-		},
-	}
 }
 
 func aPage(items ...models.DriveItemable) mock.NextPage {
