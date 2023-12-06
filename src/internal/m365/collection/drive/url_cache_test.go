@@ -1,6 +1,8 @@
 package drive
 
 import (
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -39,6 +41,31 @@ type URLCacheIntegrationSuite struct {
 	ac      api.Client
 	user    string
 	driveID string
+}
+
+func CompressWithGZIP(input []byte) (bytes.Buffer, error) {
+	var encoder *gzip.Writer
+	var err error
+	var tmpBuffer bytes.Buffer
+
+	encoder, err = gzip.NewWriterLevel(
+		&tmpBuffer,
+		gzip.BestCompression)
+
+	if err != nil {
+		return tmpBuffer, err
+	}
+
+	_, err = encoder.Write(input)
+	if err != nil {
+		return tmpBuffer, err
+	}
+
+	if err := encoder.Close(); err != nil {
+		return tmpBuffer, err
+	}
+
+	return tmpBuffer, nil
 }
 
 func TestURLCacheIntegrationSuite(t *testing.T) {
@@ -170,6 +197,12 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 			require.NotEmpty(t, props.downloadURL)
 			require.Equal(t, false, props.isDeleted)
 
+			compressed, err := CompressWithGZIP([]byte(props.downloadURL))
+			require.NoError(t, err, clues.ToCore(err))
+
+			newDownloadUrl := compressed.String()
+
+			fmt.Printf("download url size, orig %d compressed %d\n", len(props.downloadURL), len(newDownloadUrl))
 			// Validate download URL
 			c := graph.NewNoTimeoutHTTPWrapper(count.New())
 
