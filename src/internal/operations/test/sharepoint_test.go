@@ -100,9 +100,10 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic() {
 		counter = count.New()
 		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
 		opts    = control.DefaultOptions()
+		whatSet = deeTD.CategoryFromRepoRef
 	)
 
-	sel.Include(selTD.SharePointBackupFolderScope(sel))
+	sel.Include(selTD.SharePointBackupFolderScope(sel), selTD.SharePointBackupListsScope(sel))
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.close(t, ctx)
@@ -116,7 +117,28 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic() {
 		&bo,
 		bod.sel,
 		bod.sel.ID(),
-		path.LibrariesCategory)
+		path.LibrariesCategory,
+		path.ListsCategory)
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		bod.acct.ID(),
+		bod.sel.ID(),
+		path.SharePointService,
+		whatSet,
+		bod.kms,
+		bod.sss)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bo.Results.BackupID,
+		whatSet,
+		bod.kms,
+		bod.sss,
+		expectDeets,
+		false)
 }
 
 func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
@@ -202,14 +224,14 @@ func (suite *SharePointBackupNightlyIntgSuite) SetupSuite() {
 
 func (suite *SharePointBackupNightlyIntgSuite) TestBackup_Run_sharePointVersion9MergeBase() {
 	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
-	sel.Include(selTD.SharePointBackupFolderScope(sel))
+	sel.Include(selTD.SharePointBackupFolderScope(sel), selTD.SharePointBackupListsScope(sel))
 
 	runMergeBaseGroupsUpdate(suite, sel.Selector, true)
 }
 
 func (suite *SharePointBackupNightlyIntgSuite) TestBackup_Run_sharePointVersion9AssistBases() {
 	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
-	sel.Include(selTD.SharePointBackupFolderScope(sel))
+	sel.Include(selTD.SharePointBackupFolderScope(sel), selTD.SharePointBackupListsScope(sel))
 
 	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, true)
 }

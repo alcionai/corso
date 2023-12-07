@@ -165,7 +165,7 @@ func runSharepointBackupSiteNotFoundTest(suite *BackupSharepointE2ESuite, catego
 	assert.Contains(
 		t,
 		err.Error(),
-		"Invalid hostname for this tenancy", "error missing group not found")
+		"Invalid hostname for this tenancy", "error missing site not found")
 	assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 
 	t.Logf("backup error message: %s", err.Error())
