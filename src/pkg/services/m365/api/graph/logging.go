@@ -42,6 +42,14 @@ func logResp(ctx context.Context, resp *http.Response) {
 		return
 	}
 
+	// Dump both request and response for graph 400 errors. This is a temporary
+	// measure to help us understand why graph is returning transient 400s.
+	if resp.StatusCode == http.StatusBadRequest {
+		log.With("request", getRequestDump(ctx, resp.Request, true)).
+			With("response", getRespDump(ctx, resp, logBody)).
+			Info("graph api bad request")
+	}
+
 	// Log api calls according to api debugging configurations.
 	switch respClass {
 	case 2:
@@ -61,6 +69,15 @@ func logResp(ctx context.Context, resp *http.Response) {
 	}
 }
 
+func logReq(ctx context.Context, req *http.Request) {
+	var (
+		log = logger.Ctx(ctx)
+	)
+
+	log.With("request", getRequestDump(ctx, req, true)).
+		Info("graph api req")
+}
+
 func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string {
 	respDump, err := httputil.DumpResponse(resp, getBody)
 	if err != nil {
@@ -68,4 +85,13 @@ func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string 
 	}
 
 	return string(respDump)
+}
+
+func getRequestDump(ctx context.Context, req *http.Request, getBody bool) string {
+	reqDump, err := httputil.DumpRequest(req, getBody)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("dumping http request")
+	}
+
+	return string(reqDump)
 }

@@ -118,6 +118,8 @@ func (mw *LoggingMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
+	logReq(req.Context(), req)
+
 	// call the next middleware
 	resp, err := pipeline.Next(req, middlewareIndex)
 	if resp == nil {
