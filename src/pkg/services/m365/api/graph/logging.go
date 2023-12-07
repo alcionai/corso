@@ -46,6 +46,7 @@ func logResp(ctx context.Context, resp *http.Response) {
 	// measure to help us understand why graph is returning transient 400s.
 	if resp.StatusCode == http.StatusBadRequest {
 		log.With("response", getRespDump(ctx, resp, logBody)).
+			With("request", getRequestDump(ctx, resp.Request, true)).
 			Info("graph api bad request")
 	}
 
@@ -68,14 +69,14 @@ func logResp(ctx context.Context, resp *http.Response) {
 	}
 }
 
-// func logReq(ctx context.Context, req *http.Request) {
-// 	var (
-// 		log = logger.Ctx(ctx)
-// 	)
+func logReq(ctx context.Context, req *http.Request) {
+	var (
+		log = logger.Ctx(ctx)
+	)
 
-// 	log.With("request", getRequestDump(ctx, req, true)).
-// 		Info("graph api req")
-// }
+	log.With("request", getRequestDump(ctx, req, true)).
+		Info("graph api req")
+}
 
 func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string {
 	respDump, err := httputil.DumpResponse(resp, getBody)
@@ -86,11 +87,11 @@ func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string 
 	return string(respDump)
 }
 
-// func getRequestDump(ctx context.Context, req *http.Request, getBody bool) string {
-// 	reqDump, err := httputil.DumpRequest(req, getBody)
-// 	if err != nil {
-// 		logger.CtxErr(ctx, err).Error("dumping http request")
-// 	}
+func getRequestDump(ctx context.Context, req *http.Request, getBody bool) string {
+	reqDump, err := httputil.DumpRequest(req, getBody)
+	if err != nil {
+		logger.CtxErr(ctx, err).Error("dumping http request")
+	}
 
-// 	return string(reqDump)
-// }
+	return string(reqDump)
+}
