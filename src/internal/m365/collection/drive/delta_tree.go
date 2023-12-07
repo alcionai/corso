@@ -263,10 +263,10 @@ func (face *folderyMcFolderFace) setTombstone(
 	return nil
 }
 
-// setPreviousPath updates the previousPath on a folder by ID.  If the folder already
-// exists either as a tombstone or in the tree, the previous path on those nodes gets
-// updated.  Otherwise the previous path update usually gets dropped, because we assume
-// no changes have occurred.
+// setPreviousPath updates the previousPath for the folder with folderID.  If the folder
+// already exists either as a tombstone or in the tree, the previous path on those nodes
+// gets updated.  Otherwise the previous path update usually gets dropped, because we
+// assume no changes have occurred.
 // If the tree was Reset() at any point, any previous path that does not still exist in
 // the tree- either as a tombstone or a live node- is assumed to have been deleted between
 // deltas, and gets turned into a tombstone.

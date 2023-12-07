@@ -270,6 +270,15 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 			expectTombstone: false,
 		},
 		{
+			name:            "added folders after reset",
+			id:              id(folder),
+			loc:             loc,
+			tree:            treeWithFoldersAfterReset(),
+			expectErr:       assert.NoError,
+			expectLive:      true,
+			expectTombstone: false,
+		},
+		{
 			name:            "create tombstone after reset",
 			id:              id(folder),
 			loc:             loc,
