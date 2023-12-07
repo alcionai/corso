@@ -291,16 +291,16 @@ func kiotaMiddlewares(
 	chaosOpt := &khttp.ChaosHandlerOptions{
 		ChaosStrategy:   khttp.Random,
 		ChaosPercentage: 50,
-		StatusCode:      502,
+		StatusCode:      503,
 		ResponseBody: &http.Response{
-			Status:     "Bad Gateway",
-			StatusCode: 502,
+			Status:     "Service Unavailable",
+			StatusCode: 503,
 			// Retry-After header
 			// Header: http.Header{
 			// 	"Retry-After": []string{"1"},
 			// },
 			// Dummy body
-			Body: io.NopCloser(strings.NewReader("bad gateway, deal with it")),
+			Body: io.NopCloser(strings.NewReader("service is down. deal with it")),
 		},
 	}
 
