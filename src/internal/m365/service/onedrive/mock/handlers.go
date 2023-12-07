@@ -32,8 +32,7 @@ type BackupHandler[T any] struct {
 	// and plug in the selector scope there.
 	Sel selectors.Selector
 
-	DriveItemEnumeration      EnumerateItemsDeltaByDrive
-	DriveItemEnumerationMulti EnumerateDriveItemsDelta
+	DriveItemEnumeration EnumerateDriveItemsDelta
 
 	GI  GetsItem
 	GIP GetsItemPermission
@@ -84,7 +83,7 @@ func DefaultOneDriveBH(resourceOwner string) *BackupHandler[models.DriveItemable
 			Extension: &details.ExtensionData{},
 		},
 		Sel:                  sel.Selector,
-		DriveItemEnumeration: EnumerateItemsDeltaByDrive{},
+		DriveItemEnumeration: EnumerateDriveItemsDelta{},
 		GI:                   GetsItem{Err: clues.New("not defined")},
 		GIP:                  GetsItemPermission{Err: clues.New("not defined")},
 		PathPrefixFn:         defaultOneDrivePathPrefixer,
@@ -128,23 +127,11 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler[models.DriveItemab
 func DefaultDriveBHWith(
 	resource string,
 	drivePager *apiMock.Pager[models.Driveable],
-	enumerator EnumerateItemsDeltaByDrive,
-) *BackupHandler[models.DriveItemable] {
-	mbh := DefaultOneDriveBH(resource)
-	mbh.DrivePagerV = drivePager
-	mbh.DriveItemEnumeration = enumerator
-
-	return mbh
-}
-
-func DefaultDriveBHWithMulti(
-	resource string,
-	drivePager *apiMock.Pager[models.Driveable],
 	enumerator EnumerateDriveItemsDelta,
 ) *BackupHandler[models.DriveItemable] {
 	mbh := DefaultOneDriveBH(resource)
 	mbh.DrivePagerV = drivePager
-	mbh.DriveItemEnumerationMulti = enumerator
+	mbh.DriveItemEnumeration = enumerator
 
 	return mbh
 }
@@ -219,14 +206,6 @@ func (h BackupHandler[T]) EnumerateDriveItemsDelta(
 	driveID, prevDeltaLink string,
 	cc api.CallConfig,
 ) pagers.NextPageResulter[models.DriveItemable] {
-	if h.DriveItemEnumerationMulti.DrivePagers != nil {
-		return h.DriveItemEnumerationMulti.EnumerateDriveItemsDelta(
-			ctx,
-			driveID,
-			prevDeltaLink,
-			cc)
-	}
-
 	return h.DriveItemEnumeration.EnumerateDriveItemsDelta(
 		ctx,
 		driveID,
@@ -348,6 +327,11 @@ func (m GetsItem) GetItem(
 // Drive Items Enumerator
 // ---------------------------------------------------------------------------
 
+type NextPage struct {
+	Items []models.DriveItemable
+	Reset bool
+}
+
 type EnumerateDriveItemsDelta struct {
 	DrivePagers map[string]*DriveDeltaEnumerator
 }
@@ -437,6 +421,26 @@ func Delta(
 	}
 }
 
+func DeltaWReset(
+	resultDeltaID string,
+	err error,
+) *DeltaQuery {
+	return &DeltaQuery{
+		DeltaUpdate: pagers.DeltaUpdate{
+			URL:   resultDeltaID,
+			Reset: true,
+		},
+		Err: err,
+	}
+}
+
+func (dq *DeltaQuery) With(
+	pages ...NextPage,
+) *DeltaQuery {
+	dq.Pages = pages
+	return dq
+}
+
 func (dq *DeltaQuery) NextPage() ([]models.DriveItemable, bool, bool) {
 	if dq.idx >= len(dq.Pages) {
 		return nil, false, true
@@ -448,65 +452,10 @@ func (dq *DeltaQuery) NextPage() ([]models.DriveItemable, bool, bool) {
 	return np.Items, np.Reset, false
 }
 
-func (dq *DeltaQuery) With(
-	pages ...NextPage,
-) *DeltaQuery {
-	dq.Pages = append(dq.Pages, pages...)
-	return dq
-}
-
 func (dq *DeltaQuery) Cancel() {}
 
 func (dq *DeltaQuery) Results() (pagers.DeltaUpdate, error) {
 	return dq.DeltaUpdate, dq.Err
-}
-
-// ---------------------------------------------------------------------------
-// old version - Enumerates Drive Items
-// ---------------------------------------------------------------------------
-
-type NextPage struct {
-	Items []models.DriveItemable
-	Reset bool
-}
-
-type EnumerateItemsDeltaByDrive struct {
-	DrivePagers map[string]*DriveItemsDeltaPager
-}
-
-var _ pagers.NextPageResulter[models.DriveItemable] = &DriveItemsDeltaPager{}
-
-type DriveItemsDeltaPager struct {
-	Idx         int
-	Pages       []NextPage
-	DeltaUpdate pagers.DeltaUpdate
-	Err         error
-}
-
-func (edibd EnumerateItemsDeltaByDrive) EnumerateDriveItemsDelta(
-	_ context.Context,
-	driveID, _ string,
-	_ api.CallConfig,
-) pagers.NextPageResulter[models.DriveItemable] {
-	didp := edibd.DrivePagers[driveID]
-	return didp
-}
-
-func (edi *DriveItemsDeltaPager) NextPage() ([]models.DriveItemable, bool, bool) {
-	if edi.Idx >= len(edi.Pages) {
-		return nil, false, true
-	}
-
-	np := edi.Pages[edi.Idx]
-	edi.Idx = edi.Idx + 1
-
-	return np.Items, np.Reset, false
-}
-
-func (edi *DriveItemsDeltaPager) Cancel() {}
-
-func (edi *DriveItemsDeltaPager) Results() (pagers.DeltaUpdate, error) {
-	return edi.DeltaUpdate, edi.Err
 }
 
 // ---------------------------------------------------------------------------
