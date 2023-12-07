@@ -2,7 +2,9 @@ package graph
 
 import (
 	"context"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -290,6 +292,15 @@ func kiotaMiddlewares(
 		ChaosStrategy:   khttp.Random,
 		ChaosPercentage: 50,
 		StatusCode:      429,
+		ResponseBody: &http.Response{
+			StatusCode: 429,
+			// Retry-After header
+			Header: http.Header{
+				"Retry-After": []string{"1"},
+			},
+			// Dummy body
+			Body: io.NopCloser(strings.NewReader("hello")),
+		},
 	}
 
 	chaosHandler, err := khttp.NewChaosHandlerWithOptions(chaosOpt)
