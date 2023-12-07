@@ -56,7 +56,7 @@ func (i SharePointInfo) Headers() []string {
 	case SharePointLibrary:
 		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
 	case SharePointList:
-		return []string{"ItemName", "Size", "Created", "Modified"}
+		return []string{"ItemName", "Size", "Owner", "Created", "Modified"}
 	}
 
 	return []string{}
@@ -80,6 +80,7 @@ func (i SharePointInfo) Values() []string {
 		return []string{
 			i.ItemName,
 			humanize.Bytes(uint64(i.Size)),
+			i.Owner,
 			dttm.FormatToTabularDisplay(i.Created),
 			dttm.FormatToTabularDisplay(i.Modified),
 		}
