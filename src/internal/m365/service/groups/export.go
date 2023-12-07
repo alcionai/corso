@@ -82,7 +82,7 @@ func (h *baseGroupsHandler) ProduceExportCollections(
 		)
 
 		switch cat {
-		case path.ChannelMessagesCategory:
+		case path.ChannelMessagesCategory, path.ConversationPostsCategory:
 			folders = append(folders, fp.Folders()...)
 
 			coll = groups.NewExportCollection(

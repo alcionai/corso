@@ -143,7 +143,8 @@ func makeRestorePathsForEntry(
 	switch true {
 	case ent.Exchange != nil ||
 		(ent.Groups != nil && ent.Groups.ItemType == details.GroupsChannelMessage) ||
-		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.SharePointList):
+		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.SharePointList) ||
+		(ent.Groups != nil && ent.Groups.ItemType == details.GroupsConversationPost):
 		// TODO(ashmrtn): Eventually make Events have it's own function to handle
 		// setting the restore destination properly.
 		res.RestorePath, err = basicLocationPath(repoRef, locRef)
