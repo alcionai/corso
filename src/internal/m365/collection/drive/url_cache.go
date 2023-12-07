@@ -2,6 +2,7 @@ package drive
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -250,10 +251,13 @@ func (uc *urlCache) updateCache(
 			}
 		}
 
-		itemID := ptr.Val(item.GetId())
+		// Deep copy the item ID and download url so that we don't hold on to
+		// references to these strings in graph in-memory stores, which can
+		// take up more memory than necessary.
+		itemID := strings.Clone(ptr.Val(item.GetId()))
 
 		uc.idToProps[itemID] = itemProps{
-			downloadURL: url,
+			downloadURL: strings.Clone(url),
 			isDeleted:   false,
 		}
 
