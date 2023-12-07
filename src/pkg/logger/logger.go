@@ -470,14 +470,18 @@ func SetWithSettings(
 	return context.WithValue(ctx, ctxKey, logger)
 }
 
-// Ctx retrieves the logger embedded in the context.
-func Ctx(ctx context.Context) *zap.SugaredLogger {
+func ctxNoClues(ctx context.Context) *zap.SugaredLogger {
 	l := ctx.Value(ctxKey)
 	if l == nil {
 		l = singleton(Settings{}.EnsureDefaults())
 	}
 
-	return l.(*zap.SugaredLogger).With(clues.In(ctx).Slice()...)
+	return l.(*zap.SugaredLogger)
+}
+
+// Ctx retrieves the logger embedded in the context.
+func Ctx(ctx context.Context) *zap.SugaredLogger {
+	return ctxNoClues(ctx).With(clues.In(ctx).Slice()...)
 }
 
 // CtxStack retrieves the logger embedded in the context, and adds the
@@ -491,8 +495,10 @@ func CtxStack(ctx context.Context, skip int) *zap.SugaredLogger {
 // CtxErr retrieves the logger embedded in the context
 // and packs all of the structured data in the error inside it.
 func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
-	// TODO(keepers): only log the err values, not the ctx.
-	return Ctx(ctx).
+
+	// don't add the ctx clues or else values will duplicate between
+	// the err clues and ctx clues.
+	return ctxNoClues(ctx).
 		With(
 			"error", err,
 			"error_labels", clues.Labels(err)).
@@ -504,7 +510,7 @@ func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
 // If skip is non-zero, it skips the stack calls starting from the
 // first.  Skip always adds +1 to account for this wrapper.
 func CtxErrStack(ctx context.Context, err error, skip int) *zap.SugaredLogger {
-	return Ctx(ctx).
+	return ctxNoClues(ctx).
 		With(
 			"error", err,
 			"error_labels", clues.Labels(err)).
