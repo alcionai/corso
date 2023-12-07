@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
@@ -151,16 +152,17 @@ func CollectLists(
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
-		el   = errs.Local()
-		spcs = make([]data.BackupCollection, 0)
+		el        = errs.Local()
+		spcs      = make([]data.BackupCollection, 0)
+		selecting = []string{"id", "displayName"}
 	)
 
-	lists, err := PreFetchLists(ctx, ac.Stable, bpc.ProtectedResource.ID())
+	lists, err := bh.GetItems(ctx, api.CallConfig{Select: selecting})
 	if err != nil {
 		return nil, err
 	}
 
-	for _, tuple := range lists {
+	for _, list := range lists {
 		if el.Failure() != nil {
 			break
 		}
@@ -171,7 +173,7 @@ func CollectLists(
 			path.SharePointService,
 			path.ListsCategory,
 			false,
-			tuple.Name)
+			ptr.Val(list.GetDisplayName()))
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
@@ -183,7 +185,7 @@ func CollectLists(
 			scope,
 			su,
 			bpc.Options)
-		collection.AddJob(tuple.ID)
+		collection.AddJob(ptr.Val(list.GetId()))
 
 		spcs = append(spcs, collection)
 	}
