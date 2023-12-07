@@ -323,8 +323,6 @@ func (c *Collections) populateTree(
 				pageCount = 0
 				pageItemCount = 0
 				countDeltas = 0
-			} else {
-				counter.Inc(count.TotalPagesEnumerated)
 			}
 
 			err = c.enumeratePageOfItems(
