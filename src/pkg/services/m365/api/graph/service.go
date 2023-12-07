@@ -285,6 +285,18 @@ func kiotaMiddlewares(
 	cc *clientConfig,
 	counter *count.Bus,
 ) []khttp.Middleware {
+	// Add chaos handler to default middleware
+	chaosOpt := &khttp.ChaosHandlerOptions{
+		ChaosStrategy:   khttp.Random,
+		ChaosPercentage: 50,
+		StatusCode:      429,
+	}
+
+	chaosHandler, err := khttp.NewChaosHandlerWithOptions(chaosOpt)
+	if err != nil {
+		panic(err)
+	}
+
 	retryOptions := khttp.RetryHandlerOptions{
 		ShouldRetry: func(
 			delay time.Duration,
@@ -311,6 +323,7 @@ func kiotaMiddlewares(
 		khttp.NewParametersNameDecodingHandler(),
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
+		chaosHandler,
 	}
 
 	// Optionally add concurrency limiter middleware if it has been initialized.
