@@ -292,6 +292,8 @@ func (c *Collections) populateTree(
 	// 1. hit a consistent state (ie: no changes since last delta enum)
 	// 2. hit the limit
 	for !hitLimit && !finished && el.Failure() == nil {
+		counter.Inc(count.TotalDeltasProcessed)
+
 		var (
 			pageCount     int
 			pageItemCount int
@@ -321,6 +323,8 @@ func (c *Collections) populateTree(
 				pageCount = 0
 				pageItemCount = 0
 				countDeltas = 0
+			} else {
+				counter.Inc(count.TotalPagesEnumerated)
 			}
 
 			err = c.enumeratePageOfItems(
@@ -340,19 +344,17 @@ func (c *Collections) populateTree(
 				el.AddRecoverable(ctx, clues.Stack(err))
 			}
 
-			counter.Inc(count.PagesEnumerated)
+			pageCount++
+
+			pageItemCount += len(page)
 
 			// Stop enumeration early if we've reached the page limit. Keep this
 			// at the end of the loop so we don't request another page (pager.NextPage)
 			// before seeing we've passed the limit.
-			if limiter.hitPageLimit(int(counter.Get(count.PagesEnumerated))) {
+			if limiter.hitPageLimit(pageCount) {
 				hitLimit = true
 				break
 			}
-
-			pageCount++
-
-			pageItemCount += len(page)
 		}
 
 		// Always cancel the pager so that even if we exit early from the loop above
