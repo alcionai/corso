@@ -2,9 +2,7 @@ package graph
 
 import (
 	"context"
-	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -288,26 +286,26 @@ func kiotaMiddlewares(
 	counter *count.Bus,
 ) []khttp.Middleware {
 	// Add chaos handler to default middleware
-	chaosOpt := &khttp.ChaosHandlerOptions{
-		ChaosStrategy:   khttp.Random,
-		ChaosPercentage: 50,
-		StatusCode:      503,
-		ResponseBody: &http.Response{
-			Status:     "Service Unavailable",
-			StatusCode: 503,
-			// Retry-After header
-			// Header: http.Header{
-			// 	"Retry-After": []string{"1"},
-			// },
-			// Dummy body
-			Body: io.NopCloser(strings.NewReader("service is down. deal with it")),
-		},
-	}
+	// chaosOpt := &khttp.ChaosHandlerOptions{
+	// 	ChaosStrategy:   khttp.Random,
+	// 	ChaosPercentage: 50,
+	// 	StatusCode:      503,
+	// 	ResponseBody: &http.Response{
+	// 		Status:     "Service Unavailable",
+	// 		StatusCode: 503,
+	// 		// Retry-After header
+	// 		// Header: http.Header{
+	// 		// 	"Retry-After": []string{"1"},
+	// 		// },
+	// 		// Dummy body
+	// 		Body: io.NopCloser(strings.NewReader("service is down. deal with it")),
+	// 	},
+	// }
 
-	chaosHandler, err := khttp.NewChaosHandlerWithOptions(chaosOpt)
-	if err != nil {
-		panic(err)
-	}
+	// chaosHandler, err := khttp.NewChaosHandlerWithOptions(chaosOpt)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	retryOptions := khttp.RetryHandlerOptions{
 		ShouldRetry: func(
@@ -325,7 +323,7 @@ func kiotaMiddlewares(
 	mw := []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),
 		&RetryMiddleware{
-			MaxRetries: 9,
+			MaxRetries: cc.maxRetries,
 			Delay:      cc.minDelay,
 		},
 		// We use default kiota retry handler for 503 and 504 errors
@@ -335,7 +333,7 @@ func kiotaMiddlewares(
 		khttp.NewParametersNameDecodingHandler(),
 		khttp.NewUserAgentHandler(),
 		&LoggingMiddleware{},
-		chaosHandler,
+		// chaosHandler,
 	}
 
 	// Optionally add concurrency limiter middleware if it has been initialized.
@@ -343,14 +341,14 @@ func kiotaMiddlewares(
 		mw = append(mw, concurrencyLimitMiddlewareSingleton)
 	}
 
-	// throttler := &throttlingMiddleware{
-	// 	tf:      newTimedFence(),
-	// 	counter: counter,
-	// }
+	throttler := &throttlingMiddleware{
+		tf:      newTimedFence(),
+		counter: counter,
+	}
 
 	mw = append(
 		mw,
-		//throttler,
+		throttler,
 		&RateLimiterMiddleware{},
 		&MetricsMiddleware{
 			counter: counter,
