@@ -362,27 +362,27 @@ func downloadContent(
 	itemID := ptr.Val(item.GetId())
 	ctx = clues.Add(ctx, "item_id", itemID)
 
-	content, err := downloadItem(ctx, iaag, item)
-	if err == nil {
-		return content, nil
-	} else if !graph.IsErrUnauthorizedOrBadToken(err) {
-		return nil, err
-	}
+	// content, err := downloadItem(ctx, iaag, item)
+	// if err == nil {
+	// 	return content, nil
+	// } else if !graph.IsErrUnauthorizedOrBadToken(err) {
+	// 	return nil, err
+	// }
 
-	// Assume unauthorized requests are a sign of an expired jwt
-	// token, and that we've overrun the available window to
-	// download the file.  Get a fresh url from the cache and attempt to
-	// download again.
-	content, err = readItemContents(ctx, iaag, uc, itemID)
-	if err == nil {
-		logger.Ctx(ctx).Debug("found item in url cache")
-		return content, nil
-	}
+	// // Assume unauthorized requests are a sign of an expired jwt
+	// // token, and that we've overrun the available window to
+	// // download the file.  Get a fresh url from the cache and attempt to
+	// // download again.
+	// content, err = readItemContents(ctx, iaag, uc, itemID)
+	// if err == nil {
+	// 	logger.Ctx(ctx).Debug("found item in url cache")
+	// 	return content, nil
+	// }
 
-	// Consider cache errors(including deleted items) as cache misses.
-	// Fallback to refetching the item using the graph API.
-	logger.CtxErr(ctx, err).Debug("url cache miss: refetching from API")
-	counter.Inc(count.URLCacheMiss)
+	// // Consider cache errors(including deleted items) as cache misses.
+	// // Fallback to refetching the item using the graph API.
+	// logger.CtxErr(ctx, err).Debug("url cache miss: refetching from API")
+	// counter.Inc(count.URLCacheMiss)
 
 	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
@@ -391,7 +391,7 @@ func downloadContent(
 
 	cdi := custom.ToCustomDriveItem(di)
 
-	content, err = downloadItem(ctx, iaag, cdi)
+	content, err := downloadItem(ctx, iaag, cdi)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}

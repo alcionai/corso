@@ -170,7 +170,7 @@ func KiotaHTTPClient(
 // ---------------------------------------------------------------------------
 
 const (
-	defaultDelay             = 3 * time.Second
+	defaultDelay             = 1 * time.Second
 	defaultHTTPClientTimeout = 1 * time.Hour
 	defaultMaxRetries        = 3
 	// FIXME: This should ideally be 0, but if we set to 0, graph
@@ -291,15 +291,16 @@ func kiotaMiddlewares(
 	chaosOpt := &khttp.ChaosHandlerOptions{
 		ChaosStrategy:   khttp.Random,
 		ChaosPercentage: 50,
-		StatusCode:      429,
+		StatusCode:      502,
 		ResponseBody: &http.Response{
-			StatusCode: 429,
+			Status:     "Bad Gateway",
+			StatusCode: 502,
 			// Retry-After header
-			Header: http.Header{
-				"Retry-After": []string{"1"},
-			},
+			// Header: http.Header{
+			// 	"Retry-After": []string{"1"},
+			// },
 			// Dummy body
-			Body: io.NopCloser(strings.NewReader("hello")),
+			Body: io.NopCloser(strings.NewReader("bad gateway, deal with it")),
 		},
 	}
 
@@ -324,7 +325,7 @@ func kiotaMiddlewares(
 	mw := []khttp.Middleware{
 		msgraphgocore.NewGraphTelemetryHandler(options),
 		&RetryMiddleware{
-			MaxRetries: cc.maxRetries,
+			MaxRetries: 9,
 			Delay:      cc.minDelay,
 		},
 		// We use default kiota retry handler for 503 and 504 errors
@@ -342,14 +343,14 @@ func kiotaMiddlewares(
 		mw = append(mw, concurrencyLimitMiddlewareSingleton)
 	}
 
-	throttler := &throttlingMiddleware{
-		tf:      newTimedFence(),
-		counter: counter,
-	}
+	// throttler := &throttlingMiddleware{
+	// 	tf:      newTimedFence(),
+	// 	counter: counter,
+	// }
 
 	mw = append(
 		mw,
-		throttler,
+		//throttler,
 		&RateLimiterMiddleware{},
 		&MetricsMiddleware{
 			counter: counter,
