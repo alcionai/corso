@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -60,9 +61,16 @@ func (suite *ListsUnitSuite) TestSharePointInfo() {
 				aTitle := "Whole List"
 				listing := models.NewList()
 				listing.SetDisplayName(&aTitle)
+
+				li := models.NewListItem()
+				li.SetId(ptr.To("listItem1"))
+
+				listing.SetItems([]models.ListItemable{li})
+
 				i := &details.SharePointInfo{
-					ItemType: details.SharePointList,
-					ItemName: aTitle,
+					ItemType:  details.SharePointList,
+					ItemName:  aTitle,
+					ItemCount: 1,
 				}
 
 				return listing, i
@@ -74,8 +82,9 @@ func (suite *ListsUnitSuite) TestSharePointInfo() {
 			t := suite.T()
 
 			list, expected := test.listAndDeets()
-			info := ListToSPInfo(list, 10)
+			info := ListToSPInfo(list)
 			assert.Equal(t, expected.ItemType, info.ItemType)
+			assert.Equal(t, expected.ItemName, info.ItemName)
 			assert.Equal(t, expected.ItemName, info.ItemName)
 			assert.Equal(t, expected.WebURL, info.WebURL)
 		})

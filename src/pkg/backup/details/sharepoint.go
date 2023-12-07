@@ -1,6 +1,7 @@
 package details
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -41,6 +42,7 @@ type SharePointInfo struct {
 	DriveID    string    `json:"driveID,omitempty"`
 	ItemName   string    `json:"itemName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
+	ItemCount  int64     `json:"itemCount,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath,omitempty"`
@@ -56,7 +58,7 @@ func (i SharePointInfo) Headers() []string {
 	case SharePointLibrary:
 		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
 	case SharePointList:
-		return []string{"ItemName", "Size", "Owner", "Created", "Modified"}
+		return []string{"ListName", "ListItemsCount", "Owner", "Created", "Modified"}
 	}
 
 	return []string{}
@@ -79,7 +81,7 @@ func (i SharePointInfo) Values() []string {
 	case SharePointList:
 		return []string{
 			i.ItemName,
-			humanize.Bytes(uint64(i.Size)),
+			fmt.Sprintf("%d", i.ItemCount),
 			i.Owner,
 			dttm.FormatToTabularDisplay(i.Created),
 			dttm.FormatToTabularDisplay(i.Modified),

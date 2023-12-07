@@ -355,7 +355,7 @@ func (sc *Collection) handleListItems(
 	metrics.Successes++
 
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
-	itemInfo := details.ItemInfo{SharePoint: ListToSPInfo(list, size)}
+	itemInfo := details.ItemInfo{SharePoint: ListToSPInfo(list)}
 
 	item, err := data.NewPrefetchedItemWithInfo(rc, listID, itemInfo)
 	if err != nil {
