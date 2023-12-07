@@ -194,7 +194,7 @@ func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {
 				flags.SiteFN + " *")
 	}
 
-	allowedCats := utils.GroupsAllowedCategories()
+	allowedCats := utils.SharePointAllowedCategories()
 
 	for _, d := range cats {
 		if _, ok := allowedCats[d]; !ok {
