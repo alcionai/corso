@@ -108,7 +108,6 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 	[]models.ListItemable,
 	error,
 ) {
-
 	cols, err := c.GetListColumns(ctx, siteID, listID, CallConfig{})
 	if err != nil {
 		return nil, nil, nil, err
@@ -124,12 +123,14 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 		if err != nil {
 			return nil, nil, nil, err
 		}
+
 		cTypes[i].SetColumnLinks(columnLinks)
 
 		cTypeColumns, err := c.GetCTypesColumns(ctx, siteID, listID, ptr.Val(cTypes[i].GetId()), CallConfig{})
 		if err != nil {
 			return nil, nil, nil, err
 		}
+
 		cTypes[i].SetColumns(cTypeColumns)
 	}
 
