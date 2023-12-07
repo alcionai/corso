@@ -338,6 +338,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "nil page",
 			tree: newFolderyMcFolderFace(nil, rootID),
+			// special case enumerator to generate a null page.
+			// otherwise all enumerators should be DriveEnumerator()s.
 			enumerator: mock.EnumerateDriveItemsDelta{
 				DrivePagers: map[string]*mock.DriveDeltaEnumerator{
 					id(drive): {

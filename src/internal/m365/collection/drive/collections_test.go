@@ -1415,7 +1415,9 @@ func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
 	mbh.DriveItemEnumeration = mock.DriveEnumerator(
 		mock.Drive(id(drive)).With(
 			mock.Delta(id(delta), nil).With(
-				aPage())))
+				aPage(
+					delItem(id(file), rootID, isFile),
+				))))
 
 	c := collWithMBH(mbh)
 	c.ctrl = opts
