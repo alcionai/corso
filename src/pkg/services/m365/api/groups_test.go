@@ -107,6 +107,17 @@ func (suite *GroupsIntgSuite) TestGetAll() {
 	require.NotZero(t, len(groups), "must have at least one group")
 }
 
+func (suite *GroupsIntgSuite) TestGetTeamByID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	team, err := suite.its.ac.Groups().GetTeamByID(ctx, suite.its.group.id, CallConfig{})
+	require.NoError(t, err, "getting team by ID")
+	require.NotNil(t, team, "must have valid team")
+}
+
 func (suite *GroupsIntgSuite) TestGetAllSites() {
 	t := suite.T()
 
@@ -238,6 +249,9 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID_mockResourceLockedErrs() {
 				interceptV1Path("groups").
 					Reply(403).
 					JSON(graphTD.ParseableToMap(t, err))
+				interceptV1Path("teams").
+					Reply(403).
+					JSON(graphTD.ParseableToMap(t, err))
 			},
 		},
 		{
@@ -247,6 +261,9 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID_mockResourceLockedErrs() {
 				err := graphTD.ODataErr(string(graph.NotAllowed))
 
 				interceptV1Path("groups", gID).
+					Reply(403).
+					JSON(graphTD.ParseableToMap(t, err))
+				interceptV1Path("teams", gID).
 					Reply(403).
 					JSON(graphTD.ParseableToMap(t, err))
 			},
@@ -266,6 +283,9 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID_mockResourceLockedErrs() {
 				interceptV1Path("groups", gID).
 					Reply(403).
 					JSON(graphTD.ParseableToMap(t, err))
+				interceptV1Path("teams", gID).
+					Reply(403).
+					JSON(graphTD.ParseableToMap(t, err))
 			},
 		},
 	}
@@ -280,9 +300,15 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID_mockResourceLockedErrs() {
 
 			test.setup(t)
 
+			// Verify both GetByID and GetTeamByID APIs handle this error
 			_, err := suite.its.gockAC.
 				Groups().
 				GetByID(ctx, test.id, CallConfig{})
+			require.ErrorIs(t, err, graph.ErrResourceLocked, clues.ToCore(err))
+
+			_, err = suite.its.gockAC.
+				Groups().
+				GetTeamByID(ctx, test.id, CallConfig{})
 			require.ErrorIs(t, err, graph.ErrResourceLocked, clues.ToCore(err))
 		})
 	}
