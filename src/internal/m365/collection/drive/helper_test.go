@@ -439,8 +439,8 @@ func (ecs expectedCollections) requireNoUnseenCollections(t *testing.T) {
 // delta trees
 // ---------------------------------------------------------------------------
 
-func defaultTreePfx(t *testing.T) path.Path {
-	fpb := fullPathPath(t).ToBuilder()
+func defaultTreePfx(t *testing.T, d *deltaDrive) path.Path {
+	fpb := d.fullPath(t).ToBuilder()
 	fpe := fpb.Elements()
 	fpe = fpe[:len(fpe)-1]
 	fpb = path.Builder{}.Append(fpe...)
@@ -460,12 +460,12 @@ func defaultLoc() path.Elements {
 	return path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
 }
 
-func newTree(t *testing.T) *folderyMcFolderFace {
-	return newFolderyMcFolderFace(defaultTreePfx(t), rootID)
+func newTree(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	return newFolderyMcFolderFace(defaultTreePfx(t, d), rootID)
 }
 
-func treeWithRoot(t *testing.T) *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(defaultTreePfx(t), rootID)
+func treeWithRoot(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := newFolderyMcFolderFace(defaultTreePfx(t, d), rootID)
 	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
 	tree.root = rootey
 	tree.folderIDToNode[rootID] = rootey
@@ -473,29 +473,29 @@ func treeWithRoot(t *testing.T) *folderyMcFolderFace {
 	return tree
 }
 
-func treeAfterReset(t *testing.T) *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(defaultTreePfx(t), rootID)
+func treeAfterReset(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := newFolderyMcFolderFace(defaultTreePfx(t, d), rootID)
 	tree.reset()
 
 	return tree
 }
 
-func treeWithFoldersAfterReset(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithFolders(t)
+func treeWithFoldersAfterReset(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithFolders(t, d)
 	tree.hadReset = true
 
 	return tree
 }
 
-func treeWithTombstone(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithRoot(t)
+func treeWithTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithRoot(t, d)
 	tree.tombstones[folderID()] = newNodeyMcNodeFace(nil, folderID(), "", false)
 
 	return tree
 }
 
-func treeWithFolders(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithRoot(t)
+func treeWithFolders(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithRoot(t, d)
 
 	parent := newNodeyMcNodeFace(tree.root, folderID("parent"), folderName("parent"), true)
 	tree.folderIDToNode[parent.id] = parent
@@ -508,32 +508,34 @@ func treeWithFolders(t *testing.T) *folderyMcFolderFace {
 	return tree
 }
 
-func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithRoot(t)
-	tree.root.files[fileID()] = custom.ToCustomDriveItem(fileAtRoot())
+func treeWithFileAtRoot(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithRoot(t, d)
+	tree.root.files[fileID()] = custom.ToCustomDriveItem(d.fileAtRoot())
 	tree.fileIDToParentID[fileID()] = rootID
 
 	return tree
 }
 
-func treeWithDeletedFile(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithRoot(t)
+func treeWithDeletedFile(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithRoot(t, d)
 	tree.deleteFile(fileID("d"))
 
 	return tree
 }
 
-func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithFolders(t)
-	tree.folderIDToNode[folderID()].files[fileID()] = custom.ToCustomDriveItem(fileAt(folder))
+func treeWithFileInFolder(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithFolders(t, d)
+	tree.folderIDToNode[folderID()].files[fileID()] = custom.ToCustomDriveItem(d.fileAt(folder))
 	tree.fileIDToParentID[fileID()] = folderID()
 
 	return tree
 }
 
-func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithTombstone(t)
-	tree.tombstones[folderID()].files[fileID()] = custom.ToCustomDriveItem(fileAt("tombstone"))
+func treeWithFileInTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithTombstone(t, d)
+	// setting these directly, instead of using addFile(),
+	// because we can't add files to tombstones.
+	tree.tombstones[folderID()].files[fileID()] = custom.ToCustomDriveItem(d.fileAt("tombstone"))
 	tree.fileIDToParentID[fileID()] = folderID()
 
 	return tree
@@ -544,57 +546,59 @@ func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
 // one tombstone: idx(folder, tombstone)
 // one item in the tombstone
 // one deleted item
-func fullTree(t *testing.T) *folderyMcFolderFace {
-	return fullTreeWithNames("parent", "tombstone")(t)
+func fullTree(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	return fullTreeWithNames("parent", "tombstone")(t, d)
 }
 
 func fullTreeWithNames(
 	parentFolderX, tombstoneX any,
-) func(t *testing.T) *folderyMcFolderFace {
-	return func(t *testing.T) *folderyMcFolderFace {
+) func(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	return func(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 		ctx, flush := tester.NewContext(t)
 		defer flush()
 
-		tree := treeWithRoot(t)
+		tree := treeWithRoot(t, d)
 
 		// file in root
-		df := driveFile(parentDir(), rootID, "r")
+		df := driveFile(d.dir(), rootID, "r")
 		err := tree.addFile(
 			rootID,
 			fileID("r"),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
-		// root -> idx(folder, parent)
+		// root -> folderID(parentX)
 		err = tree.setFolder(ctx, rootID, folderID(parentFolderX), folderName(parentFolderX), false)
 		require.NoError(t, err, clues.ToCore(err))
 
-		// file in idx(folder, parent)
-		df = driveFile(parentDir(folderName(parentFolderX)), folderID(parentFolderX), "p")
+		// file in folderID(parentX)
+		df = driveFile(d.dir(folderName(parentFolderX)), folderID(parentFolderX), "p")
 		err = tree.addFile(
 			folderID(parentFolderX),
 			fileID("p"),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
-		// idx(folder, parent) -> id(folder)
+		// folderID(parentX) -> folderID()
 		err = tree.setFolder(ctx, folderID(parentFolderX), folderID(), folderName(), false)
 		require.NoError(t, err, clues.ToCore(err))
 
-		// file in id(folder)
-		df = driveFile(parentDir(folderName()), folderID())
+		// file in folderID()
+		df = driveFile(d.dir(folderName()), folderID())
 		err = tree.addFile(
 			folderID(),
 			fileID(),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
-		// tombstone - have to set a non-tombstone folder first, then add the item, then tombstone the folder
+		// tombstone - have to set a non-tombstone folder first,
+		// then add the item,
+		// then tombstone the folder
 		err = tree.setFolder(ctx, rootID, folderID(tombstoneX), folderName(tombstoneX), false)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in tombstone
-		df = driveFile(parentDir(folderName(tombstoneX)), folderID(tombstoneX), "t")
+		df = driveFile(d.dir(folderName(tombstoneX)), folderID(tombstoneX), "t")
 		err = tree.addFile(
 			folderID(tombstoneX),
 			fileID("t"),
@@ -930,7 +934,7 @@ func driveEnumerator(
 	}
 
 	for _, drive := range ds {
-		enumerator.DrivePagers[drive.Drive.ID] = drive
+		enumerator.DrivePagers[drive.Drive.id] = drive
 	}
 
 	return enumerator
@@ -949,7 +953,7 @@ func (en enumerateDriveItemsDelta) drivePager() *apiMock.Pager[models.Driveable]
 	dvs := []models.Driveable{}
 
 	for _, dp := range en.DrivePagers {
-		dvs = append(dvs, dp.Drive.Able)
+		dvs = append(dvs, dp.Drive.able)
 	}
 
 	return &apiMock.Pager[models.Driveable]{
@@ -970,20 +974,20 @@ func (en enumerateDriveItemsDelta) getDrives() []*deltaDrive {
 }
 
 type deltaDrive struct {
-	ID   string
-	Able models.Driveable
+	id   string
+	able models.Driveable
 }
 
 func drive(driveSuffix ...any) *deltaDrive {
-	driveID := id("drive", driveSuffix...)
+	driveID := id(drivePfx, driveSuffix...)
 
 	able := models.NewDrive()
 	able.SetId(ptr.To(driveID))
-	able.SetName(ptr.To(name("drive", driveSuffix...)))
+	able.SetName(ptr.To(name(drivePfx, driveSuffix...)))
 
 	return &deltaDrive{
-		ID:   driveID,
-		Able: able,
+		id:   driveID,
+		able: able,
 	}
 }
 
@@ -1353,35 +1357,35 @@ func driveFile(
 		isFile)
 }
 
-func fileAt(
+func (dd *deltaDrive) fileAt(
 	parentSuffix any,
 	fileSuffixes ...any,
 ) models.DriveItemable {
 	return driveItem(
 		fileID(fileSuffixes...),
 		fileName(fileSuffixes...),
-		parentDir(folderName(parentSuffix)),
+		dd.dir(folderName(parentSuffix)),
 		folderID(parentSuffix),
 		isFile)
 }
 
-func fileAtRoot(
+func (dd *deltaDrive) fileAtRoot(
 	fileSuffixes ...any,
 ) models.DriveItemable {
 	return driveItem(
 		fileID(fileSuffixes...),
 		fileName(fileSuffixes...),
-		parentDir(),
+		dd.dir(),
 		rootID,
 		isFile)
 }
 
-func fileWURLAtRoot(
+func (dd *deltaDrive) fileWURLAtRoot(
 	url string,
 	isDeleted bool,
 	fileSuffixes ...any,
 ) models.DriveItemable {
-	di := driveFile(parentDir(), rootID, fileSuffixes...)
+	di := driveFile(dd.dir(), rootID, fileSuffixes...)
 	di.SetAdditionalData(map[string]any{
 		"@microsoft.graph.downloadUrl": url,
 	})
@@ -1393,20 +1397,20 @@ func fileWURLAtRoot(
 	return di
 }
 
-func fileWSizeAtRoot(
+func (dd *deltaDrive) fileWSizeAtRoot(
 	size int64,
 	fileSuffixes ...any,
 ) models.DriveItemable {
 	return driveItemWSize(
 		fileID(fileSuffixes...),
 		fileName(fileSuffixes...),
-		parentDir(),
+		dd.dir(),
 		rootID,
 		size,
 		isFile)
 }
 
-func fileWSizeAt(
+func (dd *deltaDrive) fileWSizeAt(
 	size int64,
 	parentSuffix any,
 	fileSuffixes ...any,
@@ -1414,7 +1418,7 @@ func fileWSizeAt(
 	return driveItemWSize(
 		fileID(fileSuffixes...),
 		fileName(fileSuffixes...),
-		parentDir(folderName(parentSuffix)),
+		dd.dir(folderName(parentSuffix)),
 		folderID(parentSuffix),
 		size,
 		isFile)
@@ -1454,25 +1458,25 @@ func driveRootFolder() models.DriveItemable {
 	return rootFolder
 }
 
-func folderAtRoot(
+func (dd *deltaDrive) folderAtRoot(
 	folderSuffixes ...any,
 ) models.DriveItemable {
 	return driveItem(
 		folderID(folderSuffixes...),
 		folderName(folderSuffixes...),
-		parentDir(),
+		dd.dir(),
 		rootID,
 		isFolder)
 }
 
-func folderAt(
+func (dd *deltaDrive) folderAt(
 	parentSuffix any,
 	folderSuffixes ...any,
 ) models.DriveItemable {
 	return driveItem(
 		folderID(folderSuffixes...),
 		folderName(folderSuffixes...),
-		parentDir(folderName(parentSuffix)),
+		dd.dir(folderName(parentSuffix)),
 		folderID(parentSuffix),
 		isFolder)
 }
@@ -1543,46 +1547,31 @@ func toPath(elems ...string) string {
 	}
 }
 
-func fullPath(elems ...string) string {
+// produces the full path for the provided drive
+func (dd *deltaDrive) strPath(elems ...string) string {
 	return toPath(append(
 		[]string{
 			tenant,
 			path.OneDriveService.String(),
 			user,
 			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(id(drivePfx)).String(),
+			odConsts.DriveFolderPrefixBuilder(dd.id).String(),
 		},
 		elems...)...)
 }
 
-func fullPathPath(t *testing.T, elems ...string) path.Path {
-	p, err := path.FromDataLayerPath(fullPath(elems...), false)
+func (dd *deltaDrive) fullPath(t *testing.T, elems ...string) path.Path {
+	p, err := path.FromDataLayerPath(dd.strPath(elems...), false)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return p
 }
 
-func driveFullPath(driveID any, elems ...string) string {
+// produces a complete path prefix up to the drive root folder, and including any
+// elements passed in.
+func (dd *deltaDrive) dir(elems ...string) string {
 	return toPath(append(
-		[]string{
-			tenant,
-			path.OneDriveService.String(),
-			user,
-			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(id(drivePfx, driveID)).String(),
-		},
-		elems...)...)
-}
-
-func parentDir(elems ...string) string {
-	return toPath(append(
-		[]string{odConsts.DriveFolderPrefixBuilder(id(drivePfx)).String()},
-		elems...)...)
-}
-
-func driveParentDir(driveID any, elems ...string) string {
-	return toPath(append(
-		[]string{odConsts.DriveFolderPrefixBuilder(id(drivePfx, driveID)).String()},
+		[]string{odConsts.DriveFolderPrefixBuilder(dd.id).String()},
 		elems...)...)
 }
 

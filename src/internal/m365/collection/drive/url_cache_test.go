@@ -213,6 +213,8 @@ func TestURLCacheUnitSuite(t *testing.T) {
 }
 
 func (suite *URLCacheUnitSuite) TestGetItemProperties() {
+	d := drive()
+
 	aURL := func(n int) string {
 		return fmt.Sprintf("https://dummy%d.com", n)
 	}
@@ -228,7 +230,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "single item in cache",
 			pages: []nextPage{
-				aPage(fileWURLAtRoot(aURL(1), false, 1)),
+				aPage(d.fileWURLAtRoot(aURL(1), false, 1)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(1): {
@@ -247,11 +249,11 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			name: "multiple items in cache",
 			pages: []nextPage{
 				aPage(
-					fileWURLAtRoot(aURL(1), false, 1),
-					fileWURLAtRoot(aURL(2), false, 2),
-					fileWURLAtRoot(aURL(3), false, 3),
-					fileWURLAtRoot(aURL(4), false, 4),
-					fileWURLAtRoot(aURL(5), false, 5)),
+					d.fileWURLAtRoot(aURL(1), false, 1),
+					d.fileWURLAtRoot(aURL(2), false, 2),
+					d.fileWURLAtRoot(aURL(3), false, 3),
+					d.fileWURLAtRoot(aURL(4), false, 4),
+					d.fileWURLAtRoot(aURL(5), false, 5)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(1): {
@@ -286,12 +288,12 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			name: "multiple pages",
 			pages: []nextPage{
 				aPage(
-					fileWURLAtRoot(aURL(1), false, 1),
-					fileWURLAtRoot(aURL(2), false, 2),
-					fileWURLAtRoot(aURL(3), false, 3)),
+					d.fileWURLAtRoot(aURL(1), false, 1),
+					d.fileWURLAtRoot(aURL(2), false, 2),
+					d.fileWURLAtRoot(aURL(3), false, 3)),
 				aPage(
-					fileWURLAtRoot(aURL(4), false, 4),
-					fileWURLAtRoot(aURL(5), false, 5)),
+					d.fileWURLAtRoot(aURL(4), false, 4),
+					d.fileWURLAtRoot(aURL(5), false, 5)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(1): {
@@ -326,19 +328,19 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			name: "multiple pages with resets",
 			pages: []nextPage{
 				aPage(
-					fileWURLAtRoot(aURL(-1), false, -1),
-					fileWURLAtRoot(aURL(1), false, 1),
-					fileWURLAtRoot(aURL(2), false, 2),
-					fileWURLAtRoot(aURL(3), false, 3)),
+					d.fileWURLAtRoot(aURL(-1), false, -1),
+					d.fileWURLAtRoot(aURL(1), false, 1),
+					d.fileWURLAtRoot(aURL(2), false, 2),
+					d.fileWURLAtRoot(aURL(3), false, 3)),
 				aReset(),
 				aPage(
-					fileWURLAtRoot(aURL(0), false, 0),
-					fileWURLAtRoot(aURL(1), false, 1),
-					fileWURLAtRoot(aURL(2), false, 2),
-					fileWURLAtRoot(aURL(3), false, 3)),
+					d.fileWURLAtRoot(aURL(0), false, 0),
+					d.fileWURLAtRoot(aURL(1), false, 1),
+					d.fileWURLAtRoot(aURL(2), false, 2),
+					d.fileWURLAtRoot(aURL(3), false, 3)),
 				aPage(
-					fileWURLAtRoot(aURL(4), false, 4),
-					fileWURLAtRoot(aURL(5), false, 5)),
+					d.fileWURLAtRoot(aURL(4), false, 4),
+					d.fileWURLAtRoot(aURL(5), false, 5)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(1): {
@@ -373,16 +375,16 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			name: "multiple pages with resets and combo reset+items in page",
 			pages: []nextPage{
 				aPage(
-					fileWURLAtRoot(aURL(1), false, 1),
-					fileWURLAtRoot(aURL(2), false, 2),
-					fileWURLAtRoot(aURL(3), false, 3)),
+					d.fileWURLAtRoot(aURL(1), false, 1),
+					d.fileWURLAtRoot(aURL(2), false, 2),
+					d.fileWURLAtRoot(aURL(3), false, 3)),
 				aPageWReset(
-					fileWURLAtRoot(aURL(1), false, 1),
-					fileWURLAtRoot(aURL(2), false, 2),
-					fileWURLAtRoot(aURL(3), false, 3)),
+					d.fileWURLAtRoot(aURL(1), false, 1),
+					d.fileWURLAtRoot(aURL(2), false, 2),
+					d.fileWURLAtRoot(aURL(3), false, 3)),
 				aPage(
-					fileWURLAtRoot(aURL(4), false, 4),
-					fileWURLAtRoot(aURL(5), false, 5)),
+					d.fileWURLAtRoot(aURL(4), false, 4),
+					d.fileWURLAtRoot(aURL(5), false, 5)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(1): {
@@ -417,11 +419,11 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			name: "duplicate items with potentially new urls",
 			pages: []nextPage{
 				aPage(
-					fileWURLAtRoot(aURL(1), false, 1),
-					fileWURLAtRoot(aURL(2), false, 2),
-					fileWURLAtRoot(aURL(3), false, 3),
-					fileWURLAtRoot(aURL(100), false, 1),
-					fileWURLAtRoot(aURL(200), false, 2)),
+					d.fileWURLAtRoot(aURL(1), false, 1),
+					d.fileWURLAtRoot(aURL(2), false, 2),
+					d.fileWURLAtRoot(aURL(3), false, 3),
+					d.fileWURLAtRoot(aURL(100), false, 1),
+					d.fileWURLAtRoot(aURL(200), false, 2)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(1): {
@@ -448,9 +450,9 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			name: "deleted items",
 			pages: []nextPage{
 				aPage(
-					fileWURLAtRoot(aURL(1), false, 1),
-					fileWURLAtRoot(aURL(2), false, 2),
-					fileWURLAtRoot(aURL(1), true, 1)),
+					d.fileWURLAtRoot(aURL(1), false, 1),
+					d.fileWURLAtRoot(aURL(2), false, 2),
+					d.fileWURLAtRoot(aURL(1), true, 1)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(1): {
@@ -472,7 +474,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		{
 			name: "item not found in cache",
 			pages: []nextPage{
-				aPage(fileWURLAtRoot(aURL(1), false, 1)),
+				aPage(d.fileWURLAtRoot(aURL(1), false, 1)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(2): {},
@@ -505,8 +507,8 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			name: "folder item",
 			pages: []nextPage{
 				aPage(
-					fileWURLAtRoot(aURL(1), false, 1),
-					driveItem("2", "folder2", "root", "root", isFolder)),
+					d.fileWURLAtRoot(aURL(1), false, 1),
+					d.folderAtRoot(2)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(2): {},
@@ -540,7 +542,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 									with(test.pages...)))
 
 					cache, err := newURLCache(
-						drive.ID,
+						drive.id,
 						"",
 						1*time.Hour,
 						driveEnumer,
@@ -585,7 +587,7 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 	)
 
 	cache, err := newURLCache(
-		drv.ID,
+		drv.id,
 		"",
 		refreshInterval,
 		&enumerateDriveItemsDelta{},
@@ -631,7 +633,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		},
 		{
 			name:       "invalid refresh interval",
-			driveID:    drv.ID,
+			driveID:    drv.id,
 			refreshInt: 100 * time.Millisecond,
 			itemPager:  &enumerateDriveItemsDelta{},
 			errors:     fault.New(true),
@@ -639,7 +641,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		},
 		{
 			name:       "invalid item enumerator",
-			driveID:    drv.ID,
+			driveID:    drv.id,
 			refreshInt: 1 * time.Hour,
 			itemPager:  nil,
 			errors:     fault.New(true),
@@ -647,7 +649,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 		},
 		{
 			name:       "valid",
-			driveID:    drv.ID,
+			driveID:    drv.id,
 			refreshInt: 1 * time.Hour,
 			itemPager:  &enumerateDriveItemsDelta{},
 			errors:     fault.New(true),
