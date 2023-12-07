@@ -283,18 +283,23 @@ func (c *Collections) populateTree(
 		du            pagers.DeltaUpdate
 		finished      bool
 		hitLimit      bool
+		// TODO: plug this into the limiter
+		maxDeltas   = 100
+		countDeltas = 0
 	)
 
+	// enumerate through multiple deltas until we either:
+	// 1. hit a consistent state (ie: no changes since last delta enum)
+	// 2. hit the limit
 	for !hitLimit && !finished && el.Failure() == nil {
 		var (
 			pageCount     int
 			pageItemCount int
-			hadReset      bool
 			err           error
 		)
 
-		// TODO(keepers): to end in a correct state, we'll eventually need to run this
-		// query multiple times over, until it ends in an empty change set.
+		countDeltas++
+
 		pager := c.handler.EnumerateDriveItemsDelta(
 			ctx,
 			driveID,
@@ -315,7 +320,7 @@ func (c *Collections) populateTree(
 
 				pageCount = 0
 				pageItemCount = 0
-				hadReset = true
+				countDeltas = 0
 			}
 
 			err = c.enumeratePageOfItems(
@@ -364,7 +369,11 @@ func (c *Collections) populateTree(
 
 		// 0 pages is never expected.  We should at least have one (empty) page to
 		// consume.  But checking pageCount == 1 is brittle in a non-helpful way.
-		finished = pageCount < 2 && pageItemCount == 0 && !hadReset
+		finished = pageCount < 2 && pageItemCount == 0
+
+		if countDeltas >= maxDeltas {
+			return pagers.DeltaUpdate{}, clues.New("unable to produce consistent delta after 100 queries")
+		}
 	}
 
 	logger.Ctx(ctx).Infow("enumerated collection delta", "stats", counter.Values())
