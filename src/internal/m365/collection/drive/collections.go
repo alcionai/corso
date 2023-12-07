@@ -828,7 +828,7 @@ func (c *Collections) PopulateDriveCollections(
 			break
 		}
 
-		counter.Inc(count.PagesEnumerated)
+		counter.Inc(count.TotalPagesEnumerated)
 
 		if reset {
 			counter.Inc(count.PagerResets)
