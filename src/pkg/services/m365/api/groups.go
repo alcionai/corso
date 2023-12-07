@@ -115,8 +115,10 @@ func (c Groups) GetTeamByID(
 		if graph.IsErrResourceLocked(err) {
 			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceLocked, err))
 		}
+
 		return nil, graph.Wrap(ctx, err, "finding team by ID")
 	}
+
 	return t, err
 }
 
