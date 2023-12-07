@@ -1113,9 +1113,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 							driveItem(id(folder), name(folder), parentDir(), rootID, isFolder),
 							driveItem(id(file), name(file), parentDir(name(folder)), id(folder), isFile)))...).
 						// assume the user makes changes at this point:
-						// 1. delete /root/folder
-						// 2. create a new /root/folder
-						// 3. move /root/folder/file from old to new folder (same file ID)
+						// * create a new /root/folder
+						// * move /root/folder/file from old to new folder (same file ID)
+						// * delete /root/folder
 						// in drive deltas, this will show up as another folder creation sharing
 						// the same dirname, but we won't see the delete until...
 						With(pagesOf(pageItems(
