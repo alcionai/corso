@@ -18,7 +18,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -220,7 +219,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 
 	table := []struct {
 		name              string
-		pages             []mock.NextPage
+		pages             []nextPage
 		pagerErr          error
 		expectedItemProps map[string]itemProps
 		expectErr         assert.ErrorAssertionFunc
@@ -228,7 +227,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 	}{
 		{
 			name: "single item in cache",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(fileWURLAtRoot(aURL(1), false, 1)),
 			},
 			expectedItemProps: map[string]itemProps{
@@ -246,7 +245,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "multiple items in cache",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(
 					fileWURLAtRoot(aURL(1), false, 1),
 					fileWURLAtRoot(aURL(2), false, 2),
@@ -285,7 +284,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "multiple pages",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(
 					fileWURLAtRoot(aURL(1), false, 1),
 					fileWURLAtRoot(aURL(2), false, 2),
@@ -325,7 +324,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "multiple pages with resets",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(
 					fileWURLAtRoot(aURL(-1), false, -1),
 					fileWURLAtRoot(aURL(1), false, 1),
@@ -372,7 +371,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "multiple pages with resets and combo reset+items in page",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(
 					fileWURLAtRoot(aURL(1), false, 1),
 					fileWURLAtRoot(aURL(2), false, 2),
@@ -416,7 +415,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "duplicate items with potentially new urls",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(
 					fileWURLAtRoot(aURL(1), false, 1),
 					fileWURLAtRoot(aURL(2), false, 2),
@@ -447,7 +446,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "deleted items",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(
 					fileWURLAtRoot(aURL(1), false, 1),
 					fileWURLAtRoot(aURL(2), false, 2),
@@ -472,7 +471,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "item not found in cache",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(fileWURLAtRoot(aURL(1), false, 1)),
 			},
 			expectedItemProps: map[string]itemProps{
@@ -487,7 +486,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "delta query error",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(),
 			},
 			pagerErr: errors.New("delta query error"),
@@ -504,7 +503,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 		},
 		{
 			name: "folder item",
-			pages: []mock.NextPage{
+			pages: []nextPage{
 				aPage(
 					fileWURLAtRoot(aURL(1), false, 1),
 					driveItem("2", "folder2", "root", "root", isFolder)),
@@ -531,14 +530,14 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 					ctx, flush := tester.NewContext(t)
 					defer flush()
 
-					drive := mock.Drive()
+					drive := drive()
 
-					driveEnumer := mock.DriveEnumerator(
-						drive.NewEnumer().
-							WithErr(test.pagerErr).
-							With(
-								mock.Delta(delta, test.pagerErr).
-									With(test.pages...)))
+					driveEnumer := driveEnumerator(
+						drive.newEnumer().
+							withErr(test.pagerErr).
+							with(
+								delta(deltaURL, test.pagerErr).
+									with(test.pages...)))
 
 					cache, err := newURLCache(
 						drive.ID,
@@ -582,14 +581,14 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 	var (
 		t               = suite.T()
 		refreshInterval = 1 * time.Second
-		drv             = mock.Drive()
+		drv             = drive()
 	)
 
 	cache, err := newURLCache(
 		drv.ID,
 		"",
 		refreshInterval,
-		&mock.EnumerateDriveItemsDelta{},
+		&enumerateDriveItemsDelta{},
 		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -612,7 +611,7 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 }
 
 func (suite *URLCacheUnitSuite) TestNewURLCache() {
-	drv := mock.Drive()
+	drv := drive()
 
 	table := []struct {
 		name       string
@@ -626,7 +625,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			name:       "invalid driveID",
 			driveID:    "",
 			refreshInt: 1 * time.Hour,
-			itemPager:  &mock.EnumerateDriveItemsDelta{},
+			itemPager:  &enumerateDriveItemsDelta{},
 			errors:     fault.New(true),
 			expectErr:  require.Error,
 		},
@@ -634,7 +633,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			name:       "invalid refresh interval",
 			driveID:    drv.ID,
 			refreshInt: 100 * time.Millisecond,
-			itemPager:  &mock.EnumerateDriveItemsDelta{},
+			itemPager:  &enumerateDriveItemsDelta{},
 			errors:     fault.New(true),
 			expectErr:  require.Error,
 		},
@@ -650,7 +649,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			name:       "valid",
 			driveID:    drv.ID,
 			refreshInt: 1 * time.Hour,
-			itemPager:  &mock.EnumerateDriveItemsDelta{},
+			itemPager:  &enumerateDriveItemsDelta{},
 			errors:     fault.New(true),
 			expectErr:  require.NoError,
 		},

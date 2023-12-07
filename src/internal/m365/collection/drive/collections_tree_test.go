@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -32,7 +31,7 @@ func TestCollectionsTreeUnitSuite(t *testing.T) {
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveTombstones() {
-	badPfxMBH := mock.DefaultOneDriveBH(user)
+	badPfxMBH := defaultOneDriveBH(user)
 	badPfxMBH.PathPrefixErr = assert.AnError
 
 	twostones := map[string]struct{}{
@@ -50,21 +49,21 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveTombstones() {
 		{
 			name:       "nil",
 			tombstones: nil,
-			c:          collWithMBH(mock.DefaultOneDriveBH(user)),
+			c:          collWithMBH(defaultOneDriveBH(user)),
 			expectErr:  assert.NoError,
 			expect:     assert.Empty,
 		},
 		{
 			name:       "none",
 			tombstones: map[string]struct{}{},
-			c:          collWithMBH(mock.DefaultOneDriveBH(user)),
+			c:          collWithMBH(defaultOneDriveBH(user)),
 			expectErr:  assert.NoError,
 			expect:     assert.Empty,
 		},
 		{
 			name:       "some tombstones",
 			tombstones: twostones,
-			c:          collWithMBH(mock.DefaultOneDriveBH(user)),
+			c:          collWithMBH(defaultOneDriveBH(user)),
 			expectErr:  assert.NoError,
 			expect:     assert.NotEmpty,
 		},
@@ -95,7 +94,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveTombstones() {
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeMetadataCollections() {
-	badMetaPfxMBH := mock.DefaultOneDriveBH(user)
+	badMetaPfxMBH := defaultOneDriveBH(user)
 	badMetaPfxMBH.MetadataPathPrefixErr = assert.AnError
 
 	table := []struct {
@@ -105,7 +104,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeMetadataCollections()
 	}{
 		{
 			name:   "no errors",
-			c:      collWithMBH(mock.DefaultOneDriveBH(user)),
+			c:      collWithMBH(defaultOneDriveBH(user)),
 			expect: assert.NotEmpty,
 		},
 		{
@@ -155,7 +154,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 
 	table := []struct {
 		name          string
-		enumerator    mock.EnumerateDriveItemsDelta
+		enumerator    enumerateDriveItemsDelta
 		previousPaths map[string]map[string]string
 
 		metadata []data.RestoreCollection
@@ -163,9 +162,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 	}{
 		{
 			name: "not yet implemented",
-			enumerator: mock.DriveEnumerator(
-				mock.Drive().NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive().newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage()))),
 			expect: expected{
 				canUsePrevBackup: assert.False,
@@ -186,7 +185,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			defer flush()
 
 			var (
-				mbh            = mock.DefaultDriveBHWith(user, test.enumerator)
+				mbh            = defaultDriveBHWith(user, test.enumerator)
 				c              = collWithMBH(mbh)
 				prevMetadata   = makePrevMetadataColls(t, mbh, test.previousPaths)
 				globalExcludes = prefixmatcher.NewStringSetBuilder()
@@ -237,21 +236,21 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 // at lower levels are better for verifing fine-grained concerns.  This test only needs
 // to ensure we stitch the parts together correctly.
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
-	drv := mock.Drive()
+	drv := drive()
 
 	table := []struct {
 		name         string
-		drive        *mock.DeltaDrive
-		enumerator   mock.EnumerateDriveItemsDelta
+		drive        *deltaDrive
+		enumerator   enumerateDriveItemsDelta
 		prevPaths    map[string]string
 		expectCounts countTD.Expected
 	}{
 		{
 			name:  "only root in delta, no prev paths",
 			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage()))),
 			prevPaths: map[string]string{},
 			expectCounts: countTD.Expected{
@@ -261,9 +260,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		{
 			name:  "only root in delta, with prev paths",
 			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage()))),
 			prevPaths: map[string]string{
 				folderID(): fullPath(folderName()),
@@ -275,9 +274,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		{
 			name:  "some items, no prev paths",
 			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{},
 			expectCounts: countTD.Expected{
@@ -287,9 +286,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		{
 			name:  "some items, with prev paths",
 			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{
 				folderID(): fullPath(folderName()),
@@ -301,9 +300,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		{
 			name:  "tree had delta reset, only root after, no prev paths",
 			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.DeltaWReset(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					deltaWReset(id(deltaURL), nil).with(
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{},
@@ -314,9 +313,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		{
 			name:  "tree had delta reset, only root after, with prev paths",
 			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.DeltaWReset(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					deltaWReset(id(deltaURL), nil).with(
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{
@@ -329,9 +328,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		{
 			name:  "tree had delta reset, enumerate items after, no prev paths",
 			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.DeltaWReset(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					deltaWReset(id(deltaURL), nil).with(
 						aReset(),
 						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{},
@@ -342,9 +341,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		{
 			name:  "tree had delta reset, enumerate items after, with prev paths",
 			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.DeltaWReset(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					deltaWReset(id(deltaURL), nil).with(
 						aReset(),
 						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{
@@ -362,7 +361,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			mbh := mock.DefaultOneDriveBH(user)
+			mbh := defaultOneDriveBH(user)
 			mbh.DriveItemEnumeration = test.enumerator
 
 			c := collWithMBH(mbh)
@@ -371,7 +370,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				ctx,
 				test.drive.Able,
 				test.prevPaths,
-				id(delta, "prev"),
+				id(deltaURL, "prev"),
 				newPagerLimiter(control.DefaultOptions()),
 				prefixmatcher.NewStringSetBuilder(),
 				c.counter,
@@ -642,7 +641,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			err := addPrevPathsToTree(ctx, tree, test.prevPaths, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
-			c := collWithMBH(mock.DefaultOneDriveBH(user))
+			c := collWithMBH(defaultOneDriveBH(user))
 
 			countPages := 9001
 			if test.enableURLCache {
@@ -652,8 +651,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			colls, newPrevPaths, excluded, err := c.turnTreeIntoCollections(
 				ctx,
 				tree,
-				id(drive),
-				delta,
+				id(drivePfx),
+				deltaURL,
 				countPages,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -682,7 +681,7 @@ type populateTreeExpected struct {
 
 type populateTreeTest struct {
 	name       string
-	enumerator mock.EnumerateDriveItemsDelta
+	enumerator enumerateDriveItemsDelta
 	tree       func(t *testing.T) *folderyMcFolderFace
 	limiter    *pagerLimiter
 	expect     populateTreeExpected
@@ -691,7 +690,7 @@ type populateTreeTest struct {
 // this test focuses on the population of a tree using a single delta's enumeration data.
 // It is not concerned with unifying previous paths or post-processing collections.
 func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta() {
-	drv := mock.Drive()
+	drv := drive()
 
 	table := []populateTreeTest{
 		{
@@ -699,13 +698,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			// special case enumerator to generate a null page.
 			// otherwise all enumerators should be DriveEnumerator()s.
-			enumerator: mock.EnumerateDriveItemsDelta{
-				DrivePagers: map[string]*mock.DeltaDriveEnumerator{
+			enumerator: enumerateDriveItemsDelta{
+				DrivePagers: map[string]*DeltaDriveEnumerator{
 					drv.ID: {
 						Drive: drv,
-						DeltaQueries: []*mock.DeltaQuery{{
+						DeltaQueries: []*deltaQuery{{
 							Pages:       nil,
-							DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+							DeltaUpdate: pagers.DeltaUpdate{URL: id(deltaURL)},
 						}},
 					},
 				},
@@ -725,9 +724,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "root only",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage()))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
@@ -750,9 +749,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "root only on two pages",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(),
 						aPage()))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
@@ -776,9 +775,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "many folders in a hierarchy across multiple pages",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(folderAtRoot()),
 						aPage(folderAtRoot("sib")),
 						aPage(
@@ -808,9 +807,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "many folders with files",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							folderAtRoot(),
 							fileAt(folder)),
@@ -850,9 +849,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "tombstone with unpopulated tree",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(delItem(folderID(), folderID("parent"), isFolder)),
 					))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
@@ -879,9 +878,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "tombstone with populated tree",
 			tree: treeWithFileInFolder,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(aPage(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
 						delItem(folderID(), folderID("parent"), isFolder),
 					)))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
@@ -913,9 +912,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			// precede creates/updates.  But it's worth checking that we can handle it anyways.
 			name: "create->delete folder",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							folderAtRoot(),
 							fileAt(folder)),
@@ -946,9 +945,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			// precede creates/updates.  But it's worth checking that we can handle it anyways.
 			name: "move->delete folder with populated tree",
 			tree: treeWithFolders,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							folderAtRoot("parent"),
 							driveItem(folderID(), folderName("moved"), parentDir(), folderID("parent"), isFolder),
@@ -981,9 +980,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "delete->create folder with previous path",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(delItem(folderID(), rootID, isFolder)),
 						aPage(
 							folderAtRoot(),
@@ -1014,9 +1013,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "delete->create folder without previous path",
 			tree: treeWithRoot,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(delItem(folderID(), rootID, isFolder)),
 						aPage(
 							folderAtRoot(),
@@ -1047,9 +1046,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "at folder limit before enumeration",
 			tree: treeWithFileAtRoot,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							folderAtRoot(),
 							fileAt(folder)),
@@ -1083,9 +1082,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "hit folder limit during enumeration",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							folderAtRoot(),
 							fileAt(folder)),
@@ -1128,24 +1127,24 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 // multiple delta enumerations.
 // It is not concerned with unifying previous paths or post-processing collections.
 func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta() {
-	drv := mock.Drive()
+	drv := drive()
 
 	table := []populateTreeTest{
 		{
 			name: "sanity case: normal enumeration split across multiple deltas",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
-						aPage(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).
+						with(aPage(
 							folderAtRoot(),
 							fileAt(folder))),
-					mock.Delta(id(delta), nil).With(
-						aPage(
+					delta(id(deltaURL), nil).
+						with(aPage(
 							folderAtRoot("sib"),
 							fileAt("sib", "fsib"))),
-					mock.Delta(id(delta), nil).With(
-						aPage(
+					delta(id(deltaURL), nil).
+						with(aPage(
 							folderAtRoot(),
 							folderAt(folder, "chld"),
 							fileAt("chld", "fchld"))))),
@@ -1180,15 +1179,15 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 		{
 			name: "create->delete,create",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							folderAtRoot(),
 							fileAt(folder))),
 					// a (delete,create) pair in the same delta can occur when
 					// a user deletes and restores an item in-between deltas.
-					mock.Delta(id(delta), nil).With(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							delItem(folderID(), rootID, isFolder),
 							delItem(fileID(), folderID(), isFile)),
@@ -1220,13 +1219,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 		{
 			name: "visit->rename",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							folderAtRoot(),
 							fileAt(folder))),
-					mock.Delta(id(delta), nil).With(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							driveItem(folderID(), folderName("rename"), parentDir(), rootID, isFolder),
 							driveItem(fileID(), fileName("rename"), parentDir(folderName("rename")), folderID(), isFile))))),
@@ -1257,9 +1256,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 		{
 			name: "duplicate folder name from deferred delete marker",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				drv.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drv.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						// first page: create /root/folder and /root/folder/file
 						aPage(
 							folderAtRoot(),
@@ -1274,7 +1273,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 							driveItem(folderID(2), folderName(), parentDir(), rootID, isFolder),
 							driveItem(fileID(), fileName(), parentDir(folderName()), folderID(2), isFile))),
 					// the next delta, containing the delete marker for the original /root/folder
-					mock.Delta(id(delta), nil).With(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							delItem(folderID(), rootID, isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
@@ -1318,7 +1317,7 @@ func runPopulateTreeTest(
 	defer flush()
 
 	var (
-		mbh     = mock.DefaultDriveBHWith(user, test.enumerator)
+		mbh     = defaultDriveBHWith(user, test.enumerator)
 		c       = collWithMBH(mbh)
 		counter = count.New()
 		tree    = test.tree(t)
@@ -1328,7 +1327,7 @@ func runPopulateTreeTest(
 		ctx,
 		tree,
 		drv,
-		id(delta),
+		id(deltaURL),
 		test.limiter,
 		counter,
 		fault.New(true))
@@ -1375,7 +1374,7 @@ func runPopulateTreeTest(
 // This test focuses on folder assertions when enumerating a page of items.
 // File-specific assertions are focused in the _folders test variant.
 func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_folders() {
-	drv := mock.Drive()
+	drv := drive()
 
 	type expected struct {
 		counts                   countTD.Expected
@@ -1389,14 +1388,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 	table := []struct {
 		name    string
 		tree    func(t *testing.T) *folderyMcFolderFace
-		page    mock.NextPage
+		page    nextPage
 		limiter *pagerLimiter
 		expect  expected
 	}{
 		{
 			name:    "nil page",
 			tree:    treeWithRoot,
-			page:    mock.NextPage{},
+			page:    nextPage{},
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts:   countTD.Expected{},
@@ -1411,7 +1410,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 		{
 			name:    "empty page",
 			tree:    treeWithRoot,
-			page:    mock.NextPage{Items: []models.DriveItemable{}},
+			page:    nextPage{Items: []models.DriveItemable{}},
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts:   countTD.Expected{},
@@ -1558,7 +1557,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			defer flush()
 
 			var (
-				c       = collWithMBH(mock.DefaultOneDriveBH(user))
+				c       = collWithMBH(defaultOneDriveBH(user))
 				counter = count.New()
 				tree    = test.tree(t)
 			)
@@ -1597,7 +1596,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 	var (
-		drv    = mock.Drive()
+		drv    = drive()
 		fld    = custom.ToCustomDriveItem(folderAtRoot())
 		subFld = custom.ToCustomDriveItem(driveFolder(driveParentDir(drv, folderName("parent")), folderID("parent")))
 		pack   = custom.ToCustomDriveItem(driveItem(id(pkg), name(pkg), parentDir(), rootID, isPackage))
@@ -1823,7 +1822,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			defer flush()
 
 			var (
-				c       = collWithMBH(mock.DefaultOneDriveBH(user))
+				c       = collWithMBH(defaultOneDriveBH(user))
 				counter = count.New()
 				tree    = test.tree(t)
 			)
@@ -1856,7 +1855,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath() {
-	drv := mock.Drive()
+	drv := drive()
 
 	basePath, err := odConsts.DriveFolderPrefixBuilder(drv.ID).
 		ToDataLayerOneDrivePath(tenant, user, false)
@@ -1893,11 +1892,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath(
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			c := collWithMBH(defaultOneDriveBH(user))
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
-
-			c := collWithMBH(mock.DefaultOneDriveBH(user))
 
 			p, err := c.makeFolderCollectionPath(
 				ctx,
@@ -1919,7 +1917,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath(
 // this test focuses on folder assertions when enumerating a page of items
 // file-specific assertions are in the next test
 func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_files() {
-	drv := mock.Drive()
+	drv := drive()
 
 	type expected struct {
 		counts                        countTD.Expected
@@ -1932,7 +1930,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 	table := []struct {
 		name   string
 		tree   func(t *testing.T) *folderyMcFolderFace
-		page   mock.NextPage
+		page   nextPage
 		expect expected
 	}{
 		{
@@ -2116,7 +2114,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			defer flush()
 
 			var (
-				c       = collWithMBH(mock.DefaultOneDriveBH(user))
+				c       = collWithMBH(defaultOneDriveBH(user))
 				counter = count.New()
 				tree    = test.tree(t)
 			)
@@ -2141,7 +2139,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
-	drv := mock.Drive()
+	drv := drive()
 
 	type expected struct {
 		counts                        countTD.Expected
@@ -2305,7 +2303,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			defer flush()
 
 			var (
-				c       = collWithMBH(mock.DefaultOneDriveBH(user))
+				c       = collWithMBH(defaultOneDriveBH(user))
 				counter = count.New()
 				tree    = test.tree(t)
 			)

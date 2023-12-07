@@ -13,7 +13,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -31,13 +30,13 @@ func TestLimiterUnitSuite(t *testing.T) {
 type backupLimitTest struct {
 	name       string
 	limits     control.PreviewItemLimits
-	enumerator mock.EnumerateDriveItemsDelta
+	enumerator enumerateDriveItemsDelta
 	// Collection name -> set of item IDs. We can't check item data because
 	// that's not mocked out. Metadata is checked separately.
 	expectedItemIDsInCollection map[string][]string
 }
 
-func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
+func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 	return []backupLimitTest{
 		{
 			name: "OneDrive SinglePage ExcludeItemsOverMaxSize",
@@ -49,9 +48,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             5,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(aPage(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
 						fileWSizeAtRoot(7, "f1"),
 						fileWSizeAtRoot(1, "f2"),
 						fileWSizeAtRoot(1, "f3"))))),
@@ -69,9 +68,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             3,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(aPage(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
 						fileWSizeAtRoot(1, "f1"),
 						fileWSizeAtRoot(2, "f2"),
 						fileWSizeAtRoot(1, "f3"))))),
@@ -89,9 +88,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             3,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(aPage(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
 						fileWSizeAtRoot(1, "f1"),
 						folderAtRoot(),
 						fileWSizeAt(2, folder, "f2"),
@@ -111,9 +110,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(aPage(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
 						fileAtRoot("f1"),
 						fileAtRoot("f2"),
 						fileAtRoot("f3"),
@@ -134,9 +133,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							fileAtRoot("f1"),
 							fileAtRoot("f2")),
@@ -163,9 +162,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             1,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							fileAtRoot("f1"),
 							fileAtRoot("f2")),
@@ -189,9 +188,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							fileAtRoot("f1"),
 							fileAtRoot("f2"),
@@ -217,9 +216,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							folderAtRoot(),
 							fileAt(folder, "f1"),
@@ -245,9 +244,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							fileAtRoot("f1"),
 							fileAtRoot("f2"),
@@ -274,9 +273,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							fileAtRoot("f1"),
 							fileAtRoot("f2"),
@@ -302,9 +301,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							fileAtRoot("f1"),
 							fileAtRoot("f2"),
@@ -333,9 +332,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							fileAtRoot("f1"),
 							fileAtRoot("f2"),
@@ -365,16 +364,16 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(aPage(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
 						fileAtRoot("f1"),
 						fileAtRoot("f2"),
 						fileAtRoot("f3"),
 						fileAtRoot("f4"),
 						fileAtRoot("f5")))),
-				drive2.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(aPage(
+				drive2.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
 						fileAtRoot("f1"),
 						fileAtRoot("f2"),
 						fileAtRoot("f3"),
@@ -394,9 +393,9 @@ func backupLimitTable(drive1, drive2 *mock.DeltaDrive) []backupLimitTest {
 				MaxBytes:             1,
 				MaxPages:             1,
 			},
-			enumerator: mock.DriveEnumerator(
-				drive1.NewEnumer().With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				drive1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
 							fileAtRoot("f1"),
 							fileAtRoot("f2"),
@@ -440,7 +439,7 @@ func iterGetPreviewLimitsTests(
 	suite *LimiterUnitSuite,
 	opts control.Options,
 ) {
-	d1, d2 := mock.Drive(), mock.Drive(2)
+	d1, d2 := drive(), drive(2)
 
 	for _, test := range backupLimitTable(d1, d2) {
 		suite.Run(test.name, func() {
@@ -456,7 +455,7 @@ func iterGetPreviewLimitsTests(
 func runGetPreviewLimits(
 	t *testing.T,
 	test backupLimitTest,
-	drive1, drive2 *mock.DeltaDrive,
+	drive1, drive2 *deltaDrive,
 	opts control.Options,
 ) {
 	ctx, flush := tester.NewContext(t)
@@ -473,7 +472,7 @@ func runGetPreviewLimits(
 	opts.PreviewLimits = test.limits
 
 	var (
-		mbh       = mock.DefaultDriveBHWith(user, test.enumerator)
+		mbh       = defaultDriveBHWith(user, test.enumerator)
 		c         = collWithMBHAndOpts(mbh, opts)
 		errs      = fault.New(true)
 		delList   = prefixmatcher.NewStringSetBuilder()
@@ -709,11 +708,11 @@ func runGetPreviewLimitsDefaults(
 		false)
 	require.NoError(t, err, "making metadata path", clues.ToCore(err))
 
-	drv := mock.Drive()
-	pages := make([]mock.NextPage, 0, test.numContainers)
+	drv := drive()
+	pages := make([]nextPage, 0, test.numContainers)
 
 	for containerIdx := 0; containerIdx < test.numContainers; containerIdx++ {
-		page := mock.NextPage{
+		page := nextPage{
 			Items: []models.DriveItemable{
 				driveRootFolder(),
 				driveItem(
@@ -743,10 +742,10 @@ func runGetPreviewLimitsDefaults(
 	opts.PreviewLimits = test.limits
 
 	var (
-		mockEnumerator = mock.DriveEnumerator(
-			drv.NewEnumer().With(
-				mock.Delta(id(delta), nil).With(pages...)))
-		mbh           = mock.DefaultDriveBHWith(user, mockEnumerator)
+		mockEnumerator = driveEnumerator(
+			drv.newEnumer().with(
+				delta(id(deltaURL), nil).with(pages...)))
+		mbh           = defaultDriveBHWith(user, mockEnumerator)
 		c             = collWithMBHAndOpts(mbh, opts)
 		errs          = fault.New(true)
 		delList       = prefixmatcher.NewStringSetBuilder()
