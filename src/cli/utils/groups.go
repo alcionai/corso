@@ -293,6 +293,8 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 		}
 	}
 
+	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+
 	return sel
 }
 

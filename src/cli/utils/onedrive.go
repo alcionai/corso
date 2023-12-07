@@ -119,6 +119,8 @@ func IncludeOneDriveRestoreDataSelectors(opts OneDriveOpts) *selectors.OneDriveR
 		sel.Include(sel.Items(prefixFolders, opts.FileName, selectors.PrefixMatch()))
 	}
 
+	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+
 	return sel
 }
 

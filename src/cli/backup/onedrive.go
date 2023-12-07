@@ -240,7 +240,6 @@ func runDetailsOneDriveCmd(cmd *cobra.Command) error {
 	opts := utils.MakeOneDriveOpts(cmd)
 
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
-	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
 	ds, err := genericDetailsCommand(cmd, flags.BackupIDFV, sel.Selector)

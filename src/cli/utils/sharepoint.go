@@ -212,6 +212,8 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 		sel.Include(sel.WebURL(urls))
 	}
 
+	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+
 	return sel
 }
 

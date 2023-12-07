@@ -170,6 +170,8 @@ func IncludeExchangeRestoreDataSelectors(opts ExchangeOpts) *selectors.ExchangeR
 	AddExchangeInclude(sel, opts.EmailFolder, opts.Email, sel.Mails)
 	AddExchangeInclude(sel, opts.EventCalendar, opts.Event, sel.Events)
 
+	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+
 	return sel
 }
 

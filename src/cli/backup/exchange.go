@@ -277,7 +277,6 @@ func runDetailsExchangeCmd(cmd *cobra.Command) error {
 	opts := utils.MakeExchangeOpts(cmd)
 
 	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
-	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
 
 	ds, err := genericDetailsCommand(cmd, flags.BackupIDFV, sel.Selector)

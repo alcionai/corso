@@ -382,8 +382,6 @@ func genericDetailsCore(
 ) (*details.Details, error) {
 	ctx = clues.Add(ctx, "backup_id", backupID)
 
-	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
-
 	d, _, errs := bg.GetBackupDetails(ctx, backupID)
 	// TODO: log/track recoverable errors
 	if errs.Failure() != nil {

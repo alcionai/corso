@@ -232,7 +232,6 @@ func runDetailsGroupsCmd(cmd *cobra.Command) error {
 	opts := utils.MakeGroupsOpts(cmd)
 
 	sel := utils.IncludeGroupsRestoreDataSelectors(ctx, opts)
-	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 	utils.FilterGroupsRestoreInfoSelectors(sel, opts)
 
 	ds, err := genericDetailsCommand(cmd, flags.BackupIDFV, sel.Selector)

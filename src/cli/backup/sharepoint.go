@@ -331,7 +331,6 @@ func runDetailsSharePointCmd(cmd *cobra.Command) error {
 	opts := utils.MakeSharePointOpts(cmd)
 
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
-	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
 	ds, err := genericDetailsCommand(cmd, flags.BackupIDFV, sel.Selector)
