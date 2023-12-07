@@ -2,7 +2,7 @@ module github.com/alcionai/corso/src
 
 go 1.21
 
-replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231130213928-e62eca5816db
+replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231205231702-863c24d6f8b1
 
 // No tags in the alcion fork of the repo so use v7 as that's in the import
 // path.

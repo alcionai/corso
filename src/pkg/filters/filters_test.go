@@ -554,6 +554,64 @@ func (suite *FiltersSuite) TestPathEquals_NormalizedTargets() {
 	}
 }
 
+func (suite *FiltersSuite) TestMust() {
+	table := []struct {
+		name    string
+		filters []filters.Filter
+		expect  assert.BoolAssertionFunc
+	}{
+		{
+			name:    "no filters",
+			filters: []filters.Filter{},
+			expect:  assert.False,
+		},
+		{
+			name:    "one matching filter",
+			filters: []filters.Filter{filters.Equal([]string{"fnords"})},
+			expect:  assert.True,
+		},
+		{
+			name:    "one non-matching filter",
+			filters: []filters.Filter{filters.Equal([]string{"smarf"})},
+			expect:  assert.False,
+		},
+		{
+			name: "multiple matching filter",
+			filters: []filters.Filter{
+				filters.Equal([]string{"fnords"}),
+				filters.Equal([]string{"FNORDS"}),
+				filters.Equal([]string{"fNORDs"}),
+			},
+			expect: assert.True,
+		},
+		{
+			name: "one non-matching filter among many matching",
+			filters: []filters.Filter{
+				filters.Equal([]string{"fnords"}),
+				filters.Equal([]string{"FNORDS"}),
+				filters.Equal([]string{"smarf"}),
+			},
+			expect: assert.False,
+		},
+		{
+			name: "all non-matching filters",
+			filters: []filters.Filter{
+				filters.Equal([]string{"smarf"}),
+				filters.Equal([]string{"SMARF"}),
+				filters.Equal([]string{"sMARf"}),
+			},
+			expect: assert.False,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(
+				suite.T(),
+				filters.Must("fnords", test.filters...))
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // pii handling
 // ---------------------------------------------------------------------------
