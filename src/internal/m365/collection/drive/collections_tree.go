@@ -154,7 +154,7 @@ func (c *Collections) getTree(
 
 	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
 
-	return collections, canUsePrevBackup, nil
+	return collections, canUsePrevBackup, errGetTreeNotImplemented
 }
 
 func (c *Collections) makeDriveCollections(

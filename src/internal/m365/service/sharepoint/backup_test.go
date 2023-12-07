@@ -103,9 +103,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 
 			mbh.DriveItemEnumeration = mock.DriveEnumerator(
 				mock.Drive(driveID).With(
-					mock.Delta("notempty", nil).With(mock.NextPage{Items: test.items}),
-				),
-			)
+					mock.Delta("notempty", nil).With(mock.NextPage{Items: test.items})))
 
 			c := drive.NewCollections(
 				mbh,

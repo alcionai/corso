@@ -363,6 +363,7 @@ type DriveDeltaEnumerator struct {
 	DriveID      string
 	idx          int
 	DeltaQueries []*DeltaQuery
+	Err          error
 }
 
 func Drive(driveID string) *DriveDeltaEnumerator {
@@ -371,6 +372,12 @@ func Drive(driveID string) *DriveDeltaEnumerator {
 
 func (dde *DriveDeltaEnumerator) With(ds ...*DeltaQuery) *DriveDeltaEnumerator {
 	dde.DeltaQueries = ds
+	return dde
+}
+
+// WithErr adds an error that is always returned in the last delta index.
+func (dde *DriveDeltaEnumerator) WithErr(err error) *DriveDeltaEnumerator {
+	dde.Err = err
 	return dde
 }
 
@@ -386,6 +393,7 @@ func (dde *DriveDeltaEnumerator) nextDelta() *DeltaQuery {
 			Pages: []NextPage{{
 				Items: []models.DriveItemable{},
 			}},
+			Err: dde.Err,
 		}
 	}
 

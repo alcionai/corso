@@ -532,7 +532,6 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 				assert.Equal(t, 0, len(uc.idToProps))
 			},
 		},
-
 		{
 			name: "folder item",
 			pages: []mock.NextPage{
@@ -564,8 +563,10 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 					defer flush()
 
 					driveEnumer := mock.DriveEnumerator(
-						mock.Drive(driveID).With(
-							mock.Delta(deltaString, test.pagerErr).With(test.pages...)))
+						mock.Drive(driveID).
+							WithErr(test.pagerErr).
+							With(mock.Delta(deltaString, test.pagerErr).
+								With(test.pages...)))
 
 					cache, err := newURLCache(
 						driveID,

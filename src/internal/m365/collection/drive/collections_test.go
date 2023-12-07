@@ -874,8 +874,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			mbh.DriveItemEnumeration = mock.DriveEnumerator(
 				mock.Drive(driveID).With(
 					mock.Delta("notempty", nil).With(
-						aPage(test.items...),
-					)))
+						aPage(test.items...))))
 
 			sel := selectors.NewOneDriveBackup([]string{user})
 			sel.Include([]selectors.OneDriveScope{test.scope})
@@ -1415,9 +1414,7 @@ func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
 	mbh.DriveItemEnumeration = mock.DriveEnumerator(
 		mock.Drive(id(drive)).With(
 			mock.Delta(id(delta), nil).With(
-				aPage(
-					delItem(id(file), rootID, isFile),
-				))))
+				aPage(delItem(id(file), rootID, isFile)))))
 
 	c := collWithMBH(mbh)
 	c.ctrl = opts
@@ -1468,8 +1465,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(idx(drive, 1)).With(
 					mock.Delta(id(delta), nil).With(aPage(
-						delItem(id(file), rootID, isFile)),
-					))),
+						delItem(id(file), rootID, isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1494,8 +1490,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(idx(drive, 1)).With(
 					mock.Delta(id(delta), nil).With(aPage(
-						driveItem(id(file), name(file), driveParentDir(1), rootID, isFile)),
-					))),
+						driveItem(id(file), name(file), driveParentDir(1), rootID, isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1521,8 +1516,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				mock.Drive(idx(drive, 1)).With(
 					mock.DeltaWReset(id(delta), nil).With(aPage(
 						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
-					))),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths:        map[string]map[string]string{},
@@ -1553,8 +1547,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 					mock.DeltaWReset(id(delta), nil).With(aPage(
 						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
 						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-						driveItem(id(file), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
-					))),
+						driveItem(id(file), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths:        map[string]map[string]string{},
@@ -1585,8 +1578,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 					mock.Delta(id(delta), nil).With(aPage(
 						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
 						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
-						driveItem(id(file), namex(file, 2), driveParentDir(1), rootID, isFile)),
-					))),
+						driveItem(id(file), namex(file, 2), driveParentDir(1), rootID, isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1622,8 +1614,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
 						aPage(
 							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
-					))),
+							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1664,8 +1655,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
 						aPage(
 							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
-					))),
+							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1704,8 +1694,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
 						aPage(
 							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
-					))),
+							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1740,13 +1729,11 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				mock.Drive(idx(drive, 1)).With(
 					mock.DeltaWReset(id(delta), nil).With(aPage(
 						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
-					)),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)))),
 				mock.Drive(idx(drive, 2)).With(
 					mock.DeltaWReset(idx(delta, 2), nil).With(aPage(
 						driveItem(idx(folder, 2), name(folder), driveParentDir(2), rootID, isFolder),
-						driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), idx(folder, 2), isFile)),
-					))),
+						driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), idx(folder, 2), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1791,13 +1778,11 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				mock.Drive(idx(drive, 1)).With(
 					mock.DeltaWReset(id(delta), nil).With(aPage(
 						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
-					)),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)))),
 				mock.Drive(idx(drive, 2)).With(
 					mock.DeltaWReset(idx(delta, 2), nil).With(aPage(
 						driveItem(id(folder), name(folder), driveParentDir(2), rootID, isFolder),
-						driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), id(folder), isFile)),
-					))),
+						driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), id(folder), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1857,8 +1842,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						aReset(),
 						aPage(
 							driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile)),
-					))),
+							driveItem(id(file), name(file), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1897,8 +1881,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						aReset(),
 						aPage(
 							driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile)),
-					))),
+							driveItem(id(file), name(file), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1940,8 +1923,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						aReset(),
 						aPage(
 							driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile)),
-					))),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -1986,8 +1968,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						aReset(),
 						aPage(
 							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
-					))),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2026,8 +2007,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						aReset(),
 						aPage(
 							driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(idx(file, 2), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile)),
-					))),
+							driveItem(idx(file, 2), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2067,8 +2047,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						aReset(),
 						aPage(
 							driveItem(idx(folder, 2), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile)),
-					))),
+							driveItem(id(file), name(file), driveParentDir(1, name(folder)), idx(folder, 2), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2114,8 +2093,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						aPage(
 							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
 							driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(folder)), id(folder), isFile),
-							malwareItem(idx(malware, 2), namex(malware, 2), driveParentDir(1, name(folder)), id(folder), isFile)),
-					))),
+							malwareItem(idx(malware, 2), namex(malware, 2), driveParentDir(1, name(folder)), id(folder), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2157,8 +2135,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
 							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
 							delItem(idx(folder, 2), rootID, isFolder),
-							delItem(namex(file, 2), rootID, isFile)),
-					))),
+							delItem(namex(file, 2), rootID, isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2195,8 +2172,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(idx(drive, 1)).With(
 					mock.DeltaWReset(id(delta), nil).With(aPageWReset(
-						delItem(id(folder), rootID, isFolder)),
-					))),
+						delItem(id(folder), rootID, isFolder))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2229,8 +2205,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(idx(drive, 1)).With(
 					mock.DeltaWReset(id(delta), nil).With(aPageWReset(
-						delItem(id(file), rootID, isFile)),
-					))),
+						delItem(id(file), rootID, isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2265,8 +2240,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
 						aPage(
 							delItem(id(folder), rootID, isFolder),
-							delItem(id(file), rootID, isFile)),
-					))),
+							delItem(id(file), rootID, isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2302,8 +2276,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 							delItem(id(file), rootID, isFile)),
 						aPage(
 							driveItem(idx(folder, 1), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(idx(file, 1), name(file), driveParentDir(1, name(folder)), idx(folder, 1), isFile)),
-					))),
+							driveItem(idx(file, 1), name(file), driveParentDir(1, name(folder)), idx(folder, 1), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2342,8 +2315,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
 						aPage(
 							delItem(id(folder), rootID, isFolder),
-							delItem(id(file), rootID, isFile)),
-					))),
+							delItem(id(file), rootID, isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2381,8 +2353,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 							delItem(id(file), rootID, isFile)),
 						aPage(
 							driveItem(idx(folder, 1), name(folder), driveParentDir(1), rootID, isFolder),
-							driveItem(idx(file, 1), name(file), driveParentDir(1, name(folder)), idx(folder, 1), isFile)),
-					))),
+							driveItem(idx(file, 1), name(file), driveParentDir(1, name(folder)), idx(folder, 1), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2419,8 +2390,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						aPage(
 							driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
 							driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
-						aPage(delItem(id(file), rootID, isFile)),
-					))),
+						aPage(delItem(id(file), rootID, isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2451,8 +2421,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(idx(drive, 1)).With(
 					mock.DeltaWReset(id(delta), nil).With(aPage(
-						delItem(id(folder), rootID, isFolder)),
-					))),
+						delItem(id(folder), rootID, isFolder))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2480,8 +2449,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(idx(drive, 1)).With(
 					mock.Delta(id(delta), nil).With(aPage(
-						delItem(id(file), rootID, isFile)),
-					))),
+						delItem(id(file), rootID, isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2537,15 +2505,13 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
 						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile),
 						driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(1), rootID, isFolder),
-						driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile)),
-					)),
+						driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, namex(folder, 2)), idx(folder, 2), isFile)))),
 				mock.Drive(idx(drive, 2)).With(
 					mock.Delta(idx(delta, 2), nil).With(aPage(
 						driveItem(id(folder), name(folder), driveParentDir(2), rootID, isFolder),
 						driveItem(id(file), name(file), driveParentDir(2, name(folder)), id(folder), isFile),
 						driveItem(idx(folder, 2), namex(folder, 2), driveParentDir(2), rootID, isFolder),
-						driveItem(idx(file, 2), namex(file, 2), driveParentDir(2, namex(folder, 2)), idx(folder, 2), isFile)),
-					))),
+						driveItem(idx(file, 2), namex(file, 2), driveParentDir(2, namex(folder, 2)), idx(folder, 2), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2613,8 +2579,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						driveItem(idx(fanny, 2), name(fanny), driveParentDir(1), rootID, isFolder),
 						driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(fanny)), idx(fanny, 2), isFile),
 						driveItem(id(nav), name(nav), driveParentDir(1), rootID, isFolder),
-						driveItem(id(file), name(file), driveParentDir(1, name(nav)), id(nav), isFile)),
-					))),
+						driveItem(id(file), name(file), driveParentDir(1, name(nav)), id(nav), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2658,8 +2623,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						driveItem(idx(fanny, 2), name(fanny), driveParentDir(1), rootID, isFolder),
 						driveItem(idx(file, 2), namex(file, 2), driveParentDir(1, name(fanny)), idx(fanny, 2), isFile),
 						driveItem(id(nav), name(nav), driveParentDir(1), rootID, isFolder),
-						driveItem(id(file), name(file), driveParentDir(1, name(nav)), id(nav), isFile)),
-					))),
+						driveItem(id(file), name(file), driveParentDir(1, name(nav)), id(nav), isFile))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2704,8 +2668,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 						driveItem(id(fanny), name(fanny), driveParentDir(1), rootID, isFolder),
 						driveItem(id(nav), name(nav), driveParentDir(1), rootID, isFolder),
 						driveItem(id(foo), name(foo), driveParentDir(1, name(fanny)), id(fanny), isFolder),
-						driveItem(id(bar), name(foo), driveParentDir(1, name(nav)), id(nav), isFolder)),
-					))),
+						driveItem(id(bar), name(foo), driveParentDir(1, name(nav)), id(nav), isFolder))))),
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2921,13 +2884,11 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 				mock.Drive(idx(drive, 1)).With(
 					mock.Delta(id(delta), nil).With(aPage(
 						driveItem(id(folder), name(folder), driveParentDir(1), rootID, isFolder),
-						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)),
-					)),
+						driveItem(id(file), name(file), driveParentDir(1, name(folder)), id(folder), isFile)))),
 				mock.Drive(idx(drive, 2)).With(
 					mock.Delta(idx(delta, 2), nil).With(aPage(
 						driveItem(idx(folder, 2), name(folder), driveParentDir(2), rootID, isFolder),
-						driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), idx(folder, 2), isFile)),
-					))),
+						driveItem(idx(file, 2), name(file), driveParentDir(2, name(folder)), idx(folder, 2), isFile))))),
 			errCheck: assert.NoError,
 		},
 		// TODO(pandeyabs): Add a test case to check that the cache is not attached
