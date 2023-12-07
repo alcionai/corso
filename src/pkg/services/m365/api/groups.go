@@ -101,6 +101,27 @@ const (
 	filterGroupByMailQueryTmpl        = "proxyAddresses/any(a:a eq 'smtp:%s')"
 )
 
+// GetTeamByID can lookup a team by its group id. It will fail if the group
+// is not a Team.
+func (c Groups) GetTeamByID(
+	ctx context.Context,
+	identifier string,
+	_ CallConfig, // matching standards
+) (models.Teamable, error) {
+	ctx = clues.Add(ctx, "resource_identifier", identifier)
+
+	t, err := c.Stable.Client().Teams().ByTeamId(identifier).Get(ctx, nil)
+	if err != nil {
+		if graph.IsErrResourceLocked(err) {
+			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceLocked, err))
+		}
+
+		return nil, graph.Wrap(ctx, err, "finding team by ID")
+	}
+
+	return t, err
+}
+
 // GetID can look up a group by either its canonical id (a uuid)
 // or by the group's display name.  If looking up the display name
 // an error will be returned if more than one group gets returned
