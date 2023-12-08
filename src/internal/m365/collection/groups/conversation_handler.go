@@ -113,7 +113,7 @@ func (bh conversationsBackupHandler) PathPrefix(tenantID string) (path.Path, err
 		false)
 }
 
-//nolint:unused
+//lint:ignore U1000 false linter issue due to generics
 func (bh conversationsBackupHandler) getItem(
 	ctx context.Context,
 	groupID string,
@@ -129,7 +129,7 @@ func (bh conversationsBackupHandler) getItem(
 		api.CallConfig{})
 }
 
-//nolint:unused
+//lint:ignore U1000 false linter issue due to generics
 func (bh conversationsBackupHandler) augmentItemInfo(
 	dgi *details.GroupsInfo,
 	c models.Conversationable,

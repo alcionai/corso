@@ -144,7 +144,7 @@ type getAndAugmentChannelMessage struct {
 	Err error
 }
 
-//nolint:unused
+//lint:ignore U1000 false linter issue due to generics
 func (m getAndAugmentChannelMessage) getItem(
 	_ context.Context,
 	_ string,
@@ -157,7 +157,7 @@ func (m getAndAugmentChannelMessage) getItem(
 	return msg, &details.GroupsInfo{}, m.Err
 }
 
-//nolint:unused
+//lint:ignore U1000 false linter issue due to generics
 func (getAndAugmentChannelMessage) augmentItemInfo(*details.GroupsInfo, models.Channelable) {
 	// no-op
 }

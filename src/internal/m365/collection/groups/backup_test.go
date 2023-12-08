@@ -39,7 +39,7 @@ import (
 
 var _ backupHandler[models.Channelable, models.ChatMessageable] = &mockBackupHandler{}
 
-//nolint:unused
+//lint:ignore U1000 false linter issue due to generics
 type mockBackupHandler struct {
 	channels      []models.Channelable
 	messageIDs    []string
@@ -51,7 +51,7 @@ type mockBackupHandler struct {
 	doNotInclude  bool
 }
 
-//nolint:unused
+//lint:ignore U1000 false linter issue due to generics
 func (bh mockBackupHandler) augmentItemInfo(
 	*details.GroupsInfo,
 	models.Channelable,
@@ -125,7 +125,7 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-//nolint:unused
+//lint:ignore U1000 false linter issue due to generics
 func (bh mockBackupHandler) getItem(
 	_ context.Context,
 	_ string,

@@ -95,7 +95,7 @@ func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
 		false)
 }
 
-//nolint:unused
+//lint:ignore U1000 false linter issue due to generics
 func (bh channelsBackupHandler) getItem(
 	ctx context.Context,
 	groupID string,
@@ -105,7 +105,7 @@ func (bh channelsBackupHandler) getItem(
 	return bh.ac.GetChannelMessage(ctx, groupID, containerIDs[0], messageID)
 }
 
-//nolint:unused
+//lint:ignore U1000 false linter issue due to generics
 func (bh channelsBackupHandler) augmentItemInfo(
 	dgi *details.GroupsInfo,
 	c models.Channelable,
