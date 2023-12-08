@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // folderyMcFolderFace owns our delta processing tree.
@@ -373,7 +374,7 @@ func (face *folderyMcFolderFace) deleteFile(id string) {
 
 type collectable struct {
 	currPath                  path.Path
-	files                     map[string]models.DriveItemable
+	files                     map[string]*custom.DriveItem
 	folderID                  string
 	isPackageOrChildOfPackage bool
 	loc                       path.Elements
@@ -437,9 +438,15 @@ func walkTreeAndBuildCollections(
 			With("path_prefix", pathPfx, "path_suffix", parentPath.Elements())
 	}
 
+	customFiles := map[string]*custom.DriveItem{}
+
+	for fID, file := range node.files {
+		customFiles[fID] = custom.ToCustomDriveItem(file)
+	}
+
 	cbl := collectable{
 		currPath:                  currPath,
-		files:                     node.files,
+		files:                     customFiles,
 		folderID:                  node.id,
 		isPackageOrChildOfPackage: node.isPackage || isChildOfPackage,
 		loc:                       loc,
@@ -466,7 +473,8 @@ func (face *folderyMcFolderFace) generateExcludeItemIDs() map[string]struct{} {
 	}
 
 	for iID := range face.deletedFileIDs {
-		result[iID] = struct{}{}
+		result[iID+metadata.DataFileSuffix] = struct{}{}
+		result[iID+metadata.MetaFileSuffix] = struct{}{}
 	}
 
 	return result

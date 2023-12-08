@@ -240,12 +240,7 @@ func (c *Collections) makeDriveCollections(
 		globalExcludeItemIDsByDrivePrefix.Add(p.String(), excludedItemIDs)
 	}
 
-	// this is a dumb hack to satisfy the linter.
-	if ctx == nil {
-		return nil, nil, du, nil
-	}
-
-	return collections, newPrevs, du, errGetTreeNotImplemented
+	return collections, newPrevs, du, nil
 }
 
 // populateTree constructs a new tree and populates it with items
