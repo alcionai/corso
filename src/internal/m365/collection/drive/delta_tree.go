@@ -81,8 +81,8 @@ type nodeyMcNodeFace struct {
 	id string
 	// single directory name, not a path
 	name string
-	// only contains the folders starting at and including '/root:'
-	prev path.Elements
+	// contains the complete previous path
+	prev path.Path
 	// folderID -> node
 	children map[string]*nodeyMcNodeFace
 	// file item ID -> file metadata
@@ -122,12 +122,6 @@ func (face *folderyMcFolderFace) containsFolder(id string) bool {
 	_, alreadyBuried := face.tombstones[id]
 
 	return stillKicking || alreadyBuried
-}
-
-// countLiveFolders returns a count of the number of folders held in the tree.
-// Tombstones are not included in the count.  Only live folders.
-func (face *folderyMcFolderFace) countLiveFolders() int {
-	return len(face.folderIDToNode)
 }
 
 func (face *folderyMcFolderFace) getNode(id string) *nodeyMcNodeFace {
@@ -269,44 +263,54 @@ func (face *folderyMcFolderFace) setTombstone(
 	return nil
 }
 
-type countAndSize struct {
-	numFiles   int
-	totalBytes int64
+// setPreviousPath updates the previousPath for the folder with folderID.  If the folder
+// already exists either as a tombstone or in the tree, the previous path on those nodes
+// gets updated.  Otherwise the previous path update usually gets dropped, because we
+// assume no changes have occurred.
+// If the tree was Reset() at any point, any previous path that does not still exist in
+// the tree- either as a tombstone or a live node- is assumed to have been deleted between
+// deltas, and gets turned into a tombstone.
+func (face *folderyMcFolderFace) setPreviousPath(
+	folderID string,
+	prev path.Path,
+) error {
+	if len(folderID) == 0 {
+		return clues.New("missing folder id")
+	}
+
+	if prev == nil {
+		return clues.New("missing previous path")
+	}
+
+	if zombey, isDie := face.tombstones[folderID]; isDie {
+		zombey.prev = prev
+		return nil
+	}
+
+	if nodey, exists := face.folderIDToNode[folderID]; exists {
+		nodey.prev = prev
+		return nil
+	}
+
+	// if no reset occurred, then we assume all previous folder entries are still
+	// valid and continue to exist, even without a reference in the tree.  However,
+	// if the delta was reset, then it's possible for a folder to be have been deleted
+	// and the only way we'd know is if the previous paths map says the folder exists
+	// but we haven't seen it again in this enumeration.
+	if !face.hadReset {
+		return nil
+	}
+
+	zombey := newNodeyMcNodeFace(nil, folderID, "", false)
+	zombey.prev = prev
+	face.tombstones[folderID] = zombey
+
+	return nil
 }
 
-// countLiveFilesAndSizes returns a count of the number of files in the tree
-// and the sum of all of their sizes.  Only includes files that are not
-// children of tombstoned containers.  If running an incremental backup, a
-// live file may be either a creation or an update.
-func (face *folderyMcFolderFace) countLiveFilesAndSizes() countAndSize {
-	return countFilesAndSizes(face.root)
-}
-
-func countFilesAndSizes(nodey *nodeyMcNodeFace) countAndSize {
-	if nodey == nil {
-		return countAndSize{}
-	}
-
-	var (
-		fileCount      int
-		sumContentSize int64
-	)
-
-	for _, child := range nodey.children {
-		countSize := countFilesAndSizes(child)
-		fileCount += countSize.numFiles
-		sumContentSize += countSize.totalBytes
-	}
-
-	for _, file := range nodey.files {
-		sumContentSize += file.contentSize
-	}
-
-	return countAndSize{
-		numFiles:   fileCount + len(nodey.files),
-		totalBytes: sumContentSize,
-	}
-}
+// ---------------------------------------------------------------------------
+// file handling
+// ---------------------------------------------------------------------------
 
 // addFile places the file in the correct parent node.  If the
 // file was already added to the tree and is getting relocated,
@@ -368,4 +372,53 @@ func (face *folderyMcFolderFace) deleteFile(id string) {
 	delete(face.fileIDToParentID, id)
 
 	face.deletedFileIDs[id] = struct{}{}
+}
+
+// ---------------------------------------------------------------------------
+// quantification
+// ---------------------------------------------------------------------------
+
+// countLiveFolders returns a count of the number of folders held in the tree.
+// Tombstones are not included in the count.  Only live folders.
+func (face *folderyMcFolderFace) countLiveFolders() int {
+	return len(face.folderIDToNode)
+}
+
+type countAndSize struct {
+	numFiles   int
+	totalBytes int64
+}
+
+// countLiveFilesAndSizes returns a count of the number of files in the tree
+// and the sum of all of their sizes.  Only includes files that are not
+// children of tombstoned containers.  If running an incremental backup, a
+// live file may be either a creation or an update.
+func (face *folderyMcFolderFace) countLiveFilesAndSizes() countAndSize {
+	return countFilesAndSizes(face.root)
+}
+
+func countFilesAndSizes(nodey *nodeyMcNodeFace) countAndSize {
+	if nodey == nil {
+		return countAndSize{}
+	}
+
+	var (
+		fileCount      int
+		sumContentSize int64
+	)
+
+	for _, child := range nodey.children {
+		countSize := countFilesAndSizes(child)
+		fileCount += countSize.numFiles
+		sumContentSize += countSize.totalBytes
+	}
+
+	for _, file := range nodey.files {
+		sumContentSize += file.contentSize
+	}
+
+	return countAndSize{
+		numFiles:   fileCount + len(nodey.files),
+		totalBytes: sumContentSize,
+	}
 }
