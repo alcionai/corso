@@ -118,7 +118,6 @@ func (mw *LoggingMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	logReq(req.Context(), req)
 
 	// call the next middleware
 	resp, err := pipeline.Next(req, middlewareIndex)
@@ -126,16 +125,16 @@ func (mw *LoggingMiddleware) Intercept(
 		return resp, err
 	}
 
-	ctx := clues.Add(
-		req.Context(),
-		"method", req.Method,
-		"url", LoggableURL(req.URL.String()),
-		"request_content_len", req.ContentLength,
-		"resp_status", resp.Status,
-		"resp_status_code", resp.StatusCode,
-		"resp_content_len", resp.ContentLength)
+	// ctx := clues.Add(
+	// 	req.Context(),
+	// 	"method", req.Method,
+	// 	"url", LoggableURL(req.URL.String()),
+	// 	"request_content_len", req.ContentLength,
+	// 	"resp_status", resp.Status,
+	// 	"resp_status_code", resp.StatusCode,
+	// 	"resp_content_len", resp.ContentLength)
 
-	logResp(ctx, resp)
+	//logResp(ctx, resp)
 
 	return resp, err
 }
@@ -336,6 +335,8 @@ func (mw *MetricsMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
+	logReq(req.Context(), req)
+
 	var (
 		start     = time.Now()
 		resp, err = pipeline.Next(req, middlewareIndex)
@@ -369,6 +370,17 @@ func (mw *MetricsMiddleware) Intercept(
 	mw.counter.Add(count.APICallTokensConsumed, int64(xmrui))
 
 	events.IncN(xmrui, events.APICall, xmruHeader)
+
+	ctx := clues.Add(
+		req.Context(),
+		"method", req.Method,
+		"url", LoggableURL(req.URL.String()),
+		"request_content_len", req.ContentLength,
+		"resp_status", resp.Status,
+		"resp_status_code", resp.StatusCode,
+		"resp_content_len", resp.ContentLength)
+
+	logResp(ctx, resp)
 
 	return resp, err
 }

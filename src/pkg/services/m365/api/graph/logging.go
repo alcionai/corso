@@ -93,5 +93,10 @@ func getRequestDump(ctx context.Context, req *http.Request, getBody bool) string
 		logger.CtxErr(ctx, err).Error("dumping http request")
 	}
 
+	// Dump all headers
+	for k, v := range req.Header {
+		logger.Ctx(ctx).Debugf("Header field %q, Value %q\n", k, v)
+	}
+
 	return string(reqDump)
 }

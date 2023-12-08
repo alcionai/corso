@@ -476,7 +476,7 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		int64(len(oc.driveItems)))
 	defer close(folderProgress)
 
-	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
+	semaphoreCh := make(chan struct{}, 1)
 	defer close(semaphoreCh)
 
 	ctx = clues.Add(ctx,
