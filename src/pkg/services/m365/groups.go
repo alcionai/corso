@@ -41,6 +41,23 @@ func (c client) GroupByID(
 	return parseGroup(ctx, g)
 }
 
+// TeamById retrieves a specific group.
+// when the caller knows the group is a team.
+// will fail if the group is not a team.
+func (c client) TeamByID(
+	ctx context.Context,
+	id string,
+) (*Group, error) {
+	cc := api.CallConfig{}
+
+	g, err := c.ac.Groups().GetTeamByID(ctx, id, cc)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	return parseGroupFromTeamable(ctx, g)
+}
+
 // GroupsCompat returns a list of groups in the specified M365 tenant.
 func (c client) GroupsCompat(ctx context.Context) ([]*Group, error) {
 	errs := fault.New(true)
@@ -118,6 +135,22 @@ func parseGroup(ctx context.Context, mg models.Groupable) (*Group, error) {
 		ID:          ptr.Val(mg.GetId()),
 		DisplayName: ptr.Val(mg.GetDisplayName()),
 		IsTeam:      api.IsTeam(ctx, mg),
+	}
+
+	return u, nil
+}
+
+// parseGroup extracts information from `models.Teamable` we care about
+func parseGroupFromTeamable(ctx context.Context, mg models.Teamable) (*Group, error) {
+	if mg.GetDisplayName() == nil {
+		return nil, clues.New("group missing display name").
+			With("group_id", ptr.Val(mg.GetId()))
+	}
+
+	u := &Group{
+		ID:          ptr.Val(mg.GetId()),
+		DisplayName: ptr.Val(mg.GetDisplayName()),
+		IsTeam:      true,
 	}
 
 	return u, nil

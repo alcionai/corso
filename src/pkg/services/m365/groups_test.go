@@ -84,6 +84,22 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 	assert.Equal(t, groupByEmail, group, "must be the same group as the one gotten by id")
 }
 
+func (suite *GroupsIntgSuite) TestTeamByID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	gid := tconfig.M365TeamID(t)
+
+	group, err := suite.cli.TeamByID(ctx, gid)
+	require.NoError(t, err, clues.ToCore(err))
+	require.NotNil(t, group)
+
+	assert.Equal(t, gid, group.ID, "must match expected id")
+	assert.NotEmpty(t, group.DisplayName)
+}
+
 func (suite *GroupsIntgSuite) TestGroupByID_notFound() {
 	t := suite.T()
 
