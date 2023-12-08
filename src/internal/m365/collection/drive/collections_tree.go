@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -153,10 +154,13 @@ func (c *Collections) getTree(
 
 	logger.Ctx(ctx).Infow("produced collections", "count_collections", len(collections))
 
-	return collections, canUsePrevBackup, nil
-}
+	// hack to satisfy the linter since we're returning an error
+	if ctx == nil {
+		return nil, false, nil
+	}
 
-var errTreeNotImplemented = clues.New("backup tree not implemented")
+	return collections, canUsePrevBackup, errGetTreeNotImplemented
+}
 
 func (c *Collections) makeDriveCollections(
 	ctx context.Context,
@@ -172,10 +176,12 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "generating backup tree prefix")
 	}
 
-	var (
-		tree  = newFolderyMcFolderFace(ppfx)
-		stats = &driveEnumerationStats{}
-	)
+	root, err := c.handler.GetRootFolder(ctx, ptr.Val(drv.GetId()))
+	if err != nil {
+		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "getting root folder")
+	}
+
+	tree := newFolderyMcFolderFace(ppfx, ptr.Val(root.GetId()))
 
 	counter.Add(count.PrevPaths, int64(len(prevPaths)))
 
@@ -184,10 +190,9 @@ func (c *Collections) makeDriveCollections(
 	du, err := c.populateTree(
 		ctx,
 		tree,
-		limiter,
-		stats,
 		drv,
 		prevDeltaLink,
+		limiter,
 		counter,
 		errs)
 	if err != nil {
@@ -199,32 +204,33 @@ func (c *Collections) makeDriveCollections(
 
 	// cl.Add(count.NewPrevPaths, int64(len(newPrevPaths)))
 
-	// TODO(keepers): leaving this code around for now as a guide
-	// while implementation progresses.
-
 	// --- prev path incorporation
 
-	// For both cases we don't need to do set difference on folder map if the
-	// delta token was valid because we should see all the changes.
-	// if !du.Reset {
-	// 	if len(excludedItemIDs) == 0 {
-	// 		continue
-	// 	}
+	for folderID, p := range prevPaths {
+		// no check for errs.Failure here, despite the addRecoverable below.
+		// it's fine if we run through all of the collection generation even
+		// with failures present, and let the backup finish out.
+		prevPath, err := path.FromDataLayerPath(p, false)
+		if err != nil {
+			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "invalid previous path").
+				With("folderID", folderID, "prev_path", p).
+				Label(fault.LabelForceNoBackupCreation))
 
-	// 	p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
-	// 	if err != nil {
-	// 		return nil, false, clues.WrapWC(ictx, err, "making exclude prefix")
-	// 	}
+			continue
+		}
 
-	// 	ssmb.Add(p.String(), excludedItemIDs)
+		err = tree.setPreviousPath(folderID, prevPath)
+		if err != nil {
+			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "setting previous path").
+				With("folderID", folderID, "prev_path", p).
+				Label(fault.LabelForceNoBackupCreation))
 
-	// 	continue
-	// }
+			continue
+		}
+	}
 
-	// Set all folders in previous backup but not in the current one with state
-	// deleted. Need to compare by ID because it's possible to make new folders
-	// with the same path as deleted old folders. We shouldn't merge items or
-	// subtrees if that happens though.
+	// TODO(keepers): leaving this code around for now as a guide
+	// while implementation progresses.
 
 	// --- post-processing
 
@@ -260,7 +266,7 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, du, nil
 	}
 
-	return nil, nil, du, errTreeNotImplemented
+	return nil, nil, du, errGetTreeNotImplemented
 }
 
 // populateTree constructs a new tree and populates it with items
@@ -268,85 +274,114 @@ func (c *Collections) makeDriveCollections(
 func (c *Collections) populateTree(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
-	limiter *pagerLimiter,
-	stats *driveEnumerationStats,
 	drv models.Driveable,
 	prevDeltaLink string,
+	limiter *pagerLimiter,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) (pagers.DeltaUpdate, error) {
 	ctx = clues.Add(ctx, "invalid_prev_delta", len(prevDeltaLink) == 0)
 
 	var (
-		driveID = ptr.Val(drv.GetId())
-		el      = errs.Local()
+		currDeltaLink = prevDeltaLink
+		driveID       = ptr.Val(drv.GetId())
+		el            = errs.Local()
+		du            pagers.DeltaUpdate
+		finished      bool
+		hitLimit      bool
+		// TODO: plug this into the limiter
+		maxDeltas   = 100
+		countDeltas = 0
 	)
 
-	// TODO(keepers): to end in a correct state, we'll eventually need to run this
-	// query multiple times over, until it ends in an empty change set.
-	pager := c.handler.EnumerateDriveItemsDelta(
-		ctx,
-		driveID,
-		prevDeltaLink,
-		api.CallConfig{
-			Select: api.DefaultDriveItemProps(),
-		})
+	// enumerate through multiple deltas until we either:
+	// 1. hit a consistent state (ie: no changes since last delta enum)
+	// 2. hit the limit
+	for !hitLimit && !finished && el.Failure() == nil {
+		counter.Inc(count.TotalDeltasProcessed)
 
-	for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
-		if el.Failure() != nil {
-			break
-		}
+		var (
+			pageCount     int
+			pageItemCount int
+			err           error
+		)
 
-		counter.Inc(count.PagesEnumerated)
+		countDeltas++
 
-		if reset {
-			counter.Inc(count.PagerResets)
-			tree.reset()
-			c.resetStats()
-
-			*stats = driveEnumerationStats{}
-		}
-
-		err := c.enumeratePageOfItems(
+		pager := c.handler.EnumerateDriveItemsDelta(
 			ctx,
-			tree,
-			limiter,
-			stats,
-			drv,
-			page,
-			counter,
-			errs)
-		if err != nil {
-			if errors.Is(err, errHitLimit) {
-				break
+			driveID,
+			currDeltaLink,
+			api.CallConfig{
+				Select: api.DefaultDriveItemProps(),
+			})
+
+		for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
+			if el.Failure() != nil {
+				return du, el.Failure()
 			}
 
-			el.AddRecoverable(ctx, clues.Stack(err))
+			if reset {
+				counter.Inc(count.PagerResets)
+				tree.reset()
+				c.resetStats()
+
+				pageCount = 0
+				pageItemCount = 0
+				countDeltas = 0
+			} else {
+				counter.Inc(count.TotalPagesEnumerated)
+			}
+
+			err = c.enumeratePageOfItems(
+				ctx,
+				tree,
+				drv,
+				page,
+				limiter,
+				counter,
+				errs)
+			if err != nil {
+				if errors.Is(err, errHitLimit) {
+					hitLimit = true
+					break
+				}
+
+				el.AddRecoverable(ctx, clues.Stack(err))
+			}
+
+			pageCount++
+
+			pageItemCount += len(page)
+
+			// Stop enumeration early if we've reached the page limit. Keep this
+			// at the end of the loop so we don't request another page (pager.NextPage)
+			// before seeing we've passed the limit.
+			if limiter.hitPageLimit(pageCount) {
+				hitLimit = true
+				break
+			}
 		}
 
-		// Stop enumeration early if we've reached the item or page limit. Do this
-		// at the end of the loop so we don't request another page in the
-		// background.
-		//
-		// We don't want to break on just the container limit here because it's
-		// possible that there's more items in the current (final) container that
-		// we're processing. We need to see the next page to determine if we've
-		// reached the end of the container. Note that this doesn't take into
-		// account the number of items in the current container, so it's possible it
-		// will fetch more data when it doesn't really need to.
-		if limiter.atPageLimit(stats) || limiter.atItemLimit(stats) {
-			break
+		// Always cancel the pager so that even if we exit early from the loop above
+		// we don't deadlock. Cancelling a pager that's already completed is
+		// essentially a noop.
+		pager.Cancel()
+
+		du, err = pager.Results()
+		if err != nil {
+			return du, clues.Stack(err)
 		}
-	}
 
-	// Always cancel the pager so that even if we exit early from the loop above
-	// we don't deadlock. Cancelling a pager that's already completed is
-	// essentially a noop.
-	pager.Cancel()
+		currDeltaLink = du.URL
 
-	du, err := pager.Results()
-	if err != nil {
-		return du, clues.Stack(err)
+		// 0 pages is never expected.  We should at least have one (empty) page to
+		// consume.  But checking pageCount == 1 is brittle in a non-helpful way.
+		finished = pageCount < 2 && pageItemCount == 0
+
+		if countDeltas >= maxDeltas {
+			return pagers.DeltaUpdate{}, clues.New("unable to produce consistent delta after 100 queries")
+		}
 	}
 
 	logger.Ctx(ctx).Infow("enumerated collection delta", "stats", counter.Values())
@@ -357,10 +392,9 @@ func (c *Collections) populateTree(
 func (c *Collections) enumeratePageOfItems(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
-	limiter *pagerLimiter,
-	stats *driveEnumerationStats,
 	drv models.Driveable,
 	page []models.DriveItemable,
+	limiter *pagerLimiter,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) error {
@@ -390,14 +424,9 @@ func (c *Collections) enumeratePageOfItems(
 
 		switch {
 		case isFolder:
-			// check limits before adding the next new folder
-			if !tree.containsFolder(itemID) && limiter.atLimit(stats, len(tree.folderIDToNode)) {
-				return errHitLimit
-			}
-
-			skipped, err = c.addFolderToTree(ictx, tree, drv, item, stats, counter)
+			skipped, err = c.addFolderToTree(ictx, tree, drv, item, limiter, counter)
 		case isFile:
-			skipped, err = c.addFileToTree(ictx, tree, drv, item, limiter, stats, counter)
+			skipped, err = c.addFileToTree(ictx, tree, drv, item, limiter, counter)
 		default:
 			err = clues.NewWC(ictx, "item is neither folder nor file").
 				Label(fault.LabelForceNoBackupCreation, count.UnknownItemType)
@@ -408,21 +437,13 @@ func (c *Collections) enumeratePageOfItems(
 		}
 
 		if err != nil {
-			el.AddRecoverable(ictx, clues.Wrap(err, "adding item"))
-		}
+			if errors.Is(err, errHitLimit) {
+				return err
+			}
 
-		// Check if we reached the item or size limit while processing this page.
-		// The check after this loop will get us out of the pager.
-		// We don't want to check all limits because it's possible we've reached
-		// the container limit but haven't reached the item limit or really added
-		// items to the last container we found.
-		// FIXME(keepers): this isn't getting handled properly at the moment
-		if limiter.atItemLimit(stats) {
-			return errHitLimit
+			el.AddRecoverable(ictx, clues.Wrap(err, "adding folder"))
 		}
 	}
-
-	stats.numPages++
 
 	return clues.Stack(el.Failure()).OrNil()
 }
@@ -432,7 +453,7 @@ func (c *Collections) addFolderToTree(
 	tree *folderyMcFolderFace,
 	drv models.Driveable,
 	folder models.DriveItemable,
-	stats *driveEnumerationStats,
+	limiter *pagerLimiter,
 	counter *count.Bus,
 ) (*fault.Skipped, error) {
 	var (
@@ -446,6 +467,11 @@ func (c *Collections) addFolderToTree(
 		parentID    string
 		notSelected bool
 	)
+
+	// check container limits before adding the next new folder
+	if !tree.containsFolder(folderID) && limiter.hitContainerLimit(tree.countLiveFolders()) {
+		return nil, errHitLimit
+	}
 
 	if parent != nil {
 		parentID = ptr.Val(parent.GetId())
@@ -475,7 +501,7 @@ func (c *Collections) addFolderToTree(
 			driveID,
 			folderID,
 			folderName,
-			graph.ItemInfo(folder))
+			graph.ItemInfo(custom.ToCustomDriveItem(folder)))
 
 		logger.Ctx(ctx).Infow("malware folder detected")
 
@@ -541,18 +567,18 @@ func (c *Collections) addFileToTree(
 	drv models.Driveable,
 	file models.DriveItemable,
 	limiter *pagerLimiter,
-	stats *driveEnumerationStats,
 	counter *count.Bus,
 ) (*fault.Skipped, error) {
 	var (
-		driveID   = ptr.Val(drv.GetId())
-		fileID    = ptr.Val(file.GetId())
-		fileName  = ptr.Val(file.GetName())
-		fileSize  = ptr.Val(file.GetSize())
-		isDeleted = file.GetDeleted() != nil
-		isMalware = file.GetMalware() != nil
-		parent    = file.GetParentReference()
-		parentID  string
+		driveID      = ptr.Val(drv.GetId())
+		fileID       = ptr.Val(file.GetId())
+		fileName     = ptr.Val(file.GetName())
+		fileSize     = ptr.Val(file.GetSize())
+		lastModified = ptr.Val(file.GetLastModifiedDateTime())
+		isDeleted    = file.GetDeleted() != nil
+		isMalware    = file.GetMalware() != nil
+		parent       = file.GetParentReference()
+		parentID     string
 	)
 
 	if parent != nil {
@@ -576,58 +602,42 @@ func (c *Collections) addFileToTree(
 			driveID,
 			fileID,
 			fileName,
-			graph.ItemInfo(file))
+			graph.ItemInfo(custom.ToCustomDriveItem(file)))
 
 		logger.Ctx(ctx).Infow("malware file detected")
 
 		return skip, nil
 	}
 
-	_, alreadySeen := tree.fileIDToParentID[fileID]
-
 	if isDeleted {
 		tree.deleteFile(fileID)
+		return nil, nil
+	}
 
-		if alreadySeen {
-			stats.numAddedFiles--
-			// FIXME(keepers): this might be faulty,
-			// since deletes may not include the file size.
-			// it will likely need to be tracked in
-			// the tree alongside the file modtime.
-			stats.numBytes -= fileSize
-		} else {
-			c.NumItems++
-			c.NumFiles++
+	_, alreadySeen := tree.fileIDToParentID[fileID]
+	parentNode, parentNotNil := tree.folderIDToNode[parentID]
+
+	if parentNotNil && !alreadySeen {
+		countSize := tree.countLiveFilesAndSizes()
+
+		// Don't add new items if the new collection has already reached it's limit.
+		// item moves and updates are generally allowed through.
+		if limiter.atContainerItemsLimit(len(parentNode.files)) || limiter.hitItemLimit(countSize.numFiles) {
+			return nil, errHitLimit
 		}
 
-		return nil, nil
+		// Skip large files that don't fit within the size limit.
+		// unlike the other checks, which see if we're already at the limit, this check
+		// needs to be forward-facing to ensure we don't go far over the limit.
+		// Example case: a 1gb limit and a 25gb file.
+		if limiter.hitTotalBytesLimit(fileSize + countSize.totalBytes) {
+			return nil, errHitLimit
+		}
 	}
 
-	parentNode, ok := tree.folderIDToNode[parentID]
-
-	// Don't add new items if the new collection is already reached it's limit.
-	// item moves and updates are generally allowed through.
-	if ok && !alreadySeen && limiter.atContainerItemsLimit(len(parentNode.files)) {
-		return nil, nil
-	}
-
-	// Skip large files that don't fit within the size limit.
-	if limiter.aboveSizeLimit(fileSize + stats.numBytes) {
-		return nil, nil
-	}
-
-	err := tree.addFile(parentID, fileID, ptr.Val(file.GetLastModifiedDateTime()))
+	err := tree.addFile(parentID, fileID, lastModified, fileSize)
 	if err != nil {
 		return nil, clues.StackWC(ctx, err)
-	}
-
-	// Only increment counters for new files
-	if !alreadySeen {
-		// todo: remmove c.NumItems/Files in favor of counter and tree counting.
-		c.NumItems++
-		c.NumFiles++
-		stats.numAddedFiles++
-		stats.numBytes += fileSize
 	}
 
 	return nil, nil

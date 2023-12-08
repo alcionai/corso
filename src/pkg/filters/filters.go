@@ -361,6 +361,22 @@ func newFilter(c comparator, targets, normTargets []string, negate bool) Filter 
 // Comparisons
 // ----------------------------------------------------------------------------------------------------
 
+// Must returns true if ALL provided filters match the input.
+// Returns false if no filters are provided
+func Must(input string, filters ...Filter) bool {
+	if len(filters) == 0 {
+		return false
+	}
+
+	for _, f := range filters {
+		if !f.Compare(input) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // CompareAny checks whether any one of all the provided
 // inputs passes the filter.
 //

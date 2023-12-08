@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/pkg/errors"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -276,7 +276,12 @@ func IsErrSiteNotFound(err error) bool {
 func IsErrResourceLocked(err error) bool {
 	return errors.Is(err, ErrResourceLocked) ||
 		hasInnerErrorCode(err, ResourceLocked) ||
-		hasErrorCode(err, NotAllowed)
+		hasErrorCode(err, NotAllowed) ||
+		errMessageMatchesAllFilters(
+			err,
+			filters.In([]string{"the service principal for resource"}),
+			filters.In([]string{"this indicate that a subscription within the tenant has lapsed"}),
+			filters.In([]string{"preventing tokens from being issued for it"}))
 }
 
 // ---------------------------------------------------------------------------
@@ -356,6 +361,25 @@ func hasErrorMessage(err error, msgs ...errorMessage) bool {
 	}
 
 	return filters.In(cs).Compare(msg)
+}
+
+// only use this as a last resort.  Prefer the code or statuscode if possible.
+func errMessageMatchesAllFilters(err error, fs ...filters.Filter) bool {
+	if err == nil {
+		return false
+	}
+
+	var oDataError odataerrors.ODataErrorable
+	if !errors.As(err, &oDataError) {
+		return false
+	}
+
+	msg, ok := ptr.ValOK(oDataError.GetErrorEscaped().GetMessage())
+	if !ok {
+		return false
+	}
+
+	return filters.Must(msg, fs...)
 }
 
 // Wrap is a helper function that extracts ODataError metadata from
@@ -517,7 +541,7 @@ func appendIf(a []any, k string, v *string) []any {
 
 // ItemInfo gathers potentially useful information about a drive item,
 // and aggregates that data into a map.
-func ItemInfo(item models.DriveItemable) map[string]any {
+func ItemInfo(item *custom.DriveItem) map[string]any {
 	m := map[string]any{}
 
 	creator := item.GetCreatedByUser()

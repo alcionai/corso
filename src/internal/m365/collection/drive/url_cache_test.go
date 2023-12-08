@@ -27,7 +27,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -533,7 +532,6 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 				assert.Equal(t, 0, len(uc.idToProps))
 			},
 		},
-
 		{
 			name: "folder item",
 			pages: []mock.NextPage{
@@ -564,21 +562,17 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 					ctx, flush := tester.NewContext(t)
 					defer flush()
 
-					medi := mock.EnumerateItemsDeltaByDrive{
-						DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-							driveID: {
-								Pages:       test.pages,
-								Err:         test.pagerErr,
-								DeltaUpdate: pagers.DeltaUpdate{URL: deltaString},
-							},
-						},
-					}
+					driveEnumer := mock.DriveEnumerator(
+						mock.Drive(driveID).
+							WithErr(test.pagerErr).
+							With(mock.Delta(deltaString, test.pagerErr).
+								With(test.pages...)))
 
 					cache, err := newURLCache(
 						driveID,
 						"",
 						1*time.Hour,
-						&medi,
+						driveEnumer,
 						count.New(),
 						fault.New(true))
 					require.NoError(t, err, clues.ToCore(err))
@@ -623,7 +617,7 @@ func (suite *URLCacheUnitSuite) TestNeedsRefresh() {
 		driveID,
 		"",
 		refreshInterval,
-		&mock.EnumerateItemsDeltaByDrive{},
+		&mock.EnumerateDriveItemsDelta{},
 		count.New(),
 		fault.New(true))
 
@@ -659,7 +653,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			name:       "invalid driveID",
 			driveID:    "",
 			refreshInt: 1 * time.Hour,
-			itemPager:  &mock.EnumerateItemsDeltaByDrive{},
+			itemPager:  &mock.EnumerateDriveItemsDelta{},
 			errors:     fault.New(true),
 			expectErr:  require.Error,
 		},
@@ -667,7 +661,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			name:       "invalid refresh interval",
 			driveID:    "drive1",
 			refreshInt: 100 * time.Millisecond,
-			itemPager:  &mock.EnumerateItemsDeltaByDrive{},
+			itemPager:  &mock.EnumerateDriveItemsDelta{},
 			errors:     fault.New(true),
 			expectErr:  require.Error,
 		},
@@ -683,7 +677,7 @@ func (suite *URLCacheUnitSuite) TestNewURLCache() {
 			name:       "valid",
 			driveID:    "drive1",
 			refreshInt: 1 * time.Hour,
-			itemPager:  &mock.EnumerateItemsDeltaByDrive{},
+			itemPager:  &mock.EnumerateDriveItemsDelta{},
 			errors:     fault.New(true),
 			expectErr:  require.NoError,
 		},

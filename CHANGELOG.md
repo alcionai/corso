@@ -8,8 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] (beta)
 
 ### Added
+
 ### Changed
+- Memory optimizations for large scale OneDrive and Sharepoint backups.
+
 ### Fixed
+- Resolved a possible deadlock when backing up Teams Channel Messages.
 
 ## [v0.16.0] (beta) - 2023-11-28
 

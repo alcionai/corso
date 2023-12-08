@@ -101,6 +101,27 @@ const (
 	filterGroupByMailQueryTmpl        = "proxyAddresses/any(a:a eq 'smtp:%s')"
 )
 
+// GetTeamByID can lookup a team by its group id. It will fail if the group
+// is not a Team.
+func (c Groups) GetTeamByID(
+	ctx context.Context,
+	identifier string,
+	_ CallConfig, // matching standards
+) (models.Teamable, error) {
+	ctx = clues.Add(ctx, "resource_identifier", identifier)
+
+	t, err := c.Stable.Client().Teams().ByTeamId(identifier).Get(ctx, nil)
+	if err != nil {
+		if graph.IsErrResourceLocked(err) {
+			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceLocked, err))
+		}
+
+		return nil, graph.Wrap(ctx, err, "finding team by ID")
+	}
+
+	return t, err
+}
+
 // GetID can look up a group by either its canonical id (a uuid)
 // or by the group's display name.  If looking up the display name
 // an error will be returned if more than one group gets returned
@@ -110,20 +131,18 @@ func (c Groups) GetByID(
 	identifier string,
 	_ CallConfig, // matching standards
 ) (models.Groupable, error) {
-	service, err := c.Service(c.counter)
-	if err != nil {
-		return nil, err
-	}
-
 	ctx = clues.Add(ctx, "resource_identifier", identifier)
 
-	var group models.Groupable
+	var (
+		group models.Groupable
+		err   error
+	)
 
 	// prefer lookup by id, but fallback to lookup by display name,
 	// even in the case of a uuid, just in case the display name itself
 	// is a uuid.
 	if uuidRE.MatchString(identifier) {
-		group, err = service.
+		group, err = c.Stable.
 			Client().
 			Groups().
 			ByGroupId(identifier).
@@ -149,7 +168,7 @@ func (c Groups) GetByID(
 			},
 		}
 
-		resp, err := service.Client().Groups().Get(ctx, opts)
+		resp, err := c.Stable.Client().Groups().Get(ctx, opts)
 		if err == nil {
 			return getGroupFromResponse(ctx, resp)
 		}
@@ -169,7 +188,7 @@ func (c Groups) GetByID(
 		},
 	}
 
-	resp, err := service.Client().Groups().Get(ctx, opts)
+	resp, err := c.Stable.Client().Groups().Get(ctx, opts)
 	if err != nil {
 		if graph.IsErrResourceLocked(err) {
 			err = clues.Stack(graph.ErrResourceLocked, err)

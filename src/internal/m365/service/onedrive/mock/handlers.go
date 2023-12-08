@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/alcionai/clues"
@@ -9,6 +10,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -17,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -29,7 +32,7 @@ type BackupHandler[T any] struct {
 	// and plug in the selector scope there.
 	Sel selectors.Selector
 
-	DriveItemEnumeration EnumerateItemsDeltaByDrive
+	DriveItemEnumeration EnumerateDriveItemsDelta
 
 	GI  GetsItem
 	GIP GetsItemPermission
@@ -56,6 +59,18 @@ type BackupHandler[T any] struct {
 	getCall  int
 	GetResps []*http.Response
 	GetErrs  []error
+
+	RootFolder models.DriveItemable
+}
+
+func stubRootFolder() models.DriveItemable {
+	item := models.NewDriveItem()
+	item.SetName(ptr.To(odConsts.RootPathDir))
+	item.SetId(ptr.To(odConsts.RootID))
+	item.SetRoot(models.NewRoot())
+	item.SetFolder(models.NewFolder())
+
+	return item
 }
 
 func DefaultOneDriveBH(resourceOwner string) *BackupHandler[models.DriveItemable] {
@@ -68,7 +83,7 @@ func DefaultOneDriveBH(resourceOwner string) *BackupHandler[models.DriveItemable
 			Extension: &details.ExtensionData{},
 		},
 		Sel:                  sel.Selector,
-		DriveItemEnumeration: EnumerateItemsDeltaByDrive{},
+		DriveItemEnumeration: EnumerateDriveItemsDelta{},
 		GI:                   GetsItem{Err: clues.New("not defined")},
 		GIP:                  GetsItemPermission{Err: clues.New("not defined")},
 		PathPrefixFn:         defaultOneDrivePathPrefixer,
@@ -80,6 +95,7 @@ func DefaultOneDriveBH(resourceOwner string) *BackupHandler[models.DriveItemable
 		LocationIDFn:         defaultOneDriveLocationIDer,
 		GetResps:             []*http.Response{nil},
 		GetErrs:              []error{clues.New("not defined")},
+		RootFolder:           stubRootFolder(),
 	}
 }
 
@@ -104,13 +120,14 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler[models.DriveItemab
 		LocationIDFn:         defaultSharePointLocationIDer,
 		GetResps:             []*http.Response{nil},
 		GetErrs:              []error{clues.New("not defined")},
+		RootFolder:           stubRootFolder(),
 	}
 }
 
 func DefaultDriveBHWith(
 	resource string,
 	drivePager *apiMock.Pager[models.Driveable],
-	enumerator EnumerateItemsDeltaByDrive,
+	enumerator EnumerateDriveItemsDelta,
 ) *BackupHandler[models.DriveItemable] {
 	mbh := DefaultOneDriveBH(resource)
 	mbh.DrivePagerV = drivePager
@@ -165,7 +182,7 @@ func (h BackupHandler[T]) NewLocationIDer(driveID string, elems ...string) detai
 func (h BackupHandler[T]) AugmentItemInfo(
 	details.ItemInfo,
 	idname.Provider,
-	models.DriveItemable,
+	*custom.DriveItem,
 	int64,
 	*path.Builder,
 ) details.ItemInfo {
@@ -286,6 +303,10 @@ func (h BackupHandler[T]) IncludesDir(dir string) bool {
 		selectors.OneDriveScope(scope).Matches(selectors.OneDriveFolder, dir)
 }
 
+func (h BackupHandler[T]) GetRootFolder(context.Context, string) (models.DriveItemable, error) {
+	return h.RootFolder, nil
+}
+
 // ---------------------------------------------------------------------------
 // Get Itemer
 // ---------------------------------------------------------------------------
@@ -303,7 +324,7 @@ func (m GetsItem) GetItem(
 }
 
 // ---------------------------------------------------------------------------
-// Enumerates Drive Items
+// Drive Items Enumerator
 // ---------------------------------------------------------------------------
 
 type NextPage struct {
@@ -311,43 +332,138 @@ type NextPage struct {
 	Reset bool
 }
 
-type EnumerateItemsDeltaByDrive struct {
-	DrivePagers map[string]*DriveItemsDeltaPager
+type EnumerateDriveItemsDelta struct {
+	DrivePagers map[string]*DriveDeltaEnumerator
 }
 
-var _ pagers.NextPageResulter[models.DriveItemable] = &DriveItemsDeltaPager{}
+func DriveEnumerator(
+	ds ...*DriveDeltaEnumerator,
+) EnumerateDriveItemsDelta {
+	enumerator := EnumerateDriveItemsDelta{
+		DrivePagers: map[string]*DriveDeltaEnumerator{},
+	}
 
-type DriveItemsDeltaPager struct {
-	Idx         int
+	for _, drive := range ds {
+		enumerator.DrivePagers[drive.DriveID] = drive
+	}
+
+	return enumerator
+}
+
+func (en EnumerateDriveItemsDelta) EnumerateDriveItemsDelta(
+	_ context.Context,
+	driveID, _ string,
+	_ api.CallConfig,
+) pagers.NextPageResulter[models.DriveItemable] {
+	iterator := en.DrivePagers[driveID]
+	return iterator.nextDelta()
+}
+
+type DriveDeltaEnumerator struct {
+	DriveID      string
+	idx          int
+	DeltaQueries []*DeltaQuery
+	Err          error
+}
+
+func Drive(driveID string) *DriveDeltaEnumerator {
+	return &DriveDeltaEnumerator{DriveID: driveID}
+}
+
+func (dde *DriveDeltaEnumerator) With(ds ...*DeltaQuery) *DriveDeltaEnumerator {
+	dde.DeltaQueries = ds
+	return dde
+}
+
+// WithErr adds an error that is always returned in the last delta index.
+func (dde *DriveDeltaEnumerator) WithErr(err error) *DriveDeltaEnumerator {
+	dde.Err = err
+	return dde
+}
+
+func (dde *DriveDeltaEnumerator) nextDelta() *DeltaQuery {
+	if dde.idx == len(dde.DeltaQueries) {
+		// at the end of the enumeration, return an empty page with no items,
+		// not even the root.  This is what graph api would do to signify an absence
+		// of changes in the delta.
+		lastDU := dde.DeltaQueries[dde.idx-1].DeltaUpdate
+
+		return &DeltaQuery{
+			DeltaUpdate: lastDU,
+			Pages: []NextPage{{
+				Items: []models.DriveItemable{},
+			}},
+			Err: dde.Err,
+		}
+	}
+
+	if dde.idx > len(dde.DeltaQueries) {
+		// a panic isn't optimal here, but since this mechanism is internal to testing,
+		// it's an acceptable way to have the tests ensure we don't over-enumerate deltas.
+		panic(fmt.Sprintf("delta index %d larger than count of delta iterations in mock", dde.idx))
+	}
+
+	pages := dde.DeltaQueries[dde.idx]
+
+	dde.idx++
+
+	return pages
+}
+
+var _ pagers.NextPageResulter[models.DriveItemable] = &DeltaQuery{}
+
+type DeltaQuery struct {
+	idx         int
 	Pages       []NextPage
 	DeltaUpdate pagers.DeltaUpdate
 	Err         error
 }
 
-func (edibd EnumerateItemsDeltaByDrive) EnumerateDriveItemsDelta(
-	_ context.Context,
-	driveID, _ string,
-	_ api.CallConfig,
-) pagers.NextPageResulter[models.DriveItemable] {
-	didp := edibd.DrivePagers[driveID]
-	return didp
+func Delta(
+	resultDeltaID string,
+	err error,
+) *DeltaQuery {
+	return &DeltaQuery{
+		DeltaUpdate: pagers.DeltaUpdate{URL: resultDeltaID},
+		Err:         err,
+	}
 }
 
-func (edi *DriveItemsDeltaPager) NextPage() ([]models.DriveItemable, bool, bool) {
-	if edi.Idx >= len(edi.Pages) {
+func DeltaWReset(
+	resultDeltaID string,
+	err error,
+) *DeltaQuery {
+	return &DeltaQuery{
+		DeltaUpdate: pagers.DeltaUpdate{
+			URL:   resultDeltaID,
+			Reset: true,
+		},
+		Err: err,
+	}
+}
+
+func (dq *DeltaQuery) With(
+	pages ...NextPage,
+) *DeltaQuery {
+	dq.Pages = pages
+	return dq
+}
+
+func (dq *DeltaQuery) NextPage() ([]models.DriveItemable, bool, bool) {
+	if dq.idx >= len(dq.Pages) {
 		return nil, false, true
 	}
 
-	np := edi.Pages[edi.Idx]
-	edi.Idx = edi.Idx + 1
+	np := dq.Pages[dq.idx]
+	dq.idx = dq.idx + 1
 
 	return np.Items, np.Reset, false
 }
 
-func (edi *DriveItemsDeltaPager) Cancel() {}
+func (dq *DeltaQuery) Cancel() {}
 
-func (edi *DriveItemsDeltaPager) Results() (pagers.DeltaUpdate, error) {
-	return edi.DeltaUpdate, edi.Err
+func (dq *DeltaQuery) Results() (pagers.DeltaUpdate, error) {
+	return dq.DeltaUpdate, dq.Err
 }
 
 // ---------------------------------------------------------------------------
@@ -405,7 +521,7 @@ func (h RestoreHandler) NewDrivePager(string, []string) pagers.NonDeltaHandler[m
 func (h *RestoreHandler) AugmentItemInfo(
 	details.ItemInfo,
 	idname.Provider,
-	models.DriveItemable,
+	*custom.DriveItem,
 	int64,
 	*path.Builder,
 ) details.ItemInfo {

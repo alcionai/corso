@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -27,7 +28,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
+
+var errGetTreeNotImplemented = clues.New("forced error: cannot run tree-based backup: incomplete implementation")
 
 const (
 	restrictedDirectory = "Site Pages"
@@ -292,14 +296,14 @@ func (c *Collections) Get(
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	if c.ctrl.ToggleFeatures.UseDeltaTree {
-		_, _, err := c.getTree(ctx, prevMetadata, ssmb, errs)
-		if err != nil {
+		colls, canUsePrevBackup, err := c.getTree(ctx, prevMetadata, ssmb, errs)
+		if err != nil && !errors.Is(err, errGetTreeNotImplemented) {
 			return nil, false, clues.Wrap(err, "processing backup using tree")
 		}
 
-		return nil,
-			false,
-			clues.New("forced error: cannot run tree-based backup: incomplete implementation")
+		return colls,
+			canUsePrevBackup,
+			errGetTreeNotImplemented
 	}
 
 	deltasByDriveID, prevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(
@@ -715,7 +719,7 @@ func (c *Collections) handleDelete(
 
 func (c *Collections) getCollectionPath(
 	driveID string,
-	item models.DriveItemable,
+	item *custom.DriveItem,
 ) (path.Path, error) {
 	var (
 		pb     = odConsts.DriveFolderPrefixBuilder(driveID)
@@ -825,7 +829,7 @@ func (c *Collections) PopulateDriveCollections(
 			break
 		}
 
-		counter.Inc(count.PagesEnumerated)
+		counter.Inc(count.TotalPagesEnumerated)
 
 		if reset {
 			counter.Inc(count.PagerResets)
@@ -856,7 +860,7 @@ func (c *Collections) PopulateDriveCollections(
 				// Don't check for containers we've already seen.
 				if _, ok := c.CollectionMap[driveID][id]; !ok {
 					if id != lastContainerID {
-						if limiter.atLimit(stats, ignoreMe) {
+						if limiter.atLimit(stats) {
 							break
 						}
 
@@ -930,7 +934,7 @@ func (c *Collections) PopulateDriveCollections(
 
 func (c *Collections) processItem(
 	ctx context.Context,
-	item models.DriveItemable,
+	di models.DriveItemable,
 	driveID, driveName string,
 	oldPrevPaths, currPrevPaths, newPrevPaths map[string]string,
 	seenFolders map[string]string,
@@ -943,6 +947,10 @@ func (c *Collections) processItem(
 	skipper fault.AddSkipper,
 ) error {
 	var (
+		// Convert the DriveItemable retrieved from graph SDK to custom DriveItem
+		// which only stores the properties corso cares about during the backup
+		// operation. This is a memory optimization.
+		item     = custom.ToCustomDriveItem(di)
 		itemID   = ptr.Val(item.GetId())
 		itemName = ptr.Val(item.GetName())
 		isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil

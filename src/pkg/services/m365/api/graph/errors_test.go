@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/fault"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 type GraphErrorsUnitSuite struct {
@@ -566,7 +567,7 @@ func (suite *GraphErrorsUnitSuite) TestMalwareInfo() {
 		fault.AddtlMalwareDesc:   malDesc,
 	}
 
-	assert.Equal(suite.T(), expect, ItemInfo(i))
+	assert.Equal(suite.T(), expect, ItemInfo(custom.ToCustomDriveItem(i)))
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrFolderExists() {
@@ -874,6 +875,17 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 		{
 			name:   "matching oDataErr inner code",
 			err:    innerMatch,
+			expect: assert.True,
+		},
+		{
+			name: "matching oDataErr message",
+			err: graphTD.ODataErrWithMsg(
+				string(AuthenticationError),
+				"AADSTS500014: The service principal for resource 'beefe6b7-f5df-413d-ac2d-abf1e3fd9c0b' "+
+					"is disabled. This indicate that a subscription within the tenant has lapsed, or that the "+
+					"administrator for this tenant has disabled the application, preventing tokens from being "+
+					"issued for it. Trace ID: dead78e1-0830-4edf-bea7-f0a445620100 Correlation ID: "+
+					"deadbeef-7f1e-4578-8215-36004a2c935c Timestamp: 2023-12-05 19:31:01Z"),
 			expect: assert.True,
 		},
 		{
