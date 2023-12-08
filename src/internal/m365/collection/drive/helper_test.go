@@ -466,9 +466,10 @@ func newTree(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 
 func treeWithRoot(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := newFolderyMcFolderFace(defaultTreePfx(t, d), rootID)
-	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
-	tree.root = rootey
-	tree.folderIDToNode[rootID] = rootey
+
+	//nolint:forbidigo
+	err := tree.setFolder(context.Background(), "", rootID, rootName, false)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
 }
@@ -489,7 +490,10 @@ func treeWithFoldersAfterReset(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 
 func treeWithTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithRoot(t, d)
-	tree.tombstones[folderID()] = newNodeyMcNodeFace(nil, folderID(), "", false)
+
+	//nolint:forbidigo
+	err := tree.setTombstone(context.Background(), folderID())
+	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
 }
@@ -497,21 +501,22 @@ func treeWithTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 func treeWithFolders(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithRoot(t, d)
 
-	parent := newNodeyMcNodeFace(tree.root, folderID("parent"), folderName("parent"), true)
-	tree.folderIDToNode[parent.id] = parent
-	tree.root.children[parent.id] = parent
+	//nolint:forbidigo
+	err := tree.setFolder(context.Background(), rootID, folderID("parent"), folderName("parent"), true)
+	require.NoError(t, err, clues.ToCore(err))
 
-	f := newNodeyMcNodeFace(parent, folderID(), folderName(), false)
-	tree.folderIDToNode[f.id] = f
-	parent.children[f.id] = f
+	//nolint:forbidigo
+	err = tree.setFolder(context.Background(), folderID("parent"), folderID(), folderName(), false)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
 }
 
 func treeWithFileAtRoot(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithRoot(t, d)
-	tree.root.files[fileID()] = custom.ToCustomDriveItem(d.fileAtRoot())
-	tree.fileIDToParentID[fileID()] = rootID
+
+	err := tree.addFile(rootID, fileID(), custom.ToCustomDriveItem(d.fileAtRoot()))
+	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
 }
@@ -525,14 +530,16 @@ func treeWithDeletedFile(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 
 func treeWithFileInFolder(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithFolders(t, d)
-	tree.folderIDToNode[folderID()].files[fileID()] = custom.ToCustomDriveItem(d.fileAt(folder))
-	tree.fileIDToParentID[fileID()] = folderID()
+
+	err := tree.addFile(folderID(), fileID(), custom.ToCustomDriveItem(d.fileAt(folder)))
+	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
 }
 
 func treeWithFileInTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithTombstone(t, d)
+
 	// setting these directly, instead of using addFile(),
 	// because we can't add files to tombstones.
 	tree.tombstones[folderID()].files[fileID()] = custom.ToCustomDriveItem(d.fileAt("tombstone"))
