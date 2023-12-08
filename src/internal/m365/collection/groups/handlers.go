@@ -25,6 +25,7 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 	getItemer[I]
 	getContainerser[C]
 	getContainerItemIDser
+	getItemAndAugmentInfoer[C, I]
 	includeContainerer[C]
 	canonicalPather
 	canMakeDeltaQuerieser

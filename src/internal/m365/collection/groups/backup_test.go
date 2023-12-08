@@ -39,6 +39,7 @@ import (
 
 var _ backupHandler[models.Channelable, models.ChatMessageable] = &mockBackupHandler{}
 
+//nolint:unused
 type mockBackupHandler struct {
 	channels      []models.Channelable
 	messageIDs    []string
@@ -50,6 +51,7 @@ type mockBackupHandler struct {
 	doNotInclude  bool
 }
 
+//nolint:unused
 func (bh mockBackupHandler) augmentItemInfo(
 	*details.GroupsInfo,
 	models.Channelable,
@@ -123,6 +125,7 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
+//nolint:unused
 func (bh mockBackupHandler) getItem(
 	_ context.Context,
 	_ string,

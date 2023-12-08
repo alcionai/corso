@@ -113,6 +113,7 @@ func (bh conversationsBackupHandler) PathPrefix(tenantID string) (path.Path, err
 		false)
 }
 
+//nolint:unused
 func (bh conversationsBackupHandler) getItem(
 	ctx context.Context,
 	groupID string,
@@ -128,6 +129,7 @@ func (bh conversationsBackupHandler) getItem(
 		api.CallConfig{})
 }
 
+//nolint:unused
 func (bh conversationsBackupHandler) augmentItemInfo(
 	dgi *details.GroupsInfo,
 	c models.Conversationable,

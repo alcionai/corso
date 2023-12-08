@@ -144,6 +144,7 @@ type getAndAugmentChannelMessage struct {
 	Err error
 }
 
+//nolint:unused
 func (m getAndAugmentChannelMessage) getItem(
 	_ context.Context,
 	_ string,
@@ -156,6 +157,7 @@ func (m getAndAugmentChannelMessage) getItem(
 	return msg, &details.GroupsInfo{}, m.Err
 }
 
+//nolint:unused
 func (getAndAugmentChannelMessage) augmentItemInfo(*details.GroupsInfo, models.Channelable) {
 	// no-op
 }
