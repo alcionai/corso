@@ -655,7 +655,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			colls, newPrevPaths, excluded, err := c.turnTreeIntoCollections(
 				ctx,
 				tree,
-				d.id,
+				d.able,
 				deltaURL,
 				countPages,
 				fault.New(true))

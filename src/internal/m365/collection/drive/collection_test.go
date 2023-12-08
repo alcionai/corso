@@ -211,7 +211,8 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				mbh.ProtectedResource,
 				folderPath,
 				nil,
-				"drive-id",
+				id(drivePfx),
+				name(drivePfx),
 				suite.testStatusUpdater(&wg, &collStatus),
 				control.Options{ToggleFeatures: control.Toggles{}},
 				false,
@@ -299,13 +300,12 @@ func (suite *CollectionUnitSuite) TestCollection() {
 
 func (suite *CollectionUnitSuite) TestCollectionReadError() {
 	var (
-		t          = suite.T()
-		stubItemID = "fakeItemID"
-		collStatus = support.ControllerOperationStatus{}
-		wg         = sync.WaitGroup{}
-		name       = "name"
-		size       = defaultFileSize
-		now        = time.Now()
+		t                = suite.T()
+		stubItemID       = "fakeItemID"
+		collStatus       = support.ControllerOperationStatus{}
+		wg               = sync.WaitGroup{}
+		size       int64 = defaultFileSize
+		now              = time.Now()
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -334,7 +334,8 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 		mbh.ProtectedResource,
 		folderPath,
 		nil,
-		"fakeDriveID",
+		id(drivePfx),
+		name(drivePfx),
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
@@ -345,7 +346,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 
 	stubItem := odTD.NewStubDriveItem(
 		stubItemID,
-		name,
+		name(drivePfx),
 		size,
 		now,
 		now,
@@ -369,13 +370,12 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 
 func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 	var (
-		t          = suite.T()
-		stubItemID = "fakeItemID"
-		collStatus = support.ControllerOperationStatus{}
-		wg         = sync.WaitGroup{}
-		name       = "name"
-		size       = defaultFileSize
-		now        = time.Now()
+		t                = suite.T()
+		stubItemID       = "fakeItemID"
+		collStatus       = support.ControllerOperationStatus{}
+		wg               = sync.WaitGroup{}
+		size       int64 = defaultFileSize
+		now              = time.Now()
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -385,7 +385,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 
 	stubItem := odTD.NewStubDriveItem(
 		stubItemID,
-		name,
+		name(drivePfx),
 		size,
 		now,
 		now,
@@ -413,7 +413,8 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		mbh.ProtectedResource,
 		folderPath,
 		nil,
-		"fakeDriveID",
+		id(drivePfx),
+		name(drivePfx),
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
@@ -470,7 +471,8 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 		mbh.ProtectedResource,
 		folderPath,
 		nil,
-		"drive-id",
+		id(drivePfx),
+		name(drivePfx),
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
@@ -837,7 +839,6 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 		t            = suite.T()
 		stubItemID   = "itemID"
 		stubItemName = "name"
-		driveID      = "driveID"
 		collStatus   = support.ControllerOperationStatus{}
 		wg           = sync.WaitGroup{}
 		now          = time.Now()
@@ -1002,7 +1003,8 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 				mbh.ProtectedResource,
 				folderPath,
 				nil,
-				driveID,
+				id(drivePfx),
+				name(drivePfx),
 				suite.testStatusUpdater(&wg, &collStatus),
 				opts,
 				false,

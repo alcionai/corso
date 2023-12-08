@@ -220,7 +220,7 @@ func (c *Collections) makeDriveCollections(
 	collections, newPrevs, excludedItemIDs, err := c.turnTreeIntoCollections(
 		ctx,
 		tree,
-		driveID,
+		drv,
 		prevDeltaLink,
 		countPagesInDelta,
 		errs)
@@ -775,7 +775,7 @@ func addPrevPathsToTree(
 func (c *Collections) turnTreeIntoCollections(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
-	driveID string,
+	drv models.Driveable,
 	prevDeltaLink string,
 	countPagesInDelta int,
 	errs *fault.Bus,
@@ -796,6 +796,8 @@ func (c *Collections) turnTreeIntoCollections(
 		newPrevPaths = map[string]string{}
 		uc           *urlCache
 		el           = errs.Local()
+		driveID      = ptr.Val(drv.GetId())
+		driveName    = ptr.Val(drv.GetName())
 	)
 
 	// Attach an url cache to the drive if the number of discovered items is
@@ -838,6 +840,7 @@ func (c *Collections) turnTreeIntoCollections(
 			cbl.currPath,
 			cbl.prevPath,
 			driveID,
+			driveName,
 			c.statusUpdater,
 			c.ctrl,
 			cbl.isPackageOrChildOfPackage,

@@ -381,18 +381,18 @@ type collectable struct {
 	files                     map[string]*custom.DriveItem
 	folderID                  string
 	isPackageOrChildOfPackage bool
-	loc                       path.Elements
 	prevPath                  path.Path
 }
 
 // produces a map of folderID -> collectable
 func (face *folderyMcFolderFace) generateCollectables() (map[string]collectable, error) {
 	result := map[string]collectable{}
+
 	err := walkTreeAndBuildCollections(
 		face.root,
 		face.prefix,
 		&path.Builder{},
-		false,
+		false, true,
 		result)
 
 	for id, tombstone := range face.tombstones {
@@ -414,34 +414,36 @@ func walkTreeAndBuildCollections(
 	node *nodeyMcNodeFace,
 	pathPfx path.Path,
 	parentPath *path.Builder,
-	isChildOfPackage bool,
+	isChildOfPackage, isRoot bool,
 	result map[string]collectable,
 ) error {
 	if node == nil {
 		return nil
 	}
 
-	parentLocation := parentPath.Elements()
-	currentLocation := parentPath.Append(node.name)
+	if !isRoot {
+		parentPath = parentPath.Append(node.name)
+	}
 
 	for _, child := range node.children {
 		err := walkTreeAndBuildCollections(
 			child,
 			pathPfx,
-			currentLocation,
+			parentPath,
 			node.isPackage || isChildOfPackage,
+			false,
 			result)
 		if err != nil {
 			return err
 		}
 	}
 
-	collectionPath, err := pathPfx.Append(false, currentLocation.Elements()...)
+	collectionPath, err := pathPfx.Append(false, parentPath.Elements()...)
 	if err != nil {
 		return clues.Wrap(err, "building collection path").
 			With(
 				"path_prefix", pathPfx,
-				"path_suffix", currentLocation.Elements())
+				"path_suffix", parentPath.Elements())
 	}
 
 	cbl := collectable{
@@ -449,7 +451,6 @@ func walkTreeAndBuildCollections(
 		files:                     node.files,
 		folderID:                  node.id,
 		isPackageOrChildOfPackage: node.isPackage || isChildOfPackage,
-		loc:                       parentLocation,
 		prevPath:                  node.prev,
 	}
 

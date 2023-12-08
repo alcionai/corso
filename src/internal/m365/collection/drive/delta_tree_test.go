@@ -1021,7 +1021,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
-					loc:                       path.Elements{},
 				},
 			},
 		},
@@ -1037,7 +1036,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
-					loc:                       path.Elements{},
 				},
 			},
 		},
@@ -1051,14 +1049,12 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
-					loc:                       path.Elements{},
 				},
 				folderID("parent"): {
 					currPath:                  d.fullPath(t, folderName("parent")),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  folderID("parent"),
 					isPackageOrChildOfPackage: false,
-					loc:                       path.Elements{rootName},
 				},
 				folderID(): {
 					currPath: d.fullPath(t, folderName("parent"), folderName()),
@@ -1067,7 +1063,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					},
 					folderID:                  folderID(),
 					isPackageOrChildOfPackage: false,
-					loc:                       path.Elements{rootName, folderName("parent")},
 				},
 			},
 		},
@@ -1093,21 +1088,18 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
-					loc:                       path.Elements{},
 				},
 				id(pkg): {
 					currPath:                  d.fullPath(t, name(pkg)),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  id(pkg),
 					isPackageOrChildOfPackage: true,
-					loc:                       path.Elements{rootName},
 				},
 				folderID(): {
 					currPath:                  d.fullPath(t, name(pkg), folderName()),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  folderID(),
 					isPackageOrChildOfPackage: true,
-					loc:                       path.Elements{rootName, name(pkg)},
 				},
 			},
 		},
@@ -1126,7 +1118,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
-					loc:                       path.Elements{},
 					prevPath:                  d.fullPath(t),
 				},
 				folderID("parent"): {
@@ -1134,7 +1125,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  folderID("parent"),
 					isPackageOrChildOfPackage: false,
-					loc:                       path.Elements{rootName},
 					prevPath:                  d.fullPath(t, folderName("parent-prev")),
 				},
 				folderID(): {
@@ -1144,7 +1134,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					files: map[string]*custom.DriveItem{
 						fileID(): custom.ToCustomDriveItem(d.fileAt("parent")),
 					},
-					loc:      path.Elements{rootName, folderName("parent")},
 					prevPath: d.fullPath(t, folderName("parent-prev"), folderName()),
 				},
 			},
@@ -1163,7 +1152,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
-					loc:                       path.Elements{},
 					prevPath:                  d.fullPath(t),
 				},
 				folderID(): {
@@ -1210,12 +1198,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 					assert.Nil(t, result.prevPath)
 				} else {
 					assert.Equal(t, expect.prevPath.String(), result.prevPath.String())
-				}
-
-				if expect.loc == nil {
-					assert.Nil(t, result.loc)
-				} else {
-					assert.Equal(t, expect.loc.PlainString(), result.loc.PlainString())
 				}
 
 				assert.ElementsMatch(t, maps.Keys(expect.files), maps.Keys(result.files))
