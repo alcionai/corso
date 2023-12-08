@@ -259,7 +259,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		drive        models.Driveable
 		enumerator   mock.EnumerateDriveItemsDelta
 		prevPaths    map[string]string
-		expectErr    require.ErrorAssertionFunc
 		expectCounts countTD.Expected
 	}{
 		{
@@ -270,7 +269,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 					mock.Delta(id(delta), nil).With(
 						aPage()))),
 			prevPaths: map[string]string{},
-			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
 			},
@@ -281,12 +279,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(id(drive)).With(
 					mock.Delta(id(delta), nil).With(
-						aPage(),
-					))),
+						aPage()))),
 			prevPaths: map[string]string{
 				id(folder): fullPath(id(folder)),
 			},
-			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
 			},
@@ -297,10 +293,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(id(drive)).With(
 					mock.Delta(id(delta), nil).With(
-						aPage(folderAtRoot(), fileAt(folder)),
-					))),
+						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{},
-			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
 			},
@@ -311,12 +305,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(id(drive)).With(
 					mock.Delta(id(delta), nil).With(
-						aPage(folderAtRoot(), fileAt(folder)),
-					))),
+						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{
 				id(folder): fullPath(id(folder)),
 			},
-			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
 			},
@@ -328,10 +320,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				mock.Drive(id(drive)).With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
-						aPage(),
-					))),
+						aPage()))),
 			prevPaths: map[string]string{},
-			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
 			},
@@ -343,12 +333,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				mock.Drive(id(drive)).With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
-						aPage(),
-					))),
+						aPage()))),
 			prevPaths: map[string]string{
 				id(folder): fullPath(id(folder)),
 			},
-			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
 			},
@@ -360,10 +348,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				mock.Drive(id(drive)).With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
-						aPage(folderAtRoot(), fileAt(folder)),
-					))),
+						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{},
-			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
 			},
@@ -375,12 +361,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				mock.Drive(id(drive)).With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
-						aPage(folderAtRoot(), fileAt(folder)),
-					))),
+						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{
 				id(folder): fullPath(id(folder)),
 			},
-			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
 			},
@@ -410,7 +394,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 
 			// TODO(keepers): implementation is incomplete
 			// an error check is the best we can get at the moment.
-			test.expectErr(t, err, clues.ToCore(err))
+			require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
 
 			test.expectCounts.Compare(t, c.counter)
 		})

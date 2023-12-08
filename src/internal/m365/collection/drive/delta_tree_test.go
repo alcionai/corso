@@ -279,7 +279,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 		{
 			name:            "added folders after reset",
 			id:              id(folder),
-			loc:             loc,
+			prev:            pathWith(loc),
 			tree:            treeWithFoldersAfterReset(),
 			expectErr:       assert.NoError,
 			expectLive:      true,
