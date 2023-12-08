@@ -418,14 +418,14 @@ func walkTreeAndBuildCollections(
 		return nil
 	}
 
-	loc := parentPath.Elements()
-	parentPath = parentPath.Append(node.name)
+	parentLocation := parentPath.Elements()
+	currentLocation := parentPath.Append(node.name)
 
 	for _, child := range node.children {
 		err := walkTreeAndBuildCollections(
 			child,
 			pathPfx,
-			parentPath,
+			currentLocation,
 			node.isPackage || isChildOfPackage,
 			result)
 		if err != nil {
@@ -433,18 +433,20 @@ func walkTreeAndBuildCollections(
 		}
 	}
 
-	currPath, err := pathPfx.Append(false, parentPath.Elements()...)
+	collectionPath, err := pathPfx.Append(false, currentLocation.Elements()...)
 	if err != nil {
 		return clues.Wrap(err, "building collection path").
-			With("path_prefix", pathPfx, "path_suffix", parentPath.Elements())
+			With(
+				"path_prefix", pathPfx,
+				"path_suffix", currentLocation.Elements())
 	}
 
 	cbl := collectable{
-		currPath:                  currPath,
+		currPath:                  collectionPath,
 		files:                     node.files,
 		folderID:                  node.id,
 		isPackageOrChildOfPackage: node.isPackage || isChildOfPackage,
-		loc:                       loc,
+		loc:                       parentLocation,
 		prevPath:                  node.prev,
 	}
 
