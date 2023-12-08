@@ -878,6 +878,17 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 			expect: assert.True,
 		},
 		{
+			name: "matching oDataErr message",
+			err: graphTD.ODataErrWithMsg(
+				string(AuthenticationError),
+				"AADSTS500014: The service principal for resource 'beefe6b7-f5df-413d-ac2d-abf1e3fd9c0b' "+
+					"is disabled. This indicate that a subscription within the tenant has lapsed, or that the "+
+					"administrator for this tenant has disabled the application, preventing tokens from being "+
+					"issued for it. Trace ID: dead78e1-0830-4edf-bea7-f0a445620100 Correlation ID: "+
+					"deadbeef-7f1e-4578-8215-36004a2c935c Timestamp: 2023-12-05 19:31:01Z"),
+			expect: assert.True,
+		},
+		{
 			name:   "matching err sentinel",
 			err:    ErrResourceLocked,
 			expect: assert.True,

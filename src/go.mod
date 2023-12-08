@@ -2,7 +2,7 @@ module github.com/alcionai/corso/src
 
 go 1.21
 
-replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231130213928-e62eca5816db
+replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231205231702-863c24d6f8b1
 
 // No tags in the alcion fork of the repo so use v7 as that's in the import
 // path.
@@ -35,7 +35,7 @@ require (
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.17.0
+	github.com/spf13/viper v1.18.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
@@ -69,7 +69,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
-	github.com/sagikazarmark/locafero v0.3.0 // indirect
+	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect

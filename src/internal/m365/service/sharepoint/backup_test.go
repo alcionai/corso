@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 // ---------------------------------------------------------------------------
@@ -93,11 +92,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 			defer flush()
 
 			var (
-				mbh = mock.DefaultSharePointBH(siteID)
-				du  = pagers.DeltaUpdate{
-					URL:   "notempty",
-					Reset: false,
-				}
+				mbh      = mock.DefaultSharePointBH(siteID)
 				paths    = map[string]string{}
 				excluded = map[string]struct{}{}
 				collMap  = map[string]map[string]*drive.Collection{
@@ -106,14 +101,9 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				topLevelPackages = map[string]struct{}{}
 			)
 
-			mbh.DriveItemEnumeration = mock.EnumerateItemsDeltaByDrive{
-				DrivePagers: map[string]*mock.DriveItemsDeltaPager{
-					driveID: {
-						Pages:       []mock.NextPage{{Items: test.items}},
-						DeltaUpdate: du,
-					},
-				},
-			}
+			mbh.DriveItemEnumeration = mock.DriveEnumerator(
+				mock.Drive(driveID).With(
+					mock.Delta("notempty", nil).With(mock.NextPage{Items: test.items})))
 
 			c := drive.NewCollections(
 				mbh,

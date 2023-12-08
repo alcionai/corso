@@ -14,75 +14,6 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
-
-var loc = path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
-
-func treeWithRoot() *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(nil)
-	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
-	tree.root = rootey
-	tree.folderIDToNode[rootID] = rootey
-
-	return tree
-}
-
-func treeWithTombstone() *folderyMcFolderFace {
-	tree := treeWithRoot()
-	tree.tombstones[id(folder)] = newNodeyMcNodeFace(nil, id(folder), "", false)
-
-	return tree
-}
-
-func treeWithFolders() *folderyMcFolderFace {
-	tree := treeWithRoot()
-
-	o := newNodeyMcNodeFace(tree.root, idx(folder, "parent"), namex(folder, "parent"), true)
-	tree.folderIDToNode[o.id] = o
-	tree.root.children[o.id] = o
-
-	f := newNodeyMcNodeFace(o, id(folder), name(folder), false)
-	tree.folderIDToNode[f.id] = f
-	o.children[f.id] = f
-
-	return tree
-}
-
-func treeWithFileAtRoot() *folderyMcFolderFace {
-	tree := treeWithRoot()
-	tree.root.files[id(file)] = fileyMcFileFace{
-		lastModified: time.Now(),
-		contentSize:  42,
-	}
-	tree.fileIDToParentID[id(file)] = rootID
-
-	return tree
-}
-
-func treeWithFileInFolder() *folderyMcFolderFace {
-	tree := treeWithFolders()
-	tree.folderIDToNode[id(folder)].files[id(file)] = fileyMcFileFace{
-		lastModified: time.Now(),
-		contentSize:  42,
-	}
-	tree.fileIDToParentID[id(file)] = id(folder)
-
-	return tree
-}
-
-func treeWithFileInTombstone() *folderyMcFolderFace {
-	tree := treeWithTombstone()
-	tree.tombstones[id(folder)].files[id(file)] = fileyMcFileFace{
-		lastModified: time.Now(),
-		contentSize:  42,
-	}
-	tree.fileIDToParentID[id(file)] = id(folder)
-
-	return tree
-}
-
-// ---------------------------------------------------------------------------
 // tests
 // ---------------------------------------------------------------------------
 
@@ -102,7 +33,7 @@ func (suite *DeltaTreeUnitSuite) TestNewFolderyMcFolderFace() {
 
 	require.NoError(t, err, clues.ToCore(err))
 
-	folderFace := newFolderyMcFolderFace(p)
+	folderFace := newFolderyMcFolderFace(p, rootID)
 	assert.Equal(t, p, folderFace.prefix)
 	assert.Nil(t, folderFace.root)
 	assert.NotNil(t, folderFace.folderIDToNode)
@@ -144,7 +75,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 	}{
 		{
 			tname:     "add root",
-			tree:      newFolderyMcFolderFace(nil),
+			tree:      newFolderyMcFolderFace(nil, rootID),
 			id:        rootID,
 			name:      rootName,
 			isPackage: true,
@@ -272,7 +203,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 		{
 			name:      "add tombstone",
 			id:        id(folder),
-			tree:      newFolderyMcFolderFace(nil),
+			tree:      newFolderyMcFolderFace(nil, rootID),
 			expectErr: assert.NoError,
 		},
 		{
@@ -283,7 +214,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 		},
 		{
 			name:      "missing ID",
-			tree:      newFolderyMcFolderFace(nil),
+			tree:      newFolderyMcFolderFace(nil, rootID),
 			expectErr: assert.Error,
 		},
 		{

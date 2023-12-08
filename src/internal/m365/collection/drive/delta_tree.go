@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 
-	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -22,6 +21,10 @@ type folderyMcFolderFace struct {
 	// the root of the tree;
 	// new, moved, and notMoved root
 	root *nodeyMcNodeFace
+
+	// the ID of the actual root folder.
+	// required to ensure correct population of the root node.
+	rootID string
 
 	// the majority of operations we perform can be handled with
 	// a folder ID lookup instead of re-walking the entire tree.
@@ -45,9 +48,11 @@ type folderyMcFolderFace struct {
 
 func newFolderyMcFolderFace(
 	prefix path.Path,
+	rootID string,
 ) *folderyMcFolderFace {
 	return &folderyMcFolderFace{
 		prefix:           prefix,
+		rootID:           rootID,
 		folderIDToNode:   map[string]*nodeyMcNodeFace{},
 		tombstones:       map[string]*nodeyMcNodeFace{},
 		fileIDToParentID: map[string]string{},
@@ -150,17 +155,12 @@ func (face *folderyMcFolderFace) setFolder(
 		return clues.NewWC(ctx, "missing folder name")
 	}
 
-	// drive doesn't normally allow the `:` character in folder names.
-	// so `root:` is, by default, the only folder that can match this
-	// name.  That makes this check a little bit brittle, but generally
-	// reliable, since we should always see the root first and can rely
-	// on the naming structure.
-	if len(parentID) == 0 && name != odConsts.RootPathDir {
+	if len(parentID) == 0 && id != face.rootID {
 		return clues.NewWC(ctx, "non-root folder missing parent id")
 	}
 
 	// only set the root node once.
-	if name == odConsts.RootPathDir {
+	if id == face.rootID {
 		if face.root == nil {
 			root := newNodeyMcNodeFace(nil, id, name, isPackage)
 			face.root = root
