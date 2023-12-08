@@ -286,7 +286,7 @@ func (col *prefetchCollection) streamItems(
 					atomic.AddInt64(&success, 1)
 					logger.CtxErr(ctx, err).Info("item not found")
 				} else {
-					col.Counter.Inc(count.StreamItemsErrored)
+					col.Counter.Inc(count.StreamItemsErred)
 					el.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
 				}
 
@@ -298,7 +298,7 @@ func (col *prefetchCollection) streamItems(
 				id,
 				details.ItemInfo{Exchange: info})
 			if err != nil {
-				col.Counter.Inc(count.StreamItemsErrored)
+				col.Counter.Inc(count.StreamItemsErred)
 				el.AddRecoverable(
 					ctx,
 					clues.StackWC(ctx, err).

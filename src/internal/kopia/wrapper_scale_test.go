@@ -116,8 +116,8 @@ func BenchmarkHierarchyMerge(b *testing.B) {
 
 		assert.Zero(t, stats.IgnoredErrorCount)
 		assert.Zero(t, stats.ErrorCount)
-		assert.Zero(t, counter.Get(count.PersistenceIgnoredErrors))
-		assert.Zero(t, counter.Get(count.PersistenceErrors))
+		assert.Zero(t, counter.Get(count.PersistenceIgnoredErrs))
+		assert.Zero(t, counter.Get(count.PersistenceErrs))
 		assert.False(t, stats.Incomplete)
 
 		snap, err := snapshot.LoadSnapshot(
