@@ -39,6 +39,7 @@ type BackupHandler interface {
 	api.Getter
 	GetItemPermissioner
 	GetItemer
+	GetRootFolderer
 	NewDrivePagerer
 	EnumerateDriveItemsDeltaer
 

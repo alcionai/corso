@@ -60,7 +60,6 @@ const (
 	NoDeltaQueries                Key = "cannot-make-delta-queries"
 	Packages                      Key = "packages"
 	PagerResets                   Key = "pager-resets"
-	PagesEnumerated               Key = "pages-enumerated"
 	PrevDeltas                    Key = "previous-deltas"
 	PrevPaths                     Key = "previous-paths"
 	PreviousPathMetadataCollision Key = "previous-path-metadata-collision"
@@ -90,10 +89,12 @@ const (
 const (
 	TotalDeleteFilesProcessed   Key = "total-delete-files-processed"
 	TotalDeleteFoldersProcessed Key = "total-delete-folders-processed"
+	TotalDeltasProcessed        Key = "total-deltas-processed"
 	TotalFilesProcessed         Key = "total-files-processed"
 	TotalFoldersProcessed       Key = "total-folders-processed"
 	TotalMalwareProcessed       Key = "total-malware-processed"
 	TotalPackagesProcessed      Key = "total-packages-processed"
+	TotalPagesEnumerated        Key = "total-pages-enumerated"
 )
 
 // miscellaneous

@@ -182,6 +182,13 @@ func (h userDriveBackupHandler) EnumerateDriveItemsDelta(
 	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, cc)
 }
 
+func (h userDriveBackupHandler) GetRootFolder(
+	ctx context.Context,
+	driveID string,
+) (models.DriveItemable, error) {
+	return h.ac.Drives().GetRootFolder(ctx, driveID)
+}
+
 // ---------------------------------------------------------------------------
 // Restore
 // ---------------------------------------------------------------------------
