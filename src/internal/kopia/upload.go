@@ -217,7 +217,7 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 	// delta query and a fetch.  This is our next point of error
 	// handling, where we can identify and skip over the case.
 	if clues.HasLabel(err, graph.LabelsSkippable) {
-		cp.counter.Inc(count.PersistenceExpectedErrors)
+		cp.counter.Inc(count.PersistenceExpectedErrs)
 		cp.incExpectedErrs()
 
 		return

@@ -50,6 +50,20 @@ func CheckGroupsExport(
 		envs)
 }
 
+func removeDeletedMessages(
+	ctx context.Context,
+	tree *common.Sanitree[models.Channelable, models.ChatMessageable],
+) {
+	for _, child := range tree.Children {
+		for _, leaf := range child.Leaves {
+			if leaf.Self.GetDeletedDateTime() != nil {
+				delete(child.Leaves, leaf.ID)
+				child.CountLeaves--
+			}
+		}
+	}
+}
+
 func checkChannelMessagesExport(
 	ctx context.Context,
 	ac api.Client,
@@ -81,6 +95,8 @@ func checkChannelMessagesExport(
 
 		common.CompareLeaves(ctx, expect.Leaves, updatedResultLeaves, nil)
 	}
+
+	removeDeletedMessages(ctx, sourceTree)
 
 	common.CompareDiffTrees(
 		ctx,
@@ -146,6 +162,7 @@ func populateMessagesSanitree(
 		}
 
 		for _, msg := range filteredMsgs {
+			child.CountLeaves++
 			child.Leaves[ptr.Val(msg.GetId())] = &common.Sanileaf[
 				models.Channelable,
 				models.ChatMessageable,
