@@ -217,9 +217,8 @@ func (s *groups) AllData() []GroupsScope {
 	scopes = append(
 		scopes,
 		makeScope[GroupsScope](GroupsLibraryFolder, Any()),
-		makeScope[GroupsScope](GroupsChannel, Any()))
-	// TODO: enable conversations in all-data backups
-	// makeScope[GroupsScope](GroupsConversation, Any()))
+		makeScope[GroupsScope](GroupsChannel, Any()),
+		makeScope[GroupsScope](GroupsConversation, Any()))
 
 	return scopes
 }
