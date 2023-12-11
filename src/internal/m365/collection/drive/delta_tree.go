@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
@@ -315,7 +314,7 @@ func (face *folderyMcFolderFace) setPreviousPath(
 // this func will update and/or clean up all the old references.
 func (face *folderyMcFolderFace) addFile(
 	parentID, id string,
-	file models.DriveItemable,
+	file *custom.DriveItem,
 ) error {
 	if len(parentID) == 0 {
 		return clues.New("item added without parent folder ID")
@@ -344,7 +343,7 @@ func (face *folderyMcFolderFace) addFile(
 	}
 
 	face.fileIDToParentID[id] = parentID
-	parent.files[id] = custom.ToCustomDriveItem(file)
+	parent.files[id] = file
 
 	delete(face.deletedFileIDs, id)
 
