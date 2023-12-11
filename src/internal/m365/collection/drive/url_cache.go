@@ -19,7 +19,10 @@ import (
 
 const (
 	urlCacheDriveItemThreshold = 300 * 1000
-	urlCacheRefreshInterval    = 1 * time.Hour
+	// 600 pages = 300k items, since delta enumeration produces 500 items per page
+	// TODO: export standard page size and swap to 300k/defaultDeltaPageSize
+	urlCacheDrivePagesThreshold = 600
+	urlCacheRefreshInterval     = 1 * time.Hour
 )
 
 type getItemPropertyer interface {
