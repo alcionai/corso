@@ -24,10 +24,6 @@ const (
 	mailFoldersBetaURLTemplate = "https://graph.microsoft.com/beta/users/%s/mailFolders"
 )
 
-var (
-	errMailAttachmentObjectReferenceNotSet = clues.New("internal server error due to null object reference in mail attachment")
-)
-
 // ---------------------------------------------------------------------------
 // controller
 // ---------------------------------------------------------------------------
@@ -304,6 +300,7 @@ func (c Mail) GetItem(
 	}
 
 	size += totalSize
+
 	mail.SetAttachments(attachments)
 
 	return mail, MailInfo(mail, size), nil
