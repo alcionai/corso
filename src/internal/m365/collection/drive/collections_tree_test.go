@@ -386,10 +386,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				prefixmatcher.NewStringSetBuilder(),
 				c.counter,
 				fault.New(true))
-
-			// TODO(keepers): implementation is incomplete
-			// an error check is the best we can get at the moment.
-			require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
+			require.NoError(t, err, clues.ToCore(err))
 
 			test.expectCounts.Compare(t, c.counter)
 		})
