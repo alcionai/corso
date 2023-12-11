@@ -2,6 +2,7 @@ package drive
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -33,7 +34,7 @@ import (
 func (c *Collections) getTree(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
-	ssmb *prefixmatcher.StringSetMatchBuilder,
+	globalExcludeItemIDsByDrivePrefix *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	ctx = clues.AddTraceName(ctx, "GetTree")
@@ -114,6 +115,7 @@ func (c *Collections) getTree(
 			prevPathsByDriveID[driveID],
 			deltasByDriveID[driveID],
 			limiter,
+			globalExcludeItemIDsByDrivePrefix,
 			cl,
 			el)
 		if err != nil {
@@ -168,15 +170,18 @@ func (c *Collections) makeDriveCollections(
 	prevPaths map[string]string,
 	prevDeltaLink string,
 	limiter *pagerLimiter,
+	globalExcludeItemIDsByDrivePrefix *prefixmatcher.StringSetMatchBuilder,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, map[string]string, pagers.DeltaUpdate, error) {
-	ppfx, err := c.handler.PathPrefix(c.tenantID, ptr.Val(drv.GetId()))
+	driveID := ptr.Val(drv.GetId())
+
+	ppfx, err := c.handler.PathPrefix(c.tenantID, driveID)
 	if err != nil {
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "generating backup tree prefix")
 	}
 
-	root, err := c.handler.GetRootFolder(ctx, ptr.Val(drv.GetId()))
+	root, err := c.handler.GetRootFolder(ctx, driveID)
 	if err != nil {
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "getting root folder")
 	}
@@ -187,7 +192,7 @@ func (c *Collections) makeDriveCollections(
 
 	// --- delta item aggregation
 
-	du, err := c.populateTree(
+	du, countPagesInDelta, err := c.populateTree(
 		ctx,
 		tree,
 		drv,
@@ -199,74 +204,44 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, pagers.DeltaUpdate{}, clues.Stack(err)
 	}
 
-	// numDriveItems := c.NumItems - numPrevItems
-	// numPrevItems = c.NumItems
-
-	// cl.Add(count.NewPrevPaths, int64(len(newPrevPaths)))
-
 	// --- prev path incorporation
 
-	for folderID, p := range prevPaths {
-		// no check for errs.Failure here, despite the addRecoverable below.
-		// it's fine if we run through all of the collection generation even
-		// with failures present, and let the backup finish out.
-		prevPath, err := path.FromDataLayerPath(p, false)
-		if err != nil {
-			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "invalid previous path").
-				With("folderID", folderID, "prev_path", p).
-				Label(fault.LabelForceNoBackupCreation))
-
-			continue
-		}
-
-		err = tree.setPreviousPath(folderID, prevPath)
-		if err != nil {
-			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "setting previous path").
-				With("folderID", folderID, "prev_path", p).
-				Label(fault.LabelForceNoBackupCreation))
-
-			continue
-		}
+	err = addPrevPathsToTree(
+		ctx,
+		tree,
+		prevPaths,
+		errs)
+	if err != nil {
+		return nil, nil, pagers.DeltaUpdate{}, clues.Stack(err).Label(fault.LabelForceNoBackupCreation)
 	}
-
-	// TODO(keepers): leaving this code around for now as a guide
-	// while implementation progresses.
 
 	// --- post-processing
 
-	// Attach an url cache to the drive if the number of discovered items is
-	// below the threshold. Attaching cache to larger drives can cause
-	// performance issues since cache delta queries start taking up majority of
-	// the hour the refreshed URLs are valid for.
-
-	// if numDriveItems < urlCacheDriveItemThreshold {
-	// 	logger.Ctx(ictx).Infow(
-	// 		"adding url cache for drive",
-	// 		"num_drive_items", numDriveItems)
-
-	// 	uc, err := newURLCache(
-	// 		driveID,
-	// 		prevDeltaLink,
-	// 		urlCacheRefreshInterval,
-	// 		c.handler,
-	// 		cl,
-	// 		errs)
-	// 	if err != nil {
-	// 		return nil, false, clues.Stack(err)
-	// 	}
-
-	// 	// Set the URL cache instance for all collections in this drive.
-	// 	for id := range c.CollectionMap[driveID] {
-	// 		c.CollectionMap[driveID][id].urlCache = uc
-	// 	}
-	// }
-
-	// this is a dumb hack to satisfy the linter.
-	if ctx == nil {
-		return nil, nil, du, nil
+	collections, newPrevs, excludedItemIDs, err := c.turnTreeIntoCollections(
+		ctx,
+		tree,
+		driveID,
+		prevDeltaLink,
+		countPagesInDelta,
+		errs)
+	if err != nil {
+		return nil, nil, pagers.DeltaUpdate{}, clues.Stack(err).Label(fault.LabelForceNoBackupCreation)
 	}
 
-	return nil, nil, du, errGetTreeNotImplemented
+	// only populate the global excluded items if no delta reset occurred.
+	// if a reset did occur, the collections should already be marked as
+	// "do not merge", therefore everything will get processed as a new addition.
+	if !tree.hadReset {
+		p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
+		if err != nil {
+			err = clues.WrapWC(ctx, err, "making canonical path for item exclusions")
+			return nil, nil, pagers.DeltaUpdate{}, err
+		}
+
+		globalExcludeItemIDsByDrivePrefix.Add(p.String(), excludedItemIDs)
+	}
+
+	return collections, newPrevs, du, nil
 }
 
 // populateTree constructs a new tree and populates it with items
@@ -279,8 +254,8 @@ func (c *Collections) populateTree(
 	limiter *pagerLimiter,
 	counter *count.Bus,
 	errs *fault.Bus,
-) (pagers.DeltaUpdate, error) {
-	ctx = clues.Add(ctx, "invalid_prev_delta", len(prevDeltaLink) == 0)
+) (pagers.DeltaUpdate, int, error) {
+	ctx = clues.Add(ctx, "has_prev_delta", len(prevDeltaLink) > 0)
 
 	var (
 		currDeltaLink = prevDeltaLink
@@ -290,23 +265,48 @@ func (c *Collections) populateTree(
 		finished      bool
 		hitLimit      bool
 		// TODO: plug this into the limiter
-		maxDeltas   = 100
-		countDeltas = 0
+		maximumTotalDeltasAllowed int64 = 100
+		// pageCounter is intended as a separate local instance
+		// compared to the counter we use for other item tracking.
+		// IE: don't pass it around into other funcs.
+		//
+		// This allows us to reset pageCounter on a reset without
+		// cross-contaminating other counts.
+		//
+		// We use this to track three keys: 1. the total number of
+		// deltas enumerated (so that we don't hit an infinite
+		// loop); 2. the number of pages in each delta (for the
+		// limiter, but also for the URL cache so that it knows
+		// if we have too many pages for it to efficiently operate);
+		// and 3. the number of items in each delta (to know if we're
+		// done enumerating delta queries).
+		pageCounter = counter.Local()
+	)
+
+	const (
+		// track the exact number of pages across all deltas (correct across resets)
+		// so that the url cache knows if it can operate within performance bounds.
+		truePageCount count.Key = "pages-with-items-across-all-deltas"
 	)
 
 	// enumerate through multiple deltas until we either:
 	// 1. hit a consistent state (ie: no changes since last delta enum)
-	// 2. hit the limit
+	// 2. hit the limit based on the limiter
+	// 3. run 100 total delta enumerations without hitting 1. (no infinite loops)
 	for !hitLimit && !finished && el.Failure() == nil {
 		counter.Inc(count.TotalDeltasProcessed)
 
 		var (
-			pageCount     int
-			pageItemCount int
-			err           error
+			// this is used to track stats the total number of items
+			// processed in each delta.  Since delta queries don't give
+			// us a plain flag for "no changes occurred", we check for
+			// 0 items in the delta as the "no changes occurred" state.
+			// The final page of any delta query may also return 0 items,
+			// so we need to combine both the item count and the deltaPageCount
+			// to get a correct flag.
+			iPageCounter = pageCounter.Local()
+			err          error
 		)
-
-		countDeltas++
 
 		pager := c.handler.EnumerateDriveItemsDelta(
 			ctx,
@@ -318,19 +318,22 @@ func (c *Collections) populateTree(
 
 		for page, reset, done := pager.NextPage(); !done; page, reset, done = pager.NextPage() {
 			if el.Failure() != nil {
-				return du, el.Failure()
+				return du, 0, el.Failure()
 			}
+
+			// track the exact number of pages within a single delta (correct across resets)
+			// so that we can check for "no changes occurred" results.
+			// Note: don't inc `count.TotalPagesEnumerated` outside of this (ie, for the
+			// truePageCount), or else we'll double up on the inc.
+			iPageCounter.Inc(count.TotalPagesEnumerated)
 
 			if reset {
 				counter.Inc(count.PagerResets)
 				tree.reset()
 				c.resetStats()
 
-				pageCount = 0
-				pageItemCount = 0
-				countDeltas = 0
-			} else {
-				counter.Inc(count.TotalPagesEnumerated)
+				pageCounter = counter.Local()
+				iPageCounter = pageCounter.Local()
 			}
 
 			err = c.enumeratePageOfItems(
@@ -350,14 +353,17 @@ func (c *Collections) populateTree(
 				el.AddRecoverable(ctx, clues.Stack(err))
 			}
 
-			pageCount++
+			itemCount := int64(len(page))
+			iPageCounter.Add(count.TotalItemsProcessed, itemCount)
 
-			pageItemCount += len(page)
+			if itemCount > 0 {
+				pageCounter.Inc(truePageCount)
+			}
 
-			// Stop enumeration early if we've reached the page limit. Keep this
+			// Stop enumeration early if we've reached the total page limit. Keep this
 			// at the end of the loop so we don't request another page (pager.NextPage)
 			// before seeing we've passed the limit.
-			if limiter.hitPageLimit(pageCount) {
+			if limiter.hitPageLimit(int(pageCounter.Get(truePageCount))) {
 				hitLimit = true
 				break
 			}
@@ -370,23 +376,32 @@ func (c *Collections) populateTree(
 
 		du, err = pager.Results()
 		if err != nil {
-			return du, clues.Stack(err)
+			return du, 0, clues.Stack(err)
 		}
 
 		currDeltaLink = du.URL
 
 		// 0 pages is never expected.  We should at least have one (empty) page to
 		// consume.  But checking pageCount == 1 is brittle in a non-helpful way.
-		finished = pageCount < 2 && pageItemCount == 0
+		finished = iPageCounter.Get(count.TotalPagesEnumerated) < 2 &&
+			iPageCounter.Get(count.TotalItemsProcessed) == 0
 
-		if countDeltas >= maxDeltas {
-			return pagers.DeltaUpdate{}, clues.New("unable to produce consistent delta after 100 queries")
+		// ensure we don't enumerate more than the maximum allotted count of deltas.
+		if counter.Get(count.TotalDeltasProcessed) >= maximumTotalDeltasAllowed {
+			err := clues.NewWC(
+				ctx,
+				fmt.Sprintf("unable to produce consistent delta after %d queries", maximumTotalDeltasAllowed))
+
+			return pagers.DeltaUpdate{}, 0, err
 		}
 	}
 
-	logger.Ctx(ctx).Infow("enumerated collection delta", "stats", counter.Values())
+	logger.Ctx(ctx).Infow(
+		"enumerated collection delta",
+		"stats", counter.Values(),
+		"delta_stats", pageCounter.Values())
 
-	return du, el.Failure()
+	return du, int(pageCounter.Get(truePageCount)), el.Failure()
 }
 
 func (c *Collections) enumeratePageOfItems(
@@ -401,12 +416,13 @@ func (c *Collections) enumeratePageOfItems(
 	ctx = clues.Add(ctx, "page_lenth", len(page))
 	el := errs.Local()
 
-	for i, item := range page {
+	for i, driveItem := range page {
 		if el.Failure() != nil {
 			break
 		}
 
 		var (
+			item     = custom.ToCustomDriveItem(driveItem)
 			isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
 			isFile   = item.GetFile() != nil
 			itemID   = ptr.Val(item.GetId())
@@ -452,7 +468,7 @@ func (c *Collections) addFolderToTree(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
 	drv models.Driveable,
-	folder models.DriveItemable,
+	folder *custom.DriveItem,
 	limiter *pagerLimiter,
 	counter *count.Bus,
 ) (*fault.Skipped, error) {
@@ -501,7 +517,7 @@ func (c *Collections) addFolderToTree(
 			driveID,
 			folderID,
 			folderName,
-			graph.ItemInfo(custom.ToCustomDriveItem(folder)))
+			graph.ItemInfo(folder))
 
 		logger.Ctx(ctx).Infow("malware folder detected")
 
@@ -533,7 +549,7 @@ func (c *Collections) addFolderToTree(
 func (c *Collections) makeFolderCollectionPath(
 	ctx context.Context,
 	driveID string,
-	folder models.DriveItemable,
+	folder *custom.DriveItem,
 ) (path.Path, error) {
 	if folder.GetRoot() != nil {
 		pb := odConsts.DriveFolderPrefixBuilder(driveID)
@@ -565,20 +581,19 @@ func (c *Collections) addFileToTree(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
 	drv models.Driveable,
-	file models.DriveItemable,
+	file *custom.DriveItem,
 	limiter *pagerLimiter,
 	counter *count.Bus,
 ) (*fault.Skipped, error) {
 	var (
-		driveID      = ptr.Val(drv.GetId())
-		fileID       = ptr.Val(file.GetId())
-		fileName     = ptr.Val(file.GetName())
-		fileSize     = ptr.Val(file.GetSize())
-		lastModified = ptr.Val(file.GetLastModifiedDateTime())
-		isDeleted    = file.GetDeleted() != nil
-		isMalware    = file.GetMalware() != nil
-		parent       = file.GetParentReference()
-		parentID     string
+		driveID   = ptr.Val(drv.GetId())
+		fileID    = ptr.Val(file.GetId())
+		fileName  = ptr.Val(file.GetName())
+		fileSize  = ptr.Val(file.GetSize())
+		isDeleted = file.GetDeleted() != nil
+		isMalware = file.GetMalware() != nil
+		parent    = file.GetParentReference()
+		parentID  string
 	)
 
 	if parent != nil {
@@ -602,7 +617,7 @@ func (c *Collections) addFileToTree(
 			driveID,
 			fileID,
 			fileName,
-			graph.ItemInfo(custom.ToCustomDriveItem(file)))
+			graph.ItemInfo(file))
 
 		logger.Ctx(ctx).Infow("malware file detected")
 
@@ -635,7 +650,7 @@ func (c *Collections) addFileToTree(
 		}
 	}
 
-	err := tree.addFile(parentID, fileID, lastModified, fileSize)
+	err := tree.addFile(parentID, fileID, file)
 	if err != nil {
 		return nil, clues.StackWC(ctx, err)
 	}
@@ -736,4 +751,122 @@ func (c *Collections) makeMetadataCollections(
 	}
 
 	return append(colls, md)
+}
+
+func addPrevPathsToTree(
+	ctx context.Context,
+	tree *folderyMcFolderFace,
+	prevPaths map[string]string,
+	errs *fault.Bus,
+) error {
+	el := errs.Local()
+
+	for folderID, p := range prevPaths {
+		if el.Failure() != nil {
+			break
+		}
+
+		prevPath, err := path.FromDataLayerPath(p, false)
+		if err != nil {
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "invalid previous path").
+				With("folderID", folderID, "prev_path", p).
+				Label(count.BadPrevPath))
+
+			continue
+		}
+
+		err = tree.setPreviousPath(folderID, prevPath)
+		if err != nil {
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "setting previous path").
+				With("folderID", folderID, "prev_path", p))
+
+			continue
+		}
+	}
+
+	return el.Failure()
+}
+
+func (c *Collections) turnTreeIntoCollections(
+	ctx context.Context,
+	tree *folderyMcFolderFace,
+	driveID string,
+	prevDeltaLink string,
+	countPagesInDelta int,
+	errs *fault.Bus,
+) (
+	[]data.BackupCollection,
+	map[string]string,
+	map[string]struct{},
+	error,
+) {
+	collectables, err := tree.generateCollectables()
+	if err != nil {
+		err = clues.WrapWC(ctx, err, "generating backup collection data")
+		return nil, nil, nil, err
+	}
+
+	var (
+		collections  = []data.BackupCollection{}
+		newPrevPaths = map[string]string{}
+		uc           *urlCache
+		el           = errs.Local()
+	)
+
+	// Attach an url cache to the drive if the number of discovered items is
+	// below the threshold. Attaching cache to larger drives can cause
+	// performance issues since cache delta queries start taking up majority of
+	// the hour the refreshed URLs are valid for.
+	if countPagesInDelta < urlCacheDriveItemThreshold {
+		logger.Ctx(ctx).Info("adding url cache for drive collections")
+
+		uc, err = newURLCache(
+			driveID,
+			// we need the original prevDeltaLink here; a cache update will need
+			// to process all changes since the start of the backup.  On the bright
+			// side, instead of running multiple delta enumerations, all changes
+			// in the backup should get compressed into the single delta query, which
+			// ensures the two states are sufficiently consistent with just the
+			// original delta token.
+			prevDeltaLink,
+			urlCacheRefreshInterval,
+			c.handler,
+			c.counter.Local(),
+			errs)
+		if err != nil {
+			return nil, nil, nil, clues.StackWC(ctx, err)
+		}
+	}
+
+	for id, cbl := range collectables {
+		if el.Failure() != nil {
+			break
+		}
+
+		if cbl.currPath != nil {
+			newPrevPaths[id] = cbl.currPath.String()
+		}
+
+		coll, err := NewCollection(
+			c.handler,
+			c.protectedResource,
+			cbl.currPath,
+			cbl.prevPath,
+			driveID,
+			c.statusUpdater,
+			c.ctrl,
+			cbl.isPackageOrChildOfPackage,
+			tree.hadReset,
+			uc,
+			c.counter.Local())
+		if err != nil {
+			return nil, nil, nil, clues.StackWC(ctx, err)
+		}
+
+		coll.driveItems = cbl.files
+
+		collections = append(collections, coll)
+	}
+
+	return collections, newPrevPaths, tree.generateExcludeItemIDs(), el.Failure()
 }

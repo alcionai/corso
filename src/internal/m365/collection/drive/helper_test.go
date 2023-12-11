@@ -19,6 +19,7 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/m365/support"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
@@ -30,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 const defaultItemSize int64 = 42
@@ -152,6 +154,7 @@ func coreItem(
 	item := models.NewDriveItem()
 	item.SetName(&name)
 	item.SetId(&id)
+	item.SetLastModifiedDateTime(ptr.To(time.Now()))
 
 	parentReference := models.NewItemReference()
 	parentReference.SetPath(&parentPath)
@@ -176,6 +179,21 @@ func driveItem(
 	it itemType,
 ) models.DriveItemable {
 	return coreItem(id, name, parentPath, parentID, it)
+}
+
+func driveFile(
+	idX any,
+	parentPath, parentID string,
+) models.DriveItemable {
+	i := id(file)
+	n := name(file)
+
+	if idX != file {
+		i = idx(file, idX)
+		n = namex(file, idX)
+	}
+
+	return driveItem(i, n, parentPath, parentID, isFile)
 }
 
 func fileAtRoot() models.DriveItemable {
@@ -475,12 +493,6 @@ func driveParentDir(driveID any, elems ...string) string {
 		elems...)...)
 }
 
-// just for readability
-const (
-	doMergeItems    = true
-	doNotMergeItems = false
-)
-
 // common item names
 const (
 	bar       = "bar"
@@ -571,26 +583,6 @@ func collWithMBHAndOpts(
 		count.New())
 }
 
-// func fullOrPrevPath(
-// 	t *testing.T,
-// 	coll data.BackupCollection,
-// ) path.Path {
-// 	var collPath path.Path
-
-// 	if coll.State() != data.DeletedState {
-// 		collPath = coll.FullPath()
-// 	} else {
-// 		collPath = coll.PreviousPath()
-// 	}
-
-// 	require.False(
-// 		t,
-// 		len(collPath.Elements()) < 4,
-// 		"malformed or missing collection path")
-
-// 	return collPath
-// }
-
 func pagerForDrives(drives ...models.Driveable) *apiMock.Pager[models.Driveable] {
 	return &apiMock.Pager[models.Driveable]{
 		ToReturn: []apiMock.PagerResult[models.Driveable]{
@@ -598,6 +590,30 @@ func pagerForDrives(drives ...models.Driveable) *apiMock.Pager[models.Driveable]
 		},
 	}
 }
+
+func aPage(items ...models.DriveItemable) mock.NextPage {
+	return mock.NextPage{
+		Items: append([]models.DriveItemable{driveRootItem()}, items...),
+	}
+}
+
+func aPageWReset(items ...models.DriveItemable) mock.NextPage {
+	return mock.NextPage{
+		Items: append([]models.DriveItemable{driveRootItem()}, items...),
+		Reset: true,
+	}
+}
+
+func aReset(items ...models.DriveItemable) mock.NextPage {
+	return mock.NextPage{
+		Items: []models.DriveItemable{},
+		Reset: true,
+	}
+}
+
+// ---------------------------------------------------------------------------
+// metadata
+// ---------------------------------------------------------------------------
 
 func makePrevMetadataColls(
 	t *testing.T,
@@ -651,133 +667,150 @@ func makePrevMetadataColls(
 // 	assert.Equal(t, expectPrevPaths, prevs, "previous paths")
 // }
 
-// for comparisons done by collection state
-type stateAssertion struct {
-	itemIDs []string
-	// should never get set by the user.
-	// this flag gets flipped when calling assertions.compare.
-	// any unseen collection will error on requireNoUnseenCollections
-	// sawCollection bool
-}
+// ---------------------------------------------------------------------------
+// collections
+// ---------------------------------------------------------------------------
 
 // for comparisons done by a given collection path
 type collectionAssertion struct {
-	doNotMerge    assert.BoolAssertionFunc
-	states        map[data.CollectionState]*stateAssertion
-	excludedItems map[string]struct{}
+	curr    path.Path
+	prev    path.Path
+	state   data.CollectionState
+	fileIDs []string
+	// should never get set by the user.
+	// this flag gets flipped when calling assertions.compare.
+	// any unseen collection will error on requireNoUnseenCollections
+	sawCollection bool
 }
 
-type statesToItemIDs map[data.CollectionState][]string
+func aColl(
+	curr, prev path.Path,
+	fileIDs ...string,
+) *collectionAssertion {
+	ids := make([]string, 0, 2*len(fileIDs))
 
-// TODO(keepers): move excludeItems to a more global position.
-func newCollAssertion(
-	doNotMerge bool,
-	itemsByState statesToItemIDs,
-	excludeItems ...string,
-) collectionAssertion {
-	states := map[data.CollectionState]*stateAssertion{}
-
-	for state, itemIDs := range itemsByState {
-		states[state] = &stateAssertion{
-			itemIDs: itemIDs,
-		}
+	for _, fUD := range fileIDs {
+		ids = append(ids, fUD+metadata.DataFileSuffix)
+		ids = append(ids, fUD+metadata.MetaFileSuffix)
 	}
 
-	dnm := assert.False
-	if doNotMerge {
-		dnm = assert.True
-	}
-
-	return collectionAssertion{
-		doNotMerge:    dnm,
-		states:        states,
-		excludedItems: makeExcludeMap(excludeItems...),
+	return &collectionAssertion{
+		curr:    curr,
+		prev:    prev,
+		state:   data.StateOf(prev, curr, count.New()),
+		fileIDs: ids,
 	}
 }
 
 // to aggregate all collection-related expectations in the backup
 // map collection path -> collection state -> assertion
-type collectionAssertions map[string]collectionAssertion
+type expectedCollections struct {
+	assertions  map[string]*collectionAssertion
+	doNotMerge  assert.BoolAssertionFunc
+	hasURLCache assert.ValueAssertionFunc
+}
 
-// ensure the provided collection matches expectations as set by the test.
-// func (cas collectionAssertions) compare(
-// 	t *testing.T,
-// 	coll data.BackupCollection,
-// 	excludes *prefixmatcher.StringSetMatchBuilder,
-// ) {
-// 	ctx, flush := tester.NewContext(t)
-// 	defer flush()
+func expectCollections(
+	doNotMerge bool,
+	hasURLCache bool,
+	colls ...*collectionAssertion,
+) expectedCollections {
+	as := map[string]*collectionAssertion{}
 
-// 	var (
-// 		itemCh  = coll.Items(ctx, fault.New(true))
-// 		itemIDs = []string{}
-// 	)
+	for _, coll := range colls {
+		as[expectFullOrPrev(coll).String()] = coll
+	}
 
-// 	p := fullOrPrevPath(t, coll)
+	dontMerge := assert.False
+	if doNotMerge {
+		dontMerge = assert.True
+	}
 
-// 	for itm := range itemCh {
-// 		itemIDs = append(itemIDs, itm.ID())
-// 	}
+	hasCache := assert.Nil
+	if hasURLCache {
+		hasCache = assert.NotNil
+	}
 
-// 	expect := cas[p.String()]
-// 	expectState := expect.states[coll.State()]
-// 	expectState.sawCollection = true
+	return expectedCollections{
+		assertions:  as,
+		doNotMerge:  dontMerge,
+		hasURLCache: hasCache,
+	}
+}
 
-// 	assert.ElementsMatchf(
-// 		t,
-// 		expectState.itemIDs,
-// 		itemIDs,
-// 		"expected all items to match in collection with:\nstate %q\npath %q",
-// 		coll.State(),
-// 		p)
+func (ecs expectedCollections) compare(
+	t *testing.T,
+	colls []data.BackupCollection,
+) {
+	for _, coll := range colls {
+		ecs.compareColl(t, coll)
+	}
+}
 
-// 	expect.doNotMerge(
-// 		t,
-// 		coll.DoNotMergeItems(),
-// 		"expected collection to have the appropariate doNotMerge flag")
+func (ecs expectedCollections) compareColl(t *testing.T, coll data.BackupCollection) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-// 	if result, ok := excludes.Get(p.String()); ok {
-// 		assert.Equal(
-// 			t,
-// 			expect.excludedItems,
-// 			result,
-// 			"excluded items")
-// 	}
-// }
+	var (
+		itemIDs = []string{}
+		p       = fullOrPrevPath(t, coll)
+	)
+
+	if coll.State() != data.DeletedState {
+		for itm := range coll.Items(ctx, fault.New(true)) {
+			itemIDs = append(itemIDs, itm.ID())
+		}
+	}
+
+	expect := ecs.assertions[p.String()]
+	require.NotNil(
+		t,
+		expect,
+		"test should have an expected entry for collection with:\n\tstate %q\n\tpath %q",
+		coll.State(),
+		p)
+
+	expect.sawCollection = true
+
+	assert.ElementsMatchf(
+		t,
+		expect.fileIDs,
+		itemIDs,
+		"expected all items to match in collection with:\n\tstate %q\n\tpath %q",
+		coll.State(),
+		p)
+
+	if expect.prev == nil {
+		assert.Nil(t, coll.PreviousPath(), "previous path")
+	} else {
+		assert.Equal(t, expect.prev, coll.PreviousPath())
+	}
+
+	if expect.curr == nil {
+		assert.Nil(t, coll.FullPath(), "collection path")
+	} else {
+		assert.Equal(t, expect.curr, coll.FullPath())
+	}
+
+	ecs.doNotMerge(
+		t,
+		coll.DoNotMergeItems(),
+		"expected collection to have the appropariate doNotMerge flag")
+
+	driveColl := coll.(*Collection)
+
+	ecs.hasURLCache(t, driveColl.urlCache, "has a populated url cache handler")
+}
 
 // ensure that no collections in the expected set are still flagged
 // as sawCollection == false.
-// func (cas collectionAssertions) requireNoUnseenCollections(
-// 	t *testing.T,
-// ) {
-// 	for p, withPath := range cas {
-// 		for _, state := range withPath.states {
-// 			require.True(
-// 				t,
-// 				state.sawCollection,
-// 				"results should have contained collection:\n\t%q\t\n%q",
-// 				state, p)
-// 		}
-// 	}
-// }
-
-func aPage(items ...models.DriveItemable) mock.NextPage {
-	return mock.NextPage{
-		Items: append([]models.DriveItemable{driveRootItem()}, items...),
-	}
-}
-
-func aPageWReset(items ...models.DriveItemable) mock.NextPage {
-	return mock.NextPage{
-		Items: append([]models.DriveItemable{driveRootItem()}, items...),
-		Reset: true,
-	}
-}
-
-func aReset(items ...models.DriveItemable) mock.NextPage {
-	return mock.NextPage{
-		Items: []models.DriveItemable{},
-		Reset: true,
+func (ecs expectedCollections) requireNoUnseenCollections(t *testing.T) {
+	for _, ca := range ecs.assertions {
+		require.True(
+			t,
+			ca.sawCollection,
+			"results did not include collection at:\n\tstate %q\t\npath %q",
+			ca.state, expectFullOrPrev(ca))
 	}
 }
 
@@ -785,16 +818,33 @@ func aReset(items ...models.DriveItemable) mock.NextPage {
 // delta trees
 // ---------------------------------------------------------------------------
 
+func defaultTreePfx(t *testing.T) path.Path {
+	fpb := fullPathPath(t).ToBuilder()
+	fpe := fpb.Elements()
+	fpe = fpe[:len(fpe)-1]
+	fpb = path.Builder{}.Append(fpe...)
+
+	p, err := path.FromDataLayerPath(fpb.String(), false)
+	require.NoErrorf(
+		t,
+		err,
+		"err processing path:\n\terr %+v\n\tpath %q",
+		clues.ToCore(err),
+		fpb)
+
+	return p
+}
+
 func defaultLoc() path.Elements {
 	return path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
 }
 
 func newTree(t *testing.T) *folderyMcFolderFace {
-	return newFolderyMcFolderFace(fullPathPath(t), rootID)
+	return newFolderyMcFolderFace(defaultTreePfx(t), rootID)
 }
 
 func treeWithRoot(t *testing.T) *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(fullPathPath(t), rootID)
+	tree := newFolderyMcFolderFace(defaultTreePfx(t), rootID)
 	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
 	tree.root = rootey
 	tree.folderIDToNode[rootID] = rootey
@@ -803,7 +853,7 @@ func treeWithRoot(t *testing.T) *folderyMcFolderFace {
 }
 
 func treeAfterReset(t *testing.T) *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(fullPathPath(t), rootID)
+	tree := newFolderyMcFolderFace(defaultTreePfx(t), rootID)
 	tree.reset()
 
 	return tree
@@ -839,21 +889,22 @@ func treeWithFolders(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithRoot(t)
-	tree.root.files[id(file)] = fileyMcFileFace{
-		lastModified: time.Now(),
-		contentSize:  42,
-	}
+	tree.root.files[id(file)] = custom.ToCustomDriveItem(fileAtRoot())
 	tree.fileIDToParentID[id(file)] = rootID
+
+	return tree
+}
+
+func treeWithDeletedFile(t *testing.T) *folderyMcFolderFace {
+	tree := treeWithRoot(t)
+	tree.deleteFile(idx(file, "d"))
 
 	return tree
 }
 
 func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithFolders(t)
-	tree.folderIDToNode[id(folder)].files[id(file)] = fileyMcFileFace{
-		lastModified: time.Now(),
-		contentSize:  42,
-	}
+	tree.folderIDToNode[id(folder)].files[id(file)] = custom.ToCustomDriveItem(fileAt(folder))
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
@@ -861,11 +912,121 @@ func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithTombstone(t)
-	tree.tombstones[id(folder)].files[id(file)] = fileyMcFileFace{
-		lastModified: time.Now(),
-		contentSize:  42,
-	}
+	tree.tombstones[id(folder)].files[id(file)] = custom.ToCustomDriveItem(fileAt("tombstone"))
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
+}
+
+// root -> idx(folder, parent) -> id(folder)
+// one item at each dir
+// one tombstone: idx(folder, tombstone)
+// one item in the tombstone
+// one deleted item
+func fullTree(t *testing.T) *folderyMcFolderFace {
+	return fullTreeWithNames("parent", "tombstone")(t)
+}
+
+func fullTreeWithNames(
+	parentFolderX, tombstoneX any,
+) func(t *testing.T) *folderyMcFolderFace {
+	return func(t *testing.T) *folderyMcFolderFace {
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		tree := treeWithRoot(t)
+
+		// file in root
+		df := driveFile("r", parentDir(), rootID)
+		err := tree.addFile(
+			rootID,
+			idx(file, "r"),
+			custom.ToCustomDriveItem(df))
+		require.NoError(t, err, clues.ToCore(err))
+
+		// root -> idx(folder, parent)
+		err = tree.setFolder(ctx, rootID, idx(folder, parentFolderX), namex(folder, parentFolderX), false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		// file in idx(folder, parent)
+		df = driveFile("p", parentDir(namex(folder, parentFolderX)), idx(folder, parentFolderX))
+		err = tree.addFile(
+			idx(folder, parentFolderX),
+			idx(file, "p"),
+			custom.ToCustomDriveItem(df))
+		require.NoError(t, err, clues.ToCore(err))
+
+		// idx(folder, parent) -> id(folder)
+		err = tree.setFolder(ctx, idx(folder, parentFolderX), id(folder), name(folder), false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		// file in id(folder)
+		df = driveFile(file, parentDir(name(folder)), id(folder))
+		err = tree.addFile(
+			id(folder),
+			id(file),
+			custom.ToCustomDriveItem(df))
+		require.NoError(t, err, clues.ToCore(err))
+
+		// tombstone - have to set a non-tombstone folder first, then add the item, then tombstone the folder
+		err = tree.setFolder(ctx, rootID, idx(folder, tombstoneX), namex(folder, tombstoneX), false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		// file in tombstone
+		df = driveFile("t", parentDir(namex(folder, tombstoneX)), idx(folder, tombstoneX))
+		err = tree.addFile(
+			idx(folder, tombstoneX),
+			idx(file, "t"),
+			custom.ToCustomDriveItem(df))
+		require.NoError(t, err, clues.ToCore(err))
+
+		err = tree.setTombstone(ctx, idx(folder, tombstoneX))
+		require.NoError(t, err, clues.ToCore(err))
+
+		// deleted file
+		tree.deleteFile(idx(file, "d"))
+
+		return tree
+	}
+}
+
+// ---------------------------------------------------------------------------
+// misc
+// ---------------------------------------------------------------------------
+func expectFullOrPrev(ca *collectionAssertion) path.Path {
+	var p path.Path
+
+	if ca.state != data.DeletedState {
+		p = ca.curr
+	} else {
+		p = ca.prev
+	}
+
+	return p
+}
+
+func fullOrPrevPath(
+	t *testing.T,
+	coll data.BackupCollection,
+) path.Path {
+	var collPath path.Path
+
+	if coll.State() == data.DeletedState {
+		collPath = coll.PreviousPath()
+	} else {
+		collPath = coll.FullPath()
+	}
+
+	require.NotNil(
+		t,
+		collPath,
+		"full or prev path are nil for collection with state:\n\t%s",
+		coll.State())
+
+	require.False(
+		t,
+		len(collPath.Elements()) < 4,
+		"malformed or missing collection path")
+
+	return collPath
 }
