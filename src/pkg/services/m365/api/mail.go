@@ -250,11 +250,12 @@ func (c Mail) GetContainerChildren(
 // attachment is also downloaded.
 func (c Mail) GetItem(
 	ctx context.Context,
-	userID, itemID string,
+	userID, mailID string,
 	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
+		// ends up as len(mail.Body) + sum([]attachment.size)
 		size     int64
 		mailBody models.ItemBodyable
 		config   = &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
@@ -267,7 +268,7 @@ func (c Mail) GetItem(
 		Users().
 		ByUserId(userID).
 		Messages().
-		ByMessageId(itemID).
+		ByMessageId(mailID).
 		Get(ctx, config)
 	if err != nil {
 		return nil, nil, graph.Stack(ctx, err)
@@ -285,106 +286,179 @@ func (c Mail) GetItem(
 		return mail, MailInfo(mail, size), nil
 	}
 
-	attachConfig := &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
-		QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
-			Expand: []string{"microsoft.graph.itemattachment/item"},
-		},
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
-	}
+	attachments, totalSize, err := c.getAttachments(ctx, userID, mailID, immutableIDs)
+	if err != nil {
+		// A failure can be caused by having a lot of attachments.
+		// If that happens, we can progres with a two-step approach of:
+		// 1. getting all attachment IDs.
+		// 2. fetching each attachment individually.
+		logger.CtxErr(ctx, err).Info("falling back to fetching attachments by id")
 
-	attached, err := c.LargeItem.
-		Client().
-		Users().
-		ByUserId(userID).
-		Messages().
-		ByMessageId(itemID).
-		Attachments().
-		Get(ctx, attachConfig)
-	if err == nil {
-		for _, a := range attached.GetValue() {
-			attachSize := ptr.Val(a.GetSize())
-			size += int64(attachSize)
+		attachments, totalSize, err = c.getAttachmentsIterated(ctx, userID, mailID, immutableIDs, errs)
+		if err != nil {
+			return nil, nil, clues.Stack(err)
 		}
-
-		mail.SetAttachments(attached.GetValue())
-
-		return mail, MailInfo(mail, size), nil
 	}
 
-	// A failure can be caused by having a lot of attachments as
-	// we are trying to fetch the data within the attachments as
-	// well in the request. We instead fetch all the attachment
-	// ids and fetch each item individually.
-	// NOTE: Maybe filter for specific error:
-	// graph.IsErrTimeout(err) || graph.IsServiceUnavailable(err)
-	// TODO: Once MS Graph fixes pagination for this, we can
-	// probably paginate and fetch items.
-	// https://learn.microsoft.com/en-us/answers/questions/1227026/pagination-not-working-when-fetching-message-attac
-	logger.CtxErr(ctx, err).Info("fetching all attachments by id")
+	size += totalSize
 
-	// Getting size just to log in case of error
-	attachConfig.QueryParameters.Select = idAnd("size")
+	mail.SetAttachments(attachments)
+
+	return mail, MailInfo(mail, size), nil
+}
+
+// getAttachments attempts to get all attachments, including their content, in a singe query.
+func (c Mail) getAttachments(
+	ctx context.Context,
+	userID, mailID string,
+	immutableIDs bool,
+) ([]models.Attachmentable, int64, error) {
+	var (
+		result    = []models.Attachmentable{}
+		totalSize int64
+		cfg       = &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+				Expand: []string{"microsoft.graph.itemattachment/item"},
+			},
+			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		}
+	)
 
 	attachments, err := c.LargeItem.
 		Client().
 		Users().
 		ByUserId(userID).
 		Messages().
-		ByMessageId(itemID).
+		ByMessageId(mailID).
 		Attachments().
-		Get(ctx, attachConfig)
+		Get(ctx, cfg)
 	if err != nil {
-		return nil, nil, graph.Wrap(ctx, err, "getting mail attachment ids")
+		return nil, 0, graph.Stack(ctx, err)
 	}
 
-	atts := []models.Attachmentable{}
+	for _, a := range attachments.GetValue() {
+		totalSize += int64(ptr.Val(a.GetSize()))
+		result = append(result, a)
+	}
+
+	return result, totalSize, nil
+}
+
+// getAttachmentsIterated runs a two step fetch: one bulk query to get all attachment IDs,
+// and then another lookup to fetch the content of each attachment.
+// TODO: Once MS Graph fixes pagination for this, we can swap to a pager.
+// https://learn.microsoft.com/en-us/answers/questions/1227026/pagination-not-working-when-fetching-message-attac
+func (c Mail) getAttachmentsIterated(
+	ctx context.Context,
+	userID, mailID string,
+	immutableIDs bool,
+	errs *fault.Bus,
+) ([]models.Attachmentable, int64, error) {
+	var (
+		result    = []models.Attachmentable{}
+		totalSize int64
+		cfg       = &users.ItemMessagesItemAttachmentsRequestBuilderGetRequestConfiguration{
+			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
+				Select: idAnd(),
+			},
+			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		}
+	)
+
+	attachments, err := c.LargeItem.
+		Client().
+		Users().
+		ByUserId(userID).
+		Messages().
+		ByMessageId(mailID).
+		Attachments().
+		Get(ctx, cfg)
+	if err != nil {
+		return nil, 0, graph.Wrap(ctx, err, "getting mail attachment ids")
+	}
 
 	for _, a := range attachments.GetValue() {
-		attachConfig := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
-			QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
-				Expand: []string{"microsoft.graph.itemattachment/item"},
-			},
-			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
-		}
+		var (
+			aID              = ptr.Val(a.GetId())
+			aODataType       = ptr.Val(a.GetOdataType())
+			isItemAttachment = aODataType == "#microsoft.graph.itemAttachment"
+		)
 
 		ictx := clues.Add(
 			ctx,
-			"attachment_id", ptr.Val(a.GetId()),
-			"attachment_size", ptr.Val(a.GetSize()))
+			"attachment_id", aID,
+			"attachment_odatatype", aODataType)
 
-		att, err := c.Stable.
-			Client().
-			Users().
-			ByUserId(userID).
-			Messages().
-			ByMessageId(itemID).
-			Attachments().
-			ByAttachmentId(ptr.Val(a.GetId())).
-			Get(ictx, attachConfig)
+		attachment, err := c.getAttachmentByID(
+			ictx,
+			userID,
+			mailID,
+			aID,
+			immutableIDs,
+			isItemAttachment,
+			errs)
 		if err != nil {
-			// CannotOpenFileAttachment errors are not transient and
-			// happens possibly from the original item somehow getting
-			// deleted from M365 and so we can skip these
-			if graph.IsErrCannotOpenFileAttachment(err) {
-				logger.CtxErr(ictx, err).Info("attachment not found")
-				// TODO This should use a `AddSkip` once we have
-				// figured out the semantics for skipping
-				// subcomponents of an item
-
-				continue
-			}
-
-			return nil, nil, graph.Wrap(ictx, err, "getting mail attachment")
+			return nil, 0, clues.Stack(err)
 		}
 
-		atts = append(atts, att)
-		attachSize := ptr.Val(a.GetSize())
-		size += int64(attachSize)
+		if attachment != nil {
+			result = append(result, attachment)
+			totalSize += int64(ptr.Val(attachment.GetSize()))
+		}
 	}
 
-	mail.SetAttachments(atts)
+	return result, totalSize, nil
+}
 
-	return mail, MailInfo(mail, size), nil
+func (c Mail) getAttachmentByID(
+	ctx context.Context,
+	userID, mailID, attachmentID string,
+	immutableIDs, isItemAttachment bool,
+	errs *fault.Bus,
+) (models.Attachmentable, error) {
+	cfg := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
+			Expand: []string{"microsoft.graph.itemattachment/item"},
+		},
+		Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
+	}
+
+	attachment, err := c.Stable.
+		Client().
+		Users().
+		ByUserId(userID).
+		Messages().
+		ByMessageId(mailID).
+		Attachments().
+		ByAttachmentId(attachmentID).
+		Get(ctx, cfg)
+	if err != nil {
+		// CannotOpenFileAttachment errors are not transient and
+		// happens possibly from the original item somehow getting
+		// deleted from M365 and so we can skip these
+		if graph.IsErrCannotOpenFileAttachment(err) {
+			logger.CtxErr(ctx, err).Info("attachment not found")
+			errs.AddAlert(ctx, fault.NewAlert(
+				"cannot open attached file",
+				"", // no namespace
+				mailID,
+				"mailAttachment",
+				map[string]any{
+					"attachment_id":      attachmentID,
+					"user_id":            userID,
+					"is_item_attachment": isItemAttachment,
+				}))
+			// TODO This should use a `AddSkip` once we have
+			// figured out the semantics for skipping
+			// subcomponents of an item
+
+			return nil, nil
+		}
+
+		return nil, graph.Wrap(ctx, err, "getting mail attachment by id")
+	}
+
+	return attachment, nil
 }
 
 func (c Mail) PostItem(
