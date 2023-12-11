@@ -2,12 +2,14 @@ package api
 
 import (
 	"context"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -318,4 +320,72 @@ func (c Lists) getColumnLinks(ctx context.Context,
 	}
 
 	return links, nil
+}
+
+func (c Lists) PostList(
+	ctx context.Context,
+	siteID string,
+	listName string,
+	oldListByteArray []byte,
+) (models.Listable, error) {
+	newListName := listName
+
+	oldList, err := betaAPI.CreateListFromBytes(oldListByteArray)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "creating old list")
+	}
+
+	if name, ok := ptr.ValOK(oldList.GetDisplayName()); ok {
+		nameParts := strings.Split(listName, "_")
+		if len(nameParts) > 0 {
+			nameParts[len(nameParts)-1] = name
+			newListName = strings.Join(nameParts, "_")
+		}
+	}
+
+	// this ensure all columns, contentTypes are set to the newList
+	newList := betaAPI.ToListable(oldList, newListName)
+
+	// Restore to List base to M365 back store
+	restoredList, err := c.Stable.Client().Sites().BySiteId(siteID).Lists().Post(ctx, newList, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "restoring list")
+	}
+
+	return restoredList, nil
+}
+
+func (c Lists) PostListItem(
+	ctx context.Context,
+	siteID, listID string,
+	oldListByteArray []byte,
+) ([]models.ListItemable, error) {
+	oldList, err := betaAPI.CreateListFromBytes(oldListByteArray)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "creating old list to get list items")
+	}
+
+	contents := make([]models.ListItemable, 0)
+
+	for _, itm := range oldList.GetItems() {
+		temp := betaAPI.CloneListItem(itm)
+		contents = append(contents, temp)
+	}
+
+	for _, lItem := range contents {
+		_, err := c.Stable.
+			Client().
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID).
+			Items().
+			Post(ctx, lItem, nil)
+		if err != nil {
+			return nil, graph.Wrap(ctx, err, "restoring list items").
+				With("restored_list_id", listID)
+		}
+	}
+
+	return contents, nil
 }

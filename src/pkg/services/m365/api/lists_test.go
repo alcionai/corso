@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -215,5 +216,121 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			assert.Equal(t, 1, len(columns))
 			assert.Equal(t, numColumnDefID, *columns[0].GetId())
 		})
+	}
+}
+
+func (suite *ListsAPIIntgSuite) TestLists_PostList() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		acl      = suite.its.ac.Lists()
+		siteID   = suite.its.site.id
+		listName = testdata.DefaultRestoreConfig("list_api_post_list").Location
+		writer   = kjson.NewJsonSerializationWriter()
+	)
+
+	oldListID := "old-list"
+	textColumnDefID := "list-col1"
+	textColumnDefName := "itemName"
+	template := "genericList"
+
+	listInfo := models.NewListInfo()
+	listInfo.SetTemplate(&template)
+
+	textColumn := models.NewTextColumn()
+
+	txtColumnDef := models.NewColumnDefinition()
+	txtColumnDef.SetId(&textColumnDefID)
+	txtColumnDef.SetName(&textColumnDefName)
+	txtColumnDef.SetText(textColumn)
+
+	list := models.NewList()
+	list.SetId(&oldListID)
+	list.SetColumns([]models.ColumnDefinitionable{txtColumnDef})
+	list.SetList(listInfo)
+
+	defer writer.Close()
+
+	err := writer.WriteObjectValue("", list)
+	require.NoError(t, err)
+
+	oldListByteArray, err := writer.GetSerializedContent()
+	require.NoError(t, err)
+
+	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
+
+	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray)
+	require.Error(t, err)
+}
+
+func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		acl      = suite.its.ac.Lists()
+		siteID   = suite.its.site.id
+		listName = testdata.DefaultRestoreConfig("list_api_post_list").Location
+		writer   = kjson.NewJsonSerializationWriter()
+	)
+
+	oldListID := "old-list"
+	listItemID := "list-item1"
+	textColumnDefID := "list-col1"
+	textColumnDefName := "itemName"
+
+	textColumn := models.NewTextColumn()
+
+	txtColumnDef := models.NewColumnDefinition()
+	txtColumnDef.SetId(&textColumnDefID)
+	txtColumnDef.SetName(&textColumnDefName)
+	txtColumnDef.SetText(textColumn)
+
+	fields := models.NewFieldValueSet()
+	fieldsData := map[string]any{
+		textColumnDefName: "item1",
+	}
+	fields.SetAdditionalData(fieldsData)
+
+	listItem := models.NewListItem()
+	listItem.SetId(&listItemID)
+	listItem.SetFields(fields)
+
+	list := models.NewList()
+	list.SetId(&oldListID)
+	list.SetColumns([]models.ColumnDefinitionable{txtColumnDef})
+	list.SetItems([]models.ListItemable{listItem})
+
+	defer writer.Close()
+
+	err := writer.WriteObjectValue("", list)
+	require.NoError(t, err)
+
+	oldListByteArray, err := writer.GetSerializedContent()
+	require.NoError(t, err)
+
+	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
+
+	newListItems, err := acl.PostListItem(ctx, siteID, ptr.Val(newList.GetId()), oldListByteArray)
+	require.NoError(t, err, clues.ToCore(err))
+	require.Less(t, 0, len(newListItems))
+
+	newListItemFields := newListItems[0].GetFields()
+	require.NotEmpty(t, newListItemFields)
+
+	newListItemsData := newListItemFields.GetAdditionalData()
+	require.NotEmpty(t, newListItemsData)
+
+	for k, v := range newListItemsData {
+		assert.Equal(t, fieldsData[k], ptr.Val(v.(*string)))
 	}
 }

@@ -116,7 +116,27 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDefinitionable {
 	newColumn := models.NewColumnDefinition()
 
+	// column attributes
+	newColumn.SetName(orig.GetName())
+	newColumn.SetOdataType(orig.GetOdataType())
+	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
+	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
+	newColumn.SetReadOnly(orig.GetReadOnly())
+	newColumn.SetRequired(orig.GetRequired())
 	newColumn.SetAdditionalData(orig.GetAdditionalData())
+	newColumn.SetDescription(orig.GetDescription())
+	newColumn.SetDisplayName(orig.GetDisplayName())
+	newColumn.SetSourceColumn(orig.GetSourceColumn())
+	newColumn.SetSourceContentType(orig.GetSourceContentType())
+	newColumn.SetTerm(orig.GetTerm())
+	newColumn.SetHidden(orig.GetHidden())
+	newColumn.SetIndexed(orig.GetIndexed())
+	newColumn.SetIsDeletable(orig.GetIsDeletable())
+	newColumn.SetIsReorderable(orig.GetIsReorderable())
+	newColumn.SetIsSealed(orig.GetIsSealed())
+
+	// column types
+	newColumn.SetText(orig.GetText())
 	newColumn.SetBoolean(orig.GetBoolean())
 	newColumn.SetCalculated(orig.GetCalculated())
 	newColumn.SetChoice(orig.GetChoice())
@@ -124,32 +144,24 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
 	newColumn.SetCurrency(orig.GetCurrency())
 	newColumn.SetDateTime(orig.GetDateTime())
-	newColumn.SetDefaultValue(orig.GetDefaultValue())
-	newColumn.SetDescription(orig.GetDescription())
-	newColumn.SetDisplayName(orig.GetDisplayName())
 	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
 	newColumn.SetGeolocation(orig.GetGeolocation())
-	newColumn.SetHidden(orig.GetHidden())
 	newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
-	newColumn.SetIndexed(orig.GetIndexed())
-	newColumn.SetIsDeletable(orig.GetIsDeletable())
-	newColumn.SetIsReorderable(orig.GetIsReorderable())
-	newColumn.SetIsSealed(orig.GetIsSealed())
-	newColumn.SetLookup(orig.GetLookup())
-	newColumn.SetName(orig.GetName())
 	newColumn.SetNumber(orig.GetNumber())
-	newColumn.SetOdataType(orig.GetOdataType())
-	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
-	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
-	newColumn.SetReadOnly(orig.GetReadOnly())
-	newColumn.SetRequired(orig.GetRequired())
-	newColumn.SetSourceColumn(orig.GetSourceColumn())
-	newColumn.SetSourceContentType(orig.GetSourceContentType())
-	newColumn.SetTerm(orig.GetTerm())
-	newColumn.SetText(orig.GetText())
+	newColumn.SetLookup(orig.GetLookup())
 	newColumn.SetThumbnail(orig.GetThumbnail())
 	newColumn.SetTypeEscaped(orig.GetTypeEscaped())
-	newColumn.SetValidation(orig.GetValidation())
+
+	// Requires nil checks to avoid Graph error: 'General exception while processing'
+	defaultValue := orig.GetDefaultValue()
+	if defaultValue != nil {
+		newColumn.SetDefaultValue(defaultValue)
+	}
+
+	validation := orig.GetValidation()
+	if defaultValue != nil {
+		newColumn.SetValidation(validation)
+	}
 
 	return newColumn
 }
@@ -159,24 +171,33 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 // - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
 func CloneListItem(orig models.ListItemable) models.ListItemable {
 	newItem := models.NewListItem()
-	newFieldData := retrieveFieldData(orig.GetFields())
 
-	newItem.SetAdditionalData(orig.GetAdditionalData())
-	newItem.SetAnalytics(orig.GetAnalytics())
-	newItem.SetContentType(orig.GetContentType())
-	newItem.SetCreatedBy(orig.GetCreatedBy())
-	newItem.SetCreatedByUser(orig.GetCreatedByUser())
-	newItem.SetCreatedDateTime(orig.GetCreatedDateTime())
-	newItem.SetDescription(orig.GetDescription())
-	// ETag cannot be carried forward
+	// list item data
+	newFieldData := retrieveFieldData(orig.GetFields())
 	newItem.SetFields(newFieldData)
+
+	// list item attributes
+	newItem.SetAdditionalData(orig.GetAdditionalData())
+	newItem.SetDescription(orig.GetDescription())
+	newItem.SetCreatedBy(orig.GetCreatedBy())
+	newItem.SetCreatedDateTime(orig.GetCreatedDateTime())
 	newItem.SetLastModifiedBy(orig.GetLastModifiedBy())
-	newItem.SetLastModifiedByUser(orig.GetLastModifiedByUser())
 	newItem.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
 	newItem.SetOdataType(orig.GetOdataType())
-	// parentReference and SharePointIDs cause error on upload.
-	// POST Command will link items to the created list.
+	newItem.SetAnalytics(orig.GetAnalytics())
+	newItem.SetContentType(orig.GetContentType())
 	newItem.SetVersions(orig.GetVersions())
+
+	// Requires nil checks to avoid Graph error: 'Invalid request'
+	lastCreatedByUser := orig.GetCreatedByUser()
+	if lastCreatedByUser != nil {
+		newItem.SetCreatedByUser(lastCreatedByUser)
+	}
+
+	lastModifiedByUser := orig.GetLastModifiedByUser()
+	if lastCreatedByUser != nil {
+		newItem.SetLastModifiedByUser(lastModifiedByUser)
+	}
 
 	return newItem
 }
