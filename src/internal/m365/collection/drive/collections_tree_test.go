@@ -562,16 +562,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			tree:           fullTreeWithNames("parent", "tombstone"),
 			enableURLCache: true,
 			prevPaths: map[string]string{
-				rootID:                    fullPath(),
-				idx(folder, "pa/rent"):    fullPath(namex(folder, "parent-prev")),
-				id(folder):                fullPath(namex(folder, "parent-prev"), name(folder)),
-				idx(folder, "to/mbstone"): fullPath(namex(folder, "tombstone-prev")),
+				rootID:                   fullPath(),
+				idx(folder, "parent"):    fullPath(namex(folder, "parent-prev")),
+				id(folder):               fullPath(namex(folder, "parent-prev"), name(folder)),
+				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone-prev")),
 			},
 			expect: expected{
 				prevPaths: map[string]string{
-					rootID:                 fullPath(),
-					idx(folder, "pa/rent"): fullPath(namex(folder, "parent")),
-					id(folder):             fullPath(namex(folder, "parent"), name(folder)),
+					rootID:                fullPath(),
+					idx(folder, "parent"): fullPath(namex(folder, "parent")),
+					id(folder):            fullPath(namex(folder, "parent"), name(folder)),
 				},
 				collections: func(t *testing.T) expectedCollections {
 					return expectCollections(
@@ -591,6 +591,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 							id(file)),
 						aColl(nil, fullPathPath(t, namex(folder, "tombstone-prev"))))
 				},
+				globalExcludedFileIDs: makeExcludeMap(
+					idx(file, "r"),
+					idx(file, "p"),
+					idx(file, "d"),
+					id(file)),
 			},
 		},
 		{
