@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -296,7 +297,7 @@ func (c *Collections) Get(
 ) ([]data.BackupCollection, bool, error) {
 	if c.ctrl.ToggleFeatures.UseDeltaTree {
 		colls, canUsePrevBackup, err := c.getTree(ctx, prevMetadata, ssmb, errs)
-		if err != nil {
+		if err != nil && !errors.Is(err, errGetTreeNotImplemented) {
 			return nil, false, clues.Wrap(err, "processing backup using tree")
 		}
 
@@ -828,7 +829,7 @@ func (c *Collections) PopulateDriveCollections(
 			break
 		}
 
-		counter.Inc(count.PagesEnumerated)
+		counter.Inc(count.TotalPagesEnumerated)
 
 		if reset {
 			counter.Inc(count.PagerResets)
