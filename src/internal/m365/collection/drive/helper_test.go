@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 const defaultItemSize int64 = 42
@@ -883,7 +884,7 @@ func treeWithFolders(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithRoot(t)
-	tree.root.files[id(file)] = fileAtRoot()
+	tree.root.files[id(file)] = custom.ToCustomDriveItem(fileAtRoot())
 	tree.fileIDToParentID[id(file)] = rootID
 
 	return tree
@@ -898,7 +899,7 @@ func treeWithDeletedFile(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithFolders(t)
-	tree.folderIDToNode[id(folder)].files[id(file)] = fileAt(folder)
+	tree.folderIDToNode[id(folder)].files[id(file)] = custom.ToCustomDriveItem(fileAt(folder))
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
@@ -906,7 +907,7 @@ func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithTombstone(t)
-	tree.tombstones[id(folder)].files[id(file)] = fileAt("tombstone")
+	tree.tombstones[id(folder)].files[id(file)] = custom.ToCustomDriveItem(fileAt("tombstone"))
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
