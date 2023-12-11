@@ -89,7 +89,7 @@ type nodeyMcNodeFace struct {
 	// folderID -> node
 	children map[string]*nodeyMcNodeFace
 	// file item ID -> file metadata
-	files map[string]models.DriveItemable
+	files map[string]*custom.DriveItem
 	// for special handling protocols around packages
 	isPackage bool
 }
@@ -104,7 +104,7 @@ func newNodeyMcNodeFace(
 		id:        id,
 		name:      name,
 		children:  map[string]*nodeyMcNodeFace{},
-		files:     map[string]models.DriveItemable{},
+		files:     map[string]*custom.DriveItem{},
 		isPackage: isPackage,
 	}
 }
@@ -344,7 +344,7 @@ func (face *folderyMcFolderFace) addFile(
 	}
 
 	face.fileIDToParentID[id] = parentID
-	parent.files[id] = file
+	parent.files[id] = custom.ToCustomDriveItem(file)
 
 	delete(face.deletedFileIDs, id)
 
@@ -438,15 +438,9 @@ func walkTreeAndBuildCollections(
 			With("path_prefix", pathPfx, "path_suffix", parentPath.Elements())
 	}
 
-	customFiles := map[string]*custom.DriveItem{}
-
-	for fID, file := range node.files {
-		customFiles[fID] = custom.ToCustomDriveItem(file)
-	}
-
 	cbl := collectable{
 		currPath:                  currPath,
-		files:                     customFiles,
+		files:                     node.files,
 		folderID:                  node.id,
 		isPackageOrChildOfPackage: node.isPackage || isChildOfPackage,
 		loc:                       loc,
