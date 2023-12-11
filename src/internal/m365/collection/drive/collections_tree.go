@@ -240,12 +240,7 @@ func (c *Collections) makeDriveCollections(
 		globalExcludeItemIDsByDrivePrefix.Add(p.String(), excludedItemIDs)
 	}
 
-	// this is a dumb hack to satisfy the linter.
-	if ctx == nil {
-		return nil, nil, du, nil
-	}
-
-	return collections, newPrevs, du, errGetTreeNotImplemented
+	return collections, newPrevs, du, nil
 }
 
 // populateTree constructs a new tree and populates it with items
@@ -394,12 +389,13 @@ func (c *Collections) enumeratePageOfItems(
 	ctx = clues.Add(ctx, "page_lenth", len(page))
 	el := errs.Local()
 
-	for i, item := range page {
+	for i, driveItem := range page {
 		if el.Failure() != nil {
 			break
 		}
 
 		var (
+			item     = custom.ToCustomDriveItem(driveItem)
 			isFolder = item.GetFolder() != nil || item.GetPackageEscaped() != nil
 			isFile   = item.GetFile() != nil
 			itemID   = ptr.Val(item.GetId())
@@ -445,7 +441,7 @@ func (c *Collections) addFolderToTree(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
 	drv models.Driveable,
-	folder models.DriveItemable,
+	folder *custom.DriveItem,
 	limiter *pagerLimiter,
 	counter *count.Bus,
 ) (*fault.Skipped, error) {
@@ -494,7 +490,7 @@ func (c *Collections) addFolderToTree(
 			driveID,
 			folderID,
 			folderName,
-			graph.ItemInfo(custom.ToCustomDriveItem(folder)))
+			graph.ItemInfo(folder))
 
 		logger.Ctx(ctx).Infow("malware folder detected")
 
@@ -526,7 +522,7 @@ func (c *Collections) addFolderToTree(
 func (c *Collections) makeFolderCollectionPath(
 	ctx context.Context,
 	driveID string,
-	folder models.DriveItemable,
+	folder *custom.DriveItem,
 ) (path.Path, error) {
 	if folder.GetRoot() != nil {
 		pb := odConsts.DriveFolderPrefixBuilder(driveID)
@@ -558,7 +554,7 @@ func (c *Collections) addFileToTree(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
 	drv models.Driveable,
-	file models.DriveItemable,
+	file *custom.DriveItem,
 	limiter *pagerLimiter,
 	counter *count.Bus,
 ) (*fault.Skipped, error) {
@@ -594,7 +590,7 @@ func (c *Collections) addFileToTree(
 			driveID,
 			fileID,
 			fileName,
-			graph.ItemInfo(custom.ToCustomDriveItem(file)))
+			graph.ItemInfo(file))
 
 		logger.Ctx(ctx).Infow("malware file detected")
 
