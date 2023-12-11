@@ -322,6 +322,9 @@ func (c Mail) GetItem(
 	// https://learn.microsoft.com/en-us/answers/questions/1227026/pagination-not-working-when-fetching-message-attac
 	logger.CtxErr(ctx, err).Info("fetching all attachments by id")
 
+	// Clear expand params
+	attachConfig.QueryParameters.Expand = []string{}
+
 	// Getting size just to log in case of error
 	attachConfig.QueryParameters.Select = idAnd("size")
 

@@ -370,6 +370,52 @@ func (suite *MailAPIIntgSuite) TestMail_attachmentListDownload() {
 	}
 }
 
+func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
+	tests := []struct {
+		name      string
+		messageID string
+		expect    assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "Attachment for a given message ID",
+			messageID: "", // @vkamra insert message id here
+			expect:    assert.NoError,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			item, _, err := suite.its.ac.Mail().GetItem(
+				ctx,
+				"", // @vkamra insert user id here
+				test.messageID,
+				false,
+				fault.New(true))
+			test.expect(t, err)
+
+			it, ok := item.(models.Messageable)
+			require.True(t, ok, "convert to messageable")
+
+			var size int64
+
+			if it.GetBody() != nil {
+				content := ptr.Val(it.GetBody().GetContent())
+				size = int64(len(content))
+			}
+
+			attachments := it.GetAttachments()
+			for _, attachment := range attachments {
+				size += int64(*attachment.GetSize())
+			}
+		})
+	}
+}
+
 func (suite *MailAPIIntgSuite) TestMail_PostLargeAttachment() {
 	t := suite.T()
 
