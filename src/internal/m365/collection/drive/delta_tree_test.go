@@ -67,7 +67,7 @@ func (suite *DeltaTreeUnitSuite) TestNewNodeyMcNodeFace() {
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 	table := []struct {
 		tname     string
-		tree      *folderyMcFolderFace
+		tree      func(t *testing.T) *folderyMcFolderFace
 		parentID  string
 		id        string
 		name      string
@@ -286,8 +286,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 		{
 			name:            "added folders after reset",
 			id:              id(folder),
-			loc:             loc,
-			tree:            treeWithFoldersAfterReset(),
+			prev:            pathWith(defaultLoc()),
+			tree:            treeWithFoldersAfterReset,
 			expectErr:       assert.NoError,
 			expectLive:      true,
 			expectTombstone: false,
@@ -845,7 +845,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			assert.Equal(t, test.contentSize, countSize.totalBytes, "tree should be sized to test file contents")
 
 			if len(test.oldParentID) > 0 && test.oldParentID != test.parentID {
-				old, := tree.GetNode(test.oldParentID)
+				old := tree.getNode(test.oldParentID)
 
 				require.NotNil(t, old)
 				assert.NotContains(t, old.files, id(file))
@@ -900,7 +900,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
 
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 	t := suite.T()
-	tree := treeWithRoot()
+	tree := treeWithRoot(t)
 	fID := id(file)
 
 	require.Len(t, tree.fileIDToParentID, 0)

@@ -801,7 +801,12 @@ func defaultTreePfx(t *testing.T) path.Path {
 	fpb = path.Builder{}.Append(fpe...)
 
 	p, err := path.FromDataLayerPath(fpb.String(), false)
-	require.NoError(t, err, clues.ToCore(err))
+	require.NoErrorf(
+		t,
+		err,
+		"err processing path:\n\terr %+v\n\tpath %q",
+		clues.ToCore(err),
+		fpb)
 
 	return p
 }
@@ -897,46 +902,54 @@ func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
 // one item in the tombstone
 // one deleted item
 func fullTree(t *testing.T) *folderyMcFolderFace {
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+	return fullTreeWithNames("parent", "tombstone")(t)
+}
 
-	tree := treeWithRoot(t)
+func fullTreeWithNames(
+	parentFolderX, tombstoneX any,
+) func(t *testing.T) *folderyMcFolderFace {
+	return func(t *testing.T) *folderyMcFolderFace {
+		ctx, flush := tester.NewContext(t)
+		defer flush()
 
-	// file in root
-	err := tree.addFile(rootID, idx(file, "r"), time.Now(), 42)
-	require.NoError(t, err, clues.ToCore(err))
+		tree := treeWithRoot(t)
 
-	// root -> idx(folder, parent)
-	err = tree.setFolder(ctx, rootID, idx(folder, "parent"), namex(folder, "parent"), false)
-	require.NoError(t, err, clues.ToCore(err))
+		// file in root
+		err := tree.addFile(rootID, idx(file, "r"), time.Now(), 42)
+		require.NoError(t, err, clues.ToCore(err))
 
-	// file in idx(folder, parent)
-	err = tree.addFile(idx(folder, "parent"), idx(file, "p"), time.Now(), 42)
-	require.NoError(t, err, clues.ToCore(err))
+		// root -> idx(folder, parent)
+		err = tree.setFolder(ctx, rootID, idx(folder, parentFolderX), namex(folder, parentFolderX), false)
+		require.NoError(t, err, clues.ToCore(err))
 
-	// idx(folder, parent) -> id(folder)
-	err = tree.setFolder(ctx, idx(folder, "parent"), id(folder), name(folder), false)
-	require.NoError(t, err, clues.ToCore(err))
+		// file in idx(folder, parent)
+		err = tree.addFile(idx(folder, parentFolderX), idx(file, "p"), time.Now(), 42)
+		require.NoError(t, err, clues.ToCore(err))
 
-	// file in id(folder)
-	err = tree.addFile(id(folder), id(file), time.Now(), 42)
-	require.NoError(t, err, clues.ToCore(err))
+		// idx(folder, parent) -> id(folder)
+		err = tree.setFolder(ctx, idx(folder, parentFolderX), id(folder), name(folder), false)
+		require.NoError(t, err, clues.ToCore(err))
 
-	// tombstone - have to set a non-tombstone folder first, then add the item, then tombstone the folder
-	err = tree.setFolder(ctx, rootID, idx(folder, "tombstone"), namex(folder, "tombstone"), false)
-	require.NoError(t, err, clues.ToCore(err))
+		// file in id(folder)
+		err = tree.addFile(id(folder), id(file), time.Now(), 42)
+		require.NoError(t, err, clues.ToCore(err))
 
-	// file in tombstone
-	err = tree.addFile(idx(folder, "tombstone"), idx(file, "t"), time.Now(), 42)
-	require.NoError(t, err, clues.ToCore(err))
+		// tombstone - have to set a non-tombstone folder first, then add the item, then tombstone the folder
+		err = tree.setFolder(ctx, rootID, idx(folder, tombstoneX), namex(folder, tombstoneX), false)
+		require.NoError(t, err, clues.ToCore(err))
 
-	err = tree.setTombstone(ctx, idx(folder, "tombstone"))
-	require.NoError(t, err, clues.ToCore(err))
+		// file in tombstone
+		err = tree.addFile(idx(folder, tombstoneX), idx(file, "t"), time.Now(), 42)
+		require.NoError(t, err, clues.ToCore(err))
 
-	// deleted file
-	tree.deleteFile(idx(file, "d"))
+		err = tree.setTombstone(ctx, idx(folder, tombstoneX))
+		require.NoError(t, err, clues.ToCore(err))
 
-	return tree
+		// deleted file
+		tree.deleteFile(idx(file, "d"))
+
+		return tree
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -966,7 +979,11 @@ func fullOrPrevPath(
 		collPath = coll.FullPath()
 	}
 
-	require.NotNil(t, collPath, "full or prev path are nil for coll with state: %s", coll.State())
+	require.NotNil(
+		t,
+		collPath,
+		"full or prev path are nil for collection with state:\n\t%s",
+		coll.State())
 
 	require.False(
 		t,

@@ -82,6 +82,7 @@ const (
 	TotalDeltasProcessed        Key = "total-deltas-processed"
 	TotalFilesProcessed         Key = "total-files-processed"
 	TotalFoldersProcessed       Key = "total-folders-processed"
+	TotalItemsProcessed         Key = "total-items-processed"
 	TotalMalwareProcessed       Key = "total-malware-processed"
 	TotalPackagesProcessed      Key = "total-packages-processed"
 	TotalPagesEnumerated        Key = "total-pages-enumerated"

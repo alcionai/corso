@@ -2,6 +2,7 @@ package drive
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -244,7 +245,7 @@ func (c *Collections) populateTree(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) (pagers.DeltaUpdate, int, error) {
-	ctx = clues.Add(ctx, "missing_prev_delta", len(prevDeltaLink) == 0)
+	ctx = clues.Add(ctx, "has_prev_delta", len(prevDeltaLink) > 0)
 
 	var (
 		currDeltaLink = prevDeltaLink
@@ -254,19 +255,28 @@ func (c *Collections) populateTree(
 		finished      bool
 		hitLimit      bool
 		// TODO: plug this into the limiter
-		maxDeltas int64 = 100
-		// this page counter is intentionally local and not
-		// connected to the collections page counter.  It's
-		// only used for tracking the enumerations in this
-		// func, and we don't want it to cross contaminate
-		// with other counters.
-		pageCounter = count.New()
+		maximumTotalDeltasAllowed int64 = 100
+		// pageCounter is intended as a separate local instance
+		// compared to the counter we use for other item tracking.
+		// IE: don't pass it around into other funcs.
+		//
+		// This allows us to reset pageCounter on a reset without
+		// cross-contaminating other counts.
+		//
+		// We use this to track three keys: 1. the total number of
+		// deltas enumerated (so that we don't hit an infinite
+		// loop); 2. the number of pages in each delta (for the
+		// limiter, but also for the URL cache so that it knows
+		// if we have too many pages for it to efficiently operate);
+		// and 3. the number of items in each delta (to know if we're
+		// done enumerating delta queries).
+		pageCounter = counter.Local()
 	)
 
 	const (
-		itemsInDelta  count.Key = "items-in-delta"
-		totalDeltas   count.Key = "total-deltas"
-		truePageCount count.Key = "true-page-count"
+		// track the exact number of pages across all deltas (correct across resets)
+		// so that the url cache knows if it can operate within performance bounds.
+		truePageCount count.Key = "pages-with-items-across-all-deltas"
 	)
 
 	// enumerate through multiple deltas until we either:
@@ -277,11 +287,16 @@ func (c *Collections) populateTree(
 		counter.Inc(count.TotalDeltasProcessed)
 
 		var (
+			// this is used to track stats the total number of items
+			// processed in each delta.  Since delta queries don't give
+			// us a plain flag for "no changes occurred", we check for
+			// 0 items in the delta as the "no changes occurred" state.
+			// The final page of any delta query may also return 0 items,
+			// so we need to combine both the item count and the deltaPageCount
+			// to get a correct flag.
 			iPageCounter = pageCounter.Local()
 			err          error
 		)
-
-		pageCounter.Inc(totalDeltas)
 
 		pager := c.handler.EnumerateDriveItemsDelta(
 			ctx,
@@ -296,15 +311,19 @@ func (c *Collections) populateTree(
 				return du, 0, el.Failure()
 			}
 
+			// track the exact number of pages within a single delta (correct across resets)
+			// so that we can check for "no changes occurred" results.
+			// Note: don't inc `count.TotalPagesEnumerated` outside of this (ie, for the
+			// truePageCount), or else we'll double up on the inc.
+			iPageCounter.Inc(count.TotalPagesEnumerated)
+
 			if reset {
 				counter.Inc(count.PagerResets)
 				tree.reset()
 				c.resetStats()
 
-				pageCounter = count.New()
+				pageCounter = counter.Local()
 				iPageCounter = pageCounter.Local()
-			} else {
-				counter.Inc(count.TotalPagesEnumerated)
 			}
 
 			err = c.enumeratePageOfItems(
@@ -324,13 +343,17 @@ func (c *Collections) populateTree(
 				el.AddRecoverable(ctx, clues.Stack(err))
 			}
 
-			iPageCounter.Inc(truePageCount)
-			iPageCounter.Add(itemsInDelta, int64(len(page)))
+			itemCount := int64(len(page))
+			iPageCounter.Add(count.TotalItemsProcessed, itemCount)
 
-			// Stop enumeration early if we've reached the page limit. Keep this
+			if itemCount > 0 {
+				pageCounter.Inc(truePageCount)
+			}
+
+			// Stop enumeration early if we've reached the total page limit. Keep this
 			// at the end of the loop so we don't request another page (pager.NextPage)
 			// before seeing we've passed the limit.
-			if limiter.hitPageLimit(int(iPageCounter.Get(truePageCount))) {
+			if limiter.hitPageLimit(int(pageCounter.Get(truePageCount))) {
 				hitLimit = true
 				break
 			}
@@ -350,11 +373,15 @@ func (c *Collections) populateTree(
 
 		// 0 pages is never expected.  We should at least have one (empty) page to
 		// consume.  But checking pageCount == 1 is brittle in a non-helpful way.
-		finished = iPageCounter.Get(truePageCount) < 2 &&
-			iPageCounter.Get(itemsInDelta) == 0
+		finished = iPageCounter.Get(count.TotalPagesEnumerated) < 2 &&
+			iPageCounter.Get(count.TotalItemsProcessed) == 0
 
-		if pageCounter.Get(totalDeltas) >= maxDeltas {
-			err := clues.NewWC(ctx, "unable to produce consistent delta after 100 queries")
+		// ensure we don't enumerate more than the maximum allotted count of deltas.
+		if counter.Get(count.TotalDeltasProcessed) >= maximumTotalDeltasAllowed {
+			err := clues.NewWC(
+				ctx,
+				fmt.Sprintf("unable to produce consistent delta after %d queries", maximumTotalDeltasAllowed))
+
 			return pagers.DeltaUpdate{}, 0, err
 		}
 	}
@@ -779,6 +806,12 @@ func (c *Collections) turnTreeIntoCollections(
 
 		uc, err = newURLCache(
 			driveID,
+			// we need the original prevDeltaLink here; a cache update will need
+			// to process all changes since the start of the backup.  On the bright
+			// side, instead of running multiple delta enumerations, all changes
+			// in the backup should get compressed into the single delta query, which
+			// ensures the two states are sufficiently consistent with just the
+			// original delta token.
 			prevDeltaLink,
 			urlCacheRefreshInterval,
 			c.handler,
@@ -795,7 +828,7 @@ func (c *Collections) turnTreeIntoCollections(
 		}
 
 		if cbl.currPath != nil {
-			newPrevPaths[id] = cbl.currPath.PlainString()
+			newPrevPaths[id] = cbl.currPath.String()
 		}
 
 		coll, err := NewCollection(

@@ -486,7 +486,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections() {
 	type expected struct {
-		err         require.ErrorAssertionFunc
 		prevPaths   map[string]string
 		collections func(t *testing.T) expectedCollections
 	}
@@ -507,7 +506,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			},
 			enableURLCache: true,
 			expect: expected{
-				err: require.NoError,
 				prevPaths: map[string]string{
 					rootID:                fullPath(),
 					idx(folder, "parent"): fullPath(namex(folder, "parent")),
@@ -544,11 +542,46 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone-prev")),
 			},
 			expect: expected{
-				err: require.NoError,
 				prevPaths: map[string]string{
 					rootID:                fullPath(),
 					idx(folder, "parent"): fullPath(namex(folder, "parent")),
 					id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+				},
+				collections: func(t *testing.T) expectedCollections {
+					return expectCollections(
+						false,
+						true,
+						aColl(
+							fullPathPath(t),
+							fullPathPath(t),
+							idx(file, "r")),
+						aColl(
+							fullPathPath(t, namex(folder, "parent")),
+							fullPathPath(t, namex(folder, "parent-prev")),
+							idx(file, "p")),
+						aColl(
+							fullPathPath(t, namex(folder, "parent"), name(folder)),
+							fullPathPath(t, namex(folder, "parent-prev"), name(folder)),
+							id(file)),
+						aColl(nil, fullPathPath(t, namex(folder, "tombstone-prev"))))
+				},
+			},
+		},
+		{
+			name:           "all folders moved - todo: path separator string check",
+			tree:           fullTreeWithNames("parent", "tombstone"),
+			enableURLCache: true,
+			prevPaths: map[string]string{
+				rootID:                    fullPath(),
+				idx(folder, "pa/rent"):    fullPath(namex(folder, "parent-prev")),
+				id(folder):                fullPath(namex(folder, "parent-prev"), name(folder)),
+				idx(folder, "to/mbstone"): fullPath(namex(folder, "tombstone-prev")),
+			},
+			expect: expected{
+				prevPaths: map[string]string{
+					rootID:                 fullPath(),
+					idx(folder, "pa/rent"): fullPath(namex(folder, "parent")),
+					id(folder):             fullPath(namex(folder, "parent"), name(folder)),
 				},
 				collections: func(t *testing.T) expectedCollections {
 					return expectCollections(
@@ -581,7 +614,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone")),
 			},
 			expect: expected{
-				err: require.NoError,
 				prevPaths: map[string]string{
 					rootID:                fullPath(),
 					idx(folder, "parent"): fullPath(namex(folder, "parent")),
@@ -634,7 +666,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 				delta,
 				countPages,
 				fault.New(true))
-			test.expect.err(t, err, clues.ToCore(err))
+			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect.prevPaths, newPrevPaths, "new previous paths")
 
 			expectColls := test.expect.collections(t)
@@ -826,7 +858,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		},
 		{
 			name: "many folders with files across multiple deltas",
-			tree: newFolderyMcFolderFace(nil, rootID),
+			tree: newTree,
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(id(drive)).With(
 					mock.Delta(id(delta), nil).With(aPage(
@@ -1595,7 +1627,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 		},
 		{
 			name:    "tombstone new folder in unpopulated tree",
-			tree:    newFolderyMcFolderFace(nil, rootID),
+			tree:    newTree,
 			folder:  del,
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
@@ -1651,7 +1683,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 		},
 		{
 			name:    "already over container limit, folder seen twice",
-			tree:    treeWithFolders(),
+			tree:    treeWithFolders,
 			folder:  fld,
 			limiter: newPagerLimiter(minimumLimitOpts()),
 			expect: expected{
@@ -1671,7 +1703,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 		},
 		{
 			name:    "already at container limit",
-			tree:    treeWithRoot(),
+			tree:    treeWithRoot,
 			folder:  fld,
 			limiter: newPagerLimiter(minimumLimitOpts()),
 			expect: expected{
@@ -1866,7 +1898,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 		},
 		{
 			name: "many files in a hierarchy",
-			tree: treeWithRoot(),
+			tree: treeWithRoot,
 			page: aPage(
 				fileAtRoot(),
 				folderAtRoot(),
@@ -2042,7 +2074,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				fault.New(true))
 			test.expect.err(t, err, clues.ToCore(err))
 
-			countSize := test.tree.countLiveFilesAndSizes()
+			countSize := tree.countLiveFilesAndSizes()
 			assert.Equal(t, test.expect.countLiveFiles, countSize.numFiles, "count of files")
 			assert.Equal(t, test.expect.countTotalBytes, countSize.totalBytes, "total size in bytes")
 			assert.Equal(t, test.expect.treeContainsFileIDsWithParent, tree.fileIDToParentID)
