@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 const defaultItemSize int64 = 42
@@ -888,15 +889,22 @@ func treeWithFolders(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithRoot(t)
-	tree.root.files[id(file)] = fileAtRoot()
+	tree.root.files[id(file)] = custom.ToCustomDriveItem(fileAtRoot())
 	tree.fileIDToParentID[id(file)] = rootID
+
+	return tree
+}
+
+func treeWithDeletedFile(t *testing.T) *folderyMcFolderFace {
+	tree := treeWithRoot(t)
+	tree.deleteFile(idx(file, "d"))
 
 	return tree
 }
 
 func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithFolders(t)
-	tree.folderIDToNode[id(folder)].files[id(file)] = fileAt(folder)
+	tree.folderIDToNode[id(folder)].files[id(file)] = custom.ToCustomDriveItem(fileAt(folder))
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
@@ -904,7 +912,7 @@ func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
 
 func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
 	tree := treeWithTombstone(t)
-	tree.tombstones[id(folder)].files[id(file)] = fileAt("tombstone")
+	tree.tombstones[id(folder)].files[id(file)] = custom.ToCustomDriveItem(fileAt("tombstone"))
 	tree.fileIDToParentID[id(file)] = id(folder)
 
 	return tree
@@ -929,10 +937,11 @@ func fullTreeWithNames(
 		tree := treeWithRoot(t)
 
 		// file in root
+		df := driveFile("r", parentDir(), rootID)
 		err := tree.addFile(
 			rootID,
 			idx(file, "r"),
-			driveFile("r", parentDir(), rootID))
+			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// root -> idx(folder, parent)
@@ -940,10 +949,11 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in idx(folder, parent)
+		df = driveFile("p", parentDir(namex(folder, parentFolderX)), idx(folder, parentFolderX))
 		err = tree.addFile(
 			idx(folder, parentFolderX),
 			idx(file, "p"),
-			driveFile("p", parentDir(namex(folder, parentFolderX)), idx(folder, parentFolderX)))
+			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// idx(folder, parent) -> id(folder)
@@ -951,10 +961,11 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in id(folder)
+		df = driveFile(file, parentDir(name(folder)), id(folder))
 		err = tree.addFile(
 			id(folder),
 			id(file),
-			driveFile(file, parentDir(name(folder)), id(folder)))
+			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
 		// tombstone - have to set a non-tombstone folder first, then add the item, then tombstone the folder
@@ -962,10 +973,11 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in tombstone
+		df = driveFile("t", parentDir(namex(folder, tombstoneX)), idx(folder, tombstoneX))
 		err = tree.addFile(
 			idx(folder, tombstoneX),
 			idx(file, "t"),
-			driveFile("t", parentDir(namex(folder, tombstoneX)), idx(folder, tombstoneX)))
+			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = tree.setTombstone(ctx, idx(folder, tombstoneX))

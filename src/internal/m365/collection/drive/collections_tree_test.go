@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 type CollectionsTreeUnitSuite struct {
@@ -274,8 +275,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(id(drive)).With(
 					mock.Delta(id(delta), nil).With(
-						aPage(),
-					))),
+						aPage()))),
 			prevPaths: map[string]string{
 				id(folder): fullPath(name(folder)),
 			},
@@ -290,8 +290,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(id(drive)).With(
 					mock.Delta(id(delta), nil).With(
-						aPage(folderAtRoot(), fileAt(folder)),
-					))),
+						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{},
 			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
@@ -304,8 +303,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			enumerator: mock.DriveEnumerator(
 				mock.Drive(id(drive)).With(
 					mock.Delta(id(delta), nil).With(
-						aPage(folderAtRoot(), fileAt(folder)),
-					))),
+						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{
 				id(folder): fullPath(name(folder)),
 			},
@@ -321,8 +319,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				mock.Drive(id(drive)).With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
-						aPage(),
-					))),
+						aPage()))),
 			prevPaths: map[string]string{},
 			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
@@ -336,8 +333,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				mock.Drive(id(drive)).With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
-						aPage(),
-					))),
+						aPage()))),
 			prevPaths: map[string]string{
 				id(folder): fullPath(name(folder)),
 			},
@@ -353,8 +349,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				mock.Drive(id(drive)).With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
-						aPage(folderAtRoot(), fileAt(folder)),
-					))),
+						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{},
 			expectErr: require.NoError,
 			expectCounts: countTD.Expected{
@@ -368,8 +363,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				mock.Drive(id(drive)).With(
 					mock.DeltaWReset(id(delta), nil).With(
 						aReset(),
-						aPage(folderAtRoot(), fileAt(folder)),
-					))),
+						aPage(folderAtRoot(), fileAt(folder))))),
 			prevPaths: map[string]string{
 				id(folder): fullPath(name(folder)),
 			},
@@ -398,6 +392,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				test.prevPaths,
 				idx(delta, "prev"),
 				newPagerLimiter(control.DefaultOptions()),
+				prefixmatcher.NewStringSetBuilder(),
 				c.counter,
 				fault.New(true))
 
@@ -486,8 +481,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections() {
 	type expected struct {
-		prevPaths   map[string]string
-		collections func(t *testing.T) expectedCollections
+		prevPaths             map[string]string
+		collections           func(t *testing.T) expectedCollections
+		globalExcludedFileIDs map[string]struct{}
 	}
 
 	table := []struct {
@@ -525,6 +521,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 							nil,
 							id(file)))
 				},
+				globalExcludedFileIDs: makeExcludeMap(
+					idx(file, "r"),
+					idx(file, "p"),
+					idx(file, "d"),
+					id(file)),
 			},
 		},
 		{
@@ -561,6 +562,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 							id(file)),
 						aColl(nil, fullPathPath(t, namex(folder, "tombstone-prev"))))
 				},
+				globalExcludedFileIDs: makeExcludeMap(
+					idx(file, "r"),
+					idx(file, "p"),
+					idx(file, "d"),
+					id(file)),
 			},
 		},
 		{
@@ -633,6 +639,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 							id(file)),
 						aColl(nil, fullPathPath(t, namex(folder, "tombstone"))))
 				},
+				globalExcludedFileIDs: makeExcludeMap(
+					idx(file, "r"),
+					idx(file, "p"),
+					idx(file, "d"),
+					id(file)),
 			},
 		},
 	}
@@ -655,7 +666,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 				countPages = 1
 			}
 
-			colls, newPrevPaths, err := c.turnTreeIntoCollections(
+			colls, newPrevPaths, excluded, err := c.turnTreeIntoCollections(
 				ctx,
 				tree,
 				id(drive),
@@ -668,6 +679,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			expectColls := test.expect.collections(t)
 			expectColls.compare(t, colls)
 			expectColls.requireNoUnseenCollections(t)
+
+			assert.Equal(t, test.expect.globalExcludedFileIDs, excluded)
 		})
 	}
 }
@@ -1522,11 +1535,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 	drv.SetId(ptr.To(id(drive)))
 	drv.SetName(ptr.To(name(drive)))
 
-	fld := folderAtRoot()
-	subFld := folderAtDeep(driveParentDir(drv, namex(folder, "parent")), idx(folder, "parent"))
-	pack := driveItem(id(pkg), name(pkg), parentDir(), rootID, isPackage)
-	del := delItem(id(folder), rootID, isFolder)
-	mal := malwareItem(idx(folder, "mal"), namex(folder, "mal"), parentDir(), rootID, isFolder)
+	var (
+		fld    = custom.ToCustomDriveItem(folderAtRoot())
+		subFld = custom.ToCustomDriveItem(folderAtDeep(driveParentDir(drv, namex(folder, "parent")), idx(folder, "parent")))
+		pack   = custom.ToCustomDriveItem(driveItem(id(pkg), name(pkg), parentDir(), rootID, isPackage))
+		del    = custom.ToCustomDriveItem(delItem(id(folder), rootID, isFolder))
+		mal    = custom.ToCustomDriveItem(
+			malwareItem(idx(folder, "mal"), namex(folder, "mal"), parentDir(), rootID, isFolder))
+	)
 
 	type expected struct {
 		countLiveFolders   int
@@ -1541,7 +1557,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 	table := []struct {
 		name    string
 		tree    func(t *testing.T) *folderyMcFolderFace
-		folder  models.DriveItemable
+		folder  *custom.DriveItem
 		limiter *pagerLimiter
 		expect  expected
 	}{
@@ -1819,7 +1835,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath(
 
 			c := collWithMBH(mock.DefaultOneDriveBH(user))
 
-			p, err := c.makeFolderCollectionPath(ctx, id(drive), test.folder)
+			p, err := c.makeFolderCollectionPath(
+				ctx,
+				id(drive),
+				custom.ToCustomDriveItem(test.folder))
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if err == nil {
@@ -2255,7 +2274,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				ctx,
 				tree,
 				drv,
-				test.file,
+				custom.ToCustomDriveItem(test.file),
 				test.limiter,
 				counter)
 
