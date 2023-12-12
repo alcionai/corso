@@ -36,7 +36,7 @@ type backupLimitTest struct {
 	expectedItemIDsInCollection map[string][]string
 }
 
-func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
+func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 	return []backupLimitTest{
 		{
 			name: "OneDrive SinglePage ExcludeItemsOverMaxSize",
@@ -55,7 +55,7 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 						d1.fileWSizeAtRoot(1, "f2"),
 						d1.fileWSizeAtRoot(1, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath(): {fileID("f2"), fileID("f3")},
+				d1.strPath(t): {fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -75,7 +75,7 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 						d1.fileWSizeAtRoot(2, "f2"),
 						d1.fileWSizeAtRoot(1, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath(): {fileID("f1"), fileID("f2")},
+				d1.strPath(t): {fileID("f1"), fileID("f2")},
 			},
 		},
 		{
@@ -96,8 +96,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 						d1.fileWSizeAt(2, folder, "f2"),
 						d1.fileWSizeAt(1, folder, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath():             {fileID("f1")},
-				d1.strPath(folderName()): {folderID(), fileID("f2")},
+				d1.strPath(t):               {fileID("f1")},
+				d1.strPath(t, folderName()): {folderID(), fileID("f2")},
 			},
 		},
 		{
@@ -120,7 +120,7 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 						d1.fileAtRoot("f5"),
 						d1.fileAtRoot("f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(t): {fileID("f1"), fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -148,8 +148,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(folder, "f5"),
 							d1.fileAt(folder, "f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath():             {fileID("f1"), fileID("f2")},
-				d1.strPath(folderName()): {folderID(), fileID("f3")},
+				d1.strPath(t):               {fileID("f1"), fileID("f2")},
+				d1.strPath(t, folderName()): {folderID(), fileID("f3")},
 			},
 		},
 		{
@@ -175,7 +175,7 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(folder, "f5"),
 							d1.fileAt(folder, "f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath(): {fileID("f1"), fileID("f2")},
+				d1.strPath(t): {fileID("f1"), fileID("f2")},
 			},
 		},
 		{
@@ -202,8 +202,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 			expectedItemIDsInCollection: map[string][]string{
 				// Root has an additional item. It's hard to fix that in the code
 				// though.
-				d1.strPath():             {fileID("f1"), fileID("f2")},
-				d1.strPath(folderName()): {folderID(), fileID("f4")},
+				d1.strPath(t):               {fileID("f1"), fileID("f2")},
+				d1.strPath(t, folderName()): {folderID(), fileID("f4")},
 			},
 		},
 		{
@@ -230,8 +230,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(folder, "f3"),
 							d1.fileAt(folder, "f4"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath():             {},
-				d1.strPath(folderName()): {folderID(), fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(t):               {},
+				d1.strPath(t, folderName()): {folderID(), fileID("f1"), fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -259,8 +259,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 							// Try to move item from root to folder 0 which is already at the limit.
 							d1.fileAt(folder, "f1"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath():             {fileID("f1"), fileID("f2")},
-				d1.strPath(folderName()): {folderID(), fileID("f3"), fileID("f4")},
+				d1.strPath(t):               {fileID("f1"), fileID("f2")},
+				d1.strPath(t, folderName()): {folderID(), fileID("f3"), fileID("f4")},
 			},
 		},
 		{
@@ -287,8 +287,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 							d1.folderAtRoot(),
 							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath(t):               {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(t, folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 		{
@@ -318,8 +318,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(2, "f8"),
 							d1.fileAt(2, "f9"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath(t):               {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(t, folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 		{
@@ -350,8 +350,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(2, "f8"),
 							d1.fileAt(2, "f9"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath(t):               {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(t, folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 		{
@@ -380,8 +380,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 						d2.fileAtRoot("f4"),
 						d2.fileAtRoot("f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
-				d2.strPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(t): {fileID("f1"), fileID("f2"), fileID("f3")},
+				d2.strPath(t): {fileID("f1"), fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -407,8 +407,8 @@ func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 							d1.folderAtRoot(),
 							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath(t):               {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(t, folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 	}
@@ -441,7 +441,7 @@ func iterGetPreviewLimitsTests(
 ) {
 	d1, d2 := drive(), drive(2)
 
-	for _, test := range backupLimitTable(d1, d2) {
+	for _, test := range backupLimitTable(suite.T(), d1, d2) {
 		suite.Run(test.name, func() {
 			runGetPreviewLimits(
 				suite.T(),

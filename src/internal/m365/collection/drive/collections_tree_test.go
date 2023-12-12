@@ -237,6 +237,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 // to ensure we stitch the parts together correctly.
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 	d := drive()
+	t := suite.T()
 
 	table := []struct {
 		name         string
@@ -265,7 +266,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 					delta(id(deltaURL), nil).with(
 						aPage()))),
 			prevPaths: map[string]string{
-				folderID(): d.strPath(folderName()),
+				folderID(): d.strPath(t, folderName()),
 			},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
@@ -291,7 +292,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 					delta(id(deltaURL), nil).with(
 						aPage(d.folderAtRoot(), d.fileAt(folder))))),
 			prevPaths: map[string]string{
-				folderID(): d.strPath(folderName()),
+				folderID(): d.strPath(t, folderName()),
 			},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
@@ -319,7 +320,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{
-				folderID(): d.strPath(folderName()),
+				folderID(): d.strPath(t, folderName()),
 			},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
@@ -347,7 +348,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aReset(),
 						aPage(d.folderAtRoot(), d.fileAt(folder))))),
 			prevPaths: map[string]string{
-				folderID(): d.strPath(folderName()),
+				folderID(): d.strPath(t, folderName()),
 			},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
@@ -384,6 +385,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors() {
 	d := drive()
+	t := suite.T()
 
 	table := []struct {
 		name      string
@@ -395,8 +397,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 			name: "no error - normal usage",
 			tree: treeWithFolders,
 			prevPaths: map[string]string{
-				folderID("parent"): d.strPath(folderName("parent")),
-				folderID():         d.strPath(folderName("parent"), folderName()),
+				folderID("parent"): d.strPath(t, folderName("parent")),
+				folderID():         d.strPath(t, folderName("parent"), folderName()),
 			},
 			expectErr: require.NoError,
 		},
@@ -410,7 +412,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 			name: "no error - folder not visited in this delta",
 			tree: treeWithFolders,
 			prevPaths: map[string]string{
-				id("santa"): d.strPath(name("santa")),
+				id("santa"): d.strPath(t, name("santa")),
 			},
 			expectErr: require.NoError,
 		},
@@ -418,7 +420,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 			name: "empty key in previous paths",
 			tree: treeWithFolders,
 			prevPaths: map[string]string{
-				"": d.strPath(folderName("parent")),
+				"": d.strPath(t, folderName("parent")),
 			},
 			expectErr: require.Error,
 		},
@@ -460,6 +462,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections() {
 	d := drive()
+	t := suite.T()
 
 	type expected struct {
 		prevPaths             map[string]string
@@ -481,9 +484,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			enableURLCache: true,
 			expect: expected{
 				prevPaths: map[string]string{
-					rootID:             d.strPath(),
-					folderID("parent"): d.strPath(folderName("parent")),
-					folderID():         d.strPath(folderName("parent"), folderName()),
+					rootID:             d.strPath(t),
+					folderID("parent"): d.strPath(t, folderName("parent")),
+					folderID():         d.strPath(t, folderName("parent"), folderName()),
 				},
 				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
 					return expectCollections(
@@ -514,16 +517,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			tree:           fullTree,
 			enableURLCache: true,
 			prevPaths: map[string]string{
-				rootID:                d.strPath(),
-				folderID("parent"):    d.strPath(folderName("parent-prev")),
-				folderID():            d.strPath(folderName("parent-prev"), folderName()),
-				folderID("tombstone"): d.strPath(folderName("tombstone-prev")),
+				rootID:                d.strPath(t),
+				folderID("parent"):    d.strPath(t, folderName("parent-prev")),
+				folderID():            d.strPath(t, folderName("parent-prev"), folderName()),
+				folderID("tombstone"): d.strPath(t, folderName("tombstone-prev")),
 			},
 			expect: expected{
 				prevPaths: map[string]string{
-					rootID:             d.strPath(),
-					folderID("parent"): d.strPath(folderName("parent")),
-					folderID():         d.strPath(folderName("parent"), folderName()),
+					rootID:             d.strPath(t),
+					folderID("parent"): d.strPath(t, folderName("parent")),
+					folderID():         d.strPath(t, folderName("parent"), folderName()),
 				},
 				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
 					return expectCollections(
@@ -551,20 +554,20 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			},
 		},
 		{
-			name:           "all folders moved - todo: path separator string check",
-			tree:           fullTreeWithNames("parent", "tombstone"),
+			name:           "all folders moved - path separator string check",
+			tree:           fullTreeWithNames("pa/rent", "to/mbstone"),
 			enableURLCache: true,
 			prevPaths: map[string]string{
-				rootID:                d.strPath(),
-				folderID("parent"):    d.strPath(folderName("parent-prev")),
-				folderID():            d.strPath(folderName("parent-prev"), folderName()),
-				folderID("tombstone"): d.strPath(folderName("tombstone-prev")),
+				rootID:                 d.strPath(t),
+				folderID("pa/rent"):    d.strPath(t, folderName("parent/prev")),
+				folderID():             d.strPath(t, folderName("parent/prev"), folderName()),
+				folderID("to/mbstone"): d.strPath(t, folderName("tombstone/prev")),
 			},
 			expect: expected{
 				prevPaths: map[string]string{
-					rootID:             d.strPath(),
-					folderID("parent"): d.strPath(folderName("parent")),
-					folderID():         d.strPath(folderName("parent"), folderName()),
+					rootID:              d.strPath(t),
+					folderID("pa/rent"): d.strPath(t, folderName("pa/rent")),
+					folderID():          d.strPath(t, folderName("pa/rent"), folderName()),
 				},
 				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
 					return expectCollections(
@@ -575,14 +578,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 							d.fullPath(t),
 							fileID("r")),
 						aColl(
-							d.fullPath(t, folderName("parent")),
-							d.fullPath(t, folderName("parent-prev")),
+							d.fullPath(t, folderName("pa/rent")),
+							d.fullPath(t, folderName("parent/prev")),
 							fileID("p")),
 						aColl(
-							d.fullPath(t, folderName("parent"), folderName()),
-							d.fullPath(t, folderName("parent-prev"), folderName()),
+							d.fullPath(t, folderName("pa/rent"), folderName()),
+							d.fullPath(t, folderName("parent/prev"), folderName()),
 							fileID()),
-						aColl(nil, d.fullPath(t, folderName("tombstone-prev"))))
+						aColl(nil, d.fullPath(t, folderName("tombstone/prev"))))
 				},
 				globalExcludedFileIDs: makeExcludeMap(
 					fileID("r"),
@@ -596,16 +599,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			tree:           fullTree,
 			enableURLCache: true,
 			prevPaths: map[string]string{
-				rootID:                d.strPath(),
-				folderID("parent"):    d.strPath(folderName("parent")),
-				folderID():            d.strPath(folderName("parent"), folderName()),
-				folderID("tombstone"): d.strPath(folderName("tombstone")),
+				rootID:                d.strPath(t),
+				folderID("parent"):    d.strPath(t, folderName("parent")),
+				folderID():            d.strPath(t, folderName("parent"), folderName()),
+				folderID("tombstone"): d.strPath(t, folderName("tombstone")),
 			},
 			expect: expected{
 				prevPaths: map[string]string{
-					rootID:             d.strPath(),
-					folderID("parent"): d.strPath(folderName("parent")),
-					folderID():         d.strPath(folderName("parent"), folderName()),
+					rootID:             d.strPath(t),
+					folderID("parent"): d.strPath(t, folderName("parent")),
+					folderID():         d.strPath(t, folderName("parent"), folderName()),
 				},
 				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
 					return expectCollections(
