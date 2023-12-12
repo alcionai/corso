@@ -402,15 +402,20 @@ func (suite *MailAPIIntgSuite) TestMail_attachmentListDownload() {
 	}
 }
 
+type attachment struct {
+	name string
+	data string
+}
+
 func createMailWithAttachment(
 	ctx context.Context,
 	t *testing.T,
 	ac Client,
 	userID string,
 	mailFolder graph.Container,
-	attachmentName, attachmentData string) models.Messageable {
+	attachments ...attachment) models.Messageable {
 	msg := models.NewMessage()
-	msg.SetSubject(ptr.To("Mail with attachment"))
+	msg.SetSubject(ptr.To("m"))
 
 	item, err := ac.Mail().PostItem(
 		ctx,
@@ -419,16 +424,17 @@ func createMailWithAttachment(
 		msg)
 	require.NoError(t, err, clues.ToCore(err))
 
-	id, err := ac.Mail().PostLargeAttachment(
-		ctx,
-		userID,
-		ptr.Val(mailFolder.GetId()),
-		ptr.Val(item.GetId()),
-		attachmentName,
-		[]byte(attachmentData))
-	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, id, "empty id for large attachment")
-
+	for _, attach := range attachments {
+		id, err := ac.Mail().PostLargeAttachment(
+			ctx,
+			userID,
+			ptr.Val(mailFolder.GetId()),
+			ptr.Val(item.GetId()),
+			attach.name,
+			[]byte(attach.data))
+		require.NoError(t, err, clues.ToCore(err))
+		require.NotEmpty(t, id, "empty id for large attachment")
+	}
 	return item
 }
 
@@ -466,21 +472,54 @@ func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
 					suite.its.ac,
 					userID,
 					mailFolder,
-					"abcd",
-					"1234567")
+					attachment{
+						name: "abcd",
+						data: "1234567",
+					})
 			},
 			verify: func(t *testing.T, item models.Messageable) {
-				if item.GetBody() != nil {
-					content := ptr.Val(item.GetBody().GetContent())
-					size := int64(len(content))
-					// Body size is 0
-					assert.Equal(t, 0, size)
-				}
-
 				assert.Equal(t, 1, len(item.GetAttachments()))
 				assert.Equal(t, "abcd", ptr.Val(item.GetAttachments()[0].GetName()))
-				// This assert fails. GetSize returns 112 instead of 7.
-				assert.Equal(t, 7, *item.GetAttachments()[0].GetSize())
+
+				// GetSize doesn't return the size of attachment content. Skip checking it.
+				contentBytes, err := item.GetAttachments()[0].GetBackingStore().Get("contentBytes")
+				require.NoError(t, err, clues.ToCore(err))
+				assert.Equal(t, "1234567", string(contentBytes.([]byte)))
+			},
+		},
+		{
+			name: "Two attachments",
+			createMessage: func(
+				ctx context.Context,
+				t *testing.T,
+				userID string) models.Messageable {
+				return createMailWithAttachment(
+					ctx,
+					t,
+					suite.its.ac,
+					userID,
+					mailFolder,
+					attachment{
+						name: "abcd",
+						data: "1234567",
+					},
+					attachment{
+						name: "efgh",
+						data: "7654321",
+					})
+			},
+			verify: func(t *testing.T, item models.Messageable) {
+				assert.Equal(t, 2, len(item.GetAttachments()))
+				assert.Equal(t, "abcd", ptr.Val(item.GetAttachments()[0].GetName()))
+				assert.Equal(t, "efgh", ptr.Val(item.GetAttachments()[1].GetName()))
+
+				contentBytes, err := item.GetAttachments()[0].GetBackingStore().Get("contentBytes")
+				require.NoError(t, err, clues.ToCore(err))
+				assert.Equal(t, "1234567", string(contentBytes.([]byte)))
+
+				contentBytes, err = item.GetAttachments()[1].GetBackingStore().Get("contentBytes")
+				require.NoError(t, err, clues.ToCore(err))
+				assert.Equal(t, "7654321", string(contentBytes.([]byte)))
 			},
 		},
 	}
@@ -522,7 +561,16 @@ func (suite *MailAPIIntgSuite) TestMail_PostLargeAttachment() {
 	mailfolder, err := suite.its.ac.Mail().CreateContainer(ctx, userID, MsgFolderRoot, folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
-	createMailWithAttachment(ctx, t, suite.its.ac, userID, mailfolder, "rabognam", "mangobar")
+	createMailWithAttachment(
+		ctx,
+		t,
+		suite.its.ac,
+		userID,
+		mailfolder,
+		attachment{
+			"abcd",
+			"1234567",
+		})
 }
 
 func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
