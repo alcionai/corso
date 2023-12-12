@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
+	"github.com/alcionai/corso/src/internal/m365/service/sharepoint/serialization"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -256,4 +257,15 @@ func PageInfo(page betamodels.SitePageable, size int64) *details.SharePointInfo 
 		WebURL:   webURL,
 		Size:     size,
 	}
+}
+
+func CreatePageFromBytes(bytes []byte) (betamodels.SitePageable, error) {
+	parsable, err := serialization.CreateFromBytes(bytes, betamodels.CreateSitePageFromDiscriminatorValue)
+	if err != nil {
+		return nil, clues.Wrap(err, "deserializing bytes to sharepoint page")
+	}
+
+	page := parsable.(betamodels.SitePageable)
+
+	return page, nil
 }

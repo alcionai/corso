@@ -26,6 +26,10 @@ func (bh listsBackupHandler) GetItemByID(ctx context.Context, itemID string) (mo
 	return bh.ac.GetListByID(ctx, bh.protectedResource, itemID)
 }
 
+func (bh listsBackupHandler) GetItems(ctx context.Context, cc api.CallConfig) ([]models.Listable, error) {
+	return bh.ac.GetLists(ctx, bh.protectedResource, cc)
+}
+
 var _ restoreHandler = &listsRestoreHandler{}
 
 type listsRestoreHandler struct {

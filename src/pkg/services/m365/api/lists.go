@@ -6,10 +6,8 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -111,215 +109,38 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 	[]models.ListItemable,
 	error,
 ) {
-	cols, err := c.getColumns(ctx, siteID, listID, "")
+	cols, err := c.GetListColumns(ctx, siteID, listID, CallConfig{})
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	cTypes, err := c.getContentTypes(ctx, siteID, listID)
+	cTypes, err := c.GetContentTypes(ctx, siteID, listID, CallConfig{})
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	lItems, err := c.getListItems(ctx, siteID, listID)
+	for i := 0; i < len(cTypes); i++ {
+		columnLinks, err := c.GetColumnLinks(ctx, siteID, listID, ptr.Val(cTypes[i].GetId()), CallConfig{})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		cTypes[i].SetColumnLinks(columnLinks)
+
+		cTypeColumns, err := c.GetCTypesColumns(ctx, siteID, listID, ptr.Val(cTypes[i].GetId()), CallConfig{})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		cTypes[i].SetColumns(cTypeColumns)
+	}
+
+	lItems, err := c.GetListItems(ctx, siteID, listID, CallConfig{})
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	return cols, cTypes, lItems, nil
-}
-
-// getListItems utility for retrieving ListItem data and the associated relationship
-// data. Additional call append data to the tracked items, and do not create additional collections.
-// Additional Call:
-// * Fields
-// [TODO: Hitesh] Implement pager for list items
-func (c Lists) getListItems(ctx context.Context, siteID, listID string) ([]models.ListItemable, error) {
-	var (
-		prefix = c.Stable.
-			Client().
-			Sites().
-			BySiteId(siteID).
-			Lists().
-			ByListId(listID)
-		builder = prefix.Items()
-		itms    = make([]models.ListItemable, 0)
-	)
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, itm := range resp.GetValue() {
-			newPrefix := prefix.Items().ByListItemId(ptr.Val(itm.GetId()))
-
-			fields, err := newPrefix.Fields().Get(ctx, nil)
-			if err != nil {
-				return nil, graph.Wrap(ctx, err, "fetching list fields")
-			}
-
-			itm.SetFields(fields)
-
-			itms = append(itms, itm)
-		}
-
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		builder = sites.NewItemListsItemItemsRequestBuilder(link, c.Stable.Adapter())
-	}
-
-	return itms, nil
-}
-
-// getColumns utility function to return columns from a site.
-// An additional call required to check for details concerning the SourceColumn.
-// For additional details:  https://learn.microsoft.com/en-us/graph/api/resources/columndefinition?view=graph-rest-1.0
-// TODO: Refactor on if/else (dadams39)
-// [TODO: Hitesh] Implement pager for list columns
-func (c Lists) getColumns(ctx context.Context, siteID, listID, cTypeID string) ([]models.ColumnDefinitionable, error) {
-	cs := make([]models.ColumnDefinitionable, 0)
-
-	prefixBuilder := c.Stable.
-		Client().
-		Sites().
-		BySiteId(siteID).
-		Lists().
-		ByListId(listID)
-
-	if len(cTypeID) == 0 {
-		builder := prefixBuilder.Columns()
-
-		for {
-			resp, err := builder.Get(ctx, nil)
-			if err != nil {
-				return nil, graph.Wrap(ctx, err, "getting list columns")
-			}
-
-			cs = append(cs, resp.GetValue()...)
-
-			link, ok := ptr.ValOK(resp.GetOdataNextLink())
-			if !ok {
-				break
-			}
-
-			builder = sites.NewItemListsItemColumnsRequestBuilder(link, c.Stable.Adapter())
-		}
-	} else {
-		builder := prefixBuilder.ContentTypes().ByContentTypeId(cTypeID).Columns()
-
-		for {
-			resp, err := builder.Get(ctx, nil)
-			if err != nil {
-				return nil, graph.Wrap(ctx, err, "getting content columns")
-			}
-
-			cs = append(cs, resp.GetValue()...)
-
-			link, ok := ptr.ValOK(resp.GetOdataNextLink())
-			if !ok {
-				break
-			}
-
-			builder = sites.NewItemListsItemContentTypesItemColumnsRequestBuilder(link, c.Stable.Adapter())
-		}
-	}
-
-	return cs, nil
-}
-
-// getContentTypes retrieves all data for content type. Additional queries required
-// for the following:
-// - ColumnLinks
-// - Columns
-// Expand queries not used to retrieve the above. Possibly more than 20.
-// Known Limitations: https://learn.microsoft.com/en-us/graph/known-issues#query-parameters
-// [TODO: Hitesh] Implement pager for list content types
-func (c Lists) getContentTypes(ctx context.Context, siteID, listID string) ([]models.ContentTypeable, error) {
-	var (
-		cTypes  = make([]models.ContentTypeable, 0)
-		builder = c.Stable.
-			Client().
-			Sites().
-			BySiteId(siteID).
-			Lists().
-			ByListId(listID).
-			ContentTypes()
-	)
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, cont := range resp.GetValue() {
-			id := ptr.Val(cont.GetId())
-
-			links, err := c.getColumnLinks(ctx, siteID, listID, id)
-			if err != nil {
-				return nil, err
-			}
-
-			cont.SetColumnLinks(links)
-
-			cs, err := c.getColumns(ctx, siteID, listID, id)
-			if err != nil {
-				return nil, err
-			}
-
-			cont.SetColumns(cs)
-
-			cTypes = append(cTypes, cont)
-		}
-
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		builder = sites.NewItemListsItemContentTypesRequestBuilder(link, c.Stable.Adapter())
-	}
-
-	return cTypes, nil
-}
-
-// [TODO: Hitesh] Implement pager for column links
-func (c Lists) getColumnLinks(ctx context.Context,
-	siteID, listID, cTypeID string,
-) ([]models.ColumnLinkable, error) {
-	var (
-		prefixBuilder = c.Stable.
-				Client().
-				Sites().
-				BySiteId(siteID).
-				Lists().
-				ByListId(listID)
-		builder = prefixBuilder.ContentTypes().ByContentTypeId(cTypeID).ColumnLinks()
-		links   = make([]models.ColumnLinkable, 0)
-	)
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "getting column links")
-		}
-
-		links = append(links, resp.GetValue()...)
-
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		builder = sites.NewItemListsItemContentTypesItemColumnLinksRequestBuilder(link, c.Stable.Adapter())
-	}
-
-	return links, nil
 }
 
 func (c Lists) PostList(
@@ -330,7 +151,7 @@ func (c Lists) PostList(
 ) (models.Listable, error) {
 	newListName := listName
 
-	oldList, err := betaAPI.CreateListFromBytes(oldListByteArray)
+	oldList, err := createListFromBytes(oldListByteArray)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "creating old list")
 	}
@@ -344,7 +165,7 @@ func (c Lists) PostList(
 	}
 
 	// this ensure all columns, contentTypes are set to the newList
-	newList := betaAPI.ToListable(oldList, newListName)
+	newList := toListable(oldList, newListName)
 
 	// Restore to List base to M365 back store
 	restoredList, err := c.Stable.Client().Sites().BySiteId(siteID).Lists().Post(ctx, newList, nil)
@@ -360,7 +181,7 @@ func (c Lists) PostListItem(
 	siteID, listID string,
 	oldListByteArray []byte,
 ) ([]models.ListItemable, error) {
-	oldList, err := betaAPI.CreateListFromBytes(oldListByteArray)
+	oldList, err := createListFromBytes(oldListByteArray)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "creating old list to get list items")
 	}
@@ -368,7 +189,7 @@ func (c Lists) PostListItem(
 	contents := make([]models.ListItemable, 0)
 
 	for _, itm := range oldList.GetItems() {
-		temp := betaAPI.CloneListItem(itm)
+		temp := cloneListItem(itm)
 		contents = append(contents, temp)
 	}
 
@@ -405,4 +226,195 @@ func (c Lists) DeleteList(
 	}
 
 	return nil
+}
+
+func createListFromBytes(bytes []byte) (models.Listable, error) {
+	parsable, err := CreateFromBytes(bytes, models.CreateListFromDiscriminatorValue)
+	if err != nil {
+		return nil, clues.Wrap(err, "deserializing bytes to sharepoint list")
+	}
+
+	list := parsable.(models.Listable)
+
+	return list, nil
+}
+
+// ToListable utility function to encapsulate stored data for restoration.
+// New Listable omits trackable fields such as `id` or `ETag` and other read-only
+// objects that are prevented upon upload. Additionally, read-Only columns are
+// not attached in this method.
+// ListItems are not included in creation of new list, and have to be restored
+// in separate call.
+func toListable(orig models.Listable, displayName string) models.Listable {
+	newList := models.NewList()
+
+	newList.SetContentTypes(orig.GetContentTypes())
+	newList.SetCreatedBy(orig.GetCreatedBy())
+	newList.SetCreatedByUser(orig.GetCreatedByUser())
+	newList.SetCreatedDateTime(orig.GetCreatedDateTime())
+	newList.SetDescription(orig.GetDescription())
+	newList.SetDisplayName(&displayName)
+	newList.SetLastModifiedBy(orig.GetLastModifiedBy())
+	newList.SetLastModifiedByUser(orig.GetLastModifiedByUser())
+	newList.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
+	newList.SetList(orig.GetList())
+	newList.SetOdataType(orig.GetOdataType())
+	newList.SetParentReference(orig.GetParentReference())
+
+	columns := make([]models.ColumnDefinitionable, 0)
+	leg := map[string]struct{}{
+		"Attachments":  {},
+		"Edit":         {},
+		"Content Type": {},
+	}
+
+	for _, cd := range orig.GetColumns() {
+		var (
+			displayName string
+			readOnly    bool
+		)
+
+		if name, ok := ptr.ValOK(cd.GetDisplayName()); ok {
+			displayName = name
+		}
+
+		if ro, ok := ptr.ValOK(cd.GetReadOnly()); ok {
+			readOnly = ro
+		}
+
+		_, isLegacy := leg[displayName]
+
+		// Skips columns that cannot be uploaded for models.ColumnDefinitionable:
+		// - ReadOnly, Title, or Legacy columns: Attachments, Edit, or Content Type
+		if readOnly || displayName == "Title" || isLegacy {
+			continue
+		}
+
+		columns = append(columns, cloneColumnDefinitionable(cd))
+	}
+
+	newList.SetColumns(columns)
+
+	return newList
+}
+
+// cloneColumnDefinitionable utility function for encapsulating models.ColumnDefinitionable data
+// into new object for upload.
+func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDefinitionable {
+	newColumn := models.NewColumnDefinition()
+
+	// column attributes
+	newColumn.SetName(orig.GetName())
+	newColumn.SetOdataType(orig.GetOdataType())
+	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
+	newColumn.SetReadOnly(orig.GetReadOnly())
+	newColumn.SetRequired(orig.GetRequired())
+	newColumn.SetAdditionalData(orig.GetAdditionalData())
+	newColumn.SetDescription(orig.GetDescription())
+	newColumn.SetDisplayName(orig.GetDisplayName())
+	newColumn.SetSourceColumn(orig.GetSourceColumn())
+	newColumn.SetSourceContentType(orig.GetSourceContentType())
+	newColumn.SetHidden(orig.GetHidden())
+	newColumn.SetIndexed(orig.GetIndexed())
+	newColumn.SetIsDeletable(orig.GetIsDeletable())
+	newColumn.SetIsReorderable(orig.GetIsReorderable())
+	newColumn.SetIsSealed(orig.GetIsSealed())
+	newColumn.SetTypeEscaped(orig.GetTypeEscaped())
+	newColumn.SetColumnGroup(orig.GetColumnGroup())
+	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
+
+	// column types
+	newColumn.SetText(orig.GetText())
+	newColumn.SetBoolean(orig.GetBoolean())
+	newColumn.SetCalculated(orig.GetCalculated())
+	newColumn.SetChoice(orig.GetChoice())
+	newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
+	newColumn.SetCurrency(orig.GetCurrency())
+	newColumn.SetDateTime(orig.GetDateTime())
+	newColumn.SetGeolocation(orig.GetGeolocation())
+	newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
+	newColumn.SetNumber(orig.GetNumber())
+	newColumn.SetLookup(orig.GetLookup())
+	newColumn.SetThumbnail(orig.GetThumbnail())
+	newColumn.SetTerm(orig.GetTerm())
+	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
+
+	// Requires nil checks to avoid Graph error: 'General exception while processing'
+	defaultValue := orig.GetDefaultValue()
+	if defaultValue != nil {
+		newColumn.SetDefaultValue(defaultValue)
+	}
+
+	validation := orig.GetValidation()
+	if validation != nil {
+		newColumn.SetValidation(validation)
+	}
+
+	return newColumn
+}
+
+// CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
+// M365 data into it set fields.
+// - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
+func cloneListItem(orig models.ListItemable) models.ListItemable {
+	newItem := models.NewListItem()
+
+	// list item data
+	newFieldData := retrieveFieldData(orig.GetFields())
+	newItem.SetFields(newFieldData)
+
+	// list item attributes
+	newItem.SetAdditionalData(orig.GetAdditionalData())
+	newItem.SetDescription(orig.GetDescription())
+	newItem.SetCreatedBy(orig.GetCreatedBy())
+	newItem.SetCreatedDateTime(orig.GetCreatedDateTime())
+	newItem.SetLastModifiedBy(orig.GetLastModifiedBy())
+	newItem.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
+	newItem.SetOdataType(orig.GetOdataType())
+	newItem.SetAnalytics(orig.GetAnalytics())
+	newItem.SetContentType(orig.GetContentType())
+	newItem.SetVersions(orig.GetVersions())
+
+	// Requires nil checks to avoid Graph error: 'Invalid request'
+	lastCreatedByUser := orig.GetCreatedByUser()
+	if lastCreatedByUser != nil {
+		newItem.SetCreatedByUser(lastCreatedByUser)
+	}
+
+	lastModifiedByUser := orig.GetLastModifiedByUser()
+	if lastCreatedByUser != nil {
+		newItem.SetLastModifiedByUser(lastModifiedByUser)
+	}
+
+	return newItem
+}
+
+// retrieveFieldData utility function to clone raw listItem data from the embedded
+// additionalData map
+// Further details on FieldValueSets:
+// - https://learn.microsoft.com/en-us/graph/api/resources/fieldvalueset?view=graph-rest-1.0
+func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
+	fields := models.NewFieldValueSet()
+	additionalData := make(map[string]any)
+	fieldData := orig.GetAdditionalData()
+
+	// M365 Book keeping values removed during new Item Creation
+	// Removed Values:
+	// -- Prefixes -> @odata.context : absolute path to previous list
+	// .           -> @odata.etag : Embedded link to Prior M365 ID
+	// -- String Match: Read-Only Fields
+	// -> id : previous un
+	for key, value := range fieldData {
+		if strings.HasPrefix(key, "_") || strings.HasPrefix(key, "@") ||
+			key == "Edit" || key == "Created" || key == "Modified" ||
+			strings.Contains(key, "LookupId") || strings.Contains(key, "ChildCount") || strings.Contains(key, "LinkTitle") {
+			continue
+		}
+
+		additionalData[key] = value
+	}
+
+	fields.SetAdditionalData(additionalData)
+
+	return fields
 }
