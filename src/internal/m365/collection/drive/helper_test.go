@@ -1542,20 +1542,19 @@ func toPath(elems ...string) string {
 }
 
 // produces the full path for the provided drive
-func (dd *deltaDrive) strPath(elems ...string) string {
-	return toPath(append(
-		[]string{
-			tenant,
-			path.OneDriveService.String(),
-			user,
-			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(dd.id).String(),
-		},
-		elems...)...)
+func (dd *deltaDrive) strPath(t *testing.T, elems ...string) string {
+	return dd.fullPath(t, elems...).String()
 }
 
 func (dd *deltaDrive) fullPath(t *testing.T, elems ...string) path.Path {
-	p, err := path.FromDataLayerPath(dd.strPath(elems...), false)
+	p, err := odConsts.DriveFolderPrefixBuilder(dd.id).
+		Append(elems...).
+		ToDataLayerPath(
+			tenant,
+			user,
+			path.OneDriveService,
+			path.FilesCategory,
+			false)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return p
@@ -1564,9 +1563,9 @@ func (dd *deltaDrive) fullPath(t *testing.T, elems ...string) path.Path {
 // produces a complete path prefix up to the drive root folder with any
 // elements passed in appended to the generated prefix.
 func (dd *deltaDrive) dir(elems ...string) string {
-	return toPath(append(
-		[]string{odConsts.DriveFolderPrefixBuilder(dd.id).String()},
-		elems...)...)
+	return odConsts.DriveFolderPrefixBuilder(dd.id).
+		Append(elems...).
+		String()
 }
 
 // common item names

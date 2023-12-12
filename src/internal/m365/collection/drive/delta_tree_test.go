@@ -1108,9 +1108,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			tree:      treeWithFileInFolder,
 			expectErr: require.NoError,
 			prevPaths: map[string]string{
-				rootID:             d.strPath(),
-				folderID("parent"): d.strPath(folderName("parent-prev")),
-				folderID():         d.strPath(folderName("parent-prev"), folderName()),
+				rootID:             d.strPath(t),
+				folderID("parent"): d.strPath(t, folderName("parent-prev")),
+				folderID():         d.strPath(t, folderName("parent-prev"), folderName()),
 			},
 			expect: map[string]collectable{
 				rootID: {
@@ -1142,8 +1142,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			name: "root and tombstones",
 			tree: treeWithFileInTombstone,
 			prevPaths: map[string]string{
-				rootID:     d.strPath(),
-				folderID(): d.strPath(folderName()),
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
 			},
 			expectErr: require.NoError,
 			expect: map[string]collectable{
