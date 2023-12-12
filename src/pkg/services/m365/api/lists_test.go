@@ -229,8 +229,10 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 		acl      = suite.its.ac.Lists()
 		siteID   = suite.its.site.id
 		listName = testdata.DefaultRestoreConfig("list_api_post_list").Location
-		writer   = kjson.NewJsonSerializationWriter()
 	)
+
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
 
 	oldListID := "old-list"
 	textColumnDefID := "list-col1"
@@ -252,8 +254,6 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 	list.SetColumns([]models.ColumnDefinitionable{txtColumnDef})
 	list.SetList(listInfo)
 
-	defer writer.Close()
-
 	err := writer.WriteObjectValue("", list)
 	require.NoError(t, err)
 
@@ -263,6 +263,12 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
+
+	// clean up
+	defer func(sID string, lst models.Listable) {
+		err = acl.DeleteList(ctx, sID, ptr.Val(lst.GetId()))
+		require.NoError(t, err)
+	}(siteID, newList)
 
 	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray)
 	require.Error(t, err)
@@ -278,8 +284,10 @@ func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
 		acl      = suite.its.ac.Lists()
 		siteID   = suite.its.site.id
 		listName = testdata.DefaultRestoreConfig("list_api_post_list").Location
-		writer   = kjson.NewJsonSerializationWriter()
 	)
+
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
 
 	oldListID := "old-list"
 	listItemID := "list-item1"
@@ -308,8 +316,6 @@ func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
 	list.SetColumns([]models.ColumnDefinitionable{txtColumnDef})
 	list.SetItems([]models.ListItemable{listItem})
 
-	defer writer.Close()
-
 	err := writer.WriteObjectValue("", list)
 	require.NoError(t, err)
 
@@ -319,6 +325,12 @@ func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
 	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
+
+	// clean up
+	defer func(sID string, lst models.Listable) {
+		err = acl.DeleteList(ctx, sID, ptr.Val(lst.GetId()))
+		require.NoError(t, err)
+	}(siteID, newList)
 
 	newListItems, err := acl.PostListItem(ctx, siteID, ptr.Val(newList.GetId()), oldListByteArray)
 	require.NoError(t, err, clues.ToCore(err))
@@ -333,4 +345,53 @@ func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
 	for k, v := range newListItemsData {
 		assert.Equal(t, fieldsData[k], ptr.Val(v.(*string)))
 	}
+}
+
+func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		acl      = suite.its.ac.Lists()
+		siteID   = suite.its.site.id
+		listName = testdata.DefaultRestoreConfig("list_api_post_list").Location
+	)
+
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	oldListID := "old-list"
+	textColumnDefID := "list-col1"
+	textColumnDefName := "itemName"
+	template := "genericList"
+
+	listInfo := models.NewListInfo()
+	listInfo.SetTemplate(&template)
+
+	textColumn := models.NewTextColumn()
+
+	txtColumnDef := models.NewColumnDefinition()
+	txtColumnDef.SetId(&textColumnDefID)
+	txtColumnDef.SetName(&textColumnDefName)
+	txtColumnDef.SetText(textColumn)
+
+	list := models.NewList()
+	list.SetId(&oldListID)
+	list.SetColumns([]models.ColumnDefinitionable{txtColumnDef})
+	list.SetList(listInfo)
+
+	err := writer.WriteObjectValue("", list)
+	require.NoError(t, err)
+
+	oldListByteArray, err := writer.GetSerializedContent()
+	require.NoError(t, err)
+
+	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
+
+	err = acl.DeleteList(ctx, siteID, ptr.Val(newList.GetId()))
+	require.NoError(t, err)
 }

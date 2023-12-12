@@ -389,3 +389,20 @@ func (c Lists) PostListItem(
 
 	return contents, nil
 }
+
+func (c Lists) DeleteList(
+	ctx context.Context,
+	siteID, listID string,
+) error {
+	if err := c.Stable.
+		Client().
+		Sites().
+		BySiteId(siteID).
+		Lists().
+		ByListId(listID).
+		Delete(ctx, nil); err != nil {
+		return graph.Wrap(ctx, err, "deleting list")
+	}
+
+	return nil
+}
