@@ -328,6 +328,14 @@ func (sc *Collection) handleListItems(
 		return
 	}
 
+	// ignoring list with template 'webTemplateExtensionsList'
+	// creation of list with template 'webTemplateExtensionsList'
+	// gives 'invalid list template' error
+	if list != nil &&
+		ptr.Val(list.GetList().GetTemplate()) == "webTemplateExtensionsList" {
+		return
+	}
+
 	atomic.AddInt64(&numLists, 1)
 
 	if err := writer.WriteObjectValue("", list); err != nil {
