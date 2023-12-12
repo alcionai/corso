@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.17.0] (beta) - 2023-12-11
 
-### Added
-
 ### Changed
 - Memory optimizations for large scale OneDrive and Sharepoint backups.
 
