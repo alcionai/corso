@@ -277,15 +277,30 @@ func (col *prefetchCollection) streamItems(
 				col.Opts().ToggleFeatures.ExchangeImmutableIDs,
 				parentPath)
 			if err != nil {
-				// Don't report errors for deleted items as there's no way for us to
-				// back up data that is gone. Record it as a "success", since there's
-				// nothing else we can do, and not reporting it will make the status
-				// investigation upset.
-				if graph.IsErrDeletedInFlight(err) {
+				// Handle known error cases
+				switch {
+				case graph.IsErrDeletedInFlight(err):
+					// Don't report errors for deleted items as there's no way for us to
+					// back up data that is gone. Record it as a "success", since there's
+					// nothing else we can do, and not reporting it will make the status
+					// investigation upset.
 					col.Counter.Inc(count.StreamItemsDeletedInFlight)
 					atomic.AddInt64(&success, 1)
 					logger.CtxErr(ctx, err).Info("item not found")
-				} else {
+				case graph.IsErrInvalidRecipients(err):
+					// These items cannot be downloaded (Exchange believes the recipient is invalid)
+					// Add this to the skipped list so this information is visible in backup info
+					logger.
+						CtxErr(ctx, err).
+						With("skipped_reason", fault.SkipInvalidRecipients).
+						Info("inaccessible email")
+					errs.AddSkip(ctx, fault.EmailSkip(
+						fault.SkipInvalidRecipients,
+						user,
+						id,
+						map[string]any{"parentPath": parentPath}))
+					atomic.AddInt64(&success, 1)
+				default:
 					col.Counter.Inc(count.StreamItemsErred)
 					el.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))
 				}

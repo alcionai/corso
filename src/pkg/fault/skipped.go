@@ -32,6 +32,10 @@ const (
 	//nolint:lll
 	// https://support.microsoft.com/en-us/office/restrictions-and-limitations-in-onedrive-and-sharepoint-64883a5d-228e-48f5-b3d2-eb39e07630fa#onenotenotebooks
 	SkipOneNote skipCause = "inaccessible_one_note_file"
+
+	// SkipInvalidRecipients identifies that an email was skipped because Exchange
+	// believes it is not valid and fails any attempt to read it.
+	SkipInvalidRecipients skipCause = "invalid_recipients_email"
 )
 
 var _ print.Printable = &Skipped{}
@@ -99,6 +103,11 @@ func (s Skipped) Values(bool) []string {
 // ContainerSkip produces a Container-kind Item for tracking skipped items.
 func ContainerSkip(cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
 	return itemSkip(ContainerType, cause, namespace, id, name, addtl)
+}
+
+// EmailSkip produces a Email-kind Item for tracking skipped items.
+func EmailSkip(cause skipCause, user, id string, addtl map[string]any) *Skipped {
+	return itemSkip(EmailType, cause, user, id, "", addtl)
 }
 
 // FileSkip produces a File-kind Item for tracking skipped items.
