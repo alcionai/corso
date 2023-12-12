@@ -413,7 +413,8 @@ func createMailWithAttachment(
 	ac Client,
 	userID string,
 	mailFolder graph.Container,
-	attachments ...attachment) models.Messageable {
+	attachments ...attachment,
+) models.Messageable {
 	msg := models.NewMessage()
 	msg.SetSubject(ptr.To("m"))
 
@@ -435,11 +436,13 @@ func createMailWithAttachment(
 		require.NoError(t, err, clues.ToCore(err))
 		require.NotEmpty(t, id, "empty id for large attachment")
 	}
+
 	return item
 }
 
 func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
 	t := suite.T()
+
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
@@ -465,7 +468,8 @@ func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
 			createMessage: func(
 				ctx context.Context,
 				t *testing.T,
-				userID string) models.Messageable {
+				userID string,
+			) models.Messageable {
 				return createMailWithAttachment(
 					ctx,
 					t,
@@ -492,7 +496,8 @@ func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
 			createMessage: func(
 				ctx context.Context,
 				t *testing.T,
-				userID string) models.Messageable {
+				userID string,
+			) models.Messageable {
 				return createMailWithAttachment(
 					ctx,
 					t,
