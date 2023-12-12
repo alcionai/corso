@@ -8,7 +8,6 @@ import (
 	"runtime/trace"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -42,6 +41,7 @@ func ConsumeRestoreCollections(
 ) (*support.ControllerOperationStatus, error) {
 	var (
 		lrh            = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
+		listsRh        = NewListsRestoreHandler(rcc.ProtectedResource.ID(), ac.Lists())
 		restoreMetrics support.CollectionMetrics
 		caches         = drive.NewRestoreCaches(backupDriveIDNames)
 		el             = errs.Local()
@@ -89,7 +89,7 @@ func ConsumeRestoreCollections(
 		case path.ListsCategory:
 			metrics, err = RestoreListCollection(
 				ictx,
-				ac.Stable,
+				listsRh,
 				dc,
 				rcc.RestoreConfig.Location,
 				deets,
@@ -135,7 +135,7 @@ func ConsumeRestoreCollections(
 // Restored List can be verified within the Site contents.
 func restoreListItem(
 	ctx context.Context,
-	service graph.Servicer,
+	rh restoreHandler,
 	itemData data.Item,
 	siteID, destName string,
 ) (details.ItemInfo, error) {
@@ -154,50 +154,19 @@ func restoreListItem(
 		return dii, clues.WrapWC(ctx, err, "reading backup data")
 	}
 
-	oldList, err := betaAPI.CreateListFromBytes(byteArray)
-	if err != nil {
-		return dii, clues.WrapWC(ctx, err, "creating item")
-	}
-
-	if name, ok := ptr.ValOK(oldList.GetDisplayName()); ok {
-		listName = name
-	}
-
-	var (
-		newName  = fmt.Sprintf("%s_%s", destName, listName)
-		newList  = betaAPI.ToListable(oldList, newName)
-		contents = make([]models.ListItemable, 0)
-	)
-
-	for _, itm := range oldList.GetItems() {
-		temp := betaAPI.CloneListItem(itm)
-		contents = append(contents, temp)
-	}
-
-	newList.SetItems(contents)
+	newName := fmt.Sprintf("%s_%s", destName, listName)
 
 	// Restore to List base to M365 back store
-	restoredList, err := service.Client().Sites().BySiteId(siteID).Lists().Post(ctx, newList, nil)
+	restoredList, err := rh.PostList(ctx, newName, byteArray)
 	if err != nil {
-		return dii, graph.Wrap(ctx, err, "restoring list")
+		return dii, clues.WrapWC(ctx, err, "restoring lists")
 	}
 
 	// Uploading of ListItems is conducted after the List is restored
 	// Reference: https://learn.microsoft.com/en-us/graph/api/listitem-create?view=graph-rest-1.0&tabs=http
-	if len(contents) > 0 {
-		for _, lItem := range contents {
-			_, err := service.Client().
-				Sites().
-				BySiteId(siteID).
-				Lists().
-				ByListId(ptr.Val(restoredList.GetId())).
-				Items().
-				Post(ctx, lItem, nil)
-			if err != nil {
-				return dii, graph.Wrap(ctx, err, "restoring list items").
-					With("restored_list_id", ptr.Val(restoredList.GetId()))
-			}
-		}
+	_, err = rh.PostListItem(ctx, ptr.Val(restoredList.GetId()), byteArray)
+	if err != nil {
+		return dii, clues.WrapWC(ctx, err, "restoring list items")
 	}
 
 	dii.SharePoint = ListToSPInfo(restoredList, int64(len(byteArray)))
@@ -207,7 +176,7 @@ func restoreListItem(
 
 func RestoreListCollection(
 	ctx context.Context,
-	service graph.Servicer,
+	rh restoreHandler,
 	dc data.RestoreCollection,
 	restoreContainerName string,
 	deets *details.Builder,
@@ -243,7 +212,7 @@ func RestoreListCollection(
 
 			itemInfo, err := restoreListItem(
 				ctx,
-				service,
+				rh,
 				itemData,
 				siteID,
 				restoreContainerName)

@@ -7,12 +7,10 @@ import (
 
 	"github.com/alcionai/clues"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/site/mock"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
@@ -23,7 +21,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -280,67 +277,5 @@ func (suite *SharePointCollectionSuite) TestCollection_streamItems() {
 			assert.NoError(t, errs.Failure())
 			assert.Equal(t, len(test.items), itemCount, "should see all expected items")
 		})
-	}
-}
-
-// TestRestoreListCollection verifies Graph Restore API for the List Collection
-func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
-	t := suite.T()
-	// https://github.com/microsoftgraph/msgraph-sdk-go/issues/490
-	t.Skip("disabled until upstream issue with list restore is fixed.")
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	service := createTestService(t, suite.creds)
-	listing := spMock.ListDefault("Mock List")
-	testName := "MockListing"
-	listing.SetDisplayName(&testName)
-	byteArray, err := service.Serialize(listing)
-	require.NoError(t, err, clues.ToCore(err))
-
-	listData, err := data.NewPrefetchedItemWithInfo(
-		io.NopCloser(bytes.NewReader(byteArray)),
-		testName,
-		details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
-	require.NoError(t, err, clues.ToCore(err))
-
-	destName := testdata.DefaultRestoreConfig("").Location
-
-	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
-	assert.NoError(t, err, clues.ToCore(err))
-	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
-
-	// Clean-Up
-	var (
-		builder  = service.Client().Sites().BySiteId(suite.siteID).Lists()
-		isFound  bool
-		deleteID string
-	)
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		assert.NoError(t, err, "getting site lists", clues.ToCore(err))
-
-		for _, temp := range resp.GetValue() {
-			if ptr.Val(temp.GetDisplayName()) == deets.SharePoint.ItemName {
-				isFound = true
-				deleteID = ptr.Val(temp.GetId())
-
-				break
-			}
-		}
-		// Get Next Link
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		builder = sites.NewItemListsRequestBuilder(link, service.Adapter())
-	}
-
-	if isFound {
-		err := DeleteList(ctx, service, suite.siteID, deleteID)
-		assert.NoError(t, err, clues.ToCore(err))
 	}
 }
