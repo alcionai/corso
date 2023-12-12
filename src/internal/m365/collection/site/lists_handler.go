@@ -55,3 +55,10 @@ func (rh listsRestoreHandler) PostListItem(
 ) ([]models.ListItemable, error) {
 	return rh.ac.PostListItem(ctx, rh.protectedResource, listID, oldListByteArray)
 }
+
+func (rh listsRestoreHandler) DeleteList(
+	ctx context.Context,
+	listID string,
+) error {
+	return rh.ac.DeleteList(ctx, rh.protectedResource, listID)
+}

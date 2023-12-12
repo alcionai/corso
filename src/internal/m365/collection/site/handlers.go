@@ -17,6 +17,7 @@ type getItemByIDer interface {
 type restoreHandler interface {
 	PostLister
 	PostListItemer
+	DeleteLister
 }
 
 type PostLister interface {
@@ -33,4 +34,11 @@ type PostListItemer interface {
 		listID string,
 		oldListByteArray []byte,
 	) ([]models.ListItemable, error)
+}
+
+type DeleteLister interface {
+	DeleteList(
+		ctx context.Context,
+		listID string,
+	) error
 }

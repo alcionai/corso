@@ -130,7 +130,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 	}
 
 	if isFound {
-		err := DeleteList(ctx, service, suite.siteID, deleteID)
+		err := lrh.DeleteList(ctx, deleteID)
 		assert.NoError(t, err, clues.ToCore(err))
 	}
 }
