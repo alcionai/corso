@@ -303,12 +303,12 @@ func (c Lists) GetContentTypes(
 var _ pagers.NonDeltaHandler[models.ColumnDefinitionable] = &cTypesColumnsPageCtrl{}
 
 type cTypesColumnsPageCtrl struct {
-	siteID  string
-	listID  string
-	cTypeID string
-	gs      graph.Servicer
-	builder *sites.ItemListsItemContentTypesItemColumnsRequestBuilder
-	options *sites.ItemListsItemContentTypesItemColumnsRequestBuilderGetRequestConfiguration
+	siteID        string
+	listID        string
+	contentTypeID string
+	gs            graph.Servicer
+	builder       *sites.ItemListsItemContentTypesItemColumnsRequestBuilder
+	options       *sites.ItemListsItemContentTypesItemColumnsRequestBuilderGetRequestConfiguration
 }
 
 func (p *cTypesColumnsPageCtrl) SetNextLink(nextLink string) {
@@ -329,7 +329,7 @@ func (p *cTypesColumnsPageCtrl) ValidModTimes() bool {
 func (c Lists) NewCTypesColumnsPager(
 	siteID string,
 	listID string,
-	cTypeID string,
+	contentTypeID string,
 	cc CallConfig,
 ) *cTypesColumnsPageCtrl {
 	builder := c.Stable.
@@ -339,7 +339,7 @@ func (c Lists) NewCTypesColumnsPager(
 		Lists().
 		ByListId(listID).
 		ContentTypes().
-		ByContentTypeId(cTypeID).
+		ByContentTypeId(contentTypeID).
 		Columns()
 
 	options := &sites.ItemListsItemContentTypesItemColumnsRequestBuilderGetRequestConfiguration{
@@ -352,12 +352,12 @@ func (c Lists) NewCTypesColumnsPager(
 	}
 
 	return &cTypesColumnsPageCtrl{
-		siteID:  siteID,
-		listID:  listID,
-		cTypeID: cTypeID,
-		builder: builder,
-		gs:      c.Stable,
-		options: options,
+		siteID:        siteID,
+		listID:        listID,
+		contentTypeID: contentTypeID,
+		builder:       builder,
+		gs:            c.Stable,
+		options:       options,
 	}
 }
 
@@ -366,10 +366,10 @@ func (c Lists) GetCTypesColumns(
 	ctx context.Context,
 	siteID string,
 	listID string,
-	cTypeID string,
+	contentTypeID string,
 	cc CallConfig,
 ) ([]models.ColumnDefinitionable, error) {
-	pager := c.NewCTypesColumnsPager(siteID, listID, cTypeID, cc)
+	pager := c.NewCTypesColumnsPager(siteID, listID, contentTypeID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ColumnDefinitionable](ctx, pager)
 
 	return items, graph.Stack(ctx, err).OrNil()
@@ -382,12 +382,12 @@ func (c Lists) GetCTypesColumns(
 var _ pagers.NonDeltaHandler[models.ColumnLinkable] = &columnLinksPageCtrl{}
 
 type columnLinksPageCtrl struct {
-	siteID  string
-	listID  string
-	cTypeID string
-	gs      graph.Servicer
-	builder *sites.ItemListsItemContentTypesItemColumnLinksRequestBuilder
-	options *sites.ItemListsItemContentTypesItemColumnLinksRequestBuilderGetRequestConfiguration
+	siteID        string
+	listID        string
+	contentTypeID string
+	gs            graph.Servicer
+	builder       *sites.ItemListsItemContentTypesItemColumnLinksRequestBuilder
+	options       *sites.ItemListsItemContentTypesItemColumnLinksRequestBuilderGetRequestConfiguration
 }
 
 func (p *columnLinksPageCtrl) SetNextLink(nextLink string) {
@@ -408,7 +408,7 @@ func (p *columnLinksPageCtrl) ValidModTimes() bool {
 func (c Lists) NewColumnLinksPager(
 	siteID string,
 	listID string,
-	cTypeID string,
+	contentTypeID string,
 	cc CallConfig,
 ) *columnLinksPageCtrl {
 	builder := c.Stable.
@@ -418,7 +418,7 @@ func (c Lists) NewColumnLinksPager(
 		Lists().
 		ByListId(listID).
 		ContentTypes().
-		ByContentTypeId(cTypeID).
+		ByContentTypeId(contentTypeID).
 		ColumnLinks()
 
 	options := &sites.ItemListsItemContentTypesItemColumnLinksRequestBuilderGetRequestConfiguration{
@@ -431,12 +431,12 @@ func (c Lists) NewColumnLinksPager(
 	}
 
 	return &columnLinksPageCtrl{
-		siteID:  siteID,
-		listID:  listID,
-		cTypeID: cTypeID,
-		builder: builder,
-		gs:      c.Stable,
-		options: options,
+		siteID:        siteID,
+		listID:        listID,
+		contentTypeID: contentTypeID,
+		builder:       builder,
+		gs:            c.Stable,
+		options:       options,
 	}
 }
 
@@ -445,10 +445,10 @@ func (c Lists) GetColumnLinks(
 	ctx context.Context,
 	siteID string,
 	listID string,
-	cTypeID string,
+	contentTypeID string,
 	cc CallConfig,
 ) ([]models.ColumnLinkable, error) {
-	pager := c.NewColumnLinksPager(siteID, listID, cTypeID, cc)
+	pager := c.NewColumnLinksPager(siteID, listID, contentTypeID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ColumnLinkable](ctx, pager)
 
 	return items, graph.Stack(ctx, err).OrNil()

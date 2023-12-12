@@ -152,12 +152,12 @@ func CollectLists(
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
-		el        = errs.Local()
-		spcs      = make([]data.BackupCollection, 0)
-		selecting = []string{"id", "displayName"}
+		el   = errs.Local()
+		spcs = make([]data.BackupCollection, 0)
+		acc  = api.CallConfig{Select: idAnd("displayName")}
 	)
 
-	lists, err := bh.GetItems(ctx, api.CallConfig{Select: selecting})
+	lists, err := bh.GetItems(ctx, acc)
 	if err != nil {
 		return nil, err
 	}
@@ -191,4 +191,14 @@ func CollectLists(
 	}
 
 	return spcs, el.Failure()
+}
+
+func idAnd(ss ...string) []string {
+	id := []string{"id"}
+
+	if len(ss) == 0 {
+		return id
+	}
+
+	return append(id, ss...)
 }
