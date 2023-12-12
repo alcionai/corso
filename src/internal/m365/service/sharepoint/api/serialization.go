@@ -119,7 +119,6 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	// column attributes
 	newColumn.SetName(orig.GetName())
 	newColumn.SetOdataType(orig.GetOdataType())
-	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
 	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
 	newColumn.SetReadOnly(orig.GetReadOnly())
 	newColumn.SetRequired(orig.GetRequired())
@@ -128,29 +127,30 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	newColumn.SetDisplayName(orig.GetDisplayName())
 	newColumn.SetSourceColumn(orig.GetSourceColumn())
 	newColumn.SetSourceContentType(orig.GetSourceContentType())
-	newColumn.SetTerm(orig.GetTerm())
 	newColumn.SetHidden(orig.GetHidden())
 	newColumn.SetIndexed(orig.GetIndexed())
 	newColumn.SetIsDeletable(orig.GetIsDeletable())
 	newColumn.SetIsReorderable(orig.GetIsReorderable())
 	newColumn.SetIsSealed(orig.GetIsSealed())
+	newColumn.SetTypeEscaped(orig.GetTypeEscaped())
+	newColumn.SetColumnGroup(orig.GetColumnGroup())
+	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
 
 	// column types
 	newColumn.SetText(orig.GetText())
 	newColumn.SetBoolean(orig.GetBoolean())
 	newColumn.SetCalculated(orig.GetCalculated())
 	newColumn.SetChoice(orig.GetChoice())
-	newColumn.SetColumnGroup(orig.GetColumnGroup())
 	newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
 	newColumn.SetCurrency(orig.GetCurrency())
 	newColumn.SetDateTime(orig.GetDateTime())
-	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
 	newColumn.SetGeolocation(orig.GetGeolocation())
 	newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
 	newColumn.SetNumber(orig.GetNumber())
 	newColumn.SetLookup(orig.GetLookup())
 	newColumn.SetThumbnail(orig.GetThumbnail())
-	newColumn.SetTypeEscaped(orig.GetTypeEscaped())
+	newColumn.SetTerm(orig.GetTerm())
+	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
 
 	// Requires nil checks to avoid Graph error: 'General exception while processing'
 	defaultValue := orig.GetDefaultValue()
@@ -159,7 +159,7 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	}
 
 	validation := orig.GetValidation()
-	if defaultValue != nil {
+	if validation != nil {
 		newColumn.SetValidation(validation)
 	}
 
