@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Resolved a possible deadlock when backing up Teams Channel Messages.
+- Fixed an attachment download failure(ErrorTooManyObjectsOpened) during exchange backup.
 
 ## [v0.16.0] (beta) - 2023-11-28
 
