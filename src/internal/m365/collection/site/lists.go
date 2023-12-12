@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -30,65 +29,6 @@ func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 		Modified:  modified,
 		WebURL:    webURL,
 	}
-}
-
-type ListTuple struct {
-	ID   string
-	Name string
-}
-
-func preFetchListOptions() *sites.ItemListsRequestBuilderGetRequestConfiguration {
-	selecting := []string{"id", "displayName"}
-	queryOptions := sites.ItemListsRequestBuilderGetQueryParameters{
-		Select: selecting,
-	}
-	options := &sites.ItemListsRequestBuilderGetRequestConfiguration{
-		QueryParameters: &queryOptions,
-	}
-
-	return options
-}
-
-func PreFetchLists(
-	ctx context.Context,
-	gs graph.Servicer,
-	siteID string,
-) ([]ListTuple, error) {
-	var (
-		builder    = gs.Client().Sites().BySiteId(siteID).Lists()
-		options    = preFetchListOptions()
-		listTuples = make([]ListTuple, 0)
-	)
-
-	for {
-		resp, err := builder.Get(ctx, options)
-		if err != nil {
-			return nil, graph.Wrap(ctx, err, "getting lists")
-		}
-
-		for _, entry := range resp.GetValue() {
-			var (
-				id   = ptr.Val(entry.GetId())
-				name = ptr.Val(entry.GetDisplayName())
-				temp = ListTuple{ID: id, Name: name}
-			)
-
-			if len(name) == 0 {
-				temp.Name = id
-			}
-
-			listTuples = append(listTuples, temp)
-		}
-
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		builder = sites.NewItemListsRequestBuilder(link, gs.Adapter())
-	}
-
-	return listTuples, nil
 }
 
 // DeleteList removes a list object from a site.
