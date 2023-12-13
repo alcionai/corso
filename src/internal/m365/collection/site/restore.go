@@ -166,6 +166,12 @@ func restoreListItem(
 	// Reference: https://learn.microsoft.com/en-us/graph/api/listitem-create?view=graph-rest-1.0&tabs=http
 	_, err = rh.PostListItem(ctx, ptr.Val(restoredList.GetId()), byteArray)
 	if err != nil {
+		// rollback list creation
+		err = rh.DeleteList(ctx, ptr.Val(restoredList.GetId()))
+		if err != nil {
+			return dii, clues.WrapWC(ctx, err, "deleting restored list")
+		}
+
 		return dii, clues.WrapWC(ctx, err, "restoring list items")
 	}
 

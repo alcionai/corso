@@ -2,13 +2,13 @@ package mock
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type ListHandler struct {
@@ -36,9 +36,8 @@ func (lh *ListRestoreHandler) PostList(
 ) (models.Listable, error) {
 	newListName := listName
 
-	oldList := models.NewList()
-
-	if err := json.Unmarshal(oldListByteArray, oldList); err != nil {
+	oldList, err := api.CreateListFromBytes(oldListByteArray)
+	if err != nil {
 		return nil, errors.New("error while creating old list")
 	}
 
@@ -50,10 +49,9 @@ func (lh *ListRestoreHandler) PostList(
 		}
 	}
 
-	newList := *oldList
-	newList.SetName(&newListName)
+	newList := api.ToListable(oldList, newListName)
 
-	return &newList, lh.Err
+	return newList, lh.Err
 }
 
 func (lh *ListRestoreHandler) PostListItem(
@@ -61,16 +59,16 @@ func (lh *ListRestoreHandler) PostListItem(
 	listID string,
 	oldListByteArray []byte,
 ) ([]models.ListItemable, error) {
-	oldList := models.NewList()
 
-	if err := json.Unmarshal(oldListByteArray, oldList); err != nil {
+	oldList, err := api.CreateListFromBytes(oldListByteArray)
+	if err != nil {
 		return nil, errors.New("error while creating old list")
 	}
 
 	contents := make([]models.ListItemable, 0)
 
 	for _, itm := range oldList.GetItems() {
-		temp := itm
+		temp := api.CloneListItem(itm)
 		contents = append(contents, temp)
 	}
 

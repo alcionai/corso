@@ -151,7 +151,7 @@ func (c Lists) PostList(
 ) (models.Listable, error) {
 	newListName := listName
 
-	oldList, err := createListFromBytes(oldListByteArray)
+	oldList, err := CreateListFromBytes(oldListByteArray)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "creating old list")
 	}
@@ -165,7 +165,7 @@ func (c Lists) PostList(
 	}
 
 	// this ensure all columns, contentTypes are set to the newList
-	newList := toListable(oldList, newListName)
+	newList := ToListable(oldList, newListName)
 
 	// Restore to List base to M365 back store
 	restoredList, err := c.Stable.Client().Sites().BySiteId(siteID).Lists().Post(ctx, newList, nil)
@@ -181,7 +181,7 @@ func (c Lists) PostListItem(
 	siteID, listID string,
 	oldListByteArray []byte,
 ) ([]models.ListItemable, error) {
-	oldList, err := createListFromBytes(oldListByteArray)
+	oldList, err := CreateListFromBytes(oldListByteArray)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "creating old list to get list items")
 	}
@@ -189,7 +189,7 @@ func (c Lists) PostListItem(
 	contents := make([]models.ListItemable, 0)
 
 	for _, itm := range oldList.GetItems() {
-		temp := cloneListItem(itm)
+		temp := CloneListItem(itm)
 		contents = append(contents, temp)
 	}
 
@@ -228,7 +228,7 @@ func (c Lists) DeleteList(
 	return nil
 }
 
-func createListFromBytes(bytes []byte) (models.Listable, error) {
+func CreateListFromBytes(bytes []byte) (models.Listable, error) {
 	parsable, err := CreateFromBytes(bytes, models.CreateListFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to sharepoint list")
@@ -245,7 +245,7 @@ func createListFromBytes(bytes []byte) (models.Listable, error) {
 // not attached in this method.
 // ListItems are not included in creation of new list, and have to be restored
 // in separate call.
-func toListable(orig models.Listable, displayName string) models.Listable {
+func ToListable(orig models.Listable, displayName string) models.Listable {
 	newList := models.NewList()
 
 	newList.SetContentTypes(orig.GetContentTypes())
@@ -298,65 +298,10 @@ func toListable(orig models.Listable, displayName string) models.Listable {
 	return newList
 }
 
-// cloneColumnDefinitionable utility function for encapsulating models.ColumnDefinitionable data
-// into new object for upload.
-func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDefinitionable {
-	newColumn := models.NewColumnDefinition()
-
-	// column attributes
-	newColumn.SetName(orig.GetName())
-	newColumn.SetOdataType(orig.GetOdataType())
-	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
-	newColumn.SetReadOnly(orig.GetReadOnly())
-	newColumn.SetRequired(orig.GetRequired())
-	newColumn.SetAdditionalData(orig.GetAdditionalData())
-	newColumn.SetDescription(orig.GetDescription())
-	newColumn.SetDisplayName(orig.GetDisplayName())
-	newColumn.SetSourceColumn(orig.GetSourceColumn())
-	newColumn.SetSourceContentType(orig.GetSourceContentType())
-	newColumn.SetHidden(orig.GetHidden())
-	newColumn.SetIndexed(orig.GetIndexed())
-	newColumn.SetIsDeletable(orig.GetIsDeletable())
-	newColumn.SetIsReorderable(orig.GetIsReorderable())
-	newColumn.SetIsSealed(orig.GetIsSealed())
-	newColumn.SetTypeEscaped(orig.GetTypeEscaped())
-	newColumn.SetColumnGroup(orig.GetColumnGroup())
-	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
-
-	// column types
-	newColumn.SetText(orig.GetText())
-	newColumn.SetBoolean(orig.GetBoolean())
-	newColumn.SetCalculated(orig.GetCalculated())
-	newColumn.SetChoice(orig.GetChoice())
-	newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
-	newColumn.SetCurrency(orig.GetCurrency())
-	newColumn.SetDateTime(orig.GetDateTime())
-	newColumn.SetGeolocation(orig.GetGeolocation())
-	newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
-	newColumn.SetNumber(orig.GetNumber())
-	newColumn.SetLookup(orig.GetLookup())
-	newColumn.SetThumbnail(orig.GetThumbnail())
-	newColumn.SetTerm(orig.GetTerm())
-	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
-
-	// Requires nil checks to avoid Graph error: 'General exception while processing'
-	defaultValue := orig.GetDefaultValue()
-	if defaultValue != nil {
-		newColumn.SetDefaultValue(defaultValue)
-	}
-
-	validation := orig.GetValidation()
-	if validation != nil {
-		newColumn.SetValidation(validation)
-	}
-
-	return newColumn
-}
-
 // CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
 // M365 data into it set fields.
 // - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
-func cloneListItem(orig models.ListItemable) models.ListItemable {
+func CloneListItem(orig models.ListItemable) models.ListItemable {
 	newItem := models.NewListItem()
 
 	// list item data
@@ -389,6 +334,143 @@ func cloneListItem(orig models.ListItemable) models.ListItemable {
 	return newItem
 }
 
+// cloneColumnDefinitionable utility function for encapsulating models.ColumnDefinitionable data
+// into new object for upload.
+func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDefinitionable {
+	newColumn := models.NewColumnDefinition()
+
+	// column attributes
+	newColumn.SetName(orig.GetName())
+	newColumn.SetOdataType(orig.GetOdataType())
+	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
+	newColumn.SetReadOnly(orig.GetReadOnly())
+	newColumn.SetRequired(orig.GetRequired())
+	newColumn.SetAdditionalData(orig.GetAdditionalData())
+	newColumn.SetDescription(orig.GetDescription())
+	newColumn.SetDisplayName(orig.GetDisplayName())
+	newColumn.SetSourceColumn(orig.GetSourceColumn())
+	newColumn.SetSourceContentType(orig.GetSourceContentType())
+	newColumn.SetHidden(orig.GetHidden())
+	newColumn.SetIndexed(orig.GetIndexed())
+	newColumn.SetIsDeletable(orig.GetIsDeletable())
+	newColumn.SetIsReorderable(orig.GetIsReorderable())
+	newColumn.SetIsSealed(orig.GetIsSealed())
+	newColumn.SetTypeEscaped(orig.GetTypeEscaped())
+	newColumn.SetColumnGroup(orig.GetColumnGroup())
+	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
+
+	// column types
+	setColumnType(newColumn, orig)
+
+	// Requires nil checks to avoid Graph error: 'General exception while processing'
+	defaultValue := orig.GetDefaultValue()
+	if defaultValue != nil {
+		newColumn.SetDefaultValue(defaultValue)
+	}
+
+	validation := orig.GetValidation()
+	if validation != nil {
+		newColumn.SetValidation(validation)
+	}
+
+	return newColumn
+}
+
+func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinitionable) {
+	isColumnTypeSet := false
+
+	if orig.GetText() != nil {
+		newColumn.SetText(orig.GetText())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetBoolean() != nil {
+		newColumn.SetBoolean(orig.GetBoolean())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetCalculated() != nil {
+		newColumn.SetCalculated(orig.GetCalculated())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetChoice() != nil {
+		newColumn.SetChoice(orig.GetChoice())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetContentApprovalStatus() != nil {
+		newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetCurrency() != nil {
+		newColumn.SetCurrency(orig.GetCurrency())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetDateTime() != nil {
+		newColumn.SetDateTime(orig.GetDateTime())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetGeolocation() != nil {
+		newColumn.SetGeolocation(orig.GetGeolocation())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetHyperlinkOrPicture() != nil {
+		newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetNumber() != nil {
+		newColumn.SetNumber(orig.GetNumber())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetLookup() != nil {
+		newColumn.SetLookup(orig.GetLookup())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetThumbnail() != nil {
+		newColumn.SetThumbnail(orig.GetThumbnail())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetTerm() != nil {
+		newColumn.SetTerm(orig.GetTerm())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetPersonOrGroup() != nil {
+		newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
+
+		isColumnTypeSet = true
+	}
+
+	// defaulting to text type column
+	if !isColumnTypeSet {
+		textColumn := models.NewTextColumn()
+
+		newColumn.SetText(textColumn)
+	}
+}
+
 // retrieveFieldData utility function to clone raw listItem data from the embedded
 // additionalData map
 // Further details on FieldValueSets:
@@ -396,22 +478,25 @@ func cloneListItem(orig models.ListItemable) models.ListItemable {
 func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 	fields := models.NewFieldValueSet()
 	additionalData := make(map[string]any)
-	fieldData := orig.GetAdditionalData()
 
-	// M365 Book keeping values removed during new Item Creation
-	// Removed Values:
-	// -- Prefixes -> @odata.context : absolute path to previous list
-	// .           -> @odata.etag : Embedded link to Prior M365 ID
-	// -- String Match: Read-Only Fields
-	// -> id : previous un
-	for key, value := range fieldData {
-		if strings.HasPrefix(key, "_") || strings.HasPrefix(key, "@") ||
-			key == "Edit" || key == "Created" || key == "Modified" ||
-			strings.Contains(key, "LookupId") || strings.Contains(key, "ChildCount") || strings.Contains(key, "LinkTitle") {
-			continue
+	if orig != nil {
+		fieldData := orig.GetAdditionalData()
+
+		// M365 Book keeping values removed during new Item Creation
+		// Removed Values:
+		// -- Prefixes -> @odata.context : absolute path to previous list
+		// .           -> @odata.etag : Embedded link to Prior M365 ID
+		// -- String Match: Read-Only Fields
+		// -> id : previous un
+		for key, value := range fieldData {
+			if strings.HasPrefix(key, "_") || strings.HasPrefix(key, "@") ||
+				key == "Edit" || key == "Created" || key == "Modified" ||
+				strings.Contains(key, "LookupId") || strings.Contains(key, "ChildCount") || strings.Contains(key, "LinkTitle") {
+				continue
+			}
+
+			additionalData[key] = value
 		}
-
-		additionalData[key] = value
 	}
 
 	fields.SetAdditionalData(additionalData)
