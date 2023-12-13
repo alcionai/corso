@@ -268,33 +268,31 @@ func uploadAttachments(
 				destinationID,
 				itemID,
 				a)
-			if err != nil {
-				// Sometimes graph returns a 404 when we try to post the attachment.
-				// We're not sure why, but maybe it has to do with attaching many items.
-				// In any case, wait a little while and try again.
-				if graph.IsErrItemNotFound(err) {
-					if retry <= maxRetries {
-						waitTime := retryBackoff.NextBackOff()
+			// Sometimes graph returns a 404 when we try to post the attachment.
+			// We're not sure why, but maybe it has to do with attaching many items.
+			// In any case, wait a little while and try again.
+			if graph.IsErrItemNotFound(err) {
+				if retry <= maxRetries {
+					waitTime := retryBackoff.NextBackOff()
 
-						logger.Ctx(ictx).Infow("error uploading attachment, retrying", "retry_after", waitTime)
+					logger.Ctx(ictx).Infow("error uploading attachment, retrying", "retry_after", waitTime)
 
-						time.Sleep(waitTime)
-					}
-
-					continue
+					time.Sleep(waitTime)
 				}
 
-				// FIXME: I don't know why we're swallowing this error case.
-				// It needs investigation: https://github.com/alcionai/corso/issues/3498
-				if ptr.Val(a.GetOdataType()) == "#microsoft.graph.itemAttachment" {
-					name := ptr.Val(a.GetName())
+				continue
+			}
 
-					logger.CtxErr(ictx, err).
-						With("attachment_name", name).
-						Info("mail upload failed")
+			// FIXME: I don't know why we're swallowing this error case.
+			// It needs investigation: https://github.com/alcionai/corso/issues/3498
+			if err != nil && ptr.Val(a.GetOdataType()) == "#microsoft.graph.itemAttachment" {
+				name := ptr.Val(a.GetName())
 
-					continue
-				}
+				logger.CtxErr(ictx, err).
+					With("attachment_name", name).
+					Info("mail upload failed")
+
+				continue
 			}
 		}
 
