@@ -17,6 +17,34 @@ var legacyColumns = map[string]struct{}{
 	"Content Type": {},
 }
 
+var readOnlyFieldNames = map[string]struct{}{
+	"Attachments":    {},
+	"Edit":           {},
+	"ContentType":    {},
+	"Created":        {},
+	"Modified":       {},
+	"AuthorLookupId": {},
+	"EditorLookupId": {},
+}
+
+var addressFieldNames = map[string]struct{}{
+	"address":     {},
+	"coordinates": {},
+	"displayName": {},
+	"locationUri": {},
+	"uniqueId":    {},
+}
+
+var readonlyAddressFieldNames = map[string]struct{}{
+	"CountryOrRegion": {},
+	"State":           {},
+	"City":            {},
+	"PostalCode":      {},
+	"Street":          {},
+	"GeoLoc":          {},
+	"DispName":        {},
+}
+
 // ---------------------------------------------------------------------------
 // controller
 // ---------------------------------------------------------------------------
@@ -491,15 +519,12 @@ func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 		// -> id : previous un
 
 		for key, value := range fieldData {
+			_, isReadOnlyField := readOnlyFieldNames[key]
+
 			if strings.HasPrefix(key, "_") ||
 				strings.HasPrefix(key, "@") ||
-				key == "Edit" ||
-				key == "Attachments" ||
-				key == "ContentType" ||
-				key == "Created" ||
-				key == "Modified" ||
+				isReadOnlyField ||
 				strings.Contains(key, "LinkTitle") ||
-				strings.Contains(key, "LookupId") ||
 				strings.Contains(key, "ChildCount") {
 				continue
 			}
@@ -508,7 +533,39 @@ func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 		}
 	}
 
+	retainPrimaryAddressField(additionalData)
+
 	fields.SetAdditionalData(additionalData)
 
 	return fields
+}
+
+func retainPrimaryAddressField(additionalData map[string]interface{}) {
+	if !hasAddressFields(additionalData) {
+		return
+	}
+
+	for k := range readonlyAddressFieldNames {
+		delete(additionalData, k)
+	}
+}
+
+func hasAddressFields(additionalData map[string]interface{}) bool {
+	for _, value := range additionalData {
+		if nestedFields, ok := value.(map[string]interface{}); ok &&
+			hasRequiredFields(nestedFields, addressFieldNames) &&
+			hasRequiredFields(additionalData, readonlyAddressFieldNames) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasRequiredFields(data map[string]interface{}, checkFieldNames map[string]struct{}) bool {
+	for field := range checkFieldNames {
+		if _, exists := data[field]; !exists {
+			return false
+		}
+	}
+	return true
 }
