@@ -858,8 +858,13 @@ func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
 			expect: assert.False,
 		},
 		{
-			name:   "item nott found oDataErr",
+			name:   "item not found oDataErr",
 			err:    graphTD.ODataErr(string(itemNotFound)),
+			expect: assert.True,
+		},
+		{
+			name:   "error item not found oDataErr",
+			err:    graphTD.ODataErr(string(errorItemNotFound)),
 			expect: assert.True,
 		},
 	}
