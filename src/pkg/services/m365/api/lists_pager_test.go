@@ -7,10 +7,11 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"gotest.tools/v3/assert"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
@@ -47,6 +48,11 @@ func (suite *ListsPagerIntgSuite) TestEnumerateLists_withAssociatedRelationships
 		colLinkID         = "fake-collink-id"
 		cTypeID           = "fake-ctype-id"
 		listItemID        = "fake-list-item-id"
+
+		fieldsData = map[string]any{
+			"itemName": "item1",
+			"itemSize": 4,
+		}
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -62,14 +68,15 @@ func (suite *ListsPagerIntgSuite) TestEnumerateLists_withAssociatedRelationships
 		numColumnDefName,
 		colLinkID,
 		cTypeID,
-		listItemID)
+		listItemID,
+		fieldsData)
 
 	lists, err := ac.GetLists(ctx, suite.its.site.id, CallConfig{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(lists))
 
 	for _, list := range lists {
-		suite.testEnumerateListItems(ctx, list, listItemID)
+		suite.testEnumerateListItems(ctx, list, listItemID, fieldsData)
 		suite.testEnumerateColumns(ctx, list, textColumnDefID)
 		suite.testEnumerateContentTypes(ctx, list, cTypeID, colLinkID, numColumnDefID)
 	}
@@ -79,6 +86,7 @@ func (suite *ListsPagerIntgSuite) testEnumerateListItems(
 	ctx context.Context,
 	list models.Listable,
 	expectedListItemID string,
+	setFieldsData map[string]any,
 ) []models.ListItemable {
 	var listItems []models.ListItemable
 
@@ -95,6 +103,16 @@ func (suite *ListsPagerIntgSuite) testEnumerateListItems(
 
 		for _, li := range listItems {
 			assert.Equal(t, expectedListItemID, *li.GetId())
+
+			fields := li.GetFields()
+			require.NotEmpty(t, fields)
+
+			expectedFieldsData := map[string]any{
+				"itemName": ptr.To[string](setFieldsData["itemName"].(string)),
+				"itemSize": ptr.To[float64](float64(setFieldsData["itemSize"].(int))),
+			}
+			fieldsData := fields.GetAdditionalData()
+			assert.Equal(t, expectedFieldsData, fieldsData)
 		}
 	})
 
@@ -222,6 +240,7 @@ func (suite *ListsPagerIntgSuite) setStubListAndItsRelationShip(
 	colLinkID,
 	cTypeID,
 	listItemID string,
+	fieldsData map[string]any,
 ) {
 	list := models.NewList()
 	list.SetId(&listID)
@@ -261,8 +280,13 @@ func (suite *ListsPagerIntgSuite) setStubListAndItsRelationShip(
 	cTypesCol := models.NewContentTypeCollectionResponse()
 	cTypesCol.SetValue([]models.ContentTypeable{cTypes})
 
+	fields := models.NewFieldValueSet()
+
+	fields.SetAdditionalData(fieldsData)
+
 	listItem := models.NewListItem()
 	listItem.SetId(&listItemID)
+	listItem.SetFields(fields)
 
 	listItemCol := models.NewListItemCollectionResponse()
 	listItemCol.SetValue([]models.ListItemable{listItem})

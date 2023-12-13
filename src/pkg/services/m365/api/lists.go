@@ -139,5 +139,23 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 		return nil, nil, nil, err
 	}
 
+	for _, li := range lItems {
+		prefix := c.Stable.
+			Client().
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID).
+			Items().
+			ByListItemId(ptr.Val(li.GetId()))
+
+		fields, err := prefix.Fields().Get(ctx, nil)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		li.SetFields(fields)
+	}
+
 	return cols, cTypes, lItems, nil
 }
