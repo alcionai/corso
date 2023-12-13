@@ -214,13 +214,13 @@ func collWithMBHAndOpts(
 
 func aPage(items ...models.DriveItemable) nextPage {
 	return nextPage{
-		Items: append([]models.DriveItemable{driveRootFolder()}, items...),
+		Items: append([]models.DriveItemable{rootFolder()}, items...),
 	}
 }
 
 func aPageWReset(items ...models.DriveItemable) nextPage {
 	return nextPage{
-		Items: append([]models.DriveItemable{driveRootFolder()}, items...),
+		Items: append([]models.DriveItemable{rootFolder()}, items...),
 		Reset: true,
 	}
 }
@@ -310,9 +310,16 @@ func aColl(
 ) *collectionAssertion {
 	ids := make([]string, 0, 2*len(fileIDs))
 
-	for _, fUD := range fileIDs {
-		ids = append(ids, fUD+metadata.DataFileSuffix)
-		ids = append(ids, fUD+metadata.MetaFileSuffix)
+	for _, fID := range fileIDs {
+		ids = append(ids, fID+metadata.DataFileSuffix)
+		ids = append(ids, fID+metadata.MetaFileSuffix)
+	}
+
+	// should always expect the folder to have a
+	// dir meta file for permissions.  Not expected
+	// to get added for tombstones.
+	if curr != nil {
+		ids = append(ids, metadata.DirMetaFileSuffix)
 	}
 
 	return &collectionAssertion{
@@ -453,9 +460,10 @@ func newTree(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 
 func treeWithRoot(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := newFolderyMcFolderFace(defaultTreePfx(t, d), rootID)
+	root := custom.ToCustomDriveItem(rootFolder())
 
 	//nolint:forbidigo
-	err := tree.setFolder(context.Background(), "", rootID, rootName, false)
+	err := tree.setFolder(context.Background(), root)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
@@ -477,9 +485,10 @@ func treeWithFoldersAfterReset(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 
 func treeWithTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithRoot(t, d)
+	folder := custom.ToCustomDriveItem(d.folderAtRoot())
 
 	//nolint:forbidigo
-	err := tree.setTombstone(context.Background(), folderID())
+	err := tree.setTombstone(context.Background(), folder)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
@@ -487,13 +496,15 @@ func treeWithTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 
 func treeWithFolders(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithRoot(t, d)
+	parent := custom.ToCustomDriveItem(d.folderAtRoot("parent"))
+	folder := custom.ToCustomDriveItem(d.folderAt("parent"))
 
 	//nolint:forbidigo
-	err := tree.setFolder(context.Background(), rootID, folderID("parent"), folderName("parent"), true)
+	err := tree.setFolder(context.Background(), parent)
 	require.NoError(t, err, clues.ToCore(err))
 
 	//nolint:forbidigo
-	err = tree.setFolder(context.Background(), folderID("parent"), folderID(), folderName(), false)
+	err = tree.setFolder(context.Background(), folder)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
@@ -562,7 +573,8 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// root -> folderID(parentX)
-		err = tree.setFolder(ctx, rootID, folderID(parentFolderX), folderName(parentFolderX), false)
+		parent := custom.ToCustomDriveItem(d.folderAtRoot(parentFolderX))
+		err = tree.setFolder(ctx, parent)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in folderID(parentX)
@@ -574,7 +586,8 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// folderID(parentX) -> folderID()
-		err = tree.setFolder(ctx, folderID(parentFolderX), folderID(), folderName(), false)
+		folder := custom.ToCustomDriveItem(d.folderAt(parentFolderX))
+		err = tree.setFolder(ctx, folder)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in folderID()
@@ -588,7 +601,8 @@ func fullTreeWithNames(
 		// tombstone - have to set a non-tombstone folder first,
 		// then add the item,
 		// then tombstone the folder
-		err = tree.setFolder(ctx, rootID, folderID(tombstoneX), folderName(tombstoneX), false)
+		tomb := custom.ToCustomDriveItem(d.folderAtRoot(tombstoneX))
+		err = tree.setFolder(ctx, tomb)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in tombstone
@@ -599,7 +613,7 @@ func fullTreeWithNames(
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
-		err = tree.setTombstone(ctx, folderID(tombstoneX))
+		err = tree.setTombstone(ctx, tomb)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// deleted file
@@ -1442,7 +1456,7 @@ func driveFolder(
 		isFolder)
 }
 
-func driveRootFolder() models.DriveItemable {
+func rootFolder() models.DriveItemable {
 	rootFolder := models.NewDriveItem()
 	rootFolder.SetName(ptr.To(rootName))
 	rootFolder.SetId(ptr.To(rootID))
@@ -1473,6 +1487,15 @@ func (dd *deltaDrive) folderAt(
 		dd.dir(folderName(parentSuffix)),
 		folderID(parentSuffix),
 		isFolder)
+}
+
+func (dd *deltaDrive) packageAtRoot() models.DriveItemable {
+	return driveItem(
+		folderID(pkg),
+		folderName(pkg),
+		dd.dir(),
+		rootID,
+		isPackage)
 }
 
 // ---------------------------------------------------------------------------

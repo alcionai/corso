@@ -714,7 +714,7 @@ func runGetPreviewLimitsDefaults(
 	for containerIdx := 0; containerIdx < test.numContainers; containerIdx++ {
 		page := nextPage{
 			Items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(
 					folderID(containerIdx),
 					folderName(containerIdx),
