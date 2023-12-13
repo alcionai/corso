@@ -480,18 +480,12 @@ func (c *Collections) addFolderToTree(
 		isDeleted   = folder.GetDeleted() != nil
 		isMalware   = folder.GetMalware() != nil
 		isPkg       = folder.GetPackageEscaped() != nil
-		parent      = folder.GetParentReference()
-		parentID    string
 		notSelected bool
 	)
 
 	// check container limits before adding the next new folder
 	if !tree.containsFolder(folderID) && limiter.hitContainerLimit(tree.countLiveFolders()) {
 		return nil, errHitLimit
-	}
-
-	if parent != nil {
-		parentID = ptr.Val(parent.GetId())
 	}
 
 	defer func() {
@@ -526,7 +520,7 @@ func (c *Collections) addFolderToTree(
 	}
 
 	if isDeleted {
-		err := tree.setTombstone(ctx, folderID)
+		err := tree.setTombstone(ctx, folder)
 		return nil, clues.Stack(err).OrNil()
 	}
 
@@ -542,7 +536,7 @@ func (c *Collections) addFolderToTree(
 		return nil, nil
 	}
 
-	err = tree.setFolder(ctx, parentID, folderID, folderName, isPkg)
+	err = tree.setFolder(ctx, folder)
 
 	return nil, clues.Stack(err).OrNil()
 }

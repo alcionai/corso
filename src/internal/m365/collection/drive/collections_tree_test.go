@@ -1932,7 +1932,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath(
 	}{
 		{
 			name:      "root",
-			folder:    driveRootFolder(),
+			folder:    rootFolder(),
 			expect:    basePath.String(),
 			expectErr: require.NoError,
 		},
