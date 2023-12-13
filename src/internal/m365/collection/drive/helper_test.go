@@ -497,7 +497,7 @@ func treeWithTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 func treeWithFolders(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithRoot(t, d)
 	parent := custom.ToCustomDriveItem(d.folderAt(root, "parent"))
-	folder := custom.ToCustomDriveItem(d.folderAt(loc("parent")))
+	folder := custom.ToCustomDriveItem(d.folderAt("parent"))
 
 	//nolint:forbidigo
 	err := tree.setFolder(context.Background(), parent)
@@ -530,7 +530,7 @@ func treeWithDeletedFile(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 func treeWithFileInFolder(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithFolders(t, d)
 
-	f := custom.ToCustomDriveItem(d.fileAt(loc(folder)))
+	f := custom.ToCustomDriveItem(d.fileAt(folder))
 	err := tree.addFile(f)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -542,7 +542,7 @@ func treeWithFileInTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 
 	// setting these directly, instead of using addFile(),
 	// because we can't add files to tombstones.
-	tree.tombstones[folderID()].files[fileID()] = custom.ToCustomDriveItem(d.fileAt(loc("tombstone")))
+	tree.tombstones[folderID()].files[fileID()] = custom.ToCustomDriveItem(d.fileAt("tombstone"))
 	tree.fileIDToParentID[fileID()] = folderID()
 
 	return tree
@@ -577,17 +577,17 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file "p" in folderID(parentX)
-		df = custom.ToCustomDriveItem(d.fileAt(loc(parentFolderSuffix), "p"))
+		df = custom.ToCustomDriveItem(d.fileAt(parentFolderSuffix, "p"))
 		err = tree.addFile(df)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// folderID(parentX) -> folderID()
-		fld := custom.ToCustomDriveItem(d.folderAt(loc(parentFolderSuffix)))
+		fld := custom.ToCustomDriveItem(d.folderAt(parentFolderSuffix))
 		err = tree.setFolder(ctx, fld)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file "f" in folderID()
-		df = custom.ToCustomDriveItem(d.fileAt(loc(parentFolderSuffix, folder), "f"))
+		df = custom.ToCustomDriveItem(d.fileAt(folder, "f"))
 		err = tree.addFile(df)
 		require.NoError(t, err, clues.ToCore(err))
 
@@ -599,7 +599,7 @@ func fullTreeWithNames(
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file "t" in tombstone
-		df = custom.ToCustomDriveItem(d.fileAt(loc(tombstoneSuffix), "t"))
+		df = custom.ToCustomDriveItem(d.fileAt(tombstoneSuffix, "t"))
 		err = tree.addFile(df)
 		require.NoError(t, err, clues.ToCore(err))
 
@@ -1331,39 +1331,6 @@ func delItem(
 	return item
 }
 
-type location struct {
-	p      []string
-	suffix any
-}
-
-func loc(folderSuffix ...any) location {
-	l := location{
-		p:      []string{},
-		suffix: rootName,
-	}
-
-	for _, fs := range folderSuffix {
-		l.p = append(l.p, folderName(fs))
-		l.suffix = fs
-	}
-
-	return l
-}
-
-var root = loc()
-
-func (l location) dir(d *deltaDrive) string {
-	return d.dir(l.p...)
-}
-
-func (l location) id() string {
-	if l.suffix == rootName {
-		return rootID
-	}
-
-	return folderID(l.suffix)
-}
-
 // ---------------------------------------------------------------------------
 // file factories
 // ---------------------------------------------------------------------------
@@ -1389,14 +1356,14 @@ func driveFile(
 }
 
 func (dd *deltaDrive) fileAt(
-	parent location,
+	parentSuffix any,
 	fileSuffixes ...any,
 ) models.DriveItemable {
-	if parent.suffix == rootName {
+	if parentSuffix == root {
 		return driveItem(
 			fileID(fileSuffixes...),
 			fileName(fileSuffixes...),
-			parent.dir(dd),
+			dd.dir(),
 			rootID,
 			isFile)
 	}
@@ -1404,8 +1371,8 @@ func (dd *deltaDrive) fileAt(
 	return driveItem(
 		fileID(fileSuffixes...),
 		fileName(fileSuffixes...),
-		parent.dir(dd),
-		folderID(parent.suffix),
+		dd.dir(),
+		folderID(parentSuffix),
 		isFile)
 }
 
@@ -1428,14 +1395,14 @@ func (dd *deltaDrive) fileWURLAtRoot(
 
 func (dd *deltaDrive) fileWSizeAt(
 	size int64,
-	parent location,
+	parentSuffix any,
 	fileSuffixes ...any,
 ) models.DriveItemable {
-	if parent.suffix == rootName {
+	if parentSuffix == root {
 		return driveItemWSize(
 			fileID(fileSuffixes...),
 			fileName(fileSuffixes...),
-			parent.dir(dd),
+			dd.dir(),
 			rootID,
 			size,
 			isFile)
@@ -1444,8 +1411,8 @@ func (dd *deltaDrive) fileWSizeAt(
 	return driveItemWSize(
 		fileID(fileSuffixes...),
 		fileName(fileSuffixes...),
-		parent.dir(dd),
-		folderID(parent.suffix),
+		dd.dir(),
+		folderID(parentSuffix),
 		size,
 		isFile)
 }
@@ -1476,7 +1443,7 @@ func driveFolder(
 
 func rootFolder() models.DriveItemable {
 	rootFolder := models.NewDriveItem()
-	rootFolder.SetName(ptr.To(rootName))
+	rootFolder.SetName(ptr.To(root))
 	rootFolder.SetId(ptr.To(rootID))
 	rootFolder.SetRoot(models.NewRoot())
 	rootFolder.SetFolder(models.NewFolder())
@@ -1485,14 +1452,14 @@ func rootFolder() models.DriveItemable {
 }
 
 func (dd *deltaDrive) folderAt(
-	parent location,
+	parentSuffix any,
 	folderSuffixes ...any,
 ) models.DriveItemable {
-	if parent.suffix == rootName {
+	if parentSuffix == root {
 		return driveItem(
 			folderID(folderSuffixes...),
 			folderName(folderSuffixes...),
-			parent.dir(dd),
+			dd.dir(),
 			rootID,
 			isFolder)
 	}
@@ -1500,8 +1467,8 @@ func (dd *deltaDrive) folderAt(
 	return driveItem(
 		folderID(folderSuffixes...),
 		folderName(folderSuffixes...),
-		parent.dir(dd),
-		folderID(parent.suffix),
+		dd.dir(),
+		folderID(parentSuffix),
 		isFolder)
 }
 
@@ -1621,7 +1588,7 @@ const (
 	nav       = "nav"
 	pkg       = "package"
 	rootID    = odConsts.RootID
-	rootName  = odConsts.RootPathDir
+	root      = odConsts.RootPathDir
 	subfolder = "subfolder"
 	tenant    = "t"
 	user      = "u"

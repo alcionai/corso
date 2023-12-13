@@ -280,7 +280,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 					delta(id(deltaURL), nil).with(
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder)))))),
+							d.fileAt(folder))))),
 			prevPaths: map[string]string{},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
@@ -294,7 +294,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 					delta(id(deltaURL), nil).with(
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder)))))),
+							d.fileAt(folder))))),
 			prevPaths: map[string]string{
 				folderID(): d.strPath(t, folderName()),
 			},
@@ -339,7 +339,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aReset(),
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder)))))),
+							d.fileAt(folder))))),
 			prevPaths: map[string]string{},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
@@ -354,7 +354,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aReset(),
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder)))))),
+							d.fileAt(folder))))),
 			prevPaths: map[string]string{
 				folderID(): d.strPath(t, folderName()),
 			},
@@ -855,7 +855,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 						aPage(d.folderAt(root, "sib")),
 						aPage(
 							d.folderAt(root),
-							d.folderAt(loc(folder), "chld"))))),
+							d.folderAt(folder, "chld"))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -885,10 +885,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 					delta(id(deltaURL), nil).with(
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder))),
+							d.fileAt(folder)),
 						aPage(
 							d.folderAt(root, "sib"),
-							d.fileAt(loc("sib"), "fsib")),
+							d.fileAt("sib", "fsib")),
 						aPage(
 							d.folderAt(root),
 							d.folderAt(folder, "chld"),
@@ -987,7 +987,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 					delta(id(deltaURL), nil).with(
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder))),
+							d.fileAt(folder)),
 						aPage(delItem(folderID(), rootID, isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
@@ -1119,14 +1119,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 					delta(id(deltaURL), nil).with(
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder))),
+							d.fileAt(folder)),
 						aPage(
 							d.folderAt(root, "sib"),
-							d.fileAt(loc("sib"), "fsib")),
+							d.fileAt("sib", "fsib")),
 						aPage(
 							d.folderAt(root),
-							d.folderAt(loc(folder), "chld"),
-							d.fileAt(loc(folder, "chld"), "fchld"))))),
+							d.folderAt(folder, "chld"),
+							d.fileAt("chld", "fchld"))))),
 			limiter: newPagerLimiter(minimumLimitOpts()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1155,14 +1155,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 					delta(id(deltaURL), nil).with(
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder))),
+							d.fileAt(folder)),
 						aPage(
 							d.folderAt(root, "sib"),
-							d.fileAt(loc("sib"), "fsib")),
+							d.fileAt("sib", "fsib")),
 						aPage(
 							d.folderAt(root),
-							d.folderAt(loc(folder), "chld"),
-							d.fileAt(loc(folder, "chld"), "fchld"))))),
+							d.folderAt(folder, "chld"),
+							d.fileAt("chld", "fchld"))))),
 			limiter: newPagerLimiter(minimumLimitOpts()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1206,16 +1206,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 					delta(id(deltaURL), nil).
 						with(aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder)))),
+							d.fileAt(folder))),
 					delta(id(deltaURL), nil).
 						with(aPage(
 							d.folderAt(root, "sib"),
-							d.fileAt(loc("sib"), "fsib"))),
+							d.fileAt("sib", "fsib"))),
 					delta(id(deltaURL), nil).
 						with(aPage(
 							d.folderAt(root),
-							d.folderAt(loc(folder), "chld"),
-							d.fileAt(loc(folder, "chld"), "fchld"))))),
+							d.folderAt(folder, "chld"),
+							d.fileAt("chld", "fchld"))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1252,7 +1252,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 					delta(id(deltaURL), nil).with(
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder)))),
+							d.fileAt(folder))),
 					// a (delete,create) pair in the same delta can occur when
 					// a user deletes and restores an item in-between deltas.
 					delta(id(deltaURL), nil).with(
@@ -1261,7 +1261,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 							delItem(fileID(), folderID(), isFile)),
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder)))))),
+							d.fileAt(folder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1292,7 +1292,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 					delta(id(deltaURL), nil).with(
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder)))),
+							d.fileAt(folder))),
 					delta(id(deltaURL), nil).with(
 						aPage(
 							driveItem(folderID(), folderName("rename"), d.dir(), rootID, isFolder),
@@ -1330,7 +1330,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 						// first page: create /root/folder and /root/folder/file
 						aPage(
 							d.folderAt(root),
-							d.fileAt(loc(folder))),
+							d.fileAt(folder)),
 						// assume the user makes changes at this point:
 						// * create a new /root/folder
 						// * move /root/folder/file from old to new folder (same file ID)
@@ -1512,7 +1512,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			tree: treeWithRoot,
 			page: aPage(
 				d.folderAt(root),
-				d.folderAt(loc(folder), "chld"),
+				d.folderAt(folder, "chld"),
 				d.folderAt(root, "sib")),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
@@ -2025,7 +2025,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			page: aPage(
 				d.fileAt(root),
 				d.folderAt(root),
-				d.fileAt(loc(folder), "fchld")),
+				d.fileAt(folder, "fchld")),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 0,
@@ -2119,7 +2119,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			tree: treeWithFileAtRoot,
 			page: aPage(
 				d.folderAt(root),
-				d.fileAt(loc(folder)),
+				d.fileAt(folder),
 				delItem(fileID(), folderID(), isFile)),
 			expect: expected{
 				counts: countTD.Expected{
@@ -2265,7 +2265,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 		{
 			name:    "error file seen before parent",
 			tree:    treeWithRoot,
-			file:    d.fileAt(loc(folder)),
+			file:    d.fileAt(folder),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{

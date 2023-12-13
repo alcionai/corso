@@ -93,8 +93,8 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 					delta(id(deltaURL), nil).with(aPage(
 						d1.fileWSizeAt(1, root, "f1"),
 						d1.folderAt(root),
-						d1.fileWSizeAt(2, loc(folder), "f2"),
-						d1.fileWSizeAt(1, loc(folder), "f3"))))),
+						d1.fileWSizeAt(2, folder, "f2"),
+						d1.fileWSizeAt(1, folder, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {fileID("f1")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f2")},
@@ -143,10 +143,10 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							// Repeated items shouldn't count against the limit.
 							d1.fileAt(root, "f1"),
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f3"),
-							d1.fileAt(loc(folder), "f4"),
-							d1.fileAt(loc(folder), "f5"),
-							d1.fileAt(loc(folder), "f6"))))),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"),
+							d1.fileAt(folder, "f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {fileID("f1"), fileID("f2")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f3")},
@@ -170,10 +170,10 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(root, "f2")),
 						aPage(
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f3"),
-							d1.fileAt(loc(folder), "f4"),
-							d1.fileAt(loc(folder), "f5"),
-							d1.fileAt(loc(folder), "f6"))))),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"),
+							d1.fileAt(folder, "f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t): {fileID("f1"), fileID("f2")},
 			},
@@ -197,8 +197,8 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(root, "f3")),
 						aPage(
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f4"),
-							d1.fileAt(loc(folder), "f5"))))),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				// Root has an additional item. It's hard to fix that in the code
 				// though.
@@ -221,14 +221,14 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 					delta(id(deltaURL), nil).with(
 						aPage(
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f1"),
-							d1.fileAt(loc(folder), "f2")),
+							d1.fileAt(folder, "f1"),
+							d1.fileAt(folder, "f2")),
 						aPage(
 							d1.folderAt(root),
 							// Updated item that shouldn't count against the limit a second time.
-							d1.fileAt(loc(folder), "f2"),
-							d1.fileAt(loc(folder), "f3"),
-							d1.fileAt(loc(folder), "f4"))))),
+							d1.fileAt(folder, "f2"),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {},
 				d1.strPath(t, folderName()): {folderID(), fileID("f1"), fileID("f2"), fileID("f3")},
@@ -252,12 +252,12 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(root, "f2"),
 							// Put folder 0 at limit.
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f3"),
-							d1.fileAt(loc(folder), "f4")),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4")),
 						aPage(
 							d1.folderAt(root),
 							// Try to move item from root to folder 0 which is already at the limit.
-							d1.fileAt(loc(folder), "f1"))))),
+							d1.fileAt(folder, "f1"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {fileID("f1"), fileID("f2")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f3"), fileID("f4")},
@@ -282,10 +282,10 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(root, "f3")),
 						aPage(
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f4")),
+							d1.fileAt(folder, "f4")),
 						aPage(
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f5"))))),
+							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {fileID("f1"), fileID("f2"), fileID("f3")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f4"), fileID("f5")},
@@ -310,13 +310,13 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(root, "f3")),
 						aPage(
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f4"),
-							d1.fileAt(loc(folder), "f5"),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"),
 							// This container shouldn't be returned.
 							d1.folderAt(root, 2),
-							d1.fileAt(loc(2), "f7"),
-							d1.fileAt(loc(2), "f8"),
-							d1.fileAt(loc(2), "f9"))))),
+							d1.fileAt(2, "f7"),
+							d1.fileAt(2, "f8"),
+							d1.fileAt(2, "f9"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {fileID("f1"), fileID("f2"), fileID("f3")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f4"), fileID("f5")},
@@ -341,14 +341,14 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(root, "f3")),
 						aPage(
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f4"),
-							d1.fileAt(loc(folder), "f5")),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5")),
 						aPage(
 							// This container shouldn't be returned.
 							d1.folderAt(root, 2),
-							d1.fileAt(loc(2), "f7"),
-							d1.fileAt(loc(2), "f8"),
-							d1.fileAt(loc(2), "f9"))))),
+							d1.fileAt(2, "f7"),
+							d1.fileAt(2, "f8"),
+							d1.fileAt(2, "f9"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {fileID("f1"), fileID("f2"), fileID("f3")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f4"), fileID("f5")},
@@ -402,10 +402,10 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(root, "f3")),
 						aPage(
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f4")),
+							d1.fileAt(folder, "f4")),
 						aPage(
 							d1.folderAt(root),
-							d1.fileAt(loc(folder), "f5"))))),
+							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {fileID("f1"), fileID("f2"), fileID("f3")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f4"), fileID("f5")},
