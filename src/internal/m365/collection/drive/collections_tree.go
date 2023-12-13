@@ -221,6 +221,7 @@ func (c *Collections) makeDriveCollections(
 		ctx,
 		tree,
 		drv,
+		prevPaths,
 		prevDeltaLink,
 		countPagesInDelta,
 		errs)
@@ -776,6 +777,7 @@ func (c *Collections) turnTreeIntoCollections(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
 	drv models.Driveable,
+	prevPaths map[string]string,
 	prevDeltaLink string,
 	countPagesInDelta int,
 	errs *fault.Bus,
@@ -792,12 +794,11 @@ func (c *Collections) turnTreeIntoCollections(
 	}
 
 	var (
-		collections  = []data.BackupCollection{}
-		newPrevPaths = map[string]string{}
-		uc           *urlCache
-		el           = errs.Local()
-		driveID      = ptr.Val(drv.GetId())
-		driveName    = ptr.Val(drv.GetName())
+		collections = []data.BackupCollection{}
+		uc          *urlCache
+		el          = errs.Local()
+		driveID     = ptr.Val(drv.GetId())
+		driveName   = ptr.Val(drv.GetName())
 	)
 
 	// Attach an url cache to the drive if the number of discovered items is
@@ -825,13 +826,9 @@ func (c *Collections) turnTreeIntoCollections(
 		}
 	}
 
-	for id, cbl := range collectables {
+	for _, cbl := range collectables {
 		if el.Failure() != nil {
 			break
-		}
-
-		if cbl.currPath != nil {
-			newPrevPaths[id] = cbl.currPath.String()
 		}
 
 		coll, err := NewCollection(
@@ -856,5 +853,16 @@ func (c *Collections) turnTreeIntoCollections(
 		collections = append(collections, coll)
 	}
 
-	return collections, newPrevPaths, tree.generateExcludeItemIDs(), el.Failure()
+	if el.Failure() != nil {
+		return nil, nil, nil, el.Failure()
+	}
+
+	// use the collectables and old previous paths
+	// to generate new previous paths
+	newPrevPaths, err := tree.generateNewPreviousPaths(collectables, prevPaths)
+	if err != nil {
+		return nil, nil, nil, clues.WrapWC(ctx, err, "generating new previous paths")
+	}
+
+	return collections, newPrevPaths, tree.generateExcludeItemIDs(), nil
 }

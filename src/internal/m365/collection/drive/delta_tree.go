@@ -2,6 +2,8 @@ package drive
 
 import (
 	"context"
+	"sort"
+	"strings"
 
 	"github.com/alcionai/clues"
 
@@ -457,6 +459,111 @@ func walkTreeAndBuildCollections(
 	result[node.id] = cbl
 
 	return nil
+}
+
+type idPrevPathTup struct {
+	id       string
+	prevPath string
+}
+
+// fuses the collectables and old prevPaths into a
+// new prevPaths map.
+func (face *folderyMcFolderFace) generateNewPreviousPaths(
+	collectables map[string]collectable,
+	prevPaths map[string]string,
+) (map[string]string, error) {
+	var (
+		// id -> currentPath
+		results = map[string]string{}
+		// prevPath -> currentPath
+		movedPaths = map[string]string{}
+		// prevPath -> {}
+		tombstoned = map[string]struct{}{}
+	)
+
+	// first, move all collectables into the new maps
+
+	for id, cbl := range collectables {
+		if cbl.currPath == nil {
+			tombstoned[cbl.prevPath.String()] = struct{}{}
+			continue
+		}
+
+		cp := cbl.currPath.String()
+		results[id] = cp
+
+		if cbl.prevPath != nil && cbl.prevPath.String() != cp {
+			movedPaths[cbl.prevPath.String()] = cp
+		}
+	}
+
+	// next, create a slice of tuples representing any
+	// old prevPath entry whose ID isn't already bound to
+	// a collectable.
+
+	unseenPrevPaths := []idPrevPathTup{}
+
+	for id, p := range prevPaths {
+		if _, ok := results[id]; !ok {
+			unseenPrevPaths = append(unseenPrevPaths, idPrevPathTup{id, p})
+		}
+	}
+
+	// sort the slice by path, ascending.
+	// This ensures we work from root to leaf when replacing prefixes,
+	// and thus we won't need to walk every unseen path from leaf to
+	// root looking for a matching prefix.
+
+	sortByLeastPath := func(i, j int) bool {
+		return unseenPrevPaths[i].prevPath < unseenPrevPaths[j].prevPath
+	}
+
+	sort.Slice(unseenPrevPaths, sortByLeastPath)
+
+	for _, un := range unseenPrevPaths {
+		// if the current folder was tombstoned, skip it
+		if _, ok := tombstoned[un.prevPath]; ok {
+			continue
+		}
+
+		elems := path.NewElements(un.prevPath)
+		elems = elems[:len(elems)-1]
+
+		pb, err := path.Builder{}.UnescapeAndAppend(elems...)
+		if err != nil {
+			return nil, err
+		}
+
+		parent := pb.String()
+
+		// if the parent was tombstoned, skip it
+		if _, ok := tombstoned[parent]; ok {
+			// add the current string to the tombstoned list, that'll allow it to cascade to all children.
+			tombstoned[un.prevPath] = struct{}{}
+			continue
+		}
+
+		// if the parent wasn't moved, add it to the result set
+		parentCurrentPath, ok := movedPaths[parent]
+		if !ok {
+			results[un.id] = un.prevPath
+			continue
+		}
+
+		// if the parent was moved, replace the prefix and
+		// add it to the result set
+		// TODO: should probably use path.UpdateParent for this.
+		// but I want the quality-of-life of feeding it strings
+		// instead of parsing strings to paths here first.
+		newPath := strings.Replace(un.prevPath, parent, parentCurrentPath, 1)
+
+		results[un.id] = newPath
+
+		// add the current string to the moved list, that'll allow it to cascade to all children.
+		movedPaths[un.prevPath] = newPath
+	}
+
+	return results, nil
 }
 
 func (face *folderyMcFolderFace) generateExcludeItemIDs() map[string]struct{} {

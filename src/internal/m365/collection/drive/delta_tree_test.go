@@ -1205,3 +1205,187 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 		})
 	}
 }
+
+func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateNewPreviousPaths() {
+	t := suite.T()
+	d := drive()
+
+	table := []struct {
+		name         string
+		collectables map[string]collectable
+		prevPaths    map[string]string
+		expect       map[string]string
+	}{
+		{
+			name:         "empty collectables, empty prev paths",
+			collectables: map[string]collectable{},
+			prevPaths:    map[string]string{},
+			expect:       map[string]string{},
+		},
+		{
+			name:         "empty collectables",
+			collectables: map[string]collectable{},
+			prevPaths: map[string]string{
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
+			},
+			expect: map[string]string{
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
+			},
+		},
+		{
+			name: "empty prev paths",
+			collectables: map[string]collectable{
+				rootID:     {currPath: d.fullPath(t)},
+				folderID(): {currPath: d.fullPath(t, folderName())},
+			},
+			prevPaths: map[string]string{},
+			expect: map[string]string{
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
+			},
+		},
+		{
+			name: "collectables replace old prev as new location",
+			collectables: map[string]collectable{
+				rootID: {currPath: d.fullPath(t)},
+				folderID(): {
+					prevPath: d.fullPath(t, folderName("old")),
+					currPath: d.fullPath(t, folderName()),
+				},
+			},
+			prevPaths: map[string]string{
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName("old")),
+			},
+			expect: map[string]string{
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
+			},
+		},
+		{
+			name: "children of parents not moved maintain location",
+			collectables: map[string]collectable{
+				rootID: {currPath: d.fullPath(t)},
+				folderID(): {
+					prevPath: d.fullPath(t, folderName()),
+					currPath: d.fullPath(t, folderName()),
+				},
+			},
+			prevPaths: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName()),
+				folderID("c1"): d.strPath(t, folderName(), folderName("c1")),
+			},
+			expect: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName()),
+				folderID("c1"): d.strPath(t, folderName(), folderName("c1")),
+			},
+		},
+		{
+			name: "updates cascade to unseen children",
+			collectables: map[string]collectable{
+				rootID: {currPath: d.fullPath(t)},
+				folderID(): {
+					prevPath: d.fullPath(t, folderName("old")),
+					currPath: d.fullPath(t, folderName()),
+				},
+			},
+			prevPaths: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName("old")),
+				folderID("c1"): d.strPath(t, folderName("old"), folderName("c1")),
+				folderID("c2"): d.strPath(t, folderName("old"), folderName("c2")),
+				folderID("c3"): d.strPath(t, folderName("old"), folderName("c2"), folderName("c3")),
+			},
+			expect: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName()),
+				folderID("c1"): d.strPath(t, folderName(), folderName("c1")),
+				folderID("c2"): d.strPath(t, folderName(), folderName("c2")),
+				folderID("c3"): d.strPath(t, folderName(), folderName("c2"), folderName("c3")),
+			},
+		},
+		{
+			name: "updates cascade to unseen children - escaped path separator",
+			collectables: map[string]collectable{
+				rootID: {currPath: d.fullPath(t)},
+				folderID(): {
+					prevPath: d.fullPath(t, folderName("o/ld")),
+					currPath: d.fullPath(t, folderName("n/ew")),
+				},
+			},
+			prevPaths: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName("o/ld")),
+				folderID("c1"): d.strPath(t, folderName("o/ld"), folderName("c1")),
+				folderID("c2"): d.strPath(t, folderName("o/ld"), folderName("c2")),
+				folderID("c3"): d.strPath(t, folderName("o/ld"), folderName("c2"), folderName("c3")),
+			},
+			expect: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName("n/ew")),
+				folderID("c1"): d.strPath(t, folderName("n/ew"), folderName("c1")),
+				folderID("c2"): d.strPath(t, folderName("n/ew"), folderName("c2")),
+				folderID("c3"): d.strPath(t, folderName("n/ew"), folderName("c2"), folderName("c3")),
+			},
+		},
+		{
+			name: "tombstoned files get removed",
+			collectables: map[string]collectable{
+				rootID:     {currPath: d.fullPath(t)},
+				folderID(): {prevPath: d.fullPath(t, folderName("old"))},
+			},
+			prevPaths: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName("old")),
+				folderID("c1"): d.strPath(t, folderName("old"), folderName("c1")),
+				folderID("c2"): d.strPath(t, folderName("old"), folderName("c2")),
+				folderID("c3"): d.strPath(t, folderName("old"), folderName("c2"), folderName("c3")),
+			},
+			expect: map[string]string{
+				rootID: d.strPath(t),
+			},
+		},
+		{
+			name: "mix of moved and tombstoned",
+			collectables: map[string]collectable{
+				rootID: {currPath: d.fullPath(t)},
+				folderID(): {
+					prevPath: d.fullPath(t, folderName("old")),
+					currPath: d.fullPath(t, folderName()),
+				},
+				folderID("c3"): {prevPath: d.fullPath(t, folderName("old"), folderName("c2"), folderName("c3"))},
+			},
+			prevPaths: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName("old")),
+				folderID("c1"): d.strPath(t, folderName("old"), folderName("c1")),
+				folderID("c2"): d.strPath(t, folderName("old"), folderName("c2")),
+				folderID("c3"): d.strPath(t, folderName("old"), folderName("c2"), folderName("c3")),
+				folderID("c4"): d.strPath(t, folderName("old"), folderName("c2"), folderName("c3"), folderName("c4")),
+			},
+			expect: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName()),
+				folderID("c1"): d.strPath(t, folderName(), folderName("c1")),
+				folderID("c2"): d.strPath(t, folderName(), folderName("c2")),
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			tree := newTree(t, d)
+
+			results, err := tree.generateNewPreviousPaths(
+				test.collectables,
+				test.prevPaths)
+			require.NoError(t, err, clues.ToCore(err))
+			assert.Equal(t, test.expect, results)
+		})
+	}
+}
