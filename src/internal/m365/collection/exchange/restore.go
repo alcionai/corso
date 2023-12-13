@@ -256,7 +256,7 @@ func uploadAttachments(
 
 		retryBackoff.Reset()
 
-		for (retry == 0 || err != nil) && retry <= maxRetries {
+		for (retry == 0 || graph.IsErrItemNotFound(err)) && retry <= maxRetries {
 			retry++
 
 			ictx := clues.Add(actx, "attempt_num", retry)
@@ -268,37 +268,34 @@ func uploadAttachments(
 				destinationID,
 				itemID,
 				a)
+
 			// Sometimes graph returns a 404 when we try to post the attachment.
 			// We're not sure why, but maybe it has to do with attaching many items.
 			// In any case, wait a little while and try again.
-			if graph.IsErrItemNotFound(err) {
-				if retry <= maxRetries {
-					waitTime := retryBackoff.NextBackOff()
+			if graph.IsErrItemNotFound(err) && retry <= maxRetries {
+				waitTime := retryBackoff.NextBackOff()
 
-					logger.Ctx(ictx).Infow("error uploading attachment, retrying", "retry_after", waitTime)
+				logger.Ctx(ictx).Infow(
+					"error uploading attachment, retrying",
+					"retry_after", waitTime)
 
-					time.Sleep(waitTime)
-				}
-
-				continue
+				time.Sleep(waitTime)
 			}
+		}
 
+		if err != nil {
 			// FIXME: I don't know why we're swallowing this error case.
 			// It needs investigation: https://github.com/alcionai/corso/issues/3498
-			if err != nil && ptr.Val(a.GetOdataType()) == "#microsoft.graph.itemAttachment" {
+			if ptr.Val(a.GetOdataType()) == "#microsoft.graph.itemAttachment" {
 				name := ptr.Val(a.GetName())
 
-				logger.CtxErr(ictx, err).
+				logger.CtxErr(ctx, err).
 					With("attachment_name", name).
 					Info("mail upload failed")
 
 				continue
 			}
-		}
 
-		// Need to check error again since we could break out of the loop due to
-		// exhausting retries.
-		if err != nil {
 			el.AddRecoverable(actx, clues.WrapWC(ctx, err, "uploading mail attachment"))
 		}
 	}
