@@ -645,7 +645,7 @@ func (c *Collections) addFileToTree(
 		}
 	}
 
-	err := tree.addFile(parentID, fileID, file)
+	err := tree.addFile(file)
 	if err != nil {
 		return nil, clues.StackWC(ctx, err)
 	}

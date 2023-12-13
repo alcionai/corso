@@ -150,7 +150,8 @@ func (face *folderyMcFolderFace) setFolder(
 		return clues.NewWC(ctx, "missing folder name")
 	}
 
-	if parentFolder == nil && id != face.rootID {
+	if (parentFolder == nil || len(ptr.Val(parentFolder.GetId())) == 0) &&
+		id != face.rootID {
 		return clues.NewWC(ctx, "non-root folder missing parent id")
 	}
 
@@ -326,12 +327,19 @@ func (face *folderyMcFolderFace) hasFile(id string) bool {
 // file was already added to the tree and is getting relocated,
 // this func will update and/or clean up all the old references.
 func (face *folderyMcFolderFace) addFile(
-	parentID, id string,
 	file *custom.DriveItem,
 ) error {
-	if len(parentID) == 0 {
+	var (
+		parentFolder = file.GetParentReference()
+		id           = ptr.Val(file.GetId())
+		parentID     string
+	)
+
+	if parentFolder == nil || len(ptr.Val(parentFolder.GetId())) == 0 {
 		return clues.New("item added without parent folder ID")
 	}
+
+	parentID = ptr.Val(parentFolder.GetId())
 
 	if len(id) == 0 {
 		return clues.New("item added without ID")
