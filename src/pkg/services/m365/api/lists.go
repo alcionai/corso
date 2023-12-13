@@ -11,6 +11,12 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
+var legacyColumns = map[string]struct{}{
+	"Attachments":  {},
+	"Edit":         {},
+	"Content Type": {},
+}
+
 // ---------------------------------------------------------------------------
 // controller
 // ---------------------------------------------------------------------------
@@ -262,11 +268,6 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 	newList.SetParentReference(orig.GetParentReference())
 
 	columns := make([]models.ColumnDefinitionable, 0)
-	leg := map[string]struct{}{
-		"Attachments":  {},
-		"Edit":         {},
-		"Content Type": {},
-	}
 
 	for _, cd := range orig.GetColumns() {
 		var (
@@ -282,7 +283,7 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 			readOnly = ro
 		}
 
-		_, isLegacy := leg[displayName]
+		_, isLegacy := legacyColumns[displayName]
 
 		// Skips columns that cannot be uploaded for models.ColumnDefinitionable:
 		// - ReadOnly, Title, or Legacy columns: Attachments, Edit, or Content Type
@@ -488,10 +489,18 @@ func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 		// .           -> @odata.etag : Embedded link to Prior M365 ID
 		// -- String Match: Read-Only Fields
 		// -> id : previous un
+
 		for key, value := range fieldData {
-			if strings.HasPrefix(key, "_") || strings.HasPrefix(key, "@") ||
-				key == "Edit" || key == "Created" || key == "Modified" ||
-				strings.Contains(key, "LookupId") || strings.Contains(key, "ChildCount") || strings.Contains(key, "LinkTitle") {
+			if strings.HasPrefix(key, "_") ||
+				strings.HasPrefix(key, "@") ||
+				key == "Edit" ||
+				key == "Attachments" ||
+				key == "ContentType" ||
+				key == "Created" ||
+				key == "Modified" ||
+				strings.Contains(key, "LinkTitle") ||
+				strings.Contains(key, "LookupId") ||
+				strings.Contains(key, "ChildCount") {
 				continue
 			}
 

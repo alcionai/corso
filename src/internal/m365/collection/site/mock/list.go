@@ -59,7 +59,6 @@ func (lh *ListRestoreHandler) PostListItem(
 	listID string,
 	oldListByteArray []byte,
 ) ([]models.ListItemable, error) {
-
 	oldList, err := api.CreateListFromBytes(oldListByteArray)
 	if err != nil {
 		return nil, errors.New("error while creating old list")

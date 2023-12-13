@@ -62,7 +62,7 @@ func (suite *ListsUnitSuite) TestCreateListFromBytes() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result, err := createListFromBytes(test.byteArray)
+			result, err := CreateListFromBytes(test.byteArray)
 			test.checkError(t, err, clues.ToCore(err))
 			test.isNil(t, result)
 		})
