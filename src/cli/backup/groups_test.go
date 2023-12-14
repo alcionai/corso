@@ -160,13 +160,24 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 
 	opts := utils.MakeGroupsOpts(cmd)
 	co := utils.Control()
+	backupOpts := utils.BackupOptions()
 
-	assert.ElementsMatch(t, flagsTD.GroupsInput, opts.Groups)
+	// TODO(ashmrtn): Remove flag checks on control.Options to control.Backup once
+	// restore flags are switched over too and we no longer parse flags beyond
+	// connection info into control.Options.
+	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(backupOpts.Parallelism.ItemFetch))
+	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
+	assert.True(t, backupOpts.ToggleFeatures.DisableIncrementals)
+	assert.True(t, backupOpts.ToggleFeatures.ForceItemDataDownload)
+	assert.True(t, backupOpts.ToggleFeatures.DisableDelta)
+
 	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
 	assert.True(t, co.ToggleFeatures.DisableDelta)
+
+	assert.ElementsMatch(t, flagsTD.GroupsInput, opts.Groups)
 	flagsTD.AssertGenericBackupFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)

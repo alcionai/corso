@@ -116,8 +116,20 @@ func (suite *ExchangeUnitSuite) TestBackupCreateFlags() {
 
 	opts := utils.MakeExchangeOpts(cmd)
 	co := utils.Control()
+	backupOpts := utils.BackupOptions()
 
-	assert.ElementsMatch(t, flagsTD.MailboxInput, opts.Users)
+	// TODO(ashmrtn): Remove flag checks on control.Options to control.Backup once
+	// restore flags are switched over too and we no longer parse flags beyond
+	// connection info into control.Options.
+	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(backupOpts.Parallelism.ItemFetch))
+	assert.Equal(t, flagsTD.DeltaPageSize, strconv.Itoa(int(backupOpts.DeltaPageSize)))
+	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
+	assert.True(t, backupOpts.ToggleFeatures.DisableIncrementals)
+	assert.True(t, backupOpts.ToggleFeatures.ForceItemDataDownload)
+	assert.True(t, backupOpts.ToggleFeatures.DisableDelta)
+	assert.True(t, backupOpts.ToggleFeatures.ExchangeImmutableIDs)
+	assert.True(t, backupOpts.ServiceRateLimiter.DisableSlidingWindowLimiter)
+
 	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
 	assert.Equal(t, flagsTD.DeltaPageSize, strconv.Itoa(int(co.DeltaPageSize)))
 	assert.Equal(t, control.FailFast, co.FailureHandling)
@@ -126,6 +138,8 @@ func (suite *ExchangeUnitSuite) TestBackupCreateFlags() {
 	assert.True(t, co.ToggleFeatures.DisableDelta)
 	assert.True(t, co.ToggleFeatures.ExchangeImmutableIDs)
 	assert.True(t, co.ToggleFeatures.DisableSlidingWindowLimiter)
+
+	assert.ElementsMatch(t, flagsTD.MailboxInput, opts.Users)
 	flagsTD.AssertGenericBackupFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)

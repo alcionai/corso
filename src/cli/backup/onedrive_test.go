@@ -108,11 +108,20 @@ func (suite *OneDriveUnitSuite) TestBackupCreateFlags() {
 
 	opts := utils.MakeOneDriveOpts(cmd)
 	co := utils.Control()
+	backupOpts := utils.BackupOptions()
 
-	assert.ElementsMatch(t, flagsTD.UsersInput, opts.Users)
+	// TODO(ashmrtn): Remove flag checks on control.Options to control.Backup once
+	// restore flags are switched over too and we no longer parse flags beyond
+	// connection info into control.Options.
+	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
+	assert.True(t, backupOpts.ToggleFeatures.DisableIncrementals)
+	assert.True(t, backupOpts.ToggleFeatures.ForceItemDataDownload)
+
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+
+	assert.ElementsMatch(t, flagsTD.UsersInput, opts.Users)
 	flagsTD.AssertGenericBackupFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)

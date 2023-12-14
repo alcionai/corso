@@ -41,3 +41,27 @@ func ControlWithConfig(cfg config.RepoDetails) control.Options {
 
 	return opt
 }
+
+func BackupOptions() control.Backup {
+	opt := control.DefaultBackupOptions()
+
+	if flags.FailFastFV {
+		opt.FailureHandling = control.FailFast
+	}
+
+	dps := int32(flags.DeltaPageSizeFV)
+	if dps > 500 || dps < 1 {
+		dps = 500
+	}
+
+	opt.DeltaPageSize = dps
+	opt.ToggleFeatures.DisableIncrementals = flags.DisableIncrementalsFV
+	opt.ToggleFeatures.ForceItemDataDownload = flags.ForceItemDataDownloadFV
+	opt.ToggleFeatures.DisableDelta = flags.DisableDeltaFV
+	opt.ServiceRateLimiter.DisableSlidingWindowLimiter = flags.DisableSlidingWindowLimiterFV
+	opt.ToggleFeatures.ExchangeImmutableIDs = flags.EnableImmutableIDFV
+	opt.ToggleFeatures.UseDeltaTree = flags.UseDeltaTreeFV
+	opt.Parallelism.ItemFetch = flags.FetchParallelismFV
+
+	return opt
+}
