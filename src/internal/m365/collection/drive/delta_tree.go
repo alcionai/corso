@@ -2,12 +2,14 @@ package drive
 
 import (
 	"context"
-	"time"
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // folderyMcFolderFace owns our delta processing tree.
@@ -86,7 +88,7 @@ type nodeyMcNodeFace struct {
 	// folderID -> node
 	children map[string]*nodeyMcNodeFace
 	// file item ID -> file metadata
-	files map[string]fileyMcFileFace
+	files map[string]*custom.DriveItem
 	// for special handling protocols around packages
 	isPackage bool
 }
@@ -101,14 +103,9 @@ func newNodeyMcNodeFace(
 		id:        id,
 		name:      name,
 		children:  map[string]*nodeyMcNodeFace{},
-		files:     map[string]fileyMcFileFace{},
+		files:     map[string]*custom.DriveItem{},
 		isPackage: isPackage,
 	}
-}
-
-type fileyMcFileFace struct {
-	lastModified time.Time
-	contentSize  int64
 }
 
 // ---------------------------------------------------------------------------
@@ -317,8 +314,7 @@ func (face *folderyMcFolderFace) setPreviousPath(
 // this func will update and/or clean up all the old references.
 func (face *folderyMcFolderFace) addFile(
 	parentID, id string,
-	lastModified time.Time,
-	contentSize int64,
+	file *custom.DriveItem,
 ) error {
 	if len(parentID) == 0 {
 		return clues.New("item added without parent folder ID")
@@ -347,10 +343,7 @@ func (face *folderyMcFolderFace) addFile(
 	}
 
 	face.fileIDToParentID[id] = parentID
-	parent.files[id] = fileyMcFileFace{
-		lastModified: lastModified,
-		contentSize:  contentSize,
-	}
+	parent.files[id] = file
 
 	delete(face.deletedFileIDs, id)
 
@@ -372,6 +365,114 @@ func (face *folderyMcFolderFace) deleteFile(id string) {
 	delete(face.fileIDToParentID, id)
 
 	face.deletedFileIDs[id] = struct{}{}
+}
+
+// ---------------------------------------------------------------------------
+// post-processing
+// ---------------------------------------------------------------------------
+
+type collectable struct {
+	currPath                  path.Path
+	files                     map[string]*custom.DriveItem
+	folderID                  string
+	isPackageOrChildOfPackage bool
+	loc                       path.Elements
+	prevPath                  path.Path
+}
+
+// produces a map of folderID -> collectable
+func (face *folderyMcFolderFace) generateCollectables() (map[string]collectable, error) {
+	result := map[string]collectable{}
+	err := walkTreeAndBuildCollections(
+		face.root,
+		face.prefix,
+		&path.Builder{},
+		false,
+		result)
+
+	for id, tombstone := range face.tombstones {
+		// in case we got a folder deletion marker for a folder
+		// that has no previous path, drop the entry entirely.
+		// it doesn't exist in storage, so there's nothing to delete.
+		if tombstone.prev != nil {
+			result[id] = collectable{
+				folderID: id,
+				prevPath: tombstone.prev,
+			}
+		}
+	}
+
+	return result, clues.Stack(err).OrNil()
+}
+
+func walkTreeAndBuildCollections(
+	node *nodeyMcNodeFace,
+	pathPfx path.Path,
+	parentPath *path.Builder,
+	isChildOfPackage bool,
+	result map[string]collectable,
+) error {
+	if node == nil {
+		return nil
+	}
+
+	parentLocation := parentPath.Elements()
+	currentLocation := parentPath.Append(node.name)
+
+	for _, child := range node.children {
+		err := walkTreeAndBuildCollections(
+			child,
+			pathPfx,
+			currentLocation,
+			node.isPackage || isChildOfPackage,
+			result)
+		if err != nil {
+			return err
+		}
+	}
+
+	collectionPath, err := pathPfx.Append(false, currentLocation.Elements()...)
+	if err != nil {
+		return clues.Wrap(err, "building collection path").
+			With(
+				"path_prefix", pathPfx,
+				"path_suffix", currentLocation.Elements())
+	}
+
+	cbl := collectable{
+		currPath:                  collectionPath,
+		files:                     node.files,
+		folderID:                  node.id,
+		isPackageOrChildOfPackage: node.isPackage || isChildOfPackage,
+		loc:                       parentLocation,
+		prevPath:                  node.prev,
+	}
+
+	result[node.id] = cbl
+
+	return nil
+}
+
+func (face *folderyMcFolderFace) generateExcludeItemIDs() map[string]struct{} {
+	result := map[string]struct{}{}
+
+	for iID, pID := range face.fileIDToParentID {
+		if _, itsAlive := face.folderIDToNode[pID]; !itsAlive {
+			// don't worry about items whose parents are tombstoned.
+			// those will get handled in the delete cascade.
+			continue
+		}
+
+		result[iID+metadata.DataFileSuffix] = struct{}{}
+		result[iID+metadata.MetaFileSuffix] = struct{}{}
+	}
+
+	for iID := range face.deletedFileIDs {
+		result[iID+metadata.DataFileSuffix] = struct{}{}
+		result[iID+metadata.MetaFileSuffix] = struct{}{}
+	}
+
+	return result
 }
 
 // ---------------------------------------------------------------------------
@@ -414,7 +515,7 @@ func countFilesAndSizes(nodey *nodeyMcNodeFace) countAndSize {
 	}
 
 	for _, file := range nodey.files {
-		sumContentSize += file.contentSize
+		sumContentSize += ptr.Val(file.GetSize())
 	}
 
 	return countAndSize{
