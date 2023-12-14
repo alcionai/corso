@@ -116,7 +116,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 			expectVs: []string{"deadbeef", "sender", "Parent", "subject", nowStr},
 		},
 		{
-			name: "sharepoint info",
+			name: "sharepoint library info",
 			entry: Entry{
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
@@ -125,6 +125,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				ItemInfo: ItemInfo{
 					SharePoint: &SharePointInfo{
 						ItemName:   "itemName",
+						ItemType:   SharePointLibrary,
 						ParentPath: "parentPath",
 						Size:       1000,
 						WebURL:     "https://not.a.real/url",
@@ -142,6 +143,35 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				"aLibrary",
 				"parentPath",
 				"1.0 kB",
+				"user@email.com",
+				nowStr,
+				nowStr,
+			},
+		},
+		{
+			name: "sharepoint list info",
+			entry: Entry{
+				RepoRef:     "reporef",
+				ShortRef:    "deadbeef",
+				LocationRef: "locationref",
+				ItemRef:     "itemref",
+				ItemInfo: ItemInfo{
+					SharePoint: &SharePointInfo{
+						ItemType:  SharePointList,
+						ItemName:  "itemName",
+						ItemCount: 50,
+						WebURL:    "https://not.a.real/url",
+						Owner:     "user@email.com",
+						Created:   now,
+						Modified:  now,
+					},
+				},
+			},
+			expectHs: []string{"ID", "ListName", "ListItemsCount", "Owner", "Created", "Modified"},
+			expectVs: []string{
+				"deadbeef",
+				"itemName",
+				"50",
 				"user@email.com",
 				nowStr,
 				nowStr,
