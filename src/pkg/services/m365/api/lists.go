@@ -374,6 +374,7 @@ func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinit
 
 	if orig.GetText() != nil {
 		newColumn.SetText(orig.GetText())
+
 		isColumnTypeSet = true
 	}
 
@@ -522,7 +523,42 @@ func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 		}
 	}
 
+	retainPrimaryAddressField(additionalData)
+
 	fields.SetAdditionalData(additionalData)
 
 	return fields
+}
+
+func retainPrimaryAddressField(additionalData map[string]any) {
+	if !hasAddressFields(additionalData) {
+		return
+	}
+
+	for k := range readonlyAddressFieldNames {
+		delete(additionalData, k)
+	}
+}
+
+func hasAddressFields(additionalData map[string]any) bool {
+	for key, value := range additionalData {
+		if nestedFields, ok := value.(map[string]any); ok &&
+			hasRequiredFields(nestedFields, addressFieldNames) &&
+			hasRequiredFields(additionalData, readonlyAddressFieldNames) &&
+			key != "GeoLoc" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasRequiredFields(data map[string]any, checkFieldNames map[string]struct{}) bool {
+	for field := range checkFieldNames {
+		if _, exists := data[field]; !exists {
+			return false
+		}
+	}
+
+	return true
 }

@@ -78,7 +78,6 @@ func (suite *ListsUnitSuite) TestColumnDefinitionValidationSetWhenProvided() {
 		{
 			name: "column validation not set",
 			getOrig: func() models.ColumnDefinitionable {
-
 				textColumn := models.NewTextColumn()
 
 				cd := models.NewColumnDefinition()
@@ -91,7 +90,6 @@ func (suite *ListsUnitSuite) TestColumnDefinitionValidationSetWhenProvided() {
 		{
 			name: "column validation set",
 			getOrig: func() models.ColumnDefinitionable {
-
 				textColumn := models.NewTextColumn()
 
 				colValidation := models.NewColumnValidation()
@@ -132,7 +130,6 @@ func (suite *ListsUnitSuite) TestColumnDefaultValueSetWhenProvided() {
 		{
 			name: "column default value not set",
 			getOrig: func() models.ColumnDefinitionable {
-
 				textColumn := models.NewTextColumn()
 
 				cd := models.NewColumnDefinition()
@@ -189,7 +186,6 @@ func (suite *ListsUnitSuite) TestCheckColumnType() {
 		{
 			name: "column type should be number",
 			getOrig: func() models.ColumnDefinitionable {
-
 				numColumn := models.NewNumberColumn()
 
 				cd := models.NewColumnDefinition()
@@ -204,7 +200,6 @@ func (suite *ListsUnitSuite) TestCheckColumnType() {
 		{
 			name: "column type should be person or group",
 			getOrig: func() models.ColumnDefinitionable {
-
 				pgColumn := models.NewPersonOrGroupColumn()
 
 				cd := models.NewColumnDefinition()
@@ -236,7 +231,6 @@ func (suite *ListsUnitSuite) TestCheckColumnType() {
 
 			require.NotEmpty(t, newCd)
 			assert.True(t, test.checkFn(newCd))
-
 		})
 	}
 }
@@ -361,7 +355,6 @@ func (suite *ListsUnitSuite) TestLegacyColumnsAreNotSet() {
 			assert.Len(t, cols, test.length)
 		})
 	}
-
 }
 
 func (suite *ListsUnitSuite) TestRetrieveFieldData() {
@@ -398,6 +391,65 @@ func (suite *ListsUnitSuite) TestRetrieveFieldData() {
 	val, ok := fsAdditionalData["itemName"]
 	assert.True(t, ok)
 	assert.Equal(t, "item-1", val)
+}
+
+func (suite *ListsUnitSuite) TestRetrieveFieldData_Location() {
+	t := suite.T()
+
+	additionalData := map[string]any{
+		"MyAddress": map[string]any{
+			"address": map[string]any{
+				"city":            "Tagaytay",
+				"countryOrRegion": "Philippines",
+				"postalCode":      "4120",
+				"state":           "Calabarzon",
+				"street":          "Prime Residences CityLand 1852",
+			},
+			"coordinates": map[string]any{
+				"latitude":  "14.1153",
+				"longitude": "120.962",
+			},
+			"displayName": "B123 Unit 1852 Prime Residences Tagaytay",
+			"locationUri": "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			"uniqueId":    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+		},
+		"CountryOrRegion": "Philippines",
+		"State":           "Calabarzon",
+		"City":            "Tagaytay",
+		"PostalCode":      "4120",
+		"Street":          "Prime Residences CityLand 1852",
+		"GeoLoc": map[string]any{
+			"latitude":  14.1153,
+			"longitude": 120.962,
+		},
+		"DispName": "B123 Unit 1852 Prime Residences Tagaytay",
+	}
+
+	expectedData := map[string]any{
+		"MyAddress": map[string]any{
+			"address": map[string]any{
+				"city":            "Tagaytay",
+				"countryOrRegion": "Philippines",
+				"postalCode":      "4120",
+				"state":           "Calabarzon",
+				"street":          "Prime Residences CityLand 1852",
+			},
+			"coordinates": map[string]any{
+				"latitude":  "14.1153",
+				"longitude": "120.962",
+			},
+			"displayName": "B123 Unit 1852 Prime Residences Tagaytay",
+			"locationUri": "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			"uniqueId":    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+		},
+	}
+
+	origFs := models.NewFieldValueSet()
+	origFs.SetAdditionalData(additionalData)
+
+	fs := retrieveFieldData(origFs)
+	fsAdditionalData := fs.GetAdditionalData()
+	assert.Equal(t, expectedData, fsAdditionalData)
 }
 
 type ListsAPIIntgSuite struct {
