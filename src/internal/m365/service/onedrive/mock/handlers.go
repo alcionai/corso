@@ -1,5 +1,16 @@
 package mock
 
+// ---------------------------------------------------------------------------
+// 								>>> TODO <<<
+//              https://github.com/alcionai/corso/issues/4846
+// This file's functions are duplicated into /drive/helper_test.go, which
+// should act as the clear primary owner of that functionality.  However,
+// packages outside of /drive (such as sharepoint) depend on these helpers
+// for test functionality.  We'll want to unify the two at some point.
+// In the meantime, make sure you're referencing and updating the correct
+// set of helpers (prefer the /drive version over this one).
+// ---------------------------------------------------------------------------
+
 import (
 	"context"
 	"fmt"
