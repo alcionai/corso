@@ -12,8 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
@@ -363,6 +365,77 @@ type BackupOpUnitSuite struct {
 
 func TestBackupOpUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupOpUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *BackupOpUnitSuite) TestBackupOperation_OptionPassing() {
+	ext := []extensions.CreateItemExtensioner{
+		&extensions.MockItemExtensionFactory{},
+	}
+
+	opts := control.Options{
+		DeltaPageSize:        42,
+		DisableMetrics:       true,
+		FailureHandling:      control.FailAfterRecovery,
+		ItemExtensionFactory: slices.Clone(ext),
+		Parallelism: control.Parallelism{
+			CollectionBuffer: 4,
+			ItemFetch:        4,
+		},
+		Repo: repository.Options{
+			User:          "foo",
+			Host:          "bar",
+			ViewTimestamp: ptr.To(time.Now()),
+			ReadOnly:      true,
+		},
+		SkipReduce: true,
+		ToggleFeatures: control.Toggles{
+			DisableIncrementals:         true,
+			ForceItemDataDownload:       true,
+			DisableDelta:                true,
+			ExchangeImmutableIDs:        true,
+			RunMigrations:               true,
+			DisableSlidingWindowLimiter: true,
+			UseDeltaTree:                true,
+		},
+		PreviewLimits: control.PreviewItemLimits{
+			MaxItems:             42,
+			MaxItemsPerContainer: 43,
+			MaxContainers:        44,
+			MaxBytes:             45,
+			MaxPages:             46,
+			Enabled:              true,
+		},
+	}
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		kw   = &kopia.Wrapper{}
+		sw   = store.NewWrapper(&kopia.ModelStore{})
+		ctrl = &mock.Controller{}
+		acct = account.Account{}
+	)
+
+	sel := selectors.Selector{}
+	sel.DiscreteOwner = "bombadil"
+
+	op, err := NewBackupOperation(
+		ctx,
+		opts,
+		kw,
+		sw,
+		ctrl,
+		acct,
+		sel,
+		sel,
+		evmock.NewBus(),
+		count.New())
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, opts, op.Options)
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
