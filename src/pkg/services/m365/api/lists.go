@@ -11,6 +11,40 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
+var legacyColumns = map[string]struct{}{
+	"Attachments":  {},
+	"Edit":         {},
+	"Content Type": {},
+}
+
+var readOnlyFieldNames = map[string]struct{}{
+	"Attachments":    {},
+	"Edit":           {},
+	"ContentType":    {},
+	"Created":        {},
+	"Modified":       {},
+	"AuthorLookupId": {},
+	"EditorLookupId": {},
+}
+
+var addressFieldNames = map[string]struct{}{
+	"address":     {},
+	"coordinates": {},
+	"displayName": {},
+	"locationUri": {},
+	"uniqueId":    {},
+}
+
+var readonlyAddressFieldNames = map[string]struct{}{
+	"CountryOrRegion": {},
+	"State":           {},
+	"City":            {},
+	"PostalCode":      {},
+	"Street":          {},
+	"GeoLoc":          {},
+	"DispName":        {},
+}
+
 // ---------------------------------------------------------------------------
 // controller
 // ---------------------------------------------------------------------------
@@ -262,11 +296,6 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 	newList.SetParentReference(orig.GetParentReference())
 
 	columns := make([]models.ColumnDefinitionable, 0)
-	leg := map[string]struct{}{
-		"Attachments":  {},
-		"Edit":         {},
-		"Content Type": {},
-	}
 
 	for _, cd := range orig.GetColumns() {
 		var (
@@ -282,7 +311,7 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 			readOnly = ro
 		}
 
-		_, isLegacy := leg[displayName]
+		_, isLegacy := legacyColumns[displayName]
 
 		// Skips columns that cannot be uploaded for models.ColumnDefinitionable:
 		// - ReadOnly, Title, or Legacy columns: Attachments, Edit, or Content Type

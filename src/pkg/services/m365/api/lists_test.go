@@ -241,6 +241,129 @@ func (suite *ListsUnitSuite) TestCheckColumnType() {
 	}
 }
 
+func (suite *ListsUnitSuite) TestLegacyColumnsAreNotSet() {
+	listName := "test-list"
+	contentTypeColumnName := "ContentType"
+	contentTypeColumnDisplayName := "Content Type"
+	attachmentColumnName := "Attachments"
+	attachmentColumnDisplayName := "Attachments"
+	editColumnName := "Edit"
+	editColumnDisplayName := "Edit"
+	textColumnName := "ItemName"
+	textColumnDisplayName := "Item Name"
+	titleColumnName := "Title"
+	titleColumnDisplayName := "Title"
+	readOnlyColumnName := "TestColumn"
+	readOnlyColumnDisplayName := "Test Column"
+
+	contentTypeCd := models.NewColumnDefinition()
+	contentTypeCd.SetName(ptr.To(contentTypeColumnName))
+	contentTypeCd.SetDisplayName(ptr.To(contentTypeColumnDisplayName))
+
+	attachmentCd := models.NewColumnDefinition()
+	attachmentCd.SetName(ptr.To(attachmentColumnName))
+	attachmentCd.SetDisplayName(ptr.To(attachmentColumnDisplayName))
+
+	editCd := models.NewColumnDefinition()
+	editCd.SetName(ptr.To(editColumnName))
+	editCd.SetDisplayName(ptr.To(editColumnDisplayName))
+
+	textCol := models.NewTextColumn()
+	titleCol := models.NewTextColumn()
+	roCol := models.NewTextColumn()
+
+	textCd := models.NewColumnDefinition()
+	textCd.SetName(ptr.To(textColumnName))
+	textCd.SetDisplayName(ptr.To(textColumnDisplayName))
+	textCd.SetText(textCol)
+
+	titleCd := models.NewColumnDefinition()
+	titleCd.SetName(ptr.To(titleColumnName))
+	titleCd.SetDisplayName(ptr.To(titleColumnDisplayName))
+	titleCd.SetText(titleCol)
+
+	roCd := models.NewColumnDefinition()
+	roCd.SetName(ptr.To(readOnlyColumnName))
+	roCd.SetDisplayName(ptr.To(readOnlyColumnDisplayName))
+	roCd.SetText(roCol)
+	roCd.SetReadOnly(ptr.To(true))
+
+	tests := []struct {
+		name    string
+		getList func() *models.List
+		length  int
+	}{
+		{
+			name: "all legacy columns",
+			getList: func() *models.List {
+				lst := models.NewList()
+				lst.SetColumns([]models.ColumnDefinitionable{
+					contentTypeCd,
+					attachmentCd,
+					editCd,
+				})
+				return lst
+			},
+			length: 0,
+		},
+		{
+			name: "title and legacy columns",
+			getList: func() *models.List {
+				lst := models.NewList()
+				lst.SetColumns([]models.ColumnDefinitionable{
+					contentTypeCd,
+					attachmentCd,
+					editCd,
+					titleCd,
+				})
+				return lst
+			},
+			length: 0,
+		},
+		{
+			name: "readonly and legacy columns",
+			getList: func() *models.List {
+				lst := models.NewList()
+				lst.SetColumns([]models.ColumnDefinitionable{
+					contentTypeCd,
+					attachmentCd,
+					editCd,
+					roCd,
+				})
+				return lst
+			},
+			length: 0,
+		},
+		{
+			name: "legacy and a text column",
+			getList: func() *models.List {
+				lst := models.NewList()
+				lst.SetColumns([]models.ColumnDefinitionable{
+					contentTypeCd,
+					attachmentCd,
+					editCd,
+					textCd,
+				})
+				return lst
+			},
+			length: 1,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			clonedList := ToListable(test.getList(), listName)
+			require.NotEmpty(t, clonedList)
+
+			cols := clonedList.GetColumns()
+			assert.Len(t, cols, test.length)
+		})
+	}
+
+}
+
 type ListsAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
