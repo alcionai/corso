@@ -377,3 +377,53 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 		})
 	}
 }
+
+func (suite *SharePointUtilsSuite) TestAddSharepointCategories() {
+	table := []struct {
+		name           string
+		cats           []string
+		expectScopeLen int
+	}{
+		{
+			name:           "none",
+			cats:           []string{},
+			expectScopeLen: 2,
+		},
+		{
+			name:           "libraries",
+			cats:           []string{flags.DataLibraries},
+			expectScopeLen: 1,
+		},
+		{
+			name:           "lists",
+			cats:           []string{flags.DataLists},
+			expectScopeLen: 1,
+		},
+		{
+			name:           "pages",
+			cats:           []string{flags.DataPages},
+			expectScopeLen: 1,
+		},
+		{
+			name: "all allowed",
+			cats: []string{
+				flags.DataLibraries,
+				flags.DataLists,
+				flags.DataPages,
+			},
+			expectScopeLen: 3,
+		},
+		{
+			name:           "bad inputs",
+			cats:           []string{"foo"},
+			expectScopeLen: 0,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			sel := utils.AddCategories(selectors.NewSharePointBackup(selectors.Any()), test.cats)
+			scopes := sel.Scopes()
+			assert.Len(suite.T(), scopes, test.expectScopeLen)
+		})
+	}
+}

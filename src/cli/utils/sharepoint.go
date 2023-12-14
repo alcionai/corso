@@ -66,6 +66,33 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 	}
 }
 
+func SharePointAllowedCategories() map[string]struct{} {
+	return map[string]struct{}{
+		flags.DataLibraries: {},
+		flags.DataLists:     {},
+		flags.DataPages:     {},
+	}
+}
+
+func AddCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {
+	if len(cats) == 0 {
+		sel.Include(sel.LibraryFolders(selectors.Any()), sel.Lists(selectors.Any()))
+	}
+
+	for _, d := range cats {
+		switch d {
+		case flags.DataLibraries:
+			sel.Include(sel.LibraryFolders(selectors.Any()))
+		case flags.DataPages:
+			sel.Include(sel.Pages(selectors.Any()))
+		case flags.DataLists:
+			sel.Include(sel.Lists(selectors.Any()))
+		}
+	}
+
+	return sel
+}
+
 // ValidateSharePointRestoreFlags checks common flags for correctness and interdependencies
 func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error {
 	if len(backupID) == 0 {
