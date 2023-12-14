@@ -11,12 +11,62 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
+
+type ListsUnitSuite struct {
+	tester.Suite
+}
+
+func TestListsUnitSuite(t *testing.T) {
+	suite.Run(t, &ListsUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *ListsUnitSuite) TestBytesToListable() {
+	listBytes, err := spMock.ListBytes("DataSupportSuite")
+	require.NoError(suite.T(), err)
+
+	tests := []struct {
+		name       string
+		byteArray  []byte
+		checkError assert.ErrorAssertionFunc
+		isNil      assert.ValueAssertionFunc
+	}{
+		{
+			name:       "empty bytes",
+			byteArray:  make([]byte, 0),
+			checkError: assert.Error,
+			isNil:      assert.Nil,
+		},
+		{
+			name:       "invalid bytes",
+			byteArray:  []byte("Invalid byte stream \"subject:\" Not going to work"),
+			checkError: assert.Error,
+			isNil:      assert.Nil,
+		},
+		{
+			name:       "Valid List",
+			byteArray:  listBytes,
+			checkError: assert.NoError,
+			isNil:      assert.NotNil,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result, err := BytesToListable(test.byteArray)
+			test.checkError(t, err, clues.ToCore(err))
+			test.isNil(t, result)
+		})
+	}
+}
 
 type ListsAPIIntgSuite struct {
 	tester.Suite
