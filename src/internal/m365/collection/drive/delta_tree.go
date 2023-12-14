@@ -504,6 +504,11 @@ func (face *folderyMcFolderFace) generateNewPreviousPaths(
 	unseenPrevPaths := []idPrevPathTup{}
 
 	for id, p := range prevPaths {
+		// if the current folder was tombstoned, skip it
+		if _, ok := tombstoned[p]; ok {
+			continue
+		}
+
 		if _, ok := results[id]; !ok {
 			unseenPrevPaths = append(unseenPrevPaths, idPrevPathTup{id, p})
 		}
@@ -521,11 +526,6 @@ func (face *folderyMcFolderFace) generateNewPreviousPaths(
 	sort.Slice(unseenPrevPaths, sortByLeastPath)
 
 	for _, un := range unseenPrevPaths {
-		// if the current folder was tombstoned, skip it
-		if _, ok := tombstoned[un.prevPath]; ok {
-			continue
-		}
-
 		elems := path.NewElements(un.prevPath)
 
 		pb, err := path.Builder{}.UnescapeAndAppend(elems...)

@@ -603,7 +603,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			},
 		},
 		{
-			name:           "no folders moved",
+			name: "nothing in the tree was moved " +
+				"but there were some folders in the previous paths that " +
+				"didn't appear in the delta so those have to appear in the " +
+				"new previous paths but those weren't moved either so " +
+				"everything should have the same path at the end",
 			tree:           fullTree,
 			enableURLCache: true,
 			prevPaths: map[string]string{
@@ -648,7 +652,12 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			},
 		},
 		{
-			name:           "all folders not moved - path separator string check",
+			name: "nothing in the tree was moved " +
+				"but there were some folders in the previous paths that " +
+				"didn't appear in the delta so those have to appear in the " +
+				"new previous paths but those weren't moved either so " +
+				"everything should have the same path at the end " +
+				"- the version with path separators chars in the directory names",
 			tree:           fullTreeWithNames("pa/rent", "to/mbstone"),
 			enableURLCache: true,
 			prevPaths: map[string]string{
