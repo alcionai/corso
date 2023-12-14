@@ -307,7 +307,8 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 
 	destName := testdata.DefaultRestoreConfig("").Location
 
-	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
+	lrh := NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
+	deets, err := restoreListItem(ctx, lrh, listData, suite.siteID, destName)
 	assert.NoError(t, err, clues.ToCore(err))
 	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
 
