@@ -527,23 +527,23 @@ func (face *folderyMcFolderFace) generateNewPreviousPaths(
 		}
 
 		elems := path.NewElements(un.prevPath)
-		elems = elems[:len(elems)-1]
 
 		pb, err := path.Builder{}.UnescapeAndAppend(elems...)
 		if err != nil {
 			return nil, err
 		}
 
-		parent := pb.String()
+		parent := pb.Dir().String()
 
-		// if the parent was tombstoned, skip it
+		// if the parent was tombstoned, add this prevPath entry to the
+		// tombstoned map; that'll allow the tombstone identification to
+		// cascade to children, and it won't get added to the results.
 		if _, ok := tombstoned[parent]; ok {
-			// add the current string to the tombstoned list, that'll allow it to cascade to all children.
 			tombstoned[un.prevPath] = struct{}{}
 			continue
 		}
 
-		// if the parent wasn't moved, add it to the result set
+		// if the parent wasn't moved, add the same path to the result set
 		parentCurrentPath, ok := movedPaths[parent]
 		if !ok {
 			results[un.id] = un.prevPath

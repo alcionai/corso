@@ -657,7 +657,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 				folderID():             d.strPath(t, folderName("pa/rent"), folderName()),
 				folderID("pr/ev"):      d.strPath(t, folderName("pa/rent"), folderName("pr/ev")),
 				folderID("prev/chld"):  d.strPath(t, folderName("pa/rent"), folderName("pr/ev"), folderName("prev/chld")),
-				folderID("to/mbstone"): d.strPath(t, folderName("tombstone/prev")),
+				folderID("to/mbstone"): d.strPath(t, folderName("to/mbstone")),
 			},
 			expect: expected{
 				prevPaths: map[string]string{
@@ -683,7 +683,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 							d.fullPath(t, folderName("pa/rent"), folderName()),
 							d.fullPath(t, folderName("pa/rent"), folderName()),
 							fileID()),
-						aColl(nil, d.fullPath(t, folderName("tombstone/prev"))))
+						aColl(nil, d.fullPath(t, folderName("to/mbstone"))))
 				},
 				globalExcludedFileIDs: makeExcludeMap(
 					fileID("r"),

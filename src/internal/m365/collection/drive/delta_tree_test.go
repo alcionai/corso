@@ -1333,7 +1333,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateNewPreviousPath
 			},
 		},
 		{
-			name: "tombstoned files get removed",
+			name: "tombstoned directories get removed",
 			collectables: map[string]collectable{
 				rootID:     {currPath: d.fullPath(t)},
 				folderID(): {prevPath: d.fullPath(t, folderName("old"))},
@@ -1372,6 +1372,50 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateNewPreviousPath
 				folderID():     d.strPath(t, folderName()),
 				folderID("c1"): d.strPath(t, folderName(), folderName("c1")),
 				folderID("c2"): d.strPath(t, folderName(), folderName("c2")),
+			},
+		},
+		{
+			// tests the equivalent of:
+			// mv    root:/foo         -> root:/bar
+			// mkdir root:/foo
+			// mkdir root:/foo/c1
+			// mv    root:/bar/c1/c2   -> root:/foo/c1/c2
+			name: "moved and replaced with same name",
+			collectables: map[string]collectable{
+				rootID: {
+					prevPath: d.fullPath(t),
+					currPath: d.fullPath(t),
+				},
+				folderID(): {
+					prevPath: d.fullPath(t, folderName("foo")),
+					currPath: d.fullPath(t, folderName("bar")),
+				},
+				folderID(2): {
+					currPath: d.fullPath(t, folderName("foo")),
+				},
+				folderID("2c1"): {
+					currPath: d.fullPath(t, folderName("foo"), folderName("c1")),
+				},
+				folderID("c2"): {
+					prevPath: d.fullPath(t, folderName("bar"), folderName("c1"), folderName("c2")),
+					currPath: d.fullPath(t, folderName("foo"), folderName("c1"), folderName("c2")),
+				},
+			},
+			prevPaths: map[string]string{
+				rootID:         d.strPath(t),
+				folderID():     d.strPath(t, folderName("foo")),
+				folderID("c1"): d.strPath(t, folderName("foo"), folderName("c1")),
+				folderID("c2"): d.strPath(t, folderName("foo"), folderName("c1"), folderName("c2")),
+				folderID("c3"): d.strPath(t, folderName("foo"), folderName("c1"), folderName("c2"), folderName("c3")),
+			},
+			expect: map[string]string{
+				rootID:          d.strPath(t),
+				folderID():      d.strPath(t, folderName("bar")),
+				folderID("c1"):  d.strPath(t, folderName("bar"), folderName("c1")),
+				folderID(2):     d.strPath(t, folderName("foo")),
+				folderID("2c1"): d.strPath(t, folderName("foo"), folderName("c1")),
+				folderID("c2"):  d.strPath(t, folderName("foo"), folderName("c1"), folderName("c2")),
+				folderID("c3"):  d.strPath(t, folderName("foo"), folderName("c1"), folderName("c2"), folderName("c3")),
 			},
 		},
 	}
