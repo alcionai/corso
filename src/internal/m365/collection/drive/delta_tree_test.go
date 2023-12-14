@@ -1397,7 +1397,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateNewPreviousPath
 					currPath: d.fullPath(t, folderName("foo"), folderName("c1")),
 				},
 				folderID("c2"): {
-					prevPath: d.fullPath(t, folderName("bar"), folderName("c1"), folderName("c2")),
+					prevPath: d.fullPath(t, folderName("foo"), folderName("c1"), folderName("c2")),
 					currPath: d.fullPath(t, folderName("foo"), folderName("c1"), folderName("c2")),
 				},
 			},
