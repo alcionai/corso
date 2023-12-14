@@ -55,21 +55,30 @@ func (suite *ListsUnitSuite) TestSharePointInfo() {
 				i := &details.SharePointInfo{ItemType: details.SharePointList}
 				return models.NewList(), i
 			},
-		}, {
+		},
+		{
 			name: "Only Name",
 			listAndDeets: func() (models.Listable, *details.SharePointInfo) {
 				aTitle := "Whole List"
+				listTemplate := "genericList"
+				listItemName := "listItem1"
+
+				listInfo := models.NewListInfo()
+				listInfo.SetTemplate(ptr.To(listTemplate))
+
 				listing := models.NewList()
-				listing.SetDisplayName(&aTitle)
+				listing.SetDisplayName(ptr.To(aTitle))
+				listing.SetList(listInfo)
 
 				li := models.NewListItem()
-				li.SetId(ptr.To("listItem1"))
+				li.SetId(ptr.To(listItemName))
 
 				listing.SetItems([]models.ListItemable{li})
 				i := &details.SharePointInfo{
-					ItemType:  details.SharePointList,
-					ItemName:  aTitle,
-					ItemCount: 1,
+					ItemType:     details.SharePointList,
+					ItemName:     aTitle,
+					ItemCount:    1,
+					ItemTemplate: listTemplate,
 				}
 
 				return listing, i
