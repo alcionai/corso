@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Fixed
+- Handle the case where an email cannot be retrieved from Exchange due to an `ErrorInvalidRecipients` error. In
+this case, Corso will skip over the item but report this in the backup summary.
+- Guarantee Exchange email restoration when restoring multiple attachments. Some previous restores were failing with `ErrorItemNotFound`.
+
 ## [v0.17.0] (beta) - 2023-12-11
 
 ### Changed

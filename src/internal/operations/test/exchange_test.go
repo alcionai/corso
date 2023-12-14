@@ -1061,6 +1061,12 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 		checkRestoreCounts(t, ctr1, 0, 0, countItemsInRestore)
 	})
 
+	// Exit the test if the baseline failed as it'll just cause more failures
+	// later.
+	if t.Failed() {
+		return
+	}
+
 	// skip restore
 
 	suite.Run("skip collisions", func() {

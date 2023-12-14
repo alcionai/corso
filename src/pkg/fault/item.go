@@ -14,6 +14,7 @@ const (
 type ItemType string
 
 const (
+	EmailType         ItemType = "email"
 	FileType          ItemType = "file"
 	ContainerType     ItemType = "container"
 	ResourceOwnerType ItemType = "resource_owner"
@@ -21,6 +22,8 @@ const (
 
 func (it ItemType) Printable() string {
 	switch it {
+	case EmailType:
+		return "Email"
 	case FileType:
 		return "File"
 	case ContainerType:

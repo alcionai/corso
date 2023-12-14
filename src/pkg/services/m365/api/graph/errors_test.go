@@ -203,6 +203,40 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 	}
 }
 
+func (suite *GraphErrorsUnitSuite) Test() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    graphTD.ODataErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "invalid receipient oDataErr",
+			err:    graphTD.ODataErr(string(ErrorInvalidRecipients)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrInvalidRecipients(test.err))
+		})
+	}
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrInvalidDelta() {
 	table := []struct {
 		name   string
@@ -824,8 +858,13 @@ func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
 			expect: assert.False,
 		},
 		{
-			name:   "item nott found oDataErr",
+			name:   "item not found oDataErr",
 			err:    graphTD.ODataErr(string(itemNotFound)),
+			expect: assert.True,
+		},
+		{
+			name:   "error item not found oDataErr",
+			err:    graphTD.ODataErr(string(errorItemNotFound)),
 			expect: assert.True,
 		},
 	}

@@ -43,6 +43,11 @@ const (
 	emailFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
 	ErrorAccessDenied        errorCode = "ErrorAccessDenied"
 	errorItemNotFound        errorCode = "ErrorItemNotFound"
+	// This error occurs when an email is enumerated but retrieving it fails
+	// - we believe - due to it pre-dating mailbox creation. Possible explanations
+	// are mailbox creation racing with email receipt or a similar issue triggered
+	// due to on-prem->M365 mailbox migration.
+	ErrorInvalidRecipients errorCode = "ErrorInvalidRecipients"
 	// This error occurs when an attempt is made to create a folder that has
 	// the same name as another folder in the same parent. Such duplicate folder
 	// names are not allowed by graph.
@@ -161,7 +166,7 @@ func IsErrDeletedInFlight(err error) bool {
 }
 
 func IsErrItemNotFound(err error) bool {
-	return hasErrorCode(err, itemNotFound)
+	return hasErrorCode(err, itemNotFound, errorItemNotFound)
 }
 
 func IsErrInvalidDelta(err error) bool {
@@ -199,6 +204,10 @@ func IsErrUserNotFound(err error) bool {
 	}
 
 	return false
+}
+
+func IsErrInvalidRecipients(err error) bool {
+	return hasErrorCode(err, ErrorInvalidRecipients)
 }
 
 func IsErrCannotOpenFileAttachment(err error) bool {
