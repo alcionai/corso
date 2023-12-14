@@ -107,7 +107,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "oneDrive, no duplicates",
 			numInstances: 1,
 			service:      path.OneDriveService,
-			itemDeets:    nst{stubItemName, defaultItemSize, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: stubItemName, Modified: now}},
 			getBody:      io.NopCloser(bytes.NewReader(stubItemContent)),
 			getErr:       nil,
@@ -117,7 +117,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "oneDrive, duplicates",
 			numInstances: 3,
 			service:      path.OneDriveService,
-			itemDeets:    nst{stubItemName, defaultItemSize, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			getBody:      io.NopCloser(bytes.NewReader(stubItemContent)),
 			getErr:       nil,
 			itemInfo:     details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: stubItemName, Modified: now}},
@@ -127,7 +127,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "oneDrive, malware",
 			numInstances: 3,
 			service:      path.OneDriveService,
-			itemDeets:    nst{stubItemName, defaultItemSize, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{},
 			getBody:      nil,
 			getErr:       clues.New("test malware").Label(graph.LabelsMalware),
@@ -138,7 +138,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "oneDrive, not found",
 			numInstances: 3,
 			service:      path.OneDriveService,
-			itemDeets:    nst{stubItemName, defaultItemSize, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{},
 			getBody:      nil,
 			getErr:       clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound)),
@@ -149,7 +149,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
 			service:      path.SharePointService,
-			itemDeets:    nst{stubItemName, defaultItemSize, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: stubItemName, Modified: now}},
 			getBody:      io.NopCloser(bytes.NewReader(stubItemContent)),
 			getErr:       nil,
@@ -159,7 +159,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "sharePoint, duplicates",
 			numInstances: 3,
 			service:      path.SharePointService,
-			itemDeets:    nst{stubItemName, defaultItemSize, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: stubItemName, Modified: now}},
 			getBody:      io.NopCloser(bytes.NewReader(stubItemContent)),
 			getErr:       nil,
@@ -304,7 +304,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 		collStatus = support.ControllerOperationStatus{}
 		wg         = sync.WaitGroup{}
 		name       = "name"
-		size       = defaultItemSize
+		size       = defaultFileSize
 		now        = time.Now()
 	)
 
@@ -374,7 +374,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		collStatus = support.ControllerOperationStatus{}
 		wg         = sync.WaitGroup{}
 		name       = "name"
-		size       = defaultItemSize
+		size       = defaultFileSize
 		now        = time.Now()
 	)
 

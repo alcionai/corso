@@ -746,7 +746,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			id:          fileID(),
 			oldParentID: "",
 			parentID:    rootID,
-			contentSize: 42,
+			contentSize: defaultFileSize,
 			expectErr:   assert.NoError,
 			expectFiles: map[string]string{fileID(): rootID},
 		},

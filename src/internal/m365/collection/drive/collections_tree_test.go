@@ -823,8 +823,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 						aPage(
 							d.folderAtRoot(),
 							d.folderAt(folder, "chld"),
-							d.fileAt("chld", "fchld")),
-					))),
+							d.fileAt("chld", "fchld"))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -835,7 +834,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				err:            require.NoError,
 				numLiveFiles:   3,
 				numLiveFolders: 4,
-				sizeBytes:      3 * 42,
+				sizeBytes:      3 * defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 					folderID(),
@@ -856,8 +855,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
 					delta(id(deltaURL), nil).with(
-						aPage(delItem(folderID(), folderID("parent"), isFolder)),
-					))),
+						aPage(delItem(folderID(), folderID("parent"), isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -885,8 +883,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
 					delta(id(deltaURL), nil).with(aPage(
-						delItem(folderID(), folderID("parent"), isFolder),
-					)))),
+						delItem(folderID(), folderID("parent"), isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -990,8 +987,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 						aPage(delItem(folderID(), rootID, isFolder)),
 						aPage(
 							d.folderAtRoot(),
-							d.fileAt(folder)),
-					))),
+							d.fileAt(folder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1003,7 +999,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				err:            require.NoError,
 				numLiveFiles:   1,
 				numLiveFolders: 2,
-				sizeBytes:      42,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 					folderID(),
@@ -1023,8 +1019,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 						aPage(delItem(folderID(), rootID, isFolder)),
 						aPage(
 							d.folderAtRoot(),
-							d.fileAt(folder)),
-					))),
+							d.fileAt(folder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1036,7 +1031,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				err:            require.NoError,
 				numLiveFiles:   1,
 				numLiveFolders: 2,
-				sizeBytes:      42,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 					folderID(),
@@ -1075,7 +1070,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				shouldHitLimit: true,
 				numLiveFiles:   1,
 				numLiveFolders: 1,
-				sizeBytes:      defaultItemSize,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 				},
@@ -1165,7 +1160,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 				err:            require.NoError,
 				numLiveFiles:   3,
 				numLiveFolders: 4,
-				sizeBytes:      3 * 42,
+				sizeBytes:      3 * defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 					folderID(),
@@ -1211,7 +1206,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 				err:            require.NoError,
 				numLiveFiles:   1,
 				numLiveFolders: 2,
-				sizeBytes:      42,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 					folderID(),
@@ -1246,7 +1241,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 				err:            require.NoError,
 				numLiveFiles:   1,
 				numLiveFolders: 2,
-				sizeBytes:      42,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 					folderID(),
@@ -1293,7 +1288,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 				err:            require.NoError,
 				numLiveFiles:   1,
 				numLiveFolders: 2,
-				sizeBytes:      42,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 					folderID(2),
@@ -1952,7 +1947,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
@@ -1974,7 +1969,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 					fileID("fchld"): folderID(),
 				},
 				countLiveFiles:  2,
-				countTotalBytes: defaultItemSize * 2,
+				countTotalBytes: defaultFileSize * 2,
 			},
 		},
 		{
@@ -1995,7 +1990,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
@@ -2086,7 +2081,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
@@ -2106,7 +2101,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 	}
@@ -2177,7 +2172,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
@@ -2195,7 +2190,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
@@ -2278,7 +2273,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{

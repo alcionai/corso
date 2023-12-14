@@ -37,7 +37,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
-const defaultItemSize int64 = 42
+const defaultFileSize int64 = 42
 
 // TODO(ashmrtn): Merge with similar structs in graph and exchange packages.
 type oneDriveService struct {
