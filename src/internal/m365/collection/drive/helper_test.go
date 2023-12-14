@@ -207,8 +207,7 @@ func malwareItem(
 	return c
 }
 
-// delItem creates a DriveItemable that is marked as deleted. path must be set
-// to the base drive path.
+// delItem creates a DriveItemable that is marked as deleted.
 func delItem(
 	id string,
 	parentID string,

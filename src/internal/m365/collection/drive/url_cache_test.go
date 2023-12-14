@@ -374,6 +374,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			name: "multiple pages with resets and combo reset+items in page",
 			pages: []mock.NextPage{
 				aPage(
+					fileWURLAtRoot(aURL(0), false, 0),
 					fileWURLAtRoot(aURL(1), false, 1),
 					fileWURLAtRoot(aURL(2), false, 2),
 					fileWURLAtRoot(aURL(3), false, 3)),
