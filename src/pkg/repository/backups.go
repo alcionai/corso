@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -41,10 +42,12 @@ type BackupGetter interface {
 type Backuper interface {
 	NewBackup(
 		ctx context.Context,
+		opts control.Backup,
 		self selectors.Selector,
 	) (operations.BackupOperation, error)
 	NewBackupWithLookup(
 		ctx context.Context,
+		opts control.Backup,
 		self selectors.Selector,
 		ins idname.Cacher,
 	) (operations.BackupOperation, error)
@@ -58,9 +61,10 @@ type Backuper interface {
 // NewBackup generates a BackupOperation runner.
 func (r repository) NewBackup(
 	ctx context.Context,
+	opts control.Backup,
 	sel selectors.Selector,
 ) (operations.BackupOperation, error) {
-	return r.NewBackupWithLookup(ctx, sel, nil)
+	return r.NewBackupWithLookup(ctx, opts, sel, nil)
 }
 
 // NewBackupWithLookup generates a BackupOperation runner.
@@ -68,6 +72,7 @@ func (r repository) NewBackup(
 // already generated those values.
 func (r repository) NewBackupWithLookup(
 	ctx context.Context,
+	opts control.Backup,
 	sel selectors.Selector,
 	ins idname.Cacher,
 ) (operations.BackupOperation, error) {
@@ -86,7 +91,7 @@ func (r repository) NewBackupWithLookup(
 
 	return operations.NewBackupOperation(
 		ctx,
-		r.Opts,
+		opts,
 		r.dataLayer,
 		store.NewWrapper(r.modelStore),
 		r.Provider,

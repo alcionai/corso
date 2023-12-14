@@ -75,7 +75,7 @@ type BackupResults struct {
 // NewBackupOperation constructs and validates a backup operation.
 func NewBackupOperation(
 	ctx context.Context,
-	opts control.Options,
+	opts control.Backup,
 	kw *kopia.Wrapper,
 	sw store.BackupStorer,
 	bp inject.BackupProducer,
@@ -85,15 +85,33 @@ func NewBackupOperation(
 	bus events.Eventer,
 	counter *count.Bus,
 ) (BackupOperation, error) {
+	// TODO(ashmrtn): Remove this once lower layers of corso are rewired to take
+	// control.Backup instead of control.Options.
+	controlOpts := control.Options{
+		DeltaPageSize:        opts.DeltaPageSize,
+		FailureHandling:      opts.FailureHandling,
+		ItemExtensionFactory: opts.ItemExtensionFactory,
+		Parallelism:          opts.Parallelism,
+		PreviewLimits:        opts.PreviewLimits,
+	}
+
+	controlOpts.ToggleFeatures.DisableIncrementals = opts.ToggleFeatures.DisableIncrementals
+	controlOpts.ToggleFeatures.ForceItemDataDownload = opts.ToggleFeatures.ForceItemDataDownload
+	controlOpts.ToggleFeatures.DisableDelta = opts.ToggleFeatures.DisableDelta
+	controlOpts.ToggleFeatures.ExchangeImmutableIDs = opts.ToggleFeatures.ExchangeImmutableIDs
+	controlOpts.ToggleFeatures.RunMigrations = opts.ToggleFeatures.RunMigrations
+	controlOpts.ToggleFeatures.DisableSlidingWindowLimiter = opts.ServiceRateLimiter.DisableSlidingWindowLimiter
+	controlOpts.ToggleFeatures.UseDeltaTree = opts.ToggleFeatures.UseDeltaTree
+
 	op := BackupOperation{
-		operation:           newOperation(opts, bus, counter, kw, sw),
+		operation:           newOperation(controlOpts, bus, counter, kw, sw),
 		ResourceOwner:       owner,
 		Selectors:           selector,
 		Version:             "v0",
 		BackupVersion:       version.Backup,
 		account:             acct,
-		incremental:         useIncrementalBackup(selector, opts),
-		disableAssistBackup: opts.ToggleFeatures.ForceItemDataDownload,
+		incremental:         useIncrementalBackup(selector, controlOpts),
+		disableAssistBackup: controlOpts.ToggleFeatures.ForceItemDataDownload,
 		bp:                  bp,
 	}
 
