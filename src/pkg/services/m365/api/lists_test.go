@@ -180,6 +180,67 @@ func (suite *ListsUnitSuite) TestColumnDefaultValueSetWhenProvided() {
 	}
 }
 
+func (suite *ListsUnitSuite) TestCheckColumnType() {
+	tests := []struct {
+		name    string
+		getOrig func() models.ColumnDefinitionable
+		checkFn func(models.ColumnDefinitionable) bool
+	}{
+		{
+			name: "column type should be number",
+			getOrig: func() models.ColumnDefinitionable {
+
+				numColumn := models.NewNumberColumn()
+
+				cd := models.NewColumnDefinition()
+				cd.SetNumber(numColumn)
+
+				return cd
+			},
+			checkFn: func(cd models.ColumnDefinitionable) bool {
+				return cd.GetNumber() != nil
+			},
+		},
+		{
+			name: "column type should be person or group",
+			getOrig: func() models.ColumnDefinitionable {
+
+				pgColumn := models.NewPersonOrGroupColumn()
+
+				cd := models.NewColumnDefinition()
+				cd.SetPersonOrGroup(pgColumn)
+
+				return cd
+			},
+			checkFn: func(cd models.ColumnDefinitionable) bool {
+				return cd.GetPersonOrGroup() != nil
+			},
+		},
+		{
+			name: "column type should default to text",
+			getOrig: func() models.ColumnDefinitionable {
+				return models.NewColumnDefinition()
+			},
+			checkFn: func(cd models.ColumnDefinitionable) bool {
+				return cd.GetText() != nil
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			orig := test.getOrig()
+			newCd := cloneColumnDefinitionable(orig)
+
+			require.NotEmpty(t, newCd)
+			assert.True(t, test.checkFn(newCd))
+
+		})
+	}
+}
+
 type ListsAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
