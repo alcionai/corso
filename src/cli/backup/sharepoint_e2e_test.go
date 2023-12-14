@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/config"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -110,13 +111,18 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 		m365SiteID = tconfig.M365SiteID(t)
 		sites      = []string{m365SiteID}
 		ins        = idname.NewCache(map[string]string{m365SiteID: m365SiteID})
+		opts       = control.DefaultBackupOptions()
 	)
 
 	// some tests require an existing backup
 	sel := selectors.NewSharePointBackup(sites)
 	sel.Include(testdata.SharePointBackupFolderScope(sel))
 
-	backupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+	backupOp, err := suite.dpnd.repo.NewBackupWithLookup(
+		ctx,
+		opts,
+		sel.Selector,
+		ins)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOp = backupOp
@@ -125,7 +131,11 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// secondary backup
-	secondaryBackupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+	secondaryBackupOp, err := suite.dpnd.repo.NewBackupWithLookup(
+		ctx,
+		opts,
+		sel.Selector,
+		ins)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.secondaryBackupOp = secondaryBackupOp

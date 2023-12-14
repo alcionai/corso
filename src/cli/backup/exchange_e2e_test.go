@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/config"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -363,7 +364,11 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+		bop, err := suite.dpnd.repo.NewBackupWithLookup(
+			ctx,
+			control.DefaultBackupOptions(),
+			sel.Selector,
+			ins)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)
@@ -589,7 +594,10 @@ func (suite *BackupDeleteExchangeE2ESuite) SetupSuite() {
 	sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
 	for i := 0; i < cap(suite.backupOps); i++ {
-		backupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
+		backupOp, err := suite.dpnd.repo.NewBackup(
+			ctx,
+			control.DefaultBackupOptions(),
+			sel.Selector)
 		require.NoError(t, err, clues.ToCore(err))
 
 		suite.backupOps[i] = backupOp
