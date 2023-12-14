@@ -733,6 +733,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 	table := []struct {
 		tname       string
 		tree        func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
+		id          string
 		oldParentID string
 		parentID    string
 		contentSize int64
@@ -742,6 +743,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "add file to root",
 			tree:        treeWithRoot,
+			id:          fileID(),
 			oldParentID: "",
 			parentID:    rootID,
 			contentSize: 42,
@@ -751,6 +753,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "add file to folder",
 			tree:        treeWithFolders,
+			id:          fileID(),
 			oldParentID: "",
 			parentID:    folderID(),
 			contentSize: 24,
@@ -760,6 +763,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "re-add file at the same location",
 			tree:        treeWithFileAtRoot,
+			id:          fileID(),
 			oldParentID: rootID,
 			parentID:    rootID,
 			contentSize: 84,
@@ -769,6 +773,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "move file from folder to root",
 			tree:        treeWithFileInFolder,
+			id:          fileID(),
 			oldParentID: folderID(),
 			parentID:    rootID,
 			contentSize: 48,
@@ -778,6 +783,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "move file from tombstone to root",
 			tree:        treeWithFileInTombstone,
+			id:          fileID(),
 			oldParentID: folderID(),
 			parentID:    rootID,
 			contentSize: 2,
@@ -785,8 +791,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			expectFiles: map[string]string{fileID(): rootID},
 		},
 		{
-			tname:       "error adding file to tombstone",
+			tname:       "adding file with no ID",
 			tree:        treeWithTombstone,
+			id:          "",
 			oldParentID: "",
 			parentID:    folderID(),
 			contentSize: 4,
@@ -794,17 +801,29 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			expectFiles: map[string]string{},
 		},
 		{
+			tname:       "error adding file to tombstone",
+			tree:        treeWithTombstone,
+			id:          fileID(),
+			oldParentID: "",
+			parentID:    folderID(),
+			contentSize: 8,
+			expectErr:   assert.Error,
+			expectFiles: map[string]string{},
+		},
+		{
 			tname:       "error adding file before parent",
 			tree:        treeWithTombstone,
+			id:          fileID(),
 			oldParentID: "",
 			parentID:    folderID("not-in-tree"),
-			contentSize: 8,
+			contentSize: 16,
 			expectErr:   assert.Error,
 			expectFiles: map[string]string{},
 		},
 		{
 			tname:       "error adding file without parent id",
 			tree:        treeWithTombstone,
+			id:          fileID(),
 			oldParentID: "",
 			parentID:    "",
 			contentSize: 16,
@@ -820,7 +839,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 
 			err := tree.addFile(
 				test.parentID,
-				fileID(),
+				test.id,
 				custom.ToCustomDriveItem(d.fileWSizeAt(test.contentSize, test.parentID)))
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectFiles, tree.fileIDToParentID)
