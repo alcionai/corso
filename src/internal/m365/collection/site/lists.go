@@ -12,21 +12,22 @@ import (
 
 // ListToSPInfo translates models.Listable metadata into searchable content
 // List Details: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
-func ListToSPInfo(lst models.Listable, size int64) *details.SharePointInfo {
+func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 	var (
 		name     = ptr.Val(lst.GetDisplayName())
 		webURL   = ptr.Val(lst.GetWebUrl())
 		created  = ptr.Val(lst.GetCreatedDateTime())
 		modified = ptr.Val(lst.GetLastModifiedDateTime())
+		count    = len(lst.GetItems())
 	)
 
 	return &details.SharePointInfo{
-		ItemType: details.SharePointList,
-		ItemName: name,
-		Created:  created,
-		Modified: modified,
-		WebURL:   webURL,
-		Size:     size,
+		ItemType:  details.SharePointList,
+		ItemName:  name,
+		ItemCount: int64(count),
+		Created:   created,
+		Modified:  modified,
+		WebURL:    webURL,
 	}
 }
 

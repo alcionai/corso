@@ -114,7 +114,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				data, err := data.NewPrefetchedItemWithInfo(
 					io.NopCloser(bytes.NewReader(byteArray)),
 					name,
-					details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
+					details.ItemInfo{SharePoint: ListToSPInfo(listing)})
 				require.NoError(t, err, clues.ToCore(err))
 
 				return data
@@ -302,7 +302,7 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	listData, err := data.NewPrefetchedItemWithInfo(
 		io.NopCloser(bytes.NewReader(byteArray)),
 		testName,
-		details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
+		details.ItemInfo{SharePoint: ListToSPInfo(listing)})
 	require.NoError(t, err, clues.ToCore(err))
 
 	destName := testdata.DefaultRestoreConfig("").Location
