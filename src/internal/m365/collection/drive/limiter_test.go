@@ -12,14 +12,11 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 )
 
 type LimiterUnitSuite struct {
@@ -33,23 +30,14 @@ func TestLimiterUnitSuite(t *testing.T) {
 type backupLimitTest struct {
 	name       string
 	limits     control.PreviewItemLimits
-	drives     []models.Driveable
-	enumerator mock.EnumerateDriveItemsDelta
+	enumerator enumerateDriveItemsDelta
 	// Collection name -> set of item IDs. We can't check item data because
 	// that's not mocked out. Metadata is checked separately.
 	expectedItemIDsInCollection map[string][]string
 }
 
-func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) {
-	drive1 := models.NewDrive()
-	drive1.SetId(ptr.To(id(drive)))
-	drive1.SetName(ptr.To(name(drive)))
-
-	drive2 := models.NewDrive()
-	drive2.SetId(ptr.To(id(drive, 2)))
-	drive2.SetName(ptr.To(name(drive, 2)))
-
-	tbl := []backupLimitTest{
+func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
+	return []backupLimitTest{
 		{
 			name: "OneDrive SinglePage ExcludeItemsOverMaxSize",
 			limits: control.PreviewItemLimits{
@@ -60,15 +48,14 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             5,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(aPage(
-						fileWSizeAtRoot(7, "f1"),
-						fileWSizeAtRoot(1, "f2"),
-						fileWSizeAtRoot(1, "f3"))))),
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
+						d1.fileWSizeAtRoot(7, "f1"),
+						d1.fileWSizeAtRoot(1, "f2"),
+						d1.fileWSizeAtRoot(1, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath(): {fileID("f2"), fileID("f3")},
+				d1.strPath(): {fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -81,15 +68,14 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             3,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(aPage(
-						fileWSizeAtRoot(1, "f1"),
-						fileWSizeAtRoot(2, "f2"),
-						fileWSizeAtRoot(1, "f3"))))),
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
+						d1.fileWSizeAtRoot(1, "f1"),
+						d1.fileWSizeAtRoot(2, "f2"),
+						d1.fileWSizeAtRoot(1, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath(): {fileID("f1"), fileID("f2")},
+				d1.strPath(): {fileID("f1"), fileID("f2")},
 			},
 		},
 		{
@@ -102,17 +88,16 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             3,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(aPage(
-						fileWSizeAtRoot(1, "f1"),
-						folderAtRoot(),
-						fileWSizeAt(2, folder, "f2"),
-						fileWSizeAt(1, folder, "f3"))))),
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
+						d1.fileWSizeAtRoot(1, "f1"),
+						d1.folderAtRoot(),
+						d1.fileWSizeAt(2, folder, "f2"),
+						d1.fileWSizeAt(1, folder, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1")},
-				fullPath(folderName()): {folderID(), fileID("f2")},
+				d1.strPath():             {fileID("f1")},
+				d1.strPath(folderName()): {folderID(), fileID("f2")},
 			},
 		},
 		{
@@ -125,18 +110,17 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(aPage(
-						fileAtRoot("f1"),
-						fileAtRoot("f2"),
-						fileAtRoot("f3"),
-						fileAtRoot("f4"),
-						fileAtRoot("f5"),
-						fileAtRoot("f6"))))),
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
+						d1.fileAtRoot("f1"),
+						d1.fileAtRoot("f2"),
+						d1.fileAtRoot("f3"),
+						d1.fileAtRoot("f4"),
+						d1.fileAtRoot("f5"),
+						d1.fileAtRoot("f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -149,24 +133,23 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2")),
 						aPage(
 							// Repeated items shouldn't count against the limit.
-							fileAtRoot("f1"),
-							folderAtRoot(),
-							fileAt(folder, "f3"),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5"),
-							fileAt(folder, "f6"))))),
+							d1.fileAtRoot("f1"),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"),
+							d1.fileAt(folder, "f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2")},
-				fullPath(folderName()): {folderID(), fileID("f3")},
+				d1.strPath():             {fileID("f1"), fileID("f2")},
+				d1.strPath(folderName()): {folderID(), fileID("f3")},
 			},
 		},
 		{
@@ -179,21 +162,20 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             1,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f3"),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5"),
-							fileAt(folder, "f6"))))),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"),
+							d1.fileAt(folder, "f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath(): {fileID("f1"), fileID("f2")},
+				d1.strPath(): {fileID("f1"), fileID("f2")},
 			},
 		},
 		{
@@ -206,23 +188,22 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5"))))),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				// Root has an additional item. It's hard to fix that in the code
 				// though.
-				fullPath():             {fileID("f1"), fileID("f2")},
-				fullPath(folderName()): {folderID(), fileID("f4")},
+				d1.strPath():             {fileID("f1"), fileID("f2")},
+				d1.strPath(folderName()): {folderID(), fileID("f4")},
 			},
 		},
 		{
@@ -235,23 +216,22 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f1"),
-							fileAt(folder, "f2")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f1"),
+							d1.fileAt(folder, "f2")),
 						aPage(
-							folderAtRoot(),
+							d1.folderAtRoot(),
 							// Updated item that shouldn't count against the limit a second time.
-							fileAt(folder, "f2"),
-							fileAt(folder, "f3"),
-							fileAt(folder, "f4"))))),
+							d1.fileAt(folder, "f2"),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {},
-				fullPath(folderName()): {folderID(), fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath():             {},
+				d1.strPath(folderName()): {folderID(), fileID("f1"), fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -264,24 +244,23 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
 							// Put folder 0 at limit.
-							folderAtRoot(),
-							fileAt(folder, "f3"),
-							fileAt(folder, "f4")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4")),
 						aPage(
-							folderAtRoot(),
+							d1.folderAtRoot(),
 							// Try to move item from root to folder 0 which is already at the limit.
-							fileAt(folder, "f1"))))),
+							d1.fileAt(folder, "f1"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2")},
-				fullPath(folderName()): {folderID(), fileID("f3"), fileID("f4")},
+				d1.strPath():             {fileID("f1"), fileID("f2")},
+				d1.strPath(folderName()): {folderID(), fileID("f3"), fileID("f4")},
 			},
 		},
 		{
@@ -294,23 +273,22 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f5"))))),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				fullPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 		{
@@ -323,26 +301,25 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5"),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"),
 							// This container shouldn't be returned.
-							folderAtRoot(2),
-							fileAt(2, "f7"),
-							fileAt(2, "f8"),
-							fileAt(2, "f9"))))),
+							d1.folderAtRoot(2),
+							d1.fileAt(2, "f7"),
+							d1.fileAt(2, "f8"),
+							d1.fileAt(2, "f9"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				fullPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 		{
@@ -355,27 +332,26 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5")),
 						aPage(
 							// This container shouldn't be returned.
-							folderAtRoot(2),
-							fileAt(2, "f7"),
-							fileAt(2, "f8"),
-							fileAt(2, "f9"))))),
+							d1.folderAtRoot(2),
+							d1.fileAt(2, "f7"),
+							d1.fileAt(2, "f8"),
+							d1.fileAt(2, "f9"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				fullPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 		{
@@ -388,25 +364,24 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             999999,
 				MaxPages:             999,
 			},
-			drives: []models.Driveable{drive1, drive2},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(aPage(
-						fileAtRoot("f1"),
-						fileAtRoot("f2"),
-						fileAtRoot("f3"),
-						fileAtRoot("f4"),
-						fileAtRoot("f5")))),
-				mock.Drive(id(drive, 2)).With(
-					mock.Delta(id(delta), nil).With(aPage(
-						fileAtRoot("f1"),
-						fileAtRoot("f2"),
-						fileAtRoot("f3"),
-						fileAtRoot("f4"),
-						fileAtRoot("f5"))))),
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
+						d1.fileAtRoot("f1"),
+						d1.fileAtRoot("f2"),
+						d1.fileAtRoot("f3"),
+						d1.fileAtRoot("f4"),
+						d1.fileAtRoot("f5")))),
+				d2.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
+						d2.fileAtRoot("f1"),
+						d2.fileAtRoot("f2"),
+						d2.fileAtRoot("f3"),
+						d2.fileAtRoot("f4"),
+						d2.fileAtRoot("f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():       {fileID("f1"), fileID("f2"), fileID("f3")},
-				driveFullPath(2): {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
+				d2.strPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -418,28 +393,25 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 				MaxBytes:             1,
 				MaxPages:             1,
 			},
-			drives: []models.Driveable{drive1},
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f5"))))),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				fullPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 	}
-
-	return drive1, drive2, tbl
 }
 
 // TestGet_PreviewLimits checks that the limits set for preview backups in
@@ -447,16 +419,7 @@ func backupLimitTable() (models.Driveable, models.Driveable, []backupLimitTest) 
 // checks that don't examine metadata, collection states, etc. They really just
 // check the expected items appear.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_noTree() {
-	_, _, tbl := backupLimitTable()
-
-	for _, test := range tbl {
-		suite.Run(test.name, func() {
-			runGetPreviewLimits(
-				suite.T(),
-				test,
-				control.DefaultOptions())
-		})
-	}
+	iterGetPreviewLimitsTests(suite, control.DefaultOptions())
 }
 
 // TestGet_PreviewLimits checks that the limits set for preview backups in
@@ -469,13 +432,21 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_tree() {
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
-	_, _, tbl := backupLimitTable()
+	iterGetPreviewLimitsTests(suite, opts)
+}
 
-	for _, test := range tbl {
+func iterGetPreviewLimitsTests(
+	suite *LimiterUnitSuite,
+	opts control.Options,
+) {
+	d1, d2 := drive(), drive(2)
+
+	for _, test := range backupLimitTable(d1, d2) {
 		suite.Run(test.name, func() {
 			runGetPreviewLimits(
 				suite.T(),
 				test,
+				d1, d2,
 				opts)
 		})
 	}
@@ -484,6 +455,7 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_tree() {
 func runGetPreviewLimits(
 	t *testing.T,
 	test backupLimitTest,
+	drive1, drive2 *deltaDrive,
 	opts control.Options,
 ) {
 	ctx, flush := tester.NewContext(t)
@@ -500,12 +472,7 @@ func runGetPreviewLimits(
 	opts.PreviewLimits = test.limits
 
 	var (
-		mockDrivePager = &apiMock.Pager[models.Driveable]{
-			ToReturn: []apiMock.PagerResult[models.Driveable]{
-				{Values: test.drives},
-			},
-		}
-		mbh       = mock.DefaultDriveBHWith(user, mockDrivePager, test.enumerator)
+		mbh       = defaultDriveBHWith(user, test.enumerator)
 		c         = collWithMBHAndOpts(mbh, opts)
 		errs      = fault.New(true)
 		delList   = prefixmatcher.NewStringSetBuilder()
@@ -558,7 +525,7 @@ func runGetPreviewLimits(
 			t,
 			test.expectedItemIDsInCollection[folderPath],
 			itemIDs,
-			"item IDs in collection with path %q",
+			"item IDs in collection with path:\n\t%q",
 			folderPath)
 	}
 
@@ -741,20 +708,17 @@ func runGetPreviewLimitsDefaults(
 		false)
 	require.NoError(t, err, "making metadata path", clues.ToCore(err))
 
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
-
-	pages := make([]mock.NextPage, 0, test.numContainers)
+	d := drive()
+	pages := make([]nextPage, 0, test.numContainers)
 
 	for containerIdx := 0; containerIdx < test.numContainers; containerIdx++ {
-		page := mock.NextPage{
+		page := nextPage{
 			Items: []models.DriveItemable{
 				driveRootFolder(),
 				driveItem(
 					folderID(containerIdx),
 					folderName(containerIdx),
-					parentDir(),
+					d.dir(),
 					rootID,
 					isFolder),
 			},
@@ -766,7 +730,7 @@ func runGetPreviewLimitsDefaults(
 			page.Items = append(page.Items, driveItemWSize(
 				fileID(itemSuffix),
 				fileName(itemSuffix),
-				parentDir(folderName(containerIdx)),
+				d.dir(folderName(containerIdx)),
 				folderID(containerIdx),
 				test.itemSize,
 				isFile))
@@ -778,15 +742,10 @@ func runGetPreviewLimitsDefaults(
 	opts.PreviewLimits = test.limits
 
 	var (
-		mockDrivePager = &apiMock.Pager[models.Driveable]{
-			ToReturn: []apiMock.PagerResult[models.Driveable]{
-				{Values: []models.Driveable{drv}},
-			},
-		}
-		mockEnumerator = mock.DriveEnumerator(
-			mock.Drive(id(drive)).With(
-				mock.Delta(id(delta), nil).With(pages...)))
-		mbh           = mock.DefaultDriveBHWith(user, mockDrivePager, mockEnumerator)
+		mockEnumerator = driveEnumerator(
+			d.newEnumer().with(
+				delta(id(deltaURL), nil).with(pages...)))
+		mbh           = defaultDriveBHWith(user, mockEnumerator)
 		c             = collWithMBHAndOpts(mbh, opts)
 		errs          = fault.New(true)
 		delList       = prefixmatcher.NewStringSetBuilder()

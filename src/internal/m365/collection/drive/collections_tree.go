@@ -629,7 +629,7 @@ func (c *Collections) addFileToTree(
 		return nil, nil
 	}
 
-	_, alreadySeen := tree.fileIDToParentID[fileID]
+	alreadySeen := tree.hasFile(fileID)
 	parentNode, parentNotNil := tree.folderIDToNode[parentID]
 
 	if parentNotNil && !alreadySeen {
@@ -686,25 +686,10 @@ func (c *Collections) makeDriveTombstones(
 			continue
 		}
 
-		// TODO: call NewTombstoneCollection
-		coll, err := NewCollection(
-			c.handler,
-			c.protectedResource,
-			nil, // delete the drive
+		coll := data.NewTombstoneCollection(
 			prevDrivePath,
-			driveID,
-			c.statusUpdater,
 			c.ctrl,
-			false,
-			true,
-			nil,
 			c.counter.Local())
-		if err != nil {
-			err = clues.WrapWC(ctx, err, "making drive tombstone")
-			el.AddRecoverable(ctx, err)
-
-			continue
-		}
 
 		colls = append(colls, coll)
 	}

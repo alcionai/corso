@@ -67,7 +67,7 @@ func (suite *DeltaTreeUnitSuite) TestNewNodeyMcNodeFace() {
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 	table := []struct {
 		tname     string
-		tree      func(t *testing.T) *folderyMcFolderFace
+		tree      func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		parentID  string
 		id        string
 		name      string
@@ -140,7 +140,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 		},
 		{
 			tname: "add folder before parent",
-			tree: func(t *testing.T) *folderyMcFolderFace {
+			tree: func(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 				return &folderyMcFolderFace{
 					folderIDToNode: map[string]*nodeyMcNodeFace{},
 				}
@@ -167,7 +167,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			tree := test.tree(t)
+			tree := test.tree(t, drive())
 
 			err := tree.setFolder(
 				ctx,
@@ -202,7 +202,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 	table := []struct {
 		name      string
 		id        string
-		tree      func(t *testing.T) *folderyMcFolderFace
+		tree      func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		expectErr assert.ErrorAssertionFunc
 	}{
 		{
@@ -236,7 +236,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddTombstone() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			tree := test.tree(t)
+			tree := test.tree(t, drive())
 
 			err := tree.setTombstone(ctx, test.id)
 			test.expectErr(t, err, clues.ToCore(err))
@@ -263,7 +263,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 		name            string
 		id              string
 		prev            path.Path
-		tree            func(t *testing.T) *folderyMcFolderFace
+		tree            func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		expectErr       assert.ErrorAssertionFunc
 		expectLive      bool
 		expectTombstone bool
@@ -333,7 +333,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetPreviousPath() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			tree := test.tree(t)
+			tree := test.tree(t, drive())
 
 			err := tree.setPreviousPath(test.id, test.prev)
 			test.expectErr(t, err, clues.ToCore(err))
@@ -471,7 +471,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	tree := treeWithRoot(t)
+	tree := treeWithRoot(t, drive())
 
 	set := func(
 		parentID, fid, fname string,
@@ -557,7 +557,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	tree := treeWithRoot(t)
+	tree := treeWithRoot(t, drive())
 
 	set := func(
 		parentID, fid, fname string,
@@ -732,7 +732,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 	table := []struct {
 		tname       string
-		tree        func(t *testing.T) *folderyMcFolderFace
+		tree        func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
+		id          string
 		oldParentID string
 		parentID    string
 		contentSize int64
@@ -742,6 +743,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "add file to root",
 			tree:        treeWithRoot,
+			id:          fileID(),
 			oldParentID: "",
 			parentID:    rootID,
 			contentSize: 42,
@@ -751,6 +753,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "add file to folder",
 			tree:        treeWithFolders,
+			id:          fileID(),
 			oldParentID: "",
 			parentID:    folderID(),
 			contentSize: 24,
@@ -760,6 +763,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "re-add file at the same location",
 			tree:        treeWithFileAtRoot,
+			id:          fileID(),
 			oldParentID: rootID,
 			parentID:    rootID,
 			contentSize: 84,
@@ -769,6 +773,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "move file from folder to root",
 			tree:        treeWithFileInFolder,
+			id:          fileID(),
 			oldParentID: folderID(),
 			parentID:    rootID,
 			contentSize: 48,
@@ -778,6 +783,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 		{
 			tname:       "move file from tombstone to root",
 			tree:        treeWithFileInTombstone,
+			id:          fileID(),
 			oldParentID: folderID(),
 			parentID:    rootID,
 			contentSize: 2,
@@ -785,8 +791,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			expectFiles: map[string]string{fileID(): rootID},
 		},
 		{
-			tname:       "error adding file to tombstone",
+			tname:       "adding file with no ID",
 			tree:        treeWithTombstone,
+			id:          "",
 			oldParentID: "",
 			parentID:    folderID(),
 			contentSize: 4,
@@ -794,17 +801,29 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 			expectFiles: map[string]string{},
 		},
 		{
+			tname:       "error adding file to tombstone",
+			tree:        treeWithTombstone,
+			id:          fileID(),
+			oldParentID: "",
+			parentID:    folderID(),
+			contentSize: 8,
+			expectErr:   assert.Error,
+			expectFiles: map[string]string{},
+		},
+		{
 			tname:       "error adding file before parent",
 			tree:        treeWithTombstone,
+			id:          fileID(),
 			oldParentID: "",
 			parentID:    folderID("not-in-tree"),
-			contentSize: 8,
+			contentSize: 16,
 			expectErr:   assert.Error,
 			expectFiles: map[string]string{},
 		},
 		{
 			tname:       "error adding file without parent id",
 			tree:        treeWithTombstone,
+			id:          fileID(),
 			oldParentID: "",
 			parentID:    "",
 			contentSize: 16,
@@ -815,12 +834,13 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 	for _, test := range table {
 		suite.Run(test.tname, func() {
 			t := suite.T()
-			tree := test.tree(t)
+			d := drive()
+			tree := test.tree(t, d)
 
 			err := tree.addFile(
 				test.parentID,
-				fileID(),
-				custom.ToCustomDriveItem(fileWSizeAt(test.contentSize, test.parentID)))
+				test.id,
+				custom.ToCustomDriveItem(d.fileWSizeAt(test.contentSize, test.parentID)))
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectFiles, tree.fileIDToParentID)
 
@@ -850,7 +870,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
 	table := []struct {
 		tname    string
-		tree     func(t *testing.T) *folderyMcFolderFace
+		tree     func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		parentID string
 	}{
 		{
@@ -877,7 +897,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
 	for _, test := range table {
 		suite.Run(test.tname, func() {
 			t := suite.T()
-			tree := test.tree(t)
+			tree := test.tree(t, drive())
 
 			tree.deleteFile(fileID())
 
@@ -893,7 +913,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_DeleteFile() {
 
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 	t := suite.T()
-	tree := treeWithRoot(t)
+	d := drive()
+	tree := treeWithRoot(t, d)
 	fID := id(file)
 
 	require.Len(t, tree.fileIDToParentID, 0)
@@ -906,7 +927,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 	assert.Len(t, tree.deletedFileIDs, 1)
 	assert.Contains(t, tree.deletedFileIDs, fID)
 
-	err := tree.addFile(rootID, fID, custom.ToCustomDriveItem(fileAtRoot()))
+	err := tree.addFile(rootID, fID, custom.ToCustomDriveItem(d.fileAtRoot()))
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Len(t, tree.fileIDToParentID, 1)
@@ -925,7 +946,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateExcludeItemIDs() {
 	table := []struct {
 		name   string
-		tree   func(t *testing.T) *folderyMcFolderFace
+		tree   func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		expect map[string]struct{}
 	}{
 		{
@@ -961,7 +982,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateExcludeItemIDs(
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			tree := test.tree(t)
+			tree := test.tree(t, drive())
 
 			result := tree.generateExcludeItemIDs()
 			assert.Equal(t, test.expect, result)
@@ -975,10 +996,11 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateExcludeItemIDs(
 
 func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() {
 	t := suite.T()
+	d := drive()
 
 	table := []struct {
 		name      string
-		tree      func(t *testing.T) *folderyMcFolderFace
+		tree      func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		prevPaths map[string]string
 		expectErr require.ErrorAssertionFunc
 		expect    map[string]collectable
@@ -995,7 +1017,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath:                  fullPathPath(t),
+					currPath:                  d.fullPath(t),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
@@ -1009,9 +1031,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath: fullPathPath(t),
+					currPath: d.fullPath(t),
 					files: map[string]*custom.DriveItem{
-						fileID(): custom.ToCustomDriveItem(fileAtRoot()),
+						fileID(): custom.ToCustomDriveItem(d.fileAtRoot()),
 					},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
@@ -1025,23 +1047,23 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath:                  fullPathPath(t),
+					currPath:                  d.fullPath(t),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{},
 				},
 				folderID("parent"): {
-					currPath:                  fullPathPath(t, folderName("parent")),
+					currPath:                  d.fullPath(t, folderName("parent")),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  folderID("parent"),
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{rootName},
 				},
 				folderID(): {
-					currPath: fullPathPath(t, folderName("parent"), folderName()),
+					currPath: d.fullPath(t, folderName("parent"), folderName()),
 					files: map[string]*custom.DriveItem{
-						fileID(): custom.ToCustomDriveItem(fileAt("parent")),
+						fileID(): custom.ToCustomDriveItem(d.fileAt("parent")),
 					},
 					folderID:                  folderID(),
 					isPackageOrChildOfPackage: false,
@@ -1051,11 +1073,11 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 		},
 		{
 			name: "package in hierarchy",
-			tree: func(t *testing.T) *folderyMcFolderFace {
+			tree: func(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 				ctx, flush := tester.NewContext(t)
 				defer flush()
 
-				tree := treeWithRoot(t)
+				tree := treeWithRoot(t, d)
 				err := tree.setFolder(ctx, rootID, id(pkg), name(pkg), true)
 				require.NoError(t, err, clues.ToCore(err))
 
@@ -1067,21 +1089,21 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath:                  fullPathPath(t),
+					currPath:                  d.fullPath(t),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{},
 				},
 				id(pkg): {
-					currPath:                  fullPathPath(t, name(pkg)),
+					currPath:                  d.fullPath(t, name(pkg)),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  id(pkg),
 					isPackageOrChildOfPackage: true,
 					loc:                       path.Elements{rootName},
 				},
 				folderID(): {
-					currPath:                  fullPathPath(t, name(pkg), folderName()),
+					currPath:                  d.fullPath(t, name(pkg), folderName()),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  folderID(),
 					isPackageOrChildOfPackage: true,
@@ -1094,36 +1116,36 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			tree:      treeWithFileInFolder,
 			expectErr: require.NoError,
 			prevPaths: map[string]string{
-				rootID:             fullPath(),
-				folderID("parent"): fullPath(folderName("parent-prev")),
-				folderID():         fullPath(folderName("parent-prev"), folderName()),
+				rootID:             d.strPath(),
+				folderID("parent"): d.strPath(folderName("parent-prev")),
+				folderID():         d.strPath(folderName("parent-prev"), folderName()),
 			},
 			expect: map[string]collectable{
 				rootID: {
-					currPath:                  fullPathPath(t),
+					currPath:                  d.fullPath(t),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{},
-					prevPath:                  fullPathPath(t),
+					prevPath:                  d.fullPath(t),
 				},
 				folderID("parent"): {
-					currPath:                  fullPathPath(t, folderName("parent")),
+					currPath:                  d.fullPath(t, folderName("parent")),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  folderID("parent"),
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{rootName},
-					prevPath:                  fullPathPath(t, folderName("parent-prev")),
+					prevPath:                  d.fullPath(t, folderName("parent-prev")),
 				},
 				folderID(): {
-					currPath:                  fullPathPath(t, folderName("parent"), folderName()),
+					currPath:                  d.fullPath(t, folderName("parent"), folderName()),
 					folderID:                  folderID(),
 					isPackageOrChildOfPackage: false,
 					files: map[string]*custom.DriveItem{
-						fileID(): custom.ToCustomDriveItem(fileAt("parent")),
+						fileID(): custom.ToCustomDriveItem(d.fileAt("parent")),
 					},
 					loc:      path.Elements{rootName, folderName("parent")},
-					prevPath: fullPathPath(t, folderName("parent-prev"), folderName()),
+					prevPath: d.fullPath(t, folderName("parent-prev"), folderName()),
 				},
 			},
 		},
@@ -1131,24 +1153,24 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			name: "root and tombstones",
 			tree: treeWithFileInTombstone,
 			prevPaths: map[string]string{
-				rootID:     fullPath(),
-				folderID(): fullPath(folderName()),
+				rootID:     d.strPath(),
+				folderID(): d.strPath(folderName()),
 			},
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath:                  fullPathPath(t),
+					currPath:                  d.fullPath(t),
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					loc:                       path.Elements{},
-					prevPath:                  fullPathPath(t),
+					prevPath:                  d.fullPath(t),
 				},
 				folderID(): {
 					files:                     map[string]*custom.DriveItem{},
 					folderID:                  folderID(),
 					isPackageOrChildOfPackage: false,
-					prevPath:                  fullPathPath(t, folderName()),
+					prevPath:                  d.fullPath(t, folderName()),
 				},
 			},
 		},
@@ -1156,7 +1178,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			tree := test.tree(t)
+			tree := test.tree(t, d)
 
 			if len(test.prevPaths) > 0 {
 				for id, ps := range test.prevPaths {

@@ -44,12 +44,14 @@ func TestLibrariesBackupUnitSuite(t *testing.T) {
 }
 
 func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
-	anyFolder := (&selectors.SharePointBackup{}).LibraryFolders(selectors.Any())[0]
+	var (
+		anyFolder = (&selectors.SharePointBackup{}).LibraryFolders(selectors.Any())[0]
+		drv       = mock.Drive()
+	)
 
 	const (
 		tenantID = "tenant"
 		siteID   = "site"
-		driveID  = "driveID1"
 	)
 
 	pb := path.Builder{}.Append(testBaseDrivePath.Elements()...)
@@ -96,13 +98,13 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				paths    = map[string]string{}
 				excluded = map[string]struct{}{}
 				collMap  = map[string]map[string]*drive.Collection{
-					driveID: {},
+					drv.ID: {},
 				}
 				topLevelPackages = map[string]struct{}{}
 			)
 
 			mbh.DriveItemEnumeration = mock.DriveEnumerator(
-				mock.Drive(driveID).With(
+				drv.NewEnumer().With(
 					mock.Delta("notempty", nil).With(mock.NextPage{Items: test.items})))
 
 			c := drive.NewCollections(
@@ -117,7 +119,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 
 			_, _, err := c.PopulateDriveCollections(
 				ctx,
-				driveID,
+				drv.ID,
 				"General",
 				paths,
 				excluded,
@@ -134,10 +136,10 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 			assert.Empty(t, topLevelPackages, "should not find package type folders")
 
 			for _, collPath := range test.expectedCollectionIDs {
-				assert.Contains(t, c.CollectionMap[driveID], collPath)
+				assert.Contains(t, c.CollectionMap[drv.ID], collPath)
 			}
 
-			for _, col := range c.CollectionMap[driveID] {
+			for _, col := range c.CollectionMap[drv.ID] {
 				assert.Contains(t, test.expectedCollectionPaths, col.FullPath().String())
 			}
 		})

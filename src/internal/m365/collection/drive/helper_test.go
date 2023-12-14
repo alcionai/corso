@@ -3,10 +3,12 @@ package drive
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,11 +19,11 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -31,6 +33,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
@@ -43,7 +46,7 @@ type oneDriveService struct {
 	ac          api.Client
 }
 
-func NewOneDriveService(credentials account.M365Config) (*oneDriveService, error) {
+func newOneDriveService(credentials account.M365Config) (*oneDriveService, error) {
 	ac, err := api.NewClient(
 		credentials,
 		control.DefaultOptions(),
@@ -74,7 +77,7 @@ func loadTestService(t *testing.T) *oneDriveService {
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	service, err := NewOneDriveService(creds)
+	service, err := newOneDriveService(creds)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return service
@@ -134,375 +137,6 @@ func asNotMoved(t *testing.T, p string) statePath {
 		currPath: toODPath(t, p),
 	}
 }
-
-// ---------------------------------------------------------------------------
-// stub drive item factories
-// ---------------------------------------------------------------------------
-
-type itemType int
-
-const (
-	isFile    itemType = 1
-	isFolder  itemType = 2
-	isPackage itemType = 3
-)
-
-func coreItem(
-	id, name, parentPath, parentID string,
-	it itemType,
-) *models.DriveItem {
-	item := models.NewDriveItem()
-	item.SetName(&name)
-	item.SetId(&id)
-	item.SetLastModifiedDateTime(ptr.To(time.Now()))
-
-	parentReference := models.NewItemReference()
-	parentReference.SetPath(&parentPath)
-	parentReference.SetId(&parentID)
-	item.SetParentReference(parentReference)
-
-	switch it {
-	case isFile:
-		item.SetSize(ptr.To[int64](42))
-		item.SetFile(models.NewFile())
-	case isFolder:
-		item.SetFolder(models.NewFolder())
-	case isPackage:
-		item.SetPackageEscaped(models.NewPackageEscaped())
-	}
-
-	return item
-}
-
-func driveItem(
-	id, name, parentPath, parentID string,
-	it itemType,
-) models.DriveItemable {
-	return coreItem(id, name, parentPath, parentID, it)
-}
-
-func driveItemWSize(
-	id, name, parentPath, parentID string,
-	size int64,
-	it itemType,
-) models.DriveItemable {
-	res := coreItem(id, name, parentPath, parentID, it)
-	res.SetSize(ptr.To(size))
-
-	return res
-}
-
-func malwareItem(
-	id, name, parentPath, parentID string,
-	it itemType,
-) models.DriveItemable {
-	c := coreItem(id, name, parentPath, parentID, it)
-
-	mal := models.NewMalware()
-	malStr := "test malware"
-	mal.SetDescription(&malStr)
-
-	c.SetMalware(mal)
-
-	return c
-}
-
-// delItem creates a DriveItemable that is marked as deleted.
-func delItem(
-	id string,
-	parentID string,
-	it itemType,
-) models.DriveItemable {
-	item := models.NewDriveItem()
-	item.SetId(&id)
-	item.SetDeleted(models.NewDeleted())
-
-	parentReference := models.NewItemReference()
-	parentReference.SetId(&parentID)
-	item.SetParentReference(parentReference)
-
-	switch it {
-	case isFile:
-		item.SetFile(models.NewFile())
-	case isFolder:
-		item.SetFolder(models.NewFolder())
-	case isPackage:
-		item.SetPackageEscaped(models.NewPackageEscaped())
-	}
-
-	return item
-}
-
-// ---------------------------------------------------------------------------
-// file factories
-// ---------------------------------------------------------------------------
-
-func fileID(fileSuffixes ...any) string {
-	return id(file, fileSuffixes...)
-}
-
-func fileName(fileSuffixes ...any) string {
-	return name(file, fileSuffixes...)
-}
-
-func driveFile(
-	parentPath, parentID string,
-	fileSuffixes ...any,
-) models.DriveItemable {
-	return driveItem(
-		fileID(fileSuffixes...),
-		fileName(fileSuffixes...),
-		parentPath,
-		parentID,
-		isFile)
-}
-
-func fileAt(
-	parentSuffix any,
-	fileSuffixes ...any,
-) models.DriveItemable {
-	return driveItem(
-		fileID(fileSuffixes...),
-		fileName(fileSuffixes...),
-		parentDir(folderName(parentSuffix)),
-		folderID(parentSuffix),
-		isFile)
-}
-
-func fileAtRoot(
-	fileSuffixes ...any,
-) models.DriveItemable {
-	return driveItem(
-		fileID(fileSuffixes...),
-		fileName(fileSuffixes...),
-		parentDir(),
-		rootID,
-		isFile)
-}
-
-func fileWURLAtRoot(
-	url string,
-	isDeleted bool,
-	fileSuffixes ...any,
-) models.DriveItemable {
-	di := driveFile(parentDir(), rootID, fileSuffixes...)
-	di.SetAdditionalData(map[string]any{
-		"@microsoft.graph.downloadUrl": url,
-	})
-
-	if isDeleted {
-		di.SetDeleted(models.NewDeleted())
-	}
-
-	return di
-}
-
-func fileWSizeAtRoot(
-	size int64,
-	fileSuffixes ...any,
-) models.DriveItemable {
-	return driveItemWSize(
-		fileID(fileSuffixes...),
-		fileName(fileSuffixes...),
-		parentDir(),
-		rootID,
-		size,
-		isFile)
-}
-
-func fileWSizeAt(
-	size int64,
-	parentSuffix any,
-	fileSuffixes ...any,
-) models.DriveItemable {
-	return driveItemWSize(
-		fileID(fileSuffixes...),
-		fileName(fileSuffixes...),
-		parentDir(folderName(parentSuffix)),
-		folderID(parentSuffix),
-		size,
-		isFile)
-}
-
-// ---------------------------------------------------------------------------
-// folder factories
-// ---------------------------------------------------------------------------
-
-func folderID(folderSuffixes ...any) string {
-	return id(folder, folderSuffixes...)
-}
-
-func folderName(folderSuffixes ...any) string {
-	return name(folder, folderSuffixes...)
-}
-
-func driveFolder(
-	parentPath, parentID string,
-	folderSuffixes ...any,
-) models.DriveItemable {
-	return driveItem(
-		folderID(folderSuffixes...),
-		folderName(folderSuffixes...),
-		parentPath,
-		parentID,
-		isFolder)
-}
-
-func driveRootFolder() models.DriveItemable {
-	rootFolder := models.NewDriveItem()
-	rootFolder.SetName(ptr.To(rootName))
-	rootFolder.SetId(ptr.To(rootID))
-	rootFolder.SetRoot(models.NewRoot())
-	rootFolder.SetFolder(models.NewFolder())
-
-	return rootFolder
-}
-
-func folderAtRoot(
-	folderSuffixes ...any,
-) models.DriveItemable {
-	return driveItem(
-		folderID(folderSuffixes...),
-		folderName(folderSuffixes...),
-		parentDir(),
-		rootID,
-		isFolder)
-}
-
-func folderAt(
-	parentSuffix any,
-	folderSuffixes ...any,
-) models.DriveItemable {
-	return driveItem(
-		folderID(folderSuffixes...),
-		folderName(folderSuffixes...),
-		parentDir(folderName(parentSuffix)),
-		folderID(parentSuffix),
-		isFolder)
-}
-
-// ---------------------------------------------------------------------------
-// id, name, path factories
-// ---------------------------------------------------------------------------
-
-// assumption is only one suffix per id.  Mostly using
-// the variadic as an "optional" extension.
-func id(v string, suffixes ...any) string {
-	id := fmt.Sprintf("id_%s", v)
-
-	// a bit weird, but acts as a quality of life
-	// that allows some funcs to take in the `file`
-	// or `folder` or etc monikers as the suffix
-	// without producing weird outputs.
-	if len(suffixes) == 1 && suffixes[0] == v {
-		return id
-	}
-
-	for _, sfx := range suffixes {
-		id = fmt.Sprintf("%s_%s", v, sfx)
-	}
-
-	return id
-}
-
-// assumption is only one suffix per name.  Mostly using
-// the variadic as an "optional" extension.
-func name(v string, suffixes ...any) string {
-	name := fmt.Sprintf("n_%s", v)
-
-	// a bit weird, but acts as a quality of life
-	// that allows some funcs to take in the `file`
-	// or `folder` or etc monikers as the suffix
-	// without producing weird outputs.
-	if len(suffixes) == 1 && suffixes[0] == v {
-		return name
-	}
-
-	for _, sfx := range suffixes {
-		name = fmt.Sprintf("%s_%s", v, sfx)
-	}
-
-	return name
-}
-
-func toPath(elems ...string) string {
-	es := []string{}
-	for _, elem := range elems {
-		es = append(es, path.Split(elem)...)
-	}
-
-	switch len(es) {
-	case 0:
-		return ""
-	case 1:
-		return es[0]
-	default:
-		return path.Builder{}.Append(es...).String()
-	}
-}
-
-func fullPath(elems ...string) string {
-	return toPath(append(
-		[]string{
-			tenant,
-			path.OneDriveService.String(),
-			user,
-			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(id(drive)).String(),
-		},
-		elems...)...)
-}
-
-func fullPathPath(t *testing.T, elems ...string) path.Path {
-	p, err := path.FromDataLayerPath(fullPath(elems...), false)
-	require.NoError(t, err, clues.ToCore(err))
-
-	return p
-}
-
-func driveFullPath(driveID any, elems ...string) string {
-	return toPath(append(
-		[]string{
-			tenant,
-			path.OneDriveService.String(),
-			user,
-			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(id(drive, driveID)).String(),
-		},
-		elems...)...)
-}
-
-func parentDir(elems ...string) string {
-	return toPath(append(
-		[]string{odConsts.DriveFolderPrefixBuilder(id(drive)).String()},
-		elems...)...)
-}
-
-func driveParentDir(driveID any, elems ...string) string {
-	return toPath(append(
-		[]string{odConsts.DriveFolderPrefixBuilder(id(drive, driveID)).String()},
-		elems...)...)
-}
-
-// common item names
-const (
-	bar       = "bar"
-	delta     = "delta_url"
-	drive     = "drive"
-	fanny     = "fanny"
-	file      = "file"
-	folder    = "folder"
-	foo       = "foo"
-	item      = "item"
-	malware   = "malware"
-	nav       = "nav"
-	pkg       = "package"
-	rootID    = odConsts.RootID
-	rootName  = odConsts.RootPathDir
-	subfolder = "subfolder"
-	tenant    = "t"
-	user      = "u"
-)
 
 // ---------------------------------------------------------------------------
 // misc helpers
@@ -578,29 +212,21 @@ func collWithMBHAndOpts(
 		count.New())
 }
 
-func pagerForDrives(drives ...models.Driveable) *apiMock.Pager[models.Driveable] {
-	return &apiMock.Pager[models.Driveable]{
-		ToReturn: []apiMock.PagerResult[models.Driveable]{
-			{Values: drives},
-		},
-	}
-}
-
-func aPage(items ...models.DriveItemable) mock.NextPage {
-	return mock.NextPage{
+func aPage(items ...models.DriveItemable) nextPage {
+	return nextPage{
 		Items: append([]models.DriveItemable{driveRootFolder()}, items...),
 	}
 }
 
-func aPageWReset(items ...models.DriveItemable) mock.NextPage {
-	return mock.NextPage{
+func aPageWReset(items ...models.DriveItemable) nextPage {
+	return nextPage{
 		Items: append([]models.DriveItemable{driveRootFolder()}, items...),
 		Reset: true,
 	}
 }
 
-func aReset(items ...models.DriveItemable) mock.NextPage {
-	return mock.NextPage{
+func aReset(items ...models.DriveItemable) nextPage {
+	return nextPage{
 		Items: []models.DriveItemable{},
 		Reset: true,
 	}
@@ -621,7 +247,7 @@ func makePrevMetadataColls(
 	prevDeltas := map[string]string{}
 
 	for driveID := range previousPaths {
-		prevDeltas[driveID] = id(delta, "prev")
+		prevDeltas[driveID] = id(deltaURL, "prev")
 	}
 
 	mdColl, err := graph.MakeMetadataCollection(
@@ -813,8 +439,8 @@ func (ecs expectedCollections) requireNoUnseenCollections(t *testing.T) {
 // delta trees
 // ---------------------------------------------------------------------------
 
-func defaultTreePfx(t *testing.T) path.Path {
-	fpb := fullPathPath(t).ToBuilder()
+func defaultTreePfx(t *testing.T, d *deltaDrive) path.Path {
+	fpb := d.fullPath(t).ToBuilder()
 	fpe := fpb.Elements()
 	fpe = fpe[:len(fpe)-1]
 	fpb = path.Builder{}.Append(fpe...)
@@ -834,80 +460,89 @@ func defaultLoc() path.Elements {
 	return path.NewElements("root:/foo/bar/baz/qux/fnords/smarf/voi/zumba/bangles/howdyhowdyhowdy")
 }
 
-func newTree(t *testing.T) *folderyMcFolderFace {
-	return newFolderyMcFolderFace(defaultTreePfx(t), rootID)
+func newTree(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	return newFolderyMcFolderFace(defaultTreePfx(t, d), rootID)
 }
 
-func treeWithRoot(t *testing.T) *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(defaultTreePfx(t), rootID)
-	rootey := newNodeyMcNodeFace(nil, rootID, rootName, false)
-	tree.root = rootey
-	tree.folderIDToNode[rootID] = rootey
+func treeWithRoot(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := newFolderyMcFolderFace(defaultTreePfx(t, d), rootID)
+
+	//nolint:forbidigo
+	err := tree.setFolder(context.Background(), "", rootID, rootName, false)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
 }
 
-func treeAfterReset(t *testing.T) *folderyMcFolderFace {
-	tree := newFolderyMcFolderFace(defaultTreePfx(t), rootID)
+func treeAfterReset(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := newFolderyMcFolderFace(defaultTreePfx(t, d), rootID)
 	tree.reset()
 
 	return tree
 }
 
-func treeWithFoldersAfterReset(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithFolders(t)
+func treeWithFoldersAfterReset(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithFolders(t, d)
 	tree.hadReset = true
 
 	return tree
 }
 
-func treeWithTombstone(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithRoot(t)
-	tree.tombstones[folderID()] = newNodeyMcNodeFace(nil, folderID(), "", false)
+func treeWithTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithRoot(t, d)
+
+	//nolint:forbidigo
+	err := tree.setTombstone(context.Background(), folderID())
+	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
 }
 
-func treeWithFolders(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithRoot(t)
+func treeWithFolders(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithRoot(t, d)
 
-	parent := newNodeyMcNodeFace(tree.root, folderID("parent"), folderName("parent"), true)
-	tree.folderIDToNode[parent.id] = parent
-	tree.root.children[parent.id] = parent
+	//nolint:forbidigo
+	err := tree.setFolder(context.Background(), rootID, folderID("parent"), folderName("parent"), true)
+	require.NoError(t, err, clues.ToCore(err))
 
-	f := newNodeyMcNodeFace(parent, folderID(), folderName(), false)
-	tree.folderIDToNode[f.id] = f
-	parent.children[f.id] = f
-
-	return tree
-}
-
-func treeWithFileAtRoot(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithRoot(t)
-	tree.root.files[fileID()] = custom.ToCustomDriveItem(fileAtRoot())
-	tree.fileIDToParentID[fileID()] = rootID
+	//nolint:forbidigo
+	err = tree.setFolder(context.Background(), folderID("parent"), folderID(), folderName(), false)
+	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
 }
 
-func treeWithDeletedFile(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithRoot(t)
+func treeWithFileAtRoot(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithRoot(t, d)
+
+	err := tree.addFile(rootID, fileID(), custom.ToCustomDriveItem(d.fileAtRoot()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	return tree
+}
+
+func treeWithDeletedFile(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithRoot(t, d)
 	tree.deleteFile(fileID("d"))
 
 	return tree
 }
 
-func treeWithFileInFolder(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithFolders(t)
-	tree.folderIDToNode[folderID()].files[fileID()] = custom.ToCustomDriveItem(fileAt(folder))
-	tree.fileIDToParentID[fileID()] = folderID()
+func treeWithFileInFolder(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithFolders(t, d)
+
+	err := tree.addFile(folderID(), fileID(), custom.ToCustomDriveItem(d.fileAt(folder)))
+	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
 }
 
-func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
-	tree := treeWithTombstone(t)
-	tree.tombstones[folderID()].files[fileID()] = custom.ToCustomDriveItem(fileAt("tombstone"))
+func treeWithFileInTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	tree := treeWithTombstone(t, d)
+
+	// setting these directly, instead of using addFile(),
+	// because we can't add files to tombstones.
+	tree.tombstones[folderID()].files[fileID()] = custom.ToCustomDriveItem(d.fileAt("tombstone"))
 	tree.fileIDToParentID[fileID()] = folderID()
 
 	return tree
@@ -918,57 +553,59 @@ func treeWithFileInTombstone(t *testing.T) *folderyMcFolderFace {
 // one tombstone: idx(folder, tombstone)
 // one item in the tombstone
 // one deleted item
-func fullTree(t *testing.T) *folderyMcFolderFace {
-	return fullTreeWithNames("parent", "tombstone")(t)
+func fullTree(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	return fullTreeWithNames("parent", "tombstone")(t, d)
 }
 
 func fullTreeWithNames(
 	parentFolderX, tombstoneX any,
-) func(t *testing.T) *folderyMcFolderFace {
-	return func(t *testing.T) *folderyMcFolderFace {
+) func(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
+	return func(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 		ctx, flush := tester.NewContext(t)
 		defer flush()
 
-		tree := treeWithRoot(t)
+		tree := treeWithRoot(t, d)
 
 		// file in root
-		df := driveFile(parentDir(), rootID, "r")
+		df := driveFile(d.dir(), rootID, "r")
 		err := tree.addFile(
 			rootID,
 			fileID("r"),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
-		// root -> idx(folder, parent)
+		// root -> folderID(parentX)
 		err = tree.setFolder(ctx, rootID, folderID(parentFolderX), folderName(parentFolderX), false)
 		require.NoError(t, err, clues.ToCore(err))
 
-		// file in idx(folder, parent)
-		df = driveFile(parentDir(folderName(parentFolderX)), folderID(parentFolderX), "p")
+		// file in folderID(parentX)
+		df = driveFile(d.dir(folderName(parentFolderX)), folderID(parentFolderX), "p")
 		err = tree.addFile(
 			folderID(parentFolderX),
 			fileID("p"),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
-		// idx(folder, parent) -> id(folder)
+		// folderID(parentX) -> folderID()
 		err = tree.setFolder(ctx, folderID(parentFolderX), folderID(), folderName(), false)
 		require.NoError(t, err, clues.ToCore(err))
 
-		// file in id(folder)
-		df = driveFile(parentDir(folderName()), folderID())
+		// file in folderID()
+		df = driveFile(d.dir(folderName()), folderID())
 		err = tree.addFile(
 			folderID(),
 			fileID(),
 			custom.ToCustomDriveItem(df))
 		require.NoError(t, err, clues.ToCore(err))
 
-		// tombstone - have to set a non-tombstone folder first, then add the item, then tombstone the folder
+		// tombstone - have to set a non-tombstone folder first,
+		// then add the item,
+		// then tombstone the folder
 		err = tree.setFolder(ctx, rootID, folderID(tombstoneX), folderName(tombstoneX), false)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// file in tombstone
-		df = driveFile(parentDir(folderName(tombstoneX)), folderID(tombstoneX), "t")
+		df = driveFile(d.dir(folderName(tombstoneX)), folderID(tombstoneX), "t")
 		err = tree.addFile(
 			folderID(tombstoneX),
 			fileID("t"),
@@ -986,8 +623,989 @@ func fullTreeWithNames(
 }
 
 // ---------------------------------------------------------------------------
+// Backup Handler
+// ---------------------------------------------------------------------------
+
+type mockBackupHandler[T any] struct {
+	ItemInfo details.ItemInfo
+	// FIXME: this is a hacky solution.  Better to use an interface
+	// and plug in the selector scope there.
+	Sel selectors.Selector
+
+	DriveItemEnumeration enumerateDriveItemsDelta
+
+	GI  getsItem
+	GIP getsItemPermission
+
+	PathPrefixFn  pathPrefixer
+	PathPrefixErr error
+
+	MetadataPathPrefixFn  metadataPathPrefixer
+	MetadataPathPrefixErr error
+
+	CanonPathFn  canonPather
+	CanonPathErr error
+
+	ProtectedResource idname.Provider
+	Service           path.ServiceType
+	Category          path.CategoryType
+
+	// driveID -> itemPager
+	ItemPagerV map[string]pagers.DeltaHandler[models.DriveItemable]
+
+	LocationIDFn locationIDer
+
+	getCall  int
+	GetResps []*http.Response
+	GetErrs  []error
+
+	RootFolder models.DriveItemable
+}
+
+func stubRootFolder() models.DriveItemable {
+	item := models.NewDriveItem()
+	item.SetName(ptr.To(odConsts.RootPathDir))
+	item.SetId(ptr.To(odConsts.RootID))
+	item.SetRoot(models.NewRoot())
+	item.SetFolder(models.NewFolder())
+
+	return item
+}
+
+func defaultOneDriveBH(resourceOwner string) *mockBackupHandler[models.DriveItemable] {
+	sel := selectors.NewOneDriveBackup([]string{resourceOwner})
+	sel.Include(sel.AllData())
+
+	return &mockBackupHandler[models.DriveItemable]{
+		ItemInfo: details.ItemInfo{
+			OneDrive:  &details.OneDriveInfo{},
+			Extension: &details.ExtensionData{},
+		},
+		Sel:                  sel.Selector,
+		DriveItemEnumeration: enumerateDriveItemsDelta{},
+		GI:                   getsItem{Err: clues.New("not defined")},
+		GIP:                  getsItemPermission{Err: clues.New("not defined")},
+		PathPrefixFn:         defaultOneDrivePathPrefixer,
+		MetadataPathPrefixFn: defaultOneDriveMetadataPathPrefixer,
+		CanonPathFn:          defaultOneDriveCanonPather,
+		ProtectedResource:    idname.NewProvider(resourceOwner, resourceOwner),
+		Service:              path.OneDriveService,
+		Category:             path.FilesCategory,
+		LocationIDFn:         defaultOneDriveLocationIDer,
+		GetResps:             []*http.Response{nil},
+		GetErrs:              []error{clues.New("not defined")},
+		RootFolder:           stubRootFolder(),
+	}
+}
+
+func defaultSharePointBH(resourceOwner string) *mockBackupHandler[models.DriveItemable] {
+	sel := selectors.NewOneDriveBackup([]string{resourceOwner})
+	sel.Include(sel.AllData())
+
+	return &mockBackupHandler[models.DriveItemable]{
+		ItemInfo: details.ItemInfo{
+			SharePoint: &details.SharePointInfo{},
+			Extension:  &details.ExtensionData{},
+		},
+		Sel:                  sel.Selector,
+		GI:                   getsItem{Err: clues.New("not defined")},
+		GIP:                  getsItemPermission{Err: clues.New("not defined")},
+		PathPrefixFn:         defaultSharePointPathPrefixer,
+		MetadataPathPrefixFn: defaultSharePointMetadataPathPrefixer,
+		CanonPathFn:          defaultSharePointCanonPather,
+		ProtectedResource:    idname.NewProvider(resourceOwner, resourceOwner),
+		Service:              path.SharePointService,
+		Category:             path.LibrariesCategory,
+		LocationIDFn:         defaultSharePointLocationIDer,
+		GetResps:             []*http.Response{nil},
+		GetErrs:              []error{clues.New("not defined")},
+		RootFolder:           stubRootFolder(),
+	}
+}
+
+func defaultDriveBHWith(
+	resource string,
+	enumerator enumerateDriveItemsDelta,
+) *mockBackupHandler[models.DriveItemable] {
+	mbh := defaultOneDriveBH(resource)
+	mbh.DriveItemEnumeration = enumerator
+
+	return mbh
+}
+
+func (h mockBackupHandler[T]) PathPrefix(tID, driveID string) (path.Path, error) {
+	pp, err := h.PathPrefixFn(tID, h.ProtectedResource.ID(), driveID)
+	if err != nil {
+		return nil, err
+	}
+
+	return pp, h.PathPrefixErr
+}
+
+func (h mockBackupHandler[T]) MetadataPathPrefix(tID string) (path.Path, error) {
+	pp, err := h.MetadataPathPrefixFn(tID, h.ProtectedResource.ID())
+	if err != nil {
+		return nil, err
+	}
+
+	return pp, h.MetadataPathPrefixErr
+}
+
+func (h mockBackupHandler[T]) CanonicalPath(pb *path.Builder, tID string) (path.Path, error) {
+	cp, err := h.CanonPathFn(pb, tID, h.ProtectedResource.ID())
+	if err != nil {
+		return nil, err
+	}
+
+	return cp, h.CanonPathErr
+}
+
+func (h mockBackupHandler[T]) ServiceCat() (path.ServiceType, path.CategoryType) {
+	return h.Service, h.Category
+}
+
+func (h mockBackupHandler[T]) NewDrivePager(string, []string) pagers.NonDeltaHandler[models.Driveable] {
+	return h.DriveItemEnumeration.drivePager()
+}
+
+func (h mockBackupHandler[T]) FormatDisplayPath(_ string, pb *path.Builder) string {
+	return "/" + pb.String()
+}
+
+func (h mockBackupHandler[T]) NewLocationIDer(driveID string, elems ...string) details.LocationIDer {
+	return h.LocationIDFn(driveID, elems...)
+}
+
+func (h mockBackupHandler[T]) AugmentItemInfo(
+	details.ItemInfo,
+	idname.Provider,
+	*custom.DriveItem,
+	int64,
+	*path.Builder,
+) details.ItemInfo {
+	return h.ItemInfo
+}
+
+func (h *mockBackupHandler[T]) Get(context.Context, string, map[string]string) (*http.Response, error) {
+	c := h.getCall
+	h.getCall++
+
+	// allows mockers to only populate the errors slice
+	if h.GetErrs[c] != nil {
+		return nil, h.GetErrs[c]
+	}
+
+	return h.GetResps[c], h.GetErrs[c]
+}
+
+func (h mockBackupHandler[T]) EnumerateDriveItemsDelta(
+	ctx context.Context,
+	driveID, prevDeltaLink string,
+	cc api.CallConfig,
+) pagers.NextPageResulter[models.DriveItemable] {
+	return h.DriveItemEnumeration.EnumerateDriveItemsDelta(
+		ctx,
+		driveID,
+		prevDeltaLink,
+		cc)
+}
+
+func (h mockBackupHandler[T]) GetItem(ctx context.Context, _, _ string) (models.DriveItemable, error) {
+	return h.GI.GetItem(ctx, "", "")
+}
+
+func (h mockBackupHandler[T]) GetItemPermission(
+	ctx context.Context,
+	_, _ string,
+) (models.PermissionCollectionResponseable, error) {
+	return h.GIP.GetItemPermission(ctx, "", "")
+}
+
+type canonPather func(*path.Builder, string, string) (path.Path, error)
+
+var defaultOneDriveCanonPather = func(pb *path.Builder, tID, ro string) (path.Path, error) {
+	return pb.ToDataLayerOneDrivePath(tID, ro, false)
+}
+
+var defaultSharePointCanonPather = func(pb *path.Builder, tID, ro string) (path.Path, error) {
+	return pb.ToDataLayerSharePointPath(tID, ro, path.LibrariesCategory, false)
+}
+
+type (
+	pathPrefixer         func(tID, ro, driveID string) (path.Path, error)
+	metadataPathPrefixer func(tID, ro string) (path.Path, error)
+)
+
+var defaultOneDrivePathPrefixer = func(tID, ro, driveID string) (path.Path, error) {
+	return path.Build(
+		tID,
+		ro,
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		odConsts.DrivesPathDir,
+		driveID,
+		odConsts.RootPathDir)
+}
+
+var defaultOneDriveMetadataPathPrefixer = func(tID, ro string) (path.Path, error) {
+	return path.BuildMetadata(
+		tID,
+		ro,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+}
+
+var defaultSharePointPathPrefixer = func(tID, ro, driveID string) (path.Path, error) {
+	return path.Build(
+		tID,
+		ro,
+		path.SharePointService,
+		path.LibrariesCategory,
+		false,
+		odConsts.DrivesPathDir,
+		driveID,
+		odConsts.RootPathDir)
+}
+
+var defaultSharePointMetadataPathPrefixer = func(tID, ro string) (path.Path, error) {
+	return path.BuildMetadata(
+		tID,
+		ro,
+		path.SharePointService,
+		path.LibrariesCategory,
+		false)
+}
+
+type locationIDer func(string, ...string) details.LocationIDer
+
+var defaultOneDriveLocationIDer = func(driveID string, elems ...string) details.LocationIDer {
+	return details.NewOneDriveLocationIDer(driveID, elems...)
+}
+
+var defaultSharePointLocationIDer = func(driveID string, elems ...string) details.LocationIDer {
+	return details.NewSharePointLocationIDer(driveID, elems...)
+}
+
+func (h mockBackupHandler[T]) IsAllPass() bool {
+	scope := h.Sel.Includes[0]
+	return selectors.IsAnyTarget(selectors.SharePointScope(scope), selectors.SharePointLibraryFolder) ||
+		selectors.IsAnyTarget(selectors.OneDriveScope(scope), selectors.OneDriveFolder)
+}
+
+func (h mockBackupHandler[T]) IncludesDir(dir string) bool {
+	scope := h.Sel.Includes[0]
+	return selectors.SharePointScope(scope).Matches(selectors.SharePointLibraryFolder, dir) ||
+		selectors.OneDriveScope(scope).Matches(selectors.OneDriveFolder, dir)
+}
+
+func (h mockBackupHandler[T]) GetRootFolder(context.Context, string) (models.DriveItemable, error) {
+	return h.RootFolder, nil
+}
+
+// ---------------------------------------------------------------------------
+// Get Itemer
+// ---------------------------------------------------------------------------
+
+type getsItem struct {
+	Item models.DriveItemable
+	Err  error
+}
+
+func (m getsItem) GetItem(
+	_ context.Context,
+	_, _ string,
+) (models.DriveItemable, error) {
+	return m.Item, m.Err
+}
+
+// ---------------------------------------------------------------------------
+// Drive Item Enummerator
+// ---------------------------------------------------------------------------
+
+type nextPage struct {
+	Items []models.DriveItemable
+	Reset bool
+}
+
+type enumerateDriveItemsDelta struct {
+	DrivePagers map[string]*DeltaDriveEnumerator
+}
+
+func driveEnumerator(
+	ds ...*DeltaDriveEnumerator,
+) enumerateDriveItemsDelta {
+	enumerator := enumerateDriveItemsDelta{
+		DrivePagers: map[string]*DeltaDriveEnumerator{},
+	}
+
+	for _, drive := range ds {
+		enumerator.DrivePagers[drive.Drive.id] = drive
+	}
+
+	return enumerator
+}
+
+func (en enumerateDriveItemsDelta) EnumerateDriveItemsDelta(
+	_ context.Context,
+	driveID, _ string,
+	_ api.CallConfig,
+) pagers.NextPageResulter[models.DriveItemable] {
+	iterator := en.DrivePagers[driveID]
+	return iterator.nextDelta()
+}
+
+func (en enumerateDriveItemsDelta) drivePager() *apiMock.Pager[models.Driveable] {
+	dvs := []models.Driveable{}
+
+	for _, dp := range en.DrivePagers {
+		dvs = append(dvs, dp.Drive.able)
+	}
+
+	return &apiMock.Pager[models.Driveable]{
+		ToReturn: []apiMock.PagerResult[models.Driveable]{
+			{Values: dvs},
+		},
+	}
+}
+
+func (en enumerateDriveItemsDelta) getDrives() []*deltaDrive {
+	dvs := []*deltaDrive{}
+
+	for _, dp := range en.DrivePagers {
+		dvs = append(dvs, dp.Drive)
+	}
+
+	return dvs
+}
+
+type deltaDrive struct {
+	id   string
+	able models.Driveable
+}
+
+func drive(driveSuffix ...any) *deltaDrive {
+	driveID := id(drivePfx, driveSuffix...)
+
+	able := models.NewDrive()
+	able.SetId(ptr.To(driveID))
+	able.SetName(ptr.To(name(drivePfx, driveSuffix...)))
+
+	return &deltaDrive{
+		id:   driveID,
+		able: able,
+	}
+}
+
+func (dd *deltaDrive) newEnumer() *DeltaDriveEnumerator {
+	clone := &deltaDrive{}
+	*clone = *dd
+
+	return &DeltaDriveEnumerator{Drive: clone}
+}
+
+type DeltaDriveEnumerator struct {
+	Drive        *deltaDrive
+	idx          int
+	DeltaQueries []*deltaQuery
+	Err          error
+}
+
+func (dde *DeltaDriveEnumerator) with(ds ...*deltaQuery) *DeltaDriveEnumerator {
+	dde.DeltaQueries = ds
+	return dde
+}
+
+// withErr adds an error that is always returned in the last delta index.
+func (dde *DeltaDriveEnumerator) withErr(err error) *DeltaDriveEnumerator {
+	dde.Err = err
+	return dde
+}
+
+func (dde *DeltaDriveEnumerator) nextDelta() *deltaQuery {
+	if dde.idx == len(dde.DeltaQueries) {
+		// at the end of the enumeration, return an empty page with no items,
+		// not even the root.  This is what graph api would do to signify an absence
+		// of changes in the delta.
+		lastDU := dde.DeltaQueries[dde.idx-1].DeltaUpdate
+
+		return &deltaQuery{
+			DeltaUpdate: lastDU,
+			Pages: []nextPage{{
+				Items: []models.DriveItemable{},
+			}},
+			Err: dde.Err,
+		}
+	}
+
+	if dde.idx > len(dde.DeltaQueries) {
+		// a panic isn't optimal here, but since this mechanism is internal to testing,
+		// it's an acceptable way to have the tests ensure we don't over-enumerate deltas.
+		panic(fmt.Sprintf("delta index %d larger than count of delta iterations in mock", dde.idx))
+	}
+
+	pages := dde.DeltaQueries[dde.idx]
+
+	dde.idx++
+
+	return pages
+}
+
+var _ pagers.NextPageResulter[models.DriveItemable] = &deltaQuery{}
+
+type deltaQuery struct {
+	idx         int
+	Pages       []nextPage
+	DeltaUpdate pagers.DeltaUpdate
+	Err         error
+}
+
+func delta(
+	resultDeltaID string,
+	err error,
+) *deltaQuery {
+	return &deltaQuery{
+		DeltaUpdate: pagers.DeltaUpdate{URL: resultDeltaID},
+		Err:         err,
+	}
+}
+
+func deltaWReset(
+	resultDeltaID string,
+	err error,
+) *deltaQuery {
+	return &deltaQuery{
+		DeltaUpdate: pagers.DeltaUpdate{
+			URL:   resultDeltaID,
+			Reset: true,
+		},
+		Err: err,
+	}
+}
+
+func (dq *deltaQuery) with(
+	pages ...nextPage,
+) *deltaQuery {
+	dq.Pages = pages
+	return dq
+}
+
+func (dq *deltaQuery) NextPage() ([]models.DriveItemable, bool, bool) {
+	if dq.idx >= len(dq.Pages) {
+		return nil, false, true
+	}
+
+	np := dq.Pages[dq.idx]
+	dq.idx++
+
+	return np.Items, np.Reset, false
+}
+
+func (dq *deltaQuery) Cancel() {}
+
+func (dq *deltaQuery) Results() (pagers.DeltaUpdate, error) {
+	return dq.DeltaUpdate, dq.Err
+}
+
+// ---------------------------------------------------------------------------
+// Get Item Permissioner
+// ---------------------------------------------------------------------------
+
+type getsItemPermission struct {
+	Perm models.PermissionCollectionResponseable
+	Err  error
+}
+
+func (m getsItemPermission) GetItemPermission(
+	_ context.Context,
+	_, _ string,
+) (models.PermissionCollectionResponseable, error) {
+	return m.Perm, m.Err
+}
+
+// ---------------------------------------------------------------------------
+// Restore Handler
+// --------------------------------------------------------------------------
+
+type mockRestoreHandler struct {
+	ItemInfo details.ItemInfo
+
+	CollisionKeyMap map[string]api.DriveItemIDType
+
+	CalledDeleteItem   bool
+	CalledDeleteItemOn string
+	DeleteItemErr      error
+
+	CalledPostItem bool
+	PostItemResp   models.DriveItemable
+	PostItemErr    error
+
+	DrivePagerV pagers.NonDeltaHandler[models.Driveable]
+
+	PostDriveResp models.Driveable
+	PostDriveErr  error
+
+	UploadSessionErr error
+}
+
+func (h mockRestoreHandler) PostDrive(
+	ctx context.Context,
+	protectedResourceID, driveName string,
+) (models.Driveable, error) {
+	return h.PostDriveResp, h.PostDriveErr
+}
+
+func (h mockRestoreHandler) NewDrivePager(string, []string) pagers.NonDeltaHandler[models.Driveable] {
+	return h.DrivePagerV
+}
+
+func (h *mockRestoreHandler) AugmentItemInfo(
+	details.ItemInfo,
+	idname.Provider,
+	*custom.DriveItem,
+	int64,
+	*path.Builder,
+) details.ItemInfo {
+	return h.ItemInfo
+}
+
+func (h *mockRestoreHandler) GetItemsInContainerByCollisionKey(
+	context.Context,
+	string, string,
+) (map[string]api.DriveItemIDType, error) {
+	return h.CollisionKeyMap, nil
+}
+
+func (h *mockRestoreHandler) DeleteItem(
+	_ context.Context,
+	_, itemID string,
+) error {
+	h.CalledDeleteItem = true
+	h.CalledDeleteItemOn = itemID
+
+	return h.DeleteItemErr
+}
+
+func (h *mockRestoreHandler) DeleteItemPermission(
+	context.Context,
+	string, string, string,
+) error {
+	return nil
+}
+
+func (h *mockRestoreHandler) NewItemContentUpload(
+	context.Context,
+	string, string,
+) (models.UploadSessionable, error) {
+	return models.NewUploadSession(), h.UploadSessionErr
+}
+
+func (h *mockRestoreHandler) PostItemPermissionUpdate(
+	context.Context,
+	string, string,
+	*drives.ItemItemsItemInvitePostRequestBody,
+) (drives.ItemItemsItemInviteResponseable, error) {
+	return drives.NewItemItemsItemInviteResponse(), nil
+}
+
+func (h *mockRestoreHandler) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
+	return nil, clues.New("not implemented")
+}
+
+func (h *mockRestoreHandler) PostItemInContainer(
+	context.Context,
+	string, string,
+	models.DriveItemable,
+	control.CollisionPolicy,
+) (models.DriveItemable, error) {
+	h.CalledPostItem = true
+	return h.PostItemResp, h.PostItemErr
+}
+
+func (h *mockRestoreHandler) GetFolderByName(
+	context.Context,
+	string, string, string,
+) (models.DriveItemable, error) {
+	return models.NewDriveItem(), nil
+}
+
+func (h *mockRestoreHandler) GetRootFolder(
+	context.Context,
+	string,
+) (models.DriveItemable, error) {
+	return models.NewDriveItem(), nil
+}
+
+// ---------------------------------------------------------------------------
+// stub drive item factories
+// ---------------------------------------------------------------------------
+
+type itemType int
+
+const (
+	isFile    itemType = 1
+	isFolder  itemType = 2
+	isPackage itemType = 3
+)
+
+func coreItem(
+	id, name, parentPath, parentID string,
+	it itemType,
+) *models.DriveItem {
+	item := models.NewDriveItem()
+	item.SetName(&name)
+	item.SetId(&id)
+	item.SetLastModifiedDateTime(ptr.To(time.Now()))
+
+	parentReference := models.NewItemReference()
+	parentReference.SetPath(&parentPath)
+	parentReference.SetId(&parentID)
+	item.SetParentReference(parentReference)
+
+	switch it {
+	case isFile:
+		item.SetSize(ptr.To[int64](42))
+		item.SetFile(models.NewFile())
+	case isFolder:
+		item.SetFolder(models.NewFolder())
+	case isPackage:
+		item.SetPackageEscaped(models.NewPackageEscaped())
+	}
+
+	return item
+}
+
+func driveItem(
+	id, name, parentPath, parentID string,
+	it itemType,
+) models.DriveItemable {
+	return coreItem(id, name, parentPath, parentID, it)
+}
+
+func driveItemWSize(
+	id, name, parentPath, parentID string,
+	size int64,
+	it itemType,
+) models.DriveItemable {
+	res := coreItem(id, name, parentPath, parentID, it)
+	res.SetSize(ptr.To(size))
+
+	return res
+}
+
+func malwareItem(
+	id, name, parentPath, parentID string,
+	it itemType,
+) models.DriveItemable {
+	c := coreItem(id, name, parentPath, parentID, it)
+
+	mal := models.NewMalware()
+	malStr := "test malware"
+	mal.SetDescription(&malStr)
+
+	c.SetMalware(mal)
+
+	return c
+}
+
+// delItem creates a DriveItemable that is marked as deleted. path must be set
+// to the base drive path.
+func delItem(
+	id string,
+	parentID string,
+	it itemType,
+) models.DriveItemable {
+	item := models.NewDriveItem()
+	item.SetId(&id)
+	item.SetDeleted(models.NewDeleted())
+
+	parentReference := models.NewItemReference()
+	parentReference.SetId(&parentID)
+	item.SetParentReference(parentReference)
+
+	switch it {
+	case isFile:
+		item.SetFile(models.NewFile())
+	case isFolder:
+		item.SetFolder(models.NewFolder())
+	case isPackage:
+		item.SetPackageEscaped(models.NewPackageEscaped())
+	}
+
+	return item
+}
+
+// ---------------------------------------------------------------------------
+// file factories
+// ---------------------------------------------------------------------------
+
+func fileID(fileSuffixes ...any) string {
+	return id(file, fileSuffixes...)
+}
+
+func fileName(fileSuffixes ...any) string {
+	return name(file, fileSuffixes...)
+}
+
+func driveFile(
+	parentPath, parentID string,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		parentPath,
+		parentID,
+		isFile)
+}
+
+func (dd *deltaDrive) fileAt(
+	parentSuffix any,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		dd.dir(folderName(parentSuffix)),
+		folderID(parentSuffix),
+		isFile)
+}
+
+func (dd *deltaDrive) fileAtRoot(
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		dd.dir(),
+		rootID,
+		isFile)
+}
+
+func (dd *deltaDrive) fileWURLAtRoot(
+	url string,
+	isDeleted bool,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	di := driveFile(dd.dir(), rootID, fileSuffixes...)
+	di.SetAdditionalData(map[string]any{
+		"@microsoft.graph.downloadUrl": url,
+	})
+
+	if isDeleted {
+		di.SetDeleted(models.NewDeleted())
+	}
+
+	return di
+}
+
+func (dd *deltaDrive) fileWSizeAtRoot(
+	size int64,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItemWSize(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		dd.dir(),
+		rootID,
+		size,
+		isFile)
+}
+
+func (dd *deltaDrive) fileWSizeAt(
+	size int64,
+	parentSuffix any,
+	fileSuffixes ...any,
+) models.DriveItemable {
+	return driveItemWSize(
+		fileID(fileSuffixes...),
+		fileName(fileSuffixes...),
+		dd.dir(folderName(parentSuffix)),
+		folderID(parentSuffix),
+		size,
+		isFile)
+}
+
+// ---------------------------------------------------------------------------
+// folder factories
+// ---------------------------------------------------------------------------
+
+func folderID(folderSuffixes ...any) string {
+	return id(folder, folderSuffixes...)
+}
+
+func folderName(folderSuffixes ...any) string {
+	return name(folder, folderSuffixes...)
+}
+
+func driveFolder(
+	parentPath, parentID string,
+	folderSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		folderID(folderSuffixes...),
+		folderName(folderSuffixes...),
+		parentPath,
+		parentID,
+		isFolder)
+}
+
+func driveRootFolder() models.DriveItemable {
+	rootFolder := models.NewDriveItem()
+	rootFolder.SetName(ptr.To(rootName))
+	rootFolder.SetId(ptr.To(rootID))
+	rootFolder.SetRoot(models.NewRoot())
+	rootFolder.SetFolder(models.NewFolder())
+
+	return rootFolder
+}
+
+func (dd *deltaDrive) folderAtRoot(
+	folderSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		folderID(folderSuffixes...),
+		folderName(folderSuffixes...),
+		dd.dir(),
+		rootID,
+		isFolder)
+}
+
+func (dd *deltaDrive) folderAt(
+	parentSuffix any,
+	folderSuffixes ...any,
+) models.DriveItemable {
+	return driveItem(
+		folderID(folderSuffixes...),
+		folderName(folderSuffixes...),
+		dd.dir(folderName(parentSuffix)),
+		folderID(parentSuffix),
+		isFolder)
+}
+
+// ---------------------------------------------------------------------------
+// id, name, path factories
+// ---------------------------------------------------------------------------
+
+// assumption is only one suffix per id.  Mostly using
+// the variadic as an "optional" extension.
+func id(v string, suffixes ...any) string {
+	id := fmt.Sprintf("id_%s", v)
+
+	// a bit weird, but acts as a quality of life
+	// that allows some funcs to take in the `file`
+	// or `folder` or etc monikers as the suffix
+	// without producing weird outputs.
+	if len(suffixes) == 1 {
+		sfx0, ok := suffixes[0].(string)
+		if ok && sfx0 == v {
+			return id
+		}
+	}
+
+	for _, sfx := range suffixes {
+		id = fmt.Sprintf("%s_%v", id, sfx)
+	}
+
+	return id
+}
+
+// assumption is only one suffix per name.  Mostly using
+// the variadic as an "optional" extension.
+func name(v string, suffixes ...any) string {
+	name := fmt.Sprintf("n_%s", v)
+
+	// a bit weird, but acts as a quality of life
+	// that allows some funcs to take in the `file`
+	// or `folder` or etc monikers as the suffix
+	// without producing weird outputs.
+	if len(suffixes) == 1 {
+		sfx0, ok := suffixes[0].(string)
+		if ok && sfx0 == v {
+			return name
+		}
+	}
+
+	for _, sfx := range suffixes {
+		name = fmt.Sprintf("%s_%v", name, sfx)
+	}
+
+	return name
+}
+
+func toPath(elems ...string) string {
+	es := []string{}
+	for _, elem := range elems {
+		es = append(es, path.Split(elem)...)
+	}
+
+	switch len(es) {
+	case 0:
+		return ""
+	case 1:
+		return es[0]
+	default:
+		return path.Builder{}.Append(es...).String()
+	}
+}
+
+// produces the full path for the provided drive
+func (dd *deltaDrive) strPath(elems ...string) string {
+	return toPath(append(
+		[]string{
+			tenant,
+			path.OneDriveService.String(),
+			user,
+			path.FilesCategory.String(),
+			odConsts.DriveFolderPrefixBuilder(dd.id).String(),
+		},
+		elems...)...)
+}
+
+func (dd *deltaDrive) fullPath(t *testing.T, elems ...string) path.Path {
+	p, err := path.FromDataLayerPath(dd.strPath(elems...), false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return p
+}
+
+// produces a complete path prefix up to the drive root folder with any
+// elements passed in appended to the generated prefix.
+func (dd *deltaDrive) dir(elems ...string) string {
+	return toPath(append(
+		[]string{odConsts.DriveFolderPrefixBuilder(dd.id).String()},
+		elems...)...)
+}
+
+// common item names
+const (
+	bar       = "bar"
+	deltaURL  = "delta_url"
+	drivePfx  = "drive"
+	fanny     = "fanny"
+	file      = "file"
+	folder    = "folder"
+	foo       = "foo"
+	item      = "item"
+	malware   = "malware"
+	nav       = "nav"
+	pkg       = "package"
+	rootID    = odConsts.RootID
+	rootName  = odConsts.RootPathDir
+	subfolder = "subfolder"
+	tenant    = "t"
+	user      = "u"
+)
+
+// ---------------------------------------------------------------------------
 // misc
 // ---------------------------------------------------------------------------
+
 func expectFullOrPrev(ca *collectionAssertion) path.Path {
 	var p path.Path
 
