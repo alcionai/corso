@@ -93,8 +93,7 @@ func InitFunc(cmd *cobra.Command, args []string) error {
 		fp = configFilePath
 	}
 
-	ctx := clues.Add(cmd.Context(), "config_file_path", fp)
-	logger.Ctx(ctx).Debugw("initializing viper")
+	ctx := cmd.Context()
 
 	vpr := GetViper(ctx)
 	if err := initWithViper(ctx, vpr, fp); err != nil {
@@ -308,8 +307,6 @@ func getStorageAndAccountWithViper(
 	if err != nil {
 		return config, clues.Wrap(err, "retrieving account configuration details")
 	}
-
-	logger.Ctx(ctx).Warn("I SHOULD SEE THIS")
 
 	config.Storage, err = configureStorage(
 		vpr,
