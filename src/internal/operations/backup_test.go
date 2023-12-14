@@ -17,7 +17,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
@@ -394,7 +393,7 @@ func checkPopulatedInner(v reflect.Value) error {
 // checkPopulated ensures that input has no zero-valued fields. That helps
 // ensure that even as future updates to input happen in other files the changes
 // are propagated here due to test failures.
-func checkPopulated(t *testing.T, input control.Options) {
+func checkPopulated(t *testing.T, input control.Backup) {
 	err := checkPopulatedInner(reflect.ValueOf(input))
 	require.NoError(t, err, clues.ToCore(err))
 }
@@ -409,22 +408,43 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 		&extensions.MockItemExtensionFactory{},
 	}
 
-	opts := control.Options{
+	opts := control.Backup{
 		DeltaPageSize:        42,
-		DisableMetrics:       true,
 		FailureHandling:      control.FailAfterRecovery,
 		ItemExtensionFactory: slices.Clone(ext),
 		Parallelism: control.Parallelism{
 			CollectionBuffer: 4,
 			ItemFetch:        4,
 		},
-		Repo: repository.Options{
-			User:          "foo",
-			Host:          "bar",
-			ViewTimestamp: ptr.To(time.Now()),
-			ReadOnly:      true,
+		ToggleFeatures: control.BackupToggles{
+			DisableIncrementals:   true,
+			ForceItemDataDownload: true,
+			DisableDelta:          true,
+			ExchangeImmutableIDs:  true,
+			RunMigrations:         true,
+			UseDeltaTree:          true,
 		},
-		SkipReduce: true,
+		ServiceRateLimiter: control.RateLimiter{
+			DisableSlidingWindowLimiter: true,
+		},
+		PreviewLimits: control.PreviewItemLimits{
+			MaxItems:             42,
+			MaxItemsPerContainer: 43,
+			MaxContainers:        44,
+			MaxBytes:             45,
+			MaxPages:             46,
+			Enabled:              true,
+		},
+	}
+
+	expectOpts := control.Options{
+		DeltaPageSize:        42,
+		FailureHandling:      control.FailAfterRecovery,
+		ItemExtensionFactory: slices.Clone(ext),
+		Parallelism: control.Parallelism{
+			CollectionBuffer: 4,
+			ItemFetch:        4,
+		},
 		ToggleFeatures: control.Toggles{
 			DisableIncrementals:         true,
 			ForceItemDataDownload:       true,
@@ -449,7 +469,7 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	// This is a sanity check to make sure all fields on the input control.Options
+	// This is a sanity check to make sure all fields on the input control.Backup
 	// are populated. This helps ensure that this chunk of code stays updated as
 	// options are added to the struct.
 	checkPopulated(t, opts)
@@ -477,7 +497,7 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
-	assert.Equal(t, opts, op.Options)
+	assert.Equal(t, expectOpts, op.Options)
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
