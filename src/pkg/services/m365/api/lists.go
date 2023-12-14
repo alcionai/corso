@@ -469,24 +469,33 @@ func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinit
 // - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
 func CloneListItem(orig models.ListItemable) models.ListItemable {
 	newItem := models.NewListItem()
-	newFieldData := retrieveFieldData(orig.GetFields())
 
-	newItem.SetAdditionalData(orig.GetAdditionalData())
-	newItem.SetAnalytics(orig.GetAnalytics())
-	newItem.SetContentType(orig.GetContentType())
-	newItem.SetCreatedBy(orig.GetCreatedBy())
-	newItem.SetCreatedByUser(orig.GetCreatedByUser())
-	newItem.SetCreatedDateTime(orig.GetCreatedDateTime())
-	newItem.SetDescription(orig.GetDescription())
-	// ETag cannot be carried forward
+	// list item data
+	newFieldData := retrieveFieldData(orig.GetFields())
 	newItem.SetFields(newFieldData)
+
+	// list item attributes
+	newItem.SetAdditionalData(orig.GetAdditionalData())
+	newItem.SetDescription(orig.GetDescription())
+	newItem.SetCreatedBy(orig.GetCreatedBy())
+	newItem.SetCreatedDateTime(orig.GetCreatedDateTime())
 	newItem.SetLastModifiedBy(orig.GetLastModifiedBy())
-	newItem.SetLastModifiedByUser(orig.GetLastModifiedByUser())
 	newItem.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
 	newItem.SetOdataType(orig.GetOdataType())
-	// parentReference and SharePointIDs cause error on upload.
-	// POST Command will link items to the created list.
+	newItem.SetAnalytics(orig.GetAnalytics())
+	newItem.SetContentType(orig.GetContentType())
 	newItem.SetVersions(orig.GetVersions())
+
+	// Requires nil checks to avoid Graph error: 'Invalid request'
+	lastCreatedByUser := orig.GetCreatedByUser()
+	if lastCreatedByUser != nil {
+		newItem.SetCreatedByUser(lastCreatedByUser)
+	}
+
+	lastModifiedByUser := orig.GetLastModifiedByUser()
+	if lastCreatedByUser != nil {
+		newItem.SetLastModifiedByUser(lastModifiedByUser)
+	}
 
 	return newItem
 }
@@ -508,6 +517,7 @@ func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 		// .           -> @odata.etag : Embedded link to Prior M365 ID
 		// -- String Match: Read-Only Fields
 		// -> id : previous un
+
 		for key, value := range fieldData {
 			_, isReadOnlyField := readOnlyFieldNames[key]
 
