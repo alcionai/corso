@@ -143,6 +143,91 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 	return cols, cTypes, lItems, nil
 }
 
+func (c Lists) PostList(
+	ctx context.Context,
+	siteID string,
+	listName string,
+	oldListByteArray []byte,
+) (models.Listable, error) {
+	newListName := listName
+
+	oldList, err := BytesToListable(oldListByteArray)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "creating old list")
+	}
+
+	if name, ok := ptr.ValOK(oldList.GetDisplayName()); ok {
+		nameParts := strings.Split(listName, "_")
+		if len(nameParts) > 0 {
+			nameParts[len(nameParts)-1] = name
+			newListName = strings.Join(nameParts, "_")
+		}
+	}
+
+	// this ensure all columns, contentTypes are set to the newList
+	newList := ToListable(oldList, newListName)
+
+	// Restore to List base to M365 back store
+	restoredList, err := c.Stable.Client().Sites().BySiteId(siteID).Lists().Post(ctx, newList, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "restoring list")
+	}
+
+	return restoredList, nil
+}
+
+func (c Lists) PostListItem(
+	ctx context.Context,
+	siteID, listID string,
+	oldListByteArray []byte,
+) ([]models.ListItemable, error) {
+	oldList, err := BytesToListable(oldListByteArray)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "creating old list to get list items")
+	}
+
+	contents := make([]models.ListItemable, 0)
+
+	for _, itm := range oldList.GetItems() {
+		temp := CloneListItem(itm)
+		contents = append(contents, temp)
+	}
+
+	for _, lItem := range contents {
+		_, err := c.Stable.
+			Client().
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID).
+			Items().
+			Post(ctx, lItem, nil)
+		if err != nil {
+			return nil, graph.Wrap(ctx, err, "restoring list items").
+				With("restored_list_id", listID)
+		}
+	}
+
+	return contents, nil
+}
+
+func (c Lists) DeleteList(
+	ctx context.Context,
+	siteID, listID string,
+) error {
+	if err := c.Stable.
+		Client().
+		Sites().
+		BySiteId(siteID).
+		Lists().
+		ByListId(listID).
+		Delete(ctx, nil); err != nil {
+		return graph.Wrap(ctx, err, "deleting list")
+	}
+
+	return nil
+}
+
 func BytesToListable(bytes []byte) (models.Listable, error) {
 	parsable, err := CreateFromBytes(bytes, models.CreateListFromDiscriminatorValue)
 	if err != nil {
