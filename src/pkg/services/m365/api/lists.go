@@ -324,20 +324,7 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
 
 	// column types
-	newColumn.SetText(orig.GetText())
-	newColumn.SetBoolean(orig.GetBoolean())
-	newColumn.SetCalculated(orig.GetCalculated())
-	newColumn.SetChoice(orig.GetChoice())
-	newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
-	newColumn.SetCurrency(orig.GetCurrency())
-	newColumn.SetDateTime(orig.GetDateTime())
-	newColumn.SetGeolocation(orig.GetGeolocation())
-	newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
-	newColumn.SetNumber(orig.GetNumber())
-	newColumn.SetLookup(orig.GetLookup())
-	newColumn.SetThumbnail(orig.GetThumbnail())
-	newColumn.SetTerm(orig.GetTerm())
-	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
+	setColumnType(newColumn, orig)
 
 	// Requires nil checks to avoid Graph error: 'General exception while processing'
 	defaultValue := orig.GetDefaultValue()
@@ -351,6 +338,100 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	}
 
 	return newColumn
+}
+
+func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinitionable) {
+	isColumnTypeSet := false
+
+	if orig.GetText() != nil {
+		newColumn.SetText(orig.GetText())
+		isColumnTypeSet = true
+	}
+
+	if orig.GetBoolean() != nil {
+		newColumn.SetBoolean(orig.GetBoolean())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetCalculated() != nil {
+		newColumn.SetCalculated(orig.GetCalculated())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetChoice() != nil {
+		newColumn.SetChoice(orig.GetChoice())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetContentApprovalStatus() != nil {
+		newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetCurrency() != nil {
+		newColumn.SetCurrency(orig.GetCurrency())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetDateTime() != nil {
+		newColumn.SetDateTime(orig.GetDateTime())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetGeolocation() != nil {
+		newColumn.SetGeolocation(orig.GetGeolocation())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetHyperlinkOrPicture() != nil {
+		newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetNumber() != nil {
+		newColumn.SetNumber(orig.GetNumber())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetLookup() != nil {
+		newColumn.SetLookup(orig.GetLookup())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetThumbnail() != nil {
+		newColumn.SetThumbnail(orig.GetThumbnail())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetTerm() != nil {
+		newColumn.SetTerm(orig.GetTerm())
+
+		isColumnTypeSet = true
+	}
+
+	if orig.GetPersonOrGroup() != nil {
+		newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
+
+		isColumnTypeSet = true
+	}
+
+	// defaulting to text type column
+	if !isColumnTypeSet {
+		textColumn := models.NewTextColumn()
+
+		newColumn.SetText(textColumn)
+	}
 }
 
 // CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
