@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"runtime/trace"
+	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -213,6 +215,14 @@ func getOrPopulateContainer(
 	return folderID, nil
 }
 
+const (
+	maxRetries          = 3
+	retryInterval       = 750 * time.Millisecond
+	retryMultiplier     = 2
+	retryMaxInterval    = 5 * time.Second
+	retryMaxElapsedTime = 0
+)
+
 func uploadAttachments(
 	ctx context.Context,
 	ap attachmentPoster,
@@ -222,18 +232,57 @@ func uploadAttachments(
 ) error {
 	el := errs.Local()
 
-	for _, a := range as {
+	// Manual testing showed that even small delays between retries could get us
+	// past the issues. Use an exponential backoff that will allow us to keep
+	// runtimes low if there's just one failure for a given attachment but still
+	// waits a reasonable amount of time if there's multiple failures.
+	retryBackoff := backoff.NewExponentialBackOff()
+	retryBackoff.InitialInterval = retryInterval
+	retryBackoff.Multiplier = retryMultiplier
+	retryBackoff.MaxInterval = retryMaxInterval
+	retryBackoff.MaxElapsedTime = retryMaxElapsedTime
+
+	for i, a := range as {
 		if el.Failure() != nil {
 			return el.Failure()
 		}
 
-		err := uploadAttachment(
-			ctx,
-			ap,
-			resourceID,
-			destinationID,
-			itemID,
-			a)
+		actx := clues.Add(ctx, "attachment_num", i)
+
+		var (
+			retry int
+			err   error
+		)
+
+		retryBackoff.Reset()
+
+		for (retry == 0 || graph.IsErrItemNotFound(err)) && retry <= maxRetries {
+			retry++
+
+			ictx := clues.Add(actx, "attempt_num", retry)
+
+			err = uploadAttachment(
+				ictx,
+				ap,
+				resourceID,
+				destinationID,
+				itemID,
+				a)
+
+			// Sometimes graph returns a 404 when we try to post the attachment.
+			// We're not sure why, but maybe it has to do with attaching many items.
+			// In any case, wait a little while and try again.
+			if graph.IsErrItemNotFound(err) && retry <= maxRetries {
+				waitTime := retryBackoff.NextBackOff()
+
+				logger.Ctx(ictx).Infow(
+					"error uploading attachment, retrying",
+					"retry_after", waitTime)
+
+				time.Sleep(waitTime)
+			}
+		}
+
 		if err != nil {
 			// FIXME: I don't know why we're swallowing this error case.
 			// It needs investigation: https://github.com/alcionai/corso/issues/3498
@@ -247,7 +296,7 @@ func uploadAttachments(
 				continue
 			}
 
-			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "uploading mail attachment"))
+			el.AddRecoverable(actx, clues.WrapWC(ctx, err, "uploading mail attachment"))
 		}
 	}
 

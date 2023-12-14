@@ -13,13 +13,11 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	countTD "github.com/alcionai/corso/src/pkg/count/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
-	apiMock "github.com/alcionai/corso/src/pkg/services/m365/api/mock"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
@@ -33,7 +31,7 @@ func TestCollectionsTreeUnitSuite(t *testing.T) {
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveTombstones() {
-	badPfxMBH := mock.DefaultOneDriveBH(user)
+	badPfxMBH := defaultOneDriveBH(user)
 	badPfxMBH.PathPrefixErr = assert.AnError
 
 	twostones := map[string]struct{}{
@@ -51,21 +49,21 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveTombstones() {
 		{
 			name:       "nil",
 			tombstones: nil,
-			c:          collWithMBH(mock.DefaultOneDriveBH(user)),
+			c:          collWithMBH(defaultOneDriveBH(user)),
 			expectErr:  assert.NoError,
 			expect:     assert.Empty,
 		},
 		{
 			name:       "none",
 			tombstones: map[string]struct{}{},
-			c:          collWithMBH(mock.DefaultOneDriveBH(user)),
+			c:          collWithMBH(defaultOneDriveBH(user)),
 			expectErr:  assert.NoError,
 			expect:     assert.Empty,
 		},
 		{
 			name:       "some tombstones",
 			tombstones: twostones,
-			c:          collWithMBH(mock.DefaultOneDriveBH(user)),
+			c:          collWithMBH(defaultOneDriveBH(user)),
 			expectErr:  assert.NoError,
 			expect:     assert.NotEmpty,
 		},
@@ -96,7 +94,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveTombstones() {
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeMetadataCollections() {
-	badMetaPfxMBH := mock.DefaultOneDriveBH(user)
+	badMetaPfxMBH := defaultOneDriveBH(user)
 	badMetaPfxMBH.MetadataPathPrefixErr = assert.AnError
 
 	table := []struct {
@@ -106,7 +104,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeMetadataCollections()
 	}{
 		{
 			name:   "no errors",
-			c:      collWithMBH(mock.DefaultOneDriveBH(user)),
+			c:      collWithMBH(defaultOneDriveBH(user)),
 			expect: assert.NotEmpty,
 		},
 		{
@@ -146,10 +144,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 	// 	path.FilesCategory,
 	// 	false)
 	// require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
-
 	type expected struct {
 		canUsePrevBackup assert.BoolAssertionFunc
 		counts           countTD.Expected
@@ -160,19 +154,17 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 
 	table := []struct {
 		name          string
-		drivePager    *apiMock.Pager[models.Driveable]
-		enumerator    mock.EnumerateDriveItemsDelta
+		enumerator    enumerateDriveItemsDelta
 		previousPaths map[string]map[string]string
 
 		metadata []data.RestoreCollection
 		expect   expected
 	}{
 		{
-			name:       "not yet implemented",
-			drivePager: pagerForDrives(drv),
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			name: "not yet implemented",
+			enumerator: driveEnumerator(
+				drive().newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage()))),
 			expect: expected{
 				canUsePrevBackup: assert.False,
@@ -193,7 +185,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			defer flush()
 
 			var (
-				mbh            = mock.DefaultDriveBHWith(user, test.drivePager, test.enumerator)
+				mbh            = defaultDriveBHWith(user, test.enumerator)
 				c              = collWithMBH(mbh)
 				prevMetadata   = makePrevMetadataColls(t, mbh, test.previousPaths)
 				globalExcludes = prefixmatcher.NewStringSetBuilder()
@@ -244,23 +236,21 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 // at lower levels are better for verifing fine-grained concerns.  This test only needs
 // to ensure we stitch the parts together correctly.
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
+	d := drive()
 
 	table := []struct {
 		name         string
-		drive        models.Driveable
-		enumerator   mock.EnumerateDriveItemsDelta
+		drive        *deltaDrive
+		enumerator   enumerateDriveItemsDelta
 		prevPaths    map[string]string
 		expectCounts countTD.Expected
 	}{
 		{
 			name:  "only root in delta, no prev paths",
-			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			drive: d,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage()))),
 			prevPaths: map[string]string{},
 			expectCounts: countTD.Expected{
@@ -269,13 +259,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		},
 		{
 			name:  "only root in delta, with prev paths",
-			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			drive: d,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage()))),
 			prevPaths: map[string]string{
-				id(folder): fullPath(name(folder)),
+				folderID(): d.strPath(folderName()),
 			},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
@@ -283,11 +273,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		},
 		{
 			name:  "some items, no prev paths",
-			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
-						aPage(folderAtRoot(), fileAt(folder))))),
+			drive: d,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
+						aPage(d.folderAtRoot(), d.fileAt(folder))))),
 			prevPaths: map[string]string{},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
@@ -295,13 +285,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		},
 		{
 			name:  "some items, with prev paths",
-			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
-						aPage(folderAtRoot(), fileAt(folder))))),
+			drive: d,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
+						aPage(d.folderAtRoot(), d.fileAt(folder))))),
 			prevPaths: map[string]string{
-				id(folder): fullPath(name(folder)),
+				folderID(): d.strPath(folderName()),
 			},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
@@ -309,10 +299,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		},
 		{
 			name:  "tree had delta reset, only root after, no prev paths",
-			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.DeltaWReset(id(delta), nil).With(
+			drive: d,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					deltaWReset(id(deltaURL), nil).with(
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{},
@@ -322,14 +312,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		},
 		{
 			name:  "tree had delta reset, only root after, with prev paths",
-			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.DeltaWReset(id(delta), nil).With(
+			drive: d,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					deltaWReset(id(deltaURL), nil).with(
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{
-				id(folder): fullPath(name(folder)),
+				folderID(): d.strPath(folderName()),
 			},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
@@ -337,12 +327,12 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		},
 		{
 			name:  "tree had delta reset, enumerate items after, no prev paths",
-			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.DeltaWReset(id(delta), nil).With(
+			drive: d,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					deltaWReset(id(deltaURL), nil).with(
 						aReset(),
-						aPage(folderAtRoot(), fileAt(folder))))),
+						aPage(d.folderAtRoot(), d.fileAt(folder))))),
 			prevPaths: map[string]string{},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 0,
@@ -350,14 +340,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 		},
 		{
 			name:  "tree had delta reset, enumerate items after, with prev paths",
-			drive: drv,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.DeltaWReset(id(delta), nil).With(
+			drive: d,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					deltaWReset(id(deltaURL), nil).with(
 						aReset(),
-						aPage(folderAtRoot(), fileAt(folder))))),
+						aPage(d.folderAtRoot(), d.fileAt(folder))))),
 			prevPaths: map[string]string{
-				id(folder): fullPath(name(folder)),
+				folderID(): d.strPath(folderName()),
 			},
 			expectCounts: countTD.Expected{
 				count.PrevPaths: 1,
@@ -371,17 +361,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			mbh := mock.DefaultOneDriveBH(user)
-			mbh.DrivePagerV = pagerForDrives(drv)
+			mbh := defaultOneDriveBH(user)
 			mbh.DriveItemEnumeration = test.enumerator
 
 			c := collWithMBH(mbh)
 
 			_, _, _, err := c.makeDriveCollections(
 				ctx,
-				test.drive,
+				test.drive.able,
 				test.prevPaths,
-				idx(delta, "prev"),
+				id(deltaURL, "prev"),
 				newPagerLimiter(control.DefaultOptions()),
 				prefixmatcher.NewStringSetBuilder(),
 				c.counter,
@@ -394,9 +383,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors() {
+	d := drive()
+
 	table := []struct {
 		name      string
-		tree      func(t *testing.T) *folderyMcFolderFace
+		tree      func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		prevPaths map[string]string
 		expectErr require.ErrorAssertionFunc
 	}{
@@ -404,8 +395,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 			name: "no error - normal usage",
 			tree: treeWithFolders,
 			prevPaths: map[string]string{
-				idx(folder, "parent"): fullPath(namex(folder, "parent")),
-				id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+				folderID("parent"): d.strPath(folderName("parent")),
+				folderID():         d.strPath(folderName("parent"), folderName()),
 			},
 			expectErr: require.NoError,
 		},
@@ -419,7 +410,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 			name: "no error - folder not visited in this delta",
 			tree: treeWithFolders,
 			prevPaths: map[string]string{
-				id("santa"): fullPath(name("santa")),
+				id("santa"): d.strPath(name("santa")),
 			},
 			expectErr: require.NoError,
 		},
@@ -427,7 +418,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 			name: "empty key in previous paths",
 			tree: treeWithFolders,
 			prevPaths: map[string]string{
-				"": fullPath(namex(folder, "parent")),
+				"": d.strPath(folderName("parent")),
 			},
 			expectErr: require.Error,
 		},
@@ -435,7 +426,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 			name: "empty value in previous paths",
 			tree: treeWithFolders,
 			prevPaths: map[string]string{
-				id(folder): "",
+				folderID(): "",
 			},
 			expectErr: require.Error,
 		},
@@ -443,7 +434,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 			name: "malformed value in previous paths",
 			tree: treeWithFolders,
 			prevPaths: map[string]string{
-				id(folder): "not a path",
+				folderID(): "not a path",
 			},
 			expectErr: require.Error,
 		},
@@ -455,7 +446,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			tree := test.tree(t)
+			tree := test.tree(t, d)
 
 			err := addPrevPathsToTree(
 				ctx,
@@ -468,15 +459,17 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddPrevPathsToTree_errors
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections() {
+	d := drive()
+
 	type expected struct {
 		prevPaths             map[string]string
-		collections           func(t *testing.T) expectedCollections
+		collections           func(t *testing.T, d *deltaDrive) expectedCollections
 		globalExcludedFileIDs map[string]struct{}
 	}
 
 	table := []struct {
 		name           string
-		tree           func(t *testing.T) *folderyMcFolderFace
+		tree           func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		prevPaths      map[string]string
 		enableURLCache bool
 		expect         expected
@@ -488,32 +481,32 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			enableURLCache: true,
 			expect: expected{
 				prevPaths: map[string]string{
-					rootID:                fullPath(),
-					idx(folder, "parent"): fullPath(namex(folder, "parent")),
-					id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+					rootID:             d.strPath(),
+					folderID("parent"): d.strPath(folderName("parent")),
+					folderID():         d.strPath(folderName("parent"), folderName()),
 				},
-				collections: func(t *testing.T) expectedCollections {
+				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
 					return expectCollections(
 						false,
 						true,
 						aColl(
-							fullPathPath(t),
+							d.fullPath(t),
 							nil,
-							idx(file, "r")),
+							fileID("r")),
 						aColl(
-							fullPathPath(t, namex(folder, "parent")),
+							d.fullPath(t, folderName("parent")),
 							nil,
-							idx(file, "p")),
+							fileID("p")),
 						aColl(
-							fullPathPath(t, namex(folder, "parent"), name(folder)),
+							d.fullPath(t, folderName("parent"), folderName()),
 							nil,
-							id(file)))
+							fileID()))
 				},
 				globalExcludedFileIDs: makeExcludeMap(
-					idx(file, "r"),
-					idx(file, "p"),
-					idx(file, "d"),
-					id(file)),
+					fileID("r"),
+					fileID("p"),
+					fileID("d"),
+					fileID()),
 			},
 		},
 		{
@@ -521,40 +514,40 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			tree:           fullTree,
 			enableURLCache: true,
 			prevPaths: map[string]string{
-				rootID:                   fullPath(),
-				idx(folder, "parent"):    fullPath(namex(folder, "parent-prev")),
-				id(folder):               fullPath(namex(folder, "parent-prev"), name(folder)),
-				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone-prev")),
+				rootID:                d.strPath(),
+				folderID("parent"):    d.strPath(folderName("parent-prev")),
+				folderID():            d.strPath(folderName("parent-prev"), folderName()),
+				folderID("tombstone"): d.strPath(folderName("tombstone-prev")),
 			},
 			expect: expected{
 				prevPaths: map[string]string{
-					rootID:                fullPath(),
-					idx(folder, "parent"): fullPath(namex(folder, "parent")),
-					id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+					rootID:             d.strPath(),
+					folderID("parent"): d.strPath(folderName("parent")),
+					folderID():         d.strPath(folderName("parent"), folderName()),
 				},
-				collections: func(t *testing.T) expectedCollections {
+				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
 					return expectCollections(
 						false,
 						true,
 						aColl(
-							fullPathPath(t),
-							fullPathPath(t),
-							idx(file, "r")),
+							d.fullPath(t),
+							d.fullPath(t),
+							fileID("r")),
 						aColl(
-							fullPathPath(t, namex(folder, "parent")),
-							fullPathPath(t, namex(folder, "parent-prev")),
-							idx(file, "p")),
+							d.fullPath(t, folderName("parent")),
+							d.fullPath(t, folderName("parent-prev")),
+							fileID("p")),
 						aColl(
-							fullPathPath(t, namex(folder, "parent"), name(folder)),
-							fullPathPath(t, namex(folder, "parent-prev"), name(folder)),
-							id(file)),
-						aColl(nil, fullPathPath(t, namex(folder, "tombstone-prev"))))
+							d.fullPath(t, folderName("parent"), folderName()),
+							d.fullPath(t, folderName("parent-prev"), folderName()),
+							fileID()),
+						aColl(nil, d.fullPath(t, folderName("tombstone-prev"))))
 				},
 				globalExcludedFileIDs: makeExcludeMap(
-					idx(file, "r"),
-					idx(file, "p"),
-					idx(file, "d"),
-					id(file)),
+					fileID("r"),
+					fileID("p"),
+					fileID("d"),
+					fileID()),
 			},
 		},
 		{
@@ -562,40 +555,40 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			tree:           fullTreeWithNames("parent", "tombstone"),
 			enableURLCache: true,
 			prevPaths: map[string]string{
-				rootID:                   fullPath(),
-				idx(folder, "parent"):    fullPath(namex(folder, "parent-prev")),
-				id(folder):               fullPath(namex(folder, "parent-prev"), name(folder)),
-				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone-prev")),
+				rootID:                d.strPath(),
+				folderID("parent"):    d.strPath(folderName("parent-prev")),
+				folderID():            d.strPath(folderName("parent-prev"), folderName()),
+				folderID("tombstone"): d.strPath(folderName("tombstone-prev")),
 			},
 			expect: expected{
 				prevPaths: map[string]string{
-					rootID:                fullPath(),
-					idx(folder, "parent"): fullPath(namex(folder, "parent")),
-					id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+					rootID:             d.strPath(),
+					folderID("parent"): d.strPath(folderName("parent")),
+					folderID():         d.strPath(folderName("parent"), folderName()),
 				},
-				collections: func(t *testing.T) expectedCollections {
+				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
 					return expectCollections(
 						false,
 						true,
 						aColl(
-							fullPathPath(t),
-							fullPathPath(t),
-							idx(file, "r")),
+							d.fullPath(t),
+							d.fullPath(t),
+							fileID("r")),
 						aColl(
-							fullPathPath(t, namex(folder, "parent")),
-							fullPathPath(t, namex(folder, "parent-prev")),
-							idx(file, "p")),
+							d.fullPath(t, folderName("parent")),
+							d.fullPath(t, folderName("parent-prev")),
+							fileID("p")),
 						aColl(
-							fullPathPath(t, namex(folder, "parent"), name(folder)),
-							fullPathPath(t, namex(folder, "parent-prev"), name(folder)),
-							id(file)),
-						aColl(nil, fullPathPath(t, namex(folder, "tombstone-prev"))))
+							d.fullPath(t, folderName("parent"), folderName()),
+							d.fullPath(t, folderName("parent-prev"), folderName()),
+							fileID()),
+						aColl(nil, d.fullPath(t, folderName("tombstone-prev"))))
 				},
 				globalExcludedFileIDs: makeExcludeMap(
-					idx(file, "r"),
-					idx(file, "p"),
-					idx(file, "d"),
-					id(file)),
+					fileID("r"),
+					fileID("p"),
+					fileID("d"),
+					fileID()),
 			},
 		},
 		{
@@ -603,40 +596,40 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			tree:           fullTree,
 			enableURLCache: true,
 			prevPaths: map[string]string{
-				rootID:                   fullPath(),
-				idx(folder, "parent"):    fullPath(namex(folder, "parent")),
-				id(folder):               fullPath(namex(folder, "parent"), name(folder)),
-				idx(folder, "tombstone"): fullPath(namex(folder, "tombstone")),
+				rootID:                d.strPath(),
+				folderID("parent"):    d.strPath(folderName("parent")),
+				folderID():            d.strPath(folderName("parent"), folderName()),
+				folderID("tombstone"): d.strPath(folderName("tombstone")),
 			},
 			expect: expected{
 				prevPaths: map[string]string{
-					rootID:                fullPath(),
-					idx(folder, "parent"): fullPath(namex(folder, "parent")),
-					id(folder):            fullPath(namex(folder, "parent"), name(folder)),
+					rootID:             d.strPath(),
+					folderID("parent"): d.strPath(folderName("parent")),
+					folderID():         d.strPath(folderName("parent"), folderName()),
 				},
-				collections: func(t *testing.T) expectedCollections {
+				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
 					return expectCollections(
 						false,
 						true,
 						aColl(
-							fullPathPath(t),
-							fullPathPath(t),
-							idx(file, "r")),
+							d.fullPath(t),
+							d.fullPath(t),
+							fileID("r")),
 						aColl(
-							fullPathPath(t, namex(folder, "parent")),
-							fullPathPath(t, namex(folder, "parent")),
-							idx(file, "p")),
+							d.fullPath(t, folderName("parent")),
+							d.fullPath(t, folderName("parent")),
+							fileID("p")),
 						aColl(
-							fullPathPath(t, namex(folder, "parent"), name(folder)),
-							fullPathPath(t, namex(folder, "parent"), name(folder)),
-							id(file)),
-						aColl(nil, fullPathPath(t, namex(folder, "tombstone"))))
+							d.fullPath(t, folderName("parent"), folderName()),
+							d.fullPath(t, folderName("parent"), folderName()),
+							fileID()),
+						aColl(nil, d.fullPath(t, folderName("tombstone"))))
 				},
 				globalExcludedFileIDs: makeExcludeMap(
-					idx(file, "r"),
-					idx(file, "p"),
-					idx(file, "d"),
-					id(file)),
+					fileID("r"),
+					fileID("p"),
+					fileID("d"),
+					fileID()),
 			},
 		},
 	}
@@ -647,12 +640,12 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			tree := test.tree(t)
+			tree := test.tree(t, d)
 
 			err := addPrevPathsToTree(ctx, tree, test.prevPaths, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
-			c := collWithMBH(mock.DefaultOneDriveBH(user))
+			c := collWithMBH(defaultOneDriveBH(user))
 
 			countPages := 9001
 			if test.enableURLCache {
@@ -662,14 +655,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			colls, newPrevPaths, excluded, err := c.turnTreeIntoCollections(
 				ctx,
 				tree,
-				id(drive),
-				delta,
+				d.id,
+				deltaURL,
 				countPages,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect.prevPaths, newPrevPaths, "new previous paths")
 
-			expectColls := test.expect.collections(t)
+			expectColls := test.expect.collections(t, d)
 			expectColls.compare(t, colls)
 			expectColls.requireNoUnseenCollections(t)
 
@@ -692,8 +685,8 @@ type populateTreeExpected struct {
 
 type populateTreeTest struct {
 	name       string
-	enumerator mock.EnumerateDriveItemsDelta
-	tree       func(t *testing.T) *folderyMcFolderFace
+	enumerator enumerateDriveItemsDelta
+	tree       func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 	limiter    *pagerLimiter
 	expect     populateTreeExpected
 }
@@ -701,9 +694,7 @@ type populateTreeTest struct {
 // this test focuses on the population of a tree using a single delta's enumeration data.
 // It is not concerned with unifying previous paths or post-processing collections.
 func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta() {
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
+	d := drive()
 
 	table := []populateTreeTest{
 		{
@@ -711,13 +702,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			// special case enumerator to generate a null page.
 			// otherwise all enumerators should be DriveEnumerator()s.
-			enumerator: mock.EnumerateDriveItemsDelta{
-				DrivePagers: map[string]*mock.DriveDeltaEnumerator{
-					id(drive): {
-						DriveID: id(drive),
-						DeltaQueries: []*mock.DeltaQuery{{
+			enumerator: enumerateDriveItemsDelta{
+				DrivePagers: map[string]*DeltaDriveEnumerator{
+					d.id: {
+						Drive: d,
+						DeltaQueries: []*deltaQuery{{
 							Pages:       nil,
-							DeltaUpdate: pagers.DeltaUpdate{URL: id(delta)},
+							DeltaUpdate: pagers.DeltaUpdate{URL: id(deltaURL)},
 						}},
 					},
 				},
@@ -737,9 +728,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "root only",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage()))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
@@ -762,9 +753,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "root only on two pages",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(),
 						aPage()))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
@@ -788,14 +779,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "many folders in a hierarchy across multiple pages",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
-						aPage(folderAtRoot()),
-						aPage(folderxAtRoot("sib")),
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
+						aPage(d.folderAtRoot()),
+						aPage(d.folderAtRoot("sib")),
 						aPage(
-							folderAtRoot(),
-							folderxAt("chld", folder))))),
+							d.folderAtRoot(),
+							d.folderAt(folder, "chld"))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -809,9 +800,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				sizeBytes:      0,
 				treeContainsFolderIDs: []string{
 					rootID,
-					id(folder),
-					idx(folder, "sib"),
-					idx(folder, "chld"),
+					folderID(),
+					folderID("sib"),
+					folderID("chld"),
 				},
 				treeContainsTombstoneIDs:      []string{},
 				treeContainsFileIDsWithParent: map[string]string{},
@@ -820,19 +811,19 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "many folders with files",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							folderAtRoot(),
-							fileAt(folder)),
+							d.folderAtRoot(),
+							d.fileAt(folder)),
 						aPage(
-							folderxAtRoot("sib"),
-							filexAt("fsib", "sib")),
+							d.folderAtRoot("sib"),
+							d.fileAt("sib", "fsib")),
 						aPage(
-							folderAtRoot(),
-							folderxAt("chld", folder),
-							filexAt("fchld", "chld"))))),
+							d.folderAtRoot(),
+							d.folderAt(folder, "chld"),
+							d.fileAt("chld", "fchld"))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -843,73 +834,92 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				err:            require.NoError,
 				numLiveFiles:   3,
 				numLiveFolders: 4,
-				sizeBytes:      3 * defaultItemSize,
+				sizeBytes:      3 * defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
-					id(folder),
-					idx(folder, "sib"),
-					idx(folder, "chld"),
+					folderID(),
+					folderID("sib"),
+					folderID("chld"),
 				},
 				treeContainsTombstoneIDs: []string{},
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file):           id(folder),
-					idx(file, "fsib"):  idx(folder, "sib"),
-					idx(file, "fchld"): idx(folder, "chld"),
+					fileID():        folderID(),
+					fileID("fsib"):  folderID("sib"),
+					fileID("fchld"): folderID("chld"),
 				},
 			},
 		},
 		{
-			name: "many folders with files across multiple deltas",
+			name: "tombstone with unpopulated tree",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(aPage(
-						folderAtRoot(),
-						fileAt(folder))),
-					mock.Delta(id(delta), nil).With(aPage(
-						folderxAtRoot("sib"),
-						filexAt("fsib", "sib"))),
-					mock.Delta(id(delta), nil).With(aPage(
-						folderAtRoot(),
-						folderxAt("chld", folder),
-						filexAt("fchld", "chld"))))),
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
+						aPage(delItem(folderID(), folderID("parent"), isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
-					count.TotalFoldersProcessed: 7,
-					count.TotalFilesProcessed:   3,
-					count.TotalPagesEnumerated:  4,
+					count.TotalFoldersProcessed:       1,
+					count.TotalDeleteFoldersProcessed: 1,
+					count.TotalFilesProcessed:         0,
+					count.TotalPagesEnumerated:        2,
 				},
 				err:            require.NoError,
-				numLiveFiles:   3,
-				numLiveFolders: 4,
-				sizeBytes:      3 * 42,
+				numLiveFiles:   0,
+				numLiveFolders: 1,
+				sizeBytes:      0,
 				treeContainsFolderIDs: []string{
 					rootID,
-					id(folder),
-					idx(folder, "sib"),
-					idx(folder, "chld"),
 				},
-				treeContainsTombstoneIDs: []string{},
+				treeContainsTombstoneIDs: []string{
+					folderID(),
+				},
+				treeContainsFileIDsWithParent: map[string]string{},
+			},
+		},
+		{
+			name: "tombstone with populated tree",
+			tree: treeWithFileInFolder,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(aPage(
+						delItem(folderID(), folderID("parent"), isFolder))))),
+			limiter: newPagerLimiter(control.DefaultOptions()),
+			expect: populateTreeExpected{
+				counts: countTD.Expected{
+					count.TotalFoldersProcessed:       1,
+					count.TotalDeleteFoldersProcessed: 1,
+					count.TotalFilesProcessed:         0,
+					count.TotalPagesEnumerated:        2,
+				},
+				err:            require.NoError,
+				numLiveFiles:   0,
+				numLiveFolders: 2,
+				sizeBytes:      0,
+				treeContainsFolderIDs: []string{
+					rootID,
+					folderID("parent"),
+				},
+				treeContainsTombstoneIDs: []string{
+					folderID(),
+				},
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file):           id(folder),
-					idx(file, "fsib"):  idx(folder, "sib"),
-					idx(file, "fchld"): idx(folder, "chld"),
+					fileID(): folderID(),
 				},
 			},
 		},
 		{
 			// technically you won't see this behavior from graph deltas, since deletes always
 			// precede creates/updates.  But it's worth checking that we can handle it anyways.
-			name: "create, delete on next page",
+			name: "create->delete folder",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							folderAtRoot(),
-							fileAt(folder)),
-						aPage(delItem(id(folder), rootID, isFolder))))),
+							d.folderAtRoot(),
+							d.fileAt(folder)),
+						aPage(delItem(folderID(), rootID, isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -927,7 +937,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				},
 				treeContainsTombstoneIDs: []string{},
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): id(folder),
+					fileID(): folderID(),
 				},
 			},
 		},
@@ -936,14 +946,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			// precede creates/updates.  But it's worth checking that we can handle it anyways.
 			name: "move->delete folder with populated tree",
 			tree: treeWithFolders,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							folderxAtRoot("parent"),
-							driveItem(id(folder), namex(folder, "moved"), parentDir(), idx(folder, "parent"), isFolder),
-							fileAtDeep(parentDir(namex(folder, "parent"), name(folder)), id(folder))),
-						aPage(delItem(id(folder), idx(folder, "parent"), isFolder))))),
+							d.folderAtRoot("parent"),
+							driveItem(folderID(), folderName("moved"), d.dir(), folderID("parent"), isFolder),
+							driveFile(d.dir(folderName("parent"), folderName()), folderID())),
+						aPage(delItem(folderID(), folderID("parent"), isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -958,32 +968,96 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				sizeBytes:      0,
 				treeContainsFolderIDs: []string{
 					rootID,
-					idx(folder, "parent"),
+					folderID("parent"),
 				},
 				treeContainsTombstoneIDs: []string{
-					id(folder),
+					folderID(),
 				},
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): id(folder),
+					fileID(): folderID(),
+				},
+			},
+		},
+		{
+			name: "delete->create folder with previous path",
+			tree: newTree,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
+						aPage(delItem(folderID(), rootID, isFolder)),
+						aPage(
+							d.folderAtRoot(),
+							d.fileAt(folder))))),
+			limiter: newPagerLimiter(control.DefaultOptions()),
+			expect: populateTreeExpected{
+				counts: countTD.Expected{
+					count.TotalDeleteFoldersProcessed: 1,
+					count.TotalFoldersProcessed:       3,
+					count.TotalFilesProcessed:         1,
+					count.TotalPagesEnumerated:        3,
+				},
+				err:            require.NoError,
+				numLiveFiles:   1,
+				numLiveFolders: 2,
+				sizeBytes:      defaultFileSize,
+				treeContainsFolderIDs: []string{
+					rootID,
+					folderID(),
+				},
+				treeContainsTombstoneIDs: []string{},
+				treeContainsFileIDsWithParent: map[string]string{
+					fileID(): folderID(),
+				},
+			},
+		},
+		{
+			name: "delete->create folder without previous path",
+			tree: treeWithRoot,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
+						aPage(delItem(folderID(), rootID, isFolder)),
+						aPage(
+							d.folderAtRoot(),
+							d.fileAt(folder))))),
+			limiter: newPagerLimiter(control.DefaultOptions()),
+			expect: populateTreeExpected{
+				counts: countTD.Expected{
+					count.TotalDeleteFoldersProcessed: 1,
+					count.TotalFoldersProcessed:       3,
+					count.TotalFilesProcessed:         1,
+					count.TotalPagesEnumerated:        3,
+				},
+				err:            require.NoError,
+				numLiveFiles:   1,
+				numLiveFolders: 2,
+				sizeBytes:      defaultFileSize,
+				treeContainsFolderIDs: []string{
+					rootID,
+					folderID(),
+				},
+				treeContainsTombstoneIDs: []string{},
+				treeContainsFileIDsWithParent: map[string]string{
+					fileID(): folderID(),
 				},
 			},
 		},
 		{
 			name: "at folder limit before enumeration",
 			tree: treeWithFileAtRoot,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							folderAtRoot(),
-							fileAt(folder)),
+							d.folderAtRoot(),
+							d.fileAt(folder)),
 						aPage(
-							folderxAtRoot("sib"),
-							filexAt("fsib", "sib")),
+							d.folderAtRoot("sib"),
+							d.fileAt("sib", "fsib")),
 						aPage(
-							folderAtRoot(),
-							folderxAt("chld", folder),
-							filexAt("fchld", "chld"))))),
+							d.folderAtRoot(),
+							d.folderAt(folder, "chld"),
+							d.fileAt("chld", "fchld"))))),
 			limiter: newPagerLimiter(minimumLimitOpts()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -996,7 +1070,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				shouldHitLimit: true,
 				numLiveFiles:   1,
 				numLiveFolders: 1,
-				sizeBytes:      defaultItemSize,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
 				},
@@ -1007,19 +1081,19 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 		{
 			name: "hit folder limit during enumeration",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							folderAtRoot(),
-							fileAt(folder)),
+							d.folderAtRoot(),
+							d.fileAt(folder)),
 						aPage(
-							folderxAtRoot("sib"),
-							filexAt("fsib", "sib")),
+							d.folderAtRoot("sib"),
+							d.fileAt("sib", "fsib")),
 						aPage(
-							folderAtRoot(),
-							folderxAt("chld", folder),
-							filexAt("fchld", "chld"))))),
+							d.folderAtRoot(),
+							d.folderAt(folder, "chld"),
+							d.fileAt("chld", "fchld"))))),
 			limiter: newPagerLimiter(minimumLimitOpts()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1043,7 +1117,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			runPopulateTreeTest(suite.T(), drv, test)
+			runPopulateTreeTest(suite.T(), d.able, test)
 		})
 	}
 }
@@ -1052,29 +1126,27 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 // multiple delta enumerations.
 // It is not concerned with unifying previous paths or post-processing collections.
 func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta() {
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
+	d := drive()
 
 	table := []populateTreeTest{
 		{
 			name: "sanity case: normal enumeration split across multiple deltas",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
-						aPage(
-							folderAtRoot(),
-							fileAt(folder))),
-					mock.Delta(id(delta), nil).With(
-						aPage(
-							folderxAtRoot("sib"),
-							filexAt("fsib", "sib"))),
-					mock.Delta(id(delta), nil).With(
-						aPage(
-							folderAtRoot(),
-							folderxAt("chld", folder),
-							filexAt("fchld", "chld"))))),
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).
+						with(aPage(
+							d.folderAtRoot(),
+							d.fileAt(folder))),
+					delta(id(deltaURL), nil).
+						with(aPage(
+							d.folderAtRoot("sib"),
+							d.fileAt("sib", "fsib"))),
+					delta(id(deltaURL), nil).
+						with(aPage(
+							d.folderAtRoot(),
+							d.folderAt(folder, "chld"),
+							d.fileAt("chld", "fchld"))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1088,39 +1160,39 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 				err:            require.NoError,
 				numLiveFiles:   3,
 				numLiveFolders: 4,
-				sizeBytes:      3 * 42,
+				sizeBytes:      3 * defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
-					id(folder),
-					idx(folder, "sib"),
-					idx(folder, "chld"),
+					folderID(),
+					folderID("sib"),
+					folderID("chld"),
 				},
 				treeContainsTombstoneIDs: []string{},
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file):           id(folder),
-					idx(file, "fsib"):  idx(folder, "sib"),
-					idx(file, "fchld"): idx(folder, "chld"),
+					fileID():        folderID(),
+					fileID("fsib"):  folderID("sib"),
+					fileID("fchld"): folderID("chld"),
 				},
 			},
 		},
 		{
 			name: "create->delete,create",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							folderAtRoot(),
-							fileAt(folder))),
+							d.folderAtRoot(),
+							d.fileAt(folder))),
 					// a (delete,create) pair in the same delta can occur when
 					// a user deletes and restores an item in-between deltas.
-					mock.Delta(id(delta), nil).With(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							delItem(id(folder), rootID, isFolder),
-							delItem(id(file), id(folder), isFile)),
+							delItem(folderID(), rootID, isFolder),
+							delItem(fileID(), folderID(), isFile)),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder))))),
+							d.folderAtRoot(),
+							d.fileAt(folder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1134,10 +1206,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 				err:            require.NoError,
 				numLiveFiles:   1,
 				numLiveFolders: 2,
-				sizeBytes:      42,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
-					id(folder),
+					folderID(),
 				},
 				treeContainsTombstoneIDs:      []string{},
 				treeContainsFileIDsWithParent: map[string]string{},
@@ -1146,16 +1218,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 		{
 			name: "visit->rename",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							folderAtRoot(),
-							fileAt(folder))),
-					mock.Delta(id(delta), nil).With(
+							d.folderAtRoot(),
+							d.fileAt(folder))),
+					delta(id(deltaURL), nil).with(
 						aPage(
-							driveItem(id(folder), namex(folder, "rename"), parentDir(), rootID, isFolder),
-							driveItem(id(file), namex(file, "rename"), parentDir(namex(folder, "rename")), id(folder), isFile))))),
+							driveItem(folderID(), folderName("rename"), d.dir(), rootID, isFolder),
+							driveItem(fileID(), fileName("rename"), d.dir(folderName("rename")), folderID(), isFile))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1169,27 +1241,27 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 				err:            require.NoError,
 				numLiveFiles:   1,
 				numLiveFolders: 2,
-				sizeBytes:      42,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
-					id(folder),
+					folderID(),
 				},
 				treeContainsTombstoneIDs: []string{},
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): id(folder),
+					fileID(): folderID(),
 				},
 			},
 		},
 		{
 			name: "duplicate folder name from deferred delete marker",
 			tree: newTree,
-			enumerator: mock.DriveEnumerator(
-				mock.Drive(id(drive)).With(
-					mock.Delta(id(delta), nil).With(
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(id(deltaURL), nil).with(
 						// first page: create /root/folder and /root/folder/file
 						aPage(
-							folderAtRoot(),
-							fileAt(folder)),
+							d.folderAtRoot(),
+							d.fileAt(folder)),
 						// assume the user makes changes at this point:
 						// * create a new /root/folder
 						// * move /root/folder/file from old to new folder (same file ID)
@@ -1197,12 +1269,12 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 						// in drive deltas, this will show up as another folder creation sharing
 						// the same dirname, but we won't see the delete until...
 						aPage(
-							driveItem(idx(folder, 2), name(folder), parentDir(), rootID, isFolder),
-							driveItem(id(file), name(file), parentDir(name(folder)), idx(folder, 2), isFile))),
+							driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
+							driveItem(fileID(), fileName(), d.dir(folderName()), folderID(2), isFile))),
 					// the next delta, containing the delete marker for the original /root/folder
-					mock.Delta(id(delta), nil).With(
+					delta(id(deltaURL), nil).with(
 						aPage(
-							delItem(id(folder), rootID, isFolder))))),
+							delItem(folderID(), rootID, isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
@@ -1216,45 +1288,45 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 				err:            require.NoError,
 				numLiveFiles:   1,
 				numLiveFolders: 2,
-				sizeBytes:      42,
+				sizeBytes:      defaultFileSize,
 				treeContainsFolderIDs: []string{
 					rootID,
-					idx(folder, 2),
+					folderID(2),
 				},
 				treeContainsTombstoneIDs: []string{},
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): idx(folder, 2),
+					fileID(): folderID(2),
 				},
 			},
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			runPopulateTreeTest(suite.T(), drv, test)
+			runPopulateTreeTest(suite.T(), d.able, test)
 		})
 	}
 }
 
 func runPopulateTreeTest(
 	t *testing.T,
-	drv models.Driveable,
+	d models.Driveable,
 	test populateTreeTest,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	var (
-		mbh     = mock.DefaultDriveBHWith(user, pagerForDrives(drv), test.enumerator)
+		mbh     = defaultDriveBHWith(user, test.enumerator)
 		c       = collWithMBH(mbh)
 		counter = count.New()
-		tree    = test.tree(t)
+		tree    = test.tree(t, drive())
 	)
 
 	_, _, err := c.populateTree(
 		ctx,
 		tree,
-		drv,
-		id(delta),
+		d,
+		id(deltaURL),
 		test.limiter,
 		counter,
 		fault.New(true))
@@ -1301,9 +1373,7 @@ func runPopulateTreeTest(
 // This test focuses on folder assertions when enumerating a page of items.
 // File-specific assertions are focused in the _folders test variant.
 func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_folders() {
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
+	d := drive()
 
 	type expected struct {
 		counts                   countTD.Expected
@@ -1316,15 +1386,15 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 
 	table := []struct {
 		name    string
-		tree    func(t *testing.T) *folderyMcFolderFace
-		page    mock.NextPage
+		tree    func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
+		page    nextPage
 		limiter *pagerLimiter
 		expect  expected
 	}{
 		{
 			name:    "nil page",
 			tree:    treeWithRoot,
-			page:    mock.NextPage{},
+			page:    nextPage{},
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts:   countTD.Expected{},
@@ -1339,7 +1409,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 		{
 			name:    "empty page",
 			tree:    treeWithRoot,
-			page:    mock.NextPage{Items: []models.DriveItemable{}},
+			page:    nextPage{Items: []models.DriveItemable{}},
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts:   countTD.Expected{},
@@ -1372,9 +1442,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			name: "many folders in a hierarchy",
 			tree: treeWithRoot,
 			page: aPage(
-				folderAtRoot(),
-				folderxAtRoot("sib"),
-				folderxAt("chld", folder)),
+				d.folderAtRoot(),
+				d.folderAtRoot("sib"),
+				d.folderAt(folder, "chld")),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -1384,9 +1454,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				treeSize: 4,
 				treeContainsFolderIDs: []string{
 					rootID,
-					id(folder),
-					idx(folder, "sib"),
-					idx(folder, "chld"),
+					folderID(),
+					folderID("sib"),
+					folderID("chld"),
 				},
 				treeContainsTombstoneIDs: []string{},
 			},
@@ -1395,8 +1465,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			name: "create->delete",
 			tree: treeWithRoot,
 			page: aPage(
-				folderAtRoot(),
-				delItem(id(folder), rootID, isFolder)),
+				d.folderAtRoot(),
+				delItem(folderID(), rootID, isFolder)),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -1415,9 +1485,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			name: "move->delete",
 			tree: treeWithFolders,
 			page: aPage(
-				folderxAtRoot("parent"),
-				driveItem(id(folder), namex(folder, "moved"), parentDir(namex(folder, "parent")), idx(folder, "parent"), isFolder),
-				delItem(id(folder), idx(folder, "parent"), isFolder)),
+				d.folderAtRoot("parent"),
+				driveItem(folderID(), folderName("moved"), d.dir(folderName("parent")), folderID("parent"), isFolder),
+				delItem(folderID(), folderID("parent"), isFolder)),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -1428,10 +1498,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				treeSize: 3,
 				treeContainsFolderIDs: []string{
 					rootID,
-					idx(folder, "parent"),
+					folderID("parent"),
 				},
 				treeContainsTombstoneIDs: []string{
-					id(folder),
+					folderID(),
 				},
 			},
 		},
@@ -1439,8 +1509,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			name: "delete->create with previous path",
 			tree: treeWithRoot,
 			page: aPage(
-				delItem(id(folder), rootID, isFolder),
-				folderAtRoot()),
+				delItem(folderID(), rootID, isFolder),
+				d.folderAtRoot()),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -1451,7 +1521,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				treeSize: 2,
 				treeContainsFolderIDs: []string{
 					rootID,
-					id(folder),
+					folderID(),
 				},
 				treeContainsTombstoneIDs: []string{},
 			},
@@ -1460,8 +1530,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			name: "delete->create without previous path",
 			tree: treeWithRoot,
 			page: aPage(
-				delItem(id(folder), rootID, isFolder),
-				folderAtRoot()),
+				delItem(folderID(), rootID, isFolder),
+				d.folderAtRoot()),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -1472,7 +1542,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				treeSize: 2,
 				treeContainsFolderIDs: []string{
 					rootID,
-					id(folder),
+					folderID(),
 				},
 				treeContainsTombstoneIDs: []string{},
 			},
@@ -1486,15 +1556,15 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			defer flush()
 
 			var (
-				c       = collWithMBH(mock.DefaultOneDriveBH(user))
+				c       = collWithMBH(defaultOneDriveBH(user))
 				counter = count.New()
-				tree    = test.tree(t)
+				tree    = test.tree(t, d)
 			)
 
 			err := c.enumeratePageOfItems(
 				ctx,
 				tree,
-				drv,
+				d.able,
 				test.page.Items,
 				test.limiter,
 				counter,
@@ -1524,17 +1594,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
-
 	var (
-		fld    = custom.ToCustomDriveItem(folderAtRoot())
-		subFld = custom.ToCustomDriveItem(folderAtDeep(driveParentDir(drv, namex(folder, "parent")), idx(folder, "parent")))
-		pack   = custom.ToCustomDriveItem(driveItem(id(pkg), name(pkg), parentDir(), rootID, isPackage))
-		del    = custom.ToCustomDriveItem(delItem(id(folder), rootID, isFolder))
-		mal    = custom.ToCustomDriveItem(
-			malwareItem(idx(folder, "mal"), namex(folder, "mal"), parentDir(), rootID, isFolder))
+		d      = drive()
+		fld    = custom.ToCustomDriveItem(d.folderAtRoot())
+		subFld = custom.ToCustomDriveItem(driveFolder(d.dir(folderName("parent")), folderID("parent")))
+		pack   = custom.ToCustomDriveItem(driveItem(id(pkg), name(pkg), d.dir(), rootID, isPackage))
+		del    = custom.ToCustomDriveItem(delItem(folderID(), rootID, isFolder))
+		mal    = custom.ToCustomDriveItem(malwareItem(folderID("mal"), folderName("mal"), d.dir(), rootID, isFolder))
 	)
 
 	type expected struct {
@@ -1549,7 +1615,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 
 	table := []struct {
 		name    string
-		tree    func(t *testing.T) *folderyMcFolderFace
+		tree    func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		folder  *custom.DriveItem
 		limiter *pagerLimiter
 		expect  expected
@@ -1755,15 +1821,15 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			defer flush()
 
 			var (
-				c       = collWithMBH(mock.DefaultOneDriveBH(user))
+				c       = collWithMBH(defaultOneDriveBH(user))
 				counter = count.New()
-				tree    = test.tree(t)
+				tree    = test.tree(t, d)
 			)
 
 			skipped, err := c.addFolderToTree(
 				ctx,
 				tree,
-				drv,
+				d.able,
 				test.folder,
 				test.limiter,
 				counter)
@@ -1788,10 +1854,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath() {
-	basePath, err := odConsts.DriveFolderPrefixBuilder(id(drive)).ToDataLayerOneDrivePath(tenant, user, false)
+	d := drive()
+
+	basePath, err := odConsts.DriveFolderPrefixBuilder(d.id).
+		ToDataLayerOneDrivePath(tenant, user, false)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
-	folderPath, err := basePath.Append(false, name(folder))
+	folderPath, err := basePath.Append(false, folderName())
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
@@ -1802,13 +1871,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath(
 	}{
 		{
 			name:      "root",
-			folder:    driveRootItem(),
+			folder:    driveRootFolder(),
 			expect:    basePath.String(),
 			expectErr: require.NoError,
 		},
 		{
 			name:      "folder",
-			folder:    folderAtRoot(),
+			folder:    d.folderAtRoot(),
 			expect:    folderPath.String(),
 			expectErr: require.NoError,
 		},
@@ -1822,15 +1891,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath(
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			c := collWithMBH(defaultOneDriveBH(user))
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			c := collWithMBH(mock.DefaultOneDriveBH(user))
-
 			p, err := c.makeFolderCollectionPath(
 				ctx,
-				id(drive),
+				d.id,
 				custom.ToCustomDriveItem(test.folder))
 			test.expectErr(t, err, clues.ToCore(err))
 
@@ -1848,9 +1916,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath(
 // this test focuses on folder assertions when enumerating a page of items
 // file-specific assertions are in the next test
 func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_files() {
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
+	d := drive()
 
 	type expected struct {
 		counts                        countTD.Expected
@@ -1862,14 +1928,14 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 
 	table := []struct {
 		name   string
-		tree   func(t *testing.T) *folderyMcFolderFace
-		page   mock.NextPage
+		tree   func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
+		page   nextPage
 		expect expected
 	}{
 		{
 			name: "one file at root",
 			tree: treeWithRoot,
-			page: aPage(fileAtRoot()),
+			page: aPage(d.fileAtRoot()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 0,
@@ -1878,39 +1944,19 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): rootID,
+					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
-			},
-		},
-		{
-			name: "one file in a folder",
-			tree: newTree,
-			page: aPage(
-				folderAtRoot(),
-				fileAt(folder)),
-			expect: expected{
-				counts: countTD.Expected{
-					count.TotalDeleteFilesProcessed: 0,
-					count.TotalFoldersProcessed:     2,
-					count.TotalFilesProcessed:       1,
-				},
-				err: require.NoError,
-				treeContainsFileIDsWithParent: map[string]string{
-					id(file): id(folder),
-				},
-				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
 			name: "many files in a hierarchy",
 			tree: treeWithRoot,
 			page: aPage(
-				fileAtRoot(),
-				folderAtRoot(),
-				filexAt("chld", folder)),
+				d.fileAtRoot(),
+				d.folderAtRoot(),
+				d.fileAt(folder, "fchld")),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 0,
@@ -1919,20 +1965,20 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file):          rootID,
-					idx(file, "chld"): id(folder),
+					fileID():        rootID,
+					fileID("fchld"): folderID(),
 				},
 				countLiveFiles:  2,
-				countTotalBytes: defaultItemSize * 2,
+				countTotalBytes: defaultFileSize * 2,
 			},
 		},
 		{
 			name: "many updates to the same file",
 			tree: treeWithRoot,
 			page: aPage(
-				fileAtRoot(),
-				driveItem(id(file), namex(file, 1), parentDir(), rootID, isFile),
-				driveItem(id(file), namex(file, 2), parentDir(), rootID, isFile)),
+				d.fileAtRoot(),
+				driveItem(fileID(), fileName(1), d.dir(), rootID, isFile),
+				driveItem(fileID(), fileName(2), d.dir(), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 0,
@@ -1941,16 +1987,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): rootID,
+					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
 			name: "delete an existing file",
 			tree: treeWithFileAtRoot,
-			page: aPage(delItem(id(file), rootID, isFile)),
+			page: aPage(delItem(fileID(), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 1,
@@ -1967,8 +2013,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			name: "delete the same file twice",
 			tree: treeWithFileAtRoot,
 			page: aPage(
-				delItem(id(file), rootID, isFile),
-				delItem(id(file), rootID, isFile)),
+				delItem(fileID(), rootID, isFile),
+				delItem(fileID(), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 2,
@@ -1985,8 +2031,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			name: "create->delete",
 			tree: treeWithRoot,
 			page: aPage(
-				fileAtRoot(),
-				delItem(id(file), rootID, isFile)),
+				d.fileAtRoot(),
+				delItem(fileID(), rootID, isFile)),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 1,
@@ -2003,9 +2049,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			name: "move->delete",
 			tree: treeWithFileAtRoot,
 			page: aPage(
-				folderAtRoot(),
-				fileAt(folder),
-				delItem(id(file), id(folder), isFile)),
+				d.folderAtRoot(),
+				d.fileAt(folder),
+				delItem(fileID(), folderID(), isFile)),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 1,
@@ -2019,11 +2065,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			},
 		},
 		{
-			name: "delete->create an existing file",
+			name: "file already in tree: delete->restore",
 			tree: treeWithFileAtRoot,
 			page: aPage(
-				delItem(id(file), rootID, isFile),
-				fileAtRoot()),
+				delItem(fileID(), rootID, isFile),
+				d.fileAtRoot()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 1,
@@ -2032,18 +2078,18 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): rootID,
+					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
-			name: "delete->create a non-existing file",
+			name: "file not in tree: delete->restore",
 			tree: treeWithRoot,
 			page: aPage(
-				delItem(id(file), rootID, isFile),
-				fileAtRoot()),
+				delItem(fileID(), rootID, isFile),
+				d.fileAtRoot()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 1,
@@ -2052,10 +2098,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				},
 				err: require.NoError,
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): rootID,
+					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 	}
@@ -2067,15 +2113,15 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 			defer flush()
 
 			var (
-				c       = collWithMBH(mock.DefaultOneDriveBH(user))
+				c       = collWithMBH(defaultOneDriveBH(user))
 				counter = count.New()
-				tree    = test.tree(t)
+				tree    = test.tree(t, d)
 			)
 
 			err := c.enumeratePageOfItems(
 				ctx,
 				tree,
-				drv,
+				d.able,
 				test.page.Items,
 				newPagerLimiter(control.DefaultOptions()),
 				counter,
@@ -2092,9 +2138,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 }
 
 func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
-	drv := models.NewDrive()
-	drv.SetId(ptr.To(id(drive)))
-	drv.SetName(ptr.To(name(drive)))
+	d := drive()
 
 	type expected struct {
 		counts                        countTD.Expected
@@ -2108,7 +2152,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 
 	table := []struct {
 		name    string
-		tree    func(t *testing.T) *folderyMcFolderFace
+		tree    func(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 		file    models.DriveItemable
 		limiter *pagerLimiter
 		expect  expected
@@ -2116,7 +2160,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 		{
 			name:    "add new file",
 			tree:    treeWithRoot,
-			file:    fileAtRoot(),
+			file:    d.fileAtRoot(),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -2125,16 +2169,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				err:     require.NoError,
 				skipped: assert.Nil,
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): rootID,
+					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
 			name:    "duplicate file",
 			tree:    treeWithFileAtRoot,
-			file:    fileAtRoot(),
+			file:    d.fileAtRoot(),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -2143,16 +2187,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				err:     require.NoError,
 				skipped: assert.Nil,
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): rootID,
+					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
 			name:    "error file seen before parent",
 			tree:    treeWithRoot,
-			file:    fileAt(folder),
+			file:    d.fileAt(folder),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -2168,7 +2212,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 		{
 			name:    "malware file",
 			tree:    treeWithRoot,
-			file:    malwareItem(id(file), name(file), parentDir(name(folder)), rootID, isFile),
+			file:    malwareItem(fileID(), fileName(), d.dir(folderName()), rootID, isFile),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -2184,7 +2228,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 		{
 			name:    "delete non-existing file",
 			tree:    treeWithRoot,
-			file:    delItem(id(file), id(folder), isFile),
+			file:    delItem(fileID(), folderID(), isFile),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -2200,7 +2244,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 		{
 			name:    "delete existing file",
 			tree:    treeWithFileAtRoot,
-			file:    delItem(id(file), rootID, isFile),
+			file:    delItem(fileID(), rootID, isFile),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -2216,7 +2260,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 		{
 			name:    "already at container file limit",
 			tree:    treeWithFileAtRoot,
-			file:    filexAtRoot(2),
+			file:    d.fileAtRoot(2),
 			limiter: newPagerLimiter(minimumLimitOpts()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -2226,16 +2270,16 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				shouldHitLimit: true,
 				skipped:        assert.Nil,
 				treeContainsFileIDsWithParent: map[string]string{
-					id(file): rootID,
+					fileID(): rootID,
 				},
 				countLiveFiles:  1,
-				countTotalBytes: defaultItemSize,
+				countTotalBytes: defaultFileSize,
 			},
 		},
 		{
 			name:    "goes over total byte limit",
 			tree:    treeWithRoot,
-			file:    fileAtRoot(),
+			file:    d.fileAtRoot(),
 			limiter: newPagerLimiter(minimumLimitOpts()),
 			expect: expected{
 				counts: countTD.Expected{
@@ -2258,15 +2302,15 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			defer flush()
 
 			var (
-				c       = collWithMBH(mock.DefaultOneDriveBH(user))
+				c       = collWithMBH(defaultOneDriveBH(user))
 				counter = count.New()
-				tree    = test.tree(t)
+				tree    = test.tree(t, d)
 			)
 
 			skipped, err := c.addFileToTree(
 				ctx,
 				tree,
-				drv,
+				d.able,
 				custom.ToCustomDriveItem(test.file),
 				test.limiter,
 				counter)

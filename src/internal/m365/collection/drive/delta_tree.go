@@ -309,6 +309,11 @@ func (face *folderyMcFolderFace) setPreviousPath(
 // file handling
 // ---------------------------------------------------------------------------
 
+func (face *folderyMcFolderFace) hasFile(id string) bool {
+	_, exists := face.fileIDToParentID[id]
+	return exists
+}
+
 // addFile places the file in the correct parent node.  If the
 // file was already added to the tree and is getting relocated,
 // this func will update and/or clean up all the old references.
