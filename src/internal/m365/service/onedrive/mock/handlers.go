@@ -368,27 +368,27 @@ func (en EnumerateDriveItemsDelta) EnumerateDriveItemsDelta(
 }
 
 func (en EnumerateDriveItemsDelta) DrivePager() *apiMock.Pager[models.Driveable] {
-	drives := []models.Driveable{}
+	ds := []models.Driveable{}
 
 	for _, dp := range en.DrivePagers {
-		drives = append(drives, dp.Drive.Able)
+		ds = append(ds, dp.Drive.Able)
 	}
 
 	return &apiMock.Pager[models.Driveable]{
 		ToReturn: []apiMock.PagerResult[models.Driveable]{
-			{Values: drives},
+			{Values: ds},
 		},
 	}
 }
 
 func (en EnumerateDriveItemsDelta) Drives() []*DeltaDrive {
-	drives := []*DeltaDrive{}
+	ds := []*DeltaDrive{}
 
 	for _, dp := range en.DrivePagers {
-		drives = append(drives, dp.Drive)
+		ds = append(ds, dp.Drive)
 	}
 
-	return drives
+	return ds
 }
 
 type DeltaDrive struct {
@@ -410,9 +410,11 @@ func Drive(driveSuffix ...any) *DeltaDrive {
 }
 
 func (dd *DeltaDrive) NewEnumer() *DeltaDriveEnumerator {
-	copy := &DeltaDrive{}
-	*copy = *dd
-	return &DeltaDriveEnumerator{Drive: copy}
+	cp := &DeltaDrive{}
+
+	*cp = *dd
+
+	return &DeltaDriveEnumerator{Drive: cp}
 }
 
 type DeltaDriveEnumerator struct {

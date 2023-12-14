@@ -28,7 +28,7 @@ import (
 
 var testBaseDrivePath = path.Builder{}.Append(
 	odConsts.DrivesPathDir,
-	"driveID1",
+	"id_drive",
 	odConsts.RootPathDir)
 
 // ---------------------------------------------------------------------------
