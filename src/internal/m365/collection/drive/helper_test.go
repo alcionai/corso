@@ -1567,8 +1567,8 @@ func (dd *deltaDrive) fullPath(t *testing.T, elems ...string) path.Path {
 	return p
 }
 
-// produces a complete path prefix up to the drive root folder, and including any
-// elements passed in.
+// produces a complete path prefix up to the drive root folder with any
+// elements passed in appended to the generated prefix.
 func (dd *deltaDrive) dir(elems ...string) string {
 	return toPath(append(
 		[]string{odConsts.DriveFolderPrefixBuilder(dd.id).String()},
