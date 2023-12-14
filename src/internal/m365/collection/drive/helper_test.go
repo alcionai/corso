@@ -440,20 +440,7 @@ func (ecs expectedCollections) requireNoUnseenCollections(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func defaultTreePfx(t *testing.T, d *deltaDrive) path.Path {
-	fpb := d.fullPath(t).ToBuilder()
-	fpe := fpb.Elements()
-	fpe = fpe[:len(fpe)-1]
-	fpb = path.Builder{}.Append(fpe...)
-
-	p, err := path.FromDataLayerPath(fpb.String(), false)
-	require.NoErrorf(
-		t,
-		err,
-		"err processing path:\n\terr %+v\n\tpath %q",
-		clues.ToCore(err),
-		fpb)
-
-	return p
+	return d.fullPath(t)
 }
 
 func defaultLoc() path.Elements {

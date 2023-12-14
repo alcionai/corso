@@ -381,16 +381,15 @@ type collectable struct {
 	files                     map[string]*custom.DriveItem
 	folderID                  string
 	isPackageOrChildOfPackage bool
-	loc                       path.Elements
 	prevPath                  path.Path
 }
 
 // produces a map of folderID -> collectable
 func (face *folderyMcFolderFace) generateCollectables() (map[string]collectable, error) {
 	result := map[string]collectable{}
-	err := walkTreeAndBuildCollections(
+
+	err := face.walkTreeAndBuildCollections(
 		face.root,
-		face.prefix,
 		&path.Builder{},
 		false,
 		result)
@@ -410,10 +409,9 @@ func (face *folderyMcFolderFace) generateCollectables() (map[string]collectable,
 	return result, clues.Stack(err).OrNil()
 }
 
-func walkTreeAndBuildCollections(
+func (face *folderyMcFolderFace) walkTreeAndBuildCollections(
 	node *nodeyMcNodeFace,
-	pathPfx path.Path,
-	parentPath *path.Builder,
+	location *path.Builder,
 	isChildOfPackage bool,
 	result map[string]collectable,
 ) error {
@@ -421,14 +419,16 @@ func walkTreeAndBuildCollections(
 		return nil
 	}
 
-	parentLocation := parentPath.Elements()
-	currentLocation := parentPath.Append(node.name)
+	isRoot := node == face.root
+
+	if !isRoot {
+		location = location.Append(node.name)
+	}
 
 	for _, child := range node.children {
-		err := walkTreeAndBuildCollections(
+		err := face.walkTreeAndBuildCollections(
 			child,
-			pathPfx,
-			currentLocation,
+			location,
 			node.isPackage || isChildOfPackage,
 			result)
 		if err != nil {
@@ -436,12 +436,12 @@ func walkTreeAndBuildCollections(
 		}
 	}
 
-	collectionPath, err := pathPfx.Append(false, currentLocation.Elements()...)
+	collectionPath, err := face.prefix.Append(false, location.Elements()...)
 	if err != nil {
 		return clues.Wrap(err, "building collection path").
 			With(
-				"path_prefix", pathPfx,
-				"path_suffix", currentLocation.Elements())
+				"path_prefix", face.prefix,
+				"path_suffix", location.Elements())
 	}
 
 	cbl := collectable{
@@ -449,7 +449,6 @@ func walkTreeAndBuildCollections(
 		files:                     node.files,
 		folderID:                  node.id,
 		isPackageOrChildOfPackage: node.isPackage || isChildOfPackage,
-		loc:                       parentLocation,
 		prevPath:                  node.prev,
 	}
 
