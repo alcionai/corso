@@ -388,11 +388,10 @@ type collectable struct {
 func (face *folderyMcFolderFace) generateCollectables() (map[string]collectable, error) {
 	result := map[string]collectable{}
 
-	err := walkTreeAndBuildCollections(
+	err := face.walkTreeAndBuildCollections(
 		face.root,
-		face.prefix,
 		&path.Builder{},
-		false, true,
+		false,
 		result)
 
 	for id, tombstone := range face.tombstones {
@@ -410,40 +409,39 @@ func (face *folderyMcFolderFace) generateCollectables() (map[string]collectable,
 	return result, clues.Stack(err).OrNil()
 }
 
-func walkTreeAndBuildCollections(
+func (face *folderyMcFolderFace) walkTreeAndBuildCollections(
 	node *nodeyMcNodeFace,
-	pathPfx path.Path,
-	parentPath *path.Builder,
-	isChildOfPackage, isRoot bool,
+	location *path.Builder,
+	isChildOfPackage bool,
 	result map[string]collectable,
 ) error {
 	if node == nil {
 		return nil
 	}
 
+	isRoot := node == face.root
+
 	if !isRoot {
-		parentPath = parentPath.Append(node.name)
+		location = location.Append(node.name)
 	}
 
 	for _, child := range node.children {
-		err := walkTreeAndBuildCollections(
+		err := face.walkTreeAndBuildCollections(
 			child,
-			pathPfx,
-			parentPath,
+			location,
 			node.isPackage || isChildOfPackage,
-			false,
 			result)
 		if err != nil {
 			return err
 		}
 	}
 
-	collectionPath, err := pathPfx.Append(false, parentPath.Elements()...)
+	collectionPath, err := face.prefix.Append(false, location.Elements()...)
 	if err != nil {
 		return clues.Wrap(err, "building collection path").
 			With(
-				"path_prefix", pathPfx,
-				"path_suffix", parentPath.Elements())
+				"path_prefix", face.prefix,
+				"path_suffix", location.Elements())
 	}
 
 	cbl := collectable{

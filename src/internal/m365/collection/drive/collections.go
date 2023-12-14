@@ -709,7 +709,7 @@ func (c *Collections) handleDelete(
 		nil,
 		counter.Local())
 	if err != nil {
-		return clues.Wrap(err, "making collection").With(
+		return clues.WrapWC(ctx, err, "making collection").With(
 			"drive_id", driveID,
 			"item_id", itemID,
 			"path_string", prevPathStr)
