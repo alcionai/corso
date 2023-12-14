@@ -468,11 +468,15 @@ func walkTreeAndBuildCollections(
 				"path_suffix", parentPath.Elements())
 	}
 
-	// add the folder itself to the list of files inside the folder.
-	// that will cause the collection processor to generate a metadata
-	// file to hold the folder's permissions.
-	files := maps.Clone(node.files)
-	files[id] = node.folder
+	files := node.files
+
+	if !isRoot {
+		// add the folder itself to the list of files inside the folder.
+		// that will cause the collection processor to generate a metadata
+		// file to hold the folder's permissions.
+		files = maps.Clone(node.files)
+		files[id] = node.folder
+	}
 
 	cbl := collectable{
 		currPath:                  collectionPath,

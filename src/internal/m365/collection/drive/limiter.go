@@ -6,7 +6,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 )
 
-var errHitLimit = clues.New("hit limiter limits")
+var (
+	errHitLimit           = clues.New("hit limiter limits")
+	errHitCollectionLimit = clues.New("hit item limits within the current collection")
+)
 
 type driveEnumerationStats struct {
 	numPages      int
@@ -115,5 +118,5 @@ func (l pagerLimiter) hitItemLimit(itemCount int) bool {
 // for the accumulated byte size of all items (the file contents, not the item metadata)
 // added to collections for this backup.
 func (l pagerLimiter) hitTotalBytesLimit(i int64) bool {
-	return l.enabled() && i >= l.limits.MaxBytes
+	return l.enabled() && i > l.limits.MaxBytes
 }

@@ -1074,10 +1074,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath: d.fullPath(t),
-					files: map[string]*custom.DriveItem{
-						rootID: custom.ToCustomDriveItem(rootFolder()),
-					},
+					currPath:                  d.fullPath(t),
+					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 				},
@@ -1091,7 +1089,6 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 				rootID: {
 					currPath: d.fullPath(t),
 					files: map[string]*custom.DriveItem{
-						rootID:   custom.ToCustomDriveItem(rootFolder()),
 						fileID(): custom.ToCustomDriveItem(d.fileAt(root)),
 					},
 					folderID:                  rootID,
@@ -1105,10 +1102,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath: d.fullPath(t),
-					files: map[string]*custom.DriveItem{
-						rootID: custom.ToCustomDriveItem(rootFolder()),
-					},
+					currPath:                  d.fullPath(t),
+					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 				},
@@ -1149,10 +1144,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath: d.fullPath(t),
-					files: map[string]*custom.DriveItem{
-						rootID: custom.ToCustomDriveItem(rootFolder()),
-					},
+					currPath:                  d.fullPath(t),
+					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 				},
@@ -1185,10 +1178,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			},
 			expect: map[string]collectable{
 				rootID: {
-					currPath: d.fullPath(t),
-					files: map[string]*custom.DriveItem{
-						rootID: custom.ToCustomDriveItem(rootFolder()),
-					},
+					currPath:                  d.fullPath(t),
+					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					prevPath:                  d.fullPath(t),
@@ -1224,10 +1215,8 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			expectErr: require.NoError,
 			expect: map[string]collectable{
 				rootID: {
-					currPath: d.fullPath(t),
-					files: map[string]*custom.DriveItem{
-						rootID: custom.ToCustomDriveItem(rootFolder()),
-					},
+					currPath:                  d.fullPath(t),
+					files:                     map[string]*custom.DriveItem{},
 					folderID:                  rootID,
 					isPackageOrChildOfPackage: false,
 					prevPath:                  d.fullPath(t),

@@ -2354,8 +2354,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				counts: countTD.Expected{
 					count.TotalFilesProcessed: 1,
 				},
-				err:                           require.Error,
-				shouldHitLimit:                true,
+				// no error here, since byte limit shouldn't
+				// make the func return errHitLimit.
+				err:                           require.NoError,
+				shouldHitLimit:                false,
 				skipped:                       assert.Nil,
 				treeContainsFileIDsWithParent: map[string]string{},
 				countLiveFiles:                0,
@@ -2388,7 +2390,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			test.expect.skipped(t, skipped)
 
 			if test.expect.shouldHitLimit {
-				require.ErrorIs(t, err, errHitLimit, clues.ToCore(err))
+				require.ErrorIs(t, err, errHitCollectionLimit, clues.ToCore(err))
 			}
 
 			assert.Equal(t, test.expect.treeContainsFileIDsWithParent, tree.fileIDToParentID)
