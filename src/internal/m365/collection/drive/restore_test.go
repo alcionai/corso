@@ -15,7 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	odMock "github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -53,7 +53,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		onCollision   control.CollisionPolicy
 		deleteErr     error
 		expectSkipped assert.BoolAssertionFunc
-		expectMock    func(*testing.T, *odMock.RestoreHandler)
+		expectMock    func(*testing.T, *mockRestoreHandler)
 		expectCounts  counts
 	}{
 		{
@@ -61,7 +61,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			collisionKeys: map[string]api.DriveItemIDType{},
 			onCollision:   control.Copy,
 			expectSkipped: assert.False,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
@@ -72,7 +72,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			collisionKeys: map[string]api.DriveItemIDType{},
 			onCollision:   control.Replace,
 			expectSkipped: assert.False,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
@@ -83,7 +83,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 			collisionKeys: map[string]api.DriveItemIDType{},
 			onCollision:   control.Skip,
 			expectSkipped: assert.False,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
@@ -92,11 +92,11 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		{
 			name: "collision, copy",
 			collisionKeys: map[string]api.DriveItemIDType{
-				odMock.DriveItemFileName: {ItemID: mndiID},
+				mock.DriveItemFileName: {ItemID: mndiID},
 			},
 			onCollision:   control.Copy,
 			expectSkipped: assert.False,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
@@ -105,11 +105,11 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		{
 			name: "collision, replace",
 			collisionKeys: map[string]api.DriveItemIDType{
-				odMock.DriveItemFileName: {ItemID: mndiID},
+				mock.DriveItemFileName: {ItemID: mndiID},
 			},
 			onCollision:   control.Replace,
 			expectSkipped: assert.False,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.True(t, rh.CalledDeleteItem, "new item deleted")
 				assert.Equal(t, mndiID, rh.CalledDeleteItemOn, "deleted the correct item")
@@ -119,12 +119,12 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		{
 			name: "collision, replace - err already deleted",
 			collisionKeys: map[string]api.DriveItemIDType{
-				odMock.DriveItemFileName: {ItemID: "smarf"},
+				mock.DriveItemFileName: {ItemID: "smarf"},
 			},
 			onCollision:   control.Replace,
 			deleteErr:     graph.ErrDeletedInFlight,
 			expectSkipped: assert.False,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.True(t, rh.CalledDeleteItem, "new item deleted")
 			},
@@ -133,11 +133,11 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		{
 			name: "collision, skip",
 			collisionKeys: map[string]api.DriveItemIDType{
-				odMock.DriveItemFileName: {ItemID: mndiID},
+				mock.DriveItemFileName: {ItemID: mndiID},
 			},
 			onCollision:   control.Skip,
 			expectSkipped: assert.True,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.False(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
@@ -146,14 +146,14 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		{
 			name: "file-folder collision, copy",
 			collisionKeys: map[string]api.DriveItemIDType{
-				odMock.DriveItemFileName: {
+				mock.DriveItemFileName: {
 					ItemID:   mndiID,
 					IsFolder: true,
 				},
 			},
 			onCollision:   control.Copy,
 			expectSkipped: assert.False,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
@@ -162,14 +162,14 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		{
 			name: "file-folder collision, replace",
 			collisionKeys: map[string]api.DriveItemIDType{
-				odMock.DriveItemFileName: {
+				mock.DriveItemFileName: {
 					ItemID:   mndiID,
 					IsFolder: true,
 				},
 			},
 			onCollision:   control.Replace,
 			expectSkipped: assert.False,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
@@ -178,14 +178,14 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 		{
 			name: "file-folder collision, skip",
 			collisionKeys: map[string]api.DriveItemIDType{
-				odMock.DriveItemFileName: {
+				mock.DriveItemFileName: {
 					ItemID:   mndiID,
 					IsFolder: true,
 				},
 			},
 			onCollision:   control.Skip,
 			expectSkipped: assert.True,
-			expectMock: func(t *testing.T, rh *odMock.RestoreHandler) {
+			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.False(t, rh.CalledPostItem, "new item posted")
 				assert.False(t, rh.CalledDeleteItem, "new item deleted")
 			},
@@ -204,7 +204,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 
 			var (
 				caches = NewRestoreCaches(nil)
-				rh     = &odMock.RestoreHandler{
+				rh     = &mockRestoreHandler{
 					PostItemResp:  models.NewDriveItem(),
 					DeleteItemErr: test.deleteErr,
 				}
@@ -232,9 +232,9 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				ctx,
 				rh,
 				rcc,
-				odMock.FetchItemByName{
+				mock.FetchItemByName{
 					Item: &dataMock.Item{
-						Reader:   odMock.FileRespReadCloser(odMock.DriveFileMetaData),
+						Reader:   mock.FileRespReadCloser(mock.DriveFileMetaData),
 						ItemInfo: odStub.DriveItemInfo(),
 					},
 				},
@@ -244,7 +244,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				caches,
 				&dataMock.Item{
 					ItemID:   uuid.NewString(),
-					Reader:   odMock.FileRespReadCloser(odMock.DriveFilePayloadData),
+					Reader:   mock.FileRespReadCloser(mock.DriveFilePayloadData),
 					ItemInfo: odStub.DriveItemInfo(),
 				},
 				nil,

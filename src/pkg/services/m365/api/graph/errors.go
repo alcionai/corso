@@ -166,7 +166,7 @@ func IsErrDeletedInFlight(err error) bool {
 }
 
 func IsErrItemNotFound(err error) bool {
-	return hasErrorCode(err, itemNotFound)
+	return hasErrorCode(err, itemNotFound, errorItemNotFound)
 }
 
 func IsErrInvalidDelta(err error) bool {
