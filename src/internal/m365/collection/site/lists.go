@@ -1,13 +1,10 @@
 package site
 
 import (
-	"context"
-
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ListToSPInfo translates models.Listable metadata into searchable content
@@ -28,20 +25,4 @@ func ListToSPInfo(lst models.Listable, size int64) *details.SharePointInfo {
 		WebURL:   webURL,
 		Size:     size,
 	}
-}
-
-// DeleteList removes a list object from a site.
-// deletes require unique http clients
-// https://github.com/alcionai/corso/issues/2707
-func DeleteList(
-	ctx context.Context,
-	gs graph.Servicer,
-	siteID, listID string,
-) error {
-	err := gs.Client().Sites().BySiteId(siteID).Lists().ByListId(listID).Delete(ctx, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting list")
-	}
-
-	return nil
 }
