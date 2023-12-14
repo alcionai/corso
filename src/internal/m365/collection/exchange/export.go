@@ -68,7 +68,7 @@ func streamItems(
 			if err != nil {
 				ch <- export.Item{
 					ID:    id,
-					Error: clues.Wrap(err, "converting to eml"),
+					Error: clues.Wrap(err, "converting JSON to eml"),
 				}
 
 				continue
