@@ -364,6 +364,42 @@ func (suite *ListsUnitSuite) TestLegacyColumnsAreNotSet() {
 
 }
 
+func (suite *ListsUnitSuite) TestRetrieveFieldData() {
+	t := suite.T()
+
+	additionalData := map[string]any{
+		"@odata.etag":      "14fe12b2-e180-49f7-8fc3-5936f3dcf5d2,1",
+		"_UIVersionString": "1.0",
+		"AuthorLookupId":   "6",
+		"EditorLookupId":   "6",
+		"ItemChildCount":   "0",
+		"FolderChildCount": "0",
+		"Modified":         "2023-12-13T15:47:51Z",
+		"Created":          "2023-12-13T15:47:51Z",
+		"Edit":             "",
+		"LinkTitleNoMenu":  "Person1",
+	}
+
+	origFs := models.NewFieldValueSet()
+	origFs.SetAdditionalData(additionalData)
+
+	fs := retrieveFieldData(origFs)
+	fsAdditionalData := fs.GetAdditionalData()
+	assert.Empty(t, fsAdditionalData)
+
+	additionalData["itemName"] = "item-1"
+	origFs = models.NewFieldValueSet()
+	origFs.SetAdditionalData(additionalData)
+
+	fs = retrieveFieldData(origFs)
+	fsAdditionalData = fs.GetAdditionalData()
+	assert.NotEmpty(t, fsAdditionalData)
+
+	val, ok := fsAdditionalData["itemName"]
+	assert.True(t, ok)
+	assert.Equal(t, "item-1", val)
+}
+
 type ListsAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup

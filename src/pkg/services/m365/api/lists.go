@@ -497,22 +497,29 @@ func CloneListItem(orig models.ListItemable) models.ListItemable {
 func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 	fields := models.NewFieldValueSet()
 	additionalData := make(map[string]any)
-	fieldData := orig.GetAdditionalData()
 
-	// M365 Book keeping values removed during new Item Creation
-	// Removed Values:
-	// -- Prefixes -> @odata.context : absolute path to previous list
-	// .           -> @odata.etag : Embedded link to Prior M365 ID
-	// -- String Match: Read-Only Fields
-	// -> id : previous un
-	for key, value := range fieldData {
-		if strings.HasPrefix(key, "_") || strings.HasPrefix(key, "@") ||
-			key == "Edit" || key == "Created" || key == "Modified" ||
-			strings.Contains(key, "LookupId") || strings.Contains(key, "ChildCount") || strings.Contains(key, "LinkTitle") {
-			continue
+	if orig != nil {
+		fieldData := orig.GetAdditionalData()
+
+		// M365 Book keeping values removed during new Item Creation
+		// Removed Values:
+		// -- Prefixes -> @odata.context : absolute path to previous list
+		// .           -> @odata.etag : Embedded link to Prior M365 ID
+		// -- String Match: Read-Only Fields
+		// -> id : previous un
+		for key, value := range fieldData {
+			_, isReadOnlyField := readOnlyFieldNames[key]
+
+			if strings.HasPrefix(key, "_") ||
+				strings.HasPrefix(key, "@") ||
+				isReadOnlyField ||
+				strings.Contains(key, "LinkTitle") ||
+				strings.Contains(key, "ChildCount") {
+				continue
+			}
+
+			additionalData[key] = value
 		}
-
-		additionalData[key] = value
 	}
 
 	fields.SetAdditionalData(additionalData)
