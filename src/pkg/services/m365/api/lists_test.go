@@ -69,6 +69,60 @@ func (suite *ListsUnitSuite) TestBytesToListable() {
 	}
 }
 
+func (suite *ListsUnitSuite) TestColumnDefinitionValidationSetWhenProvided() {
+	tests := []struct {
+		name     string
+		getOrig  func() models.ColumnDefinitionable
+		checkNil bool
+	}{
+		{
+			name: "column validation not set",
+			getOrig: func() models.ColumnDefinitionable {
+
+				textColumn := models.NewTextColumn()
+
+				cd := models.NewColumnDefinition()
+				cd.SetText(textColumn)
+
+				return cd
+			},
+			checkNil: true,
+		},
+		{
+			name: "column validation set",
+			getOrig: func() models.ColumnDefinitionable {
+
+				textColumn := models.NewTextColumn()
+
+				colValidation := models.NewColumnValidation()
+
+				cd := models.NewColumnDefinition()
+				cd.SetText(textColumn)
+				cd.SetValidation(colValidation)
+
+				return cd
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			orig := test.getOrig()
+			newCd := cloneColumnDefinitionable(orig)
+
+			require.NotEmpty(t, newCd)
+
+			if test.checkNil {
+				assert.Nil(t, newCd.GetValidation())
+			} else {
+				assert.NotNil(t, newCd.GetValidation())
+			}
+		})
+	}
+}
+
 type ListsAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
