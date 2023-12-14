@@ -36,7 +36,7 @@ type backupLimitTest struct {
 	expectedItemIDsInCollection map[string][]string
 }
 
-func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
+func backupLimitTable(d1, d2 *deltaDrive) []backupLimitTest {
 	return []backupLimitTest{
 		{
 			name: "OneDrive SinglePage ExcludeItemsOverMaxSize",
@@ -49,13 +49,13 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(aPage(
-						fileWSizeAtRoot(7, "f1"),
-						fileWSizeAtRoot(1, "f2"),
-						fileWSizeAtRoot(1, "f3"))))),
+						d1.fileWSizeAtRoot(7, "f1"),
+						d1.fileWSizeAtRoot(1, "f2"),
+						d1.fileWSizeAtRoot(1, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath(): {fileID("f2"), fileID("f3")},
+				d1.strPath(): {fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -69,13 +69,13 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(aPage(
-						fileWSizeAtRoot(1, "f1"),
-						fileWSizeAtRoot(2, "f2"),
-						fileWSizeAtRoot(1, "f3"))))),
+						d1.fileWSizeAtRoot(1, "f1"),
+						d1.fileWSizeAtRoot(2, "f2"),
+						d1.fileWSizeAtRoot(1, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath(): {fileID("f1"), fileID("f2")},
+				d1.strPath(): {fileID("f1"), fileID("f2")},
 			},
 		},
 		{
@@ -89,15 +89,15 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(aPage(
-						fileWSizeAtRoot(1, "f1"),
-						folderAtRoot(),
-						fileWSizeAt(2, folder, "f2"),
-						fileWSizeAt(1, folder, "f3"))))),
+						d1.fileWSizeAtRoot(1, "f1"),
+						d1.folderAtRoot(),
+						d1.fileWSizeAt(2, folder, "f2"),
+						d1.fileWSizeAt(1, folder, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1")},
-				fullPath(folderName()): {folderID(), fileID("f2")},
+				d1.strPath():             {fileID("f1")},
+				d1.strPath(folderName()): {folderID(), fileID("f2")},
 			},
 		},
 		{
@@ -111,16 +111,16 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(aPage(
-						fileAtRoot("f1"),
-						fileAtRoot("f2"),
-						fileAtRoot("f3"),
-						fileAtRoot("f4"),
-						fileAtRoot("f5"),
-						fileAtRoot("f6"))))),
+						d1.fileAtRoot("f1"),
+						d1.fileAtRoot("f2"),
+						d1.fileAtRoot("f3"),
+						d1.fileAtRoot("f4"),
+						d1.fileAtRoot("f5"),
+						d1.fileAtRoot("f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -134,22 +134,22 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2")),
 						aPage(
 							// Repeated items shouldn't count against the limit.
-							fileAtRoot("f1"),
-							folderAtRoot(),
-							fileAt(folder, "f3"),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5"),
-							fileAt(folder, "f6"))))),
+							d1.fileAtRoot("f1"),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"),
+							d1.fileAt(folder, "f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2")},
-				fullPath(folderName()): {folderID(), fileID("f3")},
+				d1.strPath():             {fileID("f1"), fileID("f2")},
+				d1.strPath(folderName()): {folderID(), fileID("f3")},
 			},
 		},
 		{
@@ -163,19 +163,19 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             1,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f3"),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5"),
-							fileAt(folder, "f6"))))),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"),
+							d1.fileAt(folder, "f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath(): {fileID("f1"), fileID("f2")},
+				d1.strPath(): {fileID("f1"), fileID("f2")},
 			},
 		},
 		{
@@ -189,21 +189,21 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5"))))),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				// Root has an additional item. It's hard to fix that in the code
 				// though.
-				fullPath():             {fileID("f1"), fileID("f2")},
-				fullPath(folderName()): {folderID(), fileID("f4")},
+				d1.strPath():             {fileID("f1"), fileID("f2")},
+				d1.strPath(folderName()): {folderID(), fileID("f4")},
 			},
 		},
 		{
@@ -217,21 +217,21 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f1"),
-							fileAt(folder, "f2")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f1"),
+							d1.fileAt(folder, "f2")),
 						aPage(
-							folderAtRoot(),
+							d1.folderAtRoot(),
 							// Updated item that shouldn't count against the limit a second time.
-							fileAt(folder, "f2"),
-							fileAt(folder, "f3"),
-							fileAt(folder, "f4"))))),
+							d1.fileAt(folder, "f2"),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {},
-				fullPath(folderName()): {folderID(), fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath():             {},
+				d1.strPath(folderName()): {folderID(), fileID("f1"), fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -245,22 +245,22 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
 							// Put folder 0 at limit.
-							folderAtRoot(),
-							fileAt(folder, "f3"),
-							fileAt(folder, "f4")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f3"),
+							d1.fileAt(folder, "f4")),
 						aPage(
-							folderAtRoot(),
+							d1.folderAtRoot(),
 							// Try to move item from root to folder 0 which is already at the limit.
-							fileAt(folder, "f1"))))),
+							d1.fileAt(folder, "f1"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2")},
-				fullPath(folderName()): {folderID(), fileID("f3"), fileID("f4")},
+				d1.strPath():             {fileID("f1"), fileID("f2")},
+				d1.strPath(folderName()): {folderID(), fileID("f3"), fileID("f4")},
 			},
 		},
 		{
@@ -274,21 +274,21 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f5"))))),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				fullPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 		{
@@ -302,24 +302,24 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5"),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5"),
 							// This container shouldn't be returned.
-							folderAtRoot(2),
-							fileAt(2, "f7"),
-							fileAt(2, "f8"),
-							fileAt(2, "f9"))))),
+							d1.folderAtRoot(2),
+							d1.fileAt(2, "f7"),
+							d1.fileAt(2, "f8"),
+							d1.fileAt(2, "f9"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				fullPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 		{
@@ -333,25 +333,25 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4"),
-							fileAt(folder, "f5")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4"),
+							d1.fileAt(folder, "f5")),
 						aPage(
 							// This container shouldn't be returned.
-							folderAtRoot(2),
-							fileAt(2, "f7"),
-							fileAt(2, "f8"),
-							fileAt(2, "f9"))))),
+							d1.folderAtRoot(2),
+							d1.fileAt(2, "f7"),
+							d1.fileAt(2, "f8"),
+							d1.fileAt(2, "f9"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				fullPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 		{
@@ -365,23 +365,23 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             999,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(aPage(
-						fileAtRoot("f1"),
-						fileAtRoot("f2"),
-						fileAtRoot("f3"),
-						fileAtRoot("f4"),
-						fileAtRoot("f5")))),
-				drive2.newEnumer().with(
+						d1.fileAtRoot("f1"),
+						d1.fileAtRoot("f2"),
+						d1.fileAtRoot("f3"),
+						d1.fileAtRoot("f4"),
+						d1.fileAtRoot("f5")))),
+				d2.newEnumer().with(
 					delta(id(deltaURL), nil).with(aPage(
-						fileAtRoot("f1"),
-						fileAtRoot("f2"),
-						fileAtRoot("f3"),
-						fileAtRoot("f4"),
-						fileAtRoot("f5"))))),
+						d2.fileAtRoot("f1"),
+						d2.fileAtRoot("f2"),
+						d2.fileAtRoot("f3"),
+						d2.fileAtRoot("f4"),
+						d2.fileAtRoot("f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():       {fileID("f1"), fileID("f2"), fileID("f3")},
-				driveFullPath(2): {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
+				d2.strPath(): {fileID("f1"), fileID("f2"), fileID("f3")},
 			},
 		},
 		{
@@ -394,21 +394,21 @@ func backupLimitTable(drive1, drive2 *deltaDrive) []backupLimitTest {
 				MaxPages:             1,
 			},
 			enumerator: driveEnumerator(
-				drive1.newEnumer().with(
+				d1.newEnumer().with(
 					delta(id(deltaURL), nil).with(
 						aPage(
-							fileAtRoot("f1"),
-							fileAtRoot("f2"),
-							fileAtRoot("f3")),
+							d1.fileAtRoot("f1"),
+							d1.fileAtRoot("f2"),
+							d1.fileAtRoot("f3")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f4")),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f4")),
 						aPage(
-							folderAtRoot(),
-							fileAt(folder, "f5"))))),
+							d1.folderAtRoot(),
+							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				fullPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
-				fullPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
+				d1.strPath():             {fileID("f1"), fileID("f2"), fileID("f3")},
+				d1.strPath(folderName()): {folderID(), fileID("f4"), fileID("f5")},
 			},
 		},
 	}
@@ -525,7 +525,7 @@ func runGetPreviewLimits(
 			t,
 			test.expectedItemIDsInCollection[folderPath],
 			itemIDs,
-			"item IDs in collection with path %q",
+			"item IDs in collection with path:\n\t%q",
 			folderPath)
 	}
 
@@ -708,7 +708,7 @@ func runGetPreviewLimitsDefaults(
 		false)
 	require.NoError(t, err, "making metadata path", clues.ToCore(err))
 
-	drv := drive()
+	d := drive()
 	pages := make([]nextPage, 0, test.numContainers)
 
 	for containerIdx := 0; containerIdx < test.numContainers; containerIdx++ {
@@ -718,7 +718,7 @@ func runGetPreviewLimitsDefaults(
 				driveItem(
 					folderID(containerIdx),
 					folderName(containerIdx),
-					parentDir(),
+					d.dir(),
 					rootID,
 					isFolder),
 			},
@@ -730,7 +730,7 @@ func runGetPreviewLimitsDefaults(
 			page.Items = append(page.Items, driveItemWSize(
 				fileID(itemSuffix),
 				fileName(itemSuffix),
-				parentDir(folderName(containerIdx)),
+				d.dir(folderName(containerIdx)),
 				folderID(containerIdx),
 				test.itemSize,
 				isFile))
@@ -743,7 +743,7 @@ func runGetPreviewLimitsDefaults(
 
 	var (
 		mockEnumerator = driveEnumerator(
-			drv.newEnumer().with(
+			d.newEnumer().with(
 				delta(id(deltaURL), nil).with(pages...)))
 		mbh           = defaultDriveBHWith(user, mockEnumerator)
 		c             = collWithMBHAndOpts(mbh, opts)
