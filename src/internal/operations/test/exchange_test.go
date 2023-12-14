@@ -120,7 +120,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				mb      = evmock.NewBus()
 				counter = count.New()
 				sel     = test.selector().Selector
-				opts    = control.DefaultOptions()
+				opts    = control.DefaultBackupOptions()
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
@@ -234,14 +234,14 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 }
 
 func (suite *ExchangeBackupIntgSuite) TestBackup_Run_incrementalExchange() {
-	testExchangeContinuousBackups(suite, control.Toggles{})
+	testExchangeContinuousBackups(suite, control.BackupToggles{})
 }
 
 func (suite *ExchangeBackupIntgSuite) TestBackup_Run_incrementalNonDeltaExchange() {
-	testExchangeContinuousBackups(suite, control.Toggles{DisableDelta: true})
+	testExchangeContinuousBackups(suite, control.BackupToggles{DisableDelta: true})
 }
 
-func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles control.Toggles) {
+func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles control.BackupToggles) {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -271,7 +271,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		containers = []string{container1, container2, container3, containerRename}
 		sel        = selectors.NewExchangeBackup([]string{suite.its.user.ID})
 		whatSet    = deeTD.CategoryFromRepoRef
-		opts       = control.DefaultOptions()
+		opts       = control.DefaultBackupOptions()
 	)
 
 	opts.ToggleFeatures = toggles
@@ -970,9 +970,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 	baseSel.DiscreteOwner = suite.its.user.ID
 
 	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		opts    = control.DefaultOptions()
+		mb          = evmock.NewBus()
+		counter     = count.New()
+		opts        = control.DefaultBackupOptions()
+		controlOpts = control.DefaultOptions()
 	)
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
@@ -1029,7 +1030,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 			mb,
 			ctr1,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		runAndCheckRestore(t, ctx, &ro, mb, false)
@@ -1088,7 +1089,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 			mb,
 			ctr2,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
@@ -1149,7 +1150,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 			mb,
 			ctr3,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
@@ -1219,7 +1220,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 			mb,
 			ctr4,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
@@ -1287,9 +1288,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 	baseSel.DiscreteOwner = suite.its.user.ID
 
 	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		opts    = control.DefaultOptions()
+		mb          = evmock.NewBus()
+		counter     = count.New()
+		opts        = control.DefaultBackupOptions()
+		controlOpts = control.DefaultOptions()
 	)
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
@@ -1325,7 +1327,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 		mb,
 		firstCtr,
 		sel,
-		opts,
+		controlOpts,
 		restoreCfg)
 
 	runAndCheckRestore(t, ctx, &ro1, mb, false)
@@ -1384,7 +1386,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 		mb,
 		secondCtr,
 		sel,
-		opts,
+		controlOpts,
 		restoreCfg)
 
 	runAndCheckRestore(t, ctx, &ro2, mb, false)

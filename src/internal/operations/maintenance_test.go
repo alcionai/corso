@@ -113,7 +113,6 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 		t        = suite.T()
 		acct     = tconfig.NewM365Account(suite.T())
 		tenantID = acct.Config[account.AzureTenantIDKey]
-		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 		// Default policy used by SDK clients
 		failurePolicy = control.FailAfterRecovery
@@ -174,6 +173,7 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 			cs = append(cs, mc)
 			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, false)
 
+			opts := control.DefaultBackupOptions()
 			opts.FailureHandling = failurePolicy
 
 			bo, err := NewBackupOperation(

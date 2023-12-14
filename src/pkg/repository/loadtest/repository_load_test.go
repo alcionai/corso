@@ -132,7 +132,7 @@ func runLoadTest(
 ) {
 	//revive:enable:context-as-argument
 	t.Run(prefix+"_load_test_main", func(t *testing.T) {
-		b, err := r.NewBackup(ctx, bupSel)
+		b, err := r.NewBackup(ctx, control.DefaultBackupOptions(), bupSel)
 		require.NoError(t, err, clues.ToCore(err))
 
 		runBackupLoadTest(t, ctx, &b, service, usersUnderTest)

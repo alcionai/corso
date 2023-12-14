@@ -78,7 +78,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 		osel    = selectors.NewOneDriveBackup([]string{userID})
 		ws      = deeTD.DriveIDFromRepoRef
 		svc     = path.OneDriveService
-		opts    = control.DefaultOptions()
+		opts    = control.DefaultBackupOptions()
 	)
 
 	osel.Include(selTD.OneDriveBackupFolderScope(osel))
@@ -172,7 +172,7 @@ func runDriveIncrementalTest(
 
 	var (
 		acct    = tconfig.NewM365Account(t)
-		opts    = control.DefaultOptions()
+		opts    = control.DefaultBackupOptions()
 		mb      = evmock.NewBus()
 		counter = count.New()
 		ws      = deeTD.DriveIDFromRepoRef
@@ -879,7 +879,7 @@ func runDriveAssistBaseGroupsUpdate(
 		whatSet = deeTD.CategoryFromRepoRef
 		mb      = evmock.NewBus()
 		counter = count.New()
-		opts    = control.DefaultOptions()
+		opts    = control.DefaultBackupOptions()
 	)
 
 	opts.ItemExtensionFactory = []extensions.CreateItemExtensioner{
@@ -931,7 +931,7 @@ func runDriveAssistBaseGroupsUpdate(
 		var (
 			mb      = evmock.NewBus()
 			counter = count.New()
-			opts    = control.DefaultOptions()
+			opts    = control.DefaultBackupOptions()
 		)
 
 		forcedFull := newTestBackupOp(
@@ -1003,7 +1003,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 
 	var (
 		acct    = tconfig.NewM365Account(t)
-		opts    = control.DefaultOptions()
+		opts    = control.DefaultBackupOptions()
 		mb      = evmock.NewBus()
 		counter = count.New()
 
@@ -1141,7 +1141,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveExtensions() {
 		osel    = selectors.NewOneDriveBackup([]string{userID})
 		ws      = deeTD.DriveIDFromRepoRef
 		svc     = path.OneDriveService
-		opts    = control.DefaultOptions()
+		opts    = control.DefaultBackupOptions()
 	)
 
 	opts.ItemExtensionFactory = getTestExtensionFactories()
@@ -1258,9 +1258,10 @@ func runDriveRestoreWithAdvancedOptions(
 	// a backup is required to run restores
 
 	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		opts    = control.DefaultOptions()
+		mb          = evmock.NewBus()
+		counter     = count.New()
+		opts        = control.DefaultBackupOptions()
+		controlOpts = control.DefaultOptions()
 	)
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
@@ -1298,7 +1299,7 @@ func runDriveRestoreWithAdvancedOptions(
 			mb,
 			ctr,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		runAndCheckRestore(t, ctx, &ro, mb, false)
@@ -1349,7 +1350,7 @@ func runDriveRestoreWithAdvancedOptions(
 			mb,
 			ctr,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
@@ -1400,7 +1401,7 @@ func runDriveRestoreWithAdvancedOptions(
 			mb,
 			ctr,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
@@ -1465,7 +1466,7 @@ func runDriveRestoreWithAdvancedOptions(
 			mb,
 			ctr,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
@@ -1531,9 +1532,10 @@ func runDriveRestoreToAlternateProtectedResource(
 	// a backup is required to run restores
 
 	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		opts    = control.DefaultOptions()
+		mb          = evmock.NewBus()
+		counter     = count.New()
+		opts        = control.DefaultBackupOptions()
+		controlOpts = control.DefaultOptions()
 	)
 
 	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
@@ -1565,7 +1567,7 @@ func runDriveRestoreToAlternateProtectedResource(
 			mb,
 			fromCtr,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		runAndCheckRestore(t, ctx, &ro, mb, false)
@@ -1603,7 +1605,7 @@ func runDriveRestoreToAlternateProtectedResource(
 			mb,
 			toCtr,
 			sel,
-			opts,
+			controlOpts,
 			restoreCfg)
 
 		runAndCheckRestore(t, ctx, &ro, mb, false)

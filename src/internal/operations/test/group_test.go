@@ -89,7 +89,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups9VersionBumpBackup() {
 	var (
 		mb      = evmock.NewBus()
 		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts    = control.DefaultOptions()
+		opts    = control.DefaultBackupOptions()
 		whatSet = deeTD.CategoryFromRepoRef
 	)
 
@@ -199,7 +199,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 		mb      = evmock.NewBus()
 		counter = count.New()
 		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts    = control.DefaultOptions()
+		opts    = control.DefaultBackupOptions()
 		whatSet = deeTD.CategoryFromRepoRef
 	)
 
@@ -253,7 +253,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 		mb      = evmock.NewBus()
 		counter = count.New()
 		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
-		opts    = control.DefaultOptions()
+		opts    = control.DefaultBackupOptions()
 		tenID   = tconfig.M365TenantID(t)
 		svc     = path.GroupsService
 		ws      = deeTD.DriveIDFromRepoRef

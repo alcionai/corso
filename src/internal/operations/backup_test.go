@@ -538,7 +538,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 			op, err := NewBackupOperation(
 				ctx,
-				control.DefaultOptions(),
+				control.DefaultBackupOptions(),
 				kw,
 				sw,
 				ctrl,
@@ -1569,7 +1569,6 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		sw   = store.NewWrapper(&kopia.ModelStore{})
 		ctrl = &mock.Controller{}
 		acct = tconfig.NewM365Account(suite.T())
-		opts = control.DefaultOptions()
 	)
 
 	table := []struct {
@@ -1593,6 +1592,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			opts := control.DefaultBackupOptions()
 			sel := selectors.Selector{DiscreteOwner: "test"}
 
 			_, err := NewBackupOperation(
@@ -2037,7 +2037,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			cs = append(cs, mc)
 			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, test.injectNonRecoverableErr)
 
-			opts := control.DefaultOptions()
+			opts := control.DefaultBackupOptions()
 			opts.FailureHandling = test.failurePolicy
 			opts.PreviewLimits.Enabled = test.previewBackup
 
@@ -2097,7 +2097,6 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
 		tenantID = acct.Config[account.AzureTenantIDKey]
-		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 		// Default policy used by SDK clients
 		failurePolicy = control.FailAfterRecovery
@@ -2356,6 +2355,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 			cs = append(cs, mc)
 			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, false)
 
+			opts := control.DefaultBackupOptions()
 			opts.FailureHandling = failurePolicy
 
 			bo, err := NewBackupOperation(

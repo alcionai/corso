@@ -334,7 +334,10 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 
 	userID := tconfig.M365UserID(t)
 
-	bo, err := r.NewBackup(ctx, selectors.NewExchangeBackup([]string{userID}).Selector)
+	bo, err := r.NewBackup(
+		ctx,
+		control.DefaultBackupOptions(),
+		selectors.NewExchangeBackup([]string{userID}).Selector)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, bo)
 }
@@ -397,7 +400,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackupAndDelete() {
 	sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 	sel.DiscreteOwner = userID
 
-	bo, err := r.NewBackup(ctx, sel.Selector)
+	bo, err := r.NewBackup(ctx, control.DefaultBackupOptions(), sel.Selector)
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, bo)
 
