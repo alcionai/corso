@@ -168,6 +168,7 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 	return genericCreateCommand(
 		ctx,
 		r,
+		utils.BackupOptions(),
 		"OneDrive",
 		selectorSet,
 		ins)

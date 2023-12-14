@@ -181,6 +181,7 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 	return genericCreateCommand(
 		ctx,
 		r,
+		utils.BackupOptions(),
 		"SharePoint",
 		selectorSet,
 		ins)

@@ -171,6 +171,7 @@ var defaultSelectorConfig = selectors.Config{OnlyMatchItemNames: true}
 func genericCreateCommand(
 	ctx context.Context,
 	r repository.Repositoryer,
+	opts control.Backup,
 	serviceName string,
 	selectorSet []selectors.Selector,
 	ins idname.Cacher,
@@ -188,7 +189,7 @@ func genericCreateCommand(
 			ictx  = clues.Add(ctx, "resource_owner_selected", owner)
 		)
 
-		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
+		bo, err := r.NewBackupWithLookup(ictx, opts, discSel, ins)
 		if err != nil {
 			cerr := clues.WrapWC(ictx, err, owner)
 			errs = append(errs, cerr)
