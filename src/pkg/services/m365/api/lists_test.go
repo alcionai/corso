@@ -123,6 +123,63 @@ func (suite *ListsUnitSuite) TestColumnDefinitionValidationSetWhenProvided() {
 	}
 }
 
+func (suite *ListsUnitSuite) TestColumnDefaultValueSetWhenProvided() {
+	tests := []struct {
+		name     string
+		getOrig  func() models.ColumnDefinitionable
+		checkNil bool
+	}{
+		{
+			name: "column default value not set",
+			getOrig: func() models.ColumnDefinitionable {
+
+				textColumn := models.NewTextColumn()
+
+				cd := models.NewColumnDefinition()
+				cd.SetText(textColumn)
+
+				return cd
+			},
+			checkNil: true,
+		},
+		{
+			name: "column default value set",
+			getOrig: func() models.ColumnDefinitionable {
+				defaultVal := "some-val"
+
+				textColumn := models.NewTextColumn()
+
+				colDefaultVal := models.NewDefaultColumnValue()
+				colDefaultVal.SetValue(ptr.To(defaultVal))
+
+				cd := models.NewColumnDefinition()
+				cd.SetText(textColumn)
+				cd.SetDefaultValue(colDefaultVal)
+
+				return cd
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			orig := test.getOrig()
+			newCd := cloneColumnDefinitionable(orig)
+
+			require.NotEmpty(t, newCd)
+
+			if test.checkNil {
+				assert.Nil(t, newCd.GetDefaultValue())
+			} else {
+				assert.NotNil(t, newCd.GetDefaultValue())
+				assert.Equal(t, "some-val", ptr.Val(newCd.GetDefaultValue().GetValue()))
+			}
+		})
+	}
+}
+
 type ListsAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup
