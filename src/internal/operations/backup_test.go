@@ -391,12 +391,20 @@ func checkPopulatedInner(v reflect.Value) error {
 	return errs.OrNil()
 }
 
+// checkPopulated ensures that input has no zero-valued fields. That helps
+// ensure that even as future updates to input happen in other files the changes
+// are propagated here due to test failures.
 func checkPopulated(t *testing.T, input control.Options) {
 	err := checkPopulatedInner(reflect.ValueOf(input))
 	require.NoError(t, err, clues.ToCore(err))
 }
 
-func (suite *BackupOpUnitSuite) TestBackupOperation_OptionPassing() {
+// TestNewBackupOperation_configuredOptionsMatchInputOptions ensures that the
+// passed in options are properly set in the backup operation during
+// intialization. This test is mostly expected to be used while transitioning
+// from passing in backup operation config values during repo connect to during
+// backup op creation.
+func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInputOptions() {
 	ext := []extensions.CreateItemExtensioner{
 		&extensions.MockItemExtensionFactory{},
 	}
