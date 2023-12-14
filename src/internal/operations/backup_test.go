@@ -3,7 +3,9 @@ package operations
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	stdpath "path"
+	"reflect"
 	"testing"
 	"time"
 
@@ -12,8 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
@@ -363,6 +367,117 @@ type BackupOpUnitSuite struct {
 
 func TestBackupOpUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupOpUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func checkPopulatedInner(v reflect.Value) error {
+	if v.IsZero() {
+		return clues.New("zero-valued field")
+	}
+
+	if v.Kind() != reflect.Struct {
+		return nil
+	}
+
+	var errs *clues.Err
+
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+
+		if err := checkPopulatedInner(f); err != nil {
+			errs = clues.Stack(errs, clues.Wrap(err, fmt.Sprintf("field at index %d", i)))
+		}
+	}
+
+	return errs.OrNil()
+}
+
+// checkPopulated ensures that input has no zero-valued fields. That helps
+// ensure that even as future updates to input happen in other files the changes
+// are propagated here due to test failures.
+func checkPopulated(t *testing.T, input control.Options) {
+	err := checkPopulatedInner(reflect.ValueOf(input))
+	require.NoError(t, err, clues.ToCore(err))
+}
+
+// TestNewBackupOperation_configuredOptionsMatchInputOptions ensures that the
+// passed in options are properly set in the backup operation during
+// intialization. This test is mostly expected to be used while transitioning
+// from passing in backup operation config values during repo connect to during
+// backup op creation.
+func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInputOptions() {
+	ext := []extensions.CreateItemExtensioner{
+		&extensions.MockItemExtensionFactory{},
+	}
+
+	opts := control.Options{
+		DeltaPageSize:        42,
+		DisableMetrics:       true,
+		FailureHandling:      control.FailAfterRecovery,
+		ItemExtensionFactory: slices.Clone(ext),
+		Parallelism: control.Parallelism{
+			CollectionBuffer: 4,
+			ItemFetch:        4,
+		},
+		Repo: repository.Options{
+			User:          "foo",
+			Host:          "bar",
+			ViewTimestamp: ptr.To(time.Now()),
+			ReadOnly:      true,
+		},
+		SkipReduce: true,
+		ToggleFeatures: control.Toggles{
+			DisableIncrementals:         true,
+			ForceItemDataDownload:       true,
+			DisableDelta:                true,
+			ExchangeImmutableIDs:        true,
+			RunMigrations:               true,
+			DisableSlidingWindowLimiter: true,
+			UseDeltaTree:                true,
+		},
+		PreviewLimits: control.PreviewItemLimits{
+			MaxItems:             42,
+			MaxItemsPerContainer: 43,
+			MaxContainers:        44,
+			MaxBytes:             45,
+			MaxPages:             46,
+			Enabled:              true,
+		},
+	}
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// This is a sanity check to make sure all fields on the input control.Options
+	// are populated. This helps ensure that this chunk of code stays updated as
+	// options are added to the struct.
+	checkPopulated(t, opts)
+
+	var (
+		kw   = &kopia.Wrapper{}
+		sw   = store.NewWrapper(&kopia.ModelStore{})
+		ctrl = &mock.Controller{}
+		acct = account.Account{}
+	)
+
+	sel := selectors.Selector{}
+	sel.DiscreteOwner = "bombadil"
+
+	op, err := NewBackupOperation(
+		ctx,
+		opts,
+		kw,
+		sw,
+		ctrl,
+		acct,
+		sel,
+		sel,
+		evmock.NewBus(),
+		count.New())
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, opts, op.Options)
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
