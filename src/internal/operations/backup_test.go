@@ -3,7 +3,9 @@ package operations
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	stdpath "path"
+	"reflect"
 	"testing"
 	"time"
 
@@ -367,6 +369,33 @@ func TestBackupOpUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupOpUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+func checkPopulatedInner(v reflect.Value) error {
+	if v.IsZero() {
+		return clues.New("zero-valued field")
+	}
+
+	if v.Kind() != reflect.Struct {
+		return nil
+	}
+
+	var errs *clues.Err
+
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+
+		if err := checkPopulatedInner(f); err != nil {
+			errs = clues.Stack(errs, clues.Wrap(err, fmt.Sprintf("field at index %d", i)))
+		}
+	}
+
+	return errs.OrNil()
+}
+
+func checkPopulated(t *testing.T, input control.Options) {
+	err := checkPopulatedInner(reflect.ValueOf(input))
+	require.NoError(t, err, clues.ToCore(err))
+}
+
 func (suite *BackupOpUnitSuite) TestBackupOperation_OptionPassing() {
 	ext := []extensions.CreateItemExtensioner{
 		&extensions.MockItemExtensionFactory{},
@@ -411,6 +440,11 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_OptionPassing() {
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
+	// This is a sanity check to make sure all fields on the input control.Options
+	// are populated. This helps ensure that this chunk of code stays updated as
+	// options are added to the struct.
+	checkPopulated(t, opts)
 
 	var (
 		kw   = &kopia.Wrapper{}
