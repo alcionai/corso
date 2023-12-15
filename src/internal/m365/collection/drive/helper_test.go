@@ -1371,6 +1371,10 @@ func (dd *deltaDrive) fileAt(
 	return driveItem(
 		fileID(fileSuffixes...),
 		fileName(fileSuffixes...),
+		// the file's parent directory isn't used;
+		// this parameter is an artifact of the driveItem
+		// api and doesn't need to be populated for test
+		// success.
 		dd.dir(),
 		folderID(parentSuffix),
 		isFile)
