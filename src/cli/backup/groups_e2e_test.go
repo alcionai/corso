@@ -325,9 +325,9 @@ func (suite *PreparedBackupGroupsE2ESuite) SetupSuite() {
 
 		bop, err := suite.dpnd.repo.NewBackupWithLookup(
 			ctx,
-			control.DefaultBackupOptions(),
 			sel.Selector,
-			ins)
+			ins,
+			control.DefaultBackupConfig())
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)
@@ -559,8 +559,8 @@ func (suite *BackupDeleteGroupsE2ESuite) SetupSuite() {
 	for i := 0; i < cap(suite.backupOps); i++ {
 		backupOp, err := suite.dpnd.repo.NewBackup(
 			ctx,
-			control.DefaultBackupOptions(),
-			sel.Selector)
+			sel.Selector,
+			control.DefaultBackupConfig())
 		require.NoError(t, err, clues.ToCore(err))
 
 		suite.backupOps[i] = backupOp

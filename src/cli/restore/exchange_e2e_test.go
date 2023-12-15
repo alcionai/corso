@@ -117,9 +117,9 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 
 		bop, err := suite.repo.NewBackupWithLookup(
 			ctx,
-			control.DefaultBackupOptions(),
 			sel.Selector,
-			ins)
+			ins,
+			control.DefaultBackupConfig())
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)

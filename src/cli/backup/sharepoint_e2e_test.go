@@ -111,7 +111,7 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 		m365SiteID = tconfig.M365SiteID(t)
 		sites      = []string{m365SiteID}
 		ins        = idname.NewCache(map[string]string{m365SiteID: m365SiteID})
-		opts       = control.DefaultBackupOptions()
+		opts       = control.DefaultBackupConfig()
 	)
 
 	// some tests require an existing backup
@@ -120,9 +120,9 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 
 	backupOp, err := suite.dpnd.repo.NewBackupWithLookup(
 		ctx,
-		opts,
 		sel.Selector,
-		ins)
+		ins,
+		opts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOp = backupOp
@@ -133,9 +133,9 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	// secondary backup
 	secondaryBackupOp, err := suite.dpnd.repo.NewBackupWithLookup(
 		ctx,
-		opts,
 		sel.Selector,
-		ins)
+		ins,
+		opts)
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.secondaryBackupOp = secondaryBackupOp

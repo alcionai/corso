@@ -116,7 +116,7 @@ func prepNewTestBackupOp(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	bus events.Eventer,
 	sel selectors.Selector,
-	opts control.Backup,
+	opts control.BackupConfig,
 	backupVersion int,
 	counter *count.Bus,
 ) (
@@ -195,7 +195,7 @@ func newTestBackupOp(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	bod *backupOpDependencies,
 	bus events.Eventer,
-	opts control.Backup,
+	opts control.BackupConfig,
 	counter *count.Bus,
 ) operations.BackupOperation {
 	bod.ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.sel.ID(): bod.sel.Name()})
@@ -388,7 +388,7 @@ func runMergeBaseGroupsUpdate(
 
 	var (
 		mb      = evmock.NewBus()
-		opts    = control.DefaultBackupOptions()
+		opts    = control.DefaultBackupConfig()
 		whatSet = deeTD.CategoryFromRepoRef
 	)
 
@@ -455,7 +455,7 @@ func runMergeBaseGroupsUpdate(
 
 		var (
 			mb   = evmock.NewBus()
-			opts = control.DefaultBackupOptions()
+			opts = control.DefaultBackupConfig()
 		)
 
 		forcedFull := newTestBackupOp(

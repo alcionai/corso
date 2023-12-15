@@ -120,7 +120,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				mb      = evmock.NewBus()
 				counter = count.New()
 				sel     = test.selector().Selector
-				opts    = control.DefaultBackupOptions()
+				opts    = control.DefaultBackupConfig()
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
@@ -271,7 +271,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		containers = []string{container1, container2, container3, containerRename}
 		sel        = selectors.NewExchangeBackup([]string{suite.its.user.ID})
 		whatSet    = deeTD.CategoryFromRepoRef
-		opts       = control.DefaultBackupOptions()
+		opts       = control.DefaultBackupConfig()
 	)
 
 	opts.ToggleFeatures = toggles
@@ -972,7 +972,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 	var (
 		mb          = evmock.NewBus()
 		counter     = count.New()
-		opts        = control.DefaultBackupOptions()
+		opts        = control.DefaultBackupConfig()
 		controlOpts = control.DefaultOptions()
 	)
 
@@ -1290,7 +1290,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 	var (
 		mb          = evmock.NewBus()
 		counter     = count.New()
-		opts        = control.DefaultBackupOptions()
+		opts        = control.DefaultBackupConfig()
 		controlOpts = control.DefaultOptions()
 	)
 

@@ -176,7 +176,7 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 	return genericCreateCommand(
 		ctx,
 		r,
-		utils.BackupOptions(),
+		utils.ParseBackupOptions(),
 		"Group",
 		selectorSet,
 		ins)

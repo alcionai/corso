@@ -182,7 +182,7 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 	return genericCreateCommand(
 		ctx,
 		r,
-		utils.BackupOptions(),
+		utils.ParseBackupOptions(),
 		"Exchange",
 		selectorSet,
 		ins)

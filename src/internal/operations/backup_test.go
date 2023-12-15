@@ -393,7 +393,7 @@ func checkPopulatedInner(v reflect.Value) error {
 // checkPopulated ensures that input has no zero-valued fields. That helps
 // ensure that even as future updates to input happen in other files the changes
 // are propagated here due to test failures.
-func checkPopulated(t *testing.T, input control.Backup) {
+func checkPopulated(t *testing.T, input control.BackupConfig) {
 	err := checkPopulatedInner(reflect.ValueOf(input))
 	require.NoError(t, err, clues.ToCore(err))
 }
@@ -408,7 +408,7 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 		&extensions.MockItemExtensionFactory{},
 	}
 
-	opts := control.Backup{
+	opts := control.BackupConfig{
 		DeltaPageSize:        42,
 		FailureHandling:      control.FailAfterRecovery,
 		ItemExtensionFactory: slices.Clone(ext),
@@ -469,9 +469,9 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	// This is a sanity check to make sure all fields on the input control.Backup
-	// are populated. This helps ensure that this chunk of code stays updated as
-	// options are added to the struct.
+	// This is a sanity check to make sure all fields on the input
+	// control.BackupConfig are populated. This helps ensure that this chunk of
+	// code stays updated as options are added to the struct.
 	checkPopulated(t, opts)
 
 	var (
@@ -558,7 +558,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 
 			op, err := NewBackupOperation(
 				ctx,
-				control.DefaultBackupOptions(),
+				control.DefaultBackupConfig(),
 				kw,
 				sw,
 				ctrl,
@@ -1612,7 +1612,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			opts := control.DefaultBackupOptions()
+			opts := control.DefaultBackupConfig()
 			sel := selectors.Selector{DiscreteOwner: "test"}
 
 			_, err := NewBackupOperation(
@@ -2057,7 +2057,7 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 			cs = append(cs, mc)
 			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, test.injectNonRecoverableErr)
 
-			opts := control.DefaultBackupOptions()
+			opts := control.DefaultBackupConfig()
 			opts.FailureHandling = test.failurePolicy
 			opts.PreviewLimits.Enabled = test.previewBackup
 
@@ -2375,7 +2375,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 			cs = append(cs, mc)
 			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, false)
 
-			opts := control.DefaultBackupOptions()
+			opts := control.DefaultBackupConfig()
 			opts.FailureHandling = failurePolicy
 
 			bo, err := NewBackupOperation(

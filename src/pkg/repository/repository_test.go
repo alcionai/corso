@@ -336,8 +336,8 @@ func (suite *RepositoryIntegrationSuite) TestNewBackup() {
 
 	bo, err := r.NewBackup(
 		ctx,
-		control.DefaultBackupOptions(),
-		selectors.NewExchangeBackup([]string{userID}).Selector)
+		selectors.NewExchangeBackup([]string{userID}).Selector,
+		control.DefaultBackupConfig())
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, bo)
 }
@@ -400,7 +400,7 @@ func (suite *RepositoryIntegrationSuite) TestNewBackupAndDelete() {
 	sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 	sel.DiscreteOwner = userID
 
-	bo, err := r.NewBackup(ctx, control.DefaultBackupOptions(), sel.Selector)
+	bo, err := r.NewBackup(ctx, sel.Selector, control.DefaultBackupConfig())
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, bo)
 

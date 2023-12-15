@@ -42,14 +42,14 @@ type BackupGetter interface {
 type Backuper interface {
 	NewBackup(
 		ctx context.Context,
-		opts control.Backup,
 		self selectors.Selector,
+		opts control.BackupConfig,
 	) (operations.BackupOperation, error)
 	NewBackupWithLookup(
 		ctx context.Context,
-		opts control.Backup,
 		self selectors.Selector,
 		ins idname.Cacher,
+		opts control.BackupConfig,
 	) (operations.BackupOperation, error)
 	DeleteBackups(
 		ctx context.Context,
@@ -61,10 +61,10 @@ type Backuper interface {
 // NewBackup generates a BackupOperation runner.
 func (r repository) NewBackup(
 	ctx context.Context,
-	opts control.Backup,
 	sel selectors.Selector,
+	opts control.BackupConfig,
 ) (operations.BackupOperation, error) {
-	return r.NewBackupWithLookup(ctx, opts, sel, nil)
+	return r.NewBackupWithLookup(ctx, sel, nil, opts)
 }
 
 // NewBackupWithLookup generates a BackupOperation runner.
@@ -72,9 +72,9 @@ func (r repository) NewBackup(
 // already generated those values.
 func (r repository) NewBackupWithLookup(
 	ctx context.Context,
-	opts control.Backup,
 	sel selectors.Selector,
 	ins idname.Cacher,
+	opts control.BackupConfig,
 ) (operations.BackupOperation, error) {
 	err := r.ConnectDataProvider(ctx, sel.PathService())
 	if err != nil {

@@ -75,7 +75,7 @@ type BackupResults struct {
 // NewBackupOperation constructs and validates a backup operation.
 func NewBackupOperation(
 	ctx context.Context,
-	opts control.Backup,
+	opts control.BackupConfig,
 	kw *kopia.Wrapper,
 	sw store.BackupStorer,
 	bp inject.BackupProducer,

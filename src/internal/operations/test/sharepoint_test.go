@@ -99,7 +99,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic() {
 		mb      = evmock.NewBus()
 		counter = count.New()
 		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts    = control.DefaultBackupOptions()
+		opts    = control.DefaultBackupConfig()
 	)
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
@@ -129,7 +129,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
 		mb      = evmock.NewBus()
 		counter = count.New()
 		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts    = control.DefaultBackupOptions()
+		opts    = control.DefaultBackupConfig()
 		tenID   = tconfig.M365TenantID(t)
 		svc     = path.SharePointService
 		ws      = deeTD.DriveIDFromRepoRef
@@ -308,7 +308,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 	var (
 		mb          = evmock.NewBus()
 		counter     = count.New()
-		opts        = control.DefaultBackupOptions()
+		opts        = control.DefaultBackupConfig()
 		controlOpts = control.DefaultOptions()
 		graphClient = suite.its.ac.Stable.Client()
 	)

@@ -156,9 +156,9 @@ func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	for i := 0; i < cap(suite.backupOps); i++ {
 		backupOp, err := suite.dpnd.repo.NewBackupWithLookup(
 			ctx,
-			control.DefaultBackupOptions(),
 			sel.Selector,
-			ins)
+			ins,
+			control.DefaultBackupConfig())
 		require.NoError(t, err, clues.ToCore(err))
 
 		suite.backupOps[i] = backupOp

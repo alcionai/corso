@@ -173,7 +173,7 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 			cs = append(cs, mc)
 			bp := opMock.NewMockBackupProducer(cs, data.CollectionStats{}, false)
 
-			opts := control.DefaultBackupOptions()
+			opts := control.DefaultBackupConfig()
 			opts.FailureHandling = failurePolicy
 
 			bo, err := NewBackupOperation(
