@@ -20,3 +20,23 @@ type getItemByIDer interface {
 type getItemser interface {
 	GetItems(ctx context.Context, cc api.CallConfig) ([]models.Listable, error)
 }
+
+type restoreHandler interface {
+	PostLister
+	DeleteLister
+}
+
+type PostLister interface {
+	PostList(
+		ctx context.Context,
+		listName string,
+		storedListData []byte,
+	) (models.Listable, error)
+}
+
+type DeleteLister interface {
+	DeleteList(
+		ctx context.Context,
+		listID string,
+	) error
+}

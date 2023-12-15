@@ -251,28 +251,42 @@ func (c Lists) PostList(
 		BySiteId(siteID).
 		Lists().
 		Post(ctx, newList, nil)
-
-	return restoredList, graph.Wrap(ctx, err, "creating list").OrNil()
-}
-
-func (c Lists) PostListItem(
-	ctx context.Context,
-	siteID, listID string,
-	oldListByteArray []byte,
-) ([]models.ListItemable, error) {
-	oldList, err := BytesToListable(oldListByteArray)
 	if err != nil {
-		return nil, clues.WrapWC(ctx, err, "generating list item from stored bytes")
+		return nil, graph.Wrap(ctx, err, "creating list")
 	}
 
-	contents := make([]models.ListItemable, 0)
+	listItems := make([]models.ListItemable, 0)
 
 	for _, itm := range oldList.GetItems() {
 		temp := CloneListItem(itm)
-		contents = append(contents, temp)
+		listItems = append(listItems, temp)
 	}
 
-	for _, lItem := range contents {
+	err = c.PostListItems(
+		ctx,
+		siteID,
+		ptr.Val(restoredList.GetId()),
+		listItems)
+	if err == nil {
+		restoredList.SetItems(listItems)
+		return restoredList, nil
+	}
+
+	// [TODO](hitesh) double check if we need to:
+	// 1. rollback the entire list
+	// 2. restore as much list items possible and add recoverables to fault bus
+	// rollback list creation
+	err = c.DeleteList(ctx, siteID, ptr.Val(restoredList.GetId()))
+
+	return nil, graph.Wrap(ctx, err, "deleting restored list after items creation failure").OrNil()
+}
+
+func (c Lists) PostListItems(
+	ctx context.Context,
+	siteID, listID string,
+	listItems []models.ListItemable,
+) error {
+	for _, lItem := range listItems {
 		_, err := c.Stable.
 			Client().
 			Sites().
@@ -282,11 +296,11 @@ func (c Lists) PostListItem(
 			Items().
 			Post(ctx, lItem, nil)
 		if err != nil {
-			return nil, graph.Wrap(ctx, err, "creating item in list")
+			return graph.Wrap(ctx, err, "creating item in list")
 		}
 	}
 
-	return contents, nil
+	return nil
 }
 
 func (c Lists) DeleteList(
