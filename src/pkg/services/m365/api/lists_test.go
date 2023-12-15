@@ -658,43 +658,6 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 	writer := kjson.NewJsonSerializationWriter()
 	defer writer.Close()
 
-	_, list := getFieldsDataAndList()
-
-	err := writer.WriteObjectValue("", list)
-	require.NoError(t, err)
-
-	oldListByteArray, err := writer.GetSerializedContent()
-	require.NoError(t, err)
-
-	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
-	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
-
-	// clean up
-	defer func(sID string, lst models.Listable) {
-		err = acl.DeleteList(ctx, sID, ptr.Val(lst.GetId()))
-		require.NoError(t, err)
-	}(siteID, newList)
-
-	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray)
-	require.Error(t, err)
-}
-
-func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		acl      = suite.its.ac.Lists()
-		siteID   = suite.its.site.id
-		listName = testdata.DefaultRestoreConfig("list_api_post_list").Location
-	)
-
-	writer := kjson.NewJsonSerializationWriter()
-	defer writer.Close()
-
 	fieldsData, list := getFieldsDataAndList()
 
 	err := writer.WriteObjectValue("", list)
@@ -707,14 +670,10 @@ func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
 
-	// clean up
-	defer func(sID string, lst models.Listable) {
-		err = acl.DeleteList(ctx, sID, ptr.Val(lst.GetId()))
-		require.NoError(t, err)
-	}(siteID, newList)
+	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray)
+	require.Error(t, err)
 
-	newListItems, err := acl.PostListItems(ctx, siteID, newList)
-	require.NoError(t, err, clues.ToCore(err))
+	newListItems := newList.GetItems()
 	require.Less(t, 0, len(newListItems))
 
 	newListItemFields := newListItems[0].GetFields()
@@ -726,6 +685,9 @@ func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
 	for k, v := range newListItemsData {
 		assert.Equal(t, fieldsData[k], ptr.Val(v.(*string)))
 	}
+
+	err = acl.DeleteList(ctx, siteID, ptr.Val(newList.GetId()))
+	require.NoError(t, err)
 }
 
 func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
