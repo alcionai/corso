@@ -1471,7 +1471,11 @@ func (dd *deltaDrive) folderAt(
 	return driveItem(
 		folderID(folderSuffixes...),
 		folderName(folderSuffixes...),
-		dd.dir(),
+		// we should be putting in the full location here, not just the
+		// parent suffix.  But that full location would be unused because
+		// our unit tests don't utilize folder subselection (which is the
+		// only reason we need to provide the dir).
+		dd.dir(folderName(parentSuffix)),
 		folderID(parentSuffix),
 		isFolder)
 }
