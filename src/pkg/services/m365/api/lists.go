@@ -186,12 +186,20 @@ func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 		count    = len(lst.GetItems())
 	)
 
+	template := ""
+	if lst.GetList() != nil {
+		template = ptr.Val(lst.GetList().GetTemplate())
+	}
+
 	return &details.SharePointInfo{
-		ItemType:  details.SharePointList,
-		ItemName:  name,
-		ItemCount: int64(count),
-		Created:   created,
-		Modified:  modified,
-		WebURL:    webURL,
+		ItemType: details.SharePointList,
+		List: &details.ListInfo{
+			Name:      name,
+			ItemCount: int64(count),
+			Template:  template,
+			Created:   created,
+			Modified:  modified,
+			WebURL:    webURL,
+		},
 	}
 }
