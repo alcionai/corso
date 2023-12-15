@@ -17,7 +17,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
-	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -46,8 +45,114 @@ func (suite *SharePointBackupIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
+	var (
+		resourceID = suite.its.site.ID
+		sel        = selectors.NewSharePointBackup([]string{resourceID})
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	runBasicDriveishBackupTests(
+		suite,
+		path.SharePointService,
+		control.DefaultOptions(),
+		sel.Selector)
+}
+
 func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
-	sel := selectors.NewSharePointRestore([]string{suite.its.site.ID})
+	runSharePointIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
+}
+
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_extensionsSharePoint() {
+	var (
+		resourceID = suite.its.site.ID
+		sel        = selectors.NewSharePointBackup([]string{resourceID})
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	runDriveishBackupWithExtensionsTests(
+		suite,
+		path.SharePointService,
+		control.DefaultOptions(),
+		sel.Selector)
+}
+
+// ---------------------------------------------------------------------------
+// test version using the tree-based drive item processor
+// ---------------------------------------------------------------------------
+
+type SharePointBackupTreeIntgSuite struct {
+	tester.Suite
+	its intgTesterSetup
+}
+
+func TestSharePointBackupTreeIntgSuite(t *testing.T) {
+	suite.Run(t, &SharePointBackupTreeIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *SharePointBackupTreeIntgSuite) SetupSuite() {
+	suite.its = newIntegrationTesterSetup(suite.T())
+}
+
+func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_sharePoint() {
+	var (
+		resourceID = suite.its.site.ID
+		sel        = selectors.NewSharePointBackup([]string{resourceID})
+		opts       = control.DefaultOptions()
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	runBasicDriveishBackupTests(
+		suite,
+		path.SharePointService,
+		opts,
+		sel.Selector)
+}
+
+func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_incrementalSharePoint() {
+	opts := control.DefaultOptions()
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	runSharePointIncrementalBackupTests(suite, suite.its, opts)
+}
+
+func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_extensionsSharePoint() {
+	var (
+		resourceID = suite.its.site.ID
+		sel        = selectors.NewSharePointBackup([]string{resourceID})
+		opts       = control.DefaultOptions()
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	runDriveishBackupWithExtensionsTests(
+		suite,
+		path.SharePointService,
+		opts,
+		sel.Selector)
+}
+
+// ---------------------------------------------------------------------------
+// common backup test wrappers
+// ---------------------------------------------------------------------------
+
+func runSharePointIncrementalBackupTests(
+	suite tester.Suite,
+	its intgTesterSetup,
+	opts control.Options,
+) {
+	sel := selectors.NewSharePointRestore([]string{its.site.ID})
 
 	ic := func(cs []string) selectors.Selector {
 		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))
@@ -58,10 +163,10 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		t *testing.T,
 		ctx context.Context,
 	) string {
-		d, err := suite.its.ac.Sites().GetDefaultDrive(ctx, suite.its.site.ID)
+		d, err := its.ac.Sites().GetDefaultDrive(ctx, its.site.ID)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default site drive").
-				With("site", suite.its.site.ID)
+				With("site", its.site.ID)
 		}
 
 		require.NoError(t, err, clues.ToCore(err))
@@ -76,10 +181,11 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		return drive.NewSiteRestoreHandler(ac, path.SharePointService)
 	}
 
-	runDriveIncrementalTest(
+	runIncrementalDriveishBackupTest(
 		suite,
-		suite.its.site.ID,
-		suite.its.user.ID,
+		opts,
+		its.site.ID,
+		its.user.ID,
 		path.SharePointService,
 		path.LibrariesCategory,
 		ic,
@@ -87,100 +193,6 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		nil,
 		grh,
 		true)
-}
-
-func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts    = control.DefaultOptions()
-	)
-
-	sel.Include(selTD.SharePointBackupFolderScope(sel))
-
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.LibrariesCategory)
-}
-
-func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts    = control.DefaultOptions()
-		tenID   = tconfig.M365TenantID(t)
-		svc     = path.SharePointService
-		ws      = deeTD.DriveIDFromRepoRef
-	)
-
-	opts.ItemExtensionFactory = getTestExtensionFactories()
-
-	sel.Include(selTD.SharePointBackupFolderScope(sel))
-
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.LibrariesCategory)
-
-	bID := bo.Results.BackupID
-
-	deets, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bID,
-		tenID,
-		bod.sel.ID(),
-		svc,
-		ws,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bID,
-		ws,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	// Check that the extensions are in the backup
-	for _, ent := range deets.Entries {
-		if ent.Folder == nil {
-			verifyExtensionData(t, ent.ItemInfo, path.SharePointService)
-		}
-	}
 }
 
 type SharePointBackupNightlyIntgSuite struct {
