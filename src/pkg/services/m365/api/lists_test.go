@@ -69,11 +69,11 @@ func (suite *ListsUnitSuite) TestBytesToListable() {
 	}
 }
 
-func (suite *ListsUnitSuite) TestColumnDefinitionValidationSetWhenProvided() {
+func (suite *ListsUnitSuite) TestColumnDefinitionable_GetValidation() {
 	tests := []struct {
-		name     string
-		getOrig  func() models.ColumnDefinitionable
-		checkNil bool
+		name    string
+		getOrig func() models.ColumnDefinitionable
+		expect  assert.ValueAssertionFunc
 	}{
 		{
 			name: "column validation not set",
@@ -85,7 +85,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionValidationSetWhenProvided() {
 
 				return cd
 			},
-			checkNil: true,
+			expect: assert.Nil,
 		},
 		{
 			name: "column validation set",
@@ -100,6 +100,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionValidationSetWhenProvided() {
 
 				return cd
 			},
+			expect: assert.NotNil,
 		},
 	}
 
@@ -112,20 +113,16 @@ func (suite *ListsUnitSuite) TestColumnDefinitionValidationSetWhenProvided() {
 
 			require.NotEmpty(t, newCd)
 
-			if test.checkNil {
-				assert.Nil(t, newCd.GetValidation())
-			} else {
-				assert.NotNil(t, newCd.GetValidation())
-			}
+			test.expect(t, newCd.GetValidation())
 		})
 	}
 }
 
-func (suite *ListsUnitSuite) TestColumnDefaultValueSetWhenProvided() {
+func (suite *ListsUnitSuite) TestColumnDefinitionable_GetDefaultValue() {
 	tests := []struct {
-		name     string
-		getOrig  func() models.ColumnDefinitionable
-		checkNil bool
+		name    string
+		getOrig func() models.ColumnDefinitionable
+		expect  func(t *testing.T, cd models.ColumnDefinitionable)
 	}{
 		{
 			name: "column default value not set",
@@ -137,7 +134,9 @@ func (suite *ListsUnitSuite) TestColumnDefaultValueSetWhenProvided() {
 
 				return cd
 			},
-			checkNil: true,
+			expect: func(t *testing.T, cd models.ColumnDefinitionable) {
+				assert.Nil(t, cd.GetDefaultValue())
+			},
 		},
 		{
 			name: "column default value set",
@@ -155,6 +154,10 @@ func (suite *ListsUnitSuite) TestColumnDefaultValueSetWhenProvided() {
 
 				return cd
 			},
+			expect: func(t *testing.T, cd models.ColumnDefinitionable) {
+				assert.NotNil(t, cd.GetDefaultValue())
+				assert.Equal(t, "some-val", ptr.Val(cd.GetDefaultValue().GetValue()))
+			},
 		},
 	}
 
@@ -166,18 +169,12 @@ func (suite *ListsUnitSuite) TestColumnDefaultValueSetWhenProvided() {
 			newCd := cloneColumnDefinitionable(orig)
 
 			require.NotEmpty(t, newCd)
-
-			if test.checkNil {
-				assert.Nil(t, newCd.GetDefaultValue())
-			} else {
-				assert.NotNil(t, newCd.GetDefaultValue())
-				assert.Equal(t, "some-val", ptr.Val(newCd.GetDefaultValue().GetValue()))
-			}
+			test.expect(t, newCd)
 		})
 	}
 }
 
-func (suite *ListsUnitSuite) TestCheckColumnType() {
+func (suite *ListsUnitSuite) TestColumnDefinitionable_ColumnType() {
 	tests := []struct {
 		name    string
 		getOrig func() models.ColumnDefinitionable
@@ -235,14 +232,8 @@ func (suite *ListsUnitSuite) TestCheckColumnType() {
 	}
 }
 
-func (suite *ListsUnitSuite) TestLegacyColumnsAreNotSet() {
+func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 	listName := "test-list"
-	contentTypeColumnName := "ContentType"
-	contentTypeColumnDisplayName := "Content Type"
-	attachmentColumnName := "Attachments"
-	attachmentColumnDisplayName := "Attachments"
-	editColumnName := "Edit"
-	editColumnDisplayName := "Edit"
 	textColumnName := "ItemName"
 	textColumnDisplayName := "Item Name"
 	titleColumnName := "Title"
@@ -251,16 +242,16 @@ func (suite *ListsUnitSuite) TestLegacyColumnsAreNotSet() {
 	readOnlyColumnDisplayName := "Test Column"
 
 	contentTypeCd := models.NewColumnDefinition()
-	contentTypeCd.SetName(ptr.To(contentTypeColumnName))
-	contentTypeCd.SetDisplayName(ptr.To(contentTypeColumnDisplayName))
+	contentTypeCd.SetName(ptr.To(ContentTypeColumnName))
+	contentTypeCd.SetDisplayName(ptr.To(ContentTypeColumnDisplayName))
 
 	attachmentCd := models.NewColumnDefinition()
-	attachmentCd.SetName(ptr.To(attachmentColumnName))
-	attachmentCd.SetDisplayName(ptr.To(attachmentColumnDisplayName))
+	attachmentCd.SetName(ptr.To(AttachmentsColumnName))
+	attachmentCd.SetDisplayName(ptr.To(AttachmentsColumnName))
 
 	editCd := models.NewColumnDefinition()
-	editCd.SetName(ptr.To(editColumnName))
-	editCd.SetDisplayName(ptr.To(editColumnDisplayName))
+	editCd.SetName(ptr.To(EditColumnName))
+	editCd.SetDisplayName(ptr.To(EditColumnName))
 
 	textCol := models.NewTextColumn()
 	titleCol := models.NewTextColumn()
@@ -357,20 +348,20 @@ func (suite *ListsUnitSuite) TestLegacyColumnsAreNotSet() {
 	}
 }
 
-func (suite *ListsUnitSuite) TestRetrieveFieldData() {
+func (suite *ListsUnitSuite) TestFieldValueSetable() {
 	t := suite.T()
 
 	additionalData := map[string]any{
-		"@odata.etag":      "14fe12b2-e180-49f7-8fc3-5936f3dcf5d2,1",
-		"_UIVersionString": "1.0",
-		"AuthorLookupId":   "6",
-		"EditorLookupId":   "6",
-		"ItemChildCount":   "0",
-		"FolderChildCount": "0",
-		"Modified":         "2023-12-13T15:47:51Z",
-		"Created":          "2023-12-13T15:47:51Z",
-		"Edit":             "",
-		"LinkTitleNoMenu":  "Person1",
+		DescoratorFieldNamePrefix + "odata.etag":            "14fe12b2-e180-49f7-8fc3-5936f3dcf5d2,1",
+		ReadOnlyOrHiddenFieldNamePrefix + "UIVersionString": "1.0",
+		AuthorLookupIDColumnName:                            "6",
+		EditorLookupIDColumnName:                            "6",
+		"Item" + ChildCountFieldNamePart:                    "0",
+		"Folder" + ChildCountFieldNamePart:                  "0",
+		ModifiedColumnName:                                  "2023-12-13T15:47:51Z",
+		CreatedColumnName:                                   "2023-12-13T15:47:51Z",
+		EditColumnName:                                      "",
+		LinkTitleFieldNamePart + "NoMenu":                   "Person1",
 	}
 
 	origFs := models.NewFieldValueSet()
@@ -393,54 +384,54 @@ func (suite *ListsUnitSuite) TestRetrieveFieldData() {
 	assert.Equal(t, "item-1", val)
 }
 
-func (suite *ListsUnitSuite) TestRetrieveFieldData_Location() {
+func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 	t := suite.T()
 
 	additionalData := map[string]any{
 		"MyAddress": map[string]any{
-			"address": map[string]any{
+			AddressFieldName: map[string]any{
 				"city":            "Tagaytay",
 				"countryOrRegion": "Philippines",
 				"postalCode":      "4120",
 				"state":           "Calabarzon",
 				"street":          "Prime Residences CityLand 1852",
 			},
-			"coordinates": map[string]any{
+			CoordinatesFieldName: map[string]any{
 				"latitude":  "14.1153",
 				"longitude": "120.962",
 			},
-			"displayName": "B123 Unit 1852 Prime Residences Tagaytay",
-			"locationUri": "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-			"uniqueId":    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			DisplayNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
+			LocationURIFieldName: "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			UniqueIDFieldName:    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
 		},
-		"CountryOrRegion": "Philippines",
-		"State":           "Calabarzon",
-		"City":            "Tagaytay",
-		"PostalCode":      "4120",
-		"Street":          "Prime Residences CityLand 1852",
-		"GeoLoc": map[string]any{
+		CountryOrRegionFieldName: "Philippines",
+		StateFieldName:           "Calabarzon",
+		CityFieldName:            "Tagaytay",
+		PostalCodeFieldName:      "4120",
+		StreetFieldName:          "Prime Residences CityLand 1852",
+		GeoLocFieldName: map[string]any{
 			"latitude":  14.1153,
 			"longitude": 120.962,
 		},
-		"DispName": "B123 Unit 1852 Prime Residences Tagaytay",
+		DispNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
 	}
 
 	expectedData := map[string]any{
 		"MyAddress": map[string]any{
-			"address": map[string]any{
+			AddressFieldName: map[string]any{
 				"city":            "Tagaytay",
 				"countryOrRegion": "Philippines",
 				"postalCode":      "4120",
 				"state":           "Calabarzon",
 				"street":          "Prime Residences CityLand 1852",
 			},
-			"coordinates": map[string]any{
+			CoordinatesFieldName: map[string]any{
 				"latitude":  "14.1153",
 				"longitude": "120.962",
 			},
-			"displayName": "B123 Unit 1852 Prime Residences Tagaytay",
-			"locationUri": "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-			"uniqueId":    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			DisplayNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
+			LocationURIFieldName: "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			UniqueIDFieldName:    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
 		},
 	}
 
@@ -667,25 +658,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 	writer := kjson.NewJsonSerializationWriter()
 	defer writer.Close()
 
-	oldListID := "old-list"
-	textColumnDefID := "list-col1"
-	textColumnDefName := "itemName"
-	template := "genericList"
-
-	listInfo := models.NewListInfo()
-	listInfo.SetTemplate(&template)
-
-	textColumn := models.NewTextColumn()
-
-	txtColumnDef := models.NewColumnDefinition()
-	txtColumnDef.SetId(&textColumnDefID)
-	txtColumnDef.SetName(&textColumnDefName)
-	txtColumnDef.SetText(textColumn)
-
-	list := models.NewList()
-	list.SetId(&oldListID)
-	list.SetColumns([]models.ColumnDefinitionable{txtColumnDef})
-	list.SetList(listInfo)
+	_, list := getFieldsDataAndList()
 
 	err := writer.WriteObjectValue("", list)
 	require.NoError(t, err)
@@ -722,32 +695,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
 	writer := kjson.NewJsonSerializationWriter()
 	defer writer.Close()
 
-	oldListID := "old-list"
-	listItemID := "list-item1"
-	textColumnDefID := "list-col1"
-	textColumnDefName := "itemName"
-
-	textColumn := models.NewTextColumn()
-
-	txtColumnDef := models.NewColumnDefinition()
-	txtColumnDef.SetId(&textColumnDefID)
-	txtColumnDef.SetName(&textColumnDefName)
-	txtColumnDef.SetText(textColumn)
-
-	fields := models.NewFieldValueSet()
-	fieldsData := map[string]any{
-		textColumnDefName: "item1",
-	}
-	fields.SetAdditionalData(fieldsData)
-
-	listItem := models.NewListItem()
-	listItem.SetId(&listItemID)
-	listItem.SetFields(fields)
-
-	list := models.NewList()
-	list.SetId(&oldListID)
-	list.SetColumns([]models.ColumnDefinitionable{txtColumnDef})
-	list.SetItems([]models.ListItemable{listItem})
+	fieldsData, list := getFieldsDataAndList()
 
 	err := writer.WriteObjectValue("", list)
 	require.NoError(t, err)
@@ -795,7 +743,25 @@ func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
 	writer := kjson.NewJsonSerializationWriter()
 	defer writer.Close()
 
+	_, list := getFieldsDataAndList()
+
+	err := writer.WriteObjectValue("", list)
+	require.NoError(t, err)
+
+	oldListByteArray, err := writer.GetSerializedContent()
+	require.NoError(t, err)
+
+	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
+
+	err = acl.DeleteList(ctx, siteID, ptr.Val(newList.GetId()))
+	require.NoError(t, err)
+}
+
+func getFieldsDataAndList() (map[string]any, *models.List) {
 	oldListID := "old-list"
+	listItemID := "list-item1"
 	textColumnDefID := "list-col1"
 	textColumnDefName := "itemName"
 	template := "genericList"
@@ -810,21 +776,21 @@ func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
 	txtColumnDef.SetName(&textColumnDefName)
 	txtColumnDef.SetText(textColumn)
 
+	fields := models.NewFieldValueSet()
+	fieldsData := map[string]any{
+		textColumnDefName: "item1",
+	}
+	fields.SetAdditionalData(fieldsData)
+
+	listItem := models.NewListItem()
+	listItem.SetId(&listItemID)
+	listItem.SetFields(fields)
+
 	list := models.NewList()
 	list.SetId(&oldListID)
-	list.SetColumns([]models.ColumnDefinitionable{txtColumnDef})
 	list.SetList(listInfo)
+	list.SetColumns([]models.ColumnDefinitionable{txtColumnDef})
+	list.SetItems([]models.ListItemable{listItem})
 
-	err := writer.WriteObjectValue("", list)
-	require.NoError(t, err)
-
-	oldListByteArray, err := writer.GetSerializedContent()
-	require.NoError(t, err)
-
-	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
-	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
-
-	err = acl.DeleteList(ctx, siteID, ptr.Val(newList.GetId()))
-	require.NoError(t, err)
+	return fieldsData, list
 }
