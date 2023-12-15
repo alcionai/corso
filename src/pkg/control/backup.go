@@ -8,10 +8,12 @@ import (
 func DefaultBackupConfig() BackupConfig {
 	return BackupConfig{
 		FailureHandling: FailAfterRecovery,
-		DeltaPageSize:   500,
 		Parallelism: Parallelism{
 			CollectionBuffer: 4,
 			ItemFetch:        4,
+		},
+		M365: BackupM365Config{
+			DeltaPageSize: 500,
 		},
 	}
 }
@@ -20,17 +22,15 @@ func DefaultBackupConfig() BackupConfig {
 // is only applied to the backup operation it's passed to. To use the same set
 // of options for multiple backup operations pass the struct to all operations.
 type BackupConfig struct {
-	// DeltaPageSize controls the quantity of items fetched in each page
-	// during multi-page queries, such as graph api delta endpoints.
-	DeltaPageSize        int32                              `json:"deltaPageSize"`
 	FailureHandling      FailurePolicy                      `json:"failureHandling"`
 	ItemExtensionFactory []extensions.CreateItemExtensioner `json:"-"`
 	Parallelism          Parallelism                        `json:"parallelism"`
-	ToggleFeatures       BackupToggles                      `json:"toggleFeatures"`
 	ServiceRateLimiter   RateLimiter                        `json:"serviceRateLimiter"`
+	Incrementals         IncrementalsConfig                 `json:"incrementalsConfig"`
+	M365                 BackupM365Config                   `json:"m365Config"`
 
 	// PreviewItemLimits defines the number of items and/or amount of data to
-	// fetch on a best-effort basis. Right now it's used for preview backups.
+	// fetch on a best-effort basis for preview backups.
 	//
 	// Since this is not split out by service or data categories these limits
 	// apply independently to all data categories that appear in a single backup
@@ -39,6 +39,31 @@ type BackupConfig struct {
 	// backup data until the set limits without paying attention to what the other
 	// had already backed up.
 	PreviewLimits PreviewItemLimits `json:"previewItemLimits"`
+}
+
+// BackupM365Config contains config options that are specific to backing up data
+// from M365 or Corso features that are only available during M365 backups.
+type BackupM365Config struct {
+	// DeltaPageSize controls the quantity of items fetched in each page during
+	// multi-page queries, such as graph api delta endpoints.
+	DeltaPageSize int32 `json:"deltaPageSize"`
+
+	// DisableDelta prevents backups from using delta based lookups,
+	// forcing a backup by enumerating all items. This is different
+	// from IncrementalsConfig.ForceFullEnumeration in that this does not even
+	// make use of delta endpoints if a delta token is available. This is
+	// necessary when the user has filled up the mailbox storage available to the
+	// user as Microsoft prevents the API from being able to make calls
+	// to delta endpoints.
+	DisableDeltaEndpoint bool `json:"exchangeDeltaEndpoint,omitempty"`
+
+	// ExchangeImmutableIDs denotes whether Corso should store items with
+	// immutable Exchange IDs. This is only safe to set if the previous backup for
+	// incremental backups used immutable IDs or if a full backup is being done.
+	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
+
+	// see: https://github.com/alcionai/corso/issues/4688
+	UseDriveDeltaTree bool `json:"useDriveDeltaTree"`
 }
 
 type Parallelism struct {
@@ -63,34 +88,20 @@ type PreviewItemLimits struct {
 	Enabled              bool
 }
 
-type BackupToggles struct {
-	// DisableIncrementals prevents backups from using incremental lookups,
-	// forcing a new, complete backup of all data regardless of prior state.
-	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
+// IncrementalsConfig contains options specific to incremental backups and
+// affects what data will be fetched from the external service being backed up.
+type IncrementalsConfig struct {
+	// ForceFullEnumeration prevents the use of a previous backup as the starting
+	// point for the current backup. All data in the external service will be
+	// discovered whether or not it's changed.
+	ForceFullEnumeration bool `json:"forceFullEnumeration,omitempty"`
 
-	// ForceItemDataDownload disables finding cached items in previous failed
-	// backups (i.e. kopia-assisted incrementals). Data dedupe will still occur
-	// since that is based on content hashes. Items that have not changed since
-	// the previous backup (i.e. in the merge base) will not be redownloaded. Use
-	// DisableIncrementals to control that behavior.
-	ForceItemDataDownload bool `json:"forceItemDataDownload,omitempty"`
-
-	// DisableDelta prevents backups from using delta based lookups,
-	// forcing a backup by enumerating all items. This is different
-	// from DisableIncrementals in that this does not even makes use of
-	// delta endpoints with or without a delta token. This is necessary
-	// when the user has filled up the mailbox storage available to the
-	// user as Microsoft prevents the API from being able to make calls
-	// to delta endpoints.
-	DisableDelta bool `json:"exchangeDelta,omitempty"`
-
-	// ExchangeImmutableIDs denotes whether Corso should store items with
-	// immutable Exchange IDs. This is only safe to set if the previous backup for
-	// incremental backups used immutable IDs or if a full backup is being done.
-	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
-
-	RunMigrations bool `json:"runMigrations"`
-
-	// see: https://github.com/alcionai/corso/issues/4688
-	UseDeltaTree bool `json:"useDeltaTree"`
+	// ForceItemDataRefresh causes data for all discovered items to be downloaded
+	// from the external service instead of using unchanged data from previous
+	// failed or successful backups where possible. Data dedupe will still occur
+	// if the redownloaded data matches data previously backed up by corso.
+	//
+	// To control what items are discovered for the backup, see
+	// ForceFullEnumeration.
+	ForceItemDataRefresh bool `json:"forceItemDataRefresh,omitempty"`
 }
