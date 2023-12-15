@@ -137,13 +137,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeMetadataCollections()
 // This test is primarily aimed at multi-drive handling.
 // More complicated single-drive tests can be found in _MakeDriveCollections.
 func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
-	// metadataPath, err := path.BuildMetadata(
-	// 	tenant,
-	// 	user,
-	// 	path.OneDriveService,
-	// 	path.FilesCategory,
-	// 	false)
-	// require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
 	type expected struct {
 		canUsePrevBackup assert.BoolAssertionFunc
 		counts           countTD.Expected
@@ -152,19 +145,24 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 		skips            int
 	}
 
+	d1 := drive()
+	d2 := drive(2)
+
 	table := []struct {
 		name          string
 		enumerator    enumerateDriveItemsDelta
 		previousPaths map[string]map[string]string
-
-		metadata []data.RestoreCollection
-		expect   expected
+		metadata      []data.RestoreCollection
+		expect        expected
 	}{
 		{
-			name: "not yet implemented",
+			name: "no changes in either drive",
 			enumerator: driveEnumerator(
-				drive().newEnumer().with(
-					delta(id(deltaURL), nil).with(
+				d1.newEnumer().with(
+					delta(nil).with(
+						aPage())),
+				d2.newEnumer().with(
+					delta(nil).with(
 						aPage()))),
 			expect: expected{
 				canUsePrevBackup: assert.False,
@@ -251,7 +249,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage()))),
 			prevPaths: map[string]string{},
 			expectCounts: countTD.Expected{
@@ -263,7 +261,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage()))),
 			prevPaths: map[string]string{
 				folderID(): d.strPath(t, folderName()),
@@ -277,7 +275,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder))))),
@@ -291,7 +289,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder))))),
@@ -307,7 +305,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(deltaURL(), nil).with(
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{},
@@ -320,7 +318,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(deltaURL(), nil).with(
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{
@@ -335,7 +333,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(deltaURL(), nil).with(
 						aReset(),
 						aPage(
 							d.folderAt(root),
@@ -350,7 +348,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(deltaURL(), nil).with(
 						aReset(),
 						aPage(
 							d.folderAt(root),
@@ -379,7 +377,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				ctx,
 				test.drive.able,
 				test.prevPaths,
-				id(deltaURL, "prev"),
+				deltaURL("prev"),
 				newPagerLimiter(control.DefaultOptions()),
 				prefixmatcher.NewStringSetBuilder(),
 				c.counter,
@@ -734,7 +732,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 				tree,
 				d.able,
 				test.prevPaths,
-				deltaURL,
+				deltaURL(),
 				countPages,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -786,7 +784,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 						Drive: d,
 						DeltaQueries: []*deltaQuery{{
 							Pages:       nil,
-							DeltaUpdate: pagers.DeltaUpdate{URL: id(deltaURL)},
+							DeltaUpdate: pagers.DeltaUpdate{URL: deltaURL()},
 						}},
 					},
 				},
@@ -808,7 +806,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage()))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
@@ -833,7 +831,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(),
 						aPage()))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
@@ -859,7 +857,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(d.folderAt(root)),
 						aPage(d.folderAt(root, "sib")),
 						aPage(
@@ -891,7 +889,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder)),
@@ -932,7 +930,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(delItem(folderID(), folderID("parent"), isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
@@ -960,7 +958,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: treeWithFileInFolder,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(aPage(
+					delta(nil).with(aPage(
 						delItem(folderID(), folderID("parent"), isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
 			expect: populateTreeExpected{
@@ -993,7 +991,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder)),
@@ -1026,7 +1024,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: treeWithFolders,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d.folderAt(root, "parent"),
 							driveItem(folderID(), folderName("moved"), d.dir(), folderID("parent"), isFolder),
@@ -1061,7 +1059,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(delItem(folderID(), rootID, isFolder)),
 						aPage(
 							d.folderAt(root),
@@ -1093,7 +1091,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: treeWithRoot,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(delItem(folderID(), rootID, isFolder)),
 						aPage(
 							d.folderAt(root),
@@ -1125,7 +1123,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: treeWithFileAtRoot,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder)),
@@ -1161,7 +1159,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder)),
@@ -1212,15 +1210,15 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).
+					delta(nil).
 						with(aPage(
 							d.folderAt(root),
 							d.fileAt(folder))),
-					delta(id(deltaURL), nil).
+					delta(nil).
 						with(aPage(
 							d.folderAt(root, "sib"),
 							d.fileAt("sib", "fsib"))),
-					delta(id(deltaURL), nil).
+					delta(nil).
 						with(aPage(
 							d.folderAt(root),
 							d.folderAt(folder, "chld"),
@@ -1258,13 +1256,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder))),
 					// a (delete,create) pair in the same delta can occur when
 					// a user deletes and restores an item in-between deltas.
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							delItem(folderID(), rootID, isFolder),
 							delItem(fileID(), folderID(), isFile)),
@@ -1298,11 +1296,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder))),
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							driveItem(folderID(), folderName("rename"), d.dir(), rootID, isFolder),
 							driveItem(fileID(), fileName("rename"), d.dir(folderName("rename")), folderID(), isFile))))),
@@ -1335,7 +1333,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 			tree: newTree,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						// first page: create /root/folder and /root/folder/file
 						aPage(
 							d.folderAt(root),
@@ -1350,7 +1348,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 							driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
 							driveItem(fileID(), fileName(), d.dir(folderName()), folderID(2), isFile))),
 					// the next delta, containing the delete marker for the original /root/folder
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							delItem(folderID(), rootID, isFolder))))),
 			limiter: newPagerLimiter(control.DefaultOptions()),
@@ -1404,7 +1402,7 @@ func runPopulateTreeTest(
 		ctx,
 		tree,
 		d,
-		id(deltaURL),
+		deltaURL(),
 		test.limiter,
 		counter,
 		fault.New(true))

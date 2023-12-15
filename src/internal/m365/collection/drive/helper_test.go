@@ -248,7 +248,7 @@ func makePrevMetadataColls(
 	prevDeltas := map[string]string{}
 
 	for driveID := range previousPaths {
-		prevDeltas[driveID] = id(deltaURL, "prev")
+		prevDeltas[driveID] = deltaURL("prev")
 	}
 
 	mdColl, err := graph.MakeMetadataCollection(
@@ -1053,11 +1053,11 @@ type deltaQuery struct {
 }
 
 func delta(
-	resultDeltaID string,
 	err error,
+	deltaTokenSuffix ...any,
 ) *deltaQuery {
 	return &deltaQuery{
-		DeltaUpdate: pagers.DeltaUpdate{URL: resultDeltaID},
+		DeltaUpdate: pagers.DeltaUpdate{URL: deltaURL(deltaTokenSuffix...)},
 		Err:         err,
 	}
 }
@@ -1493,6 +1493,26 @@ func (dd *deltaDrive) packageAtRoot() models.DriveItemable {
 // id, name, path factories
 // ---------------------------------------------------------------------------
 
+func deltaURL(suffixes ...any) string {
+	if len(suffixes) > 1 {
+		// this should fail any tests.  we could pass in a
+		// testing.T instead and fail the call here, but that
+		// produces a whole lot of chaff where this check should
+		// still get us the expected failure
+		return fmt.Sprintf(
+			"too many suffixes in the URL; should only be 0 or 1, got %d",
+			len(suffixes))
+	}
+
+	url := "https://delta.token.url"
+
+	for _, sfx := range suffixes {
+		url = fmt.Sprintf("%s?%v", url, sfx)
+	}
+
+	return url
+}
+
 // assumption is only one suffix per id.  Mostly using
 // the variadic as an "optional" extension.
 func id(v string, suffixes ...any) string {
@@ -1605,7 +1625,6 @@ func (dd *deltaDrive) dir(elems ...string) string {
 // common item names
 const (
 	bar       = "bar"
-	deltaURL  = "delta_url"
 	drivePfx  = "drive"
 	fanny     = "fanny"
 	file      = "file"
