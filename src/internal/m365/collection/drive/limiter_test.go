@@ -568,6 +568,9 @@ type defaultLimitTestExpects struct {
 	numItems             int
 	numContainers        int
 	numItemsPerContainer int
+	// the tree handling behavior may deviate under certain conditions
+	// since it allows one file to slightly step over the byte limit
+	numItemsTreePadding int
 }
 
 type defaultLimitTest struct {
@@ -667,6 +670,7 @@ func defaultLimitsTable() []defaultLimitTest {
 				numItems:             int(defaultPreviewMaxBytes) / 1024 / 1024,
 				numContainers:        1,
 				numItemsPerContainer: int(defaultPreviewMaxBytes) / 1024 / 1024,
+				numItemsTreePadding:  1,
 			},
 		},
 	}
@@ -822,10 +826,15 @@ func runGetPreviewLimitsDefaults(
 		numItems += len(col.driveItems)
 
 		// Add one to account for the folder permissions item.
+		expected := test.expect.numItemsPerContainer + 1
+		if opts.ToggleFeatures.UseDeltaTree {
+			expected += test.expect.numItemsTreePadding
+		}
+
 		assert.Len(
 			t,
 			col.driveItems,
-			test.expect.numItemsPerContainer+1,
+			expected,
 			"number of items in collection at:\n\t%+v",
 			col.FullPath())
 	}
@@ -836,10 +845,16 @@ func runGetPreviewLimitsDefaults(
 		numContainers,
 		"total count of collections")
 
+	// Add one to account for the folder permissions item.
+	expected := test.expect.numItems + test.expect.numContainers
+	if opts.ToggleFeatures.UseDeltaTree {
+		expected += test.expect.numItemsTreePadding
+	}
+
 	// Each container also gets an item so account for that here.
 	assert.Equal(
 		t,
-		test.expect.numItems+test.expect.numContainers,
+		expected,
 		numItems,
 		"total sum of item counts in all collections")
 }

@@ -638,17 +638,25 @@ func (c *Collections) addFileToTree(
 	if parentNotNil && !alreadySeen {
 		countSize := tree.countLiveFilesAndSizes()
 
+		// Tell the enumerator to exit if we've already hit the total
+		// limit of bytes or items in this backup.
+		if limiter.alreadyHitTotalBytesLimit(countSize.totalBytes) ||
+			limiter.hitItemLimit(countSize.numFiles) {
+			return nil, errHitLimit
+		}
+
 		// Don't add new items if the new collection has already reached it's limit.
 		// item moves and updates are generally allowed through.
-		if limiter.atContainerItemsLimit(len(parentNode.files)) || limiter.hitItemLimit(countSize.numFiles) {
+		if limiter.atContainerItemsLimit(len(parentNode.files)) {
 			return nil, errHitCollectionLimit
 		}
 
 		// Don't include large files that don't fit within the size limit.
-		// Unlike the other checks, which see if we're already at the limit, this check
-		// needs to be forward-facing to ensure we don't go far over the limit.
+		// Unlike the other checks, which see if we're already at the limit,
+		// this check needs to be forward-facing to ensure we don't go far
+		// over the limit
 		// Example case: a 1gb limit and a 25gb file.
-		if limiter.hitTotalBytesLimit(fileSize + countSize.totalBytes) {
+		if limiter.willStepOverBytesLimit(countSize.totalBytes, fileSize) {
 			// don't return errHitLimit here; we only want to skip the
 			// current file.  We may not want to skip files after it.
 			return nil, nil

@@ -300,12 +300,12 @@ func (suite *CollectionUnitSuite) TestCollection() {
 
 func (suite *CollectionUnitSuite) TestCollectionReadError() {
 	var (
-		t                = suite.T()
-		stubItemID       = "fakeItemID"
-		collStatus       = support.ControllerOperationStatus{}
-		wg               = sync.WaitGroup{}
-		size       int64 = defaultFileSize
-		now              = time.Now()
+		t          = suite.T()
+		stubItemID = "fakeItemID"
+		collStatus = support.ControllerOperationStatus{}
+		wg         = sync.WaitGroup{}
+		size       = defaultFileSize
+		now        = time.Now()
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -370,12 +370,12 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 
 func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 	var (
-		t                = suite.T()
-		stubItemID       = "fakeItemID"
-		collStatus       = support.ControllerOperationStatus{}
-		wg               = sync.WaitGroup{}
-		size       int64 = defaultFileSize
-		now              = time.Now()
+		t          = suite.T()
+		stubItemID = "fakeItemID"
+		collStatus = support.ControllerOperationStatus{}
+		wg         = sync.WaitGroup{}
+		size       = defaultFileSize
+		now        = time.Now()
 	)
 
 	ctx, flush := tester.NewContext(t)
