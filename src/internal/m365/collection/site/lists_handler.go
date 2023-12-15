@@ -47,17 +47,9 @@ func NewListsRestoreHandler(protectedResource string, ac api.Lists) listsRestore
 func (rh listsRestoreHandler) PostList(
 	ctx context.Context,
 	listName string,
-	oldListByteArray []byte,
+	storedListData []byte,
 ) (models.Listable, error) {
-	return rh.ac.PostList(ctx, rh.protectedResource, listName, oldListByteArray)
-}
-
-func (rh listsRestoreHandler) PostListItem(
-	ctx context.Context,
-	listID string,
-	oldListByteArray []byte,
-) ([]models.ListItemable, error) {
-	return rh.ac.PostListItem(ctx, rh.protectedResource, listID, oldListByteArray)
+	return rh.ac.PostList(ctx, rh.protectedResource, listName, storedListData)
 }
 
 func (rh listsRestoreHandler) DeleteList(

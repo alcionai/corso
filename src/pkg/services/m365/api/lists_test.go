@@ -713,7 +713,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostListItem() {
 		require.NoError(t, err)
 	}(siteID, newList)
 
-	newListItems, err := acl.PostListItem(ctx, siteID, ptr.Val(newList.GetId()), oldListByteArray)
+	newListItems, err := acl.PostListItems(ctx, siteID, newList)
 	require.NoError(t, err, clues.ToCore(err))
 	require.Less(t, 0, len(newListItems))
 

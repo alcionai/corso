@@ -251,34 +251,41 @@ func (c Lists) PostList(
 		BySiteId(siteID).
 		Lists().
 		Post(ctx, newList, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating list")
+	}
 
-	return restoredList, graph.Wrap(ctx, err, "creating list").OrNil()
+	listItems, err := c.PostListItems(ctx, siteID, restoredList)
+	if err == nil {
+		restoredList.SetItems(listItems)
+		return restoredList, nil
+	}
+
+	// rollback list creation
+	err = c.DeleteList(ctx, siteID, ptr.Val(restoredList.GetId()))
+
+	return nil, graph.Wrap(ctx, err, "deleting restored list after items creation failure").OrNil()
 }
 
-func (c Lists) PostListItem(
+func (c Lists) PostListItems(
 	ctx context.Context,
-	siteID, listID string,
-	oldListByteArray []byte,
+	siteID string,
+	restoredList models.Listable,
 ) ([]models.ListItemable, error) {
-	oldList, err := BytesToListable(oldListByteArray)
-	if err != nil {
-		return nil, clues.WrapWC(ctx, err, "generating list item from stored bytes")
-	}
+	listItems := make([]models.ListItemable, 0)
 
-	contents := make([]models.ListItemable, 0)
-
-	for _, itm := range oldList.GetItems() {
+	for _, itm := range restoredList.GetItems() {
 		temp := CloneListItem(itm)
-		contents = append(contents, temp)
+		listItems = append(listItems, temp)
 	}
 
-	for _, lItem := range contents {
+	for _, lItem := range listItems {
 		_, err := c.Stable.
 			Client().
 			Sites().
 			BySiteId(siteID).
 			Lists().
-			ByListId(listID).
+			ByListId(ptr.Val(restoredList.GetId())).
 			Items().
 			Post(ctx, lItem, nil)
 		if err != nil {
@@ -286,7 +293,7 @@ func (c Lists) PostListItem(
 		}
 	}
 
-	return contents, nil
+	return listItems, nil
 }
 
 func (c Lists) DeleteList(
