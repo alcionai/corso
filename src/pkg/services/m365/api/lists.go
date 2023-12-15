@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/maps"
+	"github.com/alcionai/corso/src/internal/common/keys"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -61,13 +61,13 @@ var readOnlyAddressFieldNames = []string{
 	DispNameFieldName,
 }
 
-var legacyColumns = maps.KeySet{
+var legacyColumns = keys.Set{
 	AttachmentsColumnName:        {},
 	EditColumnName:               {},
 	ContentTypeColumnDisplayName: {},
 }
 
-var readOnlyFieldNames = maps.KeySet{
+var readOnlyFieldNames = keys.Set{
 	AttachmentsColumnName:    {},
 	EditColumnName:           {},
 	ContentTypeColumnName:    {},
@@ -533,17 +533,17 @@ func retainPrimaryAddressField(additionalData map[string]any) {
 }
 
 func hasAddressFields(additionalData map[string]any) bool {
-	if !maps.HasKeys(additionalData, readOnlyAddressFieldNames...) {
+	if !keys.HasKeys(additionalData, readOnlyAddressFieldNames...) {
 		return false
 	}
 
 	for _, value := range additionalData {
 		nestedFields, ok := value.(map[string]any)
-		if !ok || maps.HasKeys(nestedFields, GeoLocFieldName) {
+		if !ok || keys.HasKeys(nestedFields, GeoLocFieldName) {
 			continue
 		}
 
-		if maps.HasKeys(nestedFields, addressFieldNames...) {
+		if keys.HasKeys(nestedFields, addressFieldNames...) {
 			return true
 		}
 	}
