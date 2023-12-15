@@ -122,12 +122,12 @@ func (suite *ExchangeUnitSuite) TestBackupCreateFlags() {
 	// restore flags are switched over too and we no longer parse flags beyond
 	// connection info into control.Options.
 	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(backupOpts.Parallelism.ItemFetch))
-	assert.Equal(t, flagsTD.DeltaPageSize, strconv.Itoa(int(backupOpts.DeltaPageSize)))
+	assert.Equal(t, flagsTD.DeltaPageSize, strconv.Itoa(int(backupOpts.M365.DeltaPageSize)))
 	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
-	assert.True(t, backupOpts.ToggleFeatures.DisableIncrementals)
-	assert.True(t, backupOpts.ToggleFeatures.ForceItemDataDownload)
-	assert.True(t, backupOpts.ToggleFeatures.DisableDelta)
-	assert.True(t, backupOpts.ToggleFeatures.ExchangeImmutableIDs)
+	assert.True(t, backupOpts.Incrementals.ForceFullEnumeration)
+	assert.True(t, backupOpts.Incrementals.ForceItemDataRefresh)
+	assert.True(t, backupOpts.M365.DisableDeltaEndpoint)
+	assert.True(t, backupOpts.M365.ExchangeImmutableIDs)
 	assert.True(t, backupOpts.ServiceRateLimiter.DisableSlidingWindowLimiter)
 
 	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))

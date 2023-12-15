@@ -114,8 +114,8 @@ func (suite *OneDriveUnitSuite) TestBackupCreateFlags() {
 	// restore flags are switched over too and we no longer parse flags beyond
 	// connection info into control.Options.
 	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
-	assert.True(t, backupOpts.ToggleFeatures.DisableIncrementals)
-	assert.True(t, backupOpts.ToggleFeatures.ForceItemDataDownload)
+	assert.True(t, backupOpts.Incrementals.ForceFullEnumeration)
+	assert.True(t, backupOpts.Incrementals.ForceItemDataRefresh)
 
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)

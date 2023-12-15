@@ -54,14 +54,14 @@ func ParseBackupOptions() control.BackupConfig {
 		dps = 500
 	}
 
-	opt.DeltaPageSize = dps
-	opt.ToggleFeatures.DisableIncrementals = flags.DisableIncrementalsFV
-	opt.ToggleFeatures.ForceItemDataDownload = flags.ForceItemDataDownloadFV
-	opt.ToggleFeatures.DisableDelta = flags.DisableDeltaFV
+	opt.M365.DeltaPageSize = dps
+	opt.M365.DisableDeltaEndpoint = flags.DisableDeltaFV
+	opt.M365.ExchangeImmutableIDs = flags.EnableImmutableIDFV
+	opt.M365.UseDriveDeltaTree = flags.UseDeltaTreeFV
 	opt.ServiceRateLimiter.DisableSlidingWindowLimiter = flags.DisableSlidingWindowLimiterFV
-	opt.ToggleFeatures.ExchangeImmutableIDs = flags.EnableImmutableIDFV
-	opt.ToggleFeatures.UseDeltaTree = flags.UseDeltaTreeFV
 	opt.Parallelism.ItemFetch = flags.FetchParallelismFV
+	opt.Incrementals.ForceFullEnumeration = flags.DisableIncrementalsFV
+	opt.Incrementals.ForceItemDataRefresh = flags.ForceItemDataDownloadFV
 
 	return opt
 }

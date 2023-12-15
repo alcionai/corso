@@ -167,9 +167,9 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 	// connection info into control.Options.
 	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(backupOpts.Parallelism.ItemFetch))
 	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
-	assert.True(t, backupOpts.ToggleFeatures.DisableIncrementals)
-	assert.True(t, backupOpts.ToggleFeatures.ForceItemDataDownload)
-	assert.True(t, backupOpts.ToggleFeatures.DisableDelta)
+	assert.True(t, backupOpts.Incrementals.ForceFullEnumeration)
+	assert.True(t, backupOpts.Incrementals.ForceItemDataRefresh)
+	assert.True(t, backupOpts.M365.DisableDeltaEndpoint)
 
 	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
 	assert.Equal(t, control.FailFast, co.FailureHandling)
