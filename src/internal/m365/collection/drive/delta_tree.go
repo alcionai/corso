@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
@@ -80,33 +81,29 @@ type nodeyMcNodeFace struct {
 	// required for mid-enumeration folder moves, else we have to walk
 	// the tree completely to remove the node from its old parent.
 	parent *nodeyMcNodeFace
-	// the microsoft item ID.  Mostly because we might as well
-	// attach that to the node if we're also attaching the dir.
-	id string
-	// single directory name, not a path
-	name string
+	// folder is the actual drive item for this directory.
+	// we save this so that, during post-processing, it can
+	// get moved into the collection files, which will cause
+	// the collection processor to generate a permissions
+	// metadata file for the folder.
+	folder *custom.DriveItem
 	// contains the complete previous path
 	prev path.Path
 	// folderID -> node
 	children map[string]*nodeyMcNodeFace
 	// file item ID -> file metadata
 	files map[string]*custom.DriveItem
-	// for special handling protocols around packages
-	isPackage bool
 }
 
 func newNodeyMcNodeFace(
 	parent *nodeyMcNodeFace,
-	id, name string,
-	isPackage bool,
+	folder *custom.DriveItem,
 ) *nodeyMcNodeFace {
 	return &nodeyMcNodeFace{
-		parent:    parent,
-		id:        id,
-		name:      name,
-		children:  map[string]*nodeyMcNodeFace{},
-		files:     map[string]*custom.DriveItem{},
-		isPackage: isPackage,
+		parent:   parent,
+		folder:   folder,
+		children: map[string]*nodeyMcNodeFace{},
+		files:    map[string]*custom.DriveItem{},
 	}
 }
 
@@ -136,9 +133,14 @@ func (face *folderyMcFolderFace) getNode(id string) *nodeyMcNodeFace {
 // values are updated to match (isPackage is assumed not to change).
 func (face *folderyMcFolderFace) setFolder(
 	ctx context.Context,
-	parentID, id, name string,
-	isPackage bool,
+	folder *custom.DriveItem,
 ) error {
+	var (
+		id           = ptr.Val(folder.GetId())
+		name         = ptr.Val(folder.GetName())
+		parentFolder = folder.GetParentReference()
+	)
+
 	// need to ensure we have the minimum requirements met for adding a node.
 	if len(id) == 0 {
 		return clues.NewWC(ctx, "missing folder ID")
@@ -148,16 +150,20 @@ func (face *folderyMcFolderFace) setFolder(
 		return clues.NewWC(ctx, "missing folder name")
 	}
 
-	if len(parentID) == 0 && id != face.rootID {
+	if (parentFolder == nil || len(ptr.Val(parentFolder.GetId())) == 0) &&
+		id != face.rootID {
 		return clues.NewWC(ctx, "non-root folder missing parent id")
 	}
 
 	// only set the root node once.
 	if id == face.rootID {
 		if face.root == nil {
-			root := newNodeyMcNodeFace(nil, id, name, isPackage)
+			root := newNodeyMcNodeFace(nil, folder)
 			face.root = root
 			face.folderIDToNode[id] = root
+		} else {
+			// but update the folder each time, to stay in sync with changes
+			face.root.folder = folder
 		}
 
 		return nil
@@ -169,7 +175,7 @@ func (face *folderyMcFolderFace) setFolder(
 	// 3. existing folder migrated to new location.
 	// 4. tombstoned folder restored.
 
-	parent, ok := face.folderIDToNode[parentID]
+	parentNode, ok := face.folderIDToNode[ptr.Val(parentFolder.GetId())]
 	if !ok {
 		return clues.NewWC(ctx, "folder added before parent")
 	}
@@ -186,9 +192,9 @@ func (face *folderyMcFolderFace) setFolder(
 	if zombey, tombstoned := face.tombstones[id]; tombstoned {
 		delete(face.tombstones, id)
 
-		zombey.parent = parent
-		zombey.name = name
-		parent.children[id] = zombey
+		zombey.parent = parentNode
+		zombey.folder = folder
+		parentNode.children[id] = zombey
 		face.folderIDToNode[id] = zombey
 
 		return nil
@@ -206,21 +212,21 @@ func (face *folderyMcFolderFace) setFolder(
 			// technically shouldn't be possible but better to keep the problem tracked
 			// just in case.
 			logger.Ctx(ctx).Info("non-root folder already exists with no parent ref")
-		} else if nodey.parent != parent {
+		} else if nodey.parent != parentNode {
 			// change type 3.  we need to ensure the old parent stops pointing to this node.
 			delete(nodey.parent.children, id)
 		}
 
-		nodey.name = name
-		nodey.parent = parent
+		nodey.parent = parentNode
+		nodey.folder = folder
 	} else {
 		// change type 1: new addition
-		nodey = newNodeyMcNodeFace(parent, id, name, isPackage)
+		nodey = newNodeyMcNodeFace(parentNode, folder)
 	}
 
 	// ensure the parent points to this node, and that the node is registered
 	// in the map of all nodes in the tree.
-	parent.children[id] = nodey
+	parentNode.children[id] = nodey
 	face.folderIDToNode[id] = nodey
 
 	return nil
@@ -228,8 +234,10 @@ func (face *folderyMcFolderFace) setFolder(
 
 func (face *folderyMcFolderFace) setTombstone(
 	ctx context.Context,
-	id string,
+	folder *custom.DriveItem,
 ) error {
+	id := ptr.Val(folder.GetId())
+
 	if len(id) == 0 {
 		return clues.NewWC(ctx, "missing tombstone folder ID")
 	}
@@ -256,7 +264,7 @@ func (face *folderyMcFolderFace) setTombstone(
 	}
 
 	if _, alreadyBuried := face.tombstones[id]; !alreadyBuried {
-		face.tombstones[id] = newNodeyMcNodeFace(nil, id, "", false)
+		face.tombstones[id] = newNodeyMcNodeFace(nil, folder)
 	}
 
 	return nil
@@ -300,7 +308,7 @@ func (face *folderyMcFolderFace) setPreviousPath(
 		return nil
 	}
 
-	zombey := newNodeyMcNodeFace(nil, folderID, "", false)
+	zombey := newNodeyMcNodeFace(nil, custom.NewDriveItem(folderID, ""))
 	zombey.prev = prev
 	face.tombstones[folderID] = zombey
 
@@ -320,12 +328,19 @@ func (face *folderyMcFolderFace) hasFile(id string) bool {
 // file was already added to the tree and is getting relocated,
 // this func will update and/or clean up all the old references.
 func (face *folderyMcFolderFace) addFile(
-	parentID, id string,
 	file *custom.DriveItem,
 ) error {
-	if len(parentID) == 0 {
+	var (
+		parentFolder = file.GetParentReference()
+		id           = ptr.Val(file.GetId())
+		parentID     string
+	)
+
+	if parentFolder == nil || len(ptr.Val(parentFolder.GetId())) == 0 {
 		return clues.New("item added without parent folder ID")
 	}
+
+	parentID = ptr.Val(parentFolder.GetId())
 
 	if len(id) == 0 {
 		return clues.New("item added without ID")
@@ -423,8 +438,14 @@ func walkTreeAndBuildCollections(
 		return nil
 	}
 
+	var (
+		id        = ptr.Val(node.folder.GetId())
+		name      = ptr.Val(node.folder.GetName())
+		isPackage = node.folder.GetPackageEscaped() != nil
+	)
+
 	if !isRoot {
-		parentPath = parentPath.Append(node.name)
+		parentPath = parentPath.Append(name)
 	}
 
 	for _, child := range node.children {
@@ -432,7 +453,7 @@ func walkTreeAndBuildCollections(
 			child,
 			pathPfx,
 			parentPath,
-			node.isPackage || isChildOfPackage,
+			isPackage || isChildOfPackage,
 			false,
 			result)
 		if err != nil {
@@ -448,15 +469,25 @@ func walkTreeAndBuildCollections(
 				"path_suffix", parentPath.Elements())
 	}
 
+	files := node.files
+
+	if !isRoot {
+		// add the folder itself to the list of files inside the folder.
+		// that will cause the collection processor to generate a metadata
+		// file to hold the folder's permissions.
+		files = maps.Clone(node.files)
+		files[id] = node.folder
+	}
+
 	cbl := collectable{
 		currPath:                  collectionPath,
-		files:                     node.files,
-		folderID:                  node.id,
-		isPackageOrChildOfPackage: node.isPackage || isChildOfPackage,
+		files:                     files,
+		folderID:                  id,
+		isPackageOrChildOfPackage: isPackage || isChildOfPackage,
 		prevPath:                  node.prev,
 	}
 
-	result[node.id] = cbl
+	result[id] = cbl
 
 	return nil
 }

@@ -62,7 +62,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Invalid item",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(id(item), name(item), d.dir(), rootID, -1),
 			},
 			previousPaths:    map[string]string{},
@@ -82,7 +82,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Single File",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID),
 			},
 			previousPaths:    map[string]string{},
@@ -105,7 +105,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Single Folder",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 			},
 			previousPaths:    map[string]string{},
@@ -128,7 +128,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Single Folder created twice", // deleted a created with same name in between a backup
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
 			},
@@ -152,7 +152,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Single Package",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(id(pkg), name(pkg), d.dir(), rootID, isPackage),
 			},
 			previousPaths:    map[string]string{},
@@ -178,7 +178,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Single Package with subfolder",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(id(pkg), name(pkg), d.dir(), rootID, isPackage),
 				driveItem(folderID(), folderName(), d.dir(name(pkg)), id(pkg), isFolder),
 				driveItem(id(subfolder), name(subfolder), d.dir(name(pkg)), id(pkg), isFolder),
@@ -210,7 +210,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID, "inRoot"),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(pkg), name(pkg), d.dir(), rootID, isPackage),
@@ -243,7 +243,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "contains folder selector",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID, "inRoot"),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(subfolder), name(subfolder), d.dir(folderName()), folderID(), isFolder),
@@ -278,7 +278,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "prefix subfolder selector",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID, "inRoot"),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(subfolder), name(subfolder), d.dir(folderName()), folderID(), isFolder),
@@ -311,7 +311,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "match subfolder selector",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(subfolder), name(subfolder), d.dir(folderName()), folderID(), isFolder),
@@ -340,7 +340,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "not moved folder tree",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 			},
 			previousPaths: map[string]string{
@@ -368,7 +368,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 			},
 			previousPaths: map[string]string{
@@ -396,7 +396,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree twice within backup",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(folderID(1), folderName(), d.dir(), rootID, isFolder),
 				driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
 			},
@@ -425,7 +425,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "deleted folder tree twice within backup",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				delItem(folderID(), rootID, isFolder),
 				driveItem(folderID(), name(drivePfx), d.dir(), rootID, isFolder),
 				delItem(folderID(), rootID, isFolder),
@@ -454,7 +454,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree twice within backup including delete",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				delItem(folderID(), rootID, isFolder),
 				driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
@@ -484,7 +484,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "deleted folder tree twice within backup with addition",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(folderID(1), folderName(), d.dir(), rootID, isFolder),
 				delItem(folderID(1), rootID, isFolder),
 				driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
@@ -513,7 +513,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree with file no previous",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(fileID(), fileName(), d.dir(folderName()), folderID(), isFile),
 				driveItem(folderID(), folderName(2), d.dir(), rootID, isFolder),
@@ -539,7 +539,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree with file no previous 1",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(fileID(), fileName(), d.dir(folderName()), folderID(), isFile),
 			},
@@ -564,7 +564,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree and subfolder 1",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(subfolder), name(subfolder), d.dir(), rootID, isFolder),
 			},
@@ -594,7 +594,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree and subfolder 2",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(id(subfolder), name(subfolder), d.dir(), rootID, isFolder),
 				driveFolder(d.dir(), rootID),
 			},
@@ -624,7 +624,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "move subfolder when moving parent",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(folderID(2), folderName(2), d.dir(), rootID, isFolder),
 				driveItem(id(item), name(item), d.dir(folderName(2)), folderID(2), isFile),
 				// Need to see the parent folder first (expected since that's what Graph
@@ -662,7 +662,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree multiple times",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(fileID(), fileName(), d.dir(folderName()), folderID(), isFile),
 				driveItem(folderID(), folderName(2), d.dir(), rootID, isFolder),
@@ -692,7 +692,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "deleted folder and package",
 			items: []models.DriveItemable{
-				driveRootFolder(), // root is always present, but not necessary here
+				rootFolder(), // root is always present, but not necessary here
 				delItem(folderID(), rootID, isFolder),
 				delItem(id(pkg), rootID, isPackage),
 			},
@@ -721,7 +721,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "delete folder without previous",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				delItem(folderID(), rootID, isFolder),
 			},
 			previousPaths: map[string]string{
@@ -745,7 +745,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "delete folder tree move subfolder",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				delItem(folderID(), rootID, isFolder),
 				driveItem(id(subfolder), name(subfolder), d.dir(), rootID, isFolder),
 			},
@@ -775,7 +775,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "delete file",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				delItem(id(item), rootID, isFile),
 			},
 			previousPaths: map[string]string{
@@ -799,7 +799,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "item before parent errors",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(fileID(), fileName(), d.dir(folderName()), folderID(), isFile),
 				driveFolder(d.dir(), rootID),
 			},
@@ -822,7 +822,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "1 root file, 1 folder, 1 package, 1 good file, 1 malware",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(fileID(), fileID(), d.dir(), rootID, isFile),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(pkg), name(pkg), d.dir(), rootID, isPackage),
