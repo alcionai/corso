@@ -1488,6 +1488,16 @@ func (dd *deltaDrive) packageAtRoot() models.DriveItemable {
 // assumption is only one suffix per id.  Mostly using
 // the variadic as an "optional" extension.
 func id(v string, suffixes ...any) string {
+	if len(suffixes) > 1 {
+		// this should fail any tests.  we could pass in a
+		// testing.T instead and fail the call here, but that
+		// produces a whole lot of chaff where this check should
+		// still get us the expected failure
+		return fmt.Sprintf(
+			"too many suffixes in the ID; should only be 0 or 1, got %d",
+			len(suffixes))
+	}
+
 	id := fmt.Sprintf("id_%s", v)
 
 	// a bit weird, but acts as a quality of life
@@ -1511,6 +1521,16 @@ func id(v string, suffixes ...any) string {
 // assumption is only one suffix per name.  Mostly using
 // the variadic as an "optional" extension.
 func name(v string, suffixes ...any) string {
+	if len(suffixes) > 1 {
+		// this should fail any tests.  we could pass in a
+		// testing.T instead and fail the call here, but that
+		// produces a whole lot of chaff where this check should
+		// still get us the expected failure
+		return fmt.Sprintf(
+			"too many suffixes in the Name; should only be 0 or 1, got %d",
+			len(suffixes))
+	}
+
 	name := fmt.Sprintf("n_%s", v)
 
 	// a bit weird, but acts as a quality of life
