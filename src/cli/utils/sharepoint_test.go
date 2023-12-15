@@ -400,18 +400,12 @@ func (suite *SharePointUtilsSuite) TestAddSharepointCategories() {
 			expectScopeLen: 1,
 		},
 		{
-			name:           "pages",
-			cats:           []string{flags.DataPages},
-			expectScopeLen: 1,
-		},
-		{
 			name: "all allowed",
 			cats: []string{
 				flags.DataLibraries,
 				flags.DataLists,
-				flags.DataPages,
 			},
-			expectScopeLen: 3,
+			expectScopeLen: 2,
 		},
 		{
 			name:           "bad inputs",

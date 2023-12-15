@@ -69,8 +69,7 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 func SharePointAllowedCategories() map[string]struct{} {
 	return map[string]struct{}{
 		flags.DataLibraries: {},
-		flags.DataLists:     {},
-		flags.DataPages:     {},
+		// flags.DataLists:     {},
 	}
 }
 
@@ -83,8 +82,6 @@ func AddCategories(sel *selectors.SharePointBackup, cats []string) *selectors.Sh
 		switch d {
 		case flags.DataLibraries:
 			sel.Include(sel.LibraryFolders(selectors.Any()))
-		case flags.DataPages:
-			sel.Include(sel.Pages(selectors.Any()))
 		case flags.DataLists:
 			sel.Include(sel.Lists(selectors.Any()))
 		}

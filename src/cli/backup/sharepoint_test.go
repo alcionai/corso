@@ -233,27 +233,9 @@ func (suite *SharePointUnitSuite) TestValidateSharePointBackupCreateFlags() {
 			expect: assert.NoError,
 		},
 		{
-			name:   "site with lists category",
-			site:   []string{"smarf"},
-			cats:   []string{flags.DataLists},
-			expect: assert.NoError,
-		},
-		{
 			name:   "site with libraries category",
 			site:   []string{"smarf"},
 			cats:   []string{flags.DataLibraries},
-			expect: assert.NoError,
-		},
-		{
-			name:   "site with pages category",
-			site:   []string{"smarf"},
-			cats:   []string{flags.DataPages},
-			expect: assert.NoError,
-		},
-		{
-			name:   "site with all categories",
-			site:   []string{"smarf"},
-			cats:   []string{flags.DataLists, flags.DataPages, flags.DataLibraries},
 			expect: assert.NoError,
 		},
 		{
@@ -262,6 +244,32 @@ func (suite *SharePointUnitSuite) TestValidateSharePointBackupCreateFlags() {
 			cats:   []string{"invalid category"},
 			expect: assert.Error,
 		},
+		// [TODO]: Uncomment when lists are enabled
+
+		// {
+		// 	name:   "site with lists category",
+		// 	site:   []string{"smarf"},
+		// 	cats:   []string{flags.DataLists},
+		// 	expect: assert.NoError,
+		// },
+
+		// [TODO]: Uncomment when pages are enabled
+
+		// {
+		// 	name:   "site with pages category",
+		// 	site:   []string{"smarf"},
+		// 	cats:   []string{flags.DataPages},
+		// 	expect: assert.NoError,
+		// },
+
+		// [TODO]: Uncomment when pages & lists are enabled
+
+		// {
+		// 	name:   "site with all categories",
+		// 	site:   []string{"smarf"},
+		// 	cats:   []string{flags.DataLists, flags.DataPages, flags.DataLibraries},
+		// 	expect: assert.NoError,
+		// },
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
