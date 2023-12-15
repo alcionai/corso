@@ -62,7 +62,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Invalid item",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(id(item), name(item), d.dir(), rootID, -1),
 			},
 			previousPaths:    map[string]string{},
@@ -70,11 +70,11 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.Error,
 			expectedCollectionIDs: map[string]statePath{
-				rootID: asNotMoved(t, d.strPath()),
+				rootID: asNotMoved(t, d.strPath(t)),
 			},
 			expectedContainerCount: 1,
 			expectedPrevPaths: map[string]string{
-				rootID: d.strPath(),
+				rootID: d.strPath(t),
 			},
 			expectedExcludes:         map[string]struct{}{},
 			expectedTopLevelPackages: map[string]struct{}{},
@@ -82,7 +82,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Single File",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID),
 			},
 			previousPaths:    map[string]string{},
@@ -90,14 +90,14 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID: asNotMoved(t, d.strPath()),
+				rootID: asNotMoved(t, d.strPath(t)),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			// Root folder is skipped since it's always present.
 			expectedPrevPaths: map[string]string{
-				rootID: d.strPath(),
+				rootID: d.strPath(t),
 			},
 			expectedExcludes:         makeExcludeMap(fileID()),
 			expectedTopLevelPackages: map[string]struct{}{},
@@ -105,7 +105,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Single Folder",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 			},
 			previousPaths:    map[string]string{},
@@ -113,12 +113,12 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asNew(t, d.strPath(folderName())),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asNew(t, d.strPath(t, folderName())),
 			},
 			expectedPrevPaths: map[string]string{
-				rootID:     d.strPath(),
-				folderID(): d.strPath(folderName()),
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
 			},
 			expectedItemCount:        1,
 			expectedContainerCount:   2,
@@ -128,7 +128,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Single Folder created twice", // deleted a created with same name in between a backup
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
 			},
@@ -137,12 +137,12 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:      asNotMoved(t, d.strPath()),
-				folderID(2): asNew(t, d.strPath(folderName())),
+				rootID:      asNotMoved(t, d.strPath(t)),
+				folderID(2): asNew(t, d.strPath(t, folderName())),
 			},
 			expectedPrevPaths: map[string]string{
-				rootID:      d.strPath(),
-				folderID(2): d.strPath(folderName()),
+				rootID:      d.strPath(t),
+				folderID(2): d.strPath(t, folderName()),
 			},
 			expectedItemCount:        1,
 			expectedContainerCount:   2,
@@ -152,7 +152,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "Single Package",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(id(pkg), name(pkg), d.dir(), rootID, isPackage),
 			},
 			previousPaths:    map[string]string{},
@@ -160,25 +160,25 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:  asNotMoved(t, d.strPath()),
-				id(pkg): asNew(t, d.strPath(name(pkg))),
+				rootID:  asNotMoved(t, d.strPath(t)),
+				id(pkg): asNew(t, d.strPath(t, name(pkg))),
 			},
 			expectedPrevPaths: map[string]string{
-				rootID:  d.strPath(),
-				id(pkg): d.strPath(name(pkg)),
+				rootID:  d.strPath(t),
+				id(pkg): d.strPath(t, name(pkg)),
 			},
 			expectedItemCount:      1,
 			expectedContainerCount: 2,
 			expectedExcludes:       map[string]struct{}{},
 			expectedTopLevelPackages: map[string]struct{}{
-				d.strPath(name(pkg)): {},
+				d.strPath(t, name(pkg)): {},
 			},
 			expectedCountPackages: 1,
 		},
 		{
 			name: "Single Package with subfolder",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(id(pkg), name(pkg), d.dir(), rootID, isPackage),
 				driveItem(folderID(), folderName(), d.dir(name(pkg)), id(pkg), isFolder),
 				driveItem(id(subfolder), name(subfolder), d.dir(name(pkg)), id(pkg), isFolder),
@@ -188,29 +188,29 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:        asNotMoved(t, d.strPath()),
-				id(pkg):       asNew(t, d.strPath(name(pkg))),
-				folderID():    asNew(t, d.strPath(name(pkg), folderName())),
-				id(subfolder): asNew(t, d.strPath(name(pkg), name(subfolder))),
+				rootID:        asNotMoved(t, d.strPath(t)),
+				id(pkg):       asNew(t, d.strPath(t, name(pkg))),
+				folderID():    asNew(t, d.strPath(t, name(pkg), folderName())),
+				id(subfolder): asNew(t, d.strPath(t, name(pkg), name(subfolder))),
 			},
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				id(pkg):       d.strPath(name(pkg)),
-				folderID():    d.strPath(name(pkg), folderName()),
-				id(subfolder): d.strPath(name(pkg), name(subfolder)),
+				rootID:        d.strPath(t),
+				id(pkg):       d.strPath(t, name(pkg)),
+				folderID():    d.strPath(t, name(pkg), folderName()),
+				id(subfolder): d.strPath(t, name(pkg), name(subfolder)),
 			},
 			expectedItemCount:      3,
 			expectedContainerCount: 4,
 			expectedExcludes:       map[string]struct{}{},
 			expectedTopLevelPackages: map[string]struct{}{
-				d.strPath(name(pkg)): {},
+				d.strPath(t, name(pkg)): {},
 			},
 			expectedCountPackages: 3,
 		},
 		{
 			name: "1 root file, 1 folder, 1 package, 2 files, 3 collections",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID, "inRoot"),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(pkg), name(pkg), d.dir(), rootID, isPackage),
@@ -222,20 +222,20 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asNew(t, d.strPath(folderName())),
-				id(pkg):    asNew(t, d.strPath(name(pkg))),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asNew(t, d.strPath(t, folderName())),
+				id(pkg):    asNew(t, d.strPath(t, name(pkg))),
 			},
 			expectedItemCount:      5,
 			expectedFileCount:      3,
 			expectedContainerCount: 3,
 			expectedPrevPaths: map[string]string{
-				rootID:     d.strPath(),
-				folderID(): d.strPath(folderName()),
-				id(pkg):    d.strPath(name(pkg)),
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
+				id(pkg):    d.strPath(t, name(pkg)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{
-				d.strPath(name(pkg)): {},
+				d.strPath(t, name(pkg)): {},
 			},
 			expectedCountPackages: 1,
 			expectedExcludes:      makeExcludeMap(fileID("inRoot"), fileID("inFolder"), fileID("inPackage")),
@@ -243,7 +243,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "contains folder selector",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID, "inRoot"),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(subfolder), name(subfolder), d.dir(folderName()), folderID(), isFolder),
@@ -258,9 +258,9 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				folderID():    asNew(t, d.strPath(folderName())),
-				id(subfolder): asNew(t, d.strPath(folderName(), name(subfolder))),
-				folderID(2):   asNew(t, d.strPath(folderName(), name(subfolder), folderName())),
+				folderID():    asNew(t, d.strPath(t, folderName())),
+				id(subfolder): asNew(t, d.strPath(t, folderName(), name(subfolder))),
+				folderID(2):   asNew(t, d.strPath(t, folderName(), name(subfolder), folderName())),
 			},
 			expectedItemCount:      5,
 			expectedFileCount:      2,
@@ -268,9 +268,9 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			// just "folder" isn't added here because the include check is done on the
 			// parent path since we only check later if something is a folder or not.
 			expectedPrevPaths: map[string]string{
-				folderID():    d.strPath(folderName()),
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
-				folderID(2):   d.strPath(folderName(), name(subfolder), folderName()),
+				folderID():    d.strPath(t, folderName()),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
+				folderID(2):   d.strPath(t, folderName(), name(subfolder), folderName()),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         makeExcludeMap(fileID("inFolder"), fileID("inFolder2")),
@@ -278,7 +278,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "prefix subfolder selector",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID, "inRoot"),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(subfolder), name(subfolder), d.dir(folderName()), folderID(), isFolder),
@@ -295,15 +295,15 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				id(subfolder): asNew(t, d.strPath(folderName(), name(subfolder))),
-				folderID(2):   asNew(t, d.strPath(folderName(), name(subfolder), folderName())),
+				id(subfolder): asNew(t, d.strPath(t, folderName(), name(subfolder))),
+				folderID(2):   asNew(t, d.strPath(t, folderName(), name(subfolder), folderName())),
 			},
 			expectedItemCount:      3,
 			expectedFileCount:      1,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
-				folderID(2):   d.strPath(folderName(), name(subfolder), folderName()),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
+				folderID(2):   d.strPath(t, folderName(), name(subfolder), folderName()),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         makeExcludeMap(fileID("inFolder2")),
@@ -311,7 +311,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "match subfolder selector",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFile(d.dir(), rootID),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(subfolder), name(subfolder), d.dir(folderName()), folderID(), isFolder),
@@ -325,14 +325,14 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				id(subfolder): asNew(t, d.strPath(folderName(), name(subfolder))),
+				id(subfolder): asNew(t, d.strPath(t, folderName(), name(subfolder))),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			// No child folders for subfolder so nothing here.
 			expectedPrevPaths: map[string]string{
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         makeExcludeMap(fileID("inSubfolder")),
@@ -340,27 +340,27 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "not moved folder tree",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 			},
 			previousPaths: map[string]string{
-				folderID():    d.strPath(folderName()),
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
+				folderID():    d.strPath(t, folderName()),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asNotMoved(t, d.strPath(folderName())),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asNotMoved(t, d.strPath(t, folderName())),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      0,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				folderID():    d.strPath(folderName()),
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
+				rootID:        d.strPath(t),
+				folderID():    d.strPath(t, folderName()),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -368,27 +368,27 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 			},
 			previousPaths: map[string]string{
-				folderID():    d.strPath(folderName("a")),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				folderID():    d.strPath(t, folderName("a")),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asMoved(t, d.strPath(folderName("a")), d.strPath(folderName())),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asMoved(t, d.strPath(t, folderName("a")), d.strPath(t, folderName())),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      0,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				folderID():    d.strPath(folderName()),
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
+				rootID:        d.strPath(t),
+				folderID():    d.strPath(t, folderName()),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -396,28 +396,28 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree twice within backup",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(folderID(1), folderName(), d.dir(), rootID, isFolder),
 				driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
 			},
 			previousPaths: map[string]string{
-				folderID(1):   d.strPath(folderName("a")),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				folderID(1):   d.strPath(t, folderName("a")),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:      asNotMoved(t, d.strPath()),
-				folderID(2): asNew(t, d.strPath(folderName())),
+				rootID:      asNotMoved(t, d.strPath(t)),
+				folderID(2): asNew(t, d.strPath(t, folderName())),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      0,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				folderID(2):   d.strPath(folderName()),
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
+				rootID:        d.strPath(t),
+				folderID(2):   d.strPath(t, folderName()),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -425,28 +425,28 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "deleted folder tree twice within backup",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				delItem(folderID(), rootID, isFolder),
 				driveItem(folderID(), name(drivePfx), d.dir(), rootID, isFolder),
 				delItem(folderID(), rootID, isFolder),
 			},
 			previousPaths: map[string]string{
-				folderID():    d.strPath(),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				folderID():    d.strPath(t),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asDeleted(t, d.strPath("")),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asDeleted(t, d.strPath(t, "")),
 			},
 			expectedItemCount:      0,
 			expectedFileCount:      0,
 			expectedContainerCount: 1,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				rootID:        d.strPath(t),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -454,29 +454,29 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree twice within backup including delete",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				delItem(folderID(), rootID, isFolder),
 				driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
 			},
 			previousPaths: map[string]string{
-				folderID():    d.strPath(folderName("a")),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				folderID():    d.strPath(t, folderName("a")),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:      asNotMoved(t, d.strPath()),
-				folderID(2): asNew(t, d.strPath(folderName())),
+				rootID:      asNotMoved(t, d.strPath(t)),
+				folderID(2): asNew(t, d.strPath(t, folderName())),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      0,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				folderID(2):   d.strPath(folderName()),
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
+				rootID:        d.strPath(t),
+				folderID(2):   d.strPath(t, folderName()),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -484,28 +484,28 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "deleted folder tree twice within backup with addition",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(folderID(1), folderName(), d.dir(), rootID, isFolder),
 				delItem(folderID(1), rootID, isFolder),
 				driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
 				delItem(folderID(2), rootID, isFolder),
 			},
 			previousPaths: map[string]string{
-				folderID(1):   d.strPath(folderName("a")),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				folderID(1):   d.strPath(t, folderName("a")),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID: asNotMoved(t, d.strPath()),
+				rootID: asNotMoved(t, d.strPath(t)),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      0,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
+				rootID:        d.strPath(t),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -513,7 +513,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree with file no previous",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(fileID(), fileName(), d.dir(folderName()), folderID(), isFile),
 				driveItem(folderID(), folderName(2), d.dir(), rootID, isFolder),
@@ -523,15 +523,15 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asNew(t, d.strPath(folderName(2))),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asNew(t, d.strPath(t, folderName(2))),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      1,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				rootID:     d.strPath(),
-				folderID(): d.strPath(folderName(2)),
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName(2)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         makeExcludeMap(fileID()),
@@ -539,7 +539,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree with file no previous 1",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(fileID(), fileName(), d.dir(folderName()), folderID(), isFile),
 			},
@@ -548,15 +548,15 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asNew(t, d.strPath(folderName())),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asNew(t, d.strPath(t, folderName())),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      1,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				rootID:     d.strPath(),
-				folderID(): d.strPath(folderName()),
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         makeExcludeMap(fileID()),
@@ -564,29 +564,29 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree and subfolder 1",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(subfolder), name(subfolder), d.dir(), rootID, isFolder),
 			},
 			previousPaths: map[string]string{
-				folderID():    d.strPath(folderName("a")),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				folderID():    d.strPath(t, folderName("a")),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:        asNotMoved(t, d.strPath()),
-				folderID():    asMoved(t, d.strPath(folderName("a")), d.strPath(folderName())),
-				id(subfolder): asMoved(t, d.strPath(folderName("a"), name(subfolder)), d.strPath(name(subfolder))),
+				rootID:        asNotMoved(t, d.strPath(t)),
+				folderID():    asMoved(t, d.strPath(t, folderName("a")), d.strPath(t, folderName())),
+				id(subfolder): asMoved(t, d.strPath(t, folderName("a"), name(subfolder)), d.strPath(t, name(subfolder))),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      0,
 			expectedContainerCount: 3,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				folderID():    d.strPath(folderName()),
-				id(subfolder): d.strPath(name(subfolder)),
+				rootID:        d.strPath(t),
+				folderID():    d.strPath(t, folderName()),
+				id(subfolder): d.strPath(t, name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -594,29 +594,29 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree and subfolder 2",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(id(subfolder), name(subfolder), d.dir(), rootID, isFolder),
 				driveFolder(d.dir(), rootID),
 			},
 			previousPaths: map[string]string{
-				folderID():    d.strPath(folderName("a")),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				folderID():    d.strPath(t, folderName("a")),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:        asNotMoved(t, d.strPath()),
-				folderID():    asMoved(t, d.strPath(folderName("a")), d.strPath(folderName())),
-				id(subfolder): asMoved(t, d.strPath(folderName("a"), name(subfolder)), d.strPath(name(subfolder))),
+				rootID:        asNotMoved(t, d.strPath(t)),
+				folderID():    asMoved(t, d.strPath(t, folderName("a")), d.strPath(t, folderName())),
+				id(subfolder): asMoved(t, d.strPath(t, folderName("a"), name(subfolder)), d.strPath(t, name(subfolder))),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      0,
 			expectedContainerCount: 3,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				folderID():    d.strPath(folderName()),
-				id(subfolder): d.strPath(name(subfolder)),
+				rootID:        d.strPath(t),
+				folderID():    d.strPath(t, folderName()),
+				id(subfolder): d.strPath(t, name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -624,7 +624,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "move subfolder when moving parent",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(folderID(2), folderName(2), d.dir(), rootID, isFolder),
 				driveItem(id(item), name(item), d.dir(folderName(2)), folderID(2), isFile),
 				// Need to see the parent folder first (expected since that's what Graph
@@ -635,26 +635,26 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 				driveFolder(d.dir(), rootID),
 			},
 			previousPaths: map[string]string{
-				folderID():    d.strPath(folderName("a")),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				folderID():    d.strPath(t, folderName("a")),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:        asNotMoved(t, d.strPath()),
-				folderID(2):   asNew(t, d.strPath(folderName(2))),
-				folderID():    asMoved(t, d.strPath(folderName("a")), d.strPath(folderName())),
-				id(subfolder): asMoved(t, d.strPath(folderName("a"), name(subfolder)), d.strPath(folderName(), name(subfolder))),
+				rootID:        asNotMoved(t, d.strPath(t)),
+				folderID(2):   asNew(t, d.strPath(t, folderName(2))),
+				folderID():    asMoved(t, d.strPath(t, folderName("a")), d.strPath(t, folderName())),
+				id(subfolder): asMoved(t, d.strPath(t, folderName("a"), name(subfolder)), d.strPath(t, folderName(), name(subfolder))),
 			},
 			expectedItemCount:      5,
 			expectedFileCount:      2,
 			expectedContainerCount: 4,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				folderID():    d.strPath(folderName()),
-				folderID(2):   d.strPath(folderName(2)),
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
+				rootID:        d.strPath(t),
+				folderID():    d.strPath(t, folderName()),
+				folderID(2):   d.strPath(t, folderName(2)),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         makeExcludeMap(id(item), id(item, 2)),
@@ -662,29 +662,29 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "moved folder tree multiple times",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveFolder(d.dir(), rootID),
 				driveItem(fileID(), fileName(), d.dir(folderName()), folderID(), isFile),
 				driveItem(folderID(), folderName(2), d.dir(), rootID, isFolder),
 			},
 			previousPaths: map[string]string{
-				folderID():    d.strPath(folderName("a")),
-				id(subfolder): d.strPath(folderName("a"), name(subfolder)),
+				folderID():    d.strPath(t, folderName("a")),
+				id(subfolder): d.strPath(t, folderName("a"), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asMoved(t, d.strPath(folderName("a")), d.strPath(folderName(2))),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asMoved(t, d.strPath(t, folderName("a")), d.strPath(t, folderName(2))),
 			},
 			expectedItemCount:      2,
 			expectedFileCount:      1,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				folderID():    d.strPath(folderName(2)),
-				id(subfolder): d.strPath(folderName(2), name(subfolder)),
+				rootID:        d.strPath(t),
+				folderID():    d.strPath(t, folderName(2)),
+				id(subfolder): d.strPath(t, folderName(2), name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         makeExcludeMap(fileID()),
@@ -692,28 +692,28 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "deleted folder and package",
 			items: []models.DriveItemable{
-				driveRootFolder(), // root is always present, but not necessary here
+				rootFolder(), // root is always present, but not necessary here
 				delItem(folderID(), rootID, isFolder),
 				delItem(id(pkg), rootID, isPackage),
 			},
 			previousPaths: map[string]string{
-				rootID:     d.strPath(),
-				folderID(): d.strPath(folderName()),
-				id(pkg):    d.strPath(name(pkg)),
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
+				id(pkg):    d.strPath(t, name(pkg)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asDeleted(t, d.strPath(folderName())),
-				id(pkg):    asDeleted(t, d.strPath(name(pkg))),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asDeleted(t, d.strPath(t, folderName())),
+				id(pkg):    asDeleted(t, d.strPath(t, name(pkg))),
 			},
 			expectedItemCount:      0,
 			expectedFileCount:      0,
 			expectedContainerCount: 1,
 			expectedPrevPaths: map[string]string{
-				rootID: d.strPath(),
+				rootID: d.strPath(t),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -721,23 +721,23 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "delete folder without previous",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				delItem(folderID(), rootID, isFolder),
 			},
 			previousPaths: map[string]string{
-				rootID: d.strPath(),
+				rootID: d.strPath(t),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID: asNotMoved(t, d.strPath()),
+				rootID: asNotMoved(t, d.strPath(t)),
 			},
 			expectedItemCount:      0,
 			expectedFileCount:      0,
 			expectedContainerCount: 1,
 			expectedPrevPaths: map[string]string{
-				rootID: d.strPath(),
+				rootID: d.strPath(t),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -745,29 +745,29 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "delete folder tree move subfolder",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				delItem(folderID(), rootID, isFolder),
 				driveItem(id(subfolder), name(subfolder), d.dir(), rootID, isFolder),
 			},
 			previousPaths: map[string]string{
-				rootID:        d.strPath(),
-				folderID():    d.strPath(folderName()),
-				id(subfolder): d.strPath(folderName(), name(subfolder)),
+				rootID:        d.strPath(t),
+				folderID():    d.strPath(t, folderName()),
+				id(subfolder): d.strPath(t, folderName(), name(subfolder)),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:        asNotMoved(t, d.strPath()),
-				folderID():    asDeleted(t, d.strPath(folderName())),
-				id(subfolder): asMoved(t, d.strPath(folderName(), name(subfolder)), d.strPath(name(subfolder))),
+				rootID:        asNotMoved(t, d.strPath(t)),
+				folderID():    asDeleted(t, d.strPath(t, folderName())),
+				id(subfolder): asMoved(t, d.strPath(t, folderName(), name(subfolder)), d.strPath(t, name(subfolder))),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      0,
 			expectedContainerCount: 2,
 			expectedPrevPaths: map[string]string{
-				rootID:        d.strPath(),
-				id(subfolder): d.strPath(name(subfolder)),
+				rootID:        d.strPath(t),
+				id(subfolder): d.strPath(t, name(subfolder)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -775,23 +775,23 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "delete file",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				delItem(id(item), rootID, isFile),
 			},
 			previousPaths: map[string]string{
-				rootID: d.strPath(),
+				rootID: d.strPath(t),
 			},
 			scope:            anyFolderScope,
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID: asNotMoved(t, d.strPath()),
+				rootID: asNotMoved(t, d.strPath(t)),
 			},
 			expectedItemCount:      1,
 			expectedFileCount:      1,
 			expectedContainerCount: 1,
 			expectedPrevPaths: map[string]string{
-				rootID: d.strPath(),
+				rootID: d.strPath(t),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         makeExcludeMap(id(item)),
@@ -799,7 +799,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "item before parent errors",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(fileID(), fileName(), d.dir(folderName()), folderID(), isFile),
 				driveFolder(d.dir(), rootID),
 			},
@@ -808,13 +808,13 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.Error,
 			expectedCollectionIDs: map[string]statePath{
-				rootID: asNotMoved(t, d.strPath()),
+				rootID: asNotMoved(t, d.strPath(t)),
 			},
 			expectedItemCount:      0,
 			expectedFileCount:      0,
 			expectedContainerCount: 1,
 			expectedPrevPaths: map[string]string{
-				rootID: d.strPath(),
+				rootID: d.strPath(t),
 			},
 			expectedTopLevelPackages: map[string]struct{}{},
 			expectedExcludes:         map[string]struct{}{},
@@ -822,7 +822,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 		{
 			name: "1 root file, 1 folder, 1 package, 1 good file, 1 malware",
 			items: []models.DriveItemable{
-				driveRootFolder(),
+				rootFolder(),
 				driveItem(fileID(), fileID(), d.dir(), rootID, isFile),
 				driveFolder(d.dir(), rootID),
 				driveItem(id(pkg), name(pkg), d.dir(), rootID, isPackage),
@@ -834,21 +834,21 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 			topLevelPackages: map[string]struct{}{},
 			expect:           assert.NoError,
 			expectedCollectionIDs: map[string]statePath{
-				rootID:     asNotMoved(t, d.strPath()),
-				folderID(): asNew(t, d.strPath(folderName())),
-				id(pkg):    asNew(t, d.strPath(name(pkg))),
+				rootID:     asNotMoved(t, d.strPath(t)),
+				folderID(): asNew(t, d.strPath(t, folderName())),
+				id(pkg):    asNew(t, d.strPath(t, name(pkg))),
 			},
 			expectedItemCount:      4,
 			expectedFileCount:      2,
 			expectedContainerCount: 3,
 			expectedSkippedCount:   1,
 			expectedPrevPaths: map[string]string{
-				rootID:     d.strPath(),
-				folderID(): d.strPath(folderName()),
-				id(pkg):    d.strPath(name(pkg)),
+				rootID:     d.strPath(t),
+				folderID(): d.strPath(t, folderName()),
+				id(pkg):    d.strPath(t, name(pkg)),
 			},
 			expectedTopLevelPackages: map[string]struct{}{
-				d.strPath(name(pkg)): {},
+				d.strPath(t, name(pkg)): {},
 			},
 			expectedCountPackages: 1,
 			expectedExcludes:      makeExcludeMap(fileID(), fileID("good")),
@@ -941,6 +941,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 }
 
 func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
+	t := suite.T()
 	d := drive()
 	d2 := drive(2)
 
@@ -966,7 +967,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(1): d.strPath(),
+									folderID(1): d.strPath(t),
 								},
 							}),
 					}
@@ -977,7 +978,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
-					folderID(1): d.strPath(),
+					folderID(1): d.strPath(t),
 				},
 			},
 			canUsePreviousBackup: true,
@@ -1008,7 +1009,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(1): d.strPath(),
+									folderID(1): d.strPath(t),
 								},
 							}),
 					}
@@ -1017,7 +1018,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 			expectedDeltas: map[string]string{},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
-					folderID(1): d.strPath(),
+					folderID(1): d.strPath(t),
 				},
 			},
 			canUsePreviousBackup: true,
@@ -1064,7 +1065,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(1): d.strPath(),
+									folderID(1): d.strPath(t),
 								},
 							}),
 					}
@@ -1073,7 +1074,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 			expectedDeltas: map[string]string{d.id: ""},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
-					folderID(1): d.strPath(),
+					folderID(1): d.strPath(t),
 				},
 			},
 			canUsePreviousBackup: true,
@@ -1091,7 +1092,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(1): d.strPath(),
+									folderID(1): d.strPath(t),
 								},
 							}),
 					}
@@ -1105,7 +1106,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d2.id: {
-									folderID(2): d2.strPath(),
+									folderID(2): d2.strPath(t),
 								},
 							}),
 					}
@@ -1117,10 +1118,10 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
-					folderID(1): d.strPath(),
+					folderID(1): d.strPath(t),
 				},
 				d2.id: {
-					folderID(2): d2.strPath(),
+					folderID(2): d2.strPath(t),
 				},
 			},
 			canUsePreviousBackup: true,
@@ -1158,7 +1159,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(1): d.strPath(),
+									folderID(1): d.strPath(t),
 								},
 							}),
 						graph.NewMetadataEntry(
@@ -1172,7 +1173,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
-					folderID(1): d.strPath(),
+					folderID(1): d.strPath(t),
 				},
 			},
 			canUsePreviousBackup: true,
@@ -1190,7 +1191,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(1): d.strPath(),
+									folderID(1): d.strPath(t),
 								},
 							}),
 					}
@@ -1201,7 +1202,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(2): d2.strPath(),
+									folderID(2): d2.strPath(t),
 								},
 							}),
 					}
@@ -1224,7 +1225,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(1): d.strPath(),
+									folderID(1): d.strPath(t),
 								},
 							}),
 					}
@@ -1254,8 +1255,8 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(1): d.strPath(),
-									folderID(2): d.strPath(),
+									folderID(1): d.strPath(t),
+									folderID(2): d.strPath(t),
 								},
 							}),
 					}
@@ -1266,8 +1267,8 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
-					folderID(1): d.strPath(),
-					folderID(2): d.strPath(),
+					folderID(1): d.strPath(t),
+					folderID(2): d.strPath(t),
 				},
 			},
 			expectedAlerts:       []string{fault.AlertPreviousPathCollision},
@@ -1288,8 +1289,8 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d.id: {
-									folderID(1): d.strPath(),
-									folderID(2): d.strPath(),
+									folderID(1): d.strPath(t),
+									folderID(2): d.strPath(t),
 								},
 							}),
 					}
@@ -1303,7 +1304,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
 								d2.id: {
-									folderID(1): d.strPath(),
+									folderID(1): d.strPath(t),
 								},
 							}),
 					}
@@ -1315,11 +1316,11 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
-					folderID(1): d.strPath(),
-					folderID(2): d.strPath(),
+					folderID(1): d.strPath(t),
+					folderID(2): d.strPath(t),
 				},
 				d2.id: {
-					folderID(1): d.strPath(),
+					folderID(1): d.strPath(t),
 				},
 			},
 			expectedAlerts:       []string{fault.AlertPreviousPathCollision},
@@ -1429,6 +1430,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 		false)
 	require.NoError(suite.T(), err, "making metadata path", clues.ToCore(err))
 
+	t := suite.T()
 	d := drive(1)
 	d2 := drive(2)
 
@@ -1460,19 +1462,19 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
-				id(drivePfx, 1): {rootID: d.strPath()},
+				id(drivePfx, 1): {rootID: d.strPath(t)},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NotMovedState: {}},
+				d.strPath(t): {data.NotMovedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
-				id(drivePfx, 1): {rootID: d.strPath()},
+				id(drivePfx, 1): {rootID: d.strPath(t)},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				d.strPath(): makeExcludeMap(fileID()),
+				d.strPath(t): makeExcludeMap(fileID()),
 			}),
 		},
 		{
@@ -1485,19 +1487,19 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
-				id(drivePfx, 1): {rootID: d.strPath()},
+				id(drivePfx, 1): {rootID: d.strPath(t)},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NotMovedState: {fileID()}},
+				d.strPath(t): {data.NotMovedState: {fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
-				id(drivePfx, 1): {rootID: d.strPath()},
+				id(drivePfx, 1): {rootID: d.strPath(t)},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				d.strPath(): makeExcludeMap(fileID()),
+				d.strPath(t): makeExcludeMap(fileID()),
 			}),
 		},
 		{
@@ -1512,22 +1514,22 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths:        map[string]map[string]string{},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.NewState: {folderID(), fileID()}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -1543,22 +1545,22 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths:        map[string]map[string]string{},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.NewState: {folderID(), fileID()}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -1574,24 +1576,24 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID: d.strPath(),
+					rootID: d.strPath(t),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NotMovedState: {fileID()}},
-				d.strPath(folderName()): {data.NewState: {folderID()}},
+				d.strPath(t):               {data.NotMovedState: {fileID()}},
+				d.strPath(t, folderName()): {data.NewState: {folderID()}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				d.strPath(): makeExcludeMap(fileID()),
+				d.strPath(t): makeExcludeMap(fileID()),
 			}),
 		},
 		{
@@ -1611,22 +1613,22 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				id(drivePfx, 1): {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -1651,22 +1653,22 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				id(drivePfx, 1): {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -1689,22 +1691,22 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				id(drivePfx, 1): {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -1726,10 +1728,10 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d2.id:           {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():              {data.NewState: {}},
-				d.strPath(folderName()):  {data.NewState: {folderID(), fileID()}},
-				d2.strPath():             {data.NewState: {}},
-				d2.strPath(folderName()): {data.NewState: {folderID(2), fileID(2)}},
+				d.strPath(t):                {data.NewState: {}},
+				d.strPath(t, folderName()):  {data.NewState: {folderID(), fileID()}},
+				d2.strPath(t):               {data.NewState: {}},
+				d2.strPath(t, folderName()): {data.NewState: {folderID(2), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
@@ -1737,20 +1739,20 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 				d2.id: {
-					rootID:      d2.strPath(),
-					folderID(2): d2.strPath(folderName()),
+					rootID:      d2.strPath(t),
+					folderID(2): d2.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():              true,
-				d.strPath(folderName()):  true,
-				d2.strPath():             true,
-				d2.strPath(folderName()): true,
+				d.strPath(t):                true,
+				d.strPath(t, folderName()):  true,
+				d2.strPath(t):               true,
+				d2.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -1773,10 +1775,10 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d2.id:           {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():              {data.NewState: {}},
-				d.strPath(folderName()):  {data.NewState: {folderID(), fileID()}},
-				d2.strPath():             {data.NewState: {}},
-				d2.strPath(folderName()): {data.NewState: {folderID(), fileID(2)}},
+				d.strPath(t):                {data.NewState: {}},
+				d.strPath(t, folderName()):  {data.NewState: {folderID(), fileID()}},
+				d2.strPath(t):               {data.NewState: {}},
+				d2.strPath(t, folderName()): {data.NewState: {folderID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
@@ -1784,20 +1786,20 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 				d2.id: {
-					rootID:     d2.strPath(),
-					folderID(): d2.strPath(folderName()),
+					rootID:     d2.strPath(t),
+					folderID(): d2.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():              true,
-				d.strPath(folderName()):  true,
-				d2.strPath():             true,
-				d2.strPath(folderName()): true,
+				d.strPath(t):                true,
+				d.strPath(t, folderName()):  true,
+				d2.strPath(t):               true,
+				d2.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -1828,29 +1830,29 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():              {data.NewState: {}},
-				d.strPath(folderName()):  {data.DeletedState: {}},
-				d.strPath(folderName(2)): {data.NewState: {folderID(2), fileID()}},
+				d.strPath(t):                {data.NewState: {}},
+				d.strPath(t, folderName()):  {data.DeletedState: {}},
+				d.strPath(t, folderName(2)): {data.NewState: {folderID(2), fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID(2): d.strPath(folderName(2)),
+					rootID:      d.strPath(t),
+					folderID(2): d.strPath(t, folderName(2)),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():              true,
-				d.strPath(folderName()):  true,
-				d.strPath(folderName(2)): true,
+				d.strPath(t):                true,
+				d.strPath(t, folderName()):  true,
+				d.strPath(t, folderName(2)): true,
 			},
 		},
 		{
@@ -1866,29 +1868,29 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():              {data.NewState: {}},
-				d.strPath(folderName()):  {data.DeletedState: {}},
-				d.strPath(folderName(2)): {data.NewState: {folderID(2), fileID()}},
+				d.strPath(t):                {data.NewState: {}},
+				d.strPath(t, folderName()):  {data.DeletedState: {}},
+				d.strPath(t, folderName(2)): {data.NewState: {folderID(2), fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID(2): d.strPath(folderName(2)),
+					rootID:      d.strPath(t),
+					folderID(2): d.strPath(t, folderName(2)),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():              true,
-				d.strPath(folderName()):  true,
-				d.strPath(folderName(2)): true,
+				d.strPath(t):                true,
+				d.strPath(t, folderName()):  true,
+				d.strPath(t, folderName(2)): true,
 			},
 		},
 		{
@@ -1907,13 +1909,13 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NewState: {}},
-				d.strPath(folderName()): {
+				d.strPath(t): {data.NewState: {}},
+				d.strPath(t, folderName()): {
 					// Old folder path should be marked as deleted since it should compare
 					// by ID.
 					data.DeletedState: {},
@@ -1925,14 +1927,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID(2): d.strPath(folderName()),
+					rootID:      d.strPath(t),
+					folderID(2): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -1951,13 +1953,13 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NewState: {}},
-				d.strPath(folderName()): {
+				d.strPath(t): {data.NewState: {}},
+				d.strPath(t, folderName()): {
 					data.NewState: {folderID(), fileID()},
 				},
 			},
@@ -1966,14 +1968,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -1989,13 +1991,13 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NewState: {}},
-				d.strPath(folderName()): {
+				d.strPath(t): {data.NewState: {}},
+				d.strPath(t, folderName()): {
 					data.DeletedState: {},
 					data.NewState:     {folderID(2), fileID(2)},
 				},
@@ -2005,14 +2007,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID(2): d.strPath(folderName()),
+					rootID:      d.strPath(t),
+					folderID(2): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -2028,13 +2030,13 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NewState: {}},
-				d.strPath(folderName()): {
+				d.strPath(t): {data.NewState: {}},
+				d.strPath(t, folderName()): {
 					// Old folder path should be marked as deleted since it should compare
 					// by ID.
 					data.DeletedState: {},
@@ -2046,14 +2048,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID(2): d.strPath(folderName()),
+					rootID:      d.strPath(t),
+					folderID(2): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -2075,22 +2077,22 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				id(drivePfx, 1): {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 			expectedSkippedCount: 2,
 		},
@@ -2114,30 +2116,30 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID():  d.strPath(folderName()),
-					folderID(2): d.strPath(folderName(2)),
+					rootID:      d.strPath(t),
+					folderID():  d.strPath(t, folderName()),
+					folderID(2): d.strPath(t, folderName(2)),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():              {data.NewState: {}},
-				d.strPath(folderName()):  {data.NewState: {folderID(), fileID()}},
-				d.strPath(folderName(2)): {data.DeletedState: {}},
+				d.strPath(t):                {data.NewState: {}},
+				d.strPath(t, folderName()):  {data.NewState: {folderID(), fileID()}},
+				d.strPath(t, folderName(2)): {data.DeletedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL, 2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():              true,
-				d.strPath(folderName()):  true,
-				d.strPath(folderName(2)): true,
+				d.strPath(t):                true,
+				d.strPath(t, folderName()):  true,
+				d.strPath(t, folderName(2)): true,
 			},
 		},
 		{
@@ -2151,26 +2153,26 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.DeletedState: {}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.DeletedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID: d.strPath(),
+					rootID: d.strPath(t),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -2184,23 +2186,23 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID: d.strPath(),
+					rootID: d.strPath(t),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NewState: {}},
+				d.strPath(t): {data.NewState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID: d.strPath(),
+					rootID: d.strPath(t),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath(): true,
+				d.strPath(t): true,
 			},
 		},
 		{
@@ -2220,19 +2222,19 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				id(drivePfx, 1): {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NewState: {}},
+				d.strPath(t): {data.NewState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL, 2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID: d.strPath(),
+					rootID: d.strPath(t),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath(): true,
+				d.strPath(t): true,
 			},
 		},
 		{
@@ -2255,22 +2257,22 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				id(drivePfx, 1): {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.NewState: {folderID(1), fileID(1)}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.NewState: {folderID(1), fileID(1)}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL, 2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID(1): d.strPath(folderName()),
+					rootID:      d.strPath(t),
+					folderID(1): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -2291,20 +2293,20 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NotMovedState: {}},
-				d.strPath(folderName()): {data.DeletedState: {}},
+				d.strPath(t):               {data.NotMovedState: {}},
+				d.strPath(t, folderName()): {data.DeletedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL, 2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID: d.strPath(),
+					rootID: d.strPath(t),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
@@ -2328,27 +2330,27 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.DeletedState: {}, data.NewState: {folderID(1), fileID(1)}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.DeletedState: {}, data.NewState: {folderID(1), fileID(1)}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL, 2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID(1): d.strPath(folderName()),
+					rootID:      d.strPath(t),
+					folderID(1): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             false,
-				d.strPath(folderName()): true,
+				d.strPath(t):               false,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -2366,22 +2368,22 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				id(drivePfx, 1): {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():             {data.NewState: {}},
-				d.strPath(folderName()): {data.NewState: {folderID()}},
+				d.strPath(t):               {data.NewState: {}},
+				d.strPath(t, folderName()): {data.NewState: {folderID()}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:     d.strPath(),
-					folderID(): d.strPath(folderName()),
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath():             true,
-				d.strPath(folderName()): true,
+				d.strPath(t):               true,
+				d.strPath(t, folderName()): true,
 			},
 		},
 		{
@@ -2397,19 +2399,19 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				id(drivePfx, 1): {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NewState: {}},
+				d.strPath(t): {data.NewState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID: d.strPath(),
+					rootID: d.strPath(t),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath(): true,
+				d.strPath(t): true,
 			},
 		},
 		{
@@ -2425,19 +2427,19 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				id(drivePfx, 1): {},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {data.NewState: {}},
+				d.strPath(t): {data.NewState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
 				id(drivePfx, 1): id(deltaURL),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID: d.strPath(),
+					rootID: d.strPath(t),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d.strPath(): true,
+				d.strPath(t): true,
 			},
 		},
 		{
@@ -2448,20 +2450,20 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
-				id(drivePfx, 1): {rootID: d.strPath()},
-				d2.id:           {rootID: d2.strPath()},
+				id(drivePfx, 1): {rootID: d.strPath(t)},
+				d2.id:           {rootID: d2.strPath(t)},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath():  {data.NotMovedState: {}},
-				d2.strPath(): {data.DeletedState: {}},
+				d.strPath(t):  {data.NotMovedState: {}},
+				d2.strPath(t): {data.DeletedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{id(drivePfx, 1): id(deltaURL)},
 			expectedPreviousPaths: map[string]map[string]string{
-				id(drivePfx, 1): {rootID: d.strPath()},
+				id(drivePfx, 1): {rootID: d.strPath(t)},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{}),
 			doNotMergeItems: map[string]bool{
-				d2.strPath(): true,
+				d2.strPath(t): true,
 			},
 		},
 		{
@@ -2485,34 +2487,34 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID():  d.strPath(folderName()),
-					folderID(2): d.strPath(folderName()),
-					folderID(3): d.strPath(folderName()),
+					rootID:      d.strPath(t),
+					folderID():  d.strPath(t, folderName()),
+					folderID(2): d.strPath(t, folderName()),
+					folderID(3): d.strPath(t, folderName()),
 				},
 				d2.id: {
-					rootID:      d2.strPath(),
-					folderID():  d2.strPath(folderName()),
-					folderID(2): d2.strPath(folderName(2)),
+					rootID:      d2.strPath(t),
+					folderID():  d2.strPath(t, folderName()),
+					folderID(2): d2.strPath(t, folderName(2)),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {
+				d.strPath(t): {
 					data.NewState: {folderID(), folderID(2)},
 				},
-				d.strPath(folderName()): {
+				d.strPath(t, folderName()): {
 					data.NotMovedState: {folderID(), fileID()},
 				},
-				d.strPath(folderName(2)): {
+				d.strPath(t, folderName(2)): {
 					data.MovedState: {folderID(2), fileID(2)},
 				},
-				d2.strPath(): {
+				d2.strPath(t): {
 					data.NewState: {folderID(), folderID(2)},
 				},
-				d2.strPath(folderName()): {
+				d2.strPath(t, folderName()): {
 					data.NotMovedState: {folderID(), fileID()},
 				},
-				d2.strPath(folderName(2)): {
+				d2.strPath(t, folderName(2)): {
 					data.NotMovedState: {folderID(2), fileID(2)},
 				},
 			},
@@ -2522,20 +2524,20 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:      d.strPath(),
-					folderID():  d.strPath(folderName(2)), // note: this is a bug, but is currently expected
-					folderID(2): d.strPath(folderName(2)),
-					folderID(3): d.strPath(folderName(2)),
+					rootID:      d.strPath(t),
+					folderID():  d.strPath(t, folderName(2)), // note: this is a bug, but is currently expected
+					folderID(2): d.strPath(t, folderName(2)),
+					folderID(3): d.strPath(t, folderName(2)),
 				},
 				d2.id: {
-					rootID:      d2.strPath(),
-					folderID():  d2.strPath(folderName()),
-					folderID(2): d2.strPath(folderName(2)),
+					rootID:      d2.strPath(t),
+					folderID():  d2.strPath(t, folderName()),
+					folderID(2): d2.strPath(t, folderName(2)),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				d.strPath():  makeExcludeMap(fileID(), fileID(2)),
-				d2.strPath(): makeExcludeMap(fileID(), fileID(2)),
+				d.strPath(t):  makeExcludeMap(fileID(), fileID(2)),
+				d2.strPath(t): makeExcludeMap(fileID(), fileID(2)),
 			}),
 			doNotMergeItems: map[string]bool{},
 		},
@@ -2553,18 +2555,18 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:        d.strPath(),
-					folderID(nav): d.strPath(folderName(fanny)),
+					rootID:        d.strPath(t),
+					folderID(nav): d.strPath(t, folderName(fanny)),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {
+				d.strPath(t): {
 					data.NewState: {folderID(fanny, 2)},
 				},
-				d.strPath(folderName(nav)): {
+				d.strPath(t, folderName(nav)): {
 					data.MovedState: {folderID(nav), fileID()},
 				},
-				d.strPath(folderName(fanny)): {
+				d.strPath(t, folderName(fanny)): {
 					data.NewState: {folderID(fanny, 2), fileID(2)},
 				},
 			},
@@ -2573,13 +2575,13 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:             d.strPath(),
-					folderID(nav):      d.strPath(folderName(nav)),
-					folderID(fanny, 2): d.strPath(folderName(nav)), // note: this is a bug, but currently expected
+					rootID:             d.strPath(t),
+					folderID(nav):      d.strPath(t, folderName(nav)),
+					folderID(fanny, 2): d.strPath(t, folderName(nav)), // note: this is a bug, but currently expected
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				d.strPath(): makeExcludeMap(fileID(), fileID(2)),
+				d.strPath(t): makeExcludeMap(fileID(), fileID(2)),
 			}),
 			doNotMergeItems: map[string]bool{},
 		},
@@ -2598,27 +2600,27 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:          d.strPath(),
-					folderID(nav):   d.strPath(folderName(nav)),
-					folderID(fanny): d.strPath(folderName(fanny)),
-					folderID(foo):   d.strPath(folderName(nav), folderName(foo)),
-					folderID(bar):   d.strPath(folderName(fanny), folderName(foo)),
+					rootID:          d.strPath(t),
+					folderID(nav):   d.strPath(t, folderName(nav)),
+					folderID(fanny): d.strPath(t, folderName(fanny)),
+					folderID(foo):   d.strPath(t, folderName(nav), folderName(foo)),
+					folderID(bar):   d.strPath(t, folderName(fanny), folderName(foo)),
 				},
 			},
 			expectedCollections: map[string]map[data.CollectionState][]string{
-				d.strPath(): {
+				d.strPath(t): {
 					data.NotMovedState: {fileID(1)},
 				},
-				d.strPath(folderName(nav)): {
+				d.strPath(t, folderName(nav)): {
 					data.NotMovedState: {folderID(nav)},
 				},
-				d.strPath(folderName(nav), folderName(foo)): {
+				d.strPath(t, folderName(nav), folderName(foo)): {
 					data.MovedState: {folderID(bar)},
 				},
-				d.strPath(folderName(fanny)): {
+				d.strPath(t, folderName(fanny)): {
 					data.NotMovedState: {folderID(fanny)},
 				},
-				d.strPath(folderName(fanny), folderName(foo)): {
+				d.strPath(t, folderName(fanny), folderName(foo)): {
 					data.MovedState: {folderID(foo)},
 				},
 			},
@@ -2627,15 +2629,15 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
-					rootID:          d.strPath(),
-					folderID(nav):   d.strPath(folderName(nav)),
-					folderID(fanny): d.strPath(folderName(fanny)),
-					folderID(foo):   d.strPath(folderName(nav), folderName(foo)), // note: this is a bug, but currently expected
-					folderID(bar):   d.strPath(folderName(nav), folderName(foo)),
+					rootID:          d.strPath(t),
+					folderID(nav):   d.strPath(t, folderName(nav)),
+					folderID(fanny): d.strPath(t, folderName(fanny)),
+					folderID(foo):   d.strPath(t, folderName(nav), folderName(foo)), // note: this is a bug, but currently expected
+					folderID(bar):   d.strPath(t, folderName(nav), folderName(foo)),
 				},
 			},
 			expectedDelList: pmMock.NewPrefixMap(map[string]map[string]struct{}{
-				d.strPath(): makeExcludeMap(fileID(1)),
+				d.strPath(t): makeExcludeMap(fileID(1)),
 			}),
 			doNotMergeItems: map[string]bool{},
 		},
