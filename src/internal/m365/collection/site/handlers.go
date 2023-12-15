@@ -5,6 +5,7 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -14,7 +15,7 @@ type backupHandler interface {
 }
 
 type getItemByIDer interface {
-	GetItemByID(ctx context.Context, itemID string) (models.Listable, error)
+	GetItemByID(ctx context.Context, itemID string) (models.Listable, *details.SharePointInfo, error)
 }
 
 type getItemser interface {

@@ -3,39 +3,8 @@ package site
 import (
 	"context"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
-
-// ListToSPInfo translates models.Listable metadata into searchable content
-// List Details: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
-func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
-	var (
-		name     = ptr.Val(lst.GetDisplayName())
-		webURL   = ptr.Val(lst.GetWebUrl())
-		created  = ptr.Val(lst.GetCreatedDateTime())
-		modified = ptr.Val(lst.GetLastModifiedDateTime())
-		count    = len(lst.GetItems())
-	)
-
-	template := ""
-	if lst.GetList() != nil {
-		template = ptr.Val(lst.GetList().GetTemplate())
-	}
-
-	return &details.SharePointInfo{
-		ItemType:     details.SharePointList,
-		ItemName:     name,
-		ItemCount:    int64(count),
-		ItemTemplate: template,
-		Created:      created,
-		Modified:     modified,
-		WebURL:       webURL,
-	}
-}
 
 // DeleteList removes a list object from a site.
 // deletes require unique http clients

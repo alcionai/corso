@@ -209,6 +209,7 @@ func (suite *SharePointUnitSuite) TestValidateSharePointBackupCreateFlags() {
 		name   string
 		site   []string
 		weburl []string
+		cats   []string
 		expect assert.ErrorAssertionFunc
 	}{
 		{
@@ -216,25 +217,63 @@ func (suite *SharePointUnitSuite) TestValidateSharePointBackupCreateFlags() {
 			expect: assert.Error,
 		},
 		{
-			name:   "sites",
+			name:   "sites but no category",
 			site:   []string{"smarf"},
 			expect: assert.NoError,
 		},
 		{
-			name:   "urls",
+			name:   "web urls but no category",
 			weburl: []string{"fnord"},
 			expect: assert.NoError,
 		},
 		{
-			name:   "both",
+			name:   "both web urls and sites but no category",
 			site:   []string{"smarf"},
 			weburl: []string{"fnord"},
 			expect: assert.NoError,
 		},
+		{
+			name:   "site with libraries category",
+			site:   []string{"smarf"},
+			cats:   []string{flags.DataLibraries},
+			expect: assert.NoError,
+		},
+		{
+			name:   "site with invalid category",
+			site:   []string{"smarf"},
+			cats:   []string{"invalid category"},
+			expect: assert.Error,
+		},
+		// [TODO]: Uncomment when lists are enabled
+
+		// {
+		// 	name:   "site with lists category",
+		// 	site:   []string{"smarf"},
+		// 	cats:   []string{flags.DataLists},
+		// 	expect: assert.NoError,
+		// },
+
+		// [TODO]: Uncomment when pages are enabled
+
+		// {
+		// 	name:   "site with pages category",
+		// 	site:   []string{"smarf"},
+		// 	cats:   []string{flags.DataPages},
+		// 	expect: assert.NoError,
+		// },
+
+		// [TODO]: Uncomment when pages & lists are enabled
+
+		// {
+		// 	name:   "site with all categories",
+		// 	site:   []string{"smarf"},
+		// 	cats:   []string{flags.DataLists, flags.DataPages, flags.DataLibraries},
+		// 	expect: assert.NoError,
+		// },
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			err := validateSharePointBackupCreateFlags(test.site, test.weburl, nil)
+			err := validateSharePointBackupCreateFlags(test.site, test.weburl, test.cats)
 			test.expect(suite.T(), err, clues.ToCore(err))
 		})
 	}
@@ -318,6 +357,12 @@ func (suite *SharePointUnitSuite) TestSharePointBackupCreateSelectors() {
 			name:   "Pages",
 			site:   bothIDs,
 			data:   []string{flags.DataPages},
+			expect: bothIDs,
+		},
+		{
+			name:   "Lists",
+			site:   bothIDs,
+			data:   []string{flags.DataLists},
 			expect: bothIDs,
 		},
 	}

@@ -13,10 +13,65 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
+
+type ListsUnitSuite struct {
+	tester.Suite
+}
+
+func TestListsUnitSuite(t *testing.T) {
+	suite.Run(t, &ListsUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *ListsUnitSuite) TestSharePointInfo() {
+	tests := []struct {
+		name         string
+		listAndDeets func() (models.Listable, *details.SharePointInfo)
+	}{
+		{
+			name: "Empty List",
+			listAndDeets: func() (models.Listable, *details.SharePointInfo) {
+				i := &details.SharePointInfo{ItemType: details.SharePointList}
+				return models.NewList(), i
+			},
+		}, {
+			name: "Only Name",
+			listAndDeets: func() (models.Listable, *details.SharePointInfo) {
+				aTitle := "Whole List"
+				listing := models.NewList()
+				listing.SetDisplayName(&aTitle)
+
+				li := models.NewListItem()
+				li.SetId(ptr.To("listItem1"))
+
+				listing.SetItems([]models.ListItemable{li})
+				i := &details.SharePointInfo{
+					ItemType:  details.SharePointList,
+					ItemName:  aTitle,
+					ItemCount: 1,
+				}
+
+				return listing, i
+			},
+		},
+	}
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			list, expected := test.listAndDeets()
+			info := ListToSPInfo(list)
+			assert.Equal(t, expected.ItemType, info.ItemType)
+			assert.Equal(t, expected.ItemName, info.ItemName)
+			assert.Equal(t, expected.ItemCount, info.ItemCount)
+			assert.Equal(t, expected.WebURL, info.WebURL)
+		})
+	}
+}
 
 type ListsAPIIntgSuite struct {
 	tester.Suite
@@ -62,6 +117,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostDrive() {
 func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 	var (
 		listID            = "fake-list-id"
+		listName          = "fake-list-name"
 		siteID            = suite.its.site.id
 		textColumnDefID   = "fake-text-column-id"
 		textColumnDefName = "itemName"
@@ -81,7 +137,8 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			name: "",
 			setupf: func() {
 				list := models.NewList()
-				list.SetId(&listID)
+				list.SetId(ptr.To(listID))
+				list.SetDisplayName(ptr.To(listName))
 
 				txtColumnDef := models.NewColumnDefinition()
 				txtColumnDef.SetId(&textColumnDefID)
@@ -186,7 +243,7 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			defer gock.Off()
 			test.setupf()
 
-			list, err := suite.its.gockAC.Lists().GetListByID(ctx, siteID, listID)
+			list, info, err := suite.its.gockAC.Lists().GetListByID(ctx, siteID, listID)
 			test.expect(t, err)
 			assert.Equal(t, listID, *list.GetId())
 
@@ -214,6 +271,9 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			columns = cTypes[0].GetColumns()
 			assert.Equal(t, 1, len(columns))
 			assert.Equal(t, numColumnDefID, *columns[0].GetId())
+
+			assert.Equal(t, listName, info.ItemName)
+			assert.Equal(t, int64(1), info.ItemCount)
 		})
 	}
 }
