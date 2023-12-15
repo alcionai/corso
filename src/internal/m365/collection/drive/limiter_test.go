@@ -34,6 +34,11 @@ type backupLimitTest struct {
 	// Collection name -> set of item IDs. We can't check item data because
 	// that's not mocked out. Metadata is checked separately.
 	expectedItemIDsInCollection map[string][]string
+	// Collection name -> set of item IDs. We can't check item data because
+	// that's not mocked out. Metadata is checked separately.
+	// the tree version has some different (more accurate) expectations
+	// for success
+	expectedItemIDsInCollectionTree map[string][]string
 }
 
 func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
@@ -50,10 +55,11 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(aPage(
-						d1.fileWSizeAt(7, root, "f1"),
-						d1.fileWSizeAt(1, root, "f2"),
-						d1.fileWSizeAt(1, root, "f3"))))),
+					delta(id(deltaURL), nil).with(
+						aPage(
+							d1.fileWSizeAt(7, root, "f1"),
+							d1.fileWSizeAt(1, root, "f2"),
+							d1.fileWSizeAt(1, root, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t): {fileID("f2"), fileID("f3")},
 			},
@@ -70,10 +76,11 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(aPage(
-						d1.fileWSizeAt(1, root, "f1"),
-						d1.fileWSizeAt(2, root, "f2"),
-						d1.fileWSizeAt(1, root, "f3"))))),
+					delta(id(deltaURL), nil).with(
+						aPage(
+							d1.fileWSizeAt(1, root, "f1"),
+							d1.fileWSizeAt(2, root, "f2"),
+							d1.fileWSizeAt(1, root, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t): {fileID("f1"), fileID("f2")},
 			},
@@ -90,11 +97,12 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(aPage(
-						d1.fileWSizeAt(1, root, "f1"),
-						d1.folderAt(root),
-						d1.fileWSizeAt(2, folder, "f2"),
-						d1.fileWSizeAt(1, folder, "f3"))))),
+					delta(id(deltaURL), nil).with(
+						aPage(
+							d1.fileWSizeAt(1, root, "f1"),
+							d1.folderAt(root),
+							d1.fileWSizeAt(2, folder, "f2"),
+							d1.fileWSizeAt(1, folder, "f3"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {fileID("f1")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f2")},
@@ -112,13 +120,14 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(aPage(
-						d1.fileAt(root, "f1"),
-						d1.fileAt(root, "f2"),
-						d1.fileAt(root, "f3"),
-						d1.fileAt(root, "f4"),
-						d1.fileAt(root, "f5"),
-						d1.fileAt(root, "f6"))))),
+					delta(id(deltaURL), nil).with(
+						aPage(
+							d1.fileAt(root, "f1"),
+							d1.fileAt(root, "f2"),
+							d1.fileAt(root, "f3"),
+							d1.fileAt(root, "f4"),
+							d1.fileAt(root, "f5"),
+							d1.fileAt(root, "f6"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t): {fileID("f1"), fileID("f2"), fileID("f3")},
 			},
@@ -200,9 +209,13 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(folder, "f4"),
 							d1.fileAt(folder, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
-				// Root has an additional item. It's hard to fix that in the code
-				// though.
+				// Root has an additional item. It's hard to fix that in the code though.
 				d1.strPath(t):               {fileID("f1"), fileID("f2")},
+				d1.strPath(t, folderName()): {folderID(), fileID("f4")},
+			},
+			expectedItemIDsInCollectionTree: map[string][]string{
+				// the tree version doesn't have this problem.
+				d1.strPath(t):               {fileID("f1")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f4")},
 			},
 		},
@@ -250,7 +263,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2"),
-							// Put folder 0 at limit.
+							// Put root/folder at limit.
 							d1.folderAt(root),
 							d1.fileAt(folder, "f3"),
 							d1.fileAt(folder, "f4")),
@@ -261,6 +274,13 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t):               {fileID("f1"), fileID("f2")},
 				d1.strPath(t, folderName()): {folderID(), fileID("f3"), fileID("f4")},
+			},
+			expectedItemIDsInCollectionTree: map[string][]string{
+				d1.strPath(t): {fileID("f2")},
+				// note that the tree version allows f1 to get moved.
+				// we've already committed to backing up the file as part of the preview,
+				// it doesn't seem rational to prevent its movement
+				d1.strPath(t, folderName()): {folderID(), fileID("f3"), fileID("f4"), fileID("f1")},
 			},
 		},
 		{
@@ -366,19 +386,21 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(aPage(
-						d1.fileAt(root, "f1"),
-						d1.fileAt(root, "f2"),
-						d1.fileAt(root, "f3"),
-						d1.fileAt(root, "f4"),
-						d1.fileAt(root, "f5")))),
+					delta(id(deltaURL), nil).with(
+						aPage(
+							d1.fileAt(root, "f1"),
+							d1.fileAt(root, "f2"),
+							d1.fileAt(root, "f3"),
+							d1.fileAt(root, "f4"),
+							d1.fileAt(root, "f5")))),
 				d2.newEnumer().with(
-					delta(id(deltaURL), nil).with(aPage(
-						d2.fileAt(root, "f1"),
-						d2.fileAt(root, "f2"),
-						d2.fileAt(root, "f3"),
-						d2.fileAt(root, "f4"),
-						d2.fileAt(root, "f5"))))),
+					delta(id(deltaURL), nil).with(
+						aPage(
+							d2.fileAt(root, "f1"),
+							d2.fileAt(root, "f2"),
+							d2.fileAt(root, "f3"),
+							d2.fileAt(root, "f4"),
+							d2.fileAt(root, "f5"))))),
 			expectedItemIDsInCollection: map[string][]string{
 				d1.strPath(t): {fileID("f1"), fileID("f2"), fileID("f3")},
 				d2.strPath(t): {fileID("f1"), fileID("f2"), fileID("f3")},
@@ -427,8 +449,6 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_noTree() {
 // checks that don't examine metadata, collection states, etc. They really just
 // check the expected items appear.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_tree() {
-	suite.T().Skip("TODO: unskip when tree produces collections")
-
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
@@ -521,9 +541,15 @@ func runGetPreviewLimits(
 			itemIDs = append(itemIDs, id)
 		}
 
+		expectItemIDs := test.expectedItemIDsInCollection[folderPath]
+
+		if opts.ToggleFeatures.UseDeltaTree && test.expectedItemIDsInCollectionTree != nil {
+			expectItemIDs = test.expectedItemIDsInCollectionTree[folderPath]
+		}
+
 		assert.ElementsMatchf(
 			t,
-			test.expectedItemIDsInCollection[folderPath],
+			expectItemIDs,
 			itemIDs,
 			"item IDs in collection with path:\n\t%q",
 			folderPath)
@@ -542,6 +568,9 @@ type defaultLimitTestExpects struct {
 	numItems             int
 	numContainers        int
 	numItemsPerContainer int
+	// the tree handling behavior may deviate under certain conditions
+	// since it allows one file to slightly step over the byte limit
+	numItemsTreePadding int
 }
 
 type defaultLimitTest struct {
@@ -641,6 +670,7 @@ func defaultLimitsTable() []defaultLimitTest {
 				numItems:             int(defaultPreviewMaxBytes) / 1024 / 1024,
 				numContainers:        1,
 				numItemsPerContainer: int(defaultPreviewMaxBytes) / 1024 / 1024,
+				numItemsTreePadding:  1,
 			},
 		},
 	}
@@ -666,8 +696,6 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsNoTree() {
 // These tests run a reduced set of checks that really just look for item counts
 // and such. Other tests are expected to provide more comprehensive checks.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsWithTree() {
-	suite.T().Skip("TODO: unskip when tree produces collections")
-
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
@@ -798,11 +826,16 @@ func runGetPreviewLimitsDefaults(
 		numItems += len(col.driveItems)
 
 		// Add one to account for the folder permissions item.
+		expected := test.expect.numItemsPerContainer + 1
+		if opts.ToggleFeatures.UseDeltaTree {
+			expected += test.expect.numItemsTreePadding
+		}
+
 		assert.Len(
 			t,
 			col.driveItems,
-			test.expect.numItemsPerContainer+1,
-			"items in container %v",
+			expected,
+			"number of items in collection at:\n\t%+v",
 			col.FullPath())
 	}
 
@@ -810,12 +843,18 @@ func runGetPreviewLimitsDefaults(
 		t,
 		test.expect.numContainers,
 		numContainers,
-		"total containers")
+		"total count of collections")
+
+	// Add one to account for the folder permissions item.
+	expected := test.expect.numItems + test.expect.numContainers
+	if opts.ToggleFeatures.UseDeltaTree {
+		expected += test.expect.numItemsTreePadding
+	}
 
 	// Each container also gets an item so account for that here.
 	assert.Equal(
 		t,
-		test.expect.numItems+test.expect.numContainers,
+		expected,
 		numItems,
-		"total items across all containers")
+		"total sum of item counts in all collections")
 }

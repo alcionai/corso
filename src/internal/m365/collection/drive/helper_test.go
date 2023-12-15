@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -315,10 +316,9 @@ func aColl(
 		ids = append(ids, fID+metadata.MetaFileSuffix)
 	}
 
-	// should always expect the folder to have a
-	// dir meta file for permissions.  Not expected
-	// to get added for tombstones.
-	if curr != nil {
+	// should expect all non-root, non-tombstone collections to contain
+	// a dir meta file for storing permissions.
+	if curr != nil && !strings.HasSuffix(curr.Folder(false), root) {
 		ids = append(ids, metadata.DirMetaFileSuffix)
 	}
 

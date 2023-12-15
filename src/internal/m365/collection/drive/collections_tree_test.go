@@ -2209,10 +2209,18 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 	d := drive()
 
+	unlimitedItemsPerContainer := newPagerLimiter(minimumLimitOpts())
+	unlimitedItemsPerContainer.limits.MaxItemsPerContainer = 9001
+
+	unlimitedTotalBytesAndFiles := newPagerLimiter(minimumLimitOpts())
+	unlimitedTotalBytesAndFiles.limits.MaxBytes = 9001
+	unlimitedTotalBytesAndFiles.limits.MaxItems = 9001
+
 	type expected struct {
 		counts                        countTD.Expected
 		err                           require.ErrorAssertionFunc
 		shouldHitLimit                bool
+		shouldHitCollLimit            bool
 		skipped                       assert.ValueAssertionFunc
 		treeContainsFileIDsWithParent map[string]string
 		countLiveFiles                int
@@ -2330,7 +2338,44 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			name:    "already at container file limit",
 			tree:    treeWithFileAtRoot,
 			file:    d.fileAt(root, 2),
-			limiter: newPagerLimiter(minimumLimitOpts()),
+			limiter: unlimitedTotalBytesAndFiles,
+			expect: expected{
+				counts: countTD.Expected{
+					count.TotalFilesProcessed: 1,
+				},
+				err:                require.Error,
+				shouldHitCollLimit: true,
+				skipped:            assert.Nil,
+				treeContainsFileIDsWithParent: map[string]string{
+					fileID(): rootID,
+				},
+				countLiveFiles:  1,
+				countTotalBytes: defaultFileSize,
+			},
+		},
+		{
+			name:    "goes over total byte limit",
+			tree:    treeWithRoot,
+			file:    d.fileAt(root),
+			limiter: unlimitedItemsPerContainer,
+			expect: expected{
+				counts: countTD.Expected{
+					count.TotalFilesProcessed: 1,
+				},
+				// no error here, since byte limit shouldn't
+				// make the func return an error.
+				err:                           require.NoError,
+				skipped:                       assert.Nil,
+				treeContainsFileIDsWithParent: map[string]string{},
+				countLiveFiles:                0,
+				countTotalBytes:               0,
+			},
+		},
+		{
+			name:    "already over total byte limit",
+			tree:    treeWithFileAtRoot,
+			file:    d.fileAt(root, 2),
+			limiter: unlimitedItemsPerContainer,
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFilesProcessed: 1,
@@ -2343,23 +2388,6 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 				},
 				countLiveFiles:  1,
 				countTotalBytes: defaultFileSize,
-			},
-		},
-		{
-			name:    "goes over total byte limit",
-			tree:    treeWithRoot,
-			file:    d.fileAt(root),
-			limiter: newPagerLimiter(minimumLimitOpts()),
-			expect: expected{
-				counts: countTD.Expected{
-					count.TotalFilesProcessed: 1,
-				},
-				err:                           require.Error,
-				shouldHitLimit:                true,
-				skipped:                       assert.Nil,
-				treeContainsFileIDsWithParent: map[string]string{},
-				countLiveFiles:                0,
-				countTotalBytes:               0,
 			},
 		},
 	}
@@ -2386,6 +2414,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 
 			test.expect.err(t, err, clues.ToCore(err))
 			test.expect.skipped(t, skipped)
+
+			if test.expect.shouldHitCollLimit {
+				require.ErrorIs(t, err, errHitCollectionLimit, clues.ToCore(err))
+			}
 
 			if test.expect.shouldHitLimit {
 				require.ErrorIs(t, err, errHitLimit, clues.ToCore(err))
