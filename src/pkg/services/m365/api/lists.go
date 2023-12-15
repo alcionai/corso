@@ -140,6 +140,15 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 		return nil, nil, nil, err
 	}
 
+	for _, li := range lItems {
+		fields, err := c.getListItemFields(ctx, siteID, listID, ptr.Val(li.GetId()))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		li.SetFields(fields)
+	}
+
 	return cols, cTypes, lItems, nil
 }
 
@@ -311,4 +320,25 @@ func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 	fields.SetAdditionalData(additionalData)
 
 	return fields
+}
+
+func (c Lists) getListItemFields(
+	ctx context.Context,
+	siteID, listID, itemID string,
+) (models.FieldValueSetable, error) {
+	prefix := c.Stable.
+		Client().
+		Sites().
+		BySiteId(siteID).
+		Lists().
+		ByListId(listID).
+		Items().
+		ByListItemId(itemID)
+
+	fields, err := prefix.Fields().Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return fields, nil
 }
