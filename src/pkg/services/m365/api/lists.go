@@ -7,9 +7,75 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/keys"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
+
+const (
+	AttachmentsColumnName    = "Attachments"
+	EditColumnName           = "Edit"
+	ContentTypeColumnName    = "ContentType"
+	CreatedColumnName        = "Created"
+	ModifiedColumnName       = "Modified"
+	AuthorLookupIDColumnName = "AuthorLookupId"
+	EditorLookupIDColumnName = "EditorLookupId"
+
+	ContentTypeColumnDisplayName = "Content Type"
+
+	AddressFieldName     = "address"
+	CoordinatesFieldName = "coordinates"
+	DisplayNameFieldName = "displayName"
+	LocationURIFieldName = "locationUri"
+	UniqueIDFieldName    = "uniqueId"
+
+	CountryOrRegionFieldName = "CountryOrRegion"
+	StateFieldName           = "State"
+	CityFieldName            = "City"
+	PostalCodeFieldName      = "PostalCode"
+	StreetFieldName          = "Street"
+	GeoLocFieldName          = "GeoLoc"
+	DispNameFieldName        = "DispName"
+	LinkTitleFieldNamePart   = "LinkTitle"
+	ChildCountFieldNamePart  = "ChildCount"
+
+	ReadOnlyOrHiddenFieldNamePrefix = "_"
+	DescoratorFieldNamePrefix       = "@"
+)
+
+var addressFieldNames = []string{
+	AddressFieldName,
+	CoordinatesFieldName,
+	DisplayNameFieldName,
+	LocationURIFieldName,
+	UniqueIDFieldName,
+}
+
+var readOnlyAddressFieldNames = []string{
+	CountryOrRegionFieldName,
+	StateFieldName,
+	CityFieldName,
+	PostalCodeFieldName,
+	StreetFieldName,
+	GeoLocFieldName,
+	DispNameFieldName,
+}
+
+var legacyColumns = keys.Set{
+	AttachmentsColumnName:        {},
+	EditColumnName:               {},
+	ContentTypeColumnDisplayName: {},
+}
+
+var readOnlyFieldNames = keys.Set{
+	AttachmentsColumnName:    {},
+	EditColumnName:           {},
+	ContentTypeColumnName:    {},
+	CreatedColumnName:        {},
+	ModifiedColumnName:       {},
+	AuthorLookupIDColumnName: {},
+	EditorLookupIDColumnName: {},
+}
 
 // ---------------------------------------------------------------------------
 // controller
@@ -152,6 +218,106 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 	return cols, cTypes, lItems, nil
 }
 
+func (c Lists) PostList(
+	ctx context.Context,
+	siteID string,
+	listName string,
+	oldListByteArray []byte,
+) (models.Listable, error) {
+	newListName := listName
+
+	oldList, err := BytesToListable(oldListByteArray)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "generating list from stored bytes")
+	}
+
+	// the input listName is of format: destinationName_listID
+	// here we replace listID with displayName of list generated from stored bytes
+	if name, ok := ptr.ValOK(oldList.GetDisplayName()); ok {
+		nameParts := strings.Split(listName, "_")
+		if len(nameParts) > 0 {
+			nameParts[len(nameParts)-1] = name
+			newListName = strings.Join(nameParts, "_")
+		}
+	}
+
+	// this ensure all columns, contentTypes are set to the newList
+	newList := ToListable(oldList, newListName)
+
+	// Restore to List base to M365 back store
+	restoredList, err := c.Stable.
+		Client().
+		Sites().
+		BySiteId(siteID).
+		Lists().
+		Post(ctx, newList, nil)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "creating list")
+	}
+
+	listItems := make([]models.ListItemable, 0)
+
+	for _, itm := range oldList.GetItems() {
+		temp := CloneListItem(itm)
+		listItems = append(listItems, temp)
+	}
+
+	err = c.PostListItems(
+		ctx,
+		siteID,
+		ptr.Val(restoredList.GetId()),
+		listItems)
+	if err == nil {
+		restoredList.SetItems(listItems)
+		return restoredList, nil
+	}
+
+	// [TODO](hitesh) double check if we need to:
+	// 1. rollback the entire list
+	// 2. restore as much list items possible and add recoverables to fault bus
+	// rollback list creation
+	err = c.DeleteList(ctx, siteID, ptr.Val(restoredList.GetId()))
+
+	return nil, graph.Wrap(ctx, err, "deleting restored list after items creation failure").OrNil()
+}
+
+func (c Lists) PostListItems(
+	ctx context.Context,
+	siteID, listID string,
+	listItems []models.ListItemable,
+) error {
+	for _, lItem := range listItems {
+		_, err := c.Stable.
+			Client().
+			Sites().
+			BySiteId(siteID).
+			Lists().
+			ByListId(listID).
+			Items().
+			Post(ctx, lItem, nil)
+		if err != nil {
+			return graph.Wrap(ctx, err, "creating item in list")
+		}
+	}
+
+	return nil
+}
+
+func (c Lists) DeleteList(
+	ctx context.Context,
+	siteID, listID string,
+) error {
+	err := c.Stable.
+		Client().
+		Sites().
+		BySiteId(siteID).
+		Lists().
+		ByListId(listID).
+		Delete(ctx, nil)
+
+	return graph.Wrap(ctx, err, "deleting list").OrNil()
+}
+
 func BytesToListable(bytes []byte) (models.Listable, error) {
 	parsable, err := CreateFromBytes(bytes, models.CreateListFromDiscriminatorValue)
 	if err != nil {
@@ -186,11 +352,6 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 	newList.SetParentReference(orig.GetParentReference())
 
 	columns := make([]models.ColumnDefinitionable, 0)
-	leg := map[string]struct{}{
-		"Attachments":  {},
-		"Edit":         {},
-		"Content Type": {},
-	}
 
 	for _, cd := range orig.GetColumns() {
 		var (
@@ -206,11 +367,9 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 			readOnly = ro
 		}
 
-		_, isLegacy := leg[displayName]
-
 		// Skips columns that cannot be uploaded for models.ColumnDefinitionable:
 		// - ReadOnly, Title, or Legacy columns: Attachments, Edit, or Content Type
-		if readOnly || displayName == "Title" || isLegacy {
+		if readOnly || displayName == "Title" || legacyColumns.HasKey(displayName) {
 			continue
 		}
 
@@ -227,42 +386,76 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDefinitionable {
 	newColumn := models.NewColumnDefinition()
 
+	// column attributes
+	newColumn.SetName(orig.GetName())
+	newColumn.SetOdataType(orig.GetOdataType())
+	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
+	newColumn.SetReadOnly(orig.GetReadOnly())
+	newColumn.SetRequired(orig.GetRequired())
 	newColumn.SetAdditionalData(orig.GetAdditionalData())
-	newColumn.SetBoolean(orig.GetBoolean())
-	newColumn.SetCalculated(orig.GetCalculated())
-	newColumn.SetChoice(orig.GetChoice())
-	newColumn.SetColumnGroup(orig.GetColumnGroup())
-	newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
-	newColumn.SetCurrency(orig.GetCurrency())
-	newColumn.SetDateTime(orig.GetDateTime())
-	newColumn.SetDefaultValue(orig.GetDefaultValue())
 	newColumn.SetDescription(orig.GetDescription())
 	newColumn.SetDisplayName(orig.GetDisplayName())
-	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
-	newColumn.SetGeolocation(orig.GetGeolocation())
+	newColumn.SetSourceColumn(orig.GetSourceColumn())
+	newColumn.SetSourceContentType(orig.GetSourceContentType())
 	newColumn.SetHidden(orig.GetHidden())
-	newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
 	newColumn.SetIndexed(orig.GetIndexed())
 	newColumn.SetIsDeletable(orig.GetIsDeletable())
 	newColumn.SetIsReorderable(orig.GetIsReorderable())
 	newColumn.SetIsSealed(orig.GetIsSealed())
-	newColumn.SetLookup(orig.GetLookup())
-	newColumn.SetName(orig.GetName())
-	newColumn.SetNumber(orig.GetNumber())
-	newColumn.SetOdataType(orig.GetOdataType())
-	newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
-	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
-	newColumn.SetReadOnly(orig.GetReadOnly())
-	newColumn.SetRequired(orig.GetRequired())
-	newColumn.SetSourceColumn(orig.GetSourceColumn())
-	newColumn.SetSourceContentType(orig.GetSourceContentType())
-	newColumn.SetTerm(orig.GetTerm())
-	newColumn.SetText(orig.GetText())
-	newColumn.SetThumbnail(orig.GetThumbnail())
 	newColumn.SetTypeEscaped(orig.GetTypeEscaped())
-	newColumn.SetValidation(orig.GetValidation())
+	newColumn.SetColumnGroup(orig.GetColumnGroup())
+	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
+
+	// column types
+	setColumnType(newColumn, orig)
+
+	// Requires nil checks to avoid Graph error: 'General exception while processing'
+	defaultValue := orig.GetDefaultValue()
+	if defaultValue != nil {
+		newColumn.SetDefaultValue(defaultValue)
+	}
+
+	validation := orig.GetValidation()
+	if validation != nil {
+		newColumn.SetValidation(validation)
+	}
 
 	return newColumn
+}
+
+func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinitionable) {
+	switch {
+	case orig.GetText() != nil:
+		newColumn.SetText(orig.GetText())
+	case orig.GetBoolean() != nil:
+		newColumn.SetBoolean(orig.GetBoolean())
+	case orig.GetCalculated() != nil:
+		newColumn.SetCalculated(orig.GetCalculated())
+	case orig.GetChoice() != nil:
+		newColumn.SetChoice(orig.GetChoice())
+	case orig.GetContentApprovalStatus() != nil:
+		newColumn.SetContentApprovalStatus(orig.GetContentApprovalStatus())
+	case orig.GetCurrency() != nil:
+		newColumn.SetCurrency(orig.GetCurrency())
+	case orig.GetDateTime() != nil:
+		newColumn.SetDateTime(orig.GetDateTime())
+	case orig.GetGeolocation() != nil:
+		newColumn.SetGeolocation(orig.GetGeolocation())
+	case orig.GetHyperlinkOrPicture() != nil:
+		newColumn.SetHyperlinkOrPicture(orig.GetHyperlinkOrPicture())
+	case orig.GetNumber() != nil:
+		newColumn.SetNumber(orig.GetNumber())
+	case orig.GetLookup() != nil:
+		newColumn.SetLookup(orig.GetLookup())
+	case orig.GetThumbnail() != nil:
+		newColumn.SetThumbnail(orig.GetThumbnail())
+	case orig.GetTerm() != nil:
+		newColumn.SetTerm(orig.GetTerm())
+	case orig.GetPersonOrGroup() != nil:
+		newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
+	default:
+		newColumn.SetText(models.NewTextColumn())
+	}
 }
 
 // CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
@@ -270,24 +463,33 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 // - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
 func CloneListItem(orig models.ListItemable) models.ListItemable {
 	newItem := models.NewListItem()
-	newFieldData := retrieveFieldData(orig.GetFields())
 
-	newItem.SetAdditionalData(orig.GetAdditionalData())
-	newItem.SetAnalytics(orig.GetAnalytics())
-	newItem.SetContentType(orig.GetContentType())
-	newItem.SetCreatedBy(orig.GetCreatedBy())
-	newItem.SetCreatedByUser(orig.GetCreatedByUser())
-	newItem.SetCreatedDateTime(orig.GetCreatedDateTime())
-	newItem.SetDescription(orig.GetDescription())
-	// ETag cannot be carried forward
+	// list item data
+	newFieldData := retrieveFieldData(orig.GetFields())
 	newItem.SetFields(newFieldData)
+
+	// list item attributes
+	newItem.SetAdditionalData(orig.GetAdditionalData())
+	newItem.SetDescription(orig.GetDescription())
+	newItem.SetCreatedBy(orig.GetCreatedBy())
+	newItem.SetCreatedDateTime(orig.GetCreatedDateTime())
 	newItem.SetLastModifiedBy(orig.GetLastModifiedBy())
-	newItem.SetLastModifiedByUser(orig.GetLastModifiedByUser())
 	newItem.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
 	newItem.SetOdataType(orig.GetOdataType())
-	// parentReference and SharePointIDs cause error on upload.
-	// POST Command will link items to the created list.
+	newItem.SetAnalytics(orig.GetAnalytics())
+	newItem.SetContentType(orig.GetContentType())
 	newItem.SetVersions(orig.GetVersions())
+
+	// Requires nil checks to avoid Graph error: 'Invalid request'
+	lastCreatedByUser := orig.GetCreatedByUser()
+	if lastCreatedByUser != nil {
+		newItem.SetCreatedByUser(lastCreatedByUser)
+	}
+
+	lastModifiedByUser := orig.GetLastModifiedByUser()
+	if lastCreatedByUser != nil {
+		newItem.SetLastModifiedByUser(lastModifiedByUser)
+	}
 
 	return newItem
 }
@@ -298,28 +500,69 @@ func CloneListItem(orig models.ListItemable) models.ListItemable {
 // - https://learn.microsoft.com/en-us/graph/api/resources/fieldvalueset?view=graph-rest-1.0
 func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 	fields := models.NewFieldValueSet()
-	additionalData := make(map[string]any)
-	fieldData := orig.GetAdditionalData()
+	additionalData := filterAdditionalData(orig)
 
-	// M365 Book keeping values removed during new Item Creation
-	// Removed Values:
-	// -- Prefixes -> @odata.context : absolute path to previous list
-	// .           -> @odata.etag : Embedded link to Prior M365 ID
-	// -- String Match: Read-Only Fields
-	// -> id : previous un
-	for key, value := range fieldData {
-		if strings.HasPrefix(key, "_") || strings.HasPrefix(key, "@") ||
-			key == "Edit" || key == "Created" || key == "Modified" ||
-			strings.Contains(key, "LookupId") || strings.Contains(key, "ChildCount") || strings.Contains(key, "LinkTitle") {
-			continue
-		}
-
-		additionalData[key] = value
-	}
+	retainPrimaryAddressField(additionalData)
 
 	fields.SetAdditionalData(additionalData)
 
 	return fields
+}
+
+func filterAdditionalData(orig models.FieldValueSetable) map[string]any {
+	if orig == nil {
+		return make(map[string]any)
+	}
+
+	fieldData := orig.GetAdditionalData()
+	filteredData := make(map[string]any)
+
+	for key, value := range fieldData {
+		if shouldFilterField(key, value) {
+			continue
+		}
+
+		filteredData[key] = value
+	}
+
+	return filteredData
+}
+
+func shouldFilterField(key string, value any) bool {
+	return readOnlyFieldNames.HasKey(key) ||
+		strings.HasPrefix(key, ReadOnlyOrHiddenFieldNamePrefix) ||
+		strings.HasPrefix(key, DescoratorFieldNamePrefix) ||
+		strings.Contains(key, LinkTitleFieldNamePart) ||
+		strings.Contains(key, ChildCountFieldNamePart)
+}
+
+func retainPrimaryAddressField(additionalData map[string]any) {
+	if !hasAddressFields(additionalData) {
+		return
+	}
+
+	for _, k := range readOnlyAddressFieldNames {
+		delete(additionalData, k)
+	}
+}
+
+func hasAddressFields(additionalData map[string]any) bool {
+	if !keys.HasKeys(additionalData, readOnlyAddressFieldNames...) {
+		return false
+	}
+
+	for _, value := range additionalData {
+		nestedFields, ok := value.(map[string]any)
+		if !ok || keys.HasKeys(nestedFields, GeoLocFieldName) {
+			continue
+		}
+
+		if keys.HasKeys(nestedFields, addressFieldNames...) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c Lists) getListItemFields(
