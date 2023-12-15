@@ -140,16 +140,7 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 	}
 
 	for _, li := range lItems {
-		prefix := c.Stable.
-			Client().
-			Sites().
-			BySiteId(siteID).
-			Lists().
-			ByListId(listID).
-			Items().
-			ByListItemId(ptr.Val(li.GetId()))
-
-		fields, err := prefix.Fields().Get(ctx, nil)
+		fields, err := c.getListItemFields(ctx, siteID, listID, ptr.Val(li.GetId()))
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -158,4 +149,25 @@ func (c Lists) getListContents(ctx context.Context, siteID, listID string) (
 	}
 
 	return cols, cTypes, lItems, nil
+}
+
+func (c Lists) getListItemFields(
+	ctx context.Context,
+	siteID, listID, itemID string,
+) (models.FieldValueSetable, error) {
+	prefix := c.Stable.
+		Client().
+		Sites().
+		BySiteId(siteID).
+		Lists().
+		ByListId(listID).
+		Items().
+		ByListItemId(itemID)
+
+	fields, err := prefix.Fields().Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return fields, nil
 }
