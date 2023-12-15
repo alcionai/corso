@@ -88,20 +88,23 @@ func NewBackupOperation(
 	// TODO(ashmrtn): Remove this once lower layers of corso are rewired to take
 	// control.Backup instead of control.Options.
 	controlOpts := control.Options{
-		DeltaPageSize:        opts.DeltaPageSize,
+		DeltaPageSize:        opts.M365.DeltaPageSize,
 		FailureHandling:      opts.FailureHandling,
 		ItemExtensionFactory: opts.ItemExtensionFactory,
 		Parallelism:          opts.Parallelism,
 		PreviewLimits:        opts.PreviewLimits,
+		ToggleFeatures: control.Toggles{
+			// M365 config.
+			DisableDelta:         opts.M365.DisableDeltaEndpoint,
+			ExchangeImmutableIDs: opts.M365.ExchangeImmutableIDs,
+			UseDeltaTree:         opts.M365.UseDriveDeltaTree,
+			// Incrementals config.
+			DisableIncrementals:   opts.Incrementals.ForceFullEnumeration,
+			ForceItemDataDownload: opts.Incrementals.ForceItemDataRefresh,
+			// Limiter config.
+			DisableSlidingWindowLimiter: opts.ServiceRateLimiter.DisableSlidingWindowLimiter,
+		},
 	}
-
-	controlOpts.ToggleFeatures.DisableIncrementals = opts.ToggleFeatures.DisableIncrementals
-	controlOpts.ToggleFeatures.ForceItemDataDownload = opts.ToggleFeatures.ForceItemDataDownload
-	controlOpts.ToggleFeatures.DisableDelta = opts.ToggleFeatures.DisableDelta
-	controlOpts.ToggleFeatures.ExchangeImmutableIDs = opts.ToggleFeatures.ExchangeImmutableIDs
-	controlOpts.ToggleFeatures.RunMigrations = opts.ToggleFeatures.RunMigrations
-	controlOpts.ToggleFeatures.DisableSlidingWindowLimiter = opts.ServiceRateLimiter.DisableSlidingWindowLimiter
-	controlOpts.ToggleFeatures.UseDeltaTree = opts.ToggleFeatures.UseDeltaTree
 
 	op := BackupOperation{
 		operation:           newOperation(controlOpts, bus, counter, kw, sw),

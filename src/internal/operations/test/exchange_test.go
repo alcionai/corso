@@ -234,14 +234,14 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 }
 
 func (suite *ExchangeBackupIntgSuite) TestBackup_Run_incrementalExchange() {
-	testExchangeContinuousBackups(suite, control.BackupToggles{})
+	testExchangeContinuousBackups(suite, control.BackupM365Config{})
 }
 
 func (suite *ExchangeBackupIntgSuite) TestBackup_Run_incrementalNonDeltaExchange() {
-	testExchangeContinuousBackups(suite, control.BackupToggles{DisableDelta: true})
+	testExchangeContinuousBackups(suite, control.BackupM365Config{DisableDeltaEndpoint: true})
 }
 
-func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles control.BackupToggles) {
+func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, m365Config control.BackupM365Config) {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -274,7 +274,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		opts       = control.DefaultBackupConfig()
 	)
 
-	opts.ToggleFeatures = toggles
+	opts.M365 = m365Config
 	ctrl, sels := ControllerWithSelector(t, ctx, acct, sel.Selector, nil, nil, counter)
 	sel.DiscreteOwner = sels.ID()
 	sel.DiscreteOwnerName = sels.Name()
@@ -386,7 +386,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			err error
 			aar pagers.AddedAndRemoved
 			cc  = api.CallConfig{
-				UseImmutableIDs:     toggles.ExchangeImmutableIDs,
+				UseImmutableIDs:     m365Config.ExchangeImmutableIDs,
 				CanMakeDeltaQueries: true,
 			}
 		)

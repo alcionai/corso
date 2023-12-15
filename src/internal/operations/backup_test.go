@@ -409,20 +409,21 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 	}
 
 	opts := control.BackupConfig{
-		DeltaPageSize:        42,
 		FailureHandling:      control.FailAfterRecovery,
 		ItemExtensionFactory: slices.Clone(ext),
 		Parallelism: control.Parallelism{
 			CollectionBuffer: 4,
 			ItemFetch:        4,
 		},
-		ToggleFeatures: control.BackupToggles{
-			DisableIncrementals:   true,
-			ForceItemDataDownload: true,
-			DisableDelta:          true,
-			ExchangeImmutableIDs:  true,
-			RunMigrations:         true,
-			UseDeltaTree:          true,
+		M365: control.BackupM365Config{
+			DeltaPageSize:        42,
+			DisableDeltaEndpoint: true,
+			ExchangeImmutableIDs: true,
+			UseDriveDeltaTree:    true,
+		},
+		Incrementals: control.IncrementalsConfig{
+			ForceFullEnumeration: true,
+			ForceItemDataRefresh: true,
 		},
 		ServiceRateLimiter: control.RateLimiter{
 			DisableSlidingWindowLimiter: true,
@@ -446,11 +447,13 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 			ItemFetch:        4,
 		},
 		ToggleFeatures: control.Toggles{
-			DisableIncrementals:         true,
-			ForceItemDataDownload:       true,
-			DisableDelta:                true,
-			ExchangeImmutableIDs:        true,
-			RunMigrations:               true,
+			DisableIncrementals:   true,
+			ForceItemDataDownload: true,
+			DisableDelta:          true,
+			ExchangeImmutableIDs:  true,
+			// This flag isn't currently present in control.BackupConfig because
+			// there's nothing using it right now.
+			RunMigrations:               false,
 			DisableSlidingWindowLimiter: true,
 			UseDeltaTree:                true,
 		},
