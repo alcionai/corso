@@ -200,7 +200,7 @@ func restoreListItem(
 		}
 	}
 
-	dii.SharePoint = ListToSPInfo(restoredList)
+	dii.SharePoint = api.ListToSPInfo(restoredList)
 
 	return dii, nil
 }

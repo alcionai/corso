@@ -317,10 +317,11 @@ func (sc *Collection) handleListItems(
 
 	var (
 		list models.Listable
+		info *details.SharePointInfo
 		err  error
 	)
 
-	list, err = sc.getter.GetItemByID(ctx, listID)
+	list, info, err = sc.getter.GetItemByID(ctx, listID)
 	if err != nil {
 		err = clues.WrapWC(ctx, err, "getting list data").Label(fault.LabelForceNoBackupCreation)
 		el.AddRecoverable(ctx, err)
@@ -355,7 +356,7 @@ func (sc *Collection) handleListItems(
 	metrics.Successes++
 
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
-	itemInfo := details.ItemInfo{SharePoint: ListToSPInfo(list)}
+	itemInfo := details.ItemInfo{SharePoint: info}
 
 	item, err := data.NewPrefetchedItemWithInfo(rc, listID, itemInfo)
 	if err != nil {

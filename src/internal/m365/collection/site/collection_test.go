@@ -111,10 +111,14 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				byteArray, err := ow.GetSerializedContent()
 				require.NoError(t, err, clues.ToCore(err))
 
+				info := &details.SharePointInfo{
+					ItemName: name,
+				}
+
 				data, err := data.NewPrefetchedItemWithInfo(
 					io.NopCloser(bytes.NewReader(byteArray)),
 					name,
-					details.ItemInfo{SharePoint: ListToSPInfo(listing)})
+					details.ItemInfo{SharePoint: info})
 				require.NoError(t, err, clues.ToCore(err))
 
 				return data
@@ -299,10 +303,14 @@ func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
 	byteArray, err := service.Serialize(listing)
 	require.NoError(t, err, clues.ToCore(err))
 
+	info := &details.SharePointInfo{
+		ItemName: testName,
+	}
+
 	listData, err := data.NewPrefetchedItemWithInfo(
 		io.NopCloser(bytes.NewReader(byteArray)),
 		testName,
-		details.ItemInfo{SharePoint: ListToSPInfo(listing)})
+		details.ItemInfo{SharePoint: info})
 	require.NoError(t, err, clues.ToCore(err))
 
 	destName := testdata.DefaultRestoreConfig("").Location
