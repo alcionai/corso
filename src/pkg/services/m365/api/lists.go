@@ -11,38 +11,64 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
+const (
+	AttachmentsColumnName    = "Attachments"
+	EditColumnName           = "Edit"
+	ContentTypeColumnName    = "ContentType"
+	CreatedColumnName        = "Created"
+	ModifiedColumnName       = "Modified"
+	AuthorLookupIDColumnName = "AuthorLookupId"
+	EditorLookupIDColumnName = "EditorLookupId"
+
+	ContentTypeColumnDisplayName = "Content Type"
+
+	AddressFieldName     = "address"
+	CoordinatesFieldName = "coordinates"
+	DisplayNameFieldName = "displayName"
+	LocationURIFieldName = "locationUri"
+	UniqueIDFieldName    = "uniqueId"
+
+	CountryOrRegionFieldName = "CountryOrRegion"
+	StateFieldName           = "State"
+	CityFieldName            = "City"
+	PostalCodeFieldName      = "PostalCode"
+	StreetFieldName          = "Street"
+	GeoLocFieldName          = "GeoLoc"
+	DispNameFieldName        = "DispName"
+)
+
 var legacyColumns = map[string]struct{}{
-	"Attachments":  {},
-	"Edit":         {},
-	"Content Type": {},
+	AttachmentsColumnName:        {},
+	EditColumnName:               {},
+	ContentTypeColumnDisplayName: {},
 }
 
 var readOnlyFieldNames = map[string]struct{}{
-	"Attachments":    {},
-	"Edit":           {},
-	"ContentType":    {},
-	"Created":        {},
-	"Modified":       {},
-	"AuthorLookupId": {},
-	"EditorLookupId": {},
+	AttachmentsColumnName:    {},
+	EditColumnName:           {},
+	ContentTypeColumnName:    {},
+	CreatedColumnName:        {},
+	ModifiedColumnName:       {},
+	AuthorLookupIDColumnName: {},
+	EditorLookupIDColumnName: {},
 }
 
 var addressFieldNames = map[string]struct{}{
-	"address":     {},
-	"coordinates": {},
-	"displayName": {},
-	"locationUri": {},
-	"uniqueId":    {},
+	AddressFieldName:     {},
+	CoordinatesFieldName: {},
+	DisplayNameFieldName: {},
+	LocationURIFieldName: {},
+	UniqueIDFieldName:    {},
 }
 
 var readonlyAddressFieldNames = map[string]struct{}{
-	"CountryOrRegion": {},
-	"State":           {},
-	"City":            {},
-	"PostalCode":      {},
-	"Street":          {},
-	"GeoLoc":          {},
-	"DispName":        {},
+	CountryOrRegionFieldName: {},
+	StateFieldName:           {},
+	CityFieldName:            {},
+	PostalCodeFieldName:      {},
+	StreetFieldName:          {},
+	GeoLocFieldName:          {},
+	DispNameFieldName:        {},
 }
 
 // ---------------------------------------------------------------------------

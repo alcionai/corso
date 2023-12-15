@@ -237,12 +237,6 @@ func (suite *ListsUnitSuite) TestCheckColumnType() {
 
 func (suite *ListsUnitSuite) TestLegacyColumnsAreNotSet() {
 	listName := "test-list"
-	contentTypeColumnName := "ContentType"
-	contentTypeColumnDisplayName := "Content Type"
-	attachmentColumnName := "Attachments"
-	attachmentColumnDisplayName := "Attachments"
-	editColumnName := "Edit"
-	editColumnDisplayName := "Edit"
 	textColumnName := "ItemName"
 	textColumnDisplayName := "Item Name"
 	titleColumnName := "Title"
@@ -251,16 +245,16 @@ func (suite *ListsUnitSuite) TestLegacyColumnsAreNotSet() {
 	readOnlyColumnDisplayName := "Test Column"
 
 	contentTypeCd := models.NewColumnDefinition()
-	contentTypeCd.SetName(ptr.To(contentTypeColumnName))
-	contentTypeCd.SetDisplayName(ptr.To(contentTypeColumnDisplayName))
+	contentTypeCd.SetName(ptr.To(ContentTypeColumnName))
+	contentTypeCd.SetDisplayName(ptr.To(ContentTypeColumnDisplayName))
 
 	attachmentCd := models.NewColumnDefinition()
-	attachmentCd.SetName(ptr.To(attachmentColumnName))
-	attachmentCd.SetDisplayName(ptr.To(attachmentColumnDisplayName))
+	attachmentCd.SetName(ptr.To(AttachmentsColumnName))
+	attachmentCd.SetDisplayName(ptr.To(AttachmentsColumnName))
 
 	editCd := models.NewColumnDefinition()
-	editCd.SetName(ptr.To(editColumnName))
-	editCd.SetDisplayName(ptr.To(editColumnDisplayName))
+	editCd.SetName(ptr.To(EditColumnName))
+	editCd.SetDisplayName(ptr.To(EditColumnName))
 
 	textCol := models.NewTextColumn()
 	titleCol := models.NewTextColumn()
@@ -361,16 +355,16 @@ func (suite *ListsUnitSuite) TestRetrieveFieldData() {
 	t := suite.T()
 
 	additionalData := map[string]any{
-		"@odata.etag":      "14fe12b2-e180-49f7-8fc3-5936f3dcf5d2,1",
-		"_UIVersionString": "1.0",
-		"AuthorLookupId":   "6",
-		"EditorLookupId":   "6",
-		"ItemChildCount":   "0",
-		"FolderChildCount": "0",
-		"Modified":         "2023-12-13T15:47:51Z",
-		"Created":          "2023-12-13T15:47:51Z",
-		"Edit":             "",
-		"LinkTitleNoMenu":  "Person1",
+		"@odata.etag":            "14fe12b2-e180-49f7-8fc3-5936f3dcf5d2,1",
+		"_UIVersionString":       "1.0",
+		AuthorLookupIDColumnName: "6",
+		EditorLookupIDColumnName: "6",
+		"ItemChildCount":         "0",
+		"FolderChildCount":       "0",
+		ModifiedColumnName:       "2023-12-13T15:47:51Z",
+		CreatedColumnName:        "2023-12-13T15:47:51Z",
+		EditColumnName:           "",
+		"LinkTitleNoMenu":        "Person1",
 	}
 
 	origFs := models.NewFieldValueSet()
@@ -398,49 +392,49 @@ func (suite *ListsUnitSuite) TestRetrieveFieldData_Location() {
 
 	additionalData := map[string]any{
 		"MyAddress": map[string]any{
-			"address": map[string]any{
+			AddressFieldName: map[string]any{
 				"city":            "Tagaytay",
 				"countryOrRegion": "Philippines",
 				"postalCode":      "4120",
 				"state":           "Calabarzon",
 				"street":          "Prime Residences CityLand 1852",
 			},
-			"coordinates": map[string]any{
+			CoordinatesFieldName: map[string]any{
 				"latitude":  "14.1153",
 				"longitude": "120.962",
 			},
-			"displayName": "B123 Unit 1852 Prime Residences Tagaytay",
-			"locationUri": "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-			"uniqueId":    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			DisplayNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
+			LocationURIFieldName: "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			UniqueIDFieldName:    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
 		},
-		"CountryOrRegion": "Philippines",
-		"State":           "Calabarzon",
-		"City":            "Tagaytay",
-		"PostalCode":      "4120",
-		"Street":          "Prime Residences CityLand 1852",
-		"GeoLoc": map[string]any{
+		CountryOrRegionFieldName: "Philippines",
+		StateFieldName:           "Calabarzon",
+		CityFieldName:            "Tagaytay",
+		PostalCodeFieldName:      "4120",
+		StreetFieldName:          "Prime Residences CityLand 1852",
+		GeoLocFieldName: map[string]any{
 			"latitude":  14.1153,
 			"longitude": 120.962,
 		},
-		"DispName": "B123 Unit 1852 Prime Residences Tagaytay",
+		DispNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
 	}
 
 	expectedData := map[string]any{
 		"MyAddress": map[string]any{
-			"address": map[string]any{
+			AddressFieldName: map[string]any{
 				"city":            "Tagaytay",
 				"countryOrRegion": "Philippines",
 				"postalCode":      "4120",
 				"state":           "Calabarzon",
 				"street":          "Prime Residences CityLand 1852",
 			},
-			"coordinates": map[string]any{
+			CoordinatesFieldName: map[string]any{
 				"latitude":  "14.1153",
 				"longitude": "120.962",
 			},
-			"displayName": "B123 Unit 1852 Prime Residences Tagaytay",
-			"locationUri": "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-			"uniqueId":    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			DisplayNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
+			LocationURIFieldName: "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			UniqueIDFieldName:    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
 		},
 	}
 
