@@ -5,8 +5,8 @@ import (
 )
 
 // DefaultBackupOptions provides a Backup with the default values set.
-func DefaultBackupOptions() Backup {
-	return Backup{
+func DefaultBackupConfig() BackupConfig {
+	return BackupConfig{
 		FailureHandling: FailAfterRecovery,
 		DeltaPageSize:   500,
 		Parallelism: Parallelism{
@@ -19,7 +19,7 @@ func DefaultBackupOptions() Backup {
 // Backup is the set of options used for backup operations. Each set of options
 // is only applied to the backup operation it's passed to. To use the same set
 // of options for multiple backup operations pass the struct to all operations.
-type Backup struct {
+type BackupConfig struct {
 	// DeltaPageSize controls the quantity of items fetched in each page
 	// during multi-page queries, such as graph api delta endpoints.
 	DeltaPageSize        int32                              `json:"deltaPageSize"`

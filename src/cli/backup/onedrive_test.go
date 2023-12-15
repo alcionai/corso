@@ -108,7 +108,7 @@ func (suite *OneDriveUnitSuite) TestBackupCreateFlags() {
 
 	opts := utils.MakeOneDriveOpts(cmd)
 	co := utils.Control()
-	backupOpts := utils.BackupOptions()
+	backupOpts := utils.ParseBackupOptions()
 
 	// TODO(ashmrtn): Remove flag checks on control.Options to control.Backup once
 	// restore flags are switched over too and we no longer parse flags beyond

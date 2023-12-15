@@ -42,8 +42,8 @@ func ControlWithConfig(cfg config.RepoDetails) control.Options {
 	return opt
 }
 
-func BackupOptions() control.Backup {
-	opt := control.DefaultBackupOptions()
+func ParseBackupOptions() control.BackupConfig {
+	opt := control.DefaultBackupConfig()
 
 	if flags.FailFastFV {
 		opt.FailureHandling = control.FailFast
