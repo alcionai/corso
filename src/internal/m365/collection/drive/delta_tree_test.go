@@ -105,13 +105,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 			tname: "add package",
 			tree:  treeWithRoot,
 			folder: func() *custom.DriveItem {
-				return custom.ToCustomDriveItem(
-					driveItem(
-						folderID(pkg),
-						folderName(pkg),
-						d.dir(),
-						rootID,
-						isPackage))
+				return custom.ToCustomDriveItem(d.packageAtRoot())
 			},
 			expectErr: assert.NoError,
 		},
@@ -138,7 +132,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 			expectErr: assert.Error,
 		},
 		{
-			tname: "missing parentID",
+			tname: "missing parent",
 			tree:  treeWithRoot,
 			folder: func() *custom.DriveItem {
 				far := d.folderAtRoot()
@@ -197,9 +191,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 				expectID        = ptr.Val(folder.GetId())
 				expectName      = ptr.Val(folder.GetName())
 				expectIsPackage = folder.GetPackageEscaped() == nil
-				resultID        = ptr.Val(folder.GetId())
-				resultName      = ptr.Val(folder.GetName())
-				resultIsPackage = folder.GetPackageEscaped() == nil
+				resultID        = ptr.Val(result.folder.GetId())
+				resultName      = ptr.Val(result.folder.GetName())
+				resultIsPackage = result.folder.GetPackageEscaped() == nil
 			)
 
 			assert.Equal(t, expectID, resultID)
@@ -403,7 +397,7 @@ func (an assertNode) compare(
 ) {
 	var nodeCount int
 
-	t.Run("assert_tree_shape/root", func(_t *testing.T) {
+	t.Run("assert_tree_shape-root", func(_t *testing.T) {
 		nodeCount = compareNodes(_t, tree.root, an)
 	})
 
@@ -485,7 +479,7 @@ func (ts tombs) compare(
 
 		resultID := ptr.Val(zombey.folder.GetId())
 
-		t.Run("assert_tombstones/"+resultID, func(_t *testing.T) {
+		t.Run("assert_tombstones-"+resultID, func(_t *testing.T) {
 			compareNodes(_t, zombey, entombed)
 		})
 	}

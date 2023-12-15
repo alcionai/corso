@@ -67,7 +67,7 @@ func newFolderyMcFolderFace(
 
 // reset erases all data contained in the tree.  This is intended for
 // tracking a delta enumeration reset, not for tree re-use, and will
-// cause the tree to flag itfolder as dirty in order to appropriately
+// cause the tree to flag itself as dirty in order to appropriately
 // post-process the data.
 func (face *folderyMcFolderFace) reset() {
 	face.hadReset = true
@@ -192,6 +192,7 @@ func (face *folderyMcFolderFace) setFolder(
 		delete(face.tombstones, id)
 
 		zombey.parent = parentNode
+		zombey.folder = folder
 		parentNode.children[id] = zombey
 		face.folderIDToNode[id] = zombey
 
