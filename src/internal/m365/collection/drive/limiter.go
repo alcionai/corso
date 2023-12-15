@@ -114,9 +114,22 @@ func (l pagerLimiter) hitItemLimit(itemCount int) bool {
 	return l.enabled() && itemCount >= l.limits.MaxItems
 }
 
-// hitTotalBytesLimit returns true if the limiter is enabled and has reached the limit
+// alreadyHitTotalBytesLimit returns true if the limiter is enabled and has reached the limit
 // for the accumulated byte size of all items (the file contents, not the item metadata)
 // added to collections for this backup.
-func (l pagerLimiter) hitTotalBytesLimit(i int64) bool {
+func (l pagerLimiter) alreadyHitTotalBytesLimit(i int64) bool {
 	return l.enabled() && i > l.limits.MaxBytes
+}
+
+// willStepOverBytesLimit returns true if the limiter is enabled and the provided addition
+// of bytes is greater than the limit plus some padding (to ensure we can always hit
+// the limit).
+func (l pagerLimiter) willStepOverBytesLimit(current, addition int64) bool {
+	if !l.enabled() {
+		return false
+	}
+
+	limitPlusPadding := int64(float64(l.limits.MaxBytes) * 1.03)
+
+	return (current + addition) > limitPlusPadding
 }
