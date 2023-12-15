@@ -403,8 +403,9 @@ func (suite *MailAPIIntgSuite) TestMail_attachmentListDownload() {
 }
 
 type attachment struct {
-	name string
-	data string
+	name    string
+	data    string
+	isLarge bool
 }
 
 func createMailWithAttachment(
@@ -416,7 +417,8 @@ func createMailWithAttachment(
 	attachments ...attachment,
 ) models.Messageable {
 	msg := models.NewMessage()
-	msg.SetSubject(ptr.To("m"))
+
+	msg.SetSubject(ptr.To("attachment test"))
 
 	item, err := ac.Mail().PostItem(
 		ctx,
@@ -426,21 +428,36 @@ func createMailWithAttachment(
 	require.NoError(t, err, clues.ToCore(err))
 
 	for _, attach := range attachments {
-		id, err := ac.Mail().PostLargeAttachment(
-			ctx,
-			userID,
-			ptr.Val(mailFolder.GetId()),
-			ptr.Val(item.GetId()),
-			attach.name,
-			[]byte(attach.data))
-		require.NoError(t, err, clues.ToCore(err))
-		require.NotEmpty(t, id, "empty id for large attachment")
+		if attach.isLarge {
+			id, err := ac.Mail().PostLargeAttachment(
+				ctx,
+				userID,
+				ptr.Val(mailFolder.GetId()),
+				ptr.Val(item.GetId()),
+				attach.name,
+				[]byte(attach.data))
+			require.NoError(t, err, clues.ToCore(err))
+			require.NotEmpty(t, id, "empty id for large attachment")
+		} else {
+			att := models.NewFileAttachment()
+
+			att.SetName(ptr.To(attach.name))
+			att.SetContentBytes([]byte(attach.data))
+
+			err = ac.Mail().PostSmallAttachment(
+				ctx,
+				userID,
+				ptr.Val(mailFolder.GetId()),
+				ptr.Val(item.GetId()),
+				att)
+			require.NoError(t, err, clues.ToCore(err))
+		}
 	}
 
 	return item
 }
 
-func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
+func (suite *MailAPIIntgSuite) TestMail_PostAndGetAttachments() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -477,8 +494,9 @@ func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
 					userID,
 					mailFolder,
 					attachment{
-						name: "abcd",
-						data: "1234567",
+						name:    "abcd",
+						data:    "1234567",
+						isLarge: true,
 					})
 			},
 			verify: func(t *testing.T, item models.Messageable) {
@@ -492,7 +510,7 @@ func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
 			},
 		},
 		{
-			name: "Two attachments",
+			name: "Two attachments, one large, one small",
 			createMessage: func(
 				ctx context.Context,
 				t *testing.T,
@@ -505,8 +523,9 @@ func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
 					userID,
 					mailFolder,
 					attachment{
-						name: "abcd",
-						data: "1234567",
+						name:    "abcd",
+						data:    "1234567",
+						isLarge: true,
 					},
 					attachment{
 						name: "efgh",
@@ -552,30 +571,6 @@ func (suite *MailAPIIntgSuite) TestMail_GetAttachments() {
 			test.verify(t, msg)
 		})
 	}
-}
-
-func (suite *MailAPIIntgSuite) TestMail_PostLargeAttachment() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	userID := tconfig.M365UserID(suite.T())
-
-	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
-	mailfolder, err := suite.its.ac.Mail().CreateContainer(ctx, userID, MsgFolderRoot, folderName)
-	require.NoError(t, err, clues.ToCore(err))
-
-	createMailWithAttachment(
-		ctx,
-		t,
-		suite.its.ac,
-		userID,
-		mailfolder,
-		attachment{
-			"abcd",
-			"1234567",
-		})
 }
 
 func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
