@@ -7,6 +7,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -75,7 +76,9 @@ func (c Lists) PostDrive(
 // - Columns
 // - ContentTypes
 // - List Items
-func (c Lists) GetListByID(ctx context.Context, siteID, listID string) (models.Listable, error) {
+func (c Lists) GetListByID(ctx context.Context,
+	siteID, listID string,
+) (models.Listable, *details.SharePointInfo, error) {
 	list, err := c.Stable.
 		Client().
 		Sites().
@@ -84,19 +87,19 @@ func (c Lists) GetListByID(ctx context.Context, siteID, listID string) (models.L
 		ByListId(listID).
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "fetching list")
+		return nil, nil, graph.Wrap(ctx, err, "fetching list")
 	}
 
 	cols, cTypes, lItems, err := c.getListContents(ctx, siteID, listID)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting list contents")
+		return nil, nil, graph.Wrap(ctx, err, "getting list contents")
 	}
 
 	list.SetColumns(cols)
 	list.SetContentTypes(cTypes)
 	list.SetItems(lItems)
 
-	return list, nil
+	return list, ListToSPInfo(list), nil
 }
 
 // getListContents utility function to retrieve associated M365 relationships
@@ -170,4 +173,25 @@ func (c Lists) getListItemFields(
 	}
 
 	return fields, nil
+}
+
+// ListToSPInfo translates models.Listable metadata into searchable content
+// List Details: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
+func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
+	var (
+		name     = ptr.Val(lst.GetDisplayName())
+		webURL   = ptr.Val(lst.GetWebUrl())
+		created  = ptr.Val(lst.GetCreatedDateTime())
+		modified = ptr.Val(lst.GetLastModifiedDateTime())
+		count    = len(lst.GetItems())
+	)
+
+	return &details.SharePointInfo{
+		ItemType:  details.SharePointList,
+		ItemName:  name,
+		ItemCount: int64(count),
+		Created:   created,
+		Modified:  modified,
+		WebURL:    webURL,
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 type ListHandler struct {
@@ -13,11 +14,18 @@ type ListHandler struct {
 	Err      error
 }
 
-func (lh *ListHandler) GetItemByID(ctx context.Context, itemID string) (models.Listable, error) {
+func (lh *ListHandler) GetItemByID(
+	ctx context.Context,
+	itemID string,
+) (models.Listable, *details.SharePointInfo, error) {
 	ls := models.NewList()
 
 	lh.ListItem = ls
 	lh.ListItem.SetId(ptr.To(itemID))
 
-	return ls, lh.Err
+	info := &details.SharePointInfo{
+		ItemName: itemID,
+	}
+
+	return ls, info, lh.Err
 }
