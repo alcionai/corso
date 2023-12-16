@@ -1087,7 +1087,9 @@ func multiDrivePrevPaths(drivePrevs ...*drivePrevPaths) map[string]map[string]st
 	return msmss
 }
 
-// transforms 0 or more drivePrevPaths to a map[driveID]map[folderID]prevPathString
+// transforms 0 or more drivePrevPaths to a []data.RestoreCollection containing
+// a metadata collection.
+// DeltaURLs are currently always populated with {driveID: deltaURL()}.
 func multiDriveMetadata(
 	t *testing.T,
 	drivePrevs ...*drivePrevPaths,
