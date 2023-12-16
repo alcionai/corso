@@ -2,6 +2,7 @@ package api
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
@@ -565,6 +566,7 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 				list.SetId(ptr.To(listID))
 				list.SetDisplayName(ptr.To(listName))
 				list.SetList(listInfo)
+				list.SetLastModifiedDateTime(ptr.To(time.Now()))
 
 				txtColumnDef := models.NewColumnDefinition()
 				txtColumnDef.SetId(&textColumnDefID)
@@ -701,6 +703,8 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			assert.Equal(t, listName, info.List.Name)
 			assert.Equal(t, int64(1), info.List.ItemCount)
 			assert.Equal(t, listTemplate, info.List.Template)
+			assert.NotEmpty(t, info.List.Modified)
+			assert.NotEmpty(t, info.Modified)
 		})
 	}
 }
