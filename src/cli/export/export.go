@@ -121,6 +121,16 @@ func runExport(
 		return Only(ctx, err)
 	}
 
+	if len(eo.Errors.Recovered()) > 0 {
+		Infof(ctx, "\nExport failures")
+
+		for _, i := range eo.Errors.Recovered() {
+			Err(ctx, i.Error())
+		}
+
+		return Only(ctx, clues.New("Incomplete export of "+serviceName+" data"))
+	}
+
 	stats := eo.GetStats()
 	if len(stats) > 0 {
 		Infof(ctx, "\nExport details")
