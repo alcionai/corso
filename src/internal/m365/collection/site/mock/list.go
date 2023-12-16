@@ -10,8 +10,8 @@ import (
 )
 
 type ListHandler struct {
-	ListItem models.Listable
-	Err      error
+	List models.Listable
+	Err  error
 }
 
 func (lh *ListHandler) GetItemByID(
@@ -20,12 +20,30 @@ func (lh *ListHandler) GetItemByID(
 ) (models.Listable, *details.SharePointInfo, error) {
 	ls := models.NewList()
 
-	lh.ListItem = ls
-	lh.ListItem.SetId(ptr.To(itemID))
+	lh.List = ls
+	lh.List.SetId(ptr.To(itemID))
 
 	info := &details.SharePointInfo{
 		ItemName: itemID,
 	}
 
 	return ls, info, lh.Err
+}
+
+type ListRestoreHandler struct {
+	List models.Listable
+	Err  error
+}
+
+func (lh *ListRestoreHandler) PostList(
+	ctx context.Context,
+	listName string,
+	storedListBytes []byte,
+) (models.Listable, error) {
+	ls := models.NewList()
+
+	lh.List = ls
+	lh.List.SetDisplayName(ptr.To(listName))
+
+	return lh.List, lh.Err
 }

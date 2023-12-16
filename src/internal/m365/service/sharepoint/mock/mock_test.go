@@ -9,8 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
+	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type MockSuite struct {
@@ -39,7 +40,7 @@ func (suite *MockSuite) TestMockByteHydration() {
 				bytes, err := writer.GetSerializedContent()
 				require.NoError(t, err, clues.ToCore(err))
 
-				_, err = api.CreateListFromBytes(bytes)
+				_, err = api.BytesToListable(bytes)
 
 				return err
 			},
@@ -49,7 +50,7 @@ func (suite *MockSuite) TestMockByteHydration() {
 			transformation: func(t *testing.T) error {
 				bytes, err := ListBytes(subject)
 				require.NoError(t, err, clues.ToCore(err))
-				_, err = api.CreateListFromBytes(bytes)
+				_, err = api.BytesToListable(bytes)
 				return err
 			},
 		},
@@ -57,7 +58,7 @@ func (suite *MockSuite) TestMockByteHydration() {
 			name: "SharePoint: Page",
 			transformation: func(t *testing.T) error {
 				bytes := Page(subject)
-				_, err := api.CreatePageFromBytes(bytes)
+				_, err := betaAPI.BytesToSitePageable(bytes)
 
 				return err
 			},
