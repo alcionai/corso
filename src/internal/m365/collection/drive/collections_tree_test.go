@@ -138,25 +138,25 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeMetadataCollections()
 // More complicated single-drive tests can be found in _MakeDriveCollections.
 func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 	type expected struct {
-		canUsePrevBackup assert.BoolAssertionFunc
-		counts           countTD.Expected
-		deltas           map[string]string
-		prevPaths        map[string]map[string]string
-		skips            int
+		canUsePrevBackup      assert.BoolAssertionFunc
+		collections           func(t *testing.T, d1, d2 *deltaDrive) expectedCollections
+		globalExcludedFileIDs map[string]struct{}
 	}
 
 	d1 := drive()
 	d2 := drive(2)
 
 	table := []struct {
-		name          string
-		enumerator    enumerateDriveItemsDelta
-		previousPaths map[string]map[string]string
-		metadata      []data.RestoreCollection
-		expect        expected
+		name       string
+		enumerator enumerateDriveItemsDelta
+		metadata   func(t *testing.T) []data.RestoreCollection
+		expect     expected
 	}{
 		{
-			name: "no changes in either drive",
+			// in the real world we'd be guaranteed the root folder in the first
+			// delta query, at minimum (ie, the backup before this one).
+			// but this makes for a good sanity check on no-op behavior.
+			name: "no data either previously or in delta",
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
 					delta(nil).with(
@@ -164,14 +164,24 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 				d2.newEnumer().with(
 					delta(nil).with(
 						aPage()))),
+			metadata: func(t *testing.T) []data.RestoreCollection {
+				return multiDriveMetadata(
+					t,
+					d1.newPrevPaths(),
+					d2.newPrevPaths())
+			},
 			expect: expected{
 				canUsePrevBackup: assert.False,
-				counts: countTD.Expected{
-					count.PrevPaths: 0,
+				collections: func(t *testing.T, d1, d2 *deltaDrive) expectedCollections {
+					return expectCollections(
+						false,
+						true,
+						aColl(d1.fullPath(t), nil),
+						aColl(d2.fullPath(t), nil),
+						aMetadata(nil, multiDrivePrevPaths(
+							d1.newPrevPaths(rootID, d1.strPath(t)),
+							d2.newPrevPaths(rootID, d2.strPath(t)))))
 				},
-				deltas:    map[string]string{},
-				prevPaths: map[string]map[string]string{},
-				skips:     0,
 			},
 		},
 	}
@@ -185,45 +195,21 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			var (
 				mbh            = defaultDriveBHWith(user, test.enumerator)
 				c              = collWithMBH(mbh)
-				prevMetadata   = makePrevMetadataColls(t, mbh, test.previousPaths)
 				globalExcludes = prefixmatcher.NewStringSetBuilder()
 				errs           = fault.New(true)
 			)
 
-			_, _, err := c.getTree(
+			results, canUsePrevBackup, err := c.getTree(
 				ctx,
-				prevMetadata,
+				test.metadata(t),
 				globalExcludes,
 				errs)
-
 			require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
-			// TODO(keepers): awaiting implementation
-			// assert.Empty(t, colls)
-			// assert.Equal(t, test.expect.skips, len(errs.Skipped()))
-			// test.expect.canUsePrevBackup(t, canUsePrevBackup)
-			// test.expect.counts.Compare(t, c.counter)
+			test.expect.canUsePrevBackup(t, canUsePrevBackup)
 
-			// if err != nil {
-			// 	return
-			// }
-
-			// for _, coll := range colls {
-			// 	collPath := fullOrPrevPath(t, coll)
-
-			// 	if collPath.String() == metadataPath.String() {
-			// 		compareMetadata(
-			// 			t,
-			// 			coll,
-			// 			test.expect.deltas,
-			// 			test.expect.prevPaths)
-
-			// 		continue
-			// 	}
-
-			// 	test.expect.collAssertions.compare(t, coll, globalExcludes)
-			// }
-
-			// test.expect.collAssertions.requireNoUnseenCollections(t)
+			expect := test.expect.collections(t, d1, d2)
+			expect.compare(t, results)
+			expect.requireNoUnseenCollections(t)
 		})
 	}
 }

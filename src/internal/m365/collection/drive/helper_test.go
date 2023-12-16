@@ -168,6 +168,18 @@ func makeExcludeMap(files ...string) map[string]struct{} {
 	return delList
 }
 
+func defaultMetadataPath(t *testing.T) path.Path {
+	metadataPath, err := path.BuildMetadata(
+		tenant,
+		user,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+	require.NoError(t, err, "making default metadata path", clues.ToCore(err))
+
+	return metadataPath
+}
+
 // ---------------------------------------------------------------------------
 // limiter
 // ---------------------------------------------------------------------------
@@ -266,28 +278,32 @@ func makePrevMetadataColls(
 	}
 }
 
-// func compareMetadata(
-// 	t *testing.T,
-// 	mdColl data.Collection,
-// 	expectDeltas map[string]string,
-// 	expectPrevPaths map[string]map[string]string,
-// ) {
-// 	ctx, flush := tester.NewContext(t)
-// 	defer flush()
+func compareMetadata(
+	t *testing.T,
+	mdColl data.Collection,
+	expectDeltas map[string]string,
+	expectPrevPaths map[string]map[string]string,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-// 	colls := []data.RestoreCollection{
-// 		dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: mdColl}),
-// 	}
+	colls := []data.RestoreCollection{
+		dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: mdColl}),
+	}
 
-// 	deltas, prevs, _, err := deserializeAndValidateMetadata(
-// 		ctx,
-// 		colls,
-// 		count.New(),
-// 		fault.New(true))
-// 	require.NoError(t, err, "deserializing metadata", clues.ToCore(err))
-// 	assert.Equal(t, expectDeltas, deltas, "delta urls")
-// 	assert.Equal(t, expectPrevPaths, prevs, "previous paths")
-// }
+	deltas, prevs, _, err := deserializeAndValidateMetadata(
+		ctx,
+		colls,
+		count.New(),
+		fault.New(true))
+	require.NoError(t, err, "deserializing metadata", clues.ToCore(err))
+
+	if expectDeltas != nil {
+		assert.Equal(t, expectDeltas, deltas, "delta urls")
+	}
+
+	assert.Equal(t, expectPrevPaths, prevs, "previous paths")
+}
 
 // ---------------------------------------------------------------------------
 // collections
@@ -303,6 +319,10 @@ type collectionAssertion struct {
 	// this flag gets flipped when calling assertions.compare.
 	// any unseen collection will error on requireNoUnseenCollections
 	sawCollection bool
+
+	// used for metadata collection comparison
+	deltas    map[string]string
+	prevPaths map[string]map[string]string
 }
 
 func aColl(
@@ -330,10 +350,21 @@ func aColl(
 	}
 }
 
+func aMetadata(
+	deltas map[string]string,
+	prevPaths map[string]map[string]string,
+) *collectionAssertion {
+	return &collectionAssertion{
+		deltas:    deltas,
+		prevPaths: prevPaths,
+	}
+}
+
 // to aggregate all collection-related expectations in the backup
 // map collection path -> collection state -> assertion
 type expectedCollections struct {
 	assertions  map[string]*collectionAssertion
+	metadata    *collectionAssertion
 	doNotMerge  assert.BoolAssertionFunc
 	hasURLCache assert.ValueAssertionFunc
 }
@@ -343,9 +374,17 @@ func expectCollections(
 	hasURLCache bool,
 	colls ...*collectionAssertion,
 ) expectedCollections {
-	as := map[string]*collectionAssertion{}
+	var (
+		as = map[string]*collectionAssertion{}
+		md *collectionAssertion
+	)
 
 	for _, coll := range colls {
+		if coll.prevPaths != nil {
+			md = coll
+			continue
+		}
+
 		as[expectFullOrPrev(coll).String()] = coll
 	}
 
@@ -361,6 +400,7 @@ func expectCollections(
 
 	return expectedCollections{
 		assertions:  as,
+		metadata:    md,
 		doNotMerge:  dontMerge,
 		hasURLCache: hasCache,
 	}
@@ -383,6 +423,14 @@ func (ecs expectedCollections) compareColl(t *testing.T, coll data.BackupCollect
 		itemIDs = []string{}
 		p       = fullOrPrevPath(t, coll)
 	)
+
+	// check the metadata collection separately
+	if coll.FullPath() != nil && coll.FullPath().Equal(defaultMetadataPath(t)) {
+		ecs.metadata.sawCollection = true
+		compareMetadata(t, coll, ecs.metadata.deltas, ecs.metadata.prevPaths)
+
+		return
+	}
 
 	if coll.State() != data.DeletedState {
 		for itm := range coll.Items(ctx, fault.New(true)) {
@@ -439,6 +487,13 @@ func (ecs expectedCollections) requireNoUnseenCollections(t *testing.T) {
 			ca.sawCollection,
 			"results did not include collection at:\n\tstate %q\t\npath %q",
 			ca.state, expectFullOrPrev(ca))
+	}
+
+	if ecs.metadata != nil {
+		require.True(
+			t,
+			ecs.metadata.sawCollection,
+			"results did not include the metadata collection")
 	}
 }
 
@@ -994,6 +1049,76 @@ func (dd *deltaDrive) newEnumer() *DeltaDriveEnumerator {
 	*clone = *dd
 
 	return &DeltaDriveEnumerator{Drive: clone}
+}
+
+type drivePrevPaths struct {
+	id                 string
+	folderIDToPrevPath map[string]string
+}
+
+func (dd *deltaDrive) newPrevPaths(
+	idPathPairs ...string,
+) *drivePrevPaths {
+	dpp := drivePrevPaths{
+		id:                 dd.id,
+		folderIDToPrevPath: map[string]string{},
+	}
+
+	if len(idPathPairs)%2 == 1 {
+		dpp.folderIDToPrevPath["error"] = "idPathPairs had odd count of elements"
+		return &dpp
+	}
+
+	for i := 0; i < len(idPathPairs); i += 2 {
+		dpp.folderIDToPrevPath[idPathPairs[i]] = idPathPairs[i+1]
+	}
+
+	return &dpp
+}
+
+// transforms 0 or more drivePrevPaths to a map[driveID]map[folderID]prevPathString
+func multiDrivePrevPaths(drivePrevs ...*drivePrevPaths) map[string]map[string]string {
+	msmss := map[string]map[string]string{}
+
+	for _, dp := range drivePrevs {
+		msmss[dp.id] = dp.folderIDToPrevPath
+	}
+
+	return msmss
+}
+
+// transforms 0 or more drivePrevPaths to a map[driveID]map[folderID]prevPathString
+func multiDriveMetadata(
+	t *testing.T,
+	drivePrevs ...*drivePrevPaths,
+) []data.RestoreCollection {
+	drc := []data.RestoreCollection{}
+
+	for _, dp := range drivePrevs {
+		mdColl := []graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(
+				bupMD.DeltaURLsFileName,
+				map[string]string{
+					dp.id: deltaURL(),
+				}),
+			graph.NewMetadataEntry(
+				bupMD.PreviousPathFileName,
+				multiDrivePrevPaths(drivePrevs...)),
+		}
+
+		mc, err := graph.MakeMetadataCollection(
+			defaultMetadataPath(t),
+			mdColl,
+			func(*support.ControllerOperationStatus) {},
+			count.New())
+		require.NoError(t, err, clues.ToCore(err))
+
+		drc = append(drc, dataMock.NewUnversionedRestoreCollection(
+			t,
+			data.NoFetchRestoreCollection{Collection: mc}))
+	}
+
+	return drc
 }
 
 type DeltaDriveEnumerator struct {
