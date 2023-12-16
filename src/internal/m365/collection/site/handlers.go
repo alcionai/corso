@@ -23,7 +23,6 @@ type getItemser interface {
 
 type restoreHandler interface {
 	PostLister
-	PostListItemer
 	DeleteLister
 }
 
@@ -31,16 +30,8 @@ type PostLister interface {
 	PostList(
 		ctx context.Context,
 		listName string,
-		oldListByteArray []byte,
+		storedListData []byte,
 	) (models.Listable, error)
-}
-
-type PostListItemer interface {
-	PostListItem(
-		ctx context.Context,
-		listID string,
-		oldListByteArray []byte,
-	) ([]models.ListItemable, error)
 }
 
 type DeleteLister interface {

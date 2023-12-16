@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
@@ -149,33 +148,19 @@ func restoreListItem(
 		listName = itemData.ID()
 	)
 
-	byteArray, err := io.ReadAll(itemData.ToReader())
+	bytes, err := io.ReadAll(itemData.ToReader())
 	if err != nil {
 		return dii, clues.WrapWC(ctx, err, "reading backup data")
 	}
 
 	newName := fmt.Sprintf("%s_%s", destName, listName)
 
-	// Restore to List base to M365 back store
-	restoredList, err := rh.PostList(ctx, newName, byteArray)
+	restoredList, err := rh.PostList(ctx, newName, bytes)
 	if err != nil {
 		return dii, clues.WrapWC(ctx, err, "restoring lists")
 	}
 
-	// Uploading of ListItems is conducted after the List is restored
-	// Reference: https://learn.microsoft.com/en-us/graph/api/listitem-create?view=graph-rest-1.0&tabs=http
-	_, err = rh.PostListItem(ctx, ptr.Val(restoredList.GetId()), byteArray)
-	if err != nil {
-		// rollback list creation
-		err = rh.DeleteList(ctx, ptr.Val(restoredList.GetId()))
-		if err != nil {
-			return dii, clues.WrapWC(ctx, err, "deleting restored list")
-		}
-
-		return dii, clues.WrapWC(ctx, err, "restoring list items")
-	}
-
-	dii.SharePoint = ListToSPInfo(restoredList, int64(len(byteArray)))
+	dii.SharePoint = ListToSPInfo(restoredList, int64(len(bytes)))
 
 	return dii, nil
 }

@@ -26,7 +26,7 @@ func TestSharepointRestoreUnitSuite(t *testing.T) {
 	suite.Run(t, &SharepointRestoreUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *SharepointRestoreUnitSuite) TestConsumeRestoreCollections_noErrorOnLists() {
+func (suite *SharepointRestoreUnitSuite) TestSharePointHandler_ConsumeRestoreCollections_noErrorOnLists() {
 	t := suite.T()
 	siteID := "site-id"
 
