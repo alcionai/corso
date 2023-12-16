@@ -77,7 +77,6 @@ func (suite *ListsUnitSuite) TestSharePointInfo() {
 			assert.Equal(t, expected.WebURL, info.WebURL)
 		})
 	}
-
 }
 
 func (suite *ListsUnitSuite) TestBytesToListable() {
