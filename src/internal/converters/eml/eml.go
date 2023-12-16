@@ -44,7 +44,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		return "", clues.Wrap(err, "converting to messageble")
 	}
 
-	ctx = clues.Add(ctx, "id", ptr.Val(data.GetId()))
+	ctx = clues.Add(ctx, "item_id", ptr.Val(data.GetId()))
 
 	email := mail.NewMSG()
 	email.AllowDuplicateAddress = true // More "correct" conversion
