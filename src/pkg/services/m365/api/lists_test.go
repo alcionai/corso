@@ -690,6 +690,38 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 	require.NoError(t, err)
 }
 
+func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		acl      = suite.its.ac.Lists()
+		siteID   = suite.its.site.id
+		listName = testdata.DefaultRestoreConfig("list_api_post_list").Location
+	)
+
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	overrideListInfo := models.NewListInfo()
+	overrideListInfo.SetTemplate(ptr.To(WebTemplateExtensionsListTemplateName))
+
+	_, list := getFieldsDataAndList()
+	list.SetList(overrideListInfo)
+
+	err := writer.WriteObjectValue("", list)
+	require.NoError(t, err)
+
+	oldListByteArray, err := writer.GetSerializedContent()
+	require.NoError(t, err)
+
+	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray)
+	require.Error(t, err)
+	assert.Equal(t, ErrInvalidTemplateError.Error(), err.Error())
+}
+
 func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
 	t := suite.T()
 

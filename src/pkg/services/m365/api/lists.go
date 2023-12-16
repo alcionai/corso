@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -11,6 +12,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
+
+var ErrInvalidTemplateError = fmt.Errorf("invalid list template(%s)", WebTemplateExtensionsListTemplateName)
 
 const (
 	AttachmentsColumnName    = "Attachments"
@@ -41,6 +44,8 @@ const (
 
 	ReadOnlyOrHiddenFieldNamePrefix = "_"
 	DescoratorFieldNamePrefix       = "@"
+
+	WebTemplateExtensionsListTemplateName = "webTemplateExtensionsList"
 )
 
 var addressFieldNames = []string{
@@ -243,6 +248,12 @@ func (c Lists) PostList(
 
 	// this ensure all columns, contentTypes are set to the newList
 	newList := ToListable(oldList, newListName)
+
+	if newList != nil &&
+		newList.GetList() != nil &&
+		ptr.Val(newList.GetList().GetTemplate()) == WebTemplateExtensionsListTemplateName {
+		return nil, clues.StackWC(ctx, ErrInvalidTemplateError)
+	}
 
 	// Restore to List base to M365 back store
 	restoredList, err := c.Stable.

@@ -2,12 +2,13 @@ package site
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -73,10 +74,72 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	service := createTestService(t, suite.creds)
-	listing := spMock.ListDefault("Mock List")
+	testName, lrh, destName, mockData := suite.setupDependencies("genericList")
+
+	deets, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, fmt.Sprintf("%s_%s", destName, testName), deets.SharePoint.ItemName)
+
+	// Clean-Up
+	suite.deleteList(ctx, lrh, t, deets)
+}
+
+func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidTemplate() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	_, lrh, destName, mockData := suite.setupDependencies(api.WebTemplateExtensionsListTemplateName)
+
+	_, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), api.ErrInvalidTemplateError.Error())
+}
+
+func (suite *SharePointRestoreSuite) deleteList(
+	ctx context.Context, lrh listsRestoreHandler, t *testing.T, deets details.ItemInfo,
+) {
+	var (
+		isFound  bool
+		deleteID string
+	)
+
+	lists, err := lrh.ac.Client.Lists().GetLists(ctx, suite.siteID, api.CallConfig{})
+	assert.NoError(t, err, "getting site lists", clues.ToCore(err))
+
+	for _, l := range lists {
+		if ptr.Val(l.GetDisplayName()) == deets.SharePoint.ItemName {
+			isFound = true
+			deleteID = ptr.Val(l.GetId())
+
+			break
+		}
+	}
+
+	if isFound {
+		err := lrh.DeleteList(ctx, deleteID)
+		assert.NoError(t, err, clues.ToCore(err))
+	}
+}
+
+func (suite *SharePointRestoreSuite) setupDependencies(listTemplate string) (
+	string, listsRestoreHandler, string, *dataMock.Item,
+) {
+	t := suite.T()
 	testName := "MockListing"
+
+	lrh := NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
+
+	service := createTestService(t, suite.creds)
+
+	listInfo := models.NewListInfo()
+	listInfo.SetTemplate(ptr.To(listTemplate))
+
+	listing := spMock.ListDefault("Mock List")
 	listing.SetDisplayName(&testName)
+	listing.SetList(listInfo)
+
 	byteArray, err := service.Serialize(listing)
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -96,41 +159,5 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 		Reader: r,
 	}
 
-	lrh := NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
-	deets, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
-	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, fmt.Sprintf("%s_%s", destName, testName), deets.SharePoint.ItemName)
-
-	// Clean-Up
-	var (
-		builder  = service.Client().Sites().BySiteId(suite.siteID).Lists()
-		isFound  bool
-		deleteID string
-	)
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		assert.NoError(t, err, "getting site lists", clues.ToCore(err))
-
-		for _, temp := range resp.GetValue() {
-			if ptr.Val(temp.GetDisplayName()) == deets.SharePoint.ItemName {
-				isFound = true
-				deleteID = ptr.Val(temp.GetId())
-
-				break
-			}
-		}
-		// Get Next Link
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		builder = sites.NewItemListsRequestBuilder(link, service.Adapter())
-	}
-
-	if isFound {
-		err := lrh.DeleteList(ctx, deleteID)
-		assert.NoError(t, err, clues.ToCore(err))
-	}
+	return testName, lrh, destName, mockData
 }
