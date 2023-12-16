@@ -182,6 +182,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 							d1.newPrevPaths(rootID, d1.strPath(t)),
 							d2.newPrevPaths(rootID, d2.strPath(t)))))
 				},
+				globalExcludedFileIDs: makeExcludeMap(),
 			},
 		},
 	}
@@ -210,6 +211,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			expect := test.expect.collections(t, d1, d2)
 			expect.compare(t, results)
 			expect.requireNoUnseenCollections(t)
+
+			assert.Equal(t, test.expect.globalExcludedFileIDs, globalExcludes)
 		})
 	}
 }
