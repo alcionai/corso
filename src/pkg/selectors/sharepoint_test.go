@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/slices"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/dttm"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -348,6 +349,96 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 	}
 }
 
+func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce_forLists() {
+	toRR := func(cat path.CategoryType, siteID string, item string) string {
+		return stubRepoRef(
+			path.SharePointService,
+			cat,
+			siteID,
+			"",
+			item)
+	}
+
+	var (
+		wte = "webTemplateExtensionsList"
+
+		item1 = toRR(path.ListsCategory, "sid", "list1")
+		item2 = toRR(path.ListsCategory, "sid", "list2")
+	)
+
+	wteEntry := details.Entry{
+		RepoRef:     item1,
+		ItemRef:     "list1",
+		LocationRef: "lists",
+		ItemInfo: details.ItemInfo{
+			SharePoint: &details.SharePointInfo{
+				ItemType: details.SharePointList,
+				List: &details.ListInfo{
+					Template: wte,
+				},
+				ItemName: "list1",
+			},
+		},
+	}
+
+	glEntry := details.Entry{
+		RepoRef:     item2,
+		ItemRef:     "list2",
+		LocationRef: "lists",
+		ItemInfo: details.ItemInfo{
+			SharePoint: &details.SharePointInfo{
+				ItemType: details.SharePointList,
+				List: &details.ListInfo{
+					Template: "genericList",
+				},
+				ItemName: "list2",
+			},
+		},
+	}
+
+	sel := NewSharePointRestore(Any())
+	sel.Include(sel.ListTemplate([]string{wte}))
+
+	table := []struct {
+		name   string
+		deets  *details.Details
+		expect []string
+		cfg    Config
+	}{
+		{
+			name: "wte deets",
+			deets: &details.Details{
+				DetailsModel: details.DetailsModel{
+					Entries: []details.Entry{wteEntry},
+				},
+			},
+			expect: []string{},
+		},
+		{
+			name: "gl deets",
+			deets: &details.Details{
+				DetailsModel: details.DetailsModel{
+					Entries: []details.Entry{wteEntry, glEntry},
+				},
+			},
+			expect: []string{"tid/sharepoint/sid/lists//list2"},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			sel.Configure(test.cfg)
+			results := sel.Reduce(ctx, test.deets, fault.New(true))
+			paths := results.Paths()
+			assert.Equal(t, test.expect, paths)
+		})
+	}
+}
+
 func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 	var (
 		itemName   = "item"
@@ -453,54 +544,73 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 		now          = time.Now()
 		modification = now.Add(15 * time.Minute)
 		future       = now.Add(45 * time.Minute)
+
+		wte = flags.InvalidListTemplate
+		gl  = "genericList"
+
+		spInfo *details.SharePointInfo
 	)
 
 	table := []struct {
-		name    string
-		infoURL string
-		scope   []SharePointScope
-		expect  assert.BoolAssertionFunc
+		name         string
+		infoURL      string
+		listTemplate string
+		scope        []SharePointScope
+		expect       assert.BoolAssertionFunc
 	}{
-		{"host match", host, sel.WebURL([]string{host}), assert.True},
-		{"url match", url, sel.WebURL([]string{url}), assert.True},
-		{"host suffixes host", host, sel.WebURL([]string{host}, SuffixMatch()), assert.True},
-		{"url does not suffix host", url, sel.WebURL([]string{host}, SuffixMatch()), assert.False},
-		{"url has path suffix", url, sel.WebURL([]string{pth}, SuffixMatch()), assert.True},
-		{"host does not contain substring", host, sel.WebURL([]string{"website"}), assert.False},
-		{"url does not suffix substring", url, sel.WebURL([]string{"oo"}, SuffixMatch()), assert.False},
-		{"host mismatch", host, sel.WebURL([]string{"www.google.com"}), assert.False},
-		{"file create after the epoch", host, sel.CreatedAfter(dttm.Format(epoch)), assert.True},
-		{"file create after now", host, sel.CreatedAfter(dttm.Format(now)), assert.False},
-		{"file create after later", url, sel.CreatedAfter(dttm.Format(future)), assert.False},
-		{"file create before future", host, sel.CreatedBefore(dttm.Format(future)), assert.True},
-		{"file create before now", host, sel.CreatedBefore(dttm.Format(now)), assert.False},
-		{"file create before modification", host, sel.CreatedBefore(dttm.Format(modification)), assert.True},
-		{"file create before epoch", host, sel.CreatedBefore(dttm.Format(now)), assert.False},
-		{"file modified after the epoch", host, sel.ModifiedAfter(dttm.Format(epoch)), assert.True},
-		{"file modified after now", host, sel.ModifiedAfter(dttm.Format(now)), assert.True},
-		{"file modified after later", host, sel.ModifiedAfter(dttm.Format(future)), assert.False},
-		{"file modified before future", host, sel.ModifiedBefore(dttm.Format(future)), assert.True},
-		{"file modified before now", host, sel.ModifiedBefore(dttm.Format(now)), assert.False},
-		{"file modified before epoch", host, sel.ModifiedBefore(dttm.Format(now)), assert.False},
-		{"in library", host, sel.Library("included-library"), assert.True},
-		{"not in library", host, sel.Library("not-included-library"), assert.False},
-		{"library id", host, sel.Library("1234"), assert.True},
-		{"not library id", host, sel.Library("abcd"), assert.False},
+		{"host match", host, "", sel.WebURL([]string{host}), assert.True},
+		{"url match", url, "", sel.WebURL([]string{url}), assert.True},
+		{"host suffixes host", host, "", sel.WebURL([]string{host}, SuffixMatch()), assert.True},
+		{"url does not suffix host", url, "", sel.WebURL([]string{host}, SuffixMatch()), assert.False},
+		{"url has path suffix", url, "", sel.WebURL([]string{pth}, SuffixMatch()), assert.True},
+		{"host does not contain substring", host, "", sel.WebURL([]string{"website"}), assert.False},
+		{"url does not suffix substring", url, "", sel.WebURL([]string{"oo"}, SuffixMatch()), assert.False},
+		{"host mismatch", host, "", sel.WebURL([]string{"www.google.com"}), assert.False},
+		{"file create after the epoch", host, "", sel.CreatedAfter(dttm.Format(epoch)), assert.True},
+		{"file create after now", host, "", sel.CreatedAfter(dttm.Format(now)), assert.False},
+		{"file create after later", url, "", sel.CreatedAfter(dttm.Format(future)), assert.False},
+		{"file create before future", host, "", sel.CreatedBefore(dttm.Format(future)), assert.True},
+		{"file create before now", host, "", sel.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file create before modification", host, "", sel.CreatedBefore(dttm.Format(modification)), assert.True},
+		{"file create before epoch", host, "", sel.CreatedBefore(dttm.Format(now)), assert.False},
+		{"file modified after the epoch", host, "", sel.ModifiedAfter(dttm.Format(epoch)), assert.True},
+		{"file modified after now", host, "", sel.ModifiedAfter(dttm.Format(now)), assert.True},
+		{"file modified after later", host, "", sel.ModifiedAfter(dttm.Format(future)), assert.False},
+		{"file modified before future", host, "", sel.ModifiedBefore(dttm.Format(future)), assert.True},
+		{"file modified before now", host, "", sel.ModifiedBefore(dttm.Format(now)), assert.False},
+		{"file modified before epoch", host, "", sel.ModifiedBefore(dttm.Format(now)), assert.False},
+		{"in library", host, "", sel.Library("included-library"), assert.True},
+		{"not in library", host, "", sel.Library("not-included-library"), assert.False},
+		{"library id", host, "", sel.Library("1234"), assert.True},
+		{"not library id", host, "", sel.Library("abcd"), assert.False},
+		{"list template match - NONEQ", "", wte, sel.ListTemplate([]string{wte}), assert.False},
+		{"list template does not match - NONEQ", "", gl, sel.ListTemplate([]string{wte}), assert.True},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			itemInfo := details.ItemInfo{
-				SharePoint: &details.SharePointInfo{
+			if len(test.infoURL) > 0 {
+				spInfo = &details.SharePointInfo{
 					ItemType:  details.SharePointPage,
 					WebURL:    test.infoURL,
 					Created:   now,
 					Modified:  modification,
 					DriveName: "included-library",
 					DriveID:   "1234",
-				},
+				}
+			} else if len(test.listTemplate) > 0 {
+				spInfo = &details.SharePointInfo{
+					ItemType: details.SharePointList,
+					List: &details.ListInfo{
+						Template: test.listTemplate,
+					},
+					Created:  now,
+					Modified: modification,
+				}
 			}
+
+			itemInfo := details.ItemInfo{SharePoint: spInfo}
 
 			scopes := setScopesToDefault(test.scope)
 			for _, scope := range scopes {

@@ -8,26 +8,30 @@ const (
 	DataLibraries = "libraries"
 	DataPages     = "pages"
 	DataLists     = "lists"
+
+	InvalidListTemplate = "webTemplateExtensionsList"
 )
 
 const (
-	LibraryFN    = "library"
-	ListFolderFN = "list"
-	ListItemFN   = "list-item"
-	PageFolderFN = "page-folder"
-	PageFN       = "page"
-	SiteFN       = "site"    // site only accepts WebURL values
-	SiteIDFN     = "site-id" // site-id accepts actual site ids
+	LibraryFN      = "library"
+	ListFolderFN   = "list"
+	ListItemFN     = "list-item"
+	ListTemplateFN = "template"
+	PageFolderFN   = "page-folder"
+	PageFN         = "page"
+	SiteFN         = "site"    // site only accepts WebURL values
+	SiteIDFN       = "site-id" // site-id accepts actual site ids
 )
 
 var (
-	LibraryFV    string
-	ListFolderFV []string
-	ListItemFV   []string
-	PageFolderFV []string
-	PageFV       []string
-	SiteIDFV     []string
-	WebURLFV     []string
+	LibraryFV      string
+	ListFolderFV   []string
+	ListItemFV     []string
+	ListTemplateFV []string
+	PageFolderFV   []string
+	PageFV         []string
+	SiteIDFV       []string
+	WebURLFV       []string
 )
 
 // AddSharePointDetailsAndRestoreFlags adds flags that are common to both the
@@ -78,6 +82,11 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 		ListItemFN, nil,
 		"Select lists by item name; accepts '"+Wildcard+"' to select all lists.")
 	cobra.CheckErr(fs.MarkHidden(ListItemFN))
+	fs.StringSliceVar(
+		&ListTemplateFV,
+		ListTemplateFN, []string{InvalidListTemplate},
+		"Select lists by template; accepts '"+Wildcard+"' to select all lists.")
+	cobra.CheckErr(fs.MarkHidden(ListTemplateFN))
 
 	// pages
 
