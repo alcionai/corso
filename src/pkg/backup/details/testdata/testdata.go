@@ -16,8 +16,16 @@ import (
 // mustParsePath takes a string representing a resource path and returns a path
 // instance. Panics if the path cannot be parsed. Useful for simple variable
 // assignments.
-func mustParsePath(ref string, isItem bool) path.Path {
-	p, err := path.FromDataLayerPath(ref, isItem)
+func mustParsePath(ref string, isItem, isSharepointList bool) path.Path {
+	var p path.Path
+	var err error
+
+	if isSharepointList {
+		p, err = path.PrefixOrPathFromDataLayerPath(ref, isItem)
+	} else {
+		p, err = path.FromDataLayerPath(ref, isItem)
+	}
+
 	if err != nil {
 		panic(err)
 	}
@@ -47,7 +55,7 @@ func locFromRepo(rr path.Path, isItem bool) *path.Builder {
 
 	if rr.Service() == path.GroupsService {
 		loc = loc.PopFront().PopFront().PopFront()
-	} else if rr.Service() == path.OneDriveService || rr.Category() == path.LibrariesCategory {
+	} else if rr.Service() == path.OneDriveService || rr.Category() == path.LibrariesCategory || rr.Category() == path.ListsCategory {
 		loc = loc.PopFront()
 	}
 
@@ -117,9 +125,12 @@ func (p repoRefAndLocRef) locationAsRepoRef() path.Path {
 	return res
 }
 
-func mustPathRep(ref string, isItem bool) repoRefAndLocRef {
+func mustPathRep(ref string, isItem, isSharepointList bool) repoRefAndLocRef {
+	var rr path.Path
+	var err error
+
 	res := repoRefAndLocRef{}
-	tmp := mustParsePath(ref, isItem)
+	tmp := mustParsePath(ref, isItem, isSharepointList)
 
 	// Now append stuff to the RepoRef elements so we have distinct LocationRef
 	// and RepoRef elements to simulate using IDs in the path instead of display
@@ -133,12 +144,20 @@ func mustPathRep(ref string, isItem bool) repoRefAndLocRef {
 		rrPB = rrPB.Append(tmp.Item() + fileSuffix)
 	}
 
-	rr, err := rrPB.ToDataLayerPath(
-		tmp.Tenant(),
-		tmp.ProtectedResource(),
-		tmp.Service(),
-		tmp.Category(),
-		isItem)
+	if isSharepointList {
+		rr, err = rrPB.ToDataLayerSharePointListPath(
+			tmp.Tenant(),
+			tmp.ProtectedResource(),
+			tmp.Category(),
+			isItem)
+	} else {
+		rr, err = rrPB.ToDataLayerPath(
+			tmp.Tenant(),
+			tmp.ProtectedResource(),
+			tmp.Service(),
+			tmp.Category(),
+			isItem)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -166,7 +185,7 @@ var (
 	Time3 = time.Date(2023, 9, 21, 10, 0, 0, 0, time.UTC)
 	Time4 = time.Date(2023, 10, 21, 10, 0, 0, 0, time.UTC)
 
-	ExchangeEmailInboxPath = mustPathRep("tenant-id/exchange/user-id/email/Inbox", false)
+	ExchangeEmailInboxPath = mustPathRep("tenant-id/exchange/user-id/email/Inbox", false, false)
 	ExchangeEmailBasePath  = ExchangeEmailInboxPath.MustAppend("subfolder", false)
 	ExchangeEmailBasePath2 = ExchangeEmailInboxPath.MustAppend("othersubfolder/", false)
 	ExchangeEmailBasePath3 = ExchangeEmailBasePath2.MustAppend("subsubfolder", false)
@@ -314,7 +333,7 @@ var (
 		},
 	}
 
-	ExchangeContactsRootPath  = mustPathRep("tenant-id/exchange/user-id/contacts/contacts", false)
+	ExchangeContactsRootPath  = mustPathRep("tenant-id/exchange/user-id/contacts/contacts", false, false)
 	ExchangeContactsBasePath  = ExchangeContactsRootPath.MustAppend("contacts", false)
 	ExchangeContactsBasePath2 = ExchangeContactsRootPath.MustAppend("morecontacts", false)
 	ExchangeContactsItemPath1 = ExchangeContactsBasePath.MustAppend(ItemName1, true)
@@ -403,8 +422,8 @@ var (
 		},
 	}
 
-	ExchangeEventsBasePath  = mustPathRep("tenant-id/exchange/user-id/events/holidays", false)
-	ExchangeEventsBasePath2 = mustPathRep("tenant-id/exchange/user-id/events/moreholidays", false)
+	ExchangeEventsBasePath  = mustPathRep("tenant-id/exchange/user-id/events/holidays", false, false)
+	ExchangeEventsBasePath2 = mustPathRep("tenant-id/exchange/user-id/events/moreholidays", false, false)
 	ExchangeEventsItemPath1 = ExchangeEventsBasePath.MustAppend(ItemName1, true)
 	ExchangeEventsItemPath2 = ExchangeEventsBasePath2.MustAppend(ItemName2, true)
 
@@ -507,7 +526,7 @@ var (
 		},
 	}
 
-	OneDriveRootPath   = mustPathRep("tenant-id/onedrive/user-id/files/drives/foo/root:", false)
+	OneDriveRootPath   = mustPathRep("tenant-id/onedrive/user-id/files/drives/foo/root:", false, false)
 	OneDriveFolderPath = OneDriveRootPath.MustAppend("folder", false)
 	OneDriveBasePath1  = OneDriveFolderPath.MustAppend("a", false)
 	OneDriveBasePath2  = OneDriveFolderPath.MustAppend("b", false)
@@ -732,10 +751,11 @@ var (
 		},
 	}
 
-	GroupsRootPath = mustPathRep("tenant-id/groups/group-id/libraries/sites/site-id/drives/foo/root:", false)
+	GroupsRootPath = mustPathRep("tenant-id/groups/group-id/libraries/sites/site-id/drives/foo/root:", false, false)
 
-	SharePointRootPath    = mustPathRep("tenant-id/sharepoint/site-id/libraries/drives/foo/root:", false)
+	SharePointRootPath    = mustPathRep("tenant-id/sharepoint/site-id/libraries/drives/foo/root:", false, false)
 	SharePointLibraryPath = SharePointRootPath.MustAppend("library", false)
+	SharePointListPath    = mustPathRep("tenant-id/sharepoint/site-id/lists", false, true)
 	SharePointBasePath1   = SharePointLibraryPath.MustAppend("a", false)
 	SharePointBasePath2   = SharePointLibraryPath.MustAppend("b", false)
 

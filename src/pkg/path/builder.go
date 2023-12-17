@@ -355,6 +355,34 @@ func (pb Builder) ToDataLayerSharePointPath(
 	return pb.ToDataLayerPath(tenant, site, SharePointService, category, isItem)
 }
 
+func (pb Builder) ToDataLayerSharePointListPath(
+	tenant, site string,
+	category CategoryType,
+	isItem bool,
+) (Path, error) {
+	if err := ValidateServiceAndCategory(SharePointService, category); err != nil {
+		return nil, err
+	}
+
+	if err := verifyInputValues(tenant, site); err != nil {
+		return nil, err
+	}
+
+	prefixItems := []string{
+		tenant,
+		SharePointService.String(),
+		site,
+		category.String(),
+	}
+
+	return &dataLayerResourcePath{
+		Builder:  *pb.withPrefix(prefixItems...),
+		service:  SharePointService,
+		category: category,
+		hasItem:  isItem,
+	}, nil
+}
+
 // ---------------------------------------------------------------------------
 // Stringers and PII Concealer Compliance
 // ---------------------------------------------------------------------------
