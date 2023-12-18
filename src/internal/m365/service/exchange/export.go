@@ -62,9 +62,9 @@ func (h *baseExchangeHandler) ProduceExportCollections(
 		category := dc.FullPath().Category()
 
 		switch category {
-		case path.EmailCategory:
+		case path.ContactsCategory, path.EmailCategory:
 			folders := dc.FullPath().Folders()
-			pth := path.Builder{}.Append(path.EmailCategory.HumanString()).Append(folders...)
+			pth := path.Builder{}.Append(category.HumanString()).Append(folders...)
 
 			ec = append(
 				ec,
@@ -73,7 +73,7 @@ func (h *baseExchangeHandler) ProduceExportCollections(
 					[]data.RestoreCollection{dc},
 					backupVersion,
 					stats))
-		case path.EventsCategory, path.ContactsCategory:
+		case path.EventsCategory:
 			logger.Ctx(ctx).With("category", category.String()).Debugw("Skipping restore for category")
 		default:
 			return nil, clues.NewWC(ctx, "data category not supported").

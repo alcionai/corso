@@ -59,6 +59,7 @@ require (
 	github.com/andybalholm/brotli v1.0.6 // indirect
 	github.com/aws/aws-sdk-go v1.48.6 // indirect
 	github.com/cention-sany/utf7 v0.0.0-20170124080048-26cad61bd60a // indirect
+	github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
