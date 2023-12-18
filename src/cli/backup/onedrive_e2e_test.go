@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -64,7 +64,7 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "onedrive",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetErr(&suite.dpnd.recorder)
@@ -93,7 +93,7 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_userNotInTenant() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "onedrive",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.UserFN, "foo@nothere.com")
 	cli.BuildCommandTree(cmd)
 
@@ -175,7 +175,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "onedrive",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupIDsFN,
 		fmt.Sprintf("%s,%s",
 			string(suite.backupOps[0].Results.BackupID),
@@ -200,7 +200,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "onedrive",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backups", string(suite.backupOps[0].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
@@ -220,7 +220,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_SingleID(
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "onedrive",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupFN,
 		string(suite.backupOps[2].Results.BackupID))
 	cli.BuildCommandTree(cmd)
@@ -242,7 +242,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_SingleID(
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "onedrive",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backup", string(suite.backupOps[0].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
@@ -260,7 +260,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "onedrive",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupIDsFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
@@ -279,7 +279,7 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_NoBackupI
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "onedrive",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	// empty backupIDs should error since no data provided

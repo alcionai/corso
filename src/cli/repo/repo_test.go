@@ -10,11 +10,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/repo"
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
@@ -76,7 +77,7 @@ func (suite *RepoE2ESuite) TestUpdatePassphraseCmd() {
 
 	cmd := cliTD.StubRootCmd(
 		"repo", "init", "s3",
-		"--config-file", configFP,
+		"--"+flags.ConfigFileFN, configFP,
 		"--prefix", cfg.Prefix)
 
 	cli.BuildCommandTree(cmd)
@@ -88,7 +89,7 @@ func (suite *RepoE2ESuite) TestUpdatePassphraseCmd() {
 	// connect with old passphrase
 	cmd = cliTD.StubRootCmd(
 		"repo", "connect", "s3",
-		"--config-file", configFP,
+		"--"+flags.ConfigFileFN, configFP,
 		"--bucket", cfg.Bucket,
 		"--prefix", cfg.Prefix)
 	cli.BuildCommandTree(cmd)
@@ -99,7 +100,7 @@ func (suite *RepoE2ESuite) TestUpdatePassphraseCmd() {
 
 	cmd = cliTD.StubRootCmd(
 		"repo", "update-passphrase",
-		"--config-file", configFP,
+		"--"+flags.ConfigFileFN, configFP,
 		"--new-passphrase", "newpass")
 	cli.BuildCommandTree(cmd)
 
@@ -110,7 +111,7 @@ func (suite *RepoE2ESuite) TestUpdatePassphraseCmd() {
 	// connect again with new passphrase
 	cmd = cliTD.StubRootCmd(
 		"repo", "connect", "s3",
-		"--config-file", configFP,
+		"--"+flags.ConfigFileFN, configFP,
 		"--bucket", cfg.Bucket,
 		"--prefix", cfg.Prefix,
 		"--passphrase", "newpass")
@@ -123,7 +124,7 @@ func (suite *RepoE2ESuite) TestUpdatePassphraseCmd() {
 	// connect with old passphrase - it will fail
 	cmd = cliTD.StubRootCmd(
 		"repo", "connect", "s3",
-		"--config-file", configFP,
+		"--"+flags.ConfigFileFN, configFP,
 		"--bucket", cfg.Bucket,
 		"--prefix", cfg.Prefix)
 	cli.BuildCommandTree(cmd)

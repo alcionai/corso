@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -19,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -145,7 +145,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd() {
 
 			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
-				"--config-file", suite.cfgFP,
+				"--"+flags.ConfigFileFN, suite.cfgFP,
 				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID))
 			cli.BuildCommandTree(cmd)
 
@@ -180,7 +180,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badTimeFlags() {
 
 			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
-				"--config-file", suite.cfgFP,
+				"--"+flags.ConfigFileFN, suite.cfgFP,
 				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "smarf")
 			cli.BuildCommandTree(cmd)
@@ -214,7 +214,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badBoolFlags() {
 
 			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
-				"--config-file", suite.cfgFP,
+				"--"+flags.ConfigFileFN, suite.cfgFP,
 				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "wingbat")
 			cli.BuildCommandTree(cmd)

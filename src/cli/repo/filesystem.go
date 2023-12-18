@@ -5,11 +5,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/config"
 	ctrlRepo "github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -73,7 +73,7 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 
 	overrides[flags.FilesystemPathFN] = abs
 
-	cfg, err := config.GetConfigRepoDetails(
+	cfg, err := config.ReadCorsoConfig(
 		ctx,
 		storage.ProviderFilesystem,
 		true,
@@ -163,7 +163,7 @@ func connectFilesystemCmd(cmd *cobra.Command, args []string) error {
 
 	overrides[flags.FilesystemPathFN] = abs
 
-	cfg, err := config.GetConfigRepoDetails(
+	cfg, err := config.ReadCorsoConfig(
 		ctx,
 		storage.ProviderFilesystem,
 		true,
