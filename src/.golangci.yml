@@ -49,7 +49,7 @@ linters-settings:
       # String formatting should be avoided in favor of structured errors (ie: err.With(k, v)).
       - '(errors|fmt)\.(New|Stack|Wrap|Error)f?\((# error handling should use clues pkg)?'
       # Avoid Warn-level logging in favor of Info or Error.
-      - 'Warn[wf]?\((# logging should use Info or Error)?'
+      - 'Warnw?f?\((# logging should use Info or Error)?'
       # Prefer suite.Run(name, func() {}) for subtests as testify has it instead
       # of suite.T().Run(name, func(t *testing.T) {}).
       - '(T\(\)|\st[a-zA-Z0-9]*)\.Run(# prefer testify suite.Run(name, func()) )?'

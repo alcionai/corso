@@ -151,7 +151,7 @@ func main() {
 
 	cc.SetContext(context.Background())
 
-	if err := config.InitFunc(&cc, []string{}); err != nil {
+	if err := config.InitCmd(&cc, []string{}); err != nil {
 		return
 	}
 

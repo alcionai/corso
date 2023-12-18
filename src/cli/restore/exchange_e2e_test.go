@@ -145,7 +145,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd() {
 
 			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
-				"--config-file", suite.cfgFP,
+				"--"+flags.ConfigFileFN, suite.cfgFP,
 				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID))
 			cli.BuildCommandTree(cmd)
 
@@ -180,7 +180,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badTimeFlags() {
 
 			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
-				"--config-file", suite.cfgFP,
+				"--"+flags.ConfigFileFN, suite.cfgFP,
 				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "smarf")
 			cli.BuildCommandTree(cmd)
@@ -214,7 +214,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badBoolFlags() {
 
 			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
-				"--config-file", suite.cfgFP,
+				"--"+flags.ConfigFileFN, suite.cfgFP,
 				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "wingbat")
 			cli.BuildCommandTree(cmd)
