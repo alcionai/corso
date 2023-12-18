@@ -509,7 +509,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			pages: []nextPage{
 				aPage(
 					d.fileWURLAtRoot(aURL(1), false, 1),
-					d.folderAtRoot(2)),
+					d.folderAt(root, 2)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(2): {},

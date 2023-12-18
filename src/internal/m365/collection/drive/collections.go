@@ -489,6 +489,7 @@ func (c *Collections) Get(
 				nil, // delete the folder
 				prevPath,
 				driveID,
+				driveName,
 				c.statusUpdater,
 				c.ctrl,
 				false,
@@ -527,6 +528,7 @@ func (c *Collections) Get(
 			nil, // delete the drive
 			prevDrivePath,
 			driveID,
+			"",
 			c.statusUpdater,
 			c.ctrl,
 			false,
@@ -698,6 +700,7 @@ func (c *Collections) handleDelete(
 		nil, // deletes the collection
 		prevPath,
 		driveID,
+		"",
 		c.statusUpdater,
 		c.ctrl,
 		false,
@@ -706,7 +709,7 @@ func (c *Collections) handleDelete(
 		nil,
 		counter.Local())
 	if err != nil {
-		return clues.Wrap(err, "making collection").With(
+		return clues.WrapWC(ctx, err, "making collection").With(
 			"drive_id", driveID,
 			"item_id", itemID,
 			"path_string", prevPathStr)
@@ -1089,6 +1092,7 @@ func (c *Collections) processItem(
 			collectionPath,
 			prevPath,
 			driveID,
+			driveName,
 			c.statusUpdater,
 			c.ctrl,
 			isPackage || childOfPackage,

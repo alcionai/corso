@@ -220,7 +220,8 @@ func (c *Collections) makeDriveCollections(
 	collections, newPrevs, excludedItemIDs, err := c.turnTreeIntoCollections(
 		ctx,
 		tree,
-		driveID,
+		drv,
+		prevPaths,
 		prevDeltaLink,
 		countPagesInDelta,
 		errs)
@@ -457,6 +458,14 @@ func (c *Collections) enumeratePageOfItems(
 				return err
 			}
 
+			// special case: we only want to add a limited number of files
+			// to each collection.  But if one collection fills up, we don't
+			// want to break out of the whole backup.  That allows us to preview
+			// many folders with a small selection of files in each.
+			if errors.Is(err, errHitCollectionLimit) {
+				continue
+			}
+
 			el.AddRecoverable(ictx, clues.Wrap(err, "adding folder"))
 		}
 	}
@@ -479,18 +488,12 @@ func (c *Collections) addFolderToTree(
 		isDeleted   = folder.GetDeleted() != nil
 		isMalware   = folder.GetMalware() != nil
 		isPkg       = folder.GetPackageEscaped() != nil
-		parent      = folder.GetParentReference()
-		parentID    string
 		notSelected bool
 	)
 
 	// check container limits before adding the next new folder
 	if !tree.containsFolder(folderID) && limiter.hitContainerLimit(tree.countLiveFolders()) {
 		return nil, errHitLimit
-	}
-
-	if parent != nil {
-		parentID = ptr.Val(parent.GetId())
 	}
 
 	defer func() {
@@ -525,7 +528,7 @@ func (c *Collections) addFolderToTree(
 	}
 
 	if isDeleted {
-		err := tree.setTombstone(ctx, folderID)
+		err := tree.setTombstone(ctx, folder)
 		return nil, clues.Stack(err).OrNil()
 	}
 
@@ -541,7 +544,7 @@ func (c *Collections) addFolderToTree(
 		return nil, nil
 	}
 
-	err = tree.setFolder(ctx, parentID, folderID, folderName, isPkg)
+	err = tree.setFolder(ctx, folder)
 
 	return nil, clues.Stack(err).OrNil()
 }
@@ -635,22 +638,32 @@ func (c *Collections) addFileToTree(
 	if parentNotNil && !alreadySeen {
 		countSize := tree.countLiveFilesAndSizes()
 
-		// Don't add new items if the new collection has already reached it's limit.
-		// item moves and updates are generally allowed through.
-		if limiter.atContainerItemsLimit(len(parentNode.files)) || limiter.hitItemLimit(countSize.numFiles) {
+		// Tell the enumerator to exit if we've already hit the total
+		// limit of bytes or items in this backup.
+		if limiter.alreadyHitTotalBytesLimit(countSize.totalBytes) ||
+			limiter.hitItemLimit(countSize.numFiles) {
 			return nil, errHitLimit
 		}
 
-		// Skip large files that don't fit within the size limit.
-		// unlike the other checks, which see if we're already at the limit, this check
-		// needs to be forward-facing to ensure we don't go far over the limit.
+		// Don't add new items if the new collection has already reached it's limit.
+		// item moves and updates are generally allowed through.
+		if limiter.atContainerItemsLimit(len(parentNode.files)) {
+			return nil, errHitCollectionLimit
+		}
+
+		// Don't include large files that don't fit within the size limit.
+		// Unlike the other checks, which see if we're already at the limit,
+		// this check needs to be forward-facing to ensure we don't go far
+		// over the limit
 		// Example case: a 1gb limit and a 25gb file.
-		if limiter.hitTotalBytesLimit(fileSize + countSize.totalBytes) {
-			return nil, errHitLimit
+		if limiter.willStepOverBytesLimit(countSize.totalBytes, fileSize) {
+			// don't return errHitLimit here; we only want to skip the
+			// current file.  We may not want to skip files after it.
+			return nil, nil
 		}
 	}
 
-	err := tree.addFile(parentID, fileID, file)
+	err := tree.addFile(file)
 	if err != nil {
 		return nil, clues.StackWC(ctx, err)
 	}
@@ -775,7 +788,8 @@ func addPrevPathsToTree(
 func (c *Collections) turnTreeIntoCollections(
 	ctx context.Context,
 	tree *folderyMcFolderFace,
-	driveID string,
+	drv models.Driveable,
+	prevPaths map[string]string,
 	prevDeltaLink string,
 	countPagesInDelta int,
 	errs *fault.Bus,
@@ -792,10 +806,11 @@ func (c *Collections) turnTreeIntoCollections(
 	}
 
 	var (
-		collections  = []data.BackupCollection{}
-		newPrevPaths = map[string]string{}
-		uc           *urlCache
-		el           = errs.Local()
+		collections = []data.BackupCollection{}
+		uc          *urlCache
+		el          = errs.Local()
+		driveID     = ptr.Val(drv.GetId())
+		driveName   = ptr.Val(drv.GetName())
 	)
 
 	// Attach an url cache to the drive if the number of discovered items is
@@ -823,13 +838,9 @@ func (c *Collections) turnTreeIntoCollections(
 		}
 	}
 
-	for id, cbl := range collectables {
+	for _, cbl := range collectables {
 		if el.Failure() != nil {
 			break
-		}
-
-		if cbl.currPath != nil {
-			newPrevPaths[id] = cbl.currPath.String()
 		}
 
 		coll, err := NewCollection(
@@ -838,6 +849,7 @@ func (c *Collections) turnTreeIntoCollections(
 			cbl.currPath,
 			cbl.prevPath,
 			driveID,
+			driveName,
 			c.statusUpdater,
 			c.ctrl,
 			cbl.isPackageOrChildOfPackage,
@@ -853,5 +865,16 @@ func (c *Collections) turnTreeIntoCollections(
 		collections = append(collections, coll)
 	}
 
-	return collections, newPrevPaths, tree.generateExcludeItemIDs(), el.Failure()
+	if el.Failure() != nil {
+		return nil, nil, nil, el.Failure()
+	}
+
+	// use the collectables and old previous paths
+	// to generate new previous paths
+	newPrevPaths, err := tree.generateNewPreviousPaths(collectables, prevPaths)
+	if err != nil {
+		return nil, nil, nil, clues.WrapWC(ctx, err, "generating new previous paths")
+	}
+
+	return collections, newPrevPaths, tree.generateExcludeItemIDs(), nil
 }
