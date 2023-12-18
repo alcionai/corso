@@ -31,6 +31,7 @@ func ConsumeExportCollections(
 		for item := range col.Items(ictx) {
 			if item.Error != nil {
 				el.AddRecoverable(ictx, clues.Wrap(item.Error, "getting item"))
+				continue
 			}
 
 			if err := writeItem(ictx, item, folder); err != nil {
