@@ -53,6 +53,18 @@ func (suite *EMLUnitSuite) TestFormatAddress() {
 			email:    "johndoe@provider.com",
 			expected: "johndoe@provider.com",
 		},
+		{
+			tname:    "only name",
+			name:     "john doe",
+			email:    "",
+			expected: `"john doe"`,
+		},
+		{
+			tname:    "neither mail or name",
+			name:     "",
+			email:    "",
+			expected: "",
+		},
 	}
 
 	for _, tt := range tests {

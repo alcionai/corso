@@ -1,6 +1,8 @@
 package credentials
 
 import (
+	"os"
+
 	"github.com/alcionai/clues"
 )
 
@@ -16,6 +18,14 @@ type AWS struct {
 	AccessKey    string // required
 	SecretKey    string // required
 	SessionToken string // required
+}
+
+func GetAWSEnvs() map[string]string {
+	return map[string]string{
+		AWSAccessKeyID:     os.Getenv(AWSAccessKeyID),
+		AWSSecretAccessKey: os.Getenv(AWSSecretAccessKey),
+		AWSSessionToken:    os.Getenv(AWSSessionToken),
+	}
 }
 
 // GetAWS is a helper for aggregating aws secrets and credentials.

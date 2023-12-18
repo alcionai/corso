@@ -412,6 +412,8 @@ const ctxKey loggingKey = "corsoLogger"
 // a seeded context prior to cobra evaluating flags.
 func Seed(ctx context.Context, set Settings) (context.Context, *zap.SugaredLogger) {
 	zsl := singleton(set)
+	zsl.Debugw("seeding logger", "logger_settings", set)
+
 	return SetWithSettings(ctx, zsl, set), zsl
 }
 

@@ -10,7 +10,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/backup"
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/debug"
 	"github.com/alcionai/corso/src/cli/export"
 	"github.com/alcionai/corso/src/cli/flags"
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/cli/restore"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -38,7 +38,7 @@ var corsoCmd = &cobra.Command{
 }
 
 func preRun(cc *cobra.Command, args []string) error {
-	if err := config.InitFunc(cc, args); err != nil {
+	if err := config.InitCmd(cc, args); err != nil {
 		return err
 	}
 

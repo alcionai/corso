@@ -30,6 +30,14 @@ func formatAddress(entry models.EmailAddressable) string {
 	name := ptr.Val(entry.GetName())
 	email := ptr.Val(entry.GetAddress())
 
+	if len(name) == 0 && len(email) == 0 {
+		return ""
+	}
+
+	if len(email) == 0 {
+		return fmt.Sprintf(`"%s"`, name)
+	}
+
 	if name == email || len(name) == 0 {
 		return email
 	}
@@ -44,7 +52,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		return "", clues.Wrap(err, "converting to messageble")
 	}
 
-	ctx = clues.Add(ctx, "id", ptr.Val(data.GetId()))
+	ctx = clues.Add(ctx, "item_id", ptr.Val(data.GetId()))
 
 	email := mail.NewMSG()
 	email.AllowDuplicateAddress = true // More "correct" conversion

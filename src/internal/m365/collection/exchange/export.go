@@ -44,7 +44,9 @@ func streamItems(
 	errs := fault.New(false)
 
 	for _, rc := range drc {
-		for item := range rc.Items(ctx, errs) {
+		ictx := clues.Add(ctx, "path_short_ref", rc.FullPath().ShortRef())
+
+		for item := range rc.Items(ictx, errs) {
 			id := item.ID()
 			name := id + ".eml"
 
@@ -64,7 +66,7 @@ func streamItems(
 				continue
 			}
 
-			email, err := eml.FromJSON(ctx, content)
+			email, err := eml.FromJSON(ictx, content)
 			if err != nil {
 				ch <- export.Item{
 					ID:    id,

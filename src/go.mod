@@ -4,9 +4,13 @@ go 1.21
 
 replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231205231702-863c24d6f8b1
 
-// No tags in the alcion fork of the repo so use v7 as that's in the import
-// path.
-replace github.com/minio/minio-go/v7 => github.com/alcionai/minio-go/v7 v7.0.0-20231130221740-c745a3d084aa
+replace (
+	// No tags in the alcion fork of the repo so use v7 as that's in the import path.
+	github.com/minio/minio-go/v7 => github.com/alcionai/minio-go/v7 v7.0.0-20231130221740-c745a3d084aa
+
+	// Alcion fork removes the validation of email addresses as we might get incomplete email addresses
+	github.com/xhit/go-simple-mail/v2 v2.16.0 => github.com/alcionai/go-simple-mail/v2 v2.0.0-20231216082222-e8c58c45d8a5
+)
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0

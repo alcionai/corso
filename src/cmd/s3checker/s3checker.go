@@ -12,9 +12,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cmd/s3checker/pkg/s3"
 	"github.com/alcionai/corso/src/internal/common/crash"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -175,7 +175,7 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 
 	fmt.Printf("Checking objects with prefix(es) %v\n", f.prefixes)
 
-	if err := config.InitFunc(cmd, args); err != nil {
+	if err := config.InitCmd(cmd, args); err != nil {
 		return clues.Wrap(err, "setting viper")
 	}
 
@@ -187,7 +187,7 @@ func handleCheckerCommand(cmd *cobra.Command, args []string, f flags) error {
 		storage.Prefix: f.bucketPrefix,
 	}
 
-	repoDetails, err := config.GetConfigRepoDetails(
+	repoDetails, err := config.ReadCorsoConfig(
 		ctx,
 		storage.ProviderS3,
 		false,

@@ -53,6 +53,7 @@ func (suite *ExportE2ESuite) TestConsumeExportCollection() {
 	type ei struct {
 		name string
 		body string
+		err  error
 	}
 
 	type i struct {
@@ -61,9 +62,29 @@ func (suite *ExportE2ESuite) TestConsumeExportCollection() {
 	}
 
 	table := []struct {
-		name string
-		cols []i
+		name     string
+		cols     []i
+		hasError bool
 	}{
+		{
+			name: "items with one error and success",
+			cols: []i{
+				{
+					path: "",
+					items: []ei{
+						{
+							name: "name0",
+							err:  assert.AnError,
+						},
+						{
+							name: "name1",
+							body: "body1",
+						},
+					},
+				},
+			},
+			hasError: true,
+		},
 		{
 			name: "single root collection single item",
 			cols: []i{
@@ -136,6 +157,15 @@ func (suite *ExportE2ESuite) TestConsumeExportCollection() {
 			for _, col := range test.cols {
 				items := []Item{}
 				for _, item := range col.items {
+					if item.err != nil {
+						items = append(items, Item{
+							Name:  item.name,
+							Body:  nil,
+							Error: item.err,
+						})
+						continue
+					}
+
 					items = append(items, Item{
 						Name: item.name,
 						Body: io.NopCloser((bytes.NewBufferString(item.body))),
@@ -153,6 +183,11 @@ func (suite *ExportE2ESuite) TestConsumeExportCollection() {
 			defer os.RemoveAll(dir)
 
 			err = ConsumeExportCollections(ctx, dir, ecs, fault.New(true))
+			if test.hasError {
+				require.Error(t, err)
+				return
+			}
+
 			require.NoError(t, err, "writing data")
 
 			for _, col := range test.cols {
