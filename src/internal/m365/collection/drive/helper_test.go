@@ -396,7 +396,7 @@ func (ecs expectedCollections) compareColl(t *testing.T, coll data.BackupCollect
 	)
 
 	// check the metadata collection separately
-	if coll.FullPath() != nil && coll.FullPath().Equal(defaultMetadataPath(t)) {
+	if p.Equal(defaultMetadataPath(t)) {
 		ecs.metadata.sawCollection = true
 		compareMetadata(t, coll, ecs.metadata.deltas, ecs.metadata.prevPaths)
 
@@ -974,27 +974,27 @@ func (en enumerateDriveItemsDelta) EnumerateDriveItemsDelta(
 }
 
 func (en enumerateDriveItemsDelta) drivePager() *apiMock.Pager[models.Driveable] {
-	dvs := []models.Driveable{}
+	enumerableDrives := []models.Driveable{}
 
 	for _, dp := range en.DrivePagers {
-		dvs = append(dvs, dp.Drive.able)
+		enumerableDrives = append(enumerableDrives, dp.Drive.able)
 	}
 
 	return &apiMock.Pager[models.Driveable]{
 		ToReturn: []apiMock.PagerResult[models.Driveable]{
-			{Values: dvs},
+			{Values: enumerableDrives},
 		},
 	}
 }
 
 func (en enumerateDriveItemsDelta) getDrives() []*deltaDrive {
-	dvs := []*deltaDrive{}
+	enumerableDrives := []*deltaDrive{}
 
 	for _, dp := range en.DrivePagers {
-		dvs = append(dvs, dp.Drive)
+		enumerableDrives = append(enumerableDrives, dp.Drive)
 	}
 
-	return dvs
+	return enumerableDrives
 }
 
 type deltaDrive struct {
@@ -1028,6 +1028,7 @@ type drivePrevPaths struct {
 }
 
 func (dd *deltaDrive) newPrevPaths(
+	t *testing.T,
 	idPathPairs ...string,
 ) *drivePrevPaths {
 	dpp := drivePrevPaths{
@@ -1035,10 +1036,7 @@ func (dd *deltaDrive) newPrevPaths(
 		folderIDToPrevPath: map[string]string{},
 	}
 
-	if len(idPathPairs)%2 == 1 {
-		dpp.folderIDToPrevPath["error"] = "idPathPairs had odd count of elements"
-		return &dpp
-	}
+	require.Zero(t, len(idPathPairs)%2, "idPathPairs has an even count of elements")
 
 	for i := 0; i < len(idPathPairs); i += 2 {
 		dpp.folderIDToPrevPath[idPathPairs[i]] = idPathPairs[i+1]
@@ -1065,14 +1063,14 @@ func multiDriveMetadata(
 	t *testing.T,
 	drivePrevs ...*drivePrevPaths,
 ) []data.RestoreCollection {
-	drc := []data.RestoreCollection{}
+	restoreColls := []data.RestoreCollection{}
 
-	for _, dp := range drivePrevs {
+	for _, drivePrev := range drivePrevs {
 		mdColl := []graph.MetadataCollectionEntry{
 			graph.NewMetadataEntry(
 				bupMD.DeltaURLsFileName,
 				map[string]string{
-					dp.id: deltaURL(),
+					drivePrev.id: deltaURL(),
 				}),
 			graph.NewMetadataEntry(
 				bupMD.PreviousPathFileName,
@@ -1086,12 +1084,12 @@ func multiDriveMetadata(
 			count.New())
 		require.NoError(t, err, clues.ToCore(err))
 
-		drc = append(drc, dataMock.NewUnversionedRestoreCollection(
+		restoreColls = append(restoreColls, dataMock.NewUnversionedRestoreCollection(
 			t,
 			data.NoFetchRestoreCollection{Collection: mc}))
 	}
 
-	return drc
+	return restoreColls
 }
 
 type DeltaDriveEnumerator struct {
