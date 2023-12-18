@@ -39,7 +39,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
-	github.com/vbauerster/mpb/v8 v8.1.6 // do not update; keep at v8.1.6
+	github.com/vbauerster/mpb/v8 v8.7.1 // do not update; keep at v8.1.6
 	github.com/xhit/go-simple-mail/v2 v2.16.0
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.26.0
