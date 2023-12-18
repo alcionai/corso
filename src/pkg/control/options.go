@@ -29,23 +29,10 @@ type Options struct {
 	PreviewLimits PreviewItemLimits `json:"previewItemLimits"`
 }
 
-type Parallelism struct {
-	// sets the collection buffer size before blocking.
-	CollectionBuffer int
-	// sets the parallelism of item population within a collection.
-	ItemFetch int
-}
-
-// PreviewItemLimits describes best-effort maximum values to attempt to reach in
-// this backup. Preview backups are used to demonstrate value by being quick to
-// create.
-type PreviewItemLimits struct {
-	MaxItems             int
-	MaxItemsPerContainer int
-	MaxContainers        int
-	MaxBytes             int64
-	MaxPages             int
-	Enabled              bool
+// RateLimiter is the set of options applied to any external service facing rate
+// limiters Corso may use during backups or restores.
+type RateLimiter struct {
+	DisableSlidingWindowLimiter bool `json:"disableSlidingWindowLimiter"`
 }
 
 type FailurePolicy string
