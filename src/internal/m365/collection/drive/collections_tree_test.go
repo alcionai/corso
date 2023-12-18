@@ -171,8 +171,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 						aPage()))),
 			metadata: multiDriveMetadata(
 				t,
-				d1.newPrevPaths(),
-				d2.newPrevPaths()),
+				d1.newPrevPaths(t),
+				d2.newPrevPaths(t)),
 			expect: expected{
 				canUsePrevBackup: assert.True,
 				collections: expectCollections(
@@ -181,8 +181,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 					aColl(d1.fullPath(t), nil),
 					aColl(d2.fullPath(t), nil),
 					aMetadata(nil, multiDrivePrevPaths(
-						d1.newPrevPaths(rootID, d1.strPath(t)),
-						d2.newPrevPaths(rootID, d2.strPath(t))))),
+						d1.newPrevPaths(t, rootID, d1.strPath(t)),
+						d2.newPrevPaths(t, rootID, d2.strPath(t))))),
 				globalExcludedFileIDs: multiDriveExcludeMap(
 					d1.newExcludes(t, makeExcludeMap()),
 					d2.newExcludes(t, makeExcludeMap())),
@@ -205,8 +205,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 							d2.fileAt(folder, "f"))))),
 			metadata: multiDriveMetadata(
 				t,
-				d1.newPrevPaths(),
-				d2.newPrevPaths()),
+				d1.newPrevPaths(t),
+				d2.newPrevPaths(t)),
 			expect: expected{
 				canUsePrevBackup: assert.True,
 				collections: expectCollections(
@@ -230,9 +230,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 						fileID("f")),
 					aMetadata(nil, multiDrivePrevPaths(
 						d1.newPrevPaths(
+							t,
 							rootID, d1.strPath(t),
 							folderID(), d1.strPath(t, folderName())),
 						d2.newPrevPaths(
+							t,
 							rootID, d2.strPath(t),
 							folderID(), d2.strPath(t, folderName()))))),
 				globalExcludedFileIDs: multiDriveExcludeMap(
@@ -248,9 +250,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			metadata: multiDriveMetadata(
 				t,
 				d1.newPrevPaths(
+					t,
 					rootID, d1.strPath(t),
 					folderID(), d1.strPath(t, folderName())),
 				d2.newPrevPaths(
+					t,
 					rootID, d2.strPath(t),
 					folderID(), d2.strPath(t, folderName()))),
 			expect: expected{
@@ -262,9 +266,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 					aColl(d2.fullPath(t), d2.fullPath(t)),
 					aMetadata(nil, multiDrivePrevPaths(
 						d1.newPrevPaths(
+							t,
 							rootID, d1.strPath(t),
 							folderID(), d1.strPath(t, folderName())),
 						d2.newPrevPaths(
+							t,
 							rootID, d2.strPath(t),
 							folderID(), d2.strPath(t, folderName()))))),
 				globalExcludedFileIDs: multiDriveExcludeMap(
@@ -290,9 +296,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			metadata: multiDriveMetadata(
 				t,
 				d1.newPrevPaths(
+					t,
 					rootID, d1.strPath(t),
 					folderID(), d1.strPath(t, folderName())),
 				d2.newPrevPaths(
+					t,
 					rootID, d2.strPath(t),
 					folderID(), d2.strPath(t, folderName()))),
 			expect: expected{
@@ -312,8 +320,10 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 						fileID("f")),
 					aMetadata(nil, multiDrivePrevPaths(
 						d1.newPrevPaths(
+							t,
 							rootID, d1.strPath(t)),
 						d2.newPrevPaths(
+							t,
 							rootID, d2.strPath(t),
 							folderID(), d2.strPath(t, folderName(2)))))),
 				globalExcludedFileIDs: multiDriveExcludeMap(
@@ -328,9 +338,11 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			metadata: multiDriveMetadata(
 				t,
 				d1.newPrevPaths(
+					t,
 					rootID, d1.strPath(t),
 					folderID(), d1.strPath(t, folderName())),
 				d2.newPrevPaths(
+					t,
 					rootID, d2.strPath(t),
 					folderID(), d2.strPath(t, folderName()))),
 			expect: expected{
@@ -342,6 +354,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 					aTomb(d2.fullPath(t)),
 					aMetadata(nil, multiDrivePrevPaths(
 						d1.newPrevPaths(
+							t,
 							rootID, d1.strPath(t),
 							folderID(), d1.strPath(t, folderName()))))),
 				globalExcludedFileIDs: multiDriveExcludeMap(
