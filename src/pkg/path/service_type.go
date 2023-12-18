@@ -57,3 +57,20 @@ func ToServiceType(service string) ServiceType {
 		return UnknownService
 	}
 }
+
+var serviceToHuman = map[ServiceType]string{
+	ExchangeService:   "Exchange",
+	OneDriveService:   "OneDrive",
+	SharePointService: "SharePoint",
+	GroupsService:     "Groups",
+}
+
+// HumanString produces a more human-readable string version of the service.
+func (svc ServiceType) HumanString() string {
+	hs, ok := serviceToHuman[svc]
+	if ok {
+		return hs
+	}
+
+	return "Unknown Service"
+}

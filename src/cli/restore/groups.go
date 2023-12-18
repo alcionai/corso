@@ -6,7 +6,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common/dttm"
+	"github.com/alcionai/corso/src/pkg/dttm"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.

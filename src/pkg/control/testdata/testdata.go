@@ -3,8 +3,8 @@ package testdata
 import (
 	"strings"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/dttm"
 )
 
 const RestoreFolderPrefix = "Corso_Test"
