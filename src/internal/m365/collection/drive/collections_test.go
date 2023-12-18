@@ -1506,7 +1506,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()))))),
@@ -1536,7 +1536,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_NoErrors_FileRenamedMultiple",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
@@ -1600,7 +1600,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_TwoItemPages_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -1635,7 +1635,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_TwoItemPages_WithReset",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
@@ -1675,7 +1675,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_TwoItemPages_WithResetCombinedWithItems",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -1713,12 +1713,12 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "TwoDrives_OneItemPageEach_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())))),
 				d2.newEnumer().with(
-					deltaWReset(deltaURL(2), nil).with(aPage(
+					deltaWReset(nil, 2).with(aPage(
 						driveItem(folderID(2), folderName(), d2.dir(), rootID, isFolder),
 						driveItem(fileID(2), fileName(), d2.dir(folderName()), folderID(2), isFile))))),
 			canUsePreviousBackup: true,
@@ -1759,12 +1759,12 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "TwoDrives_DuplicateIDs_OneItemPageEach_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())))),
 				d2.newEnumer().with(
-					deltaWReset(deltaURL(2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d2.dir(), rootID),
 							driveItem(fileID(2), fileName(), d2.dir(folderName()), folderID(), isFile))))),
@@ -1821,7 +1821,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDelta_DeleteNonExistentFolder",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							driveFolder(d.dir(), rootID, 2),
@@ -1859,7 +1859,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDeltaCombinedWithItems_DeleteNonExistentFolder",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							driveFolder(d.dir(), rootID, 2),
@@ -1897,7 +1897,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
 							driveFile(d.dir(folderName()), folderID(2))),
@@ -1941,7 +1941,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtExistingLocation",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -1982,7 +1982,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_ImmediateInvalidPrevDelta_MoveFolderToPreviouslyExistingPath",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
@@ -2021,7 +2021,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
@@ -2062,7 +2062,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive Two Item Pages with Malware",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
@@ -2100,7 +2100,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Deleted Folder In New Results With Invalid Delta",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
@@ -2146,7 +2146,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Delete After Invalid Delta",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPageWReset(
 							delItem(folderID(), rootID, isFolder))))),
 			canUsePreviousBackup: true,
@@ -2179,7 +2179,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Item Delete After Invalid Delta",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPageWReset(
 							delItem(fileID(), rootID, isFile))))),
 			canUsePreviousBackup: true,
@@ -2209,7 +2209,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Made And Deleted",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -2241,7 +2241,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Created -> Deleted -> Created",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -2279,7 +2279,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Deleted -> Created -> Deleted",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							delItem(folderID(), rootID, isFolder),
 							delItem(fileID(), rootID, isFile)),
@@ -2316,7 +2316,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Created -> Deleted -> Created with prev",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -2357,7 +2357,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Item Made And Deleted",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -2390,7 +2390,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Random Folder Delete",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							delItem(folderID(), rootID, isFolder))))),
 			canUsePreviousBackup: true,

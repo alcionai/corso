@@ -1063,12 +1063,12 @@ func delta(
 }
 
 func deltaWReset(
-	resultDeltaID string,
 	err error,
+	deltaTokenSuffix ...any,
 ) *deltaQuery {
 	return &deltaQuery{
 		DeltaUpdate: pagers.DeltaUpdate{
-			URL:   resultDeltaID,
+			URL:   deltaURL(deltaTokenSuffix...),
 			Reset: true,
 		},
 		Err: err,

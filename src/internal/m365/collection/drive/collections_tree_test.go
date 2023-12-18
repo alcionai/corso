@@ -305,7 +305,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{},
@@ -318,7 +318,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{
@@ -333,7 +333,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							d.folderAt(root),
@@ -348,7 +348,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			drive: d,
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(deltaURL(), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							d.folderAt(root),
