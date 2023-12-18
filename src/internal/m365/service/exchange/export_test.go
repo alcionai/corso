@@ -33,6 +33,10 @@ func TestExportUnitSuite(t *testing.T) {
 func (suite *ExportUnitSuite) TestGetItems() {
 	emailBodyBytes := []byte(testdata.EmailWithAttachments)
 
+	pb := path.Builder{}.Append("Inbox")
+	p, err := pb.ToDataLayerPath("t", "r", path.ExchangeService, path.EmailCategory, false)
+	assert.NoError(suite.T(), err, "build path")
+
 	table := []struct {
 		name              string
 		version           int
@@ -44,6 +48,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 1,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: dataMock.Collection{
+					Path: p,
 					ItemData: []data.Item{
 						&dataMock.Item{
 							ItemID: "id1",
@@ -65,6 +70,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 1,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: dataMock.Collection{
+					Path: p,
 					ItemData: []data.Item{
 						&dataMock.Item{
 							ItemID: "id1",
@@ -95,6 +101,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.Groups9Update,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: dataMock.Collection{
+					Path: p,
 					ItemData: []data.Item{
 						&dataMock.Item{
 							ItemID: "id0",
