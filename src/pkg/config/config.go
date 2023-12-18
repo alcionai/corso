@@ -34,7 +34,6 @@ const (
 
 var (
 	defaultConfigFilePath string
-	configFilePathFlag    string
 	configDir             string
 	displayDefaultFP      = filepath.Join("$HOME", ".corso.toml")
 )
@@ -77,8 +76,8 @@ func init() {
 func AddConfigFlags(cmd *cobra.Command) {
 	pf := cmd.PersistentFlags()
 	pf.StringVar(
-		&configFilePathFlag,
-		"config-file", displayDefaultFP, "config file location")
+		&flags.ConfigFileFV,
+		flags.ConfigFileFN, displayDefaultFP, "config file location")
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -88,7 +87,7 @@ func AddConfigFlags(cmd *cobra.Command) {
 // InitCmd provides a func that lazily initializes viper and
 // verifies that the configuration was able to read a file.
 func InitCmd(cmd *cobra.Command, args []string) error {
-	_, err := commonInit(cmd.Context(), configFilePathFlag)
+	_, err := commonInit(cmd.Context(), flags.ConfigFileFV)
 	return clues.Stack(err).OrNil()
 }
 

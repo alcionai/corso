@@ -69,7 +69,7 @@ func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupListCmd_noBackups() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "exchange",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetErr(&suite.dpnd.recorder)
@@ -266,7 +266,7 @@ func (suite *BackupExchangeE2ESuite) TestBackupCreateExchange_fromConfigFile() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "exchange",
 		"--user", suite.its.user.ID,
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetOut(&suite.dpnd.recorder)
@@ -409,7 +409,7 @@ func runExchangeListCmdTest(suite *PreparedBackupExchangeE2ESuite, category path
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "exchange",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 	cmd.SetOut(&suite.dpnd.recorder)
 
@@ -450,7 +450,7 @@ func runExchangeListSingleCmdTest(suite *PreparedBackupExchangeE2ESuite, categor
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "exchange",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backup", string(bID))
 	cli.BuildCommandTree(cmd)
 
@@ -477,7 +477,7 @@ func (suite *PreparedBackupExchangeE2ESuite) TestExchangeListCmd_badID() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "exchange",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backup", "smarfs")
 	cli.BuildCommandTree(cmd)
 
@@ -519,7 +519,7 @@ func runExchangeDetailsCmdTest(suite *PreparedBackupExchangeE2ESuite, category p
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "details", "exchange",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupFN, string(bID))
 	cli.BuildCommandTree(cmd)
 	cmd.SetOut(&suite.dpnd.recorder)
@@ -609,7 +609,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "exchange",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupIDsFN,
 		fmt.Sprintf("%s,%s",
 			string(suite.backupOps[0].Results.BackupID),
@@ -623,7 +623,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "exchange",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backup", string(suite.backupOps[0].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
@@ -633,7 +633,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd() {
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "exchange",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backup", string(suite.backupOps[1].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
@@ -651,7 +651,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_SingleID(
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "exchange",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupFN,
 		string(suite.backupOps[2].Results.BackupID))
 	cli.BuildCommandTree(cmd)
@@ -663,7 +663,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_SingleID(
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "exchange",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backup", string(suite.backupOps[2].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
@@ -681,7 +681,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_UnknownID
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "exchange",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupIDsFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
@@ -700,7 +700,7 @@ func (suite *BackupDeleteExchangeE2ESuite) TestExchangeBackupDeleteCmd_NoBackupI
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "exchange",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	// empty backupIDs should error since no data provided

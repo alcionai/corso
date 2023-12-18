@@ -214,7 +214,7 @@ func buildExchangeBackupCmd(
 ) (*cobra.Command, context.Context) {
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "exchange",
-		"--config-file", configFile,
+		"--"+flags.ConfigFileFN, configFile,
 		"--"+flags.UserFN, user,
 		"--"+flags.CategoryDataFN, category)
 	cli.BuildCommandTree(cmd)
