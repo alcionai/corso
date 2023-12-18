@@ -500,13 +500,7 @@ func runGetPreviewLimits(
 	)
 
 	cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
-
-	if opts.ToggleFeatures.UseDeltaTree {
-		require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
-	} else {
-		require.NoError(t, err, clues.ToCore(err))
-	}
-
+	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Empty(t, errs.Skipped())
 
@@ -782,13 +776,7 @@ func runGetPreviewLimitsDefaults(
 	)
 
 	cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
-
-	if opts.ToggleFeatures.UseDeltaTree {
-		require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
-	} else {
-		require.NoError(t, err, clues.ToCore(err))
-	}
-
+	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Empty(t, errs.Skipped())
 

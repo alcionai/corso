@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
@@ -262,6 +263,8 @@ func compareMetadata(
 		dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: mdColl}),
 	}
 
+	p := mdColl.FullPath()
+
 	deltas, prevs, _, err := deserializeAndValidateMetadata(
 		ctx,
 		colls,
@@ -270,10 +273,10 @@ func compareMetadata(
 	require.NoError(t, err, "deserializing metadata", clues.ToCore(err))
 
 	if expectDeltas != nil {
-		assert.Equal(t, expectDeltas, deltas, "delta urls")
+		assert.Equal(t, expectDeltas, deltas, "delta urls in collection:\n\t %q", p)
 	}
 
-	assert.Equal(t, expectPrevPaths, prevs, "previous paths")
+	assert.Equal(t, expectPrevPaths, prevs, "previous path in collection:\n\t %q", p)
 }
 
 // ---------------------------------------------------------------------------
@@ -319,6 +322,12 @@ func aColl(
 		state:   data.StateOf(prev, curr, count.New()),
 		fileIDs: ids,
 	}
+}
+
+func aTomb(
+	prev path.Path,
+) *collectionAssertion {
+	return aColl(nil, prev)
 }
 
 func aMetadata(
@@ -413,7 +422,7 @@ func (ecs expectedCollections) compareColl(t *testing.T, coll data.BackupCollect
 	require.NotNil(
 		t,
 		expect,
-		"test should have an expected entry for collection with:\n\tstate %q\n\tpath %q",
+		"collection present in result, but not in test expectations:\n\tstate %q\n\tpath %q",
 		coll.State(),
 		p)
 
@@ -428,25 +437,25 @@ func (ecs expectedCollections) compareColl(t *testing.T, coll data.BackupCollect
 		p)
 
 	if expect.prev == nil {
-		assert.Nil(t, coll.PreviousPath(), "previous path")
+		assert.Nil(t, coll.PreviousPath(), "no previousPath for collection:\n\t %q", p)
 	} else {
-		assert.Equal(t, expect.prev, coll.PreviousPath())
+		assert.Equal(t, expect.prev, coll.PreviousPath(), "wanted previousPath for collection:\n\t %q", p)
 	}
 
 	if expect.curr == nil {
-		assert.Nil(t, coll.FullPath(), "collection path")
+		assert.Nil(t, coll.FullPath(), "no currPath for collection:\n\t %q", p)
 	} else {
-		assert.Equal(t, expect.curr, coll.FullPath())
+		assert.Equal(t, expect.curr, coll.FullPath(), "wanted currPath for collection:\n\t %q", p)
 	}
 
 	ecs.doNotMerge(
 		t,
 		coll.DoNotMergeItems(),
-		"expected collection to have the appropariate doNotMerge flag")
+		"expected the appropariate doNotMerge flag")
 
-	driveColl := coll.(*Collection)
-
-	ecs.hasURLCache(t, driveColl.urlCache, "has a populated url cache handler")
+	if driveColl, ok := coll.(*Collection); ok {
+		ecs.hasURLCache(t, driveColl.urlCache, "wanted a populated url cache handler in collection:\n\t %q", p)
+	}
 }
 
 // ensure that no collections in the expected set are still flagged
@@ -1047,13 +1056,35 @@ func (dd *deltaDrive) newPrevPaths(
 
 // transforms 0 or more drivePrevPaths to a map[driveID]map[folderID]prevPathString
 func multiDrivePrevPaths(drivePrevs ...*drivePrevPaths) map[string]map[string]string {
-	msmss := map[string]map[string]string{}
+	prevPathsByDriveID := map[string]map[string]string{}
 
 	for _, dp := range drivePrevs {
-		msmss[dp.id] = dp.folderIDToPrevPath
+		prevPathsByDriveID[dp.id] = dp.folderIDToPrevPath
 	}
 
-	return msmss
+	return prevPathsByDriveID
+}
+
+type driveExcludes struct {
+	pathPfx  string
+	excludes map[string]struct{}
+}
+
+func (dd *deltaDrive) newExcludes(t *testing.T, excludes map[string]struct{}) driveExcludes {
+	return driveExcludes{
+		pathPfx:  dd.strPath(t),
+		excludes: excludes,
+	}
+}
+
+func multiDriveExcludeMap(driveExclds ...driveExcludes) *prefixmatcher.StringSetMatchBuilder {
+	globalExcludes := prefixmatcher.NewStringSetBuilder()
+
+	for _, de := range driveExclds {
+		globalExcludes.Add(de.pathPfx, de.excludes)
+	}
+
+	return globalExcludes
 }
 
 // transforms 0 or more drivePrevPaths to a []data.RestoreCollection containing
@@ -1069,12 +1100,10 @@ func multiDriveMetadata(
 		mdColl := []graph.MetadataCollectionEntry{
 			graph.NewMetadataEntry(
 				bupMD.DeltaURLsFileName,
-				map[string]string{
-					drivePrev.id: deltaURL(),
-				}),
+				map[string]string{drivePrev.id: deltaURL()}),
 			graph.NewMetadataEntry(
 				bupMD.PreviousPathFileName,
-				multiDrivePrevPaths(drivePrevs...)),
+				multiDrivePrevPaths(drivePrev)),
 		}
 
 		mc, err := graph.MakeMetadataCollection(
