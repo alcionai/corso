@@ -18,9 +18,10 @@ func DefaultBackupConfig() BackupConfig {
 	}
 }
 
-// Backup is the set of options used for backup operations. Each set of options
-// is only applied to the backup operation it's passed to. To use the same set
-// of options for multiple backup operations pass the struct to all operations.
+// BackupConfig is the set of options used for backup operations. Each set of
+// options is only applied to the backup operation it's passed to. To use the
+// same set of options for multiple backup operations pass the struct to all
+// operations.
 type BackupConfig struct {
 	FailureHandling      FailurePolicy                      `json:"failureHandling"`
 	ItemExtensionFactory []extensions.CreateItemExtensioner `json:"-"`
@@ -29,8 +30,8 @@ type BackupConfig struct {
 	Incrementals         IncrementalsConfig                 `json:"incrementalsConfig"`
 	M365                 BackupM365Config                   `json:"m365Config"`
 
-	// PreviewItemLimits defines the number of items and/or amount of data to
-	// fetch on a best-effort basis for preview backups.
+	// PreviewLimits defines the number of items and/or amount of data to fetch on
+	// a best-effort basis for preview backups.
 	//
 	// Since this is not split out by service or data categories these limits
 	// apply independently to all data categories that appear in a single backup
@@ -48,13 +49,13 @@ type BackupM365Config struct {
 	// multi-page queries, such as graph api delta endpoints.
 	DeltaPageSize int32 `json:"deltaPageSize"`
 
-	// DisableDelta prevents backups from using delta based lookups,
-	// forcing a backup by enumerating all items. This is different
-	// from IncrementalsConfig.ForceFullEnumeration in that this does not even
+	// DisableDelta prevents backups from calling /delta endpoints and will force
+	// a full enumeration of all items. This is different from
+	// IncrementalsConfig.ForceFullEnumeration in that this does not even
 	// make use of delta endpoints if a delta token is available. This is
-	// necessary when the user has filled up the mailbox storage available to the
-	// user as Microsoft prevents the API from being able to make calls
-	// to delta endpoints.
+	// necessary when the user has filled up their mailbox storage as Microsoft
+	// prevents the API from being able to make calls to /delta endpoints when a
+	// mailbox is over storage limits.
 	DisableDeltaEndpoint bool `json:"exchangeDeltaEndpoint,omitempty"`
 
 	// ExchangeImmutableIDs denotes whether Corso should store items with
@@ -93,15 +94,13 @@ type PreviewItemLimits struct {
 type IncrementalsConfig struct {
 	// ForceFullEnumeration prevents the use of a previous backup as the starting
 	// point for the current backup. All data in the external service will be
-	// discovered whether or not it's changed.
+	// enumerated whether or not it's changed. Per-item storage will only get
+	// updated if changes have occurred.
 	ForceFullEnumeration bool `json:"forceFullEnumeration,omitempty"`
 
-	// ForceItemDataRefresh causes data for all discovered items to be downloaded
-	// from the external service instead of using unchanged data from previous
-	// failed or successful backups where possible. Data dedupe will still occur
-	// if the redownloaded data matches data previously backed up by corso.
-	//
-	// To control what items are discovered for the backup, see
-	// ForceFullEnumeration.
+	// ForceItemDataRefresh causes the data for all enumerated items to replace
+	// stored data, even if no changes have been detected. Storage-side data
+	// deduplication still applies, but that's after item download, and items are
+	// always downloaded when this flag is set.
 	ForceItemDataRefresh bool `json:"forceItemDataRefresh,omitempty"`
 }
