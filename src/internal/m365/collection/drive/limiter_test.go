@@ -55,7 +55,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileWSizeAt(7, root, "f1"),
 							d1.fileWSizeAt(1, root, "f2"),
@@ -76,7 +76,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileWSizeAt(1, root, "f1"),
 							d1.fileWSizeAt(2, root, "f2"),
@@ -97,7 +97,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileWSizeAt(1, root, "f1"),
 							d1.folderAt(root),
@@ -120,7 +120,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2"),
@@ -144,7 +144,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2")),
@@ -173,7 +173,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2")),
@@ -199,7 +199,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2"),
@@ -231,7 +231,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.folderAt(root),
 							d1.fileAt(folder, "f1"),
@@ -259,7 +259,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2"),
@@ -295,7 +295,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2"),
@@ -323,7 +323,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2"),
@@ -354,7 +354,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2"),
@@ -386,7 +386,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2"),
@@ -394,7 +394,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 							d1.fileAt(root, "f4"),
 							d1.fileAt(root, "f5")))),
 				d2.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d2.fileAt(root, "f1"),
 							d2.fileAt(root, "f2"),
@@ -417,7 +417,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 			},
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							d1.fileAt(root, "f1"),
 							d1.fileAt(root, "f2"),
@@ -500,13 +500,7 @@ func runGetPreviewLimits(
 	)
 
 	cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
-
-	if opts.ToggleFeatures.UseDeltaTree {
-		require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
-	} else {
-		require.NoError(t, err, clues.ToCore(err))
-	}
-
+	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Empty(t, errs.Skipped())
 
@@ -772,7 +766,7 @@ func runGetPreviewLimitsDefaults(
 	var (
 		mockEnumerator = driveEnumerator(
 			d.newEnumer().with(
-				delta(id(deltaURL), nil).with(pages...)))
+				delta(nil).with(pages...)))
 		mbh           = defaultDriveBHWith(user, mockEnumerator)
 		c             = collWithMBHAndOpts(mbh, opts)
 		errs          = fault.New(true)
@@ -782,13 +776,7 @@ func runGetPreviewLimitsDefaults(
 	)
 
 	cols, canUsePreviousBackup, err := c.Get(ctx, nil, delList, errs)
-
-	if opts.ToggleFeatures.UseDeltaTree {
-		require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
-	} else {
-		require.NoError(t, err, clues.ToCore(err))
-	}
-
+	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	assert.Empty(t, errs.Skipped())
 
