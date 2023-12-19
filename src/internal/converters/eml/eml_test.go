@@ -137,6 +137,13 @@ func (suite *EMLUnitSuite) TestConvert_edge_cases() {
 		transform func(models.Messageable)
 	}{
 		{
+			name: "just a name",
+			transform: func(msg models.Messageable) {
+				msg.GetFrom().GetEmailAddress().SetName(ptr.To("alphabob"))
+				msg.GetFrom().GetEmailAddress().SetAddress(nil)
+			},
+		},
+		{
 			name: "incorrect address",
 			transform: func(msg models.Messageable) {
 				msg.GetFrom().GetEmailAddress().SetAddress(ptr.To("invalid"))
