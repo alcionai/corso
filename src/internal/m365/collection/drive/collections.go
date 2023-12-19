@@ -124,7 +124,7 @@ func deserializeAndValidateMetadata(
 		// for other possibly incorrect folder paths.
 		for _, prevPath := range paths {
 			if len(prevPath) == 0 {
-				logger.Ctx(ictx).Info("dropping delta metadata: 0 previous paths in this drive")
+				logger.Ctx(ictx).Info("dropping delta metadata: 0 previous paths")
 				delete(deltas, drive)
 
 				break
