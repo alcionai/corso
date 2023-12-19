@@ -156,6 +156,16 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				return "", clues.WrapWC(ctx, err, "invalid content bytes")
 			}
 
+			if len(bts) == 0 {
+				// TODO(meain): pass the data through after
+				// https://github.com/xhit/go-simple-mail/issues/96
+				logger.Ctx(ctx).
+					With("attachment_id", ptr.Val(attachment.GetId())).
+					Info("empty attachment")
+
+				continue
+			}
+
 			name := ptr.Val(attachment.GetName())
 
 			contentID, err := attachment.GetBackingStore().Get("contentId")
