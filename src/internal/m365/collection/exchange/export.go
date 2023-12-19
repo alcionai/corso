@@ -51,6 +51,7 @@ func streamItems(
 
 		ext := ".eml"
 		category := rc.FullPath().Category()
+
 		if category == path.ContactsCategory {
 			ext = ".vcf"
 		}

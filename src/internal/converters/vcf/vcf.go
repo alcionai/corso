@@ -5,10 +5,11 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/emersion/go-vcard"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 // This package helps convert the json response backed up from graph
@@ -122,10 +123,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	addEmails(data.GetEmailAddresses(), &vc) // no type?
 
 	im := data.GetImAddresses()
-	if im != nil {
-		for _, imaddr := range im {
-			vc.Add(vcard.FieldIMPP, &vcard.Field{Value: imaddr})
-		}
+	for _, imaddr := range im {
+		vc.Add(vcard.FieldIMPP, &vcard.Field{Value: imaddr})
 	}
 
 	orgFull := ""
@@ -140,6 +139,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		if len(orgFull) > 0 {
 			orgFull += ";"
 		}
+
 		orgFull += *dept
 	}
 
@@ -148,6 +148,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		if len(orgFull) > 0 {
 			orgFull += ";"
 		}
+
 		orgFull += *profession
 	}
 
@@ -161,12 +162,10 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	}
 
 	children := data.GetChildren()
-	if children != nil {
-		for _, child := range children {
-			vc.Add(
-				vcard.FieldRelated,
-				&vcard.Field{Value: child, Params: vcard.Params{"TYPE": []string{vcard.TypeChild}}})
-		}
+	for _, child := range children {
+		vc.Add(
+			vcard.FieldRelated,
+			&vcard.Field{Value: child, Params: vcard.Params{"TYPE": []string{vcard.TypeChild}}})
 	}
 
 	spouse := data.GetSpouseName()
@@ -203,6 +202,5 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		return "", clues.Wrap(err, "encoding vcard")
 	}
 
-	outc := out.String()
-	return outc, nil
+	return out.String(), nil
 }
