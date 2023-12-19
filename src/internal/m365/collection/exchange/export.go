@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -19,7 +20,7 @@ func NewExportCollection(
 	baseDir string,
 	backingCollection []data.RestoreCollection,
 	backupVersion int,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 ) export.Collectioner {
 	return export.BaseCollection{
 		BaseDir:           baseDir,
@@ -37,7 +38,7 @@ func streamItems(
 	backupVersion int,
 	config control.ExportConfig,
 	ch chan<- export.Item,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 ) {
 	defer close(ch)
 
@@ -77,7 +78,7 @@ func streamItems(
 			}
 
 			emlReader := io.NopCloser(bytes.NewReader([]byte(email)))
-			body := data.ReaderWithStats(emlReader, path.EmailCategory, stats)
+			body := metrics.ReaderWithStats(emlReader, path.EmailCategory, stats)
 
 			ch <- export.Item{
 				ID:   id,
