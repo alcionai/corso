@@ -79,7 +79,7 @@ func (suite *TransformUnitTest) TestToEventSimplified_noAdditionalRemovedFields(
 
 	serializedString := string(serializedBytes)
 
-	for _, key := range eventAdditionalUnneededFields {
+	for _, key := range eventUnsupportedAdditionalData {
 		assert.NotContains(t, serializedString, key)
 	}
 }

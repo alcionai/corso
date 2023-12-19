@@ -58,10 +58,10 @@ func toMessage(orig models.Messageable) models.Messageable {
 	return CloneMessageableFields(orig, message)
 }
 
-// eventAdditionalUnneededFields contains a set of fields that don't have API
-// support right now but are ignored by or may cause errors in M365 when
+// eventUnsupportedAdditionalData lists the set of additionalData keys that are
+// not needed for backup completion and may cause errors in Graph API when
 // restoring items.
-var eventAdditionalUnneededFields = []string{
+var eventUnsupportedAdditionalData = []string{
 	// Will cause errors about needing to put extension data in their own requests
 	// if not removed.
 	"iCalUId_v2",
@@ -108,7 +108,7 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 	// server.
 	additionalData := orig.GetAdditionalData()
 
-	for _, key := range eventAdditionalUnneededFields {
+	for _, key := range eventUnsupportedAdditionalData {
 		delete(additionalData, key)
 	}
 
