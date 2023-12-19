@@ -131,31 +131,53 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 	assert.Equal(t, source, target)
 }
 
-func (suite *EMLUnitSuite) TestConvert_empty_attachment_no_err() {
-	t := suite.T()
+func (suite *EMLUnitSuite) TestConvert_edge_cases() {
+	tests := []struct {
+		name      string
+		transform func(models.Messageable)
+	}{
+		{
+			name: "incorrect address",
+			transform: func(msg models.Messageable) {
+				msg.GetFrom().GetEmailAddress().SetAddress(ptr.To("invalid"))
+			},
+		},
+		{
+			name: "empty attachment",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				err := attachments[0].GetBackingStore().Set("contentBytes", []uint8{})
+				require.NoError(suite.T(), err, "setting attachment content")
+			},
+		},
+	}
 
-	ctx, flush := tester.NewContext(t)
-	defer flush()
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	body := []byte(testdata.EmailWithAttachments)
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-	msg, err := api.BytesToMessageable(body)
-	require.NoError(t, err, "creating message")
+			body := []byte(testdata.EmailWithAttachments)
 
-	attachments := msg.GetAttachments()
-	err = attachments[0].GetBackingStore().Set("contentBytes", []uint8{})
-	require.NoError(t, err, "setting content bytes")
+			msg, err := api.BytesToMessageable(body)
+			require.NoError(t, err, "creating message")
 
-	writer := kjson.NewJsonSerializationWriter()
+			test.transform(msg)
 
-	defer writer.Close()
+			writer := kjson.NewJsonSerializationWriter()
 
-	err = writer.WriteObjectValue("", msg)
-	require.NoError(t, err, "serializing message")
+			defer writer.Close()
 
-	nbody, err := writer.GetSerializedContent()
-	require.NoError(t, err, "getting serialized content")
+			err = writer.WriteObjectValue("", msg)
+			require.NoError(t, err, "serializing message")
 
-	_, err = FromJSON(ctx, nbody)
-	assert.NoError(t, err, "converting to eml")
+			nbody, err := writer.GetSerializedContent()
+			require.NoError(t, err, "getting serialized content")
+
+			_, err = FromJSON(ctx, nbody)
+			assert.NoError(t, err, "converting to eml")
+		})
+	}
 }
