@@ -27,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -47,7 +48,7 @@ type ExportOperation struct {
 	Selectors selectors.Selector
 	ExportCfg control.ExportConfig
 	Version   string
-	stats     data.ExportStats
+	stats     metrics.ExportStats
 
 	acct account.Account
 	ec   inject.ExportConsumer
@@ -74,7 +75,7 @@ func NewExportOperation(
 		Selectors: sel,
 		Version:   "v0",
 		ec:        ec,
-		stats:     data.ExportStats{},
+		stats:     metrics.ExportStats{},
 	}
 	if err := op.validate(); err != nil {
 		return ExportOperation{}, err
@@ -322,7 +323,7 @@ func (op *ExportOperation) finalizeMetrics(
 // be calling this once the export collections have been read and process
 // as the data that will be available here will be the data that was read
 // and processed.
-func (op *ExportOperation) GetStats() map[path.CategoryType]data.KindStats {
+func (op *ExportOperation) GetStats() map[path.CategoryType]metrics.KindStats {
 	return op.stats.GetStats()
 }
 
@@ -336,7 +337,7 @@ func produceExportCollections(
 	backupVersion int,
 	exportCfg control.ExportConfig,
 	dcs []data.RestoreCollection,
-	exportStats *data.ExportStats,
+	exportStats *metrics.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	complete := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Preparing export")

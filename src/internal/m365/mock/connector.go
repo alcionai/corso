@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -87,7 +88,7 @@ func (ctrl Controller) ProduceExportCollections(
 	_ int,
 	_ control.ExportConfig,
 	_ []data.RestoreCollection,
-	_ *data.ExportStats,
+	_ *metrics.ExportStats,
 	_ *fault.Bus,
 ) ([]export.Collectioner, error) {
 	return nil, ctrl.Err

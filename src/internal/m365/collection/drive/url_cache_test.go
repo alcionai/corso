@@ -539,7 +539,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 						drive.newEnumer().
 							withErr(test.pagerErr).
 							with(
-								delta(deltaURL, test.pagerErr).
+								delta(test.pagerErr).
 									with(test.pages...)))
 
 					cache, err := newURLCache(
