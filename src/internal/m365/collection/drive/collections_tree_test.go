@@ -136,42 +136,223 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeMetadataCollections()
 
 // This test is primarily aimed at multi-drive handling.
 // More complicated single-drive tests can be found in _MakeDriveCollections.
+// Note: these tests intentionally duplicate file and folder IDs and names
+// across drives.  This mimics real drive api behavior, where ids and names are
+// only unique within each drive.
 func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
+	t := suite.T()
+
 	type expected struct {
-		canUsePrevBackup assert.BoolAssertionFunc
-		counts           countTD.Expected
-		deltas           map[string]string
-		prevPaths        map[string]map[string]string
-		skips            int
+		canUsePrevBackup      assert.BoolAssertionFunc
+		collections           expectedCollections
+		globalExcludedFileIDs *prefixmatcher.StringSetMatchBuilder
 	}
 
 	d1 := drive()
 	d2 := drive(2)
 
 	table := []struct {
-		name          string
-		enumerator    enumerateDriveItemsDelta
-		previousPaths map[string]map[string]string
-		metadata      []data.RestoreCollection
-		expect        expected
+		name       string
+		enumerator enumerateDriveItemsDelta
+		metadata   []data.RestoreCollection
+		expect     expected
 	}{
 		{
-			name: "no changes in either drive",
+			// in the real world we'd be guaranteed the root folder in the first
+			// delta query, at minimum (ie, the backup before this one).
+			// but this makes for a good sanity check on no-op behavior.
+			name: "no data either previously or in delta",
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(delta(nil)),
+				d2.newEnumer().with(delta(nil))),
+			metadata: multiDriveMetadata(
+				t,
+				d1.newPrevPaths(t),
+				d2.newPrevPaths(t)),
+			expect: expected{
+				canUsePrevBackup: assert.True,
+				collections: expectCollections(
+					false,
+					true,
+					aMetadata(nil, multiDrivePrevPaths(
+						d1.newPrevPaths(t),
+						d2.newPrevPaths(t)))),
+				globalExcludedFileIDs: multiDriveExcludeMap(
+					d1.newExcludes(t, makeExcludeMap()),
+					d2.newExcludes(t, makeExcludeMap())),
+			},
+		},
+		{
+			name: "a new backup",
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(
 					delta(nil).with(
-						aPage())),
+						aPage(
+							d1.fileAt(root, "r"),
+							d1.folderAt(root),
+							d1.fileAt(folder, "f")))),
 				d2.newEnumer().with(
 					delta(nil).with(
-						aPage()))),
+						aPage(
+							d2.fileAt(root, "r"),
+							d2.folderAt(root),
+							d2.fileAt(folder, "f"))))),
+			metadata: multiDriveMetadata(
+				t,
+				d1.newPrevPaths(t),
+				d2.newPrevPaths(t)),
 			expect: expected{
-				canUsePrevBackup: assert.False,
-				counts: countTD.Expected{
-					count.PrevPaths: 0,
-				},
-				deltas:    map[string]string{},
-				prevPaths: map[string]map[string]string{},
-				skips:     0,
+				canUsePrevBackup: assert.True,
+				collections: expectCollections(
+					false,
+					true,
+					aColl(
+						d1.fullPath(t),
+						nil,
+						fileID("r")),
+					aColl(
+						d1.fullPath(t, folderName()),
+						nil,
+						fileID("f")),
+					aColl(
+						d2.fullPath(t),
+						nil,
+						fileID("r")),
+					aColl(
+						d2.fullPath(t, folderName()),
+						nil,
+						fileID("f")),
+					aMetadata(nil, multiDrivePrevPaths(
+						d1.newPrevPaths(
+							t,
+							rootID, d1.strPath(t),
+							folderID(), d1.strPath(t, folderName())),
+						d2.newPrevPaths(
+							t,
+							rootID, d2.strPath(t),
+							folderID(), d2.strPath(t, folderName()))))),
+				globalExcludedFileIDs: multiDriveExcludeMap(
+					d1.newExcludes(t, makeExcludeMap(fileID("r"), fileID("f"))),
+					d2.newExcludes(t, makeExcludeMap(fileID("r"), fileID("f")))),
+			},
+		},
+		{
+			name: "an incremental backup with no changes",
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(delta(nil).with(aPage())),
+				d2.newEnumer().with(delta(nil).with(aPage()))),
+			metadata: multiDriveMetadata(
+				t,
+				d1.newPrevPaths(
+					t,
+					rootID, d1.strPath(t),
+					folderID(), d1.strPath(t, folderName())),
+				d2.newPrevPaths(
+					t,
+					rootID, d2.strPath(t),
+					folderID(), d2.strPath(t, folderName()))),
+			expect: expected{
+				canUsePrevBackup: assert.True,
+				collections: expectCollections(
+					false,
+					true,
+					aColl(d1.fullPath(t), d1.fullPath(t)),
+					aColl(d2.fullPath(t), d2.fullPath(t)),
+					aMetadata(nil, multiDrivePrevPaths(
+						d1.newPrevPaths(
+							t,
+							rootID, d1.strPath(t),
+							folderID(), d1.strPath(t, folderName())),
+						d2.newPrevPaths(
+							t,
+							rootID, d2.strPath(t),
+							folderID(), d2.strPath(t, folderName()))))),
+				globalExcludedFileIDs: multiDriveExcludeMap(
+					d1.newExcludes(t, makeExcludeMap()),
+					d2.newExcludes(t, makeExcludeMap())),
+			},
+		},
+		{
+			name: "an incremental backup with deletions in one drive and movements in the other",
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(
+					delta(nil).with(
+						aPage(
+							delItem(fileID("r"), rootID, isFile),
+							delItem(folderID(), rootID, isFolder),
+							delItem(fileID("f"), folderID(), isFile)))),
+				d2.newEnumer().with(
+					delta(nil).with(
+						aPage(
+							driveItem(fileID("r"), fileName("r2"), d2.dir(), rootID, isFile),
+							driveItem(folderID(), folderName(2), d2.dir(), rootID, isFolder),
+							driveItem(fileID("f"), fileName("f2"), d2.dir(folderName()), folderID(), isFile))))),
+			metadata: multiDriveMetadata(
+				t,
+				d1.newPrevPaths(
+					t,
+					rootID, d1.strPath(t),
+					folderID(), d1.strPath(t, folderName())),
+				d2.newPrevPaths(
+					t,
+					rootID, d2.strPath(t),
+					folderID(), d2.strPath(t, folderName()))),
+			expect: expected{
+				canUsePrevBackup: assert.True,
+				collections: expectCollections(
+					false,
+					true,
+					aColl(d1.fullPath(t), d1.fullPath(t)),
+					aTomb(d1.fullPath(t, folderName())),
+					aColl(
+						d2.fullPath(t),
+						d2.fullPath(t),
+						fileID("r")),
+					aColl(
+						d2.fullPath(t, folderName(2)),
+						d2.fullPath(t, folderName()),
+						fileID("f")),
+					aMetadata(nil, multiDrivePrevPaths(
+						d1.newPrevPaths(
+							t,
+							rootID, d1.strPath(t)),
+						d2.newPrevPaths(
+							t,
+							rootID, d2.strPath(t),
+							folderID(), d2.strPath(t, folderName(2)))))),
+				globalExcludedFileIDs: multiDriveExcludeMap(
+					d1.newExcludes(t, makeExcludeMap(fileID("r"), fileID("f"))),
+					d2.newExcludes(t, makeExcludeMap(fileID("r"), fileID("f")))),
+			},
+		},
+		{
+			name: "tombstone an entire drive",
+			enumerator: driveEnumerator(
+				d1.newEnumer().with(delta(nil).with(aPage()))),
+			metadata: multiDriveMetadata(
+				t,
+				d1.newPrevPaths(
+					t,
+					rootID, d1.strPath(t),
+					folderID(), d1.strPath(t, folderName())),
+				d2.newPrevPaths(
+					t,
+					rootID, d2.strPath(t),
+					folderID(), d2.strPath(t, folderName()))),
+			expect: expected{
+				canUsePrevBackup: assert.True,
+				collections: expectCollections(
+					false,
+					true,
+					aColl(d1.fullPath(t), d1.fullPath(t)),
+					aTomb(d2.fullPath(t)),
+					aMetadata(nil, multiDrivePrevPaths(
+						d1.newPrevPaths(
+							t,
+							rootID, d1.strPath(t),
+							folderID(), d1.strPath(t, folderName()))))),
+				globalExcludedFileIDs: multiDriveExcludeMap(
+					d1.newExcludes(t, makeExcludeMap())),
 			},
 		},
 	}
@@ -185,45 +366,31 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			var (
 				mbh            = defaultDriveBHWith(user, test.enumerator)
 				c              = collWithMBH(mbh)
-				prevMetadata   = makePrevMetadataColls(t, mbh, test.previousPaths)
 				globalExcludes = prefixmatcher.NewStringSetBuilder()
 				errs           = fault.New(true)
 			)
 
-			_, _, err := c.getTree(
+			results, canUsePrevBackup, err := c.getTree(
 				ctx,
-				prevMetadata,
+				test.metadata,
 				globalExcludes,
 				errs)
+			require.NoError(t, err, clues.ToCore(err))
+			test.expect.canUsePrevBackup(t, canUsePrevBackup, "can use previous backup")
 
-			require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
-			// TODO(keepers): awaiting implementation
-			// assert.Empty(t, colls)
-			// assert.Equal(t, test.expect.skips, len(errs.Skipped()))
-			// test.expect.canUsePrevBackup(t, canUsePrevBackup)
-			// test.expect.counts.Compare(t, c.counter)
+			expectColls := test.expect.collections
+			expectColls.compare(t, results)
+			expectColls.requireNoUnseenCollections(t)
 
-			// if err != nil {
-			// 	return
-			// }
+			for _, d := range test.expect.globalExcludedFileIDs.Keys() {
+				suite.Run(d, func() {
+					expect, _ := test.expect.globalExcludedFileIDs.Get(d)
+					result, rok := globalExcludes.Get(d)
 
-			// for _, coll := range colls {
-			// 	collPath := fullOrPrevPath(t, coll)
-
-			// 	if collPath.String() == metadataPath.String() {
-			// 		compareMetadata(
-			// 			t,
-			// 			coll,
-			// 			test.expect.deltas,
-			// 			test.expect.prevPaths)
-
-			// 		continue
-			// 	}
-
-			// 	test.expect.collAssertions.compare(t, coll, globalExcludes)
-			// }
-
-			// test.expect.collAssertions.requireNoUnseenCollections(t)
+					require.True(t, rok, "drive results have a global excludes entry")
+					assert.Equal(t, expect, result, "global excluded file IDs")
+				})
+			}
 		})
 	}
 }
@@ -237,12 +404,19 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 	d := drive()
 	t := suite.T()
 
+	type expected struct {
+		collections           expectedCollections
+		counts                countTD.Expected
+		globalExcludedFileIDs map[string]struct{}
+		prevPaths             map[string]string
+	}
+
 	table := []struct {
-		name         string
-		drive        *deltaDrive
-		enumerator   enumerateDriveItemsDelta
-		prevPaths    map[string]string
-		expectCounts countTD.Expected
+		name       string
+		drive      *deltaDrive
+		enumerator enumerateDriveItemsDelta
+		prevPaths  map[string]string
+		expect     expected
 	}{
 		{
 			name:  "only root in delta, no prev paths",
@@ -252,8 +426,19 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 					delta(nil).with(
 						aPage()))),
 			prevPaths: map[string]string{},
-			expectCounts: countTD.Expected{
-				count.PrevPaths: 0,
+			expect: expected{
+				counts: countTD.Expected{
+					count.PrevPaths:    0,
+					count.NewPrevPaths: 1,
+				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(d.fullPath(t), nil)),
+				globalExcludedFileIDs: makeExcludeMap(),
+				prevPaths: map[string]string{
+					rootID: d.strPath(t),
+				},
 			},
 		},
 		{
@@ -264,10 +449,23 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 					delta(nil).with(
 						aPage()))),
 			prevPaths: map[string]string{
+				rootID:     d.strPath(t),
 				folderID(): d.strPath(t, folderName()),
 			},
-			expectCounts: countTD.Expected{
-				count.PrevPaths: 1,
+			expect: expected{
+				counts: countTD.Expected{
+					count.PrevPaths:    2,
+					count.NewPrevPaths: 2,
+				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(d.fullPath(t), d.fullPath(t))),
+				globalExcludedFileIDs: makeExcludeMap(),
+				prevPaths: map[string]string{
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
+				},
 			},
 		},
 		{
@@ -280,8 +478,24 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 							d.folderAt(root),
 							d.fileAt(folder))))),
 			prevPaths: map[string]string{},
-			expectCounts: countTD.Expected{
-				count.PrevPaths: 0,
+			expect: expected{
+				counts: countTD.Expected{
+					count.PrevPaths:    0,
+					count.NewPrevPaths: 2,
+				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(d.fullPath(t), nil),
+					aColl(
+						d.fullPath(t, folderName()),
+						nil,
+						fileID())),
+				globalExcludedFileIDs: makeExcludeMap(fileID()),
+				prevPaths: map[string]string{
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
+				},
 			},
 		},
 		{
@@ -294,10 +508,62 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 							d.folderAt(root),
 							d.fileAt(folder))))),
 			prevPaths: map[string]string{
+				rootID:     d.strPath(t),
 				folderID(): d.strPath(t, folderName()),
 			},
-			expectCounts: countTD.Expected{
-				count.PrevPaths: 1,
+			expect: expected{
+				counts: countTD.Expected{
+					count.PrevPaths:    2,
+					count.NewPrevPaths: 2,
+				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(
+						d.fullPath(t),
+						d.fullPath(t)),
+					aColl(
+						d.fullPath(t, folderName()),
+						d.fullPath(t, folderName()),
+						fileID())),
+				globalExcludedFileIDs: makeExcludeMap(fileID()),
+				prevPaths: map[string]string{
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
+				},
+			},
+		},
+		{
+			name:  "only previous path data",
+			drive: d,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(nil).with(
+						aPage()))),
+			prevPaths: map[string]string{
+				rootID:           d.strPath(t),
+				folderID():       d.strPath(t, folderName()),
+				folderID("sib"):  d.strPath(t, folderName("sib")),
+				folderID("chld"): d.strPath(t, folderName(), folderName("chld")),
+			},
+			expect: expected{
+				counts: countTD.Expected{
+					count.PrevPaths:    4,
+					count.NewPrevPaths: 4,
+				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(
+						d.fullPath(t),
+						d.fullPath(t))),
+				globalExcludedFileIDs: makeExcludeMap(),
+				prevPaths: map[string]string{
+					rootID:           d.strPath(t),
+					folderID():       d.strPath(t, folderName()),
+					folderID("sib"):  d.strPath(t, folderName("sib")),
+					folderID("chld"): d.strPath(t, folderName(), folderName("chld")),
+				},
 			},
 		},
 		{
@@ -309,8 +575,19 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{},
-			expectCounts: countTD.Expected{
-				count.PrevPaths: 0,
+			expect: expected{
+				counts: countTD.Expected{
+					count.PrevPaths:    0,
+					count.NewPrevPaths: 1,
+				},
+				collections: expectCollections(
+					true,
+					true,
+					aColl(d.fullPath(t), nil)),
+				globalExcludedFileIDs: nil,
+				prevPaths: map[string]string{
+					rootID: d.strPath(t),
+				},
 			},
 		},
 		{
@@ -322,10 +599,25 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 						aReset(),
 						aPage()))),
 			prevPaths: map[string]string{
+				rootID:     d.strPath(t),
 				folderID(): d.strPath(t, folderName()),
 			},
-			expectCounts: countTD.Expected{
-				count.PrevPaths: 1,
+			expect: expected{
+				counts: countTD.Expected{
+					count.PrevPaths:    2,
+					count.NewPrevPaths: 1,
+				},
+				collections: expectCollections(
+					true,
+					true,
+					aColl(
+						d.fullPath(t),
+						d.fullPath(t)),
+					aTomb(d.fullPath(t, folderName()))),
+				globalExcludedFileIDs: nil,
+				prevPaths: map[string]string{
+					rootID: d.strPath(t),
+				},
 			},
 		},
 		{
@@ -339,8 +631,26 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 							d.folderAt(root),
 							d.fileAt(folder))))),
 			prevPaths: map[string]string{},
-			expectCounts: countTD.Expected{
-				count.PrevPaths: 0,
+			expect: expected{
+				counts: countTD.Expected{
+					count.PrevPaths:    0,
+					count.NewPrevPaths: 2,
+				},
+				collections: expectCollections(
+					true,
+					true,
+					aColl(
+						d.fullPath(t),
+						nil),
+					aColl(
+						d.fullPath(t, folderName()),
+						nil,
+						fileID())),
+				globalExcludedFileIDs: nil,
+				prevPaths: map[string]string{
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
+				},
 			},
 		},
 		{
@@ -354,10 +664,29 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 							d.folderAt(root),
 							d.fileAt(folder))))),
 			prevPaths: map[string]string{
+				rootID:     d.strPath(t),
 				folderID(): d.strPath(t, folderName()),
 			},
-			expectCounts: countTD.Expected{
-				count.PrevPaths: 1,
+			expect: expected{
+				counts: countTD.Expected{
+					count.PrevPaths:    2,
+					count.NewPrevPaths: 2,
+				},
+				collections: expectCollections(
+					true,
+					true,
+					aColl(
+						d.fullPath(t),
+						d.fullPath(t)),
+					aColl(
+						d.fullPath(t, folderName()),
+						d.fullPath(t, folderName()),
+						fileID())),
+				globalExcludedFileIDs: nil,
+				prevPaths: map[string]string{
+					rootID:     d.strPath(t),
+					folderID(): d.strPath(t, folderName()),
+				},
 			},
 		},
 	}
@@ -372,19 +701,35 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 			mbh.DriveItemEnumeration = test.enumerator
 
 			c := collWithMBH(mbh)
+			globalExcludes := prefixmatcher.NewStringSetBuilder()
 
-			_, _, _, err := c.makeDriveCollections(
+			results, prevPaths, _, err := c.makeDriveCollections(
 				ctx,
 				test.drive.able,
 				test.prevPaths,
 				deltaURL("prev"),
 				newPagerLimiter(control.DefaultOptions()),
-				prefixmatcher.NewStringSetBuilder(),
+				globalExcludes,
 				c.counter,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
-			test.expectCounts.Compare(t, c.counter)
+			test.expect.counts.Compare(t, c.counter)
+
+			expectColls := test.expect.collections
+			expectColls.compare(t, results)
+			expectColls.requireNoUnseenCollections(t)
+
+			assert.Equal(t, test.expect.prevPaths, prevPaths, "new previous paths")
+
+			if test.expect.globalExcludedFileIDs != nil {
+				excludes, ok := globalExcludes.Get(d.strPath(t))
+				require.True(t, ok, "drive path produces a global file exclusions entry")
+				assert.Equal(t, test.expect.globalExcludedFileIDs, excludes)
+			} else {
+				_, ok := globalExcludes.Get(d.strPath(t))
+				require.False(t, ok, "drive path does not produce a global file exclusions entry")
+			}
 		})
 	}
 }
@@ -472,7 +817,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 
 	type expected struct {
 		prevPaths             map[string]string
-		collections           func(t *testing.T, d *deltaDrive) expectedCollections
+		collections           expectedCollections
 		globalExcludedFileIDs map[string]struct{}
 	}
 
@@ -494,23 +839,21 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 					folderID("parent"): d.strPath(t, folderName("parent")),
 					folderID():         d.strPath(t, folderName("parent"), folderName()),
 				},
-				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
-					return expectCollections(
-						false,
-						true,
-						aColl(
-							d.fullPath(t),
-							nil,
-							fileID("r")),
-						aColl(
-							d.fullPath(t, folderName("parent")),
-							nil,
-							fileID("p")),
-						aColl(
-							d.fullPath(t, folderName("parent"), folderName()),
-							nil,
-							fileID("f")))
-				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(
+						d.fullPath(t),
+						nil,
+						fileID("r")),
+					aColl(
+						d.fullPath(t, folderName("parent")),
+						nil,
+						fileID("p")),
+					aColl(
+						d.fullPath(t, folderName("parent"), folderName()),
+						nil,
+						fileID("f"))),
 				globalExcludedFileIDs: makeExcludeMap(
 					fileID("r"),
 					fileID("p"),
@@ -538,24 +881,22 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 					folderID("prev"):      d.strPath(t, folderName("parent"), folderName("prev")),
 					folderID("prev-chld"): d.strPath(t, folderName("parent"), folderName("prev"), folderName("prev-chld")),
 				},
-				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
-					return expectCollections(
-						false,
-						true,
-						aColl(
-							d.fullPath(t),
-							d.fullPath(t),
-							fileID("r")),
-						aColl(
-							d.fullPath(t, folderName("parent")),
-							d.fullPath(t, folderName("parent-prev")),
-							fileID("p")),
-						aColl(
-							d.fullPath(t, folderName("parent"), folderName()),
-							d.fullPath(t, folderName("parent-prev"), folderName()),
-							fileID("f")),
-						aColl(nil, d.fullPath(t, folderName("tombstone-prev"))))
-				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(
+						d.fullPath(t),
+						d.fullPath(t),
+						fileID("r")),
+					aColl(
+						d.fullPath(t, folderName("parent")),
+						d.fullPath(t, folderName("parent-prev")),
+						fileID("p")),
+					aColl(
+						d.fullPath(t, folderName("parent"), folderName()),
+						d.fullPath(t, folderName("parent-prev"), folderName()),
+						fileID("f")),
+					aColl(nil, d.fullPath(t, folderName("tombstone-prev")))),
 				globalExcludedFileIDs: makeExcludeMap(
 					fileID("r"),
 					fileID("p"),
@@ -583,24 +924,22 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 					folderID("pr/ev"):     d.strPath(t, folderName("pa/rent"), folderName("pr/ev")),
 					folderID("prev/chld"): d.strPath(t, folderName("pa/rent"), folderName("pr/ev"), folderName("prev/chld")),
 				},
-				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
-					return expectCollections(
-						false,
-						true,
-						aColl(
-							d.fullPath(t),
-							d.fullPath(t),
-							fileID("r")),
-						aColl(
-							d.fullPath(t, folderName("pa/rent")),
-							d.fullPath(t, folderName("parent/prev")),
-							fileID("p")),
-						aColl(
-							d.fullPath(t, folderName("pa/rent"), folderName()),
-							d.fullPath(t, folderName("parent/prev"), folderName()),
-							fileID("f")),
-						aColl(nil, d.fullPath(t, folderName("tombstone/prev"))))
-				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(
+						d.fullPath(t),
+						d.fullPath(t),
+						fileID("r")),
+					aColl(
+						d.fullPath(t, folderName("pa/rent")),
+						d.fullPath(t, folderName("parent/prev")),
+						fileID("p")),
+					aColl(
+						d.fullPath(t, folderName("pa/rent"), folderName()),
+						d.fullPath(t, folderName("parent/prev"), folderName()),
+						fileID("f")),
+					aColl(nil, d.fullPath(t, folderName("tombstone/prev")))),
 				globalExcludedFileIDs: makeExcludeMap(
 					fileID("r"),
 					fileID("p"),
@@ -632,24 +971,22 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 					folderID("prev"):      d.strPath(t, folderName("prev")),
 					folderID("prev-chld"): d.strPath(t, folderName("prev"), folderName("prev-chld")),
 				},
-				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
-					return expectCollections(
-						false,
-						true,
-						aColl(
-							d.fullPath(t),
-							d.fullPath(t),
-							fileID("r")),
-						aColl(
-							d.fullPath(t, folderName("parent")),
-							d.fullPath(t, folderName("parent")),
-							fileID("p")),
-						aColl(
-							d.fullPath(t, folderName("parent"), folderName()),
-							d.fullPath(t, folderName("parent"), folderName()),
-							fileID("f")),
-						aColl(nil, d.fullPath(t, folderName("tombstone"))))
-				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(
+						d.fullPath(t),
+						d.fullPath(t),
+						fileID("r")),
+					aColl(
+						d.fullPath(t, folderName("parent")),
+						d.fullPath(t, folderName("parent")),
+						fileID("p")),
+					aColl(
+						d.fullPath(t, folderName("parent"), folderName()),
+						d.fullPath(t, folderName("parent"), folderName()),
+						fileID("f")),
+					aColl(nil, d.fullPath(t, folderName("tombstone")))),
 				globalExcludedFileIDs: makeExcludeMap(
 					fileID("r"),
 					fileID("p"),
@@ -682,24 +1019,22 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 					folderID("pr/ev"):     d.strPath(t, folderName("pa/rent"), folderName("pr/ev")),
 					folderID("prev/chld"): d.strPath(t, folderName("pa/rent"), folderName("pr/ev"), folderName("prev/chld")),
 				},
-				collections: func(t *testing.T, d *deltaDrive) expectedCollections {
-					return expectCollections(
-						false,
-						true,
-						aColl(
-							d.fullPath(t),
-							d.fullPath(t),
-							fileID("r")),
-						aColl(
-							d.fullPath(t, folderName("pa/rent")),
-							d.fullPath(t, folderName("pa/rent")),
-							fileID("p")),
-						aColl(
-							d.fullPath(t, folderName("pa/rent"), folderName()),
-							d.fullPath(t, folderName("pa/rent"), folderName()),
-							fileID("f")),
-						aColl(nil, d.fullPath(t, folderName("to/mbstone"))))
-				},
+				collections: expectCollections(
+					false,
+					true,
+					aColl(
+						d.fullPath(t),
+						d.fullPath(t),
+						fileID("r")),
+					aColl(
+						d.fullPath(t, folderName("pa/rent")),
+						d.fullPath(t, folderName("pa/rent")),
+						fileID("p")),
+					aColl(
+						d.fullPath(t, folderName("pa/rent"), folderName()),
+						d.fullPath(t, folderName("pa/rent"), folderName()),
+						fileID("f")),
+					aColl(nil, d.fullPath(t, folderName("to/mbstone")))),
 				globalExcludedFileIDs: makeExcludeMap(
 					fileID("r"),
 					fileID("p"),
@@ -738,7 +1073,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_TurnTreeIntoCollections()
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect.prevPaths, newPrevPaths, "new previous paths")
 
-			expectColls := test.expect.collections(t, d)
+			expectColls := test.expect.collections
 			expectColls.compare(t, colls)
 			expectColls.requireNoUnseenCollections(t)
 
@@ -1248,6 +1583,46 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 					fileID():        folderID(),
 					fileID("fsib"):  folderID("sib"),
 					fileID("fchld"): folderID("chld"),
+				},
+			},
+		},
+		{
+			name: "file moved multiple times",
+			tree: newTree,
+			enumerator: driveEnumerator(
+				d.newEnumer().with(
+					delta(nil).
+						with(aPage(
+							d.folderAt(root),
+							d.fileAt(folder))),
+					delta(nil).
+						with(aPage(
+							d.fileAt(root))),
+					delta(nil).
+						with(aPage(
+							d.folderAt(root),
+							d.fileAt(folder))))),
+			limiter: newPagerLimiter(control.DefaultOptions()),
+			expect: populateTreeExpected{
+				counts: countTD.Expected{
+					count.TotalDeltasProcessed:        4,
+					count.TotalDeleteFoldersProcessed: 0,
+					count.TotalDeleteFilesProcessed:   0,
+					count.TotalFilesProcessed:         3,
+					count.TotalFoldersProcessed:       5,
+					count.TotalPagesEnumerated:        4,
+				},
+				err:            require.NoError,
+				numLiveFiles:   1,
+				numLiveFolders: 2,
+				sizeBytes:      1 * defaultFileSize,
+				treeContainsFolderIDs: []string{
+					rootID,
+					folderID(),
+				},
+				treeContainsTombstoneIDs: []string{},
+				treeContainsFileIDsWithParent: map[string]string{
+					fileID(): folderID(),
 				},
 			},
 		},
