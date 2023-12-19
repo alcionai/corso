@@ -183,6 +183,51 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 	flagsTD.AssertStorageFlags(t, cmd)
 }
 
+func (suite *GroupsUnitSuite) TestBackupCreateDefaultControlFlags() {
+	t := suite.T()
+
+	cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: createCommand},
+		addGroupsCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
+		},
+		flagsTD.WithFlags(
+			groupsServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+			}))
+
+	co := utils.Control()
+	backupOpts := utils.ParseBackupOptions()
+
+	assert.Equal(t, co.Parallelism.ItemFetch, backupOpts.Parallelism.ItemFetch)
+	assert.Equal(t, co.DeltaPageSize, backupOpts.M365.DeltaPageSize)
+	assert.Equal(t, co.FailureHandling, backupOpts.FailureHandling)
+	assert.Equal(
+		t,
+		co.ToggleFeatures.DisableIncrementals,
+		backupOpts.Incrementals.ForceFullEnumeration)
+	assert.Equal(
+		t,
+		co.ToggleFeatures.ForceItemDataDownload,
+		backupOpts.Incrementals.ForceItemDataRefresh)
+	assert.Equal(
+		t,
+		co.ToggleFeatures.DisableDelta,
+		backupOpts.M365.DisableDeltaEndpoint)
+	assert.Equal(
+		t,
+		co.ToggleFeatures.ExchangeImmutableIDs,
+		backupOpts.M365.ExchangeImmutableIDs)
+	assert.Equal(
+		t,
+		co.ToggleFeatures.DisableSlidingWindowLimiter,
+		backupOpts.ServiceRateLimiter.DisableSlidingWindowLimiter)
+}
+
 func (suite *GroupsUnitSuite) TestBackupListFlags() {
 	t := suite.T()
 
