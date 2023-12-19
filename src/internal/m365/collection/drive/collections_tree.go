@@ -161,7 +161,7 @@ func (c *Collections) getTree(
 		return nil, false, nil
 	}
 
-	return collections, canUsePrevBackup, errGetTreeNotImplemented
+	return collections, canUsePrevBackup, nil
 }
 
 func (c *Collections) makeDriveCollections(
@@ -241,6 +241,8 @@ func (c *Collections) makeDriveCollections(
 
 		globalExcludeItemIDsByDrivePrefix.Add(p.String(), excludedItemIDs)
 	}
+
+	counter.Add(count.NewPrevPaths, int64(len(newPrevs)))
 
 	return collections, newPrevs, du, nil
 }

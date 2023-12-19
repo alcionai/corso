@@ -1398,29 +1398,6 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata_ReadFailure() {
 	require.False(t, canUsePreviousBackup)
 }
 
-func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	mbh := defaultOneDriveBH(user)
-	opts := control.DefaultOptions()
-	opts.ToggleFeatures.UseDeltaTree = true
-
-	mbh.DriveItemEnumeration = driveEnumerator(
-		drive().newEnumer().with(
-			delta(nil).with(
-				aPage(
-					delItem(fileID(), rootID, isFile)))))
-
-	c := collWithMBH(mbh)
-	c.ctrl = opts
-
-	_, _, err := c.Get(ctx, nil, nil, fault.New(true))
-	require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
-}
-
 func (suite *CollectionsUnitSuite) TestGet() {
 	metadataPath, err := path.BuildMetadata(
 		tenant,
