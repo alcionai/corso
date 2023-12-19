@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"runtime/trace"
-	"strings"
 
 	"github.com/alcionai/clues"
 
@@ -210,7 +209,7 @@ func RestoreListCollection(
 				restoreContainerName)
 
 			if err != nil &&
-				strings.Contains(err.Error(), api.ErrInvalidTemplateError.Error()) {
+				errors.Is(err, api.ErrInvalidTemplateError) {
 				continue
 			}
 

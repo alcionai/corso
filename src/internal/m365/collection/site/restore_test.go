@@ -74,38 +74,54 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	testName, lrh, destName, mockData := suite.setupDependencies("genericList")
+	testName, lrh, destName, mockData := setupDependencies(
+		suite,
+		suite.ac,
+		suite.siteID,
+		suite.creds,
+		"genericList")
 
 	deets, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, fmt.Sprintf("%s_%s", destName, testName), deets.SharePoint.ItemName)
 
 	// Clean-Up
-	suite.deleteList(ctx, lrh, t, deets)
+	deleteList(ctx, t, suite.siteID, lrh, deets)
 }
 
-func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidTemplate() {
+func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTemplate() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	_, lrh, destName, mockData := suite.setupDependencies(api.WebTemplateExtensionsListTemplateName)
+	_, lrh, destName, mockData := setupDependencies(
+		suite,
+		suite.ac,
+		suite.siteID,
+		suite.creds,
+		api.WebTemplateExtensionsListTemplateName)
 
 	_, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), api.ErrInvalidTemplateError.Error())
 }
 
-func (suite *SharePointRestoreSuite) deleteList(
-	ctx context.Context, lrh listsRestoreHandler, t *testing.T, deets details.ItemInfo,
+func deleteList(
+	ctx context.Context,
+	t *testing.T,
+	siteID string,
+	lrh listsRestoreHandler,
+	deets details.ItemInfo,
 ) {
 	var (
 		isFound  bool
 		deleteID string
 	)
 
-	lists, err := lrh.ac.Client.Lists().GetLists(ctx, suite.siteID, api.CallConfig{})
+	lists, err := lrh.ac.Client.
+		Lists().
+		GetLists(ctx, siteID, api.CallConfig{})
 	assert.NoError(t, err, "getting site lists", clues.ToCore(err))
 
 	for _, l := range lists {
@@ -123,15 +139,20 @@ func (suite *SharePointRestoreSuite) deleteList(
 	}
 }
 
-func (suite *SharePointRestoreSuite) setupDependencies(listTemplate string) (
+func setupDependencies(
+	suite tester.Suite,
+	ac api.Client,
+	siteID string,
+	creds account.M365Config,
+	listTemplate string) (
 	string, listsRestoreHandler, string, *dataMock.Item,
 ) {
 	t := suite.T()
 	testName := "MockListing"
 
-	lrh := NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
+	lrh := NewListsRestoreHandler(siteID, ac.Lists())
 
-	service := createTestService(t, suite.creds)
+	service := createTestService(t, creds)
 
 	listInfo := models.NewListInfo()
 	listInfo.SetTemplate(ptr.To(listTemplate))
