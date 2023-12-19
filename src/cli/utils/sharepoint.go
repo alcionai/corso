@@ -2,8 +2,8 @@ package utils
 
 import (
 	"context"
-	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -108,18 +108,9 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		}
 	}
 
-	if _, ok := opts.Populated[flags.ListTemplateFN]; ok {
-		found := false
-
-		for _, wu := range opts.ListTemplate {
-			if wu == flags.InvalidListTemplate {
-				found = true
-			}
-		}
-
-		if !found {
-			return clues.New(fmt.Sprintf("%s list template not present", flags.InvalidListTemplate))
-		}
+	if _, ok := opts.Populated[flags.ListTemplateFN]; ok &&
+		!slices.Contains(opts.ListTemplate, flags.InvalidListTemplate) {
+		opts.ListTemplate = append(opts.ListTemplate, flags.InvalidListTemplate)
 	}
 
 	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {

@@ -396,7 +396,7 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 					flags.ListTemplateFN: struct{}{},
 				},
 			},
-			expect: assert.Error,
+			expect: assert.NoError,
 		},
 	}
 	for _, test := range table {
