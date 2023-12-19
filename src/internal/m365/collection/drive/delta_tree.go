@@ -27,10 +27,6 @@ type folderyMcFolderFace struct {
 	// new, moved, and notMoved root
 	root *nodeyMcNodeFace
 
-	// the ID of the actual root folder.
-	// required to ensure correct population of the root node.
-	rootID string
-
 	// the majority of operations we perform can be handled with
 	// a folder ID lookup instead of re-walking the entire tree.
 	// Ex: adding a new file to its parent folder.
@@ -53,11 +49,9 @@ type folderyMcFolderFace struct {
 
 func newFolderyMcFolderFace(
 	prefix path.Path,
-	rootID string,
 ) *folderyMcFolderFace {
 	return &folderyMcFolderFace{
 		prefix:           prefix,
-		rootID:           rootID,
 		folderIDToNode:   map[string]*nodeyMcNodeFace{},
 		tombstones:       map[string]*nodeyMcNodeFace{},
 		fileIDToParentID: map[string]string{},
@@ -151,12 +145,11 @@ func (face *folderyMcFolderFace) setFolder(
 	}
 
 	if (parentFolder == nil || len(ptr.Val(parentFolder.GetId())) == 0) &&
-		id != face.rootID {
+		folder.GetRoot() == nil {
 		return clues.NewWC(ctx, "non-root folder missing parent id")
 	}
 
-	// only set the root node once.
-	if id == face.rootID {
+	if folder.GetRoot() != nil {
 		if face.root == nil {
 			root := newNodeyMcNodeFace(nil, folder)
 			face.root = root
@@ -168,6 +161,11 @@ func (face *folderyMcFolderFace) setFolder(
 
 		return nil
 	}
+
+	ctx = clues.Add(
+		ctx,
+		"parent_id", ptr.Val(parentFolder.GetId()),
+		"parent_dir_path", path.LoggableDir(ptr.Val(parentFolder.GetPath())))
 
 	// There are four possible changes that can happen at this point.
 	// 1. new folder addition.
@@ -328,6 +326,7 @@ func (face *folderyMcFolderFace) hasFile(id string) bool {
 // file was already added to the tree and is getting relocated,
 // this func will update and/or clean up all the old references.
 func (face *folderyMcFolderFace) addFile(
+	ctx context.Context,
 	file *custom.DriveItem,
 ) error {
 	var (
@@ -336,32 +335,33 @@ func (face *folderyMcFolderFace) addFile(
 		parentID     string
 	)
 
+	if len(id) == 0 {
+		return clues.NewWC(ctx, "item added without ID")
+	}
+
 	if parentFolder == nil || len(ptr.Val(parentFolder.GetId())) == 0 {
-		return clues.New("item added without parent folder ID")
+		return clues.NewWC(ctx, "item added without parent folder ID")
 	}
 
 	parentID = ptr.Val(parentFolder.GetId())
 
-	if len(id) == 0 {
-		return clues.New("item added without ID")
-	}
+	ctx = clues.Add(
+		ctx,
+		"parent_id", ptr.Val(parentFolder.GetId()),
+		"parent_dir_path", path.LoggableDir(ptr.Val(parentFolder.GetPath())))
 
 	// in case of file movement, clean up any references
 	// to the file in the old parent
 	oldParentID, ok := face.fileIDToParentID[id]
 	if ok && oldParentID != parentID {
-		if nodey, ok := face.folderIDToNode[oldParentID]; ok {
+		if nodey := face.getNode(oldParentID); nodey != nil {
 			delete(nodey.files, id)
-		}
-
-		if zombey, ok := face.tombstones[oldParentID]; ok {
-			delete(zombey.files, id)
 		}
 	}
 
 	parent, ok := face.folderIDToNode[parentID]
 	if !ok {
-		return clues.New("item added before parent")
+		return clues.NewWC(ctx, "file added before parent")
 	}
 
 	face.fileIDToParentID[id] = parentID

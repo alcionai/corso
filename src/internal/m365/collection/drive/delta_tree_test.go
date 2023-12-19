@@ -36,7 +36,7 @@ func (suite *DeltaTreeUnitSuite) TestNewFolderyMcFolderFace() {
 
 	require.NoError(t, err, clues.ToCore(err))
 
-	folderFace := newFolderyMcFolderFace(p, rootID)
+	folderFace := newFolderyMcFolderFace(p)
 	assert.Equal(t, p, folderFace.prefix)
 	assert.Nil(t, folderFace.root)
 	assert.NotNil(t, folderFace.folderIDToNode)
@@ -884,7 +884,10 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_AddFile() {
 				df   = custom.ToCustomDriveItem(d.fileWSizeAt(test.contentSize, test.parent))
 			)
 
-			err := tree.addFile(df)
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			err := tree.addFile(ctx, df)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expectFiles, tree.fileIDToParentID)
 
@@ -968,6 +971,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 		fID  = fileID()
 	)
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	require.Len(t, tree.fileIDToParentID, 0)
 	require.Len(t, tree.deletedFileIDs, 0)
 
@@ -978,7 +984,9 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_addAndDeleteFile() {
 	assert.Len(t, tree.deletedFileIDs, 1)
 	assert.Contains(t, tree.deletedFileIDs, fID)
 
-	err := tree.addFile(custom.ToCustomDriveItem(d.fileAt(root)))
+	err := tree.addFile(
+		ctx,
+		custom.ToCustomDriveItem(d.fileAt(root)))
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Len(t, tree.fileIDToParentID, 1)

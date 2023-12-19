@@ -181,12 +181,7 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "generating backup tree prefix")
 	}
 
-	root, err := c.handler.GetRootFolder(ctx, driveID)
-	if err != nil {
-		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "getting root folder")
-	}
-
-	tree := newFolderyMcFolderFace(ppfx, ptr.Val(root.GetId()))
+	tree := newFolderyMcFolderFace(ppfx)
 
 	counter.Add(count.PrevPaths, int64(len(prevPaths)))
 
@@ -665,12 +660,9 @@ func (c *Collections) addFileToTree(
 		}
 	}
 
-	err := tree.addFile(file)
-	if err != nil {
-		return nil, clues.StackWC(ctx, err)
-	}
+	err := tree.addFile(ctx, file)
 
-	return nil, nil
+	return nil, clues.Stack(err).OrNil()
 }
 
 // quality-of-life wrapper that transforms each tombstone in the map

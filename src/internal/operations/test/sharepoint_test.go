@@ -100,7 +100,7 @@ func (suite *SharePointBackupTreeIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_sharePoint() {
+func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeSharePoint() {
 	var (
 		resourceID = suite.its.site.ID
 		sel        = selectors.NewSharePointBackup([]string{resourceID})
@@ -118,14 +118,14 @@ func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_sharePoint() {
 		sel.Selector)
 }
 
-func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_incrementalSharePoint() {
+func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeIncrementalSharePoint() {
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
 	runSharePointIncrementalBackupTests(suite, suite.its, opts)
 }
 
-func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_extensionsSharePoint() {
+func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeExtensionsSharePoint() {
 	var (
 		resourceID = suite.its.site.ID
 		sel        = selectors.NewSharePointBackup([]string{resourceID})
