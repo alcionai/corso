@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jhillyerd/enmime"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,4 +129,33 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 	target = re.ReplaceAllString(target, `src="cid:replaced"`)
 
 	assert.Equal(t, source, target)
+}
+
+func (suite *EMLUnitSuite) TestConvert_empty_attachment_no_err() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	body := []byte(testdata.EmailWithAttachments)
+
+	msg, err := api.BytesToMessageable(body)
+	require.NoError(t, err, "creating message")
+
+	attachments := msg.GetAttachments()
+	err = attachments[0].GetBackingStore().Set("contentBytes", []uint8{})
+	require.NoError(t, err, "setting content bytes")
+
+	writer := kjson.NewJsonSerializationWriter()
+
+	defer writer.Close()
+
+	err = writer.WriteObjectValue("", msg)
+	require.NoError(t, err, "serializing message")
+
+	nbody, err := writer.GetSerializedContent()
+	require.NoError(t, err, "getting serialized content")
+
+	_, err = FromJSON(ctx, nbody)
+	assert.NoError(t, err, "converting to eml")
 }
