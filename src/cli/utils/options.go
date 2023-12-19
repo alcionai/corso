@@ -41,3 +41,27 @@ func ControlWithConfig(cfg config.RepoDetails) control.Options {
 
 	return opt
 }
+
+func ParseBackupOptions() control.BackupConfig {
+	opt := control.DefaultBackupConfig()
+
+	if flags.FailFastFV {
+		opt.FailureHandling = control.FailFast
+	}
+
+	dps := int32(flags.DeltaPageSizeFV)
+	if dps > 500 || dps < 1 {
+		dps = 500
+	}
+
+	opt.M365.DeltaPageSize = dps
+	opt.M365.DisableDeltaEndpoint = flags.DisableDeltaFV
+	opt.M365.ExchangeImmutableIDs = flags.EnableImmutableIDFV
+	opt.M365.UseDriveDeltaTree = flags.UseDeltaTreeFV
+	opt.ServiceRateLimiter.DisableSlidingWindowLimiter = flags.DisableSlidingWindowLimiterFV
+	opt.Parallelism.ItemFetch = flags.FetchParallelismFV
+	opt.Incrementals.ForceFullEnumeration = flags.DisableIncrementalsFV
+	opt.Incrementals.ForceItemDataRefresh = flags.ForceItemDataDownloadFV
+
+	return opt
+}
