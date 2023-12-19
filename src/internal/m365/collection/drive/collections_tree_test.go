@@ -163,12 +163,8 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			// but this makes for a good sanity check on no-op behavior.
 			name: "no data either previously or in delta",
 			enumerator: driveEnumerator(
-				d1.newEnumer().with(
-					delta(nil).with(
-						aPage())),
-				d2.newEnumer().with(
-					delta(nil).with(
-						aPage()))),
+				d1.newEnumer().with(delta(nil)),
+				d2.newEnumer().with(delta(nil))),
 			metadata: multiDriveMetadata(
 				t,
 				d1.newPrevPaths(t),
@@ -178,11 +174,9 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 				collections: expectCollections(
 					false,
 					true,
-					aColl(d1.fullPath(t), nil),
-					aColl(d2.fullPath(t), nil),
 					aMetadata(nil, multiDrivePrevPaths(
-						d1.newPrevPaths(t, rootID, d1.strPath(t)),
-						d2.newPrevPaths(t, rootID, d2.strPath(t))))),
+						d1.newPrevPaths(t),
+						d2.newPrevPaths(t)))),
 				globalExcludedFileIDs: multiDriveExcludeMap(
 					d1.newExcludes(t, makeExcludeMap()),
 					d2.newExcludes(t, makeExcludeMap())),
@@ -619,8 +613,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 					aColl(
 						d.fullPath(t),
 						d.fullPath(t)),
-					aTomb(d.fullPath(t, folderName())),
-				),
+					aTomb(d.fullPath(t, folderName()))),
 				globalExcludedFileIDs: nil,
 				prevPaths: map[string]string{
 					rootID: d.strPath(t),
