@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -144,7 +145,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			stats := data.ExportStats{}
+			stats := metrics.ExportStats{}
 			ec := exchange.NewExportCollection(
 				"",
 				[]data.RestoreCollection{test.backingCollection},
@@ -184,10 +185,10 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				assert.ErrorIs(t, item.Error, test.expectedItems[i].Error)
 			}
 
-			var expectedStats data.ExportStats
+			var expectedStats metrics.ExportStats
 
 			if size+count > 0 { // it is only initialized if we have something
-				expectedStats = data.ExportStats{}
+				expectedStats = metrics.ExportStats{}
 				expectedStats.UpdateBytes(path.EmailCategory, int64(size))
 
 				for i := 0; i < count; i++ {
@@ -379,7 +380,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			exportCfg := control.ExportConfig{}
-			stats := data.ExportStats{}
+			stats := metrics.ExportStats{}
 
 			ecs, err := NewExchangeHandler(control.DefaultOptions(), api.Client{}, nil).
 				ProduceExportCollections(
@@ -398,7 +399,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 			assert.NoError(t, err, "export collections error")
 			assert.Len(t, ecs, len(tt.expectedItems), "num of collections")
 
-			expectedStats := data.ExportStats{}
+			expectedStats := metrics.ExportStats{}
 
 			// We are dependent on the order the collections are
 			// returned in the test which is not necessary for the
