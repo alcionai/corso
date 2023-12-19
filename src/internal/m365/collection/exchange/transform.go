@@ -58,6 +58,28 @@ func toMessage(orig models.Messageable) models.Messageable {
 	return CloneMessageableFields(orig, message)
 }
 
+// eventAdditionalUnneededFields contains a set of fields that don't have API
+// support right now but are ignored by or may cause errors in M365 when
+// restoring items.
+var eventAdditionalUnneededFields = []string{
+	// Will cause errors about needing to put extension data in their own requests
+	// if not removed.
+	"iCalUId_v2",
+	// Appears to be duplicate of the iCalUId.
+	"uid",
+	// Navigation links from the calendar to the event itself.
+	"calendar@odata.associationLink",
+	"calendar@odata.navigationLink",
+	// Seems like info about the request that generated the data response.
+	"@odata.context",
+	// Appears to be similar to the change tag.
+	"@odata.etag",
+	// Remove exceptions for recurring events. These will be present in objects
+	// once we start using the API that is currently in beta.
+	"cancelledOccurrences",
+	"exceptionOccurrences",
+}
+
 // ToEventSimplified transforms an event to simplified restore format
 // To overcome some of the MS Graph API challenges, the event object is modified in the following ways:
 //   - Instead of adding attendees and generating spurious notifications,
@@ -79,6 +101,18 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 	orig.SetWebLink(nil)
 	orig.SetICalUId(nil)
 	orig.SetId(nil)
+	orig.SetOdataType(nil)
+	orig.SetChangeKey(nil)
+
+	// Additional fields that don't have API support but are ignored by the
+	// server.
+	additionalData := orig.GetAdditionalData()
+
+	for _, key := range eventAdditionalUnneededFields {
+		delete(additionalData, key)
+	}
+
+	orig.SetAdditionalData(additionalData)
 
 	// Sanitize recurrence timezone.
 	if orig.GetRecurrence() != nil {
@@ -87,14 +121,6 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 			orig.GetRecurrence().GetRangeEscaped().SetRecurrenceTimeZone(nil)
 		}
 	}
-
-	// Remove exceptions for recurring events
-	// These will be present in objects once we start using the API
-	// that is currently in beta
-	additionalData := orig.GetAdditionalData()
-	delete(additionalData, "cancelledOccurrences")
-	delete(additionalData, "exceptionOccurrences")
-	orig.SetAdditionalData(additionalData)
 
 	return orig
 }
