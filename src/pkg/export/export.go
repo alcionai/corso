@@ -6,6 +6,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/metrics"
 )
 
 // ---------------------------------------------------------------------------
@@ -29,7 +30,7 @@ type itemStreamer func(
 	backupVersion int,
 	cfg control.ExportConfig,
 	ch chan<- Item,
-	stats *data.ExportStats)
+	stats *metrics.ExportStats)
 
 // BaseCollection holds the foundational details of an export collection.
 type BaseCollection struct {
@@ -47,7 +48,7 @@ type BaseCollection struct {
 
 	Stream itemStreamer
 
-	Stats *data.ExportStats
+	Stats *metrics.ExportStats
 }
 
 func (bc BaseCollection) BasePath() string {

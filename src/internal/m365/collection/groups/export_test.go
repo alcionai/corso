@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
+	"github.com/alcionai/corso/src/pkg/metrics"
 )
 
 type ExportUnitSuite struct {
@@ -91,7 +92,7 @@ func (suite *ExportUnitSuite) TestStreamItems() {
 				version.NoBackup,
 				control.DefaultExportConfig(),
 				ch,
-				&data.ExportStats{})
+				&metrics.ExportStats{})
 
 			var (
 				itm export.Item

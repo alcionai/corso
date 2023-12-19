@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -24,7 +25,7 @@ func NewExportCollection(
 	backingCollections []data.RestoreCollection,
 	backupVersion int,
 	cec control.ExportConfig,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 ) export.Collectioner {
 	return export.BaseCollection{
 		BaseDir:           baseDir,
@@ -43,7 +44,7 @@ func streamItems(
 	backupVersion int,
 	cec control.ExportConfig,
 	ch chan<- export.Item,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 ) {
 	defer close(ch)
 
@@ -59,7 +60,7 @@ func streamItems(
 				}
 			} else {
 				stats.UpdateResourceCount(path.ChannelMessagesCategory)
-				body = data.ReaderWithStats(body, path.ChannelMessagesCategory, stats)
+				body = metrics.ReaderWithStats(body, path.ChannelMessagesCategory, stats)
 
 				// messages are exported as json and should be named as such
 				name := item.ID() + ".json"
