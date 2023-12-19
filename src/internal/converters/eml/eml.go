@@ -2,8 +2,12 @@ package eml
 
 // This package helps convert from the json response
 // received from Graph API to .eml format (rfc0822).
-// Ref: https://www.ietf.org/rfc/rfc0822.txt
-// Ref: https://datatracker.ietf.org/doc/html/rfc5322
+
+// RFC
+// Original: https://www.ietf.org/rfc/rfc0822.txt
+// New: https://datatracker.ietf.org/doc/html/rfc5322
+// Extension for MIME: https://www.ietf.org/rfc/rfc1521.txt
+
 // Data missing from backup:
 // SetReturnPath SetPriority SetListUnsubscribe SetDkim
 // AddAlternative SetDSN (and any other X-MS specific headers)
@@ -152,8 +156,23 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				return "", clues.WrapWC(ctx, err, "invalid content bytes")
 			}
 
+			name := ptr.Val(attachment.GetName())
+
+			contentID, err := attachment.GetBackingStore().Get("contentId")
+			if err != nil {
+				return "", clues.WrapWC(ctx, err, "getting content id for attachment")
+			}
+
+			if contentID != nil {
+				cids, _ := contentID.(*string)
+				if len(*cids) > 0 {
+					name = *cids
+				}
+			}
+
 			email.Attach(&mail.File{
-				Name:     ptr.Val(attachment.GetName()),
+				// cannot use filename as inline attachment will not get mapped properly
+				Name:     name,
 				MimeType: kind,
 				Data:     bts,
 				Inline:   ptr.Val(attachment.GetIsInline()),
