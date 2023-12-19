@@ -87,17 +87,25 @@ type nodeyMcNodeFace struct {
 	children map[string]*nodeyMcNodeFace
 	// file item ID -> file metadata
 	files map[string]*custom.DriveItem
+	// when true, this flag means the folder appeared in enumeration,
+	// but was not included in the backup selection.  We include
+	// unselected folders in the tree so we don't have to hold stateful
+	// decisions (such as folder selection) as part of delta processing;
+	// we only need to evaluate them during post-processing.
+	isNotSelected bool
 }
 
 func newNodeyMcNodeFace(
 	parent *nodeyMcNodeFace,
 	folder *custom.DriveItem,
+	isNotSelected bool,
 ) *nodeyMcNodeFace {
 	return &nodeyMcNodeFace{
-		parent:   parent,
-		folder:   folder,
-		children: map[string]*nodeyMcNodeFace{},
-		files:    map[string]*custom.DriveItem{},
+		parent:        parent,
+		folder:        folder,
+		isNotSelected: isNotSelected,
+		children:      map[string]*nodeyMcNodeFace{},
+		files:         map[string]*custom.DriveItem{},
 	}
 }
 
@@ -128,6 +136,7 @@ func (face *folderyMcFolderFace) getNode(id string) *nodeyMcNodeFace {
 func (face *folderyMcFolderFace) setFolder(
 	ctx context.Context,
 	folder *custom.DriveItem,
+	isNotSelected bool,
 ) error {
 	var (
 		id           = ptr.Val(folder.GetId())
@@ -151,7 +160,7 @@ func (face *folderyMcFolderFace) setFolder(
 
 	if folder.GetRoot() != nil {
 		if face.root == nil {
-			root := newNodeyMcNodeFace(nil, folder)
+			root := newNodeyMcNodeFace(nil, folder, isNotSelected)
 			face.root = root
 			face.folderIDToNode[id] = root
 		} else {
@@ -219,7 +228,7 @@ func (face *folderyMcFolderFace) setFolder(
 		nodey.folder = folder
 	} else {
 		// change type 1: new addition
-		nodey = newNodeyMcNodeFace(parentNode, folder)
+		nodey = newNodeyMcNodeFace(parentNode, folder, isNotSelected)
 	}
 
 	// ensure the parent points to this node, and that the node is registered
@@ -262,7 +271,7 @@ func (face *folderyMcFolderFace) setTombstone(
 	}
 
 	if _, alreadyBuried := face.tombstones[id]; !alreadyBuried {
-		face.tombstones[id] = newNodeyMcNodeFace(nil, folder)
+		face.tombstones[id] = newNodeyMcNodeFace(nil, folder, false)
 	}
 
 	return nil
@@ -306,7 +315,7 @@ func (face *folderyMcFolderFace) setPreviousPath(
 		return nil
 	}
 
-	zombey := newNodeyMcNodeFace(nil, custom.NewDriveItem(folderID, ""))
+	zombey := newNodeyMcNodeFace(nil, custom.NewDriveItem(folderID, ""), false)
 	zombey.prev = prev
 	face.tombstones[folderID] = zombey
 
@@ -432,7 +441,11 @@ func (face *folderyMcFolderFace) walkTreeAndBuildCollections(
 	isChildOfPackage bool,
 	result map[string]collectable,
 ) error {
-	if node == nil {
+	// all non-root folders get skipped when not selected.
+	// the root folder stays in- because it's required to build
+	// the tree of selected folders- but if it's not selected
+	// then we won't include any of its files.
+	if node == nil || (node != face.root && node.isNotSelected) {
 		return nil
 	}
 
@@ -474,6 +487,12 @@ func (face *folderyMcFolderFace) walkTreeAndBuildCollections(
 		// file to hold the folder's permissions.
 		files = maps.Clone(node.files)
 		files[id] = node.folder
+	}
+
+	// should only occur if the root is not selected, since we should
+	// have backed out on all other non-selected folders by this point.
+	if node.isNotSelected {
+		files = map[string]*custom.DriveItem{}
 	}
 
 	cbl := collectable{

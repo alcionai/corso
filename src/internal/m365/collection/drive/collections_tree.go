@@ -538,10 +538,9 @@ func (c *Collections) addFolderToTree(
 	notSelected = shouldSkip(ctx, collectionPath, c.handler, ptr.Val(drv.GetName()))
 	if notSelected {
 		logger.Ctx(ctx).Debugw("path not selected", "skipped_path", collectionPath.String())
-		return nil, nil
 	}
 
-	err = tree.setFolder(ctx, folder)
+	err = tree.setFolder(ctx, folder, notSelected)
 
 	return nil, clues.Stack(err).OrNil()
 }
