@@ -21,6 +21,7 @@ import (
 	mail "github.com/xhit/go-simple-mail/v2"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -164,9 +165,9 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			}
 
 			if contentID != nil {
-				cids, _ := contentID.(*string)
-				if len(*cids) > 0 {
-					name = *cids
+				cids, _ := str.AnyToString(contentID)
+				if len(cids) > 0 {
+					name = cids
 				}
 			}
 
