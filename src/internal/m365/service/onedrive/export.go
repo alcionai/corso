@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -61,7 +62,7 @@ func (h *baseOneDriveHandler) ProduceExportCollections(
 	backupVersion int,
 	exportCfg control.ExportConfig,
 	dcs []data.RestoreCollection,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	var (
