@@ -11,10 +11,10 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -119,6 +119,16 @@ func runExport(
 
 	if err != nil {
 		return Only(ctx, err)
+	}
+
+	if len(eo.Errors.Recovered()) > 0 {
+		Infof(ctx, "\nExport failures")
+
+		for _, i := range eo.Errors.Recovered() {
+			Err(ctx, i.Error())
+		}
+
+		return Only(ctx, clues.New("Incomplete export of "+serviceName+" data"))
 	}
 
 	stats := eo.GetStats()

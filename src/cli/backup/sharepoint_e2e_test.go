@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
@@ -20,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -62,7 +62,7 @@ func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "sharepoint",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetErr(&suite.dpnd.recorder)
@@ -146,7 +146,7 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "sharepoint",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupIDsFN,
 		fmt.Sprintf("%s,%s",
 			string(suite.backupOp.Results.BackupID),
@@ -173,7 +173,7 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd() {
 // // a follow-up details call should fail, due to the backup ID being deleted
 // cmd = cliTD.StubRootCmd(
 // 	"backup", "details", "sharepoint",
-// 	"--config-file", suite.cfgFP,
+// 	"--"+flags.ConfigFileFN, suite.cfgFP,
 // 	"--backup", string(suite.backupOp.Results.BackupID))
 // cli.BuildCommandTree(cmd)
 
@@ -190,7 +190,7 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_unkno
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "sharepoint",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupIDsFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
@@ -209,7 +209,7 @@ func (suite *BackupDeleteSharePointE2ESuite) TestSharePointBackupDeleteCmd_NoBac
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "groups",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	// empty backupIDs should error since no data provided

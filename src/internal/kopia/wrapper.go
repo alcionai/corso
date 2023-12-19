@@ -81,8 +81,8 @@ func manifestToStats(
 	progress.counter.Add(count.PersistedCachedFiles, int64(man.Stats.CachedFiles))
 	progress.counter.Add(count.PersistedNonCachedFiles, int64(man.Stats.NonCachedFiles))
 	progress.counter.Add(count.PersistedDirectories, int64(man.Stats.TotalDirectoryCount))
-	progress.counter.Add(count.PersistenceErrors, int64(man.Stats.ErrorCount))
-	progress.counter.Add(count.PersistenceIgnoredErrors, int64(man.Stats.IgnoredErrorCount))
+	progress.counter.Add(count.PersistenceErrs, int64(man.Stats.ErrorCount))
+	progress.counter.Add(count.PersistenceIgnoredErrs, int64(man.Stats.IgnoredErrorCount))
 
 	return BackupStats{
 		SnapshotID: string(man.ID),

@@ -8,7 +8,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -30,8 +29,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
-
-var errGetTreeNotImplemented = clues.New("forced error: cannot run tree-based backup: incomplete implementation")
 
 const (
 	restrictedDirectory = "Site Pages"
@@ -117,7 +114,7 @@ func deserializeAndValidateMetadata(
 
 		paths := prevs[drive]
 		if len(paths) == 0 {
-			logger.Ctx(ictx).Info("dropping drive delta due to 0 prev paths")
+			logger.Ctx(ictx).Info("dropping delta metadata: no matching drive entry in previous paths")
 			delete(deltas, drive)
 		}
 
@@ -127,7 +124,7 @@ func deserializeAndValidateMetadata(
 		// for other possibly incorrect folder paths.
 		for _, prevPath := range paths {
 			if len(prevPath) == 0 {
-				logger.Ctx(ictx).Info("dropping drive delta due to 0 len path")
+				logger.Ctx(ictx).Info("dropping delta metadata: 0 previous paths")
 				delete(deltas, drive)
 
 				break
@@ -270,17 +267,10 @@ func DeserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 		return clues.Wrap(err, "deserializing file contents")
 	}
 
-	var duplicate bool
-
 	for k := range tmp {
 		if _, ok := alreadyFound[k]; ok {
-			duplicate = true
-			break
+			return clues.Stack(errExistingMapping).With("duplicate_key", k)
 		}
-	}
-
-	if duplicate {
-		return clues.Stack(errExistingMapping)
 	}
 
 	maps.Copy(alreadyFound, tmp)
@@ -292,18 +282,15 @@ func DeserializeMap[T any](reader io.ReadCloser, alreadyFound map[string]T) erro
 func (c *Collections) Get(
 	ctx context.Context,
 	prevMetadata []data.RestoreCollection,
-	ssmb *prefixmatcher.StringSetMatchBuilder,
+	globalExcludeItemIDs *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	if c.ctrl.ToggleFeatures.UseDeltaTree {
-		colls, canUsePrevBackup, err := c.getTree(ctx, prevMetadata, ssmb, errs)
-		if err != nil && !errors.Is(err, errGetTreeNotImplemented) {
-			return nil, false, clues.Wrap(err, "processing backup using tree")
-		}
+		colls, canUsePrevBackup, err := c.getTree(ctx, prevMetadata, globalExcludeItemIDs, errs)
 
 		return colls,
 			canUsePrevBackup,
-			errGetTreeNotImplemented
+			clues.Wrap(err, "processing backup using tree").OrNil()
 	}
 
 	deltasByDriveID, prevPathsByDriveID, canUsePrevBackup, err := deserializeAndValidateMetadata(
@@ -457,7 +444,7 @@ func (c *Collections) Get(
 				return nil, false, clues.WrapWC(ictx, err, "making exclude prefix")
 			}
 
-			ssmb.Add(p.String(), excludedItemIDs)
+			globalExcludeItemIDs.Add(p.String(), excludedItemIDs)
 
 			continue
 		}
@@ -489,6 +476,7 @@ func (c *Collections) Get(
 				nil, // delete the folder
 				prevPath,
 				driveID,
+				driveName,
 				c.statusUpdater,
 				c.ctrl,
 				false,
@@ -527,6 +515,7 @@ func (c *Collections) Get(
 			nil, // delete the drive
 			prevDrivePath,
 			driveID,
+			"",
 			c.statusUpdater,
 			c.ctrl,
 			false,
@@ -698,6 +687,7 @@ func (c *Collections) handleDelete(
 		nil, // deletes the collection
 		prevPath,
 		driveID,
+		"",
 		c.statusUpdater,
 		c.ctrl,
 		false,
@@ -706,7 +696,7 @@ func (c *Collections) handleDelete(
 		nil,
 		counter.Local())
 	if err != nil {
-		return clues.Wrap(err, "making collection").With(
+		return clues.WrapWC(ctx, err, "making collection").With(
 			"drive_id", driveID,
 			"item_id", itemID,
 			"path_string", prevPathStr)
@@ -1089,6 +1079,7 @@ func (c *Collections) processItem(
 			collectionPath,
 			prevPath,
 			driveID,
+			driveName,
 			c.statusUpdater,
 			c.ctrl,
 			isPackage || childOfPackage,

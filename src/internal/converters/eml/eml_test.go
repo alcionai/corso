@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jhillyerd/enmime"
+	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,6 +53,18 @@ func (suite *EMLUnitSuite) TestFormatAddress() {
 			name:     "",
 			email:    "johndoe@provider.com",
 			expected: "johndoe@provider.com",
+		},
+		{
+			tname:    "only name",
+			name:     "john doe",
+			email:    "",
+			expected: `"john doe"`,
+		},
+		{
+			tname:    "neither mail or name",
+			name:     "",
+			email:    "",
+			expected: "",
 		},
 	}
 
@@ -116,4 +129,62 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 	target = re.ReplaceAllString(target, `src="cid:replaced"`)
 
 	assert.Equal(t, source, target)
+}
+
+func (suite *EMLUnitSuite) TestConvert_edge_cases() {
+	tests := []struct {
+		name      string
+		transform func(models.Messageable)
+	}{
+		{
+			name: "just a name",
+			transform: func(msg models.Messageable) {
+				msg.GetFrom().GetEmailAddress().SetName(ptr.To("alphabob"))
+				msg.GetFrom().GetEmailAddress().SetAddress(nil)
+			},
+		},
+		{
+			name: "incorrect address",
+			transform: func(msg models.Messageable) {
+				msg.GetFrom().GetEmailAddress().SetAddress(ptr.To("invalid"))
+			},
+		},
+		{
+			name: "empty attachment",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				err := attachments[0].GetBackingStore().Set("contentBytes", []uint8{})
+				require.NoError(suite.T(), err, "setting attachment content")
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			body := []byte(testdata.EmailWithAttachments)
+
+			msg, err := api.BytesToMessageable(body)
+			require.NoError(t, err, "creating message")
+
+			test.transform(msg)
+
+			writer := kjson.NewJsonSerializationWriter()
+
+			defer writer.Close()
+
+			err = writer.WriteObjectValue("", msg)
+			require.NoError(t, err, "serializing message")
+
+			nbody, err := writer.GetSerializedContent()
+			require.NoError(t, err, "getting serialized content")
+
+			_, err = FromJSON(ctx, nbody)
+			assert.NoError(t, err, "converting to eml")
+		})
+	}
 }

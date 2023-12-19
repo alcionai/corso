@@ -428,7 +428,7 @@ jobs:
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sanity-test-log
           path: ${{ env.CORSO_LOG_DIR }}/*

@@ -102,6 +102,7 @@ type Path interface {
 	// and will likely be updated to handle encoded elements instead of clear-text
 	// elements in the future.
 	Elements() Elements
+	Equal(other Path) bool
 	// Append returns a new Path object with the given element added to the end of
 	// the old Path if possible. If the old Path is an item Path then Append
 	// returns an error.

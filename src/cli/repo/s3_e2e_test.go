@@ -11,12 +11,13 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -79,7 +80,7 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 
 			cmd := cliTD.StubRootCmd(
 				"repo", "init", "s3",
-				"--config-file", configFP,
+				"--"+flags.ConfigFileFN, configFP,
 				"--bucket", test.bucketPrefix+cfg.Bucket,
 				"--prefix", cfg.Prefix)
 			cli.BuildCommandTree(cmd)
@@ -113,7 +114,7 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 	for i := 0; i < 2; i++ {
 		cmd := cliTD.StubRootCmd(
 			"repo", "init", "s3",
-			"--config-file", configFP,
+			"--"+flags.ConfigFileFN, configFP,
 			"--bucket", cfg.Bucket,
 			"--prefix", cfg.Prefix,
 			"--succeed-if-exists")
@@ -146,7 +147,7 @@ func (suite *S3E2ESuite) TestInitS3Cmd_missingBucket() {
 
 	cmd := cliTD.StubRootCmd(
 		"repo", "init", "s3",
-		"--config-file", configFP,
+		"--"+flags.ConfigFileFN, configFP,
 		"--prefix", cfg.Prefix)
 	cli.BuildCommandTree(cmd)
 
@@ -219,7 +220,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd() {
 			// then test it
 			cmd := cliTD.StubRootCmd(
 				"repo", "connect", "s3",
-				"--config-file", configFP,
+				"--"+flags.ConfigFileFN, configFP,
 				"--bucket", test.bucketPrefix+cfg.Bucket,
 				"--prefix", cfg.Prefix)
 			cli.BuildCommandTree(cmd)
@@ -279,7 +280,7 @@ func (suite *S3E2ESuite) TestConnectS3Cmd_badInputs() {
 
 			cmd := cliTD.StubRootCmd(
 				"repo", "connect", "s3",
-				"--config-file", configFP,
+				"--"+flags.ConfigFileFN, configFP,
 				"--bucket", bucket,
 				"--prefix", prefix)
 			cli.BuildCommandTree(cmd)

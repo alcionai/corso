@@ -33,6 +33,15 @@ type DriveItem struct {
 	additionalData       map[string]any
 }
 
+func NewDriveItem(
+	id, name string,
+) *DriveItem {
+	return &DriveItem{
+		id:   ptr.To(id),
+		name: ptr.To(name),
+	}
+}
+
 // Disable revive linter since we want to follow naming scheme used by graph SDK here.
 // nolint: revive
 func (c *DriveItem) GetId() *string {

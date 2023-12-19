@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/utils"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
@@ -90,7 +90,7 @@ func pitrListBackups(
 
 	// TODO(ashmrtn): This may be moved into CLI layer at some point when we add
 	// flags for opening a repo at a point in time.
-	cfg, err := config.GetConfigRepoDetails(
+	cfg, err := config.ReadCorsoConfig(
 		ctx,
 		storage.ProviderS3,
 		true,
@@ -151,7 +151,7 @@ func main() {
 
 	cc.SetContext(context.Background())
 
-	if err := config.InitFunc(&cc, []string{}); err != nil {
+	if err := config.InitCmd(&cc, []string{}); err != nil {
 		return
 	}
 

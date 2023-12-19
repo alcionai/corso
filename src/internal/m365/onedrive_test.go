@@ -12,16 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
+	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -508,13 +509,15 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = true
 
-			runRestoreBackupTestVersions(
-				t,
-				testData,
-				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
-				control.DefaultOptions(),
-				restoreCfg)
+			cfg := m365Stub.ConfigInfo{
+				Tenant:         suite.Tenant(),
+				ResourceOwners: []string{suite.ResourceOwner()},
+				Service:        testData.service,
+				Opts:           control.DefaultOptions(),
+				RestoreCfg:     restoreCfg,
+			}
+
+			runRestoreBackupTestVersions(t, testData, cfg)
 		})
 	}
 }
@@ -756,13 +759,15 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = true
 
-			runRestoreBackupTestVersions(
-				t,
-				testData,
-				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
-				control.DefaultOptions(),
-				restoreCfg)
+			cfg := m365Stub.ConfigInfo{
+				Tenant:         suite.Tenant(),
+				ResourceOwners: []string{suite.ResourceOwner()},
+				Service:        testData.service,
+				Opts:           control.DefaultOptions(),
+				RestoreCfg:     restoreCfg,
+			}
+
+			runRestoreBackupTestVersions(t, testData, cfg)
 		})
 	}
 }
@@ -845,13 +850,15 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = false
 
-			runRestoreBackupTestVersions(
-				t,
-				testData,
-				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
-				control.DefaultOptions(),
-				restoreCfg)
+			cfg := m365Stub.ConfigInfo{
+				Tenant:         suite.Tenant(),
+				ResourceOwners: []string{suite.ResourceOwner()},
+				Service:        testData.service,
+				Opts:           control.DefaultOptions(),
+				RestoreCfg:     restoreCfg,
+			}
+
+			runRestoreBackupTestVersions(t, testData, cfg)
 		})
 	}
 }
@@ -1049,13 +1056,15 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = true
 
-			runRestoreBackupTestVersions(
-				t,
-				testData,
-				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
-				control.DefaultOptions(),
-				restoreCfg)
+			cfg := m365Stub.ConfigInfo{
+				Tenant:         suite.Tenant(),
+				ResourceOwners: []string{suite.ResourceOwner()},
+				Service:        testData.service,
+				Opts:           control.DefaultOptions(),
+				RestoreCfg:     restoreCfg,
+			}
+
+			runRestoreBackupTestVersions(t, testData, cfg)
 		})
 	}
 }
@@ -1243,13 +1252,15 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = true
 
-			runRestoreBackupTestVersions(
-				t,
-				testData,
-				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
-				control.DefaultOptions(),
-				restoreCfg)
+			cfg := m365Stub.ConfigInfo{
+				Tenant:         suite.Tenant(),
+				ResourceOwners: []string{suite.ResourceOwner()},
+				Service:        testData.service,
+				Opts:           control.DefaultOptions(),
+				RestoreCfg:     restoreCfg,
+			}
+
+			runRestoreBackupTestVersions(t, testData, cfg)
 		})
 	}
 }
@@ -1358,13 +1369,15 @@ func testRestoreFolderNamedFolderRegression(
 			restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
 			restoreCfg.IncludePermissions = true
 
-			runRestoreTestWithVersion(
-				t,
-				testData,
-				suite.Tenant(),
-				[]string{suite.ResourceOwner()},
-				control.DefaultOptions(),
-				restoreCfg)
+			cfg := m365Stub.ConfigInfo{
+				Tenant:         suite.Tenant(),
+				ResourceOwners: []string{suite.ResourceOwner()},
+				Service:        testData.service,
+				Opts:           control.DefaultOptions(),
+				RestoreCfg:     restoreCfg,
+			}
+
+			runRestoreTestWithVersion(t, testData, cfg)
 		})
 	}
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type CollectionUnitSuite struct {
@@ -322,6 +323,88 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 			}
 
 			assert.NoError(t, errs.Failure())
+			assert.Equal(
+				t,
+				test.expectItemCount,
+				itemCount,
+				"should see all expected items")
+		})
+	}
+}
+
+// This test verifies skipped error cases are handled correctly by collection enumeration
+func (suite *CollectionUnitSuite) TestCollection_SkippedErrors() {
+	var (
+		t             = suite.T()
+		statusUpdater = func(*support.ControllerOperationStatus) {}
+	)
+
+	fullPath, err := path.Build("t", "pr", path.ExchangeService, path.EmailCategory, false, "fnords", "smarf")
+	require.NoError(t, err, clues.ToCore(err))
+
+	locPath, err := path.Build("t", "pr", path.ExchangeService, path.EmailCategory, false, "fnords", "smarf")
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name              string
+		added             map[string]time.Time
+		expectItemCount   int
+		itemGetter        itemGetterSerializer
+		expectedSkipError *fault.Skipped
+	}{
+		{
+			name: "ErrorInvalidRecipients",
+			added: map[string]time.Time{
+				"fisher": {},
+			},
+			expectItemCount: 0,
+			itemGetter: &mock.ItemGetSerialize{
+				GetErr: graphTD.ODataErr(string(graph.ErrorInvalidRecipients)),
+			},
+			expectedSkipError: fault.EmailSkip(fault.SkipInvalidRecipients, "", "fisher", nil),
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t         = suite.T()
+				errs      = fault.New(true)
+				itemCount int
+			)
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			col := NewCollection(
+				data.NewBaseCollection(
+					fullPath,
+					nil,
+					locPath.ToBuilder(),
+					control.DefaultOptions(),
+					false,
+					count.New()),
+				"",
+				test.itemGetter,
+				test.added,
+				nil,
+				false,
+				statusUpdater,
+				count.New())
+
+			for range col.Items(ctx, errs) {
+				itemCount++
+			}
+
+			assert.NoError(t, errs.Failure())
+			if test.expectedSkipError != nil {
+				assert.Len(t, errs.Skipped(), 1)
+				skippedItem := errs.Skipped()[0].Item
+
+				assert.Equal(t, skippedItem.Cause, test.expectedSkipError.Item.Cause)
+				assert.Equal(t, skippedItem.ID, test.expectedSkipError.Item.ID)
+			}
+
 			assert.Equal(
 				t,
 				test.expectItemCount,
