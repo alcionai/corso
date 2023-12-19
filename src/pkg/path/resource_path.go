@@ -1,6 +1,8 @@
 package path
 
 import (
+	"slices"
+
 	"github.com/alcionai/clues"
 )
 
@@ -134,4 +136,17 @@ func (rp dataLayerResourcePath) ToBuilder() *Builder {
 
 func (rp *dataLayerResourcePath) UpdateParent(prev, cur Path) bool {
 	return rp.Builder.UpdateParent(prev.ToBuilder(), cur.ToBuilder())
+}
+
+func (rp *dataLayerResourcePath) Equal(other Path) bool {
+	if rp == nil && other == nil {
+		return true
+	}
+
+	if (rp == nil && other != nil) ||
+		(other == nil && rp != nil) {
+		return false
+	}
+
+	return slices.Equal(rp.elements, other.Elements())
 }

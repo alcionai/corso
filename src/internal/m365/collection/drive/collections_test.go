@@ -871,7 +871,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 
 			mbh.DriveItemEnumeration = driveEnumerator(
 				drive.newEnumer().with(
-					delta("notempty", nil).with(
+					delta(nil, "notempty").with(
 						aPage(test.items...))))
 
 			sel := selectors.NewOneDriveBackup([]string{user})
@@ -962,7 +962,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
@@ -974,7 +974,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 				},
 			},
 			expectedDeltas: map[string]string{
-				d.id: id(deltaURL),
+				d.id: deltaURL(),
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
@@ -991,7 +991,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 					}
 				},
 			},
@@ -1034,7 +1034,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
@@ -1087,7 +1087,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
@@ -1101,7 +1101,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d2.id: id(deltaURL, 2)}),
+							map[string]string{d2.id: deltaURL(2)}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
@@ -1113,8 +1113,8 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 				},
 			},
 			expectedDeltas: map[string]string{
-				d.id:  id(deltaURL),
-				d2.id: id(deltaURL, 2),
+				d.id:  deltaURL(),
+				d2.id: deltaURL(2),
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
@@ -1138,7 +1138,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 					}
 				},
 			},
@@ -1154,7 +1154,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
@@ -1164,12 +1164,12 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 							}),
 						graph.NewMetadataEntry(
 							"foo",
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 					}
 				},
 			},
 			expectedDeltas: map[string]string{
-				d.id: id(deltaURL),
+				d.id: deltaURL(),
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
@@ -1186,7 +1186,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
@@ -1220,7 +1220,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
@@ -1234,7 +1234,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d.id: id(deltaURL, 2)}),
+							map[string]string{d.id: deltaURL(2)}),
 					}
 				},
 			},
@@ -1250,7 +1250,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d.id: id(deltaURL)}),
+							map[string]string{d.id: deltaURL()}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
@@ -1263,7 +1263,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 				},
 			},
 			expectedDeltas: map[string]string{
-				d.id: id(deltaURL),
+				d.id: deltaURL(),
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
@@ -1283,7 +1283,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
 							map[string]string{
-								d.id: id(deltaURL),
+								d.id: deltaURL(),
 							}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
@@ -1299,7 +1299,7 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 					return []graph.MetadataCollectionEntry{
 						graph.NewMetadataEntry(
 							bupMD.DeltaURLsFileName,
-							map[string]string{d2.id: id(deltaURL, 2)}),
+							map[string]string{d2.id: deltaURL(2)}),
 						graph.NewMetadataEntry(
 							bupMD.PreviousPathFileName,
 							map[string]map[string]string{
@@ -1311,8 +1311,8 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata() {
 				},
 			},
 			expectedDeltas: map[string]string{
-				d.id:  id(deltaURL),
-				d2.id: id(deltaURL, 2),
+				d.id:  deltaURL(),
+				d2.id: deltaURL(2),
 			},
 			expectedPaths: map[string]map[string]string{
 				d.id: {
@@ -1398,29 +1398,6 @@ func (suite *CollectionsUnitSuite) TestDeserializeMetadata_ReadFailure() {
 	require.False(t, canUsePreviousBackup)
 }
 
-func (suite *CollectionsUnitSuite) TestGet_treeCannotBeUsedWhileIncomplete() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	mbh := defaultOneDriveBH(user)
-	opts := control.DefaultOptions()
-	opts.ToggleFeatures.UseDeltaTree = true
-
-	mbh.DriveItemEnumeration = driveEnumerator(
-		drive().newEnumer().with(
-			delta(id(deltaURL), nil).with(
-				aPage(
-					delItem(fileID(), rootID, isFile)))))
-
-	c := collWithMBH(mbh)
-	c.ctrl = opts
-
-	_, _, err := c.Get(ctx, nil, nil, fault.New(true))
-	require.ErrorIs(t, err, errGetTreeNotImplemented, clues.ToCore(err))
-}
-
 func (suite *CollectionsUnitSuite) TestGet() {
 	metadataPath, err := path.BuildMetadata(
 		tenant,
@@ -1456,7 +1433,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_DelFileOnly_NoFolders_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							delItem(fileID(), rootID, isFile))))),
 			canUsePreviousBackup: true,
@@ -1468,7 +1445,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t): {data.NotMovedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {rootID: d.strPath(t)},
@@ -1481,7 +1458,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_NoFolderDeltas_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							driveFile(d.dir(), rootID))))),
 			canUsePreviousBackup: true,
@@ -1493,7 +1470,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t): {data.NotMovedState: {fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {rootID: d.strPath(t)},
@@ -1506,7 +1483,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()))))),
@@ -1518,7 +1495,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1536,7 +1513,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_NoErrors_FileRenamedMultiple",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
@@ -1549,7 +1526,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1567,7 +1544,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_NoErrors_FileMovedMultiple",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
@@ -1584,7 +1561,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.NewState: {folderID()}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1600,7 +1577,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_TwoItemPages_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -1617,7 +1594,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1635,7 +1612,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_TwoItemPages_WithReset",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
@@ -1657,7 +1634,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1675,7 +1652,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_TwoItemPages_WithResetCombinedWithItems",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -1695,7 +1672,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1713,12 +1690,12 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "TwoDrives_OneItemPageEach_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())))),
 				d2.newEnumer().with(
-					deltaWReset(id(deltaURL, 2), nil).with(aPage(
+					deltaWReset(nil, 2).with(aPage(
 						driveItem(folderID(2), folderName(), d2.dir(), rootID, isFolder),
 						driveItem(fileID(2), fileName(), d2.dir(folderName()), folderID(2), isFile))))),
 			canUsePreviousBackup: true,
@@ -1734,8 +1711,8 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d2.strPath(t, folderName()): {data.NewState: {folderID(2), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
-				d2.id:           id(deltaURL, 2),
+				id(drivePfx, 1): deltaURL(),
+				d2.id:           deltaURL(2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1759,12 +1736,12 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "TwoDrives_DuplicateIDs_OneItemPageEach_NoErrors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())))),
 				d2.newEnumer().with(
-					deltaWReset(id(deltaURL, 2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d2.dir(), rootID),
 							driveItem(fileID(2), fileName(), d2.dir(folderName()), folderID(), isFile))))),
@@ -1781,8 +1758,8 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d2.strPath(t, folderName()): {data.NewState: {folderID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
-				d2.id:           id(deltaURL, 2),
+				id(drivePfx, 1): deltaURL(),
+				d2.id:           deltaURL(2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1806,7 +1783,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_Errors",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta("", assert.AnError))),
+					delta(assert.AnError))),
 			canUsePreviousBackup: false,
 			errCheck:             assert.Error,
 			previousPaths: map[string]map[string]string{
@@ -1821,7 +1798,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDelta_DeleteNonExistentFolder",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							driveFolder(d.dir(), rootID, 2),
@@ -1840,7 +1817,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName(2)): {data.NewState: {folderID(2), fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1859,7 +1836,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDeltaCombinedWithItems_DeleteNonExistentFolder",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							driveFolder(d.dir(), rootID, 2),
@@ -1878,7 +1855,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName(2)): {data.NewState: {folderID(2), fileID()}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1897,7 +1874,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
 							driveFile(d.dir(folderName()), folderID(2))),
@@ -1923,7 +1900,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1941,7 +1918,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtExistingLocation",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -1964,7 +1941,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -1982,7 +1959,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_ImmediateInvalidPrevDelta_MoveFolderToPreviouslyExistingPath",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
@@ -2003,7 +1980,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2021,7 +1998,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive_OneItemPage_InvalidPrevDelta_AnotherFolderAtDeletedLocation",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aReset(),
 						aPage(
 							driveItem(folderID(2), folderName(), d.dir(), rootID, isFolder),
@@ -2044,7 +2021,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2062,7 +2039,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "OneDrive Two Item Pages with Malware",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
@@ -2081,7 +2058,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.NewState: {folderID(), fileID(), fileID(2)}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2100,7 +2077,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Deleted Folder In New Results With Invalid Delta",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL, 2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
@@ -2127,7 +2104,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName(2)): {data.DeletedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL, 2),
+				id(drivePfx, 1): deltaURL(2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2146,7 +2123,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Delete After Invalid Delta",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPageWReset(
 							delItem(folderID(), rootID, isFolder))))),
 			canUsePreviousBackup: true,
@@ -2162,7 +2139,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.DeletedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2179,7 +2156,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Item Delete After Invalid Delta",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPageWReset(
 							delItem(fileID(), rootID, isFile))))),
 			canUsePreviousBackup: true,
@@ -2193,7 +2170,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t): {data.NewState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2209,7 +2186,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Made And Deleted",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL, 2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -2225,7 +2202,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t): {data.NewState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL, 2),
+				id(drivePfx, 1): deltaURL(2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2241,7 +2218,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Created -> Deleted -> Created",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL, 2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -2261,7 +2238,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.NewState: {folderID(1), fileID(1)}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL, 2),
+				id(drivePfx, 1): deltaURL(2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2279,7 +2256,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Deleted -> Created -> Deleted",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL, 2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							delItem(folderID(), rootID, isFolder),
 							delItem(fileID(), rootID, isFile)),
@@ -2302,7 +2279,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.DeletedState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL, 2),
+				id(drivePfx, 1): deltaURL(2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2316,7 +2293,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Folder Created -> Deleted -> Created with prev",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL, 2), nil).with(
+					deltaWReset(nil, 2).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -2339,7 +2316,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.DeletedState: {}, data.NewState: {folderID(1), fileID(1)}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL, 2),
+				id(drivePfx, 1): deltaURL(2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2357,7 +2334,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Item Made And Deleted",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())),
@@ -2372,7 +2349,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t, folderName()): {data.NewState: {folderID()}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2390,7 +2367,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Random Folder Delete",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					deltaWReset(id(deltaURL), nil).with(
+					deltaWReset(nil).with(
 						aPage(
 							delItem(folderID(), rootID, isFolder))))),
 			canUsePreviousBackup: true,
@@ -2402,7 +2379,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t): {data.NewState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2418,7 +2395,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "One Drive Random Item Delete",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							delItem(fileID(), rootID, isFile))))),
 			canUsePreviousBackup: true,
@@ -2430,7 +2407,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t): {data.NewState: {}},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2446,7 +2423,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "TwoPriorDrives_OneTombstoned",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(aPage()))), // root only
+					delta(nil).with(aPage()))), // root only
 			canUsePreviousBackup: true,
 			errCheck:             assert.NoError,
 			previousPaths: map[string]map[string]string{
@@ -2457,7 +2434,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				d.strPath(t):  {data.NotMovedState: {}},
 				d2.strPath(t): {data.DeletedState: {}},
 			},
-			expectedDeltaURLs: map[string]string{id(drivePfx, 1): id(deltaURL)},
+			expectedDeltaURLs: map[string]string{id(drivePfx, 1): deltaURL()},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {rootID: d.strPath(t)},
 			},
@@ -2470,14 +2447,14 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "duplicate previous paths in metadata",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID()),
 							driveFolder(d.dir(), rootID, 2),
 							driveFile(d.dir(folderName(2)), folderID(2), 2)))),
 				d2.newEnumer().with(
-					delta(id(deltaURL, 2), nil).with(
+					delta(nil, 2).with(
 						aPage(
 							driveFolder(d2.dir(), rootID),
 							driveFile(d2.dir(folderName()), folderID()),
@@ -2519,8 +2496,8 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
-				d2.id:           id(deltaURL, 2),
+				id(drivePfx, 1): deltaURL(),
+				d2.id:           deltaURL(2),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2545,7 +2522,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "out of order item enumeration causes prev path collisions",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							driveItem(folderID(fanny, 2), folderName(fanny), d.dir(), rootID, isFolder),
 							driveFile(d.dir(folderName(fanny)), folderID(fanny, 2), 2),
@@ -2571,7 +2548,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2589,7 +2566,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 			name: "out of order item enumeration causes opposite prev path collisions",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							driveFile(d.dir(), rootID, 1),
 							driveFolder(d.dir(), rootID, fanny),
@@ -2625,7 +2602,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				},
 			},
 			expectedDeltaURLs: map[string]string{
-				id(drivePfx, 1): id(deltaURL),
+				id(drivePfx, 1): deltaURL(),
 			},
 			expectedPreviousPaths: map[string]map[string]string{
 				id(drivePfx, 1): {
@@ -2792,12 +2769,12 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 			name: "Two drives with unique url cache instances",
 			enumerator: driveEnumerator(
 				d.newEnumer().with(
-					delta(id(deltaURL), nil).with(
+					delta(nil).with(
 						aPage(
 							driveFolder(d.dir(), rootID),
 							driveFile(d.dir(folderName()), folderID())))),
 				d2.newEnumer().with(
-					delta(id(deltaURL, 2), nil).with(
+					delta(nil, 2).with(
 						aPage(
 							driveItem(folderID(2), folderName(), d2.dir(), rootID, isFolder),
 							driveItem(fileID(2), fileName(), d2.dir(folderName()), folderID(2), isFile))))),
