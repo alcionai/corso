@@ -91,9 +91,9 @@ func (sc *Collection) SetBetaService(betaService *betaAPI.BetaService) {
 	sc.betaService = betaService
 }
 
-// AddJob appends additional objectID to job field
-func (sc *Collection) AddJob(objID string) {
-	sc.items = append(sc.items, objID)
+// AddItem appends additional itemID to items field
+func (sc *Collection) AddItem(itemID string) {
+	sc.items = append(sc.items, itemID)
 }
 
 func (sc *Collection) FullPath() path.Path {
