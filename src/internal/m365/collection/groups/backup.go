@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -174,7 +173,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			continue
 		}
 
-		added := str.SliceToMap(maps.Keys(addAndRem.Added))
+		added := addAndRem.Added
 		removed := str.SliceToMap(addAndRem.Removed)
 
 		cl.Add(count.ItemsAdded, int64(len(added)))
