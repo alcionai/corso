@@ -40,34 +40,30 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 	}{
 		// resource
 		{
-			name: "no inputs",
-			opts: utils.GroupsOpts{},
-			// TODO: bump to 3 when we release conversations
-			expectIncludeLen: 2,
+			name:             "no inputs",
+			opts:             utils.GroupsOpts{},
+			expectIncludeLen: 3,
 		},
 		{
 			name: "empty",
 			opts: utils.GroupsOpts{
 				Groups: empty,
 			},
-			// TODO: bump to 3 when we release conversations
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "single inputs",
 			opts: utils.GroupsOpts{
 				Groups: single,
 			},
-			// TODO: bump to 3 when we release conversations
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "multi inputs",
 			opts: utils.GroupsOpts{
 				Groups: multi,
 			},
-			// TODO: bump to 3 when we release conversations
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		// sharepoint
 		{
