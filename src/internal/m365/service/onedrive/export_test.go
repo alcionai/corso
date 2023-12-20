@@ -343,7 +343,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 
 	stats := metrics.ExportStats{}
 
-	ecs, err := NewOneDriveHandler(control.DefaultOptions(), api.Client{}, nil).
+	ecs, err := NewOneDriveHandler(api.Client{}, nil).
 		ProduceExportCollections(
 			ctx,
 			int(version.Backup),

@@ -151,7 +151,7 @@ func newTestRestoreOp(
 ) operations.RestoreOperation {
 	rod.ctrl.IDNameLookup = idname.NewCache(map[string]string{rod.sel.ID(): rod.sel.Name()})
 
-	handler, err := rod.ctrl.NewServiceHandler(opts, rod.sel.PathService())
+	handler, err := rod.ctrl.NewServiceHandler(rod.sel.PathService())
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := operations.NewRestoreOperation(

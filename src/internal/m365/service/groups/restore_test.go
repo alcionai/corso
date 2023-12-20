@@ -52,7 +52,7 @@ func (suite *GroupsUnitSuite) TestConsumeRestoreCollections_noErrorOnGroups() {
 		mock.Collection{Path: pth},
 	}
 
-	_, _, err = NewGroupsHandler(control.DefaultOptions(), api.Client{}, nil).
+	_, _, err = NewGroupsHandler(api.Client{}, nil).
 		ConsumeRestoreCollections(
 			ctx,
 			rcc,

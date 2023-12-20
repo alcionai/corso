@@ -98,7 +98,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 
 	stats := metrics.ExportStats{}
 
-	ecs, err := NewGroupsHandler(control.DefaultOptions(), api.Client{}, nil).
+	ecs, err := NewGroupsHandler(api.Client{}, nil).
 		ProduceExportCollections(
 			ctx,
 			int(version.Backup),
@@ -198,7 +198,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 		},
 	}
 
-	handler := NewGroupsHandler(control.DefaultOptions(), api.Client{}, nil)
+	handler := NewGroupsHandler(api.Client{}, nil)
 	handler.CacheItemInfo(dii)
 
 	stats := metrics.ExportStats{}

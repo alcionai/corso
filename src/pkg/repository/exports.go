@@ -28,7 +28,7 @@ func (r repository) NewExport(
 	sel selectors.Selector,
 	exportCfg control.ExportConfig,
 ) (operations.ExportOperation, error) {
-	handler, err := r.Provider.NewServiceHandler(r.Opts, sel.PathService())
+	handler, err := r.Provider.NewServiceHandler(sel.PathService())
 	if err != nil {
 		return operations.ExportOperation{}, clues.Stack(err)
 	}

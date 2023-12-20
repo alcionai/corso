@@ -22,13 +22,11 @@ import (
 var _ inject.ServiceHandler = &onedriveHandler{}
 
 func NewOneDriveHandler(
-	opts control.Options,
 	apiClient api.Client,
 	resourceGetter idname.GetResourceIDAndNamer,
 ) *onedriveHandler {
 	return &onedriveHandler{
 		baseOneDriveHandler: baseOneDriveHandler{
-			opts:               opts,
 			backupDriveIDNames: idname.NewCache(nil),
 		},
 		apiClient:      apiClient,
@@ -43,7 +41,6 @@ func NewOneDriveHandler(
 // baseOneDriveHandler contains logic for tracking data and doing operations
 // (e.x. export) that don't require contact with external M356 services.
 type baseOneDriveHandler struct {
-	opts               control.Options
 	backupDriveIDNames idname.CacheBuilder
 }
 
