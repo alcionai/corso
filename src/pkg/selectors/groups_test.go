@@ -245,9 +245,8 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 			},
 			expect: arr(
 				libItem, libItem2, libItem3,
-				chanItem, chanItem2, chanItem3),
-			// TODO: re-add when we release conversations
-			// convItem, convItem2, convItem3),
+				chanItem, chanItem2, chanItem3,
+				convItem, convItem2, convItem3),
 		},
 		{
 			name: "only match library item",
