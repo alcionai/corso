@@ -9,7 +9,7 @@ replace (
 	github.com/minio/minio-go/v7 => github.com/alcionai/minio-go/v7 v7.0.0-20231130221740-c745a3d084aa
 
 	// Alcion fork removes the validation of email addresses as we might get incomplete email addresses
-	github.com/xhit/go-simple-mail/v2 v2.16.0 => github.com/alcionai/go-simple-mail/v2 v2.0.0-20231216082222-e8c58c45d8a5
+	github.com/xhit/go-simple-mail/v2 v2.16.0 => github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a
 )
 
 require (

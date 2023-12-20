@@ -62,6 +62,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	email := mail.NewMSG()
 	email.AllowDuplicateAddress = true // More "correct" conversion
 	email.AddBccToHeader = true        // Don't ignore Bcc
+	email.AllowEmptyAttachments = true // Don't error on empty attachments
+	email.UseProvidedAddress = true    // Don't try to parse the email address
 
 	if data.GetFrom() != nil {
 		email.SetFrom(formatAddress(data.GetFrom().GetEmailAddress()))
@@ -155,16 +157,6 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			bts, ok := bytes.([]byte)
 			if !ok {
 				return "", clues.WrapWC(ctx, err, "invalid content bytes")
-			}
-
-			if len(bts) == 0 {
-				// TODO(meain): pass the data through after
-				// https://github.com/xhit/go-simple-mail/issues/96
-				logger.Ctx(ctx).
-					With("attachment_id", ptr.Val(attachment.GetId())).
-					Info("empty attachment")
-
-				continue
 			}
 
 			name := ptr.Val(attachment.GetName())
