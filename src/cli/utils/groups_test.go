@@ -421,7 +421,7 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 		{
 			name:           "none",
 			cats:           []string{},
-			expectScopeLen: 2,
+			expectScopeLen: 3,
 		},
 		{
 			name:           "libraries",
@@ -443,10 +443,9 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 			cats: []string{
 				flags.DataLibraries,
 				flags.DataMessages,
-				// flags.DataConversations,
+				flags.DataConversations,
 			},
-			// TODO: bump to 3 when we include conversations in all data
-			expectScopeLen: 2,
+			expectScopeLen: 3,
 		},
 		{
 			name:           "bad inputs",
