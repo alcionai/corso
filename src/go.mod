@@ -30,7 +30,7 @@ require (
 	github.com/microsoft/kiota-http-go v1.1.1
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.27.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.28.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v3 v3.0.2
@@ -49,7 +49,7 @@ require (
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20231127185646-65229373498e
 	golang.org/x/time v0.5.0
-	golang.org/x/tools v0.16.0
+	golang.org/x/tools v0.16.1
 	gotest.tools/v3 v3.5.1
 )
 
