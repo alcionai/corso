@@ -52,6 +52,8 @@ func streamItems(
 			id := item.ID()
 			name := id + ".eml"
 
+			itemCtx := clues.Add(ictx, "item_file_name", id)
+
 			stats.UpdateResourceCount(path.EmailCategory)
 
 			reader := item.ToReader()
@@ -60,7 +62,7 @@ func streamItems(
 			reader.Close()
 
 			if err != nil {
-				err = clues.Wrap(err, "reading export item")
+				err = clues.WrapWC(itemCtx, err, "reading export item")
 
 				logger.CtxErr(ctx, err).Info("processing collection item")
 
@@ -72,7 +74,7 @@ func streamItems(
 				continue
 			}
 
-			email, err := eml.FromJSON(ictx, content)
+			email, err := eml.FromJSON(itemCtx, content)
 			if err != nil {
 				err = clues.Wrap(err, "converting JSON to eml")
 
