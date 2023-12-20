@@ -23,16 +23,13 @@ import (
 var _ inject.ServiceHandler = &exchangeHandler{}
 
 func NewExchangeHandler(
-	opts control.Options,
 	apiClient api.Client,
 	resourceClient idname.GetResourceIDAndNamer,
 ) *exchangeHandler {
 	return &exchangeHandler{
-		baseExchangeHandler: baseExchangeHandler{
-			opts: opts,
-		},
-		apiClient:      apiClient,
-		resourceClient: resourceClient,
+		baseExchangeHandler: baseExchangeHandler{},
+		apiClient:           apiClient,
+		resourceClient:      resourceClient,
 	}
 }
 
@@ -42,9 +39,7 @@ func NewExchangeHandler(
 
 // baseExchangeHandler contains logic for tracking data and doing operations
 // (e.x. export) that don't require contact with external M356 services.
-type baseExchangeHandler struct {
-	opts control.Options
-}
+type baseExchangeHandler struct{}
 
 func (h *baseExchangeHandler) CacheItemInfo(v details.ItemInfo) {}
 

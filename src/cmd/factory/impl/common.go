@@ -111,7 +111,7 @@ func generateAndRestoreItems(
 		Selector:          sel,
 	}
 
-	handler, err := ctrl.NewServiceHandler(opts, service)
+	handler, err := ctrl.NewServiceHandler(service)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -460,7 +460,7 @@ func generateAndRestoreDriveItems(
 		Selector:          sel,
 	}
 
-	handler, err := ctrl.NewServiceHandler(opts, service)
+	handler, err := ctrl.NewServiceHandler(service)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}

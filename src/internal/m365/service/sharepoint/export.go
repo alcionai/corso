@@ -23,13 +23,11 @@ import (
 var _ inject.ServiceHandler = &sharepointHandler{}
 
 func NewSharePointHandler(
-	opts control.Options,
 	apiClient api.Client,
 	resourceGetter idname.GetResourceIDAndNamer,
 ) *sharepointHandler {
 	return &sharepointHandler{
 		baseSharePointHandler: baseSharePointHandler{
-			opts:               opts,
 			backupDriveIDNames: idname.NewCache(nil),
 		},
 		apiClient:      apiClient,
@@ -44,7 +42,6 @@ func NewSharePointHandler(
 // baseSharePointHandler contains logic for tracking data and doing operations
 // (e.x. export) that don't require contact with external M356 services.
 type baseSharePointHandler struct {
-	opts               control.Options
 	backupDriveIDNames idname.CacheBuilder
 }
 

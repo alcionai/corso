@@ -29,7 +29,7 @@ func (r repository) NewRestore(
 	sel selectors.Selector,
 	restoreCfg control.RestoreConfig,
 ) (operations.RestoreOperation, error) {
-	handler, err := r.Provider.NewServiceHandler(r.Opts, sel.PathService())
+	handler, err := r.Provider.NewServiceHandler(sel.PathService())
 	if err != nil {
 		return operations.RestoreOperation{}, clues.Stack(err)
 	}
