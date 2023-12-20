@@ -294,11 +294,16 @@ func (w Wrapper) makeSnapshotWithRoot(
 				Path: root.Name(),
 			}
 
+			parallelism := policy.OptionalInt(10)
+
 			trueVal := policy.OptionalBool(true)
 			errPolicy := &policy.Policy{
 				ErrorHandlingPolicy: policy.ErrorHandlingPolicy{
 					IgnoreFileErrors:      &trueVal,
 					IgnoreDirectoryErrors: &trueVal,
+				},
+				UploadPolicy: policy.UploadPolicy{
+					MaxParallelFileReads: &parallelism,
 				},
 			}
 
