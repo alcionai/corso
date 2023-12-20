@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -198,7 +199,7 @@ func EvaluateMailboxError(err error) error {
 
 	// must occur before MailFolderNotFound, due to overlapping cases.
 	if graph.IsErrUserNotFound(err) {
-		return clues.Stack(graph.ErrResourceOwnerNotFound, err)
+		return clues.Stack(core.ErrResourceOwnerNotFound, err)
 	}
 
 	if graph.IsErrResourceLocked(err) {

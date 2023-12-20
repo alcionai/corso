@@ -17,6 +17,7 @@ import (
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -170,7 +171,7 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	}
 
 	if !filters.Contains(ids).Compare(sels.ID()) {
-		return clues.Stack(graph.ErrResourceOwnerNotFound).
+		return clues.Stack(core.ErrResourceOwnerNotFound).
 			With("selector_protected_resource", sels.DiscreteOwner)
 	}
 

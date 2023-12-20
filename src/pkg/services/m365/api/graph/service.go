@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -395,7 +396,7 @@ func (aw *adapterWrap) Send(
 		// those retries are well handled in middleware already. We want to ensure
 		// that the error gets wrapped with the appropriate sentinel here.
 		if IsErrApplicationThrottled(err) {
-			return nil, clues.StackWC(ictx, ErrApplicationThrottled, err).WithTrace(1)
+			return nil, clues.StackWC(ictx, core.ErrApplicationThrottled, err).WithTrace(1)
 		}
 
 		// exit most errors without retry

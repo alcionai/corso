@@ -30,7 +30,7 @@ import (
 type errorCode string
 
 const (
-	applicationThrottled errorCode = "ApplicationThrottled"
+	ApplicationThrottled errorCode = "ApplicationThrottled"
 	// this authN error is a catch-all used by graph in a variety of cases:
 	// users without licenses, bad jwts, missing account permissions, etc.
 	AuthenticationError errorCode = "AuthenticationError"
@@ -43,7 +43,7 @@ const (
 	cannotOpenFileAttachment errorCode = "ErrorCannotOpenFileAttachment"
 	emailFolderNotFound      errorCode = "ErrorSyncFolderNotFound"
 	ErrorAccessDenied        errorCode = "ErrorAccessDenied"
-	errorItemNotFound        errorCode = "ErrorItemNotFound"
+	ErrorItemNotFound        errorCode = "ErrorItemNotFound"
 	// This error occurs when an email is enumerated but retrieving it fails
 	// - we believe - due to it pre-dating mailbox creation. Possible explanations
 	// are mailbox creation racing with email receipt or a similar issue triggered
@@ -57,7 +57,7 @@ const (
 	// that doesn't exist.
 	invalidUser                 errorCode = "ErrorInvalidUser"
 	invalidAuthenticationToken  errorCode = "InvalidAuthenticationToken"
-	itemNotFound                errorCode = "itemNotFound"
+	ItemNotFound                errorCode = "itemNotFound"
 	MailboxNotEnabledForRESTAPI errorCode = "MailboxNotEnabledForRESTAPI"
 	malwareDetected             errorCode = "malwareDetected"
 	// nameAlreadyExists occurs when a request with
@@ -104,11 +104,10 @@ const (
 	LabelsSkippable = "skippable_errors"
 )
 
+// These errors are graph specific.  That means they don't have a clear parallel in
+// pkg/errs/core.  If these errors need to trickle outward to non-m365 layers, we
+// need to find a sufficiently coarse errs/core sentinel to use as transformation.
 var (
-	// ErrApplicationThrottled occurs if throttling retries are exhausted and completely
-	// fails out.
-	ErrApplicationThrottled = clues.New("application throttled")
-
 	// The folder or item was deleted between the time we identified
 	// it and when we tried to fetch data for it.
 	ErrDeletedInFlight = clues.New("deleted in flight")
@@ -131,18 +130,11 @@ var (
 	// This makes the resource inaccessible for any Corso operations.
 	ErrResourceLocked = clues.New("resource has been locked and must be unlocked by an administrator")
 
-	// ErrServiceNotEnabled identifies that a resource owner does not have
-	// access to a given service.
-	ErrServiceNotEnabled = clues.New("service is not enabled for that resource owner")
-
-	ErrResourceOwnerNotFound = clues.New("resource owner not found in tenant")
-
 	ErrTokenExpired = clues.New("jwt token expired")
 )
 
 func IsErrApplicationThrottled(err error) bool {
-	return errors.Is(err, ErrApplicationThrottled) ||
-		parseODataErr(err).hasErrorCode(err, applicationThrottled)
+	return parseODataErr(err).hasErrorCode(err, ApplicationThrottled)
 }
 
 func IsErrAuthenticationError(err error) bool {
@@ -160,8 +152,8 @@ func IsErrDeletedInFlight(err error) bool {
 
 	if parseODataErr(err).hasErrorCode(
 		err,
-		errorItemNotFound,
-		itemNotFound,
+		ErrorItemNotFound,
+		ItemNotFound,
 		syncFolderNotFound) {
 		return true
 	}
@@ -170,7 +162,7 @@ func IsErrDeletedInFlight(err error) bool {
 }
 
 func IsErrItemNotFound(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, itemNotFound, errorItemNotFound)
+	return parseODataErr(err).hasErrorCode(err, ItemNotFound, ErrorItemNotFound)
 }
 
 func IsErrInvalidDelta(err error) bool {
@@ -188,7 +180,7 @@ func IsErrQuotaExceeded(err error) bool {
 func IsErrExchangeMailFolderNotFound(err error) bool {
 	// Not sure if we can actually see a resourceNotFound error here. I've only
 	// seen the latter two.
-	return parseODataErr(err).hasErrorCode(err, ResourceNotFound, errorItemNotFound, MailboxNotEnabledForRESTAPI)
+	return parseODataErr(err).hasErrorCode(err, ResourceNotFound, ErrorItemNotFound, MailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {

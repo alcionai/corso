@@ -12,8 +12,8 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/errs"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type GroupsIntgSuite struct {
@@ -108,8 +108,8 @@ func (suite *GroupsIntgSuite) TestGroupByID_notFound() {
 
 	group, err := suite.cli.GroupByID(ctx, uuid.NewString())
 	require.Nil(t, group)
-	require.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
-	require.True(t, errs.Is(err, errs.ResourceOwnerNotFound))
+	require.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
+	require.True(t, errs.Is(err, core.ErrResourceOwnerNotFound))
 }
 
 func (suite *GroupsIntgSuite) TestGroups() {
