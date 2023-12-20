@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"net/url"
-	"slices"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -26,9 +25,8 @@ type SharePointOpts struct {
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	ListFolder   []string
-	ListItem     []string
-	ListTemplate []string
+	ListFolder []string
+	ListItem   []string
 
 	PageFolder []string
 	Page       []string
@@ -52,9 +50,8 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 		FileModifiedAfter:  flags.FileModifiedAfterFV,
 		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
-		ListFolder:   flags.ListFolderFV,
-		ListItem:     flags.ListItemFV,
-		ListTemplate: flags.ListTemplateFV,
+		ListFolder: flags.ListFolderFV,
+		ListItem:   flags.ListItemFV,
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
@@ -108,11 +105,6 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		}
 	}
 
-	if _, ok := opts.Populated[flags.ListTemplateFN]; ok &&
-		!slices.Contains(opts.ListTemplate, flags.InvalidListTemplate) {
-		opts.ListTemplate = append(opts.ListTemplate, flags.InvalidListTemplate)
-	}
-
 	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
 		return clues.New("invalid time format for " + flags.FileCreatedAfterFN)
 	}
@@ -152,7 +144,7 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 	sites := opts.SiteID
 
 	lfp, lfn := len(opts.FolderPath), len(opts.FileName)
-	ls, lwu, lt := len(opts.SiteID), len(opts.WebURL), len(opts.ListTemplate)
+	ls, lwu := len(opts.SiteID), len(opts.WebURL)
 	slp, sli := len(opts.ListFolder), len(opts.ListItem)
 	pf, pi := len(opts.PageFolder), len(opts.Page)
 
@@ -162,7 +154,7 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 
 	sel := selectors.NewSharePointRestore(sites)
 
-	if lfp+lfn+lt+lwu+slp+sli+pf+pi == 0 {
+	if lfp+lfn+lwu+slp+sli+pf+pi == 0 {
 		sel.Include(sel.AllData())
 		return sel
 	}
@@ -242,10 +234,6 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 		}
 
 		sel.Include(sel.WebURL(urls))
-	}
-
-	if lt > 0 {
-		sel.Include(sel.ListTemplate(opts.ListTemplate))
 	}
 
 	return sel

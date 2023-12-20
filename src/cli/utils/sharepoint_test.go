@@ -192,13 +192,6 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			},
 			expectIncludeLen: 1,
 		},
-		{
-			name: "list template",
-			opts: utils.SharePointOpts{
-				ListTemplate: []string{flags.InvalidListTemplate},
-			},
-			expectIncludeLen: 1,
-		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -375,28 +368,6 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 				},
 			},
 			expect: assert.Error,
-		},
-		{
-			name:     "presence of invalid listtemplate",
-			backupID: "id",
-			opts: utils.SharePointOpts{
-				ListTemplate: []string{flags.InvalidListTemplate},
-				Populated: flags.PopulatedFlags{
-					flags.ListTemplateFN: struct{}{},
-				},
-			},
-			expect: assert.NoError,
-		},
-		{
-			name:     "absence of invalid listtemplate",
-			backupID: "id",
-			opts: utils.SharePointOpts{
-				ListTemplate: []string{},
-				Populated: flags.PopulatedFlags{
-					flags.ListTemplateFN: struct{}{},
-				},
-			},
-			expect: assert.NoError,
 		},
 	}
 	for _, test := range table {

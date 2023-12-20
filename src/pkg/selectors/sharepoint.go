@@ -241,16 +241,6 @@ func (s *SharePointRestore) WebURL(urls []string, opts ...option) []SharePointSc
 	return scopes
 }
 
-func (s *SharePointRestore) ListTemplate(listTemplates []string) []SharePointScope {
-	return []SharePointScope{
-		makeInfoScope[SharePointScope](
-			SharePointListItem,
-			SharePointInfoListTemplate,
-			listTemplates,
-			filters.NotEqual),
-	}
-}
-
 // Produces one or more SharePoint site scopes.
 // One scope is created per site entry.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
@@ -452,7 +442,6 @@ const (
 	SharePointInfoCreatedBefore  sharePointCategory = "SharePointInfoCreatedBefore"
 	SharePointInfoModifiedAfter  sharePointCategory = "SharePointInfoModifiedAfter"
 	SharePointInfoModifiedBefore sharePointCategory = "SharePointInfoModifiedBefore"
-	SharePointInfoListTemplate   sharePointCategory = "SharePointInfoListTemplate"
 
 	// library drive selection
 	SharePointInfoLibraryDrive sharePointCategory = "SharePointInfoLibraryDrive"
@@ -514,11 +503,8 @@ func (c sharePointCategory) unknownCat() categorizer {
 
 // isUnion returns true if the category is a site or a webURL, which
 // can act as an alternative identifier to siteID across all site types.
-// isUnion returns true if the category is a list template, which
-// is an itemInfo property of list is used as an alternative resourceOwner
-// in case of comparison.
 func (c sharePointCategory) isUnion() bool {
-	return c == SharePointWebURL || c == c.rootCat() || c == SharePointInfoListTemplate
+	return c == SharePointWebURL || c == c.rootCat()
 }
 
 // isLeaf is true if the category is a SharePointItem category.
@@ -735,12 +721,6 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 		}
 
 		return matchesAny(s, SharePointInfoLibraryDrive, ds)
-	case SharePointInfoListTemplate:
-		if info.List == nil {
-			return false
-		}
-
-		i = info.List.Template
 	}
 
 	return s.Matches(infoCat, i)
