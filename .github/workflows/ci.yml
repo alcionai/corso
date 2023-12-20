@@ -189,7 +189,7 @@ jobs:
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ci-test-log
           path: src/testlog/*
@@ -260,7 +260,7 @@ jobs:
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ci-retention-test-log
           path: src/testlog/*
@@ -315,7 +315,7 @@ jobs:
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-log
           path: src/testlog/*
@@ -404,7 +404,7 @@ jobs:
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: fork-test-log
           path: src/testlog/*

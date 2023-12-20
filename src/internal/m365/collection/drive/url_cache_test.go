@@ -16,13 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -509,7 +509,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 			pages: []nextPage{
 				aPage(
 					d.fileWURLAtRoot(aURL(1), false, 1),
-					d.folderAtRoot(2)),
+					d.folderAt(root, 2)),
 			},
 			expectedItemProps: map[string]itemProps{
 				fileID(2): {},
@@ -539,7 +539,7 @@ func (suite *URLCacheUnitSuite) TestGetItemProperties() {
 						drive.newEnumer().
 							withErr(test.pagerErr).
 							with(
-								delta(deltaURL, test.pagerErr).
+								delta(test.pagerErr).
 									with(test.pages...)))
 
 					cache, err := newURLCache(

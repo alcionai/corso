@@ -17,26 +17,29 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var _ data.BackupCollection = &Collection[groupsItemer]{}
+var _ data.BackupCollection = &Collection[graph.GetIDer, groupsItemer]{}
 
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
 )
 
-type Collection[I groupsItemer] struct {
+type Collection[C graph.GetIDer, I groupsItemer] struct {
 	data.BaseCollection
 	protectedResource string
 	stream            chan data.Item
+
+	contains container[C]
 
 	// added is a list of existing item IDs that were added to a container
 	added map[string]struct{}
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	getter getItemer[I]
+	getAndAugment getItemAndAugmentInfoer[C, I]
 
 	statusUpdater support.StatusUpdater
 }
@@ -47,18 +50,20 @@ type Collection[I groupsItemer] struct {
 // to be deleted.  If the prev path is nil, it is assumed newly created.
 // If both are populated, then state is either moved (if they differ),
 // or notMoved (if they match).
-func NewCollection[I groupsItemer](
+func NewCollection[C graph.GetIDer, I groupsItemer](
 	baseCol data.BaseCollection,
-	getter getItemer[I],
+	getAndAugment getItemAndAugmentInfoer[C, I],
 	protectedResource string,
 	added map[string]struct{},
 	removed map[string]struct{},
+	contains container[C],
 	statusUpdater support.StatusUpdater,
-) Collection[I] {
-	collection := Collection[I]{
+) Collection[C, I] {
+	collection := Collection[C, I]{
 		BaseCollection:    baseCol,
 		added:             added,
-		getter:            getter,
+		contains:          contains,
+		getAndAugment:     getAndAugment,
 		removed:           removed,
 		statusUpdater:     statusUpdater,
 		stream:            make(chan data.Item, collectionChannelBufferSize),
@@ -70,7 +75,7 @@ func NewCollection[I groupsItemer](
 
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
-func (col *Collection[I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+func (col *Collection[C, I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	go col.streamItems(ctx, errs)
 	return col.stream
 }
@@ -79,7 +84,7 @@ func (col *Collection[I]) Items(ctx context.Context, errs *fault.Bus) <-chan dat
 // items() production
 // ---------------------------------------------------------------------------
 
-func (col *Collection[I]) streamItems(ctx context.Context, errs *fault.Bus) {
+func (col *Collection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
 		streamedItems int64
 		totalBytes    int64
@@ -145,7 +150,7 @@ func (col *Collection[I]) streamItems(ctx context.Context, errs *fault.Bus) {
 			writer := kjson.NewJsonSerializationWriter()
 			defer writer.Close()
 
-			item, info, err := col.getter.GetItem(
+			item, info, err := col.getAndAugment.getItem(
 				ctx,
 				col.protectedResource,
 				col.FullPath().Folders(),
@@ -156,6 +161,8 @@ func (col *Collection[I]) streamItems(ctx context.Context, errs *fault.Bus) {
 
 				return
 			}
+
+			col.getAndAugment.augmentItemInfo(info, col.contains.container)
 
 			if err := writer.WriteObjectValue("", item); err != nil {
 				err = clues.Wrap(err, "writing channel message to serializer").Label(fault.LabelForceNoBackupCreation)
@@ -207,7 +214,7 @@ func (col *Collection[I]) streamItems(ctx context.Context, errs *fault.Bus) {
 
 // finishPopulation is a utility function used to close a Collection's data channel
 // and to send the status update through the channel.
-func (col *Collection[I]) finishPopulation(
+func (col *Collection[C, I]) finishPopulation(
 	ctx context.Context,
 	streamedItems, totalBytes int64,
 	err error,

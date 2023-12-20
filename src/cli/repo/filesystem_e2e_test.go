@@ -10,11 +10,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
@@ -73,7 +74,7 @@ func (suite *FilesystemE2ESuite) TestInitFilesystemCmd() {
 
 			cmd := cliTD.StubRootCmd(
 				"repo", "init", "filesystem",
-				"--config-file", configFP,
+				"--"+flags.ConfigFileFN, configFP,
 				"--path", cfg.Path)
 			cli.BuildCommandTree(cmd)
 
@@ -143,7 +144,7 @@ func (suite *FilesystemE2ESuite) TestConnectFilesystemCmd() {
 			// then test it
 			cmd := cliTD.StubRootCmd(
 				"repo", "connect", "filesystem",
-				"--config-file", configFP,
+				"--"+flags.ConfigFileFN, configFP,
 				"--path", cfg.Path)
 			cli.BuildCommandTree(cmd)
 

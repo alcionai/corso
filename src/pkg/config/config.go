@@ -33,10 +33,9 @@ const (
 )
 
 var (
-	configFilePath     string
-	configFilePathFlag string
-	configDir          string
-	displayDefaultFP   = filepath.Join("$HOME", ".corso.toml")
+	defaultConfigFilePath string
+	configDir             string
+	displayDefaultFP      = filepath.Join("$HOME", ".corso.toml")
 )
 
 // RepoDetails holds the repository configuration retrieved from
@@ -58,7 +57,7 @@ func init() {
 			Infof(context.Background(), "cannot stat CORSO_CONFIG_DIR [%s]: %v", envDir, err)
 		} else {
 			configDir = envDir
-			configFilePath = filepath.Join(configDir, ".corso.toml")
+			defaultConfigFilePath = filepath.Join(configDir, ".corso.toml")
 		}
 	}
 
@@ -69,7 +68,7 @@ func init() {
 
 	if len(configDir) == 0 {
 		configDir = homeDir
-		configFilePath = filepath.Join(configDir, ".corso.toml")
+		defaultConfigFilePath = filepath.Join(configDir, ".corso.toml")
 	}
 }
 
@@ -77,40 +76,63 @@ func init() {
 func AddConfigFlags(cmd *cobra.Command) {
 	pf := cmd.PersistentFlags()
 	pf.StringVar(
-		&configFilePathFlag,
-		"config-file", displayDefaultFP, "config file location")
+		&flags.ConfigFileFV,
+		flags.ConfigFileFN, displayDefaultFP, "config file location")
 }
 
 // ---------------------------------------------------------------------------------------------------------
 // Initialization & Storage
 // ---------------------------------------------------------------------------------------------------------
 
-// InitFunc provides a func that lazily initializes viper and
+// InitCmd provides a func that lazily initializes viper and
 // verifies that the configuration was able to read a file.
-func InitFunc(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+func InitCmd(cmd *cobra.Command, args []string) error {
+	_, err := commonInit(cmd.Context(), flags.ConfigFileFV)
+	return clues.Stack(err).OrNil()
+}
 
-	fp := configFilePathFlag
+// InitConfig allows sdk consumers to initialize viper.
+func InitConfig(
+	ctx context.Context,
+	userDefinedConfigFile string,
+) (context.Context, error) {
+	return commonInit(ctx, userDefinedConfigFile)
+}
+
+func commonInit(
+	ctx context.Context,
+	userDefinedConfigFile string,
+) (context.Context, error) {
+	fp := userDefinedConfigFile
 	if len(fp) == 0 || fp == displayDefaultFP {
-		fp = configFilePath
+		fp = defaultConfigFilePath
 	}
 
 	vpr := GetViper(ctx)
-
-	if err := initWithViper(vpr, fp); err != nil {
-		return err
+	if err := initWithViper(ctx, vpr, fp); err != nil {
+		return ctx, err
 	}
 
-	ctx = SetViper(ctx, vpr)
-
-	return Read(ctx)
+	return SetViper(ctx, vpr), clues.Stack(Read(ctx)).OrNil()
 }
 
 // initWithViper implements InitConfig, but takes in a viper
 // struct for testing.
-func initWithViper(vpr *viper.Viper, configFP string) error {
+func initWithViper(
+	ctx context.Context,
+	vpr *viper.Viper,
+	configFP string,
+) error {
+	logger.Ctx(ctx).Debugw("initializing viper", "config_file_path", configFP)
+
+	defer func() {
+		logger.Ctx(ctx).Debugw("initialized config", "config_file_path", configFP)
+	}()
+
 	// Configure default config file location
 	if len(configFP) == 0 || configFP == displayDefaultFP {
+		configFP = defaultConfigFilePath
+
 		// Find home directory.
 		_, err := os.Stat(configDir)
 		if err != nil {
@@ -242,19 +264,17 @@ func writeRepoConfigWithViper(
 	return nil
 }
 
-// GetStorageAndAccount creates a storage and account instance by mediating all the possible
+// ReadCorsoConfig creates a storage and account instance by mediating all the possible
 // data sources (config file, env vars, flag overrides) and the config file.
-func GetConfigRepoDetails(
+func ReadCorsoConfig(
 	ctx context.Context,
 	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
-) (
-	RepoDetails,
-	error,
-) {
+) (RepoDetails, error) {
 	config, err := getStorageAndAccountWithViper(
+		ctx,
 		GetViper(ctx),
 		provider,
 		readFromFile,
@@ -267,15 +287,13 @@ func GetConfigRepoDetails(
 // getSorageAndAccountWithViper implements GetSorageAndAccount, but takes in a viper
 // struct for testing.
 func getStorageAndAccountWithViper(
+	ctx context.Context,
 	vpr *viper.Viper,
 	provider storage.ProviderType,
 	readFromFile bool,
 	mustMatchFromConfig bool,
 	overrides map[string]string,
-) (
-	RepoDetails,
-	error,
-) {
+) (RepoDetails, error) {
 	var (
 		config RepoDetails
 		err    error
@@ -285,6 +303,9 @@ func getStorageAndAccountWithViper(
 
 	// possibly read the prior config from a .corso file
 	if readFromFile {
+		ctx = clues.Add(ctx, "viper_config_file", vpr.ConfigFileUsed())
+		logger.Ctx(ctx).Debug("reading config from file")
+
 		if err := vpr.ReadInConfig(); err != nil {
 			configNotSet := errors.As(err, &viper.ConfigFileNotFoundError{})
 			configNotFound := errors.Is(err, fs.ErrNotExist)
@@ -292,6 +313,8 @@ func getStorageAndAccountWithViper(
 			if !configNotSet && !configNotFound {
 				return config, clues.Wrap(err, "reading corso config file: "+vpr.ConfigFileUsed())
 			}
+
+			logger.Ctx(ctx).Info("config file not found")
 
 			readConfigFromViper = false
 		}

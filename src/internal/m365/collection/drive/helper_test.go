@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
@@ -167,6 +169,18 @@ func makeExcludeMap(files ...string) map[string]struct{} {
 	return delList
 }
 
+func defaultMetadataPath(t *testing.T) path.Path {
+	metadataPath, err := path.BuildMetadata(
+		tenant,
+		user,
+		path.OneDriveService,
+		path.FilesCategory,
+		false)
+	require.NoError(t, err, "making default metadata path", clues.ToCore(err))
+
+	return metadataPath
+}
+
 // ---------------------------------------------------------------------------
 // limiter
 // ---------------------------------------------------------------------------
@@ -214,13 +228,13 @@ func collWithMBHAndOpts(
 
 func aPage(items ...models.DriveItemable) nextPage {
 	return nextPage{
-		Items: append([]models.DriveItemable{driveRootFolder()}, items...),
+		Items: append([]models.DriveItemable{rootFolder()}, items...),
 	}
 }
 
 func aPageWReset(items ...models.DriveItemable) nextPage {
 	return nextPage{
-		Items: append([]models.DriveItemable{driveRootFolder()}, items...),
+		Items: append([]models.DriveItemable{rootFolder()}, items...),
 		Reset: true,
 	}
 }
@@ -236,57 +250,34 @@ func aReset(items ...models.DriveItemable) nextPage {
 // metadata
 // ---------------------------------------------------------------------------
 
-func makePrevMetadataColls(
+func compareMetadata(
 	t *testing.T,
-	mbh BackupHandler,
-	previousPaths map[string]map[string]string,
-) []data.RestoreCollection {
-	pathPrefix, err := mbh.MetadataPathPrefix(tenant)
-	require.NoError(t, err, clues.ToCore(err))
+	mdColl data.Collection,
+	expectDeltas map[string]string,
+	expectPrevPaths map[string]map[string]string,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
-	prevDeltas := map[string]string{}
-
-	for driveID := range previousPaths {
-		prevDeltas[driveID] = id(deltaURL, "prev")
-	}
-
-	mdColl, err := graph.MakeMetadataCollection(
-		pathPrefix,
-		[]graph.MetadataCollectionEntry{
-			graph.NewMetadataEntry(bupMD.DeltaURLsFileName, prevDeltas),
-			graph.NewMetadataEntry(bupMD.PreviousPathFileName, previousPaths),
-		},
-		func(*support.ControllerOperationStatus) {},
-		count.New())
-	require.NoError(t, err, "creating metadata collection", clues.ToCore(err))
-
-	return []data.RestoreCollection{
+	colls := []data.RestoreCollection{
 		dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: mdColl}),
 	}
+
+	p := mdColl.FullPath()
+
+	deltas, prevs, _, err := deserializeAndValidateMetadata(
+		ctx,
+		colls,
+		count.New(),
+		fault.New(true))
+	require.NoError(t, err, "deserializing metadata", clues.ToCore(err))
+
+	if expectDeltas != nil {
+		assert.Equal(t, expectDeltas, deltas, "delta urls in collection:\n\t %q", p)
+	}
+
+	assert.Equal(t, expectPrevPaths, prevs, "previous path in collection:\n\t %q", p)
 }
-
-// func compareMetadata(
-// 	t *testing.T,
-// 	mdColl data.Collection,
-// 	expectDeltas map[string]string,
-// 	expectPrevPaths map[string]map[string]string,
-// ) {
-// 	ctx, flush := tester.NewContext(t)
-// 	defer flush()
-
-// 	colls := []data.RestoreCollection{
-// 		dataMock.NewUnversionedRestoreCollection(t, data.NoFetchRestoreCollection{Collection: mdColl}),
-// 	}
-
-// 	deltas, prevs, _, err := deserializeAndValidateMetadata(
-// 		ctx,
-// 		colls,
-// 		count.New(),
-// 		fault.New(true))
-// 	require.NoError(t, err, "deserializing metadata", clues.ToCore(err))
-// 	assert.Equal(t, expectDeltas, deltas, "delta urls")
-// 	assert.Equal(t, expectPrevPaths, prevs, "previous paths")
-// }
 
 // ---------------------------------------------------------------------------
 // collections
@@ -302,6 +293,10 @@ type collectionAssertion struct {
 	// this flag gets flipped when calling assertions.compare.
 	// any unseen collection will error on requireNoUnseenCollections
 	sawCollection bool
+
+	// used for metadata collection comparison
+	deltas    map[string]string
+	prevPaths map[string]map[string]string
 }
 
 func aColl(
@@ -310,9 +305,15 @@ func aColl(
 ) *collectionAssertion {
 	ids := make([]string, 0, 2*len(fileIDs))
 
-	for _, fUD := range fileIDs {
-		ids = append(ids, fUD+metadata.DataFileSuffix)
-		ids = append(ids, fUD+metadata.MetaFileSuffix)
+	for _, fID := range fileIDs {
+		ids = append(ids, fID+metadata.DataFileSuffix)
+		ids = append(ids, fID+metadata.MetaFileSuffix)
+	}
+
+	// should expect all non-root, non-tombstone collections to contain
+	// a dir meta file for storing permissions.
+	if curr != nil && !strings.HasSuffix(curr.Folder(false), root) {
+		ids = append(ids, metadata.DirMetaFileSuffix)
 	}
 
 	return &collectionAssertion{
@@ -323,10 +324,27 @@ func aColl(
 	}
 }
 
+func aTomb(
+	prev path.Path,
+) *collectionAssertion {
+	return aColl(nil, prev)
+}
+
+func aMetadata(
+	deltas map[string]string,
+	prevPaths map[string]map[string]string,
+) *collectionAssertion {
+	return &collectionAssertion{
+		deltas:    deltas,
+		prevPaths: prevPaths,
+	}
+}
+
 // to aggregate all collection-related expectations in the backup
 // map collection path -> collection state -> assertion
 type expectedCollections struct {
 	assertions  map[string]*collectionAssertion
+	metadata    *collectionAssertion
 	doNotMerge  assert.BoolAssertionFunc
 	hasURLCache assert.ValueAssertionFunc
 }
@@ -336,9 +354,17 @@ func expectCollections(
 	hasURLCache bool,
 	colls ...*collectionAssertion,
 ) expectedCollections {
-	as := map[string]*collectionAssertion{}
+	var (
+		as = map[string]*collectionAssertion{}
+		md *collectionAssertion
+	)
 
 	for _, coll := range colls {
+		if coll.prevPaths != nil {
+			md = coll
+			continue
+		}
+
 		as[expectFullOrPrev(coll).String()] = coll
 	}
 
@@ -354,6 +380,7 @@ func expectCollections(
 
 	return expectedCollections{
 		assertions:  as,
+		metadata:    md,
 		doNotMerge:  dontMerge,
 		hasURLCache: hasCache,
 	}
@@ -377,6 +404,14 @@ func (ecs expectedCollections) compareColl(t *testing.T, coll data.BackupCollect
 		p       = fullOrPrevPath(t, coll)
 	)
 
+	// check the metadata collection separately
+	if p.Equal(defaultMetadataPath(t)) {
+		ecs.metadata.sawCollection = true
+		compareMetadata(t, coll, ecs.metadata.deltas, ecs.metadata.prevPaths)
+
+		return
+	}
+
 	if coll.State() != data.DeletedState {
 		for itm := range coll.Items(ctx, fault.New(true)) {
 			itemIDs = append(itemIDs, itm.ID())
@@ -387,7 +422,7 @@ func (ecs expectedCollections) compareColl(t *testing.T, coll data.BackupCollect
 	require.NotNil(
 		t,
 		expect,
-		"test should have an expected entry for collection with:\n\tstate %q\n\tpath %q",
+		"collection present in result, but not in test expectations:\n\tstate %q\n\tpath %q",
 		coll.State(),
 		p)
 
@@ -402,25 +437,25 @@ func (ecs expectedCollections) compareColl(t *testing.T, coll data.BackupCollect
 		p)
 
 	if expect.prev == nil {
-		assert.Nil(t, coll.PreviousPath(), "previous path")
+		assert.Nil(t, coll.PreviousPath(), "no previousPath for collection:\n\t %q", p)
 	} else {
-		assert.Equal(t, expect.prev, coll.PreviousPath())
+		assert.Equal(t, expect.prev, coll.PreviousPath(), "wanted previousPath for collection:\n\t %q", p)
 	}
 
 	if expect.curr == nil {
-		assert.Nil(t, coll.FullPath(), "collection path")
+		assert.Nil(t, coll.FullPath(), "no currPath for collection:\n\t %q", p)
 	} else {
-		assert.Equal(t, expect.curr, coll.FullPath())
+		assert.Equal(t, expect.curr, coll.FullPath(), "wanted currPath for collection:\n\t %q", p)
 	}
 
 	ecs.doNotMerge(
 		t,
 		coll.DoNotMergeItems(),
-		"expected collection to have the appropariate doNotMerge flag")
+		"expected the appropariate doNotMerge flag")
 
-	driveColl := coll.(*Collection)
-
-	ecs.hasURLCache(t, driveColl.urlCache, "has a populated url cache handler")
+	if driveColl, ok := coll.(*Collection); ok {
+		ecs.hasURLCache(t, driveColl.urlCache, "wanted a populated url cache handler in collection:\n\t %q", p)
+	}
 }
 
 // ensure that no collections in the expected set are still flagged
@@ -433,6 +468,13 @@ func (ecs expectedCollections) requireNoUnseenCollections(t *testing.T) {
 			"results did not include collection at:\n\tstate %q\t\npath %q",
 			ca.state, expectFullOrPrev(ca))
 	}
+
+	if ecs.metadata != nil {
+		require.True(
+			t,
+			ecs.metadata.sawCollection,
+			"results did not include the metadata collection")
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -440,20 +482,7 @@ func (ecs expectedCollections) requireNoUnseenCollections(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func defaultTreePfx(t *testing.T, d *deltaDrive) path.Path {
-	fpb := d.fullPath(t).ToBuilder()
-	fpe := fpb.Elements()
-	fpe = fpe[:len(fpe)-1]
-	fpb = path.Builder{}.Append(fpe...)
-
-	p, err := path.FromDataLayerPath(fpb.String(), false)
-	require.NoErrorf(
-		t,
-		err,
-		"err processing path:\n\terr %+v\n\tpath %q",
-		clues.ToCore(err),
-		fpb)
-
-	return p
+	return d.fullPath(t)
 }
 
 func defaultLoc() path.Elements {
@@ -466,9 +495,10 @@ func newTree(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 
 func treeWithRoot(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := newFolderyMcFolderFace(defaultTreePfx(t, d), rootID)
+	root := custom.ToCustomDriveItem(rootFolder())
 
 	//nolint:forbidigo
-	err := tree.setFolder(context.Background(), "", rootID, rootName, false)
+	err := tree.setFolder(context.Background(), root)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
@@ -490,9 +520,10 @@ func treeWithFoldersAfterReset(t *testing.T, d *deltaDrive) *folderyMcFolderFace
 
 func treeWithTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithRoot(t, d)
+	folder := custom.ToCustomDriveItem(d.folderAt(root))
 
 	//nolint:forbidigo
-	err := tree.setTombstone(context.Background(), folderID())
+	err := tree.setTombstone(context.Background(), folder)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
@@ -500,13 +531,15 @@ func treeWithTombstone(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 
 func treeWithFolders(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithRoot(t, d)
+	parent := custom.ToCustomDriveItem(d.folderAt(root, "parent"))
+	folder := custom.ToCustomDriveItem(d.folderAt("parent"))
 
 	//nolint:forbidigo
-	err := tree.setFolder(context.Background(), rootID, folderID("parent"), folderName("parent"), true)
+	err := tree.setFolder(context.Background(), parent)
 	require.NoError(t, err, clues.ToCore(err))
 
 	//nolint:forbidigo
-	err = tree.setFolder(context.Background(), folderID("parent"), folderID(), folderName(), false)
+	err = tree.setFolder(context.Background(), folder)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
@@ -515,7 +548,8 @@ func treeWithFolders(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 func treeWithFileAtRoot(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithRoot(t, d)
 
-	err := tree.addFile(rootID, fileID(), custom.ToCustomDriveItem(d.fileAtRoot()))
+	f := custom.ToCustomDriveItem(d.fileAt(root))
+	err := tree.addFile(f)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
@@ -531,7 +565,8 @@ func treeWithDeletedFile(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 func treeWithFileInFolder(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	tree := treeWithFolders(t, d)
 
-	err := tree.addFile(folderID(), fileID(), custom.ToCustomDriveItem(d.fileAt(folder)))
+	f := custom.ToCustomDriveItem(d.fileAt(folder))
+	err := tree.addFile(f)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return tree
@@ -558,7 +593,7 @@ func fullTree(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 }
 
 func fullTreeWithNames(
-	parentFolderX, tombstoneX any,
+	parentFolderSuffix, tombstoneSuffix any,
 ) func(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 	return func(t *testing.T, d *deltaDrive) *folderyMcFolderFace {
 		ctx, flush := tester.NewContext(t)
@@ -566,56 +601,47 @@ func fullTreeWithNames(
 
 		tree := treeWithRoot(t, d)
 
-		// file in root
-		df := driveFile(d.dir(), rootID, "r")
-		err := tree.addFile(
-			rootID,
-			fileID("r"),
-			custom.ToCustomDriveItem(df))
+		// file "r" in root
+		df := custom.ToCustomDriveItem(d.fileAt(root, "r"))
+		err := tree.addFile(df)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// root -> folderID(parentX)
-		err = tree.setFolder(ctx, rootID, folderID(parentFolderX), folderName(parentFolderX), false)
+		parent := custom.ToCustomDriveItem(d.folderAt(root, parentFolderSuffix))
+		err = tree.setFolder(ctx, parent)
 		require.NoError(t, err, clues.ToCore(err))
 
-		// file in folderID(parentX)
-		df = driveFile(d.dir(folderName(parentFolderX)), folderID(parentFolderX), "p")
-		err = tree.addFile(
-			folderID(parentFolderX),
-			fileID("p"),
-			custom.ToCustomDriveItem(df))
+		// file "p" in folderID(parentX)
+		df = custom.ToCustomDriveItem(d.fileAt(parentFolderSuffix, "p"))
+		err = tree.addFile(df)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// folderID(parentX) -> folderID()
-		err = tree.setFolder(ctx, folderID(parentFolderX), folderID(), folderName(), false)
+		fld := custom.ToCustomDriveItem(d.folderAt(parentFolderSuffix))
+		err = tree.setFolder(ctx, fld)
 		require.NoError(t, err, clues.ToCore(err))
 
-		// file in folderID()
-		df = driveFile(d.dir(folderName()), folderID())
-		err = tree.addFile(
-			folderID(),
-			fileID(),
-			custom.ToCustomDriveItem(df))
+		// file "f" in folderID()
+		df = custom.ToCustomDriveItem(d.fileAt(folder, "f"))
+		err = tree.addFile(df)
 		require.NoError(t, err, clues.ToCore(err))
 
 		// tombstone - have to set a non-tombstone folder first,
 		// then add the item,
 		// then tombstone the folder
-		err = tree.setFolder(ctx, rootID, folderID(tombstoneX), folderName(tombstoneX), false)
+		tomb := custom.ToCustomDriveItem(d.folderAt(root, tombstoneSuffix))
+		err = tree.setFolder(ctx, tomb)
 		require.NoError(t, err, clues.ToCore(err))
 
-		// file in tombstone
-		df = driveFile(d.dir(folderName(tombstoneX)), folderID(tombstoneX), "t")
-		err = tree.addFile(
-			folderID(tombstoneX),
-			fileID("t"),
-			custom.ToCustomDriveItem(df))
+		// file "t" in tombstone
+		df = custom.ToCustomDriveItem(d.fileAt(tombstoneSuffix, "t"))
+		err = tree.addFile(df)
 		require.NoError(t, err, clues.ToCore(err))
 
-		err = tree.setTombstone(ctx, folderID(tombstoneX))
+		err = tree.setTombstone(ctx, tomb)
 		require.NoError(t, err, clues.ToCore(err))
 
-		// deleted file
+		// deleted file "d"
 		tree.deleteFile(fileID("d"))
 
 		return tree
@@ -957,27 +983,27 @@ func (en enumerateDriveItemsDelta) EnumerateDriveItemsDelta(
 }
 
 func (en enumerateDriveItemsDelta) drivePager() *apiMock.Pager[models.Driveable] {
-	dvs := []models.Driveable{}
+	enumerableDrives := []models.Driveable{}
 
 	for _, dp := range en.DrivePagers {
-		dvs = append(dvs, dp.Drive.able)
+		enumerableDrives = append(enumerableDrives, dp.Drive.able)
 	}
 
 	return &apiMock.Pager[models.Driveable]{
 		ToReturn: []apiMock.PagerResult[models.Driveable]{
-			{Values: dvs},
+			{Values: enumerableDrives},
 		},
 	}
 }
 
 func (en enumerateDriveItemsDelta) getDrives() []*deltaDrive {
-	dvs := []*deltaDrive{}
+	enumerableDrives := []*deltaDrive{}
 
 	for _, dp := range en.DrivePagers {
-		dvs = append(dvs, dp.Drive)
+		enumerableDrives = append(enumerableDrives, dp.Drive)
 	}
 
-	return dvs
+	return enumerableDrives
 }
 
 type deltaDrive struct {
@@ -1003,6 +1029,96 @@ func (dd *deltaDrive) newEnumer() *DeltaDriveEnumerator {
 	*clone = *dd
 
 	return &DeltaDriveEnumerator{Drive: clone}
+}
+
+type drivePrevPaths struct {
+	id                 string
+	folderIDToPrevPath map[string]string
+}
+
+func (dd *deltaDrive) newPrevPaths(
+	t *testing.T,
+	idPathPairs ...string,
+) *drivePrevPaths {
+	dpp := drivePrevPaths{
+		id:                 dd.id,
+		folderIDToPrevPath: map[string]string{},
+	}
+
+	require.Zero(t, len(idPathPairs)%2, "idPathPairs has an even count of elements")
+
+	for i := 0; i < len(idPathPairs); i += 2 {
+		dpp.folderIDToPrevPath[idPathPairs[i]] = idPathPairs[i+1]
+	}
+
+	return &dpp
+}
+
+// transforms 0 or more drivePrevPaths to a map[driveID]map[folderID]prevPathString
+func multiDrivePrevPaths(drivePrevs ...*drivePrevPaths) map[string]map[string]string {
+	prevPathsByDriveID := map[string]map[string]string{}
+
+	for _, dp := range drivePrevs {
+		prevPathsByDriveID[dp.id] = dp.folderIDToPrevPath
+	}
+
+	return prevPathsByDriveID
+}
+
+type driveExcludes struct {
+	pathPfx  string
+	excludes map[string]struct{}
+}
+
+func (dd *deltaDrive) newExcludes(t *testing.T, excludes map[string]struct{}) driveExcludes {
+	return driveExcludes{
+		pathPfx:  dd.strPath(t),
+		excludes: excludes,
+	}
+}
+
+func multiDriveExcludeMap(driveExclds ...driveExcludes) *prefixmatcher.StringSetMatchBuilder {
+	globalExcludes := prefixmatcher.NewStringSetBuilder()
+
+	for _, de := range driveExclds {
+		globalExcludes.Add(de.pathPfx, de.excludes)
+	}
+
+	return globalExcludes
+}
+
+// transforms 0 or more drivePrevPaths to a []data.RestoreCollection containing
+// a metadata collection.
+// DeltaURLs are currently always populated with {driveID: deltaURL()}.
+func multiDriveMetadata(
+	t *testing.T,
+	drivePrevs ...*drivePrevPaths,
+) []data.RestoreCollection {
+	restoreColls := []data.RestoreCollection{}
+
+	for _, drivePrev := range drivePrevs {
+		mdColl := []graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(
+				bupMD.DeltaURLsFileName,
+				map[string]string{drivePrev.id: deltaURL()}),
+			graph.NewMetadataEntry(
+				bupMD.PreviousPathFileName,
+				multiDrivePrevPaths(drivePrev)),
+		}
+
+		mc, err := graph.MakeMetadataCollection(
+			defaultMetadataPath(t),
+			mdColl,
+			func(*support.ControllerOperationStatus) {},
+			count.New())
+		require.NoError(t, err, clues.ToCore(err))
+
+		restoreColls = append(restoreColls, dataMock.NewUnversionedRestoreCollection(
+			t,
+			data.NoFetchRestoreCollection{Collection: mc}))
+	}
+
+	return restoreColls
 }
 
 type DeltaDriveEnumerator struct {
@@ -1062,22 +1178,22 @@ type deltaQuery struct {
 }
 
 func delta(
-	resultDeltaID string,
 	err error,
+	deltaTokenSuffix ...any,
 ) *deltaQuery {
 	return &deltaQuery{
-		DeltaUpdate: pagers.DeltaUpdate{URL: resultDeltaID},
+		DeltaUpdate: pagers.DeltaUpdate{URL: deltaURL(deltaTokenSuffix...)},
 		Err:         err,
 	}
 }
 
 func deltaWReset(
-	resultDeltaID string,
 	err error,
+	deltaTokenSuffix ...any,
 ) *deltaQuery {
 	return &deltaQuery{
 		DeltaUpdate: pagers.DeltaUpdate{
-			URL:   resultDeltaID,
+			URL:   deltaURL(deltaTokenSuffix...),
 			Reset: true,
 		},
 		Err: err,
@@ -1368,22 +1484,24 @@ func (dd *deltaDrive) fileAt(
 	parentSuffix any,
 	fileSuffixes ...any,
 ) models.DriveItemable {
-	return driveItem(
-		fileID(fileSuffixes...),
-		fileName(fileSuffixes...),
-		dd.dir(folderName(parentSuffix)),
-		folderID(parentSuffix),
-		isFile)
-}
+	if parentSuffix == root {
+		return driveItem(
+			fileID(fileSuffixes...),
+			fileName(fileSuffixes...),
+			dd.dir(),
+			rootID,
+			isFile)
+	}
 
-func (dd *deltaDrive) fileAtRoot(
-	fileSuffixes ...any,
-) models.DriveItemable {
 	return driveItem(
 		fileID(fileSuffixes...),
 		fileName(fileSuffixes...),
+		// the file's parent directory isn't used;
+		// this parameter is an artifact of the driveItem
+		// api and doesn't need to be populated for test
+		// success.
 		dd.dir(),
-		rootID,
+		folderID(parentSuffix),
 		isFile)
 }
 
@@ -1404,28 +1522,25 @@ func (dd *deltaDrive) fileWURLAtRoot(
 	return di
 }
 
-func (dd *deltaDrive) fileWSizeAtRoot(
-	size int64,
-	fileSuffixes ...any,
-) models.DriveItemable {
-	return driveItemWSize(
-		fileID(fileSuffixes...),
-		fileName(fileSuffixes...),
-		dd.dir(),
-		rootID,
-		size,
-		isFile)
-}
-
 func (dd *deltaDrive) fileWSizeAt(
 	size int64,
 	parentSuffix any,
 	fileSuffixes ...any,
 ) models.DriveItemable {
+	if parentSuffix == root {
+		return driveItemWSize(
+			fileID(fileSuffixes...),
+			fileName(fileSuffixes...),
+			dd.dir(),
+			rootID,
+			size,
+			isFile)
+	}
+
 	return driveItemWSize(
 		fileID(fileSuffixes...),
 		fileName(fileSuffixes...),
-		dd.dir(folderName(parentSuffix)),
+		dd.dir(),
 		folderID(parentSuffix),
 		size,
 		isFile)
@@ -1455,9 +1570,9 @@ func driveFolder(
 		isFolder)
 }
 
-func driveRootFolder() models.DriveItemable {
+func rootFolder() models.DriveItemable {
 	rootFolder := models.NewDriveItem()
-	rootFolder.SetName(ptr.To(rootName))
+	rootFolder.SetName(ptr.To(root))
 	rootFolder.SetId(ptr.To(rootID))
 	rootFolder.SetRoot(models.NewRoot())
 	rootFolder.SetFolder(models.NewFolder())
@@ -1465,36 +1580,77 @@ func driveRootFolder() models.DriveItemable {
 	return rootFolder
 }
 
-func (dd *deltaDrive) folderAtRoot(
-	folderSuffixes ...any,
-) models.DriveItemable {
-	return driveItem(
-		folderID(folderSuffixes...),
-		folderName(folderSuffixes...),
-		dd.dir(),
-		rootID,
-		isFolder)
-}
-
 func (dd *deltaDrive) folderAt(
 	parentSuffix any,
 	folderSuffixes ...any,
 ) models.DriveItemable {
+	if parentSuffix == root {
+		return driveItem(
+			folderID(folderSuffixes...),
+			folderName(folderSuffixes...),
+			dd.dir(),
+			rootID,
+			isFolder)
+	}
+
 	return driveItem(
 		folderID(folderSuffixes...),
 		folderName(folderSuffixes...),
+		// we should be putting in the full location here, not just the
+		// parent suffix.  But that full location would be unused because
+		// our unit tests don't utilize folder subselection (which is the
+		// only reason we need to provide the dir).
 		dd.dir(folderName(parentSuffix)),
 		folderID(parentSuffix),
 		isFolder)
+}
+
+func (dd *deltaDrive) packageAtRoot() models.DriveItemable {
+	return driveItem(
+		folderID(pkg),
+		folderName(pkg),
+		dd.dir(),
+		rootID,
+		isPackage)
 }
 
 // ---------------------------------------------------------------------------
 // id, name, path factories
 // ---------------------------------------------------------------------------
 
+func deltaURL(suffixes ...any) string {
+	if len(suffixes) > 1 {
+		// this should fail any tests.  we could pass in a
+		// testing.T instead and fail the call here, but that
+		// produces a whole lot of chaff where this check should
+		// still get us the expected failure
+		return fmt.Sprintf(
+			"too many suffixes in the URL; should only be 0 or 1, got %d",
+			len(suffixes))
+	}
+
+	url := "https://delta.token.url"
+
+	for _, sfx := range suffixes {
+		url = fmt.Sprintf("%s?%v", url, sfx)
+	}
+
+	return url
+}
+
 // assumption is only one suffix per id.  Mostly using
 // the variadic as an "optional" extension.
 func id(v string, suffixes ...any) string {
+	if len(suffixes) > 1 {
+		// this should fail any tests.  we could pass in a
+		// testing.T instead and fail the call here, but that
+		// produces a whole lot of chaff where this check should
+		// still get us the expected failure
+		return fmt.Sprintf(
+			"too many suffixes in the ID; should only be 0 or 1, got %d",
+			len(suffixes))
+	}
+
 	id := fmt.Sprintf("id_%s", v)
 
 	// a bit weird, but acts as a quality of life
@@ -1518,6 +1674,16 @@ func id(v string, suffixes ...any) string {
 // assumption is only one suffix per name.  Mostly using
 // the variadic as an "optional" extension.
 func name(v string, suffixes ...any) string {
+	if len(suffixes) > 1 {
+		// this should fail any tests.  we could pass in a
+		// testing.T instead and fail the call here, but that
+		// produces a whole lot of chaff where this check should
+		// still get us the expected failure
+		return fmt.Sprintf(
+			"too many suffixes in the Name; should only be 0 or 1, got %d",
+			len(suffixes))
+	}
+
 	name := fmt.Sprintf("n_%s", v)
 
 	// a bit weird, but acts as a quality of life
@@ -1555,20 +1721,19 @@ func toPath(elems ...string) string {
 }
 
 // produces the full path for the provided drive
-func (dd *deltaDrive) strPath(elems ...string) string {
-	return toPath(append(
-		[]string{
-			tenant,
-			path.OneDriveService.String(),
-			user,
-			path.FilesCategory.String(),
-			odConsts.DriveFolderPrefixBuilder(dd.id).String(),
-		},
-		elems...)...)
+func (dd *deltaDrive) strPath(t *testing.T, elems ...string) string {
+	return dd.fullPath(t, elems...).String()
 }
 
 func (dd *deltaDrive) fullPath(t *testing.T, elems ...string) path.Path {
-	p, err := path.FromDataLayerPath(dd.strPath(elems...), false)
+	p, err := odConsts.DriveFolderPrefixBuilder(dd.id).
+		Append(elems...).
+		ToDataLayerPath(
+			tenant,
+			user,
+			path.OneDriveService,
+			path.FilesCategory,
+			false)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return p
@@ -1577,15 +1742,14 @@ func (dd *deltaDrive) fullPath(t *testing.T, elems ...string) path.Path {
 // produces a complete path prefix up to the drive root folder with any
 // elements passed in appended to the generated prefix.
 func (dd *deltaDrive) dir(elems ...string) string {
-	return toPath(append(
-		[]string{odConsts.DriveFolderPrefixBuilder(dd.id).String()},
-		elems...)...)
+	return odConsts.DriveFolderPrefixBuilder(dd.id).
+		Append(elems...).
+		String()
 }
 
 // common item names
 const (
 	bar       = "bar"
-	deltaURL  = "delta_url"
 	drivePfx  = "drive"
 	fanny     = "fanny"
 	file      = "file"
@@ -1596,7 +1760,7 @@ const (
 	nav       = "nav"
 	pkg       = "package"
 	rootID    = odConsts.RootID
-	rootName  = odConsts.RootPathDir
+	root      = odConsts.RootPathDir
 	subfolder = "subfolder"
 	tenant    = "t"
 	user      = "u"
