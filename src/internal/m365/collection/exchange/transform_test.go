@@ -58,6 +58,32 @@ func (suite *TransformUnitTest) TestToEventSimplified_attendees() {
 	}
 }
 
+func (suite *TransformUnitTest) TestToEventSimplified_noAdditionalRemovedFields() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	bytes := exchMock.EventWithRemovedFields("M365 Event Support Test")
+	event, err := api.BytesToEventable(bytes)
+	require.NoError(t, err, clues.ToCore(err))
+
+	newEvent := toEventSimplified(event)
+
+	serializedBytes, err := api.Client{}.Events().Serialize(
+		ctx,
+		newEvent,
+		"",
+		"")
+	require.NoError(t, err, clues.ToCore(err))
+
+	serializedString := string(serializedBytes)
+
+	for _, key := range eventUnsupportedAdditionalData {
+		assert.NotContains(t, serializedString, key)
+	}
+}
+
 func (suite *TransformUnitTest) TestToEventSimplified_recurrence() {
 	var (
 		t       = suite.T()
