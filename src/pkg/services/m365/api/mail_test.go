@@ -1,6 +1,9 @@
 package api
 
 import (
+	"context"
+	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -521,5 +524,162 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName_mocked() {
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.True(t, gock.IsDone())
 		})
+	}
+}
+
+func sendItemWithBodyAndGetSerialized(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	msgs Mail,
+	userID string,
+	mailFolderID string,
+	subject string,
+	bodyContent string,
+	contentType models.BodyType,
+) []byte {
+	msg := models.NewMessage()
+	msg.SetSubject(ptr.To(subject))
+
+	body := models.NewItemBody()
+	body.SetContent(ptr.To(bodyContent))
+	body.SetContentType(ptr.To(contentType))
+
+	msg.SetBody(body)
+
+	item, err := msgs.PostItem(ctx, userID, mailFolderID, msg)
+	require.NoError(t, err, clues.ToCore(err))
+
+	fetched, _, err := msgs.GetItem(
+		ctx,
+		userID,
+		ptr.Val(item.GetId()),
+		false,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	serialized, err := msgs.Serialize(
+		ctx,
+		fetched,
+		userID,
+		ptr.Val(item.GetId()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	return serialized
+}
+
+func (suite *MailAPIIntgSuite) TestMail_WithSpecialCharacters() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	contentRegex := regexp.MustCompile(`"content": ?"(.*?"?)",?`)
+
+	userID := tconfig.M365UserID(suite.T())
+
+	folderName := testdata.DefaultRestoreConfig("EscapeCharacters").Location
+	msgs := suite.its.ac.Mail()
+	mailfolder, err := msgs.CreateContainer(ctx, userID, MsgFolderRoot, folderName)
+	require.NoError(t, err, clues.ToCore(err))
+
+	escapeCharRanges := [][]int{
+		{0x0, 0x20},
+		{0x22, 0x23},
+		{0x5c, 0x5d},
+	}
+
+	for _, charRange := range escapeCharRanges {
+		for i := charRange[0]; i < charRange[1]; i++ {
+			subject := fmt.Sprintf("plain text character %x", i)
+
+			//suite.Run(subject, func() {
+			//	t := suite.T()
+
+			//	ctx, flush := tester.NewContext(t)
+			//	defer flush()
+
+			bodyContent := string(rune(i))
+
+			serialized := sendItemWithBodyAndGetSerialized(
+				t,
+				ctx,
+				msgs,
+				userID,
+				ptr.Val(mailfolder.GetId()),
+				subject,
+				bodyContent,
+				models.TEXT_BODYTYPE)
+
+			matches := contentRegex.FindAllSubmatch(serialized, -1)
+
+			switch {
+			case len(matches) == 0:
+				t.Logf("text of 0x%x wasn't found", i)
+
+			case len(matches[0]) < 2:
+				t.Logf("text of 0x%x was removed", i)
+
+			case bodyContent != string(matches[0][1]):
+				t.Logf("text of 0x%x has been transformed to %s", i, matches[0][1])
+			}
+			//})
+		}
+	}
+
+	testSequences := []string{
+		// Character code for backspace
+		"\u0008",
+		"\\u0008",
+		"u0008",
+		// Character code for \
+		"\u005c",
+		"\\u005c",
+		"u005c",
+		// Character code for "
+		"\u0022",
+		"\\u0022",
+		"u0022",
+		// Character code for B
+		"\u0042",
+		"\\u0042",
+		"u0042",
+		"\\n",
+		"\\\n",
+		"n" + string(rune(0)),
+		"n" + string(rune(0)) + "n",
+	}
+
+	for i, sequence := range testSequences {
+		subject := fmt.Sprintf("plain text sequence %d", i)
+
+		//suite.Run(subject, func() {
+		//	t := suite.T()
+
+		//	ctx, flush := tester.NewContext(t)
+		//	defer flush()
+
+		serialized := sendItemWithBodyAndGetSerialized(
+			t,
+			ctx,
+			msgs,
+			userID,
+			ptr.Val(mailfolder.GetId()),
+			subject,
+			sequence,
+			models.TEXT_BODYTYPE)
+
+		matches := contentRegex.FindAllSubmatch(serialized, -1)
+
+		switch {
+		case len(matches) == 0:
+			t.Logf("sequence %d wasn't found", i)
+
+		case len(matches[0]) < 2:
+			t.Logf("sequence %d was removed", i)
+
+		case sequence != string(matches[0][1]):
+			t.Logf("sequence %d has been transformed to %s", i, matches[0][1])
+		}
+		//})
 	}
 }
