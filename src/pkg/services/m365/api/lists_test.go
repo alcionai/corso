@@ -409,6 +409,7 @@ func (suite *ListsUnitSuite) TestFieldValueSetable() {
 		ReadOnlyOrHiddenFieldNamePrefix + "UIVersionString": "1.0",
 		AuthorLookupIDColumnName:                            "6",
 		EditorLookupIDColumnName:                            "6",
+		AppAuthorLookupIDColumnName:                         "6",
 		"Item" + ChildCountFieldNamePart:                    "0",
 		"Folder" + ChildCountFieldNamePart:                  "0",
 		ModifiedColumnName:                                  "2023-12-13T15:47:51Z",

@@ -14,13 +14,14 @@ import (
 )
 
 const (
-	AttachmentsColumnName    = "Attachments"
-	EditColumnName           = "Edit"
-	ContentTypeColumnName    = "ContentType"
-	CreatedColumnName        = "Created"
-	ModifiedColumnName       = "Modified"
-	AuthorLookupIDColumnName = "AuthorLookupId"
-	EditorLookupIDColumnName = "EditorLookupId"
+	AttachmentsColumnName       = "Attachments"
+	EditColumnName              = "Edit"
+	ContentTypeColumnName       = "ContentType"
+	CreatedColumnName           = "Created"
+	ModifiedColumnName          = "Modified"
+	AuthorLookupIDColumnName    = "AuthorLookupId"
+	EditorLookupIDColumnName    = "EditorLookupId"
+	AppAuthorLookupIDColumnName = "AppAuthorLookupId"
 
 	ContentTypeColumnDisplayName = "Content Type"
 
@@ -39,6 +40,7 @@ const (
 	DispNameFieldName        = "DispName"
 	LinkTitleFieldNamePart   = "LinkTitle"
 	ChildCountFieldNamePart  = "ChildCount"
+	LookupIDFieldNamePart    = "LookupId"
 
 	ReadOnlyOrHiddenFieldNamePrefix = "_"
 	DescoratorFieldNamePrefix       = "@"
@@ -69,13 +71,11 @@ var legacyColumns = keys.Set{
 }
 
 var readOnlyFieldNames = keys.Set{
-	AttachmentsColumnName:    {},
-	EditColumnName:           {},
-	ContentTypeColumnName:    {},
-	CreatedColumnName:        {},
-	ModifiedColumnName:       {},
-	AuthorLookupIDColumnName: {},
-	EditorLookupIDColumnName: {},
+	AttachmentsColumnName: {},
+	EditColumnName:        {},
+	ContentTypeColumnName: {},
+	CreatedColumnName:     {},
+	ModifiedColumnName:    {},
 }
 
 // ---------------------------------------------------------------------------
@@ -536,7 +536,8 @@ func shouldFilterField(key string, value any) bool {
 		strings.HasPrefix(key, ReadOnlyOrHiddenFieldNamePrefix) ||
 		strings.HasPrefix(key, DescoratorFieldNamePrefix) ||
 		strings.Contains(key, LinkTitleFieldNamePart) ||
-		strings.Contains(key, ChildCountFieldNamePart)
+		strings.Contains(key, ChildCountFieldNamePart) ||
+		strings.Contains(key, LookupIDFieldNamePart)
 }
 
 func retainPrimaryAddressField(additionalData map[string]any) {
