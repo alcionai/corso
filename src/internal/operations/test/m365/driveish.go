@@ -1,8 +1,10 @@
-package test_test
+package m365
 
 import (
 	"context"
 	"fmt"
+	"io"
+	"sync/atomic"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -24,18 +26,22 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
+	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
-func runBasicDriveishBackupTests(
+func RunBasicDriveishBackupTests(
 	suite tester.Suite,
 	service path.ServiceType,
 	opts control.Options,
@@ -53,10 +59,10 @@ func runBasicDriveishBackupTests(
 		ws      = deeTD.DriveIDFromRepoRef
 	)
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
 
-	runAndCheckBackup(t, ctx, &bo, mb, false)
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
 
 	bID := bo.Results.BackupID
 
@@ -65,23 +71,23 @@ func runBasicDriveishBackupTests(
 		ctx,
 		bID,
 		tenID,
-		bod.sel.ID(),
+		bod.Sel.ID(),
 		service,
 		ws,
-		bod.kms,
-		bod.sss)
+		bod.KMS,
+		bod.SSS)
 	deeTD.CheckBackupDetails(
 		t,
 		ctx,
 		bID,
 		ws,
-		bod.kms,
-		bod.sss,
+		bod.KMS,
+		bod.SSS,
 		expectDeets,
 		false)
 }
 
-func runIncrementalDriveishBackupTest(
+func RunIncrementalDriveishBackupTest(
 	suite tester.Suite,
 	opts control.Options,
 	owner, permissionsUser string,
@@ -109,9 +115,9 @@ func runIncrementalDriveishBackupTest(
 		now = dttm.FormatNow(dttm.SafeForTesting)
 
 		categories      = map[path.CategoryType][][]string{}
-		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
-		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
-		container3      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 3, now)
+		container1      = fmt.Sprintf("%s%d_%s", IncrementalsDestContainerPrefix, 1, now)
+		container2      = fmt.Sprintf("%s%d_%s", IncrementalsDestContainerPrefix, 2, now)
+		container3      = fmt.Sprintf("%s%d_%s", IncrementalsDestContainerPrefix, 3, now)
 		containerRename = "renamed_folder"
 
 		genDests = []string{container1, container2}
@@ -231,7 +237,7 @@ func runIncrementalDriveishBackupTest(
 	// through the changes. This should be enough to cover most delta
 	// actions.
 	for _, destName := range genDests {
-		generateContainerOfItems(
+		GenerateContainerOfItems(
 			t,
 			ctx,
 			ctrl,
@@ -253,13 +259,13 @@ func runIncrementalDriveishBackupTest(
 			locRef)
 	}
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
 
-	sel = bod.sel
+	sel = bod.Sel
 
 	// run the initial backup
-	runAndCheckBackup(t, ctx, &bo, mb, false)
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
 
 	// precheck to ensure the expectedDeets are correct.
 	// if we fail here, the expectedDeets were populated incorrectly.
@@ -268,8 +274,8 @@ func runIncrementalDriveishBackupTest(
 		ctx,
 		bo.Results.BackupID,
 		ws,
-		bod.kms,
-		bod.sss,
+		bod.KMS,
+		bod.SSS,
 		expectDeets,
 		true)
 
@@ -605,7 +611,7 @@ func runIncrementalDriveishBackupTest(
 		{
 			name: "add a new folder",
 			updateFiles: func(t *testing.T, ctx context.Context) {
-				generateContainerOfItems(
+				GenerateContainerOfItems(
 					t,
 					ctx,
 					ctrl,
@@ -639,13 +645,13 @@ func runIncrementalDriveishBackupTest(
 				count.New())
 			require.NoError(t, err, clues.ToCore(err))
 
-			bod.ctrl = cleanCtrl
+			bod.Ctrl = cleanCtrl
 
 			var (
 				t       = suite.T()
 				incMB   = evmock.NewBus()
 				counter = count.New()
-				incBO   = newTestBackupOp(
+				incBO   = NewTestBackupOp(
 					t,
 					ctx,
 					bod,
@@ -671,21 +677,21 @@ func runIncrementalDriveishBackupTest(
 
 			bupID := incBO.Results.BackupID
 
-			checkBackupIsInManifests(
+			CheckBackupIsInManifests(
 				t,
 				ctx,
-				bod.kw,
-				bod.sw,
+				bod.KW,
+				bod.SW,
 				&incBO,
 				sel,
 				roidn.ID(),
 				maps.Keys(categories)...)
-			checkMetadataFilesExist(
+			CheckMetadataFilesExist(
 				t,
 				ctx,
 				bupID,
-				bod.kw,
-				bod.kms,
+				bod.KW,
+				bod.KMS,
 				atid,
 				roidn.ID(),
 				service,
@@ -695,8 +701,8 @@ func runIncrementalDriveishBackupTest(
 				ctx,
 				bupID,
 				ws,
-				bod.kms,
-				bod.sss,
+				bod.KMS,
+				bod.SSS,
 				expectDeets,
 				true)
 
@@ -745,7 +751,7 @@ func runIncrementalDriveishBackupTest(
 	}
 }
 
-func runDriveishBackupWithExtensionsTests(
+func RunDriveishBackupWithExtensionsTests(
 	suite tester.Suite,
 	service path.ServiceType,
 	opts control.Options,
@@ -763,12 +769,12 @@ func runDriveishBackupWithExtensionsTests(
 		ws      = deeTD.DriveIDFromRepoRef
 	)
 
-	opts.ItemExtensionFactory = getTestExtensionFactories()
+	opts.ItemExtensionFactory = GetTestExtensionFactories()
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
 
-	runAndCheckBackup(t, ctx, &bo, mb, false)
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
 
 	bID := bo.Results.BackupID
 
@@ -777,25 +783,618 @@ func runDriveishBackupWithExtensionsTests(
 		ctx,
 		bID,
 		tenID,
-		bod.sel.ID(),
+		bod.Sel.ID(),
 		service,
 		ws,
-		bod.kms,
-		bod.sss)
+		bod.KMS,
+		bod.SSS)
 	deeTD.CheckBackupDetails(
 		t,
 		ctx,
 		bID,
 		ws,
-		bod.kms,
-		bod.sss,
+		bod.KMS,
+		bod.SSS,
 		expectDeets,
 		false)
 
 	// Check that the extensions are in the backup
 	for _, ent := range deets.Entries {
 		if ent.Folder == nil {
-			verifyExtensionData(t, ent.ItemInfo, service)
+			VerifyExtensionData(t, ent.ItemInfo, service)
 		}
 	}
+}
+
+var (
+	_ io.ReadCloser                    = &FailFirstRead{}
+	_ extensions.CreateItemExtensioner = &CreateFailFirstRead{}
+)
+
+// FailFirstRead fails the first read on a file being uploaded during a
+// snapshot. Only one file is failed during the snapshot even if it the snapshot
+// contains multiple files.
+type FailFirstRead struct {
+	firstFile *atomic.Bool
+	io.ReadCloser
+}
+
+func (e *FailFirstRead) Read(p []byte) (int, error) {
+	if e.firstFile.CompareAndSwap(true, false) {
+		// This is the first file being read, return an error for it.
+		return 0, clues.New("injected error for testing")
+	}
+
+	return e.ReadCloser.Read(p)
+}
+
+type CreateFailFirstRead struct {
+	firstItem *atomic.Bool
+}
+
+func (ce *CreateFailFirstRead) CreateItemExtension(
+	_ context.Context,
+	r io.ReadCloser,
+	_ details.ItemInfo,
+	_ *details.ExtensionData,
+) (io.ReadCloser, error) {
+	return &FailFirstRead{
+		firstFile:  ce.firstItem,
+		ReadCloser: r,
+	}, nil
+}
+
+func NewCreateSingleFileFailExtension() *CreateFailFirstRead {
+	firstItem := &atomic.Bool{}
+	firstItem.Store(true)
+
+	return &CreateFailFirstRead{
+		firstItem: firstItem,
+	}
+}
+
+func RunDriveAssistBaseGroupsUpdate(
+	suite tester.Suite,
+	sel selectors.Selector,
+	expectCached bool,
+) {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		whatSet = deeTD.CategoryFromRepoRef
+		mb      = evmock.NewBus()
+		counter = count.New()
+		opts    = control.DefaultOptions()
+	)
+
+	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ItemExtensionFactory = []extensions.CreateItemExtensioner{
+		NewCreateSingleFileFailExtension(),
+	}
+
+	// Creating out here so bod lasts for full test and isn't closed until the
+	// test is compltely done.
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel,
+		opts,
+		version.All8MigrateUserPNToID,
+		counter)
+	defer bod.Close(t, ctx)
+
+	suite.Run("makeAssistBackup", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		// Need to run manually cause runAndCheckBackup assumes success for the most
+		// part.
+		err := bo.Run(ctx)
+		assert.Error(t, err, clues.ToCore(err))
+		assert.NotEmpty(t, bo.Results, "backup had non-zero results")
+		assert.NotEmpty(t, bo.Results.BackupID, "backup generated an ID")
+		assert.NotZero(t, bo.Results.ItemsWritten)
+
+		// TODO(ashmrtn): Check that the base is marked as an assist base.
+		t.Logf("base error: %v\n", err)
+	})
+
+	// Don't run the below if we've already failed since it won't make sense
+	// anymore.
+	if suite.T().Failed() {
+		return
+	}
+
+	suite.Run("makeIncrementalBackup", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		var (
+			mb      = evmock.NewBus()
+			counter = count.New()
+			opts    = control.DefaultOptions()
+		)
+
+		forcedFull := NewTestBackupOp(
+			t,
+			ctx,
+			bod,
+			mb,
+			opts,
+			counter)
+		forcedFull.BackupVersion = version.Groups9Update
+
+		RunAndCheckBackup(t, ctx, &forcedFull, mb, false)
+
+		reasons, err := bod.Sel.Reasons(bod.Acct.ID(), false)
+		require.NoError(t, err, clues.ToCore(err))
+
+		for _, reason := range reasons {
+			CheckBackupIsInManifests(
+				t,
+				ctx,
+				bod.KW,
+				bod.SW,
+				&forcedFull,
+				bod.Sel,
+				bod.Sel.ID(),
+				reason.Category())
+		}
+
+		_, expectDeets := deeTD.GetDeetsInBackup(
+			t,
+			ctx,
+			forcedFull.Results.BackupID,
+			bod.Acct.ID(),
+			bod.Sel.ID(),
+			bod.Sel.PathService(),
+			whatSet,
+			bod.KMS,
+			bod.SSS)
+		deeTD.CheckBackupDetails(
+			t,
+			ctx,
+			forcedFull.Results.BackupID,
+			whatSet,
+			bod.KMS,
+			bod.SSS,
+			expectDeets,
+			false)
+
+		// For groups the forced full backup shouldn't have any cached items. For
+		// OneDrive and SharePoint it should since they shouldn't be forcing full
+		// backups.
+		cachedCheck := assert.NotZero
+		if !expectCached {
+			cachedCheck = assert.Zero
+		}
+
+		cachedCheck(
+			t,
+			forcedFull.Results.Counts[string(count.PersistedCachedFiles)],
+			"kopia cached items")
+	})
+}
+
+func RunDriveRestoreToAlternateProtectedResource(
+	t *testing.T,
+	suite tester.Suite,
+	ac api.Client,
+	sel selectors.Selector, // owner should match 'from', both Restore and Backup types work.
+	driveFrom, driveTo IDs,
+	toResource string,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// a backup is required to run restores
+
+	var (
+		mb      = evmock.NewBus()
+		counter = count.New()
+		opts    = control.DefaultOptions()
+	)
+
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
+
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
+
+	var (
+		restoreCfg        = ctrlTD.DefaultRestoreConfig("drive_restore_to_resource")
+		fromCollisionKeys map[string]api.DriveItemIDType
+		fromItemIDs       map[string]api.DriveItemIDType
+		acd               = ac.Drives()
+	)
+
+	// first restore to the 'from' resource
+
+	suite.Run("restore original resource", func() {
+		mb = evmock.NewBus()
+		fromCtr := count.New()
+		driveID := driveFrom.DriveID
+		rootFolderID := driveFrom.DriveRootFolderID
+		restoreCfg.OnCollision = control.Copy
+
+		ro, _ := PrepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.St,
+			bo.Results.BackupID,
+			mb,
+			fromCtr,
+			sel,
+			opts,
+			restoreCfg)
+
+		RunAndCheckRestore(t, ctx, &ro, mb, false)
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+		fromItemIDs, fromCollisionKeys = GetDriveCollKeysAndItemIDs(
+			t,
+			ctx,
+			acd,
+			driveID,
+			rootFolderID,
+			restoreCfg.Location,
+			selTD.TestFolderName)
+	})
+
+	// then restore to the 'to' resource
+	var (
+		toCollisionKeys map[string]api.DriveItemIDType
+		toItemIDs       map[string]api.DriveItemIDType
+	)
+
+	suite.Run("restore to alternate resource", func() {
+		mb = evmock.NewBus()
+		toCtr := count.New()
+		driveID := driveTo.DriveID
+		rootFolderID := driveTo.DriveRootFolderID
+		restoreCfg.ProtectedResource = toResource
+
+		ro, _ := PrepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.St,
+			bo.Results.BackupID,
+			mb,
+			toCtr,
+			sel,
+			opts,
+			restoreCfg)
+
+		RunAndCheckRestore(t, ctx, &ro, mb, false)
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+		toItemIDs, toCollisionKeys = GetDriveCollKeysAndItemIDs(
+			t,
+			ctx,
+			acd,
+			driveID,
+			rootFolderID,
+			restoreCfg.Location,
+			selTD.TestFolderName)
+	})
+
+	// compare restore results
+	assert.Equal(t, len(fromItemIDs), len(toItemIDs))
+	assert.ElementsMatch(t, maps.Keys(fromCollisionKeys), maps.Keys(toCollisionKeys))
+}
+
+type GetItemsKeysAndFolderByNameer interface {
+	GetItemIDsInContainer(
+		ctx context.Context,
+		driveID, containerID string,
+	) (map[string]api.DriveItemIDType, error)
+	GetFolderByName(
+		ctx context.Context,
+		driveID, parentFolderID, folderName string,
+	) (models.DriveItemable, error)
+	GetItemsInContainerByCollisionKey(
+		ctx context.Context,
+		driveID, containerID string,
+	) (map[string]api.DriveItemIDType, error)
+}
+
+func GetDriveCollKeysAndItemIDs(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	gikafbn GetItemsKeysAndFolderByNameer,
+	driveID, parentContainerID string,
+	containerNames ...string,
+) (map[string]api.DriveItemIDType, map[string]api.DriveItemIDType) {
+	var (
+		c   models.DriveItemable
+		err error
+		cID string
+	)
+
+	for _, cn := range containerNames {
+		pcid := parentContainerID
+
+		if len(cID) != 0 {
+			pcid = cID
+		}
+
+		c, err = gikafbn.GetFolderByName(ctx, driveID, pcid, cn)
+		require.NoError(t, err, clues.ToCore(err))
+
+		cID = ptr.Val(c.GetId())
+	}
+
+	itemIDs, err := gikafbn.GetItemIDsInContainer(ctx, driveID, cID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	collisionKeys, err := gikafbn.GetItemsInContainerByCollisionKey(ctx, driveID, cID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	return itemIDs, collisionKeys
+}
+
+func RunDriveRestoreWithAdvancedOptions(
+	t *testing.T,
+	suite tester.Suite,
+	ac api.Client,
+	sel selectors.Selector, // both Restore and Backup types work.
+	driveID, rootFolderID string,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	// a backup is required to run restores
+
+	var (
+		mb      = evmock.NewBus()
+		counter = count.New()
+		opts    = control.DefaultOptions()
+	)
+
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
+
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
+
+	var (
+		restoreCfg          = ctrlTD.DefaultRestoreConfig("drive_adv_restore")
+		containerID         string
+		countItemsInRestore int
+		collKeys            = map[string]api.DriveItemIDType{}
+		fileIDs             map[string]api.DriveItemIDType
+		acd                 = ac.Drives()
+	)
+
+	// initial restore
+
+	suite.Run("baseline", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Copy
+
+		ro, _ := PrepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.St,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		RunAndCheckRestore(t, ctx, &ro, mb, false)
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+		contGC, err := acd.GetFolderByName(ctx, driveID, rootFolderID, restoreCfg.Location)
+		require.NoError(t, err, clues.ToCore(err))
+
+		// the folder containing the files is a child of the folder created by the restore.
+		contGC, err = acd.GetFolderByName(ctx, driveID, ptr.Val(contGC.GetId()), selTD.TestFolderName)
+		require.NoError(t, err, clues.ToCore(err))
+
+		containerID = ptr.Val(contGC.GetId())
+
+		collKeys, err = acd.GetItemsInContainerByCollisionKey(
+			ctx,
+			driveID,
+			containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		countItemsInRestore = len(collKeys)
+
+		CheckRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
+
+		fileIDs, err = acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+	})
+
+	// skip restore
+
+	suite.Run("skip collisions", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Skip
+
+		ro, _ := PrepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.St,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		deets := RunAndCheckRestore(t, ctx, &ro, mb, false)
+
+		CheckRestoreCounts(t, ctr, countItemsInRestore, 0, 0)
+		assert.Zero(
+			t,
+			len(deets.Entries),
+			"no items should have been restored")
+
+		// get all files in folder, use these as the base
+		// set of files to compare against.
+
+		result := FilterCollisionKeyResults(
+			t,
+			ctx,
+			driveID,
+			containerID,
+			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
+			collKeys)
+
+		assert.Len(t, result, 0, "no new items should get added")
+
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, fileIDs, currentFileIDs, "ids are equal")
+	})
+
+	// replace restore
+
+	suite.Run("replace collisions", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Replace
+
+		ro, _ := PrepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.St,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		deets := RunAndCheckRestore(t, ctx, &ro, mb, false)
+		filtEnts := []details.Entry{}
+
+		for _, e := range deets.Entries {
+			if e.Folder == nil {
+				filtEnts = append(filtEnts, e)
+			}
+		}
+
+		CheckRestoreCounts(t, ctr, 0, countItemsInRestore, 0)
+		assert.Len(
+			t,
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been replaced")
+
+		result := FilterCollisionKeyResults(
+			t,
+			ctx,
+			driveID,
+			containerID,
+			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
+			collKeys)
+
+		assert.Len(t, result, 0, "all items should have been replaced")
+
+		for k, v := range result {
+			assert.NotEqual(t, v, collKeys[k], "replaced items should have new IDs")
+		}
+
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, len(fileIDs), len(currentFileIDs), "count of ids ids are equal")
+		for orig := range fileIDs {
+			assert.NotContains(t, currentFileIDs, orig, "original item should not exist after replacement")
+		}
+
+		fileIDs = currentFileIDs
+	})
+
+	// copy restore
+
+	suite.Run("copy collisions", func() {
+		t := suite.T()
+
+		ctx, flush := tester.NewContext(t)
+		defer flush()
+
+		mb := evmock.NewBus()
+		ctr := count.New()
+
+		restoreCfg.OnCollision = control.Copy
+
+		ro, _ := PrepNewTestRestoreOp(
+			t,
+			ctx,
+			bod.St,
+			bo.Results.BackupID,
+			mb,
+			ctr,
+			sel,
+			opts,
+			restoreCfg)
+
+		deets := RunAndCheckRestore(t, ctx, &ro, mb, false)
+		filtEnts := []details.Entry{}
+
+		for _, e := range deets.Entries {
+			if e.Folder == nil {
+				filtEnts = append(filtEnts, e)
+			}
+		}
+
+		CheckRestoreCounts(t, ctr, 0, 0, countItemsInRestore)
+		assert.Len(
+			t,
+			filtEnts,
+			countItemsInRestore,
+			"every item should have been copied")
+
+		result := FilterCollisionKeyResults(
+			t,
+			ctx,
+			driveID,
+			containerID,
+			GetItemsInContainerByCollisionKeyer[api.DriveItemIDType](acd),
+			collKeys)
+
+		assert.Len(t, result, len(collKeys), "all items should have been added as copies")
+
+		currentFileIDs, err := acd.GetItemIDsInContainer(ctx, driveID, containerID)
+		require.NoError(t, err, clues.ToCore(err))
+
+		assert.Equal(t, 2*len(fileIDs), len(currentFileIDs), "count of ids should be double from before")
+		assert.Subset(t, maps.Keys(currentFileIDs), maps.Keys(fileIDs), "original item should exist after copy")
+	})
 }
