@@ -52,7 +52,7 @@ func streamItems(
 			id := item.ID()
 			name := id + ".eml"
 
-			itemCtx := clues.Add(ictx, "item_file_name", id)
+			itemCtx := clues.Add(ictx, "stream_item_id", id)
 
 			stats.UpdateResourceCount(path.EmailCategory)
 
