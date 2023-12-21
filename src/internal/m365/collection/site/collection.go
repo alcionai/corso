@@ -70,14 +70,13 @@ type prefetchCollection struct {
 }
 
 // NewCollection helper function for creating a Collection
-func NewCollection(
+func NewPrefetchCollection(
 	getter getItemByIDer,
 	folderPath path.Path,
 	ac api.Client,
 	scope selectors.SharePointScope,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
-	validLmt bool,
 ) *prefetchCollection {
 	c := &prefetchCollection{
 		fullPath:      folderPath,
@@ -357,6 +356,22 @@ type lazyFetchCollection struct {
 	items         map[string]time.Time
 	statusUpdater support.StatusUpdater
 	getter        getItemByIDer
+}
+
+func NewLazyFetchCollection(
+	getter getItemByIDer,
+	folderPath path.Path,
+	statusUpdater support.StatusUpdater,
+) *lazyFetchCollection {
+	c := &lazyFetchCollection{
+		fullPath:      folderPath,
+		items:         make(map[string]time.Time),
+		getter:        getter,
+		stream:        make(chan data.Item, collectionChannelBufferSize),
+		statusUpdater: statusUpdater,
+	}
+
+	return c
 }
 
 func (lc *lazyFetchCollection) AddItem(itemID string, lastModifiedTime time.Time) {

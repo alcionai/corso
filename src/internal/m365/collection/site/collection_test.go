@@ -63,7 +63,7 @@ func TestSharePointCollectionSuite(t *testing.T) {
 
 // TestListCollection tests basic functionality to create
 // SharePoint collection and to use the data stream channel.
-func (suite *SharePointCollectionSuite) TestCollection_Items() {
+func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 	var (
 		tenant  = "some"
 		user    = "user"
@@ -78,7 +78,6 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 		getter         getItemByIDer
 		getDir         func(t *testing.T) path.Path
 		getItem        func(t *testing.T, itemName string) data.Item
-		validLmt       bool
 	}{
 		{
 			name:     "List",
@@ -161,14 +160,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			col := NewCollection(
+			col := NewPrefetchCollection(
 				test.getter,
 				test.getDir(t),
 				suite.ac,
 				test.scope,
 				nil,
 				control.DefaultOptions(),
-				test.validLmt,
 			)
 			col.stream <- test.getItem(t, test.itemName)
 
