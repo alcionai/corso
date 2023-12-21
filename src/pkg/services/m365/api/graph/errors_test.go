@@ -930,16 +930,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrSharingDisabled() {
-	innerMatch := graphTD.ODataErr("not-match")
-	merr := odataerrors.NewMainError()
-	inerr := odataerrors.NewInnerError()
-	inerr.SetAdditionalData(map[string]any{
-		"code": string(sharingDisabled),
-	})
-	merr.SetInnerError(inerr)
-	merr.SetCode(ptr.To("not-match"))
-	innerMatch.SetErrorEscaped(merr)
-
 	table := []struct {
 		name   string
 		err    error
@@ -962,7 +952,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrSharingDisabled() {
 		},
 		{
 			name:   "matching oDataErr inner code",
-			err:    innerMatch,
+			err:    graphTD.ODataInner(string(sharingDisabled)),
 			expect: assert.True,
 		},
 	}
