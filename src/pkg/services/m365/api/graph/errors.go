@@ -477,11 +477,11 @@ type oDataDeets struct {
 }
 
 type innerErr struct {
-	ClientRequestId string    `json:"clientRequestId,omitempty"`
+	ClientRequestID string    `json:"clientRequestID,omitempty"`
 	Code            string    `json:"code,omitempty"`
 	Date            time.Time `json:"date,omitempty"`
 	OdataType       string    `json:"odataType,omitempty"`
-	RequestId       string    `json:"requestId,omitempty"`
+	RequestID       string    `json:"requestID,omitempty"`
 }
 
 type mainErr struct {
@@ -538,10 +538,10 @@ func parseODataErr(err error) oDataErr {
 
 	if inner != nil {
 		ode.Inner = innerErr{
-			ClientRequestId: strings.Clone(ptr.Val(inner.GetClientRequestId())),
+			ClientRequestID: strings.Clone(ptr.Val(inner.GetClientRequestId())),
 			Date:            ptr.Val(inner.GetDate()),
 			OdataType:       strings.Clone(ptr.Val(inner.GetOdataType())),
-			RequestId:       strings.Clone(ptr.Val(inner.GetRequestId())),
+			RequestID:       strings.Clone(ptr.Val(inner.GetRequestId())),
 		}
 
 		code, err := str.AnyValueToString("code", inner.GetAdditionalData())
