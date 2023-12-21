@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -51,6 +52,8 @@ func streamItems(
 			id := item.ID()
 			name := id + ".eml"
 
+			itemCtx := clues.Add(ictx, "stream_item_id", id)
+
 			stats.UpdateResourceCount(path.EmailCategory)
 
 			reader := item.ToReader()
@@ -59,19 +62,27 @@ func streamItems(
 			reader.Close()
 
 			if err != nil {
+				err = clues.WrapWC(itemCtx, err, "reading export item")
+
+				logger.CtxErr(ctx, err).Info("processing collection item")
+
 				ch <- export.Item{
 					ID:    id,
-					Error: clues.Wrap(err, "reading data"),
+					Error: err,
 				}
 
 				continue
 			}
 
-			email, err := eml.FromJSON(ictx, content)
+			email, err := eml.FromJSON(itemCtx, content)
 			if err != nil {
+				err = clues.Wrap(err, "converting JSON to eml")
+
+				logger.CtxErr(ctx, err).Info("processing collection item")
+
 				ch <- export.Item{
 					ID:    id,
-					Error: clues.Wrap(err, "converting JSON to eml"),
+					Error: err,
 				}
 
 				continue
