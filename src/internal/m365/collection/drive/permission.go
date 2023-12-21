@@ -390,7 +390,12 @@ func UpdateLinkShares(
 		}
 
 		if err != nil {
-			el.AddRecoverable(ctx, clues.Stack(err))
+			if graph.IsErrSharingDisabled(err) {
+				logger.Ctx(ctx).Info("unable to restore link share; sharing disabled")
+			} else {
+				el.AddRecoverable(ctx, clues.Stack(err))
+			}
+
 			continue
 		}
 
@@ -475,11 +480,6 @@ func RestorePermissions(
 
 	previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		if graph.IsErrSharingDisabled(err) {
-			logger.Ctx(ctx).Info("sharing disabled, not restoring permissions")
-			return nil
-		}
-
 		return clues.Wrap(err, "previous metadata")
 	}
 
