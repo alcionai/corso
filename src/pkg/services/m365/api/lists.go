@@ -12,6 +12,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
+var ErrCannotCreateWebTemplateExtension = clues.New("unable to create webTemplateExtension type lists")
+
 const (
 	AttachmentsColumnName    = "Attachments"
 	EditColumnName           = "Edit"
@@ -41,6 +43,8 @@ const (
 
 	ReadOnlyOrHiddenFieldNamePrefix = "_"
 	DescoratorFieldNamePrefix       = "@"
+
+	WebTemplateExtensionsListTemplateName = "webTemplateExtensionsList"
 )
 
 var addressFieldNames = []string{
@@ -243,6 +247,12 @@ func (c Lists) PostList(
 
 	// this ensure all columns, contentTypes are set to the newList
 	newList := ToListable(oldList, newListName)
+
+	if newList != nil &&
+		newList.GetList() != nil &&
+		ptr.Val(newList.GetList().GetTemplate()) == WebTemplateExtensionsListTemplateName {
+		return nil, clues.StackWC(ctx, ErrCannotCreateWebTemplateExtension)
+	}
 
 	// Restore to List base to M365 back store
 	restoredList, err := c.Stable.

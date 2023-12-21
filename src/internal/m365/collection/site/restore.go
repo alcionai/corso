@@ -207,6 +207,12 @@ func RestoreListCollection(
 				itemData,
 				siteID,
 				restoreContainerName)
+
+			if err != nil &&
+				errors.Is(err, api.ErrCannotCreateWebTemplateExtension) {
+				continue
+			}
+
 			if err != nil {
 				el.AddRecoverable(ctx, err)
 				continue
