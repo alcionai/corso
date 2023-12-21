@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
@@ -14,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
@@ -39,15 +41,16 @@ func (suite *ListsPagerIntgSuite) TestEnumerateLists_withAssociatedRelationships
 		t  = suite.T()
 		ac = suite.its.gockAC.Lists()
 
-		listID            = "fake-list-id"
-		siteID            = suite.its.site.id
-		textColumnDefID   = "fake-text-column-id"
-		textColumnDefName = "itemName"
-		numColumnDefID    = "fake-num-column-id"
-		numColumnDefName  = "itemSize"
-		colLinkID         = "fake-collink-id"
-		cTypeID           = "fake-ctype-id"
-		listItemID        = "fake-list-item-id"
+		listID               = "fake-list-id"
+		listLastModifiedTime = time.Now()
+		siteID               = suite.its.site.id
+		textColumnDefID      = "fake-text-column-id"
+		textColumnDefName    = "itemName"
+		numColumnDefID       = "fake-num-column-id"
+		numColumnDefName     = "itemSize"
+		colLinkID            = "fake-collink-id"
+		cTypeID              = "fake-ctype-id"
+		listItemID           = "fake-list-item-id"
 
 		fieldsData = map[string]any{
 			"itemName": "item1",
@@ -60,7 +63,8 @@ func (suite *ListsPagerIntgSuite) TestEnumerateLists_withAssociatedRelationships
 
 	defer gock.Off()
 
-	suite.setStubListAndItsRelationShip(listID,
+	suite.setStubListAndItsRelationShip(
+		listID,
 		siteID,
 		textColumnDefID,
 		textColumnDefName,
@@ -69,11 +73,25 @@ func (suite *ListsPagerIntgSuite) TestEnumerateLists_withAssociatedRelationships
 		colLinkID,
 		cTypeID,
 		listItemID,
+		listLastModifiedTime,
 		fieldsData)
 
 	lists, err := ac.GetLists(ctx, suite.its.site.id, CallConfig{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(lists))
+	assert.Equal(t, listID, ptr.Val(lists[0].GetId()))
+
+	expectedLmt, err := dttm.ExtractTime(listLastModifiedTime.String())
+	require.NoError(t, err)
+
+	actualLmt, err := dttm.ExtractTime(ptr.Val(lists[0].GetLastModifiedDateTime()).String())
+	require.NoError(t, err)
+
+	assert.Equal(
+		t,
+		expectedLmt,
+		actualLmt,
+	)
 
 	for _, list := range lists {
 		suite.testEnumerateListItems(ctx, list, listItemID, fieldsData)
@@ -242,10 +260,12 @@ func (suite *ListsPagerIntgSuite) setStubListAndItsRelationShip(
 	colLinkID,
 	cTypeID,
 	listItemID string,
+	listLastModifiedTime time.Time,
 	fieldsData map[string]any,
 ) {
 	list := models.NewList()
-	list.SetId(&listID)
+	list.SetId(ptr.To(listID))
+	list.SetLastModifiedDateTime(ptr.To(listLastModifiedTime))
 
 	listCol := models.NewListCollectionResponse()
 	listCol.SetValue([]models.Listable{list})

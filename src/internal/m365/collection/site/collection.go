@@ -11,6 +11,7 @@ import (
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -56,8 +57,9 @@ type prefetchCollection struct {
 	stream chan data.Item
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
-	// jobs contain the SharePoint.List.IDs or SharePoint.Page.IDs
-	items []string
+	// items contains the SharePoint.List.IDs or SharePoint.Page.IDs
+	// and their corresponding last modified time
+	items map[string]time.Time
 	// M365 IDs of the items of this collection
 	category      path.CategoryType
 	client        api.Sites
@@ -78,7 +80,7 @@ func NewCollection(
 ) *prefetchCollection {
 	c := &prefetchCollection{
 		fullPath:      folderPath,
-		items:         make([]string, 0),
+		items:         make(map[string]time.Time),
 		getter:        getter,
 		stream:        make(chan data.Item, collectionChannelBufferSize),
 		client:        ac.Sites(),
@@ -95,8 +97,8 @@ func (sc *prefetchCollection) SetBetaService(betaService *betaAPI.BetaService) {
 }
 
 // AddItem appends additional itemID to items field
-func (sc *prefetchCollection) AddItem(itemID string) {
-	sc.items = append(sc.items, itemID)
+func (sc *prefetchCollection) AddItem(itemID string, lastModifedTime time.Time) {
+	sc.items[itemID] = lastModifedTime
 }
 
 func (sc *prefetchCollection) FullPath() path.Path {
@@ -172,7 +174,7 @@ func (sc *prefetchCollection) streamLists(
 
 	// For each models.Listable, object is serialized and the metrics are collected.
 	// The progress is objected via the passed in channel.
-	for _, listID := range sc.items {
+	for listID := range sc.items {
 		if el.Failure() != nil {
 			break
 		}
@@ -228,7 +230,9 @@ func (sc *prefetchCollection) retrievePages(
 
 	root := ptr.Val(parent.GetWebUrl())
 
-	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ProtectedResource(), sc.items, errs)
+	pageIDs := maps.Keys(sc.items)
+
+	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ProtectedResource(), pageIDs, errs)
 	if err != nil {
 		logger.Ctx(ctx).Error(err)
 
@@ -348,14 +352,14 @@ type lazyFetchCollection struct {
 	stream chan data.Item
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
-	// jobs contain the SharePoint.List.IDs
-	items         []string
+	// jobs contain the SharePoint.List.IDs and their last modified time
+	items         map[string]time.Time
 	statusUpdater support.StatusUpdater
 	getter        getItemByIDer
 }
 
-func (lc *lazyFetchCollection) AddItem(itemID string) {
-	lc.items = append(lc.items, itemID)
+func (lc *lazyFetchCollection) AddItem(itemID string, lastModifiedTime time.Time) {
+	lc.items[itemID] = lastModifiedTime
 }
 
 func (lc *lazyFetchCollection) FullPath() path.Path {
