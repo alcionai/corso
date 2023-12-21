@@ -169,7 +169,7 @@ func setupDependencies(
 	listData, err := data.NewPrefetchedItemWithInfo(
 		io.NopCloser(bytes.NewReader(byteArray)),
 		testName,
-		details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
+		details.ItemInfo{SharePoint: api.ListToSPInfo(listing)})
 	require.NoError(t, err, clues.ToCore(err))
 
 	r, err := readers.NewVersionedRestoreReader(listData.ToReader())

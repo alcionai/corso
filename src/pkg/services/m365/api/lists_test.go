@@ -2,6 +2,7 @@ package api
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
@@ -15,6 +16,7 @@ import (
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
@@ -26,6 +28,57 @@ type ListsUnitSuite struct {
 
 func TestListsUnitSuite(t *testing.T) {
 	suite.Run(t, &ListsUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *ListsUnitSuite) TestSharePointInfo() {
+	tests := []struct {
+		name         string
+		listAndDeets func() (models.Listable, *details.SharePointInfo)
+	}{
+		{
+			name: "Empty List",
+			listAndDeets: func() (models.Listable, *details.SharePointInfo) {
+				i := &details.SharePointInfo{ItemType: details.SharePointList}
+				return models.NewList(), i
+			},
+		}, {
+			name: "Only Name",
+			listAndDeets: func() (models.Listable, *details.SharePointInfo) {
+				aTitle := "Whole List"
+				listing := models.NewList()
+				listing.SetDisplayName(&aTitle)
+
+				li := models.NewListItem()
+				li.SetId(ptr.To("listItem1"))
+
+				listing.SetItems([]models.ListItemable{li})
+				i := &details.SharePointInfo{
+					ItemType: details.SharePointList,
+					List: &details.ListInfo{
+						Name:      aTitle,
+						ItemCount: 1,
+					},
+				}
+
+				return listing, i
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			list, expected := test.listAndDeets()
+			info := ListToSPInfo(list)
+			assert.Equal(t, expected.ItemType, info.ItemType)
+			assert.Equal(t, expected.ItemName, info.ItemName)
+			assert.Equal(t, expected.WebURL, info.WebURL)
+			if expected.List != nil {
+				assert.Equal(t, expected.List.ItemCount, info.List.ItemCount)
+			}
+		})
+	}
 }
 
 func (suite *ListsUnitSuite) TestBytesToListable() {
@@ -487,6 +540,8 @@ func (suite *ListsAPIIntgSuite) TestLists_PostDrive() {
 func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 	var (
 		listID            = "fake-list-id"
+		listName          = "fake-list-name"
+		listTemplate      = "genericList"
 		siteID            = suite.its.site.id
 		textColumnDefID   = "fake-text-column-id"
 		textColumnDefName = "itemName"
@@ -505,8 +560,14 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 		{
 			name: "",
 			setupf: func() {
+				listInfo := models.NewListInfo()
+				listInfo.SetTemplate(ptr.To(listTemplate))
+
 				list := models.NewList()
-				list.SetId(&listID)
+				list.SetId(ptr.To(listID))
+				list.SetDisplayName(ptr.To(listName))
+				list.SetList(listInfo)
+				list.SetLastModifiedDateTime(ptr.To(time.Now()))
 
 				txtColumnDef := models.NewColumnDefinition()
 				txtColumnDef.SetId(&textColumnDefID)
@@ -611,7 +672,7 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			defer gock.Off()
 			test.setupf()
 
-			list, err := suite.its.gockAC.Lists().GetListByID(ctx, siteID, listID)
+			list, info, err := suite.its.gockAC.Lists().GetListByID(ctx, siteID, listID)
 			test.expect(t, err)
 			assert.Equal(t, listID, *list.GetId())
 
@@ -639,6 +700,12 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			columns = cTypes[0].GetColumns()
 			assert.Equal(t, 1, len(columns))
 			assert.Equal(t, numColumnDefID, *columns[0].GetId())
+
+			assert.Equal(t, listName, info.List.Name)
+			assert.Equal(t, int64(1), info.List.ItemCount)
+			assert.Equal(t, listTemplate, info.List.Template)
+			assert.NotEmpty(t, info.List.Modified)
+			assert.NotEmpty(t, info.Modified)
 		})
 	}
 }
