@@ -41,13 +41,13 @@ const (
 	Pages   DataCategory = 2
 )
 
-var _ data.BackupCollection = &Collection{}
+var _ data.BackupCollection = &prefetchCollection{}
 
 // Collection is the SharePoint.List or SharePoint.Page implementation of data.Collection.
 
 // SharePoint.Libraries collections are supported by the oneDrive.Collection
 // as the calls are identical for populating the Collection
-type Collection struct {
+type prefetchCollection struct {
 	// stream is the container for each individual SharePoint item of (page/list)
 	stream chan data.Item
 	// fullPath indicates the hierarchy within the collection
@@ -71,8 +71,8 @@ func NewCollection(
 	scope selectors.SharePointScope,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
-) *Collection {
-	c := &Collection{
+) *prefetchCollection {
+	c := &prefetchCollection{
 		fullPath:      folderPath,
 		items:         make([]string, 0),
 		getter:        getter,
@@ -86,38 +86,38 @@ func NewCollection(
 	return c
 }
 
-func (sc *Collection) SetBetaService(betaService *betaAPI.BetaService) {
+func (sc *prefetchCollection) SetBetaService(betaService *betaAPI.BetaService) {
 	sc.betaService = betaService
 }
 
 // AddItem appends additional itemID to items field
-func (sc *Collection) AddItem(itemID string) {
+func (sc *prefetchCollection) AddItem(itemID string) {
 	sc.items = append(sc.items, itemID)
 }
 
-func (sc *Collection) FullPath() path.Path {
+func (sc *prefetchCollection) FullPath() path.Path {
 	return sc.fullPath
 }
 
 // TODO(ashmrtn): Fill in with previous path once the Controller compares old
 // and new folder hierarchies.
-func (sc Collection) PreviousPath() path.Path {
+func (sc prefetchCollection) PreviousPath() path.Path {
 	return nil
 }
 
-func (sc Collection) LocationPath() *path.Builder {
+func (sc prefetchCollection) LocationPath() *path.Builder {
 	return path.Builder{}.Append(sc.fullPath.Folders()...)
 }
 
-func (sc Collection) State() data.CollectionState {
+func (sc prefetchCollection) State() data.CollectionState {
 	return data.NewState
 }
 
-func (sc Collection) DoNotMergeItems() bool {
+func (sc prefetchCollection) DoNotMergeItems() bool {
 	return false
 }
 
-func (sc *Collection) Items(
+func (sc *prefetchCollection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
 ) <-chan data.Item {
@@ -125,7 +125,7 @@ func (sc *Collection) Items(
 	return sc.stream
 }
 
-func (sc *Collection) finishPopulation(
+func (sc *prefetchCollection) finishPopulation(
 	ctx context.Context,
 	metrics *support.CollectionMetrics,
 ) {
@@ -146,7 +146,7 @@ func (sc *Collection) finishPopulation(
 }
 
 // streamItems utility function to retrieve data from back store for a given collection
-func (sc *Collection) streamItems(
+func (sc *prefetchCollection) streamItems(
 	ctx context.Context,
 	errs *fault.Bus,
 ) {
@@ -161,7 +161,7 @@ func (sc *Collection) streamItems(
 
 // streamLists utility function for collection that downloads and serializes
 // models.Listable objects based on M365 IDs from the jobs field.
-func (sc *Collection) streamLists(
+func (sc *prefetchCollection) streamLists(
 	ctx context.Context,
 	errs *fault.Bus,
 ) {
@@ -198,7 +198,7 @@ func (sc *Collection) streamLists(
 	wg.Wait()
 }
 
-func (sc *Collection) retrievePages(
+func (sc *prefetchCollection) retrievePages(
 	ctx context.Context,
 	as api.Sites,
 	errs *fault.Bus,
@@ -297,7 +297,7 @@ func serializeContent(
 	return byteArray, nil
 }
 
-func (sc *Collection) handleListItems(
+func (sc *prefetchCollection) handleListItems(
 	ctx context.Context,
 	semaphoreCh chan struct{},
 	progress chan<- struct{},
