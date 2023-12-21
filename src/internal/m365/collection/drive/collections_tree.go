@@ -227,7 +227,7 @@ func (c *Collections) makeDriveCollections(
 	// only populate the global excluded items if no delta reset occurred.
 	// if a reset did occur, the collections should already be marked as
 	// "do not merge", therefore everything will get processed as a new addition.
-	if !tree.hadReset {
+	if !tree.hadReset && len(prevDeltaLink) > 0 {
 		p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
 		if err != nil {
 			err = clues.WrapWC(ctx, err, "making canonical path for item exclusions")
