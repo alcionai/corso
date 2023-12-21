@@ -1,4 +1,4 @@
-package test_test
+package sharepoint_test
 
 import (
 	"context"
@@ -14,10 +14,10 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	. "github.com/alcionai/corso/src/internal/operations/test/m365"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
-	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -31,7 +31,7 @@ import (
 
 type SharePointBackupIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its IntgTesterSetup
 }
 
 func TestSharePointBackupIntgSuite(t *testing.T) {
@@ -43,11 +43,117 @@ func TestSharePointBackupIntgSuite(t *testing.T) {
 }
 
 func (suite *SharePointBackupIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = NewIntegrationTesterSetup(suite.T())
+}
+
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
+	var (
+		resourceID = suite.its.Site.ID
+		sel        = selectors.NewSharePointBackup([]string{resourceID})
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	RunBasicDriveishBackupTests(
+		suite,
+		path.SharePointService,
+		control.DefaultOptions(),
+		sel.Selector)
 }
 
 func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
-	sel := selectors.NewSharePointRestore([]string{suite.its.site.ID})
+	runSharePointIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
+}
+
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_extensionsSharePoint() {
+	var (
+		resourceID = suite.its.Site.ID
+		sel        = selectors.NewSharePointBackup([]string{resourceID})
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	RunDriveishBackupWithExtensionsTests(
+		suite,
+		path.SharePointService,
+		control.DefaultOptions(),
+		sel.Selector)
+}
+
+// ---------------------------------------------------------------------------
+// test version using the tree-based drive item processor
+// ---------------------------------------------------------------------------
+
+type SharePointBackupTreeIntgSuite struct {
+	tester.Suite
+	its IntgTesterSetup
+}
+
+func TestSharePointBackupTreeIntgSuite(t *testing.T) {
+	suite.Run(t, &SharePointBackupTreeIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *SharePointBackupTreeIntgSuite) SetupSuite() {
+	suite.its = NewIntegrationTesterSetup(suite.T())
+}
+
+func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeSharePoint() {
+	var (
+		resourceID = suite.its.Site.ID
+		sel        = selectors.NewSharePointBackup([]string{resourceID})
+		opts       = control.DefaultOptions()
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	RunBasicDriveishBackupTests(
+		suite,
+		path.SharePointService,
+		opts,
+		sel.Selector)
+}
+
+func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeIncrementalSharePoint() {
+	opts := control.DefaultOptions()
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	runSharePointIncrementalBackupTests(suite, suite.its, opts)
+}
+
+func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeExtensionsSharePoint() {
+	var (
+		resourceID = suite.its.Site.ID
+		sel        = selectors.NewSharePointBackup([]string{resourceID})
+		opts       = control.DefaultOptions()
+	)
+
+	sel.Include(selTD.SharePointBackupFolderScope(sel))
+
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	RunDriveishBackupWithExtensionsTests(
+		suite,
+		path.SharePointService,
+		opts,
+		sel.Selector)
+}
+
+// ---------------------------------------------------------------------------
+// common backup test wrappers
+// ---------------------------------------------------------------------------
+
+func runSharePointIncrementalBackupTests(
+	suite tester.Suite,
+	its IntgTesterSetup,
+	opts control.Options,
+) {
+	sel := selectors.NewSharePointRestore([]string{its.Site.ID})
 
 	ic := func(cs []string) selectors.Selector {
 		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))
@@ -58,10 +164,10 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		t *testing.T,
 		ctx context.Context,
 	) string {
-		d, err := suite.its.ac.Sites().GetDefaultDrive(ctx, suite.its.site.ID)
+		d, err := its.AC.Sites().GetDefaultDrive(ctx, its.Site.ID)
 		if err != nil {
 			err = graph.Wrap(ctx, err, "retrieving default site drive").
-				With("site", suite.its.site.ID)
+				With("site", its.Site.ID)
 		}
 
 		require.NoError(t, err, clues.ToCore(err))
@@ -76,10 +182,11 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		return drive.NewSiteRestoreHandler(ac, path.SharePointService)
 	}
 
-	runDriveIncrementalTest(
+	RunIncrementalDriveishBackupTest(
 		suite,
-		suite.its.site.ID,
-		suite.its.user.ID,
+		opts,
+		its.Site.ID,
+		its.User.ID,
 		path.SharePointService,
 		path.LibrariesCategory,
 		ic,
@@ -89,103 +196,9 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
 		true)
 }
 
-func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointBasic() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts    = control.DefaultOptions()
-	)
-
-	sel.Include(selTD.SharePointBackupFolderScope(sel))
-
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.LibrariesCategory)
-}
-
-func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointExtensions() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		sel     = selectors.NewSharePointBackup([]string{suite.its.site.ID})
-		opts    = control.DefaultOptions()
-		tenID   = tconfig.M365TenantID(t)
-		svc     = path.SharePointService
-		ws      = deeTD.DriveIDFromRepoRef
-	)
-
-	opts.ItemExtensionFactory = getTestExtensionFactories()
-
-	sel.Include(selTD.SharePointBackupFolderScope(sel))
-
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
-
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
-		t,
-		ctx,
-		bod.kw,
-		bod.sw,
-		&bo,
-		bod.sel,
-		bod.sel.ID(),
-		path.LibrariesCategory)
-
-	bID := bo.Results.BackupID
-
-	deets, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bID,
-		tenID,
-		bod.sel.ID(),
-		svc,
-		ws,
-		bod.kms,
-		bod.sss)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bID,
-		ws,
-		bod.kms,
-		bod.sss,
-		expectDeets,
-		false)
-
-	// Check that the extensions are in the backup
-	for _, ent := range deets.Entries {
-		if ent.Folder == nil {
-			verifyExtensionData(t, ent.ItemInfo, path.SharePointService)
-		}
-	}
-}
-
 type SharePointBackupNightlyIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its IntgTesterSetup
 }
 
 func TestSharePointBackupNightlyIntgSuite(t *testing.T) {
@@ -197,26 +210,26 @@ func TestSharePointBackupNightlyIntgSuite(t *testing.T) {
 }
 
 func (suite *SharePointBackupNightlyIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
 func (suite *SharePointBackupNightlyIntgSuite) TestBackup_Run_sharePointVersion9MergeBase() {
-	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
+	sel := selectors.NewSharePointBackup([]string{suite.its.Site.ID})
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	runMergeBaseGroupsUpdate(suite, sel.Selector, true)
+	RunMergeBaseGroupsUpdate(suite, sel.Selector, true)
 }
 
 func (suite *SharePointBackupNightlyIntgSuite) TestBackup_Run_sharePointVersion9AssistBases() {
-	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
+	sel := selectors.NewSharePointBackup([]string{suite.its.Site.ID})
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, true)
+	RunDriveAssistBaseGroupsUpdate(suite, sel.Selector, true)
 }
 
 type SharePointRestoreNightlyIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its IntgTesterSetup
 }
 
 func TestSharePointRestoreIntgSuite(t *testing.T) {
@@ -228,38 +241,38 @@ func TestSharePointRestoreIntgSuite(t *testing.T) {
 }
 
 func (suite *SharePointRestoreNightlyIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
 func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointWithAdvancedOptions() {
-	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
+	sel := selectors.NewSharePointBackup([]string{suite.its.Site.ID})
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 	sel.Filter(sel.Library("documents"))
-	sel.DiscreteOwner = suite.its.site.ID
+	sel.DiscreteOwner = suite.its.Site.ID
 
-	runDriveRestoreWithAdvancedOptions(
+	RunDriveRestoreWithAdvancedOptions(
 		suite.T(),
 		suite,
-		suite.its.ac,
+		suite.its.AC,
 		sel.Selector,
-		suite.its.site.DriveID,
-		suite.its.site.DriveRootFolderID)
+		suite.its.Site.DriveID,
+		suite.its.Site.DriveRootFolderID)
 }
 
 func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointAlternateProtectedResource() {
-	sel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
+	sel := selectors.NewSharePointBackup([]string{suite.its.Site.ID})
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 	sel.Filter(sel.Library("documents"))
-	sel.DiscreteOwner = suite.its.site.ID
+	sel.DiscreteOwner = suite.its.Site.ID
 
-	runDriveRestoreToAlternateProtectedResource(
+	RunDriveRestoreToAlternateProtectedResource(
 		suite.T(),
 		suite,
-		suite.its.ac,
+		suite.its.AC,
 		sel.Selector,
-		suite.its.site,
-		suite.its.secondarySite,
-		suite.its.secondarySite.ID)
+		suite.its.Site,
+		suite.its.SecondarySite,
+		suite.its.SecondarySite.ID)
 }
 
 func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDeletedDrives() {
@@ -276,13 +289,13 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 	rc.OnCollision = control.Copy
 
 	// create a new drive
-	md, err := suite.its.ac.Lists().PostDrive(ctx, suite.its.site.ID, rc.Location)
+	md, err := suite.its.AC.Lists().PostDrive(ctx, suite.its.Site.ID, rc.Location)
 	require.NoError(t, err, clues.ToCore(err))
 
 	driveID := ptr.Val(md.GetId())
 
 	// get the root folder
-	mdi, err := suite.its.ac.Drives().GetRootFolder(ctx, driveID)
+	mdi, err := suite.its.AC.Drives().GetRootFolder(ctx, driveID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	rootFolderID := ptr.Val(mdi.GetId())
@@ -296,7 +309,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 	file := models.NewFile()
 	item.SetFile(file)
 
-	_, err = suite.its.ac.Drives().PostItemInContainer(
+	_, err = suite.its.AC.Drives().PostItemInContainer(
 		ctx,
 		driveID,
 		rootFolderID,
@@ -309,18 +322,18 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 		mb          = evmock.NewBus()
 		counter     = count.New()
 		opts        = control.DefaultOptions()
-		graphClient = suite.its.ac.Stable.Client()
+		graphClient = suite.its.AC.Stable.Client()
 	)
 
-	bsel := selectors.NewSharePointBackup([]string{suite.its.site.ID})
+	bsel := selectors.NewSharePointBackup([]string{suite.its.Site.ID})
 	bsel.Include(selTD.SharePointBackupFolderScope(bsel))
 	bsel.Filter(bsel.Library(rc.Location))
-	bsel.DiscreteOwner = suite.its.site.ID
+	bsel.DiscreteOwner = suite.its.Site.ID
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, bsel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, bsel.Selector, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
 
-	runAndCheckBackup(t, ctx, &bo, mb, false)
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
 
 	// test cases:
 
@@ -348,18 +361,18 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			ctr = count.New()
 		)
 
-		ro, _ := prepNewTestRestoreOp(
+		ro, _ := PrepNewTestRestoreOp(
 			t,
 			ctx,
-			bod.st,
+			bod.St,
 			bo.Results.BackupID,
 			mb,
 			ctr,
-			bod.sel,
+			bod.Sel,
 			opts,
 			rc)
 
-		runAndCheckRestore(t, ctx, &ro, mb, false)
+		RunAndCheckRestore(t, ctx, &ro, mb, false)
 		assert.Equal(t, 1, ctr.Get(count.NewItemCreated), "restored an item")
 
 		resp, err := graphClient.
@@ -399,23 +412,23 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			ctr = count.New()
 		)
 
-		ro, _ := prepNewTestRestoreOp(
+		ro, _ := PrepNewTestRestoreOp(
 			t,
 			ctx,
-			bod.st,
+			bod.St,
 			bo.Results.BackupID,
 			mb,
 			ctr,
-			bod.sel,
+			bod.Sel,
 			opts,
 			rc)
 
-		runAndCheckRestore(t, ctx, &ro, mb, false)
+		RunAndCheckRestore(t, ctx, &ro, mb, false)
 		assert.Equal(t, 1, ctr.Get(count.NewItemCreated), "restored an item")
 
-		pgr := suite.its.ac.
+		pgr := suite.its.AC.
 			Drives().
-			NewSiteDrivePager(suite.its.site.ID, []string{"id", "name"})
+			NewSiteDrivePager(suite.its.Site.ID, []string{"id", "name"})
 
 		drives, err := api.GetAllDrives(ctx, pgr)
 		require.NoError(t, err, clues.ToCore(err))
@@ -434,7 +447,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 		md = created
 		driveID = ptr.Val(md.GetId())
 
-		mdi, err := suite.its.ac.Drives().GetRootFolder(ctx, driveID)
+		mdi, err := suite.its.AC.Drives().GetRootFolder(ctx, driveID)
 		require.NoError(t, err, clues.ToCore(err))
 
 		rootFolderID = ptr.Val(mdi.GetId())
@@ -467,18 +480,18 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			ctr = count.New()
 		)
 
-		ro, _ := prepNewTestRestoreOp(
+		ro, _ := PrepNewTestRestoreOp(
 			t,
 			ctx,
-			bod.st,
+			bod.St,
 			bo.Results.BackupID,
 			mb,
 			ctr,
-			bod.sel,
+			bod.Sel,
 			opts,
 			rc)
 
-		runAndCheckRestore(t, ctx, &ro, mb, false)
+		RunAndCheckRestore(t, ctx, &ro, mb, false)
 
 		assert.Equal(t, 1, ctr.Get(count.NewItemCreated), "restored an item")
 
