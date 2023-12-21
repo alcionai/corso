@@ -475,6 +475,11 @@ func RestorePermissions(
 
 	previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
+		if graph.IsErrSharingDisabled(err) {
+			logger.Ctx(ctx).Info("sharing disabled, not restoring permissions")
+			return nil
+		}
+
 		return clues.Wrap(err, "previous metadata")
 	}
 
@@ -500,6 +505,11 @@ func RestorePermissions(
 		caches.OldPermIDToNewID,
 		errs)
 	if err != nil {
+		if graph.IsErrSharingDisabled(err) {
+			logger.Ctx(ctx).Info("sharing disabled, not restoring permissions")
+			return nil
+		}
+
 		return clues.Wrap(err, "updating permissions")
 	}
 
