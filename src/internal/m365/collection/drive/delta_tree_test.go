@@ -52,7 +52,7 @@ func (suite *DeltaTreeUnitSuite) TestNewNodeyMcNodeFace() {
 		fld    = custom.ToCustomDriveItem(d.folderAt(root))
 	)
 
-	nodeFace := newNodeyMcNodeFace(parent, fld)
+	nodeFace := newNodeyMcNodeFace(parent, fld, false)
 	assert.Equal(t, parent, nodeFace.parent)
 	assert.Equal(t, folderID(), ptr.Val(nodeFace.folder.GetId()))
 	assert.Equal(t, folderName(), ptr.Val(nodeFace.folder.GetName()))
@@ -177,7 +177,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder() {
 			tree := test.tree(t, drive())
 			folder := test.folder()
 
-			err := tree.setFolder(ctx, folder)
+			err := tree.setFolder(ctx, folder, false)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if err != nil {
@@ -497,7 +497,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTree()
 	tree := treeWithRoot(t, d)
 
 	set := func(folder *custom.DriveItem) {
-		err := tree.setFolder(ctx, folder)
+		err := tree.setFolder(ctx, folder, false)
 		require.NoError(t, err, clues.ToCore(err))
 	}
 
@@ -600,7 +600,7 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_SetFolder_correctTombst
 	tree := treeWithRoot(t, d)
 
 	set := func(folder *custom.DriveItem) {
-		err := tree.setFolder(ctx, folder)
+		err := tree.setFolder(ctx, folder, false)
 		require.NoError(t, err, clues.ToCore(err))
 	}
 
@@ -1135,10 +1135,10 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 				defer flush()
 
 				tree := treeWithRoot(t, d)
-				err := tree.setFolder(ctx, custom.ToCustomDriveItem(d.packageAtRoot()))
+				err := tree.setFolder(ctx, custom.ToCustomDriveItem(d.packageAtRoot()), false)
 				require.NoError(t, err, clues.ToCore(err))
 
-				err = tree.setFolder(ctx, custom.ToCustomDriveItem(d.folderAt(pkg)))
+				err = tree.setFolder(ctx, custom.ToCustomDriveItem(d.folderAt(pkg)), false)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return tree
@@ -1208,6 +1208,58 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 			},
 		},
 		{
+			name:      "folder hierarchy with unselected root and child and no previous paths",
+			tree:      treeWithUnselectedRootAndFolder,
+			expectErr: require.NoError,
+			prevPaths: map[string]string{},
+			expect: map[string]collectable{
+				rootID: {
+					currPath:                  d.fullPath(t),
+					files:                     map[string]*custom.DriveItem{},
+					folderID:                  rootID,
+					isPackageOrChildOfPackage: false,
+				},
+				folderID(): {
+					currPath: d.fullPath(t, folderName()),
+					files: map[string]*custom.DriveItem{
+						folderID(): custom.ToCustomDriveItem(d.folderAt(root)),
+						fileID():   custom.ToCustomDriveItem(d.fileAt(folder)),
+					},
+					folderID:                  folderID(),
+					isPackageOrChildOfPackage: false,
+				},
+			},
+		},
+		{
+			name:      "folder hierarchy with unselected root and child with previous paths",
+			tree:      treeWithUnselectedRootAndFolder,
+			expectErr: require.NoError,
+			prevPaths: map[string]string{
+				rootID:           d.strPath(t),
+				folderID():       d.strPath(t, folderName()),
+				folderID("nope"): d.strPath(t, folderName("nope")),
+			},
+			expect: map[string]collectable{
+				rootID: {
+					currPath:                  d.fullPath(t),
+					prevPath:                  d.fullPath(t),
+					files:                     map[string]*custom.DriveItem{},
+					folderID:                  rootID,
+					isPackageOrChildOfPackage: false,
+				},
+				folderID(): {
+					currPath: d.fullPath(t, folderName()),
+					prevPath: d.fullPath(t, folderName()),
+					files: map[string]*custom.DriveItem{
+						folderID(): custom.ToCustomDriveItem(d.folderAt(root)),
+						fileID():   custom.ToCustomDriveItem(d.fileAt(folder)),
+					},
+					folderID:                  folderID(),
+					isPackageOrChildOfPackage: false,
+				},
+			},
+		},
+		{
 			name: "root and tombstones",
 			tree: treeWithFileInTombstone,
 			prevPaths: map[string]string{
@@ -1249,7 +1301,13 @@ func (suite *DeltaTreeUnitSuite) TestFolderyMcFolderFace_GenerateCollectables() 
 
 			results, err := tree.generateCollectables()
 			test.expectErr(t, err, clues.ToCore(err))
-			assert.Len(t, results, len(test.expect))
+			assert.Len(
+				t,
+				results,
+				len(test.expect),
+				"count of collections\n\tWanted: %+v\n\tGot: %+v",
+				maps.Keys(test.expect),
+				maps.Keys(results))
 
 			for id, expect := range test.expect {
 				require.Contains(t, results, id)
