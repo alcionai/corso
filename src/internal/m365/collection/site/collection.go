@@ -212,9 +212,6 @@ func (sc *prefetchCollection) retrievePages(
 	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
 	defer close(progress)
 
-	wtr := kjson.NewJsonSerializationWriter()
-	defer wtr.Close()
-
 	betaService := sc.betaService
 	if betaService == nil {
 		logger.Ctx(ctx).Error(clues.New("beta service required"))
@@ -248,7 +245,7 @@ func (sc *prefetchCollection) retrievePages(
 			break
 		}
 
-		byteArray, err := serializeContent(ctx, wtr, pg)
+		byteArray, err := serializeContent(ctx, pg)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "serializing page").Label(fault.LabelForceNoBackupCreation))
 			continue
@@ -287,9 +284,6 @@ func (sc *prefetchCollection) handleListItems(
 ) {
 	defer func() { <-semaphoreCh }()
 
-	writer := kjson.NewJsonSerializationWriter()
-	defer writer.Close()
-
 	var (
 		list models.Listable
 		info *details.SharePointInfo
@@ -306,16 +300,8 @@ func (sc *prefetchCollection) handleListItems(
 
 	metrics.Objects++
 
-	if err := writer.WriteObjectValue("", list); err != nil {
-		err = clues.WrapWC(ctx, err, "writing list to serializer").Label(fault.LabelForceNoBackupCreation)
-		el.AddRecoverable(ctx, err)
-
-		return
-	}
-
-	entryBytes, err := writer.GetSerializedContent()
+	entryBytes, err := serializeContent(ctx, list)
 	if err != nil {
-		err = clues.WrapWC(ctx, err, "serializing list").Label(fault.LabelForceNoBackupCreation)
 		el.AddRecoverable(ctx, err)
 
 		return
@@ -431,43 +417,53 @@ func (lc *lazyFetchCollection) handleListItems(
 }
 
 type lazyItemGetter struct {
-	getter       getItemByIDer
-	userID       string
-	itemID       string
-	parentPath   string
-	modTime      time.Time
-	immutableIDs bool
+	getter  getItemByIDer
+	itemID  string
+	modTime time.Time
 }
 
 func (lig *lazyItemGetter) GetData(
 	ctx context.Context,
 	el *fault.Bus,
 ) (io.ReadCloser, *details.ItemInfo, bool, error) {
-	_ = lig.getter
-	_ = lig.userID
-	_ = lig.itemID
-	_ = lig.parentPath
-	_ = lig.modTime
-	_ = lig.immutableIDs
+	list, info, err := lig.getter.GetItemByID(ctx, lig.itemID)
+	if err != nil {
+		err = clues.WrapWC(ctx, err, "getting list data").Label(fault.LabelForceNoBackupCreation)
+		el.AddRecoverable(ctx, err)
 
-	return nil, nil, false, nil
+		return nil, nil, false, err
+	}
+
+	entryBytes, err := serializeContent(ctx, list)
+	if err != nil {
+		el.AddRecoverable(ctx, err)
+
+		return nil, nil, false, err
+	}
+
+	info.Modified = lig.modTime
+
+	return io.NopCloser(bytes.NewReader(entryBytes)),
+		&details.ItemInfo{SharePoint: info},
+		false,
+		nil
 }
 
 func serializeContent(
 	ctx context.Context,
-	writer *kjson.JsonSerializationWriter,
 	obj serialization.Parsable,
 ) ([]byte, error) {
+	writer := kjson.NewJsonSerializationWriter()
 	defer writer.Close()
 
 	err := writer.WriteObjectValue("", obj)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "writing object")
+		return nil, graph.Wrap(ctx, err, "writing to serializer").Label(fault.LabelForceNoBackupCreation)
 	}
 
 	byteArray, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting content from writer")
+		return nil, graph.Wrap(ctx, err, "getting content from writer").Label(fault.LabelForceNoBackupCreation)
 	}
 
 	return byteArray, nil
