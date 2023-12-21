@@ -77,6 +77,7 @@ func NewCollection(
 	scope selectors.SharePointScope,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
+	validLmt bool,
 ) *prefetchCollection {
 	c := &prefetchCollection{
 		fullPath:      folderPath,

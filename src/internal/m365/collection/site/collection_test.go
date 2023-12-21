@@ -78,6 +78,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 		getter         getItemByIDer
 		getDir         func(t *testing.T) path.Path
 		getItem        func(t *testing.T, itemName string) data.Item
+		validLmt       bool
 	}{
 		{
 			name:     "List",
@@ -166,7 +167,9 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				suite.ac,
 				test.scope,
 				nil,
-				control.DefaultOptions())
+				control.DefaultOptions(),
+				test.validLmt,
+			)
 			col.stream <- test.getItem(t, test.itemName)
 
 			readItems := []data.Item{}

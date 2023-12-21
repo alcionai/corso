@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -130,7 +131,9 @@ func CollectPages(
 			ac,
 			scope,
 			su,
-			bpc.Options)
+			bpc.Options,
+			false,
+		)
 		collection.SetBetaService(betaService)
 		collection.AddItem(tuple.ID, time.Now())
 
@@ -172,6 +175,11 @@ func CollectLists(
 			continue
 		}
 
+		lmt := list.GetLastModifiedDateTime()
+
+		_, err = dttm.ParseTime(lmt.String())
+		validLmt := err == nil
+
 		dir, err := path.Build(
 			tenantID,
 			bpc.ProtectedResource.ID(),
@@ -189,10 +197,12 @@ func CollectLists(
 			ac,
 			scope,
 			su,
-			bpc.Options)
+			bpc.Options,
+			validLmt,
+		)
 		collection.AddItem(
 			ptr.Val(list.GetId()),
-			ptr.Val(list.GetLastModifiedDateTime()))
+			ptr.Val(lmt))
 
 		spcs = append(spcs, collection)
 	}
