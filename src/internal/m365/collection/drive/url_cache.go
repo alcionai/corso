@@ -2,6 +2,7 @@ package drive
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +19,10 @@ import (
 
 const (
 	urlCacheDriveItemThreshold = 300 * 1000
-	urlCacheRefreshInterval    = 1 * time.Hour
+	// 600 pages = 300k items, since delta enumeration produces 500 items per page
+	// TODO: export standard page size and swap to 300k/defaultDeltaPageSize
+	urlCacheDrivePagesThreshold = 600
+	urlCacheRefreshInterval     = 1 * time.Hour
 )
 
 type getItemPropertyer interface {
@@ -35,7 +39,7 @@ type itemProps struct {
 
 var _ getItemPropertyer = &urlCache{}
 
-// urlCache caches download URLs for drive items
+// urlCache caches download URLs for drive file items
 type urlCache struct {
 	driveID         string
 	prevDelta       string
@@ -207,7 +211,7 @@ func (uc *urlCache) readCache(
 
 	props, ok := uc.idToProps[itemID]
 	if !ok {
-		uc.counter.Inc(count.URLCacheMiss)
+		uc.counter.Inc(count.URLCacheItemNotFound)
 		return itemProps{}, clues.NewWC(ctx, "item not found in cache")
 	}
 
@@ -250,10 +254,13 @@ func (uc *urlCache) updateCache(
 			}
 		}
 
-		itemID := ptr.Val(item.GetId())
+		// Deep copy the item ID and download url so that we don't hold on to
+		// references to these strings in graph in-memory stores, which can
+		// take up more memory than necessary.
+		itemID := strings.Clone(ptr.Val(item.GetId()))
 
 		uc.idToProps[itemID] = itemProps{
-			downloadURL: url,
+			downloadURL: strings.Clone(url),
 			isDeleted:   false,
 		}
 

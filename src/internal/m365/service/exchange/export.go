@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -22,16 +23,13 @@ import (
 var _ inject.ServiceHandler = &exchangeHandler{}
 
 func NewExchangeHandler(
-	opts control.Options,
 	apiClient api.Client,
 	resourceClient idname.GetResourceIDAndNamer,
 ) *exchangeHandler {
 	return &exchangeHandler{
-		baseExchangeHandler: baseExchangeHandler{
-			opts: opts,
-		},
-		apiClient:      apiClient,
-		resourceClient: resourceClient,
+		baseExchangeHandler: baseExchangeHandler{},
+		apiClient:           apiClient,
+		resourceClient:      resourceClient,
 	}
 }
 
@@ -41,9 +39,7 @@ func NewExchangeHandler(
 
 // baseExchangeHandler contains logic for tracking data and doing operations
 // (e.x. export) that don't require contact with external M356 services.
-type baseExchangeHandler struct {
-	opts control.Options
-}
+type baseExchangeHandler struct{}
 
 func (h *baseExchangeHandler) CacheItemInfo(v details.ItemInfo) {}
 
@@ -54,7 +50,7 @@ func (h *baseExchangeHandler) ProduceExportCollections(
 	backupVersion int,
 	exportCfg control.ExportConfig,
 	dcs []data.RestoreCollection,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	var (

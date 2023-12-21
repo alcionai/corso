@@ -336,6 +336,45 @@ func (suite *BasicKopiaIntegrationSuite) TestSetRetentionParameters_NoChangesOnF
 		assert.False)
 }
 
+func (suite *BasicKopiaIntegrationSuite) TestUpdatePersistentConfig() {
+	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	k, err := openLocalKopiaRepo(t, ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	config := repository.PersistentConfig{
+		MinEpochDuration: ptr.To(8 * time.Hour),
+	}
+	w := &Wrapper{k}
+
+	err = w.UpdatePersistentConfig(ctx, config)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Close and reopen the repo to make sure it's the same.
+	err = w.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Connect(ctx, repository.Options{}, repoNameHash)
+	require.NoError(t, err, clues.ToCore(err))
+
+	defer k.Close(ctx)
+
+	mutableParams, _, err := k.getPersistentConfig(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(
+		t,
+		ptr.Val(config.MinEpochDuration),
+		mutableParams.EpochParameters.MinEpochDuration)
+}
+
 // ---------------
 // integration tests that require object locking to be enabled on the bucket.
 // ---------------
@@ -913,9 +952,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 			assert.Equal(t, 4+len(test.collections), stats.TotalDirectoryCount, "directory count")
 			assert.Equal(t, int64(4+len(test.collections)), counter.Get(count.PersistedDirectories), "directory count")
 			assert.Zero(t, stats.IgnoredErrorCount, "ignored errors")
-			assert.Zero(t, counter.Get(count.PersistenceIgnoredErrors), "ignored errors")
+			assert.Zero(t, counter.Get(count.PersistenceIgnoredErrs), "ignored errors")
 			assert.Zero(t, stats.ErrorCount, "errors")
-			assert.Zero(t, counter.Get(count.PersistenceErrors), "errors")
+			assert.Zero(t, counter.Get(count.PersistenceErrs), "errors")
 			assert.False(t, stats.Incomplete)
 			test.hashedBytesCheck(t, stats.TotalHashedBytes, "hashed bytes")
 			test.hashedBytesCheck(t, counter.Get(count.PersistedHashedBytes), "hashed bytes")
@@ -1233,9 +1272,9 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_NoDetailsForMeta() {
 			assert.Equal(t, 5, stats.TotalDirectoryCount, "uploaded directories")
 			assert.Equal(t, int64(5), counter.Get(count.PersistedDirectories), "uploaded directories")
 			assert.Zero(t, stats.IgnoredErrorCount, "ignored errors")
-			assert.Zero(t, counter.Get(count.PersistenceIgnoredErrors), "ignored errors")
+			assert.Zero(t, counter.Get(count.PersistenceIgnoredErrs), "ignored errors")
 			assert.Zero(t, stats.ErrorCount, "errors")
-			assert.Zero(t, counter.Get(count.PersistenceErrors), "errors")
+			assert.Zero(t, counter.Get(count.PersistenceErrs), "errors")
 			assert.False(t, stats.Incomplete)
 
 			// 47 file and 1 folder entries.
@@ -1415,13 +1454,13 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections_ReaderError() {
 		errs)
 	require.Error(t, err, clues.ToCore(err))
 	assert.Zero(t, stats.ErrorCount, "error count")
-	assert.Zero(t, counter.Get(count.PersistenceErrors), "error count")
+	assert.Zero(t, counter.Get(count.PersistenceErrs), "error count")
 	assert.Equal(t, 5, stats.TotalFileCount, "total files")
 	assert.Equal(t, int64(5), counter.Get(count.PersistedFiles), "total files")
 	assert.Equal(t, 6, stats.TotalDirectoryCount, "total directories")
 	assert.Equal(t, int64(6), counter.Get(count.PersistedDirectories), "total directories")
 	assert.Zero(t, stats.IgnoredErrorCount, "ignored errors")
-	assert.Zero(t, counter.Get(count.PersistenceIgnoredErrors), "ignored errors")
+	assert.Zero(t, counter.Get(count.PersistenceIgnoredErrs), "ignored errors")
 	assert.Equal(t, 1, len(errs.Errors().Recovered), "recovered errors")
 	assert.False(t, stats.Incomplete, "incomplete")
 	// 5 file and 2 folder entries.
@@ -1665,9 +1704,9 @@ func (suite *KopiaSimpleRepoIntegrationSuite) SetupTest() {
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	require.Zero(t, stats.ErrorCount)
-	require.Zero(t, counter.Get(count.PersistenceErrors))
+	require.Zero(t, counter.Get(count.PersistenceErrs))
 	require.Zero(t, stats.IgnoredErrorCount)
-	require.Zero(t, counter.Get(count.PersistenceIgnoredErrors))
+	require.Zero(t, counter.Get(count.PersistenceIgnoredErrs))
 	require.Equal(t, expectedFiles, stats.TotalFileCount)
 	require.Equal(t, int64(expectedFiles), counter.Get(count.PersistedFiles))
 	require.Equal(t, expectedDirs, stats.TotalDirectoryCount)

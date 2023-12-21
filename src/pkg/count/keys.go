@@ -2,6 +2,16 @@ package count
 
 type Key string
 
+// ---------------------------------------------------------------------------
+// General Rules:
+// 1. Avoid the word "error", prefer "err".  That minimizes log result
+//    contamination when using common filters like "logs with 'error'".
+// 2. When some key (ex: Foo) can be counted with both an in-process
+//    count, and also an end-of-process count, and the two may not be
+//    equal, use Foo for the end of process count, and TotalFooProcessed
+//    for the in-process count.
+// ---------------------------------------------------------------------------
+
 const (
 	// count of bucket-tokens consumed by api calls.
 	APICallTokensConsumed Key = "api-call-tokens-consumed"
@@ -19,9 +29,9 @@ const (
 	PersistedNonMetaFiles         Key = "persisted-non-meta-files"
 	PersistedNonMetaUploadedBytes Key = "persisted-non-meta-uploaded-bytes"
 	PersistedUploadedBytes        Key = "persisted-uploaded-bytes"
-	PersistenceErrors             Key = "persistence-errors"
-	PersistenceExpectedErrors     Key = "persistence-expected-errors"
-	PersistenceIgnoredErrors      Key = "persistence-ignored-errors"
+	PersistenceErrs               Key = "persistence-errs"
+	PersistenceExpectedErrs       Key = "persistence-expected-errs"
+	PersistenceIgnoredErrs        Key = "persistence-ignored-errs"
 )
 
 // backup amounts reported by data providers
@@ -38,7 +48,6 @@ const (
 	DriveTombstones               Key = "drive-tombstones"
 	Files                         Key = "files"
 	Folders                       Key = "folders"
-	ItemDownloadURLRefetch        Key = "item-download-url-refetch"
 	ItemsAdded                    Key = "items-added"
 	ItemsRemoved                  Key = "items-removed"
 	LazyDeletedInFlight           Key = "lazy-deleted-in-flight"
@@ -51,7 +60,6 @@ const (
 	NoDeltaQueries                Key = "cannot-make-delta-queries"
 	Packages                      Key = "packages"
 	PagerResets                   Key = "pager-resets"
-	PagesEnumerated               Key = "pages-enumerated"
 	PrevDeltas                    Key = "previous-deltas"
 	PrevPaths                     Key = "previous-paths"
 	PreviousPathMetadataCollision Key = "previous-path-metadata-collision"
@@ -62,12 +70,13 @@ const (
 	StreamDirsFound               Key = "stream-dirs-found"
 	StreamItemsAdded              Key = "stream-items-added"
 	StreamItemsDeletedInFlight    Key = "stream-items-deleted-in-flight"
-	StreamItemsErrored            Key = "stream-items-errored"
+	StreamItemsErred              Key = "stream-items-erred"
 	StreamItemsFound              Key = "stream-items-found"
 	StreamItemsRemoved            Key = "stream-items-removed"
 	TotalContainersSkipped        Key = "total-containers-skipped"
 	URLCacheMiss                  Key = "url-cache-miss"
 	URLCacheRefresh               Key = "url-cache-refresh"
+	URLCacheItemNotFound          Key = "url-cache-item-not-found"
 )
 
 // Total___Processed counts are used to track raw processing numbers
@@ -78,10 +87,15 @@ const (
 // and use a separate Key (Folders) for the end count of folders produced
 // at the end of the delta enumeration.
 const (
+	TotalDeleteFilesProcessed   Key = "total-delete-files-processed"
 	TotalDeleteFoldersProcessed Key = "total-delete-folders-processed"
+	TotalDeltasProcessed        Key = "total-deltas-processed"
+	TotalFilesProcessed         Key = "total-files-processed"
 	TotalFoldersProcessed       Key = "total-folders-processed"
+	TotalItemsProcessed         Key = "total-items-processed"
 	TotalMalwareProcessed       Key = "total-malware-processed"
 	TotalPackagesProcessed      Key = "total-packages-processed"
+	TotalPagesEnumerated        Key = "total-pages-enumerated"
 )
 
 // miscellaneous

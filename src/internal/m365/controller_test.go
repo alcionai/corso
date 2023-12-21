@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
@@ -29,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -520,9 +520,7 @@ func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
 				Selector:          test.sel,
 			}
 
-			handler, err := suite.ctrl.NewServiceHandler(
-				control.DefaultOptions(),
-				test.sel.PathService())
+			handler, err := suite.ctrl.NewServiceHandler(test.sel.PathService())
 			require.NoError(t, err, clues.ToCore(err))
 
 			deets, _, err := handler.ConsumeRestoreCollections(
@@ -567,9 +565,7 @@ func runRestore(
 		Selector:          restoreSel,
 	}
 
-	handler, err := restoreCtrl.NewServiceHandler(
-		control.DefaultOptions(),
-		sci.Service)
+	handler, err := restoreCtrl.NewServiceHandler(sci.Service)
 	require.NoError(t, err, clues.ToCore(err))
 
 	deets, status, err := handler.ConsumeRestoreCollections(
@@ -676,21 +672,10 @@ func runBackupAndCompare(
 func runRestoreBackupTest(
 	t *testing.T,
 	test restoreBackupInfo,
-	tenant string,
-	resourceOwners []string,
-	opts control.Options,
-	restoreCfg control.RestoreConfig,
+	cfg stub.ConfigInfo,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
-
-	cfg := stub.ConfigInfo{
-		Opts:           opts,
-		Service:        test.service,
-		Tenant:         tenant,
-		ResourceOwners: resourceOwners,
-		RestoreCfg:     restoreCfg,
-	}
 
 	totalItems, totalKopiaItems, collections, expectedData, err := stub.GetCollectionsAndExpected(
 		cfg,
@@ -721,21 +706,10 @@ func runRestoreBackupTest(
 func runRestoreTestWithVersion(
 	t *testing.T,
 	test restoreBackupInfoMultiVersion,
-	tenant string,
-	resourceOwners []string,
-	opts control.Options,
-	restoreCfg control.RestoreConfig,
+	cfg stub.ConfigInfo,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
-
-	cfg := stub.ConfigInfo{
-		Opts:           opts,
-		Service:        test.service,
-		Tenant:         tenant,
-		ResourceOwners: resourceOwners,
-		RestoreCfg:     restoreCfg,
-	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
 		cfg,
@@ -758,21 +732,10 @@ func runRestoreTestWithVersion(
 func runRestoreBackupTestVersions(
 	t *testing.T,
 	test restoreBackupInfoMultiVersion,
-	tenant string,
-	resourceOwners []string,
-	opts control.Options,
-	restoreCfg control.RestoreConfig,
+	cfg stub.ConfigInfo,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
-
-	cfg := stub.ConfigInfo{
-		Opts:           opts,
-		Service:        test.service,
-		Tenant:         tenant,
-		ResourceOwners: resourceOwners,
-		RestoreCfg:     restoreCfg,
-	}
 
 	totalItems, _, collections, _, err := stub.GetCollectionsAndExpected(
 		cfg,
@@ -1076,13 +1039,15 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			runRestoreBackupTest(
-				suite.T(),
-				test,
-				suite.ctrl.tenant,
-				[]string{suite.user},
-				control.DefaultOptions(),
-				control.DefaultRestoreConfig(dttm.SafeForTesting))
+			cfg := stub.ConfigInfo{
+				Tenant:         suite.ctrl.tenant,
+				ResourceOwners: []string{suite.user},
+				Service:        test.service,
+				Opts:           control.DefaultOptions(),
+				RestoreCfg:     control.DefaultRestoreConfig(dttm.SafeForTesting),
+			}
+
+			runRestoreBackupTest(suite.T(), test, cfg)
 		})
 	}
 }
@@ -1204,9 +1169,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 					Selector:          restoreSel,
 				}
 
-				handler, err := restoreCtrl.NewServiceHandler(
-					control.DefaultOptions(),
-					test.service)
+				handler, err := restoreCtrl.NewServiceHandler(test.service)
 				require.NoError(t, err, clues.ToCore(err))
 
 				deets, status, err := handler.ConsumeRestoreCollections(
@@ -1301,13 +1264,15 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 	restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
 	restoreCfg.IncludePermissions = true
 
-	runRestoreBackupTest(
-		suite.T(),
-		test,
-		suite.ctrl.tenant,
-		[]string{suite.user},
-		control.DefaultOptions(),
-		restoreCfg)
+	cfg := stub.ConfigInfo{
+		Tenant:         suite.ctrl.tenant,
+		ResourceOwners: []string{suite.user},
+		Service:        test.service,
+		Opts:           control.DefaultOptions(),
+		RestoreCfg:     restoreCfg,
+	}
+
+	runRestoreBackupTest(suite.T(), test, cfg)
 }
 
 func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {

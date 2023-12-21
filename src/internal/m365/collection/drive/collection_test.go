@@ -23,7 +23,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	metaTD "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata/testdata"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive/mock"
 	odTD "github.com/alcionai/corso/src/internal/m365/service/onedrive/testdata"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -34,6 +33,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -107,7 +107,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "oneDrive, no duplicates",
 			numInstances: 1,
 			service:      path.OneDriveService,
-			itemDeets:    nst{stubItemName, 42, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: stubItemName, Modified: now}},
 			getBody:      io.NopCloser(bytes.NewReader(stubItemContent)),
 			getErr:       nil,
@@ -117,7 +117,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "oneDrive, duplicates",
 			numInstances: 3,
 			service:      path.OneDriveService,
-			itemDeets:    nst{stubItemName, 42, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			getBody:      io.NopCloser(bytes.NewReader(stubItemContent)),
 			getErr:       nil,
 			itemInfo:     details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: stubItemName, Modified: now}},
@@ -127,7 +127,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "oneDrive, malware",
 			numInstances: 3,
 			service:      path.OneDriveService,
-			itemDeets:    nst{stubItemName, 42, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{},
 			getBody:      nil,
 			getErr:       clues.New("test malware").Label(graph.LabelsMalware),
@@ -138,7 +138,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "oneDrive, not found",
 			numInstances: 3,
 			service:      path.OneDriveService,
-			itemDeets:    nst{stubItemName, 42, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{},
 			getBody:      nil,
 			getErr:       clues.New("test not found").Label(graph.LabelStatus(http.StatusNotFound)),
@@ -149,7 +149,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "sharePoint, no duplicates",
 			numInstances: 1,
 			service:      path.SharePointService,
-			itemDeets:    nst{stubItemName, 42, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: stubItemName, Modified: now}},
 			getBody:      io.NopCloser(bytes.NewReader(stubItemContent)),
 			getErr:       nil,
@@ -159,7 +159,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			name:         "sharePoint, duplicates",
 			numInstances: 3,
 			service:      path.SharePointService,
-			itemDeets:    nst{stubItemName, 42, now},
+			itemDeets:    nst{stubItemName, defaultFileSize, now},
 			itemInfo:     details.ItemInfo{SharePoint: &details.SharePointInfo{ItemName: stubItemName, Modified: now}},
 			getBody:      io.NopCloser(bytes.NewReader(stubItemContent)),
 			getErr:       nil,
@@ -184,9 +184,9 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			folderPath, err := pb.ToDataLayerOneDrivePath("tenant", "owner", false)
 			require.NoError(t, err, clues.ToCore(err))
 
-			mbh := mock.DefaultOneDriveBH("a-user")
+			mbh := defaultOneDriveBH("a-user")
 			if test.service == path.SharePointService {
-				mbh = mock.DefaultSharePointBH("a-site")
+				mbh = defaultSharePointBH("a-site")
 				mbh.ItemInfo.SharePoint.Modified = now
 				mbh.ItemInfo.SharePoint.ItemName = stubItemName
 			} else {
@@ -201,17 +201,18 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				},
 			}
 			mbh.GetErrs = []error{test.getErr}
-			mbh.GI = mock.GetsItem{Err: assert.AnError}
+			mbh.GI = getsItem{Err: assert.AnError}
 
 			pcr := metaTD.NewStubPermissionResponse(metadata.GV2User, stubMetaID, stubMetaEntityID, stubMetaRoles)
-			mbh.GIP = mock.GetsItemPermission{Perm: pcr}
+			mbh.GIP = getsItemPermission{Perm: pcr}
 
 			coll, err := NewCollection(
 				mbh,
 				mbh.ProtectedResource,
 				folderPath,
 				nil,
-				"drive-id",
+				id(drivePfx),
+				name(drivePfx),
 				suite.testStatusUpdater(&wg, &collStatus),
 				control.Options{ToggleFeatures: control.Toggles{}},
 				false,
@@ -232,7 +233,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				true)
 
 			for i := 0; i < test.numInstances; i++ {
-				coll.Add(stubItem)
+				coll.Add(custom.ToCustomDriveItem(stubItem))
 			}
 
 			// Read items from the collection
@@ -299,13 +300,12 @@ func (suite *CollectionUnitSuite) TestCollection() {
 
 func (suite *CollectionUnitSuite) TestCollectionReadError() {
 	var (
-		t                = suite.T()
-		stubItemID       = "fakeItemID"
-		collStatus       = support.ControllerOperationStatus{}
-		wg               = sync.WaitGroup{}
-		name             = "name"
-		size       int64 = 42
-		now              = time.Now()
+		t          = suite.T()
+		stubItemID = "fakeItemID"
+		collStatus = support.ControllerOperationStatus{}
+		wg         = sync.WaitGroup{}
+		size       = defaultFileSize
+		now        = time.Now()
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -317,9 +317,9 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
 	require.NoError(t, err, clues.ToCore(err))
 
-	mbh := mock.DefaultOneDriveBH("a-user")
-	mbh.GI = mock.GetsItem{Err: assert.AnError}
-	mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
+	mbh := defaultOneDriveBH("a-user")
+	mbh.GI = getsItem{Err: assert.AnError}
+	mbh.GIP = getsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 	mbh.GetResps = []*http.Response{
 		nil,
 		{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("test"))},
@@ -334,7 +334,8 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 		mbh.ProtectedResource,
 		folderPath,
 		nil,
-		"fakeDriveID",
+		id(drivePfx),
+		name(drivePfx),
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
@@ -345,14 +346,14 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 
 	stubItem := odTD.NewStubDriveItem(
 		stubItemID,
-		name,
+		name(drivePfx),
 		size,
 		now,
 		now,
 		true,
 		false)
 
-	coll.Add(stubItem)
+	coll.Add(custom.ToCustomDriveItem(stubItem))
 
 	collItem, ok := <-coll.Items(ctx, fault.New(true))
 	assert.True(t, ok)
@@ -369,13 +370,12 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 
 func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 	var (
-		t                = suite.T()
-		stubItemID       = "fakeItemID"
-		collStatus       = support.ControllerOperationStatus{}
-		wg               = sync.WaitGroup{}
-		name             = "name"
-		size       int64 = 42
-		now              = time.Now()
+		t          = suite.T()
+		stubItemID = "fakeItemID"
+		collStatus = support.ControllerOperationStatus{}
+		wg         = sync.WaitGroup{}
+		size       = defaultFileSize
+		now        = time.Now()
 	)
 
 	ctx, flush := tester.NewContext(t)
@@ -385,7 +385,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 
 	stubItem := odTD.NewStubDriveItem(
 		stubItemID,
-		name,
+		name(drivePfx),
 		size,
 		now,
 		now,
@@ -396,9 +396,9 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
 	require.NoError(t, err)
 
-	mbh := mock.DefaultOneDriveBH("a-user")
-	mbh.GI = mock.GetsItem{Item: stubItem}
-	mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
+	mbh := defaultOneDriveBH("a-user")
+	mbh.GI = getsItem{Item: stubItem}
+	mbh.GIP = getsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 	mbh.GetResps = []*http.Response{
 		nil,
 		{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("test"))},
@@ -413,7 +413,8 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		mbh.ProtectedResource,
 		folderPath,
 		nil,
-		"fakeDriveID",
+		id(drivePfx),
+		name(drivePfx),
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
@@ -422,7 +423,7 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
-	coll.Add(stubItem)
+	coll.Add(custom.ToCustomDriveItem(stubItem))
 
 	collItem, ok := <-coll.Items(ctx, fault.New(true))
 	assert.True(t, ok)
@@ -456,9 +457,9 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
 	require.NoError(t, err, clues.ToCore(err))
 
-	mbh := mock.DefaultOneDriveBH("a-user")
+	mbh := defaultOneDriveBH("a-user")
 	mbh.ItemInfo = details.ItemInfo{OneDrive: &details.OneDriveInfo{ItemName: "fakeName", Modified: time.Now()}}
-	mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
+	mbh.GIP = getsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 	mbh.GetResps = []*http.Response{{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader("Fake Data!")),
@@ -470,7 +471,8 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 		mbh.ProtectedResource,
 		folderPath,
 		nil,
-		"drive-id",
+		id(drivePfx),
+		name(drivePfx),
 		suite.testStatusUpdater(&wg, &collStatus),
 		control.Options{ToggleFeatures: control.Toggles{}},
 		false,
@@ -490,7 +492,7 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 		true,
 		false)
 
-	coll.Add(stubItem)
+	coll.Add(custom.ToCustomDriveItem(stubItem))
 
 	coll.handler = mbh
 
@@ -634,14 +636,14 @@ func (suite *GetDriveItemUnitTestSuite) TestGetDriveItem_error() {
 
 			stubItem.GetFile().SetMimeType(&test.itemMimeType)
 
-			mbh := mock.DefaultOneDriveBH("a-user")
-			mbh.GI = mock.GetsItem{Item: stubItem}
+			mbh := defaultOneDriveBH("a-user")
+			mbh.GI = getsItem{Item: stubItem}
 			mbh.GetResps = []*http.Response{{StatusCode: http.StatusOK}}
 			mbh.GetErrs = []error{test.err}
 
 			col.handler = mbh
 
-			_, err := col.getDriveItemContent(ctx, "driveID", stubItem, errs)
+			_, err := col.getDriveItemContent(ctx, "driveID", custom.ToCustomDriveItem(stubItem), errs)
 			if test.err == nil {
 				assert.NoError(t, err, clues.ToCore(err))
 				return
@@ -691,7 +693,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 
 	table := []struct {
 		name      string
-		mgi       mock.GetsItem
+		mgi       getsItem
 		itemInfo  details.ItemInfo
 		respBody  []io.ReadCloser
 		getErr    []error
@@ -710,7 +712,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "expired url redownloads",
-			mgi:       mock.GetsItem{Item: itemWID, Err: nil},
+			mgi:       getsItem{Item: itemWID, Err: nil},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, iorc},
 			getErr:    []error{errUnauth, nil},
@@ -730,14 +732,14 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			name:      "re-fetching the item fails",
 			itemInfo:  details.ItemInfo{},
 			getErr:    []error{errUnauth},
-			mgi:       mock.GetsItem{Item: nil, Err: assert.AnError},
+			mgi:       getsItem{Item: nil, Err: assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
 			muc:       m,
 		},
 		{
 			name:      "expired url fails redownload",
-			mgi:       mock.GetsItem{Item: itemWID, Err: nil},
+			mgi:       getsItem{Item: itemWID, Err: nil},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, nil},
 			getErr:    []error{errUnauth, assert.AnError},
@@ -747,7 +749,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "url refreshed from cache",
-			mgi:       mock.GetsItem{Item: itemWID, Err: nil},
+			mgi:       getsItem{Item: itemWID, Err: nil},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, iorc},
 			getErr:    []error{errUnauth, nil},
@@ -765,7 +767,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "url refreshed from cache but item deleted",
-			mgi:       mock.GetsItem{Item: itemWID, Err: graph.ErrDeletedInFlight},
+			mgi:       getsItem{Item: itemWID, Err: graph.ErrDeletedInFlight},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, nil, nil},
 			getErr:    []error{errUnauth, graph.ErrDeletedInFlight, graph.ErrDeletedInFlight},
@@ -783,7 +785,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "fallback to item fetch on any cache error",
-			mgi:       mock.GetsItem{Item: itemWID, Err: nil},
+			mgi:       getsItem{Item: itemWID, Err: nil},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, iorc},
 			getErr:    []error{errUnauth, nil},
@@ -813,13 +815,13 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 				}
 			}
 
-			mbh := mock.DefaultOneDriveBH("a-user")
+			mbh := defaultOneDriveBH("a-user")
 			mbh.GI = test.mgi
 			mbh.ItemInfo = test.itemInfo
 			mbh.GetResps = resps
 			mbh.GetErrs = test.getErr
 
-			r, err := downloadContent(ctx, mbh, test.muc, item, driveID, count.New())
+			r, err := downloadContent(ctx, mbh, test.muc, custom.ToCustomDriveItem(item), driveID, count.New())
 			test.expect(t, r)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
@@ -837,7 +839,6 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 		t            = suite.T()
 		stubItemID   = "itemID"
 		stubItemName = "name"
-		driveID      = "driveID"
 		collStatus   = support.ControllerOperationStatus{}
 		wg           = sync.WaitGroup{}
 		now          = time.Now()
@@ -979,9 +980,9 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 
 			wg.Add(1)
 
-			mbh := mock.DefaultOneDriveBH("a-user")
-			mbh.GI = mock.GetsItem{Err: assert.AnError}
-			mbh.GIP = mock.GetsItemPermission{Perm: models.NewPermissionCollectionResponse()}
+			mbh := defaultOneDriveBH("a-user")
+			mbh.GI = getsItem{Err: assert.AnError}
+			mbh.GIP = getsItemPermission{Perm: models.NewPermissionCollectionResponse()}
 			mbh.GetResps = []*http.Response{
 				{
 					StatusCode: http.StatusOK,
@@ -1002,7 +1003,8 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 				mbh.ProtectedResource,
 				folderPath,
 				nil,
-				driveID,
+				id(drivePfx),
+				name(drivePfx),
 				suite.testStatusUpdater(&wg, &collStatus),
 				opts,
 				false,
@@ -1020,7 +1022,7 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 				true,
 				false)
 
-			coll.Add(stubItem)
+			coll.Add(custom.ToCustomDriveItem(stubItem))
 
 			collItem, ok := <-coll.Items(ctx, fault.New(true))
 			assert.True(t, ok)

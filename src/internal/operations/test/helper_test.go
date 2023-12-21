@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
@@ -37,6 +36,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -590,7 +590,7 @@ func generateContainerOfItems(
 		Selector:          sel,
 	}
 
-	handler, err := ctrl.NewServiceHandler(opts, service)
+	handler, err := ctrl.NewServiceHandler(service)
 	require.NoError(t, err, clues.ToCore(err))
 
 	deets, _, err := handler.ConsumeRestoreCollections(

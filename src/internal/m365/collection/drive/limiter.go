@@ -1,9 +1,15 @@
 package drive
 
-import "github.com/alcionai/corso/src/pkg/control"
+import (
+	"github.com/alcionai/clues"
 
-// used to mark an unused variable while we transition handling.
-const ignoreMe = -1
+	"github.com/alcionai/corso/src/pkg/control"
+)
+
+var (
+	errHitLimit           = clues.New("hit limiter limits")
+	errHitCollectionLimit = clues.New("hit item limits within the current collection")
+)
 
 type driveEnumerationStats struct {
 	numPages      int
@@ -71,7 +77,7 @@ func (l pagerLimiter) atContainerItemsLimit(numItems int) bool {
 	return l.enabled() && numItems >= l.limits.MaxItemsPerContainer
 }
 
-// atContainerPageLimit returns true if the limiter is enabled and the number of
+// atPageLimit returns true if the limiter is enabled and the number of
 // pages processed so far is beyond the limit for this backup.
 func (l pagerLimiter) atPageLimit(stats *driveEnumerationStats) bool {
 	return l.enabled() && stats.numPages >= l.limits.MaxPages
@@ -79,17 +85,51 @@ func (l pagerLimiter) atPageLimit(stats *driveEnumerationStats) bool {
 
 // atLimit returns true if the limiter is enabled and meets any of the
 // conditions for max items, containers, etc for this backup.
-func (l pagerLimiter) atLimit(
-	stats *driveEnumerationStats,
-	containerCount int,
-) bool {
-	nc := stats.numContainers
-	if nc == 0 && containerCount > 0 {
-		nc = containerCount
-	}
-
+func (l pagerLimiter) atLimit(stats *driveEnumerationStats) bool {
 	return l.enabled() &&
 		(l.atItemLimit(stats) ||
-			nc >= l.limits.MaxContainers ||
+			stats.numContainers >= l.limits.MaxContainers ||
 			stats.numPages >= l.limits.MaxPages)
+}
+
+// ---------------------------------------------------------------------------
+// Used by the tree version limit handling
+// ---------------------------------------------------------------------------
+
+// hitPageLimit returns true if the limiter is enabled and the number of
+// pages processed so far is beyond the limit for this backup.
+func (l pagerLimiter) hitPageLimit(pageCount int) bool {
+	return l.enabled() && pageCount >= l.limits.MaxPages
+}
+
+// hitContainerLimit returns true if the limiter is enabled and the number of
+// unique containers added so far is beyond the limit for this backup.
+func (l pagerLimiter) hitContainerLimit(containerCount int) bool {
+	return l.enabled() && containerCount >= l.limits.MaxContainers
+}
+
+// hitItemLimit returns true if the limiter is enabled and has reached the limit
+// for unique items added to collections for this backup.
+func (l pagerLimiter) hitItemLimit(itemCount int) bool {
+	return l.enabled() && itemCount >= l.limits.MaxItems
+}
+
+// alreadyHitTotalBytesLimit returns true if the limiter is enabled and has reached the limit
+// for the accumulated byte size of all items (the file contents, not the item metadata)
+// added to collections for this backup.
+func (l pagerLimiter) alreadyHitTotalBytesLimit(i int64) bool {
+	return l.enabled() && i > l.limits.MaxBytes
+}
+
+// willStepOverBytesLimit returns true if the limiter is enabled and the provided addition
+// of bytes is greater than the limit plus some padding (to ensure we can always hit
+// the limit).
+func (l pagerLimiter) willStepOverBytesLimit(current, addition int64) bool {
+	if !l.enabled() {
+		return false
+	}
+
+	limitPlusPadding := int64(float64(l.limits.MaxBytes) * 1.03)
+
+	return (current + addition) > limitPlusPadding
 }

@@ -6,6 +6,7 @@ import (
 
 const (
 	AlertsFN                      = "alerts"
+	ConfigFileFN                  = "config-file"
 	DeltaPageSizeFN               = "delta-page-size"
 	DisableDeltaFN                = "disable-delta"
 	DisableIncrementalsFN         = "disable-incrementals"
@@ -24,6 +25,7 @@ const (
 )
 
 var (
+	ConfigFileFV                  string
 	DeltaPageSizeFV               int
 	DisableDeltaFV                bool
 	DisableIncrementalsFV         bool

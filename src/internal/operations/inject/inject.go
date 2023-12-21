@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -96,7 +97,7 @@ type (
 			backupVersion int,
 			exportCfg control.ExportConfig,
 			dcs []data.RestoreCollection,
-			stats *data.ExportStats,
+			stats *metrics.ExportStats,
 			errs *fault.Bus,
 		) ([]export.Collectioner, error)
 
@@ -132,7 +133,6 @@ type (
 
 	ToServiceHandler interface {
 		NewServiceHandler(
-			opts control.Options,
 			service path.ServiceType,
 		) (ServiceHandler, error)
 	}

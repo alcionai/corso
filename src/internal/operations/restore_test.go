@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
@@ -29,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
@@ -350,9 +350,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
-	rc, err := ctrl.NewServiceHandler(
-		control.DefaultOptions(),
-		rsel.PathService())
+	rc, err := ctrl.NewServiceHandler(rsel.PathService())
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(

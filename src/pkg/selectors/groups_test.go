@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -245,9 +245,8 @@ func (suite *GroupsSelectorSuite) TestGroupsRestore_Reduce() {
 			},
 			expect: arr(
 				libItem, libItem2, libItem3,
-				chanItem, chanItem2, chanItem3),
-			// TODO: re-add when we release conversations
-			// convItem, convItem2, convItem3),
+				chanItem, chanItem2, chanItem3,
+				convItem, convItem2, convItem3),
 		},
 		{
 			name: "only match library item",

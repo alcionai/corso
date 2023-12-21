@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -28,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 const (
@@ -52,7 +52,7 @@ type Collection struct {
 	// represents
 	folderPath path.Path
 	// M365 IDs of file items within this collection
-	driveItems map[string]models.DriveItemable
+	driveItems map[string]*custom.DriveItem
 
 	// Primary M365 ID of the drive this collection was created from
 	driveID   string
@@ -111,7 +111,7 @@ func NewCollection(
 	resource idname.Provider,
 	currPath path.Path,
 	prevPath path.Path,
-	driveID string,
+	driveID, driveName string,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 	isPackageOrChildOfPackage bool,
@@ -139,6 +139,7 @@ func NewCollection(
 		currPath,
 		prevPath,
 		driveID,
+		driveName,
 		statusUpdater,
 		ctrlOpts,
 		isPackageOrChildOfPackage,
@@ -157,7 +158,7 @@ func newColl(
 	resource idname.Provider,
 	currPath path.Path,
 	prevPath path.Path,
-	driveID string,
+	driveID, driveName string,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
 	isPackageOrChildOfPackage bool,
@@ -172,8 +173,9 @@ func newColl(
 		protectedResource:         resource,
 		folderPath:                currPath,
 		prevPath:                  prevPath,
-		driveItems:                map[string]models.DriveItemable{},
+		driveItems:                map[string]*custom.DriveItem{},
 		driveID:                   driveID,
+		driveName:                 driveName,
 		data:                      dataCh,
 		statusUpdater:             statusUpdater,
 		ctrl:                      ctrlOpts,
@@ -190,7 +192,7 @@ func newColl(
 // Adds an itemID to the collection.  This will make it eligible to be
 // populated. The return values denotes if the item was previously
 // present or is new one.
-func (oc *Collection) Add(item models.DriveItemable) bool {
+func (oc *Collection) Add(item *custom.DriveItem) bool {
 	_, found := oc.driveItems[ptr.Val(item.GetId())]
 	oc.driveItems[ptr.Val(item.GetId())] = item
 
@@ -217,7 +219,7 @@ func (oc *Collection) IsEmpty() bool {
 
 // ContainsItem returns true if the collection has the given item as one of its
 // children.
-func (oc Collection) ContainsItem(item models.DriveItemable) bool {
+func (oc Collection) ContainsItem(item *custom.DriveItem) bool {
 	_, ok := oc.driveItems[ptr.Val(item.GetId())]
 	return ok
 }
@@ -277,7 +279,7 @@ func (oc Collection) DoNotMergeItems() bool {
 func (oc *Collection) getDriveItemContent(
 	ctx context.Context,
 	driveID string,
-	item models.DriveItemable,
+	item *custom.DriveItem,
 	errs *fault.Bus,
 ) (io.ReadCloser, error) {
 	var (
@@ -355,7 +357,7 @@ func downloadContent(
 	ctx context.Context,
 	iaag itemAndAPIGetter,
 	uc getItemPropertyer,
-	item models.DriveItemable,
+	item *custom.DriveItem,
 	driveID string,
 	counter *count.Bus,
 ) (io.ReadCloser, error) {
@@ -379,18 +381,19 @@ func downloadContent(
 		return content, nil
 	}
 
-	// Consider cache errors(including deleted items) as cache misses. This is
-	// to preserve existing behavior. Fallback to refetching the item using the
-	// API.
-	logger.CtxErr(ctx, err).Info("url cache miss: refetching from API")
-	counter.Inc(count.ItemDownloadURLRefetch)
+	// Consider cache errors(including deleted items) as cache misses.
+	// Fallback to refetching the item using the graph API.
+	logger.CtxErr(ctx, err).Debug("url cache miss: refetching from API")
+	counter.Inc(count.URLCacheMiss)
 
 	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
 	if err != nil {
 		return nil, clues.Wrap(err, "retrieving expired item")
 	}
 
-	content, err = downloadItem(ctx, iaag, di)
+	cdi := custom.ToCustomDriveItem(di)
+
+	content, err = downloadItem(ctx, iaag, cdi)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}
@@ -423,7 +426,7 @@ func readItemContents(
 
 	rc, err := downloadFile(ctx, iaag, props.downloadURL)
 	if graph.IsErrUnauthorizedOrBadToken(err) {
-		logger.CtxErr(ctx, err).Info("stale item in cache")
+		logger.CtxErr(ctx, err).Debug("stale item in cache")
 	}
 
 	if err != nil {
@@ -484,7 +487,7 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 		wg.Add(1)
 
-		go func(item models.DriveItemable) {
+		go func(item *custom.DriveItem) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
@@ -508,14 +511,14 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 
 type lazyItemGetter struct {
 	info                 *details.ItemInfo
-	item                 models.DriveItemable
+	item                 *custom.DriveItem
 	driveID              string
 	suffix               string
 	itemExtensionFactory []extensions.CreateItemExtensioner
 	contentGetter        func(
 		ctx context.Context,
 		driveID string,
-		item models.DriveItemable,
+		item *custom.DriveItem,
 		errs *fault.Bus) (io.ReadCloser, error)
 }
 
@@ -556,7 +559,7 @@ func (lig *lazyItemGetter) GetData(
 func (oc *Collection) streamDriveItem(
 	ctx context.Context,
 	parentPath *path.Builder,
-	item models.DriveItemable,
+	item *custom.DriveItem,
 	stats *driveStats,
 	itemExtensionFactory []extensions.CreateItemExtensioner,
 	errs *fault.Bus,
@@ -579,7 +582,7 @@ func (oc *Collection) streamDriveItem(
 		"item_name", clues.Hide(itemName),
 		"item_size", itemSize)
 
-	item.SetParentReference(setName(item.GetParentReference(), oc.driveName))
+	item.SetParentReference(custom.SetParentName(item.GetParentReference(), oc.driveName))
 
 	isFile := item.GetFile() != nil
 

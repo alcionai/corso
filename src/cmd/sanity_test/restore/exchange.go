@@ -29,11 +29,12 @@ func CheckEmailRestoration(
 		"source_container_id", sourceTree.ID,
 		"source_container_name", sourceTree.Name)
 
-	common.AssertEqualTrees[models.MailFolderable, any](
+	// NOTE: We cannot compare leaves as the IDs of the restored items
+	// differ from the original ones.
+	common.CompareDiffTrees[models.MailFolderable, any](
 		ctx,
 		sourceTree,
 		restoredTree.Children[envs.SourceContainer],
-		nil,
 		nil)
 
 	common.Infof(ctx, "Success")
@@ -122,7 +123,7 @@ func recursivelyBuildTree(
 	}
 
 	for _, child := range childFolders {
-		if int(ptr.Val(child.GetTotalItemCount())) == 0 {
+		if int(ptr.Val(child.GetTotalItemCount()))+len(childFolders) == 0 {
 			common.Infof(ctx, "skipped empty folder: %s/%s", location, ptr.Val(child.GetDisplayName()))
 			continue
 		}
@@ -133,7 +134,25 @@ func recursivelyBuildTree(
 			ID:          ptr.Val(child.GetId()),
 			Name:        ptr.Val(child.GetDisplayName()),
 			CountLeaves: int(ptr.Val(child.GetTotalItemCount())),
+			Leaves:      map[string]*common.Sanileaf[models.MailFolderable, any]{},
 			Children:    map[string]*common.Sanitree[models.MailFolderable, any]{},
+		}
+
+		mails, err := ac.Mail().GetItemsInContainer(ctx, userID, c.ID)
+		if err != nil {
+			common.Fatal(ctx, "getting child containers", err)
+		}
+
+		for _, mail := range mails {
+			m := &common.Sanileaf[models.MailFolderable, any]{
+				Parent: c,
+				Self:   mail,
+				ID:     ptr.Val(mail.GetId()),
+				Name:   ptr.Val(mail.GetSubject()),
+				Size:   int64(len(ptr.Val(mail.GetBody().GetContent()))),
+			}
+
+			c.Leaves[m.ID] = m
 		}
 
 		stree.Children[c.Name] = c

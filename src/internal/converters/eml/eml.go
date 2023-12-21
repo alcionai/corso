@@ -2,8 +2,12 @@ package eml
 
 // This package helps convert from the json response
 // received from Graph API to .eml format (rfc0822).
-// Ref: https://www.ietf.org/rfc/rfc0822.txt
-// Ref: https://datatracker.ietf.org/doc/html/rfc5322
+
+// RFC
+// Original: https://www.ietf.org/rfc/rfc0822.txt
+// New: https://datatracker.ietf.org/doc/html/rfc5322
+// Extension for MIME: https://www.ietf.org/rfc/rfc1521.txt
+
 // Data missing from backup:
 // SetReturnPath SetPriority SetListUnsubscribe SetDkim
 // AddAlternative SetDSN (and any other X-MS specific headers)
@@ -17,6 +21,7 @@ import (
 	mail "github.com/xhit/go-simple-mail/v2"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -29,6 +34,14 @@ const (
 func formatAddress(entry models.EmailAddressable) string {
 	name := ptr.Val(entry.GetName())
 	email := ptr.Val(entry.GetAddress())
+
+	if len(name) == 0 && len(email) == 0 {
+		return ""
+	}
+
+	if len(email) == 0 {
+		return fmt.Sprintf(`"%s"`, name)
+	}
 
 	if name == email || len(name) == 0 {
 		return email
@@ -44,11 +57,13 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		return "", clues.Wrap(err, "converting to messageble")
 	}
 
-	ctx = clues.Add(ctx, "id", ptr.Val(data.GetId()))
+	ctx = clues.Add(ctx, "item_id", ptr.Val(data.GetId()))
 
 	email := mail.NewMSG()
 	email.AllowDuplicateAddress = true // More "correct" conversion
 	email.AddBccToHeader = true        // Don't ignore Bcc
+	email.AllowEmptyAttachments = true // Don't error on empty attachments
+	email.UseProvidedAddress = true    // Don't try to parse the email address
 
 	if data.GetFrom() != nil {
 		email.SetFrom(formatAddress(data.GetFrom().GetEmailAddress()))
@@ -125,13 +140,42 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes")
 			}
 
+			if bytes == nil {
+				// Some attachments have an "item" field instead of
+				// "contentBytes". There are items like contacts, emails
+				// or calendar events which will not be a normal format
+				// and will have to be converted to a text format.
+				// TODO(meain): Handle custom attachments
+				// https://github.com/alcionai/corso/issues/4772
+				logger.Ctx(ctx).
+					With("attachment_id", ptr.Val(attachment.GetId())).
+					Info("unhandled attachment type")
+
+				continue
+			}
+
 			bts, ok := bytes.([]byte)
 			if !ok {
 				return "", clues.WrapWC(ctx, err, "invalid content bytes")
 			}
 
+			name := ptr.Val(attachment.GetName())
+
+			contentID, err := attachment.GetBackingStore().Get("contentId")
+			if err != nil {
+				return "", clues.WrapWC(ctx, err, "getting content id for attachment")
+			}
+
+			if contentID != nil {
+				cids, _ := str.AnyToString(contentID)
+				if len(cids) > 0 {
+					name = cids
+				}
+			}
+
 			email.Attach(&mail.File{
-				Name:     ptr.Val(attachment.GetName()),
+				// cannot use filename as inline attachment will not get mapped properly
+				Name:     name,
 				MimeType: kind,
 				Data:     bts,
 				Inline:   ptr.Val(attachment.GetIsInline()),
@@ -139,8 +183,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		}
 	}
 
-	if email.GetError() != nil {
-		return "", clues.WrapWC(ctx, email.Error, "converting to eml")
+	if err = email.GetError(); err != nil {
+		return "", clues.WrapWC(ctx, err, "converting to eml")
 	}
 
 	return email.GetMessage(), nil

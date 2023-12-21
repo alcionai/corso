@@ -149,6 +149,9 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 		testConfigFilePath = filepath.Join(t.TempDir(), "corso.toml")
 	)
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	const (
 		bkt    = "write-read-config-bucket"
 		tid    = "3c0748d2-470e-444c-9064-1268e52609d5"
@@ -157,7 +160,7 @@ func (suite *ConfigSuite) TestWriteReadConfig() {
 		host   = "some-host"
 	)
 
-	err := initWithViper(vpr, testConfigFilePath)
+	err := initWithViper(ctx, vpr, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config", clues.ToCore(err))
 
 	s3Cfg := &storage.S3Config{
@@ -205,12 +208,15 @@ func (suite *ConfigSuite) TestMustMatchConfig() {
 		testConfigFilePath = filepath.Join(t.TempDir(), "corso.toml")
 	)
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	const (
 		bkt = "must-match-config-bucket"
 		tid = "dfb12063-7598-458b-85ab-42352c5c25e2"
 	)
 
-	err := initWithViper(vpr, testConfigFilePath)
+	err := initWithViper(ctx, vpr, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config")
 
 	s3Cfg := &storage.S3Config{Bucket: bkt}
@@ -285,6 +291,9 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 		vpr = viper.New()
 	)
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	const (
 		b                      = "read-repo-config-basic-bucket"
 		tID                    = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
@@ -349,6 +358,7 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 	flags.PassphraseFV = "passphrase-flags"
 
 	repoDetails, err := getStorageAndAccountWithViper(
+		ctx,
 		vpr,
 		storage.ProviderS3,
 		true,
@@ -401,6 +411,9 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	t := suite.T()
 	vpr := viper.New()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	const (
 		bkt = "get-storage-and-account-bucket"
 		end = "https://get-storage-and-account.com"
@@ -411,7 +424,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	// Configure viper to read test config file
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
 
-	err := initWithViper(vpr, testConfigFilePath)
+	err := initWithViper(ctx, vpr, testConfigFilePath)
 	require.NoError(t, err, "initializing repo config", clues.ToCore(err))
 
 	s3Cfg := &storage.S3Config{
@@ -435,7 +448,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 	err = vpr.ReadInConfig()
 	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, true, true, nil)
+	cfg, err := getStorageAndAccountWithViper(ctx, vpr, storage.ProviderS3, true, true, nil)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := cfg.Storage.ToS3Config()
@@ -464,6 +477,9 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 	t := suite.T()
 	vpr := viper.New()
 
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	const (
 		bkt = "get-storage-and-account-no-file-bucket"
 		end = "https://get-storage-and-account.com/no-file"
@@ -484,7 +500,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		storage.StorageProviderTypeKey: storage.ProviderS3.String(),
 	}
 
-	cfg, err := getStorageAndAccountWithViper(vpr, storage.ProviderS3, false, true, overrides)
+	cfg, err := getStorageAndAccountWithViper(ctx, vpr, storage.ProviderS3, false, true, overrides)
 	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
 	readS3Cfg, err := cfg.Storage.ToS3Config()

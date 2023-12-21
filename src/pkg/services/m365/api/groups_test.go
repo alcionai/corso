@@ -5,6 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/h2non/gock"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type GroupUnitSuite struct {
@@ -103,6 +105,17 @@ func (suite *GroupsIntgSuite) TestGetAll() {
 		GetAll(ctx, fault.New(true))
 	require.NoError(t, err)
 	require.NotZero(t, len(groups), "must have at least one group")
+}
+
+func (suite *GroupsIntgSuite) TestGetTeamByID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	team, err := suite.its.ac.Groups().GetTeamByID(ctx, suite.its.group.id, CallConfig{})
+	require.NoError(t, err, "getting team by ID")
+	require.NotNil(t, team, "must have valid team")
 }
 
 func (suite *GroupsIntgSuite) TestGetAllSites() {
@@ -215,6 +228,88 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 
 			_, err := groupsAPI.GetByID(ctx, test.id, CallConfig{})
 			test.expectErr(t, err)
+		})
+	}
+}
+
+func (suite *GroupsIntgSuite) TestGroups_GetByID_mockResourceLockedErrs() {
+	gID := uuid.NewString()
+
+	table := []struct {
+		name  string
+		id    string
+		setup func(t *testing.T)
+	}{
+		{
+			name: "by name",
+			id:   "g",
+			setup: func(t *testing.T) {
+				err := graphTD.ODataErr(string(graph.NotAllowed))
+
+				interceptV1Path("groups").
+					Reply(403).
+					JSON(graphTD.ParseableToMap(t, err))
+				interceptV1Path("teams").
+					Reply(403).
+					JSON(graphTD.ParseableToMap(t, err))
+			},
+		},
+		{
+			name: "by id",
+			id:   gID,
+			setup: func(t *testing.T) {
+				err := graphTD.ODataErr(string(graph.NotAllowed))
+
+				interceptV1Path("groups", gID).
+					Reply(403).
+					JSON(graphTD.ParseableToMap(t, err))
+				interceptV1Path("teams", gID).
+					Reply(403).
+					JSON(graphTD.ParseableToMap(t, err))
+			},
+		},
+		{
+			name: "by id - matches error message",
+			id:   gID,
+			setup: func(t *testing.T) {
+				err := graphTD.ODataErrWithMsg(
+					string(graph.AuthenticationError),
+					"AADSTS500014: The service principal for resource 'beefe6b7-f5df-413d-ac2d-abf1e3fd9c0b' "+
+						"is disabled. This indicate that a subscription within the tenant has lapsed, or that the "+
+						"administrator for this tenant has disabled the application, preventing tokens from being "+
+						"issued for it. Trace ID: dead78e1-0830-4edf-bea7-f0a445620100 Correlation ID: "+
+						"deadbeef-7f1e-4578-8215-36004a2c935c Timestamp: 2023-12-05 19:31:01Z")
+
+				interceptV1Path("groups", gID).
+					Reply(403).
+					JSON(graphTD.ParseableToMap(t, err))
+				interceptV1Path("teams", gID).
+					Reply(403).
+					JSON(graphTD.ParseableToMap(t, err))
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+
+			defer flush()
+			defer gock.Off()
+
+			test.setup(t)
+
+			// Verify both GetByID and GetTeamByID APIs handle this error
+			_, err := suite.its.gockAC.
+				Groups().
+				GetByID(ctx, test.id, CallConfig{})
+			require.ErrorIs(t, err, graph.ErrResourceLocked, clues.ToCore(err))
+
+			_, err = suite.its.gockAC.
+				Groups().
+				GetTeamByID(ctx, test.id, CallConfig{})
+			require.ErrorIs(t, err, graph.ErrResourceLocked, clues.ToCore(err))
 		})
 	}
 }

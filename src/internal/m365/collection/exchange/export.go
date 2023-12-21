@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -19,7 +20,7 @@ func NewExportCollection(
 	baseDir string,
 	backingCollection []data.RestoreCollection,
 	backupVersion int,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 ) export.Collectioner {
 	return export.BaseCollection{
 		BaseDir:           baseDir,
@@ -37,14 +38,16 @@ func streamItems(
 	backupVersion int,
 	config control.ExportConfig,
 	ch chan<- export.Item,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 ) {
 	defer close(ch)
 
 	errs := fault.New(false)
 
 	for _, rc := range drc {
-		for item := range rc.Items(ctx, errs) {
+		ictx := clues.Add(ctx, "path_short_ref", rc.FullPath().ShortRef())
+
+		for item := range rc.Items(ictx, errs) {
 			id := item.ID()
 			name := id + ".eml"
 
@@ -64,18 +67,18 @@ func streamItems(
 				continue
 			}
 
-			email, err := eml.FromJSON(ctx, content)
+			email, err := eml.FromJSON(ictx, content)
 			if err != nil {
 				ch <- export.Item{
 					ID:    id,
-					Error: clues.Wrap(err, "converting to eml"),
+					Error: clues.Wrap(err, "converting JSON to eml"),
 				}
 
 				continue
 			}
 
 			emlReader := io.NopCloser(bytes.NewReader([]byte(email)))
-			body := data.ReaderWithStats(emlReader, path.EmailCategory, stats)
+			body := metrics.ReaderWithStats(emlReader, path.EmailCategory, stats)
 
 			ch <- export.Item{
 				ID:   id,

@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -95,9 +96,9 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 		},
 	}
 
-	stats := data.ExportStats{}
+	stats := metrics.ExportStats{}
 
-	ecs, err := NewGroupsHandler(control.DefaultOptions(), api.Client{}, nil).
+	ecs, err := NewGroupsHandler(api.Client{}, nil).
 		ProduceExportCollections(
 			ctx,
 			int(version.Backup),
@@ -129,7 +130,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 
 	assert.Equal(t, expectedItems, fitems, "items")
 
-	expectedStats := data.ExportStats{}
+	expectedStats := metrics.ExportStats{}
 	expectedStats.UpdateBytes(path.ChannelMessagesCategory, int64(size))
 	expectedStats.UpdateResourceCount(path.ChannelMessagesCategory)
 	assert.Equal(t, expectedStats, stats, "stats")
@@ -197,10 +198,10 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 		},
 	}
 
-	handler := NewGroupsHandler(control.DefaultOptions(), api.Client{}, nil)
+	handler := NewGroupsHandler(api.Client{}, nil)
 	handler.CacheItemInfo(dii)
 
-	stats := data.ExportStats{}
+	stats := metrics.ExportStats{}
 
 	ecs, err := handler.ProduceExportCollections(
 		ctx,
@@ -232,7 +233,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 
 	assert.Equal(t, expectedItems, fitems, "items")
 
-	expectedStats := data.ExportStats{}
+	expectedStats := metrics.ExportStats{}
 	expectedStats.UpdateBytes(path.FilesCategory, int64(size))
 	expectedStats.UpdateResourceCount(path.FilesCategory)
 	assert.Equal(t, expectedStats, stats, "stats")

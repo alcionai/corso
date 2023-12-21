@@ -7,11 +7,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
@@ -85,7 +85,7 @@ func s3InitCmd() *cobra.Command {
 func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.GetConfigRepoDetails(
+	cfg, err := config.ReadCorsoConfig(
 		ctx,
 		storage.ProviderS3,
 		true,
@@ -170,7 +170,7 @@ func s3ConnectCmd() *cobra.Command {
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.GetConfigRepoDetails(
+	cfg, err := config.ReadCorsoConfig(
 		ctx,
 		storage.ProviderS3,
 		true,

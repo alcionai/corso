@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
@@ -28,6 +27,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -111,7 +111,7 @@ func generateAndRestoreItems(
 		Selector:          sel,
 	}
 
-	handler, err := ctrl.NewServiceHandler(opts, service)
+	handler, err := ctrl.NewServiceHandler(service)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -460,7 +460,7 @@ func generateAndRestoreDriveItems(
 		Selector:          sel,
 	}
 
-	handler, err := ctrl.NewServiceHandler(opts, service)
+	handler, err := ctrl.NewServiceHandler(service)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}

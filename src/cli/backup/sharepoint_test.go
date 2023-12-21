@@ -112,12 +112,21 @@ func (suite *SharePointUnitSuite) TestBackupCreateFlags() {
 
 	opts := utils.MakeSharePointOpts(cmd)
 	co := utils.Control()
+	backupOpts := utils.ParseBackupOptions()
 
-	assert.ElementsMatch(t, []string{strings.Join(flagsTD.SiteIDInput, ",")}, opts.SiteID)
-	assert.ElementsMatch(t, flagsTD.WebURLInput, opts.WebURL)
+	// TODO(ashmrtn): Remove flag checks on control.Options to control.Backup once
+	// restore flags are switched over too and we no longer parse flags beyond
+	// connection info into control.Options.
+	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
+	assert.True(t, backupOpts.Incrementals.ForceFullEnumeration)
+	assert.True(t, backupOpts.Incrementals.ForceItemDataRefresh)
+
 	assert.Equal(t, control.FailFast, co.FailureHandling)
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+
+	assert.ElementsMatch(t, []string{strings.Join(flagsTD.SiteIDInput, ",")}, opts.SiteID)
+	assert.ElementsMatch(t, flagsTD.WebURLInput, opts.WebURL)
 	flagsTD.AssertGenericBackupFlags(t, cmd)
 	flagsTD.AssertProviderFlags(t, cmd)
 	flagsTD.AssertStorageFlags(t, cmd)

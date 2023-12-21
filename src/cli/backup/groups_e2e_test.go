@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/config"
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
 	cliTD "github.com/alcionai/corso/src/cli/testdata"
@@ -22,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -65,7 +65,7 @@ func (suite *NoBackupGroupsE2ESuite) TestGroupsBackupListCmd_noBackups() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "groups",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetErr(&suite.dpnd.recorder)
@@ -226,7 +226,7 @@ func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_fromConfigFile() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "groups",
 		"--group", suite.its.group.ID,
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetOut(&suite.dpnd.recorder)
@@ -368,7 +368,7 @@ func runGroupsListCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.Cat
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "groups",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 	cmd.SetOut(&suite.dpnd.recorder)
 
@@ -409,7 +409,7 @@ func runGroupsListSingleCmdTest(suite *PreparedBackupGroupsE2ESuite, category pa
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "groups",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backup", string(bID))
 	cli.BuildCommandTree(cmd)
 
@@ -436,7 +436,7 @@ func (suite *PreparedBackupGroupsE2ESuite) TestGroupsListCmd_badID() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "list", "groups",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backup", "smarfs")
 	cli.BuildCommandTree(cmd)
 
@@ -464,10 +464,6 @@ func runGroupsDetailsCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.
 
 	t := suite.T()
 
-	if category == path.ConversationPostsCategory {
-		t.Skip("skipping conversation details test, see issue #4780")
-	}
-
 	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.dpnd.vpr)
 
@@ -482,7 +478,7 @@ func runGroupsDetailsCmdTest(suite *PreparedBackupGroupsE2ESuite, category path.
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "details", "groups",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupFN, string(bID))
 	cli.BuildCommandTree(cmd)
 	cmd.SetOut(&suite.dpnd.recorder)
@@ -572,7 +568,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "groups",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupIDsFN,
 		fmt.Sprintf("%s,%s",
 			string(suite.backupOps[0].Results.BackupID),
@@ -586,7 +582,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd() {
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "groups",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backups", string(suite.backupOps[0].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
@@ -604,7 +600,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_SingleID() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "groups",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupFN,
 		string(suite.backupOps[2].Results.BackupID))
 	cli.BuildCommandTree(cmd)
@@ -616,7 +612,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_SingleID() {
 	// a follow-up details call should fail, due to the backup ID being deleted
 	cmd = cliTD.StubRootCmd(
 		"backup", "details", "groups",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--backup", string(suite.backupOps[2].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
@@ -634,7 +630,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_UnknownID() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "groups",
-		"--config-file", suite.dpnd.configFilePath,
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
 		"--"+flags.BackupIDsFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
@@ -653,7 +649,7 @@ func (suite *BackupDeleteGroupsE2ESuite) TestGroupsBackupDeleteCmd_NoBackupID() 
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "groups",
-		"--config-file", suite.dpnd.configFilePath)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
 	// empty backupIDs should error since no data provided
@@ -672,7 +668,7 @@ func buildGroupsBackupCmd(
 ) (*cobra.Command, context.Context) {
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "groups",
-		"--config-file", configFile,
+		"--"+flags.ConfigFileFN, configFile,
 		"--"+flags.GroupFN, group,
 		"--"+flags.CategoryDataFN, category)
 	cli.BuildCommandTree(cmd)

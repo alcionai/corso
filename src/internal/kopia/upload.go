@@ -217,7 +217,7 @@ func (cp *corsoProgress) Error(relpath string, err error, isIgnored bool) {
 	// delta query and a fetch.  This is our next point of error
 	// handling, where we can identify and skip over the case.
 	if clues.HasLabel(err, graph.LabelsSkippable) {
-		cp.counter.Inc(count.PersistenceExpectedErrors)
+		cp.counter.Inc(count.PersistenceExpectedErrs)
 		cp.incExpectedErrs()
 
 		return
@@ -1122,26 +1122,41 @@ func traverseBaseDir(
 	var hasItems bool
 
 	if changed {
-		err = fs.IterateEntries(
-			ctx,
-			dir,
-			func(innerCtx context.Context, entry fs.Entry) error {
-				dEntry, ok := entry.(fs.Directory)
-				if !ok {
-					hasItems = true
-					return nil
-				}
+		iter, err := dir.Iterate(ctx)
+		if err != nil {
+			return clues.WrapWC(ctx, err, "getting directory iterator")
+		}
 
-				return traverseBaseDir(
-					innerCtx,
-					depth+1,
-					updatedPaths,
-					oldDirPath,
-					currentPath,
-					dEntry,
-					roots,
-					stats)
-			})
+		var entry fs.Entry
+
+		// Need to keep err for the check after the loop as well so we also need to
+		// declare entry.
+		for entry, err = iter.Next(ctx); entry != nil && err == nil; entry, err = iter.Next(ctx) {
+			dEntry, ok := entry.(fs.Directory)
+			if !ok {
+				hasItems = true
+				continue
+			}
+
+			err = traverseBaseDir(
+				ctx,
+				depth+1,
+				updatedPaths,
+				oldDirPath,
+				currentPath,
+				dEntry,
+				roots,
+				stats)
+			if err != nil {
+				// Break here instead of just returning so we can close the iterator.
+				// The error will be returned below.
+				err = clues.Stack(err)
+				break
+			}
+		}
+
+		iter.Close()
+
 		if err != nil {
 			return clues.WrapWC(ctx, err, "traversing base directory")
 		}

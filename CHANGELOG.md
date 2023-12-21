@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
-### Added
-### Changed
 ### Fixed
+- Handle the case where an email cannot be retrieved from Exchange due to an `ErrorInvalidRecipients` error. In
+this case, Corso will skip over the item but report this in the backup summary.
+- Guarantee Exchange email restoration when restoring multiple attachments. Some previous restores were failing with `ErrorItemNotFound`.
+- Avoid Graph SDK `Requests must contain extension changes exclusively.` errors by removing server-populated field from restored event items.
+
+## [v0.17.0] (beta) - 2023-12-11
+
+### Changed
+- Memory optimizations for large scale OneDrive and Sharepoint backups.
+
+### Fixed
+- Resolved a possible deadlock when backing up Teams Channel Messages.
+- Fixed an attachment download failure(ErrorTooManyObjectsOpened) during exchange backup.
 
 ## [v0.16.0] (beta) - 2023-11-28
 
@@ -441,7 +452,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.17.0...HEAD
+[v0.17.0]: https://github.com/alcionai/corso/compare/v0.16.0...v0.17.0
+[v0.16.0]: https://github.com/alcionai/corso/compare/v0.15.0...v0.16.0
 [v0.15.0]: https://github.com/alcionai/corso/compare/v0.14.0...v0.15.0
 [v0.14.0]: https://github.com/alcionai/corso/compare/v0.13.0...v0.14.0
 [v0.13.0]: https://github.com/alcionai/corso/compare/v0.12.0...v0.13.0

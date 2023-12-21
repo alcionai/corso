@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -21,13 +22,11 @@ import (
 var _ inject.ServiceHandler = &onedriveHandler{}
 
 func NewOneDriveHandler(
-	opts control.Options,
 	apiClient api.Client,
 	resourceGetter idname.GetResourceIDAndNamer,
 ) *onedriveHandler {
 	return &onedriveHandler{
 		baseOneDriveHandler: baseOneDriveHandler{
-			opts:               opts,
 			backupDriveIDNames: idname.NewCache(nil),
 		},
 		apiClient:      apiClient,
@@ -42,7 +41,6 @@ func NewOneDriveHandler(
 // baseOneDriveHandler contains logic for tracking data and doing operations
 // (e.x. export) that don't require contact with external M356 services.
 type baseOneDriveHandler struct {
-	opts               control.Options
 	backupDriveIDNames idname.CacheBuilder
 }
 
@@ -61,7 +59,7 @@ func (h *baseOneDriveHandler) ProduceExportCollections(
 	backupVersion int,
 	exportCfg control.ExportConfig,
 	dcs []data.RestoreCollection,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	var (

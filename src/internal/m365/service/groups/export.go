@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -24,13 +25,11 @@ import (
 var _ inject.ServiceHandler = &groupsHandler{}
 
 func NewGroupsHandler(
-	opts control.Options,
 	apiClient api.Client,
 	resourceGetter idname.GetResourceIDAndNamer,
 ) *groupsHandler {
 	return &groupsHandler{
 		baseGroupsHandler: baseGroupsHandler{
-			opts:               opts,
 			backupDriveIDNames: idname.NewCache(nil),
 			backupSiteIDWebURL: idname.NewCache(nil),
 		},
@@ -46,8 +45,6 @@ func NewGroupsHandler(
 // baseGroupsHandler contains logic for tracking data and doing operations
 // (e.x. export) that don't require contact with external M356 services.
 type baseGroupsHandler struct {
-	opts control.Options
-
 	backupDriveIDNames idname.CacheBuilder
 	backupSiteIDWebURL idname.CacheBuilder
 }
@@ -68,7 +65,7 @@ func (h *baseGroupsHandler) ProduceExportCollections(
 	backupVersion int,
 	exportCfg control.ExportConfig,
 	dcs []data.RestoreCollection,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	var (

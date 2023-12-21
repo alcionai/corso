@@ -6,9 +6,9 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -217,9 +217,8 @@ func (s *groups) AllData() []GroupsScope {
 	scopes = append(
 		scopes,
 		makeScope[GroupsScope](GroupsLibraryFolder, Any()),
-		makeScope[GroupsScope](GroupsChannel, Any()))
-	// TODO: enable conversations in all-data backups
-	// makeScope[GroupsScope](GroupsConversation, Any()))
+		makeScope[GroupsScope](GroupsChannel, Any()),
+		makeScope[GroupsScope](GroupsConversation, Any()))
 
 	return scopes
 }

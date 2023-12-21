@@ -2,11 +2,15 @@ module github.com/alcionai/corso/src
 
 go 1.21
 
-replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231130213928-e62eca5816db
+replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231205231702-863c24d6f8b1
 
-// No tags in the alcion fork of the repo so use v7 as that's in the import
-// path.
-replace github.com/minio/minio-go/v7 => github.com/alcionai/minio-go/v7 v7.0.0-20231130221740-c745a3d084aa
+replace (
+	// No tags in the alcion fork of the repo so use v7 as that's in the import path.
+	github.com/minio/minio-go/v7 => github.com/alcionai/minio-go/v7 v7.0.0-20231130221740-c745a3d084aa
+
+	// Alcion fork removes the validation of email addresses as we might get incomplete email addresses
+	github.com/xhit/go-simple-mail/v2 v2.16.0 => github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a
+)
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
@@ -15,18 +19,18 @@ require (
 	github.com/aws/aws-xray-sdk-go v1.8.3
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/fatih/color v1.16.0
-	github.com/golang-jwt/jwt/v5 v5.1.0
-	github.com/google/uuid v1.4.0
+	github.com/golang-jwt/jwt/v5 v5.2.0
+	github.com/google/uuid v1.5.0
 	github.com/h2non/gock v1.2.0
 	github.com/jaytaylor/html2text v0.0.0-20230321000545-74c2419ad056
-	github.com/jhillyerd/enmime v1.0.1
+	github.com/jhillyerd/enmime v1.1.0
 	github.com/kopia/kopia v0.15.0
 	github.com/microsoft/kiota-abstractions-go v1.5.3
 	github.com/microsoft/kiota-authentication-azure-go v1.0.1
 	github.com/microsoft/kiota-http-go v1.1.1
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.26.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.28.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v3 v3.0.2
@@ -35,7 +39,7 @@ require (
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.17.0
+	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
@@ -45,7 +49,7 @@ require (
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20231127185646-65229373498e
 	golang.org/x/time v0.5.0
-	golang.org/x/tools v0.16.0
+	golang.org/x/tools v0.16.1
 	gotest.tools/v3 v3.5.1
 )
 
@@ -69,7 +73,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
-	github.com/sagikazarmark/locafero v0.3.0 // indirect
+	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
@@ -84,8 +88,8 @@ require (
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.1 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
@@ -136,7 +140,7 @@ require (
 	go.opentelemetry.io/otel v1.21.0 // indirect
 	go.opentelemetry.io/otel/trace v1.21.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.19.0
 	golang.org/x/sync v0.5.0 // indirect

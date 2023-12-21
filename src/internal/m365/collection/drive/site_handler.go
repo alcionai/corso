@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 type baseSiteHandler struct {
@@ -33,7 +34,7 @@ func (h baseSiteHandler) NewDrivePager(
 func (h baseSiteHandler) AugmentItemInfo(
 	dii details.ItemInfo,
 	resource idname.Provider,
-	item models.DriveItemable,
+	item *custom.DriveItem,
 	size int64,
 	parentPath *path.Builder,
 ) details.ItemInfo {
@@ -180,6 +181,13 @@ func (h siteBackupHandler) EnumerateDriveItemsDelta(
 	cc api.CallConfig,
 ) pagers.NextPageResulter[models.DriveItemable] {
 	return h.ac.EnumerateDriveItemsDelta(ctx, driveID, prevDeltaLink, cc)
+}
+
+func (h siteBackupHandler) GetRootFolder(
+	ctx context.Context,
+	driveID string,
+) (models.DriveItemable, error) {
+	return h.ac.Drives().GetRootFolder(ctx, driveID)
 }
 
 // ---------------------------------------------------------------------------

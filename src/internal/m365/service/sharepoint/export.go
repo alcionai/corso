@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -22,13 +23,11 @@ import (
 var _ inject.ServiceHandler = &sharepointHandler{}
 
 func NewSharePointHandler(
-	opts control.Options,
 	apiClient api.Client,
 	resourceGetter idname.GetResourceIDAndNamer,
 ) *sharepointHandler {
 	return &sharepointHandler{
 		baseSharePointHandler: baseSharePointHandler{
-			opts:               opts,
 			backupDriveIDNames: idname.NewCache(nil),
 		},
 		apiClient:      apiClient,
@@ -43,7 +42,6 @@ func NewSharePointHandler(
 // baseSharePointHandler contains logic for tracking data and doing operations
 // (e.x. export) that don't require contact with external M356 services.
 type baseSharePointHandler struct {
-	opts               control.Options
 	backupDriveIDNames idname.CacheBuilder
 }
 
@@ -65,7 +63,7 @@ func (h *baseSharePointHandler) ProduceExportCollections(
 	backupVersion int,
 	exportCfg control.ExportConfig,
 	dcs []data.RestoreCollection,
-	stats *data.ExportStats,
+	stats *metrics.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
 	var (

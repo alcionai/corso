@@ -95,6 +95,7 @@ func recursivelyBuildTree(
 		}
 
 		if driveItem.GetFile() != nil {
+			stree.CountLeaves++
 			stree.Leaves[itemName] = &common.Sanileaf[models.DriveItemable, models.DriveItemable]{
 				Parent: stree,
 				Self:   driveItem,

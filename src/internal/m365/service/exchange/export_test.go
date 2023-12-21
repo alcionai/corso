@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -33,6 +34,10 @@ func TestExportUnitSuite(t *testing.T) {
 func (suite *ExportUnitSuite) TestGetItems() {
 	emailBodyBytes := []byte(testdata.EmailWithAttachments)
 
+	pb := path.Builder{}.Append("Inbox")
+	p, err := pb.ToDataLayerPath("t", "r", path.ExchangeService, path.EmailCategory, false)
+	assert.NoError(suite.T(), err, "build path")
+
 	table := []struct {
 		name              string
 		version           int
@@ -44,6 +49,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 1,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: dataMock.Collection{
+					Path: p,
 					ItemData: []data.Item{
 						&dataMock.Item{
 							ItemID: "id1",
@@ -65,6 +71,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: 1,
 			backingCollection: data.NoFetchRestoreCollection{
 				Collection: dataMock.Collection{
+					Path: p,
 					ItemData: []data.Item{
 						&dataMock.Item{
 							ItemID: "id1",
@@ -95,6 +102,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			version: version.Groups9Update,
 			backingCollection: data.FetchRestoreCollection{
 				Collection: dataMock.Collection{
+					Path: p,
 					ItemData: []data.Item{
 						&dataMock.Item{
 							ItemID: "id0",
@@ -137,7 +145,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			stats := data.ExportStats{}
+			stats := metrics.ExportStats{}
 			ec := exchange.NewExportCollection(
 				"",
 				[]data.RestoreCollection{test.backingCollection},
@@ -177,10 +185,10 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				assert.ErrorIs(t, item.Error, test.expectedItems[i].Error)
 			}
 
-			var expectedStats data.ExportStats
+			var expectedStats metrics.ExportStats
 
 			if size+count > 0 { // it is only initialized if we have something
-				expectedStats = data.ExportStats{}
+				expectedStats = metrics.ExportStats{}
 				expectedStats.UpdateBytes(path.EmailCategory, int64(size))
 
 				for i := 0; i < count; i++ {
@@ -372,9 +380,9 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			exportCfg := control.ExportConfig{}
-			stats := data.ExportStats{}
+			stats := metrics.ExportStats{}
 
-			ecs, err := NewExchangeHandler(control.DefaultOptions(), api.Client{}, nil).
+			ecs, err := NewExchangeHandler(api.Client{}, nil).
 				ProduceExportCollections(
 					ctx,
 					int(version.Backup),
@@ -391,7 +399,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 			assert.NoError(t, err, "export collections error")
 			assert.Len(t, ecs, len(tt.expectedItems), "num of collections")
 
-			expectedStats := data.ExportStats{}
+			expectedStats := metrics.ExportStats{}
 
 			// We are dependent on the order the collections are
 			// returned in the test which is not necessary for the

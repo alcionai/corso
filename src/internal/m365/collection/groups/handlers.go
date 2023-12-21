@@ -25,13 +25,25 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 	getItemer[I]
 	getContainerser[C]
 	getContainerItemIDser
+	getItemAndAugmentInfoer[C, I]
 	includeContainerer[C]
 	canonicalPather
 	canMakeDeltaQuerieser
 }
 
+type getItemAndAugmentInfoer[C graph.GetIDer, I groupsItemer] interface {
+	getItemer[I]
+	augmentItemInfoer[C]
+}
+
+type augmentItemInfoer[C graph.GetIDer] interface {
+	// augmentItemInfo completes the groupInfo population with any data
+	// owned by the container and not accessible to the item.
+	augmentItemInfo(*details.GroupsInfo, C)
+}
+
 type getItemer[I groupsItemer] interface {
-	GetItem(
+	getItem(
 		ctx context.Context,
 		protectedResource string,
 		containerIDs path.Elements,

@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -22,9 +21,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 type ItemIntegrationSuite struct {
@@ -123,7 +124,7 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	}
 
 	// Read data for the file
-	itemData, err := downloadItem(ctx, bh, driveItem)
+	itemData, err := downloadItem(ctx, bh, custom.ToCustomDriveItem(driveItem))
 	require.NoError(t, err, clues.ToCore(err))
 
 	size, err := io.Copy(io.Discard, itemData)
@@ -462,7 +463,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			mg := mockGetter{
 				GetFunc: test.GetFunc,
 			}
-			rc, err := downloadItem(ctx, mg, test.itemFunc())
+			rc, err := downloadItem(ctx, mg, custom.ToCustomDriveItem(test.itemFunc()))
 			test.errorExpected(t, err, clues.ToCore(err))
 			test.rcExpected(t, rc)
 		})
@@ -521,7 +522,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem_ConnectionResetErrorOnFirstRead
 	mg := mockGetter{
 		GetFunc: GetFunc,
 	}
-	rc, err := downloadItem(ctx, mg, itemFunc())
+	rc, err := downloadItem(ctx, mg, custom.ToCustomDriveItem(itemFunc()))
 	errorExpected(t, err, clues.ToCore(err))
 	rcExpected(t, rc)
 

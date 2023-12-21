@@ -8,8 +8,8 @@ import (
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common/dttm"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -40,34 +40,30 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 	}{
 		// resource
 		{
-			name: "no inputs",
-			opts: utils.GroupsOpts{},
-			// TODO: bump to 3 when we release conversations
-			expectIncludeLen: 2,
+			name:             "no inputs",
+			opts:             utils.GroupsOpts{},
+			expectIncludeLen: 3,
 		},
 		{
 			name: "empty",
 			opts: utils.GroupsOpts{
 				Groups: empty,
 			},
-			// TODO: bump to 3 when we release conversations
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "single inputs",
 			opts: utils.GroupsOpts{
 				Groups: single,
 			},
-			// TODO: bump to 3 when we release conversations
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "multi inputs",
 			opts: utils.GroupsOpts{
 				Groups: multi,
 			},
-			// TODO: bump to 3 when we release conversations
-			expectIncludeLen: 2,
+			expectIncludeLen: 3,
 		},
 		// sharepoint
 		{
@@ -421,7 +417,7 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 		{
 			name:           "none",
 			cats:           []string{},
-			expectScopeLen: 2,
+			expectScopeLen: 3,
 		},
 		{
 			name:           "libraries",
@@ -443,10 +439,9 @@ func (suite *GroupsUtilsSuite) TestAddGroupsCategories() {
 			cats: []string{
 				flags.DataLibraries,
 				flags.DataMessages,
-				// flags.DataConversations,
+				flags.DataConversations,
 			},
-			// TODO: bump to 3 when we include conversations in all data
-			expectScopeLen: 2,
+			expectScopeLen: 3,
 		},
 		{
 			name:           "bad inputs",

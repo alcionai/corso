@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -247,7 +248,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			stats := data.ExportStats{}
+			stats := metrics.ExportStats{}
 			ec := drive.NewExportCollection(
 				"",
 				[]data.RestoreCollection{test.backingCollection},
@@ -288,10 +289,10 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				assert.ErrorIs(t, item.Error, test.expectedItems[i].Error)
 			}
 
-			var expectedStats data.ExportStats
+			var expectedStats metrics.ExportStats
 
 			if size+count > 0 { // it is only initialized if we have something
-				expectedStats = data.ExportStats{}
+				expectedStats = metrics.ExportStats{}
 				expectedStats.UpdateBytes(path.FilesCategory, int64(size))
 
 				for i := 0; i < count; i++ {
@@ -340,9 +341,9 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		},
 	}
 
-	stats := data.ExportStats{}
+	stats := metrics.ExportStats{}
 
-	ecs, err := NewOneDriveHandler(control.DefaultOptions(), api.Client{}, nil).
+	ecs, err := NewOneDriveHandler(api.Client{}, nil).
 		ProduceExportCollections(
 			ctx,
 			int(version.Backup),
@@ -370,7 +371,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 
 	assert.Equal(t, expectedItems, fitems, "items")
 
-	expectedStats := data.ExportStats{}
+	expectedStats := metrics.ExportStats{}
 	expectedStats.UpdateBytes(path.FilesCategory, int64(size))
 	expectedStats.UpdateResourceCount(path.FilesCategory)
 	assert.Equal(t, expectedStats, stats, "stats")
