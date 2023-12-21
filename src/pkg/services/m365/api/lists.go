@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -13,7 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var ErrInvalidTemplateError = fmt.Errorf("invalid list template(%s)", WebTemplateExtensionsListTemplateName)
+var ErrCannotCreateWebTemplateExtension = clues.New("unable to create webTemplateExtension type lists")
 
 const (
 	AttachmentsColumnName    = "Attachments"
@@ -252,7 +251,7 @@ func (c Lists) PostList(
 	if newList != nil &&
 		newList.GetList() != nil &&
 		ptr.Val(newList.GetList().GetTemplate()) == WebTemplateExtensionsListTemplateName {
-		return nil, clues.StackWC(ctx, ErrInvalidTemplateError)
+		return nil, clues.StackWC(ctx, ErrCannotCreateWebTemplateExtension)
 	}
 
 	// Restore to List base to M365 back store

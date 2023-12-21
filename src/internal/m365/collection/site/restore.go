@@ -209,7 +209,7 @@ func RestoreListCollection(
 				restoreContainerName)
 
 			if err != nil &&
-				errors.Is(err, api.ErrInvalidTemplateError) {
+				errors.Is(err, api.ErrCannotCreateWebTemplateExtension) {
 				continue
 			}
 
