@@ -112,7 +112,7 @@ func (suite *OneDriveBackupTreeIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_oneDrive() {
+func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeOneDrive() {
 	var (
 		resourceID = suite.its.secondaryUser.ID
 		sel        = selectors.NewOneDriveBackup([]string{resourceID})
@@ -130,14 +130,14 @@ func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_oneDrive() {
 		sel.Selector)
 }
 
-func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_incrementalOneDrive() {
+func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeIncrementalOneDrive() {
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
 	runOneDriveIncrementalBackupTests(suite, suite.its, opts)
 }
 
-func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_extensionsOneDrive() {
+func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeExtensionsOneDrive() {
 	var (
 		resourceID = suite.its.secondaryUser.ID
 		sel        = selectors.NewOneDriveBackup([]string{resourceID})

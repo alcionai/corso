@@ -94,7 +94,7 @@ func (suite *GroupsBackupTreeIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_groups() {
+func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeGroups() {
 	var (
 		resourceID = suite.its.group.ID
 		sel        = selectors.NewGroupsBackup([]string{resourceID})
@@ -112,14 +112,14 @@ func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_groups() {
 		sel.Selector)
 }
 
-func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_incrementalGroups() {
+func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeIncrementalGroups() {
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
 	runGroupsIncrementalBackupTests(suite, suite.its, opts)
 }
 
-func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_extensionsGroups() {
+func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeExtensionsGroups() {
 	var (
 		resourceID = suite.its.group.ID
 		sel        = selectors.NewGroupsBackup([]string{resourceID})
