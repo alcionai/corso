@@ -71,9 +71,10 @@ func (suite *ListsUnitSuite) TestSharePointInfo() {
 
 			list, expected := test.listAndDeets()
 			info := ListToSPInfo(list)
+			assert.Equal(t, expected.ItemType, info.ItemType)
+			assert.Equal(t, expected.ItemName, info.ItemName)
+			assert.Equal(t, expected.WebURL, info.WebURL)
 			if expected.List != nil {
-				assert.Equal(t, expected.ItemType, info.ItemType)
-				assert.Equal(t, expected.List.Name, info.List.Name)
 				assert.Equal(t, expected.List.ItemCount, info.List.ItemCount)
 			}
 		})
