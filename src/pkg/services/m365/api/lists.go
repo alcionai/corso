@@ -133,7 +133,7 @@ func (c Lists) PostDrive(
 
 // SharePoint lists represent lists on a site. Inherits additional properties from
 // baseItem: https://learn.microsoft.com/en-us/graph/api/resources/baseitem?view=graph-rest-1.0
-// The full details concerning SharePoint Lists can
+// The full documentation concerning SharePoint Lists can
 // be found at: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
 // Note additional calls are required for the relationships that exist outside of the object properties.
 
@@ -499,7 +499,7 @@ func CloneListItem(orig models.ListItemable) models.ListItemable {
 
 // retrieveFieldData utility function to clone raw listItem data from the embedded
 // additionalData map
-// Further details on FieldValueSets:
+// Further documentation on FieldValueSets:
 // - https://learn.microsoft.com/en-us/graph/api/resources/fieldvalueset?view=graph-rest-1.0
 func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
 	fields := models.NewFieldValueSet()
@@ -590,7 +590,7 @@ func (c Lists) getListItemFields(
 }
 
 // ListToSPInfo translates models.Listable metadata into searchable content
-// List Details: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
+// List documentation: https://learn.microsoft.com/en-us/graph/api/resources/list?view=graph-rest-1.0
 func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 	var (
 		name     = ptr.Val(lst.GetDisplayName())
