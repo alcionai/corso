@@ -508,7 +508,7 @@ func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
 		With("error_labels", clues.Labels(err))
 
 	for k, v := range ctxVals {
-		zsl.With(k, v)
+		zsl = zsl.With(k, v)
 	}
 
 	return zsl
