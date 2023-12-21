@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -247,4 +248,212 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 	}
 
 	wg.Wait()
+}
+
+// -----------------------------------------------------------------------------
+// lazyFetchCollection
+// -----------------------------------------------------------------------------
+
+type lazyFetchCollection[C graph.GetIDer, I groupsItemer] struct {
+	data.BaseCollection
+	protectedResource string
+	stream            chan data.Item
+
+	contains container[C]
+
+	// added is a list of existing item IDs that were added to a container
+	added map[string]time.Time
+	// removed is a list of item IDs that were deleted from, or moved out, of a container
+	removed map[string]struct{}
+
+	getAndAugment getItemAndAugmentInfoer[C, I]
+
+	statusUpdater support.StatusUpdater
+}
+
+// Items utility function to asynchronously execute process to fill data channel with
+// M365 exchange objects and returns the data channel
+func (col *lazyFetchCollection[C, I]) Items(
+	ctx context.Context,
+	errs *fault.Bus,
+) <-chan data.Item {
+	go col.streamItems(ctx, errs)
+	return col.stream
+}
+
+// ---------------------------------------------------------------------------
+// items() production
+// ---------------------------------------------------------------------------
+
+func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
+	var (
+		streamedItems int64
+		wg            sync.WaitGroup
+		colProgress   chan<- struct{}
+		el            = errs.Local()
+	)
+
+	ctx = clues.Add(ctx, "category", col.Category().String())
+
+	defer func() {
+		close(col.stream)
+		logger.Ctx(ctx).Infow(
+			"finished stream backup collection items",
+			"stats", col.Counter.Values())
+
+		updateStatus(
+			ctx,
+			col.statusUpdater,
+			len(col.added)+len(col.removed),
+			streamedItems,
+			0,
+			col.FullPath().Folder(false),
+			errs.Failure())
+	}()
+
+	if len(col.added)+len(col.removed) > 0 {
+		colProgress = observe.CollectionProgress(
+			ctx,
+			col.Category().HumanString(),
+			col.LocationPath().Elements())
+		defer close(colProgress)
+	}
+
+	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
+	defer close(semaphoreCh)
+
+	// delete all removed items
+	for id := range col.removed {
+		semaphoreCh <- struct{}{}
+
+		wg.Add(1)
+
+		go func(id string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			col.stream <- data.NewDeletedItem(id)
+
+			atomic.AddInt64(&streamedItems, 1)
+			col.Counter.Inc(count.StreamItemsRemoved)
+
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
+		}(id)
+	}
+
+	// add any new items
+	for id, modTime := range col.added {
+		if el.Failure() != nil {
+			break
+		}
+
+		wg.Add(1)
+		semaphoreCh <- struct{}{}
+
+		go func(id string, modTime time.Time) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			ictx := clues.Add(
+				ctx,
+				"item_id", id,
+				"parent_path", path.LoggableDir(col.LocationPath().String()))
+
+			col.stream <- data.NewLazyItemWithInfo(
+				ictx,
+				&lazyItemGetter[C, I]{
+					modTime:       modTime,
+					getAndAugment: col.getAndAugment,
+					userID:        col.protectedResource,
+					itemID:        id,
+					containerIDs:  col.FullPath().Folders(),
+					contains:      col.contains,
+					parentPath:    col.LocationPath().String(),
+				},
+				id,
+				modTime,
+				col.Counter,
+				el)
+
+			// Need remaining things, copy from prefetch collection
+			// totalBytes - not available since info gets called later now
+			atomic.AddInt64(&streamedItems, 1)
+
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
+		}(id, modTime)
+	}
+
+	wg.Wait()
+}
+
+type lazyItemGetter[C graph.GetIDer, I groupsItemer] struct {
+	getAndAugment getItemAndAugmentInfoer[C, I]
+	userID        string
+	itemID        string
+	parentPath    string
+	containerIDs  path.Elements
+	modTime       time.Time
+	contains      container[C]
+}
+
+func (lig *lazyItemGetter[C, I]) GetData(
+	ctx context.Context,
+	errs *fault.Bus,
+) (io.ReadCloser, *details.ItemInfo, bool, error) {
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	item, info, err := lig.getAndAugment.getItem(
+		ctx,
+		lig.userID,
+		lig.containerIDs,
+		lig.itemID)
+	if err != nil {
+		// If an item was deleted then return an empty file so we don't fail
+		// the backup and return a sentinel error when asked for ItemInfo so
+		// we don't display the item in the backup.
+		//
+		// The item will be deleted from kopia on the next backup when the
+		// delta token shows it's removed.
+		if graph.IsErrDeletedInFlight(err) {
+			logger.CtxErr(ctx, err).Info("item not found")
+			return nil, nil, true, nil
+		}
+
+		err = clues.Wrap(err, "getting item data").Label(fault.LabelForceNoBackupCreation)
+		errs.AddRecoverable(ctx, err)
+
+		return nil, nil, false, err
+	}
+
+	lig.getAndAugment.augmentItemInfo(info, lig.contains.container)
+
+	if err := writer.WriteObjectValue("", item); err != nil {
+		err = clues.Wrap(err, "writing item to serializer").Label(fault.LabelForceNoBackupCreation)
+		errs.AddRecoverable(ctx, err)
+
+		return nil, nil, false, err
+	}
+
+	itemData, err := writer.GetSerializedContent()
+	if err != nil {
+		err = clues.Wrap(err, "serializing item").Label(fault.LabelForceNoBackupCreation)
+		errs.AddRecoverable(ctx, err)
+
+		return nil, nil, false, err
+	}
+
+	info.ParentPath = lig.parentPath
+	// Update the mod time to what we already told kopia about. This is required
+	// for proper details merging.
+	info.Modified = lig.modTime
+
+	return io.NopCloser(bytes.NewReader(itemData)),
+		&details.ItemInfo{Groups: info},
+		false,
+		nil
 }
