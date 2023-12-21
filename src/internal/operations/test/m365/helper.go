@@ -1,4 +1,4 @@
-package test_test
+package m365
 
 import (
 	"context"
@@ -13,28 +13,19 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/events"
-	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/operations/inject"
-	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
-	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/extensions"
@@ -44,9 +35,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	gmock "github.com/alcionai/corso/src/pkg/services/m365/api/graph/mock"
-	"github.com/alcionai/corso/src/pkg/storage"
-	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
-	"github.com/alcionai/corso/src/pkg/store"
 )
 
 // ---------------------------------------------------------------------------
@@ -55,7 +43,7 @@ import (
 
 // GockClient produces a new exchange api client that can be
 // mocked using gock.
-func gockClient(creds account.M365Config, counter *count.Bus) (api.Client, error) {
+func GockClient(creds account.M365Config, counter *count.Bus) (api.Client, error) {
 	s, err := gmock.NewService(creds, counter)
 	if err != nil {
 		return api.Client{}, err
@@ -76,231 +64,9 @@ func gockClient(creds account.M365Config, counter *count.Bus) (api.Client, error
 // Does not use the tester.DefaultTestRestoreDestination syntax as some of these
 // items are created directly, not as a result of restoration, and we want to ensure
 // they get clearly selected without accidental overlap.
-const incrementalsDestContainerPrefix = "incrementals_ci_"
+const IncrementalsDestContainerPrefix = "incrementals_ci_"
 
-type backupOpDependencies struct {
-	acct account.Account
-	ctrl *m365.Controller
-	kms  *kopia.ModelStore
-	kw   *kopia.Wrapper
-	sel  selectors.Selector
-	sss  streamstore.Streamer
-	st   storage.Storage
-	sw   store.BackupStorer
-
-	closer func()
-}
-
-func (bod *backupOpDependencies) close(
-	t *testing.T,
-	ctx context.Context, //revive:disable-line:context-as-argument
-) {
-	bod.closer()
-
-	if bod.kw != nil {
-		err := bod.kw.Close(ctx)
-		assert.NoErrorf(t, err, "kw close: %+v", clues.ToCore(err))
-	}
-
-	if bod.kms != nil {
-		err := bod.kw.Close(ctx)
-		assert.NoErrorf(t, err, "kms close: %+v", clues.ToCore(err))
-	}
-}
-
-// prepNewTestBackupOp generates all clients required to run a backup operation,
-// returning both a backup operation created with those clients, as well as
-// the clients themselves.
-func prepNewTestBackupOp(
-	t *testing.T,
-	ctx context.Context, //revive:disable-line:context-as-argument
-	bus events.Eventer,
-	sel selectors.Selector,
-	opts control.Options,
-	backupVersion int,
-	counter *count.Bus,
-) (
-	operations.BackupOperation,
-	*backupOpDependencies,
-) {
-	bod := &backupOpDependencies{
-		acct: tconfig.NewM365Account(t),
-		st:   storeTD.NewPrefixedS3Storage(t),
-	}
-	repoNameHash := strTD.NewHashForRepoConfigName()
-
-	k := kopia.NewConn(bod.st)
-
-	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
-	require.NoError(t, err, clues.ToCore(err))
-
-	defer func() {
-		if err != nil {
-			bod.close(t, ctx)
-			t.FailNow()
-		}
-	}()
-
-	// kopiaRef comes with a count of 1 and Wrapper bumps it again
-	// we're so safe to close here.
-	bod.closer = func() {
-		err := k.Close(ctx)
-		assert.NoErrorf(t, err, "k close: %+v", clues.ToCore(err))
-	}
-
-	bod.kw, err = kopia.NewWrapper(k)
-	if !assert.NoError(t, err, clues.ToCore(err)) {
-		return operations.BackupOperation{}, nil
-	}
-
-	bod.kms, err = kopia.NewModelStore(k)
-	if !assert.NoError(t, err, clues.ToCore(err)) {
-		return operations.BackupOperation{}, nil
-	}
-
-	bod.sw = store.NewWrapper(bod.kms)
-
-	bod.ctrl, bod.sel = ControllerWithSelector(
-		t,
-		ctx,
-		bod.acct,
-		sel,
-		nil,
-		bod.close,
-		counter)
-
-	bo := newTestBackupOp(
-		t,
-		ctx,
-		bod,
-		bus,
-		opts,
-		counter)
-	bo.BackupVersion = backupVersion
-
-	bod.sss = streamstore.NewStreamer(
-		bod.kw,
-		bod.acct.ID(),
-		bod.sel.PathService())
-
-	return bo, bod
-}
-
-// newTestBackupOp accepts the clients required to compose a backup operation, plus
-// any other metadata, and uses them to generate a new backup operation.  This
-// allows backup chains to utilize the same temp directory and configuration
-// details.
-func newTestBackupOp(
-	t *testing.T,
-	ctx context.Context, //revive:disable-line:context-as-argument
-	bod *backupOpDependencies,
-	bus events.Eventer,
-	opts control.Options,
-	counter *count.Bus,
-) operations.BackupOperation {
-	bod.ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.sel.ID(): bod.sel.Name()})
-
-	bo, err := operations.NewBackupOperation(
-		ctx,
-		opts,
-		bod.kw,
-		bod.sw,
-		bod.ctrl,
-		bod.acct,
-		bod.sel,
-		bod.sel,
-		bus,
-		counter)
-	if !assert.NoError(t, err, clues.ToCore(err)) {
-		bod.close(t, ctx)
-		t.FailNow()
-	}
-
-	return bo
-}
-
-func runAndCheckBackup(
-	t *testing.T,
-	ctx context.Context, //revive:disable-line:context-as-argument
-	bo *operations.BackupOperation,
-	mb *evmock.Bus,
-	acceptNoData bool,
-) {
-	err := bo.Run(ctx)
-	if !assert.NoError(t, err, clues.ToCore(err)) {
-		for i, err := range bo.Errors.Recovered() {
-			t.Logf("recoverable err %d, %+v", i, err)
-		}
-
-		assert.Fail(t, "not allowed to error")
-	}
-
-	require.NotEmpty(t, bo.Results, "the backup had non-zero results")
-	require.NotEmpty(t, bo.Results.BackupID, "the backup generated an ID")
-
-	expectStatus := []operations.OpStatus{operations.Completed}
-	if acceptNoData {
-		expectStatus = append(expectStatus, operations.NoData)
-	}
-
-	require.Contains(
-		t,
-		expectStatus,
-		bo.Status,
-		"backup doesn't match expectation, wanted any of %v, got %s",
-		expectStatus,
-		bo.Status)
-
-	require.NotZero(t, bo.Results.ItemsWritten)
-	assert.NotZero(t, bo.Results.ItemsRead, "count of items read")
-	assert.NotZero(t, bo.Results.BytesRead, "bytes read")
-	assert.NotZero(t, bo.Results.BytesUploaded, "bytes uploaded")
-	assert.Equal(t, 1, bo.Results.ResourceOwners, "count of resource owners")
-	assert.NoError(t, bo.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
-	assert.Empty(t, bo.Errors.Recovered(), "incremental recoverable/iteration errors")
-	assert.Equal(t, 1, mb.TimesCalled[events.BackupEnd], "backup-end events")
-}
-
-func checkBackupIsInManifests(
-	t *testing.T,
-	ctx context.Context, //revive:disable-line:context-as-argument
-	kw *kopia.Wrapper,
-	sw store.BackupStorer,
-	bo *operations.BackupOperation,
-	sel selectors.Selector,
-	resourceOwner string,
-	categories ...path.CategoryType,
-) {
-	for _, category := range categories {
-		t.Run(category.String(), func(t *testing.T) {
-			var (
-				r     = identity.NewReason("", resourceOwner, sel.PathService(), category)
-				tags  = map[string]string{kopia.TagBackupCategory: ""}
-				found bool
-			)
-
-			bf, err := kw.NewBaseFinder(sw)
-			require.NoError(t, err, clues.ToCore(err))
-
-			mans := bf.FindBases(ctx, []identity.Reasoner{r}, tags)
-			for _, man := range mans.MergeBases() {
-				bID, ok := man.GetSnapshotTag(kopia.TagBackupID)
-				if !assert.Truef(t, ok, "snapshot manifest %s missing backup ID tag", man.ItemDataSnapshot.ID) {
-					continue
-				}
-
-				if bID == string(bo.Results.BackupID) {
-					found = true
-					break
-				}
-			}
-
-			assert.True(t, found, "backup retrieved by previous snapshot manifest")
-		})
-	}
-}
-
-func checkMetadataFilesExist(
+func CheckMetadataFilesExist(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	backupID model.StableID,
@@ -376,149 +142,6 @@ func checkMetadataFilesExist(
 	}
 }
 
-func runMergeBaseGroupsUpdate(
-	suite tester.Suite,
-	sel selectors.Selector,
-	expectCached bool,
-) {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		opts    = control.DefaultOptions()
-		whatSet = deeTD.CategoryFromRepoRef
-	)
-
-	opts.ToggleFeatures.UseDeltaTree = true
-
-	// Need outside the inner test case so bod lasts for the entire test.
-	bo, bod := prepNewTestBackupOp(
-		t,
-		ctx,
-		mb,
-		sel,
-		opts,
-		version.All8MigrateUserPNToID,
-		count.New())
-	defer bod.close(t, ctx)
-
-	suite.Run("makeMergeBackup", func() {
-		t := suite.T()
-
-		ctx, flush := tester.NewContext(t)
-		defer flush()
-
-		runAndCheckBackup(t, ctx, &bo, mb, false)
-
-		reasons, err := bod.sel.Reasons(bod.acct.ID(), false)
-		require.NoError(t, err, clues.ToCore(err))
-
-		for _, reason := range reasons {
-			checkBackupIsInManifests(
-				t,
-				ctx,
-				bod.kw,
-				bod.sw,
-				&bo,
-				bod.sel,
-				bod.sel.ID(),
-				reason.Category())
-		}
-
-		_, expectDeets := deeTD.GetDeetsInBackup(
-			t,
-			ctx,
-			bo.Results.BackupID,
-			bod.acct.ID(),
-			bod.sel.ID(),
-			bod.sel.PathService(),
-			whatSet,
-			bod.kms,
-			bod.sss)
-		deeTD.CheckBackupDetails(
-			t,
-			ctx,
-			bo.Results.BackupID,
-			whatSet,
-			bod.kms,
-			bod.sss,
-			expectDeets,
-			false)
-	})
-
-	suite.Run("makeIncrementalBackup", func() {
-		t := suite.T()
-
-		ctx, flush := tester.NewContext(t)
-		defer flush()
-
-		var (
-			mb   = evmock.NewBus()
-			opts = control.DefaultOptions()
-		)
-
-		forcedFull := newTestBackupOp(
-			t,
-			ctx,
-			bod,
-			mb,
-			opts,
-			count.New())
-		forcedFull.BackupVersion = version.Groups9Update
-
-		runAndCheckBackup(t, ctx, &forcedFull, mb, false)
-
-		reasons, err := bod.sel.Reasons(bod.acct.ID(), false)
-		require.NoError(t, err, clues.ToCore(err))
-
-		for _, reason := range reasons {
-			checkBackupIsInManifests(
-				t,
-				ctx,
-				bod.kw,
-				bod.sw,
-				&forcedFull,
-				bod.sel,
-				bod.sel.ID(),
-				reason.Category())
-		}
-
-		_, expectDeets := deeTD.GetDeetsInBackup(
-			t,
-			ctx,
-			forcedFull.Results.BackupID,
-			bod.acct.ID(),
-			bod.sel.ID(),
-			bod.sel.PathService(),
-			whatSet,
-			bod.kms,
-			bod.sss)
-		deeTD.CheckBackupDetails(
-			t,
-			ctx,
-			forcedFull.Results.BackupID,
-			whatSet,
-			bod.kms,
-			bod.sss,
-			expectDeets,
-			false)
-
-		check := assert.Zero
-
-		if expectCached {
-			check = assert.NotZero
-		}
-
-		check(
-			t,
-			forcedFull.Results.Counts[string(count.PersistedCachedFiles)],
-			"cached items")
-	})
-}
-
 // ---------------------------------------------------------------------------
 // Incremental Item Generators
 // TODO: this is ripped from factory.go, which is ripped from other tests.
@@ -529,9 +152,9 @@ func runMergeBaseGroupsUpdate(
 
 // the params here are what generateContainerOfItems passes into the func.
 // the callback provider can use them, or not, as wanted.
-type dataBuilderFunc func(id, timeStamp, subject, body string) []byte
+type DataBuilderFunc func(id, timeStamp, subject, body string) []byte
 
-func generateContainerOfItems(
+func GenerateContainerOfItems(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	ctrl *m365.Controller,
@@ -541,16 +164,16 @@ func generateContainerOfItems(
 	tenantID, resourceOwner, siteID, driveID, destFldr string,
 	howManyItems int,
 	backupVersion int,
-	dbf dataBuilderFunc,
+	dbf DataBuilderFunc,
 ) *details.Details {
 	t.Helper()
 
-	items := make([]incrementalItem, 0, howManyItems)
+	items := make([]IncrementalItem, 0, howManyItems)
 
 	for i := 0; i < howManyItems; i++ {
-		id, d := generateItemData(t, cat, resourceOwner, dbf)
+		id, d := GenerateItemData(t, cat, resourceOwner, dbf)
 
-		items = append(items, incrementalItem{
+		items = append(items, IncrementalItem{
 			name: id,
 			data: d,
 		})
@@ -565,7 +188,7 @@ func generateContainerOfItems(
 		pathFolders = []string{odConsts.SitesPathDir, siteID, odConsts.DrivesPathDir, driveID, odConsts.RootPathDir, destFldr}
 	}
 
-	collections := []incrementalCollection{{
+	collections := []IncrementalCollection{{
 		pathFolders: pathFolders,
 		category:    cat,
 		items:       items,
@@ -575,7 +198,7 @@ func generateContainerOfItems(
 	restoreCfg.Location = destFldr
 	restoreCfg.IncludePermissions = true
 
-	dataColls := buildCollections(
+	dataColls := BuildCollections(
 		t,
 		service,
 		tenantID, resourceOwner,
@@ -606,11 +229,11 @@ func generateContainerOfItems(
 	return deets
 }
 
-func generateItemData(
+func GenerateItemData(
 	t *testing.T,
 	category path.CategoryType,
 	resourceOwner string,
-	dbf dataBuilderFunc,
+	dbf DataBuilderFunc,
 ) (string, []byte) {
 	var (
 		now       = dttm.Now()
@@ -623,30 +246,30 @@ func generateItemData(
 	return id, dbf(id, nowLegacy, subject, body)
 }
 
-type incrementalItem struct {
+type IncrementalItem struct {
 	name string
 	data []byte
 }
 
-type incrementalCollection struct {
+type IncrementalCollection struct {
 	pathFolders []string
 	category    path.CategoryType
-	items       []incrementalItem
+	items       []IncrementalItem
 }
 
-func buildCollections(
+func BuildCollections(
 	t *testing.T,
 	service path.ServiceType,
 	tenant, user string,
 	restoreCfg control.RestoreConfig,
-	colls []incrementalCollection,
+	colls []IncrementalCollection,
 ) []data.RestoreCollection {
 	t.Helper()
 
 	collections := make([]data.RestoreCollection, 0, len(colls))
 
 	for _, c := range colls {
-		pth := toDataLayerPath(
+		pth := ToDataLayerPath(
 			t,
 			service,
 			tenant,
@@ -668,7 +291,7 @@ func buildCollections(
 	return collections
 }
 
-func toDataLayerPath(
+func ToDataLayerPath(
 	t *testing.T,
 	service path.ServiceType,
 	tenant, resourceOwner string,
@@ -748,30 +371,30 @@ func ControllerWithSelector(
 // Suite Setup
 // ---------------------------------------------------------------------------
 
-type ids struct {
+type IDs struct {
 	ID                string
 	DriveID           string
 	DriveRootFolderID string
 }
 
-type gids struct {
+type GIDs struct {
 	ID       string
-	RootSite ids
+	RootSite IDs
 }
 
-type intgTesterSetup struct {
-	ac             api.Client
-	gockAC         api.Client
-	user           ids
-	secondaryUser  ids
-	site           ids
-	secondarySite  ids
-	group          gids
-	secondaryGroup gids
+type IntgTesterSetup struct {
+	AC             api.Client
+	GockAC         api.Client
+	User           IDs
+	SecondaryUser  IDs
+	Site           IDs
+	SecondarySite  IDs
+	Group          GIDs
+	SecondaryGroup GIDs
 }
 
-func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
-	its := intgTesterSetup{}
+func NewIntegrationTesterSetup(t *testing.T) IntgTesterSetup {
+	its := IntgTesterSetup{}
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -784,32 +407,32 @@ func newIntegrationTesterSetup(t *testing.T) intgTesterSetup {
 
 	counter := count.New()
 
-	its.ac, err = api.NewClient(
+	its.AC, err = api.NewClient(
 		creds,
 		control.DefaultOptions(),
 		counter)
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.gockAC, err = gockClient(creds, counter)
+	its.GockAC, err = GockClient(creds, counter)
 	require.NoError(t, err, clues.ToCore(err))
 
-	its.user = userIDs(t, tconfig.M365UserID(t), its.ac)
-	its.secondaryUser = userIDs(t, tconfig.SecondaryM365UserID(t), its.ac)
-	its.site = siteIDs(t, tconfig.M365SiteID(t), its.ac)
-	its.secondarySite = siteIDs(t, tconfig.SecondaryM365SiteID(t), its.ac)
+	its.User = userIDs(t, tconfig.M365UserID(t), its.AC)
+	its.SecondaryUser = userIDs(t, tconfig.SecondaryM365UserID(t), its.AC)
+	its.Site = siteIDs(t, tconfig.M365SiteID(t), its.AC)
+	its.SecondarySite = siteIDs(t, tconfig.SecondaryM365SiteID(t), its.AC)
 	// teamID is used here intentionally.  We want the group
 	// to have access to teams data
-	its.group = groupIDs(t, tconfig.M365TeamID(t), its.ac)
-	its.secondaryGroup = groupIDs(t, tconfig.SecondaryM365TeamID(t), its.ac)
+	its.Group = groupIDs(t, tconfig.M365TeamID(t), its.AC)
+	its.SecondaryGroup = groupIDs(t, tconfig.SecondaryM365TeamID(t), its.AC)
 
 	return its
 }
 
-func userIDs(t *testing.T, id string, ac api.Client) ids {
+func userIDs(t *testing.T, id string, ac api.Client) IDs {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	r := ids{ID: id}
+	r := IDs{ID: id}
 
 	drive, err := ac.Users().GetDefaultDrive(ctx, id)
 	require.NoError(t, err, clues.ToCore(err))
@@ -824,11 +447,11 @@ func userIDs(t *testing.T, id string, ac api.Client) ids {
 	return r
 }
 
-func siteIDs(t *testing.T, id string, ac api.Client) ids {
+func siteIDs(t *testing.T, id string, ac api.Client) IDs {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	r := ids{ID: id}
+	r := IDs{ID: id}
 
 	drive, err := ac.Sites().GetDefaultDrive(ctx, id)
 	require.NoError(t, err, clues.ToCore(err))
@@ -843,11 +466,11 @@ func siteIDs(t *testing.T, id string, ac api.Client) ids {
 	return r
 }
 
-func groupIDs(t *testing.T, id string, ac api.Client) gids {
+func groupIDs(t *testing.T, id string, ac api.Client) GIDs {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	r := gids{ID: id}
+	r := GIDs{ID: id}
 
 	site, err := ac.Groups().GetRootSite(ctx, id)
 	require.NoError(t, err, clues.ToCore(err))
@@ -867,13 +490,13 @@ func groupIDs(t *testing.T, id string, ac api.Client) gids {
 	return r
 }
 
-func getTestExtensionFactories() []extensions.CreateItemExtensioner {
+func GetTestExtensionFactories() []extensions.CreateItemExtensioner {
 	return []extensions.CreateItemExtensioner{
 		&extensions.MockItemExtensionFactory{},
 	}
 }
 
-func verifyExtensionData(
+func VerifyExtensionData(
 	t *testing.T,
 	itemInfo details.ItemInfo,
 	p path.ServiceType,
