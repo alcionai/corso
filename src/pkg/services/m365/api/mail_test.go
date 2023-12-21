@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/sanitize"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -567,6 +568,38 @@ func sendItemWithBodyAndGetSerialized(
 	return serialized
 }
 
+func sendSerializedItemAndGetSerialized(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	msgs Mail,
+	userID string,
+	mailFolderID string,
+	serializedInput []byte,
+) []byte {
+	msg, err := BytesToMessageable(serializedInput)
+	require.NoError(t, err, clues.ToCore(err))
+
+	item, err := msgs.PostItem(ctx, userID, mailFolderID, msg)
+	require.NoError(t, err, clues.ToCore(err))
+
+	fetched, _, err := msgs.GetItem(
+		ctx,
+		userID,
+		ptr.Val(item.GetId()),
+		false,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	serialized, err := msgs.Serialize(
+		ctx,
+		fetched,
+		userID,
+		ptr.Val(item.GetId()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	return serialized
+}
+
 func (suite *MailAPIIntgSuite) TestMail_WithSpecialCharacters() {
 	t := suite.T()
 
@@ -622,6 +655,33 @@ func (suite *MailAPIIntgSuite) TestMail_WithSpecialCharacters() {
 			case bodyContent != string(matches[0][1]):
 				t.Logf("text of 0x%x has been transformed to %s", i, matches[0][1])
 			}
+
+			sanitized := sanitize.JSONBytes(serialized)
+			newSerialized := sendSerializedItemAndGetSerialized(
+				t,
+				ctx,
+				msgs,
+				userID,
+				ptr.Val(mailfolder.GetId()),
+				sanitized)
+
+			newMatches := contentRegex.FindAllSubmatch(newSerialized, -1)
+
+			switch {
+			case len(newMatches) == 0:
+				t.Logf("sanitized text of 0x%x wasn't found", i)
+
+			case len(newMatches[0]) < 2:
+				t.Logf("sanitized text of 0x%x was removed", i)
+
+			case bodyContent != string(newMatches[0][1]):
+				t.Logf(
+					"sanitized text of 0x%x has been transformed to %s",
+					i,
+					newMatches[0][1])
+			}
+
+			assert.Equal(t, matches[0][1], newMatches[0][1])
 			//})
 		}
 	}
@@ -680,6 +740,33 @@ func (suite *MailAPIIntgSuite) TestMail_WithSpecialCharacters() {
 		case sequence != string(matches[0][1]):
 			t.Logf("sequence %d has been transformed to %s", i, matches[0][1])
 		}
+
+		sanitized := sanitize.JSONBytes(serialized)
+		newSerialized := sendSerializedItemAndGetSerialized(
+			t,
+			ctx,
+			msgs,
+			userID,
+			ptr.Val(mailfolder.GetId()),
+			sanitized)
+
+		newMatches := contentRegex.FindAllSubmatch(newSerialized, -1)
+
+		switch {
+		case len(newMatches) == 0:
+			t.Logf("sanitized sequence %d wasn't found", i)
+
+		case len(newMatches[0]) < 2:
+			t.Logf("sanitized sequence %d was removed", i)
+
+		case sequence != string(newMatches[0][1]):
+			t.Logf(
+				"sanitized sequence %d has been transformed to %s",
+				i,
+				newMatches[0][1])
+		}
+
+		assert.Equal(t, matches[0][1], newMatches[0][1])
 		//})
 	}
 }
