@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -342,12 +343,14 @@ type lazyFetchCollection struct {
 	items         map[string]time.Time
 	statusUpdater support.StatusUpdater
 	getter        getItemByIDer
+	counter       *count.Bus
 }
 
 func NewLazyFetchCollection(
 	getter getItemByIDer,
 	folderPath path.Path,
 	statusUpdater support.StatusUpdater,
+	counter *count.Bus,
 ) *lazyFetchCollection {
 	c := &lazyFetchCollection{
 		fullPath:      folderPath,
@@ -355,6 +358,7 @@ func NewLazyFetchCollection(
 		getter:        getter,
 		stream:        make(chan data.Item, collectionChannelBufferSize),
 		statusUpdater: statusUpdater,
+		counter:       counter,
 	}
 
 	return c
@@ -362,6 +366,7 @@ func NewLazyFetchCollection(
 
 func (lc *lazyFetchCollection) AddItem(itemID string, lastModifiedTime time.Time) {
 	lc.items[itemID] = lastModifiedTime
+	lc.counter.Add(count.ItemsAdded, 1)
 }
 
 func (lc *lazyFetchCollection) FullPath() path.Path {
@@ -398,22 +403,46 @@ func (lc *lazyFetchCollection) streamItems(
 	ctx context.Context,
 	errs *fault.Bus,
 ) {
-	_ = lc.getter
-	_ = lc.handleListItems
-}
+	var (
+		metrics  support.CollectionMetrics
+		el       = errs.Local()
+		numLists int64
+	)
 
-func (lc *lazyFetchCollection) handleListItems(
-	ctx context.Context,
-	semaphoreCh chan struct{},
-	progress chan<- struct{},
-	numLists int64,
-	listID string,
-	el *fault.Bus,
-	metrics support.CollectionMetrics,
-) {
-	_ = lc.statusUpdater
-	lig := &lazyItemGetter{}
-	_, _, _, _ = lig.GetData(ctx, el)
+	defer finishPopulation(
+		ctx,
+		lc.stream,
+		lc.statusUpdater,
+		lc.fullPath,
+		metrics,
+	)
+
+	progress := observe.CollectionProgress(ctx, lc.fullPath.Category().HumanString(), lc.fullPath.Folders())
+	defer close(progress)
+
+	for listID, modTime := range lc.items {
+		if el.Failure() != nil {
+			break
+		}
+
+		lc.stream <- data.NewLazyItemWithInfo(
+			ctx,
+			&lazyItemGetter{
+				itemID:  listID,
+				getter:  lc.getter,
+				modTime: modTime,
+			},
+			listID,
+			modTime,
+			lc.counter,
+			el)
+
+		metrics.Successes++
+
+		progress <- struct{}{}
+	}
+
+	metrics.Objects += int(numLists)
 }
 
 type lazyItemGetter struct {

@@ -151,12 +151,14 @@ func CollectLists(
 	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
+	counter *count.Bus,
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
 		collection data.BackupCollection
 		el         = errs.Local()
+		cl         = counter.Local()
 		spcs       = make([]data.BackupCollection, 0)
 		acc        = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
 	)
@@ -195,6 +197,7 @@ func CollectLists(
 				bh,
 				dir,
 				su,
+				cl,
 			)
 
 			lazyFetchCol.AddItem(
