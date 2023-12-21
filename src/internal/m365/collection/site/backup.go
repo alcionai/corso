@@ -131,7 +131,7 @@ func CollectPages(
 			su,
 			bpc.Options)
 		collection.SetBetaService(betaService)
-		collection.AddJob(tuple.ID)
+		collection.AddItem(tuple.ID)
 
 		spcs = append(spcs, collection)
 	}
@@ -173,7 +173,7 @@ func CollectLists(
 			path.SharePointService,
 			path.ListsCategory,
 			false,
-			ptr.Val(list.GetDisplayName()))
+			ptr.Val(list.GetId()))
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
@@ -185,7 +185,7 @@ func CollectLists(
 			scope,
 			su,
 			bpc.Options)
-		collection.AddJob(ptr.Val(list.GetId()))
+		collection.AddItem(ptr.Val(list.GetId()))
 
 		spcs = append(spcs, collection)
 	}

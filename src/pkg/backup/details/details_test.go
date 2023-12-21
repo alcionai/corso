@@ -1338,12 +1338,16 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 
 func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 	const (
-		rrString = "tenant-id/%s/user-id/%s/drives/drive-id/root:/some/folder/stuff/item"
-		driveID  = "driveID"
+		rrString      = "tenant-id/%s/user-id/%s/drives/drive-id/root:/some/folder/stuff/item"
+		listsRrString = "tenant-id/%s/site-id/%s/lists/list-id/list-id"
+		driveID       = "driveID"
+		listID        = "listID"
 
 		expectedUniqueLocFmt         = "%s/" + driveID + "/root:/some/folder/stuff"
 		expectedExchangeUniqueLocFmt = "%s/root:/some/folder/stuff"
 		expectedDetailsLoc           = "root:/some/folder/stuff"
+		expectedListUniqueLocFmt     = "%s/" + listID
+		expectedListDetailsLoc       = listID
 	)
 
 	table := []struct {
@@ -1439,6 +1443,21 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 			},
 			backupVersion: version.OneDrive7LocationRef,
 			expectedErr:   require.Error,
+		},
+		{
+			name:     "SharePoint List With LocationRef",
+			service:  path.SharePointService.String(),
+			category: path.ListsCategory.String(),
+			itemInfo: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType: SharePointList,
+					List:     &ListInfo{},
+				},
+			},
+			backupVersion:     version.OneDrive7LocationRef,
+			hasLocRef:         true,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedListUniqueLocFmt, path.ListsCategory),
 		},
 		{
 			name:     "Exchange Email With LocationRef Old Version",
@@ -1540,13 +1559,23 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			rr := ""
+			detailsLoc := ""
+			if test.category == path.ListsCategory.String() {
+				rr = fmt.Sprintf(listsRrString, test.service, test.category)
+				detailsLoc = expectedListDetailsLoc
+			} else {
+				rr = fmt.Sprintf(rrString, test.service, test.category)
+				detailsLoc = expectedDetailsLoc
+			}
+
 			entry := Entry{
-				RepoRef:  fmt.Sprintf(rrString, test.service, test.category),
+				RepoRef:  rr,
 				ItemInfo: test.itemInfo,
 			}
 
 			if test.hasLocRef {
-				entry.LocationRef = expectedDetailsLoc
+				entry.LocationRef = detailsLoc
 			}
 
 			loc, err := entry.ToLocationIDer(test.backupVersion)
@@ -1563,7 +1592,7 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 				"unique location")
 			assert.Equal(
 				t,
-				expectedDetailsLoc,
+				detailsLoc,
 				loc.InDetails().String(),
 				"details location")
 		})
