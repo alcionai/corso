@@ -939,3 +939,47 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 		})
 	}
 }
+
+func (suite *GraphErrorsUnitSuite) TestIsErrSharingDisabled() {
+	innerMatch := graphTD.ODataErr("not-match")
+	merr := odataerrors.NewMainError()
+	inerr := odataerrors.NewInnerError()
+	inerr.SetAdditionalData(map[string]any{
+		"code": string(sharingDisabled),
+	})
+	merr.SetInnerError(inerr)
+	merr.SetCode(ptr.To("not-match"))
+	innerMatch.SetErrorEscaped(merr)
+
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", "resource is locked"),
+			expect: assert.False,
+		},
+		{
+			name:   "matching oDataErr inner code",
+			err:    innerMatch,
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrSharingDisabled(test.err))
+		})
+	}
+}
