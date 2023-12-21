@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -51,7 +50,7 @@ func (suite *SharepointRestoreUnitSuite) TestSharePointHandler_ConsumeRestoreCol
 		mock.Collection{Path: pth},
 	}
 
-	sh := NewSharePointHandler(control.DefaultOptions(), api.Client{}, nil)
+	sh := NewSharePointHandler(api.Client{}, nil)
 
 	_, _, err = sh.ConsumeRestoreCollections(
 		ctx,
