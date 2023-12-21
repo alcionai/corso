@@ -95,6 +95,84 @@ var (
 	"attendees":%s
 }`
 
+	eventWithRemovedFieldsTmpl = `{
+  "iCalUId":"abce",
+  "iCalUId_v2":"fghi",
+  "uid":"fghi",
+  "calendar@odata.associationLink":"some-link",
+  "calendar@odata.navigationLink":"some-link",
+  "@odata.context":"some-data",
+  "@odata.etag":"foo",
+	"categories":[],
+	"changeKey":"0hATW1CAfUS+njw3hdxSGAAAJIxNug==",
+	"createdDateTime":"2022-03-28T03:42:03Z",
+	"lastModifiedDateTime":"2022-05-26T19:25:58Z",
+	"allowNewTimeProposals":true,
+	"body":{
+		"content":"<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"></head><body>` +
+		`<p>%s</p></body></html>",
+		"contentType":"html"
+	},
+	"bodyPreview":"%s",
+	"end":{
+		"dateTime":"%s",
+		"timeZone":"UTC"
+	},
+	"hideAttendees":false,
+	"importance":"normal",
+	"isAllDay":false,
+	"isCancelled":false,
+	"isDraft":false,
+	"isOnlineMeeting":false,
+	"isOrganizer":false,
+	"isReminderOn":true,
+	"location":{
+		"displayName":"Umi Sake House (2230 1st Ave, Seattle, WA 98121 US)",
+		"locationType":"default",
+		"uniqueId":"Umi Sake House (2230 1st Ave, Seattle, WA 98121 US)",
+		"uniqueIdType":"private"
+	},
+	"locations":[
+		{
+			"displayName":"Umi Sake House (2230 1st Ave, Seattle, WA 98121 US)",
+			"locationType":"default",
+			"uniqueId":"",
+			"uniqueIdType":"unknown"
+		}
+	],
+	"onlineMeetingProvider":"unknown",
+	"organizer":{
+		"emailAddress":{
+			"address":"%s",
+			"name":"Anu Pierson"
+		}
+	},
+	%s
+	"originalEndTimeZone":"UTC",
+	"originalStartTimeZone":"UTC",
+	"reminderMinutesBeforeStart":15,
+	"responseRequested":true,
+	"responseStatus":{
+		"response":"notResponded",
+		"time":"0001-01-01T00:00:00Z"
+	},
+	"sensitivity":"normal",
+	"showAs":"tentative",
+	"start":{
+		"dateTime":"%s",
+		"timeZone":"UTC"
+	},
+	"subject":"%s",
+	"type":"%s",
+	"hasAttachments":%v,
+	%s
+	"webLink":"https://outlook.office365.com/owa/?itemid=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAENAADSEBNbUIB9RL6ePDeF3FIYAAAAAG76AAA%%3D&exvsurl=1&path=/calendar/item",
+	"recurrence":%s,
+	%s
+	%s
+	"attendees":%s
+}`
+
 	defaultEventBody        = "This meeting is to review the latest Tailspin Toys project proposal.<br>\\r\\nBut why not eat some sushi while we’re at it? :)"
 	defaultEventBodyPreview = "This meeting is to review the latest Tailspin Toys project proposal.\\r\\nBut why not eat some sushi while we’re at it? :)"
 	defaultEventOrganizer   = "foobar@8qzvrj.onmicrosoft.com"
@@ -396,6 +474,17 @@ func EventWith(
 	originalStartDate, startDateTime, endDateTime, recurrence, attendees,
 	attachments, cancelledOccurrences, exceptionOccurrences string,
 ) []byte {
+	return eventWith(
+		eventTmpl, organizer, subject, body, bodyPreview,
+		originalStartDate, startDateTime, endDateTime, recurrence, attendees,
+		attachments, cancelledOccurrences, exceptionOccurrences)
+}
+
+func eventWith(
+	tmpl, organizer, subject, body, bodyPreview,
+	originalStartDate, startDateTime, endDateTime, recurrence, attendees,
+	attachments, cancelledOccurrences, exceptionOccurrences string,
+) []byte {
 	hasAttachments := len(attachments) > 0
 	startDateTime = strings.TrimSuffix(startDateTime, "Z")
 	endDateTime = strings.TrimSuffix(endDateTime, "Z")
@@ -414,7 +503,7 @@ func EventWith(
 	}
 
 	return []byte(fmt.Sprintf(
-		eventTmpl,
+		tmpl,
 		body,
 		bodyPreview,
 		endDateTime,
@@ -429,4 +518,41 @@ func EventWith(
 		cancelledOccurrences,
 		exceptionOccurrences,
 		attendees))
+}
+
+func EventWithRemovedFields(subject string) []byte {
+	var (
+		tomorrow          = time.Now().UTC().AddDate(0, 0, 1)
+		at                = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), tomorrow.Hour(), 0, 0, 0, time.UTC)
+		atTime            = dttm.Format(at)
+		timeSlice         = strings.Split(atTime, "T")
+		newTime           = dttm.Format(tomorrow.AddDate(0, 0, 1))
+		originalStartDate = dttm.FormatTo(at, dttm.TabularOutput)
+		nextYear          = tomorrow.AddDate(1, 0, 0)
+	)
+
+	recurrence := string(fmt.Sprintf(
+		recurrenceTmpl,
+		strconv.Itoa(int(at.Month())),
+		strconv.Itoa(at.Day()),
+		timeSlice[0],
+		`"UTC"`))
+
+	cancelledInstances := []string{fmt.Sprintf(cancelledOccurrenceInstanceFormat, dttm.FormatTo(nextYear, dttm.DateOnly))}
+	cancelledOccurrences := fmt.Sprintf(cancelledOccurrencesFormat, strings.Join(cancelledInstances, ","))
+
+	exceptionEvent := EventWith(
+		defaultEventOrganizer, subject+"(modified)",
+		defaultEventBody, defaultEventBodyPreview,
+		fmt.Sprintf(originalStartDateFormat, originalStartDate),
+		newTime, newTime, NoRecurrence, attendeesTmpl,
+		NoAttachments, NoCancelledOccurrences, NoExceptionOccurrences)
+	exceptionOccurrences := fmt.Sprintf(exceptionOccurrencesFormat, exceptionEvent)
+
+	return eventWith(
+		eventWithRemovedFieldsTmpl,
+		defaultEventOrganizer, subject,
+		defaultEventBody, defaultEventBodyPreview,
+		NoOriginalStartDate, atTime, atTime, recurrence, attendeesTmpl,
+		defaultEventAttachments, cancelledOccurrences, exceptionOccurrences)
 }

@@ -133,7 +133,6 @@ type (
 
 	ToServiceHandler interface {
 		NewServiceHandler(
-			opts control.Options,
 			service path.ServiceType,
 		) (ServiceHandler, error)
 	}

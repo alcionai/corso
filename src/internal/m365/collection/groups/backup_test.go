@@ -39,6 +39,7 @@ import (
 
 var _ backupHandler[models.Channelable, models.ChatMessageable] = &mockBackupHandler{}
 
+//lint:ignore U1000 false linter issue due to generics
 type mockBackupHandler struct {
 	channels      []models.Channelable
 	messageIDs    []string
@@ -48,6 +49,14 @@ type mockBackupHandler struct {
 	info          map[string]*details.GroupsInfo
 	getMessageErr map[string]error
 	doNotInclude  bool
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (bh mockBackupHandler) augmentItemInfo(
+	*details.GroupsInfo,
+	models.Channelable,
+) {
+	// no-op
 }
 
 func (bh mockBackupHandler) canMakeDeltaQueries() bool {
@@ -116,7 +125,8 @@ func (bh mockBackupHandler) canonicalPath(
 			false)
 }
 
-func (bh mockBackupHandler) GetItem(
+//lint:ignore U1000 false linter issue due to generics
+func (bh mockBackupHandler) getItem(
 	_ context.Context,
 	_ string,
 	_ path.Elements,

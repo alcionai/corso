@@ -350,9 +350,7 @@ func (suite *RestoreOpIntegrationSuite) TestRestore_Run_errorNoBackup() {
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
-	rc, err := ctrl.NewServiceHandler(
-		control.DefaultOptions(),
-		rsel.PathService())
+	rc, err := ctrl.NewServiceHandler(rsel.PathService())
 	require.NoError(t, err, clues.ToCore(err))
 
 	ro, err := NewRestoreOperation(

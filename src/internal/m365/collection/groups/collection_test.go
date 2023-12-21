@@ -2,6 +2,7 @@ package groups
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"testing"
 	"time"
@@ -12,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/groups/mock"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -117,7 +118,7 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			c := NewCollection[models.ChatMessageable](
+			c := NewCollection[models.Channelable, models.ChatMessageable](
 				data.NewBaseCollection(
 					test.curr,
 					test.prev,
@@ -127,7 +128,9 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 					count.New()),
 				nil,
 				"g",
-				nil, nil,
+				nil,
+				nil,
+				container[models.Channelable]{},
 				nil)
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.FullPath(), "full path")
@@ -135,6 +138,28 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 			assert.Equal(t, test.loc, c.LocationPath(), "location path")
 		})
 	}
+}
+
+type getAndAugmentChannelMessage struct {
+	Err error
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (m getAndAugmentChannelMessage) getItem(
+	_ context.Context,
+	_ string,
+	_ path.Elements,
+	itemID string,
+) (models.ChatMessageable, *details.GroupsInfo, error) {
+	msg := models.NewChatMessage()
+	msg.SetId(ptr.To(itemID))
+
+	return msg, &details.GroupsInfo{}, m.Err
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (getAndAugmentChannelMessage) augmentItemInfo(*details.GroupsInfo, models.Channelable) {
+	// no-op
 }
 
 func (suite *CollectionUnitSuite) TestCollection_streamItems() {
@@ -199,7 +224,7 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			col := &Collection[models.ChatMessageable]{
+			col := &Collection[models.Channelable, models.ChatMessageable]{
 				BaseCollection: data.NewBaseCollection(
 					fullPath,
 					nil,
@@ -208,8 +233,9 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 					false,
 					count.New()),
 				added:         test.added,
+				contains:      container[models.Channelable]{},
 				removed:       test.removed,
-				getter:        mock.GetChannelMessage{},
+				getAndAugment: getAndAugmentChannelMessage{},
 				stream:        make(chan data.Item),
 				statusUpdater: statusUpdater,
 			}

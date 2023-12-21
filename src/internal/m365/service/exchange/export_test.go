@@ -382,7 +382,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 			exportCfg := control.ExportConfig{}
 			stats := metrics.ExportStats{}
 
-			ecs, err := NewExchangeHandler(control.DefaultOptions(), api.Client{}, nil).
+			ecs, err := NewExchangeHandler(api.Client{}, nil).
 				ProduceExportCollections(
 					ctx,
 					int(version.Backup),

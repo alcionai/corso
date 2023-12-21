@@ -96,7 +96,7 @@ func (suite *ConversationsAPIUnitSuite) TestConversationPostInfo() {
 						Preview:   "",
 						Size:      0,
 						// TODO: feed the subject in from the conversation
-						Subject: "",
+						Topic: "",
 					},
 				}
 

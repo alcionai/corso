@@ -127,7 +127,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				},
 			}
 
-			handler := NewSharePointHandler(control.DefaultOptions(), api.Client{}, nil)
+			handler := NewSharePointHandler(api.Client{}, nil)
 			handler.CacheItemInfo(test.itemInfo)
 
 			stats := metrics.ExportStats{}

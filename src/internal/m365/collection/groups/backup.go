@@ -69,7 +69,7 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 
 	counter.Add(count.Channels, int64(len(containers)))
 
-	collections, err := populateCollections(
+	collections, err := populateCollections[C, I](
 		ctx,
 		qp,
 		bh,
@@ -213,6 +213,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			qp.ProtectedResource.ID(),
 			added,
 			removed,
+			c,
 			statusUpdater)
 
 		collections[c.storageDirFolders.String()] = &edc

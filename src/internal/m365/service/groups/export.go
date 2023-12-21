@@ -25,13 +25,11 @@ import (
 var _ inject.ServiceHandler = &groupsHandler{}
 
 func NewGroupsHandler(
-	opts control.Options,
 	apiClient api.Client,
 	resourceGetter idname.GetResourceIDAndNamer,
 ) *groupsHandler {
 	return &groupsHandler{
 		baseGroupsHandler: baseGroupsHandler{
-			opts:               opts,
 			backupDriveIDNames: idname.NewCache(nil),
 			backupSiteIDWebURL: idname.NewCache(nil),
 		},
@@ -47,8 +45,6 @@ func NewGroupsHandler(
 // baseGroupsHandler contains logic for tracking data and doing operations
 // (e.x. export) that don't require contact with external M356 services.
 type baseGroupsHandler struct {
-	opts control.Options
-
 	backupDriveIDNames idname.CacheBuilder
 	backupSiteIDWebURL idname.CacheBuilder
 }
