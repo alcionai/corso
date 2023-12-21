@@ -50,16 +50,19 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 		driveID                = "some-drive-id"
 		siteID                 = "some-site-id"
 		extraItemName          = "some-item"
+		listName               = "list1"
 		SharePointRootItemPath = testdata.SharePointRootPath.MustAppend(extraItemName, true)
+		SharePointListItemPath = testdata.SharePointListPath.MustAppend(listName, true)
 		GroupsRootItemPath     = testdata.GroupsRootPath.MustAppend(extraItemName, true)
 	)
 
 	table := []struct {
-		name          string
-		backupVersion int
-		input         []*details.Entry
-		expectErr     assert.ErrorAssertionFunc
-		expected      []expectPaths
+		name             string
+		backupVersion    int
+		input            []*details.Entry
+		expectErr        assert.ErrorAssertionFunc
+		expected         []expectPaths
+		isSharepointList bool
 	}{
 		{
 			name: "Groups List Errors v9",
@@ -157,13 +160,13 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 			},
 		},
 		{
-			name: "SharePoint List Errors",
+			name: "SharePoint List, item in root",
 			// No version bump for the change so we always have to check for this.
 			backupVersion: version.All8MigrateUserPNToID,
 			input: []*details.Entry{
 				{
-					RepoRef:     SharePointRootItemPath.RR.String(),
-					LocationRef: SharePointRootItemPath.Loc.String(),
+					RepoRef:     SharePointListItemPath.RR.String(),
+					LocationRef: SharePointListItemPath.Loc.String(),
 					ItemInfo: details.ItemInfo{
 						SharePoint: &details.SharePointInfo{
 							ItemType: details.SharePointList,
@@ -171,7 +174,14 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 					},
 				},
 			},
-			expectErr: assert.Error,
+			expected: []expectPaths{
+				{
+					storage: SharePointListItemPath.RR.String(),
+					restore: toRestore(SharePointListItemPath.RR),
+				},
+			},
+			expectErr:        assert.NoError,
+			isSharepointList: true,
 		},
 		{
 			name: "SharePoint Page Errors",
@@ -413,12 +423,23 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 
 			for _, e := range test.expected {
 				tmp := path.RestorePaths{}
-				p, err := path.FromDataLayerPath(e.storage, true)
+				var p path.Path
+				var err error
+
+				if test.isSharepointList {
+					p, err = path.PrefixOrPathFromDataLayerPath(e.storage, true)
+				} else {
+					p, err = path.FromDataLayerPath(e.storage, true)
+				}
 				require.NoError(t, err, "parsing expected storage path", clues.ToCore(err))
 
 				tmp.StoragePath = p
 
-				p, err = path.FromDataLayerPath(e.restore, false)
+				if test.isSharepointList {
+					p, err = path.PrefixOrPathFromDataLayerPath(e.restore, false)
+				} else {
+					p, err = path.FromDataLayerPath(e.restore, false)
+				}
 				require.NoError(t, err, "parsing expected restore path", clues.ToCore(err))
 
 				if e.isRestorePrefix {
