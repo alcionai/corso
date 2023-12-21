@@ -357,8 +357,7 @@ func (sc *Collection) handleListItems(
 	metrics.Successes++
 
 	template := ""
-	if list != nil &&
-		list.GetList() != nil {
+	if list != nil && list.GetList() != nil {
 		template = ptr.Val(list.GetList().GetTemplate())
 	}
 
