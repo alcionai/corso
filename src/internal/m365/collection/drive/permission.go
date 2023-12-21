@@ -389,13 +389,13 @@ func UpdateLinkShares(
 			continue
 		}
 
-		if err != nil {
-			if graph.IsErrSharingDisabled(err) {
-				logger.Ctx(ctx).Info("unable to restore link share; sharing disabled")
-			} else {
-				el.AddRecoverable(ctx, clues.Stack(err))
-			}
+		if graph.IsErrSharingDisabled(err) {
+			logger.CtxErr(ictx, err).Info("unable to restore link share; sharing disabled")
+			continue
+		}
 
+		if err != nil {
+			el.AddRecoverable(ictx, clues.Stack(err))
 			continue
 		}
 
@@ -504,14 +504,10 @@ func RestorePermissions(
 		permRemoved,
 		caches.OldPermIDToNewID,
 		errs)
-	if err != nil {
-		if graph.IsErrSharingDisabled(err) {
-			logger.Ctx(ctx).Info("sharing disabled, not restoring permissions")
-			return nil
-		}
-
-		return clues.Wrap(err, "updating permissions")
+	if graph.IsErrSharingDisabled(err) {
+		logger.CtxErr(ctx, err).Info("sharing disabled, not restoring permissions")
+		return nil
 	}
 
-	return nil
+	return clues.Wrap(err, "updating permissions").OrNil()
 }
