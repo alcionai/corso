@@ -77,6 +77,9 @@ const (
 // inner error codes
 const (
 	ResourceLocked errorCode = "resourceLocked"
+	// Returned when either the tenant-wide or site settings don't permit sharing
+	// for external users to some extent.
+	sharingDisabled errorCode = "sharingDisabled"
 )
 
 type errorMessage string
@@ -291,6 +294,10 @@ func IsErrResourceLocked(err error) bool {
 			filters.In([]string{"the service principal for resource"}),
 			filters.In([]string{"this indicate that a subscription within the tenant has lapsed"}),
 			filters.In([]string{"preventing tokens from being issued for it"}))
+}
+
+func IsErrSharingDisabled(err error) bool {
+	return hasInnerErrorCode(err, sharingDisabled)
 }
 
 // ---------------------------------------------------------------------------
