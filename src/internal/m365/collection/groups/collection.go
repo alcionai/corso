@@ -28,6 +28,33 @@ const (
 	numberOfRetries             = 4
 )
 
+// updateStatus is a utility function used to close a collection's data channel
+// and to send the status update through the channel.
+func updateStatus(
+	ctx context.Context,
+	statusUpdater support.StatusUpdater,
+	attempted int,
+	streamedItems int64,
+	totalBytes int64,
+	folderPath string,
+	err error,
+) {
+	status := support.CreateStatus(
+		ctx,
+		support.Backup,
+		1,
+		support.CollectionMetrics{
+			Objects:   attempted,
+			Successes: int(streamedItems),
+			Bytes:     totalBytes,
+		},
+		folderPath)
+
+	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
+
+	statusUpdater(status)
+}
+
 type prefetchCollection[C graph.GetIDer, I groupsItemer] struct {
 	data.BaseCollection
 	protectedResource string
@@ -97,10 +124,19 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 	ctx = clues.Add(ctx, "category", col.Category().String())
 
 	defer func() {
+		close(col.stream)
 		logger.Ctx(ctx).Infow(
 			"finished stream backup collection items",
 			"stats", col.Counter.Values())
-		col.finishPopulation(ctx, streamedItems, totalBytes, errs.Failure())
+
+		updateStatus(
+			ctx,
+			col.statusUpdater,
+			len(col.added)+len(col.removed),
+			streamedItems,
+			totalBytes,
+			col.FullPath().Folder(false),
+			errs.Failure())
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
@@ -211,30 +247,4 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 	}
 
 	wg.Wait()
-}
-
-// finishPopulation is a utility function used to close a collection's data channel
-// and to send the status update through the channel.
-func (col *prefetchCollection[C, I]) finishPopulation(
-	ctx context.Context,
-	streamedItems, totalBytes int64,
-	err error,
-) {
-	close(col.stream)
-
-	attempted := len(col.added) + len(col.removed)
-	status := support.CreateStatus(
-		ctx,
-		support.Backup,
-		1,
-		support.CollectionMetrics{
-			Objects:   attempted,
-			Successes: int(streamedItems),
-			Bytes:     totalBytes,
-		},
-		col.FullPath().Folder(false))
-
-	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
-
-	col.statusUpdater(status)
 }
