@@ -12,6 +12,7 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
@@ -91,9 +92,9 @@ func (sc *Collection) SetBetaService(betaService *betaAPI.BetaService) {
 	sc.betaService = betaService
 }
 
-// AddJob appends additional objectID to job field
-func (sc *Collection) AddJob(objID string) {
-	sc.items = append(sc.items, objID)
+// AddItem appends additional itemID to items field
+func (sc *Collection) AddItem(itemID string) {
+	sc.items = append(sc.items, itemID)
 }
 
 func (sc *Collection) FullPath() path.Path {
@@ -104,6 +105,10 @@ func (sc *Collection) FullPath() path.Path {
 // and new folder hierarchies.
 func (sc Collection) PreviousPath() path.Path {
 	return nil
+}
+
+func (sc Collection) LocationPath() *path.Builder {
+	return path.Builder{}.Append(sc.fullPath.Folders()...)
 }
 
 func (sc Collection) State() data.CollectionState {
@@ -313,10 +318,11 @@ func (sc *Collection) handleListItems(
 
 	var (
 		list models.Listable
+		info *details.SharePointInfo
 		err  error
 	)
 
-	list, err = sc.getter.GetItemByID(ctx, listID)
+	list, info, err = sc.getter.GetItemByID(ctx, listID)
 	if err != nil {
 		err = clues.WrapWC(ctx, err, "getting list data").Label(fault.LabelForceNoBackupCreation)
 		el.AddRecoverable(ctx, err)
@@ -350,8 +356,16 @@ func (sc *Collection) handleListItems(
 	metrics.Bytes += size
 	metrics.Successes++
 
+	template := ""
+	if list != nil && list.GetList() != nil {
+		template = ptr.Val(list.GetList().GetTemplate())
+	}
+
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
-	itemInfo := details.ItemInfo{SharePoint: ListToSPInfo(list, size)}
+	itemInfo := details.ItemInfo{
+		SharePoint:     info,
+		NotRecoverable: template == flags.InvalidListTemplate,
+	}
 
 	item, err := data.NewPrefetchedItemWithInfo(rc, listID, itemInfo)
 	if err != nil {

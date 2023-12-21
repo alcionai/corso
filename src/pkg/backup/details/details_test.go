@@ -116,7 +116,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 			expectVs: []string{"deadbeef", "sender", "Parent", "subject", nowStr},
 		},
 		{
-			name: "sharepoint info",
+			name: "sharepoint library info",
 			entry: Entry{
 				RepoRef:     "reporef",
 				ShortRef:    "deadbeef",
@@ -125,6 +125,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				ItemInfo: ItemInfo{
 					SharePoint: &SharePointInfo{
 						ItemName:   "itemName",
+						ItemType:   SharePointLibrary,
 						ParentPath: "parentPath",
 						Size:       1000,
 						WebURL:     "https://not.a.real/url",
@@ -143,6 +144,66 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				"parentPath",
 				"1.0 kB",
 				"user@email.com",
+				nowStr,
+				nowStr,
+			},
+		},
+		{
+			name: "sharepoint list info for genericList template",
+			entry: Entry{
+				RepoRef:     "reporef",
+				ShortRef:    "deadbeef",
+				LocationRef: "locationref",
+				ItemRef:     "itemref",
+				ItemInfo: ItemInfo{
+					SharePoint: &SharePointInfo{
+						ItemType: SharePointList,
+						List: &ListInfo{
+							Name:      "list1",
+							ItemCount: 50,
+							Template:  "genericList",
+							Created:   now,
+							Modified:  now,
+							WebURL:    "https://10rqc2.sharepoint.com/sites/site-4754-small-lists/Lists/list1",
+						},
+					},
+				},
+			},
+			expectHs: []string{"ID", "List", "Items", "Created", "Modified"},
+			expectVs: []string{
+				"deadbeef",
+				"list1",
+				"50",
+				nowStr,
+				nowStr,
+			},
+		},
+		{
+			name: "sharepoint list info for documentLibrary template",
+			entry: Entry{
+				RepoRef:     "reporef",
+				ShortRef:    "deadbeef",
+				LocationRef: "locationref",
+				ItemRef:     "itemref",
+				ItemInfo: ItemInfo{
+					SharePoint: &SharePointInfo{
+						ItemType: SharePointList,
+						List: &ListInfo{
+							Name:      "Shared%20Documents",
+							ItemCount: 50,
+							Template:  "documentLibrary",
+							Created:   now,
+							Modified:  now,
+							WebURL:    "https://10rqc2.sharepoint.com/sites/site-4754-small-lists/Lists/Shared%20Documents",
+						},
+					},
+				},
+			},
+			expectHs: []string{"ID", "List", "Items", "Created", "Modified"},
+			expectVs: []string{
+				"deadbeef",
+				"Shared%20Documents",
+				"50",
 				nowStr,
 				nowStr,
 			},
@@ -846,6 +907,34 @@ var pathItemsTable = []struct {
 		expectRepoRefs:     []string{"abcde", "12345", "foo.meta"},
 		expectLocationRefs: []string{"locationref", "locationref2", "locationref.dirmeta"},
 	},
+	{
+		name: "multiple entries with not recoverables",
+		ents: []Entry{
+			{
+				RepoRef:     "abcde",
+				LocationRef: "locationref",
+			},
+			{
+				RepoRef:     "foo.meta",
+				LocationRef: "locationref.dirmeta",
+				ItemRef:     "itemref.meta",
+				ItemInfo: ItemInfo{
+					OneDrive: &OneDriveInfo{IsMeta: false},
+				},
+			},
+			{
+				RepoRef:     "invalid-template-list-file",
+				LocationRef: "locationref-invalid-template-list-file",
+				ItemRef:     "itemref-template-list-file",
+				ItemInfo: ItemInfo{
+					SharePoint:     &SharePointInfo{ItemType: SharePointList},
+					NotRecoverable: true,
+				},
+			},
+		},
+		expectRepoRefs:     []string{"abcde", "foo.meta"},
+		expectLocationRefs: []string{"locationref", "locationref.dirmeta"},
+	},
 }
 
 func (suite *DetailsUnitSuite) TestDetailsModel_Path() {
@@ -1277,12 +1366,16 @@ func (suite *DetailsUnitSuite) TestUnarshalTo() {
 
 func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 	const (
-		rrString = "tenant-id/%s/user-id/%s/drives/drive-id/root:/some/folder/stuff/item"
-		driveID  = "driveID"
+		rrString      = "tenant-id/%s/user-id/%s/drives/drive-id/root:/some/folder/stuff/item"
+		listsRrString = "tenant-id/%s/site-id/%s/lists/list-id/list-id"
+		driveID       = "driveID"
+		listID        = "listID"
 
 		expectedUniqueLocFmt         = "%s/" + driveID + "/root:/some/folder/stuff"
 		expectedExchangeUniqueLocFmt = "%s/root:/some/folder/stuff"
 		expectedDetailsLoc           = "root:/some/folder/stuff"
+		expectedListUniqueLocFmt     = "%s/" + listID
+		expectedListDetailsLoc       = listID
 	)
 
 	table := []struct {
@@ -1378,6 +1471,21 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 			},
 			backupVersion: version.OneDrive7LocationRef,
 			expectedErr:   require.Error,
+		},
+		{
+			name:     "SharePoint List With LocationRef",
+			service:  path.SharePointService.String(),
+			category: path.ListsCategory.String(),
+			itemInfo: ItemInfo{
+				SharePoint: &SharePointInfo{
+					ItemType: SharePointList,
+					List:     &ListInfo{},
+				},
+			},
+			backupVersion:     version.OneDrive7LocationRef,
+			hasLocRef:         true,
+			expectedErr:       require.NoError,
+			expectedUniqueLoc: fmt.Sprintf(expectedListUniqueLocFmt, path.ListsCategory),
 		},
 		{
 			name:     "Exchange Email With LocationRef Old Version",
@@ -1479,13 +1587,23 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			rr := ""
+			detailsLoc := ""
+			if test.category == path.ListsCategory.String() {
+				rr = fmt.Sprintf(listsRrString, test.service, test.category)
+				detailsLoc = expectedListDetailsLoc
+			} else {
+				rr = fmt.Sprintf(rrString, test.service, test.category)
+				detailsLoc = expectedDetailsLoc
+			}
+
 			entry := Entry{
-				RepoRef:  fmt.Sprintf(rrString, test.service, test.category),
+				RepoRef:  rr,
 				ItemInfo: test.itemInfo,
 			}
 
 			if test.hasLocRef {
-				entry.LocationRef = expectedDetailsLoc
+				entry.LocationRef = detailsLoc
 			}
 
 			loc, err := entry.ToLocationIDer(test.backupVersion)
@@ -1502,7 +1620,7 @@ func (suite *DetailsUnitSuite) TestLocationIDer_FromEntry() {
 				"unique location")
 			assert.Equal(
 				t,
-				expectedDetailsLoc,
+				detailsLoc,
 				loc.InDetails().String(),
 				"details location")
 		})

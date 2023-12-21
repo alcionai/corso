@@ -491,16 +491,16 @@ func (suite *SharePointSelectorSuite) TestSharePointScope_MatchesInfo() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			itemInfo := details.ItemInfo{
-				SharePoint: &details.SharePointInfo{
-					ItemType:  details.SharePointPage,
-					WebURL:    test.infoURL,
-					Created:   now,
-					Modified:  modification,
-					DriveName: "included-library",
-					DriveID:   "1234",
-				},
+			spInfo := &details.SharePointInfo{
+				ItemType:  details.SharePointPage,
+				WebURL:    test.infoURL,
+				Created:   now,
+				Modified:  modification,
+				DriveName: "included-library",
+				DriveID:   "1234",
 			}
+
+			itemInfo := details.ItemInfo{SharePoint: spInfo}
 
 			scopes := setScopesToDefault(test.scope)
 			for _, scope := range scopes {

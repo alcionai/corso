@@ -5,6 +5,7 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -22,7 +23,10 @@ func NewListsBackupHandler(protectedResource string, ac api.Lists) listsBackupHa
 	}
 }
 
-func (bh listsBackupHandler) GetItemByID(ctx context.Context, itemID string) (models.Listable, error) {
+func (bh listsBackupHandler) GetItemByID(
+	ctx context.Context,
+	itemID string,
+) (models.Listable, *details.SharePointInfo, error) {
 	return bh.ac.GetListByID(ctx, bh.protectedResource, itemID)
 }
 

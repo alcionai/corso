@@ -296,7 +296,7 @@ var defaultOneDriveLocationIDer = func(driveID string, elems ...string) details.
 }
 
 var defaultSharePointLocationIDer = func(driveID string, elems ...string) details.LocationIDer {
-	return details.NewSharePointLocationIDer(driveID, elems...)
+	return details.NewSharePointLocationIDer(path.LibrariesCategory, driveID, elems...)
 }
 
 func (h BackupHandler[T]) IsAllPass() bool {

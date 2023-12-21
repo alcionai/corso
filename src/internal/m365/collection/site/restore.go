@@ -160,7 +160,7 @@ func restoreListItem(
 		return dii, clues.WrapWC(ctx, err, "restoring lists")
 	}
 
-	dii.SharePoint = ListToSPInfo(restoredList, int64(len(bytes)))
+	dii.SharePoint = api.ListToSPInfo(restoredList)
 
 	return dii, nil
 }
