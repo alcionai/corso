@@ -28,8 +28,8 @@ const (
 	numberOfRetries             = 4
 )
 
-// updateStatus is a utility function used to close a collection's data channel
-// and to send the status update through the channel.
+// updateStatus is a utility function used to send the status update through
+// the channel.
 func updateStatus(
 	ctx context.Context,
 	statusUpdater support.StatusUpdater,
