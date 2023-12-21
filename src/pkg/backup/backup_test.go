@@ -120,10 +120,8 @@ func stubBackup(t time.Time, ownerID, ownerName string) backup.Backup {
 		CreationTime:          t,
 		SnapshotID:            "snapshot",
 		DetailsID:             "details",
-		ProtectedResourceID:   ownerID + "-pr",
-		ProtectedResourceName: ownerName + "-pr",
-		ResourceOwnerID:       ownerID + "-ro",
-		ResourceOwnerName:     ownerName + "-ro",
+		ProtectedResourceID:   ownerID + "-ro",
+		ProtectedResourceName: ownerName + "-ro",
 		Status:                "status",
 		Selector:              sel.Selector,
 		ErrorCount:            2,
@@ -166,7 +164,7 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 			nowFmt,
 			"1m0s",
 			"status (2 errors, 1 skipped: 1 malware)",
-			"name-pr",
+			"name-ro",
 		}
 	)
 
@@ -208,9 +206,6 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues_onlyResourceOwners() {
 			"name-ro",
 		}
 	)
-
-	b.ProtectedResourceID = ""
-	b.ProtectedResourceName = ""
 
 	b.StartAndEndTime.CompletedAt = later
 
