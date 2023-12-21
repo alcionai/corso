@@ -165,10 +165,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 			enumerator: driveEnumerator(
 				d1.newEnumer().with(delta(nil)),
 				d2.newEnumer().with(delta(nil))),
-			metadata: multiDriveMetadata(
-				t,
-				d1.newPrevPaths(t),
-				d2.newPrevPaths(t)),
+			metadata: multiDriveMetadata(t),
 			expect: expected{
 				canUsePrevBackup: assert.True,
 				collections: expectCollections(
@@ -197,10 +194,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 							d2.fileAt(root, "r"),
 							d2.folderAt(root),
 							d2.fileAt(folder, "f"))))),
-			metadata: multiDriveMetadata(
-				t,
-				d1.newPrevPaths(t),
-				d2.newPrevPaths(t)),
+			metadata: multiDriveMetadata(t),
 			expect: expected{
 				canUsePrevBackup: assert.True,
 				collections: expectCollections(
@@ -387,8 +381,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_GetTree() {
 					expect, _ := test.expect.globalExcludedFileIDs.Get(d)
 					result, rok := globalExcludes.Get(d)
 
-					require.True(t, rok, "drive results have a global excludes entry")
-					assert.Equal(t, expect, result, "global excluded file IDs")
+					if len(test.metadata) > 0 {
+						require.True(t, rok, "drive results have a global excludes entry")
+						assert.Equal(t, expect, result, "global excluded file IDs")
+					} else {
+						require.False(t, rok, "drive results have no global excludes entry")
+						assert.Empty(t, result, "global excluded file IDs")
+					}
 				})
 			}
 		})

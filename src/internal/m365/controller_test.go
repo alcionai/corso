@@ -647,7 +647,11 @@ func runBackupAndCompare(
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
 	// No excludes yet because this isn't an incremental backup.
-	assert.True(t, excludes.Empty())
+	assert.True(
+		t,
+		excludes.Empty(),
+		"global excludes should have no entries, got:\n\t%+v",
+		excludes.Keys())
 
 	t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 

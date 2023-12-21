@@ -1,4 +1,4 @@
-package test_test
+package groups_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	. "github.com/alcionai/corso/src/internal/operations/test/m365"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -24,7 +25,7 @@ import (
 
 type GroupsBackupIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its IntgTesterSetup
 }
 
 func TestGroupsBackupIntgSuite(t *testing.T) {
@@ -36,13 +37,117 @@ func TestGroupsBackupIntgSuite(t *testing.T) {
 }
 
 func (suite *GroupsBackupIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
-// TODO(v0 export): Channels export
+func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups() {
+	var (
+		resourceID = suite.its.Group.ID
+		sel        = selectors.NewGroupsBackup([]string{resourceID})
+	)
+
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+
+	RunBasicDriveishBackupTests(
+		suite,
+		path.GroupsService,
+		control.DefaultOptions(),
+		sel.Selector)
+}
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
-	sel := selectors.NewGroupsRestore([]string{suite.its.group.ID})
+	runGroupsIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
+}
+
+func (suite *GroupsBackupIntgSuite) TestBackup_Run_extensionsGroups() {
+	var (
+		resourceID = suite.its.Group.ID
+		sel        = selectors.NewGroupsBackup([]string{resourceID})
+	)
+
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+
+	RunDriveishBackupWithExtensionsTests(
+		suite,
+		path.GroupsService,
+		control.DefaultOptions(),
+		sel.Selector)
+}
+
+// ---------------------------------------------------------------------------
+// test version using the tree-based drive item processor
+// ---------------------------------------------------------------------------
+
+type GroupsBackupTreeIntgSuite struct {
+	tester.Suite
+	its IntgTesterSetup
+}
+
+func TestGroupsBackupTreeIntgSuite(t *testing.T) {
+	suite.Run(t, &GroupsBackupTreeIntgSuite{
+		Suite: tester.NewIntegrationSuite(
+			t,
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+func (suite *GroupsBackupTreeIntgSuite) SetupSuite() {
+	suite.its = NewIntegrationTesterSetup(suite.T())
+}
+
+func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeGroups() {
+	var (
+		resourceID = suite.its.Group.ID
+		sel        = selectors.NewGroupsBackup([]string{resourceID})
+		opts       = control.DefaultOptions()
+	)
+
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	RunBasicDriveishBackupTests(
+		suite,
+		path.GroupsService,
+		opts,
+		sel.Selector)
+}
+
+func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeIncrementalGroups() {
+	opts := control.DefaultOptions()
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	runGroupsIncrementalBackupTests(suite, suite.its, opts)
+}
+
+func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeExtensionsGroups() {
+	var (
+		resourceID = suite.its.Group.ID
+		sel        = selectors.NewGroupsBackup([]string{resourceID})
+		opts       = control.DefaultOptions()
+	)
+
+	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
+
+	opts.ToggleFeatures.UseDeltaTree = true
+
+	RunDriveishBackupWithExtensionsTests(
+		suite,
+		path.GroupsService,
+		opts,
+		sel.Selector)
+}
+
+// ---------------------------------------------------------------------------
+// common backup test wrappers
+// ---------------------------------------------------------------------------
+
+func runGroupsIncrementalBackupTests(
+	suite tester.Suite,
+	its IntgTesterSetup,
+	opts control.Options,
+) {
+	sel := selectors.NewGroupsRestore([]string{its.Group.ID})
 
 	ic := func(cs []string) selectors.Selector {
 		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))
@@ -53,24 +158,25 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
 		t *testing.T,
 		ctx context.Context,
 	) string {
-		return suite.its.group.RootSite.DriveID
+		return its.Group.RootSite.DriveID
 	}
 
 	gtsi := func(
 		t *testing.T,
 		ctx context.Context,
 	) string {
-		return suite.its.group.RootSite.ID
+		return its.Group.RootSite.ID
 	}
 
 	grh := func(ac api.Client) drive.RestoreHandler {
 		return drive.NewSiteRestoreHandler(ac, path.GroupsService)
 	}
 
-	runDriveIncrementalTest(
+	RunIncrementalDriveishBackupTest(
 		suite,
-		suite.its.group.ID,
-		suite.its.user.ID,
+		opts,
+		its.Group.ID,
+		its.User.ID,
 		path.GroupsService,
 		path.LibrariesCategory,
 		ic,
@@ -88,7 +194,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups9VersionBumpBackup() {
 
 	var (
 		mb      = evmock.NewBus()
-		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
+		sel     = selectors.NewGroupsBackup([]string{suite.its.Group.ID})
 		opts    = control.DefaultOptions()
 		whatSet = deeTD.CategoryFromRepoRef
 	)
@@ -98,7 +204,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups9VersionBumpBackup() {
 		selTD.GroupsBackupChannelScope(sel),
 		sel.Conversation(selectors.Any()))
 
-	bo, bod := prepNewTestBackupOp(
+	bo, bod := PrepNewTestBackupOp(
 		t,
 		ctx,
 		mb,
@@ -106,41 +212,41 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups9VersionBumpBackup() {
 		opts,
 		version.All8MigrateUserPNToID,
 		count.New())
-	defer bod.close(t, ctx)
+	defer bod.Close(t, ctx)
 
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
+	CheckBackupIsInManifests(
 		t,
 		ctx,
-		bod.kw,
-		bod.sw,
+		bod.KW,
+		bod.SW,
 		&bo,
-		bod.sel,
-		bod.sel.ID(),
+		bod.Sel,
+		bod.Sel.ID(),
 		path.ChannelMessagesCategory)
 
 	_, expectDeets := deeTD.GetDeetsInBackup(
 		t,
 		ctx,
 		bo.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
+		bod.Acct.ID(),
+		bod.Sel.ID(),
 		path.GroupsService,
 		whatSet,
-		bod.kms,
-		bod.sss)
+		bod.KMS,
+		bod.SSS)
 	deeTD.CheckBackupDetails(
 		t,
 		ctx,
 		bo.Results.BackupID,
 		whatSet,
-		bod.kms,
-		bod.sss,
+		bod.KMS,
+		bod.SSS,
 		expectDeets,
 		false)
 
 	mb = evmock.NewBus()
-	forcedFull := newTestBackupOp(
+	forcedFull := NewTestBackupOp(
 		t,
 		ctx,
 		bod,
@@ -149,34 +255,34 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups9VersionBumpBackup() {
 		count.New())
 	forcedFull.BackupVersion = version.Groups9Update
 
-	runAndCheckBackup(t, ctx, &forcedFull, mb, false)
-	checkBackupIsInManifests(
+	RunAndCheckBackup(t, ctx, &forcedFull, mb, false)
+	CheckBackupIsInManifests(
 		t,
 		ctx,
-		bod.kw,
-		bod.sw,
+		bod.KW,
+		bod.SW,
 		&forcedFull,
-		bod.sel,
-		bod.sel.ID(),
+		bod.Sel,
+		bod.Sel.ID(),
 		path.ChannelMessagesCategory)
 
 	_, expectDeets = deeTD.GetDeetsInBackup(
 		t,
 		ctx,
 		forcedFull.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
+		bod.Acct.ID(),
+		bod.Sel.ID(),
 		path.GroupsService,
 		whatSet,
-		bod.kms,
-		bod.sss)
+		bod.KMS,
+		bod.SSS)
 	deeTD.CheckBackupDetails(
 		t,
 		ctx,
 		forcedFull.Results.BackupID,
 		whatSet,
-		bod.kms,
-		bod.sss,
+		bod.KMS,
+		bod.SSS,
 		expectDeets,
 		false)
 
@@ -198,7 +304,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	var (
 		mb      = evmock.NewBus()
 		counter = count.New()
-		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
+		sel     = selectors.NewGroupsBackup([]string{suite.its.Group.ID})
 		opts    = control.DefaultOptions()
 		whatSet = deeTD.CategoryFromRepoRef
 	)
@@ -208,37 +314,37 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 		selTD.GroupsBackupChannelScope(sel),
 		sel.Conversation(selectors.Any()))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
 
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
+	CheckBackupIsInManifests(
 		t,
 		ctx,
-		bod.kw,
-		bod.sw,
+		bod.KW,
+		bod.SW,
 		&bo,
-		bod.sel,
-		bod.sel.ID(),
+		bod.Sel,
+		bod.Sel.ID(),
 		path.ChannelMessagesCategory)
 
 	_, expectDeets := deeTD.GetDeetsInBackup(
 		t,
 		ctx,
 		bo.Results.BackupID,
-		bod.acct.ID(),
-		bod.sel.ID(),
+		bod.Acct.ID(),
+		bod.Sel.ID(),
 		path.GroupsService,
 		whatSet,
-		bod.kms,
-		bod.sss)
+		bod.KMS,
+		bod.SSS)
 	deeTD.CheckBackupDetails(
 		t,
 		ctx,
 		bo.Results.BackupID,
 		whatSet,
-		bod.kms,
-		bod.sss,
+		bod.KMS,
+		bod.SSS,
 		expectDeets,
 		false)
 }
@@ -252,30 +358,30 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 	var (
 		mb      = evmock.NewBus()
 		counter = count.New()
-		sel     = selectors.NewGroupsBackup([]string{suite.its.group.ID})
+		sel     = selectors.NewGroupsBackup([]string{suite.its.Group.ID})
 		opts    = control.DefaultOptions()
 		tenID   = tconfig.M365TenantID(t)
 		svc     = path.GroupsService
 		ws      = deeTD.DriveIDFromRepoRef
 	)
 
-	opts.ItemExtensionFactory = getTestExtensionFactories()
+	opts.ItemExtensionFactory = GetTestExtensionFactories()
 
 	// does not apply to channel messages
 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
 
-	runAndCheckBackup(t, ctx, &bo, mb, false)
-	checkBackupIsInManifests(
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
+	CheckBackupIsInManifests(
 		t,
 		ctx,
-		bod.kw,
-		bod.sw,
+		bod.KW,
+		bod.SW,
 		&bo,
-		bod.sel,
-		bod.sel.ID(),
+		bod.Sel,
+		bod.Sel.ID(),
 		path.LibrariesCategory)
 
 	bID := bo.Results.BackupID
@@ -285,32 +391,32 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
 		ctx,
 		bID,
 		tenID,
-		bod.sel.ID(),
+		bod.Sel.ID(),
 		svc,
 		ws,
-		bod.kms,
-		bod.sss)
+		bod.KMS,
+		bod.SSS)
 	deeTD.CheckBackupDetails(
 		t,
 		ctx,
 		bID,
 		ws,
-		bod.kms,
-		bod.sss,
+		bod.KMS,
+		bod.SSS,
 		expectDeets,
 		false)
 
 	// Check that the extensions are in the backup
 	for _, ent := range deets.Entries {
 		if ent.Folder == nil {
-			verifyExtensionData(t, ent.ItemInfo, path.GroupsService)
+			VerifyExtensionData(t, ent.ItemInfo, path.GroupsService)
 		}
 	}
 }
 
 type GroupsBackupNightlyIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its IntgTesterSetup
 }
 
 func TestGroupsBackupNightlyIntgSuite(t *testing.T) {
@@ -322,30 +428,30 @@ func TestGroupsBackupNightlyIntgSuite(t *testing.T) {
 }
 
 func (suite *GroupsBackupNightlyIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
 func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9MergeBase() {
-	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel := selectors.NewGroupsBackup([]string{suite.its.Group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
 		selTD.GroupsBackupChannelScope(sel))
 
-	runMergeBaseGroupsUpdate(suite, sel.Selector, false)
+	RunMergeBaseGroupsUpdate(suite, sel.Selector, false)
 }
 
 func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9AssistBases() {
-	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel := selectors.NewGroupsBackup([]string{suite.its.Group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
 		selTD.GroupsBackupChannelScope(sel))
 
-	runDriveAssistBaseGroupsUpdate(suite, sel.Selector, false)
+	RunDriveAssistBaseGroupsUpdate(suite, sel.Selector, false)
 }
 
 type GroupsRestoreNightlyIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its IntgTesterSetup
 }
 
 func TestGroupsRestoreIntgSuite(t *testing.T) {
@@ -357,36 +463,20 @@ func TestGroupsRestoreIntgSuite(t *testing.T) {
 }
 
 func (suite *GroupsRestoreNightlyIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
 func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsWithAdvancedOptions() {
-	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
+	sel := selectors.NewGroupsBackup([]string{suite.its.Group.ID})
 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
 	sel.Filter(sel.Library("documents"))
-	sel.DiscreteOwner = suite.its.group.ID
+	sel.DiscreteOwner = suite.its.Group.ID
 
-	runDriveRestoreWithAdvancedOptions(
+	RunDriveRestoreWithAdvancedOptions(
 		suite.T(),
 		suite,
-		suite.its.ac,
+		suite.its.AC,
 		sel.Selector,
-		suite.its.group.RootSite.DriveID,
-		suite.its.group.RootSite.DriveRootFolderID)
+		suite.its.Group.RootSite.DriveID,
+		suite.its.Group.RootSite.DriveRootFolderID)
 }
-
-// func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsAlternateProtectedResource() {
-// 	sel := selectors.NewGroupsBackup([]string{suite.its.group.ID})
-// 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
-// 	sel.Filter(sel.Library("documents"))
-// 	sel.DiscreteOwner = suite.its.group.ID
-
-// 	runDriveRestoreToAlternateProtectedResource(
-// 		suite.T(),
-// 		suite,
-// 		suite.its.ac,
-// 		sel.Selector,
-// 		suite.its.group.RootSite,
-// 		suite.its.secondaryGroup.RootSite,
-// 		suite.its.secondaryGroup.ID)
-// }
