@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -41,7 +42,10 @@ const (
 	Pages   DataCategory = 2
 )
 
-var _ data.BackupCollection = &prefetchCollection{}
+var (
+	_ data.BackupCollection = &prefetchCollection{}
+	_ data.BackupCollection = &lazyFetchCollection{}
+)
 
 // Collection is the SharePoint.List or SharePoint.Page implementation of data.Collection.
 
@@ -99,14 +103,14 @@ func (sc *prefetchCollection) FullPath() path.Path {
 	return sc.fullPath
 }
 
-// TODO(ashmrtn): Fill in with previous path once the Controller compares old
-// and new folder hierarchies.
-func (sc prefetchCollection) PreviousPath() path.Path {
-	return nil
-}
-
 func (sc prefetchCollection) LocationPath() *path.Builder {
 	return path.Builder{}.Append(sc.fullPath.Folders()...)
+}
+
+// TODO(hitesh): Implement PreviousPath, State, DoNotMergeItems
+// once the Controller compares old and new folder hierarchies.
+func (sc prefetchCollection) PreviousPath() path.Path {
+	return nil
 }
 
 func (sc prefetchCollection) State() data.CollectionState {
@@ -115,14 +119,6 @@ func (sc prefetchCollection) State() data.CollectionState {
 
 func (sc prefetchCollection) DoNotMergeItems() bool {
 	return false
-}
-
-func (sc *prefetchCollection) Items(
-	ctx context.Context,
-	errs *fault.Bus,
-) <-chan data.Item {
-	go sc.streamItems(ctx, errs)
-	return sc.stream
 }
 
 func (sc *prefetchCollection) finishPopulation(
@@ -143,6 +139,14 @@ func (sc *prefetchCollection) finishPopulation(
 	if sc.statusUpdater != nil {
 		sc.statusUpdater(status)
 	}
+}
+
+func (sc *prefetchCollection) Items(
+	ctx context.Context,
+	errs *fault.Bus,
+) <-chan data.Item {
+	go sc.streamItems(ctx, errs)
+	return sc.stream
 }
 
 // streamItems utility function to retrieve data from back store for a given collection
@@ -277,26 +281,6 @@ func (sc *prefetchCollection) retrievePages(
 	}
 }
 
-func serializeContent(
-	ctx context.Context,
-	writer *kjson.JsonSerializationWriter,
-	obj serialization.Parsable,
-) ([]byte, error) {
-	defer writer.Close()
-
-	err := writer.WriteObjectValue("", obj)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "writing object")
-	}
-
-	byteArray, err := writer.GetSerializedContent()
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting content from writer")
-	}
-
-	return byteArray, nil
-}
-
 func (sc *prefetchCollection) handleListItems(
 	ctx context.Context,
 	semaphoreCh chan struct{},
@@ -365,4 +349,114 @@ func (sc *prefetchCollection) handleListItems(
 
 	sc.stream <- item
 	progress <- struct{}{}
+}
+
+type lazyFetchCollection struct {
+	// stream is the container for each individual SharePoint item of list
+	stream chan data.Item
+	// fullPath indicates the hierarchy within the collection
+	fullPath path.Path
+	// jobs contain the SharePoint.List.IDs
+	items         []string
+	statusUpdater support.StatusUpdater
+	getter        getItemByIDer
+}
+
+func (lc *lazyFetchCollection) AddItem(itemID string) {
+	lc.items = append(lc.items, itemID)
+}
+
+func (lc *lazyFetchCollection) FullPath() path.Path {
+	return lc.fullPath
+}
+
+func (lc lazyFetchCollection) LocationPath() *path.Builder {
+	return path.Builder{}.Append(lc.fullPath.Folders()...)
+}
+
+// TODO(hitesh): Implement PreviousPath, State, DoNotMergeItems
+// once the Controller compares old and new folder hierarchies.
+func (lc lazyFetchCollection) PreviousPath() path.Path {
+	return nil
+}
+
+func (lc lazyFetchCollection) State() data.CollectionState {
+	return data.NewState
+}
+
+func (lc lazyFetchCollection) DoNotMergeItems() bool {
+	return false
+}
+
+func (lc lazyFetchCollection) Items(
+	ctx context.Context,
+	errs *fault.Bus,
+) <-chan data.Item {
+	go lc.streamItems(ctx, errs)
+	return lc.stream
+}
+
+func (lc *lazyFetchCollection) streamItems(
+	ctx context.Context,
+	errs *fault.Bus,
+) {
+	_ = lc.getter
+	_ = lc.handleListItems
+}
+
+func (lc *lazyFetchCollection) handleListItems(
+	ctx context.Context,
+	semaphoreCh chan struct{},
+	progress chan<- struct{},
+	numLists int64,
+	listID string,
+	el *fault.Bus,
+	metrics support.CollectionMetrics,
+) {
+	_ = lc.statusUpdater
+	lig := &lazyItemGetter{}
+	_, _, _, _ = lig.GetData(ctx, el)
+}
+
+type lazyItemGetter struct {
+	getter       getItemByIDer
+	userID       string
+	itemID       string
+	parentPath   string
+	modTime      time.Time
+	immutableIDs bool
+}
+
+func (lig *lazyItemGetter) GetData(
+	ctx context.Context,
+	el *fault.Bus,
+) (io.ReadCloser, *details.ItemInfo, bool, error) {
+	_ = lig.getter
+	_ = lig.userID
+	_ = lig.itemID
+	_ = lig.parentPath
+	_ = lig.modTime
+	_ = lig.immutableIDs
+
+	return nil, nil, false, nil
+}
+
+func serializeContent(
+	ctx context.Context,
+	writer *kjson.JsonSerializationWriter,
+	obj serialization.Parsable,
+) ([]byte, error) {
+	defer writer.Close()
+
+	err := writer.WriteObjectValue("", obj)
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "writing object")
+	}
+
+	byteArray, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, graph.Wrap(ctx, err, "getting content from writer")
+	}
+
+	return byteArray, nil
 }
