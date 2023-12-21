@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"sync"
-	"sync/atomic"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -129,7 +128,7 @@ func (sc *Collection) Items(
 
 func (sc *Collection) finishPopulation(
 	ctx context.Context,
-	metrics support.CollectionMetrics,
+	metrics *support.CollectionMetrics,
 ) {
 	close(sc.stream)
 
@@ -137,7 +136,7 @@ func (sc *Collection) finishPopulation(
 		ctx,
 		support.Backup,
 		1, // 1 folder
-		metrics,
+		*metrics,
 		sc.fullPath.Folder(false))
 
 	logger.Ctx(ctx).Debug(status.String())
@@ -168,13 +167,12 @@ func (sc *Collection) streamLists(
 	errs *fault.Bus,
 ) {
 	var (
-		metrics  support.CollectionMetrics
-		el       = errs.Local()
-		numLists int64
-		wg       sync.WaitGroup
+		metrics support.CollectionMetrics
+		el      = errs.Local()
+		wg      sync.WaitGroup
 	)
 
-	defer sc.finishPopulation(ctx, metrics)
+	defer sc.finishPopulation(ctx, &metrics)
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
@@ -193,14 +191,12 @@ func (sc *Collection) streamLists(
 		wg.Add(1)
 		semaphoreCh <- struct{}{}
 
-		sc.handleListItems(ctx, semaphoreCh, progress, numLists, listID, el, metrics)
+		sc.handleListItems(ctx, semaphoreCh, progress, listID, el, &metrics)
 
 		wg.Done()
 	}
 
 	wg.Wait()
-
-	metrics.Objects += int(numLists)
 }
 
 func (sc *Collection) retrievePages(
@@ -209,11 +205,11 @@ func (sc *Collection) retrievePages(
 	errs *fault.Bus,
 ) {
 	var (
-		metrics support.CollectionMetrics
+		metrics = support.CollectionMetrics{}
 		el      = errs.Local()
 	)
 
-	defer sc.finishPopulation(ctx, metrics)
+	defer sc.finishPopulation(ctx, &metrics)
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
@@ -306,10 +302,9 @@ func (sc *Collection) handleListItems(
 	ctx context.Context,
 	semaphoreCh chan struct{},
 	progress chan<- struct{},
-	numLists int64,
 	listID string,
 	el *fault.Bus,
-	metrics support.CollectionMetrics,
+	metrics *support.CollectionMetrics,
 ) {
 	defer func() { <-semaphoreCh }()
 
@@ -330,7 +325,7 @@ func (sc *Collection) handleListItems(
 		return
 	}
 
-	atomic.AddInt64(&numLists, 1)
+	metrics.Objects++
 
 	if err := writer.WriteObjectValue("", list); err != nil {
 		err = clues.WrapWC(ctx, err, "writing list to serializer").Label(fault.LabelForceNoBackupCreation)

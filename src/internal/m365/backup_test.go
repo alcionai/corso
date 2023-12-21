@@ -293,7 +293,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 			name: "Lists",
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
-				sel.Include(sel.Lists(selectors.Any()))
+				sel.Include(selTD.SharePointBackupListsScope(sel))
 				return sel.Selector
 			},
 		},
