@@ -377,8 +377,6 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 				col.Counter,
 				el)
 
-			// Need remaining things, copy from prefetch collection
-			// totalBytes - not available since info gets called later now
 			atomic.AddInt64(&streamedItems, 1)
 
 			if colProgress != nil {
