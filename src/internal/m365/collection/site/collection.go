@@ -121,26 +121,6 @@ func (sc prefetchCollection) DoNotMergeItems() bool {
 	return false
 }
 
-func (sc *prefetchCollection) finishPopulation(
-	ctx context.Context,
-	metrics *support.CollectionMetrics,
-) {
-	close(sc.stream)
-
-	status := support.CreateStatus(
-		ctx,
-		support.Backup,
-		1, // 1 folder
-		*metrics,
-		sc.fullPath.Folder(false))
-
-	logger.Ctx(ctx).Debug(status.String())
-
-	if sc.statusUpdater != nil {
-		sc.statusUpdater(status)
-	}
-}
-
 func (sc *prefetchCollection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
@@ -175,7 +155,13 @@ func (sc *prefetchCollection) streamLists(
 		wg      sync.WaitGroup
 	)
 
-	defer sc.finishPopulation(ctx, &metrics)
+	defer finishPopulation(
+		ctx,
+		sc.stream,
+		sc.statusUpdater,
+		sc.fullPath,
+		metrics,
+	)
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
@@ -212,7 +198,13 @@ func (sc *prefetchCollection) retrievePages(
 		el      = errs.Local()
 	)
 
-	defer sc.finishPopulation(ctx, &metrics)
+	defer finishPopulation(
+		ctx,
+		sc.stream,
+		sc.statusUpdater,
+		sc.fullPath,
+		metrics,
+	)
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
@@ -459,4 +451,27 @@ func serializeContent(
 	}
 
 	return byteArray, nil
+}
+
+func finishPopulation(
+	ctx context.Context,
+	stream chan data.Item,
+	su support.StatusUpdater,
+	fullPath path.Path,
+	metrics support.CollectionMetrics,
+) {
+	close(stream)
+
+	status := support.CreateStatus(
+		ctx,
+		support.Backup,
+		1, // 1 folder
+		metrics,
+		fullPath.Folder(false))
+
+	logger.Ctx(ctx).Debug(status.String())
+
+	if su != nil {
+		su(status)
+	}
 }
