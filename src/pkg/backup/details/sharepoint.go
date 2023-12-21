@@ -42,13 +42,22 @@ type SharePointInfo struct {
 	DriveID    string    `json:"driveID,omitempty"`
 	ItemName   string    `json:"itemName,omitempty"`
 	ItemType   ItemType  `json:"itemType,omitempty"`
-	ItemCount  int64     `json:"itemCount,omitempty"`
 	Modified   time.Time `json:"modified,omitempty"`
 	Owner      string    `json:"owner,omitempty"`
 	ParentPath string    `json:"parentPath,omitempty"`
 	Size       int64     `json:"size,omitempty"`
 	WebURL     string    `json:"webUrl,omitempty"`
 	SiteID     string    `json:"siteID,omitempty"`
+	List       *ListInfo `json:"list,omitempty"`
+}
+
+type ListInfo struct {
+	Name      string    `json:"name,omitempty"`
+	ItemCount int64     `json:"itemCount,omitempty"`
+	Template  string    `json:"template,omitempty"`
+	WebURL    string    `json:"webUrl,omitempty"`
+	Created   time.Time `json:"created,omitempty"`
+	Modified  time.Time `json:"modified,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
@@ -58,7 +67,7 @@ func (i SharePointInfo) Headers() []string {
 	case SharePointLibrary:
 		return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
 	case SharePointList:
-		return []string{"ListName", "ListItemsCount", "Owner", "Created", "Modified"}
+		return []string{"List", "Items", "Created", "Modified"}
 	}
 
 	return []string{}
@@ -80,11 +89,10 @@ func (i SharePointInfo) Values() []string {
 		}
 	case SharePointList:
 		return []string{
-			i.ItemName,
-			fmt.Sprintf("%d", i.ItemCount),
-			i.Owner,
-			dttm.FormatToTabularDisplay(i.Created),
-			dttm.FormatToTabularDisplay(i.Modified),
+			i.List.Name,
+			fmt.Sprintf("%d", i.List.ItemCount),
+			dttm.FormatToTabularDisplay(i.List.Created),
+			dttm.FormatToTabularDisplay(i.List.Modified),
 		}
 	}
 

@@ -12,6 +12,7 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
@@ -91,9 +92,9 @@ func (sc *Collection) SetBetaService(betaService *betaAPI.BetaService) {
 	sc.betaService = betaService
 }
 
-// AddJob appends additional objectID to job field
-func (sc *Collection) AddJob(objID string) {
-	sc.items = append(sc.items, objID)
+// AddItem appends additional itemID to items field
+func (sc *Collection) AddItem(itemID string) {
+	sc.items = append(sc.items, itemID)
 }
 
 func (sc *Collection) FullPath() path.Path {
@@ -355,8 +356,16 @@ func (sc *Collection) handleListItems(
 	metrics.Bytes += size
 	metrics.Successes++
 
+	template := ""
+	if list != nil && list.GetList() != nil {
+		template = ptr.Val(list.GetList().GetTemplate())
+	}
+
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
-	itemInfo := details.ItemInfo{SharePoint: info}
+	itemInfo := details.ItemInfo{
+		SharePoint:     info,
+		NotRecoverable: template == flags.InvalidListTemplate,
+	}
 
 	item, err := data.NewPrefetchedItemWithInfo(rc, listID, itemInfo)
 	if err != nil {

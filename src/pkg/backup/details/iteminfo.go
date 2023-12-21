@@ -74,7 +74,8 @@ type ItemInfo struct {
 	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
 	Groups     *GroupsInfo     `json:"groups,omitempty"`
 	// Optional item extension data
-	Extension *ExtensionData `json:"extension,omitempty"`
+	Extension      *ExtensionData `json:"extension,omitempty"`
+	NotRecoverable bool           `json:"notRecoverable,omitempty"`
 }
 
 // typedInfo should get embedded in each sesrvice type to track

@@ -2,6 +2,7 @@ package api
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
@@ -52,9 +53,11 @@ func (suite *ListsUnitSuite) TestSharePointInfo() {
 
 				listing.SetItems([]models.ListItemable{li})
 				i := &details.SharePointInfo{
-					ItemType:  details.SharePointList,
-					ItemName:  aTitle,
-					ItemCount: 1,
+					ItemType: details.SharePointList,
+					List: &details.ListInfo{
+						Name:      aTitle,
+						ItemCount: 1,
+					},
 				}
 
 				return listing, i
@@ -70,11 +73,12 @@ func (suite *ListsUnitSuite) TestSharePointInfo() {
 			info := ListToSPInfo(list)
 			assert.Equal(t, expected.ItemType, info.ItemType)
 			assert.Equal(t, expected.ItemName, info.ItemName)
-			assert.Equal(t, expected.ItemCount, info.ItemCount)
 			assert.Equal(t, expected.WebURL, info.WebURL)
+			if expected.List != nil {
+				assert.Equal(t, expected.List.ItemCount, info.List.ItemCount)
+			}
 		})
 	}
-
 }
 
 func (suite *ListsUnitSuite) TestBytesToListable() {
@@ -537,6 +541,7 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 	var (
 		listID            = "fake-list-id"
 		listName          = "fake-list-name"
+		listTemplate      = "genericList"
 		siteID            = suite.its.site.id
 		textColumnDefID   = "fake-text-column-id"
 		textColumnDefName = "itemName"
@@ -555,9 +560,14 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 		{
 			name: "",
 			setupf: func() {
+				listInfo := models.NewListInfo()
+				listInfo.SetTemplate(ptr.To(listTemplate))
+
 				list := models.NewList()
 				list.SetId(ptr.To(listID))
 				list.SetDisplayName(ptr.To(listName))
+				list.SetList(listInfo)
+				list.SetLastModifiedDateTime(ptr.To(time.Now()))
 
 				txtColumnDef := models.NewColumnDefinition()
 				txtColumnDef.SetId(&textColumnDefID)
@@ -691,8 +701,11 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			assert.Equal(t, 1, len(columns))
 			assert.Equal(t, numColumnDefID, *columns[0].GetId())
 
-			assert.Equal(t, listName, info.ItemName)
-			assert.Equal(t, int64(1), info.ItemCount)
+			assert.Equal(t, listName, info.List.Name)
+			assert.Equal(t, int64(1), info.List.ItemCount)
+			assert.Equal(t, listTemplate, info.List.Template)
+			assert.NotEmpty(t, info.List.Modified)
+			assert.NotEmpty(t, info.Modified)
 		})
 	}
 }
