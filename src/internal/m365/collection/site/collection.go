@@ -12,6 +12,7 @@ import (
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
@@ -355,8 +356,16 @@ func (sc *Collection) handleListItems(
 	metrics.Bytes += size
 	metrics.Successes++
 
+	template := ""
+	if list != nil && list.GetList() != nil {
+		template = ptr.Val(list.GetList().GetTemplate())
+	}
+
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
-	itemInfo := details.ItemInfo{SharePoint: info}
+	itemInfo := details.ItemInfo{
+		SharePoint:     info,
+		NotRecoverable: template == flags.InvalidListTemplate,
+	}
 
 	item, err := data.NewPrefetchedItemWithInfo(rc, listID, itemInfo)
 	if err != nil {

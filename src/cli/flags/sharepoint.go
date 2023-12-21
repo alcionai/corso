@@ -8,6 +8,9 @@ const (
 	DataLibraries = "libraries"
 	DataPages     = "pages"
 	DataLists     = "lists"
+
+	// [TODO]: move to api package
+	InvalidListTemplate = "webTemplateExtensionsList"
 )
 
 const (
