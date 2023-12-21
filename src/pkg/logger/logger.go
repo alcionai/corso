@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"time"
@@ -472,7 +473,7 @@ func SetWithSettings(
 	return context.WithValue(ctx, ctxKey, logger)
 }
 
-func ctxNoClues(ctx context.Context) *zap.SugaredLogger {
+func zslFromCtx(ctx context.Context) *zap.SugaredLogger {
 	l := ctx.Value(ctxKey)
 	if l == nil {
 		l = singleton(Settings{}.EnsureDefaults())
@@ -483,7 +484,7 @@ func ctxNoClues(ctx context.Context) *zap.SugaredLogger {
 
 // Ctx retrieves the logger embedded in the context.
 func Ctx(ctx context.Context) *zap.SugaredLogger {
-	return ctxNoClues(ctx).With(clues.In(ctx).Slice()...)
+	return zslFromCtx(ctx).With(clues.In(ctx).Slice()...)
 }
 
 // CtxStack retrieves the logger embedded in the context, and adds the
@@ -497,13 +498,20 @@ func CtxStack(ctx context.Context, skip int) *zap.SugaredLogger {
 // CtxErr retrieves the logger embedded in the context
 // and packs all of the structured data in the error inside it.
 func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
-	// don't add the ctx clues or else values will duplicate between
-	// the err clues and ctx clues.
-	return ctxNoClues(ctx).
-		With(
-			"error", err,
-			"error_labels", clues.Labels(err)).
-		With(clues.InErr(err).Slice()...)
+	ctxVals := clues.In(ctx).Map()
+	errVals := clues.InErr(err).Map()
+
+	maps.Copy(ctxVals, errVals)
+
+	zsl := zslFromCtx(ctx).
+		With("error", err).
+		With("error_labels", clues.Labels(err))
+
+	for k, v := range ctxVals {
+		zsl.With(k, v)
+	}
+
+	return zsl
 }
 
 // CtxErrStack retrieves the logger embedded in the context
@@ -511,12 +519,7 @@ func CtxErr(ctx context.Context, err error) *zap.SugaredLogger {
 // If skip is non-zero, it skips the stack calls starting from the
 // first.  Skip always adds +1 to account for this wrapper.
 func CtxErrStack(ctx context.Context, err error, skip int) *zap.SugaredLogger {
-	return ctxNoClues(ctx).
-		With(
-			"error", err,
-			"error_labels", clues.Labels(err)).
-		With(zap.StackSkip("trace", skip+1)).
-		With(clues.InErr(err).Slice()...)
+	return CtxErr(ctx, err).With(zap.StackSkip("trace", skip+1))
 }
 
 // Flush writes out all buffered logs.
