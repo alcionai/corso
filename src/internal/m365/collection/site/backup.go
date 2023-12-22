@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
@@ -123,13 +124,14 @@ func CollectPages(
 		}
 
 		collection := NewCollection(
+			nil,
 			dir,
 			ac,
 			scope,
 			su,
 			bpc.Options)
 		collection.SetBetaService(betaService)
-		collection.AddJob(tuple.ID)
+		collection.AddItem(tuple.ID)
 
 		spcs = append(spcs, collection)
 	}
@@ -139,6 +141,7 @@ func CollectPages(
 
 func CollectLists(
 	ctx context.Context,
+	bh backupHandler,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
 	tenantID string,
@@ -151,14 +154,15 @@ func CollectLists(
 	var (
 		el   = errs.Local()
 		spcs = make([]data.BackupCollection, 0)
+		acc  = api.CallConfig{Select: idAnd("displayName")}
 	)
 
-	lists, err := PreFetchLists(ctx, ac.Stable, bpc.ProtectedResource.ID())
+	lists, err := bh.GetItems(ctx, acc)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, tuple := range lists {
+	for _, list := range lists {
 		if el.Failure() != nil {
 			break
 		}
@@ -169,21 +173,32 @@ func CollectLists(
 			path.SharePointService,
 			path.ListsCategory,
 			false,
-			tuple.Name)
+			ptr.Val(list.GetId()))
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
 		collection := NewCollection(
+			bh,
 			dir,
 			ac,
 			scope,
 			su,
 			bpc.Options)
-		collection.AddJob(tuple.ID)
+		collection.AddItem(ptr.Val(list.GetId()))
 
 		spcs = append(spcs, collection)
 	}
 
 	return spcs, el.Failure()
+}
+
+func idAnd(ss ...string) []string {
+	id := []string{"id"}
+
+	if len(ss) == 0 {
+		return id
+	}
+
+	return append(id, ss...)
 }
