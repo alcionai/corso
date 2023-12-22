@@ -17,6 +17,8 @@ github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpH
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
 github.com/alcionai/clues v0.0.0-20231115004051-523cbddac8e8 h1:kdpkhcKWWxnZFteGjglHvFTTPCPsvjhKDDY9J1Od6Sg=
 github.com/alcionai/clues v0.0.0-20231115004051-523cbddac8e8/go.mod h1:hGnRqQtV7YoojQSNMtqFK0TvfcwAljGZhUEQwx1lw34=
+github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2 h1:Oiz7puLziTpDUsEoiZMNor3j6um8RSvPOSIf4heGgTk=
+github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2/go.mod h1:1YJwJy3W6GGsC2UiDAEWABUjgvT8OZHjKs8OoaXeKbw=
 github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a h1:4nhM0NM1qtUT1s55rQ+D0Xw1Re5mIU9/crjEl6KdE+k=
 github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a/go.mod h1:b7P5ygho6SYE+VIqpxA6QkYfv4teeyG4MKqB3utRu98=
 github.com/alcionai/kopia v0.12.2-0.20231205231702-863c24d6f8b1 h1:UM4YDqNmwRsajtoQT4BkMCRrjIeMDwTuTbJs5fPQTTA=
