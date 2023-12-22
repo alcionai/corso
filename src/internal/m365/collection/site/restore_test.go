@@ -83,7 +83,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 
 	deets, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
 	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, fmt.Sprintf("%s_%s", destName, testName), deets.SharePoint.ItemName)
+	assert.Equal(t, fmt.Sprintf("%s_%s", destName, testName), deets.SharePoint.List.Name)
 
 	// Clean-Up
 	deleteList(ctx, t, suite.siteID, lrh, deets)
