@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/alcionai/corso/src/internal/common/sanitize"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -20,6 +21,8 @@ func main() {
 
 	// Read the file contents
 	byteValue, _ := io.ReadAll(jsonFile)
+
+	fmt.Printf("Original %s\n", string(byteValue))
 
 	// Declare an empty interface for holding the JSON data
 	var jsonData interface{}
@@ -37,26 +40,24 @@ func main() {
 	err = json.Unmarshal(byteValue, &jsonData)
 	if err != nil {
 		fmt.Println("Error parsing JSON:", err)
-		return
 	}
 
-	// Marshal the data back into JSON for pretty output
-	prettyJSON, err := json.MarshalIndent(jsonData, "", "    ")
+	sanitizedValue := sanitize.JSONBytes(byteValue)
+
+	fmt.Printf("\nSanitized %s\n", string(sanitizedValue))
+
+	if !json.Valid(sanitizedValue) {
+		fmt.Println("sanitizedValue INVALID JSON")
+	}
+
+	_, err = api.BytesToMessageable(sanitizedValue)
 	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
-		return
+		fmt.Println("sanitizedValue: Error converting to messagable", err)
 	}
 
-	// Print the pretty JSON
-	fmt.Println(string(prettyJSON))
-
-	if !json.Valid(byteValue) {
-		fmt.Println("INVALID JSON")
-	}
-
-	_, err = api.BytesToMessageable(byteValue)
+	// Unmarshal the byteValue into the jsonData interface
+	err = json.Unmarshal(sanitizedValue, &jsonData)
 	if err != nil {
-		fmt.Println("Error converting to messagable", err)
+		fmt.Println("sanitizedValue: Error parsing JSON:", err)
 	}
-	fmt.Println()
 }

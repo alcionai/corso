@@ -71,6 +71,20 @@ func (suite *SanitizeJSONUnitSuite) TestJSONString() {
 			expect:      []byte(`{"foo":"ba\\r\""}`),
 			expectValid: assert.True,
 		},
+		{
+			name: "LF characters in JSON outside quotes",
+			input: []byte(`{
+				"content":"\n>> W"
+			}`),
+			expect:      nil,
+			expectValid: assert.True,
+		},
+		{
+			name:        "No LF characters in JSON",
+			input:       []byte(`{"content":"\n>> W"}`),
+			expect:      nil,
+			expectValid: assert.True,
+		},
 	}
 
 	allTests := append(generateCharacterTests(), table...)
@@ -81,7 +95,9 @@ func (suite *SanitizeJSONUnitSuite) TestJSONString() {
 
 			got := sanitize.JSONBytes(test.input)
 
-			assert.Equal(t, test.expect, got)
+			if test.expect != nil {
+				assert.Equal(t, test.expect, got)
+			}
 			test.expectValid(t, json.Valid(got))
 		})
 	}
