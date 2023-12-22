@@ -226,30 +226,11 @@ func sharePointBackupCreateSelectors(
 
 	sel := selectors.NewSharePointBackup(append(slices.Clone(sites), weburls...))
 
-	return addCategories(sel, cats), nil
+	return utils.AddCategories(sel, cats), nil
 }
 
 func includeAllSitesWithCategories(ins idname.Cacher, categories []string) *selectors.SharePointBackup {
-	return addCategories(selectors.NewSharePointBackup(ins.IDs()), categories)
-}
-
-func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {
-	// Issue #2631: Libraries are the only supported feature for SharePoint at this time.
-	if len(cats) == 0 {
-		sel.Include(sel.LibraryFolders(selectors.Any()))
-	}
-
-	for _, d := range cats {
-		switch d {
-		// [TODO] uncomment when lists are enabled
-		// case flags.DataLists:
-		// 	sel.Include(sel.Lists(selectors.Any()))
-		case flags.DataLibraries:
-			sel.Include(sel.LibraryFolders(selectors.Any()))
-		}
-	}
-
-	return sel
+	return utils.AddCategories(selectors.NewSharePointBackup(ins.IDs()), categories)
 }
 
 // ------------------------------------------------------------------------------------------------
