@@ -7,11 +7,14 @@ import (
 
 	"github.com/alcionai/clues"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/collection/site/mock"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -73,7 +76,9 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 	tables := []struct {
 		name, itemName string
+		notRecoverable bool
 		scope          selectors.SharePointScope
+		getter         getItemByIDer
 		getDir         func(t *testing.T) path.Path
 		getItem        func(t *testing.T, itemName string) data.Item
 	}{
@@ -81,6 +86,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			name:     "List",
 			itemName: "MockListing",
 			scope:    sel.Lists(selectors.Any())[0],
+			getter:   &mock.ListHandler{},
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
@@ -104,10 +110,61 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				byteArray, err := ow.GetSerializedContent()
 				require.NoError(t, err, clues.ToCore(err))
 
+				info := &details.SharePointInfo{
+					ItemName: name,
+				}
+
 				data, err := data.NewPrefetchedItemWithInfo(
 					io.NopCloser(bytes.NewReader(byteArray)),
 					name,
-					details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
+					details.ItemInfo{SharePoint: info})
+				require.NoError(t, err, clues.ToCore(err))
+
+				return data
+			},
+		},
+		{
+			name:           "List with wte template",
+			itemName:       "MockListing",
+			notRecoverable: true,
+			scope:          sel.Lists(selectors.Any())[0],
+			getter:         &mock.ListHandler{},
+			getDir: func(t *testing.T) path.Path {
+				dir, err := path.Build(
+					tenant,
+					user,
+					path.SharePointService,
+					path.ListsCategory,
+					false,
+					dirRoot)
+				require.NoError(t, err, clues.ToCore(err))
+
+				return dir
+			},
+			getItem: func(t *testing.T, name string) data.Item {
+				ow := kioser.NewJsonSerializationWriter()
+
+				listInfo := models.NewListInfo()
+				listInfo.SetTemplate(ptr.To("webTemplateExtensionsList"))
+
+				listing := spMock.ListDefault(name)
+				listing.SetDisplayName(&name)
+				listing.SetList(listInfo)
+
+				err := ow.WriteObjectValue("", listing)
+				require.NoError(t, err, clues.ToCore(err))
+
+				byteArray, err := ow.GetSerializedContent()
+				require.NoError(t, err, clues.ToCore(err))
+
+				info := &details.SharePointInfo{
+					ItemName: name,
+				}
+
+				data, err := data.NewPrefetchedItemWithInfo(
+					io.NopCloser(bytes.NewReader(byteArray)),
+					name,
+					details.ItemInfo{SharePoint: info, NotRecoverable: true})
 				require.NoError(t, err, clues.ToCore(err))
 
 				return data
@@ -117,6 +174,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			name:     "Pages",
 			itemName: "MockPages",
 			scope:    sel.Pages(selectors.Any())[0],
+			getter:   nil,
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
@@ -153,12 +211,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			defer flush()
 
 			col := NewCollection(
+				test.getter,
 				test.getDir(t),
 				suite.ac,
 				test.scope,
 				nil,
 				control.DefaultOptions())
-			col.data <- test.getItem(t, test.itemName)
+			col.stream <- test.getItem(t, test.itemName)
 
 			readItems := []data.Item{}
 
@@ -177,6 +236,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			assert.NotNil(t, info)
 			assert.NotNil(t, info.SharePoint)
 			assert.Equal(t, test.itemName, info.SharePoint.ItemName)
+			assert.Equal(t, test.notRecoverable, info.NotRecoverable)
 		})
 	}
 }

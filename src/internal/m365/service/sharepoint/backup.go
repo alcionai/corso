@@ -55,8 +55,11 @@ func ProduceBackupCollections(
 
 		switch scope.Category().PathType() {
 		case path.ListsCategory:
+			bh := site.NewListsBackupHandler(bpc.ProtectedResource.ID(), ac.Lists())
+
 			spcs, err = site.CollectLists(
 				ctx,
+				bh,
 				bpc,
 				ac,
 				creds.AzureTenantID,
