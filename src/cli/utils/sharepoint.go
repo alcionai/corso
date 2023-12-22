@@ -69,7 +69,7 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 func SharePointAllowedCategories() map[string]struct{} {
 	return map[string]struct{}{
 		flags.DataLibraries: {},
-		// flags.DataLists:     {},
+		// flags.DataLists:     {}, [TODO]: uncomment when lists are enabled
 	}
 }
 
