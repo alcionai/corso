@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
+	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
 	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -59,6 +60,68 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
 		path.SharePointService,
 		control.DefaultOptions(),
 		sel.Selector)
+}
+
+func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointList() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		resourceID = suite.its.Site.ID
+		sel        = selectors.NewSharePointBackup([]string{resourceID})
+		tenID      = tconfig.M365TenantID(t)
+		mb         = evmock.NewBus()
+		counter    = count.New()
+		ws         = deeTD.CategoryFromRepoRef
+	)
+
+	sel.Include(selTD.SharePointBackupListsScope(sel))
+
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel.Selector,
+		control.DefaultOptions(),
+		version.Backup,
+		counter,
+	)
+	defer bod.Close(t, ctx)
+
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
+	CheckBackupIsInManifests(
+		t,
+		ctx,
+		bod.KW,
+		bod.SW,
+		&bo,
+		bod.Sel,
+		bod.Sel.ID(),
+		path.ListsCategory)
+
+	bID := bo.Results.BackupID
+
+	_, expectDeets := deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		bID,
+		tenID,
+		bod.Sel.ID(),
+		path.SharePointService,
+		ws,
+		bod.KMS,
+		bod.SSS)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		bID,
+		ws,
+		bod.KMS,
+		bod.SSS,
+		expectDeets,
+		false)
 }
 
 func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
