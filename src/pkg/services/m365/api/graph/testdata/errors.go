@@ -6,12 +6,13 @@ import (
 	"io"
 	"testing"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/google/uuid"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/require"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
 func ODataErr(code string) *odataerrors.ODataError {
