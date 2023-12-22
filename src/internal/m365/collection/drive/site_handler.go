@@ -149,7 +149,8 @@ func (h siteBackupHandler) NewLocationIDer(
 	driveID string,
 	elems ...string,
 ) details.LocationIDer {
-	return details.NewSharePointLocationIDer(driveID, elems...)
+	_, cat := h.ServiceCat()
+	return details.NewSharePointLocationIDer(cat, driveID, elems...)
 }
 
 func (h siteBackupHandler) GetItemPermission(
