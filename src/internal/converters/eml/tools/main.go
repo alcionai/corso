@@ -25,7 +25,7 @@ func main() {
 	fmt.Printf("Original %s\n", string(byteValue))
 
 	// Declare an empty interface for holding the JSON data
-	var jsonData interface{}
+	var jsonData any
 
 	if !json.Valid(byteValue) {
 		fmt.Println("INVALID JSON")
