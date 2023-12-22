@@ -178,6 +178,20 @@ func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 			checkError:  assert.NoError,
 			checkObject: assert.NotNil,
 		},
+		{
+			name:        "malformed JSON bytes passes sanitization",
+			byteArray:   exchMock.MessageWithSpecialCharacters("m365 mail support test"),
+			checkError:  assert.NoError,
+			checkObject: assert.NotNil,
+		},
+		{
+			name: "invalid JSON bytes",
+			byteArray: append(
+				exchMock.MessageWithSpecialCharacters("m365 mail support test"),
+				[]byte("}")...),
+			checkError:  assert.Error,
+			checkObject: assert.Nil,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {

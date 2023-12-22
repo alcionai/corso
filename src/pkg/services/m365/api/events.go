@@ -557,14 +557,27 @@ func (c Events) PostLargeAttachment(
 // Serialization
 // ---------------------------------------------------------------------------
 
-func BytesToEventable(body []byte) (models.Eventable, error) {
-	// Sanitize item content so we don't get invalid JSON errors due to
-	// unescaped special characters.
-	body = sanitize.JSONBytes(body)
-
+func bytesToEventable(body []byte) (serialization.Parsable, error) {
 	v, err := CreateFromBytes(body, models.CreateEventFromDiscriminatorValue)
 	if err != nil {
-		return nil, clues.Wrap(err, "deserializing bytes to event")
+		if !strings.Contains(err.Error(), invalidJSON) {
+			return nil, clues.Wrap(err, "deserializing bytes to message")
+		}
+
+		// If the JSON was invalid try sanitizing and deserializing again.
+		// Sanitizing should transform characters < 0x20 according to the spec where
+		// possible. The resulting JSON may still be invalid though.
+		body = sanitize.JSONBytes(body)
+		v, err = CreateFromBytes(body, models.CreateEventFromDiscriminatorValue)
+	}
+
+	return v, clues.Stack(err).OrNil()
+}
+
+func BytesToEventable(body []byte) (models.Eventable, error) {
+	v, err := bytesToEventable(body)
+	if err != nil {
+		return nil, clues.Stack(err)
 	}
 
 	return v.(models.Eventable), nil
