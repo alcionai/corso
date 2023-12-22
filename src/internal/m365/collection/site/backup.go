@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -190,22 +189,7 @@ func CollectLists(
 
 		lmt := list.GetLastModifiedDateTime()
 
-		_, err = dttm.ParseTime(lmt.String())
-
-		if err == nil {
-			lazyFetchCol := NewLazyFetchCollection(
-				bh,
-				dir,
-				su,
-				cl,
-			)
-
-			lazyFetchCol.AddItem(
-				ptr.Val(list.GetId()),
-				ptr.Val(lmt))
-
-			collection = lazyFetchCol
-		} else {
+		if lmt.IsZero() {
 			prefetchCol := NewPrefetchCollection(
 				bh,
 				dir,
@@ -220,6 +204,19 @@ func CollectLists(
 				ptr.Val(lmt))
 
 			collection = prefetchCol
+		} else {
+			lazyFetchCol := NewLazyFetchCollection(
+				bh,
+				dir,
+				su,
+				cl,
+			)
+
+			lazyFetchCol.AddItem(
+				ptr.Val(list.GetId()),
+				ptr.Val(lmt))
+
+			collection = lazyFetchCol
 		}
 
 		spcs = append(spcs, collection)
