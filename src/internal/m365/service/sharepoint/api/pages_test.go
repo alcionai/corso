@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	kioser "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -21,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	bmodels "github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk/models"
 )
 
 func createTestBetaService(t *testing.T, credentials account.M365Config) *api.BetaService {
@@ -32,6 +34,76 @@ func createTestBetaService(t *testing.T, credentials account.M365Config) *api.Be
 	require.NoError(t, err, clues.ToCore(err))
 
 	return api.NewBetaService(adapter)
+}
+
+type SharepointPageUnitSuite struct {
+	tester.Suite
+}
+
+func TestSharepointPageUnitSuite(t *testing.T) {
+	suite.Run(t, &SharepointPageUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *SharepointPageUnitSuite) TestCreatePageFromBytes() {
+	tests := []struct {
+		name       string
+		checkError assert.ErrorAssertionFunc
+		isNil      assert.ValueAssertionFunc
+		getBytes   func(t *testing.T) []byte
+	}{
+		{
+			"empty bytes",
+			assert.Error,
+			assert.Nil,
+			func(t *testing.T) []byte {
+				return make([]byte, 0)
+			},
+		},
+		{
+			"invalid bytes",
+			assert.Error,
+			assert.Nil,
+			func(t *testing.T) []byte {
+				return []byte("snarf")
+			},
+		},
+		{
+			"Valid Page",
+			assert.NoError,
+			assert.NotNil,
+			func(t *testing.T) []byte {
+				pg := bmodels.NewSitePage()
+				title := "Tested"
+				pg.SetTitle(&title)
+				pg.SetName(&title)
+				pg.SetWebUrl(&title)
+
+				writer := kioser.NewJsonSerializationWriter()
+				err := writer.WriteObjectValue("", pg)
+				require.NoError(t, err, clues.ToCore(err))
+
+				byteArray, err := writer.GetSerializedContent()
+				require.NoError(t, err, clues.ToCore(err))
+
+				return byteArray
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result, err := api.BytesToSitePageable(test.getBytes(t))
+			test.checkError(t, err)
+			test.isNil(t, result)
+			if result != nil {
+				assert.Equal(t, "Tested", *result.GetName(), "name")
+				assert.Equal(t, "Tested", *result.GetTitle(), "title")
+				assert.Equal(t, "Tested", *result.GetWebUrl(), "webURL")
+			}
+		})
+	}
 }
 
 type SharePointPageSuite struct {
