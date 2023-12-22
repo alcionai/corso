@@ -58,11 +58,6 @@ func (h *sharepointHandler) ConsumeRestoreCollections(
 		el = errs.Local()
 	)
 
-	err := caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
-	if err != nil {
-		return nil, nil, clues.Wrap(err, "initializing restore caches")
-	}
-
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
 	data.SortRestoreCollections(dcs)
@@ -86,6 +81,11 @@ func (h *sharepointHandler) ConsumeRestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
+			err = caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
+			if err != nil {
+				return nil, nil, clues.Wrap(err, "initializing restore caches")
+			}
+
 			metrics, err = drive.RestoreCollection(
 				ictx,
 				lrh,
