@@ -6,6 +6,7 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/alcionai/clues"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
@@ -20,14 +21,14 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var _ data.BackupCollection = &Collection[graph.GetIDer, groupsItemer]{}
+var _ data.BackupCollection = &prefetchCollection[graph.GetIDer, groupsItemer]{}
 
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
 )
 
-type Collection[C graph.GetIDer, I groupsItemer] struct {
+type prefetchCollection[C graph.GetIDer, I groupsItemer] struct {
 	data.BaseCollection
 	protectedResource string
 	stream            chan data.Item
@@ -35,7 +36,7 @@ type Collection[C graph.GetIDer, I groupsItemer] struct {
 	contains container[C]
 
 	// added is a list of existing item IDs that were added to a container
-	added map[string]struct{}
+	added map[string]time.Time
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
@@ -54,12 +55,12 @@ func NewCollection[C graph.GetIDer, I groupsItemer](
 	baseCol data.BaseCollection,
 	getAndAugment getItemAndAugmentInfoer[C, I],
 	protectedResource string,
-	added map[string]struct{},
+	added map[string]time.Time,
 	removed map[string]struct{},
 	contains container[C],
 	statusUpdater support.StatusUpdater,
-) Collection[C, I] {
-	collection := Collection[C, I]{
+) prefetchCollection[C, I] {
+	collection := prefetchCollection[C, I]{
 		BaseCollection:    baseCol,
 		added:             added,
 		contains:          contains,
@@ -75,7 +76,7 @@ func NewCollection[C graph.GetIDer, I groupsItemer](
 
 // Items utility function to asynchronously execute process to fill data channel with
 // M365 exchange objects and returns the data channel
-func (col *Collection[C, I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+func (col *prefetchCollection[C, I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	go col.streamItems(ctx, errs)
 	return col.stream
 }
@@ -84,7 +85,7 @@ func (col *Collection[C, I]) Items(ctx context.Context, errs *fault.Bus) <-chan 
 // items() production
 // ---------------------------------------------------------------------------
 
-func (col *Collection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
+func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
 		streamedItems int64
 		totalBytes    int64
@@ -212,9 +213,9 @@ func (col *Collection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	wg.Wait()
 }
 
-// finishPopulation is a utility function used to close a Collection's data channel
+// finishPopulation is a utility function used to close a collection's data channel
 // and to send the status update through the channel.
-func (col *Collection[C, I]) finishPopulation(
+func (col *prefetchCollection[C, I]) finishPopulation(
 	ctx context.Context,
 	streamedItems, totalBytes int64,
 	err error,

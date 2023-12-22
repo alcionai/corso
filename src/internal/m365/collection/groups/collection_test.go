@@ -162,7 +162,7 @@ func (getAndAugmentChannelMessage) augmentItemInfo(*details.GroupsInfo, models.C
 	// no-op
 }
 
-func (suite *CollectionUnitSuite) TestCollection_streamItems() {
+func (suite *CollectionUnitSuite) TestPrefetchCollection_streamItems() {
 	var (
 		t             = suite.T()
 		start         = time.Now().Add(-1 * time.Second)
@@ -177,26 +177,22 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 
 	table := []struct {
 		name    string
-		added   map[string]struct{}
+		added   map[string]time.Time
 		removed map[string]struct{}
 	}{
 		{
-			name:    "no items",
-			added:   map[string]struct{}{},
-			removed: map[string]struct{}{},
+			name: "no items",
 		},
 		{
 			name: "only added items",
-			added: map[string]struct{}{
+			added: map[string]time.Time{
 				"fisher":    {},
 				"flannigan": {},
 				"fitzbog":   {},
 			},
-			removed: map[string]struct{}{},
 		},
 		{
-			name:  "only removed items",
-			added: map[string]struct{}{},
+			name: "only removed items",
 			removed: map[string]struct{}{
 				"princess": {},
 				"poppy":    {},
@@ -204,8 +200,10 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 			},
 		},
 		{
-			name:  "added and removed items",
-			added: map[string]struct{}{},
+			name: "added and removed items",
+			added: map[string]time.Time{
+				"goblin": {},
+			},
 			removed: map[string]struct{}{
 				"general":  {},
 				"goose":    {},
@@ -224,7 +222,7 @@ func (suite *CollectionUnitSuite) TestCollection_streamItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			col := &Collection[models.Channelable, models.ChatMessageable]{
+			col := &prefetchCollection[models.Channelable, models.ChatMessageable]{
 				BaseCollection: data.NewBaseCollection(
 					fullPath,
 					nil,
