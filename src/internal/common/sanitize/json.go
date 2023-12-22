@@ -25,6 +25,16 @@ func JSONBytes(input []byte) []byte {
 
 	for _, c := range input {
 		switch {
+		case c == '\n' || c == '\t' || c == '\r':
+			// Whitespace characters also seem to be getting transformed inside JSON
+			// strings already. We shouldn't further transform them because they could
+			// just be formatting around the JSON fields so changing them will result
+			// in invalid JSON.
+			//
+			// The set of whitespace characters was taken from RFC 8259 although space
+			// is not included in this set as it's already > 0x20.
+			buf.WriteByte(c)
+
 		case c < 0x20:
 			// Escape character ranges taken from RFC 8259. This case doesn't handle
 			// escape characters (0x5c) or double quotes (0x22). We're assuming escape
