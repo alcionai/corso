@@ -39,6 +39,7 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 	su support.StatusUpdater,
 	counter *count.Bus,
 	errs *fault.Bus,
+	useLazyReader bool,
 ) ([]data.BackupCollection, bool, error) {
 	var (
 		allCollections = make([]data.BackupCollection, 0)
@@ -78,7 +79,8 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 		cdps[scope.Category().PathType()],
 		bpc.Options,
 		counter,
-		errs)
+		errs,
+		useLazyReader)
 	if err != nil {
 		return nil, false, clues.Wrap(err, "filling collections")
 	}
@@ -101,6 +103,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 	ctrlOpts control.Options,
 	counter *count.Bus,
 	errs *fault.Bus,
+	useLazyReader bool,
 ) (map[string]data.BackupCollection, error) {
 	var (
 		// channel ID -> BackupCollection.
@@ -212,9 +215,10 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			addAndRem.Added,
 			removed,
 			c,
-			statusUpdater)
+			statusUpdater,
+			useLazyReader)
 
-		collections[c.storageDirFolders.String()] = &edc
+		collections[c.storageDirFolders.String()] = edc
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.

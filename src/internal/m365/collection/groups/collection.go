@@ -22,7 +22,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var _ data.BackupCollection = &prefetchCollection[graph.GetIDer, groupsItemer]{}
+var (
+	_ data.BackupCollection = &prefetchCollection[graph.GetIDer, groupsItemer]{}
+	_ data.BackupCollection = &lazyFetchCollection[graph.GetIDer, groupsItemer]{}
+)
 
 const (
 	collectionChannelBufferSize = 1000
@@ -90,8 +93,22 @@ func NewCollection[C graph.GetIDer, I groupsItemer](
 	removed map[string]struct{},
 	contains container[C],
 	statusUpdater support.StatusUpdater,
-) prefetchCollection[C, I] {
-	collection := prefetchCollection[C, I]{
+	useLazyReader bool,
+) data.BackupCollection {
+	if useLazyReader {
+		return &lazyFetchCollection[C, I]{
+			BaseCollection:    baseCol,
+			added:             added,
+			contains:          contains,
+			getAndAugment:     getAndAugment,
+			removed:           removed,
+			statusUpdater:     statusUpdater,
+			stream:            make(chan data.Item, collectionChannelBufferSize),
+			protectedResource: protectedResource,
+		}
+	}
+
+	return &prefetchCollection[C, I]{
 		BaseCollection:    baseCol,
 		added:             added,
 		contains:          contains,
@@ -101,8 +118,6 @@ func NewCollection[C graph.GetIDer, I groupsItemer](
 		stream:            make(chan data.Item, collectionChannelBufferSize),
 		protectedResource: protectedResource,
 	}
-
-	return collection
 }
 
 func (col *prefetchCollection[C, I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {

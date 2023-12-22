@@ -277,7 +277,8 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 				nil,
 				ctrlOpts,
 				count.New(),
-				fault.New(true))
+				fault.New(true),
+				false)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Len(t, collections, test.expectColls, "number of collections")
 
@@ -437,7 +438,8 @@ func (suite *BackupUnitSuite) TestPopulateCollections_incremental() {
 				test.deltaPaths,
 				ctrlOpts,
 				count.New(),
-				fault.New(true))
+				fault.New(true),
+				false)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Len(t, collections, test.expectColls, "number of collections")
 
@@ -560,7 +562,8 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 				test.scope,
 				func(status *support.ControllerOperationStatus) {},
 				count.New(),
-				fault.New(true))
+				fault.New(true),
+				false)
 			require.NoError(t, err, clues.ToCore(err))
 			require.NotEmpty(t, collections, "must have at least one collection")
 
