@@ -606,7 +606,16 @@ func (suite *MailAPIIntgSuite) TestMail_WithSpecialCharacters() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	contentRegex := regexp.MustCompile(`"content": ?"(.*?"?)",?`)
+	contentRegex := regexp.MustCompile(`"content": ?"(.*?)"(?:, ?"contentType"|}}|},)`)
+
+	htmlStub := "<html><head>\r\n<meta http-equiv=\"Content-Type\" " +
+		"content=\"text/html; charset=utf-8\"><style type=\"text/css\" " +
+		"style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\t" +
+		"margin-bottom:0}\r\n-->\r\n</style></head>" +
+		"<body dir=\"ltr\"><div " +
+		"class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont," +
+		"Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; " +
+		"color:rgb(0,0,0)\">%s</div></body></html>"
 
 	userID := tconfig.M365UserID(suite.T())
 
@@ -620,72 +629,6 @@ func (suite *MailAPIIntgSuite) TestMail_WithSpecialCharacters() {
 		{0x22, 0x23},
 		{0x5c, 0x5d},
 	}
-
-	for _, charRange := range escapeCharRanges {
-		for i := charRange[0]; i < charRange[1]; i++ {
-			subject := fmt.Sprintf("plain text character %x", i)
-
-			//suite.Run(subject, func() {
-			//	t := suite.T()
-
-			//	ctx, flush := tester.NewContext(t)
-			//	defer flush()
-
-			bodyContent := string(rune(i))
-
-			serialized := sendItemWithBodyAndGetSerialized(
-				t,
-				ctx,
-				msgs,
-				userID,
-				ptr.Val(mailfolder.GetId()),
-				subject,
-				bodyContent,
-				models.TEXT_BODYTYPE)
-
-			matches := contentRegex.FindAllSubmatch(serialized, -1)
-
-			switch {
-			case len(matches) == 0:
-				t.Logf("text of 0x%x wasn't found", i)
-
-			case len(matches[0]) < 2:
-				t.Logf("text of 0x%x was removed", i)
-
-			case bodyContent != string(matches[0][1]):
-				t.Logf("text of 0x%x has been transformed to %s", i, matches[0][1])
-			}
-
-			sanitized := sanitize.JSONBytes(serialized)
-			newSerialized := sendSerializedItemAndGetSerialized(
-				t,
-				ctx,
-				msgs,
-				userID,
-				ptr.Val(mailfolder.GetId()),
-				sanitized)
-
-			newMatches := contentRegex.FindAllSubmatch(newSerialized, -1)
-
-			switch {
-			case len(newMatches) == 0:
-				t.Logf("sanitized text of 0x%x wasn't found", i)
-
-			case len(newMatches[0]) < 2:
-				t.Logf("sanitized text of 0x%x was removed", i)
-
-			case bodyContent != string(newMatches[0][1]):
-				t.Logf(
-					"sanitized text of 0x%x has been transformed to %s",
-					i,
-					newMatches[0][1])
-			}
-
-			assert.Equal(t, matches[0][1], newMatches[0][1])
-			//})
-		}
-	}
-
 	testSequences := []string{
 		// Character code for backspace
 		"\u0008",
@@ -705,68 +648,145 @@ func (suite *MailAPIIntgSuite) TestMail_WithSpecialCharacters() {
 		"u0042",
 		"\\n",
 		"\\\n",
+		"abcdef\b\b",
 		"n" + string(rune(0)),
 		"n" + string(rune(0)) + "n",
 	}
 
-	for i, sequence := range testSequences {
-		subject := fmt.Sprintf("plain text sequence %d", i)
+	table := []struct {
+		name        string
+		contentTmpl string
+		contentType models.BodyType
+	}{
+		{
+			name:        "PlainText",
+			contentTmpl: "%s",
+			contentType: models.TEXT_BODYTYPE,
+		},
+		{
+			name:        "HTML",
+			contentTmpl: htmlStub,
+			contentType: models.HTML_BODYTYPE,
+		},
+	}
 
-		//suite.Run(subject, func() {
-		//	t := suite.T()
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-		//	ctx, flush := tester.NewContext(t)
-		//	defer flush()
+			for _, charRange := range escapeCharRanges {
+				for i := charRange[0]; i < charRange[1]; i++ {
+					subject := fmt.Sprintf("character %x", i)
 
-		serialized := sendItemWithBodyAndGetSerialized(
-			t,
-			ctx,
-			msgs,
-			userID,
-			ptr.Val(mailfolder.GetId()),
-			subject,
-			sequence,
-			models.TEXT_BODYTYPE)
+					bodyContent := fmt.Sprintf(test.contentTmpl, string(rune(i)))
 
-		matches := contentRegex.FindAllSubmatch(serialized, -1)
+					serialized := sendItemWithBodyAndGetSerialized(
+						t,
+						ctx,
+						msgs,
+						userID,
+						ptr.Val(mailfolder.GetId()),
+						subject,
+						bodyContent,
+						test.contentType)
 
-		switch {
-		case len(matches) == 0:
-			t.Logf("sequence %d wasn't found", i)
+					matches := contentRegex.FindAllSubmatch(serialized, -1)
 
-		case len(matches[0]) < 2:
-			t.Logf("sequence %d was removed", i)
+					switch {
+					case len(matches) == 0:
+						t.Logf("character 0x%x wasn't found", i)
 
-		case sequence != string(matches[0][1]):
-			t.Logf("sequence %d has been transformed to %s", i, matches[0][1])
-		}
+					case len(matches[0]) < 2:
+						t.Logf("character 0x%x was removed", i)
 
-		sanitized := sanitize.JSONBytes(serialized)
-		newSerialized := sendSerializedItemAndGetSerialized(
-			t,
-			ctx,
-			msgs,
-			userID,
-			ptr.Val(mailfolder.GetId()),
-			sanitized)
+					case bodyContent != string(matches[0][1]):
+						t.Logf("character 0x%x has been transformed to %s", i, matches[0][1])
+					}
 
-		newMatches := contentRegex.FindAllSubmatch(newSerialized, -1)
+					sanitized := sanitize.JSONBytes(serialized)
+					newSerialized := sendSerializedItemAndGetSerialized(
+						t,
+						ctx,
+						msgs,
+						userID,
+						ptr.Val(mailfolder.GetId()),
+						sanitized)
 
-		switch {
-		case len(newMatches) == 0:
-			t.Logf("sanitized sequence %d wasn't found", i)
+					newMatches := contentRegex.FindAllSubmatch(newSerialized, -1)
 
-		case len(newMatches[0]) < 2:
-			t.Logf("sanitized sequence %d was removed", i)
+					switch {
+					case len(newMatches) == 0:
+						t.Logf("sanitized character 0x%x wasn't found", i)
 
-		case sequence != string(newMatches[0][1]):
-			t.Logf(
-				"sanitized sequence %d has been transformed to %s",
-				i,
-				newMatches[0][1])
-		}
+					case len(newMatches[0]) < 2:
+						t.Logf("sanitized character 0x%x was removed", i)
 
-		assert.Equal(t, matches[0][1], newMatches[0][1])
-		//})
+					case bodyContent != string(newMatches[0][1]):
+						t.Logf(
+							"sanitized character 0x%x has been transformed to %s",
+							i,
+							newMatches[0][1])
+					}
+
+					assert.Equal(t, matches[0][1], newMatches[0][1])
+				}
+			}
+
+			for i, sequence := range testSequences {
+				subject := fmt.Sprintf("sequence %d", i)
+
+				bodyContent := fmt.Sprintf(test.contentTmpl, sequence)
+
+				serialized := sendItemWithBodyAndGetSerialized(
+					t,
+					ctx,
+					msgs,
+					userID,
+					ptr.Val(mailfolder.GetId()),
+					subject,
+					bodyContent,
+					test.contentType)
+
+				matches := contentRegex.FindAllSubmatch(serialized, -1)
+
+				switch {
+				case len(matches) == 0:
+					t.Logf("sequence %d wasn't found", i)
+
+				case len(matches[0]) < 2:
+					t.Logf("sequence %d was removed", i)
+
+				case sequence != string(matches[0][1]):
+					t.Logf("sequence %d has been transformed to %s", i, matches[0][1])
+				}
+
+				sanitized := sanitize.JSONBytes(serialized)
+				newSerialized := sendSerializedItemAndGetSerialized(
+					t,
+					ctx,
+					msgs,
+					userID,
+					ptr.Val(mailfolder.GetId()),
+					sanitized)
+
+				newMatches := contentRegex.FindAllSubmatch(newSerialized, -1)
+
+				switch {
+				case len(newMatches) == 0:
+					t.Logf("sanitized sequence %d wasn't found", i)
+
+				case len(newMatches[0]) < 2:
+					t.Logf("sanitized sequence %d was removed", i)
+
+				case sequence != string(newMatches[0][1]):
+					t.Logf(
+						"sanitized sequence %d has been transformed to %s",
+						i,
+						newMatches[0][1])
+				}
+
+				assert.Equal(t, matches[0][1], newMatches[0][1])
+			}
+		})
 	}
 }
