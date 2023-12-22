@@ -9,7 +9,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -876,16 +875,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
 }
 
 func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
-	innerMatch := graphTD.ODataErr("not-match")
-	merr := odataerrors.NewMainError()
-	inerr := odataerrors.NewInnerError()
-	inerr.SetAdditionalData(map[string]any{
-		"code": string(ResourceLocked),
-	})
-	merr.SetInnerError(inerr)
-	merr.SetCode(ptr.To("not-match"))
-	innerMatch.SetErrorEscaped(merr)
-
 	table := []struct {
 		name   string
 		err    error
@@ -913,7 +902,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 		},
 		{
 			name:   "matching oDataErr inner code",
-			err:    innerMatch,
+			err:    graphTD.ODataInner(string(ResourceLocked)),
 			expect: assert.True,
 		},
 		{
@@ -936,6 +925,40 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrResourceLocked(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrSharingDisabled() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", "resource is locked"),
+			expect: assert.False,
+		},
+		{
+			name:   "matching oDataErr inner code",
+			err:    graphTD.ODataInner(string(sharingDisabled)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrSharingDisabled(test.err))
 		})
 	}
 }

@@ -1,4 +1,4 @@
-package test_test
+package exchange_test
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	exchTD "github.com/alcionai/corso/src/internal/m365/service/exchange/testdata"
+	. "github.com/alcionai/corso/src/internal/operations/test/m365"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
@@ -40,7 +41,7 @@ import (
 
 type ExchangeBackupIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its IntgTesterSetup
 }
 
 func TestExchangeBackupIntgSuite(t *testing.T) {
@@ -52,7 +53,7 @@ func TestExchangeBackupIntgSuite(t *testing.T) {
 }
 
 func (suite *ExchangeBackupIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
 // MetadataFileNames produces the category-specific set of filenames used to
@@ -79,9 +80,9 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+				sel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
 				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.its.user.ID
+				sel.DiscreteOwner = suite.its.User.ID
 
 				return sel
 			},
@@ -91,7 +92,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+				sel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
 				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -101,7 +102,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+				sel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
 				sel.Include(sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -124,33 +125,33 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
-			bo, bod := prepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
-			defer bod.close(t, ctx)
+			bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+			defer bod.Close(t, ctx)
 
-			sel = bod.sel
+			sel = bod.Sel
 
 			userID := sel.ID()
 
-			m365, err := bod.acct.M365Config()
+			m365, err := bod.Acct.M365Config()
 			require.NoError(t, err, clues.ToCore(err))
 
 			// run the tests
-			runAndCheckBackup(t, ctx, &bo, mb, false)
-			checkBackupIsInManifests(
+			RunAndCheckBackup(t, ctx, &bo, mb, false)
+			CheckBackupIsInManifests(
 				t,
 				ctx,
-				bod.kw,
-				bod.sw,
+				bod.KW,
+				bod.SW,
 				&bo,
 				sel,
 				userID,
 				test.category)
-			checkMetadataFilesExist(
+			CheckMetadataFilesExist(
 				t,
 				ctx,
 				bo.Results.BackupID,
-				bod.kw,
-				bod.kms,
+				bod.KW,
+				bod.KMS,
 				m365.AzureTenantID,
 				userID,
 				path.ExchangeService,
@@ -160,19 +161,19 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				t,
 				ctx,
 				bo.Results.BackupID,
-				bod.acct.ID(),
+				bod.Acct.ID(),
 				userID,
 				path.ExchangeService,
 				whatSet,
-				bod.kms,
-				bod.sss)
+				bod.KMS,
+				bod.SSS)
 			deeTD.CheckBackupDetails(
 				t,
 				ctx,
 				bo.Results.BackupID,
 				whatSet,
-				bod.kms,
-				bod.sss,
+				bod.KMS,
+				bod.SSS,
 				expectDeets,
 				false)
 
@@ -181,7 +182,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 			// produces fewer results than the last backup.
 			var (
 				incMB = evmock.NewBus()
-				incBO = newTestBackupOp(
+				incBO = NewTestBackupOp(
 					t,
 					ctx,
 					bod,
@@ -190,22 +191,22 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 					counter)
 			)
 
-			runAndCheckBackup(t, ctx, &incBO, incMB, true)
-			checkBackupIsInManifests(
+			RunAndCheckBackup(t, ctx, &incBO, incMB, true)
+			CheckBackupIsInManifests(
 				t,
 				ctx,
-				bod.kw,
-				bod.sw,
+				bod.KW,
+				bod.SW,
 				&incBO,
 				sel,
 				userID,
 				test.category)
-			checkMetadataFilesExist(
+			CheckMetadataFilesExist(
 				t,
 				ctx,
 				incBO.Results.BackupID,
-				bod.kw,
-				bod.kms,
+				bod.KW,
+				bod.KMS,
 				m365.AzureTenantID,
 				userID,
 				path.ExchangeService,
@@ -215,8 +216,8 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				ctx,
 				incBO.Results.BackupID,
 				whatSet,
-				bod.kms,
-				bod.sss,
+				bod.KMS,
+				bod.SSS,
 				expectDeets,
 				false)
 
@@ -260,16 +261,16 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			path.ContactsCategory: MetadataFileNames(path.ContactsCategory),
 			// path.EventsCategory:   exchange.MetadataFileNames(path.EventsCategory),
 		}
-		container1      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 1, now)
-		container2      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 2, now)
-		container3      = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 3, now)
-		containerRename = fmt.Sprintf("%s%d_%s", incrementalsDestContainerPrefix, 4, now)
+		container1      = fmt.Sprintf("%s%d_%s", IncrementalsDestContainerPrefix, 1, now)
+		container2      = fmt.Sprintf("%s%d_%s", IncrementalsDestContainerPrefix, 2, now)
+		container3      = fmt.Sprintf("%s%d_%s", IncrementalsDestContainerPrefix, 3, now)
+		containerRename = fmt.Sprintf("%s%d_%s", IncrementalsDestContainerPrefix, 4, now)
 
 		// container3 and containerRename don't exist yet.  Those will get created
 		// later on during the tests.  Putting their identifiers into the selector
 		// at this point is harmless.
 		containers = []string{container1, container2, container3, containerRename}
-		sel        = selectors.NewExchangeBackup([]string{suite.its.user.ID})
+		sel        = selectors.NewExchangeBackup([]string{suite.its.User.ID})
 		whatSet    = deeTD.CategoryFromRepoRef
 		opts       = control.DefaultOptions()
 	)
@@ -309,7 +310,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	mailDBF := func(id, timeStamp, subject, body string) []byte {
 		return exchMock.MessageWith(
-			suite.its.user.ID, suite.its.user.ID, suite.its.user.ID,
+			suite.its.User.ID, suite.its.User.ID, suite.its.User.ID,
 			subject, body, body,
 			now, now, now, now)
 	}
@@ -326,7 +327,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	eventDBF := func(id, timeStamp, subject, body string) []byte {
 		return exchMock.EventWith(
-			suite.its.user.ID, subject, body, body,
+			suite.its.User.ID, subject, body, body,
 			exchMock.NoOriginalStartDate, now, now,
 			exchMock.NoRecurrence, exchMock.NoAttendees,
 			exchMock.NoAttachments, exchMock.NoCancelledOccurrences,
@@ -335,7 +336,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	// test data set
 	dataset := map[path.CategoryType]struct {
-		dbf   dataBuilderFunc
+		dbf   DataBuilderFunc
 		dests map[string]contDeets
 	}{
 		path.EmailCategory: {
@@ -447,7 +448,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 	// populate initial test data
 	for category, gen := range dataset {
 		for destName := range gen.dests {
-			generateContainerOfItems(
+			GenerateContainerOfItems(
 				t,
 				ctx,
 				ctrl,
@@ -477,11 +478,11 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		}
 	}
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
 
 	// run the initial backup
-	runAndCheckBackup(t, ctx, &bo, mb, false)
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
 
 	// precheck to ensure the expectedDeets are correct.
 	// if we fail here, the expectedDeets were populated incorrectly.
@@ -490,8 +491,8 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		ctx,
 		bo.Results.BackupID,
 		whatSet,
-		bod.kms,
-		bod.sss,
+		bod.KMS,
+		bod.SSS,
 		expectDeets,
 		true)
 
@@ -589,14 +590,14 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			name: "add a new folder",
 			updateUserData: func(t *testing.T, ctx context.Context) {
 				for category, gen := range dataset {
-					generateContainerOfItems(
+					GenerateContainerOfItems(
 						t,
 						ctx,
 						ctrl,
 						service,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-						creds.AzureTenantID, suite.its.user.ID, "", "", container3,
+						creds.AzureTenantID, suite.its.User.ID, "", "", container3,
 						2,
 						version.Backup,
 						gen.dbf)
@@ -672,7 +673,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 					switch category {
 					case path.EmailCategory:
-						_, itemData := generateItemData(t, category, uidn.ID(), mailDBF)
+						_, itemData := GenerateItemData(t, category, uidn.ID(), mailDBF)
 						body, err := api.BytesToMessageable(itemData)
 						require.NoErrorf(t, err, "transforming mail bytes to messageable: %+v", clues.ToCore(err))
 
@@ -685,7 +686,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 							ptr.Val(itm.GetId()))
 
 					case path.ContactsCategory:
-						_, itemData := generateItemData(t, category, uidn.ID(), contactDBF)
+						_, itemData := GenerateItemData(t, category, uidn.ID(), contactDBF)
 						body, err := api.BytesToContactable(itemData)
 						require.NoErrorf(t, err, "transforming contact bytes to contactable: %+v", clues.ToCore(err))
 
@@ -698,7 +699,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 							ptr.Val(itm.GetId()))
 
 					case path.EventsCategory:
-						_, itemData := generateItemData(t, category, uidn.ID(), eventDBF)
+						_, itemData := GenerateItemData(t, category, uidn.ID(), eventDBF)
 						body, err := api.BytesToEventable(itemData)
 						require.NoErrorf(t, err, "transforming event bytes to eventable: %+v", clues.ToCore(err))
 
@@ -819,7 +820,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
-			incBO := newTestBackupOp(t, ctx, bod, incMB, opts, counter)
+			incBO := NewTestBackupOp(t, ctx, bod, incMB, opts, counter)
 
 			suite.Run("PreTestSetup", func() {
 				t := suite.T()
@@ -835,21 +836,21 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 			bupID := incBO.Results.BackupID
 
-			checkBackupIsInManifests(
+			CheckBackupIsInManifests(
 				t,
 				ctx,
-				bod.kw,
-				bod.sw,
+				bod.KW,
+				bod.SW,
 				&incBO,
 				sels,
 				uidn.ID(),
 				maps.Keys(categories)...)
-			checkMetadataFilesExist(
+			CheckMetadataFilesExist(
 				t,
 				ctx,
 				bupID,
-				bod.kw,
-				bod.kms,
+				bod.KW,
+				bod.KMS,
 				atid,
 				uidn.ID(),
 				service,
@@ -859,8 +860,8 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 				ctx,
 				bupID,
 				whatSet,
-				bod.kms,
-				bod.sss,
+				bod.KMS,
+				bod.SSS,
 				expectDeets,
 				true)
 
@@ -889,7 +890,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 type ExchangeBackupNightlyIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its IntgTesterSetup
 }
 
 func TestExchangeBackupNightlyIntgSuite(t *testing.T) {
@@ -901,22 +902,22 @@ func TestExchangeBackupNightlyIntgSuite(t *testing.T) {
 }
 
 func (suite *ExchangeBackupNightlyIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
 func (suite *ExchangeBackupNightlyIntgSuite) TestBackup_Run_exchangeVersion9MergeBase() {
-	sel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+	sel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
 	sel.Include(
 		sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
 		// sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
 		sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
-	runMergeBaseGroupsUpdate(suite, sel.Selector, true)
+	RunMergeBaseGroupsUpdate(suite, sel.Selector, true)
 }
 
 type ExchangeRestoreNightlyIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	its IntgTesterSetup
 }
 
 func TestExchangeRestoreIntgSuite(t *testing.T) {
@@ -928,7 +929,7 @@ func TestExchangeRestoreIntgSuite(t *testing.T) {
 }
 
 func (suite *ExchangeRestoreNightlyIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
 type clientItemPager interface {
@@ -959,7 +960,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 
 	// a backup is required to run restores
 
-	baseSel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+	baseSel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
 	baseSel.Include(
 		// events cannot be run, for the same reason as incremental backups: the user needs
 		// to have their account recycled.
@@ -967,7 +968,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
 		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
-	baseSel.DiscreteOwner = suite.its.user.ID
+	baseSel.DiscreteOwner = suite.its.User.ID
 
 	var (
 		mb      = evmock.NewBus()
@@ -975,10 +976,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
 
-	runAndCheckBackup(t, ctx, &bo, mb, false)
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
 
 	rsel, err := baseSel.ToExchangeRestore()
 	require.NoError(t, err, clues.ToCore(err))
@@ -1002,8 +1003,8 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 		}
 
 		testCategories = map[path.CategoryType]clientItemPager{
-			path.ContactsCategory: suite.its.ac.Contacts(),
-			path.EmailCategory:    suite.its.ac.Mail(),
+			path.ContactsCategory: suite.its.AC.Contacts(),
+			path.EmailCategory:    suite.its.AC.Mail(),
 			// path.EventsCategory: suite.its.ac.Events(),
 		}
 	)
@@ -1021,10 +1022,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 
 		restoreCfg.OnCollision = control.Copy
 
-		ro, _ := prepNewTestRestoreOp(
+		ro, _ := PrepNewTestRestoreOp(
 			t,
 			ctx,
-			bod.st,
+			bod.St,
 			bo.Results.BackupID,
 			mb,
 			ctr1,
@@ -1032,7 +1033,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 			opts,
 			restoreCfg)
 
-		runAndCheckRestore(t, ctx, &ro, mb, false)
+		RunAndCheckRestore(t, ctx, &ro, mb, false)
 
 		// get all files in folder, use these as the base
 		// set of files to compare against.
@@ -1058,7 +1059,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 			})
 		}
 
-		checkRestoreCounts(t, ctr1, 0, 0, countItemsInRestore)
+		CheckRestoreCounts(t, ctr1, 0, 0, countItemsInRestore)
 	})
 
 	// Exit the test if the baseline failed as it'll just cause more failures
@@ -1080,10 +1081,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 
 		restoreCfg.OnCollision = control.Skip
 
-		ro, _ := prepNewTestRestoreOp(
+		ro, _ := PrepNewTestRestoreOp(
 			t,
 			ctx,
-			bod.st,
+			bod.St,
 			bo.Results.BackupID,
 			mb,
 			ctr2,
@@ -1091,14 +1092,14 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
+		deets := RunAndCheckRestore(t, ctx, &ro, mb, false)
 
 		assert.Zero(
 			t,
 			len(deets.Entries),
 			"no items should have been restored")
 
-		checkRestoreCounts(t, ctr2, countItemsInRestore, 0, 0)
+		CheckRestoreCounts(t, ctr2, countItemsInRestore, 0, 0)
 
 		result := map[string]string{}
 
@@ -1109,7 +1110,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 				ctx, flush := tester.NewContext(t)
 				defer flush()
 
-				m := filterCollisionKeyResults(
+				m := FilterCollisionKeyResults(
 					t,
 					ctx,
 					userID,
@@ -1141,10 +1142,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 
 		restoreCfg.OnCollision = control.Replace
 
-		ro, _ := prepNewTestRestoreOp(
+		ro, _ := PrepNewTestRestoreOp(
 			t,
 			ctx,
-			bod.st,
+			bod.St,
 			bo.Results.BackupID,
 			mb,
 			ctr3,
@@ -1152,7 +1153,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
+		deets := RunAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -1163,7 +1164,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 
 		assert.Len(t, filtEnts, countItemsInRestore, "every item should have been replaced")
 
-		checkRestoreCounts(t, ctr3, 0, countItemsInRestore, 0)
+		CheckRestoreCounts(t, ctr3, 0, countItemsInRestore, 0)
 
 		result := map[string]string{}
 
@@ -1174,7 +1175,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 				ctx, flush := tester.NewContext(t)
 				defer flush()
 
-				m := filterCollisionKeyResults(
+				m := FilterCollisionKeyResults(
 					t,
 					ctx,
 					userID,
@@ -1211,10 +1212,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 
 		restoreCfg.OnCollision = control.Copy
 
-		ro, _ := prepNewTestRestoreOp(
+		ro, _ := PrepNewTestRestoreOp(
 			t,
 			ctx,
-			bod.st,
+			bod.St,
 			bo.Results.BackupID,
 			mb,
 			ctr4,
@@ -1222,7 +1223,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 			opts,
 			restoreCfg)
 
-		deets := runAndCheckRestore(t, ctx, &ro, mb, false)
+		deets := RunAndCheckRestore(t, ctx, &ro, mb, false)
 		filtEnts := []details.Entry{}
 
 		for _, e := range deets.Entries {
@@ -1233,7 +1234,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 
 		assert.Len(t, filtEnts, countItemsInRestore, "every item should have been copied")
 
-		checkRestoreCounts(t, ctr4, 0, 0, countItemsInRestore)
+		CheckRestoreCounts(t, ctr4, 0, 0, countItemsInRestore)
 
 		result := map[string]string{}
 
@@ -1244,7 +1245,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 				ctx, flush := tester.NewContext(t)
 				defer flush()
 
-				m := filterCollisionKeyResults(
+				m := FilterCollisionKeyResults(
 					t,
 					ctx,
 					userID,
@@ -1276,7 +1277,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 
 	// a backup is required to run restores
 
-	baseSel := selectors.NewExchangeBackup([]string{suite.its.user.ID})
+	baseSel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
 	baseSel.Include(
 		// events cannot be run, for the same reason as incremental backups: the user needs
 		// to have their account recycled.
@@ -1284,7 +1285,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
 		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
-	baseSel.DiscreteOwner = suite.its.user.ID
+	baseSel.DiscreteOwner = suite.its.User.ID
 
 	var (
 		mb      = evmock.NewBus()
@@ -1292,10 +1293,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := prepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
-	defer bod.close(t, ctx)
+	bo, bod := PrepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
+	defer bod.Close(t, ctx)
 
-	runAndCheckBackup(t, ctx, &bo, mb, false)
+	RunAndCheckBackup(t, ctx, &bo, mb, false)
 
 	rsel, err := baseSel.ToExchangeRestore()
 	require.NoError(t, err, clues.ToCore(err))
@@ -1303,11 +1304,11 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 	var (
 		restoreCfg      = ctrlTD.DefaultRestoreConfig("exchange_restore_to_user")
 		sel             = rsel.Selector
-		userID          = suite.its.user.ID
-		secondaryUserID = suite.its.secondaryUser.ID
+		userID          = suite.its.User.ID
+		secondaryUserID = suite.its.SecondaryUser.ID
 		uid             = userID
-		acCont          = suite.its.ac.Contacts()
-		acMail          = suite.its.ac.Mail()
+		acCont          = suite.its.AC.Contacts()
+		acMail          = suite.its.AC.Mail()
 		// acEvts   = suite.its.ac.Events()
 		firstCtr = count.New()
 	)
@@ -1317,10 +1318,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 
 	// first restore to the current user
 
-	ro1, _ := prepNewTestRestoreOp(
+	ro1, _ := PrepNewTestRestoreOp(
 		t,
 		ctx,
-		bod.st,
+		bod.St,
 		bo.Results.BackupID,
 		mb,
 		firstCtr,
@@ -1328,7 +1329,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 		opts,
 		restoreCfg)
 
-	runAndCheckRestore(t, ctx, &ro1, mb, false)
+	RunAndCheckRestore(t, ctx, &ro1, mb, false)
 
 	// get all files in folder, use these as the base
 	// set of files to compare against.
@@ -1376,10 +1377,10 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 	secondCtr := count.New()
 	restoreCfg.ProtectedResource = uid
 
-	ro2, _ := prepNewTestRestoreOp(
+	ro2, _ := PrepNewTestRestoreOp(
 		t,
 		ctx,
-		bod.st,
+		bod.St,
 		bo.Results.BackupID,
 		mb,
 		secondCtr,
@@ -1387,7 +1388,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 		opts,
 		restoreCfg)
 
-	runAndCheckRestore(t, ctx, &ro2, mb, false)
+	RunAndCheckRestore(t, ctx, &ro2, mb, false)
 
 	var (
 		secondaryItemIDs       = map[path.CategoryType]map[string]struct{}{}

@@ -189,7 +189,7 @@ func RestoreSitePage(
 	}
 
 	// Hydrate Page
-	page, err := CreatePageFromBytes(byteArray)
+	page, err := BytesToSitePageable(byteArray)
 	if err != nil {
 		return dii, clues.WrapWC(ctx, err, "creating Page object")
 	}
@@ -256,4 +256,15 @@ func PageInfo(page betamodels.SitePageable, size int64) *details.SharePointInfo 
 		WebURL:   webURL,
 		Size:     size,
 	}
+}
+
+func BytesToSitePageable(bytes []byte) (betamodels.SitePageable, error) {
+	parsable, err := createFromBytes(bytes, betamodels.CreateSitePageFromDiscriminatorValue)
+	if err != nil {
+		return nil, clues.Wrap(err, "deserializing bytes to sharepoint page")
+	}
+
+	page := parsable.(betamodels.SitePageable)
+
+	return page, nil
 }

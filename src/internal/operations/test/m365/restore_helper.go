@@ -1,4 +1,4 @@
-package test_test
+package m365
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-type restoreOpDependencies struct {
+type RestoreOpDependencies struct {
 	acct account.Account
 	ctrl *m365.Controller
 	kms  *kopia.ModelStore
@@ -41,7 +41,7 @@ type restoreOpDependencies struct {
 	closer func()
 }
 
-func (rod *restoreOpDependencies) close(
+func (rod *RestoreOpDependencies) Close(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) {
@@ -60,10 +60,10 @@ func (rod *restoreOpDependencies) close(
 	}
 }
 
-// prepNewTestRestoreOp generates all clients required to run a restore operation,
+// PrepNewTestRestoreOp generates all clients required to run a restore operation,
 // returning both a restore operation created with those clients, as well as
 // the clients themselves.
-func prepNewTestRestoreOp(
+func PrepNewTestRestoreOp(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	backupStore storage.Storage,
@@ -75,10 +75,10 @@ func prepNewTestRestoreOp(
 	restoreCfg control.RestoreConfig,
 ) (
 	operations.RestoreOperation,
-	*restoreOpDependencies,
+	*RestoreOpDependencies,
 ) {
 	var (
-		rod = &restoreOpDependencies{
+		rod = &RestoreOpDependencies{
 			acct: tconfig.NewM365Account(t),
 			st:   backupStore,
 		}
@@ -114,10 +114,10 @@ func prepNewTestRestoreOp(
 		rod.acct,
 		sel,
 		nil,
-		rod.close,
+		rod.Close,
 		counter)
 
-	ro := newTestRestoreOp(
+	ro := NewTestRestoreOp(
 		t,
 		ctx,
 		rod,
@@ -135,14 +135,14 @@ func prepNewTestRestoreOp(
 	return ro, rod
 }
 
-// newTestRestoreOp accepts the clients required to compose a restore operation, plus
+// NewTestRestoreOp accepts the clients required to compose a restore operation, plus
 // any other metadata, and uses them to generate a new restore operation.  This
 // allows restore chains to utilize the same temp directory and configuration
 // details.
-func newTestRestoreOp(
+func NewTestRestoreOp(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
-	rod *restoreOpDependencies,
+	rod *RestoreOpDependencies,
 	backupID model.StableID,
 	bus events.Eventer,
 	counter *count.Bus,
@@ -167,14 +167,14 @@ func newTestRestoreOp(
 		bus,
 		counter)
 	if !assert.NoError(t, err, clues.ToCore(err)) {
-		rod.close(t, ctx)
+		rod.Close(t, ctx)
 		t.FailNow()
 	}
 
 	return ro
 }
 
-func runAndCheckRestore(
+func RunAndCheckRestore(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	ro *operations.RestoreOperation,
@@ -223,7 +223,7 @@ type GetItemsInContainerByCollisionKeyer[T any] interface {
 	) (map[string]T, error)
 }
 
-func filterCollisionKeyResults[T any](
+func FilterCollisionKeyResults[T any](
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 	protectedResourceID, containerID string,
@@ -243,7 +243,7 @@ func filterCollisionKeyResults[T any](
 	return m
 }
 
-func checkRestoreCounts(
+func CheckRestoreCounts(
 	t *testing.T,
 	ctr *count.Bus,
 	expectSkips, expectReplaces, expectNew int,

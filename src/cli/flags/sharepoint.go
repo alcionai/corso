@@ -7,6 +7,7 @@ import (
 const (
 	DataLibraries = "libraries"
 	DataPages     = "pages"
+	DataLists     = "lists"
 )
 
 const (
