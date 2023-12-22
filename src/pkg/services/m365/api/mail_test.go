@@ -631,21 +631,25 @@ func (suite *MailAPIIntgSuite) TestMail_WithSpecialCharacters() {
 	}
 	testSequences := []string{
 		// Character code for backspace
-		"\u0008",
-		"\\u0008",
+		`\u0008`,
+		`\\u0008`,
 		"u0008",
 		// Character code for \
-		"\u005c",
-		"\\u005c",
+		`\u005c`,
+		`\\u005c`,
 		"u005c",
 		// Character code for "
-		"\u0022",
-		"\\u0022",
+		`\u0022`,
+		`\\u0022`,
 		"u0022",
 		// Character code for B
-		"\u0042",
-		"\\u0042",
+		`\u0042`,
+		`\\u0042`,
 		"u0042",
+		// G clef character (U+1D11E) (from JSON RFC).
+		// TODO(ashmrtn): Uncomment this once the golang graph SDK is fixed. Right
+		// now it can't properly send these code points.
+		//`\uD834\uDD1E`,
 		"\\n",
 		"\\\n",
 		"abcdef\b\b",
