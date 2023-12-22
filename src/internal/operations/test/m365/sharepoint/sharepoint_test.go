@@ -86,8 +86,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointList() {
 		sel.Selector,
 		control.DefaultOptions(),
 		version.Backup,
-		counter,
-	)
+		counter)
 	defer bod.Close(t, ctx)
 
 	RunAndCheckBackup(t, ctx, &bo, mb, false)
