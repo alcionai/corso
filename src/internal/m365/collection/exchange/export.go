@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/converters/eml"
+	"github.com/alcionai/corso/src/internal/converters/ics"
 	"github.com/alcionai/corso/src/internal/converters/vcf"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -103,6 +104,20 @@ func streamItems(
 				outData, err = vcf.FromJSON(ctx, content)
 				if err != nil {
 					err = clues.Wrap(err, "converting to vcf")
+
+					logger.CtxErr(ctx, err).Info("processing collection item")
+
+					ch <- export.Item{
+						ID:    id,
+						Error: err,
+					}
+
+					continue
+				}
+			case path.EventsCategory:
+				outData, err = ics.FromJSON(ctx, content)
+				if err != nil {
+					err = clues.Wrap(err, "converting to ics")
 
 					logger.CtxErr(ctx, err).Info("processing collection item")
 
