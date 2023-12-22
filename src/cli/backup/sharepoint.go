@@ -241,11 +241,11 @@ func addCategories(sel *selectors.SharePointBackup, cats []string) *selectors.Sh
 
 	for _, d := range cats {
 		switch d {
+		// [TODO] uncomment when lists are enabled
+		// case flags.DataLists:
+		// 	sel.Include(sel.Lists(selectors.Any()))
 		case flags.DataLibraries:
 			sel.Include(sel.LibraryFolders(selectors.Any()))
-			// [TODO] uncomment when lists are enabled
-			// case flags.DataLists:
-			// 	sel.Include(sel.Lists(selectors.Any()))
 		}
 	}
 
