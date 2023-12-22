@@ -11,6 +11,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/sanitize"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -253,6 +254,10 @@ func (c Contacts) DeleteItem(
 // ---------------------------------------------------------------------------
 
 func BytesToContactable(bytes []byte) (models.Contactable, error) {
+	// Sanitize item content so we don't get invalid JSON errors due to
+	// unescaped special characters.
+	bytes = sanitize.JSONBytes(bytes)
+
 	v, err := CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to contact")

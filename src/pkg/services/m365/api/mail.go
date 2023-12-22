@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/sanitize"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -597,6 +598,10 @@ func (c Mail) PostLargeAttachment(
 // ---------------------------------------------------------------------------
 
 func BytesToMessageable(body []byte) (models.Messageable, error) {
+	// Sanitize item content so we don't get invalid JSON errors due to
+	// unescaped special characters.
+	body = sanitize.JSONBytes(body)
+
 	v, err := CreateFromBytes(body, models.CreateMessageFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to message")

@@ -17,6 +17,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/sanitize"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/dttm"
@@ -557,6 +558,10 @@ func (c Events) PostLargeAttachment(
 // ---------------------------------------------------------------------------
 
 func BytesToEventable(body []byte) (models.Eventable, error) {
+	// Sanitize item content so we don't get invalid JSON errors due to
+	// unescaped special characters.
+	body = sanitize.JSONBytes(body)
+
 	v, err := CreateFromBytes(body, models.CreateEventFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to event")
