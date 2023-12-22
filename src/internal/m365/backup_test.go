@@ -274,7 +274,6 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 	ctrl := newController(ctx, suite.T(), path.SharePointService)
 	tests := []struct {
 		name        string
-		expected    int
 		getSelector func() selectors.Selector
 	}{
 		{
@@ -286,8 +285,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 			},
 		},
 		{
-			name:     "Lists",
-			expected: 0,
+			name: "Lists",
 			getSelector: func() selectors.Selector {
 				sel := selectors.NewSharePointBackup(selSites)
 				sel.Include(sel.Lists(selectors.Any()))
@@ -329,8 +327,8 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 			}
 
 			// we don't know an exact count of drives this will produce,
-			// but it should be more than one.
-			assert.Less(t, test.expected, len(collections))
+			// but it should be more than zero.
+			assert.NotEmpty(t, collections)
 
 			for _, coll := range collections {
 				for object := range coll.Items(ctx, fault.New(true)) {
@@ -465,7 +463,8 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	assert.True(t, excludes.Empty())
 
 	for _, collection := range cols {
-		t.Logf("Path: %s\n", collection.FullPath().String())
+		assert.Equal(t, path.SharePointService, collection.FullPath().Service())
+		assert.Equal(t, path.ListsCategory, collection.FullPath().Category())
 
 		for item := range collection.Items(ctx, fault.New(true)) {
 			t.Log("File: " + item.ID())
