@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type CollectionUnitSuite struct {
@@ -271,8 +272,8 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_streamItems() {
 }
 
 type getAndAugmentConversation struct {
-	Err     error
-	CallIDs []string
+	GetItemErr error
+	CallIDs    []string
 }
 
 //lint:ignore U1000 false linter issue due to generics
@@ -287,13 +288,13 @@ func (m *getAndAugmentConversation) getItem(
 	p := models.NewPost()
 	p.SetId(ptr.To(postID))
 
-	return p, &details.GroupsInfo{}, m.Err
+	return p, &details.GroupsInfo{}, m.GetItemErr
 }
 
+//
 //lint:ignore U1000 false linter issue due to generics
 func (m *getAndAugmentConversation) augmentItemInfo(*details.GroupsInfo, models.Conversationable) {
 	// no-op
-	// Post.Topic = ptr.Val(c.GetTopic())
 }
 
 func (m *getAndAugmentConversation) check(t *testing.T, expected []string) {
@@ -456,4 +457,163 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 				"should see all expected items")
 		})
 	}
+}
+
+func (suite *CollectionUnitSuite) TestLazyItem_GetDataErrors() {
+	var (
+		parentPath = "thread/private/silly cats"
+		now        = time.Now()
+	)
+
+	table := []struct {
+		name              string
+		getErr            error
+		expectReadErrType error
+	}{
+		{
+			name:              "ReturnsErrorOnGenericGetError",
+			getErr:            assert.AnError,
+			expectReadErrType: assert.AnError,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			m := getAndAugmentConversation{
+				GetItemErr: test.getErr,
+			}
+
+			li := data.NewLazyItemWithInfo(
+				ctx,
+				&lazyItemGetter[models.Conversationable, models.Postable]{
+					resourceID:    "resourceID",
+					itemID:        "itemID",
+					getAndAugment: &m,
+					modTime:       now,
+					parentPath:    parentPath,
+				},
+				"itemID",
+				now,
+				count.New(),
+				fault.New(true))
+
+			assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
+			assert.Equal(t, now, li.ModTime(), "item mod time")
+
+			_, err := readers.NewVersionedRestoreReader(li.ToReader())
+			assert.ErrorIs(t, err, test.expectReadErrType)
+
+			// Should get some form of error when trying to get info.
+			_, err = li.Info()
+			assert.Error(t, err, "Info()")
+		})
+	}
+}
+
+func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlight() {
+	var (
+		t = suite.T()
+
+		parentPath = "thread/private/silly cats"
+		now        = time.Now()
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	m := getAndAugmentConversation{
+		GetItemErr: graph.ErrDeletedInFlight,
+	}
+
+	li := data.NewLazyItemWithInfo(
+		ctx,
+		&lazyItemGetter[models.Conversationable, models.Postable]{
+			resourceID:    "resourceID",
+			itemID:        "itemID",
+			getAndAugment: &m,
+			modTime:       now,
+			parentPath:    parentPath,
+		},
+		"itemID",
+		now,
+		count.New(),
+		fault.New(true))
+
+	assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
+	assert.Equal(
+		t,
+		now,
+		li.ModTime(),
+		"item mod time")
+
+	r, err := readers.NewVersionedRestoreReader(li.ToReader())
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+	assert.True(t, r.Format().DelInFlight)
+
+	readData, err := io.ReadAll(r)
+	assert.NoError(t, err, "reading item data: %v", clues.ToCore(err))
+
+	assert.Empty(t, readData, "read item data")
+
+	_, err = li.Info()
+	assert.ErrorIs(t, err, data.ErrNotFound, "Info() error")
+}
+
+func (suite *CollectionUnitSuite) TestLazyItem() {
+	var (
+		t = suite.T()
+
+		parentPath = "thread/private/silly cats"
+		now        = time.Now()
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	m := getAndAugmentConversation{}
+
+	li := data.NewLazyItemWithInfo(
+		ctx,
+		&lazyItemGetter[models.Conversationable, models.Postable]{
+			resourceID:    "resourceID",
+			itemID:        "itemID",
+			getAndAugment: &m,
+			modTime:       now,
+			parentPath:    parentPath,
+		},
+		"itemID",
+		now,
+		count.New(),
+		fault.New(true))
+
+	assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
+	assert.Equal(
+		t,
+		now,
+		li.ModTime(),
+		"item mod time")
+
+	r, err := readers.NewVersionedRestoreReader(li.ToReader())
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+	assert.False(t, r.Format().DelInFlight)
+
+	readData, err := io.ReadAll(r)
+	assert.NoError(t, err, "reading item data: %v", clues.ToCore(err))
+
+	assert.NotEmpty(t, readData, "read item data")
+
+	info, err := li.Info()
+	assert.NoError(t, err, "getting item info: %v", clues.ToCore(err))
+
+	assert.Equal(t, parentPath, info.Groups.ParentPath)
+	assert.Equal(t, now, info.Modified())
 }

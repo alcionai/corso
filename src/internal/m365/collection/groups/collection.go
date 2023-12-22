@@ -56,6 +56,10 @@ func updateStatus(
 	statusUpdater(status)
 }
 
+// -----------------------------------------------------------------------------
+// prefetchCollection
+// -----------------------------------------------------------------------------
+
 type prefetchCollection[C graph.GetIDer, I groupsItemer] struct {
 	data.BaseCollection
 	protectedResource string
@@ -73,7 +77,6 @@ type prefetchCollection[C graph.GetIDer, I groupsItemer] struct {
 	statusUpdater support.StatusUpdater
 }
 
-// NewExchangeDataCollection creates an ExchangeDataCollection.
 // State of the collection is set as an observation of the current
 // and previous paths.  If the curr path is nil, the state is assumed
 // to be deleted.  If the prev path is nil, it is assumed newly created.
@@ -102,16 +105,10 @@ func NewCollection[C graph.GetIDer, I groupsItemer](
 	return collection
 }
 
-// Items utility function to asynchronously execute process to fill data channel with
-// M365 exchange objects and returns the data channel
 func (col *prefetchCollection[C, I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	go col.streamItems(ctx, errs)
 	return col.stream
 }
-
-// ---------------------------------------------------------------------------
-// items() production
-// ---------------------------------------------------------------------------
 
 func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
@@ -271,8 +268,6 @@ type lazyFetchCollection[C graph.GetIDer, I groupsItemer] struct {
 	statusUpdater support.StatusUpdater
 }
 
-// Items utility function to asynchronously execute process to fill data channel with
-// M365 exchange objects and returns the data channel
 func (col *lazyFetchCollection[C, I]) Items(
 	ctx context.Context,
 	errs *fault.Bus,
@@ -280,10 +275,6 @@ func (col *lazyFetchCollection[C, I]) Items(
 	go col.streamItems(ctx, errs)
 	return col.stream
 }
-
-// ---------------------------------------------------------------------------
-// items() production
-// ---------------------------------------------------------------------------
 
 func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
@@ -366,7 +357,7 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 				&lazyItemGetter[C, I]{
 					modTime:       modTime,
 					getAndAugment: col.getAndAugment,
-					userID:        col.protectedResource,
+					resourceID:    col.protectedResource,
 					itemID:        id,
 					containerIDs:  col.FullPath().Folders(),
 					contains:      col.contains,
@@ -390,7 +381,7 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 
 type lazyItemGetter[C graph.GetIDer, I groupsItemer] struct {
 	getAndAugment getItemAndAugmentInfoer[C, I]
-	userID        string
+	resourceID    string
 	itemID        string
 	parentPath    string
 	containerIDs  path.Elements
@@ -407,13 +398,13 @@ func (lig *lazyItemGetter[C, I]) GetData(
 
 	item, info, err := lig.getAndAugment.getItem(
 		ctx,
-		lig.userID,
+		lig.resourceID,
 		lig.containerIDs,
 		lig.itemID)
 	if err != nil {
 		// If an item was deleted then return an empty file so we don't fail
-		// the backup and return a sentinel error when asked for ItemInfo so
-		// we don't display the item in the backup.
+		// the backup. Also return delInFlight as true so that kopia skips
+		// adding ItemInfo to details.
 		//
 		// The item will be deleted from kopia on the next backup when the
 		// delta token shows it's removed.
@@ -422,7 +413,7 @@ func (lig *lazyItemGetter[C, I]) GetData(
 			return nil, nil, true, nil
 		}
 
-		err = clues.Wrap(err, "getting item data").Label(fault.LabelForceNoBackupCreation)
+		err = clues.WrapWC(ctx, err, "getting item data").Label(fault.LabelForceNoBackupCreation)
 		errs.AddRecoverable(ctx, err)
 
 		return nil, nil, false, err
@@ -431,7 +422,7 @@ func (lig *lazyItemGetter[C, I]) GetData(
 	lig.getAndAugment.augmentItemInfo(info, lig.contains.container)
 
 	if err := writer.WriteObjectValue("", item); err != nil {
-		err = clues.Wrap(err, "writing item to serializer").Label(fault.LabelForceNoBackupCreation)
+		err = clues.WrapWC(ctx, err, "writing item to serializer").Label(fault.LabelForceNoBackupCreation)
 		errs.AddRecoverable(ctx, err)
 
 		return nil, nil, false, err
@@ -439,7 +430,7 @@ func (lig *lazyItemGetter[C, I]) GetData(
 
 	itemData, err := writer.GetSerializedContent()
 	if err != nil {
-		err = clues.Wrap(err, "serializing item").Label(fault.LabelForceNoBackupCreation)
+		err = clues.WrapWC(ctx, err, "serializing item").Label(fault.LabelForceNoBackupCreation)
 		errs.AddRecoverable(ctx, err)
 
 		return nil, nil, false, err
