@@ -134,7 +134,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			},
 			getItem: func(t *testing.T, itemName string) data.Item {
 				byteArray := spMock.Page(itemName)
-				page, err := betaAPI.CreatePageFromBytes(byteArray)
+				page, err := betaAPI.BytesToSitePageable(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 
 				data, err := data.NewPrefetchedItemWithInfo(
