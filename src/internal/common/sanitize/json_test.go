@@ -59,8 +59,7 @@ func generateCharacterTests() []jsonTest {
 				input:       []byte(fmt.Sprintf(baseTestData, `\\`+string(rune(i)))),
 				expect:      []byte(fmt.Sprintf(expect, `\\`, string(rune(i)))),
 				expectValid: assert.True,
-			},
-		)
+			})
 	}
 
 	return res
@@ -125,14 +124,14 @@ func (suite *SanitizeJSONUnitSuite) TestJSONBytes() {
 		{
 			name: "LF characters in JSON outside quotes",
 			input: []byte(`{
-				"content":"\n>> ` + "\b\bW" + `
+				"content":"\n>> ` + "\b\bW" + `"
 			}`),
 			expect:      nil,
 			expectValid: assert.True,
 		},
 		{
 			name:        "No LF characters in JSON",
-			input:       []byte(`{"content":"\n>> ` + "\b\bW" + `}`),
+			input:       []byte(`{"content":"\n>> ` + "\b\bW" + `"}`),
 			expect:      nil,
 			expectValid: assert.True,
 		},
