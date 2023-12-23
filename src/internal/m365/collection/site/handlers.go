@@ -6,6 +6,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -32,6 +33,7 @@ type PostLister interface {
 		ctx context.Context,
 		listName string,
 		storedListData []byte,
+		errs *fault.Bus,
 	) (models.Listable, error)
 }
 
