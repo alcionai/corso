@@ -125,14 +125,14 @@ func (suite *SanitizeJSONUnitSuite) TestJSONBytes() {
 		{
 			name: "LF characters in JSON outside quotes",
 			input: []byte(`{
-				"content":"\n>> W"
+				"content":"\n>> ` + "\b\bW" + `
 			}`),
 			expect:      nil,
 			expectValid: assert.True,
 		},
 		{
 			name:        "No LF characters in JSON",
-			input:       []byte(`{"content":"\n>> W"}`),
+			input:       []byte(`{"content":"\n>> ` + "\b\bW" + `}`),
 			expect:      nil,
 			expectValid: assert.True,
 		},
