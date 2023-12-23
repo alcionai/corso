@@ -95,16 +95,52 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	_, lrh, destName, mockData := setupDependencies(
-		suite,
-		suite.ac,
-		suite.siteID,
-		suite.creds,
-		api.WebTemplateExtensionsListTemplateName)
+	tests := []struct {
+		name      string
+		getParams func() (listsRestoreHandler, string, *dataMock.Item)
+		expect    assert.ErrorAssertionFunc
+	}{
+		{
+			name: "list with template documentLibrary",
+			getParams: func() (listsRestoreHandler, string, *dataMock.Item) {
+				_, lrh, destName, mockData := setupDependencies(
+					suite,
+					suite.ac,
+					suite.siteID,
+					suite.creds,
+					api.DocumentLibraryListTemplateName)
 
-	_, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), api.ErrCannotCreateWebTemplateExtension.Error())
+				return lrh, destName, mockData
+			},
+			expect: assert.Error,
+		},
+		{
+			name: "list with template webTemplateExtensionsList",
+			getParams: func() (listsRestoreHandler, string, *dataMock.Item) {
+				_, lrh, destName, mockData := setupDependencies(
+					suite,
+					suite.ac,
+					suite.siteID,
+					suite.creds,
+					api.WebTemplateExtensionsListTemplateName)
+
+				return lrh, destName, mockData
+			},
+			expect: assert.Error,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			lrh, destName, mockData := test.getParams()
+
+			_, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), api.ErrCannotCreateNonRestorableListTemplate.Error())
+		})
+	}
 }
 
 func deleteList(

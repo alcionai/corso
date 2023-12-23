@@ -358,7 +358,7 @@ func (sc *Collection) handleListItems(
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
 	itemInfo := details.ItemInfo{
 		SharePoint:     info,
-		NotRecoverable: template == api.WebTemplateExtensionsListTemplateName,
+		NotRecoverable: api.NonRestorableListTemplates.HasKey(template),
 	}
 
 	item, err := data.NewPrefetchedItemWithInfo(rc, listID, itemInfo)

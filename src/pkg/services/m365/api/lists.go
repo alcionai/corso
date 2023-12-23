@@ -13,7 +13,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var ErrCannotCreateWebTemplateExtension = clues.New("unable to create webTemplateExtension type lists")
+var ErrCannotCreateNonRestorableListTemplate = clues.New("unable to create lists with non-restorable template")
 
 const (
 	AttachmentsColumnName       = "Attachments"
@@ -48,6 +48,7 @@ const (
 	DescoratorFieldNamePrefix       = "@"
 
 	WebTemplateExtensionsListTemplateName = "webTemplateExtensionsList"
+	DocumentLibraryListTemplateName       = "documentLibrary"
 )
 
 var addressFieldNames = []string{
@@ -80,6 +81,11 @@ var readOnlyFieldNames = keys.Set{
 	ContentTypeColumnName: {},
 	CreatedColumnName:     {},
 	ModifiedColumnName:    {},
+}
+
+var NonRestorableListTemplates = keys.Set{
+	WebTemplateExtensionsListTemplateName: {},
+	DocumentLibraryListTemplateName:       {},
 }
 
 // ---------------------------------------------------------------------------
@@ -253,8 +259,8 @@ func (c Lists) PostList(
 
 	if newList != nil &&
 		newList.GetList() != nil &&
-		ptr.Val(newList.GetList().GetTemplate()) == WebTemplateExtensionsListTemplateName {
-		return nil, clues.StackWC(ctx, ErrCannotCreateWebTemplateExtension)
+		NonRestorableListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
+		return nil, clues.StackWC(ctx, ErrCannotCreateNonRestorableListTemplate)
 	}
 
 	// Restore to List base to M365 back store

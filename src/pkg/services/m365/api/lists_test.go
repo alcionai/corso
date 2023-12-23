@@ -770,24 +770,66 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 		listName = testdata.DefaultRestoreConfig("list_api_post_list").Location
 	)
 
-	writer := kjson.NewJsonSerializationWriter()
-	defer writer.Close()
+	tests := []struct {
+		name         string
+		getListBytes func() []byte
+		expect       assert.ErrorAssertionFunc
+	}{
+		{
+			name: "list with template documentLibrary",
+			getListBytes: func() []byte {
+				writer := kjson.NewJsonSerializationWriter()
+				defer writer.Close()
 
-	overrideListInfo := models.NewListInfo()
-	overrideListInfo.SetTemplate(ptr.To(WebTemplateExtensionsListTemplateName))
+				overrideListInfo := models.NewListInfo()
+				overrideListInfo.SetTemplate(ptr.To(DocumentLibraryListTemplateName))
 
-	_, list := getFieldsDataAndList()
-	list.SetList(overrideListInfo)
+				_, list := getFieldsDataAndList()
+				list.SetList(overrideListInfo)
 
-	err := writer.WriteObjectValue("", list)
-	require.NoError(t, err)
+				err := writer.WriteObjectValue("", list)
+				require.NoError(t, err)
 
-	oldListByteArray, err := writer.GetSerializedContent()
-	require.NoError(t, err)
+				storedListBytes, err := writer.GetSerializedContent()
+				require.NoError(t, err)
 
-	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray)
-	require.Error(t, err)
-	assert.Equal(t, ErrCannotCreateWebTemplateExtension.Error(), err.Error())
+				return storedListBytes
+			},
+			expect: assert.Error,
+		},
+		{
+			name: "list with template webTemplateExtensionsList",
+			getListBytes: func() []byte {
+				writer := kjson.NewJsonSerializationWriter()
+				defer writer.Close()
+
+				overrideListInfo := models.NewListInfo()
+				overrideListInfo.SetTemplate(ptr.To(WebTemplateExtensionsListTemplateName))
+
+				_, list := getFieldsDataAndList()
+				list.SetList(overrideListInfo)
+
+				err := writer.WriteObjectValue("", list)
+				require.NoError(t, err)
+
+				storedListBytes, err := writer.GetSerializedContent()
+				require.NoError(t, err)
+
+				return storedListBytes
+			},
+			expect: assert.Error,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			_, err := acl.PostList(ctx, siteID, listName, test.getListBytes())
+			require.Error(t, err)
+			assert.Equal(t, ErrCannotCreateNonRestorableListTemplate.Error(), err.Error())
+		})
+	}
 }
 
 func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
