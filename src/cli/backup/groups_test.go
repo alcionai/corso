@@ -153,6 +153,7 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 				"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.GroupsCategoryDataInput),
 				"--" + flags.FetchParallelismFN, flagsTD.FetchParallelism,
 				"--" + flags.DisableDeltaFN,
+				"--" + flags.DisableLazyItemReaderFN,
 			},
 			flagsTD.PreparedGenericBackupFlags(),
 			flagsTD.PreparedProviderFlags(),
@@ -176,6 +177,7 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 	assert.True(t, co.ToggleFeatures.DisableIncrementals)
 	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
 	assert.True(t, co.ToggleFeatures.DisableDelta)
+	assert.True(t, co.ToggleFeatures.DisableLazyItemReader)
 
 	assert.ElementsMatch(t, flagsTD.GroupsInput, opts.Groups)
 	flagsTD.AssertGenericBackupFlags(t, cmd)

@@ -6,10 +6,13 @@ import (
 	"io"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/require"
+
+	"github.com/alcionai/corso/src/internal/common/ptr"
 )
 
 func ODataErr(code string) *odataerrors.ODataError {
@@ -28,6 +31,27 @@ func ODataErrWithMsg(code, message string) *odataerrors.ODataError {
 	merr := odataerrors.NewMainError()
 	merr.SetCode(&code)
 	merr.SetMessage(&message)
+	odErr.SetErrorEscaped(merr)
+
+	return odErr
+}
+
+func ODataInner(innerCode string) *odataerrors.ODataError {
+	odErr := odataerrors.NewODataError()
+	inerr := odataerrors.NewInnerError()
+	merr := odataerrors.NewMainError()
+
+	inerr.SetAdditionalData(map[string]any{
+		"code": innerCode,
+	})
+	inerr.SetClientRequestId(ptr.To(uuid.NewString()))
+	inerr.SetOdataType(ptr.To("@odata.type"))
+	inerr.SetRequestId(ptr.To("req-id"))
+
+	merr.SetInnerError(inerr)
+	merr.SetCode(ptr.To("main code"))
+	merr.SetMessage(ptr.To("main message"))
+
 	odErr.SetErrorEscaped(merr)
 
 	return odErr

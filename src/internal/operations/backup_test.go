@@ -433,6 +433,7 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 			RunMigrations:               true,
 			DisableSlidingWindowLimiter: true,
 			UseDeltaTree:                true,
+			DisableLazyItemReader:       true,
 		},
 		PreviewLimits: control.PreviewItemLimits{
 			MaxItems:             42,

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -174,10 +173,9 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			continue
 		}
 
-		added := str.SliceToMap(maps.Keys(addAndRem.Added))
 		removed := str.SliceToMap(addAndRem.Removed)
 
-		cl.Add(count.ItemsAdded, int64(len(added)))
+		cl.Add(count.ItemsAdded, int64(len(addAndRem.Added)))
 		cl.Add(count.ItemsRemoved, int64(len(removed)))
 
 		if len(addAndRem.DU.URL) > 0 {
@@ -198,7 +196,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 		// deleted and then restored will have a different ID than they did
 		// originally.
 		for remove := range removed {
-			delete(added, remove)
+			delete(addAndRem.Added, remove)
 		}
 
 		edc := NewCollection(
@@ -211,7 +209,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 				cl),
 			bh,
 			qp.ProtectedResource.ID(),
-			added,
+			addAndRem.Added,
 			removed,
 			c,
 			statusUpdater)

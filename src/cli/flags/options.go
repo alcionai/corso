@@ -10,6 +10,7 @@ const (
 	DeltaPageSizeFN               = "delta-page-size"
 	DisableDeltaFN                = "disable-delta"
 	DisableIncrementalsFN         = "disable-incrementals"
+	DisableLazyItemReaderFN       = "disable-lazy-item-reader"
 	DisableSlidingWindowLimiterFN = "disable-sliding-window-limiter"
 	ForceItemDataDownloadFN       = "force-item-data-download"
 	EnableImmutableIDFN           = "enable-immutable-id"
@@ -29,6 +30,7 @@ var (
 	DeltaPageSizeFV               int
 	DisableDeltaFV                bool
 	DisableIncrementalsFV         bool
+	DisableLazyItemReaderFV       bool
 	DisableSlidingWindowLimiterFV bool
 	ForceItemDataDownloadFV       bool
 	EnableImmutableIDFV           bool
@@ -177,4 +179,20 @@ func AddDisableSlidingWindowLimiterFlag(cmd *cobra.Command) {
 		false,
 		"Disable sliding window rate limiter.")
 	cobra.CheckErr(fs.MarkHidden(DisableSlidingWindowLimiterFN))
+}
+
+// AddDisableLazyItemReader disables lazy item reader, such that we fall back to
+// prefetch reader. This flag is currently only meant for groups conversations
+// backup. Although it can be utilized for other services in future.
+//
+// This flag should only be used if lazy item reader is the default choice and
+// we want to fallback to prefetch reader.
+func AddDisableLazyItemReader(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(
+		&DisableLazyItemReaderFV,
+		DisableLazyItemReaderFN,
+		false,
+		"Disable lazy item reader.")
+	cobra.CheckErr(fs.MarkHidden(DisableLazyItemReaderFN))
 }

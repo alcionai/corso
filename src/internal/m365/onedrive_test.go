@@ -509,11 +509,14 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = true
 
+			opts := control.DefaultOptions()
+			opts.ToggleFeatures.UseDeltaTree = true
+
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
 				ResourceOwners: []string{suite.ResourceOwner()},
 				Service:        testData.service,
-				Opts:           control.DefaultOptions(),
+				Opts:           opts,
 				RestoreCfg:     restoreCfg,
 			}
 
@@ -759,11 +762,14 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = true
 
+			opts := control.DefaultOptions()
+			opts.ToggleFeatures.UseDeltaTree = true
+
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
 				ResourceOwners: []string{suite.ResourceOwner()},
 				Service:        testData.service,
-				Opts:           control.DefaultOptions(),
+				Opts:           opts,
 				RestoreCfg:     restoreCfg,
 			}
 
@@ -850,11 +856,14 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = false
 
+			opts := control.DefaultOptions()
+			opts.ToggleFeatures.UseDeltaTree = true
+
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
 				ResourceOwners: []string{suite.ResourceOwner()},
 				Service:        testData.service,
-				Opts:           control.DefaultOptions(),
+				Opts:           opts,
 				RestoreCfg:     restoreCfg,
 			}
 
@@ -1056,11 +1065,14 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = true
 
+			opts := control.DefaultOptions()
+			opts.ToggleFeatures.UseDeltaTree = true
+
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
 				ResourceOwners: []string{suite.ResourceOwner()},
 				Service:        testData.service,
-				Opts:           control.DefaultOptions(),
+				Opts:           opts,
 				RestoreCfg:     restoreCfg,
 			}
 
@@ -1252,11 +1264,14 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			restoreCfg.OnCollision = control.Replace
 			restoreCfg.IncludePermissions = true
 
+			opts := control.DefaultOptions()
+			opts.ToggleFeatures.UseDeltaTree = true
+
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
 				ResourceOwners: []string{suite.ResourceOwner()},
 				Service:        testData.service,
-				Opts:           control.DefaultOptions(),
+				Opts:           opts,
 				RestoreCfg:     restoreCfg,
 			}
 
@@ -1369,11 +1384,14 @@ func testRestoreFolderNamedFolderRegression(
 			restoreCfg := control.DefaultRestoreConfig(dttm.SafeForTesting)
 			restoreCfg.IncludePermissions = true
 
+			opts := control.DefaultOptions()
+			opts.ToggleFeatures.UseDeltaTree = true
+
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
 				ResourceOwners: []string{suite.ResourceOwner()},
 				Service:        testData.service,
-				Opts:           control.DefaultOptions(),
+				Opts:           opts,
 				RestoreCfg:     restoreCfg,
 			}
 

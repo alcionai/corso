@@ -100,4 +100,13 @@ type Toggles struct {
 
 	// see: https://github.com/alcionai/corso/issues/4688
 	UseDeltaTree bool `json:"useDeltaTree"`
+
+	// AddDisableLazyItemReader disables lazy item reader, such that we fall
+	// back to prefetch reader. This flag is currently only meant for groups
+	// conversations backup. Although it can be utilized for other services
+	// in future.
+	//
+	// This flag should only be used if lazy item reader is the default choice
+	// and we want to fallback to prefetch reader.
+	DisableLazyItemReader bool `json:"disableLazyItemReader"`
 }

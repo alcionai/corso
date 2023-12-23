@@ -7,13 +7,14 @@ import (
 
 	"github.com/alcionai/clues"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/sites"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/corso/src/internal/m365/collection/site/mock"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -21,7 +22,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -76,7 +76,9 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 	tables := []struct {
 		name, itemName string
+		notRecoverable bool
 		scope          selectors.SharePointScope
+		getter         getItemByIDer
 		getDir         func(t *testing.T) path.Path
 		getItem        func(t *testing.T, itemName string) data.Item
 	}{
@@ -84,6 +86,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			name:     "List",
 			itemName: "MockListing",
 			scope:    sel.Lists(selectors.Any())[0],
+			getter:   &mock.ListHandler{},
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
@@ -107,10 +110,61 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				byteArray, err := ow.GetSerializedContent()
 				require.NoError(t, err, clues.ToCore(err))
 
+				info := &details.SharePointInfo{
+					ItemName: name,
+				}
+
 				data, err := data.NewPrefetchedItemWithInfo(
 					io.NopCloser(bytes.NewReader(byteArray)),
 					name,
-					details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
+					details.ItemInfo{SharePoint: info})
+				require.NoError(t, err, clues.ToCore(err))
+
+				return data
+			},
+		},
+		{
+			name:           "List with wte template",
+			itemName:       "MockListing",
+			notRecoverable: true,
+			scope:          sel.Lists(selectors.Any())[0],
+			getter:         &mock.ListHandler{},
+			getDir: func(t *testing.T) path.Path {
+				dir, err := path.Build(
+					tenant,
+					user,
+					path.SharePointService,
+					path.ListsCategory,
+					false,
+					dirRoot)
+				require.NoError(t, err, clues.ToCore(err))
+
+				return dir
+			},
+			getItem: func(t *testing.T, name string) data.Item {
+				ow := kioser.NewJsonSerializationWriter()
+
+				listInfo := models.NewListInfo()
+				listInfo.SetTemplate(ptr.To("webTemplateExtensionsList"))
+
+				listing := spMock.ListDefault(name)
+				listing.SetDisplayName(&name)
+				listing.SetList(listInfo)
+
+				err := ow.WriteObjectValue("", listing)
+				require.NoError(t, err, clues.ToCore(err))
+
+				byteArray, err := ow.GetSerializedContent()
+				require.NoError(t, err, clues.ToCore(err))
+
+				info := &details.SharePointInfo{
+					ItemName: name,
+				}
+
+				data, err := data.NewPrefetchedItemWithInfo(
+					io.NopCloser(bytes.NewReader(byteArray)),
+					name,
+					details.ItemInfo{SharePoint: info, NotRecoverable: true})
 				require.NoError(t, err, clues.ToCore(err))
 
 				return data
@@ -120,6 +174,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			name:     "Pages",
 			itemName: "MockPages",
 			scope:    sel.Pages(selectors.Any())[0],
+			getter:   nil,
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
 					tenant,
@@ -134,7 +189,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			},
 			getItem: func(t *testing.T, itemName string) data.Item {
 				byteArray := spMock.Page(itemName)
-				page, err := betaAPI.CreatePageFromBytes(byteArray)
+				page, err := betaAPI.BytesToSitePageable(byteArray)
 				require.NoError(t, err, clues.ToCore(err))
 
 				data, err := data.NewPrefetchedItemWithInfo(
@@ -156,12 +211,13 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			defer flush()
 
 			col := NewCollection(
+				test.getter,
 				test.getDir(t),
 				suite.ac,
 				test.scope,
 				nil,
 				control.DefaultOptions())
-			col.data <- test.getItem(t, test.itemName)
+			col.stream <- test.getItem(t, test.itemName)
 
 			readItems := []data.Item{}
 
@@ -180,68 +236,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			assert.NotNil(t, info)
 			assert.NotNil(t, info.SharePoint)
 			assert.Equal(t, test.itemName, info.SharePoint.ItemName)
+			assert.Equal(t, test.notRecoverable, info.NotRecoverable)
 		})
-	}
-}
-
-// TestRestoreListCollection verifies Graph Restore API for the List Collection
-func (suite *SharePointCollectionSuite) TestListCollection_Restore() {
-	t := suite.T()
-	// https://github.com/microsoftgraph/msgraph-sdk-go/issues/490
-	t.Skip("disabled until upstream issue with list restore is fixed.")
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	service := createTestService(t, suite.creds)
-	listing := spMock.ListDefault("Mock List")
-	testName := "MockListing"
-	listing.SetDisplayName(&testName)
-	byteArray, err := service.Serialize(listing)
-	require.NoError(t, err, clues.ToCore(err))
-
-	listData, err := data.NewPrefetchedItemWithInfo(
-		io.NopCloser(bytes.NewReader(byteArray)),
-		testName,
-		details.ItemInfo{SharePoint: ListToSPInfo(listing, int64(len(byteArray)))})
-	require.NoError(t, err, clues.ToCore(err))
-
-	destName := testdata.DefaultRestoreConfig("").Location
-
-	deets, err := restoreListItem(ctx, service, listData, suite.siteID, destName)
-	assert.NoError(t, err, clues.ToCore(err))
-	t.Logf("List created: %s\n", deets.SharePoint.ItemName)
-
-	// Clean-Up
-	var (
-		builder  = service.Client().Sites().BySiteId(suite.siteID).Lists()
-		isFound  bool
-		deleteID string
-	)
-
-	for {
-		resp, err := builder.Get(ctx, nil)
-		assert.NoError(t, err, "getting site lists", clues.ToCore(err))
-
-		for _, temp := range resp.GetValue() {
-			if ptr.Val(temp.GetDisplayName()) == deets.SharePoint.ItemName {
-				isFound = true
-				deleteID = ptr.Val(temp.GetId())
-
-				break
-			}
-		}
-		// Get Next Link
-		link, ok := ptr.ValOK(resp.GetOdataNextLink())
-		if !ok {
-			break
-		}
-
-		builder = sites.NewItemListsRequestBuilder(link, service.Adapter())
-	}
-
-	if isFound {
-		err := DeleteList(ctx, service, suite.siteID, deleteID)
-		assert.NoError(t, err, clues.ToCore(err))
 	}
 }

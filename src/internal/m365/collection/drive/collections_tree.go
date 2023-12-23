@@ -181,12 +181,7 @@ func (c *Collections) makeDriveCollections(
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "generating backup tree prefix")
 	}
 
-	root, err := c.handler.GetRootFolder(ctx, driveID)
-	if err != nil {
-		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "getting root folder")
-	}
-
-	tree := newFolderyMcFolderFace(ppfx, ptr.Val(root.GetId()))
+	tree := newFolderyMcFolderFace(ppfx)
 
 	counter.Add(count.PrevPaths, int64(len(prevPaths)))
 
@@ -232,7 +227,7 @@ func (c *Collections) makeDriveCollections(
 	// only populate the global excluded items if no delta reset occurred.
 	// if a reset did occur, the collections should already be marked as
 	// "do not merge", therefore everything will get processed as a new addition.
-	if !tree.hadReset {
+	if !tree.hadReset && len(prevDeltaLink) > 0 {
 		p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
 		if err != nil {
 			err = clues.WrapWC(ctx, err, "making canonical path for item exclusions")
@@ -543,10 +538,9 @@ func (c *Collections) addFolderToTree(
 	notSelected = shouldSkip(ctx, collectionPath, c.handler, ptr.Val(drv.GetName()))
 	if notSelected {
 		logger.Ctx(ctx).Debugw("path not selected", "skipped_path", collectionPath.String())
-		return nil, nil
 	}
 
-	err = tree.setFolder(ctx, folder)
+	err = tree.setFolder(ctx, folder, notSelected)
 
 	return nil, clues.Stack(err).OrNil()
 }
@@ -665,12 +659,9 @@ func (c *Collections) addFileToTree(
 		}
 	}
 
-	err := tree.addFile(file)
-	if err != nil {
-		return nil, clues.StackWC(ctx, err)
-	}
+	err := tree.addFile(ctx, file)
 
-	return nil, nil
+	return nil, clues.Stack(err).OrNil()
 }
 
 // quality-of-life wrapper that transforms each tombstone in the map

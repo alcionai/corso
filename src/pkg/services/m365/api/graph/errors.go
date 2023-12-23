@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
@@ -77,6 +78,9 @@ const (
 // inner error codes
 const (
 	ResourceLocked errorCode = "resourceLocked"
+	// Returned when either the tenant-wide or site settings don't permit sharing
+	// for external users to some extent.
+	sharingDisabled errorCode = "sharingDisabled"
 )
 
 type errorMessage string
@@ -138,15 +142,15 @@ var (
 
 func IsErrApplicationThrottled(err error) bool {
 	return errors.Is(err, ErrApplicationThrottled) ||
-		hasErrorCode(err, applicationThrottled)
+		parseODataErr(err).hasErrorCode(err, applicationThrottled)
 }
 
 func IsErrAuthenticationError(err error) bool {
-	return hasErrorCode(err, AuthenticationError)
+	return parseODataErr(err).hasErrorCode(err, AuthenticationError)
 }
 
 func IsErrInsufficientAuthorization(err error) bool {
-	return hasErrorCode(err, AuthorizationRequestDenied)
+	return parseODataErr(err).hasErrorCode(err, AuthorizationRequestDenied)
 }
 
 func IsErrDeletedInFlight(err error) bool {
@@ -154,7 +158,7 @@ func IsErrDeletedInFlight(err error) bool {
 		return true
 	}
 
-	if hasErrorCode(
+	if parseODataErr(err).hasErrorCode(
 		err,
 		errorItemNotFound,
 		itemNotFound,
@@ -166,56 +170,51 @@ func IsErrDeletedInFlight(err error) bool {
 }
 
 func IsErrItemNotFound(err error) bool {
-	return hasErrorCode(err, itemNotFound, errorItemNotFound)
+	return parseODataErr(err).hasErrorCode(err, itemNotFound, errorItemNotFound)
 }
 
 func IsErrInvalidDelta(err error) bool {
-	return hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid)
+	return parseODataErr(err).hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid)
 }
 
 func IsErrDeltaNotSupported(err error) bool {
-	return hasErrorMessage(err, ParameterDeltaTokenNotSupported)
+	return parseODataErr(err).hasErrorMessage(err, ParameterDeltaTokenNotSupported)
 }
 
 func IsErrQuotaExceeded(err error) bool {
-	return hasErrorCode(err, QuotaExceeded)
+	return parseODataErr(err).hasErrorCode(err, QuotaExceeded)
 }
 
 func IsErrExchangeMailFolderNotFound(err error) bool {
 	// Not sure if we can actually see a resourceNotFound error here. I've only
 	// seen the latter two.
-	return hasErrorCode(err, ResourceNotFound, errorItemNotFound, MailboxNotEnabledForRESTAPI)
+	return parseODataErr(err).hasErrorCode(err, ResourceNotFound, errorItemNotFound, MailboxNotEnabledForRESTAPI)
 }
 
 func IsErrUserNotFound(err error) bool {
-	if hasErrorCode(err, RequestResourceNotFound, invalidUser) {
+	ode := parseODataErr(err)
+
+	if ode.hasErrorCode(err, RequestResourceNotFound, invalidUser) {
 		return true
 	}
 
-	if hasErrorCode(err, ResourceNotFound) {
-		var odErr odataerrors.ODataErrorable
-		if !errors.As(err, &odErr) {
-			return false
-		}
-
-		mainMsg, _, _ := errData(odErr)
-
-		return strings.Contains(strings.ToLower(mainMsg), "user")
+	if ode.hasErrorCode(err, ResourceNotFound) {
+		return strings.Contains(strings.ToLower(ode.Main.Message), "user")
 	}
 
 	return false
 }
 
 func IsErrInvalidRecipients(err error) bool {
-	return hasErrorCode(err, ErrorInvalidRecipients)
+	return parseODataErr(err).hasErrorCode(err, ErrorInvalidRecipients)
 }
 
 func IsErrCannotOpenFileAttachment(err error) bool {
-	return hasErrorCode(err, cannotOpenFileAttachment)
+	return parseODataErr(err).hasErrorCode(err, cannotOpenFileAttachment)
 }
 
 func IsErrAccessDenied(err error) bool {
-	return hasErrorCode(err, ErrorAccessDenied) ||
+	return parseODataErr(err).hasErrorCode(err, ErrorAccessDenied) ||
 		clues.HasLabel(err, LabelStatus(http.StatusForbidden))
 }
 
@@ -237,17 +236,17 @@ func IsErrConnectionReset(err error) bool {
 
 func IsErrUnauthorizedOrBadToken(err error) bool {
 	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
-		hasErrorCode(err, invalidAuthenticationToken) ||
+		parseODataErr(err).hasErrorCode(err, invalidAuthenticationToken) ||
 		errors.Is(err, ErrTokenExpired)
 }
 
 func IsErrBadJWTToken(err error) bool {
-	return hasErrorCode(err, invalidAuthenticationToken)
+	return parseODataErr(err).hasErrorCode(err, invalidAuthenticationToken)
 }
 
 func IsErrItemAlreadyExistsConflict(err error) bool {
 	return errors.Is(err, ErrItemAlreadyExistsConflict) ||
-		hasErrorCode(err, nameAlreadyExists)
+		parseODataErr(err).hasErrorCode(err, nameAlreadyExists)
 }
 
 // LabelStatus transforms the provided statusCode into
@@ -259,7 +258,7 @@ func LabelStatus(statusCode int) string {
 
 // IsMalware is true if the graphAPI returns a "malware detected" error code.
 func IsMalware(err error) bool {
-	return hasErrorCode(err, malwareDetected)
+	return parseODataErr(err).hasErrorCode(err, malwareDetected)
 }
 
 func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
@@ -271,124 +270,34 @@ func IsMalwareResp(ctx context.Context, resp *http.Response) bool {
 }
 
 func IsErrFolderExists(err error) bool {
-	return hasErrorCode(err, folderExists)
+	return parseODataErr(err).hasErrorCode(err, folderExists)
 }
 
 func IsErrUsersCannotBeResolved(err error) bool {
-	return hasErrorCode(err, noResolvedUsers) || hasErrorMessage(err, usersCannotBeResolved)
+	ode := parseODataErr(err)
+
+	return ode.hasErrorCode(err, noResolvedUsers) || ode.hasErrorMessage(err, usersCannotBeResolved)
 }
 
 func IsErrSiteNotFound(err error) bool {
-	return hasErrorMessage(err, requestedSiteCouldNotBeFound)
+	return parseODataErr(err).hasErrorMessage(err, requestedSiteCouldNotBeFound)
 }
 
 func IsErrResourceLocked(err error) bool {
+	ode := parseODataErr(err)
+
 	return errors.Is(err, ErrResourceLocked) ||
-		hasInnerErrorCode(err, ResourceLocked) ||
-		hasErrorCode(err, NotAllowed) ||
-		errMessageMatchesAllFilters(
+		ode.hasInnerErrorCode(err, ResourceLocked) ||
+		ode.hasErrorCode(err, NotAllowed) ||
+		ode.errMessageMatchesAllFilters(
 			err,
 			filters.In([]string{"the service principal for resource"}),
 			filters.In([]string{"this indicate that a subscription within the tenant has lapsed"}),
 			filters.In([]string{"preventing tokens from being issued for it"}))
 }
 
-// ---------------------------------------------------------------------------
-// error parsers
-// ---------------------------------------------------------------------------
-
-func hasErrorCode(err error, codes ...errorCode) bool {
-	if err == nil {
-		return false
-	}
-
-	var oDataError odataerrors.ODataErrorable
-	if !errors.As(err, &oDataError) {
-		return false
-	}
-
-	code, ok := ptr.ValOK(oDataError.GetErrorEscaped().GetCode())
-	if !ok {
-		return false
-	}
-
-	cs := make([]string, len(codes))
-	for i, c := range codes {
-		cs[i] = string(c)
-	}
-
-	return filters.Equal(cs).Compare(code)
-}
-
-func hasInnerErrorCode(err error, codes ...errorCode) bool {
-	if err == nil {
-		return false
-	}
-
-	var oDataError odataerrors.ODataErrorable
-	if !errors.As(err, &oDataError) {
-		return false
-	}
-
-	inner := oDataError.GetErrorEscaped().GetInnerError()
-	if inner == nil {
-		return false
-	}
-
-	code, err := str.AnyValueToString("code", inner.GetAdditionalData())
-	if err != nil {
-		return false
-	}
-
-	cs := make([]string, len(codes))
-	for i, c := range codes {
-		cs[i] = string(c)
-	}
-
-	return filters.Equal(cs).Compare(code)
-}
-
-// only use this as a last resort.  Prefer the code or statuscode if possible.
-func hasErrorMessage(err error, msgs ...errorMessage) bool {
-	if err == nil {
-		return false
-	}
-
-	var oDataError odataerrors.ODataErrorable
-	if !errors.As(err, &oDataError) {
-		return false
-	}
-
-	msg, ok := ptr.ValOK(oDataError.GetErrorEscaped().GetMessage())
-	if !ok {
-		return false
-	}
-
-	cs := make([]string, len(msgs))
-	for i, c := range msgs {
-		cs[i] = string(c)
-	}
-
-	return filters.In(cs).Compare(msg)
-}
-
-// only use this as a last resort.  Prefer the code or statuscode if possible.
-func errMessageMatchesAllFilters(err error, fs ...filters.Filter) bool {
-	if err == nil {
-		return false
-	}
-
-	var oDataError odataerrors.ODataErrorable
-	if !errors.As(err, &oDataError) {
-		return false
-	}
-
-	msg, ok := ptr.ValOK(oDataError.GetErrorEscaped().GetMessage())
-	if !ok {
-		return false
-	}
-
-	return filters.Must(msg, fs...)
+func IsErrSharingDisabled(err error) bool {
+	return parseODataErr(err).hasInnerErrorCode(err, sharingDisabled)
 }
 
 // Wrap is a helper function that extracts ODataError metadata from
@@ -398,20 +307,20 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 		return nil
 	}
 
-	var oDataError odataerrors.ODataErrorable
-	if !errors.As(e, &oDataError) {
-		return clues.WrapWC(ctx, e, msg).WithTrace(1)
+	ode := parseODataErr(e)
+	if !ode.isODataErr {
+		return clues.StackWC(ctx, e).WithTrace(1)
 	}
 
-	mainMsg, data, innerMsg := errData(oDataError)
-
-	if len(mainMsg) > 0 {
-		e = clues.Stack(e, clues.New(mainMsg))
+	if len(ode.Main.Message) > 0 {
+		e = clues.Stack(e, clues.New(ode.Main.Message))
 	}
 
-	ce := clues.WrapWC(ctx, e, msg).With(data...).WithTrace(1)
+	ce := clues.WrapWC(ctx, e, msg).
+		With("graph_api_err", ode).
+		WithTrace(1)
 
-	return setLabels(ce, innerMsg)
+	return setLabels(ce, ode)
 }
 
 // Stack is a helper function that extracts ODataError metadata from
@@ -421,20 +330,20 @@ func Stack(ctx context.Context, e error) *clues.Err {
 		return nil
 	}
 
-	var oDataError *odataerrors.ODataError
-	if !errors.As(e, &oDataError) {
+	ode := parseODataErr(e)
+	if !ode.isODataErr {
 		return clues.StackWC(ctx, e).WithTrace(1)
 	}
 
-	mainMsg, data, innerMsg := errData(oDataError)
-
-	if len(mainMsg) > 0 {
-		e = clues.Stack(e, clues.New(mainMsg))
+	if len(ode.Main.Message) > 0 {
+		e = clues.Stack(e, clues.New(ode.Main.Message))
 	}
 
-	ce := clues.StackWC(ctx, e).With(data...).WithTrace(1)
+	ce := clues.StackWC(ctx, e).
+		With("graph_api_err", ode).
+		WithTrace(1)
 
-	return setLabels(ce, innerMsg)
+	return setLabels(ce, ode)
 }
 
 // stackReq is a helper function that extracts ODataError metadata from
@@ -460,12 +369,12 @@ func stackReq(
 // Checks for the following conditions and labels the error accordingly:
 // * mysiteNotFound | mysiteURLNotFound
 // * malware
-func setLabels(err *clues.Err, msg string) *clues.Err {
+func setLabels(err *clues.Err, ode oDataErr) *clues.Err {
 	if err == nil {
 		return nil
 	}
 
-	f := filters.Contains([]string{msg})
+	f := filters.Contains([]string{ode.Main.Message + ode.Main.Code})
 
 	if f.Compare(string(MysiteNotFound)) ||
 		f.Compare(string(MysiteURLNotFound)) {
@@ -481,35 +390,6 @@ func setLabels(err *clues.Err, msg string) *clues.Err {
 	}
 
 	return err
-}
-
-func errData(err odataerrors.ODataErrorable) (string, []any, string) {
-	data := make([]any, 0)
-
-	// Get MainError
-	mainErr := err.GetErrorEscaped()
-	mainMsg := ptr.Val(mainErr.GetMessage())
-
-	data = appendIf(data, "odataerror_code", mainErr.GetCode())
-	data = appendIf(data, "odataerror_message", mainErr.GetMessage())
-	data = appendIf(data, "odataerror_target", mainErr.GetTarget())
-	msgConcat := ptr.Val(mainErr.GetMessage()) + ptr.Val(mainErr.GetCode())
-
-	for i, d := range mainErr.GetDetails() {
-		pfx := fmt.Sprintf("odataerror_details_%d_", i)
-		data = appendIf(data, pfx+"code", d.GetCode())
-		data = appendIf(data, pfx+"message", d.GetMessage())
-		data = appendIf(data, pfx+"target", d.GetTarget())
-		msgConcat += ptr.Val(d.GetMessage())
-	}
-
-	inner := mainErr.GetInnerError()
-	if inner != nil {
-		data = appendIf(data, "odataerror_inner_cli_req_id", inner.GetClientRequestId())
-		data = appendIf(data, "odataerror_inner_req_id", inner.GetRequestId())
-	}
-
-	return mainMsg, data, strings.ToLower(msgConcat)
 }
 
 func reqData(req *http.Request) map[string]any {
@@ -538,14 +418,6 @@ func respData(resp *http.Response) map[string]any {
 	r["resp_len"] = resp.ContentLength
 
 	return r
-}
-
-func appendIf(a []any, k string, v *string) []any {
-	if v == nil {
-		return a
-	}
-
-	return append(a, k, *v)
 }
 
 // ItemInfo gathers potentially useful information about a drive item,
@@ -584,6 +456,162 @@ func ItemInfo(item *custom.DriveItem) map[string]any {
 	}
 
 	return m
+}
+
+// ---------------------------------------------------------------------------
+// error parsers
+// ---------------------------------------------------------------------------
+
+type oDataErr struct {
+	isODataErr bool
+	Details    []oDataDeets `json:"details,omitempty"`
+	Inner      innerErr     `json:"inner,omitempty"`
+	Main       mainErr      `json:"main,omitempty"`
+	Resp       apiResp      `json:"resp,omitempty"`
+}
+
+type oDataDeets struct {
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+	Target  string `json:"target,omitempty"`
+}
+
+type innerErr struct {
+	ClientRequestID string    `json:"clientRequestID,omitempty"`
+	Code            string    `json:"code,omitempty"`
+	Date            time.Time `json:"date,omitempty"`
+	OdataType       string    `json:"odataType,omitempty"`
+	RequestID       string    `json:"requestID,omitempty"`
+}
+
+type mainErr struct {
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+	Target  string `json:"target,omitempty"`
+}
+
+type apiResp struct {
+	Message    string `json:"message,omitempty"`
+	StatusCode int    `json:"statusCode,omitempty"`
+}
+
+// parses the odataerror.ODataError interface to a local
+// struct for easy logging/usage.
+func parseODataErr(err error) oDataErr {
+	if err == nil {
+		return oDataErr{}
+	}
+
+	var (
+		ode      oDataErr
+		graphODE *odataerrors.ODataError
+	)
+
+	if !errors.As(err, &graphODE) {
+		return oDataErr{}
+	}
+
+	ode = oDataErr{
+		isODataErr: true,
+		Resp: apiResp{
+			Message:    strings.Clone(graphODE.ApiError.Message),
+			StatusCode: graphODE.ApiError.ResponseStatusCode,
+		},
+	}
+
+	var (
+		main    = graphODE.GetErrorEscaped()
+		details []odataerrors.ErrorDetailsable
+		inner   odataerrors.InnerErrorable
+	)
+
+	if main != nil {
+		ode.Main = mainErr{
+			Code:    strings.Clone(ptr.Val(main.GetCode())),
+			Message: strings.Clone(ptr.Val(main.GetMessage())),
+			Target:  strings.Clone(ptr.Val(main.GetTarget())),
+		}
+
+		inner = main.GetInnerError()
+		details = main.GetDetails()
+	}
+
+	if inner != nil {
+		ode.Inner = innerErr{
+			ClientRequestID: strings.Clone(ptr.Val(inner.GetClientRequestId())),
+			Date:            ptr.Val(inner.GetDate()),
+			OdataType:       strings.Clone(ptr.Val(inner.GetOdataType())),
+			RequestID:       strings.Clone(ptr.Val(inner.GetRequestId())),
+		}
+
+		code, err := str.AnyValueToString("code", inner.GetAdditionalData())
+		if err == nil {
+			ode.Inner.Code = code
+		}
+	}
+
+	ode.Details = make([]oDataDeets, 0, len(details))
+
+	for _, deet := range details {
+		d := oDataDeets{
+			Code:    strings.Clone(ptr.Val(deet.GetCode())),
+			Message: strings.Clone(ptr.Val(deet.GetMessage())),
+			Target:  strings.Clone(ptr.Val(deet.GetTarget())),
+		}
+
+		ode.Details = append(ode.Details, d)
+	}
+
+	return ode
+}
+
+func (ode oDataErr) hasErrorCode(err error, codes ...errorCode) bool {
+	if !ode.isODataErr {
+		return false
+	}
+
+	cs := make([]string, len(codes))
+	for i, c := range codes {
+		cs[i] = string(c)
+	}
+
+	return filters.Equal(cs).Compare(ode.Main.Code)
+}
+
+func (ode oDataErr) hasInnerErrorCode(err error, codes ...errorCode) bool {
+	if !ode.isODataErr {
+		return false
+	}
+
+	cs := make([]string, len(codes))
+	for i, c := range codes {
+		cs[i] = string(c)
+	}
+
+	return filters.Equal(cs).Compare(ode.Inner.Code)
+}
+
+// only use this as a last resort.  Prefer the code or statuscode if possible.
+func (ode oDataErr) hasErrorMessage(err error, msgs ...errorMessage) bool {
+	if !ode.isODataErr {
+		return false
+	}
+
+	cs := make([]string, len(msgs))
+	for i, c := range msgs {
+		cs[i] = string(c)
+	}
+
+	return filters.In(cs).Compare(ode.Main.Message)
+}
+
+// only use this as a last resort.  Prefer the code or statuscode if possible.
+func (ode oDataErr) errMessageMatchesAllFilters(err error, fs ...filters.Filter) bool {
+	if !ode.isODataErr {
+		return false
+	}
+
+	return filters.Must(ode.Main.Message, fs...)
 }
 
 // ---------------------------------------------------------------------------
