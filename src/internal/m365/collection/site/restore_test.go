@@ -125,7 +125,7 @@ func deleteList(
 	assert.NoError(t, err, "getting site lists", clues.ToCore(err))
 
 	for _, l := range lists {
-		if ptr.Val(l.GetDisplayName()) == deets.SharePoint.ItemName {
+		if ptr.Val(l.GetDisplayName()) == deets.SharePoint.List.Name {
 			isFound = true
 			deleteID = ptr.Val(l.GetId())
 

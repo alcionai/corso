@@ -138,6 +138,7 @@ func runSharepointBackupCategoryTest(suite *BackupSharepointE2ESuite, category s
 }
 
 func (suite *BackupSharepointE2ESuite) TestSharepointBackupCmd_siteNotFound_lists() {
+	suite.T().Skip("un-skip test when lists support is enabled")
 	runSharepointBackupSiteNotFoundTest(suite, flags.DataLists)
 }
 
@@ -341,7 +342,9 @@ func runSharepointDetailsCmdTest(suite *PreparedBackupSharepointE2ESuite, catego
 	foundList := 0
 
 	for _, ent := range deets.Entries {
-		if ent.SharePoint != nil && ent.SharePoint.ItemName != "" {
+		if ent.SharePoint != nil &&
+			ent.SharePoint.List != nil &&
+			ent.SharePoint.List.Name != "" {
 			suite.Run(fmt.Sprintf("detail %d", i), func() {
 				assert.Contains(suite.T(), result, ent.ShortRef)
 			})

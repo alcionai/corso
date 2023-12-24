@@ -111,7 +111,9 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				require.NoError(t, err, clues.ToCore(err))
 
 				info := &details.SharePointInfo{
-					ItemName: name,
+					List: &details.ListInfo{
+						Name: name,
+					},
 				}
 
 				data, err := data.NewPrefetchedItemWithInfo(
@@ -158,7 +160,9 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				require.NoError(t, err, clues.ToCore(err))
 
 				info := &details.SharePointInfo{
-					ItemName: name,
+					List: &details.ListInfo{
+						Name: name,
+					},
 				}
 
 				data, err := data.NewPrefetchedItemWithInfo(
@@ -233,9 +237,15 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			info, err := shareInfo.Info()
 			require.NoError(t, err, clues.ToCore(err))
 
-			assert.NotNil(t, info)
-			assert.NotNil(t, info.SharePoint)
-			assert.Equal(t, test.itemName, info.SharePoint.ItemName)
+			require.NotNil(t, info)
+			require.NotNil(t, info.SharePoint)
+
+			if test.scope.Category().String() == selectors.SharePointList.String() {
+				require.NotNil(t, info.SharePoint.List)
+				assert.Equal(t, test.itemName, info.SharePoint.List.Name)
+			} else {
+				assert.Equal(t, test.itemName, info.SharePoint.ItemName)
+			}
 			assert.Equal(t, test.notRecoverable, info.NotRecoverable)
 		})
 	}
