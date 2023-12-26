@@ -101,7 +101,23 @@ const (
 		],
 		"webLink":"https://outlook.office365.com/owa/?ItemID=AAMkAGZmNjNlYjI3LWJlZWYtNGI4Mi04YjMyLTIxYThkNGQ4NmY1MwBGAAAAAADCNgjhM9QmQYWNcI7hCpPrBwDSEBNbUIB9RL6ePDeF3FIYAAAAAAEMAADSEBNbUIB9RL6ePDeF3FIYAAB3XwIkAAA%%3D&exvsurl=1&viewmodel=ReadMessageItem"
 	}`
+
+	emailWithSpecialCharacters = `{
+		"importance": "normal",
+		"internetMessageId": "<SJ0PR17MB562266A1E61A8EA12F5FB17BC3529@SJ0PR17MB5622.namprd17.prod.outlook.com>",
+		"sentDateTime": "2022-09-26T23:15:46Z",
+		"receivedDateTime": "2022-09-26T23:20:46Z",
+    "body":{
+      "content":"abcd` + string(rune(8)) + string(rune(8)) + `\"",
+      "contentType":"text"
+    },
+    "subject":"%s"
+  }`
 )
+
+func MessageWithSpecialCharacters(subject string) []byte {
+	return []byte(fmt.Sprintf(emailWithSpecialCharacters, subject))
+}
 
 // MessageBytes returns bytes for a Messageable item.
 // Contents verified as working with sample data from kiota-serialization-json-go v0.5.5
