@@ -190,10 +190,6 @@ func CollectLists(
 
 		spcs = append(spcs, collection)
 
-		if err != nil {
-			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating sharepoint lists canonical path"))
-		}
-
 		currPaths[storageDir.String()] = currPath.String()
 	}
 
