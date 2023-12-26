@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -339,21 +340,25 @@ func runSharepointDetailsCmdTest(suite *PreparedBackupSharepointE2ESuite, catego
 	result := suite.dpnd.recorder.String()
 
 	i := 0
-	foundList := 0
+	findings := make(map[path.CategoryType]int)
 
 	for _, ent := range deets.Entries {
-		if ent.SharePoint != nil &&
+		if ent.SharePoint == nil {
+			continue
+		}
+
+		if ent.SharePoint.ItemType == details.SharePointList &&
 			ent.SharePoint.List != nil &&
-			ent.SharePoint.List.Name != "" {
+			len(ent.SharePoint.List.Name) > 0 {
 			suite.Run(fmt.Sprintf("detail %d", i), func() {
 				assert.Contains(suite.T(), result, ent.ShortRef)
 			})
-			foundList++
+			findings[path.ListsCategory]++
 			i++
 		}
 	}
 
-	assert.GreaterOrEqual(t, foundList, 1)
+	assert.GreaterOrEqual(t, findings[category], 1)
 }
 
 // ---------------------------------------------------------------------------
