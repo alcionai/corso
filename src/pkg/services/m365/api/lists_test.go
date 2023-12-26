@@ -831,8 +831,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 				siteID,
 				listName,
 				test.getListBytes(),
-				fault.New(false),
-			)
+				fault.New(false))
 			require.Error(t, err)
 			assert.Equal(t, ErrCannotCreateNonRestorableListTemplate.Error(), err.Error())
 		})

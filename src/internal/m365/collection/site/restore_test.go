@@ -143,8 +143,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 				mockData,
 				suite.siteID,
 				destName,
-				fault.New(false),
-			)
+				fault.New(false))
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), api.ErrCannotCreateNonRestorableListTemplate.Error())
 		})
