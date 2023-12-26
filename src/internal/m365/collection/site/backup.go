@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -147,14 +148,16 @@ func CollectLists(
 	tenantID string,
 	scope selectors.SharePointScope,
 	su support.StatusUpdater,
+	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
-		el   = errs.Local()
-		spcs = make([]data.BackupCollection, 0)
-		acc  = api.CallConfig{Select: idAnd("displayName")}
+		el        = errs.Local()
+		spcs      = make([]data.BackupCollection, 0)
+		acc       = api.CallConfig{Select: idAnd("displayName")}
+		currPaths = map[string]string{}
 	)
 
 	lists, err := bh.GetItems(ctx, acc)
@@ -167,20 +170,18 @@ func CollectLists(
 			break
 		}
 
-		dir, err := path.Build(
-			tenantID,
-			bpc.ProtectedResource.ID(),
-			path.SharePointService,
-			path.ListsCategory,
-			false,
-			ptr.Val(list.GetId()))
+		listID := ptr.Val(list.GetId())
+
+		storageDir := path.Elements{listID}
+
+		currPath, err := bh.canonicalPath(storageDir, tenantID)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
 		collection := NewCollection(
 			bh,
-			dir,
+			currPath,
 			ac,
 			scope,
 			su,
@@ -188,7 +189,37 @@ func CollectLists(
 		collection.AddItem(ptr.Val(list.GetId()))
 
 		spcs = append(spcs, collection)
+
+		if err != nil {
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating sharepoint lists canonical path"))
+		}
+
+		currPaths[storageDir.String()] = currPath.String()
 	}
+
+	pathPrefix, err := path.BuildMetadata(
+		tenantID,
+		bpc.ProtectedResource.ID(),
+		path.SharePointService,
+		path.ListsCategory,
+		false)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "making metadata path prefix").
+			Label(count.BadPathPrefix)
+	}
+
+	col, err := graph.MakeMetadataCollection(
+		pathPrefix,
+		[]graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
+		},
+		su,
+		counter.Local())
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "making metadata collection")
+	}
+
+	spcs = append(spcs, col)
 
 	return spcs, el.Failure()
 }

@@ -355,6 +355,8 @@ func (sc *Collection) handleListItems(
 		template = ptr.Val(list.GetList().GetTemplate())
 	}
 
+	info.ParentPath = sc.LocationPath().String()
+
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
 	itemInfo := details.ItemInfo{
 		SharePoint:     info,

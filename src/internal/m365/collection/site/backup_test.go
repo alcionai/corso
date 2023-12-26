@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -121,7 +122,19 @@ func (suite *SharePointSuite) TestCollectLists() {
 		creds.AzureTenantID,
 		sel.Lists(selectors.Any())[0],
 		(&MockGraphService{}).UpdateStatus,
+		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
+
+	metadataFound := false
+
+	for _, c := range col {
+		if c.FullPath().Service() == path.SharePointMetadataService {
+			metadataFound = true
+			break
+		}
+	}
+
 	assert.Less(t, 0, len(col))
+	assert.True(t, metadataFound)
 }
