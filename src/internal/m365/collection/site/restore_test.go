@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -81,7 +82,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 		suite.creds,
 		"genericList")
 
-	deets, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
+	deets, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, fmt.Sprintf("%s_%s", destName, testName), deets.SharePoint.List.Name)
 
@@ -136,7 +137,14 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 
 			lrh, destName, mockData := test.getParams()
 
-			_, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName)
+			_, err := restoreListItem(
+				ctx,
+				lrh,
+				mockData,
+				suite.siteID,
+				destName,
+				fault.New(false),
+			)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), api.ErrCannotCreateNonRestorableListTemplate.Error())
 		})

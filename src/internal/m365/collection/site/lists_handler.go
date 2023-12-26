@@ -6,6 +6,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -52,8 +53,9 @@ func (rh listsRestoreHandler) PostList(
 	ctx context.Context,
 	listName string,
 	storedListData []byte,
+	errs *fault.Bus,
 ) (models.Listable, error) {
-	return rh.ac.PostList(ctx, rh.protectedResource, listName, storedListData)
+	return rh.ac.PostList(ctx, rh.protectedResource, listName, storedListData, errs)
 }
 
 func (rh listsRestoreHandler) DeleteList(
