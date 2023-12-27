@@ -22,13 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-// TODO: incremental support
-// multiple lines in this file are commented out so that
-// we can focus on v0 backups and re-integrate them later
-// for v1 incrementals.
-// since these lines represent otherwise standard boilerplate,
-// it's simpler to comment them for tracking than to delete
-// and re-discover them later.
+// TODO: incremental support for channels
 
 func CreateCollections[C graph.GetIDer, I groupsItemer](
 	ctx context.Context,
@@ -37,9 +31,9 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 	tenantID string,
 	scope selectors.GroupsScope,
 	su support.StatusUpdater,
+	useLazyReader bool,
 	counter *count.Bus,
 	errs *fault.Bus,
-	useLazyReader bool,
 ) ([]data.BackupCollection, bool, error) {
 	var (
 		allCollections = make([]data.BackupCollection, 0)
@@ -77,10 +71,10 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 		containers,
 		scope,
 		cdps[scope.Category().PathType()],
+		useLazyReader,
 		bpc.Options,
 		counter,
-		errs,
-		useLazyReader)
+		errs)
 	if err != nil {
 		return nil, false, clues.Wrap(err, "filling collections")
 	}
@@ -100,10 +94,10 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 	containers []container[C],
 	scope selectors.GroupsScope,
 	dps metadata.DeltaPaths,
+	useLazyReader bool,
 	ctrlOpts control.Options,
 	counter *count.Bus,
 	errs *fault.Bus,
-	useLazyReader bool,
 ) (map[string]data.BackupCollection, error) {
 	var (
 		// channel ID -> BackupCollection.

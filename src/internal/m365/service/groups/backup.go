@@ -291,9 +291,9 @@ func backupChannels(
 		bc.creds.AzureTenantID,
 		scope,
 		bc.statusUpdater,
+		useLazyReader,
 		counter,
-		errs,
-		useLazyReader)
+		errs)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -342,9 +342,9 @@ func backupConversations(
 		bc.creds.AzureTenantID,
 		scope,
 		bc.statusUpdater,
+		useLazyReader,
 		counter,
-		errs,
-		useLazyReader)
+		errs)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
