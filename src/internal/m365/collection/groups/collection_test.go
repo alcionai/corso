@@ -551,19 +551,8 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 		li.ModTime(),
 		"item mod time")
 
-	r, err := readers.NewVersionedRestoreReader(li.ToReader())
-	require.NoError(t, err, clues.ToCore(err))
-
-	assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
-	assert.True(t, r.Format().DelInFlight)
-
-	readData, err := io.ReadAll(r)
-	assert.NoError(t, err, "reading item data: %v", clues.ToCore(err))
-
-	assert.Empty(t, readData, "read item data")
-
-	_, err = li.Info()
-	assert.ErrorIs(t, err, data.ErrNotFound, "Info() error")
+	_, err := readers.NewVersionedRestoreReader(li.ToReader())
+	assert.ErrorIs(t, err, graph.ErrDeletedInFlight, "item should be marked deleted in flight")
 }
 
 func (suite *CollectionUnitSuite) TestLazyItem() {

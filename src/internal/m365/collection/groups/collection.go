@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -402,15 +403,14 @@ func (lig *lazyItemGetter[C, I]) GetData(
 		lig.containerIDs,
 		lig.itemID)
 	if err != nil {
-		// If an item was deleted then return an empty file so we don't fail
-		// the backup. Also return delInFlight as true so that kopia skips
-		// adding ItemInfo to details.
-		//
-		// The item will be deleted from kopia on the next backup when the
-		// delta token shows it's removed.
-		if graph.IsErrDeletedInFlight(err) {
-			logger.CtxErr(ctx, err).Info("item not found")
-			return nil, nil, true, nil
+		// For items that were deleted in flight, add the skip label so that
+		// they don't lead to recoverable failures during backup.
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+			logger.CtxErr(ctx, err).Info("item deleted in flight. skipping")
+
+			// Returning delInFlight as true here for correctness, although the caller is going
+			// to ignore it since we are returning an error.
+			return nil, nil, true, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
 
 		err = clues.WrapWC(ctx, err, "getting item data").Label(fault.LabelForceNoBackupCreation)

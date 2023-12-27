@@ -145,7 +145,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 				destName,
 				fault.New(false))
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), api.ErrCannotCreateNonRestorableListTemplate.Error())
+			assert.Contains(t, err.Error(), api.ErrSkippableListTemplate.Error())
 		})
 	}
 }

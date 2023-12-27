@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var ErrCannotCreateNonRestorableListTemplate = clues.New("unable to create lists with non-restorable template")
+var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
 
 const (
 	AttachmentsColumnName       = "Attachments"
@@ -50,6 +50,7 @@ const (
 
 	WebTemplateExtensionsListTemplateName = "webTemplateExtensionsList"
 	DocumentLibraryListTemplateName       = "documentLibrary"
+	SharingLinksListTemplateName          = "sharingLinks"
 )
 
 var addressFieldNames = []string{
@@ -84,9 +85,10 @@ var readOnlyFieldNames = keys.Set{
 	ModifiedColumnName:    {},
 }
 
-var NonRestorableListTemplates = keys.Set{
+var SkipListTemplates = keys.Set{
 	WebTemplateExtensionsListTemplateName: {},
 	DocumentLibraryListTemplateName:       {},
+	SharingLinksListTemplateName:          {},
 }
 
 // ---------------------------------------------------------------------------
@@ -264,8 +266,8 @@ func (c Lists) PostList(
 
 	if newList != nil &&
 		newList.GetList() != nil &&
-		NonRestorableListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
-		return nil, clues.StackWC(ctx, ErrCannotCreateNonRestorableListTemplate)
+		SkipListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
+		return nil, clues.StackWC(ctx, ErrSkippableListTemplate)
 	}
 
 	// Restore to List base to M365 back store

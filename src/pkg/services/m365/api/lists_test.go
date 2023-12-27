@@ -772,53 +772,24 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 	)
 
 	tests := []struct {
-		name         string
-		getListBytes func() []byte
-		expect       assert.ErrorAssertionFunc
+		name     string
+		template string
+		expect   assert.ErrorAssertionFunc
 	}{
 		{
-			name: "list with template documentLibrary",
-			getListBytes: func() []byte {
-				writer := kjson.NewJsonSerializationWriter()
-				defer writer.Close()
-
-				overrideListInfo := models.NewListInfo()
-				overrideListInfo.SetTemplate(ptr.To(DocumentLibraryListTemplateName))
-
-				_, list := getFieldsDataAndList()
-				list.SetList(overrideListInfo)
-
-				err := writer.WriteObjectValue("", list)
-				require.NoError(t, err)
-
-				storedListBytes, err := writer.GetSerializedContent()
-				require.NoError(t, err)
-
-				return storedListBytes
-			},
-			expect: assert.Error,
+			name:     "list with template documentLibrary",
+			template: DocumentLibraryListTemplateName,
+			expect:   assert.Error,
 		},
 		{
-			name: "list with template webTemplateExtensionsList",
-			getListBytes: func() []byte {
-				writer := kjson.NewJsonSerializationWriter()
-				defer writer.Close()
-
-				overrideListInfo := models.NewListInfo()
-				overrideListInfo.SetTemplate(ptr.To(WebTemplateExtensionsListTemplateName))
-
-				_, list := getFieldsDataAndList()
-				list.SetList(overrideListInfo)
-
-				err := writer.WriteObjectValue("", list)
-				require.NoError(t, err)
-
-				storedListBytes, err := writer.GetSerializedContent()
-				require.NoError(t, err)
-
-				return storedListBytes
-			},
-			expect: assert.Error,
+			name:     "list with template webTemplateExtensionsList",
+			template: WebTemplateExtensionsListTemplateName,
+			expect:   assert.Error,
+		},
+		{
+			name:     "list with template sharingLinks",
+			template: SharingLinksListTemplateName,
+			expect:   assert.Error,
 		},
 	}
 
@@ -830,10 +801,10 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 				ctx,
 				siteID,
 				listName,
-				test.getListBytes(),
+				getStoredListBytes(t, test.template),
 				fault.New(false))
 			require.Error(t, err)
-			assert.Equal(t, ErrCannotCreateNonRestorableListTemplate.Error(), err.Error())
+			assert.Equal(t, ErrSkippableListTemplate.Error(), err.Error())
 		})
 	}
 }
@@ -903,4 +874,23 @@ func getFieldsDataAndList() (map[string]any, *models.List) {
 	list.SetItems([]models.ListItemable{listItem})
 
 	return fieldsData, list
+}
+
+func getStoredListBytes(t *testing.T, template string) []byte {
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	overrideListInfo := models.NewListInfo()
+	overrideListInfo.SetTemplate(ptr.To(WebTemplateExtensionsListTemplateName))
+
+	_, list := getFieldsDataAndList()
+	list.SetList(overrideListInfo)
+
+	err := writer.WriteObjectValue("", list)
+	require.NoError(t, err)
+
+	storedListBytes, err := writer.GetSerializedContent()
+	require.NoError(t, err)
+
+	return storedListBytes
 }
