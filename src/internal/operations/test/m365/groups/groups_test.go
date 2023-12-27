@@ -58,7 +58,6 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups() {
 		sel.Selector)
 }
 
-// TODO(pandeyabs): Add incremental tests for channel messages and conversations.
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
 	runGroupsIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
 }
