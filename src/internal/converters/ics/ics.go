@@ -3,6 +3,8 @@ package ics
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -10,6 +12,26 @@ import (
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	ics "github.com/arran4/golang-ical"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
+)
+
+var (
+	MS_GRAPH_TO_ICAL_INDEX = map[string]int{
+		"first":  1,
+		"second": 2,
+		"third":  3,
+		"fourth": 4,
+		"last":   -1,
+	}
+	MS_GRAPH_TO_ICAL_DAY = map[string]string{
+		"sunday":    "SU",
+		"monday":    "MO",
+		"tuesday":   "TU",
+		"wednesday": "WE",
+		"thursday":  "TH",
+		"friday":    "FR",
+		"saturday":  "SA",
+	}
 )
 
 // This package is used to convert json response from graph to ics
@@ -34,6 +56,88 @@ func keyValues(key, value string) *ics.KeyValues {
 		Key:   key,
 		Value: []string{value},
 	}
+}
+
+// https://www.rfc-editor.org/rfc/rfc5545#section-3.8.5.3
+// https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10
+// https://learn.microsoft.com/en-us/graph/api/resources/patternedrecurrence?view=graph-rest-1.0
+// Ref: https://github.com/closeio/sync-engine/pull/381/files
+func getReccurencePattern(recurrence models.PatternedRecurrenceable) (string, error) {
+	recurComponents := []string{}
+	pat := recurrence.GetPattern()
+
+	freq := pat.GetTypeEscaped()
+	if freq != nil {
+		switch *freq {
+		case models.DAILY_RECURRENCEPATTERNTYPE:
+			recurComponents = append(recurComponents, "FREQ=DAILY")
+		case models.WEEKLY_RECURRENCEPATTERNTYPE:
+			recurComponents = append(recurComponents, "FREQ=WEEKLY")
+		case models.ABSOLUTEMONTHLY_RECURRENCEPATTERNTYPE, models.RELATIVEMONTHLY_RECURRENCEPATTERNTYPE:
+			recurComponents = append(recurComponents, "FREQ=MONTHLY")
+		case models.ABSOLUTEYEARLY_RECURRENCEPATTERNTYPE, models.RELATIVEYEARLY_RECURRENCEPATTERNTYPE:
+			recurComponents = append(recurComponents, "FREQ=YEARLY")
+		}
+	}
+
+	interval := pat.GetInterval()
+	if interval != nil {
+		recurComponents = append(recurComponents, "INTERVAL="+fmt.Sprint(ptr.Val(interval)))
+	}
+
+	month := ptr.Val(pat.GetMonth())
+	if month > 0 {
+		recurComponents = append(recurComponents, "BYMONTH="+fmt.Sprint(month))
+	}
+
+	day := ptr.Val(pat.GetDayOfMonth())
+	if day > 0 {
+		recurComponents = append(recurComponents, "BYMONTHDAY="+fmt.Sprint(day))
+	}
+
+	dow := pat.GetDaysOfWeek()
+	if dow != nil {
+		dowComponents := []string{}
+		for _, day := range dow {
+			dowComponents = append(dowComponents, MS_GRAPH_TO_ICAL_DAY[day.String()])
+		}
+
+		recurComponents = append(recurComponents, "BYDAY="+strings.Join(dowComponents, ","))
+	}
+
+	// TODO: I saw this being prepended to BYDAY. Valiate.
+	index := pat.GetIndex()
+	if index != nil &&
+		(ptr.Val(freq) == models.RELATIVEMONTHLY_RECURRENCEPATTERNTYPE ||
+			ptr.Val(freq) == models.RELATIVEYEARLY_RECURRENCEPATTERNTYPE) {
+		recurComponents = append(recurComponents, "BYSETPOS="+fmt.Sprint(MS_GRAPH_TO_ICAL_INDEX[index.String()]))
+	}
+
+	rrange := recurrence.GetRangeEscaped()
+	if rrange != nil {
+		switch ptr.Val(rrange.GetTypeEscaped()) {
+		case models.ENDDATE_RECURRENCERANGETYPE:
+			end := rrange.GetEndDate()
+			if end != nil {
+				// TODO: handle timezone
+				endTime, err := dttm.ParseTime(end.String())
+				if err != nil {
+					return "", clues.Wrap(err, "parsing range end time")
+				}
+
+				recurComponents = append(recurComponents, "UNTIL="+endTime.Format("20060102T150405Z"))
+			}
+		case models.NOEND_RECURRENCERANGETYPE:
+			// Nothing to do
+		case models.NUMBERED_RECURRENCERANGETYPE:
+			count := ptr.Val(rrange.GetNumberOfOccurrences())
+			if count > 0 {
+				recurComponents = append(recurComponents, "COUNT="+fmt.Sprint(count))
+			}
+		}
+	}
+
+	return strings.Join(recurComponents, ";"), nil
 }
 
 func FromJSON(ctx context.Context, body []byte) (string, error) {
@@ -92,6 +196,16 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			props = append(props, ics.WithValue(string(ics.ValueDataTypeDate)))
 		}
 		event.SetEndAt(end, props...)
+	}
+
+	recurrence := data.GetRecurrence()
+	if recurrence != nil {
+		pattern, err := getReccurencePattern(recurrence)
+		if err != nil {
+			return "", clues.WrapWC(ctx, err, "generating RRULE")
+		}
+
+		event.AddRrule(pattern)
 	}
 
 	cancelled := data.GetIsCancelled()
