@@ -343,20 +343,29 @@ func runSharepointDetailsCmdTest(suite *PreparedBackupSharepointE2ESuite, catego
 	i := 0
 	findings := make(map[path.CategoryType]int)
 
+	incrementor := func(cond bool, cat path.CategoryType) {
+		if cond {
+			findings[cat]++
+		}
+	}
+
 	for _, ent := range deets.Entries {
 		if ent.SharePoint == nil {
 			continue
 		}
 
-		if ent.SharePoint.ItemType == details.SharePointList &&
-			ent.SharePoint.List != nil &&
-			len(ent.SharePoint.List.Name) > 0 {
-			suite.Run(fmt.Sprintf("detail %d", i), func() {
-				assert.Contains(suite.T(), result, ent.ShortRef)
-			})
-			findings[path.ListsCategory]++
-			i++
-		}
+		isSharePointList := ent.SharePoint.ItemType == details.SharePointList
+		hasListName := isSharePointList && len(ent.SharePoint.List.Name) > 0
+		hasItemName := !isSharePointList && len(ent.SharePoint.ItemName) > 0
+
+		incrementor(hasListName, category)
+		incrementor(hasItemName, category)
+
+		suite.Run(fmt.Sprintf("detail %d", i), func() {
+			assert.Contains(suite.T(), result, ent.ShortRef)
+		})
+
+		i++
 	}
 
 	assert.GreaterOrEqual(t, findings[category], 1)
