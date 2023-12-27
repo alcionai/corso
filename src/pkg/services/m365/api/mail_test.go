@@ -1,6 +1,9 @@
 package api
 
 import (
+	"context"
+	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -12,6 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/sanitize"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
@@ -155,6 +159,19 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 	}
 }
 
+// TestBytesToMessagable_InvalidError tests that the error message kiota returns
+// for invalid JSON matches what we check for. This helps keep things in sync
+// when kiota is updated.
+func (suite *MailAPIUnitSuite) TestBytesToMessagable_InvalidError() {
+	t := suite.T()
+	input := exchMock.MessageWithSpecialCharacters("m365 mail support test")
+
+	_, err := CreateFromBytes(input, models.CreateMessageFromDiscriminatorValue)
+	require.Error(t, err, clues.ToCore(err))
+
+	assert.Contains(t, err.Error(), invalidJSON)
+}
+
 func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 	table := []struct {
 		name        string
@@ -173,6 +190,20 @@ func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 			byteArray:   exchMock.MessageBytes("m365 mail support test"),
 			checkError:  assert.NoError,
 			checkObject: assert.NotNil,
+		},
+		{
+			name:        "malformed JSON bytes passes sanitization",
+			byteArray:   exchMock.MessageWithSpecialCharacters("m365 mail support test"),
+			checkError:  assert.NoError,
+			checkObject: assert.NotNil,
+		},
+		{
+			name: "invalid JSON bytes",
+			byteArray: append(
+				exchMock.MessageWithSpecialCharacters("m365 mail support test"),
+				[]byte("}")...),
+			checkError:  assert.Error,
+			checkObject: assert.Nil,
 		},
 	}
 	for _, test := range table {
@@ -520,6 +551,273 @@ func (suite *MailAPIIntgSuite) TestMail_GetContainerByName_mocked() {
 				GetContainerByName(ctx, "u", "", test.name)
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.True(t, gock.IsDone())
+		})
+	}
+}
+
+func sendItemWithBodyAndGetSerialized(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	msgs Mail,
+	userID string,
+	mailFolderID string,
+	subject string,
+	bodyContent string,
+	contentType models.BodyType,
+) []byte {
+	msg := models.NewMessage()
+	msg.SetSubject(ptr.To(subject))
+
+	body := models.NewItemBody()
+	body.SetContent(ptr.To(bodyContent))
+	body.SetContentType(ptr.To(contentType))
+
+	msg.SetBody(body)
+
+	item, err := msgs.PostItem(ctx, userID, mailFolderID, msg)
+	require.NoError(t, err, clues.ToCore(err))
+
+	fetched, _, err := msgs.GetItem(
+		ctx,
+		userID,
+		ptr.Val(item.GetId()),
+		false,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	serialized, err := msgs.Serialize(
+		ctx,
+		fetched,
+		userID,
+		ptr.Val(item.GetId()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	return serialized
+}
+
+func sendSerializedItemAndGetSerialized(
+	t *testing.T,
+	ctx context.Context, //revive:disable-line:context-as-argument
+	msgs Mail,
+	userID string,
+	mailFolderID string,
+	serializedInput []byte,
+) []byte {
+	msg, err := BytesToMessageable(serializedInput)
+	require.NoError(t, err, clues.ToCore(err))
+
+	item, err := msgs.PostItem(ctx, userID, mailFolderID, msg)
+	require.NoError(t, err, clues.ToCore(err))
+
+	fetched, _, err := msgs.GetItem(
+		ctx,
+		userID,
+		ptr.Val(item.GetId()),
+		false,
+		fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+
+	serialized, err := msgs.Serialize(
+		ctx,
+		fetched,
+		userID,
+		ptr.Val(item.GetId()))
+	require.NoError(t, err, clues.ToCore(err))
+
+	return serialized
+}
+
+func (suite *MailAPIIntgSuite) TestMail_WithSpecialCharacters() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	contentRegex := regexp.MustCompile(`"content": ?"(.*?)"(?:, ?"contentType"|}}|},)`)
+
+	htmlStub := "<html><head>\r\n<meta http-equiv=\"Content-Type\" " +
+		"content=\"text/html; charset=utf-8\"><style type=\"text/css\" " +
+		"style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\t" +
+		"margin-bottom:0}\r\n-->\r\n</style></head>" +
+		"<body dir=\"ltr\"><div " +
+		"class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont," +
+		"Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; " +
+		"color:rgb(0,0,0)\">%s</div></body></html>"
+
+	userID := tconfig.M365UserID(suite.T())
+
+	folderName := testdata.DefaultRestoreConfig("EscapeCharacters").Location
+	msgs := suite.its.ac.Mail()
+	mailfolder, err := msgs.CreateContainer(ctx, userID, MsgFolderRoot, folderName)
+	require.NoError(t, err, clues.ToCore(err))
+
+	escapeCharRanges := [][]int{
+		{0x0, 0x20},
+		{0x22, 0x23},
+		{0x5c, 0x5d},
+	}
+	testSequences := []string{
+		// Character code for backspace
+		`\u0008`,
+		`\\u0008`,
+		"u0008",
+		// Character code for \
+		`\u005c`,
+		`\\u005c`,
+		"u005c",
+		// Character code for "
+		`\u0022`,
+		`\\u0022`,
+		"u0022",
+		// Character code for B
+		`\u0042`,
+		`\\u0042`,
+		"u0042",
+		// G clef character (U+1D11E) (from JSON RFC).
+		// TODO(ashmrtn): Uncomment this once the golang graph SDK is fixed. Right
+		// now it can't properly send these code points.
+		//`\uD834\uDD1E`,
+		"\\n",
+		"\\\n",
+		"abcdef\b\b",
+		"n" + string(rune(0)),
+		"n" + string(rune(0)) + "n",
+	}
+
+	table := []struct {
+		name        string
+		contentTmpl string
+		contentType models.BodyType
+	}{
+		{
+			name:        "PlainText",
+			contentTmpl: "%s",
+			contentType: models.TEXT_BODYTYPE,
+		},
+		{
+			name:        "HTML",
+			contentTmpl: htmlStub,
+			contentType: models.HTML_BODYTYPE,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			for _, charRange := range escapeCharRanges {
+				for i := charRange[0]; i < charRange[1]; i++ {
+					subject := fmt.Sprintf("character %x", i)
+
+					bodyContent := fmt.Sprintf(test.contentTmpl, string(rune(i)))
+
+					serialized := sendItemWithBodyAndGetSerialized(
+						t,
+						ctx,
+						msgs,
+						userID,
+						ptr.Val(mailfolder.GetId()),
+						subject,
+						bodyContent,
+						test.contentType)
+
+					matches := contentRegex.FindAllSubmatch(serialized, -1)
+
+					switch {
+					case len(matches) == 0:
+						t.Logf("character 0x%x wasn't found", i)
+
+					case len(matches[0]) < 2:
+						t.Logf("character 0x%x was removed", i)
+
+					case bodyContent != string(matches[0][1]):
+						t.Logf("character 0x%x has been transformed to %s", i, matches[0][1])
+					}
+
+					sanitized := sanitize.JSONBytes(serialized)
+					newSerialized := sendSerializedItemAndGetSerialized(
+						t,
+						ctx,
+						msgs,
+						userID,
+						ptr.Val(mailfolder.GetId()),
+						sanitized)
+
+					newMatches := contentRegex.FindAllSubmatch(newSerialized, -1)
+
+					switch {
+					case len(newMatches) == 0:
+						t.Logf("sanitized character 0x%x wasn't found", i)
+
+					case len(newMatches[0]) < 2:
+						t.Logf("sanitized character 0x%x was removed", i)
+
+					case bodyContent != string(newMatches[0][1]):
+						t.Logf(
+							"sanitized character 0x%x has been transformed to %s",
+							i,
+							newMatches[0][1])
+					}
+
+					assert.Equal(t, matches[0][1], newMatches[0][1])
+				}
+			}
+
+			for i, sequence := range testSequences {
+				subject := fmt.Sprintf("sequence %d", i)
+
+				bodyContent := fmt.Sprintf(test.contentTmpl, sequence)
+
+				serialized := sendItemWithBodyAndGetSerialized(
+					t,
+					ctx,
+					msgs,
+					userID,
+					ptr.Val(mailfolder.GetId()),
+					subject,
+					bodyContent,
+					test.contentType)
+
+				matches := contentRegex.FindAllSubmatch(serialized, -1)
+
+				switch {
+				case len(matches) == 0:
+					t.Logf("sequence %d wasn't found", i)
+
+				case len(matches[0]) < 2:
+					t.Logf("sequence %d was removed", i)
+
+				case sequence != string(matches[0][1]):
+					t.Logf("sequence %d has been transformed to %s", i, matches[0][1])
+				}
+
+				sanitized := sanitize.JSONBytes(serialized)
+				newSerialized := sendSerializedItemAndGetSerialized(
+					t,
+					ctx,
+					msgs,
+					userID,
+					ptr.Val(mailfolder.GetId()),
+					sanitized)
+
+				newMatches := contentRegex.FindAllSubmatch(newSerialized, -1)
+
+				switch {
+				case len(newMatches) == 0:
+					t.Logf("sanitized sequence %d wasn't found", i)
+
+				case len(newMatches[0]) < 2:
+					t.Logf("sanitized sequence %d was removed", i)
+
+				case sequence != string(newMatches[0][1]):
+					t.Logf(
+						"sanitized sequence %d has been transformed to %s",
+						i,
+						newMatches[0][1])
+				}
+
+				assert.Equal(t, matches[0][1], newMatches[0][1])
+			}
 		})
 	}
 }

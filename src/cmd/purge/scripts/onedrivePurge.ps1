@@ -182,6 +182,14 @@ function Delete-LibraryByPrefix {
         if ($PSCmdlet.ShouldProcess("Name: " + $l.Title + "Remove folder")) {
             Write-Host "Deleting list: "$l.Title
             try {
+                $listInfo = Get-PnPList -Identity $l.Id | Select-Object -Property Hidden
+                
+                # Check if the 'hidden' property is true
+                if ($listInfo.Hidden) {
+                    Write-Host "List: $($l.Title) is hidden. Skipping..."
+                    continue
+                }
+
                 Remove-PnPList -Identity $l.Id  -Force
             }
             catch [ System.Management.Automation.ItemNotFoundException ] {

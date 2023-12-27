@@ -13,6 +13,7 @@ this case, Corso will skip over the item but report this in the backup summary.
 - Guarantee Exchange email restoration when restoring multiple attachments. Some previous restores were failing with `ErrorItemNotFound`.
 - Avoid Graph SDK `Requests must contain extension changes exclusively.` errors by removing server-populated field from restored event items.
 - Improve Group mailbox(conversations) backup performance by only downloading new items or items with modified content.
+- Handle cases where Exchange backup stored invalid JSON blobs if there were special characters in the user content. These would result in errors during restore or restore errors.
 
 ### Known issues
 - Restoring OneDrive, SharePoint, or Teams & Groups items shared with external users while the tenant or site is configured to not allow sharing with external users will not restore permissions.
