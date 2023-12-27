@@ -264,8 +264,7 @@ func (c Lists) PostList(
 	// this ensure all columns, contentTypes are set to the newList
 	newList := ToListable(oldList, newListName)
 
-	if newList != nil &&
-		newList.GetList() != nil &&
+	if newList.GetList() != nil &&
 		SkipListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
 		return nil, clues.StackWC(ctx, ErrSkippableListTemplate)
 	}
