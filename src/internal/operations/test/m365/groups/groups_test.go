@@ -58,6 +58,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups() {
 		sel.Selector)
 }
 
+// TODO(pandeyabs): Add incremental tests for channel messages and conversations.
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
 	runGroupsIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
 }
@@ -68,6 +69,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_extensionsGroups() {
 		sel        = selectors.NewGroupsBackup([]string{resourceID})
 	)
 
+	// This test does not apply to channel messages or conversations.
 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
 
 	RunDriveishBackupWithExtensionsTests(
@@ -187,115 +189,6 @@ func runGroupsIncrementalBackupTests(
 		gtsi,
 		grh,
 		true)
-}
-
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups9VersionBumpBackup() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		sel     = selectors.NewGroupsBackup([]string{suite.its.Group.ID})
-		opts    = control.DefaultOptions()
-		whatSet = deeTD.CategoryFromRepoRef
-	)
-
-	sel.Include(
-		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel),
-		sel.Conversation(selectors.Any()))
-
-	bo, bod := PrepNewTestBackupOp(
-		t,
-		ctx,
-		mb,
-		sel.Selector,
-		opts,
-		version.All8MigrateUserPNToID,
-		count.New())
-	defer bod.Close(t, ctx)
-
-	RunAndCheckBackup(t, ctx, &bo, mb, false)
-	CheckBackupIsInManifests(
-		t,
-		ctx,
-		bod.KW,
-		bod.SW,
-		&bo,
-		bod.Sel,
-		bod.Sel.ID(),
-		path.ChannelMessagesCategory)
-
-	_, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		bod.Acct.ID(),
-		bod.Sel.ID(),
-		path.GroupsService,
-		whatSet,
-		bod.KMS,
-		bod.SSS)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bo.Results.BackupID,
-		whatSet,
-		bod.KMS,
-		bod.SSS,
-		expectDeets,
-		false)
-
-	mb = evmock.NewBus()
-	forcedFull := NewTestBackupOp(
-		t,
-		ctx,
-		bod,
-		mb,
-		opts,
-		count.New())
-	forcedFull.BackupVersion = version.Groups9Update
-
-	RunAndCheckBackup(t, ctx, &forcedFull, mb, false)
-	CheckBackupIsInManifests(
-		t,
-		ctx,
-		bod.KW,
-		bod.SW,
-		&forcedFull,
-		bod.Sel,
-		bod.Sel.ID(),
-		path.ChannelMessagesCategory)
-
-	_, expectDeets = deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		forcedFull.Results.BackupID,
-		bod.Acct.ID(),
-		bod.Sel.ID(),
-		path.GroupsService,
-		whatSet,
-		bod.KMS,
-		bod.SSS)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		forcedFull.Results.BackupID,
-		whatSet,
-		bod.KMS,
-		bod.SSS,
-		expectDeets,
-		false)
-
-	// The number of items backed up in the forced full backup should be roughly
-	// the same as the number of items in the original backup.
-	assert.Equal(
-		t,
-		bo.Results.Counts[string(count.PersistedNonCachedFiles)],
-		forcedFull.Results.Counts[string(count.PersistedNonCachedFiles)],
-		"items written")
 }
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
@@ -418,71 +311,6 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 }
 
-func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		mb      = evmock.NewBus()
-		counter = count.New()
-		sel     = selectors.NewGroupsBackup([]string{suite.its.Group.ID})
-		opts    = control.DefaultOptions()
-		tenID   = tconfig.M365TenantID(t)
-		svc     = path.GroupsService
-		ws      = deeTD.DriveIDFromRepoRef
-	)
-
-	opts.ItemExtensionFactory = GetTestExtensionFactories()
-
-	// does not apply to channel messages
-	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
-
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
-	defer bod.Close(t, ctx)
-
-	RunAndCheckBackup(t, ctx, &bo, mb, false)
-	CheckBackupIsInManifests(
-		t,
-		ctx,
-		bod.KW,
-		bod.SW,
-		&bo,
-		bod.Sel,
-		bod.Sel.ID(),
-		path.LibrariesCategory)
-
-	bID := bo.Results.BackupID
-
-	deets, expectDeets := deeTD.GetDeetsInBackup(
-		t,
-		ctx,
-		bID,
-		tenID,
-		bod.Sel.ID(),
-		svc,
-		ws,
-		bod.KMS,
-		bod.SSS)
-	deeTD.CheckBackupDetails(
-		t,
-		ctx,
-		bID,
-		ws,
-		bod.KMS,
-		bod.SSS,
-		expectDeets,
-		false)
-
-	// Check that the extensions are in the backup
-	for _, ent := range deets.Entries {
-		if ent.Folder == nil {
-			VerifyExtensionData(t, ent.ItemInfo, path.GroupsService)
-		}
-	}
-}
-
 type GroupsBackupNightlyIntgSuite struct {
 	tester.Suite
 	its IntgTesterSetup
@@ -504,7 +332,8 @@ func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9MergeBas
 	sel := selectors.NewGroupsBackup([]string{suite.its.Group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel))
+		selTD.GroupsBackupChannelScope(sel),
+		selTD.GroupsBackupConversationScope(sel))
 
 	RunMergeBaseGroupsUpdate(suite, sel.Selector, false)
 }
@@ -513,7 +342,8 @@ func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9AssistBa
 	sel := selectors.NewGroupsBackup([]string{suite.its.Group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel))
+		selTD.GroupsBackupChannelScope(sel),
+		selTD.GroupsBackupConversationScope(sel))
 
 	RunDriveAssistBaseGroupsUpdate(suite, sel.Selector, false)
 }
