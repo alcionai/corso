@@ -133,11 +133,17 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 				nil,
 				nil,
 				container[models.Channelable]{},
-				nil)
+				nil,
+				false)
+
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.FullPath(), "full path")
 			assert.Equal(t, test.prev, c.PreviousPath(), "prev path")
-			assert.Equal(t, test.loc, c.LocationPath(), "location path")
+
+			prefetch, ok := c.(*prefetchCollection[models.Channelable, models.ChatMessageable])
+			require.True(t, ok, "collection type")
+
+			assert.Equal(t, test.loc, prefetch.LocationPath(), "location path")
 		})
 	}
 }
