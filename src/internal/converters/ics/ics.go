@@ -22,6 +22,7 @@ import (
 // locations (can we have multiple locations)
 // recurrence
 // showAs (with limitations)
+// exceptions and modifications
 
 // Field in the backed up data that we cannot handle
 // allowNewTimeProposals, hideAttendees, importance, isOnlineMeeting,
@@ -30,6 +31,13 @@ import (
 // originalStartTimeZone, reminderMinutesBeforeStart, responseRequested,
 // responseStatus, sensitivity
 
+func keyValue(key, value string) *ics.KeyValues {
+	return &ics.KeyValues{
+		Key:   key,
+		Value: []string{value},
+	}
+}
+
 func FromJSON(ctx context.Context, body []byte) (string, error) {
 	data, err := api.BytesToEventable(body)
 	if err != nil {
@@ -37,12 +45,10 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	}
 
 	cal := ics.NewCalendar()
-	cal.SetProductId("-//Alcion//Corso") // Does this have to be customizible?
+	cal.SetProductId("-//Alcion//Corso") // Does this have to be customizable?
 
 	id := data.GetId() // XXX: iCalUId?
 	event := cal.AddEvent(ptr.Val(id))
-
-	cal.SetMethod(ics.MethodRequest) // TODO: validate
 
 	created := data.GetCreatedDateTime()
 	if created != nil {
@@ -54,26 +60,40 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		event.SetModifiedAt(ptr.Val(modified))
 	}
 
+	allDay := ptr.Val(data.GetIsAllDay())
+
 	startString := data.GetStart().GetDateTime()
+	timeZone := data.GetStart().GetTimeZone()
 	if startString != nil {
-		// TODO: Handle timezone for start and end
 		start, err := time.Parse(string(dttm.M365DateTimeTimeZone), ptr.Val(startString))
 		if err != nil {
 			return "", clues.Wrap(err, "parsing start time")
 		}
 
-		event.SetStartAt(start)
+		// TODO: Timezone from graph is UTC or Indian Standard Time,
+		// but we need values like Asia/Kolkata
+		props := []ics.PropertyParameter{keyValue(string(ics.PropertyTzid), ptr.Val(timeZone))}
+		if allDay {
+			props = append(props, ics.WithValue(string(ics.ValueDataTypeDate)))
+		}
+
+		event.SetStartAt(start, props...)
 
 	}
 
 	endString := data.GetEnd().GetDateTime()
+	timeZone = data.GetEnd().GetTimeZone()
 	if endString != nil {
 		end, err := time.Parse(string(dttm.M365DateTimeTimeZone), ptr.Val(endString))
 		if err != nil {
 			return "", clues.Wrap(err, "parsing end time")
 		}
 
-		event.SetEndAt(end)
+		props := []ics.PropertyParameter{keyValue(string(ics.PropertyTzid), ptr.Val(timeZone))}
+		if allDay {
+			props = append(props, ics.WithValue(string(ics.ValueDataTypeDate)))
+		}
+		event.SetEndAt(end, props...)
 	}
 
 	cancelled := data.GetIsCancelled()
@@ -93,21 +113,23 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	// Description could be HTML, but we have not way to differentiate
 	// in the output
-	description := data.GetBody().GetContent()
-	if description != nil {
-		event.SetDescription(ptr.Val(description))
+	description := ptr.Val(data.GetBody().GetContent())
+	if len(description) > 0 {
+		event.SetDescription(description)
 	}
 
 	categories := data.GetCategories()
-	if categories != nil {
-		for _, category := range categories {
-			event.AddProperty(ics.ComponentPropertyCategories, category)
-		}
+	for _, category := range categories {
+		event.AddProperty(ics.ComponentPropertyCategories, category)
 	}
 
-	url := data.GetWebLink()
-	if url != nil {
-		event.SetURL(ptr.Val(url))
+	// According to the RFC, this property may be used in a calendar
+	// component to convey a location where a more dynamic rendition of
+	// the calendar information associated with the calendar component
+	// can be found.
+	url := ptr.Val(data.GetWebLink())
+	if len(url) > 0 {
+		event.SetURL(url)
 	}
 
 	organizer := data.GetOrganizer()
@@ -132,9 +154,17 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	attachments := data.GetAttachments()
 	if attachments != nil {
 		for _, attachment := range attachments {
+			props := []ics.PropertyParameter{}
 			contentType := ptr.Val(attachment.GetContentType())
-			// TODO: Can we have name?
-			// name := attachment.GetName()
+			name := ptr.Val(attachment.GetName())
+
+			if len(name) > 0 {
+				props = append(props,
+					&ics.KeyValues{
+						Key:   "FILENAME",
+						Value: []string{name},
+					})
+			}
 
 			// TODO: What is the deal with inline?
 			// inline := ptr.Val(attachment.GetIsInline())
@@ -149,7 +179,6 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				return "", clues.NewWC(ctx, "getting attachment content string")
 			}
 
-			props := []ics.PropertyParameter{}
 			props = append(props, ics.WithEncoding("base64"))
 			if len(contentType) > 0 {
 				props = append(props, ics.WithFmtType(contentType))
