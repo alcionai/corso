@@ -18,10 +18,8 @@ import (
 // Ref: https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0
 
 // TODO: Items not handled
-// attendees
 // locations (can we have multiple locations)
 // recurrence
-// showAs (with limitations)
 // exceptions and modifications
 
 // Field in the backed up data that we cannot handle
@@ -31,7 +29,7 @@ import (
 // originalStartTimeZone, reminderMinutesBeforeStart, responseRequested,
 // responseStatus, sensitivity
 
-func keyValue(key, value string) *ics.KeyValues {
+func keyValues(key, value string) *ics.KeyValues {
 	return &ics.KeyValues{
 		Key:   key,
 		Value: []string{value},
@@ -72,7 +70,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 		// TODO: Timezone from graph is UTC or Indian Standard Time,
 		// but we need values like Asia/Kolkata
-		props := []ics.PropertyParameter{keyValue(string(ics.PropertyTzid), ptr.Val(timeZone))}
+		props := []ics.PropertyParameter{keyValues(string(ics.PropertyTzid), ptr.Val(timeZone))}
 		if allDay {
 			props = append(props, ics.WithValue(string(ics.ValueDataTypeDate)))
 		}
@@ -89,7 +87,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			return "", clues.Wrap(err, "parsing end time")
 		}
 
-		props := []ics.PropertyParameter{keyValue(string(ics.PropertyTzid), ptr.Val(timeZone))}
+		props := []ics.PropertyParameter{keyValues(string(ics.PropertyTzid), ptr.Val(timeZone))}
 		if allDay {
 			props = append(props, ics.WithValue(string(ics.ValueDataTypeDate)))
 		}
@@ -118,6 +116,23 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		event.SetDescription(description)
 	}
 
+	showAs := ptr.Val(data.GetShowAs()).String()
+	if len(showAs) > 0 {
+		var status ics.FreeBusyTimeType
+		switch showAs {
+		case "free":
+			status = ics.FreeBusyTimeTypeFree
+		case "tentative":
+			status = ics.FreeBusyTimeTypeBusyTentative
+		case "busy":
+			status = ics.FreeBusyTimeTypeBusy
+		case "oof", "workingElsewhere": // this is just best effort conversion
+			status = ics.FreeBusyTimeTypeBusyUnavailable
+		}
+
+		event.AddProperty(ics.ComponentPropertyFreebusy, string(status))
+	}
+
 	categories := data.GetCategories()
 	for _, category := range categories {
 		event.AddProperty(ics.ComponentPropertyCategories, category)
@@ -143,6 +158,52 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		} else if len(addr) > 0 {
 			event.SetOrganizer(addr)
 		}
+	}
+
+	attendees := data.GetAttendees()
+	for _, attendee := range attendees {
+		props := []ics.PropertyParameter{}
+
+		atype := attendee.GetTypeEscaped()
+		if atype != nil {
+			var role ics.ParticipationRole
+			switch atype.String() {
+			case "required":
+				role = ics.ParticipationRoleReqParticipant
+			case "optional":
+				role = ics.ParticipationRoleOptParticipant
+			case "resource":
+				role = ics.ParticipationRoleNonParticipant
+			}
+
+			props = append(props, keyValues(string(ics.ParameterRole), string(role)))
+		}
+
+		name := ptr.Val(attendee.GetEmailAddress().GetName())
+		if len(name) > 0 {
+			props = append(props, ics.WithCN(name))
+		}
+
+		// Time when a status change occurred is not recorded
+		status := ptr.Val(attendee.GetStatus().GetResponse()).String()
+		if len(status) > 0 && status != "none" {
+			var pstat ics.ParticipationStatus
+			switch status {
+			case "accepted", "organizer":
+				pstat = ics.ParticipationStatusAccepted
+			case "declined":
+				pstat = ics.ParticipationStatusDeclined
+			case "tentativelyAccepted":
+				pstat = ics.ParticipationStatusTentative
+			case "notResponded":
+				pstat = ics.ParticipationStatusNeedsAction
+			}
+
+			props = append(props, keyValues(string(ics.ParameterParticipationStatus), string(pstat)))
+		}
+
+		addr := ptr.Val(attendee.GetEmailAddress().GetAddress())
+		event.AddAttendee(addr, props...)
 	}
 
 	// TODO: We should ideally encode full address
