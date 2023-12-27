@@ -139,6 +139,7 @@ func runSharepointBackupCategoryTest(suite *BackupSharepointE2ESuite, category s
 }
 
 func (suite *BackupSharepointE2ESuite) TestSharepointBackupCmd_siteNotFound_lists() {
+	// Issue: https://github.com/alcionai/corso/issues/4754
 	suite.T().Skip("un-skip test when lists support is enabled")
 	runSharepointBackupSiteNotFoundTest(suite, flags.DataLists)
 }
