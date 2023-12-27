@@ -788,7 +788,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 
 	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
 	require.Error(t, err)
-	assert.Equal(t, ErrCannotCreateWebTemplateExtension.Error(), err.Error())
+	assert.Equal(t, ErrSkippableListTemplate.Error(), err.Error())
 }
 
 func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {

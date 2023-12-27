@@ -211,7 +211,7 @@ func RestoreListCollection(
 				restoreContainerName,
 				errs)
 			if err != nil &&
-				errors.Is(err, api.ErrCannotCreateWebTemplateExtension) {
+				errors.Is(err, api.ErrSkippableListTemplate) {
 				continue
 			}
 

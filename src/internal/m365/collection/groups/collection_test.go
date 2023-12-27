@@ -133,11 +133,17 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 				nil,
 				nil,
 				container[models.Channelable]{},
-				nil)
+				nil,
+				false)
+
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.FullPath(), "full path")
 			assert.Equal(t, test.prev, c.PreviousPath(), "prev path")
-			assert.Equal(t, test.loc, c.LocationPath(), "location path")
+
+			prefetch, ok := c.(*prefetchCollection[models.Channelable, models.ChatMessageable])
+			require.True(t, ok, "collection type")
+
+			assert.Equal(t, test.loc, prefetch.LocationPath(), "location path")
 		})
 	}
 }
@@ -551,19 +557,8 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 		li.ModTime(),
 		"item mod time")
 
-	r, err := readers.NewVersionedRestoreReader(li.ToReader())
-	require.NoError(t, err, clues.ToCore(err))
-
-	assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
-	assert.True(t, r.Format().DelInFlight)
-
-	readData, err := io.ReadAll(r)
-	assert.NoError(t, err, "reading item data: %v", clues.ToCore(err))
-
-	assert.Empty(t, readData, "read item data")
-
-	_, err = li.Info()
-	assert.ErrorIs(t, err, data.ErrNotFound, "Info() error")
+	_, err := readers.NewVersionedRestoreReader(li.ToReader())
+	assert.ErrorIs(t, err, graph.ErrDeletedInFlight, "item should be marked deleted in flight")
 }
 
 func (suite *CollectionUnitSuite) TestLazyItem() {
