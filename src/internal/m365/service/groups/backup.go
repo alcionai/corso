@@ -281,6 +281,9 @@ func backupChannels(
 		bc.producerConfig.ProtectedResource.ID(),
 		bc.apiCli.Channels())
 
+	// Always disable lazy reader for channels until #4321 support is added
+	useLazyReader := false
+
 	colls, canUsePreviousBackup, err := groups.CreateCollections(
 		ctx,
 		bc.producerConfig,
@@ -288,6 +291,7 @@ func backupChannels(
 		bc.creds.AzureTenantID,
 		scope,
 		bc.statusUpdater,
+		useLazyReader,
 		counter,
 		errs)
 	if err != nil {
@@ -329,6 +333,8 @@ func backupConversations(
 
 	defer close(progressBar)
 
+	useLazyReader := !bc.producerConfig.Options.ToggleFeatures.DisableLazyItemReader
+
 	colls, canUsePreviousBackup, err := groups.CreateCollections(
 		ctx,
 		bc.producerConfig,
@@ -336,6 +342,7 @@ func backupConversations(
 		bc.creds.AzureTenantID,
 		scope,
 		bc.statusUpdater,
+		useLazyReader,
 		counter,
 		errs)
 	if err != nil {

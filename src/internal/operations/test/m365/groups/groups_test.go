@@ -4,9 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	. "github.com/alcionai/corso/src/internal/operations/test/m365"
@@ -312,21 +315,27 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
 		selTD.GroupsBackupChannelScope(sel),
-		sel.Conversation(selectors.Any()))
+		selTD.GroupsBackupConversationScope(sel))
 
 	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
 	defer bod.Close(t, ctx)
 
+	reasons, err := bod.Sel.Reasons(bod.Acct.ID(), false)
+	require.NoError(t, err, clues.ToCore(err))
+
 	RunAndCheckBackup(t, ctx, &bo, mb, false)
-	CheckBackupIsInManifests(
-		t,
-		ctx,
-		bod.KW,
-		bod.SW,
-		&bo,
-		bod.Sel,
-		bod.Sel.ID(),
-		path.ChannelMessagesCategory)
+
+	for _, reason := range reasons {
+		CheckBackupIsInManifests(
+			t,
+			ctx,
+			bod.KW,
+			bod.SW,
+			&bo,
+			bod.Sel,
+			bod.Sel.ID(),
+			reason.Category())
+	}
 
 	_, expectDeets := deeTD.GetDeetsInBackup(
 		t,
@@ -347,6 +356,66 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 		bod.SSS,
 		expectDeets,
 		false)
+
+	// Basic, happy path incremental test.  No changes are dictated or expected.
+	// This only tests that an incremental backup is runnable at all, and that it
+	// produces fewer results than the last backup.
+	//
+	// Incremental testing for conversations is limited because of API restrictions.
+	// Since graph doesn't provide us a way to programmatically delete conversations,
+	// or create new conversations without a delegated token, we can't do incremental
+	// testing with newly added items.
+	incMB := evmock.NewBus()
+	incBO := NewTestBackupOp(
+		t,
+		ctx,
+		bod,
+		incMB,
+		opts,
+		count.New())
+
+	RunAndCheckBackup(t, ctx, &incBO, incMB, true)
+
+	for _, reason := range reasons {
+		CheckBackupIsInManifests(
+			t,
+			ctx,
+			bod.KW,
+			bod.SW,
+			&incBO,
+			bod.Sel,
+			bod.Sel.ID(),
+			reason.Category())
+	}
+
+	_, expectDeets = deeTD.GetDeetsInBackup(
+		t,
+		ctx,
+		incBO.Results.BackupID,
+		bod.Acct.ID(),
+		bod.Sel.ID(),
+		bod.Sel.PathService(),
+		whatSet,
+		bod.KMS,
+		bod.SSS)
+	deeTD.CheckBackupDetails(
+		t,
+		ctx,
+		incBO.Results.BackupID,
+		whatSet,
+		bod.KMS,
+		bod.SSS,
+		expectDeets,
+		false)
+
+	assert.NotZero(
+		t,
+		incBO.Results.Counts[string(count.PersistedCachedFiles)],
+		"cached items")
+	assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
+	assert.Greater(t, bo.Results.BytesRead, incBO.Results.BytesRead, "incremental bytes read")
+	assert.Greater(t, bo.Results.BytesUploaded, incBO.Results.BytesUploaded, "incremental bytes uploaded")
+	assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
 }
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsExtensions() {
