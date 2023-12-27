@@ -105,7 +105,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 
 	_, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName, fault.New(true))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), api.ErrCannotCreateWebTemplateExtension.Error())
+	assert.Contains(t, err.Error(), api.ErrSkippableListTemplate.Error())
 }
 
 func deleteList(

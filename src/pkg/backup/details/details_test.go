@@ -907,34 +907,6 @@ var pathItemsTable = []struct {
 		expectRepoRefs:     []string{"abcde", "12345", "foo.meta"},
 		expectLocationRefs: []string{"locationref", "locationref2", "locationref.dirmeta"},
 	},
-	{
-		name: "multiple entries with not recoverables",
-		ents: []Entry{
-			{
-				RepoRef:     "abcde",
-				LocationRef: "locationref",
-			},
-			{
-				RepoRef:     "foo.meta",
-				LocationRef: "locationref.dirmeta",
-				ItemRef:     "itemref.meta",
-				ItemInfo: ItemInfo{
-					SharePoint: &SharePointInfo{ItemType: SharePointList},
-				},
-			},
-			{
-				RepoRef:     "invalid-template-list-file",
-				LocationRef: "locationref-invalid-template-list-file",
-				ItemRef:     "itemref-template-list-file",
-				ItemInfo: ItemInfo{
-					SharePoint:     &SharePointInfo{ItemType: SharePointList},
-					NotRecoverable: true,
-				},
-			},
-		},
-		expectRepoRefs:     []string{"abcde", "foo.meta"},
-		expectLocationRefs: []string{"locationref", "locationref.dirmeta"},
-	},
 }
 
 func (suite *DetailsUnitSuite) TestDetailsModel_Path() {

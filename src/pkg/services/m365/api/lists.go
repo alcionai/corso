@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var ErrCannotCreateWebTemplateExtension = clues.New("unable to create webTemplateExtension type lists")
+var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
 
 const (
 	AttachmentsColumnName       = "Attachments"
@@ -81,6 +81,10 @@ var readOnlyFieldNames = keys.Set{
 	ContentTypeColumnName: {},
 	CreatedColumnName:     {},
 	ModifiedColumnName:    {},
+}
+
+var SkipListTemplates = keys.Set{
+	WebTemplateExtensionsListTemplateName: {},
 }
 
 // ---------------------------------------------------------------------------
@@ -258,8 +262,8 @@ func (c Lists) PostList(
 
 	if newList != nil &&
 		newList.GetList() != nil &&
-		ptr.Val(newList.GetList().GetTemplate()) == WebTemplateExtensionsListTemplateName {
-		return nil, clues.StackWC(ctx, ErrCannotCreateWebTemplateExtension)
+		SkipListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
+		return nil, clues.StackWC(ctx, ErrSkippableListTemplate)
 	}
 
 	// Restore to List base to M365 back store
