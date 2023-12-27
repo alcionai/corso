@@ -3,9 +3,7 @@ package operations
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	stdpath "path"
-	"reflect"
 	"testing"
 	"time"
 
@@ -369,33 +367,11 @@ func TestBackupOpUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupOpUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func checkPopulatedInner(v reflect.Value) error {
-	if v.IsZero() {
-		return clues.New("zero-valued field")
-	}
-
-	if v.Kind() != reflect.Struct {
-		return nil
-	}
-
-	var errs *clues.Err
-
-	for i := 0; i < v.NumField(); i++ {
-		f := v.Field(i)
-
-		if err := checkPopulatedInner(f); err != nil {
-			errs = clues.Stack(errs, clues.Wrap(err, fmt.Sprintf("field at index %d", i)))
-		}
-	}
-
-	return errs.OrNil()
-}
-
 // checkPopulated ensures that input has no zero-valued fields. That helps
 // ensure that even as future updates to input happen in other files the changes
 // are propagated here due to test failures.
 func checkPopulated(t *testing.T, input control.Options) {
-	err := checkPopulatedInner(reflect.ValueOf(input))
+	err := tester.CheckPopulated(input)
 	require.NoError(t, err, clues.ToCore(err))
 }
 

@@ -10,10 +10,11 @@ import (
 	"github.com/alcionai/corso/src/internal/common/keys"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var ErrCannotCreateWebTemplateExtension = clues.New("unable to create webTemplateExtension type lists")
+var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
 
 const (
 	AttachmentsColumnName       = "Attachments"
@@ -80,6 +81,10 @@ var readOnlyFieldNames = keys.Set{
 	ContentTypeColumnName: {},
 	CreatedColumnName:     {},
 	ModifiedColumnName:    {},
+}
+
+var SkipListTemplates = keys.Set{
+	WebTemplateExtensionsListTemplateName: {},
 }
 
 // ---------------------------------------------------------------------------
@@ -230,8 +235,12 @@ func (c Lists) PostList(
 	siteID string,
 	listName string,
 	oldListByteArray []byte,
+	errs *fault.Bus,
 ) (models.Listable, error) {
-	newListName := listName
+	var (
+		newListName = listName
+		el          = errs.Local()
+	)
 
 	oldList, err := BytesToListable(oldListByteArray)
 	if err != nil {
@@ -253,8 +262,8 @@ func (c Lists) PostList(
 
 	if newList != nil &&
 		newList.GetList() != nil &&
-		ptr.Val(newList.GetList().GetTemplate()) == WebTemplateExtensionsListTemplateName {
-		return nil, clues.StackWC(ctx, ErrCannotCreateWebTemplateExtension)
+		SkipListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
+		return nil, clues.StackWC(ctx, ErrSkippableListTemplate)
 	}
 
 	// Restore to List base to M365 back store
@@ -280,18 +289,14 @@ func (c Lists) PostList(
 		siteID,
 		ptr.Val(restoredList.GetId()),
 		listItems)
-	if err == nil {
-		restoredList.SetItems(listItems)
-		return restoredList, nil
+	if err != nil {
+		err = graph.Wrap(ctx, err, "creating list item")
+		el.AddRecoverable(ctx, err)
 	}
 
-	// [TODO](hitesh) double check if we need to:
-	// 1. rollback the entire list
-	// 2. restore as much list items possible and add recoverables to fault bus
-	// rollback list creation
-	err = c.DeleteList(ctx, siteID, ptr.Val(restoredList.GetId()))
+	restoredList.SetItems(listItems)
 
-	return nil, graph.Wrap(ctx, err, "deleting restored list after items creation failure").OrNil()
+	return restoredList, nil
 }
 
 func (c Lists) PostListItems(
