@@ -15,25 +15,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-var (
-	MS_GRAPH_TO_ICAL_INDEX = map[string]int{
-		"first":  1,
-		"second": 2,
-		"third":  3,
-		"fourth": 4,
-		"last":   -1,
-	}
-	MS_GRAPH_TO_ICAL_DAY = map[string]string{
-		"sunday":    "SU",
-		"monday":    "MO",
-		"tuesday":   "TU",
-		"wednesday": "WE",
-		"thursday":  "TH",
-		"friday":    "FR",
-		"saturday":  "SA",
-	}
-)
-
 // This package is used to convert json response from graph to ics
 // Ref: https://icalendar.org/
 // Ref: https://www.rfc-editor.org/rfc/rfc5545
@@ -56,6 +37,28 @@ func keyValues(key, value string) *ics.KeyValues {
 		Key:   key,
 		Value: []string{value},
 	}
+}
+
+func getUTCTime(ts, tz string) (time.Time, error) {
+	// Timezone is always converted to UTC. We should do
+	// this everywhere. This is the easiest way to ensure we
+	// have the correct time everywhere and is the same(need
+	// to same according to spec).
+	it, err := dttm.ParseTime(ts)
+	if err != nil {
+		return time.Now(), clues.Wrap(err, "parsing time")
+	}
+
+	timezone := GraphTimeZoneToTZ[tz]
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return time.Now(), clues.Wrap(err, "loading timezone")
+	}
+
+	// embed timezone
+	locTime := time.Date(it.Year(), it.Month(), it.Day(), it.Hour(), it.Minute(), it.Second(), 0, loc)
+
+	return locTime.UTC(), nil
 }
 
 // https://www.rfc-editor.org/rfc/rfc5545#section-3.8.5.3
@@ -99,7 +102,7 @@ func getReccurencePattern(recurrence models.PatternedRecurrenceable) (string, er
 	if dow != nil {
 		dowComponents := []string{}
 		for _, day := range dow {
-			dowComponents = append(dowComponents, MS_GRAPH_TO_ICAL_DAY[day.String()])
+			dowComponents = append(dowComponents, GraphToICalDOW[day.String()])
 		}
 
 		recurComponents = append(recurComponents, "BYDAY="+strings.Join(dowComponents, ","))
@@ -110,7 +113,7 @@ func getReccurencePattern(recurrence models.PatternedRecurrenceable) (string, er
 	if index != nil &&
 		(ptr.Val(freq) == models.RELATIVEMONTHLY_RECURRENCEPATTERNTYPE ||
 			ptr.Val(freq) == models.RELATIVEYEARLY_RECURRENCEPATTERNTYPE) {
-		recurComponents = append(recurComponents, "BYSETPOS="+fmt.Sprint(MS_GRAPH_TO_ICAL_INDEX[index.String()]))
+		recurComponents = append(recurComponents, "BYSETPOS="+fmt.Sprint(GraphToICalIndex[index.String()]))
 	}
 
 	rrange := recurrence.GetRangeEscaped()
@@ -119,10 +122,12 @@ func getReccurencePattern(recurrence models.PatternedRecurrenceable) (string, er
 		case models.ENDDATE_RECURRENCERANGETYPE:
 			end := rrange.GetEndDate()
 			if end != nil {
-				// TODO: handle timezone
-				endTime, err := dttm.ParseTime(end.String())
+				// NOTE: We convert just a date into date+time in a
+				// different timezone which will cause it to not be just
+				// a date anymore.
+				endTime, err := getUTCTime(end.String(), ptr.Val(rrange.GetRecurrenceTimeZone()))
 				if err != nil {
-					return "", clues.Wrap(err, "parsing range end time")
+					return "", clues.Wrap(err, "parsing end time")
 				}
 
 				recurComponents = append(recurComponents, "UNTIL="+endTime.Format("20060102T150405Z"))
@@ -167,35 +172,32 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	startString := data.GetStart().GetDateTime()
 	timeZone := data.GetStart().GetTimeZone()
 	if startString != nil {
-		start, err := time.Parse(string(dttm.M365DateTimeTimeZone), ptr.Val(startString))
+		start, err := getUTCTime(ptr.Val(startString), ptr.Val(timeZone))
 		if err != nil {
 			return "", clues.Wrap(err, "parsing start time")
 		}
 
-		// TODO: Timezone from graph is UTC or Indian Standard Time,
-		// but we need values like Asia/Kolkata
-		props := []ics.PropertyParameter{keyValues(string(ics.PropertyTzid), ptr.Val(timeZone))}
 		if allDay {
-			props = append(props, ics.WithValue(string(ics.ValueDataTypeDate)))
+			event.SetStartAt(start, ics.WithValue(string(ics.ValueDataTypeDate)))
+		} else {
+			event.SetStartAt(start)
 		}
-
-		event.SetStartAt(start, props...)
 
 	}
 
 	endString := data.GetEnd().GetDateTime()
 	timeZone = data.GetEnd().GetTimeZone()
 	if endString != nil {
-		end, err := time.Parse(string(dttm.M365DateTimeTimeZone), ptr.Val(endString))
+		end, err := getUTCTime(ptr.Val(endString), ptr.Val(timeZone))
 		if err != nil {
 			return "", clues.Wrap(err, "parsing end time")
 		}
 
-		props := []ics.PropertyParameter{keyValues(string(ics.PropertyTzid), ptr.Val(timeZone))}
 		if allDay {
-			props = append(props, ics.WithValue(string(ics.ValueDataTypeDate)))
+			event.SetEndAt(end, ics.WithValue(string(ics.ValueDataTypeDate)))
+		} else {
+			event.SetEndAt(end)
 		}
-		event.SetEndAt(end, props...)
 	}
 
 	recurrence := data.GetRecurrence()
