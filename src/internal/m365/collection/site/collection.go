@@ -136,7 +136,7 @@ func (pc *prefetchCollection) streamItems(
 	case path.ListsCategory:
 		pc.streamLists(ctx, errs)
 	case path.PagesCategory:
-		pc.retrievePages(ctx, pc.client, errs)
+		pc.streamPages(ctx, pc.client, errs)
 	}
 }
 
@@ -199,7 +199,7 @@ func (pc *prefetchCollection) streamLists(
 	metrics.Successes = int(objectSuccesses)
 }
 
-func (pc *prefetchCollection) retrievePages(
+func (pc *prefetchCollection) streamPages(
 	ctx context.Context,
 	as api.Sites,
 	errs *fault.Bus,
