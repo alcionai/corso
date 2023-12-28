@@ -90,8 +90,7 @@ func (suite *ListsPagerIntgSuite) TestEnumerateLists_withAssociatedRelationships
 	assert.Equal(
 		t,
 		expectedLmt,
-		actualLmt,
-	)
+		actualLmt)
 
 	for _, list := range lists {
 		suite.testEnumerateListItems(ctx, list, listItemID, fieldsData)
