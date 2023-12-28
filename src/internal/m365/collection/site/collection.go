@@ -155,7 +155,7 @@ func (pc *prefetchCollection) streamLists(
 		objectSuccesses int64
 	)
 
-	defer finishPopulation(
+	defer updateStatus(
 		ctx,
 		pc.stream,
 		pc.statusUpdater,
@@ -209,7 +209,7 @@ func (pc *prefetchCollection) streamPages(
 		el      = errs.Local()
 	)
 
-	defer finishPopulation(
+	defer updateStatus(
 		ctx,
 		pc.stream,
 		pc.statusUpdater,
@@ -363,7 +363,7 @@ func serializeContent(
 	return byteArray, nil
 }
 
-func finishPopulation(
+func updateStatus(
 	ctx context.Context,
 	stream chan data.Item,
 	su support.StatusUpdater,
