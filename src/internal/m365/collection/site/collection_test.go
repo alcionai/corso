@@ -79,6 +79,7 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 
 	tables := []struct {
 		name, itemName string
+		cat            path.CategoryType
 		scope          selectors.SharePointScope
 		getter         getItemByIDer
 		getDir         func(t *testing.T) path.Path
@@ -87,6 +88,7 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 		{
 			name:     "List",
 			itemName: "MockListing",
+			cat:      path.ListsCategory,
 			scope:    sel.Lists(selectors.Any())[0],
 			getter:   &mock.ListHandler{},
 			getDir: func(t *testing.T) path.Path {
@@ -128,6 +130,7 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 		{
 			name:     "Pages",
 			itemName: "MockPages",
+			cat:      path.PagesCategory,
 			scope:    sel.Pages(selectors.Any())[0],
 			getter:   nil,
 			getDir: func(t *testing.T) path.Path {
@@ -172,7 +175,8 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 				test.scope,
 				nil,
 				control.DefaultOptions())
-			col.stream <- test.getItem(t, test.itemName)
+			col.stream[test.cat] = make(chan data.Item, collectionChannelBufferSize)
+			col.stream[test.cat] <- test.getItem(t, test.itemName)
 
 			readItems := []data.Item{}
 
