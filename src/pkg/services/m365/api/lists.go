@@ -49,8 +49,10 @@ const (
 	DescoratorFieldNamePrefix       = "@"
 
 	WebTemplateExtensionsListTemplateName = "webTemplateExtensionsList"
-	DocumentLibraryListTemplateName       = "documentLibrary"
-	SharingLinksListTemplateName          = "sharingLinks"
+	// This issue https://github.com/alcionai/corso/issues/4932
+	// tracks to backup/restore supportability of `documentLibrary` templated lists
+	DocumentLibraryListTemplateName = "documentLibrary"
+	SharingLinksListTemplateName    = "sharingLinks"
 )
 
 var addressFieldNames = []string{
