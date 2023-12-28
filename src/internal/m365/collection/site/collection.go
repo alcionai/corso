@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -51,7 +52,7 @@ var _ data.BackupCollection = &prefetchCollection{}
 // as the calls are identical for populating the Collection
 type prefetchCollection struct {
 	// stream is the container for each individual SharePoint item of (page/list)
-	stream chan data.Item
+	stream map[path.CategoryType]chan data.Item
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
 	// items contains the SharePoint.List.IDs or SharePoint.Page.IDs
@@ -79,7 +80,7 @@ func NewPrefetchCollection(
 		fullPath:      folderPath,
 		items:         make(map[string]time.Time),
 		getter:        getter,
-		stream:        make(chan data.Item, collectionChannelBufferSize),
+		stream:        make(map[path.CategoryType]chan data.Item),
 		client:        ac.Sites(),
 		statusUpdater: statusUpdater,
 		category:      scope.Category().PathType(),
@@ -89,80 +90,88 @@ func NewPrefetchCollection(
 	return c
 }
 
-func (sc *prefetchCollection) SetBetaService(betaService *betaAPI.BetaService) {
-	sc.betaService = betaService
+func (pc *prefetchCollection) SetBetaService(betaService *betaAPI.BetaService) {
+	pc.betaService = betaService
 }
 
 // AddItem appends additional itemID to items field
-func (sc *prefetchCollection) AddItem(itemID string, lastModifedTime time.Time) {
-	sc.items[itemID] = lastModifedTime
+func (pc *prefetchCollection) AddItem(itemID string, lastModifedTime time.Time) {
+	pc.items[itemID] = lastModifedTime
 }
 
-func (sc *prefetchCollection) FullPath() path.Path {
-	return sc.fullPath
+func (pc *prefetchCollection) FullPath() path.Path {
+	return pc.fullPath
 }
 
 // TODO(ashmrtn): Fill in with previous path once the Controller compares old
 // and new folder hierarchies.
-func (sc prefetchCollection) PreviousPath() path.Path {
+func (pc prefetchCollection) PreviousPath() path.Path {
 	return nil
 }
 
-func (sc prefetchCollection) LocationPath() *path.Builder {
-	return path.Builder{}.Append(sc.fullPath.Folders()...)
+func (pc prefetchCollection) LocationPath() *path.Builder {
+	return path.Builder{}.Append(pc.fullPath.Folders()...)
 }
 
-func (sc prefetchCollection) State() data.CollectionState {
+func (pc prefetchCollection) State() data.CollectionState {
 	return data.NewState
 }
 
-func (sc prefetchCollection) DoNotMergeItems() bool {
+func (pc prefetchCollection) DoNotMergeItems() bool {
 	return false
 }
 
-func (sc *prefetchCollection) Items(
+func (pc *prefetchCollection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
 ) <-chan data.Item {
-	go sc.streamItems(ctx, errs)
-	return sc.stream
+	if _, ok := pc.stream[pc.category]; !ok {
+		pc.stream[pc.category] = make(chan data.Item, collectionChannelBufferSize)
+	}
+
+	go pc.streamItems(ctx, errs)
+
+	return pc.stream[pc.category]
 }
 
 // streamItems utility function to retrieve data from back store for a given collection
-func (sc *prefetchCollection) streamItems(
+func (pc *prefetchCollection) streamItems(
 	ctx context.Context,
 	errs *fault.Bus,
 ) {
 	// Switch retrieval function based on category
-	switch sc.category {
+	switch pc.category {
 	case path.ListsCategory:
-		sc.streamLists(ctx, errs)
+		pc.streamLists(ctx, errs)
 	case path.PagesCategory:
-		sc.retrievePages(ctx, sc.client, errs)
+		pc.streamPages(ctx, pc.client, errs)
 	}
 }
 
 // streamLists utility function for collection that downloads and serializes
 // models.Listable objects based on M365 IDs from the jobs field.
-func (sc *prefetchCollection) streamLists(
+func (pc *prefetchCollection) streamLists(
 	ctx context.Context,
 	errs *fault.Bus,
 ) {
 	var (
-		metrics support.CollectionMetrics
-		el      = errs.Local()
-		wg      sync.WaitGroup
+		metrics         support.CollectionMetrics
+		el              = errs.Local()
+		wg              sync.WaitGroup
+		objects         int64
+		objectBytes     int64
+		objectSuccesses int64
 	)
 
-	defer finishPopulation(
+	defer updateStatus(
 		ctx,
-		sc.stream,
-		sc.statusUpdater,
-		sc.fullPath,
-		metrics)
+		pc.stream[path.ListsCategory],
+		pc.statusUpdater,
+		pc.fullPath,
+		&metrics)
 
 	// TODO: Insert correct ID for CollectionProgress
-	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
+	progress := observe.CollectionProgress(ctx, pc.fullPath.Category().HumanString(), pc.fullPath.Folders())
 	defer close(progress)
 
 	semaphoreCh := make(chan struct{}, fetchChannelSize)
@@ -170,7 +179,7 @@ func (sc *prefetchCollection) streamLists(
 
 	// For each models.Listable, object is serialized and the metrics are collected.
 	// The progress is objected via the passed in channel.
-	for listID := range sc.items {
+	for listID := range pc.items {
 		if el.Failure() != nil {
 			break
 		}
@@ -178,15 +187,26 @@ func (sc *prefetchCollection) streamLists(
 		wg.Add(1)
 		semaphoreCh <- struct{}{}
 
-		sc.handleListItems(ctx, semaphoreCh, progress, listID, el, &metrics)
-
-		wg.Done()
+		go pc.handleListItems(
+			ctx,
+			semaphoreCh,
+			progress,
+			&wg,
+			listID,
+			&objects,
+			&objectBytes,
+			&objectSuccesses,
+			el)
 	}
 
 	wg.Wait()
+
+	metrics.Objects = int(objects)
+	metrics.Bytes = objectBytes
+	metrics.Successes = int(objectSuccesses)
 }
 
-func (sc *prefetchCollection) retrievePages(
+func (pc *prefetchCollection) streamPages(
 	ctx context.Context,
 	as api.Sites,
 	errs *fault.Bus,
@@ -196,24 +216,24 @@ func (sc *prefetchCollection) retrievePages(
 		el      = errs.Local()
 	)
 
-	defer finishPopulation(
+	defer updateStatus(
 		ctx,
-		sc.stream,
-		sc.statusUpdater,
-		sc.fullPath,
-		metrics)
+		pc.stream[path.PagesCategory],
+		pc.statusUpdater,
+		pc.fullPath,
+		&metrics)
 
 	// TODO: Insert correct ID for CollectionProgress
-	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
+	progress := observe.CollectionProgress(ctx, pc.fullPath.Category().HumanString(), pc.fullPath.Folders())
 	defer close(progress)
 
-	betaService := sc.betaService
+	betaService := pc.betaService
 	if betaService == nil {
 		logger.Ctx(ctx).Error(clues.New("beta service required"))
 		return
 	}
 
-	parent, err := as.GetByID(ctx, sc.fullPath.ProtectedResource(), api.CallConfig{})
+	parent, err := as.GetByID(ctx, pc.fullPath.ProtectedResource(), api.CallConfig{})
 	if err != nil {
 		logger.Ctx(ctx).Error(err)
 
@@ -222,9 +242,9 @@ func (sc *prefetchCollection) retrievePages(
 
 	root := ptr.Val(parent.GetWebUrl())
 
-	pageIDs := maps.Keys(sc.items)
+	pageIDs := maps.Keys(pc.items)
 
-	pages, err := betaAPI.GetSitePages(ctx, betaService, sc.fullPath.ProtectedResource(), pageIDs, errs)
+	pages, err := betaAPI.GetSitePages(ctx, betaService, pc.fullPath.ProtectedResource(), pageIDs, errs)
 	if err != nil {
 		logger.Ctx(ctx).Error(err)
 
@@ -264,19 +284,23 @@ func (sc *prefetchCollection) retrievePages(
 			continue
 		}
 
-		sc.stream <- item
+		pc.stream[path.PagesCategory] <- item
 		progress <- struct{}{}
 	}
 }
 
-func (sc *prefetchCollection) handleListItems(
+func (pc *prefetchCollection) handleListItems(
 	ctx context.Context,
 	semaphoreCh chan struct{},
 	progress chan<- struct{},
+	wg *sync.WaitGroup,
 	listID string,
+	objects *int64,
+	objectBytes *int64,
+	objectSuccesses *int64,
 	el *fault.Bus,
-	metrics *support.CollectionMetrics,
 ) {
+	defer wg.Done()
 	defer func() { <-semaphoreCh }()
 
 	var (
@@ -285,7 +309,7 @@ func (sc *prefetchCollection) handleListItems(
 		err  error
 	)
 
-	list, info, err = sc.getter.GetItemByID(ctx, listID)
+	list, info, err = pc.getter.GetItemByID(ctx, listID)
 	if err != nil {
 		err = clues.WrapWC(ctx, err, "getting list data").Label(fault.LabelForceNoBackupCreation)
 		el.AddRecoverable(ctx, err)
@@ -293,7 +317,7 @@ func (sc *prefetchCollection) handleListItems(
 		return
 	}
 
-	metrics.Objects++
+	atomic.AddInt64(objects, 1)
 
 	entryBytes, err := serializeContent(ctx, list)
 	if err != nil {
@@ -307,8 +331,8 @@ func (sc *prefetchCollection) handleListItems(
 		return
 	}
 
-	metrics.Bytes += size
-	metrics.Successes++
+	atomic.AddInt64(objectBytes, size)
+	atomic.AddInt64(objectSuccesses, 1)
 
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
 	itemInfo := details.ItemInfo{
@@ -323,7 +347,7 @@ func (sc *prefetchCollection) handleListItems(
 		return
 	}
 
-	sc.stream <- item
+	pc.stream[path.ListsCategory] <- item
 	progress <- struct{}{}
 }
 
@@ -347,12 +371,12 @@ func serializeContent(
 	return byteArray, nil
 }
 
-func finishPopulation(
+func updateStatus(
 	ctx context.Context,
 	stream chan data.Item,
 	su support.StatusUpdater,
 	fullPath path.Path,
-	metrics support.CollectionMetrics,
+	metrics *support.CollectionMetrics,
 ) {
 	close(stream)
 
@@ -360,7 +384,7 @@ func finishPopulation(
 		ctx,
 		support.Backup,
 		1, // 1 folder
-		metrics,
+		*metrics,
 		fullPath.Folder(false))
 
 	logger.Ctx(ctx).Debug(status.String())
