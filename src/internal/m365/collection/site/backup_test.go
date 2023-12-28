@@ -114,7 +114,7 @@ func (suite *SharePointSuite) TestCollectLists() {
 
 	bh := NewListsBackupHandler(bpc.ProtectedResource.ID(), ac.Lists())
 
-	col, err := CollectLists(
+	col, _, err := CollectLists(
 		ctx,
 		bh,
 		bpc,
