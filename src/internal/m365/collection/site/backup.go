@@ -160,6 +160,15 @@ func CollectLists(
 		currPaths = map[string]string{}
 	)
 
+	dps, canUsePreviousBackup, err := parseMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
+	if err != nil {
+		return nil, err
+	}
+
+	// [TODO] utilise deltapaths to determine list's state
+	_ = dps
+	_ = canUsePreviousBackup
+
 	lists, err := bh.GetItems(ctx, acc)
 	if err != nil {
 		return nil, err
