@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	ics "github.com/arran4/golang-ical"
@@ -21,8 +22,7 @@ import (
 // Ref: https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0
 
 // TODO: Items not handled
-// locations (can we have multiple locations)
-// recurrence
+// locations (different from location)
 // exceptions and modifications
 
 // Field in the backed up data that we cannot handle
@@ -37,6 +37,33 @@ func keyValues(key, value string) *ics.KeyValues {
 		Key:   key,
 		Value: []string{value},
 	}
+}
+
+func getLocationString(location models.Locationable) string {
+	loc := ""
+
+	dn := ptr.Val(location.GetDisplayName())
+	addr := location.GetAddress()
+	street := ptr.Val(addr.GetStreet())
+	city := ptr.Val(addr.GetCity())
+	state := ptr.Val(addr.GetState())
+	country := ptr.Val(addr.GetCountryOrRegion())
+	postal := ptr.Val(addr.GetPostalCode())
+
+	segments := []string{dn, street, city, state, country, postal}
+
+	nonEmpty := []string{}
+	for _, seg := range segments {
+		if len(seg) > 0 {
+			nonEmpty = append(nonEmpty, seg)
+		}
+	}
+
+	if len(nonEmpty) > 0 {
+		loc = strings.Join(nonEmpty, ", ")
+	}
+
+	return loc
 }
 
 func getUTCTime(ts, tz string) (time.Time, error) {
@@ -225,11 +252,20 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		event.SetSummary(ptr.Val(summary))
 	}
 
-	// Description could be HTML, but we have not way to differentiate
-	// in the output
+	// TODO: Emojies seem to mess up the ics file
+	bodyPreview := ptr.Val(data.GetBodyPreview())
 	description := ptr.Val(data.GetBody().GetContent())
-	if len(description) > 0 {
+	contentType := data.GetBody().GetContentType().String()
+	if len(description) > 0 && contentType == "text" && bodyPreview == description {
 		event.SetDescription(description)
+	} else {
+		// https://stackoverflow.com/a/859475
+		event.SetDescription(bodyPreview)
+		if contentType == "html" {
+			desc := strings.ReplaceAll(description, "\r\n", "")
+			desc = strings.ReplaceAll(desc, "\n", "")
+			event.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
+		}
 	}
 
 	showAs := ptr.Val(data.GetShowAs()).String()
@@ -322,10 +358,9 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		event.AddAttendee(addr, props...)
 	}
 
-	// TODO: We should ideally encode full address
-	location := data.GetLocation().GetDisplayName()
-	if location != nil {
-		event.SetLocation(ptr.Val(location))
+	location := getLocationString(data.GetLocation())
+	if len(location) > 0 {
+		event.SetLocation(location)
 	}
 
 	attachments := data.GetAttachments()
@@ -336,15 +371,13 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			name := ptr.Val(attachment.GetName())
 
 			if len(name) > 0 {
+				// TODO: FILENAME does not seem to be parsed by Outlook
 				props = append(props,
 					&ics.KeyValues{
 						Key:   "FILENAME",
 						Value: []string{name},
 					})
 			}
-
-			// TODO: What is the deal with inline?
-			// inline := ptr.Val(attachment.GetIsInline())
 
 			cb, err := attachment.GetBackingStore().Get("contentBytes")
 			if err != nil {
@@ -356,9 +389,25 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				return "", clues.NewWC(ctx, "getting attachment content string")
 			}
 
-			props = append(props, ics.WithEncoding("base64"))
+			props = append(props, ics.WithEncoding("base64"), ics.WithValue("BINARY"))
 			if len(contentType) > 0 {
 				props = append(props, ics.WithFmtType(contentType))
+			}
+
+			// TODO: Inline attachments still don't show up in Outlook
+			inline := ptr.Val(attachment.GetIsInline())
+			if inline {
+				cidv, err := attachment.GetBackingStore().Get("contentId")
+				if err != nil {
+					return "", clues.Wrap(err, "getting attachment content id")
+				}
+
+				cid, err := str.AnyToString(cidv)
+				if err != nil {
+					return "", clues.Wrap(err, "getting attachment content id string")
+				}
+
+				props = append(props, keyValues("CID", cid))
 			}
 
 			event.AddAttachment(base64.StdEncoding.EncodeToString(content), props...)
