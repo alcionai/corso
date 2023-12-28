@@ -153,7 +153,7 @@ func CollectLists(
 	su support.StatusUpdater,
 	counter *count.Bus,
 	errs *fault.Bus,
-) ([]data.BackupCollection, error) {
+) ([]data.BackupCollection, bool, error) {
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
@@ -166,14 +166,14 @@ func CollectLists(
 
 	dps, canUsePreviousBackup, err := parseMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	_ = canUsePreviousBackup
+	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
 
 	lists, err := bh.GetItems(ctx, acc)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	for _, list := range lists {
@@ -199,7 +199,7 @@ func CollectLists(
 				err = clues.StackWC(ctx, err).Label(count.BadPrevPath)
 				logger.CtxErr(ctx, err).Error("parsing prev path")
 
-				return nil, err
+				return nil, false, err
 			}
 		}
 
@@ -232,7 +232,7 @@ func CollectLists(
 		path.ListsCategory,
 		false)
 	if err != nil {
-		return nil, clues.WrapWC(ctx, err, "making metadata path prefix").
+		return nil, false, clues.WrapWC(ctx, err, "making metadata path prefix").
 			Label(count.BadPathPrefix)
 	}
 
@@ -244,12 +244,12 @@ func CollectLists(
 		su,
 		counter.Local())
 	if err != nil {
-		return nil, clues.WrapWC(ctx, err, "making metadata collection")
+		return nil, false, clues.WrapWC(ctx, err, "making metadata collection")
 	}
 
 	spcs = append(spcs, col)
 
-	return spcs, el.Failure()
+	return spcs, canUsePreviousBackup, el.Failure()
 }
 
 func idAnd(ss ...string) []string {

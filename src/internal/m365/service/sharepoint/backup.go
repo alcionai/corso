@@ -58,7 +58,7 @@ func ProduceBackupCollections(
 		case path.ListsCategory:
 			bh := site.NewListsBackupHandler(bpc.ProtectedResource.ID(), ac.Lists())
 
-			spcs, err = site.CollectLists(
+			spcs, canUsePreviousBackup, err = site.CollectLists(
 				ctx,
 				bh,
 				bpc,
@@ -72,10 +72,6 @@ func ProduceBackupCollections(
 				el.AddRecoverable(ctx, err)
 				continue
 			}
-
-			// Lists don't make use of previous metadata
-			// TODO: Revisit when we add support of lists
-			canUsePreviousBackup = true
 
 		case path.LibrariesCategory:
 			spcs, canUsePreviousBackup, err = site.CollectLibraries(

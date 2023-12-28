@@ -99,8 +99,7 @@ func (suite *SharePointCollectionUnitSuite) TestNewCollection_state() {
 				sel.Lists(selectors.Any())[0],
 				nil,
 				control.DefaultOptions(),
-				count.New(),
-			)
+				count.New())
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.FullPath(), "full path")
 			assert.Equal(t, test.prev, c.PreviousPath(), "prev path")
