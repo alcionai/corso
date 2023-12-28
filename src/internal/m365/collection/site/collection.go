@@ -165,8 +165,7 @@ func (pc *prefetchCollection) streamLists(
 		pc.stream[path.ListsCategory],
 		pc.statusUpdater,
 		pc.fullPath,
-		&metrics,
-	)
+		&metrics)
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, pc.fullPath.Category().HumanString(), pc.fullPath.Folders())
@@ -219,8 +218,7 @@ func (pc *prefetchCollection) streamPages(
 		pc.stream[path.PagesCategory],
 		pc.statusUpdater,
 		pc.fullPath,
-		&metrics,
-	)
+		&metrics)
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, pc.fullPath.Category().HumanString(), pc.fullPath.Folders())
