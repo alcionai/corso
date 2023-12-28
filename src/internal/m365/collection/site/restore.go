@@ -210,13 +210,17 @@ func RestoreListCollection(
 				siteID,
 				restoreContainerName,
 				errs)
-			if err != nil &&
-				errors.Is(err, api.ErrSkippableListTemplate) {
+			if errors.Is(err, api.ErrSkippableListTemplate) {
+				// should never be encountered as lists with skippable template are not backed up
+				// this is an additional check
+				logger.Ctx(ctx).Info("failed to create listItem due to skippable template")
 				continue
 			}
 
 			if err != nil {
-				el.AddRecoverable(ctx, err)
+				logger.CtxErr(ctx, err).Info("failed to create listItem")
+				el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "failed to create listItem"))
+
 				continue
 			}
 
@@ -224,7 +228,9 @@ func RestoreListCollection(
 
 			itemPath, err := dc.FullPath().AppendItem(itemData.ID())
 			if err != nil {
+				logger.CtxErr(ctx, err).Info("failed to append item id to full path")
 				el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "appending item to full path"))
+
 				continue
 			}
 
