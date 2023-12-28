@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -51,7 +52,9 @@ type Collection struct {
 	// stream is the container for each individual SharePoint item of (page/list)
 	stream chan data.Item
 	// fullPath indicates the hierarchy within the collection
-	fullPath path.Path
+	fullPath     path.Path
+	prevPath     path.Path
+	locationPath *path.Builder
 	// jobs contain the SharePoint.List.IDs or SharePoint.Page.IDs
 	items []string
 	// M365 IDs of the items of this collection
@@ -61,19 +64,25 @@ type Collection struct {
 	betaService   *betaAPI.BetaService
 	statusUpdater support.StatusUpdater
 	getter        getItemByIDer
+	Counter       *count.Bus
+	state         data.CollectionState
 }
 
 // NewCollection helper function for creating a Collection
 func NewCollection(
 	getter getItemByIDer,
-	folderPath path.Path,
+	folderPath, prevPath path.Path,
+	locPb *path.Builder,
 	ac api.Client,
 	scope selectors.SharePointScope,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
+	counter *count.Bus,
 ) *Collection {
 	c := &Collection{
 		fullPath:      folderPath,
+		prevPath:      prevPath,
+		locationPath:  locPb,
 		items:         make([]string, 0),
 		getter:        getter,
 		stream:        make(chan data.Item, collectionChannelBufferSize),
@@ -81,6 +90,8 @@ func NewCollection(
 		statusUpdater: statusUpdater,
 		category:      scope.Category().PathType(),
 		ctrl:          ctrlOpts,
+		Counter:       counter.Local(),
+		state:         data.StateOf(prevPath, folderPath, counter),
 	}
 
 	return c
@@ -99,18 +110,16 @@ func (sc *Collection) FullPath() path.Path {
 	return sc.fullPath
 }
 
-// TODO(ashmrtn): Fill in with previous path once the Controller compares old
-// and new folder hierarchies.
 func (sc Collection) PreviousPath() path.Path {
-	return nil
+	return sc.prevPath
 }
 
 func (sc Collection) LocationPath() *path.Builder {
-	return path.Builder{}.Append(sc.fullPath.Folders()...)
+	return sc.locationPath
 }
 
 func (sc Collection) State() data.CollectionState {
-	return data.NewState
+	return sc.state
 }
 
 func (sc Collection) DoNotMergeItems() bool {

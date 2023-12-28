@@ -97,3 +97,12 @@ func parseMetadataCollections(
 
 	return cdp[cat], true, nil
 }
+
+func pathFromPrevString(ps string) (path.Path, error) {
+	p, err := path.FromDataLayerPath(ps, false)
+	if err != nil {
+		return nil, clues.Wrap(err, "parsing previous path string")
+	}
+
+	return p, nil
+}

@@ -27,6 +27,88 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
+type SharePointCollectionUnitSuite struct {
+	tester.Suite
+	creds account.M365Config
+}
+
+func TestSharePointCollectionUnitSuite(t *testing.T) {
+	suite.Run(t, &SharePointCollectionUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *SharePointCollectionUnitSuite) SetupSuite() {
+	a := tconfig.NewFakeM365Account(suite.T())
+	m365, err := a.M365Config()
+	require.NoError(suite.T(), err, clues.ToCore(err))
+	suite.creds = m365
+}
+
+func (suite *SharePointCollectionUnitSuite) TestNewCollection_state() {
+	t := suite.T()
+
+	one, err := path.Build("tid", "siteid", path.SharePointService, path.ListsCategory, false, "one")
+	require.NoError(suite.T(), err, clues.ToCore(err))
+	two, err := path.Build("tid", "siteid", path.SharePointService, path.ListsCategory, false, "two")
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	sel := selectors.NewSharePointBackup([]string{"site"})
+	ac, err := api.NewClient(suite.creds, control.DefaultOptions(), count.New())
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name   string
+		prev   path.Path
+		curr   path.Path
+		loc    *path.Builder
+		expect data.CollectionState
+	}{
+		{
+			name:   "new",
+			curr:   one,
+			loc:    path.Elements{"one"}.Builder(),
+			expect: data.NewState,
+		},
+		{
+			name:   "not moved",
+			prev:   one,
+			curr:   one,
+			loc:    path.Elements{"one"}.Builder(),
+			expect: data.NotMovedState,
+		},
+		{
+			name:   "moved",
+			prev:   one,
+			curr:   two,
+			loc:    path.Elements{"two"}.Builder(),
+			expect: data.MovedState,
+		},
+		{
+			name:   "deleted",
+			prev:   one,
+			expect: data.DeletedState,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			c := NewCollection(
+				nil,
+				test.curr,
+				test.prev,
+				test.loc,
+				ac,
+				sel.Lists(selectors.Any())[0],
+				nil,
+				control.DefaultOptions(),
+				count.New(),
+			)
+			assert.Equal(t, test.expect, c.State(), "collection state")
+			assert.Equal(t, test.curr, c.FullPath(), "full path")
+			assert.Equal(t, test.prev, c.PreviousPath(), "prev path")
+			assert.Equal(t, test.loc, c.LocationPath(), "location path")
+		})
+	}
+}
+
 type SharePointCollectionSuite struct {
 	tester.Suite
 	siteID string
@@ -65,33 +147,42 @@ func TestSharePointCollectionSuite(t *testing.T) {
 // SharePoint collection and to use the data stream channel.
 func (suite *SharePointCollectionSuite) TestCollection_Items() {
 	var (
-		tenant  = "some"
-		user    = "user"
-		dirRoot = "directory"
+		tenant   = "some"
+		user     = "user"
+		prevRoot = "prev"
+		dirRoot  = "directory"
 	)
 
 	sel := selectors.NewSharePointBackup([]string{"site"})
 
 	tables := []struct {
 		name, itemName string
+		itemCount      int64
 		scope          selectors.SharePointScope
 		getter         getItemByIDer
-		getDir         func(t *testing.T) path.Path
+		prev           string
+		curr           string
+		locPb          *path.Builder
+		getDir         func(t *testing.T, root string) path.Path
 		getItem        func(t *testing.T, itemName string) data.Item
 	}{
 		{
-			name:     "List",
-			itemName: "MockListing",
-			scope:    sel.Lists(selectors.Any())[0],
-			getter:   &mock.ListHandler{},
-			getDir: func(t *testing.T) path.Path {
+			name:      "List",
+			itemName:  "MockListing",
+			itemCount: 1,
+			scope:     sel.Lists(selectors.Any())[0],
+			prev:      prevRoot,
+			curr:      dirRoot,
+			locPb:     path.Elements{"MockListing"}.Builder(),
+			getter:    &mock.ListHandler{},
+			getDir: func(t *testing.T, root string) path.Path {
 				dir, err := path.Build(
 					tenant,
 					user,
 					path.SharePointService,
 					path.ListsCategory,
 					false,
-					dirRoot)
+					root)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return dir
@@ -108,7 +199,11 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				require.NoError(t, err, clues.ToCore(err))
 
 				info := &details.SharePointInfo{
-					ItemName: name,
+					ItemType: details.SharePointList,
+					List: &details.ListInfo{
+						Name:      name,
+						ItemCount: 1,
+					},
 				}
 
 				data, err := data.NewPrefetchedItemWithInfo(
@@ -124,15 +219,18 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			name:     "Pages",
 			itemName: "MockPages",
 			scope:    sel.Pages(selectors.Any())[0],
+			prev:     prevRoot,
+			curr:     dirRoot,
+			locPb:    path.Elements{"Pages"}.Builder(),
 			getter:   nil,
-			getDir: func(t *testing.T) path.Path {
+			getDir: func(t *testing.T, root string) path.Path {
 				dir, err := path.Build(
 					tenant,
 					user,
 					path.SharePointService,
 					path.PagesCategory,
 					false,
-					dirRoot)
+					root)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return dir
@@ -162,11 +260,14 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 			col := NewCollection(
 				test.getter,
-				test.getDir(t),
+				test.getDir(t, test.curr),
+				test.getDir(t, test.prev),
+				test.locPb,
 				suite.ac,
 				test.scope,
 				nil,
-				control.DefaultOptions())
+				control.DefaultOptions(),
+				count.New())
 			col.stream <- test.getItem(t, test.itemName)
 
 			readItems := []data.Item{}
@@ -184,8 +285,15 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			assert.NotNil(t, info)
-			assert.NotNil(t, info.SharePoint)
-			assert.Equal(t, test.itemName, info.SharePoint.ItemName)
+			require.NotNil(t, info.SharePoint)
+
+			if info.SharePoint.ItemType == details.SharePointList {
+				require.NotNil(t, info.SharePoint.List)
+				assert.Equal(t, test.itemName, info.SharePoint.List.Name)
+				assert.Equal(t, test.itemCount, info.SharePoint.List.ItemCount)
+			} else {
+				assert.Equal(t, test.itemName, info.SharePoint.ItemName)
+			}
 		})
 	}
 }

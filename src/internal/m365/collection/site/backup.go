@@ -127,10 +127,13 @@ func CollectPages(
 		collection := NewCollection(
 			nil,
 			dir,
+			nil,
+			nil,
 			ac,
 			scope,
 			su,
-			bpc.Options)
+			bpc.Options,
+			counter.Local())
 		collection.SetBetaService(betaService)
 		collection.AddItem(tuple.ID)
 
@@ -158,6 +161,7 @@ func CollectLists(
 		spcs      = make([]data.BackupCollection, 0)
 		acc       = api.CallConfig{Select: idAnd("list")}
 		currPaths = map[string]string{}
+		prevPath  path.Path
 	)
 
 	dps, canUsePreviousBackup, err := parseMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
@@ -165,8 +169,6 @@ func CollectLists(
 		return nil, err
 	}
 
-	// [TODO] utilise deltapaths to determine list's state
-	_ = dps
 	_ = canUsePreviousBackup
 
 	lists, err := bh.GetItems(ctx, acc)
@@ -187,6 +189,20 @@ func CollectLists(
 
 		storageDir := path.Elements{listID}
 
+		var (
+			dp          = dps[storageDir.String()]
+			prevPathStr = dp.Path
+		)
+
+		if len(prevPathStr) > 0 {
+			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
+				err = clues.StackWC(ctx, err).Label(count.BadPrevPath)
+				logger.CtxErr(ctx, err).Error("parsing prev path")
+
+				return nil, err
+			}
+		}
+
 		currPath, err := bh.canonicalPath(storageDir, tenantID)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
@@ -195,10 +211,13 @@ func CollectLists(
 		collection := NewCollection(
 			bh,
 			currPath,
+			prevPath,
+			storageDir.Builder(),
 			ac,
 			scope,
 			su,
-			bpc.Options)
+			bpc.Options,
+			counter.Local())
 		collection.AddItem(ptr.Val(list.GetId()))
 
 		spcs = append(spcs, collection)
