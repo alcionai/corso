@@ -149,13 +149,16 @@ func CollectLists(
 	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
+	counter *count.Bus,
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
-		el   = errs.Local()
-		spcs = make([]data.BackupCollection, 0)
-		acc  = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
+		collection data.BackupCollection
+		el         = errs.Local()
+		cl         = counter.Local()
+		spcs       = make([]data.BackupCollection, 0)
+		acc        = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
 	)
 
 	lists, err := bh.GetItems(ctx, acc)
@@ -185,17 +188,35 @@ func CollectLists(
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
-		collection := NewPrefetchCollection(
-			bh,
-			dir,
-			ac,
-			scope,
-			su,
-			bpc.Options)
+		if lmt.IsZero() {
+			prefetchCol := NewPrefetchCollection(
+				bh,
+				dir,
+				ac,
+				scope,
+				su,
+				bpc.Options,
+			)
 
-		collection.AddItem(
-			ptr.Val(list.GetId()),
-			ptr.Val(lmt))
+			prefetchCol.AddItem(
+				ptr.Val(list.GetId()),
+				ptr.Val(lmt))
+
+			collection = prefetchCol
+		} else {
+			lazyFetchCol := NewLazyFetchCollection(
+				bh,
+				dir,
+				su,
+				cl,
+			)
+
+			lazyFetchCol.AddItem(
+				ptr.Val(list.GetId()),
+				ptr.Val(lmt))
+
+			collection = lazyFetchCol
+		}
 
 		spcs = append(spcs, collection)
 	}

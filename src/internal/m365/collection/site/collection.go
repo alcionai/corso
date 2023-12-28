@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -43,7 +44,10 @@ const (
 	Pages   DataCategory = 2
 )
 
-var _ data.BackupCollection = &prefetchCollection{}
+var (
+	_ data.BackupCollection = &prefetchCollection{}
+	_ data.BackupCollection = &lazyFetchCollection{}
+)
 
 // Collection is the SharePoint.List or SharePoint.Page implementation of data.Collection.
 
@@ -327,6 +331,150 @@ func (sc *prefetchCollection) handleListItems(
 
 	sc.stream <- item
 	progress <- struct{}{}
+}
+
+type lazyFetchCollection struct {
+	// stream is the container for each individual SharePoint item of list
+	stream chan data.Item
+	// fullPath indicates the hierarchy within the collection
+	fullPath path.Path
+	// jobs contain the SharePoint.List.IDs and their last modified time
+	items         map[string]time.Time
+	statusUpdater support.StatusUpdater
+	getter        getItemByIDer
+	counter       *count.Bus
+}
+
+func NewLazyFetchCollection(
+	getter getItemByIDer,
+	folderPath path.Path,
+	statusUpdater support.StatusUpdater,
+	counter *count.Bus,
+) *lazyFetchCollection {
+	c := &lazyFetchCollection{
+		fullPath:      folderPath,
+		items:         make(map[string]time.Time),
+		getter:        getter,
+		stream:        make(chan data.Item, collectionChannelBufferSize),
+		statusUpdater: statusUpdater,
+		counter:       counter,
+	}
+
+	return c
+}
+
+func (lc *lazyFetchCollection) AddItem(itemID string, lastModifiedTime time.Time) {
+	lc.items[itemID] = lastModifiedTime
+	lc.counter.Add(count.ItemsAdded, 1)
+}
+
+func (lc *lazyFetchCollection) FullPath() path.Path {
+	return lc.fullPath
+}
+
+func (lc lazyFetchCollection) LocationPath() *path.Builder {
+	return path.Builder{}.Append(lc.fullPath.Folders()...)
+}
+
+// TODO(hitesh): Implement PreviousPath, State, DoNotMergeItems
+// once the Controller compares old and new folder hierarchies.
+func (lc lazyFetchCollection) PreviousPath() path.Path {
+	return nil
+}
+
+func (lc lazyFetchCollection) State() data.CollectionState {
+	return data.NewState
+}
+
+func (lc lazyFetchCollection) DoNotMergeItems() bool {
+	return false
+}
+
+func (lc lazyFetchCollection) Items(
+	ctx context.Context,
+	errs *fault.Bus,
+) <-chan data.Item {
+	go lc.streamItems(ctx, errs)
+	return lc.stream
+}
+
+func (lc *lazyFetchCollection) streamItems(
+	ctx context.Context,
+	errs *fault.Bus,
+) {
+	var (
+		metrics  support.CollectionMetrics
+		el       = errs.Local()
+		numLists int64
+	)
+
+	defer finishPopulation(
+		ctx,
+		lc.stream,
+		lc.statusUpdater,
+		lc.fullPath,
+		metrics,
+	)
+
+	progress := observe.CollectionProgress(ctx, lc.fullPath.Category().HumanString(), lc.fullPath.Folders())
+	defer close(progress)
+
+	for listID, modTime := range lc.items {
+		if el.Failure() != nil {
+			break
+		}
+
+		lc.stream <- data.NewLazyItemWithInfo(
+			ctx,
+			&lazyItemGetter{
+				itemID:  listID,
+				getter:  lc.getter,
+				modTime: modTime,
+			},
+			listID,
+			modTime,
+			lc.counter,
+			el)
+
+		metrics.Successes++
+
+		progress <- struct{}{}
+	}
+
+	metrics.Objects += int(numLists)
+}
+
+type lazyItemGetter struct {
+	getter  getItemByIDer
+	itemID  string
+	modTime time.Time
+}
+
+func (lig *lazyItemGetter) GetData(
+	ctx context.Context,
+	el *fault.Bus,
+) (io.ReadCloser, *details.ItemInfo, bool, error) {
+	list, info, err := lig.getter.GetItemByID(ctx, lig.itemID)
+	if err != nil {
+		err = clues.WrapWC(ctx, err, "getting list data").Label(fault.LabelForceNoBackupCreation)
+		el.AddRecoverable(ctx, err)
+
+		return nil, nil, false, err
+	}
+
+	entryBytes, err := serializeContent(ctx, list)
+	if err != nil {
+		el.AddRecoverable(ctx, err)
+
+		return nil, nil, false, err
+	}
+
+	info.Modified = lig.modTime
+
+	return io.NopCloser(bytes.NewReader(entryBytes)),
+		&details.ItemInfo{SharePoint: info},
+		false,
+		nil
 }
 
 func serializeContent(
