@@ -164,8 +164,7 @@ func (sc *prefetchCollection) streamLists(
 		sc.stream,
 		sc.statusUpdater,
 		sc.fullPath,
-		metrics,
-	)
+		metrics)
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
@@ -207,8 +206,7 @@ func (sc *prefetchCollection) retrievePages(
 		sc.stream,
 		sc.statusUpdater,
 		sc.fullPath,
-		metrics,
-	)
+		metrics)
 
 	// TODO: Insert correct ID for CollectionProgress
 	progress := observe.CollectionProgress(ctx, sc.fullPath.Category().HumanString(), sc.fullPath.Folders())
@@ -414,8 +412,7 @@ func (lc *lazyFetchCollection) streamItems(
 		lc.stream,
 		lc.statusUpdater,
 		lc.fullPath,
-		metrics,
-	)
+		metrics)
 
 	progress := observe.CollectionProgress(ctx, lc.fullPath.Category().HumanString(), lc.fullPath.Folders())
 	defer close(progress)

@@ -195,8 +195,7 @@ func CollectLists(
 				ac,
 				scope,
 				su,
-				bpc.Options,
-			)
+				bpc.Options)
 
 			prefetchCol.AddItem(
 				ptr.Val(list.GetId()),
@@ -208,8 +207,7 @@ func CollectLists(
 				bh,
 				dir,
 				su,
-				cl,
-			)
+				cl)
 
 			lazyFetchCol.AddItem(
 				ptr.Val(list.GetId()),
