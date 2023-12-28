@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"sync"
 	"time"
 
@@ -456,6 +457,14 @@ func (lig *lazyItemGetter) GetData(
 ) (io.ReadCloser, *details.ItemInfo, bool, error) {
 	list, info, err := lig.getter.GetItemByID(ctx, lig.itemID)
 	if err != nil {
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+			logger.CtxErr(ctx, err).Info("item deleted in flight. skipping")
+
+			// Returning delInFlight as true here for correctness, although the caller is going
+			// to ignore it since we are returning an error.
+			return nil, nil, true, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
+		}
+
 		err = clues.WrapWC(ctx, err, "getting list data").Label(fault.LabelForceNoBackupCreation)
 		el.AddRecoverable(ctx, err)
 

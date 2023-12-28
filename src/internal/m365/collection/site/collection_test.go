@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type SharePointCollectionSuite struct {
@@ -325,4 +326,41 @@ func (suite *SharePointCollectionSuite) TestLazyItem() {
 	info, err := li.Info()
 	require.NoError(t, err, "getting item info: %v", clues.ToCore(err))
 	assert.Equal(t, now, info.Modified())
+}
+
+func (suite *SharePointCollectionSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlight() {
+	var (
+		t   = suite.T()
+		now = time.Now()
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	lh := mock.ListHandler{
+		Err: graph.ErrDeletedInFlight,
+	}
+
+	li := data.NewLazyItemWithInfo(
+		ctx,
+		&lazyItemGetter{
+			itemID:  "itemID",
+			getter:  &lh,
+			modTime: now,
+		},
+		"itemID",
+		now,
+		count.New(),
+		fault.New(true))
+
+	assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
+	assert.Equal(
+		t,
+		now,
+		li.ModTime(),
+		"item mod time")
+
+	r, err := readers.NewVersionedRestoreReader(li.ToReader())
+	assert.ErrorIs(t, err, graph.ErrDeletedInFlight, "item should be marked deleted in flight")
+	assert.Nil(t, r)
 }
