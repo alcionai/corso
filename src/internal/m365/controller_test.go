@@ -778,6 +778,24 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 
 	table := []restoreBackupInfo{
 		{
+			name:    "EmailWithSpecialCharacters",
+			service: path.ExchangeService,
+			collections: []stub.ColInfo{
+				{
+					PathElements: []string{api.MailInbox},
+					Category:     path.EmailCategory,
+					Items: []stub.ItemInfo{
+						{
+							Name: "someencodeditemID",
+							Data: exchMock.MessageWithSpecialCharacters(
+								subjectText + "-1"),
+							LookupKey: subjectText + "-1",
+						},
+					},
+				},
+			},
+		},
+		{
 			name:    "EmailsWithAttachments",
 			service: path.ExchangeService,
 			collections: []stub.ColInfo{

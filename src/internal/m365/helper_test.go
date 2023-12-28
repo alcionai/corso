@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
+	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -160,6 +161,10 @@ func recipientEqual(
 	expected models.Recipientable,
 	got models.Recipientable,
 ) bool {
+	if expected == nil {
+		return tester.NilOrZero(got)
+	}
+
 	// Don't compare names as M365 will override the name if the address is known.
 	return reflect.DeepEqual(
 		ptr.Val(expected.GetEmailAddress().GetAddress()),
@@ -173,9 +178,9 @@ func checkMessage(
 ) {
 	testElementsMatch(t, expected.GetAttachments(), got.GetAttachments(), false, attachmentEqual)
 
-	assert.Equal(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
+	tester.AssertEmptyOrEqual(t, expected.GetBccRecipients(), got.GetBccRecipients(), "BccRecipients")
 
-	assert.Equal(
+	tester.AssertEmptyOrEqual(
 		t,
 		ptr.Val(expected.GetBody().GetContentType()),
 		ptr.Val(got.GetBody().GetContentType()),
@@ -187,9 +192,9 @@ func checkMessage(
 	// always just the first 255 characters if the message is HTML and has
 	// multiple paragraphs.
 
-	assert.Equal(t, expected.GetCategories(), got.GetCategories(), "Categories")
+	tester.AssertEmptyOrEqual(t, expected.GetCategories(), got.GetCategories(), "Categories")
 
-	assert.Equal(t, expected.GetCcRecipients(), got.GetCcRecipients(), "CcRecipients")
+	tester.AssertEmptyOrEqual(t, expected.GetCcRecipients(), got.GetCcRecipients(), "CcRecipients")
 
 	// Skip ChangeKey as it's tied to this specific instance of the item.
 
@@ -202,33 +207,41 @@ func checkMessage(
 	checkFlags(t, expected.GetFlag(), got.GetFlag())
 
 	checkRecipentables(t, expected.GetFrom(), got.GetFrom())
-	assert.Equal(t, ptr.Val(expected.GetHasAttachments()), ptr.Val(got.GetHasAttachments()), "HasAttachments")
+	tester.AssertEmptyOrEqual(t, ptr.Val(expected.GetHasAttachments()), ptr.Val(got.GetHasAttachments()), "HasAttachments")
 
 	// Skip Id as it's tied to this specific instance of the item.
 
-	assert.Equal(t, ptr.Val(expected.GetImportance()), ptr.Val(got.GetImportance()), "Importance")
+	tester.AssertEmptyOrEqual(t, ptr.Val(expected.GetImportance()), ptr.Val(got.GetImportance()), "Importance")
 
-	assert.Equal(
+	tester.AssertEmptyOrEqual(
 		t,
 		ptr.Val(expected.GetInferenceClassification()),
 		ptr.Val(got.GetInferenceClassification()),
 		"InferenceClassification")
 
-	assert.Equal(t, expected.GetInternetMessageHeaders(), got.GetInternetMessageHeaders(), "InternetMessageHeaders")
+	tester.AssertEmptyOrEqual(
+		t,
+		expected.GetInternetMessageHeaders(),
+		got.GetInternetMessageHeaders(),
+		"InternetMessageHeaders")
 
-	assert.Equal(t, ptr.Val(expected.GetInternetMessageId()), ptr.Val(got.GetInternetMessageId()), "InternetMessageId")
+	tester.AssertEmptyOrEqual(
+		t,
+		ptr.Val(expected.GetInternetMessageId()),
+		ptr.Val(got.GetInternetMessageId()),
+		"InternetMessageId")
 
-	assert.Equal(
+	tester.AssertEmptyOrEqual(
 		t,
 		ptr.Val(expected.GetIsDeliveryReceiptRequested()),
 		ptr.Val(got.GetIsDeliveryReceiptRequested()),
 		"IsDeliverReceiptRequested")
 
-	assert.Equal(t, ptr.Val(expected.GetIsDraft()), ptr.Val(got.GetIsDraft()), "IsDraft")
+	tester.AssertEmptyOrEqual(t, ptr.Val(expected.GetIsDraft()), ptr.Val(got.GetIsDraft()), "IsDraft")
 
-	assert.Equal(t, ptr.Val(expected.GetIsRead()), ptr.Val(got.GetIsRead()), "IsRead")
+	tester.AssertEmptyOrEqual(t, ptr.Val(expected.GetIsRead()), ptr.Val(got.GetIsRead()), "IsRead")
 
-	assert.Equal(
+	tester.AssertEmptyOrEqual(
 		t,
 		ptr.Val(expected.GetIsReadReceiptRequested()),
 		ptr.Val(got.GetIsReadReceiptRequested()),
@@ -238,21 +251,25 @@ func checkMessage(
 
 	// Skip ParentFolderId as we restore to a different folder by default.
 
-	assert.Equal(t, ptr.Val(expected.GetReceivedDateTime()), ptr.Val(got.GetReceivedDateTime()), "ReceivedDateTime")
+	tester.AssertEmptyOrEqual(
+		t,
+		ptr.Val(expected.GetReceivedDateTime()),
+		ptr.Val(got.GetReceivedDateTime()),
+		"ReceivedDateTime")
 
-	assert.Equal(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
+	tester.AssertEmptyOrEqual(t, expected.GetReplyTo(), got.GetReplyTo(), "ReplyTo")
 
 	checkRecipentables(t, expected.GetSender(), got.GetSender())
 
-	assert.Equal(t, ptr.Val(expected.GetSentDateTime()), ptr.Val(got.GetSentDateTime()), "SentDateTime")
+	tester.AssertEmptyOrEqual(t, ptr.Val(expected.GetSentDateTime()), ptr.Val(got.GetSentDateTime()), "SentDateTime")
 
-	assert.Equal(t, ptr.Val(expected.GetSubject()), ptr.Val(got.GetSubject()), "Subject")
+	tester.AssertEmptyOrEqual(t, ptr.Val(expected.GetSubject()), ptr.Val(got.GetSubject()), "Subject")
 
 	testElementsMatch(t, expected.GetToRecipients(), got.GetToRecipients(), false, recipientEqual)
 
 	// Skip WebLink as it's tied to this specific instance of the item.
 
-	assert.Equal(t, expected.GetUniqueBody(), got.GetUniqueBody(), "UniqueBody")
+	tester.AssertEmptyOrEqual(t, expected.GetUniqueBody(), got.GetUniqueBody(), "UniqueBody")
 }
 
 // checkFlags is a helper function to check equality of models.FollowupFlabables
@@ -261,6 +278,11 @@ func checkFlags(
 	t *testing.T,
 	expected, got models.FollowupFlagable,
 ) {
+	if expected == nil {
+		assert.True(t, tester.NilOrZero(got))
+		return
+	}
+
 	assert.Equal(t, expected.GetCompletedDateTime(), got.GetCompletedDateTime())
 	assert.Equal(t, expected.GetDueDateTime(), got.GetDueDateTime())
 	assert.Equal(t, expected.GetFlagStatus(), got.GetFlagStatus())
@@ -274,6 +296,11 @@ func checkRecipentables(
 	t *testing.T,
 	expected, got models.Recipientable,
 ) {
+	if expected == nil {
+		assert.True(t, tester.NilOrZero(got))
+		return
+	}
+
 	checkEmailAddressables(t, expected.GetEmailAddress(), got.GetEmailAddress())
 	assert.Equal(t, expected.GetAdditionalData(), got.GetAdditionalData())
 }

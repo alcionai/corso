@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
@@ -734,11 +735,11 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 	oldListByteArray, err := writer.GetSerializedContent()
 	require.NoError(t, err)
 
-	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
+	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
 
-	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray)
+	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
 	require.Error(t, err)
 
 	newListItems := newList.GetItems()
@@ -785,9 +786,9 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 	oldListByteArray, err := writer.GetSerializedContent()
 	require.NoError(t, err)
 
-	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray)
+	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
 	require.Error(t, err)
-	assert.Equal(t, ErrCannotCreateWebTemplateExtension.Error(), err.Error())
+	assert.Equal(t, ErrSkippableListTemplate.Error(), err.Error())
 }
 
 func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
@@ -813,7 +814,7 @@ func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
 	oldListByteArray, err := writer.GetSerializedContent()
 	require.NoError(t, err)
 
-	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray)
+	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
 

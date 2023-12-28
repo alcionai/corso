@@ -137,6 +137,7 @@ func restoreListItem(
 	rh restoreHandler,
 	itemData data.Item,
 	siteID, destName string,
+	errs *fault.Bus,
 ) (details.ItemInfo, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.ID()))
 	defer end()
@@ -156,7 +157,7 @@ func restoreListItem(
 	newName := fmt.Sprintf("%s_%s", destName, listName)
 
 	// Restore to List base to M365 back store
-	restoredList, err := rh.PostList(ctx, newName, bytes)
+	restoredList, err := rh.PostList(ctx, newName, bytes, errs)
 	if err != nil {
 		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
@@ -207,9 +208,10 @@ func RestoreListCollection(
 				rh,
 				itemData,
 				siteID,
-				restoreContainerName)
+				restoreContainerName,
+				errs)
 			if err != nil &&
-				errors.Is(err, api.ErrCannotCreateWebTemplateExtension) {
+				errors.Is(err, api.ErrSkippableListTemplate) {
 				continue
 			}
 

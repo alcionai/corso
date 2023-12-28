@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -13,6 +14,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/sanitize"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -596,10 +598,27 @@ func (c Mail) PostLargeAttachment(
 // Serialization
 // ---------------------------------------------------------------------------
 
-func BytesToMessageable(body []byte) (models.Messageable, error) {
+func bytesToMessageable(body []byte) (serialization.Parsable, error) {
 	v, err := CreateFromBytes(body, models.CreateMessageFromDiscriminatorValue)
 	if err != nil {
-		return nil, clues.Wrap(err, "deserializing bytes to message")
+		if !strings.Contains(err.Error(), invalidJSON) {
+			return nil, clues.Wrap(err, "deserializing bytes to message")
+		}
+
+		// If the JSON was invalid try sanitizing and deserializing again.
+		// Sanitizing should transform characters < 0x20 according to the spec where
+		// possible. The resulting JSON may still be invalid though.
+		body = sanitize.JSONBytes(body)
+		v, err = CreateFromBytes(body, models.CreateMessageFromDiscriminatorValue)
+	}
+
+	return v, clues.Stack(err).OrNil()
+}
+
+func BytesToMessageable(body []byte) (models.Messageable, error) {
+	v, err := bytesToMessageable(body)
+	if err != nil {
+		return nil, clues.Stack(err)
 	}
 
 	return v.(models.Messageable), nil

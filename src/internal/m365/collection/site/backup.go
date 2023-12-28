@@ -156,7 +156,7 @@ func CollectLists(
 	var (
 		el        = errs.Local()
 		spcs      = make([]data.BackupCollection, 0)
-		acc       = api.CallConfig{Select: idAnd("displayName")}
+		acc       = api.CallConfig{Select: idAnd("list")}
 		currPaths = map[string]string{}
 	)
 
@@ -168,6 +168,10 @@ func CollectLists(
 	for _, list := range lists {
 		if el.Failure() != nil {
 			break
+		}
+
+		if api.SkipListTemplates.HasKey(ptr.Val(list.GetList().GetTemplate())) {
+			continue
 		}
 
 		listID := ptr.Val(list.GetId())

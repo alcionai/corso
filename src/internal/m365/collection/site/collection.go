@@ -350,17 +350,11 @@ func (sc *Collection) handleListItems(
 	metrics.Bytes += size
 	metrics.Successes++
 
-	template := ""
-	if list != nil && list.GetList() != nil {
-		template = ptr.Val(list.GetList().GetTemplate())
-	}
-
 	info.ParentPath = sc.LocationPath().String()
 
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
 	itemInfo := details.ItemInfo{
-		SharePoint:     info,
-		NotRecoverable: template == api.WebTemplateExtensionsListTemplateName,
+		SharePoint: info,
 	}
 
 	item, err := data.NewPrefetchedItemWithInfo(rc, listID, itemInfo)

@@ -159,6 +159,19 @@ func (suite *MailAPIUnitSuite) TestMailInfo() {
 	}
 }
 
+// TestBytesToMessagable_InvalidError tests that the error message kiota returns
+// for invalid JSON matches what we check for. This helps keep things in sync
+// when kiota is updated.
+func (suite *MailAPIUnitSuite) TestBytesToMessagable_InvalidError() {
+	t := suite.T()
+	input := exchMock.MessageWithSpecialCharacters("m365 mail support test")
+
+	_, err := CreateFromBytes(input, models.CreateMessageFromDiscriminatorValue)
+	require.Error(t, err, clues.ToCore(err))
+
+	assert.Contains(t, err.Error(), invalidJSON)
+}
+
 func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 	table := []struct {
 		name        string
@@ -177,6 +190,20 @@ func (suite *MailAPIUnitSuite) TestBytesToMessagable() {
 			byteArray:   exchMock.MessageBytes("m365 mail support test"),
 			checkError:  assert.NoError,
 			checkObject: assert.NotNil,
+		},
+		{
+			name:        "malformed JSON bytes passes sanitization",
+			byteArray:   exchMock.MessageWithSpecialCharacters("m365 mail support test"),
+			checkError:  assert.NoError,
+			checkObject: assert.NotNil,
+		},
+		{
+			name: "invalid JSON bytes",
+			byteArray: append(
+				exchMock.MessageWithSpecialCharacters("m365 mail support test"),
+				[]byte("}")...),
+			checkError:  assert.Error,
+			checkObject: assert.Nil,
 		},
 	}
 	for _, test := range table {
