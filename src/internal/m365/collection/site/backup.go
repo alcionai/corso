@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	stdpath "path"
+	"time"
 
 	"github.com/alcionai/clues"
 
@@ -131,7 +132,7 @@ func CollectPages(
 			su,
 			bpc.Options)
 		collection.SetBetaService(betaService)
-		collection.AddItem(tuple.ID)
+		collection.AddItem(tuple.ID, time.Now())
 
 		spcs = append(spcs, collection)
 	}
@@ -154,7 +155,7 @@ func CollectLists(
 	var (
 		el   = errs.Local()
 		spcs = make([]data.BackupCollection, 0)
-		acc  = api.CallConfig{Select: idAnd("list")}
+		acc  = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
 	)
 
 	lists, err := bh.GetItems(ctx, acc)
@@ -170,6 +171,8 @@ func CollectLists(
 		if api.SkipListTemplates.HasKey(ptr.Val(list.GetList().GetTemplate())) {
 			continue
 		}
+
+		lmt := list.GetLastModifiedDateTime()
 
 		dir, err := path.Build(
 			tenantID,
@@ -189,7 +192,10 @@ func CollectLists(
 			scope,
 			su,
 			bpc.Options)
-		collection.AddItem(ptr.Val(list.GetId()))
+
+		collection.AddItem(
+			ptr.Val(list.GetId()),
+			ptr.Val(lmt))
 
 		spcs = append(spcs, collection)
 	}
