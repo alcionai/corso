@@ -50,7 +50,7 @@ var _ data.BackupCollection = &prefetchCollection{}
 // as the calls are identical for populating the Collection
 type prefetchCollection struct {
 	// stream is the container for each individual SharePoint item of (page/list)
-	stream chan data.Item
+	stream map[path.CategoryType]chan data.Item
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
 	// jobs contain the SharePoint.List.IDs or SharePoint.Page.IDs
@@ -77,7 +77,7 @@ func NewPrefetchCollection(
 		fullPath:      folderPath,
 		items:         make([]string, 0),
 		getter:        getter,
-		stream:        make(chan data.Item, collectionChannelBufferSize),
+		stream:        make(map[path.CategoryType]chan data.Item),
 		client:        ac.Sites(),
 		statusUpdater: statusUpdater,
 		category:      scope.Category().PathType(),
@@ -122,8 +122,13 @@ func (pc *prefetchCollection) Items(
 	ctx context.Context,
 	errs *fault.Bus,
 ) <-chan data.Item {
+	if _, ok := pc.stream[pc.category]; !ok {
+		pc.stream[pc.category] = make(chan data.Item, collectionChannelBufferSize)
+	}
+
 	go pc.streamItems(ctx, errs)
-	return pc.stream
+
+	return pc.stream[pc.category]
 }
 
 // streamItems utility function to retrieve data from back store for a given collection
@@ -157,7 +162,7 @@ func (pc *prefetchCollection) streamLists(
 
 	defer updateStatus(
 		ctx,
-		pc.stream,
+		pc.stream[path.ListsCategory],
 		pc.statusUpdater,
 		pc.fullPath,
 		&metrics,
@@ -211,7 +216,7 @@ func (pc *prefetchCollection) streamPages(
 
 	defer updateStatus(
 		ctx,
-		pc.stream,
+		pc.stream[path.PagesCategory],
 		pc.statusUpdater,
 		pc.fullPath,
 		&metrics,
@@ -276,7 +281,7 @@ func (pc *prefetchCollection) streamPages(
 			continue
 		}
 
-		pc.stream <- item
+		pc.stream[path.PagesCategory] <- item
 		progress <- struct{}{}
 	}
 }
@@ -339,7 +344,7 @@ func (pc *prefetchCollection) handleListItems(
 		return
 	}
 
-	pc.stream <- item
+	pc.stream[path.ListsCategory] <- item
 	progress <- struct{}{}
 }
 
