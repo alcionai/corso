@@ -123,7 +123,7 @@ func CollectPages(
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating page collection path"))
 		}
 
-		collection := NewCollection(
+		collection := NewPrefetchCollection(
 			nil,
 			dir,
 			ac,
@@ -182,7 +182,7 @@ func CollectLists(
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
-		collection := NewCollection(
+		collection := NewPrefetchCollection(
 			bh,
 			dir,
 			ac,

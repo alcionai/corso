@@ -160,7 +160,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			col := NewCollection(
+			col := NewPrefetchCollection(
 				test.getter,
 				test.getDir(t),
 				suite.ac,
