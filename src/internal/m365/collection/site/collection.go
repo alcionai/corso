@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -146,9 +147,12 @@ func (sc *prefetchCollection) streamLists(
 	errs *fault.Bus,
 ) {
 	var (
-		metrics support.CollectionMetrics
-		el      = errs.Local()
-		wg      sync.WaitGroup
+		metrics         support.CollectionMetrics
+		el              = errs.Local()
+		wg              sync.WaitGroup
+		objects         int64
+		objectBytes     int64
+		objectSuccesses int64
 	)
 
 	defer finishPopulation(
@@ -156,7 +160,7 @@ func (sc *prefetchCollection) streamLists(
 		sc.stream,
 		sc.statusUpdater,
 		sc.fullPath,
-		metrics,
+		&metrics,
 	)
 
 	// TODO: Insert correct ID for CollectionProgress
@@ -176,12 +180,23 @@ func (sc *prefetchCollection) streamLists(
 		wg.Add(1)
 		semaphoreCh <- struct{}{}
 
-		sc.handleListItems(ctx, semaphoreCh, progress, listID, el, &metrics)
-
-		wg.Done()
+		go sc.handleListItems(
+			ctx,
+			semaphoreCh,
+			progress,
+			&wg,
+			listID,
+			&objects,
+			&objectBytes,
+			&objectSuccesses,
+			el)
 	}
 
 	wg.Wait()
+
+	metrics.Objects = int(objects)
+	metrics.Bytes = objectBytes
+	metrics.Successes = int(objectSuccesses)
 }
 
 func (sc *prefetchCollection) retrievePages(
@@ -199,7 +214,7 @@ func (sc *prefetchCollection) retrievePages(
 		sc.stream,
 		sc.statusUpdater,
 		sc.fullPath,
-		metrics,
+		&metrics,
 	)
 
 	// TODO: Insert correct ID for CollectionProgress
@@ -270,10 +285,14 @@ func (sc *prefetchCollection) handleListItems(
 	ctx context.Context,
 	semaphoreCh chan struct{},
 	progress chan<- struct{},
+	wg *sync.WaitGroup,
 	listID string,
+	objects *int64,
+	objectBytes *int64,
+	objectSuccesses *int64,
 	el *fault.Bus,
-	metrics *support.CollectionMetrics,
 ) {
+	defer wg.Done()
 	defer func() { <-semaphoreCh }()
 
 	var (
@@ -290,7 +309,7 @@ func (sc *prefetchCollection) handleListItems(
 		return
 	}
 
-	metrics.Objects++
+	atomic.AddInt64(objects, 1)
 
 	entryBytes, err := serializeContent(ctx, list)
 	if err != nil {
@@ -304,8 +323,8 @@ func (sc *prefetchCollection) handleListItems(
 		return
 	}
 
-	metrics.Bytes += size
-	metrics.Successes++
+	atomic.AddInt64(objectBytes, size)
+	atomic.AddInt64(objectSuccesses, 1)
 
 	rc := io.NopCloser(bytes.NewReader(entryBytes))
 	itemInfo := details.ItemInfo{
@@ -349,7 +368,7 @@ func finishPopulation(
 	stream chan data.Item,
 	su support.StatusUpdater,
 	fullPath path.Path,
-	metrics support.CollectionMetrics,
+	metrics *support.CollectionMetrics,
 ) {
 	close(stream)
 
@@ -357,7 +376,7 @@ func finishPopulation(
 		ctx,
 		support.Backup,
 		1, // 1 folder
-		metrics,
+		*metrics,
 		fullPath.Folder(false))
 
 	logger.Ctx(ctx).Debug(status.String())
