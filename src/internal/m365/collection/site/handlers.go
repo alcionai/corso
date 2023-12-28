@@ -20,7 +20,7 @@ type backupHandler interface {
 // canonicalPath constructs the service and category specific path for
 // the given builder.
 type canonicalPather interface {
-	canonicalPath(
+	CanonicalPath(
 		storageDir path.Elements,
 		tenantID string,
 	) (path.Path, error)
