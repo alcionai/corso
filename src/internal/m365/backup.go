@@ -197,6 +197,10 @@ func (ctrl *Controller) GetMetadataPaths(
 			if err != nil {
 				return nil, err
 			}
+		case reason.Service() == path.SharePointService && reason.Category() == path.ListsCategory:
+			for _, fn := range sharepoint.ListsMetadataFileNames() {
+				filePaths = append(filePaths, []string{fn})
+			}
 		default:
 			for _, fn := range bupMD.AllMetadataFileNames() {
 				filePaths = append(filePaths, []string{fn})

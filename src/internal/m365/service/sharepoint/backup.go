@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -139,4 +140,8 @@ func ProduceBackupCollections(
 	}
 
 	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
+}
+
+func ListsMetadataFileNames() []string {
+	return []string{metadata.PreviousPathFileName}
 }
