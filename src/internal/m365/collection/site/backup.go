@@ -159,6 +159,7 @@ func CollectLists(
 	var (
 		el        = errs.Local()
 		spcs      = make([]data.BackupCollection, 0)
+		spcsMap   = make(map[string]data.BackupCollection)
 		acc       = api.CallConfig{Select: idAnd("list")}
 		currPaths = map[string]string{}
 		prevPath  path.Path
@@ -170,6 +171,8 @@ func CollectLists(
 	}
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
+
+	tombstones := makeTombstones(dps)
 
 	lists, err := bh.GetItems(ctx, acc)
 	if err != nil {
@@ -186,6 +189,8 @@ func CollectLists(
 		}
 
 		listID := ptr.Val(list.GetId())
+
+		delete(tombstones, listID)
 
 		storageDir := path.Elements{listID}
 
@@ -220,10 +225,12 @@ func CollectLists(
 			counter.Local())
 		collection.AddItem(ptr.Val(list.GetId()))
 
-		spcs = append(spcs, collection)
+		spcsMap[storageDir.String()] = collection
 
 		currPaths[storageDir.String()] = currPath.String()
 	}
+
+	handleTombstones(ctx, bpc, tombstones, spcsMap, counter, el)
 
 	pathPrefix, err := path.BuildMetadata(
 		tenantID,
@@ -247,9 +254,51 @@ func CollectLists(
 		return nil, false, clues.WrapWC(ctx, err, "making metadata collection")
 	}
 
-	spcs = append(spcs, col)
+	spcsMap["metadata"] = col
+
+	for _, spc := range spcsMap {
+		spcs = append(spcs, spc)
+	}
 
 	return spcs, canUsePreviousBackup, el.Failure()
+}
+
+func handleTombstones(
+	ctx context.Context,
+	bpc inject.BackupProducerConfig,
+	tombstones map[string]string,
+	spcsMap map[string]data.BackupCollection,
+	counter *count.Bus,
+	el *fault.Bus,
+) {
+	for id, p := range tombstones {
+		if el.Failure() != nil {
+			return
+		}
+
+		ctx := clues.Add(ctx, "tombstone_id", id)
+
+		if spcsMap[id] != nil {
+			err := clues.NewWC(ctx, "conflict: tombstone exists for a live collection").Label(count.CollectionTombstoneConflict)
+			el.AddRecoverable(ctx, err)
+
+			continue
+		}
+
+		if len(p) == 0 {
+			continue
+		}
+
+		prevPath, err := pathFromPrevString(p)
+		if err != nil {
+			err := clues.StackWC(ctx, err).Label(count.BadPrevPath)
+			logger.CtxErr(ctx, err).Error("parsing tombstone prev path")
+
+			continue
+		}
+
+		spcsMap[id] = data.NewTombstoneCollection(prevPath, bpc.Options, counter.Local())
+	}
 }
 
 func idAnd(ss ...string) []string {
