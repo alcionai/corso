@@ -7,7 +7,7 @@ on:
   pull_request:
 
   push:
-    branches: [main]
+    branches: [main, bump-mpb]
     tags: ["v*.*.*"]
 
   repository_dispatch:
