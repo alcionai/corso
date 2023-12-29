@@ -397,7 +397,7 @@ func UpdateLinkShares(
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
-			oldLinkShareIDToNewID.Store(ls.ID, "") // empty to signify that we could not restore
+			oldLinkShareIDToNewID.Store(ls.ID, nonRestorablePermission)
 			logger.CtxErr(ictx, err).Info("unable to restore link share")
 
 			continue
