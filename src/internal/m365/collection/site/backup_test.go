@@ -51,7 +51,6 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 	var (
 		statusUpdater = func(*support.ControllerOperationStatus) {}
 		siteID        = tconfig.M365SiteID(t)
-		a             = tconfig.NewM365Account(t)
 		sel           = selectors.NewSharePointBackup([]string{siteID})
 	)
 
@@ -94,14 +93,11 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			creds, err := a.M365Config()
-			require.NoError(t, err, clues.ToCore(err))
-
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			ac, err := api.NewClient(
-				creds,
+				suite.creds,
 				control.DefaultOptions(),
 				count.New())
 			require.NoError(t, err, clues.ToCore(err))
@@ -117,7 +113,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 				test.mock,
 				bpc,
 				ac,
-				creds.AzureTenantID,
+				suite.creds.AzureTenantID,
 				sel.Lists(selectors.Any())[0],
 				statusUpdater,
 				count.New(),
@@ -133,8 +129,6 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 					metadatas++
 					continue
 				}
-
-				// [TODO]: check deleted state when incremental is implemented for lists
 
 				if c.State() == data.NewState {
 					newStates++
@@ -153,21 +147,17 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 	var (
 		statusUpdater = func(*support.ControllerOperationStatus) {}
 		siteID        = tconfig.M365SiteID(t)
-		a             = tconfig.NewM365Account(t)
 		sel           = selectors.NewSharePointBackup([]string{siteID})
 	)
 
-	creds, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
 	ac, err := api.NewClient(
-		creds,
+		suite.creds,
 		control.DefaultOptions(),
 		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 
 	listPathOne, err := path.Build(
-		creds.AzureTenantID,
+		suite.creds.AzureTenantID,
 		siteID,
 		path.SharePointService,
 		path.ListsCategory,
@@ -176,7 +166,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	listPathThree, err := path.Build(
-		creds.AzureTenantID,
+		suite.creds.AzureTenantID,
 		siteID,
 		path.SharePointService,
 		path.ListsCategory,
@@ -263,7 +253,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 				siteMock.NewListHandler(test.lists, siteID, nil),
 				bpc,
 				ac,
-				creds.AzureTenantID,
+				suite.creds.AzureTenantID,
 				sel.Lists(selectors.Any())[0],
 				statusUpdater,
 				test.lists,
@@ -274,14 +264,16 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Len(t, cs, test.expectColls, "number of collections")
 
-			newStates, notMovedStates, metadatas := 0, 0, 0
+			newStates, notMovedStates, metadatas, tombstoned := 0, 0, 0, 0
 			for _, c := range cs {
 				if c.FullPath() != nil && c.FullPath().Service() == path.SharePointMetadataService {
 					metadatas++
 					continue
 				}
 
-				// [TODO]: check deleted state when incremental is implemented for lists
+				if c.State() == data.DeletedState {
+					tombstoned++
+				}
 
 				if c.State() == data.NewState {
 					newStates++
@@ -295,6 +287,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 			assert.Equal(t, test.expectNewColls, newStates, "new collections")
 			assert.Equal(t, test.expectNotMovedColls, notMovedStates, "not moved collections")
 			assert.Equal(t, test.expectMetadataColls, metadatas, "metadata collections")
+			assert.Equal(t, test.expectTombstoneCols, tombstoned, "tombstone collections")
 		})
 	}
 }
