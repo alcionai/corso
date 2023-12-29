@@ -121,8 +121,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 				sel.Lists(selectors.Any())[0],
 				statusUpdater,
 				count.New(),
-				fault.New(false),
-			)
+				fault.New(false))
 
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Len(t, cs, test.expectColls, "number of collections")
@@ -270,8 +269,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 				test.lists,
 				test.deltaPaths,
 				count.New(),
-				fault.New(false),
-			)
+				fault.New(false))
 
 			test.expectErr(t, err, clues.ToCore(err))
 			assert.Len(t, cs, test.expectColls, "number of collections")

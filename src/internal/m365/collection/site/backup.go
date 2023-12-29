@@ -134,8 +134,7 @@ func CollectPages(
 			scope,
 			su,
 			bpc.Options,
-			nil,
-		)
+			nil)
 		collection.SetBetaService(betaService)
 		collection.AddItem(tuple.ID)
 
@@ -253,8 +252,7 @@ func populateListsCollections(
 			scope,
 			su,
 			bpc.Options,
-			counter.Local(),
-		)
+			counter.Local())
 		collection.AddItem(ptr.Val(list.GetId()))
 
 		spcsMap[storageDir.String()] = collection
@@ -347,6 +345,5 @@ func makeMetadataCollection(
 			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
 		},
 		su,
-		counter,
-	)
+		counter)
 }
