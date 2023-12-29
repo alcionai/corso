@@ -2,6 +2,7 @@ package drive
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/syncd"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
@@ -325,4 +327,250 @@ func (suite *PermissionsUnitTestSuite) TestLinkShareRestoreNonExistentUser() {
 
 	expectedSuccessValues := []bool{true, false, false, false}
 	assert.Equal(t, expectedSuccessValues, successValues)
+}
+
+func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermissions() {
+	table := []struct {
+		name               string
+		permissions        []metadata.Permission
+		expected           []metadata.Permission
+		availableEntities  AvailableEntities
+		skippedPermissions []string
+	}{
+		{
+			name: "single item",
+			permissions: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
+			},
+			expected: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
+			},
+			availableEntities: AvailableEntities{
+				Users: idname.NewCache(map[string]string{"e1": "e1"}),
+			},
+		},
+		{
+			name: "single item with missing entity",
+			permissions: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
+			},
+			expected: []metadata.Permission{},
+			availableEntities: AvailableEntities{
+				Users: idname.NewCache(map[string]string{}),
+			},
+			skippedPermissions: []string{"p1"},
+		},
+		{
+			name: "multiple items",
+			permissions: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
+				{ID: "p2", EntityID: "e2", EntityType: metadata.GV2User},
+				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2User},
+			},
+			expected: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
+				{ID: "p2", EntityID: "e2", EntityType: metadata.GV2User},
+				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2User},
+			},
+			availableEntities: AvailableEntities{
+				Users: idname.NewCache(map[string]string{"e1": "e1", "e2": "e2", "e3": "e3"}),
+			},
+		},
+		{
+			name: "multiple items with missing entity",
+			permissions: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
+				{ID: "p2", EntityID: "e2", EntityType: metadata.GV2User},
+				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2Group},
+			},
+			expected: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
+				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2Group},
+			},
+			availableEntities: AvailableEntities{
+				Users:  idname.NewCache(map[string]string{"e1": "e1"}),
+				Groups: idname.NewCache(map[string]string{"e3": "e3"}),
+			},
+			skippedPermissions: []string{"p2"},
+		},
+		{
+			name: "multiple items with missing entity and multiple types",
+			permissions: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
+				{ID: "p2", EntityID: "e2", EntityType: metadata.GV2User},
+				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2Group},
+				{ID: "p4", EntityID: "e4", EntityType: metadata.GV2Group},
+				{ID: "p5", EntityID: "e5", EntityType: metadata.GV2User},
+			},
+			expected: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
+				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2Group},
+				{ID: "p5", EntityID: "e5", EntityType: metadata.GV2User},
+			},
+			availableEntities: AvailableEntities{
+				Users:  idname.NewCache(map[string]string{"e1": "e1", "e5": "e5"}),
+				Groups: idname.NewCache(map[string]string{"e3": "e3"}),
+			},
+			skippedPermissions: []string{"p2", "p4"},
+		},
+		{
+			name: "single item different type",
+			permissions: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2Group},
+			},
+			expected: []metadata.Permission{},
+			availableEntities: AvailableEntities{
+				Users:  idname.NewCache(map[string]string{"e1": "e1"}),
+				Groups: idname.NewCache(map[string]string{}),
+			},
+			skippedPermissions: []string{"p1"},
+		},
+		{
+			name: "unhandled types",
+			permissions: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2Device},
+				{ID: "p2", EntityID: "e2", EntityType: metadata.GV2App},
+				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2SiteUser},
+				{ID: "p4", EntityID: "e4", EntityType: metadata.GV2SiteGroup},
+			},
+			expected: []metadata.Permission{
+				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2Device},
+				{ID: "p2", EntityID: "e2", EntityType: metadata.GV2App},
+				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2SiteUser},
+				{ID: "p4", EntityID: "e4", EntityType: metadata.GV2SiteGroup},
+			},
+			availableEntities: AvailableEntities{
+				// these are users and not what we have
+				Users: idname.NewCache(map[string]string{"e1": "e1", "e2": "e2", "e3": "e3", "e4": "e4"}),
+			},
+			skippedPermissions: []string{},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			oldToNew := syncd.NewMapTo[string]()
+			filtered := filterUnavailableEntitiesInPermissions(test.permissions, test.availableEntities, oldToNew)
+
+			assert.Equal(t, test.expected, filtered, "filtered permissions")
+
+			for _, id := range test.skippedPermissions {
+				_, ok := oldToNew.Load(id)
+				assert.True(t, ok, fmt.Sprintf("skipped id %s", id))
+			}
+		})
+	}
+}
+
+type eidtype struct {
+	id    string
+	etype metadata.GV2Type
+}
+
+func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInLinkShare() {
+	ls := func(lsid string, entities []eidtype) metadata.LinkShare {
+		ents := []metadata.Entity{}
+		for _, e := range entities {
+			ents = append(ents, metadata.Entity{ID: e.id, EntityType: e.etype})
+		}
+
+		return metadata.LinkShare{
+			ID:       lsid,
+			Entities: ents,
+		}
+	}
+
+	ae := func(uids, gids []string) AvailableEntities {
+		users := map[string]string{}
+		for _, id := range uids {
+			users[id] = id
+		}
+
+		groups := map[string]string{}
+		for _, id := range gids {
+			groups[id] = id
+		}
+
+		return AvailableEntities{
+			Users:  idname.NewCache(users),
+			Groups: idname.NewCache(groups),
+		}
+	}
+
+	table := []struct {
+		name              string
+		linkShares        []metadata.LinkShare
+		expected          []metadata.LinkShare
+		availableEntities AvailableEntities
+		skippedLinkShares []string
+	}{
+		{
+			name:              "single item, single available entity",
+			linkShares:        []metadata.LinkShare{ls("ls1", []eidtype{{"e1", metadata.GV2User}})},
+			expected:          []metadata.LinkShare{ls("ls1", []eidtype{{"e1", metadata.GV2User}})},
+			availableEntities: ae([]string{"e1"}, []string{}),
+		},
+		{
+			name:              "single item, single missing entity",
+			linkShares:        []metadata.LinkShare{ls("ls1", []eidtype{{"e1", metadata.GV2User}})},
+			expected:          []metadata.LinkShare{},
+			availableEntities: ae([]string{}, []string{}),
+			skippedLinkShares: []string{"ls1"},
+		},
+		{
+			name: "multiple items, multiple available entities",
+			linkShares: []metadata.LinkShare{
+				ls("ls1", []eidtype{{"e1", metadata.GV2User}, {"e2", metadata.GV2User}}),
+				ls("ls2", []eidtype{{"e3", metadata.GV2User}, {"e4", metadata.GV2User}}),
+			},
+			expected: []metadata.LinkShare{
+				ls("ls1", []eidtype{{"e1", metadata.GV2User}, {"e2", metadata.GV2User}}),
+				ls("ls2", []eidtype{{"e3", metadata.GV2User}, {"e4", metadata.GV2User}}),
+			},
+			availableEntities: ae([]string{"e1", "e2", "e3", "e4"}, []string{}),
+		},
+		{
+			name: "multiple items, missing entities",
+			linkShares: []metadata.LinkShare{
+				ls("ls1", []eidtype{{"e1", metadata.GV2User}, {"e2", metadata.GV2Group}}),
+				ls("ls2", []eidtype{{"e3", metadata.GV2User}, {"e4", metadata.GV2Group}}),
+			},
+			expected: []metadata.LinkShare{
+				ls("ls1", []eidtype{{"e1", metadata.GV2User}}),
+				ls("ls2", []eidtype{{"e4", metadata.GV2Group}}),
+			},
+			availableEntities: ae([]string{"e1"}, []string{"e4"}),
+			skippedLinkShares: []string{},
+		},
+		{
+			name: "unhandled items",
+			linkShares: []metadata.LinkShare{
+				ls("ls1", []eidtype{{"e1", metadata.GV2Device}, {"e2", metadata.GV2App}}),
+				ls("ls2", []eidtype{{"e3", metadata.GV2SiteUser}, {"e4", metadata.GV2SiteGroup}}),
+			},
+			expected: []metadata.LinkShare{
+				ls("ls1", []eidtype{{"e1", metadata.GV2Device}, {"e2", metadata.GV2App}}),
+				ls("ls2", []eidtype{{"e3", metadata.GV2SiteUser}, {"e4", metadata.GV2SiteGroup}}),
+			},
+			availableEntities: ae([]string{}, []string{}),
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			oldToNew := syncd.NewMapTo[string]()
+			filtered := filterUnavailableEntitiesInLinkShare(test.linkShares, test.availableEntities, oldToNew)
+
+			assert.Equal(t, test.expected, filtered, "filtered link shares")
+
+			for _, id := range test.skippedLinkShares {
+				_, ok := oldToNew.Load(id)
+				assert.True(t, ok, fmt.Sprintf("skipped id %s", id))
+			}
+		})
+	}
 }

@@ -21,6 +21,11 @@ type driveInfo struct {
 	rootFolderID string
 }
 
+type AvailableEntities struct {
+	Users  idname.Cacher
+	Groups idname.Cacher
+}
+
 type restoreCaches struct {
 	BackupDriveIDName     idname.Cacher
 	collisionKeyToItemID  map[string]api.DriveItemIDType
@@ -30,6 +35,7 @@ type restoreCaches struct {
 	OldLinkShareIDToNewID syncd.MapTo[string]
 	OldPermIDToNewID      syncd.MapTo[string]
 	ParentDirToMeta       syncd.MapTo[metadata.Metadata]
+	AvailableEntities     AvailableEntities
 
 	pool sync.Pool
 }
