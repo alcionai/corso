@@ -228,7 +228,7 @@ func Message(ctx context.Context, cfg ProgressCfg, msgs ...any) {
 				plain,
 				decor.WC{
 					W: len(plain) + 1,
-					C: decor.DidentRight,
+					C: decor.DindentRight,
 				})))
 
 	// Complete the bar immediately
@@ -315,7 +315,7 @@ func MessageWithCompletion(
 		mpb.SpinnerStyle(frames...).PositionLeft(),
 		mpb.PrependDecorators(
 			decor.Name("", decor.WC{W: cfg.Indent * 2}),
-			decor.Name(plain, decor.WC{W: progressBarWidth - cfg.Indent*2, C: decor.DidentRight}),
+			decor.Name(plain, decor.WC{W: progressBarWidth - cfg.Indent*2, C: decor.DindentRight}),
 			decor.Elapsed(decor.ET_STYLE_GO, decor.WC{W: 8})),
 		bfoc)
 
