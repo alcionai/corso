@@ -285,6 +285,7 @@ func UpdatePermissions(
 		if graph.IsErrUsersCannotBeResolved(err) {
 			oldPermIDToNewID.Store(p.ID, "") // empty to signify that we could not restore
 			logger.CtxErr(ictx, err).Info("Unable to restore permission")
+
 			continue
 		}
 
@@ -394,6 +395,7 @@ func UpdateLinkShares(
 		if graph.IsErrUsersCannotBeResolved(err) {
 			oldLinkShareIDToNewID.Store(ls.ID, "") // empty to signify that we could not restore
 			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+
 			continue
 		}
 
@@ -483,7 +485,7 @@ func RestorePermissions(
 		caches.OldLinkShareIDToNewID,
 		errs)
 	if err != nil {
-		return clues.Wrap(err, "updating link shares")
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "updating link shares"))
 	}
 
 	previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
@@ -517,5 +519,9 @@ func RestorePermissions(
 		return nil
 	}
 
-	return clues.Wrap(err, "updating permissions").OrNil()
+	if err != nil {
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "updating permissions"))
+	}
+
+	return nil
 }

@@ -591,7 +591,13 @@ func CreateRestoreFolders(
 		caches,
 		errs)
 
-	return id, err
+	if err != nil {
+		// We should not ideally get any errors as we mostly skip
+		// over them with a recoverable error. This is just in case.
+		errs.AddRecoverable(ctx, clues.Wrap(err, "restoring folder permissions"))
+	}
+
+	return id, nil
 }
 
 type folderRestorer interface {
