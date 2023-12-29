@@ -214,7 +214,7 @@ func UpdatePermissions(
 
 		pid, ok := oldPermIDToNewID.Load(p.ID)
 		if !ok {
-			logger.Ctx(ictx).Info("Unable to delete permission")
+			el.AddRecoverable(ictx, clues.NewWC(ictx, "finding updated permission id"))
 			continue
 		}
 
