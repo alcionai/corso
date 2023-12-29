@@ -214,7 +214,13 @@ func UpdatePermissions(
 
 		pid, ok := oldPermIDToNewID.Load(p.ID)
 		if !ok {
-			return clues.NewWC(ictx, "no new permission id")
+			logger.Ctx(ictx).Info("Unable to delete permission")
+			continue
+		}
+
+		if len(pid) == 0 {
+			// permission was not restored on parent and cannot be deleted
+			continue
 		}
 
 		err := udip.DeleteItemPermission(
@@ -277,7 +283,8 @@ func UpdatePermissions(
 
 		newPerm, err := udip.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
-			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+			oldPermIDToNewID.Store(p.ID, "") // empty to signify that we could not restore
+			logger.CtxErr(ictx, err).Info("Unable to restore permission")
 			continue
 		}
 
@@ -385,6 +392,7 @@ func UpdateLinkShares(
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
+			oldLinkShareIDToNewID.Store(ls.ID, "") // empty to signify that we could not restore
 			logger.CtxErr(ictx, err).Info("Unable to restore link share")
 			continue
 		}
