@@ -158,10 +158,10 @@ func CollectLists(
 		el         = errs.Local()
 		cl         = counter.Local()
 		spcs       = make([]data.BackupCollection, 0)
-		acc        = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
+		cfg        = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
 	)
 
-	lists, err := bh.GetItems(ctx, acc)
+	lists, err := bh.GetItems(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func CollectLists(
 			continue
 		}
 
-		lmt := list.GetLastModifiedDateTime()
+		modTime := ptr.Val(list.GetLastModifiedDateTime())
 
 		dir, err := path.Build(
 			tenantID,
@@ -188,7 +188,21 @@ func CollectLists(
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
-		if lmt.IsZero() {
+		lazyFetchCol := NewLazyFetchCollection(
+			bh,
+			dir,
+			su,
+			cl)
+
+		lazyFetchCol.AddItem(
+			ptr.Val(list.GetId()),
+			modTime)
+
+		collection = lazyFetchCol
+
+		// Always use lazyFetchCol.
+		// In case we receive zero mod time from graph fallback to prefetchCol.
+		if modTime.IsZero() {
 			prefetchCol := NewPrefetchCollection(
 				bh,
 				dir,
@@ -199,21 +213,9 @@ func CollectLists(
 
 			prefetchCol.AddItem(
 				ptr.Val(list.GetId()),
-				ptr.Val(lmt))
+				modTime)
 
 			collection = prefetchCol
-		} else {
-			lazyFetchCol := NewLazyFetchCollection(
-				bh,
-				dir,
-				su,
-				cl)
-
-			lazyFetchCol.AddItem(
-				ptr.Val(list.GetId()),
-				ptr.Val(lmt))
-
-			collection = lazyFetchCol
 		}
 
 		spcs = append(spcs, collection)
