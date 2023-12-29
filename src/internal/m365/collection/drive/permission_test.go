@@ -1,9 +1,12 @@
 package drive
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -12,7 +15,9 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type PermissionsUnitTestSuite struct {
@@ -168,4 +173,78 @@ func runComputeParentPermissionsTest(
 			assert.Equal(t, m, test.meta)
 		})
 	}
+}
+
+type mockUdip struct{}
+
+func (mockUdip) DeleteItemPermission(
+	ctx context.Context,
+	driveID, itemID, permissionID string,
+) error {
+	return nil
+}
+
+func (mockUdip) PostItemPermissionUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemInvitePostRequestBody,
+) (drives.ItemItemsItemInviteResponseable, error) {
+	err := graphTD.ODataErrWithMsg("InvalidRequest", string("One or more users could not be resolved"))
+	return nil, err
+}
+
+func (suite *PermissionsUnitTestSuite) TestPermissionRestoreNonExistentUser() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	err := UpdatePermissions(
+		ctx,
+		mockUdip{},
+		"drive-id",
+		"item-id",
+		[]metadata.Permission{{Roles: []string{"write"}, EntityID: "user-id"}},
+		[]metadata.Permission{},
+		syncd.NewMapTo[string](),
+		fault.New(true))
+
+	assert.NoError(t, err, "update permissions")
+}
+
+type mockUpils struct{}
+
+func (mockUpils) DeleteItemPermission(
+	ctx context.Context,
+	driveID, itemID, permissionID string,
+) error {
+	return nil
+}
+
+func (mockUpils) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
+	err := graphTD.ODataErrWithMsg("InvalidRequest", string("One or more users could not be resolved"))
+	return nil, err
+}
+
+func (suite *PermissionsUnitTestSuite) TestLinkShareRestoreNonExistentUser() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	_, err := UpdateLinkShares(
+		ctx,
+		mockUpils{},
+		"drive-id",
+		"item-id",
+		[]metadata.LinkShare{{Roles: []string{"write"}, Entities: []metadata.Entity{{ID: "user-id"}}}},
+		[]metadata.LinkShare{},
+		syncd.NewMapTo[string](),
+		fault.New(true))
+
+	assert.NoError(t, err, "update permissions")
 }
