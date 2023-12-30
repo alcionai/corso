@@ -207,6 +207,11 @@ func (mw RetryMiddleware) retryRequest(
 	// 1, there was a prior error OR the status code match retriable conditions.
 	// 3, the request method is retriable.
 	// 4, we haven't already hit maximum retries.
+
+	if resp != nil && resp.StatusCode == http.StatusBadRequest && IsErrInvalidRequest(priorErr, resp) {
+		logger.Ctx(ctx).Infof("retrying 400_invalid_request: %s", getRespDump(ctx, resp, true))
+	}
+
 	shouldRetry := (priorErr != nil || mw.isRetriableRespCode(ctx, resp) || IsErrInvalidRequest(priorErr, resp)) &&
 		mw.isRetriableRequest(req) &&
 		executionCount < mw.MaxRetries

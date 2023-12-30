@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -386,9 +387,20 @@ func downloadContent(
 	logger.CtxErr(ctx, err).Debug("url cache miss: refetching from API")
 	counter.Inc(count.URLCacheMiss)
 
-	di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
-	if err != nil {
-		return nil, clues.Wrap(err, "retrieving expired item")
+	// di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
+	// if err != nil {
+	// 	return nil, clues.Wrap(err, "retrieving expired item")
+	// }
+
+	var di models.DriveItemable
+
+	for i := 0; i < 1000000; i++ {
+		di, err := iaag.GetItem(ctx, driveID, ptr.Val(item.GetId()))
+		if err != nil {
+			return nil, clues.Wrap(err, "retrieving expired item")
+		}
+
+		logger.Ctx(ctx).Debugf("iteration %d item id %s\n ", i, ptr.Val(di.GetId()))
 	}
 
 	cdi := custom.ToCustomDriveItem(di)
