@@ -161,7 +161,8 @@ func (mw RetryMiddleware) Intercept(
 
 	retriable := IsErrTimeout(err) ||
 		IsErrConnectionReset(err) ||
-		mw.isRetriableRespCode(ctx, resp)
+		mw.isRetriableRespCode(ctx, resp) ||
+		IsErrInvalidRequest(err, resp)
 
 	if !retriable {
 		return resp, stackReq(ctx, req, resp, err).OrNil()
@@ -206,7 +207,7 @@ func (mw RetryMiddleware) retryRequest(
 	// 1, there was a prior error OR the status code match retriable conditions.
 	// 3, the request method is retriable.
 	// 4, we haven't already hit maximum retries.
-	shouldRetry := (priorErr != nil || mw.isRetriableRespCode(ctx, resp)) &&
+	shouldRetry := (priorErr != nil || mw.isRetriableRespCode(ctx, resp) || IsErrInvalidRequest(priorErr, resp)) &&
 		mw.isRetriableRequest(req) &&
 		executionCount < mw.MaxRetries
 

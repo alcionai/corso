@@ -52,7 +52,8 @@ const (
 	// This error occurs when an attempt is made to create a folder that has
 	// the same name as another folder in the same parent. Such duplicate folder
 	// names are not allowed by graph.
-	folderExists errorCode = "ErrorFolderExists"
+	folderExists   errorCode = "ErrorFolderExists"
+	invalidRequest errorCode = "invalidRequest"
 	// Some datacenters are returning this when we try to get the inbox of a user
 	// that doesn't exist.
 	invalidUser                 errorCode = "ErrorInvalidUser"
@@ -139,6 +140,14 @@ var (
 
 	ErrTokenExpired = clues.New("jwt token expired")
 )
+
+// IsErrInvalidRequest is to retry transient graph 400 errors with odata error code
+// set to invalidRequest.
+func IsErrInvalidRequest(err error, resp *http.Response) bool {
+	return resp != nil &&
+		resp.StatusCode == http.StatusBadRequest &&
+		parseODataErr(err).hasErrorCode(err, invalidRequest)
+}
 
 func IsErrApplicationThrottled(err error) bool {
 	return errors.Is(err, ErrApplicationThrottled) ||
