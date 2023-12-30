@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	stdpath "path"
+	"time"
 
 	"github.com/alcionai/clues"
 
@@ -131,7 +132,7 @@ func CollectPages(
 			su,
 			bpc.Options)
 		collection.SetBetaService(betaService)
-		collection.AddItem(tuple.ID)
+		collection.AddItem(tuple.ID, time.Now())
 
 		spcs = append(spcs, collection)
 	}
@@ -148,16 +149,19 @@ func CollectLists(
 	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
+	counter *count.Bus,
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
-		el   = errs.Local()
-		spcs = make([]data.BackupCollection, 0)
-		acc  = api.CallConfig{Select: idAnd("list")}
+		collection data.BackupCollection
+		el         = errs.Local()
+		cl         = counter.Local()
+		spcs       = make([]data.BackupCollection, 0)
+		cfg        = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
 	)
 
-	lists, err := bh.GetItems(ctx, acc)
+	lists, err := bh.GetItems(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +175,8 @@ func CollectLists(
 			continue
 		}
 
+		modTime := ptr.Val(list.GetLastModifiedDateTime())
+
 		dir, err := path.Build(
 			tenantID,
 			bpc.ProtectedResource.ID(),
@@ -182,14 +188,35 @@ func CollectLists(
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
-		collection := NewPrefetchCollection(
+		lazyFetchCol := NewLazyFetchCollection(
 			bh,
 			dir,
-			ac,
-			scope,
 			su,
-			bpc.Options)
-		collection.AddItem(ptr.Val(list.GetId()))
+			cl)
+
+		lazyFetchCol.AddItem(
+			ptr.Val(list.GetId()),
+			modTime)
+
+		collection = lazyFetchCol
+
+		// Always use lazyFetchCol.
+		// In case we receive zero mod time from graph fallback to prefetchCol.
+		if modTime.IsZero() {
+			prefetchCol := NewPrefetchCollection(
+				bh,
+				dir,
+				ac,
+				scope,
+				su,
+				bpc.Options)
+
+			prefetchCol.AddItem(
+				ptr.Val(list.GetId()),
+				modTime)
+
+			collection = prefetchCol
+		}
 
 		spcs = append(spcs, collection)
 	}
