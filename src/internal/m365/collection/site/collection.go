@@ -56,7 +56,8 @@ var (
 // SharePoint.Libraries collections are supported by the oneDrive.Collection
 // as the calls are identical for populating the Collection
 type prefetchCollection struct {
-	// stream is the container for each individual SharePoint item of (page/list)
+	// stream is a container for each individual SharePoint item (page/list) category,
+	// where the category type serves as the key, and the associated channel holds the items.
 	stream map[path.CategoryType]chan data.Item
 	// fullPath indicates the hierarchy within the collection
 	fullPath path.Path
