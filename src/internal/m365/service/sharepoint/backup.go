@@ -65,7 +65,8 @@ func ProduceBackupCollections(
 				creds.AzureTenantID,
 				scope,
 				su,
-				errs)
+				errs,
+				counter)
 			if err != nil {
 				el.AddRecoverable(ctx, err)
 				continue
