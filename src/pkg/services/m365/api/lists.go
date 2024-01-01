@@ -53,6 +53,7 @@ const (
 	// tracks to backup/restore supportability of `documentLibrary` templated lists
 	DocumentLibraryListTemplateName = "documentLibrary"
 	SharingLinksListTemplateName    = "sharingLinks"
+	AccessRequestsListTemplateName  = "accessRequest"
 )
 
 var addressFieldNames = []string{
@@ -91,6 +92,7 @@ var SkipListTemplates = keys.Set{
 	WebTemplateExtensionsListTemplateName: {},
 	DocumentLibraryListTemplateName:       {},
 	SharingLinksListTemplateName:          {},
+	AccessRequestsListTemplateName:        {},
 }
 
 // ---------------------------------------------------------------------------

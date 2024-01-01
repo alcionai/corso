@@ -791,6 +791,11 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 			template: SharingLinksListTemplateName,
 			expect:   assert.Error,
 		},
+		{
+			name:     "list with template accessRequest",
+			template: AccessRequestsListTemplateName,
+			expect:   assert.Error,
+		},
 	}
 
 	for _, test := range tests {
@@ -881,7 +886,7 @@ func getStoredListBytes(t *testing.T, template string) []byte {
 	defer writer.Close()
 
 	overrideListInfo := models.NewListInfo()
-	overrideListInfo.SetTemplate(ptr.To(WebTemplateExtensionsListTemplateName))
+	overrideListInfo.SetTemplate(ptr.To(template))
 
 	_, list := getFieldsDataAndList()
 	list.SetList(overrideListInfo)
