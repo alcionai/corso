@@ -20,7 +20,7 @@
     "@loadable/component": "^5.16.2",
     "@mdx-js/react": "^3.0.0",
     "animate.css": "^4.1.1",
-    "clsx": "2.0.0",
+    "clsx": "2.1.0",
     "docusaurus-plugin-image-zoom": "^1.0.1",
     "docusaurus-plugin-sass": "^0.2.5",
     "feather-icons": "^4.29.1",
