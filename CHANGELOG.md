@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+## [v0.18.0] (beta) - 2024-01-02
+
 ### Fixed
 - Handle the case where an email cannot be retrieved from Exchange due to an `ErrorInvalidRecipients` error. In
 this case, Corso will skip over the item but report this in the backup summary.
@@ -457,7 +459,8 @@ this case, Corso will skip over the item but report this in the backup summary.
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.18.0...HEAD
+[v0.18.0]: https://github.com/alcionai/corso/compare/v0.17.0...v0.18.0
 [v0.17.0]: https://github.com/alcionai/corso/compare/v0.16.0...v0.17.0
 [v0.16.0]: https://github.com/alcionai/corso/compare/v0.15.0...v0.16.0
 [v0.15.0]: https://github.com/alcionai/corso/compare/v0.14.0...v0.15.0
