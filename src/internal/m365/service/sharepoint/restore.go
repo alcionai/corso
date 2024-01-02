@@ -86,6 +86,19 @@ func (h *sharepointHandler) ConsumeRestoreCollections(
 				return nil, nil, clues.Wrap(err, "initializing restore caches")
 			}
 
+			users, ierr := h.apiClient.Users().GetAllIDsAndNames(ctx, errs)
+			if err != nil {
+				return nil, nil, clues.Wrap(ierr, "getting users")
+			}
+
+			groups, ierr := h.apiClient.Groups().GetAllIDsAndNames(ctx, errs)
+			if err != nil {
+				return nil, nil, clues.Wrap(ierr, "getting groups")
+			}
+
+			caches.AvailableEntities.Users = users
+			caches.AvailableEntities.Groups = groups
+
 			metrics, err = drive.RestoreCollection(
 				ictx,
 				lrh,

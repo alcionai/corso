@@ -77,6 +77,19 @@ func (h *onedriveHandler) ConsumeRestoreCollections(
 				"full_path", dc.FullPath())
 		)
 
+		users, err := h.apiClient.Users().GetAllIDsAndNames(ctx, errs)
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "getting users")
+		}
+
+		groups, err := h.apiClient.Groups().GetAllIDsAndNames(ctx, errs)
+		if err != nil {
+			return nil, nil, clues.Wrap(err, "getting groups")
+		}
+
+		caches.AvailableEntities.Users = users
+		caches.AvailableEntities.Groups = groups
+
 		metrics, err = drive.RestoreCollection(
 			ictx,
 			rh,

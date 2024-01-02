@@ -451,8 +451,11 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			oldToNew := syncd.NewMapTo[string]()
-			filtered := filterUnavailableEntitiesInPermissions(test.permissions, test.availableEntities, oldToNew)
+			filtered := filterUnavailableEntitiesInPermissions(ctx, test.permissions, test.availableEntities, oldToNew)
 
 			assert.Equal(t, test.expected, filtered, "filtered permissions")
 
@@ -562,8 +565,11 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInLinkShare(
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
 			oldToNew := syncd.NewMapTo[string]()
-			filtered := filterUnavailableEntitiesInLinkShare(test.linkShares, test.availableEntities, oldToNew)
+			filtered := filterUnavailableEntitiesInLinkShare(ctx, test.linkShares, test.availableEntities, oldToNew)
 
 			assert.Equal(t, test.expected, filtered, "filtered link shares")
 

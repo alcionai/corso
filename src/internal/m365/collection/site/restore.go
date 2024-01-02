@@ -51,19 +51,6 @@ func ConsumeRestoreCollections(
 		return nil, clues.Wrap(err, "initializing restore caches")
 	}
 
-	users, err := ac.Users().GetAllIDsAndNames(ctx, errs)
-	if err != nil {
-		return nil, clues.Wrap(err, "getting users")
-	}
-
-	groups, err := ac.Groups().GetAllIDsAndNames(ctx, errs)
-	if err != nil {
-		return nil, clues.Wrap(err, "getting groups")
-	}
-
-	caches.AvailableEntities.Users = users
-	caches.AvailableEntities.Groups = groups
-
 	// Reorder collections so that the parents directories are created
 	// before the child directories; a requirement for permissions.
 	data.SortRestoreCollections(dcs)
@@ -87,6 +74,19 @@ func ConsumeRestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
+			users, ierr := ac.Users().GetAllIDsAndNames(ctx, errs)
+			if err != nil {
+				return nil, clues.Wrap(ierr, "getting users")
+			}
+
+			groups, ierr := ac.Groups().GetAllIDsAndNames(ctx, errs)
+			if err != nil {
+				return nil, clues.Wrap(ierr, "getting groups")
+			}
+
+			caches.AvailableEntities.Users = users
+			caches.AvailableEntities.Groups = groups
+
 			metrics, err = drive.RestoreCollection(
 				ictx,
 				lrh,

@@ -450,11 +450,18 @@ func UpdateLinkShares(
 }
 
 func filterUnavailableEntitiesInLinkShare(
+	ctx context.Context,
 	linkShares []metadata.LinkShare,
 	availableEntities AvailableEntities,
 	oldLinkShareIDToNewID syncd.MapTo[string],
 ) []metadata.LinkShare {
 	filtered := []metadata.LinkShare{}
+
+	if availableEntities.Users == nil || availableEntities.Groups == nil {
+		// This should not be happening unless we missed to fill in the caches
+		logger.Ctx(ctx).Info("no available entities, not filtering link shares")
+		return linkShares
+	}
 
 	for _, p := range linkShares {
 		entities := []metadata.Entity{}
@@ -488,6 +495,7 @@ func filterUnavailableEntitiesInLinkShare(
 
 		// If we have no entities, we can't restore the link share
 		// and so we have to mark it as not restored.
+		// This is done to make sure we don't try to delete it later.
 		oldLinkShareIDToNewID.Store(p.ID, "")
 	}
 
@@ -495,10 +503,17 @@ func filterUnavailableEntitiesInLinkShare(
 }
 
 func filterUnavailableEntitiesInPermissions(
+	ctx context.Context,
 	perms []metadata.Permission,
 	availableEntities AvailableEntities,
 	oldPermIDToNewID syncd.MapTo[string],
 ) []metadata.Permission {
+	if availableEntities.Users == nil || availableEntities.Groups == nil {
+		// This should not be happening unless we missed to fill in the caches
+		logger.Ctx(ctx).Info("no available entities, not filtering link shares")
+		return perms
+	}
+
 	filtered := []metadata.Permission{}
 
 	for _, p := range perms {
@@ -559,7 +574,7 @@ func RestorePermissions(
 
 	if previousLinkShares != nil {
 		lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
-		lsAdded = filterUnavailableEntitiesInLinkShare(lsAdded, caches.AvailableEntities, caches.OldLinkShareIDToNewID)
+		lsAdded = filterUnavailableEntitiesInLinkShare(ctx, lsAdded, caches.AvailableEntities, caches.OldLinkShareIDToNewID)
 
 		// Link shares have to be updated before permissions as we have to
 		// use the information about if we had to reset the inheritance to
@@ -585,7 +600,7 @@ func RestorePermissions(
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
-	permAdded = filterUnavailableEntitiesInPermissions(permAdded, caches.AvailableEntities, caches.OldPermIDToNewID)
+	permAdded = filterUnavailableEntitiesInPermissions(ctx, permAdded, caches.AvailableEntities, caches.OldPermIDToNewID)
 
 	if didReset {
 		// In case we did a reset of permissions when restoring link
