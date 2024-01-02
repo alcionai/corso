@@ -46,7 +46,7 @@ func ConsumeRestoreCollections(
 		el             = errs.Local()
 	)
 
-	err := caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
+	err := caches.Populate(ctx, ac, lrh, rcc.ProtectedResource.ID(), errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "initializing restore caches")
 	}
@@ -74,19 +74,6 @@ func ConsumeRestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			users, ierr := ac.Users().GetAllIDsAndNames(ctx, errs)
-			if err != nil {
-				return nil, clues.Wrap(ierr, "getting users")
-			}
-
-			groups, ierr := ac.Groups().GetAllIDsAndNames(ctx, errs)
-			if err != nil {
-				return nil, clues.Wrap(ierr, "getting groups")
-			}
-
-			caches.AvailableEntities.Users = users
-			caches.AvailableEntities.Groups = groups
-
 			metrics, err = drive.RestoreCollection(
 				ictx,
 				lrh,

@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/syncd"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -69,8 +70,10 @@ func (rc *restoreCaches) AddDrive(
 // and adds their info to the caches.
 func (rc *restoreCaches) Populate(
 	ctx context.Context,
+	ac api.Client,
 	gdparf GetDrivePagerAndRootFolderer,
 	protectedResourceID string,
+	errs *fault.Bus,
 ) error {
 	drives, err := api.GetAllDrives(
 		ctx,
@@ -84,6 +87,19 @@ func (rc *restoreCaches) Populate(
 			return clues.Wrap(err, "caching drive")
 		}
 	}
+
+	users, err := ac.Users().GetAllIDsAndNames(ctx, errs)
+	if err != nil {
+		return clues.Wrap(err, "getting users")
+	}
+
+	groups, err := ac.Groups().GetAllIDsAndNames(ctx, errs)
+	if err != nil {
+		return clues.Wrap(err, "getting groups")
+	}
+
+	rc.AvailableEntities.Users = users
+	rc.AvailableEntities.Groups = groups
 
 	return nil
 }

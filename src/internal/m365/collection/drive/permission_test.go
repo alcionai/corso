@@ -346,7 +346,8 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
 			},
 			availableEntities: AvailableEntities{
-				Users: idname.NewCache(map[string]string{"e1": "e1"}),
+				Users:  idname.NewCache(map[string]string{"e1": "e1"}),
+				Groups: idname.NewCache(map[string]string{}),
 			},
 		},
 		{
@@ -356,7 +357,8 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 			},
 			expected: []metadata.Permission{},
 			availableEntities: AvailableEntities{
-				Users: idname.NewCache(map[string]string{}),
+				Users:  idname.NewCache(map[string]string{}),
+				Groups: idname.NewCache(map[string]string{}),
 			},
 			skippedPermissions: []string{"p1"},
 		},
@@ -373,7 +375,8 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2User},
 			},
 			availableEntities: AvailableEntities{
-				Users: idname.NewCache(map[string]string{"e1": "e1", "e2": "e2", "e3": "e3"}),
+				Users:  idname.NewCache(map[string]string{"e1": "e1", "e2": "e2", "e3": "e3"}),
+				Groups: idname.NewCache(map[string]string{}),
 			},
 		},
 		{
@@ -441,7 +444,8 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 			},
 			availableEntities: AvailableEntities{
 				// these are users and not what we have
-				Users: idname.NewCache(map[string]string{"e1": "e1", "e2": "e2", "e3": "e3", "e4": "e4"}),
+				Users:  idname.NewCache(map[string]string{"e1": "e1", "e2": "e2", "e3": "e3", "e4": "e4"}),
+				Groups: idname.NewCache(map[string]string{}),
 			},
 			skippedPermissions: []string{},
 		},

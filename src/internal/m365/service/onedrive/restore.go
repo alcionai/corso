@@ -53,7 +53,7 @@ func (h *onedriveHandler) ConsumeRestoreCollections(
 
 	ctx = clues.Add(ctx, "backup_version", rcc.BackupVersion)
 
-	err := caches.Populate(ctx, rh, rcc.ProtectedResource.ID())
+	err := caches.Populate(ctx, h.apiClient, rh, rcc.ProtectedResource.ID(), errs)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "initializing restore caches")
 	}
@@ -76,19 +76,6 @@ func (h *onedriveHandler) ConsumeRestoreCollections(
 				"category", dc.FullPath().Category(),
 				"full_path", dc.FullPath())
 		)
-
-		users, err := h.apiClient.Users().GetAllIDsAndNames(ctx, errs)
-		if err != nil {
-			return nil, nil, clues.Wrap(err, "getting users")
-		}
-
-		groups, err := h.apiClient.Groups().GetAllIDsAndNames(ctx, errs)
-		if err != nil {
-			return nil, nil, clues.Wrap(err, "getting groups")
-		}
-
-		caches.AvailableEntities.Users = users
-		caches.AvailableEntities.Groups = groups
 
 		metrics, err = drive.RestoreCollection(
 			ictx,
