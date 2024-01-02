@@ -62,6 +62,7 @@ func getLocationString(location models.Locationable) string {
 	}
 
 	nonEmpty := []string{}
+
 	for _, seg := range segments {
 		if len(seg) > 0 {
 			nonEmpty = append(nonEmpty, seg)
@@ -145,8 +146,10 @@ func getRecurrencePattern(recurrence models.PatternedRecurrenceable) (string, er
 		for _, day := range dow {
 			dowComponents = append(dowComponents, GraphToICalDOW[day.String()])
 		}
+
 		index := pat.GetIndex()
 		prefix := ""
+
 		if index != nil &&
 			(ptr.Val(freq) == models.RELATIVEMONTHLY_RECURRENCEPATTERNTYPE ||
 				ptr.Val(freq) == models.RELATIVEYEARLY_RECURRENCEPATTERNTYPE) {
@@ -211,6 +214,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	startString := data.GetStart().GetDateTime()
 	timeZone := data.GetStart().GetTimeZone()
+
 	if startString != nil {
 		start, err := getUTCTime(ptr.Val(startString), ptr.Val(timeZone))
 		if err != nil {
@@ -222,11 +226,11 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		} else {
 			event.SetStartAt(start)
 		}
-
 	}
 
 	endString := data.GetEnd().GetDateTime()
 	timeZone = data.GetEnd().GetTimeZone()
+
 	if endString != nil {
 		end, err := getUTCTime(ptr.Val(endString), ptr.Val(timeZone))
 		if err != nil {
@@ -267,14 +271,17 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	// Emojies seem to mess up the ics file
 	bodyPreview := ptr.Val(data.GetBodyPreview())
+
 	if data.GetBody() != nil {
 		description := ptr.Val(data.GetBody().GetContent())
 		contentType := data.GetBody().GetContentType().String()
+
 		if len(description) > 0 && contentType == "text" {
 			event.SetDescription(description)
 		} else {
 			// https://stackoverflow.com/a/859475
 			event.SetDescription(bodyPreview)
+
 			if contentType == "html" {
 				desc := strings.ReplaceAll(description, "\r\n", "")
 				desc = strings.ReplaceAll(desc, "\n", "")
@@ -286,6 +293,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	showAs := ptr.Val(data.GetShowAs()).String()
 	if len(showAs) > 0 && showAs != "unknown" {
 		var status ics.FreeBusyTimeType
+
 		switch showAs {
 		case "free":
 			status = ics.FreeBusyTimeTypeFree
@@ -334,6 +342,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		atype := attendee.GetTypeEscaped()
 		if atype != nil {
 			var role ics.ParticipationRole
+
 			switch atype.String() {
 			case "required":
 				role = ics.ParticipationRoleReqParticipant
@@ -356,6 +365,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			resp := ptr.Val(attendee.GetStatus().GetResponse()).String()
 			if len(resp) > 0 && resp != "none" {
 				var pstat ics.ParticipationStatus
+
 				switch resp {
 				case "accepted", "organizer":
 					pstat = ics.ParticipationStatusAccepted

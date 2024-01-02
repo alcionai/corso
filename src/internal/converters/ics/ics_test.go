@@ -159,7 +159,7 @@ func (suite *ICSUnitSuite) TestGetUTCTime() {
 			t, err := getUTCTime(tt.timestamp, tt.timezone)
 			tt.errCheck(suite.T(), err)
 
-			if tt.time != (time.Time{}) {
+			if !tt.time.Equal(time.Time{}) {
 				assert.Equal(suite.T(), tt.time, t)
 			}
 		})
@@ -758,6 +758,7 @@ func checkAttendee(t *testing.T, out, check, msg string) {
 	}
 
 	line := ""
+
 	for _, l := range strings.Split(out, "\r\n") {
 		if !strings.HasPrefix(l, "ATTENDEE") {
 			continue
@@ -852,6 +853,7 @@ func (suite *ICSUnitSuite) TestAttendees() {
 			e := baseEvent()
 
 			atts := make([]models.Attendeeable, len(tt.att))
+
 			for i, a := range tt.att {
 				att := models.NewAttendee()
 
@@ -918,8 +920,8 @@ func checkAttachment(t *testing.T, out, check, msg string) {
 			}
 
 			inAttachment = false
-			attachments = append(attachments, attachment)
 
+			attachments = append(attachments, attachment)
 		}
 	}
 
@@ -1042,12 +1044,13 @@ func (suite *ICSUnitSuite) TestAttachments() {
 			bts, err := writer.GetSerializedContent()
 			require.NoError(t, err, "getting serialized content")
 
-			parsed := map[string]interface{}{}
+			parsed := map[string]any{}
 			err = json.Unmarshal(bts, &parsed)
 			require.NoError(t, err, "unmarshalling json")
 
 			// could not add attachment content without doing this
 			atts := make([]map[string]any, len(tt.att))
+
 			for i, a := range tt.att {
 				att := map[string]any{
 					"@odata.type":  "#microsoft.graph.fileAttachment",
