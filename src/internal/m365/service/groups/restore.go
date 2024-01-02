@@ -109,7 +109,7 @@ func (h *groupsHandler) ConsumeRestoreCollections(
 				Selector:          rcc.Selector,
 			}
 
-			err = caches.Populate(ictx, h.apiClient, lrh, srcc.ProtectedResource.ID(), errs)
+			err = caches.Populate(ictx, h.apiClient.Users(), h.apiClient.Groups(), lrh, srcc.ProtectedResource.ID(), errs)
 			if err != nil {
 				return nil, nil, clues.Wrap(err, "initializing restore caches")
 			}

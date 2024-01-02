@@ -46,7 +46,7 @@ func ConsumeRestoreCollections(
 		el             = errs.Local()
 	)
 
-	err := caches.Populate(ctx, ac, lrh, rcc.ProtectedResource.ID(), errs)
+	err := caches.Populate(ctx, ac.Users(), ac.Groups(), lrh, rcc.ProtectedResource.ID(), errs)
 	if err != nil {
 		return nil, clues.Wrap(err, "initializing restore caches")
 	}

@@ -66,11 +66,15 @@ func (rc *restoreCaches) AddDrive(
 	return nil
 }
 
+type GetAllIDsAndNameser interface {
+	GetAllIDsAndNames(ctx context.Context, errs *fault.Bus) (idname.Cacher, error)
+}
+
 // Populate looks up drive items available to the protectedResource
 // and adds their info to the caches.
 func (rc *restoreCaches) Populate(
 	ctx context.Context,
-	ac api.Client,
+	usersGetter, groupsGetter GetAllIDsAndNameser,
 	gdparf GetDrivePagerAndRootFolderer,
 	protectedResourceID string,
 	errs *fault.Bus,
@@ -88,12 +92,12 @@ func (rc *restoreCaches) Populate(
 		}
 	}
 
-	users, err := ac.Users().GetAllIDsAndNames(ctx, errs)
+	users, err := usersGetter.GetAllIDsAndNames(ctx, errs)
 	if err != nil {
 		return clues.Wrap(err, "getting users")
 	}
 
-	groups, err := ac.Groups().GetAllIDsAndNames(ctx, errs)
+	groups, err := groupsGetter.GetAllIDsAndNames(ctx, errs)
 	if err != nil {
 		return clues.Wrap(err, "getting groups")
 	}
