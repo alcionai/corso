@@ -121,7 +121,8 @@ func (suite *SharePointSuite) TestCollectLists() {
 		creds.AzureTenantID,
 		sel.Lists(selectors.Any())[0],
 		(&MockGraphService{}).UpdateStatus,
-		fault.New(true))
+		fault.New(true),
+		count.New())
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Less(t, 0, len(col))
 }
