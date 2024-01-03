@@ -109,7 +109,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 					suite.ac,
 					suite.siteID,
 					suite.creds,
-					api.DocumentLibraryListTemplateName)
+					api.DocumentLibraryListTemplate)
 
 				return lrh, destName, mockData
 			},
@@ -123,7 +123,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 					suite.ac,
 					suite.siteID,
 					suite.creds,
-					api.WebTemplateExtensionsListTemplateName)
+					api.WebTemplateExtensionsListTemplate)
 
 				return lrh, destName, mockData
 			},

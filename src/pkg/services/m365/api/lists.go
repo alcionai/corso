@@ -48,12 +48,12 @@ const (
 	ReadOnlyOrHiddenFieldNamePrefix = "_"
 	DescoratorFieldNamePrefix       = "@"
 
-	WebTemplateExtensionsListTemplateName = "webTemplateExtensionsList"
+	WebTemplateExtensionsListTemplate = "webTemplateExtensionsList"
 	// This issue https://github.com/alcionai/corso/issues/4932
 	// tracks to backup/restore supportability of `documentLibrary` templated lists
-	DocumentLibraryListTemplateName = "documentLibrary"
-	SharingLinksListTemplateName    = "sharingLinks"
-	AccessRequestsListTemplateName  = "accessRequest"
+	DocumentLibraryListTemplate = "documentLibrary"
+	SharingLinksListTemplate    = "sharingLinks"
+	AccessRequestsListTemplate  = "accessRequest"
 )
 
 var addressFieldNames = []string{
@@ -89,10 +89,10 @@ var readOnlyFieldNames = keys.Set{
 }
 
 var SkipListTemplates = keys.Set{
-	WebTemplateExtensionsListTemplateName: {},
-	DocumentLibraryListTemplateName:       {},
-	SharingLinksListTemplateName:          {},
-	AccessRequestsListTemplateName:        {},
+	WebTemplateExtensionsListTemplate: {},
+	DocumentLibraryListTemplate:       {},
+	SharingLinksListTemplate:          {},
+	AccessRequestsListTemplate:        {},
 }
 
 // ---------------------------------------------------------------------------
