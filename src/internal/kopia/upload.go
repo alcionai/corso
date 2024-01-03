@@ -1204,12 +1204,12 @@ func traverseBaseDir(
 
 		curP, err := path.PrefixOrPathFromDataLayerPath(currentPath.String(), false)
 		if err != nil {
-			return clues.NewWC(ctx, "converting current path to path.Path")
+			return clues.WrapWC(ctx, err, "converting current path to path.Path")
 		}
 
 		oldP, err := path.PrefixOrPathFromDataLayerPath(oldDirPath.String(), false)
 		if err != nil {
-			return clues.NewWC(ctx, "converting old path to path.Path")
+			return clues.WrapWC(ctx, err, "converting old path to path.Path")
 		}
 
 		node.baseDir = dir
