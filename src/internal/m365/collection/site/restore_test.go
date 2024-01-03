@@ -109,7 +109,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 					suite.ac,
 					suite.siteID,
 					suite.creds,
-					api.DocumentLibraryListTemplateName)
+					api.DocumentLibraryListTemplate)
 
 				return lrh, destName, mockData
 			},
@@ -123,7 +123,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 					suite.ac,
 					suite.siteID,
 					suite.creds,
-					api.WebTemplateExtensionsListTemplateName)
+					api.WebTemplateExtensionsListTemplate)
 
 				return lrh, destName, mockData
 			},
@@ -168,7 +168,7 @@ func deleteList(
 	assert.NoError(t, err, "getting site lists", clues.ToCore(err))
 
 	for _, l := range lists {
-		if ptr.Val(l.GetDisplayName()) == deets.SharePoint.ItemName {
+		if ptr.Val(l.GetDisplayName()) == deets.SharePoint.List.Name {
 			isFound = true
 			deleteID = ptr.Val(l.GetId())
 
