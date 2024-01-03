@@ -391,7 +391,10 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 
 	for _, tt := range table {
 		suite.Run(tt.name, func() {
-			rec, err := getRecurrencePattern(tt.recurrence())
+			ctx, flush := tester.NewContext(suite.T())
+			defer flush()
+
+			rec, err := getRecurrencePattern(ctx, tt.recurrence())
 			tt.errCheck(suite.T(), err)
 
 			assert.Equal(suite.T(), tt.expect, rec)
@@ -749,9 +752,9 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 	}
 }
 
-// checkAttendee check the ATTENDEE field
+// checkAttendee checks the ATTENDEE field
 // This is required instead of a string check as the fields might
-// always be in the same order
+// not always be in the same order
 func checkAttendee(t *testing.T, out, check, msg string) {
 	splitFunc := func(c rune) bool {
 		return c == ';' || c == ':'

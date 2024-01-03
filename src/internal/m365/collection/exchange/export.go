@@ -49,12 +49,16 @@ func streamItems(
 
 	for _, rc := range drc {
 		ictx := clues.Add(ctx, "path_short_ref", rc.FullPath().ShortRef())
-
-		ext := ".eml"
 		category := rc.FullPath().Category()
+		ext := ""
 
-		if category == path.ContactsCategory {
+		switch category {
+		case path.EmailCategory:
+			ext = ".eml"
+		case path.ContactsCategory:
 			ext = ".vcf"
+		case path.EventsCategory:
+			ext = ".ics"
 		}
 
 		for item := range rc.Items(ictx, errs) {

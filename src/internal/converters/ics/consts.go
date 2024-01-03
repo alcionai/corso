@@ -1,6 +1,7 @@
 package ics
 
 var (
+	// Map from Graph API recurrence type to iCal recurrence type
 	GraphToICalIndex = map[string]int{
 		"first":  1,
 		"second": 2,
@@ -8,6 +9,8 @@ var (
 		"fourth": 4,
 		"last":   -1,
 	}
+
+	// Map from Graph API day of week representation to iCal day of week representation
 	GraphToICalDOW = map[string]string{
 		"sunday":    "SU",
 		"monday":    "MO",
@@ -19,6 +22,8 @@ var (
 	}
 )
 
+// Map from Window time zone to TZ database time zone
+// https://github.com/closeio/sync-engine/blob/1ce0e1ad0104a2ab2479da09b073c86f4feee5f9/inbox/events/timezones.py#L6
 var GraphTimeZoneToTZ = map[string]string{
 	"AUS Central Standard Time":       "Australia/Darwin",
 	"AUS Eastern Standard Time":       "Australia/Sydney",

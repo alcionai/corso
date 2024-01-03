@@ -45,7 +45,6 @@ func getLocationString(location models.Locationable) string {
 		return ""
 	}
 
-	loc := ""
 	dn := ptr.Val(location.GetDisplayName())
 	segments := []string{dn}
 
@@ -69,18 +68,13 @@ func getLocationString(location models.Locationable) string {
 		}
 	}
 
-	if len(nonEmpty) > 0 {
-		loc = strings.Join(nonEmpty, ", ")
-	}
-
-	return loc
+	return strings.Join(nonEmpty, ", ")
 }
 
 func getUTCTime(ts, tz string) (time.Time, error) {
-	// Timezone is always converted to UTC. We should do
-	// this everywhere. This is the easiest way to ensure we
-	// have the correct time everywhere and is the same(need
-	// to same according to spec).
+	// Timezone is always converted to UTC.  This is the easiest way to
+	// ensure we have the correct time as the .ics file expects the same
+	// timezone everywhere according to the spec.
 	it, err := dttm.ParseTime(ts)
 	if err != nil {
 		return time.Now(), clues.Wrap(err, "parsing time")
@@ -106,7 +100,10 @@ func getUTCTime(ts, tz string) (time.Time, error) {
 // https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10
 // https://learn.microsoft.com/en-us/graph/api/resources/patternedrecurrence?view=graph-rest-1.0
 // Ref: https://github.com/closeio/sync-engine/pull/381/files
-func getRecurrencePattern(recurrence models.PatternedRecurrenceable) (string, error) {
+func getRecurrencePattern(
+	ctx context.Context,
+	recurrence models.PatternedRecurrenceable,
+) (string, error) {
 	recurComponents := []string{}
 	pat := recurrence.GetPattern()
 
@@ -143,8 +140,14 @@ func getRecurrencePattern(recurrence models.PatternedRecurrenceable) (string, er
 	dow := pat.GetDaysOfWeek()
 	if dow != nil {
 		dowComponents := []string{}
+
 		for _, day := range dow {
-			dowComponents = append(dowComponents, GraphToICalDOW[day.String()])
+			icalday, ok := GraphToICalDOW[day.String()]
+			if !ok {
+				return "", clues.NewWC(ctx, "unknown day of week").With("day", day.String())
+			}
+
+			dowComponents = append(dowComponents, icalday)
 		}
 
 		index := pat.GetIndex()
@@ -246,7 +249,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	recurrence := data.GetRecurrence()
 	if recurrence != nil {
-		pattern, err := getRecurrencePattern(recurrence)
+		pattern, err := getRecurrencePattern(ctx, recurrence)
 		if err != nil {
 			return "", clues.WrapWC(ctx, err, "generating RRULE")
 		}
@@ -269,7 +272,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		event.SetSummary(ptr.Val(summary))
 	}
 
-	// Emojies seem to mess up the ics file
+	// TODO: Emojies currently don't seem to be read properly by Outlook
 	bodyPreview := ptr.Val(data.GetBodyPreview())
 
 	if data.GetBody() != nil {
