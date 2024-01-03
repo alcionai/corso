@@ -3,35 +3,17 @@ package errs
 import (
 	"errors"
 
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-// expose enums, rather than errors, for Is checks.  The enum should
-// map to a specific internal error that can be used for the actual
-// errors.Is comparison.
-type errEnum string
-
-const (
-	ApplicationThrottled      errEnum = "application-throttled"
-	BackupNotFound            errEnum = "backup-not-found"
-	InsufficientAuthorization errEnum = "insufficient-authorization"
-	RepoAlreadyExists         errEnum = "repository-already-exists"
-	ResourceNotAccessible     errEnum = "resource-not-accesible"
-	ResourceOwnerNotFound     errEnum = "resource-owner-not-found"
-	ServiceNotEnabled         errEnum = "service-not-enabled"
-)
-
 // map of enums to errors.  We might want to re-use an enum for multiple
-// internal errors (ex: "ServiceNotEnabled" may exist in both graph and
-// non-graph producers).
-var externalToInternal = map[errEnum][]error{
-	ApplicationThrottled:  {graph.ErrApplicationThrottled},
-	BackupNotFound:        {repository.ErrorBackupNotFound},
-	RepoAlreadyExists:     {repository.ErrorRepoAlreadyExists},
-	ResourceNotAccessible: {graph.ErrResourceLocked},
-	ResourceOwnerNotFound: {graph.ErrResourceOwnerNotFound},
-	ServiceNotEnabled:     {graph.ErrServiceNotEnabled},
+// internal errors.
+var externalToInternal = map[*core.Err][]error{
+	core.ErrBackupNotFound:        {repository.ErrorBackupNotFound},
+	core.ErrRepoAlreadyExists:     {repository.ErrorRepoAlreadyExists},
+	core.ErrResourceNotAccessible: {graph.ErrResourceLocked},
 }
 
 type ErrCheck func(error) bool
@@ -41,23 +23,27 @@ type ErrCheck func(error) bool
 // many places of error handling, we primarily rely on error comparison
 // checks.  This allows us to apply those comparison checks instead of relying
 // only on sentinels.
-var externalToInternalCheck = map[errEnum][]ErrCheck{
-	ApplicationThrottled:      {graph.IsErrApplicationThrottled},
-	ResourceNotAccessible:     {graph.IsErrResourceLocked},
-	ResourceOwnerNotFound:     {graph.IsErrItemNotFound},
-	InsufficientAuthorization: {graph.IsErrInsufficientAuthorization},
+var externalToInternalCheck = map[*core.Err][]ErrCheck{
+	core.ErrApplicationThrottled:      {graph.IsErrApplicationThrottled},
+	core.ErrResourceNotAccessible:     {graph.IsErrResourceLocked},
+	core.ErrResourceOwnerNotFound:     {graph.IsErrItemNotFound},
+	core.ErrInsufficientAuthorization: {graph.IsErrInsufficientAuthorization},
 }
 
 // Internal returns the internal errors and error checking functions which
 // match to the public error enum.
-func Internal(enum errEnum) ([]error, []ErrCheck) {
-	return externalToInternal[enum], externalToInternalCheck[enum]
+func Internal(ce *core.Err) ([]error, []ErrCheck) {
+	return externalToInternal[ce], externalToInternalCheck[ce]
 }
 
 // Is checks if the provided error contains an internal error that matches
 // the public error category.
-func Is(err error, enum errEnum) bool {
-	internalErrs, ok := externalToInternal[enum]
+func Is(err error, ce *core.Err) bool {
+	if errors.Is(err, ce) {
+		return true
+	}
+
+	internalErrs, ok := externalToInternal[ce]
 	if ok {
 		for _, target := range internalErrs {
 			if errors.Is(err, target) {
@@ -66,7 +52,7 @@ func Is(err error, enum errEnum) bool {
 		}
 	}
 
-	internalChecks, ok := externalToInternalCheck[enum]
+	internalChecks, ok := externalToInternalCheck[ce]
 	if ok {
 		for _, check := range internalChecks {
 			if check(err) {

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
@@ -23,36 +24,24 @@ func TestErrUnitSuite(t *testing.T) {
 
 func (suite *ErrUnitSuite) TestInternal_errs() {
 	table := []struct {
-		get    errEnum
+		get    *core.Err
 		expect []error
 	}{
 		{
-			get:    ApplicationThrottled,
-			expect: []error{graph.ErrApplicationThrottled},
-		},
-		{
-			get:    RepoAlreadyExists,
+			get:    core.ErrRepoAlreadyExists,
 			expect: []error{repository.ErrorRepoAlreadyExists},
 		},
 		{
-			get:    BackupNotFound,
+			get:    core.ErrBackupNotFound,
 			expect: []error{repository.ErrorBackupNotFound},
 		},
 		{
-			get:    ServiceNotEnabled,
-			expect: []error{graph.ErrServiceNotEnabled},
-		},
-		{
-			get:    ResourceOwnerNotFound,
-			expect: []error{graph.ErrResourceOwnerNotFound},
-		},
-		{
-			get:    ResourceNotAccessible,
+			get:    core.ErrResourceNotAccessible,
 			expect: []error{graph.ErrResourceLocked},
 		},
 	}
 	for _, test := range table {
-		suite.Run(string(test.get), func() {
+		suite.Run(test.get.Error(), func() {
 			// can't compare func signatures
 			errs, _ := Internal(test.get)
 			assert.ElementsMatch(suite.T(), test.expect, errs)
@@ -62,57 +51,56 @@ func (suite *ErrUnitSuite) TestInternal_errs() {
 
 func (suite *ErrUnitSuite) TestInternal_checks() {
 	table := []struct {
-		get             errEnum
+		get             *core.Err
 		err             error
 		expectHasChecks assert.ValueAssertionFunc
 		expect          assert.BoolAssertionFunc
 	}{
 		{
-			get:             ApplicationThrottled,
-			err:             graph.ErrApplicationThrottled,
+			get:             core.ErrApplicationThrottled,
+			err:             graphTD.ODataErr(string(graph.ApplicationThrottled)),
 			expectHasChecks: assert.NotEmpty,
 			expect:          assert.True,
 		},
 		{
-			get:             RepoAlreadyExists,
-			err:             graph.ErrApplicationThrottled,
+			get:             core.ErrRepoAlreadyExists,
+			err:             graphTD.ODataErr(string(graph.ApplicationThrottled)),
 			expectHasChecks: assert.Empty,
 			expect:          assert.False,
 		},
 		{
-			get:             BackupNotFound,
+			get:             core.ErrBackupNotFound,
 			err:             repository.ErrorBackupNotFound,
 			expectHasChecks: assert.Empty,
 			expect:          assert.False,
 		},
 		{
-			get:             ServiceNotEnabled,
-			err:             graph.ErrServiceNotEnabled,
-			expectHasChecks: assert.Empty,
-			expect:          assert.False,
-		},
-		{
-			get: ResourceOwnerNotFound,
-			// won't match, checks itemNotFound, which isn't an error enum
-			err:             graph.ErrResourceOwnerNotFound,
+			get:             core.ErrResourceOwnerNotFound,
+			err:             graphTD.ODataErr(string(graph.ItemNotFound)),
 			expectHasChecks: assert.NotEmpty,
-			expect:          assert.False,
+			expect:          assert.True,
 		},
 		{
-			get:             ResourceNotAccessible,
+			get:             core.ErrResourceOwnerNotFound,
+			err:             graphTD.ODataErr(string(graph.ErrorItemNotFound)),
+			expectHasChecks: assert.NotEmpty,
+			expect:          assert.True,
+		},
+		{
+			get:             core.ErrResourceNotAccessible,
 			err:             graph.ErrResourceLocked,
 			expectHasChecks: assert.NotEmpty,
 			expect:          assert.True,
 		},
 		{
-			get:             InsufficientAuthorization,
+			get:             core.ErrInsufficientAuthorization,
 			err:             graphTD.ODataErr(string(graph.AuthorizationRequestDenied)),
 			expectHasChecks: assert.NotEmpty,
 			expect:          assert.True,
 		},
 	}
 	for _, test := range table {
-		suite.Run(string(test.get), func() {
+		suite.Run(test.get.Error(), func() {
 			t := suite.T()
 
 			_, checks := Internal(test.get)
@@ -135,40 +123,28 @@ func (suite *ErrUnitSuite) TestInternal_checks() {
 
 func (suite *ErrUnitSuite) TestIs() {
 	table := []struct {
-		target errEnum
+		target *core.Err
 		err    error
 	}{
 		{
-			target: ApplicationThrottled,
-			err:    graph.ErrApplicationThrottled,
-		},
-		{
-			target: RepoAlreadyExists,
+			target: core.ErrRepoAlreadyExists,
 			err:    repository.ErrorRepoAlreadyExists,
 		},
 		{
-			target: BackupNotFound,
+			target: core.ErrBackupNotFound,
 			err:    repository.ErrorBackupNotFound,
 		},
 		{
-			target: ServiceNotEnabled,
-			err:    graph.ErrServiceNotEnabled,
-		},
-		{
-			target: ResourceOwnerNotFound,
-			err:    graph.ErrResourceOwnerNotFound,
-		},
-		{
-			target: ResourceNotAccessible,
+			target: core.ErrResourceNotAccessible,
 			err:    graph.ErrResourceLocked,
 		},
 		{
-			target: InsufficientAuthorization,
+			target: core.ErrInsufficientAuthorization,
 			err:    graphTD.ODataErr(string(graph.AuthorizationRequestDenied)),
 		},
 	}
 	for _, test := range table {
-		suite.Run(string(test.target), func() {
+		suite.Run(test.target.Error(), func() {
 			var (
 				w  = clues.Wrap(test.err, "wrap")
 				s  = clues.Stack(test.err)

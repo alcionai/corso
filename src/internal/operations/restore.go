@@ -27,11 +27,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -246,7 +246,7 @@ func (op *RestoreOperation) do(
 	}
 
 	if !enabled {
-		return nil, clues.WrapWC(ctx, graph.ErrServiceNotEnabled, "service not enabled for restore")
+		return nil, clues.StackWC(ctx, core.ErrServiceNotEnabled)
 	}
 
 	pcfg := observe.ProgressCfg{
