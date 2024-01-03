@@ -1,0 +1,67 @@
+{
+  "id": "AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEOAABBFDg0JJk7TY1fmsJrh7tNAADhLT4uAAA=",
+  "@odata.type": "#microsoft.graph.contact",
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('7ceb8e03-bdc5-4509-a136-457526165ec0')/contacts/$entity",
+  "@odata.etag": "W/\"EQAAABYAAABBFDg0JJk7TY1fmsJrh7tNAAFGKnME\"",
+  "categories": [],
+  "changeKey": "EQAAABYAAABBFDg0JJk7TY1fmsJrh7tNAAFGKnME",
+  "createdDateTime": "2023-07-17T10:42:56Z",
+  "lastModifiedDateTime": "2023-12-18T10:37:50Z",
+  "assistantName": "",
+  "birthday": "2012-09-11T11:59:00Z",
+  "businessAddress": {
+    "city": "Businss City",
+    "countryOrRegion": "Business Country",
+    "postalCode": "888888",
+    "state": "Business State",
+    "street": "Business Stree"
+  },
+  "businessPhones": [],
+  "children": [],
+  "companyName": "Company Name",
+  "department": "Mangrove",
+  "displayName": "Wo. Random Peterson Person Jr.",
+  "emailAddresses": [
+    {
+      "address": "mockemail@provider.com",
+      "name": "mockemail@provider.com"
+    },
+    {
+      "address": "anotheremail@place.com",
+      "name": "anotheremail@place.com"
+    }
+  ],
+  "fileAs": "",
+  "generation": "Jr.",
+  "givenName": "Random",
+  "homeAddress": {
+    "city": "City Name",
+    "countryOrRegion": "Country",
+    "postalCode": "090909",
+    "state": "Province Name",
+    "street": "Street Name"
+  },
+  "homePhones": [
+    "123091230921"
+  ],
+  "imAddresses": [
+    "immmm"
+  ],
+  "jobTitle": "Principal Dough Beater",
+  "manager": "",
+  "middleName": "Peterson",
+  "mobilePhone": "00000111111",
+  "nickName": "Mikey",
+  "officeLocation": "AhemBad",
+  "otherAddress": {
+    "street": "Another street"
+  },
+  "parentFolderId": "AQMkAGJiAGZhNjRlOC00OGI5LTQyNTItYjFkMy00NTJjMTgyZGZkMjQALgAAA0V2IruiJ9ZFvgAO6qBJFycBAEEUODQkmTtNjV_awmuHu00AAAIBDgAAAA==",
+  "personalNotes": "Note on dough stuff",
+  "spouseName": "Nona Ur Business",
+  "surname": "Person",
+  "title": "Wo.",
+  "yomiCompanyName": "Owchshclaw",
+  "yomiGivenName": "Aaaaa",
+  "yomiSurname": "Bbbbb"
+}

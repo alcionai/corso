@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	stdpath "path"
+	"time"
 
 	"github.com/alcionai/clues"
 
@@ -124,7 +125,7 @@ func CollectPages(
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating page collection path"))
 		}
 
-		collection := NewCollection(
+		collection := NewPrefetchCollection(
 			nil,
 			dir,
 			nil,
@@ -135,7 +136,7 @@ func CollectPages(
 			bpc.Options,
 			counter.Local())
 		collection.SetBetaService(betaService)
-		collection.AddItem(tuple.ID)
+		collection.AddItem(tuple.ID, time.Now())
 
 		spcs = append(spcs, collection)
 	}
@@ -157,11 +158,13 @@ func CollectLists(
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
-		el        = errs.Local()
-		spcs      = make([]data.BackupCollection, 0)
-		acc       = api.CallConfig{Select: idAnd("list")}
-		currPaths = map[string]string{}
-		prevPath  path.Path
+		collection data.BackupCollection
+		el         = errs.Local()
+		cl         = counter.Local()
+		spcs       = make([]data.BackupCollection, 0)
+		cfg        = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
+		currPaths  = map[string]string{}
+		prevPath   path.Path
 	)
 
 	dps, canUsePreviousBackup, err := parseListsMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
@@ -171,7 +174,7 @@ func CollectLists(
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
 
-	lists, err := bh.GetItems(ctx, acc)
+	lists, err := bh.GetItems(ctx, cfg)
 	if err != nil {
 		return nil, false, err
 	}
@@ -185,11 +188,9 @@ func CollectLists(
 			continue
 		}
 
-		listID := ptr.Val(list.GetId())
-
-		storageDir := path.Elements{listID}
-
 		var (
+			listID      = ptr.Val(list.GetId())
+			storageDir  = path.Elements{listID}
 			dp          = dps[storageDir.String()]
 			prevPathStr = dp.Path
 		)
@@ -208,17 +209,42 @@ func CollectLists(
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
-		collection := NewCollection(
+		modTime := ptr.Val(list.GetLastModifiedDateTime())
+
+		lazyFetchCol := NewLazyFetchCollection(
 			bh,
 			currPath,
 			prevPath,
 			storageDir.Builder(),
-			ac,
-			scope,
 			su,
-			bpc.Options,
-			counter.Local())
-		collection.AddItem(ptr.Val(list.GetId()))
+			cl)
+
+		lazyFetchCol.AddItem(
+			ptr.Val(list.GetId()),
+			modTime)
+
+		collection = lazyFetchCol
+
+		// Always use lazyFetchCol.
+		// In case we receive zero mod time from graph fallback to prefetchCol.
+		if modTime.IsZero() {
+			prefetchCol := NewPrefetchCollection(
+				bh,
+				currPath,
+				prevPath,
+				storageDir.Builder(),
+				ac,
+				scope,
+				su,
+				bpc.Options,
+				counter.Local())
+
+			prefetchCol.AddItem(
+				ptr.Val(list.GetId()),
+				modTime)
+
+			collection = prefetchCol
+		}
 
 		spcs = append(spcs, collection)
 

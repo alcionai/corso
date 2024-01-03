@@ -69,6 +69,7 @@ var (
 		SafeForTesting,
 		HumanReadable,
 		HumanReadableDriveItem,
+		M365DateTimeTimeZone,
 		Legacy,
 		TabularOutput,
 		ClippedHuman,
