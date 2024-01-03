@@ -21,6 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -138,6 +139,8 @@ func runSharepointBackupCategoryTest(suite *BackupSharepointE2ESuite, category s
 }
 
 func (suite *BackupSharepointE2ESuite) TestSharepointBackupCmd_siteNotFound_lists() {
+	// Issue: https://github.com/alcionai/corso/issues/4754
+	suite.T().Skip("un-skip test when lists support is enabled")
 	runSharepointBackupSiteNotFoundTest(suite, flags.DataLists)
 }
 
@@ -338,19 +341,34 @@ func runSharepointDetailsCmdTest(suite *PreparedBackupSharepointE2ESuite, catego
 	result := suite.dpnd.recorder.String()
 
 	i := 0
-	foundList := 0
+	findings := make(map[path.CategoryType]int)
 
-	for _, ent := range deets.Entries {
-		if ent.SharePoint != nil && ent.SharePoint.ItemName != "" {
-			suite.Run(fmt.Sprintf("detail %d", i), func() {
-				assert.Contains(suite.T(), result, ent.ShortRef)
-			})
-			foundList++
-			i++
+	incrementor := func(cond bool, cat path.CategoryType) {
+		if cond {
+			findings[cat]++
 		}
 	}
 
-	assert.GreaterOrEqual(t, foundList, 1)
+	for _, ent := range deets.Entries {
+		if ent.SharePoint == nil {
+			continue
+		}
+
+		isSharePointList := ent.SharePoint.ItemType == details.SharePointList
+		hasListName := isSharePointList && len(ent.SharePoint.List.Name) > 0
+		hasItemName := !isSharePointList && len(ent.SharePoint.ItemName) > 0
+
+		incrementor(hasListName, category)
+		incrementor(hasItemName, category)
+
+		suite.Run(fmt.Sprintf("detail %d", i), func() {
+			assert.Contains(suite.T(), result, ent.ShortRef)
+		})
+
+		i++
+	}
+
+	assert.GreaterOrEqual(t, findings[category], 1)
 }
 
 // ---------------------------------------------------------------------------

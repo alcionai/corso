@@ -75,15 +75,18 @@ func SharePointAllowedCategories() map[string]struct{} {
 
 func AddCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {
 	if len(cats) == 0 {
-		sel.Include(sel.LibraryFolders(selectors.Any()), sel.Lists(selectors.Any()))
+		// backup of sharepoint lists not enabled yet
+		// sel.Include(sel.LibraryFolders(selectors.Any()), sel.Lists(selectors.Any()))
+		sel.Include(sel.LibraryFolders(selectors.Any()))
 	}
 
 	for _, d := range cats {
 		switch d {
+		// backup of sharepoint lists not enabled yet
+		// case flags.DataLists:
+		// 	sel.Include(sel.Lists(selectors.Any()))
 		case flags.DataLibraries:
 			sel.Include(sel.LibraryFolders(selectors.Any()))
-		case flags.DataLists:
-			sel.Include(sel.Lists(selectors.Any()))
 		}
 	}
 

@@ -3,7 +3,9 @@ package site
 import (
 	"bytes"
 	"io"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	kioser "github.com/microsoft/kiota-serialization-json-go"
@@ -11,10 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/site/mock"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
+	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -25,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type SharePointCollectionSuite struct {
@@ -63,7 +68,7 @@ func TestSharePointCollectionSuite(t *testing.T) {
 
 // TestListCollection tests basic functionality to create
 // SharePoint collection and to use the data stream channel.
-func (suite *SharePointCollectionSuite) TestCollection_Items() {
+func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 	var (
 		tenant  = "some"
 		user    = "user"
@@ -75,6 +80,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 	tables := []struct {
 		name, itemName string
 		scope          selectors.SharePointScope
+		cat            path.CategoryType
 		getter         getItemByIDer
 		getDir         func(t *testing.T) path.Path
 		getItem        func(t *testing.T, itemName string) data.Item
@@ -82,6 +88,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 		{
 			name:     "List",
 			itemName: "MockListing",
+			cat:      path.ListsCategory,
 			scope:    sel.Lists(selectors.Any())[0],
 			getter:   &mock.ListHandler{},
 			getDir: func(t *testing.T) path.Path {
@@ -108,7 +115,9 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 				require.NoError(t, err, clues.ToCore(err))
 
 				info := &details.SharePointInfo{
-					ItemName: name,
+					List: &details.ListInfo{
+						Name: name,
+					},
 				}
 
 				data, err := data.NewPrefetchedItemWithInfo(
@@ -123,6 +132,7 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 		{
 			name:     "Pages",
 			itemName: "MockPages",
+			cat:      path.PagesCategory,
 			scope:    sel.Pages(selectors.Any())[0],
 			getter:   nil,
 			getDir: func(t *testing.T) path.Path {
@@ -160,14 +170,15 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			col := NewCollection(
+			col := NewPrefetchCollection(
 				test.getter,
 				test.getDir(t),
 				suite.ac,
 				test.scope,
 				nil,
 				control.DefaultOptions())
-			col.stream <- test.getItem(t, test.itemName)
+			col.stream[test.cat] = make(chan data.Item, collectionChannelBufferSize)
+			col.stream[test.cat] <- test.getItem(t, test.itemName)
 
 			readItems := []data.Item{}
 
@@ -185,7 +196,180 @@ func (suite *SharePointCollectionSuite) TestCollection_Items() {
 
 			assert.NotNil(t, info)
 			assert.NotNil(t, info.SharePoint)
-			assert.Equal(t, test.itemName, info.SharePoint.ItemName)
+
+			if test.cat == path.ListsCategory {
+				assert.Equal(t, test.itemName, info.SharePoint.List.Name)
+			}
 		})
 	}
+}
+
+func (suite *SharePointCollectionSuite) TestLazyCollection_Items() {
+	var (
+		t             = suite.T()
+		errs          = fault.New(true)
+		start         = time.Now().Add(-time.Second)
+		statusUpdater = func(*support.ControllerOperationStatus) {}
+	)
+
+	fullPath, err := path.Build(
+		"t", "pr", path.SharePointService, path.ListsCategory, false, "listid")
+	require.NoError(t, err, clues.ToCore(err))
+
+	tables := []struct {
+		name            string
+		items           map[string]time.Time
+		expectItemCount int
+		expectReads     []string
+	}{
+		{
+			name: "no lists",
+		},
+		{
+			name: "added lists",
+			items: map[string]time.Time{
+				"list1": start.Add(time.Minute),
+				"list2": start.Add(2 * time.Minute),
+				"list3": start.Add(3 * time.Minute),
+			},
+			expectItemCount: 3,
+			expectReads: []string{
+				"list1",
+				"list2",
+				"list3",
+			},
+		},
+	}
+
+	for _, test := range tables {
+		suite.Run(test.name, func() {
+			itemCount := 0
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			getter := &mock.ListHandler{}
+			defer getter.Check(t, test.expectReads)
+
+			col := &lazyFetchCollection{
+				stream:        make(chan data.Item),
+				fullPath:      fullPath,
+				items:         test.items,
+				getter:        getter,
+				statusUpdater: statusUpdater,
+			}
+
+			for item := range col.Items(ctx, errs) {
+				itemCount++
+
+				modTime, aok := test.items[item.ID()]
+				require.True(t, aok, "item must have been added: %q", item.ID())
+				assert.Implements(t, (*data.ItemModTime)(nil), item)
+				assert.Equal(t, modTime, item.(data.ItemModTime).ModTime(), "item mod time")
+
+				if slices.Contains(test.expectReads, item.ID()) {
+					r := item.ToReader()
+
+					_, err := io.ReadAll(r)
+					assert.NoError(t, err, clues.ToCore(err))
+
+					r.Close()
+
+					assert.Implements(t, (*data.ItemInfo)(nil), item)
+					info, err := item.(data.ItemInfo).Info()
+
+					assert.NoError(t, err, clues.ToCore(err))
+					assert.Equal(t, modTime, info.Modified(), "ItemInfo mod time")
+				}
+			}
+
+			assert.NoError(t, errs.Failure())
+			assert.Equal(
+				t,
+				test.expectItemCount,
+				itemCount,
+				"should see all expected items")
+		})
+	}
+}
+
+func (suite *SharePointCollectionSuite) TestLazyItem() {
+	var (
+		t   = suite.T()
+		now = time.Now()
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	lh := mock.ListHandler{}
+
+	li := data.NewLazyItemWithInfo(
+		ctx,
+		&lazyItemGetter{
+			itemID:  "itemID",
+			getter:  &lh,
+			modTime: now,
+		},
+		"itemID",
+		now,
+		count.New(),
+		fault.New(true))
+
+	assert.Equal(
+		t,
+		now,
+		li.ModTime(),
+		"item mod time")
+
+	r, err := readers.NewVersionedRestoreReader(li.ToReader())
+	require.NoError(t, err, clues.ToCore(err))
+
+	assert.Equal(t, readers.DefaultSerializationVersion, r.Format().Version)
+	assert.False(t, r.Format().DelInFlight)
+
+	readData, err := io.ReadAll(r)
+	require.NoError(t, err, "reading item data: %v", clues.ToCore(err))
+	assert.NotEmpty(t, readData, "read item data")
+
+	info, err := li.Info()
+	require.NoError(t, err, "getting item info: %v", clues.ToCore(err))
+	assert.Equal(t, now, info.Modified())
+}
+
+func (suite *SharePointCollectionSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlight() {
+	var (
+		t   = suite.T()
+		now = time.Now()
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	lh := mock.ListHandler{
+		Err: graph.ErrDeletedInFlight,
+	}
+
+	li := data.NewLazyItemWithInfo(
+		ctx,
+		&lazyItemGetter{
+			itemID:  "itemID",
+			getter:  &lh,
+			modTime: now,
+		},
+		"itemID",
+		now,
+		count.New(),
+		fault.New(true))
+
+	assert.False(t, li.Deleted(), "item shouldn't be marked deleted")
+	assert.Equal(
+		t,
+		now,
+		li.ModTime(),
+		"item mod time")
+
+	r, err := readers.NewVersionedRestoreReader(li.ToReader())
+	assert.ErrorIs(t, err, graph.ErrDeletedInFlight, "item should be marked deleted in flight")
+	assert.Nil(t, r)
 }

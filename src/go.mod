@@ -53,10 +53,13 @@ require (
 	gotest.tools/v3 v3.5.1
 )
 
+require github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
+
 require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/andybalholm/brotli v1.0.6 // indirect
+	github.com/arran4/golang-ical v0.2.3 // indirect
 	github.com/aws/aws-sdk-go v1.48.6 // indirect
 	github.com/cention-sany/utf7 v0.0.0-20170124080048-26cad61bd60a // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect

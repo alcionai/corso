@@ -378,35 +378,36 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 	}
 }
 
+// [TODO] uncomment the test cases once sharepoint list backup is enabled
 func (suite *SharePointUtilsSuite) TestAddSharepointCategories() {
 	table := []struct {
 		name           string
 		cats           []string
 		expectScopeLen int
 	}{
-		{
-			name:           "none",
-			cats:           []string{},
-			expectScopeLen: 2,
-		},
+		// {
+		// 	name:           "none",
+		// 	cats:           []string{},
+		// 	expectScopeLen: 2,
+		// },
 		{
 			name:           "libraries",
 			cats:           []string{flags.DataLibraries},
 			expectScopeLen: 1,
 		},
-		{
-			name:           "lists",
-			cats:           []string{flags.DataLists},
-			expectScopeLen: 1,
-		},
-		{
-			name: "all allowed",
-			cats: []string{
-				flags.DataLibraries,
-				flags.DataLists,
-			},
-			expectScopeLen: 2,
-		},
+		// {
+		// 	name:           "lists",
+		// 	cats:           []string{flags.DataLists},
+		// 	expectScopeLen: 1,
+		// },
+		// {
+		// 	name: "all allowed",
+		// 	cats: []string{
+		// 		flags.DataLibraries,
+		// 		flags.DataLists,
+		// 	},
+		// 	expectScopeLen: 2,
+		// },
 		{
 			name:           "bad inputs",
 			cats:           []string{"foo"},
