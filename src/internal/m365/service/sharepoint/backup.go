@@ -142,6 +142,9 @@ func ProduceBackupCollections(
 	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
 }
 
+// ListsMetadataFileNames only contains PreviousPathFileName
+// and not DeltaURLsFileName because graph apis do not have delta support
+// for Sharepoint Lists
 func ListsMetadataFileNames() []string {
 	return []string{metadata.PreviousPathFileName}
 }
