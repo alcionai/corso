@@ -9,8 +9,7 @@ import (
 )
 
 // map of enums to errors.  We might want to re-use an enum for multiple
-// internal errors (ex: "ServiceNotEnabled" may exist in both graph and
-// non-graph producers).
+// internal errors.
 var externalToInternal = map[*core.Err][]error{
 	core.ErrBackupNotFound:        {repository.ErrorBackupNotFound},
 	core.ErrRepoAlreadyExists:     {repository.ErrorRepoAlreadyExists},
