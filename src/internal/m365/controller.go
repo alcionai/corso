@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -255,7 +256,7 @@ func (r resourceGetter) GetResourceIDAndNameFrom(
 	id, name, err = r.getter.GetIDAndName(ctx, owner, api.CallConfig{})
 	if err != nil {
 		if graph.IsErrUserNotFound(err) {
-			return nil, clues.Stack(graph.ErrResourceOwnerNotFound, err)
+			return nil, clues.Stack(core.ErrResourceOwnerNotFound, err)
 		}
 
 		if graph.IsErrResourceLocked(err) {
@@ -266,7 +267,7 @@ func (r resourceGetter) GetResourceIDAndNameFrom(
 	}
 
 	if len(id) == 0 || len(name) == 0 {
-		return nil, clues.Stack(graph.ErrResourceOwnerNotFound)
+		return nil, clues.Stack(core.ErrResourceOwnerNotFound)
 	}
 
 	return idname.NewProvider(id, name), nil
