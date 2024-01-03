@@ -53,6 +53,8 @@ require (
 	gotest.tools/v3 v3.5.1
 )
 
+require github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
+
 require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
