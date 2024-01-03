@@ -109,6 +109,8 @@ func (suite *BackupSharepointE2ESuite) SetupSuite() {
 }
 
 func (suite *BackupSharepointE2ESuite) TestSharepointBackupCmd_lists() {
+	// Issue: https://github.com/alcionai/corso/issues/4754
+	suite.T().Skip("unskip when sharepoint lists support is enabled")
 	runSharepointBackupCategoryTest(suite, flags.DataLists)
 }
 
