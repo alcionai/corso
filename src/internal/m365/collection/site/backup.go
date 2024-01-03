@@ -160,13 +160,11 @@ func CollectLists(
 		currPaths = map[string]string{}
 	)
 
-	dps, canUsePreviousBackup, err := parseMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
+	// [TODO](hitesh) utilise deltapaths to determine list's state
+	_, canUsePreviousBackup, err := parseListsMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
 	if err != nil {
 		return nil, false, err
 	}
-
-	// [TODO] utilise deltapaths to determine list's state
-	_ = dps
 
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
 
