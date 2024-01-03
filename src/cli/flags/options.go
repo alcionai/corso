@@ -35,9 +35,9 @@ var (
 	ForceItemDataDownloadFV       bool
 	EnableImmutableIDFV           bool
 	FailFastFV                    bool
+	FailedItemsFV                 string
 	FetchParallelismFV            int
 	ListAlertsFV                  string
-	ListFailedItemsFV             string
 	ListSkippedItemsFV            string
 	ListRecoveredErrorsFV         string
 	NoStatsFV                     bool

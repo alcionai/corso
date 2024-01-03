@@ -334,7 +334,7 @@ func genericListCommand(
 		fe.PrintItems(
 			ctx,
 			!ifShow(flags.ListAlertsFV),
-			!ifShow(flags.ListFailedItemsFV),
+			!ifShow(flags.FailedItemsFV),
 			!ifShow(flags.ListSkippedItemsFV),
 			!ifShow(flags.ListRecoveredErrorsFV))
 
