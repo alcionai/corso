@@ -683,7 +683,7 @@ func mergeItemsFromBase(
 
 		rr, err := path.FromDataLayerPath(entry.RepoRef, true)
 		if err != nil {
-			return manifestAddedEntries, clues.NewWC(ctx, "parsing base item info path").
+			return manifestAddedEntries, clues.WrapWC(ctx, err, "parsing base item info path").
 				With("repo_ref", path.LoggableDir(entry.RepoRef))
 		}
 

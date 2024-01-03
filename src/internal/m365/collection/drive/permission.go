@@ -98,7 +98,7 @@ func computePreviousLinkShares(
 
 	parent, err := originDir.Dir()
 	if err != nil {
-		return nil, clues.NewWC(ctx, "getting parent")
+		return nil, clues.WrapWC(ctx, err, "getting parent")
 	}
 
 	for len(parent.Elements()) > 0 {
@@ -106,7 +106,7 @@ func computePreviousLinkShares(
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return nil, clues.NewWC(ictx, "transforming dir to drivePath")
+			return nil, clues.WrapWC(ictx, err, "transforming dir to drivePath")
 		}
 
 		if len(drivePath.Folders) == 0 {
@@ -126,7 +126,7 @@ func computePreviousLinkShares(
 
 		parent, err = parent.Dir()
 		if err != nil {
-			return nil, clues.NewWC(ictx, "getting parent")
+			return nil, clues.WrapWC(ictx, err, "getting parent")
 		}
 	}
 
@@ -156,14 +156,14 @@ func computePreviousMetadata(
 	for {
 		parent, err = parent.Dir()
 		if err != nil {
-			return metadata.Metadata{}, clues.NewWC(ctx, "getting parent")
+			return metadata.Metadata{}, clues.WrapWC(ctx, err, "getting parent")
 		}
 
 		ictx := clues.Add(ctx, "parent_dir", parent)
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return metadata.Metadata{}, clues.NewWC(ictx, "transforming dir to drivePath")
+			return metadata.Metadata{}, clues.WrapWC(ictx, err, "transforming dir to drivePath")
 		}
 
 		if len(drivePath.Folders) == 0 {
