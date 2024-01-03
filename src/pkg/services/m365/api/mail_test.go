@@ -481,7 +481,7 @@ func (suite *MailAPIIntgSuite) TestMail_PostAndGetAttachments() {
 		verify func(t *testing.T, item models.Messageable)
 	}{
 		{
-			name: "Single attachment",
+			name: "Single large attachment",
 			createMessage: func(
 				ctx context.Context,
 				t *testing.T,
