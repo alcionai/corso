@@ -48,7 +48,12 @@ const (
 	ReadOnlyOrHiddenFieldNamePrefix = "_"
 	DescoratorFieldNamePrefix       = "@"
 
-	WebTemplateExtensionsListTemplateName = "webTemplateExtensionsList"
+	WebTemplateExtensionsListTemplate = "webTemplateExtensionsList"
+	// This issue https://github.com/alcionai/corso/issues/4932
+	// tracks to backup/restore supportability of `documentLibrary` templated lists
+	DocumentLibraryListTemplate = "documentLibrary"
+	SharingLinksListTemplate    = "sharingLinks"
+	AccessRequestsListTemplate  = "accessRequest"
 )
 
 var addressFieldNames = []string{
@@ -84,7 +89,10 @@ var readOnlyFieldNames = keys.Set{
 }
 
 var SkipListTemplates = keys.Set{
-	WebTemplateExtensionsListTemplateName: {},
+	WebTemplateExtensionsListTemplate: {},
+	DocumentLibraryListTemplate:       {},
+	SharingLinksListTemplate:          {},
+	AccessRequestsListTemplate:        {},
 }
 
 // ---------------------------------------------------------------------------
@@ -260,8 +268,7 @@ func (c Lists) PostList(
 	// this ensure all columns, contentTypes are set to the newList
 	newList := ToListable(oldList, newListName)
 
-	if newList != nil &&
-		newList.GetList() != nil &&
+	if newList.GetList() != nil &&
 		SkipListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
 		return nil, clues.StackWC(ctx, ErrSkippableListTemplate)
 	}

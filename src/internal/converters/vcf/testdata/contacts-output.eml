@@ -1,0 +1,18 @@
+BEGIN:VCARD
+VERSION:4.0
+ADR;TYPE=home:;;Street Name;City Name;Province Name;090909;Country
+ADR;TYPE=work:;;Business Stree;Businss City;Business State;888888;Business Country
+ADR;TYPE=other:;;Another street;;;;
+BDAY:2012-09-11
+EMAIL:mockemail@provider.com
+EMAIL:anotheremail@place.com
+IMPP:immmm
+N:Person;Random;Peterson;Wo.;Jr.
+NICKNAME:Mikey
+NOTE:Note on dough stuff
+ORG:Company Name;Mangrove
+RELATED;TYPE=spouse:Nona Ur Business
+TEL;TYPE=cell:00000111111
+TEL;TYPE=home:123091230921
+TITLE:Principal Dough Beater
+END:VCARD
