@@ -79,8 +79,8 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 
 	tables := []struct {
 		name, itemName string
-		cat            path.CategoryType
 		scope          selectors.SharePointScope
+		cat            path.CategoryType
 		getter         getItemByIDer
 		getDir         func(t *testing.T) path.Path
 		getItem        func(t *testing.T, itemName string) data.Item
@@ -115,7 +115,9 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 				require.NoError(t, err, clues.ToCore(err))
 
 				info := &details.SharePointInfo{
-					ItemName: name,
+					List: &details.ListInfo{
+						Name: name,
+					},
 				}
 
 				data, err := data.NewPrefetchedItemWithInfo(
@@ -194,7 +196,10 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 
 			assert.NotNil(t, info)
 			assert.NotNil(t, info.SharePoint)
-			assert.Equal(t, test.itemName, info.SharePoint.ItemName)
+
+			if test.cat == path.ListsCategory {
+				assert.Equal(t, test.itemName, info.SharePoint.List.Name)
+			}
 		})
 	}
 }
