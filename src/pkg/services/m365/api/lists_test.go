@@ -771,24 +771,42 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 		listName = testdata.DefaultRestoreConfig("list_api_post_list").Location
 	)
 
-	writer := kjson.NewJsonSerializationWriter()
-	defer writer.Close()
+	tests := []struct {
+		name     string
+		template string
+		expect   assert.ErrorAssertionFunc
+	}{
+		{
+			name:     "list with template documentLibrary",
+			template: DocumentLibraryListTemplateName,
+			expect:   assert.Error,
+		},
+		{
+			name:     "list with template webTemplateExtensionsList",
+			template: WebTemplateExtensionsListTemplateName,
+			expect:   assert.Error,
+		},
+		{
+			name:     "list with template sharingLinks",
+			template: SharingLinksListTemplateName,
+			expect:   assert.Error,
+		},
+	}
 
-	overrideListInfo := models.NewListInfo()
-	overrideListInfo.SetTemplate(ptr.To(WebTemplateExtensionsListTemplateName))
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	_, list := getFieldsDataAndList()
-	list.SetList(overrideListInfo)
-
-	err := writer.WriteObjectValue("", list)
-	require.NoError(t, err)
-
-	oldListByteArray, err := writer.GetSerializedContent()
-	require.NoError(t, err)
-
-	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
-	require.Error(t, err)
-	assert.Equal(t, ErrCannotCreateWebTemplateExtension.Error(), err.Error())
+			_, err := acl.PostList(
+				ctx,
+				siteID,
+				listName,
+				getStoredListBytes(t, test.template),
+				fault.New(false))
+			require.Error(t, err)
+			assert.Equal(t, ErrSkippableListTemplate.Error(), err.Error())
+		})
+	}
 }
 
 func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
@@ -856,4 +874,23 @@ func getFieldsDataAndList() (map[string]any, *models.List) {
 	list.SetItems([]models.ListItemable{listItem})
 
 	return fieldsData, list
+}
+
+func getStoredListBytes(t *testing.T, template string) []byte {
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	overrideListInfo := models.NewListInfo()
+	overrideListInfo.SetTemplate(ptr.To(WebTemplateExtensionsListTemplateName))
+
+	_, list := getFieldsDataAndList()
+	list.SetList(overrideListInfo)
+
+	err := writer.WriteObjectValue("", list)
+	require.NoError(t, err)
+
+	storedListBytes, err := writer.GetSerializedContent()
+	require.NoError(t, err)
+
+	return storedListBytes
 }
