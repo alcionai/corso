@@ -13,7 +13,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-func parseMetadataCollections(
+func parseListsMetadataCollections(
 	ctx context.Context,
 	cat path.CategoryType,
 	colls []data.RestoreCollection,
