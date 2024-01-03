@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/alcionai/corso/src/internal/converters/eml"
+	"github.com/alcionai/corso/src/internal/converters/ics"
 	"github.com/alcionai/corso/src/internal/converters/vcf"
 )
 
@@ -37,6 +38,11 @@ func main() {
 			}
 		case "vcf":
 			out, err = vcf.FromJSON(context.Background(), body)
+			if err != nil {
+				log.Fatal(err)
+			}
+		case "ics":
+			out, err = ics.FromJSON(context.Background(), body)
 			if err != nil {
 				log.Fatal(err)
 			}

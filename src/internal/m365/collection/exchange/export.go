@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/converters/eml"
+	"github.com/alcionai/corso/src/internal/converters/ics"
 	"github.com/alcionai/corso/src/internal/converters/vcf"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -48,12 +49,16 @@ func streamItems(
 
 	for _, rc := range drc {
 		ictx := clues.Add(ctx, "path_short_ref", rc.FullPath().ShortRef())
-
-		ext := ".eml"
 		category := rc.FullPath().Category()
+		ext := ""
 
-		if category == path.ContactsCategory {
+		switch category {
+		case path.EmailCategory:
+			ext = ".eml"
+		case path.ContactsCategory:
 			ext = ".vcf"
+		case path.EventsCategory:
+			ext = ".ics"
 		}
 
 		for item := range rc.Items(ictx, errs) {
@@ -103,6 +108,20 @@ func streamItems(
 				outData, err = vcf.FromJSON(ctx, content)
 				if err != nil {
 					err = clues.Wrap(err, "converting to vcf")
+
+					logger.CtxErr(ctx, err).Info("processing collection item")
+
+					ch <- export.Item{
+						ID:    id,
+						Error: err,
+					}
+
+					continue
+				}
+			case path.EventsCategory:
+				outData, err = ics.FromJSON(ctx, content)
+				if err != nil {
+					err = clues.Wrap(err, "converting to ics")
 
 					logger.CtxErr(ctx, err).Info("processing collection item")
 
