@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/alcionai/clues"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
@@ -17,17 +19,52 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var _ data.BackupCollection = &Collection[graph.GetIDer, groupsItemer]{}
+var (
+	_ data.BackupCollection = &prefetchCollection[graph.GetIDer, groupsItemer]{}
+	_ data.BackupCollection = &lazyFetchCollection[graph.GetIDer, groupsItemer]{}
+)
 
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
 )
 
-type Collection[C graph.GetIDer, I groupsItemer] struct {
+// updateStatus is a utility function used to send the status update through
+// the channel.
+func updateStatus(
+	ctx context.Context,
+	statusUpdater support.StatusUpdater,
+	attempted int,
+	streamedItems int64,
+	totalBytes int64,
+	folderPath string,
+	err error,
+) {
+	status := support.CreateStatus(
+		ctx,
+		support.Backup,
+		1,
+		support.CollectionMetrics{
+			Objects:   attempted,
+			Successes: int(streamedItems),
+			Bytes:     totalBytes,
+		},
+		folderPath)
+
+	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
+
+	statusUpdater(status)
+}
+
+// -----------------------------------------------------------------------------
+// prefetchCollection
+// -----------------------------------------------------------------------------
+
+type prefetchCollection[C graph.GetIDer, I groupsItemer] struct {
 	data.BaseCollection
 	protectedResource string
 	stream            chan data.Item
@@ -35,7 +72,7 @@ type Collection[C graph.GetIDer, I groupsItemer] struct {
 	contains container[C]
 
 	// added is a list of existing item IDs that were added to a container
-	added map[string]struct{}
+	added map[string]time.Time
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
@@ -44,7 +81,6 @@ type Collection[C graph.GetIDer, I groupsItemer] struct {
 	statusUpdater support.StatusUpdater
 }
 
-// NewExchangeDataCollection creates an ExchangeDataCollection.
 // State of the collection is set as an observation of the current
 // and previous paths.  If the curr path is nil, the state is assumed
 // to be deleted.  If the prev path is nil, it is assumed newly created.
@@ -54,12 +90,26 @@ func NewCollection[C graph.GetIDer, I groupsItemer](
 	baseCol data.BaseCollection,
 	getAndAugment getItemAndAugmentInfoer[C, I],
 	protectedResource string,
-	added map[string]struct{},
+	added map[string]time.Time,
 	removed map[string]struct{},
 	contains container[C],
 	statusUpdater support.StatusUpdater,
-) Collection[C, I] {
-	collection := Collection[C, I]{
+	useLazyReader bool,
+) data.BackupCollection {
+	if useLazyReader {
+		return &lazyFetchCollection[C, I]{
+			BaseCollection:    baseCol,
+			added:             added,
+			contains:          contains,
+			getAndAugment:     getAndAugment,
+			removed:           removed,
+			statusUpdater:     statusUpdater,
+			stream:            make(chan data.Item, collectionChannelBufferSize),
+			protectedResource: protectedResource,
+		}
+	}
+
+	return &prefetchCollection[C, I]{
 		BaseCollection:    baseCol,
 		added:             added,
 		contains:          contains,
@@ -69,22 +119,14 @@ func NewCollection[C graph.GetIDer, I groupsItemer](
 		stream:            make(chan data.Item, collectionChannelBufferSize),
 		protectedResource: protectedResource,
 	}
-
-	return collection
 }
 
-// Items utility function to asynchronously execute process to fill data channel with
-// M365 exchange objects and returns the data channel
-func (col *Collection[C, I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
+func (col *prefetchCollection[C, I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
 	go col.streamItems(ctx, errs)
 	return col.stream
 }
 
-// ---------------------------------------------------------------------------
-// items() production
-// ---------------------------------------------------------------------------
-
-func (col *Collection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
+func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
 		streamedItems int64
 		totalBytes    int64
@@ -96,10 +138,19 @@ func (col *Collection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	ctx = clues.Add(ctx, "category", col.Category().String())
 
 	defer func() {
+		close(col.stream)
 		logger.Ctx(ctx).Infow(
 			"finished stream backup collection items",
 			"stats", col.Counter.Values())
-		col.finishPopulation(ctx, streamedItems, totalBytes, errs.Failure())
+
+		updateStatus(
+			ctx,
+			col.statusUpdater,
+			len(col.added)+len(col.removed),
+			streamedItems,
+			totalBytes,
+			col.FullPath().Folder(false),
+			errs.Failure())
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
@@ -212,28 +263,201 @@ func (col *Collection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	wg.Wait()
 }
 
-// finishPopulation is a utility function used to close a Collection's data channel
-// and to send the status update through the channel.
-func (col *Collection[C, I]) finishPopulation(
+// -----------------------------------------------------------------------------
+// lazyFetchCollection
+// -----------------------------------------------------------------------------
+
+type lazyFetchCollection[C graph.GetIDer, I groupsItemer] struct {
+	data.BaseCollection
+	protectedResource string
+	stream            chan data.Item
+
+	contains container[C]
+
+	// added is a list of existing item IDs that were added to a container
+	added map[string]time.Time
+	// removed is a list of item IDs that were deleted from, or moved out, of a container
+	removed map[string]struct{}
+
+	getAndAugment getItemAndAugmentInfoer[C, I]
+
+	statusUpdater support.StatusUpdater
+}
+
+func (col *lazyFetchCollection[C, I]) Items(
 	ctx context.Context,
-	streamedItems, totalBytes int64,
-	err error,
-) {
-	close(col.stream)
+	errs *fault.Bus,
+) <-chan data.Item {
+	go col.streamItems(ctx, errs)
+	return col.stream
+}
 
-	attempted := len(col.added) + len(col.removed)
-	status := support.CreateStatus(
+func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
+	var (
+		streamedItems int64
+		wg            sync.WaitGroup
+		colProgress   chan<- struct{}
+		el            = errs.Local()
+	)
+
+	ctx = clues.Add(ctx, "category", col.Category().String())
+
+	defer func() {
+		close(col.stream)
+		logger.Ctx(ctx).Infow(
+			"finished stream backup collection items",
+			"stats", col.Counter.Values())
+
+		updateStatus(
+			ctx,
+			col.statusUpdater,
+			len(col.added)+len(col.removed),
+			streamedItems,
+			0,
+			col.FullPath().Folder(false),
+			errs.Failure())
+	}()
+
+	if len(col.added)+len(col.removed) > 0 {
+		colProgress = observe.CollectionProgress(
+			ctx,
+			col.Category().HumanString(),
+			col.LocationPath().Elements())
+		defer close(colProgress)
+	}
+
+	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
+	defer close(semaphoreCh)
+
+	// delete all removed items
+	for id := range col.removed {
+		semaphoreCh <- struct{}{}
+
+		wg.Add(1)
+
+		go func(id string) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			col.stream <- data.NewDeletedItem(id)
+
+			atomic.AddInt64(&streamedItems, 1)
+			col.Counter.Inc(count.StreamItemsRemoved)
+
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
+		}(id)
+	}
+
+	// add any new items
+	for id, modTime := range col.added {
+		if el.Failure() != nil {
+			break
+		}
+
+		wg.Add(1)
+		semaphoreCh <- struct{}{}
+
+		go func(id string, modTime time.Time) {
+			defer wg.Done()
+			defer func() { <-semaphoreCh }()
+
+			ictx := clues.Add(
+				ctx,
+				"item_id", id,
+				"parent_path", path.LoggableDir(col.LocationPath().String()))
+
+			col.stream <- data.NewLazyItemWithInfo(
+				ictx,
+				&lazyItemGetter[C, I]{
+					modTime:       modTime,
+					getAndAugment: col.getAndAugment,
+					resourceID:    col.protectedResource,
+					itemID:        id,
+					containerIDs:  col.FullPath().Folders(),
+					contains:      col.contains,
+					parentPath:    col.LocationPath().String(),
+				},
+				id,
+				modTime,
+				col.Counter,
+				el)
+
+			atomic.AddInt64(&streamedItems, 1)
+
+			if colProgress != nil {
+				colProgress <- struct{}{}
+			}
+		}(id, modTime)
+	}
+
+	wg.Wait()
+}
+
+type lazyItemGetter[C graph.GetIDer, I groupsItemer] struct {
+	getAndAugment getItemAndAugmentInfoer[C, I]
+	resourceID    string
+	itemID        string
+	parentPath    string
+	containerIDs  path.Elements
+	modTime       time.Time
+	contains      container[C]
+}
+
+func (lig *lazyItemGetter[C, I]) GetData(
+	ctx context.Context,
+	errs *fault.Bus,
+) (io.ReadCloser, *details.ItemInfo, bool, error) {
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	item, info, err := lig.getAndAugment.getItem(
 		ctx,
-		support.Backup,
-		1,
-		support.CollectionMetrics{
-			Objects:   attempted,
-			Successes: int(streamedItems),
-			Bytes:     totalBytes,
-		},
-		col.FullPath().Folder(false))
+		lig.resourceID,
+		lig.containerIDs,
+		lig.itemID)
+	if err != nil {
+		// For items that were deleted in flight, add the skip label so that
+		// they don't lead to recoverable failures during backup.
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+			logger.CtxErr(ctx, err).Info("item deleted in flight. skipping")
 
-	logger.Ctx(ctx).Debugw("done streaming items", "status", status.String())
+			// Returning delInFlight as true here for correctness, although the caller is going
+			// to ignore it since we are returning an error.
+			return nil, nil, true, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
+		}
 
-	col.statusUpdater(status)
+		err = clues.WrapWC(ctx, err, "getting item data").Label(fault.LabelForceNoBackupCreation)
+		errs.AddRecoverable(ctx, err)
+
+		return nil, nil, false, err
+	}
+
+	lig.getAndAugment.augmentItemInfo(info, lig.contains.container)
+
+	if err := writer.WriteObjectValue("", item); err != nil {
+		err = clues.WrapWC(ctx, err, "writing item to serializer").Label(fault.LabelForceNoBackupCreation)
+		errs.AddRecoverable(ctx, err)
+
+		return nil, nil, false, err
+	}
+
+	itemData, err := writer.GetSerializedContent()
+	if err != nil {
+		err = clues.WrapWC(ctx, err, "serializing item").Label(fault.LabelForceNoBackupCreation)
+		errs.AddRecoverable(ctx, err)
+
+		return nil, nil, false, err
+	}
+
+	info.ParentPath = lig.parentPath
+	// Update the mod time to what we already told kopia about. This is required
+	// for proper details merging.
+	info.Modified = lig.modTime
+
+	return io.NopCloser(bytes.NewReader(itemData)),
+		&details.ItemInfo{Groups: info},
+		false,
+		nil
 }

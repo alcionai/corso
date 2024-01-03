@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/alcionai/clues"
-	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -23,13 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-// TODO: incremental support
-// multiple lines in this file are commented out so that
-// we can focus on v0 backups and re-integrate them later
-// for v1 incrementals.
-// since these lines represent otherwise standard boilerplate,
-// it's simpler to comment them for tracking than to delete
-// and re-discover them later.
+// TODO: incremental support for channels
 
 func CreateCollections[C graph.GetIDer, I groupsItemer](
 	ctx context.Context,
@@ -38,6 +31,7 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 	tenantID string,
 	scope selectors.GroupsScope,
 	su support.StatusUpdater,
+	useLazyReader bool,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
@@ -77,6 +71,7 @@ func CreateCollections[C graph.GetIDer, I groupsItemer](
 		containers,
 		scope,
 		cdps[scope.Category().PathType()],
+		useLazyReader,
 		bpc.Options,
 		counter,
 		errs)
@@ -99,6 +94,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 	containers []container[C],
 	scope selectors.GroupsScope,
 	dps metadata.DeltaPaths,
+	useLazyReader bool,
 	ctrlOpts control.Options,
 	counter *count.Bus,
 	errs *fault.Bus,
@@ -174,10 +170,9 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			continue
 		}
 
-		added := str.SliceToMap(maps.Keys(addAndRem.Added))
 		removed := str.SliceToMap(addAndRem.Removed)
 
-		cl.Add(count.ItemsAdded, int64(len(added)))
+		cl.Add(count.ItemsAdded, int64(len(addAndRem.Added)))
 		cl.Add(count.ItemsRemoved, int64(len(removed)))
 
 		if len(addAndRem.DU.URL) > 0 {
@@ -198,7 +193,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 		// deleted and then restored will have a different ID than they did
 		// originally.
 		for remove := range removed {
-			delete(added, remove)
+			delete(addAndRem.Added, remove)
 		}
 
 		edc := NewCollection(
@@ -211,12 +206,13 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 				cl),
 			bh,
 			qp.ProtectedResource.ID(),
-			added,
+			addAndRem.Added,
 			removed,
 			c,
-			statusUpdater)
+			statusUpdater,
+			useLazyReader)
 
-		collections[c.storageDirFolders.String()] = &edc
+		collections[c.storageDirFolders.String()] = edc
 
 		// add the current path for the container ID to be used in the next backup
 		// as the "previous path", for reference in case of a rename or relocation.

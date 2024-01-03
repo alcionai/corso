@@ -14,7 +14,7 @@ replace (
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
-	github.com/alcionai/clues v0.0.0-20231115004051-523cbddac8e8
+	github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-xray-sdk-go v1.8.3
 	github.com/cenkalti/backoff/v4 v4.2.1
@@ -53,10 +53,13 @@ require (
 	gotest.tools/v3 v3.5.1
 )
 
+require github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
+
 require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/andybalholm/brotli v1.0.6 // indirect
+	github.com/arran4/golang-ical v0.2.3 // indirect
 	github.com/aws/aws-sdk-go v1.48.6 // indirect
 	github.com/cention-sany/utf7 v0.0.0-20170124080048-26cad61bd60a // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect

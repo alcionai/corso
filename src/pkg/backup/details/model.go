@@ -67,7 +67,8 @@ func (dm DetailsModel) Paths() []string {
 	r := make([]string, 0, len(dm.Entries))
 
 	for _, ent := range dm.Entries {
-		if ent.Folder != nil || ent.isMetaFile() {
+		if ent.Folder != nil ||
+			ent.isMetaFile() {
 			continue
 		}
 
@@ -85,7 +86,8 @@ func (dm DetailsModel) Items() entrySet {
 
 	for i := 0; i < len(dm.Entries); i++ {
 		ent := dm.Entries[i]
-		if ent.Folder != nil || ent.isMetaFile() {
+		if ent.Folder != nil ||
+			ent.isMetaFile() {
 			continue
 		}
 

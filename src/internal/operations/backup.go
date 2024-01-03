@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -231,7 +232,7 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 
 	if !enabled {
 		// Return named error so that we can check for it in caller.
-		err = clues.Wrap(graph.ErrServiceNotEnabled, "service not enabled for backup")
+		err = clues.Stack(core.ErrServiceNotEnabled)
 		op.Errors.Fail(err)
 
 		return err
@@ -673,7 +674,7 @@ func mergeItemsFromBase(
 		errs)
 	if err != nil {
 		return manifestAddedEntries,
-			clues.NewWC(ctx, "fetching base details for backup")
+			clues.WrapWC(ctx, err, "fetching base details for backup")
 	}
 
 	for _, entry := range baseDeets.Items() {
@@ -683,7 +684,7 @@ func mergeItemsFromBase(
 
 		rr, err := path.FromDataLayerPath(entry.RepoRef, true)
 		if err != nil {
-			return manifestAddedEntries, clues.NewWC(ctx, "parsing base item info path").
+			return manifestAddedEntries, clues.WrapWC(ctx, err, "parsing base item info path").
 				With("repo_ref", path.LoggableDir(entry.RepoRef))
 		}
 

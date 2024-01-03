@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
+	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -54,6 +55,29 @@ func (suite *ExportUnitSuite) TestGetItems() {
 						&dataMock.Item{
 							ItemID: "id1",
 							Reader: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+						},
+					},
+				},
+			},
+			expectedItems: []export.Item{
+				{
+					ID:   "id1",
+					Name: "id1.eml",
+					Body: io.NopCloser(bytes.NewReader(emailBodyBytes)),
+				},
+			},
+		},
+		{
+			name:    "single item with special characters",
+			version: 1,
+			backingCollection: data.NoFetchRestoreCollection{
+				Collection: dataMock.Collection{
+					Path: p,
+					ItemData: []data.Item{
+						&dataMock.Item{
+							ItemID: "id1",
+							Reader: io.NopCloser(bytes.NewReader(
+								exchMock.MessageWithSpecialCharacters("special characters"))),
 						},
 					},
 				},

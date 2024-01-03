@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
@@ -201,7 +202,7 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 			name: "invalid id",
 			id:   uuid.NewString(),
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
 			},
 		},
 		{
@@ -215,7 +216,7 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 			name: "invalid displayName",
 			id:   "jabberwocky",
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
 			},
 		},
 	}

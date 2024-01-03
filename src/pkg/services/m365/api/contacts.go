@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
@@ -11,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/sanitize"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -252,10 +254,27 @@ func (c Contacts) DeleteItem(
 // Serialization
 // ---------------------------------------------------------------------------
 
-func BytesToContactable(bytes []byte) (models.Contactable, error) {
+func bytesToContactable(bytes []byte) (serialization.Parsable, error) {
 	v, err := CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
 	if err != nil {
-		return nil, clues.Wrap(err, "deserializing bytes to contact")
+		if !strings.Contains(err.Error(), invalidJSON) {
+			return nil, clues.Wrap(err, "deserializing bytes to message")
+		}
+
+		// If the JSON was invalid try sanitizing and deserializing again.
+		// Sanitizing should transform characters < 0x20 according to the spec where
+		// possible. The resulting JSON may still be invalid though.
+		bytes = sanitize.JSONBytes(bytes)
+		v, err = CreateFromBytes(bytes, models.CreateContactFromDiscriminatorValue)
+	}
+
+	return v, clues.Stack(err).OrNil()
+}
+
+func BytesToContactable(bytes []byte) (models.Contactable, error) {
+	v, err := bytesToContactable(bytes)
+	if err != nil {
+		return nil, clues.Stack(err)
 	}
 
 	return v.(models.Contactable), nil

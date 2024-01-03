@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	stdpath "path"
+	"time"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
@@ -122,14 +124,15 @@ func CollectPages(
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating page collection path"))
 		}
 
-		collection := NewCollection(
+		collection := NewPrefetchCollection(
+			nil,
 			dir,
 			ac,
 			scope,
 			su,
 			bpc.Options)
 		collection.SetBetaService(betaService)
-		collection.AddJob(tuple.ID)
+		collection.AddItem(tuple.ID, time.Now())
 
 		spcs = append(spcs, collection)
 	}
@@ -139,29 +142,40 @@ func CollectPages(
 
 func CollectLists(
 	ctx context.Context,
+	bh backupHandler,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
 	tenantID string,
 	scope selectors.SharePointScope,
 	su support.StatusUpdater,
 	errs *fault.Bus,
+	counter *count.Bus,
 ) ([]data.BackupCollection, error) {
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
-		el   = errs.Local()
-		spcs = make([]data.BackupCollection, 0)
+		collection data.BackupCollection
+		el         = errs.Local()
+		cl         = counter.Local()
+		spcs       = make([]data.BackupCollection, 0)
+		cfg        = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
 	)
 
-	lists, err := PreFetchLists(ctx, ac.Stable, bpc.ProtectedResource.ID())
+	lists, err := bh.GetItems(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, tuple := range lists {
+	for _, list := range lists {
 		if el.Failure() != nil {
 			break
 		}
+
+		if api.SkipListTemplates.HasKey(ptr.Val(list.GetList().GetTemplate())) {
+			continue
+		}
+
+		modTime := ptr.Val(list.GetLastModifiedDateTime())
 
 		dir, err := path.Build(
 			tenantID,
@@ -169,21 +183,53 @@ func CollectLists(
 			path.SharePointService,
 			path.ListsCategory,
 			false,
-			tuple.Name)
+			ptr.Val(list.GetId()))
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 		}
 
-		collection := NewCollection(
+		lazyFetchCol := NewLazyFetchCollection(
+			bh,
 			dir,
-			ac,
-			scope,
 			su,
-			bpc.Options)
-		collection.AddJob(tuple.ID)
+			cl)
+
+		lazyFetchCol.AddItem(
+			ptr.Val(list.GetId()),
+			modTime)
+
+		collection = lazyFetchCol
+
+		// Always use lazyFetchCol.
+		// In case we receive zero mod time from graph fallback to prefetchCol.
+		if modTime.IsZero() {
+			prefetchCol := NewPrefetchCollection(
+				bh,
+				dir,
+				ac,
+				scope,
+				su,
+				bpc.Options)
+
+			prefetchCol.AddItem(
+				ptr.Val(list.GetId()),
+				modTime)
+
+			collection = prefetchCol
+		}
 
 		spcs = append(spcs, collection)
 	}
 
 	return spcs, el.Failure()
+}
+
+func idAnd(ss ...string) []string {
+	id := []string{"id"}
+
+	if len(ss) == 0 {
+		return id
+	}
+
+	return append(id, ss...)
 }

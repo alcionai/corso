@@ -511,6 +511,13 @@ jobs:
             echo "Use len check instead of empty string comparison"
             exit 1
           fi
+      - name: Check for cases where errors are not propagated
+        run: |
+          # Using `grep .` as the exit codes are always true for correct grammar
+          if tree-grepper -q go '((if_statement (binary_expression) @_if (block (return_statement (expression_list (call_expression (selector_expression) @_fun ) @ret .)))) (#match? @_if "err != nil") (#match? @_fun "clues.NewWC"))' | grep .; then
+            echo "Make sure to propagate errors with clues"
+            exit 1
+          fi
 
   # ----------------------------------------------------------------------------------------------------
   # --- GitHub Actions Linting -------------------------------------------------------------------------

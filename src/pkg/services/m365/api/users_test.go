@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
@@ -82,7 +83,7 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 			name: "mail inbox err - user not found",
 			err:  graphTD.ODataErr(string(graph.RequestResourceNotFound)),
 			expect: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
 			},
 		},
 		{

@@ -7,4 +7,7 @@ const (
 	DefaultContacts = "Contacts"
 	MailInbox       = "Inbox"
 	MsgFolderRoot   = "msgfolderroot"
+
+	// Kiota JSON invalid JSON error message.
+	invalidJSON = "invalid json type"
 )

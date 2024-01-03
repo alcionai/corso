@@ -79,6 +79,11 @@ func DiffLinkShares(current, expected []LinkShare) ([]LinkShare, []LinkShare) {
 	filteredExpected := []LinkShare{}
 
 	for _, ls := range current {
+		// It is useless to restore link shares without associated
+		// entities. When we do a link share restore, it always creates
+		// a new link(we cannot reuse the old link). Since we
+		// have no way of knowing the users who previously had access to
+		// an item via link, we don't have a reason to restore the link.
 		if len(ls.Entities) == 0 {
 			continue
 		}

@@ -75,6 +75,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddFetchParallelismFlag(c)
 		flags.AddDisableDeltaFlag(c)
 		flags.AddGenericBackupFlags(c)
+		flags.AddDisableLazyItemReader(c)
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())
