@@ -164,8 +164,7 @@ func CollectLists(
 		prevPath  path.Path
 	)
 
-	// [TODO](hitesh) utilise deltapaths to determine list's state
-	_, canUsePreviousBackup, err := parseListsMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
+	dps, canUsePreviousBackup, err := parseListsMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
 	if err != nil {
 		return nil, false, err
 	}
