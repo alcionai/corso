@@ -673,7 +673,7 @@ func mergeItemsFromBase(
 		errs)
 	if err != nil {
 		return manifestAddedEntries,
-			clues.NewWC(ctx, "fetching base details for backup")
+			clues.WrapWC(ctx, err, "fetching base details for backup")
 	}
 
 	for _, entry := range baseDeets.Items() {
