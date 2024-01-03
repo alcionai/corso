@@ -79,7 +79,6 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 
 	tables := []struct {
 		name, itemName string
-		cat            path.CategoryType
 		scope          selectors.SharePointScope
 		cat            path.CategoryType
 		getter         getItemByIDer
@@ -91,7 +90,6 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 			itemName: "MockListing",
 			cat:      path.ListsCategory,
 			scope:    sel.Lists(selectors.Any())[0],
-			cat:      path.ListsCategory,
 			getter:   &mock.ListHandler{},
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
@@ -136,7 +134,6 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 			itemName: "MockPages",
 			cat:      path.PagesCategory,
 			scope:    sel.Pages(selectors.Any())[0],
-			cat:      path.PagesCategory,
 			getter:   nil,
 			getDir: func(t *testing.T) path.Path {
 				dir, err := path.Build(
