@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	stdpath "path"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -125,7 +126,7 @@ func CollectPages(
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating page collection path"))
 		}
 
-		collection := NewCollection(
+		collection := NewPrefetchCollection(
 			nil,
 			dir,
 			nil,
@@ -136,7 +137,7 @@ func CollectPages(
 			bpc.Options,
 			nil)
 		collection.SetBetaService(betaService)
-		collection.AddItem(tuple.ID)
+		collection.AddItem(tuple.ID, time.Now())
 
 		spcs = append(spcs, collection)
 	}
@@ -160,7 +161,7 @@ func CollectLists(
 	var (
 		el   = errs.Local()
 		spcs = make([]data.BackupCollection, 0)
-		acc  = api.CallConfig{Select: idAnd("list")}
+		cfg  = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
 	)
 
 	dps, canUsePreviousBackup, err := parseListsMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
@@ -168,19 +169,30 @@ func CollectLists(
 		return nil, false, err
 	}
 
-	lists, err := bh.GetItems(ctx, acc)
-	if err != nil {
-		return nil, false, err
-	}
-
 	ctx = clues.Add(ctx, "can_use_previous_backup", canUsePreviousBackup)
 
-	spcsMap, err := populateListsCollections(ctx, bh, bpc, ac, tenantID, scope, su, lists, dps, counter, el)
+	lists, err := bh.GetItems(ctx, cfg)
 	if err != nil {
 		return nil, false, err
 	}
 
-	for _, spc := range spcsMap {
+	collections, err := populateListsCollections(
+		ctx,
+		bh,
+		bpc,
+		ac,
+		tenantID,
+		scope,
+		su,
+		lists,
+		dps,
+		counter,
+		el)
+	if err != nil {
+		return nil, false, err
+	}
+
+	for _, spc := range collections {
 		spcs = append(spcs, spc)
 	}
 
@@ -201,7 +213,8 @@ func populateListsCollections(
 	el *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
 	var (
-		err error
+		err        error
+		collection data.BackupCollection
 		// collections: list-id -> backup-collection
 		collections = make(map[string]data.BackupCollection)
 		currPaths   = make(map[string]string)
@@ -244,17 +257,42 @@ func populateListsCollections(
 			return nil, err
 		}
 
-		collection := NewCollection(
+		modTime := ptr.Val(list.GetLastModifiedDateTime())
+
+		lazyFetchCol := NewLazyFetchCollection(
 			bh,
 			currPath,
 			prevPath,
 			storageDir.Builder(),
-			ac,
-			scope,
 			su,
-			bpc.Options,
 			counter.Local())
-		collection.AddItem(ptr.Val(list.GetId()))
+
+		lazyFetchCol.AddItem(
+			ptr.Val(list.GetId()),
+			modTime)
+
+		collection = lazyFetchCol
+
+		// Always use lazyFetchCol.
+		// In case we receive zero mod time from graph fallback to prefetchCol.
+		if modTime.IsZero() {
+			prefetchCol := NewPrefetchCollection(
+				bh,
+				currPath,
+				prevPath,
+				storageDir.Builder(),
+				ac,
+				scope,
+				su,
+				bpc.Options,
+				counter.Local())
+
+			prefetchCol.AddItem(
+				ptr.Val(list.GetId()),
+				modTime)
+
+			collection = prefetchCol
+		}
 
 		collections[storageDir.String()] = collection
 		currPaths[storageDir.String()] = currPath.String()

@@ -2,8 +2,12 @@ package mock
 
 import (
 	"context"
+	"slices"
+	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -76,6 +80,15 @@ func (lh ListHandler) CanonicalPath(
 			path.SharePointService,
 			path.ListsCategory,
 			false)
+}
+
+func (lh *ListHandler) Check(t *testing.T, expected []string) {
+	listIDs := maps.Keys(lh.listsMap)
+
+	slices.Sort(listIDs)
+	slices.Sort(expected)
+
+	assert.Equal(t, expected, listIDs, "expected calls")
 }
 
 type ListRestoreHandler struct {
