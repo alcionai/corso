@@ -58,6 +58,8 @@ func (lh ListHandler) GetItemByID(
 	ls.SetId(ptr.To(itemID))
 	ls.SetList(listInfo)
 
+	lh.listsMap[itemID] = ls
+
 	return ls, lstInfo, lh.err
 }
 

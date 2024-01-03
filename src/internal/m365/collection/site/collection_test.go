@@ -341,7 +341,8 @@ func (suite *SharePointCollectionSuite) TestLazyCollection_Items() {
 		expectReads     []string
 	}{
 		{
-			name: "no lists",
+			name:        "no lists",
+			expectReads: []string{},
 		},
 		{
 			name: "added lists",
@@ -366,7 +367,7 @@ func (suite *SharePointCollectionSuite) TestLazyCollection_Items() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			getter := &mock.ListHandler{}
+			getter := mock.NewListHandler(nil, "", nil)
 			defer getter.Check(t, test.expectReads)
 
 			col := NewLazyFetchCollection(
@@ -424,7 +425,7 @@ func (suite *SharePointCollectionSuite) TestLazyItem() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	lh := mock.ListHandler{}
+	lh := mock.NewListHandler(nil, "", nil)
 
 	li := data.NewLazyItemWithInfo(
 		ctx,
