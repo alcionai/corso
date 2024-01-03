@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/converters/eml"
+	"github.com/alcionai/corso/src/internal/converters/vcf"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
@@ -48,13 +49,20 @@ func streamItems(
 	for _, rc := range drc {
 		ictx := clues.Add(ctx, "path_short_ref", rc.FullPath().ShortRef())
 
+		ext := ".eml"
+		category := rc.FullPath().Category()
+
+		if category == path.ContactsCategory {
+			ext = ".vcf"
+		}
+
 		for item := range rc.Items(ictx, errs) {
 			id := item.ID()
-			name := id + ".eml"
+			name := id + ext
 
 			itemCtx := clues.Add(ictx, "stream_item_id", id)
 
-			stats.UpdateResourceCount(path.EmailCategory)
+			stats.UpdateResourceCount(category)
 
 			reader := item.ToReader()
 			content, err := io.ReadAll(reader)
@@ -74,22 +82,41 @@ func streamItems(
 				continue
 			}
 
-			email, err := eml.FromJSON(itemCtx, content)
-			if err != nil {
-				err = clues.Wrap(err, "converting JSON to eml")
+			var outData string
 
-				logger.CtxErr(ctx, err).Info("processing collection item")
+			switch category {
+			case path.EmailCategory:
+				outData, err = eml.FromJSON(itemCtx, content)
+				if err != nil {
+					err = clues.Wrap(err, "converting to eml")
 
-				ch <- export.Item{
-					ID:    id,
-					Error: err,
+					logger.CtxErr(ctx, err).Info("processing collection item")
+
+					ch <- export.Item{
+						ID:    id,
+						Error: err,
+					}
+
+					continue
 				}
+			case path.ContactsCategory:
+				outData, err = vcf.FromJSON(ctx, content)
+				if err != nil {
+					err = clues.Wrap(err, "converting to vcf")
 
-				continue
+					logger.CtxErr(ctx, err).Info("processing collection item")
+
+					ch <- export.Item{
+						ID:    id,
+						Error: err,
+					}
+
+					continue
+				}
 			}
 
-			emlReader := io.NopCloser(bytes.NewReader([]byte(email)))
-			body := metrics.ReaderWithStats(emlReader, path.EmailCategory, stats)
+			emlReader := io.NopCloser(bytes.NewReader([]byte(outData)))
+			body := metrics.ReaderWithStats(emlReader, category, stats)
 
 			ch <- export.Item{
 				ID:   id,

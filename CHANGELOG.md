@@ -20,6 +20,9 @@ this case, Corso will skip over the item but report this in the backup summary.
 ### Known issues
 - Restoring OneDrive, SharePoint, or Teams & Groups items shared with external users while the tenant or site is configured to not allow sharing with external users will not restore permissions.
 
+### Added
+- Contacts can now be exported from Exchange backups as .vcf files
+
 ## [v0.17.0] (beta) - 2023-12-11
 
 ### Changed
