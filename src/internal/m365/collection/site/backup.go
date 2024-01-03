@@ -201,10 +201,11 @@ func populateListsCollections(
 	el *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
 	var (
-		err        error
-		spcsMap    = make(map[string]data.BackupCollection)
-		currPaths  = make(map[string]string)
-		tombstones = makeTombstones(dps)
+		err error
+		// collections: list-id -> backup-collection
+		collections = make(map[string]data.BackupCollection)
+		currPaths   = make(map[string]string)
+		tombstones  = makeTombstones(dps)
 	)
 
 	counter.Add(count.Lists, int64(len(lists)))
@@ -255,11 +256,11 @@ func populateListsCollections(
 			counter.Local())
 		collection.AddItem(ptr.Val(list.GetId()))
 
-		spcsMap[storageDir.String()] = collection
+		collections[storageDir.String()] = collection
 		currPaths[storageDir.String()] = currPath.String()
 	}
 
-	handleTombstones(ctx, bpc, tombstones, spcsMap, counter, el)
+	handleTombstones(ctx, bpc, tombstones, collections, counter, el)
 
 	// Build metadata path
 	pathPrefix, err := path.BuildMetadata(
@@ -273,15 +274,20 @@ func populateListsCollections(
 			Label(count.BadPathPrefix)
 	}
 
-	// Create metadata collection
-	col, err := makeMetadataCollection(ctx, pathPrefix, currPaths, su, counter.Local())
+	mdCol, err := graph.MakeMetadataCollection(
+		pathPrefix,
+		[]graph.MetadataCollectionEntry{
+			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
+		},
+		su,
+		counter.Local())
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "making metadata collection")
 	}
 
-	spcsMap["metadata"] = col
+	collections["metadata"] = mdCol
 
-	return spcsMap, nil
+	return collections, nil
 }
 
 func idAnd(ss ...string) []string {
@@ -298,7 +304,7 @@ func handleTombstones(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	tombstones map[string]string,
-	spcsMap map[string]data.BackupCollection,
+	collections map[string]data.BackupCollection,
 	counter *count.Bus,
 	el *fault.Bus,
 ) {
@@ -307,11 +313,11 @@ func handleTombstones(
 			return
 		}
 
-		ctx := clues.Add(ctx, "tombstone_id", id)
+		ictx := clues.Add(ctx, "tombstone_id", id)
 
-		if spcsMap[id] != nil {
-			err := clues.NewWC(ctx, "conflict: tombstone exists for a live collection").Label(count.CollectionTombstoneConflict)
-			el.AddRecoverable(ctx, err)
+		if collections[id] != nil {
+			err := clues.NewWC(ictx, "conflict: tombstone exists for a live collection").Label(count.CollectionTombstoneConflict)
+			el.AddRecoverable(ictx, err)
 
 			continue
 		}
@@ -322,28 +328,12 @@ func handleTombstones(
 
 		prevPath, err := pathFromPrevString(p)
 		if err != nil {
-			err := clues.StackWC(ctx, err).Label(count.BadPrevPath)
-			logger.CtxErr(ctx, err).Error("parsing tombstone prev path")
+			err := clues.StackWC(ictx, err).Label(count.BadPrevPath)
+			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
 
 			continue
 		}
 
-		spcsMap[id] = data.NewTombstoneCollection(prevPath, bpc.Options, counter.Local())
+		collections[id] = data.NewTombstoneCollection(prevPath, bpc.Options, counter.Local())
 	}
-}
-
-func makeMetadataCollection(
-	ctx context.Context,
-	pathPrefix path.Path,
-	currPaths map[string]string,
-	su support.StatusUpdater,
-	counter *count.Bus,
-) (data.BackupCollection, error) {
-	return graph.MakeMetadataCollection(
-		pathPrefix,
-		[]graph.MetadataCollectionEntry{
-			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
-		},
-		su,
-		counter)
 }

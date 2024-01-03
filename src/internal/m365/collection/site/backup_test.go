@@ -141,7 +141,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 	}
 }
 
-func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
+func (suite *SharePointBackupUnitSuite) TestPopulateListsCollections_incremental() {
 	t := suite.T()
 
 	var (
@@ -163,6 +163,15 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 		path.ListsCategory,
 		false,
 		"one")
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	listPathTwo, err := path.Build(
+		suite.creds.AzureTenantID,
+		siteID,
+		path.SharePointService,
+		path.ListsCategory,
+		false,
+		"two")
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	listPathThree, err := path.Build(
@@ -190,8 +199,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 			lists: siteMock.StubLists("one"),
 			deltaPaths: metadata.DeltaPaths{
 				"one": {
-					Delta: "one",
-					Path:  listPathOne.String(),
+					Path: listPathOne.String(),
 				},
 			},
 			expectErr:           require.NoError,
@@ -202,12 +210,11 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 			expectTombstoneCols: 0,
 		},
 		{
-			name:  "two lists, one deleted",
+			name:  "one lists, one deleted",
 			lists: siteMock.StubLists("two"),
 			deltaPaths: metadata.DeltaPaths{
 				"one": {
-					Delta: "one",
-					Path:  listPathOne.String(),
+					Path: listPathOne.String(),
 				},
 			},
 			expectErr:           require.NoError,
@@ -221,12 +228,10 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 			lists: siteMock.StubLists("one", "two"),
 			deltaPaths: metadata.DeltaPaths{
 				"one": {
-					Delta: "one",
-					Path:  listPathOne.String(),
+					Path: listPathOne.String(),
 				},
 				"three": {
-					Delta: "three",
-					Path:  listPathThree.String(),
+					Path: listPathThree.String(),
 				},
 			},
 			expectErr:           require.NoError,
@@ -235,6 +240,35 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists_incremental() {
 			expectNewColls:      1,
 			expectMetadataColls: 1,
 			expectTombstoneCols: 1,
+		},
+		{
+			name:                "no previous paths",
+			lists:               siteMock.StubLists("one", "two"),
+			deltaPaths:          metadata.DeltaPaths{},
+			expectErr:           require.NoError,
+			expectColls:         3,
+			expectNotMovedColls: 0,
+			expectNewColls:      2,
+			expectMetadataColls: 1,
+			expectTombstoneCols: 0,
+		},
+		{
+			name:  "two lists, unchanges",
+			lists: siteMock.StubLists("one", "two"),
+			deltaPaths: metadata.DeltaPaths{
+				"one": {
+					Path: listPathOne.String(),
+				},
+				"two": {
+					Path: listPathTwo.String(),
+				},
+			},
+			expectErr:           require.NoError,
+			expectColls:         3,
+			expectNotMovedColls: 2,
+			expectNewColls:      0,
+			expectMetadataColls: 1,
+			expectTombstoneCols: 0,
 		},
 	}
 	for _, test := range table {
