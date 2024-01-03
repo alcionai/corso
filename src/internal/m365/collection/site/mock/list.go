@@ -2,22 +2,28 @@ package mock
 
 import (
 	"context"
+	"slices"
+	"testing"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 )
 
 type ListHandler struct {
-	List models.Listable
-	Err  error
+	List    models.Listable
+	ListIDs []string
+	Err     error
 }
 
 func (lh *ListHandler) GetItemByID(
 	ctx context.Context,
 	itemID string,
 ) (models.Listable, *details.SharePointInfo, error) {
+	lh.ListIDs = append(lh.ListIDs, itemID)
+
 	ls := models.NewList()
 
 	lh.List = ls
@@ -28,6 +34,13 @@ func (lh *ListHandler) GetItemByID(
 	}
 
 	return ls, info, lh.Err
+}
+
+func (lh *ListHandler) Check(t *testing.T, expected []string) {
+	slices.Sort(lh.ListIDs)
+	slices.Sort(expected)
+
+	assert.Equal(t, expected, lh.ListIDs, "expected calls")
 }
 
 type ListRestoreHandler struct {
