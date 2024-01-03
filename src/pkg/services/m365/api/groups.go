@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -204,7 +205,7 @@ func getGroupFromResponse(ctx context.Context, resp models.GroupCollectionRespon
 	vs := resp.GetValue()
 
 	if len(vs) == 0 {
-		return nil, clues.StackWC(ctx, graph.ErrResourceOwnerNotFound)
+		return nil, clues.StackWC(ctx, core.ErrResourceOwnerNotFound)
 	} else if len(vs) > 1 {
 		return nil, clues.StackWC(ctx, graph.ErrMultipleResultsMatchIdentifier)
 	}

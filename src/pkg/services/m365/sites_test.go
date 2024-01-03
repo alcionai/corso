@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -145,7 +146,7 @@ func (suite *siteUnitSuite) TestGetAllSites() {
 				return mockGASites{nil, graph.Stack(ctx, odErr)}
 			},
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrServiceNotEnabled, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrServiceNotEnabled, clues.ToCore(err))
 			},
 		},
 		{

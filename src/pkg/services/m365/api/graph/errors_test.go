@@ -79,7 +79,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
 		},
 		{
 			name:   "applicationThrottled oDataErr",
-			err:    graphTD.ODataErr(string(applicationThrottled)),
+			err:    graphTD.ODataErr(string(ApplicationThrottled)),
 			expect: assert.True,
 		},
 	}
@@ -186,7 +186,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 		},
 		{
 			name:   "not-found oDataErr",
-			err:    graphTD.ODataErr(string(errorItemNotFound)),
+			err:    graphTD.ODataErr(string(ErrorItemNotFound)),
 			expect: assert.True,
 		},
 		{
@@ -858,12 +858,12 @@ func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
 		},
 		{
 			name:   "item not found oDataErr",
-			err:    graphTD.ODataErr(string(itemNotFound)),
+			err:    graphTD.ODataErr(string(ItemNotFound)),
 			expect: assert.True,
 		},
 		{
 			name:   "error item not found oDataErr",
-			err:    graphTD.ODataErr(string(errorItemNotFound)),
+			err:    graphTD.ODataErr(string(ErrorItemNotFound)),
 			expect: assert.True,
 		},
 	}
