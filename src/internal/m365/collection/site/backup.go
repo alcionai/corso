@@ -163,7 +163,7 @@ func CollectLists(
 		acc  = api.CallConfig{Select: idAnd("list")}
 	)
 
-	dps, canUsePreviousBackup, err := parseMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
+	dps, canUsePreviousBackup, err := parseListsMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
 	if err != nil {
 		return nil, false, err
 	}
