@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -61,7 +62,7 @@ func (h *baseExchangeHandler) ProduceExportCollections(
 		category := dc.FullPath().Category()
 
 		switch category {
-		case path.ContactsCategory, path.EmailCategory, path.EventsCategory:
+		case path.ContactsCategory, path.EmailCategory:
 			folders := dc.FullPath().Folders()
 			pth := path.Builder{}.Append(category.HumanString()).Append(folders...)
 
@@ -72,6 +73,8 @@ func (h *baseExchangeHandler) ProduceExportCollections(
 					[]data.RestoreCollection{dc},
 					backupVersion,
 					stats))
+		case path.EventsCategory:
+			logger.Ctx(ctx).With("category", category.String()).Debugw("Skipping restore for category")
 		default:
 			return nil, clues.NewWC(ctx, "data category not supported").
 				With("category", category)
