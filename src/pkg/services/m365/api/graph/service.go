@@ -400,15 +400,13 @@ func (aw *adapterWrap) Send(
 		err = stackWithCoreErr(ictx, err, 1)
 		e = err
 
-		// exit most errors without retry
-		switch {
-		case IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()):
+		if IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()) {
 			logger.Ctx(ictx).Debug("http connection error")
 			events.Inc(events.APICall, "connectionerror")
-		case IsErrBadJWTToken(err):
+		} else if IsErrBadJWTToken(err) {
 			logger.Ctx(ictx).Debug("bad jwt token")
 			events.Inc(events.APICall, "badjwttoken")
-		default:
+		} else {
 			// exit most errors without retry
 			break
 		}
