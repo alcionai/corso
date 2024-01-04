@@ -57,12 +57,12 @@ func parseListsMetadataCollections(
 
 				err := json.NewDecoder(item.ToReader()).Decode(&m)
 				if err != nil {
-					return nil, false, clues.NewWC(ctx, "decoding metadata json")
+					return nil, false, clues.WrapWC(ctx, err, "decoding metadata json")
 				}
 
 				if item.ID() == metadata.PreviousPathFileName {
 					if _, ok := found[category][metadata.PathKey]; ok {
-						return nil, false, clues.Wrap(clues.NewWC(ctx, category.String()), "multiple versions of path metadata")
+						return nil, false, clues.WrapWC(ctx, err, "multiple versions of path metadata")
 					}
 
 					for k, p := range m {
