@@ -162,7 +162,7 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Stack(err))
 	}
 
-	ins, err := svcCli.GroupsMap(ctx, errs)
+	ins, err := svcCli.AC.Groups().GetAllIDsAndNames(ctx, errs)
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 groups"))
 	}

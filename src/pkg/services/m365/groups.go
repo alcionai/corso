@@ -6,7 +6,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -33,7 +32,7 @@ func (c client) GroupByID(
 ) (*Group, error) {
 	cc := api.CallConfig{}
 
-	g, err := c.ac.Groups().GetByID(ctx, id, cc)
+	g, err := c.AC.Groups().GetByID(ctx, id, cc)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -50,7 +49,7 @@ func (c client) TeamByID(
 ) (*Group, error) {
 	cc := api.CallConfig{}
 
-	g, err := c.ac.Groups().GetTeamByID(ctx, id, cc)
+	g, err := c.AC.Groups().GetTeamByID(ctx, id, cc)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -75,7 +74,7 @@ func (c client) Groups(
 	ctx context.Context,
 	errs *fault.Bus,
 ) ([]*Group, error) {
-	return getAllGroups(ctx, c.ac.Groups())
+	return getAllGroups(ctx, c.AC.Groups())
 }
 
 func getAllGroups(
@@ -106,7 +105,7 @@ func (c client) SitesInGroup(
 	groupID string,
 	errs *fault.Bus,
 ) ([]*Site, error) {
-	sites, err := c.ac.Groups().GetAllSites(ctx, groupID, errs)
+	sites, err := c.AC.Groups().GetAllSites(ctx, groupID, errs)
 	if err != nil {
 		return nil, clues.Stack(err)
 	}
@@ -154,23 +153,4 @@ func parseGroupFromTeamable(ctx context.Context, mg models.Teamable) (*Group, er
 	}
 
 	return u, nil
-}
-
-// GroupsMap retrieves an id-name cache of all groups in the tenant.
-func (c client) GroupsMap(
-	ctx context.Context,
-	errs *fault.Bus,
-) (idname.Cacher, error) {
-	groups, err := c.Groups(ctx, errs)
-	if err != nil {
-		return idname.NewCache(nil), err
-	}
-
-	itn := make(map[string]string, len(groups))
-
-	for _, s := range groups {
-		itn[s.ID] = s.DisplayName
-	}
-
-	return idname.NewCache(itn), nil
 }
