@@ -19,6 +19,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
+// empty string is used to indicate that a permission cannot be restored
+const nonRestorablePermission = ""
+
 func getParentMetadata(
 	parentPath path.Path,
 	parentDirToMeta syncd.MapTo[metadata.Metadata],
@@ -214,12 +217,13 @@ func UpdatePermissions(
 
 		pid, ok := oldPermIDToNewID.Load(p.ID)
 		if !ok {
-			el.AddRecoverable(ictx, clues.NewWC(ictx, "finding updated permission id"))
+			el.AddRecoverable(ictx, clues.NewWC(ictx, "no permission matches id"))
 			continue
 		}
 
-		if len(pid) == 0 {
-			// permission was not restored on parent and cannot be deleted
+		if pid == nonRestorablePermission {
+			// permission was not restored on parent and thus cannot
+			// be deleted
 			continue
 		}
 
@@ -283,8 +287,8 @@ func UpdatePermissions(
 
 		newPerm, err := udip.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
-			oldPermIDToNewID.Store(p.ID, "") // empty to signify that we could not restore
-			logger.CtxErr(ictx, err).Info("Unable to restore permission")
+			oldPermIDToNewID.Store(p.ID, nonRestorablePermission)
+			logger.CtxErr(ictx, err).Info("unable to restore permission")
 
 			continue
 		}
@@ -394,7 +398,7 @@ func UpdateLinkShares(
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
 			oldLinkShareIDToNewID.Store(ls.ID, "") // empty to signify that we could not restore
-			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+			logger.CtxErr(ictx, err).Info("unable to restore link share")
 
 			continue
 		}
