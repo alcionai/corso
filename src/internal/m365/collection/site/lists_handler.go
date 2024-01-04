@@ -25,7 +25,7 @@ func NewListsBackupHandler(protectedResource string, ac api.Lists) listsBackupHa
 	}
 }
 
-func (bh listsBackupHandler) canonicalPath(
+func (bh listsBackupHandler) CanonicalPath(
 	storageDirFolders path.Elements,
 	tenantID string,
 ) (path.Path, error) {
