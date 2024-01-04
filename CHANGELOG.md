@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Changed
+- If we try to see details of an empty backup, it now returns a more helpful error message.
+
 ## [v0.18.0] (beta) - 2024-01-02
 
 ### Fixed
