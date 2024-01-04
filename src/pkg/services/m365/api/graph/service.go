@@ -370,12 +370,14 @@ func (aw *adapterWrap) Send(
 	requestInfo *abstractions.RequestInformation,
 	constructor serialization.ParsableFactory,
 	errorMappings abstractions.ErrorMappings,
-) (sp serialization.Parsable, err error) {
+) (sp serialization.Parsable, e error) {
 	defer func() {
 		if crErr := crash.Recovery(ctx, recover(), "graph adapter request"); crErr != nil {
-			err = Stack(ctx, crErr)
+			e = Stack(ctx, crErr)
 		}
 	}()
+
+	retriedErrors := []string{}
 
 	// This external retry wrapper is unsophisticated, but should
 	// only retry under certain circumstances
@@ -384,14 +386,19 @@ func (aw *adapterWrap) Send(
 	// 2. jwt token invalidation, which requires a re-auth that's handled
 	// in the Send() call, before reaching client middleware.
 	for i := 0; i < aw.config.maxConnectionRetries+1; i++ {
+		if i > 0 {
+			time.Sleep(3 * time.Second)
+		}
+
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
-		sp, err = aw.RequestAdapter.Send(ictx, requestInfo, constructor, errorMappings)
+		resp, err := aw.RequestAdapter.Send(ictx, requestInfo, constructor, errorMappings)
 		if err == nil {
-			break
+			return resp, nil
 		}
 
 		err = stackWithCoreErr(ictx, err, 1)
+		e = err
 
 		// exit most errors without retry
 		switch {
@@ -402,15 +409,19 @@ func (aw *adapterWrap) Send(
 			logger.Ctx(ictx).Debug("bad jwt token")
 			events.Inc(events.APICall, "badjwttoken")
 		default:
-			return nil, err
+			// exit most errors without retry
+			break
 		}
 
-		time.Sleep(3 * time.Second)
+		retriedErrors = append(retriedErrors, err.Error())
 	}
 
-	if err != nil {
-		return nil, err
-	}
+	e = clues.Stack(e).
+		With("retried_errors", retriedErrors).
+		WithTrace(1).
+		OrNil()
 
-	return sp, nil
+	// no chance of a non-error return here.
+	// we handle that inside the loop.
+	return nil, e
 }
