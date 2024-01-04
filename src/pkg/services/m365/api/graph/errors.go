@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
@@ -133,7 +134,26 @@ var (
 	ErrTokenExpired = clues.New("jwt token expired")
 )
 
-func IsErrApplicationThrottled(err error) bool {
+func stackErrsCore(ctx context.Context, err error, traceDepth int) error {
+	if err == nil {
+		return nil
+	}
+
+	switch {
+	case isErrApplicationThrottled(err):
+		return clues.StackWC(ctx, core.ErrApplicationThrottled, err).WithTrace(traceDepth + 1)
+	case isErrUserNotFound(err):
+		return clues.StackWC(ctx, core.ErrResourceOwnerNotFound, err).WithTrace(traceDepth + 1)
+	case isErrResourceLocked(err):
+		return clues.StackWC(ctx, core.ErrResourceNotAccessible, err).WithTrace(traceDepth + 1)
+	case isErrInsufficientAuthorization(err):
+		return clues.StackWC(ctx, core.ErrInsufficientAuthorization, err).WithTrace(traceDepth + 1)
+	}
+
+	return err
+}
+
+func isErrApplicationThrottled(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, ApplicationThrottled)
 }
 
@@ -141,7 +161,7 @@ func IsErrAuthenticationError(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, AuthenticationError)
 }
 
-func IsErrInsufficientAuthorization(err error) bool {
+func isErrInsufficientAuthorization(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, AuthorizationRequestDenied)
 }
 
@@ -183,7 +203,7 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, ResourceNotFound, ErrorItemNotFound, MailboxNotEnabledForRESTAPI)
 }
 
-func IsErrUserNotFound(err error) bool {
+func isErrUserNotFound(err error) bool {
 	ode := parseODataErr(err)
 
 	if ode.hasErrorCode(err, RequestResourceNotFound, invalidUser) {
@@ -275,7 +295,7 @@ func IsErrSiteNotFound(err error) bool {
 	return parseODataErr(err).hasErrorMessage(err, requestedSiteCouldNotBeFound)
 }
 
-func IsErrResourceLocked(err error) bool {
+func isErrResourceLocked(err error) bool {
 	ode := parseODataErr(err)
 
 	return errors.Is(err, ErrResourceLocked) ||

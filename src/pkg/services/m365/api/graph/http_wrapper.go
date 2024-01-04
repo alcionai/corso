@@ -120,8 +120,12 @@ func (hw httpWrapper) Request(
 			break
 		}
 
-		if IsErrApplicationThrottled(err) {
-			return nil, Stack(ctx, clues.Stack(core.ErrApplicationThrottled, err))
+		err = stackErrsCore(ctx, err, 1)
+
+		// force an early exit on throttling issues.
+		// those retries are already handled in middleware.
+		if errors.Is(err, core.ErrApplicationThrottled) {
+			return nil, err
 		}
 
 		var http2StreamErr http2.StreamError
