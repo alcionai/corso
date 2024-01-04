@@ -452,7 +452,7 @@ func restoreV1File(
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
 
-	err = RestorePermissions(
+	RestorePermissions(
 		ctx,
 		rh,
 		drivePath.DriveID,
@@ -461,9 +461,6 @@ func restoreV1File(
 		meta,
 		caches,
 		errs)
-	if err != nil {
-		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
-	}
 
 	return itemInfo, nil
 }
@@ -530,7 +527,7 @@ func restoreV6File(
 		return itemInfo, nil
 	}
 
-	err = RestorePermissions(
+	RestorePermissions(
 		ctx,
 		rh,
 		drivePath.DriveID,
@@ -539,9 +536,6 @@ func restoreV6File(
 		meta,
 		caches,
 		errs)
-	if err != nil {
-		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
-	}
 
 	return itemInfo, nil
 }
@@ -581,7 +575,7 @@ func CreateRestoreFolders(
 		return id, nil
 	}
 
-	err = RestorePermissions(
+	RestorePermissions(
 		ctx,
 		rh,
 		drivePath.DriveID,
@@ -590,12 +584,6 @@ func CreateRestoreFolders(
 		folderMetadata,
 		caches,
 		errs)
-
-	if err != nil {
-		// We should not ideally get any errors as we mostly skip
-		// over them with a recoverable error. This is just in case.
-		errs.AddRecoverable(ctx, clues.Wrap(err, "restoring folder permissions"))
-	}
 
 	return id, nil
 }

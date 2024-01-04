@@ -462,39 +462,44 @@ func RestorePermissions(
 	current metadata.Metadata,
 	caches *restoreCaches,
 	errs *fault.Bus,
-) error {
+) {
 	if current.SharingMode == metadata.SharingModeInherited {
-		return nil
+		return
 	}
+
+	var didReset bool
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
 	previousLinkShares, err := computePreviousLinkShares(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "previous link shares")
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "previous link shares"))
 	}
 
-	lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
+	if previousLinkShares != nil {
+		lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
 
-	// Link shares have to be updated before permissions as we have to
-	// use the information about if we had to reset the inheritance to
-	// decide if we have to restore all the permissions.
-	didReset, err := UpdateLinkShares(
-		ctx,
-		rh,
-		driveID,
-		itemID,
-		lsAdded,
-		lsRemoved,
-		caches.OldLinkShareIDToNewID,
-		errs)
-	if err != nil {
-		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "updating link shares"))
+		// Link shares have to be updated before permissions as we have to
+		// use the information about if we had to reset the inheritance to
+		// decide if we have to restore all the permissions.
+		didReset, err = UpdateLinkShares(
+			ctx,
+			rh,
+			driveID,
+			itemID,
+			lsAdded,
+			lsRemoved,
+			caches.OldLinkShareIDToNewID,
+			errs)
+		if err != nil {
+			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "updating link shares"))
+		}
 	}
 
 	previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "previous metadata")
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "previous metadata"))
+		return
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
@@ -520,12 +525,10 @@ func RestorePermissions(
 		errs)
 	if graph.IsErrSharingDisabled(err) {
 		logger.CtxErr(ctx, err).Info("sharing disabled, not restoring permissions")
-		return nil
+		return
 	}
 
 	if err != nil {
 		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "updating permissions"))
 	}
-
-	return nil
 }
