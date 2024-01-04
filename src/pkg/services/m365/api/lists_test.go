@@ -328,9 +328,10 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 	roCd.SetReadOnly(ptr.To(true))
 
 	tests := []struct {
-		name    string
-		getList func() *models.List
-		length  int
+		name             string
+		getList          func() *models.List
+		length           int
+		expectedColNames map[string]struct{}
 	}{
 		{
 			name: "all legacy columns",
@@ -343,7 +344,8 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				})
 				return lst
 			},
-			length: 0,
+			length:           0,
+			expectedColNames: map[string]struct{}{TitleColumnName: {}},
 		},
 		{
 			name: "title and legacy columns",
@@ -357,7 +359,8 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				})
 				return lst
 			},
-			length: 0,
+			length:           0,
+			expectedColNames: map[string]struct{}{TitleColumnName: {}},
 		},
 		{
 			name: "readonly and legacy columns",
@@ -371,7 +374,8 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				})
 				return lst
 			},
-			length: 0,
+			length:           0,
+			expectedColNames: map[string]struct{}{TitleColumnName: {}},
 		},
 		{
 			name: "legacy and a text column",
@@ -386,6 +390,10 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				return lst
 			},
 			length: 1,
+			expectedColNames: map[string]struct{}{
+				TitleColumnName: {},
+				textColumnName:  {},
+			},
 		},
 	}
 
@@ -393,8 +401,9 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			clonedList := ToListable(test.getList(), listName)
+			clonedList, colNames := ToListable(test.getList(), listName)
 			require.NotEmpty(t, clonedList)
+			assert.Equal(t, test.expectedColNames, colNames)
 
 			cols := clonedList.GetColumns()
 			assert.Len(t, cols, test.length)
@@ -422,7 +431,9 @@ func (suite *ListsUnitSuite) TestFieldValueSetable() {
 	origFs := models.NewFieldValueSet()
 	origFs.SetAdditionalData(additionalData)
 
-	fs := retrieveFieldData(origFs)
+	colNames := map[string]struct{}{}
+
+	fs := retrieveFieldData(origFs, colNames)
 	fsAdditionalData := fs.GetAdditionalData()
 	assert.Empty(t, fsAdditionalData)
 
@@ -430,7 +441,9 @@ func (suite *ListsUnitSuite) TestFieldValueSetable() {
 	origFs = models.NewFieldValueSet()
 	origFs.SetAdditionalData(additionalData)
 
-	fs = retrieveFieldData(origFs)
+	colNames["itemName"] = struct{}{}
+
+	fs = retrieveFieldData(origFs, colNames)
 	fsAdditionalData = fs.GetAdditionalData()
 	assert.NotEmpty(t, fsAdditionalData)
 
@@ -493,7 +506,11 @@ func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 	origFs := models.NewFieldValueSet()
 	origFs.SetAdditionalData(additionalData)
 
-	fs := retrieveFieldData(origFs)
+	colNames := map[string]struct{}{
+		"MyAddress": {},
+	}
+
+	fs := retrieveFieldData(origFs, colNames)
 	fsAdditionalData := fs.GetAdditionalData()
 	assert.Equal(t, expectedData, fsAdditionalData)
 }
