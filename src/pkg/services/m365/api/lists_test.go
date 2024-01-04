@@ -515,6 +515,138 @@ func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 	assert.Equal(t, expectedData, fsAdditionalData)
 }
 
+func (suite *ListsUnitSuite) TestConcatenateAddressFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name           string
+		addressFields  map[string]any
+		expectedResult string
+	}{
+		{
+			name: "Valid Address",
+			addressFields: map[string]any{
+				DisplayNameFieldName: ptr.To("John Doe"),
+				AddressFieldName: map[string]any{
+					NestedStreetFieldName:     ptr.To("123 Main St"),
+					NestedCityFieldName:       ptr.To("Cityville"),
+					NestedStateFieldName:      ptr.To("State"),
+					NestedCountryFieldName:    ptr.To("Country"),
+					NestedPostalCodeFieldName: ptr.To("12345"),
+				},
+				CoordinatesFieldName: map[string]any{
+					NestedLatitudeFieldName:  ptr.To(40.7128),
+					NestedLongitudeFieldName: ptr.To(-74.0060),
+				},
+			},
+			expectedResult: "John Doe,123 Main St,Cityville,State,Country,12345,40.7128,-74.006",
+		},
+		{
+			name: "Empty Address Fields",
+			addressFields: map[string]any{
+				DisplayNameFieldName: ptr.To("John Doe"),
+			},
+			expectedResult: "John Doe",
+		},
+		{
+			name:           "Empty Input",
+			addressFields:  map[string]any{},
+			expectedResult: "",
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			result := concatenateAddressFields(test.addressFields)
+			assert.Equal(t, test.expectedResult, result, "address should match")
+		})
+	}
+}
+
+func (suite *ListsUnitSuite) TestHasAddressFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name           string
+		additionalData map[string]any
+		expectedFields map[string]any
+		expectedName   string
+		expectedFound  bool
+	}{
+		{
+			name: "Address Fields Found",
+			additionalData: map[string]any{
+				"person1": map[string]any{
+					AddressFieldName: map[string]any{
+						NestedStreetFieldName:     "123 Main St",
+						NestedCityFieldName:       "Cityville",
+						NestedStateFieldName:      "State",
+						NestedCountryFieldName:    "Country",
+						NestedPostalCodeFieldName: "12345",
+					},
+					CoordinatesFieldName: map[string]any{
+						NestedLatitudeFieldName:  "40.7128",
+						NestedLongitudeFieldName: "-74.0060",
+					},
+					DisplayNameFieldName: "John Doe",
+					LocationURIFieldName: "some loc",
+					UniqueIDFieldName:    "some id",
+				},
+			},
+			expectedFields: map[string]any{
+				AddressFieldName: map[string]any{
+					NestedStreetFieldName:     "123 Main St",
+					NestedCityFieldName:       "Cityville",
+					NestedStateFieldName:      "State",
+					NestedCountryFieldName:    "Country",
+					NestedPostalCodeFieldName: "12345",
+				},
+				CoordinatesFieldName: map[string]any{
+					NestedLatitudeFieldName:  "40.7128",
+					NestedLongitudeFieldName: "-74.0060",
+				},
+				DisplayNameFieldName: "John Doe",
+				LocationURIFieldName: "some loc",
+				UniqueIDFieldName:    "some id",
+			},
+			expectedName:  "person1",
+			expectedFound: true,
+		},
+		{
+			name: "No Address Fields",
+			additionalData: map[string]any{
+				"person1": map[string]any{
+					"name": "John Doe",
+					"age":  30,
+				},
+				"person2": map[string]any{
+					"name": "Jane Doe",
+					"age":  25,
+				},
+			},
+			expectedFields: nil,
+			expectedName:   "",
+			expectedFound:  false,
+		},
+		{
+			name:           "Empty Input",
+			additionalData: map[string]any{},
+			expectedFields: nil,
+			expectedName:   "",
+			expectedFound:  false,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			fields, fieldName, found := hasAddressFields(test.additionalData)
+			require.Equal(t, test.expectedFound, found, "address fields identification should match")
+			assert.Equal(t, test.expectedName, fieldName, "address field name should match")
+			assert.Equal(t, test.expectedFields, fields, "address fields should match")
+		})
+	}
+}
+
 type ListsAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup

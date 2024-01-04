@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -29,11 +30,18 @@ const (
 
 	ContentTypeColumnDisplayName = "Content Type"
 
-	AddressFieldName     = "address"
-	CoordinatesFieldName = "coordinates"
-	DisplayNameFieldName = "displayName"
-	LocationURIFieldName = "locationUri"
-	UniqueIDFieldName    = "uniqueId"
+	AddressFieldName          = "address"
+	NestedCityFieldName       = "city"
+	NestedCountryFieldName    = "countryOrRegion"
+	NestedPostalCodeFieldName = "postalCode"
+	NestedStateFieldName      = "state"
+	NestedStreetFieldName     = "street"
+	CoordinatesFieldName      = "coordinates"
+	NestedLatitudeFieldName   = "latitude"
+	NestedLongitudeFieldName  = "longitude"
+	DisplayNameFieldName      = "displayName"
+	LocationURIFieldName      = "locationUri"
+	UniqueIDFieldName         = "uniqueId"
 
 	CountryOrRegionFieldName = "CountryOrRegion"
 	StateFieldName           = "State"
@@ -56,6 +64,14 @@ const (
 	SharingLinksListTemplate    = "sharingLinks"
 	AccessRequestsListTemplate  = "accessRequest"
 )
+
+var addressFieldNames = []string{
+	AddressFieldName,
+	CoordinatesFieldName,
+	DisplayNameFieldName,
+	LocationURIFieldName,
+	UniqueIDFieldName,
+}
 
 var legacyColumns = keys.Set{
 	AttachmentsColumnName:        {},
@@ -504,6 +520,12 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]str
 	fields := models.NewFieldValueSet()
 
 	additionalData := setAdditionalDataByColumnNames(orig, columnNames)
+
+	if addressField, fieldName, ok := hasAddressFields(additionalData); ok {
+		concatenatedAddress := concatenateAddressFields(addressField)
+		additionalData[fieldName] = concatenatedAddress
+	}
+
 	fields.SetAdditionalData(additionalData)
 
 	return fields
@@ -527,6 +549,62 @@ func setAdditionalDataByColumnNames(
 	}
 
 	return filteredData
+}
+
+func hasAddressFields(additionalData map[string]any) (map[string]any, string, bool) {
+	for fieldName, value := range additionalData {
+		nestedFields, ok := value.(map[string]any)
+		if !ok || keys.HasKeys(nestedFields, GeoLocFieldName) {
+			continue
+		}
+
+		if keys.HasKeys(nestedFields, addressFieldNames...) {
+			return nestedFields, fieldName, true
+		}
+	}
+
+	return nil, "", false
+}
+
+func concatenateAddressFields(addressFields map[string]any) string {
+	concatenatedAddress := ""
+
+	if dispName, ok := addressFields[DisplayNameFieldName].(*string); ok {
+		concatenatedAddress = fmt.Sprintf("%s,%s", concatenatedAddress, ptr.Val(dispName))
+	}
+
+	if address, ok := addressFields[AddressFieldName].(map[string]any); ok {
+		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedStreetFieldName)
+		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedCityFieldName)
+		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedStateFieldName)
+		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedCountryFieldName)
+		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedPostalCodeFieldName)
+	}
+
+	if coords, ok := addressFields[CoordinatesFieldName].(map[string]any); ok {
+		concatenatedAddress = concatenateField(concatenatedAddress, coords, NestedLatitudeFieldName)
+		concatenatedAddress = concatenateField(concatenatedAddress, coords, NestedLongitudeFieldName)
+	}
+
+	if len(concatenatedAddress) > 0 {
+		return concatenatedAddress[1:]
+	}
+
+	return ""
+}
+
+func concatenateField(concatenatedAddress string, field map[string]any, fieldName string) string {
+	if _, ok := field[fieldName]; !ok {
+		return concatenatedAddress
+	}
+
+	if ptrValue, ok := field[fieldName].(*string); ok {
+		concatenatedAddress = fmt.Sprintf("%s,%s", concatenatedAddress, ptr.Val(ptrValue))
+	} else if ptrValue, ok := field[fieldName].(*float64); ok {
+		concatenatedAddress = fmt.Sprintf("%s,%v", concatenatedAddress, ptr.Val(ptrValue))
+	}
+
+	return concatenatedAddress
 }
 
 func (c Lists) getListItemFields(
