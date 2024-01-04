@@ -334,7 +334,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 		name               string
 		permissions        []metadata.Permission
 		expected           []metadata.Permission
-		availableEntities  AvailableEntities
+		availableEntities  ResourceIDNames
 		skippedPermissions []string
 	}{
 		{
@@ -345,7 +345,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 			expected: []metadata.Permission{
 				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
 			},
-			availableEntities: AvailableEntities{
+			availableEntities: ResourceIDNames{
 				Users:  idname.NewCache(map[string]string{"e1": "e1"}),
 				Groups: idname.NewCache(map[string]string{}),
 			},
@@ -356,7 +356,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
 			},
 			expected: []metadata.Permission{},
-			availableEntities: AvailableEntities{
+			availableEntities: ResourceIDNames{
 				Users:  idname.NewCache(map[string]string{}),
 				Groups: idname.NewCache(map[string]string{}),
 			},
@@ -374,7 +374,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 				{ID: "p2", EntityID: "e2", EntityType: metadata.GV2User},
 				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2User},
 			},
-			availableEntities: AvailableEntities{
+			availableEntities: ResourceIDNames{
 				Users:  idname.NewCache(map[string]string{"e1": "e1", "e2": "e2", "e3": "e3"}),
 				Groups: idname.NewCache(map[string]string{}),
 			},
@@ -390,7 +390,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2User},
 				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2Group},
 			},
-			availableEntities: AvailableEntities{
+			availableEntities: ResourceIDNames{
 				Users:  idname.NewCache(map[string]string{"e1": "e1"}),
 				Groups: idname.NewCache(map[string]string{"e3": "e3"}),
 			},
@@ -410,7 +410,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2Group},
 				{ID: "p5", EntityID: "e5", EntityType: metadata.GV2User},
 			},
-			availableEntities: AvailableEntities{
+			availableEntities: ResourceIDNames{
 				Users:  idname.NewCache(map[string]string{"e1": "e1", "e5": "e5"}),
 				Groups: idname.NewCache(map[string]string{"e3": "e3"}),
 			},
@@ -422,7 +422,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 				{ID: "p1", EntityID: "e1", EntityType: metadata.GV2Group},
 			},
 			expected: []metadata.Permission{},
-			availableEntities: AvailableEntities{
+			availableEntities: ResourceIDNames{
 				Users:  idname.NewCache(map[string]string{"e1": "e1"}),
 				Groups: idname.NewCache(map[string]string{}),
 			},
@@ -442,7 +442,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInPermission
 				{ID: "p3", EntityID: "e3", EntityType: metadata.GV2SiteUser},
 				{ID: "p4", EntityID: "e4", EntityType: metadata.GV2SiteGroup},
 			},
-			availableEntities: AvailableEntities{
+			availableEntities: ResourceIDNames{
 				// these are users and not what we have
 				Users:  idname.NewCache(map[string]string{"e1": "e1", "e2": "e2", "e3": "e3", "e4": "e4"}),
 				Groups: idname.NewCache(map[string]string{}),
@@ -489,7 +489,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInLinkShare(
 		}
 	}
 
-	ae := func(uids, gids []string) AvailableEntities {
+	ae := func(uids, gids []string) ResourceIDNames {
 		users := map[string]string{}
 		for _, id := range uids {
 			users[id] = id
@@ -500,7 +500,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInLinkShare(
 			groups[id] = id
 		}
 
-		return AvailableEntities{
+		return ResourceIDNames{
 			Users:  idname.NewCache(users),
 			Groups: idname.NewCache(groups),
 		}
@@ -510,7 +510,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterUnavailableEntitiesInLinkShare(
 		name              string
 		linkShares        []metadata.LinkShare
 		expected          []metadata.LinkShare
-		availableEntities AvailableEntities
+		availableEntities ResourceIDNames
 		skippedLinkShares []string
 	}{
 		{

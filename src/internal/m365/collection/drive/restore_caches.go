@@ -22,7 +22,7 @@ type driveInfo struct {
 	rootFolderID string
 }
 
-type AvailableEntities struct {
+type ResourceIDNames struct {
 	Users  idname.Cacher
 	Groups idname.Cacher
 }
@@ -36,7 +36,7 @@ type restoreCaches struct {
 	OldLinkShareIDToNewID syncd.MapTo[string]
 	OldPermIDToNewID      syncd.MapTo[string]
 	ParentDirToMeta       syncd.MapTo[metadata.Metadata]
-	AvailableEntities     AvailableEntities
+	AvailableEntities     ResourceIDNames
 
 	pool sync.Pool
 }

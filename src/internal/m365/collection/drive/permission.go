@@ -452,7 +452,7 @@ func UpdateLinkShares(
 func filterUnavailableEntitiesInLinkShare(
 	ctx context.Context,
 	linkShares []metadata.LinkShare,
-	availableEntities AvailableEntities,
+	availableEntities ResourceIDNames,
 	oldLinkShareIDToNewID syncd.MapTo[string],
 ) []metadata.LinkShare {
 	filtered := []metadata.LinkShare{}
@@ -505,7 +505,7 @@ func filterUnavailableEntitiesInLinkShare(
 func filterUnavailableEntitiesInPermissions(
 	ctx context.Context,
 	perms []metadata.Permission,
-	availableEntities AvailableEntities,
+	availableEntities ResourceIDNames,
 	oldPermIDToNewID syncd.MapTo[string],
 ) []metadata.Permission {
 	if availableEntities.Users == nil || availableEntities.Groups == nil {
