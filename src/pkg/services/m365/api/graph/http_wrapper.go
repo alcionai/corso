@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -120,7 +121,7 @@ func (hw httpWrapper) Request(
 		}
 
 		if IsErrApplicationThrottled(err) {
-			return nil, Stack(ctx, clues.Stack(ErrApplicationThrottled, err))
+			return nil, Stack(ctx, clues.Stack(core.ErrApplicationThrottled, err))
 		}
 
 		var http2StreamErr http2.StreamError

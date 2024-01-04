@@ -13,6 +13,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -153,7 +154,7 @@ func (c Sites) GetByID(
 			// a 404 when getting sites by ID returns an itemNotFound
 			// error code, instead of something more sensible.
 			if graph.IsErrItemNotFound(err) {
-				err = clues.Stack(graph.ErrResourceOwnerNotFound, err)
+				err = clues.Stack(core.ErrResourceOwnerNotFound, err)
 			}
 
 			if graph.IsErrResourceLocked(err) {
@@ -199,7 +200,7 @@ func (c Sites) GetByID(
 		// a 404 when getting sites by ID returns an itemNotFound
 		// error code, instead of something more sensible.
 		if graph.IsErrItemNotFound(err) {
-			err = clues.Stack(graph.ErrResourceOwnerNotFound, err)
+			err = clues.Stack(core.ErrResourceOwnerNotFound, err)
 		}
 
 		if graph.IsErrResourceLocked(err) {

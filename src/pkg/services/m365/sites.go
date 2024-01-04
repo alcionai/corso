@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -87,7 +88,7 @@ func getAllSites(
 	sites, err := ga.GetAll(ctx, fault.New(true))
 	if err != nil {
 		if clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
-			return nil, clues.Stack(graph.ErrServiceNotEnabled, err)
+			return nil, clues.Stack(core.ErrServiceNotEnabled, err)
 		}
 
 		return nil, clues.Wrap(err, "retrieving sites")

@@ -63,7 +63,7 @@ func ParseMetadataCollections(
 
 				err := json.NewDecoder(item.ToReader()).Decode(&m)
 				if err != nil {
-					return nil, false, clues.NewWC(ctx, "decoding metadata json")
+					return nil, false, clues.WrapWC(ctx, err, "decoding metadata json")
 				}
 
 				switch item.ID() {
