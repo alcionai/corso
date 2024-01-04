@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
@@ -401,34 +402,175 @@ func (suite *MailAPIIntgSuite) TestMail_attachmentListDownload() {
 	}
 }
 
-func (suite *MailAPIIntgSuite) TestMail_PostLargeAttachment() {
+type attachment struct {
+	name    string
+	data    string
+	isLarge bool
+}
+
+func createMailWithAttachment(
+	ctx context.Context,
+	t *testing.T,
+	ac Client,
+	userID string,
+	mailFolder graph.Container,
+	attachments ...attachment,
+) models.Messageable {
+	msg := models.NewMessage()
+
+	msg.SetSubject(ptr.To("attachment test"))
+
+	item, err := ac.Mail().PostItem(
+		ctx,
+		userID,
+		ptr.Val(mailFolder.GetId()),
+		msg)
+	require.NoError(t, err, clues.ToCore(err))
+
+	for _, attach := range attachments {
+		if attach.isLarge {
+			id, err := ac.Mail().PostLargeAttachment(
+				ctx,
+				userID,
+				ptr.Val(mailFolder.GetId()),
+				ptr.Val(item.GetId()),
+				attach.name,
+				[]byte(attach.data))
+			require.NoError(t, err, clues.ToCore(err))
+			require.NotEmpty(t, id, "empty id for large attachment")
+		} else {
+			att := models.NewFileAttachment()
+
+			att.SetName(ptr.To(attach.name))
+			att.SetContentBytes([]byte(attach.data))
+
+			err = ac.Mail().PostSmallAttachment(
+				ctx,
+				userID,
+				ptr.Val(mailFolder.GetId()),
+				ptr.Val(item.GetId()),
+				att)
+			require.NoError(t, err, clues.ToCore(err))
+		}
+	}
+
+	return item
+}
+
+func (suite *MailAPIIntgSuite) TestMail_PostAndGetAttachments() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	userID := tconfig.M365UserID(suite.T())
-
-	folderName := testdata.DefaultRestoreConfig("maillargeattachmenttest").Location
-	msgs := suite.its.ac.Mail()
-	mailfolder, err := msgs.CreateContainer(ctx, userID, MsgFolderRoot, folderName)
-	require.NoError(t, err, clues.ToCore(err))
-
-	msg := models.NewMessage()
-	msg.SetSubject(ptr.To("Mail with attachment"))
-
-	item, err := msgs.PostItem(ctx, userID, ptr.Val(mailfolder.GetId()), msg)
-	require.NoError(t, err, clues.ToCore(err))
-
-	id, err := msgs.PostLargeAttachment(
+	userID := tconfig.M365UserID(t)
+	folderName := testdata.DefaultRestoreConfig("getattachmentstest").Location
+	mailFolder, err := suite.its.ac.Mail().CreateContainer(
 		ctx,
 		userID,
-		ptr.Val(mailfolder.GetId()),
-		ptr.Val(item.GetId()),
-		"raboganm",
-		[]byte("mangobar"))
+		MsgFolderRoot,
+		folderName)
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, id, "empty id for large attachment")
+
+	tests := []struct {
+		name          string
+		createMessage func(
+			ctx context.Context,
+			t *testing.T,
+			userID string) models.Messageable
+		verify func(t *testing.T, item models.Messageable)
+	}{
+		{
+			name: "Single large attachment",
+			createMessage: func(
+				ctx context.Context,
+				t *testing.T,
+				userID string,
+			) models.Messageable {
+				return createMailWithAttachment(
+					ctx,
+					t,
+					suite.its.ac,
+					userID,
+					mailFolder,
+					attachment{
+						name:    "abcd",
+						data:    "1234567",
+						isLarge: true,
+					})
+			},
+			verify: func(t *testing.T, item models.Messageable) {
+				assert.Equal(t, 1, len(item.GetAttachments()))
+				assert.Equal(t, "abcd", ptr.Val(item.GetAttachments()[0].GetName()))
+
+				// GetSize doesn't return the size of attachment content. Skip checking it.
+				contentBytes, err := item.GetAttachments()[0].GetBackingStore().Get("contentBytes")
+				require.NoError(t, err, clues.ToCore(err))
+				assert.Equal(t, "1234567", string(contentBytes.([]byte)))
+			},
+		},
+		{
+			name: "Two attachments, one large, one small",
+			createMessage: func(
+				ctx context.Context,
+				t *testing.T,
+				userID string,
+			) models.Messageable {
+				return createMailWithAttachment(
+					ctx,
+					t,
+					suite.its.ac,
+					userID,
+					mailFolder,
+					attachment{
+						name:    "abcd",
+						data:    "1234567",
+						isLarge: true,
+					},
+					attachment{
+						name: "efgh",
+						data: "7654321",
+					})
+			},
+			verify: func(t *testing.T, item models.Messageable) {
+				assert.Equal(t, 2, len(item.GetAttachments()))
+				assert.Equal(t, "abcd", ptr.Val(item.GetAttachments()[0].GetName()))
+				assert.Equal(t, "efgh", ptr.Val(item.GetAttachments()[1].GetName()))
+
+				contentBytes, err := item.GetAttachments()[0].GetBackingStore().Get("contentBytes")
+				require.NoError(t, err, clues.ToCore(err))
+				assert.Equal(t, "1234567", string(contentBytes.([]byte)))
+
+				contentBytes, err = item.GetAttachments()[1].GetBackingStore().Get("contentBytes")
+				require.NoError(t, err, clues.ToCore(err))
+				assert.Equal(t, "7654321", string(contentBytes.([]byte)))
+			},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			m := test.createMessage(ctx, t, userID)
+
+			item, _, err := suite.its.ac.Mail().GetItem(
+				ctx,
+				userID,
+				ptr.Val(m.GetId()),
+				false,
+				fault.New(true))
+			require.NoError(t, err, clues.ToCore(err))
+
+			msg, ok := item.(models.Messageable)
+			require.True(t, ok, "convert to messageable")
+
+			test.verify(t, msg)
+		})
+	}
 }
 
 func (suite *MailAPIIntgSuite) TestMail_GetContainerByName() {
