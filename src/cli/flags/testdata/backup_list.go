@@ -20,7 +20,7 @@ func PreparedBackupListFlags() []string {
 
 func AssertBackupListFlags(t *testing.T, cmd *cobra.Command) {
 	assert.Equal(t, flags.Show, flags.ListAlertsFV)
-	assert.Equal(t, flags.Show, flags.ListFailedItemsFV)
+	assert.Equal(t, flags.Show, flags.FailedItemsFV)
 	assert.Equal(t, flags.Show, flags.ListSkippedItemsFV)
 	assert.Equal(t, flags.Show, flags.ListRecoveredErrorsFV)
 }
