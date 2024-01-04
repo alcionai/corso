@@ -24,10 +24,7 @@ type ErrCheck func(error) bool
 // checks.  This allows us to apply those comparison checks instead of relying
 // only on sentinels.
 var externalToInternalCheck = map[*core.Err][]ErrCheck{
-	core.ErrApplicationThrottled:      {graph.IsErrApplicationThrottled},
-	core.ErrResourceNotAccessible:     {graph.IsErrResourceLocked},
-	core.ErrResourceOwnerNotFound:     {graph.IsErrItemNotFound},
-	core.ErrInsufficientAuthorization: {graph.IsErrInsufficientAuthorization},
+	core.ErrResourceOwnerNotFound: {graph.IsErrItemNotFound},
 }
 
 // Internal returns the internal errors and error checking functions which

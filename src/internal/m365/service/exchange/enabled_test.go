@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
@@ -91,9 +92,10 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "overlapping resourcenotfound",
 			mock: func(ctx context.Context) getMailInboxer {
 				odErr := graphTD.ODataErrWithMsg(string(graph.ResourceNotFound), "User not found")
+				err := clues.Stack(core.ErrResourceOwnerNotFound, odErr)
 
 				return mockGMB{
-					mailboxErr: graph.Stack(ctx, odErr),
+					mailboxErr: graph.Stack(ctx, err),
 				}
 			},
 			expect:    assert.False,

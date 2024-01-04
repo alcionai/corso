@@ -85,7 +85,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrApplicationThrottled(test.err))
+			test.expect(suite.T(), isErrApplicationThrottled(test.err))
 		})
 	}
 }
@@ -153,7 +153,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInsufficientAuthorization() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrInsufficientAuthorization(test.err))
+			test.expect(suite.T(), isErrInsufficientAuthorization(test.err))
 		})
 	}
 }
@@ -481,7 +481,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrUserNotFound(test.err))
+			test.expect(suite.T(), isErrUserNotFound(test.err))
 		})
 	}
 }
@@ -968,7 +968,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrResourceLocked(test.err))
+			test.expect(suite.T(), isErrResourceLocked(test.err))
 		})
 	}
 }

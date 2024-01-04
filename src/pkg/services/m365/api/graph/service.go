@@ -13,6 +13,7 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -402,11 +403,12 @@ func (aw *adapterWrap) Send(
 			break
 		}
 
+		err = stackErrsCore(ictx, err, 1)
+
 		// force an early exit on throttling issues.
-		// those retries are well handled in middleware already. We want to ensure
-		// that the error gets wrapped with the appropriate sentinel here.
-		if IsErrApplicationThrottled(err) {
-			return nil, clues.StackWC(ictx, core.ErrApplicationThrottled, err).WithTrace(1)
+		// those retries are already handled in middleware.
+		if errors.Is(err, core.ErrApplicationThrottled) {
+			return nil, err
 		}
 
 		// exit most errors without retry

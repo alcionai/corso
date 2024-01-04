@@ -57,12 +57,6 @@ func (suite *ErrUnitSuite) TestInternal_checks() {
 		expect          assert.BoolAssertionFunc
 	}{
 		{
-			get:             core.ErrApplicationThrottled,
-			err:             graphTD.ODataErr(string(graph.ApplicationThrottled)),
-			expectHasChecks: assert.NotEmpty,
-			expect:          assert.True,
-		},
-		{
 			get:             core.ErrRepoAlreadyExists,
 			err:             graphTD.ODataErr(string(graph.ApplicationThrottled)),
 			expectHasChecks: assert.Empty,
@@ -83,18 +77,6 @@ func (suite *ErrUnitSuite) TestInternal_checks() {
 		{
 			get:             core.ErrResourceOwnerNotFound,
 			err:             graphTD.ODataErr(string(graph.ErrorItemNotFound)),
-			expectHasChecks: assert.NotEmpty,
-			expect:          assert.True,
-		},
-		{
-			get:             core.ErrResourceNotAccessible,
-			err:             graph.ErrResourceLocked,
-			expectHasChecks: assert.NotEmpty,
-			expect:          assert.True,
-		},
-		{
-			get:             core.ErrInsufficientAuthorization,
-			err:             graphTD.ODataErr(string(graph.AuthorizationRequestDenied)),
 			expectHasChecks: assert.NotEmpty,
 			expect:          assert.True,
 		},
@@ -137,10 +119,6 @@ func (suite *ErrUnitSuite) TestIs() {
 		{
 			target: core.ErrResourceNotAccessible,
 			err:    graph.ErrResourceLocked,
-		},
-		{
-			target: core.ErrInsufficientAuthorization,
-			err:    graphTD.ODataErr(string(graph.AuthorizationRequestDenied)),
 		},
 	}
 	for _, test := range table {
