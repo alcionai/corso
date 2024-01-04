@@ -5,10 +5,12 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/backup/details"
 	dtd "github.com/alcionai/corso/src/pkg/backup/details/testdata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -65,4 +67,31 @@ func (suite *BackupUnitSuite) TestGenericDetailsCore() {
 		control.DefaultOptions())
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.ElementsMatch(t, expected, output.Entries)
+}
+
+func (suite *BackupUnitSuite) TestGenericDetailsCore_empty() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	bg := testdata.VersionedBackupGetter{
+		Details: &details.Details{
+			DetailsModel: details.DetailsModel{
+				Entries: []details.Entry{},
+			},
+		},
+	}
+
+	sel := selectors.NewExchangeBackup([]string{"user-id"})
+	sel.Include(sel.AllData())
+
+	_, err := genericDetailsCore(
+		ctx,
+		bg,
+		"backup-ID",
+		sel.Selector,
+		control.DefaultOptions())
+	require.Error(t, err, "has error")
+	assert.ErrorContains(t, err, "no items in backup", clues.ToCore(err))
 }

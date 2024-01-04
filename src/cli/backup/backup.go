@@ -394,6 +394,10 @@ func genericDetailsCore(
 		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
 	}
 
+	if len(d.Entries) == 0 {
+		return nil, clues.New("no items in backup")
+	}
+
 	if opts.SkipReduce {
 		return d, nil
 	}
