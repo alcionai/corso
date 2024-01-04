@@ -79,6 +79,10 @@ func (m MapOf[K, V]) Size() int {
 func (m MapOf[K, V]) Values() map[K]V {
 	vs := map[K]V{}
 
+	if m.xmo == nil {
+		return vs
+	}
+
 	m.xmo.Range(func(k K, v V) bool {
 		vs[k] = v
 		return true

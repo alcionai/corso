@@ -23,6 +23,12 @@ type ExportStats struct {
 	data syncd.MapOf[path.CategoryType, *count.Bus]
 }
 
+func NewExportStats() *ExportStats {
+	return &ExportStats{
+		data: syncd.NewMapOf[path.CategoryType, *count.Bus](),
+	}
+}
+
 func (es *ExportStats) UpdateBytes(kind path.CategoryType, numBytes int64) {
 	es.getCB(kind).Add(bytesRead, numBytes)
 }
