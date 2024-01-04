@@ -60,7 +60,9 @@ type prefetchCollection struct {
 	// where the category type serves as the key, and the associated channel holds the items.
 	stream map[path.CategoryType]chan data.Item
 	// fullPath indicates the hierarchy within the collection
-	fullPath path.Path
+	fullPath     path.Path
+	prevPath     path.Path
+	locationPath *path.Builder
 	// items contains the SharePoint.List.IDs or SharePoint.Page.IDs
 	// and their corresponding last modified time
 	items map[string]time.Time
@@ -71,19 +73,25 @@ type prefetchCollection struct {
 	betaService   *betaAPI.BetaService
 	statusUpdater support.StatusUpdater
 	getter        getItemByIDer
+	Counter       *count.Bus
+	state         data.CollectionState
 }
 
 // NewPrefetchCollection constructor function for creating a prefetchCollection
 func NewPrefetchCollection(
 	getter getItemByIDer,
-	folderPath path.Path,
+	folderPath, prevPath path.Path,
+	locPb *path.Builder,
 	ac api.Client,
 	scope selectors.SharePointScope,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
+	counter *count.Bus,
 ) *prefetchCollection {
 	c := &prefetchCollection{
 		fullPath:      folderPath,
+		prevPath:      prevPath,
+		locationPath:  locPb,
 		items:         make(map[string]time.Time),
 		getter:        getter,
 		stream:        make(map[path.CategoryType]chan data.Item),
@@ -91,6 +99,8 @@ func NewPrefetchCollection(
 		statusUpdater: statusUpdater,
 		category:      scope.Category().PathType(),
 		ctrl:          ctrlOpts,
+		Counter:       counter.Local(),
+		state:         data.StateOf(prevPath, folderPath, counter),
 	}
 
 	return c
@@ -109,18 +119,16 @@ func (pc *prefetchCollection) FullPath() path.Path {
 	return pc.fullPath
 }
 
-// TODO(ashmrtn): Fill in with previous path once the Controller compares old
-// and new folder hierarchies.
 func (pc prefetchCollection) PreviousPath() path.Path {
-	return nil
+	return pc.prevPath
 }
 
 func (pc prefetchCollection) LocationPath() *path.Builder {
-	return path.Builder{}.Append(pc.fullPath.Folders()...)
+	return pc.locationPath
 }
 
 func (pc prefetchCollection) State() data.CollectionState {
-	return data.NewState
+	return pc.state
 }
 
 func (pc prefetchCollection) DoNotMergeItems() bool {
@@ -363,27 +371,33 @@ type lazyFetchCollection struct {
 	// stream is the container for each individual SharePoint item of list
 	stream chan data.Item
 	// fullPath indicates the hierarchy within the collection
-	fullPath path.Path
+	fullPath, prevPath path.Path
+	locationPath       *path.Builder
 	// jobs contain the SharePoint.List.IDs and their last modified time
 	items         map[string]time.Time
 	statusUpdater support.StatusUpdater
 	getter        getItemByIDer
 	counter       *count.Bus
+	state         data.CollectionState
 }
 
 func NewLazyFetchCollection(
 	getter getItemByIDer,
-	folderPath path.Path,
+	folderPath, prevPath path.Path,
+	locPb *path.Builder,
 	statusUpdater support.StatusUpdater,
 	counter *count.Bus,
 ) *lazyFetchCollection {
 	c := &lazyFetchCollection{
 		fullPath:      folderPath,
+		prevPath:      prevPath,
+		locationPath:  locPb,
 		items:         make(map[string]time.Time),
 		getter:        getter,
 		stream:        make(chan data.Item, collectionChannelBufferSize),
 		statusUpdater: statusUpdater,
 		counter:       counter,
+		state:         data.StateOf(prevPath, folderPath, counter),
 	}
 
 	return c
@@ -399,17 +413,15 @@ func (lc *lazyFetchCollection) FullPath() path.Path {
 }
 
 func (lc lazyFetchCollection) LocationPath() *path.Builder {
-	return path.Builder{}.Append(lc.fullPath.Folders()...)
+	return lc.locationPath
 }
 
-// TODO(hitesh): Implement PreviousPath, State, DoNotMergeItems
-// once the Controller compares old and new folder hierarchies.
 func (lc lazyFetchCollection) PreviousPath() path.Path {
-	return nil
+	return lc.prevPath
 }
 
 func (lc lazyFetchCollection) State() data.CollectionState {
-	return data.NewState
+	return lc.state
 }
 
 func (lc lazyFetchCollection) DoNotMergeItems() bool {
