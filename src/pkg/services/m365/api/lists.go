@@ -17,75 +17,6 @@ import (
 
 var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
 
-const (
-	AttachmentsColumnName       = "Attachments"
-	EditColumnName              = "Edit"
-	ContentTypeColumnName       = "ContentType"
-	CreatedColumnName           = "Created"
-	ModifiedColumnName          = "Modified"
-	AuthorLookupIDColumnName    = "AuthorLookupId"
-	EditorLookupIDColumnName    = "EditorLookupId"
-	AppAuthorLookupIDColumnName = "AppAuthorLookupId"
-	TitleColumnName             = "Title"
-
-	ContentTypeColumnDisplayName = "Content Type"
-
-	AddressFieldName          = "address"
-	NestedCityFieldName       = "city"
-	NestedCountryFieldName    = "countryOrRegion"
-	NestedPostalCodeFieldName = "postalCode"
-	NestedStateFieldName      = "state"
-	NestedStreetFieldName     = "street"
-	CoordinatesFieldName      = "coordinates"
-	NestedLatitudeFieldName   = "latitude"
-	NestedLongitudeFieldName  = "longitude"
-	DisplayNameFieldName      = "displayName"
-	LocationURIFieldName      = "locationUri"
-	UniqueIDFieldName         = "uniqueId"
-
-	CountryOrRegionFieldName = "CountryOrRegion"
-	StateFieldName           = "State"
-	CityFieldName            = "City"
-	PostalCodeFieldName      = "PostalCode"
-	StreetFieldName          = "Street"
-	GeoLocFieldName          = "GeoLoc"
-	DispNameFieldName        = "DispName"
-	LinkTitleFieldNamePart   = "LinkTitle"
-	ChildCountFieldNamePart  = "ChildCount"
-	LookupIDFieldNamePart    = "LookupId"
-
-	ReadOnlyOrHiddenFieldNamePrefix = "_"
-	DescoratorFieldNamePrefix       = "@"
-
-	WebTemplateExtensionsListTemplate = "webTemplateExtensionsList"
-	// This issue https://github.com/alcionai/corso/issues/4932
-	// tracks to backup/restore supportability of `documentLibrary` templated lists
-	DocumentLibraryListTemplate = "documentLibrary"
-	SharingLinksListTemplate    = "sharingLinks"
-	AccessRequestsListTemplate  = "accessRequest"
-)
-
-var addressFieldNames = []string{
-	AddressFieldName,
-	CoordinatesFieldName,
-	DisplayNameFieldName,
-	LocationURIFieldName,
-	UniqueIDFieldName,
-}
-
-var legacyColumns = keys.Set{
-	AttachmentsColumnName:        {},
-	EditColumnName:               {},
-	ContentTypeColumnDisplayName: {},
-}
-
-var SkipListTemplates = keys.Set{
-	WebTemplateExtensionsListTemplate: {},
-	DocumentLibraryListTemplate:       {},
-	SharingLinksListTemplate:          {},
-	AccessRequestsListTemplate:        {},
-}
-
 // ---------------------------------------------------------------------------
 // controller
 // ---------------------------------------------------------------------------
@@ -526,6 +457,11 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]str
 		additionalData[fieldName] = concatenatedAddress
 	}
 
+	if hyperLinkField, fieldName, ok := hasHyperLinkFields(additionalData); ok {
+		concatenatedHyperlink := concatenateHyperLinkFields(hyperLinkField)
+		additionalData[fieldName] = concatenatedHyperlink
+	}
+
 	fields.SetAdditionalData(additionalData)
 
 	return fields
@@ -591,6 +527,40 @@ func concatenateAddressFields(addressFields map[string]any) string {
 	}
 
 	return ""
+}
+
+func concatenateHyperLinkFields(hyperlinkFields map[string]any) string {
+	concatenatedHyperlink := ""
+
+	if url, ok := hyperlinkFields[HyperlinkURLFieldName].(*string); ok {
+		concatenatedHyperlink = fmt.Sprintf("%s,%s", concatenatedHyperlink, ptr.Val(url))
+	}
+
+	if desc, ok := hyperlinkFields[HyperlinkDescriptionFieldName].(*string); ok {
+		concatenatedHyperlink = fmt.Sprintf("%s,%s", concatenatedHyperlink, ptr.Val(desc))
+	}
+
+	if len(concatenatedHyperlink) > 0 {
+		return concatenatedHyperlink[1:]
+	}
+
+	return ""
+}
+
+func hasHyperLinkFields(additionalData map[string]any) (map[string]any, string, bool) {
+	for fieldName, value := range additionalData {
+		nestedFields, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		if keys.HasKeys(nestedFields,
+			[]string{HyperlinkDescriptionFieldName, HyperlinkURLFieldName}...) {
+			return nestedFields, fieldName, true
+		}
+	}
+
+	return nil, "", false
 }
 
 func concatenateField(concatenatedAddress string, field map[string]any, fieldName string) string {
