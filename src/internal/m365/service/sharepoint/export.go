@@ -75,17 +75,19 @@ func (h *baseSharePointHandler) ProduceExportCollections(
 	for _, dc := range dcs {
 		cat := dc.FullPath().Category()
 
+		ictx := clues.Add(ctx, "fullpath_category", cat)
+
 		switch cat {
 		case path.LibrariesCategory:
 			drivePath, err := path.ToDrivePath(dc.FullPath())
 			if err != nil {
-				return nil, clues.WrapWC(ctx, err, "transforming path to drive path")
+				return nil, clues.WrapWC(ictx, err, "transforming path to drive path")
 			}
 
 			driveName, ok := h.backupDriveIDNames.NameOf(drivePath.DriveID)
 			if !ok {
 				// This should not happen, but just in case
-				logger.Ctx(ctx).With("drive_id", drivePath.DriveID).Info("drive name not found, using drive id")
+				logger.Ctx(ictx).With("drive_id", drivePath.DriveID).Info("drive name not found, using drive id")
 				driveName = drivePath.DriveID
 			}
 
@@ -94,13 +96,13 @@ func (h *baseSharePointHandler) ProduceExportCollections(
 				Append(driveName).
 				Append(drivePath.Folders...)
 
-			ec = append(
-				ec,
-				drive.NewExportCollection(
-					baseDir.String(),
-					[]data.RestoreCollection{dc},
-					backupVersion,
-					stats))
+			coll := drive.NewExportCollection(
+				baseDir.String(),
+				[]data.RestoreCollection{dc},
+				backupVersion,
+				stats)
+
+			ec = append(ec, coll)
 		case path.ListsCategory:
 			folders := dc.FullPath().Folders()
 			pth := path.Builder{}.Append(path.ListsCategory.HumanString()).Append(folders...)
