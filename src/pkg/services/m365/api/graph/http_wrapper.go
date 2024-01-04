@@ -120,7 +120,7 @@ func (hw httpWrapper) Request(
 			break
 		}
 
-		err = stackErrsCore(ctx, err, 1)
+		err = stackWithCoreErr(ctx, err, 1)
 
 		// force an early exit on throttling issues.
 		// those retries are already handled in middleware.
@@ -130,7 +130,7 @@ func (hw httpWrapper) Request(
 
 		var http2StreamErr http2.StreamError
 		if !errors.As(err, &http2StreamErr) {
-			return nil, Stack(ctx, err)
+			return nil, err
 		}
 
 		logger.Ctx(ctx).Debug("http2 stream error")
@@ -140,7 +140,7 @@ func (hw httpWrapper) Request(
 	}
 
 	if err != nil {
-		return nil, Stack(ctx, err)
+		return nil, err
 	}
 
 	logResp(ctx, resp)

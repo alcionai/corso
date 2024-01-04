@@ -106,6 +106,10 @@ const (
 	LabelsSkippable = "skippable_errors"
 )
 
+// ---------------------------------------------------------------------------
+// error sentinels & categorization
+// ---------------------------------------------------------------------------
+
 // These errors are graph specific.  That means they don't have a clear parallel in
 // pkg/errs/core.  If these errors need to trickle outward to non-m365 layers, we
 // need to find a sufficiently coarse errs/core sentinel to use as transformation.
@@ -135,23 +139,23 @@ var (
 	ErrTokenExpired = clues.New("jwt token expired")
 )
 
-func stackErrsCore(ctx context.Context, err error, traceDepth int) error {
+func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	if err == nil {
 		return nil
 	}
 
 	switch {
 	case isErrApplicationThrottled(err):
-		return clues.StackWC(ctx, core.ErrApplicationThrottled, err).WithTrace(traceDepth + 1)
+		err = clues.Stack(core.ErrApplicationThrottled, err)
 	case isErrUserNotFound(err):
-		return clues.StackWC(ctx, core.ErrResourceOwnerNotFound, err).WithTrace(traceDepth + 1)
+		err = clues.Stack(core.ErrResourceOwnerNotFound, err)
 	case isErrResourceLocked(err):
-		return clues.StackWC(ctx, core.ErrResourceNotAccessible, err).WithTrace(traceDepth + 1)
+		err = clues.Stack(core.ErrResourceNotAccessible, err)
 	case isErrInsufficientAuthorization(err):
-		return clues.StackWC(ctx, core.ErrInsufficientAuthorization, err).WithTrace(traceDepth + 1)
+		err = clues.Stack(core.ErrInsufficientAuthorization, err)
 	}
 
-	return err
+	return stackWithDepth(ctx, err, 1+traceDepth)
 }
 
 func isErrApplicationThrottled(err error) bool {
@@ -318,6 +322,10 @@ func IsErrSharingDisabled(err error) bool {
 	return parseODataErr(err).hasInnerErrorCode(err, sharingDisabled)
 }
 
+// ---------------------------------------------------------------------------
+// quality of life wrappers
+// ---------------------------------------------------------------------------
+
 // Wrap is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns the error.
 func Wrap(ctx context.Context, e error, msg string) *clues.Err {
@@ -344,6 +352,10 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 // Stack is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns the error.
 func Stack(ctx context.Context, e error) *clues.Err {
+	return stackWithDepth(ctx, e, 1)
+}
+
+func stackWithDepth(ctx context.Context, e error, traceDepth int) *clues.Err {
 	if e == nil {
 		return nil
 	}
@@ -359,7 +371,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 
 	ce := clues.StackWC(ctx, e).
 		With("graph_api_err", ode).
-		WithTrace(1)
+		WithTrace(1 + traceDepth)
 
 	return setLabels(ce, ode)
 }

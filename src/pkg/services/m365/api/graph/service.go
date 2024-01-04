@@ -403,7 +403,7 @@ func (aw *adapterWrap) Send(
 			break
 		}
 
-		err = stackErrsCore(ictx, err, 1)
+		err = stackWithCoreErr(ictx, err, 1)
 
 		// force an early exit on throttling issues.
 		// those retries are already handled in middleware.
@@ -427,11 +427,15 @@ func (aw *adapterWrap) Send(
 			logger.Ctx(ictx).Debug("invalid request")
 			events.Inc(events.APICall, "invalidrequest")
 		default:
-			return nil, clues.StackWC(ictx, err).WithTrace(1)
+			return nil, err
 		}
 
 		time.Sleep(aw.retryDelay)
 	}
 
-	return sp, clues.Stack(err).OrNil()
+	if err != nil {
+		return nil, err
+	}
+
+	return sp, nil
 }
