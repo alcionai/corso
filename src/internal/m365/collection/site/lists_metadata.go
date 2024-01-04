@@ -106,3 +106,13 @@ func pathFromPrevString(ps string) (path.Path, error) {
 
 	return p, nil
 }
+
+func makeTombstones(dps metadata.DeltaPaths) map[string]string {
+	r := make(map[string]string, len(dps))
+
+	for id, v := range dps {
+		r[id] = v.Path
+	}
+
+	return r
+}
