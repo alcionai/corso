@@ -97,3 +97,22 @@ func parseListsMetadataCollections(
 
 	return cdp[cat], true, nil
 }
+
+func pathFromPrevString(ps string) (path.Path, error) {
+	p, err := path.FromDataLayerPath(ps, false)
+	if err != nil {
+		return nil, clues.Wrap(err, "parsing previous path string")
+	}
+
+	return p, nil
+}
+
+func makeTombstones(dps metadata.DeltaPaths) map[string]string {
+	r := make(map[string]string, len(dps))
+
+	for id, v := range dps {
+		r[id] = v.Path
+	}
+
+	return r
+}

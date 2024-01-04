@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -128,10 +129,13 @@ func CollectPages(
 		collection := NewPrefetchCollection(
 			nil,
 			dir,
+			nil,
+			nil,
 			ac,
 			scope,
 			su,
-			bpc.Options)
+			bpc.Options,
+			nil)
 		collection.SetBetaService(betaService)
 		collection.AddItem(tuple.ID, time.Now())
 
@@ -155,16 +159,12 @@ func CollectLists(
 	logger.Ctx(ctx).Debug("Creating SharePoint List Collections")
 
 	var (
-		collection data.BackupCollection
-		el         = errs.Local()
-		cl         = counter.Local()
-		spcs       = make([]data.BackupCollection, 0)
-		cfg        = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
-		currPaths  = map[string]string{}
+		el   = errs.Local()
+		spcs = make([]data.BackupCollection, 0)
+		cfg  = api.CallConfig{Select: idAnd("list", "lastModifiedDateTime")}
 	)
 
-	// [TODO](hitesh) utilise deltapaths to determine list's state
-	_, canUsePreviousBackup, err := parseListsMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
+	dps, canUsePreviousBackup, err := parseListsMetadataCollections(ctx, path.ListsCategory, bpc.MetadataCollections)
 	if err != nil {
 		return nil, false, err
 	}
@@ -176,6 +176,53 @@ func CollectLists(
 		return nil, false, err
 	}
 
+	collections, err := populateListsCollections(
+		ctx,
+		bh,
+		bpc,
+		ac,
+		tenantID,
+		scope,
+		su,
+		lists,
+		dps,
+		counter,
+		el)
+	if err != nil {
+		return nil, false, err
+	}
+
+	for _, spc := range collections {
+		spcs = append(spcs, spc)
+	}
+
+	return spcs, canUsePreviousBackup, el.Failure()
+}
+
+func populateListsCollections(
+	ctx context.Context,
+	bh backupHandler,
+	bpc inject.BackupProducerConfig,
+	ac api.Client,
+	tenantID string,
+	scope selectors.SharePointScope,
+	su support.StatusUpdater,
+	lists []models.Listable,
+	dps metadata.DeltaPaths,
+	counter *count.Bus,
+	el *fault.Bus,
+) (map[string]data.BackupCollection, error) {
+	var (
+		err        error
+		collection data.BackupCollection
+		// collections: list-id -> backup-collection
+		collections = make(map[string]data.BackupCollection)
+		currPaths   = make(map[string]string)
+		tombstones  = makeTombstones(dps)
+	)
+
+	counter.Add(count.Lists, int64(len(lists)))
+
 	for _, list := range lists {
 		if el.Failure() != nil {
 			break
@@ -185,12 +232,29 @@ func CollectLists(
 			continue
 		}
 
-		listID := ptr.Val(list.GetId())
-		storageDir := path.Elements{listID}
+		var (
+			listID      = ptr.Val(list.GetId())
+			storageDir  = path.Elements{listID}
+			dp          = dps[storageDir.String()]
+			prevPathStr = dp.Path
+			prevPath    path.Path
+		)
 
-		currPath, err := bh.canonicalPath(storageDir, tenantID)
+		delete(tombstones, listID)
+
+		if len(prevPathStr) > 0 {
+			if prevPath, err = pathFromPrevString(prevPathStr); err != nil {
+				err = clues.StackWC(ctx, err).Label(count.BadPrevPath)
+				logger.CtxErr(ctx, err).Error("parsing prev path")
+
+				return nil, err
+			}
+		}
+
+		currPath, err := bh.CanonicalPath(storageDir, tenantID)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
+			return nil, err
 		}
 
 		modTime := ptr.Val(list.GetLastModifiedDateTime())
@@ -198,8 +262,10 @@ func CollectLists(
 		lazyFetchCol := NewLazyFetchCollection(
 			bh,
 			currPath,
+			prevPath,
+			storageDir.Builder(),
 			su,
-			cl)
+			counter.Local())
 
 		lazyFetchCol.AddItem(
 			ptr.Val(list.GetId()),
@@ -213,10 +279,13 @@ func CollectLists(
 			prefetchCol := NewPrefetchCollection(
 				bh,
 				currPath,
+				prevPath,
+				storageDir.Builder(),
 				ac,
 				scope,
 				su,
-				bpc.Options)
+				bpc.Options,
+				counter.Local())
 
 			prefetchCol.AddItem(
 				ptr.Val(list.GetId()),
@@ -225,11 +294,13 @@ func CollectLists(
 			collection = prefetchCol
 		}
 
-		spcs = append(spcs, collection)
-
+		collections[storageDir.String()] = collection
 		currPaths[storageDir.String()] = currPath.String()
 	}
 
+	handleTombstones(ctx, bpc, tombstones, collections, counter, el)
+
+	// Build metadata path
 	pathPrefix, err := path.BuildMetadata(
 		tenantID,
 		bpc.ProtectedResource.ID(),
@@ -237,11 +308,11 @@ func CollectLists(
 		path.ListsCategory,
 		false)
 	if err != nil {
-		return nil, false, clues.WrapWC(ctx, err, "making metadata path prefix").
+		return nil, clues.WrapWC(ctx, err, "making metadata path prefix").
 			Label(count.BadPathPrefix)
 	}
 
-	col, err := graph.MakeMetadataCollection(
+	mdCol, err := graph.MakeMetadataCollection(
 		pathPrefix,
 		[]graph.MetadataCollectionEntry{
 			graph.NewMetadataEntry(metadata.PreviousPathFileName, currPaths),
@@ -249,12 +320,12 @@ func CollectLists(
 		su,
 		counter.Local())
 	if err != nil {
-		return nil, false, clues.WrapWC(ctx, err, "making metadata collection")
+		return nil, clues.WrapWC(ctx, err, "making metadata collection")
 	}
 
-	spcs = append(spcs, col)
+	collections["metadata"] = mdCol
 
-	return spcs, canUsePreviousBackup, el.Failure()
+	return collections, nil
 }
 
 func idAnd(ss ...string) []string {
@@ -265,4 +336,42 @@ func idAnd(ss ...string) []string {
 	}
 
 	return append(id, ss...)
+}
+
+func handleTombstones(
+	ctx context.Context,
+	bpc inject.BackupProducerConfig,
+	tombstones map[string]string,
+	collections map[string]data.BackupCollection,
+	counter *count.Bus,
+	el *fault.Bus,
+) {
+	for id, p := range tombstones {
+		if el.Failure() != nil {
+			return
+		}
+
+		ictx := clues.Add(ctx, "tombstone_id", id)
+
+		if collections[id] != nil {
+			err := clues.NewWC(ictx, "conflict: tombstone exists for a live collection").Label(count.CollectionTombstoneConflict)
+			el.AddRecoverable(ictx, err)
+
+			continue
+		}
+
+		if len(p) == 0 {
+			continue
+		}
+
+		prevPath, err := pathFromPrevString(p)
+		if err != nil {
+			err := clues.StackWC(ictx, err).Label(count.BadPrevPath)
+			logger.CtxErr(ictx, err).Error("parsing tombstone prev path")
+
+			continue
+		}
+
+		collections[id] = data.NewTombstoneCollection(prevPath, bpc.Options, counter.Local())
+	}
 }
