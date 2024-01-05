@@ -131,8 +131,6 @@ var (
 	// Example case: https://learn.microsoft.com/en-us/sharepoint/manage-lock-status
 	// This makes the resource inaccessible for any Corso operations.
 	ErrResourceLocked = clues.New("resource has been locked and must be unlocked by an administrator")
-
-	ErrTokenExpired = clues.New("jwt token expired")
 )
 
 func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
@@ -141,6 +139,8 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	}
 
 	switch {
+	case isErrBadJWTToken(err):
+		err = clues.Stack(core.ErrAuthTokenExpired)
 	case isErrApplicationThrottled(err):
 		err = clues.Stack(core.ErrApplicationThrottled, err)
 	case isErrResourceLocked(err):
@@ -246,10 +246,10 @@ func IsErrConnectionReset(err error) bool {
 func IsErrUnauthorizedOrBadToken(err error) bool {
 	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
 		parseODataErr(err).hasErrorCode(err, invalidAuthenticationToken) ||
-		errors.Is(err, ErrTokenExpired)
+		errors.Is(err, core.ErrAuthTokenExpired)
 }
 
-func IsErrBadJWTToken(err error) bool {
+func isErrBadJWTToken(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, invalidAuthenticationToken)
 }
 
@@ -666,7 +666,7 @@ func IsURLExpired(
 	}
 
 	if expired {
-		return clues.StackWC(ctx, ErrTokenExpired), nil
+		return clues.StackWC(ctx, core.ErrAuthTokenExpired), nil
 	}
 
 	return nil, nil

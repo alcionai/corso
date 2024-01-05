@@ -413,7 +413,7 @@ func (aw *adapterWrap) Send(
 		if IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()) {
 			logger.Ctx(ictx).Debug("http connection error")
 			events.Inc(events.APICall, "connectionerror")
-		} else if IsErrBadJWTToken(err) {
+		} else if errors.Is(err, core.ErrAuthTokenExpired) {
 			logger.Ctx(ictx).Debug("bad jwt token")
 			events.Inc(events.APICall, "badjwttoken")
 		} else if requestInfo.Method.String() == http.MethodGet && IsErrInvalidRequest(err) {

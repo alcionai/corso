@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
@@ -539,7 +540,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorizedOrBadToken() {
 		},
 		{
 			name:   "err token expired",
-			err:    clues.Stack(assert.AnError, ErrTokenExpired),
+			err:    clues.Stack(assert.AnError, core.ErrAuthTokenExpired),
 			expect: assert.True,
 		},
 		{
@@ -583,11 +584,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 			expect: assert.False,
 		},
 		{
-			name:   "err token expired",
-			err:    clues.Stack(assert.AnError, ErrTokenExpired),
-			expect: assert.False,
-		},
-		{
 			name:   "oDataErr code invalid auth token ",
 			err:    graphTD.ODataErr(string(invalidAuthenticationToken)),
 			expect: assert.True,
@@ -595,7 +591,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrBadJWTToken(test.err))
+			test.expect(suite.T(), isErrBadJWTToken(test.err))
 		})
 	}
 }

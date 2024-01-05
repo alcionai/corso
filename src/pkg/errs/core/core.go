@@ -56,6 +56,8 @@ var (
 	// server has returned one or more throttling errors which has stopped
 	// operation progress.
 	ErrApplicationThrottled = &Err{msg: "application throttled"}
+	// for use when a short-lived auth token (a jwt or something similar) expires.
+	ErrAuthTokenExpired = &Err{msg: "auth token expired"}
 	// about what it sounds like: we tried to look for a backup by ID, but the
 	// storage layer couldn't find anything for that ID.
 	ErrBackupNotFound = &Err{msg: "backup not found"}
