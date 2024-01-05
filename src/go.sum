@@ -15,8 +15,6 @@ github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1o
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
-github.com/alcionai/clues v0.0.0-20231115004051-523cbddac8e8 h1:kdpkhcKWWxnZFteGjglHvFTTPCPsvjhKDDY9J1Od6Sg=
-github.com/alcionai/clues v0.0.0-20231115004051-523cbddac8e8/go.mod h1:hGnRqQtV7YoojQSNMtqFK0TvfcwAljGZhUEQwx1lw34=
 github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2 h1:Oiz7puLziTpDUsEoiZMNor3j6um8RSvPOSIf4heGgTk=
 github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2/go.mod h1:1YJwJy3W6GGsC2UiDAEWABUjgvT8OZHjKs8OoaXeKbw=
 github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a h1:4nhM0NM1qtUT1s55rQ+D0Xw1Re5mIU9/crjEl6KdE+k=
@@ -213,8 +211,8 @@ github.com/microsoft/kiota-serialization-multipart-go v1.0.0 h1:3O5sb5Zj+moLBiJy
 github.com/microsoft/kiota-serialization-multipart-go v1.0.0/go.mod h1:yauLeBTpANk4L03XD985akNysG24SnRJGaveZf+p4so=
 github.com/microsoft/kiota-serialization-text-go v1.0.0 h1:XOaRhAXy+g8ZVpcq7x7a0jlETWnWrEum0RhmbYrTFnA=
 github.com/microsoft/kiota-serialization-text-go v1.0.0/go.mod h1:sM1/C6ecnQ7IquQOGUrUldaO5wj+9+v7G2W3sQ3fy6M=
-github.com/microsoftgraph/msgraph-sdk-go v1.28.0 h1:WjisgYSVVx0HtHU6EckLog8i0v+i87OpUZgP+wnL2jM=
-github.com/microsoftgraph/msgraph-sdk-go v1.28.0/go.mod h1:quVwiVQY6sxPiPR/O0Zli2iqXis1TPQBSEtq/uOcc+4=
+github.com/microsoftgraph/msgraph-sdk-go v1.29.0 h1:/8xt1KqmXzOWjLb6Q/R8bqaQe4GcAfzCXHkYC9b+KSI=
+github.com/microsoftgraph/msgraph-sdk-go v1.29.0/go.mod h1:quVwiVQY6sxPiPR/O0Zli2iqXis1TPQBSEtq/uOcc+4=
 github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1 h1:uq4qZD8VXLiNZY0t4NoRpLDoEiNYJvAQK3hc0ZMmdxs=
 github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1/go.mod h1:HUITyuFN556+0QZ/IVfH5K4FyJM7kllV6ExKi2ImKhE=
 github.com/minio/md5-simd v1.1.2 h1:Gdi1DZK69+ZVMoNHRXJyNcxrMA4dSxoYHZSQbirFg34=
