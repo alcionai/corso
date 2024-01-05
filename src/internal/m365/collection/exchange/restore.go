@@ -89,7 +89,7 @@ func RestoreCollection(
 				errs,
 				ctr)
 			if err != nil {
-				if !graph.IsErrItemAlreadyExistsConflict(err) {
+				if !errors.Is(err, core.ErrConflictAlreadyExists) {
 					el.AddRecoverable(ictx, clues.Wrap(err, "restoring item"))
 				}
 

@@ -184,10 +184,6 @@ func (c Drives) PostItemInContainer(
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
-		if graph.IsErrItemAlreadyExistsConflict(err) {
-			return nil, clues.Stack(graph.ErrItemAlreadyExistsConflict, err)
-		}
-
 		return nil, graph.Wrap(ctx, err, "creating item in folder")
 	}
 

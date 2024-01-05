@@ -282,7 +282,7 @@ func restoreItem(
 			itemData,
 			ctr)
 		if err != nil {
-			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
+			if errors.Is(err, core.ErrConflictAlreadyExists) && rcc.RestoreConfig.OnCollision == control.Skip {
 				return details.ItemInfo{}, true, nil
 			}
 
@@ -340,7 +340,7 @@ func restoreItem(
 			ctr,
 			errs)
 		if err != nil {
-			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
+			if errors.Is(err, core.ErrConflictAlreadyExists) && rcc.RestoreConfig.OnCollision == control.Skip {
 				return details.ItemInfo{}, true, nil
 			}
 
@@ -366,7 +366,7 @@ func restoreItem(
 		ctr,
 		errs)
 	if err != nil {
-		if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
+		if errors.Is(err, core.ErrConflictAlreadyExists) && rcc.RestoreConfig.OnCollision == control.Skip {
 			return details.ItemInfo{}, true, nil
 		}
 
@@ -672,7 +672,7 @@ func createFolder(
 
 	// ErrItemAlreadyExistsConflict can only occur for folders if the
 	// item being replaced is a file, not another folder.
-	if err != nil && !errors.Is(err, graph.ErrItemAlreadyExistsConflict) {
+	if err != nil && !errors.Is(err, core.ErrConflictAlreadyExists) {
 		return nil, clues.Wrap(err, "creating folder")
 	}
 
@@ -743,7 +743,7 @@ func restoreFile(
 			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
-			return "", details.ItemInfo{}, graph.ErrItemAlreadyExistsConflict
+			return "", details.ItemInfo{}, core.ErrConflictAlreadyExists
 		}
 
 		collision = dci
@@ -973,7 +973,7 @@ func ensureDriveExists(
 		ictx := clues.Add(ctx, "new_drive_name", clues.Hide(nextDriveName))
 
 		newDrive, err = pdagrf.PostDrive(ictx, protectedResourceID, nextDriveName)
-		if err != nil && !errors.Is(err, graph.ErrItemAlreadyExistsConflict) {
+		if err != nil && !errors.Is(err, core.ErrConflictAlreadyExists) {
 			return driveInfo{}, clues.Wrap(err, "creating new drive")
 		}
 

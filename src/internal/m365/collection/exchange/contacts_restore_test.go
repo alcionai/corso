@@ -20,7 +20,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var _ contactRestorer = &contactRestoreMock{}
@@ -154,7 +153,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Skip,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrConflictAlreadyExists, clues.ToCore(err))
 			},
 			expectMock: func(t *testing.T, m *contactRestoreMock) {
 				assert.False(t, m.calledPost, "new item posted")

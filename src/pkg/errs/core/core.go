@@ -61,6 +61,11 @@ var (
 	// about what it sounds like: we tried to look for a backup by ID, but the
 	// storage layer couldn't find anything for that ID.
 	ErrBackupNotFound = &Err{msg: "backup not found"}
+	// occurs when creation of an entity (usually by restful POST or PUT) errors
+	// because some other entity already already exists with a conflicting identifier.
+	// The identifier is not always the id.  For example: duplicate filenames
+	// in the same directory will cause conflicts, even with different IDs.
+	ErrConflictAlreadyExists = &Err{msg: "conflict: already exists"}
 	// a catch-all for downstream api auth issues.  doesn't matter which api.
 	ErrInsufficientAuthorization = &Err{msg: "insufficient authorization"}
 	// basically what it sounds like: we went looking for something by ID and

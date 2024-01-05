@@ -114,12 +114,6 @@ const (
 // pkg/errs/core.  If these errors need to trickle outward to non-m365 layers, we
 // need to find a sufficiently coarse errs/core sentinel to use as transformation.
 var (
-	// ErrItemAlreadyExistsConflict denotes that a post or put attempted to create
-	// an item which already exists by some unique identifier.  The identifier is
-	// not always the id.  For example, in onedrive, this error can be produced
-	// when filenames collide in a @microsoft.graph.conflictBehavior=fail request.
-	ErrItemAlreadyExistsConflict = clues.New("item already exists")
-
 	// ErrMultipleResultsMatchIdentifier describes a situation where we're doing a lookup
 	// in some way other than by canonical url ID (ex: filtering, searching, etc).
 	// This error should only be returned if a unique result is an expected constraint
@@ -151,6 +145,8 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 		err = clues.Stack(core.ErrInsufficientAuthorization, err)
 	case isErrNotFound(err):
 		err = clues.Stack(core.ErrNotFound, err)
+	case isErrItemAlreadyExistsConflict(err):
+		err = clues.Stack(core.ErrConflictAlreadyExists, err)
 	}
 
 	return stackWithDepth(ctx, err, 1+traceDepth)
@@ -253,9 +249,8 @@ func isErrBadJWTToken(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, invalidAuthenticationToken)
 }
 
-func IsErrItemAlreadyExistsConflict(err error) bool {
-	return errors.Is(err, ErrItemAlreadyExistsConflict) ||
-		parseODataErr(err).hasErrorCode(err, nameAlreadyExists)
+func isErrItemAlreadyExistsConflict(err error) bool {
+	return parseODataErr(err).hasErrorCode(err, nameAlreadyExists)
 }
 
 // LabelStatus transforms the provided statusCode into

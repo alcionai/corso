@@ -299,7 +299,7 @@ func (suite *RestoreUnitSuite) TestCreateFolder() {
 		{
 			name: "good with copy",
 			mock: &mockPIIC{
-				errs:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				errs:  []error{core.ErrConflictAlreadyExists, nil},
 				items: []models.DriveItemable{nil, models.NewDriveItem()},
 			},
 			expectErr:  assert.NoError,
@@ -317,7 +317,7 @@ func (suite *RestoreUnitSuite) TestCreateFolder() {
 		{
 			name: "bad with copy",
 			mock: &mockPIIC{
-				errs:  []error{graph.ErrItemAlreadyExistsConflict, assert.AnError},
+				errs:  []error{core.ErrConflictAlreadyExists, assert.AnError},
 				items: []models.DriveItemable{nil, nil},
 			},
 			expectErr:  assert.Error,
@@ -760,7 +760,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 			dp:   dp,
 			mock: &mockPDAGRF{
 				postResp: []models.Driveable{nil, makeMD()},
-				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				postErr:  []error{core.ErrConflictAlreadyExists, nil},
 				grf:      grf,
 			},
 			rc:           NewRestoreCaches(nil),
@@ -774,7 +774,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 			dp:   oldDP,
 			mock: &mockPDAGRF{
 				postResp: []models.Driveable{nil, makeMD()},
-				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				postErr:  []error{core.ErrConflictAlreadyExists, nil},
 				grf:      grf,
 			},
 			rc:           NewRestoreCaches(oldDriveIDNames),
@@ -788,7 +788,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 			dp:   dp,
 			mock: &mockPDAGRF{
 				postResp: []models.Driveable{nil, makeMD()},
-				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				postErr:  []error{core.ErrConflictAlreadyExists, nil},
 				grf:      grf,
 			},
 			rc:           populatedCache(driveID),

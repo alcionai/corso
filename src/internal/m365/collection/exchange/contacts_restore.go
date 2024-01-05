@@ -122,7 +122,7 @@ func restoreContact(
 			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
-			return nil, graph.ErrItemAlreadyExistsConflict
+			return nil, core.ErrConflictAlreadyExists
 		}
 
 		collisionID = id
