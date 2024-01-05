@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -191,7 +192,7 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 		},
 		{
 			name:         "collision: replace - err already deleted",
-			apiMock:      &contactRestoreMock{deleteItemErr: graph.ErrDeletedInFlight},
+			apiMock:      &contactRestoreMock{deleteItemErr: core.ErrNotFound},
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Replace,
 			expectErr: func(t *testing.T, err error) {

@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/alcionai/clues"
@@ -15,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -267,7 +269,7 @@ func populateCollections(
 				prevDelta,
 				itemConfig)
 		if err != nil {
-			if !graph.IsErrDeletedInFlight(err) {
+			if !errors.Is(err, core.ErrNotFound) {
 				el.AddRecoverable(ctx, clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}

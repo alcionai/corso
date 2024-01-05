@@ -61,6 +61,10 @@ var (
 	ErrBackupNotFound = &Err{msg: "backup not found"}
 	// a catch-all for downstream api auth issues.  doesn't matter which api.
 	ErrInsufficientAuthorization = &Err{msg: "insufficient authorization"}
+	// basically what it sounds like: we went looking for something by ID and
+	// it wasn't found.  This might be because it was deleted in flight, or
+	// because we had the id wrong, or some other reason.
+	ErrNotFound = &Err{msg: "not found"}
 	// specifically for repository creation: if we tried to create a repo and
 	// it already exists with those credentials, we return this error.
 	ErrRepoAlreadyExists = &Err{msg: "repository already exists"}

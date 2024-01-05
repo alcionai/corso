@@ -114,10 +114,6 @@ const (
 // pkg/errs/core.  If these errors need to trickle outward to non-m365 layers, we
 // need to find a sufficiently coarse errs/core sentinel to use as transformation.
 var (
-	// The folder or item was deleted between the time we identified
-	// it and when we tried to fetch data for it.
-	ErrDeletedInFlight = clues.New("deleted in flight")
-
 	// ErrItemAlreadyExistsConflict denotes that a post or put attempted to create
 	// an item which already exists by some unique identifier.  The identifier is
 	// not always the id.  For example, in onedrive, this error can be produced
@@ -153,6 +149,8 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 		err = clues.Stack(core.ErrResourceOwnerNotFound, err)
 	case isErrInsufficientAuthorization(err):
 		err = clues.Stack(core.ErrInsufficientAuthorization, err)
+	case isErrNotFound(err):
+		err = clues.Stack(core.ErrNotFound, err)
 	}
 
 	return stackWithDepth(ctx, err, 1+traceDepth)
@@ -170,24 +168,13 @@ func isErrInsufficientAuthorization(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, AuthorizationRequestDenied)
 }
 
-func IsErrDeletedInFlight(err error) bool {
-	if errors.Is(err, ErrDeletedInFlight) {
-		return true
-	}
-
-	if parseODataErr(err).hasErrorCode(
-		err,
-		ErrorItemNotFound,
-		ItemNotFound,
-		syncFolderNotFound) {
-		return true
-	}
-
-	return false
-}
-
-func IsErrItemNotFound(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, ItemNotFound, ErrorItemNotFound)
+func isErrNotFound(err error) bool {
+	return clues.HasLabel(err, LabelStatus(http.StatusNotFound)) ||
+		parseODataErr(err).hasErrorCode(
+			err,
+			ErrorItemNotFound,
+			ItemNotFound,
+			syncFolderNotFound)
 }
 
 func IsErrInvalidDelta(err error) bool {

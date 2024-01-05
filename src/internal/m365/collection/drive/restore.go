@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -757,7 +758,8 @@ func restoreFile(
 	// risk failures in the middle, or we post w/ copy, then delete, then patch
 	// the name, which could triple our graph calls in the worst case.
 	if shouldDeleteOriginal {
-		if err := ir.DeleteItem(ctx, driveID, collision.ItemID); err != nil && !graph.IsErrDeletedInFlight(err) {
+		err := ir.DeleteItem(ctx, driveID, collision.ItemID)
+		if err != nil && !errors.Is(err, core.ErrNotFound) {
 			return "", details.ItemInfo{}, clues.New("deleting colliding item")
 		}
 	}

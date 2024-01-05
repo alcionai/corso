@@ -11,6 +11,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/errs/core"
@@ -153,7 +154,7 @@ func (c Sites) GetByID(
 
 			// a 404 when getting sites by ID returns an itemNotFound
 			// error code, instead of something more sensible.
-			if graph.IsErrItemNotFound(err) {
+			if errors.Is(err, core.ErrNotFound) {
 				err = clues.Stack(core.ErrResourceOwnerNotFound, err)
 			}
 
@@ -195,7 +196,7 @@ func (c Sites) GetByID(
 
 		// a 404 when getting sites by ID returns an itemNotFound
 		// error code, instead of something more sensible.
-		if graph.IsErrItemNotFound(err) {
+		if errors.Is(err, core.ErrNotFound) {
 			err = clues.Stack(core.ErrResourceOwnerNotFound, err)
 		}
 

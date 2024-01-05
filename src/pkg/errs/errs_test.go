@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type ErrUnitSuite struct {
@@ -43,62 +42,7 @@ func (suite *ErrUnitSuite) TestInternal_errs() {
 	for _, test := range table {
 		suite.Run(test.get.Error(), func() {
 			// can't compare func signatures
-			errs, _ := Internal(test.get)
-			assert.ElementsMatch(suite.T(), test.expect, errs)
-		})
-	}
-}
-
-func (suite *ErrUnitSuite) TestInternal_checks() {
-	table := []struct {
-		get             *core.Err
-		err             error
-		expectHasChecks assert.ValueAssertionFunc
-		expect          assert.BoolAssertionFunc
-	}{
-		{
-			get:             core.ErrRepoAlreadyExists,
-			err:             graphTD.ODataErr(string(graph.ApplicationThrottled)),
-			expectHasChecks: assert.Empty,
-			expect:          assert.False,
-		},
-		{
-			get:             core.ErrBackupNotFound,
-			err:             repository.ErrorBackupNotFound,
-			expectHasChecks: assert.Empty,
-			expect:          assert.False,
-		},
-		{
-			get:             core.ErrResourceOwnerNotFound,
-			err:             graphTD.ODataErr(string(graph.ItemNotFound)),
-			expectHasChecks: assert.NotEmpty,
-			expect:          assert.True,
-		},
-		{
-			get:             core.ErrResourceOwnerNotFound,
-			err:             graphTD.ODataErr(string(graph.ErrorItemNotFound)),
-			expectHasChecks: assert.NotEmpty,
-			expect:          assert.True,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.get.Error(), func() {
-			t := suite.T()
-
-			_, checks := Internal(test.get)
-
-			test.expectHasChecks(t, checks)
-
-			var result bool
-
-			for _, check := range checks {
-				if check(test.err) {
-					result = true
-					break
-				}
-			}
-
-			test.expect(t, result)
+			assert.ElementsMatch(suite.T(), test.expect, Internal(test.get))
 		})
 	}
 }

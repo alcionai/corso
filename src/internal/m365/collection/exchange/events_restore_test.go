@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -239,7 +240,7 @@ func (suite *EventsRestoreIntgSuite) TestRestoreEvent() {
 		},
 		{
 			name:         "collision: replace - err already deleted",
-			apiMock:      &eventRestoreMock{deleteItemErr: graph.ErrDeletedInFlight},
+			apiMock:      &eventRestoreMock{deleteItemErr: core.ErrNotFound},
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Replace,
 			expectErr: func(t *testing.T, err error) {

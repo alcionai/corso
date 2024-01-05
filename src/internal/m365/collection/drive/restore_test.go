@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -122,7 +123,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				mock.DriveItemFileName: {ItemID: "smarf"},
 			},
 			onCollision:   control.Replace,
-			deleteErr:     graph.ErrDeletedInFlight,
+			deleteErr:     core.ErrNotFound,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")

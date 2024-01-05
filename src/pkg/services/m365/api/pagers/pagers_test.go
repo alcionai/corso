@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
@@ -635,7 +636,7 @@ func (suite *PagerUnitSuite) TestGetAddedAndRemovedItemIDs() {
 					t: t,
 					pages: []pageResult{
 						{
-							err: graph.ErrDeletedInFlight,
+							err: core.ErrNotFound,
 						},
 					},
 					validModTimes: validModTimes,
