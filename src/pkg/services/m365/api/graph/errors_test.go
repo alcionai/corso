@@ -86,7 +86,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrApplicationThrottled(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrApplicationThrottled(ode, test.err))
 		})
 	}
 }
@@ -154,7 +155,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInsufficientAuthorization() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrInsufficientAuthorization(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrInsufficientAuthorization(ode, test.err))
 		})
 	}
 }
@@ -193,7 +195,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrNotFound() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrNotFound(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrNotFound(ode, test.err))
 		})
 	}
 }
@@ -477,7 +480,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrUserNotFound(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrUserNotFound(ode, test.err))
 		})
 	}
 }
@@ -591,7 +595,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrBadJWTToken(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrBadJWTToken(ode, test.err))
 		})
 	}
 }
@@ -915,7 +920,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrResourceLocked(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrResourceLocked(ode, test.err))
 		})
 	}
 }
