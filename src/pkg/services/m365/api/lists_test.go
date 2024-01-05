@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -455,52 +456,54 @@ func (suite *ListsUnitSuite) TestFieldValueSetable() {
 func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 	t := suite.T()
 
+	displayName := "B123 Unit 1852 Prime Residences Tagaytay"
+	street := "Prime Residences CityLand 1852"
+	state := "Calabarzon"
+	postal := "4120"
+	country := "Philippines"
+	city := "Tagaytay"
+	lat := 14.1153
+	lon := 120.962
+
 	additionalData := map[string]any{
 		"MyAddress": map[string]any{
 			AddressFieldName: map[string]any{
-				"city":            "Tagaytay",
-				"countryOrRegion": "Philippines",
-				"postalCode":      "4120",
-				"state":           "Calabarzon",
-				"street":          "Prime Residences CityLand 1852",
+				NestedCityFieldName:       ptr.To(city),
+				NestedCountryFieldName:    ptr.To(country),
+				NestedPostalCodeFieldName: ptr.To(postal),
+				NestedStateFieldName:      ptr.To(state),
+				NestedStreetFieldName:     ptr.To(street),
 			},
 			CoordinatesFieldName: map[string]any{
-				"latitude":  "14.1153",
-				"longitude": "120.962",
+				NestedLatitudeFieldName:  ptr.To(lat),
+				NestedLongitudeFieldName: ptr.To(lon),
 			},
-			DisplayNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
-			LocationURIFieldName: "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-			UniqueIDFieldName:    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			DisplayNameFieldName: ptr.To(displayName),
+			LocationURIFieldName: ptr.To("https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032"),
+			UniqueIDFieldName:    ptr.To("https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032"),
 		},
-		CountryOrRegionFieldName: "Philippines",
-		StateFieldName:           "Calabarzon",
-		CityFieldName:            "Tagaytay",
-		PostalCodeFieldName:      "4120",
-		StreetFieldName:          "Prime Residences CityLand 1852",
+		CountryOrRegionFieldName: ptr.To(country),
+		StateFieldName:           ptr.To(state),
+		CityFieldName:            ptr.To(city),
+		PostalCodeFieldName:      ptr.To(postal),
+		StreetFieldName:          ptr.To(street),
 		GeoLocFieldName: map[string]any{
-			"latitude":  14.1153,
-			"longitude": 120.962,
+			"latitude":  ptr.To(lat),
+			"longitude": ptr.To(lon),
 		},
-		DispNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
+		DispNameFieldName: ptr.To(displayName),
 	}
 
 	expectedData := map[string]any{
-		"MyAddress": map[string]any{
-			AddressFieldName: map[string]any{
-				"city":            "Tagaytay",
-				"countryOrRegion": "Philippines",
-				"postalCode":      "4120",
-				"state":           "Calabarzon",
-				"street":          "Prime Residences CityLand 1852",
-			},
-			CoordinatesFieldName: map[string]any{
-				"latitude":  "14.1153",
-				"longitude": "120.962",
-			},
-			DisplayNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
-			LocationURIFieldName: "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-			UniqueIDFieldName:    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-		},
+		"MyAddress": fmt.Sprintf("%s,%s,%s,%s,%s,%s,%v,%v",
+			displayName,
+			street,
+			city,
+			state,
+			country,
+			postal,
+			lat,
+			lon),
 	}
 
 	origFs := models.NewFieldValueSet()
