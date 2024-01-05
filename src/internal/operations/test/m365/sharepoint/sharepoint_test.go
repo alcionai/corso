@@ -172,7 +172,7 @@ func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeSharePoint() {
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	RunBasicDriveishBackupTests(
 		suite,
@@ -183,7 +183,7 @@ func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeSharePoint() {
 
 func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeIncrementalSharePoint() {
 	opts := control.DefaultOptions()
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	runSharePointIncrementalBackupTests(suite, suite.its, opts)
 }
@@ -197,7 +197,7 @@ func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeExtensionsSharePo
 
 	sel.Include(selTD.SharePointBackupFolderScope(sel))
 
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	RunDriveishBackupWithExtensionsTests(
 		suite,

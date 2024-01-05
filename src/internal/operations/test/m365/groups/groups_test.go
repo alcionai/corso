@@ -108,7 +108,7 @@ func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeGroups() {
 
 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
 
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	RunBasicDriveishBackupTests(
 		suite,
@@ -119,7 +119,7 @@ func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeGroups() {
 
 func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeIncrementalGroups() {
 	opts := control.DefaultOptions()
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	runGroupsIncrementalBackupTests(suite, suite.its, opts)
 }
@@ -133,7 +133,7 @@ func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeExtensionsGroups() {
 
 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
 
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	RunDriveishBackupWithExtensionsTests(
 		suite,

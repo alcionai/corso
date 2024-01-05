@@ -270,7 +270,7 @@ func RunMergeBaseGroupsUpdate(
 		whatSet = deeTD.CategoryFromRepoRef
 	)
 
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	// Need outside the inner test case so bod lasts for the entire test.
 	bo, bod := PrepNewTestBackupOp(

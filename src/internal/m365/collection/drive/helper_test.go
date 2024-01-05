@@ -208,7 +208,7 @@ func collWithMBH(mbh BackupHandler) *Collections {
 		idname.NewProvider(user, user),
 		func(*support.ControllerOperationStatus) {},
 		control.Options{ToggleFeatures: control.Toggles{
-			UseDeltaTree: true,
+			UseOldDeltaProcess: true,
 		}},
 		count.New())
 }

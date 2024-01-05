@@ -116,7 +116,7 @@ func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeOneDrive() {
 
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	RunBasicDriveishBackupTests(
 		suite,
@@ -127,7 +127,7 @@ func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeOneDrive() {
 
 func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeIncrementalOneDrive() {
 	opts := control.DefaultOptions()
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	runOneDriveIncrementalBackupTests(suite, suite.its, opts)
 }
@@ -141,7 +141,7 @@ func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeExtensionsOneDrive(
 
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	RunDriveishBackupWithExtensionsTests(
 		suite,

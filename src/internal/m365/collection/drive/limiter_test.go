@@ -450,7 +450,7 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_noTree() {
 // check the expected items appear.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_tree() {
 	opts := control.DefaultOptions()
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	iterGetPreviewLimitsTests(suite, opts)
 }
@@ -537,7 +537,7 @@ func runGetPreviewLimits(
 
 		expectItemIDs := test.expectedItemIDsInCollection[folderPath]
 
-		if opts.ToggleFeatures.UseDeltaTree && test.expectedItemIDsInCollectionTree != nil {
+		if opts.ToggleFeatures.UseOldDeltaProcess && test.expectedItemIDsInCollectionTree != nil {
 			expectItemIDs = test.expectedItemIDsInCollectionTree[folderPath]
 		}
 
@@ -691,7 +691,7 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsNoTree() {
 // and such. Other tests are expected to provide more comprehensive checks.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsWithTree() {
 	opts := control.DefaultOptions()
-	opts.ToggleFeatures.UseDeltaTree = true
+	opts.ToggleFeatures.UseOldDeltaProcess = true
 
 	for _, test := range defaultLimitsTable() {
 		suite.Run(test.name, func() {
@@ -815,7 +815,7 @@ func runGetPreviewLimitsDefaults(
 
 		// Add one to account for the folder permissions item.
 		expected := test.expect.numItemsPerContainer + 1
-		if opts.ToggleFeatures.UseDeltaTree {
+		if opts.ToggleFeatures.UseOldDeltaProcess {
 			expected += test.expect.numItemsTreePadding
 		}
 
@@ -835,7 +835,7 @@ func runGetPreviewLimitsDefaults(
 
 	// Add one to account for the folder permissions item.
 	expected := test.expect.numItems + test.expect.numContainers
-	if opts.ToggleFeatures.UseDeltaTree {
+	if opts.ToggleFeatures.UseOldDeltaProcess {
 		expected += test.expect.numItemsTreePadding
 	}
 

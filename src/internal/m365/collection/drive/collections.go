@@ -285,7 +285,7 @@ func (c *Collections) Get(
 	globalExcludeItemIDs *prefixmatcher.StringSetMatchBuilder,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
-	if c.ctrl.ToggleFeatures.UseDeltaTree {
+	if !c.ctrl.ToggleFeatures.UseOldDeltaProcess {
 		colls, canUsePrevBackup, err := c.getTree(ctx, prevMetadata, globalExcludeItemIDs, errs)
 
 		return colls,
