@@ -629,6 +629,32 @@ func BytesToMessageable(body []byte) (models.Messageable, error) {
 	return v.(models.Messageable), nil
 }
 
+func bytesToPostable(body []byte) (models.Postable, error) {
+	v, err := CreateFromBytes(body, models.CreatePostFromDiscriminatorValue)
+	if err != nil {
+		if !strings.Contains(err.Error(), invalidJSON) {
+			return nil, clues.Wrap(err, "deserializing bytes to message")
+		}
+
+		// If the JSON was invalid try sanitizing and deserializing again.
+		// Sanitizing should transform characters < 0x20 according to the spec where
+		// possible. The resulting JSON may still be invalid though.
+		body = sanitize.JSONBytes(body)
+		v, err = CreateFromBytes(body, models.CreateMessageFromDiscriminatorValue)
+	}
+
+	return v.(models.Postable), clues.Stack(err).OrNil()
+}
+
+func BytesToPostable(body []byte) (models.Postable, error) {
+	v, err := bytesToPostable(body)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	return v.(models.Postable), nil
+}
+
 func (c Mail) Serialize(
 	ctx context.Context,
 	item serialization.Parsable,

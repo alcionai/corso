@@ -303,3 +303,138 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	return email.GetMessage(), nil
 }
+
+// FromJSON converts a Messageable (as json) to .eml format
+func FromJSONPost(ctx context.Context, body []byte, topic string) (string, error) {
+	data, err := api.BytesToPostable(body)
+	if err != nil {
+		return "", clues.WrapWC(ctx, err, "converting to postable")
+	}
+
+	ctx = clues.Add(ctx, "item_id", ptr.Val(data.GetId()))
+
+	email := mail.NewMSG()
+	email.AllowDuplicateAddress = true // More "correct" conversion
+	email.AddBccToHeader = true        // Don't ignore Bcc
+	email.AllowEmptyAttachments = true // Don't error on empty attachments
+	email.UseProvidedAddress = true    // Don't try to parse the email address
+
+	if data.GetFrom() != nil {
+		email.SetFrom(formatAddress(data.GetFrom().GetEmailAddress()))
+	}
+
+	if data.GetReceivedDateTime() != nil {
+		email.SetDate(ptr.Val(data.GetReceivedDateTime()).Format(dateFormat))
+	}
+
+	// if data.GetSender() != nil {
+	// 	email.SetReplyTo(formatAddress(data.GetSender().GetEmailAddress()))
+	// }
+
+	// if data.GetCcRecipients() != nil {
+	// 	for _, recipient := range data.GetCcRecipients() {
+	// 		email.AddCc(formatAddress(recipient.GetEmailAddress()))
+	// 	}
+	// }
+
+	// if data.GetBccRecipients() != nil {
+	// 	for _, recipient := range data.GetBccRecipients() {
+	// 		email.AddBcc(formatAddress(recipient.GetEmailAddress()))
+	// 	}
+	// }
+
+	// if data.GetInReplyTo() != nil {
+	// 	rts := data.GetInReplyTo()
+
+	// 	email.SetReplyTo(formatAddress(rts.GetEmailAddress()))
+
+	// }
+
+	email.SetSubject(topic)
+	email.AddTo("dc_test@10rqc2.onmicrosoft.com")
+
+	// if data.GetSentDateTime() != nil {
+	// 	email.SetDate(ptr.Val(data.GetSentDateTime()).Format(dateFormat))
+	// }
+
+	if data.GetBody() != nil {
+		if data.GetBody().GetContentType() != nil {
+			var contentType mail.ContentType
+
+			switch data.GetBody().GetContentType().String() {
+			case "html":
+				contentType = mail.TextHTML
+			case "text":
+				contentType = mail.TextPlain
+			default:
+				// https://learn.microsoft.com/en-us/graph/api/resources/itembody?view=graph-rest-1.0#properties
+				// This should not be possible according to the documentation
+				logger.Ctx(ctx).
+					With("body_type", data.GetBody().GetContentType().String()).
+					Info("unknown body content type")
+
+				contentType = mail.TextPlain
+			}
+
+			email.SetBody(contentType, ptr.Val(data.GetBody().GetContent()))
+		}
+	}
+
+	if data.GetAttachments() != nil {
+		for _, attachment := range data.GetAttachments() {
+			kind := ptr.Val(attachment.GetContentType())
+
+			bytes, err := attachment.GetBackingStore().Get("contentBytes")
+			if err != nil {
+				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes")
+			}
+
+			if bytes == nil {
+				// Some attachments have an "item" field instead of
+				// "contentBytes". There are items like contacts, emails
+				// or calendar events which will not be a normal format
+				// and will have to be converted to a text format.
+				// TODO(meain): Handle custom attachments
+				// https://github.com/alcionai/corso/issues/4772
+				logger.Ctx(ctx).
+					With("attachment_id", ptr.Val(attachment.GetId())).
+					Info("unhandled attachment type")
+
+				continue
+			}
+
+			bts, ok := bytes.([]byte)
+			if !ok {
+				return "", clues.WrapWC(ctx, err, "invalid content bytes")
+			}
+
+			name := ptr.Val(attachment.GetName())
+
+			contentID, err := attachment.GetBackingStore().Get("contentId")
+			if err != nil {
+				return "", clues.WrapWC(ctx, err, "getting content id for attachment")
+			}
+
+			if contentID != nil {
+				cids, _ := str.AnyToString(contentID)
+				if len(cids) > 0 {
+					name = cids
+				}
+			}
+
+			email.Attach(&mail.File{
+				// cannot use filename as inline attachment will not get mapped properly
+				Name:     name,
+				MimeType: kind,
+				Data:     bts,
+				Inline:   ptr.Val(attachment.GetIsInline()),
+			})
+		}
+	}
+
+	if err = email.GetError(); err != nil {
+		return "", clues.WrapWC(ctx, err, "converting to eml")
+	}
+
+	return email.GetMessage(), nil
+}

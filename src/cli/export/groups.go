@@ -7,7 +7,6 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // called by export.go to map subcommands to provider-specific handling.
@@ -95,7 +94,7 @@ func exportGroupsCmd(cmd *cobra.Command, args []string) error {
 
 	// TODO(pandeyabs): Exclude conversations from export since they are not
 	// supported yet. https://github.com/alcionai/corso/issues/4822
-	sel.Exclude(sel.Conversation(selectors.Any()))
+	// sel.Exclude(sel.Conversation(selectors.Any()))
 
 	acceptedGroupsFormatTypes := []string{
 		string(control.DefaultFormat),

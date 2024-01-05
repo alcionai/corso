@@ -90,7 +90,8 @@ func (h *baseGroupsHandler) ProduceExportCollections(
 				[]data.RestoreCollection{restoreColl},
 				backupVersion,
 				exportCfg,
-				stats)
+				stats,
+				cat)
 
 		case path.LibrariesCategory:
 			drivePath, err := path.ToDrivePath(restoreColl.FullPath())

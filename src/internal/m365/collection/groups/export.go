@@ -11,10 +11,12 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/converters/eml"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -26,19 +28,25 @@ func NewExportCollection(
 	backupVersion int,
 	cec control.ExportConfig,
 	stats *metrics.ExportStats,
+	cat path.CategoryType,
 ) export.Collectioner {
+	s := streamChannelItems
+	if cat == path.ConversationPostsCategory {
+		s = streamConversationPosts
+	}
+
 	return export.BaseCollection{
 		BaseDir:           baseDir,
 		BackingCollection: backingCollections,
 		BackupVersion:     backupVersion,
 		Cfg:               cec,
-		Stream:            streamItems,
+		Stream:            s,
 		Stats:             stats,
 	}
 }
 
 // streamItems streams the items in the backingCollection into the export stream chan
-func streamItems(
+func streamChannelItems(
 	ctx context.Context,
 	drc []data.RestoreCollection,
 	backupVersion int,
@@ -198,3 +206,126 @@ func makeMinimumChannelMesasge(item models.ChatMessageable) minimumChannelMessag
 		Subject:              ptr.Val(item.GetSubject()),
 	}
 }
+
+// streamItems streams the items in the backingCollection into the export stream chan
+func streamConversationPosts(
+	ctx context.Context,
+	drc []data.RestoreCollection,
+	backupVersion int,
+	cec control.ExportConfig,
+	ch chan<- export.Item,
+	stats *metrics.ExportStats,
+) {
+	defer close(ch)
+
+	errs := fault.New(false)
+
+	for _, rc := range drc {
+		ictx := clues.Add(ctx, "path_short_ref", rc.FullPath().ShortRef())
+
+		for item := range rc.Items(ctx, errs) {
+			name := item.ID() + ".eml"
+
+			itemCtx := clues.Add(ictx, "stream_item_id", item.ID())
+
+			reader := item.ToReader()
+			content, err := io.ReadAll(reader)
+
+			reader.Close()
+
+			if err != nil {
+				ch <- export.Item{
+					ID:    item.ID(),
+					Error: err,
+				}
+
+				continue
+			}
+
+			topic := rc.FullPath().Folders()[0]
+			email, err := eml.FromJSONPost(itemCtx, content, topic)
+			if err != nil {
+				err = clues.Wrap(err, "converting JSON to eml")
+
+				logger.CtxErr(ctx, err).Info("processing collection item")
+
+				ch <- export.Item{
+					ID:    item.ID(),
+					Error: err,
+				}
+
+				continue
+			}
+
+			emlReader := io.NopCloser(bytes.NewReader([]byte(email)))
+			body := metrics.ReaderWithStats(emlReader, path.EmailCategory, stats)
+
+			ch <- export.Item{
+				ID:   item.ID(),
+				Name: name,
+				Body: body,
+			}
+		}
+
+		items, recovered := errs.ItemsAndRecovered()
+
+		// Return all the items that we failed to source from the persistence layer
+		for _, item := range items {
+			ch <- export.Item{
+				ID:    item.ID,
+				Error: &item,
+			}
+		}
+
+		for _, err := range recovered {
+			ch <- export.Item{
+				Error: err,
+			}
+		}
+	}
+}
+
+// func formatConversationPost(
+// 	cec control.ExportConfig,
+// 	rc io.ReadCloser,
+// ) (io.ReadCloser, error) {
+// 	if cec.Format == control.JSONFormat {
+// 		return rc, nil
+// 	}
+
+// 	bs, err := io.ReadAll(rc)
+// 	if err != nil {
+// 		return nil, clues.Wrap(err, "reading item bytes")
+// 	}
+
+// 	defer rc.Close()
+
+// 	cfb, err := api.CreateFromBytes(bs, models.CreateChatMessageFromDiscriminatorValue)
+// 	if err != nil {
+// 		return nil, clues.Wrap(err, "deserializing bytes to message")
+// 	}
+
+// 	msg, ok := cfb.(models.ChatMessageable)
+// 	if !ok {
+// 		return nil, clues.New("expected deserialized item to implement models.ChatMessageable")
+// 	}
+
+// 	mItem := makeMinimumChannelMesasge(msg)
+// 	replies := msg.GetReplies()
+
+// 	mcmar := minimumChannelMessageAndReplies{
+// 		minimumChannelMessage: mItem,
+// 		Replies:               make([]minimumChannelMessage, 0, len(replies)),
+// 	}
+
+// 	for _, r := range replies {
+// 		mcmar.Replies = append(mcmar.Replies, makeMinimumChannelMesasge(r))
+// 	}
+
+// 	bs, err = marshalJSONContainingHTML(mcmar)
+// 	if err != nil {
+// 		return nil, clues.Wrap(err, "serializing minimized channel message")
+// 	}
+
+// 	return io.NopCloser(bytes.NewReader(bs)), nil
+// }
