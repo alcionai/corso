@@ -68,6 +68,11 @@ var (
 	ErrBackupNotFound = &Err{msg: "backup not found"}
 	// a catch-all for downstream api auth issues.  doesn't matter which api.
 	ErrInsufficientAuthorization = &Err{msg: "insufficient authorization"}
+	// happens when we look up something using an identifier other than a canonical ID
+	// (ex: filtering, searching, etc). This error should only be returned if a unique
+	// result is an expected constraint of the behavior.  If it's possible to
+	// opportunistically select one of the many results, no error should get returned.
+	ErrMultipleResultsMatchIdentifier = &Err{msg: "multiple results match the identifier"}
 	// basically what it sounds like: we went looking for something by ID and
 	// it wasn't found.  This might be because it was deleted in flight, or
 	// was never created, or some other reason.

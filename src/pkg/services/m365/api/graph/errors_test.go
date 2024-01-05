@@ -912,11 +912,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 					"deadbeef-7f1e-4578-8215-36004a2c935c Timestamp: 2023-12-05 19:31:01Z"),
 			expect: assert.True,
 		},
-		{
-			name:   "matching err sentinel",
-			err:    ErrResourceLocked,
-			expect: assert.True,
-		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {

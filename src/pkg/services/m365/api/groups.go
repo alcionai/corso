@@ -220,7 +220,7 @@ func getGroupFromResponse(ctx context.Context, resp models.GroupCollectionRespon
 	if len(vs) == 0 {
 		return nil, clues.StackWC(ctx, core.ErrResourceOwnerNotFound)
 	} else if len(vs) > 1 {
-		return nil, clues.StackWC(ctx, graph.ErrMultipleResultsMatchIdentifier)
+		return nil, clues.StackWC(ctx, core.ErrMultipleResultsMatchIdentifier)
 	}
 
 	return vs[0], nil

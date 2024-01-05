@@ -107,25 +107,8 @@ const (
 )
 
 // ---------------------------------------------------------------------------
-// error sentinels & categorization
+// error categorization
 // ---------------------------------------------------------------------------
-
-// These errors are graph specific.  That means they don't have a clear parallel in
-// pkg/errs/core.  If these errors need to trickle outward to non-m365 layers, we
-// need to find a sufficiently coarse errs/core sentinel to use as transformation.
-var (
-	// ErrMultipleResultsMatchIdentifier describes a situation where we're doing a lookup
-	// in some way other than by canonical url ID (ex: filtering, searching, etc).
-	// This error should only be returned if a unique result is an expected constraint
-	// of the call results.  If it's possible to opportunistically select one of the many
-	// replies, no error should get returned.
-	ErrMultipleResultsMatchIdentifier = clues.New("multiple results match the identifier")
-
-	// ErrResourceLocked occurs when a resource has had its access locked.
-	// Example case: https://learn.microsoft.com/en-us/sharepoint/manage-lock-status
-	// This makes the resource inaccessible for any Corso operations.
-	ErrResourceLocked = clues.New("resource has been locked and must be unlocked by an administrator")
-)
 
 func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	if err == nil {
@@ -290,8 +273,7 @@ func IsErrSiteNotFound(err error) bool {
 func isErrResourceLocked(err error) bool {
 	ode := parseODataErr(err)
 
-	return errors.Is(err, ErrResourceLocked) ||
-		ode.hasInnerErrorCode(err, ResourceLocked) ||
+	return ode.hasInnerErrorCode(err, ResourceLocked) ||
 		ode.hasErrorCode(err, NotAllowed) ||
 		ode.errMessageMatchesAllFilters(
 			err,
