@@ -161,8 +161,7 @@ func (mw RetryMiddleware) Intercept(
 
 	retriable := IsErrTimeout(err) ||
 		IsErrConnectionReset(err) ||
-		mw.isRetriableRespCode(ctx, resp) ||
-		IsErrInvalidRequest(err, resp)
+		mw.isRetriableRespCode(ctx, resp)
 
 	if !retriable {
 		return resp, stackReq(ctx, req, resp, err).OrNil()
@@ -208,16 +207,16 @@ func (mw RetryMiddleware) retryRequest(
 	// 3, the request method is retriable.
 	// 4, we haven't already hit maximum retries.
 
-	if resp != nil && resp.StatusCode == http.StatusBadRequest && IsErrInvalidRequest(priorErr, resp) {
-		logger.Ctx(ctx).Infof("retrying 400_invalid_request: %s", getRespDump(ctx, resp, true))
-	}
-
-	shouldRetry := (priorErr != nil || mw.isRetriableRespCode(ctx, resp) || IsErrInvalidRequest(priorErr, resp)) &&
+	shouldRetry := (priorErr != nil || mw.isRetriableRespCode(ctx, resp)) &&
 		mw.isRetriableRequest(req) &&
 		executionCount < mw.MaxRetries
 
 	if !shouldRetry {
 		return resp, stackReq(ctx, req, resp, priorErr).OrNil()
+	}
+
+	if resp != nil && resp.StatusCode == http.StatusBadRequest {
+		logger.Ctx(ctx).Info("retrying 400_invalid_request")
 	}
 
 	executionCount++
@@ -273,6 +272,10 @@ var retryableRespCodes = []int{
 	http.StatusBadGateway,
 }
 
+const (
+	invalidRequestMsg = "invalidRequest"
+)
+
 func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Response) bool {
 	if resp == nil {
 		return false
@@ -290,9 +293,16 @@ func (mw RetryMiddleware) isRetriableRespCode(ctx context.Context, resp *http.Re
 
 	// not a status code, but the message itself might indicate a connectivity issue that
 	// can be retried independent of the status code.
-	return strings.Contains(
+	first := strings.Contains(
 		strings.ToLower(getRespDump(ctx, resp, true)),
 		strings.ToLower(string(IOErrDuringRead)))
+
+	second := resp.StatusCode == http.StatusBadRequest &&
+		strings.Contains(
+			strings.ToLower(getRespDump(ctx, resp, true)),
+			strings.ToLower(invalidRequestMsg))
+
+	return first || second
 }
 
 func (mw RetryMiddleware) isRetriableRequest(req *http.Request) bool {

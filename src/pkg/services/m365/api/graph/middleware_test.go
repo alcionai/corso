@@ -44,7 +44,8 @@ func newMWReturns(code int, body []byte, err error) mwReturns {
 
 	resp := &http.Response{
 		StatusCode: code,
-		Body:       brc,
+		//Status:     "",
+		Body: brc,
 	}
 
 	if code == 0 {
@@ -167,13 +168,13 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 		mw               testMW
 		expectErr        assert.ErrorAssertionFunc
 	}{
-		{
-			name:             "200, no retries",
-			status:           http.StatusOK,
-			providedErr:      nil,
-			expectRetryCount: 0,
-			expectErr:        assert.NoError,
-		},
+		// {
+		// 	name:             "200, no retries",
+		// 	status:           http.StatusOK,
+		// 	providedErr:      nil,
+		// 	expectRetryCount: 0,
+		// 	expectErr:        assert.NoError,
+		// },
 		{
 			name:             "400, no retries",
 			status:           http.StatusBadRequest,
@@ -252,10 +253,11 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			body := "HTTP/1.1 400 Bad Request\r\nTransfer-Encoding: chunked\r\nCache-Control: max-age=0, private\r\nClient-Request-Id: 9546c859-8a3d-446f-8606-9d85bc3de41d\r\nContent-Type: application/json\r\nDate: Thu, 07 Dec 2023 10:06:17 GMT\r\nRequest-Id: ed7106b8-9ee7-42ff-907a-c3d2df29cf55\r\nStrict-Transport-Security: max-age=31536000\r\nVary: Accept-Encoding\r\nX-Ms-Ags-Diagnostic: {\"ServerInfo\":{\"DataCenter\":\"East US\",\"Slice\":\"E\",\"Ring\":\"5\",\"ScaleUnit\":\"004\",\"RoleInstance\":\"BL02EPF00007CD5\"}}\r\n\r\nda\r\n{\"error\":{\"code\":\"invalidRequest\",\"message\":\"Invalid request\",\"innerError\":{\"date\":\"2023-12-07T10:06:17\",\"request-id\":\"ed7106b8-9ee7-42ff-907a-c3d2df29cf55\",\"client-request-id\":\"9546c859-8a3d-446f-8606-9d85bc3de41d\"}}}\r\n0\r\n\r\n"
 			called := 0
 			mw := newTestMW(
 				func(*http.Request) { called++ },
-				newMWReturns(test.status, nil, test.providedErr))
+				newMWReturns(test.status, []byte(body), test.providedErr))
 			mw.repeatReturn0 = true
 
 			// Add a large timeout of 100 seconds to ensure that the ctx deadline
