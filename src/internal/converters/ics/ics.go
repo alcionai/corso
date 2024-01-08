@@ -33,6 +33,8 @@ import (
 // originalStartTimeZone, reminderMinutesBeforeStart, responseRequested,
 // responseStatus, sensitivity
 
+const iCalDateTimeFormat = "20060102T150405Z"
+
 func keyValues(key, value string) *ics.KeyValues {
 	return &ics.KeyValues{
 		Key:   key,
@@ -176,7 +178,7 @@ func getRecurrencePattern(
 					return "", clues.Wrap(err, "parsing end time")
 				}
 
-				recurComponents = append(recurComponents, "UNTIL="+endTime.Format("20060102T150405Z"))
+				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(iCalDateTimeFormat))
 			}
 		case models.NOEND_RECURRENCERANGETYPE:
 			// Nothing to do
@@ -200,7 +202,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	cal := ics.NewCalendar()
 	cal.SetProductId("-//Alcion//Corso") // Does this have to be customizable?
 
-	id := data.GetId() // XXX: iCalUId?
+	id := data.GetICalUId()
 	event := cal.AddEvent(ptr.Val(id))
 
 	created := data.GetCreatedDateTime()
@@ -216,10 +218,10 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	allDay := ptr.Val(data.GetIsAllDay())
 
 	startString := data.GetStart().GetDateTime()
-	timeZone := data.GetStart().GetTimeZone()
+	startTimezone := data.GetStart().GetTimeZone()
 
 	if startString != nil {
-		start, err := getUTCTime(ptr.Val(startString), ptr.Val(timeZone))
+		start, err := getUTCTime(ptr.Val(startString), ptr.Val(startTimezone))
 		if err != nil {
 			return "", clues.Wrap(err, "parsing start time")
 		}
@@ -232,10 +234,10 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	}
 
 	endString := data.GetEnd().GetDateTime()
-	timeZone = data.GetEnd().GetTimeZone()
+	endTimezone := data.GetEnd().GetTimeZone()
 
 	if endString != nil {
-		end, err := getUTCTime(ptr.Val(endString), ptr.Val(timeZone))
+		end, err := getUTCTime(ptr.Val(endString), ptr.Val(endTimezone))
 		if err != nil {
 			return "", clues.Wrap(err, "parsing end time")
 		}
@@ -441,6 +443,30 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		}
 
 		event.AddAttachment(base64.StdEncoding.EncodeToString(content), props...)
+	}
+
+	cancelldedOcurrances := data.GetAdditionalData()["cancelledOccurrences"]
+	if cancelldedOcurrances != nil {
+		for _, occ := range cancelldedOcurrances.([]interface{}) {
+			instance, err := str.AnyToString(occ)
+			if err != nil {
+				return "", clues.Wrap(err, "getting cancelled occurrence id")
+			}
+
+			splits := strings.Split(instance, ".")
+			if len(splits) < 2 {
+				return "", clues.NewWC(ctx, "invalid cancelled occurrence id").With("id", instance)
+			}
+
+			startStr := splits[len(splits)-1]
+
+			start, err := getUTCTime(startStr, ptr.Val(startTimezone))
+			if err != nil {
+				return "", clues.Wrap(err, "parsing cancelled event date")
+			}
+
+			event.AddExdate(start.Format(iCalDateTimeFormat))
+		}
 	}
 
 	return cal.Serialize(), nil
