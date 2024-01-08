@@ -28,7 +28,7 @@ type UserNoInfo struct {
 func (c client) UsersCompatNoInfo(ctx context.Context) ([]*UserNoInfo, error) {
 	errs := fault.New(true)
 
-	us, err := usersNoInfo(ctx, c.ac, errs)
+	us, err := usersNoInfo(ctx, c.AC, errs)
 	if err != nil {
 		return nil, err
 	}
@@ -39,20 +39,20 @@ func (c client) UsersCompatNoInfo(ctx context.Context) ([]*UserNoInfo, error) {
 // UserHasMailbox returns true if the user has an exchange mailbox enabled
 // false otherwise, and a nil pointer and an error in case of error
 func (c client) UserHasMailbox(ctx context.Context, userID string) (bool, error) {
-	return exchange.IsServiceEnabled(ctx, c.ac.Users(), userID)
+	return exchange.IsServiceEnabled(ctx, c.AC.Users(), userID)
 }
 
 func (c client) UserGetMailboxInfo(
 	ctx context.Context,
 	userID string,
 ) (api.MailboxInfo, error) {
-	return exchange.GetMailboxInfo(ctx, c.ac.Users(), userID)
+	return exchange.GetMailboxInfo(ctx, c.AC.Users(), userID)
 }
 
 // UserHasDrives returns true if the user has any drives
 // false otherwise, and a nil pointer and an error in case of error
 func (c client) UserHasDrives(ctx context.Context, userID string) (bool, error) {
-	return onedrive.IsServiceEnabled(ctx, c.ac.Users(), userID)
+	return onedrive.IsServiceEnabled(ctx, c.AC.Users(), userID)
 }
 
 // usersNoInfo returns a list of users in the specified M365 tenant - with no info
@@ -87,7 +87,7 @@ func usersNoInfo(
 }
 
 func (c client) UserAssignedLicenses(ctx context.Context, userID string) (int, error) {
-	us, err := c.ac.Users().GetByID(
+	us, err := c.AC.Users().GetByID(
 		ctx,
 		userID,
 		api.CallConfig{Select: api.SelectProps("assignedLicenses")})

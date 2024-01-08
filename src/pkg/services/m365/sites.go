@@ -59,7 +59,7 @@ func (c client) SiteByID(
 		Expand: []string{"drive"},
 	}
 
-	return getSiteByID(ctx, c.ac.Sites(), id, cc)
+	return getSiteByID(ctx, c.AC.Sites(), id, cc)
 }
 
 func getSiteByID(
@@ -78,7 +78,7 @@ func getSiteByID(
 
 // Sites returns a list of Sites in a specified M365 tenant
 func (c client) Sites(ctx context.Context, errs *fault.Bus) ([]*Site, error) {
-	return getAllSites(ctx, c.ac.Sites())
+	return getAllSites(ctx, c.AC.Sites())
 }
 
 func getAllSites(

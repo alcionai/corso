@@ -28,6 +28,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+var ErrEmptyBackup = clues.New("no items in backup")
+
 // ---------------------------------------------------------------------------
 // adding commands to cobra
 // ---------------------------------------------------------------------------
@@ -392,6 +394,10 @@ func genericDetailsCore(
 		}
 
 		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
+	}
+
+	if len(d.Entries) == 0 {
+		return nil, ErrEmptyBackup
 	}
 
 	if opts.SkipReduce {

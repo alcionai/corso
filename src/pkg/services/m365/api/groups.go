@@ -12,6 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/groups"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/common/tform"
@@ -49,6 +50,25 @@ func (c Groups) GetAll(
 	}
 
 	return getGroups(ctx, errs, service)
+}
+
+// GetAllIDsAndNames retrieves all groups in the tenant and returns them in an idname.Cacher
+func (c Groups) GetAllIDsAndNames(ctx context.Context, errs *fault.Bus) (idname.Cacher, error) {
+	all, err := c.GetAll(ctx, errs)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting all users")
+	}
+
+	idToName := make(map[string]string, len(all))
+
+	for _, g := range all {
+		id := strings.ToLower(ptr.Val(g.GetId()))
+		name := ptr.Val(g.GetDisplayName())
+
+		idToName[id] = name
+	}
+
+	return idname.NewCache(idToName), nil
 }
 
 // GetAll retrieves all groups.
