@@ -222,7 +222,8 @@ func runExchangeBackupUserNotFoundTest(suite *BackupExchangeE2ESuite, category p
 	assert.Contains(
 		t,
 		err.Error(),
-		"not found in tenant", "error missing user not found")
+		"resource owner not found",
+		"error missing user not found")
 	assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 
 	t.Logf("backup error message: %s", err.Error())
