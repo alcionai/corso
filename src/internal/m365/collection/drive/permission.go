@@ -19,6 +19,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
+// empty string is used to indicate that a permission cannot be restored
+const nonRestorablePermission = ""
+
 func getParentMetadata(
 	parentPath path.Path,
 	parentDirToMeta syncd.MapTo[metadata.Metadata],
@@ -214,7 +217,14 @@ func UpdatePermissions(
 
 		pid, ok := oldPermIDToNewID.Load(p.ID)
 		if !ok {
-			return clues.NewWC(ictx, "no new permission id")
+			el.AddRecoverable(ictx, clues.NewWC(ictx, "no permission matches id"))
+			continue
+		}
+
+		if pid == nonRestorablePermission {
+			// permission was not restored on parent and thus cannot
+			// be deleted
+			continue
 		}
 
 		err := udip.DeleteItemPermission(
@@ -277,7 +287,9 @@ func UpdatePermissions(
 
 		newPerm, err := udip.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
-			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+			oldPermIDToNewID.Store(p.ID, nonRestorablePermission)
+			logger.CtxErr(ictx, err).Info("unable to restore permission")
+
 			continue
 		}
 
@@ -385,7 +397,9 @@ func UpdateLinkShares(
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
-			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+			oldLinkShareIDToNewID.Store(ls.ID, "") // empty to signify that we could not restore
+			logger.CtxErr(ictx, err).Info("unable to restore link share")
+
 			continue
 		}
 
@@ -448,39 +462,44 @@ func RestorePermissions(
 	current metadata.Metadata,
 	caches *restoreCaches,
 	errs *fault.Bus,
-) error {
+) {
 	if current.SharingMode == metadata.SharingModeInherited {
-		return nil
+		return
 	}
+
+	var didReset bool
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
 	previousLinkShares, err := computePreviousLinkShares(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "previous link shares")
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "previous link shares"))
 	}
 
-	lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
+	if previousLinkShares != nil {
+		lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
 
-	// Link shares have to be updated before permissions as we have to
-	// use the information about if we had to reset the inheritance to
-	// decide if we have to restore all the permissions.
-	didReset, err := UpdateLinkShares(
-		ctx,
-		rh,
-		driveID,
-		itemID,
-		lsAdded,
-		lsRemoved,
-		caches.OldLinkShareIDToNewID,
-		errs)
-	if err != nil {
-		return clues.Wrap(err, "updating link shares")
+		// Link shares have to be updated before permissions as we have to
+		// use the information about if we had to reset the inheritance to
+		// decide if we have to restore all the permissions.
+		didReset, err = UpdateLinkShares(
+			ctx,
+			rh,
+			driveID,
+			itemID,
+			lsAdded,
+			lsRemoved,
+			caches.OldLinkShareIDToNewID,
+			errs)
+		if err != nil {
+			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "updating link shares"))
+		}
 	}
 
 	previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "previous metadata")
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "previous metadata"))
+		return
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
@@ -506,8 +525,10 @@ func RestorePermissions(
 		errs)
 	if graph.IsErrSharingDisabled(err) {
 		logger.CtxErr(ctx, err).Info("sharing disabled, not restoring permissions")
-		return nil
+		return
 	}
 
-	return clues.Wrap(err, "updating permissions").OrNil()
+	if err != nil {
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "updating permissions"))
+	}
 }

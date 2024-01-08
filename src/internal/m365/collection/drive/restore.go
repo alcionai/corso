@@ -452,7 +452,7 @@ func restoreV1File(
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
 
-	err = RestorePermissions(
+	RestorePermissions(
 		ctx,
 		rh,
 		drivePath.DriveID,
@@ -461,9 +461,6 @@ func restoreV1File(
 		meta,
 		caches,
 		errs)
-	if err != nil {
-		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
-	}
 
 	return itemInfo, nil
 }
@@ -530,7 +527,7 @@ func restoreV6File(
 		return itemInfo, nil
 	}
 
-	err = RestorePermissions(
+	RestorePermissions(
 		ctx,
 		rh,
 		drivePath.DriveID,
@@ -539,9 +536,6 @@ func restoreV6File(
 		meta,
 		caches,
 		errs)
-	if err != nil {
-		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
-	}
 
 	return itemInfo, nil
 }
@@ -581,7 +575,7 @@ func CreateRestoreFolders(
 		return id, nil
 	}
 
-	err = RestorePermissions(
+	RestorePermissions(
 		ctx,
 		rh,
 		drivePath.DriveID,
@@ -591,7 +585,7 @@ func CreateRestoreFolders(
 		caches,
 		errs)
 
-	return id, err
+	return id, nil
 }
 
 type folderRestorer interface {
