@@ -96,7 +96,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 		},
 	}
 
-	stats := metrics.ExportStats{}
+	stats := metrics.NewExportStats()
 
 	ecs, err := NewGroupsHandler(api.Client{}, nil).
 		ProduceExportCollections(
@@ -104,7 +104,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 			int(version.Backup),
 			exportCfg,
 			dcs,
-			&stats,
+			stats,
 			fault.New(true))
 	assert.NoError(t, err, "export collections error")
 	assert.Len(t, ecs, 1, "num of collections")
@@ -130,10 +130,10 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 
 	assert.Equal(t, expectedItems, fitems, "items")
 
-	expectedStats := metrics.ExportStats{}
+	expectedStats := metrics.NewExportStats()
 	expectedStats.UpdateBytes(path.ChannelMessagesCategory, int64(size))
 	expectedStats.UpdateResourceCount(path.ChannelMessagesCategory)
-	assert.Equal(t, expectedStats, stats, "stats")
+	assert.Equal(t, expectedStats.GetStats(), stats.GetStats(), "stats")
 }
 
 func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
@@ -201,14 +201,14 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 	handler := NewGroupsHandler(api.Client{}, nil)
 	handler.CacheItemInfo(dii)
 
-	stats := metrics.ExportStats{}
+	stats := metrics.NewExportStats()
 
 	ecs, err := handler.ProduceExportCollections(
 		ctx,
 		int(version.Backup),
 		exportCfg,
 		dcs,
-		&stats,
+		stats,
 		fault.New(true))
 	assert.NoError(t, err, "export collections error")
 	assert.Len(t, ecs, 1, "num of collections")
@@ -233,8 +233,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 
 	assert.Equal(t, expectedItems, fitems, "items")
 
-	expectedStats := metrics.ExportStats{}
+	expectedStats := metrics.NewExportStats()
 	expectedStats.UpdateBytes(path.FilesCategory, int64(size))
 	expectedStats.UpdateResourceCount(path.FilesCategory)
-	assert.Equal(t, expectedStats, stats, "stats")
+	assert.Equal(t, expectedStats.GetStats(), stats.GetStats(), "stats")
 }
