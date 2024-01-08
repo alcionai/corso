@@ -7,6 +7,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -97,8 +98,10 @@ func (mc *mailContainerCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
+	logger.Ctx(ctx).Info("populating container cache")
+
 	if err := mc.init(ctx); err != nil {
-		return clues.Wrap(err, "initializing")
+		return clues.WrapWC(ctx, err, "initializing")
 	}
 
 	el := errs.Local()
@@ -108,8 +111,10 @@ func (mc *mailContainerCache) Populate(
 		mc.userID,
 		"",
 		false)
+	ctx = clues.Add(ctx, "num_enumerated_containers", len(containers))
+
 	if err != nil {
-		return clues.Wrap(err, "enumerating containers")
+		return clues.WrapWC(ctx, err, "enumerating containers")
 	}
 
 	for _, c := range containers {
@@ -128,8 +133,10 @@ func (mc *mailContainerCache) Populate(
 	}
 
 	if err := mc.populatePaths(ctx, errs); err != nil {
-		return clues.Wrap(err, "populating paths")
+		return clues.WrapWC(ctx, err, "populating paths")
 	}
+
+	logger.Ctx(ctx).Info("done populating container cache")
 
 	return el.Failure()
 }

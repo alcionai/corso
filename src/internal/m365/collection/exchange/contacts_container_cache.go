@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -93,8 +94,10 @@ func (cfc *contactContainerCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
+	logger.Ctx(ctx).Info("populating container cache")
+
 	if err := cfc.init(ctx, baseID, baseContainerPath); err != nil {
-		return clues.Wrap(err, "initializing")
+		return clues.WrapWC(ctx, err, "initializing")
 	}
 
 	el := errs.Local()
@@ -104,8 +107,10 @@ func (cfc *contactContainerCache) Populate(
 		cfc.userID,
 		baseID,
 		false)
+	ctx = clues.Add(ctx, "num_enumerated_containers", len(containers))
+
 	if err != nil {
-		return clues.Wrap(err, "enumerating containers")
+		return clues.WrapWC(ctx, err, "enumerating containers")
 	}
 
 	for _, c := range containers {
@@ -124,8 +129,10 @@ func (cfc *contactContainerCache) Populate(
 	}
 
 	if err := cfc.populatePaths(ctx, errs); err != nil {
-		return clues.Wrap(err, "populating paths")
+		return clues.WrapWC(ctx, err, "populating paths")
 	}
+
+	logger.Ctx(ctx).Info("done populating container cache")
 
 	return el.Failure()
 }
