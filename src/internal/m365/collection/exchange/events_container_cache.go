@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -68,10 +69,12 @@ func (ecc *eventContainerCache) Populate(
 	baseID string,
 	baseContainerPath ...string,
 ) error {
+	start := time.Now()
+
 	logger.Ctx(ctx).Info("populating container cache")
 
 	if err := ecc.init(ctx); err != nil {
-		return clues.WrapWC(ctx, err, "initializing")
+		return clues.Wrap(err, "initializing")
 	}
 
 	el := errs.Local()
@@ -106,10 +109,12 @@ func (ecc *eventContainerCache) Populate(
 	}
 
 	if err := ecc.populatePaths(ctx, errs); err != nil {
-		return clues.WrapWC(ctx, err, "populating paths")
+		return clues.Wrap(err, "populating paths")
 	}
 
-	logger.Ctx(ctx).Info("done populating container cache")
+	logger.Ctx(ctx).Infow(
+		"done populating container cache",
+		"duration", time.Since(start))
 
 	return el.Failure()
 }
