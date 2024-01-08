@@ -100,7 +100,7 @@ func (cr *containerResolver) refreshContainer(
 		return nil, true, nil
 	} else if err != nil {
 		// This is some other error, just return it.
-		return nil, false, clues.WrapWC(ctx, err, "refreshing container")
+		return nil, false, clues.Wrap(err, "refreshing container")
 	}
 
 	return c, false, nil
@@ -218,7 +218,7 @@ func (cr *containerResolver) idToPath(
 				locPath: nil,
 				cached:  true,
 				deleted: false,
-			}, clues.WrapWC(ctx, err, "refreshing container")
+			}, clues.Wrap(err, "refreshing container")
 		}
 
 		if shouldDelete {
