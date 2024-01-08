@@ -149,26 +149,3 @@ func (suite *GroupsIntgSuite) TestSitesInGroup() {
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, sites)
 }
-
-func (suite *GroupsIntgSuite) TestGroupsMap() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	gm, err := suite.cli.GroupsMap(ctx, fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotEmpty(t, gm)
-
-	for _, gid := range gm.IDs() {
-		suite.Run("group_"+gid, func() {
-			t := suite.T()
-
-			assert.NotEmpty(t, gid)
-
-			name, ok := gm.NameOf(gid)
-			assert.True(t, ok)
-			assert.NotEmpty(t, name)
-		})
-	}
-}

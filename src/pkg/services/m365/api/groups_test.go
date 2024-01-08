@@ -233,6 +233,30 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 	}
 }
 
+func (suite *GroupsIntgSuite) TestGroups_GetAllIDsAndNames() {
+	t := suite.T()
+	groupsAPI := suite.its.ac.Groups()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	gm, err := groupsAPI.GetAllIDsAndNames(ctx, fault.New(true))
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, gm)
+
+	for _, gid := range gm.IDs() {
+		suite.Run("group_"+gid, func() {
+			t := suite.T()
+
+			assert.NotEmpty(t, gid)
+
+			name, ok := gm.NameOf(gid)
+			assert.True(t, ok)
+			assert.NotEmpty(t, name)
+		})
+	}
+}
+
 func (suite *GroupsIntgSuite) TestGroups_GetByID_mockResourceLockedErrs() {
 	gID := uuid.NewString()
 
