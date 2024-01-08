@@ -8,6 +8,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
+	"github.com/alcionai/corso/src/internal/m365/collection/site"
 	"github.com/alcionai/corso/src/internal/m365/resource"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -72,30 +73,51 @@ func (h *baseSharePointHandler) ProduceExportCollections(
 	)
 
 	for _, dc := range dcs {
-		drivePath, err := path.ToDrivePath(dc.FullPath())
-		if err != nil {
-			return nil, clues.WrapWC(ctx, err, "transforming path to drive path")
-		}
+		cat := dc.FullPath().Category()
 
-		driveName, ok := h.backupDriveIDNames.NameOf(drivePath.DriveID)
-		if !ok {
-			// This should not happen, but just in case
-			logger.Ctx(ctx).With("drive_id", drivePath.DriveID).Info("drive name not found, using drive id")
-			driveName = drivePath.DriveID
-		}
+		ictx := clues.Add(ctx, "fullpath_category", cat)
 
-		baseDir := path.Builder{}.
-			Append(path.LibrariesCategory.HumanString()).
-			Append(driveName).
-			Append(drivePath.Folders...)
+		switch cat {
+		case path.LibrariesCategory:
+			drivePath, err := path.ToDrivePath(dc.FullPath())
+			if err != nil {
+				return nil, clues.WrapWC(ictx, err, "transforming path to drive path")
+			}
 
-		ec = append(
-			ec,
-			drive.NewExportCollection(
+			driveName, ok := h.backupDriveIDNames.NameOf(drivePath.DriveID)
+			if !ok {
+				// This should not happen, but just in case
+				logger.Ctx(ictx).With("drive_id", drivePath.DriveID).Info("drive name not found, using drive id")
+				driveName = drivePath.DriveID
+			}
+
+			baseDir := path.Builder{}.
+				Append(path.LibrariesCategory.HumanString()).
+				Append(driveName).
+				Append(drivePath.Folders...)
+
+			coll := drive.NewExportCollection(
 				baseDir.String(),
 				[]data.RestoreCollection{dc},
 				backupVersion,
-				stats))
+				stats)
+
+			ec = append(ec, coll)
+		case path.ListsCategory:
+			folders := dc.FullPath().Folders()
+			pth := path.Builder{}.Append(path.ListsCategory.HumanString()).Append(folders...)
+
+			ec = append(
+				ec,
+				site.NewExportCollection(
+					pth.String(),
+					[]data.RestoreCollection{dc},
+					backupVersion,
+					stats))
+		default:
+			return nil, clues.NewWC(ctx, "data category not supported").
+				With("category", cat)
+		}
 	}
 
 	return ec, el.Failure()
