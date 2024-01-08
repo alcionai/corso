@@ -93,5 +93,5 @@ func (suite *BackupUnitSuite) TestGenericDetailsCore_empty() {
 		sel.Selector,
 		control.DefaultOptions())
 	require.Error(t, err, "has error")
-	assert.ErrorContains(t, err, "no items in backup", clues.ToCore(err))
+	assert.ErrorIs(t, err, ErrEmptyBackup, clues.ToCore(err))
 }
