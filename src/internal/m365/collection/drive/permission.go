@@ -397,7 +397,7 @@ func UpdateLinkShares(
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
-			oldLinkShareIDToNewID.Store(ls.ID, "") // empty to signify that we could not restore
+			oldLinkShareIDToNewID.Store(ls.ID, nonRestorablePermission)
 			logger.CtxErr(ictx, err).Info("unable to restore link share")
 
 			continue
@@ -449,6 +449,102 @@ func UpdateLinkShares(
 	return alreadyDeleted, nil
 }
 
+func filterUnavailableEntitiesInLinkShare(
+	ctx context.Context,
+	linkShares []metadata.LinkShare,
+	availableEntities ResourceIDNames,
+	oldLinkShareIDToNewID syncd.MapTo[string],
+) []metadata.LinkShare {
+	filtered := []metadata.LinkShare{}
+
+	if availableEntities.Users == nil || availableEntities.Groups == nil {
+		// This should not be happening unless we missed to fill in the caches
+		logger.Ctx(ctx).Info("no available entities, not filtering link shares")
+		return linkShares
+	}
+
+	for _, p := range linkShares {
+		entities := []metadata.Entity{}
+
+		for _, e := range p.Entities {
+			available := false
+
+			switch e.EntityType {
+			case metadata.GV2User:
+				_, ok := availableEntities.Users.NameOf(e.ID)
+				available = available || ok
+			case metadata.GV2Group:
+				_, ok := availableEntities.Groups.NameOf(e.ID)
+				available = available || ok
+			default:
+				// We only know about users and groups
+				available = true
+			}
+
+			if available {
+				entities = append(entities, e)
+			}
+		}
+
+		if len(entities) > 0 {
+			p.Entities = entities
+			filtered = append(filtered, p)
+
+			continue
+		}
+
+		// If we have no entities, we can't restore the link share
+		// and so we have to mark it as not restored.
+		// This is done to make sure we don't try to delete it later.
+		oldLinkShareIDToNewID.Store(p.ID, "")
+	}
+
+	return filtered
+}
+
+func filterUnavailableEntitiesInPermissions(
+	ctx context.Context,
+	perms []metadata.Permission,
+	availableEntities ResourceIDNames,
+	oldPermIDToNewID syncd.MapTo[string],
+) []metadata.Permission {
+	if availableEntities.Users == nil || availableEntities.Groups == nil {
+		// This should not be happening unless we missed to fill in the caches
+		logger.Ctx(ctx).Info("no available entities, not filtering link shares")
+		return perms
+	}
+
+	filtered := []metadata.Permission{}
+
+	for _, p := range perms {
+		available := false
+
+		switch p.EntityType {
+		case metadata.GV2User:
+			_, ok := availableEntities.Users.NameOf(p.EntityID)
+			available = available || ok
+		case metadata.GV2Group:
+			_, ok := availableEntities.Groups.NameOf(p.EntityID)
+			available = available || ok
+		default:
+			// We only know about users and groups
+			// TODO: extend the check to other entity types
+			available = true
+		}
+
+		if available {
+			filtered = append(filtered, p)
+			continue
+		}
+
+		// If we have no entities, we can't restore the permission
+		// and so we have to mark it as not restored.
+		oldPermIDToNewID.Store(p.ID, "")
+	}
+
+	return filtered
+}
+
 // RestorePermissions takes in the permissions of an item, computes
 // what permissions need to added and removed based on the parent
 // folder metas and uses that to add/remove the necessary permissions
@@ -478,6 +574,7 @@ func RestorePermissions(
 
 	if previousLinkShares != nil {
 		lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
+		lsAdded = filterUnavailableEntitiesInLinkShare(ctx, lsAdded, caches.AvailableEntities, caches.OldLinkShareIDToNewID)
 
 		// Link shares have to be updated before permissions as we have to
 		// use the information about if we had to reset the inheritance to
@@ -503,6 +600,7 @@ func RestorePermissions(
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
+	permAdded = filterUnavailableEntitiesInPermissions(ctx, permAdded, caches.AvailableEntities, caches.OldPermIDToNewID)
 
 	if didReset {
 		// In case we did a reset of permissions when restoring link

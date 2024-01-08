@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/syncd"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -19,6 +20,11 @@ type driveInfo struct {
 	id           string
 	name         string
 	rootFolderID string
+}
+
+type ResourceIDNames struct {
+	Users  idname.Cacher
+	Groups idname.Cacher
 }
 
 type restoreCaches struct {
@@ -30,6 +36,7 @@ type restoreCaches struct {
 	OldLinkShareIDToNewID syncd.MapTo[string]
 	OldPermIDToNewID      syncd.MapTo[string]
 	ParentDirToMeta       syncd.MapTo[metadata.Metadata]
+	AvailableEntities     ResourceIDNames
 
 	pool sync.Pool
 }
@@ -59,12 +66,18 @@ func (rc *restoreCaches) AddDrive(
 	return nil
 }
 
+type GetAllIDsAndNameser interface {
+	GetAllIDsAndNames(ctx context.Context, errs *fault.Bus) (idname.Cacher, error)
+}
+
 // Populate looks up drive items available to the protectedResource
 // and adds their info to the caches.
 func (rc *restoreCaches) Populate(
 	ctx context.Context,
+	usersGetter, groupsGetter GetAllIDsAndNameser,
 	gdparf GetDrivePagerAndRootFolderer,
 	protectedResourceID string,
+	errs *fault.Bus,
 ) error {
 	drives, err := api.GetAllDrives(
 		ctx,
@@ -78,6 +91,19 @@ func (rc *restoreCaches) Populate(
 			return clues.Wrap(err, "caching drive")
 		}
 	}
+
+	users, err := usersGetter.GetAllIDsAndNames(ctx, errs)
+	if err != nil {
+		return clues.Wrap(err, "getting users")
+	}
+
+	groups, err := groupsGetter.GetAllIDsAndNames(ctx, errs)
+	if err != nil {
+		return clues.Wrap(err, "getting groups")
+	}
+
+	rc.AvailableEntities.Users = users
+	rc.AvailableEntities.Groups = groups
 
 	return nil
 }
