@@ -20,11 +20,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -210,7 +210,7 @@ func genericCreateCommand(
 
 		err = bo.Run(ictx)
 		if err != nil {
-			if errors.Is(err, graph.ErrServiceNotEnabled) {
+			if errors.Is(err, core.ErrServiceNotEnabled) {
 				logger.Ctx(ctx).Infow("service not enabled",
 					"resource_owner_id", bo.ResourceOwner.ID(),
 					"service", serviceName)
@@ -334,7 +334,7 @@ func genericListCommand(
 		fe.PrintItems(
 			ctx,
 			!ifShow(flags.ListAlertsFV),
-			!ifShow(flags.ListFailedItemsFV),
+			!ifShow(flags.FailedItemsFV),
 			!ifShow(flags.ListSkippedItemsFV),
 			!ifShow(flags.ListRecoveredErrorsFV))
 

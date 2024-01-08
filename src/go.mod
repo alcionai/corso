@@ -14,7 +14,7 @@ replace (
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
-	github.com/alcionai/clues v0.0.0-20231115004051-523cbddac8e8
+	github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-xray-sdk-go v1.8.3
 	github.com/cenkalti/backoff/v4 v4.2.1
@@ -30,7 +30,7 @@ require (
 	github.com/microsoft/kiota-http-go v1.1.1
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.28.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.29.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v3 v3.0.2
@@ -51,6 +51,11 @@ require (
 	golang.org/x/time v0.5.0
 	golang.org/x/tools v0.16.1
 	gotest.tools/v3 v3.5.1
+)
+
+require (
+	github.com/arran4/golang-ical v0.2.3
+	github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
 )
 
 require (

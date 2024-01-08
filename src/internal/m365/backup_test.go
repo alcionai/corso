@@ -463,7 +463,8 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	assert.True(t, excludes.Empty())
 
 	for _, collection := range cols {
-		assert.Equal(t, path.SharePointService, collection.FullPath().Service())
+		assert.True(t, path.SharePointService == collection.FullPath().Service() ||
+			path.SharePointMetadataService == collection.FullPath().Service())
 		assert.Equal(t, path.ListsCategory, collection.FullPath().Category())
 
 		for item := range collection.Items(ctx, fault.New(true)) {

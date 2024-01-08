@@ -7,6 +7,8 @@ import (
 	"os"
 
 	"github.com/alcionai/corso/src/internal/converters/eml"
+	"github.com/alcionai/corso/src/internal/converters/ics"
+	"github.com/alcionai/corso/src/internal/converters/vcf"
 )
 
 func main() {
@@ -27,10 +29,20 @@ func main() {
 	var out string
 
 	switch from {
-	case "msg":
+	case "json":
 		switch to {
 		case "eml":
 			out, err = eml.FromJSON(context.Background(), body)
+			if err != nil {
+				log.Fatal(err)
+			}
+		case "vcf":
+			out, err = vcf.FromJSON(context.Background(), body)
+			if err != nil {
+				log.Fatal(err)
+			}
+		case "ics":
+			out, err = ics.FromJSON(context.Background(), body)
 			if err != nil {
 				log.Fatal(err)
 			}

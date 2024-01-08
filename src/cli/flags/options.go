@@ -17,9 +17,9 @@ const (
 	FailFastFN                    = "fail-fast"
 	FailedItemsFN                 = "failed-items"
 	FetchParallelismFN            = "fetch-parallelism"
+	NoPermissionsFN               = "no-permissions"
 	NoStatsFN                     = "no-stats"
 	RecoveredErrorsFN             = "recovered-errors"
-	NoPermissionsFN               = "no-permissions"
 	RunModeFN                     = "run-mode"
 	SkippedItemsFN                = "skipped-items"
 	SkipReduceFN                  = "skip-reduce"
@@ -35,17 +35,17 @@ var (
 	ForceItemDataDownloadFV       bool
 	EnableImmutableIDFV           bool
 	FailFastFV                    bool
+	FailedItemsFV                 string
 	FetchParallelismFV            int
 	ListAlertsFV                  string
-	ListFailedItemsFV             string
 	ListSkippedItemsFV            string
 	ListRecoveredErrorsFV         string
+	NoPermissionsFV               bool
 	NoStatsFV                     bool
 	// RunMode describes the type of run, such as:
 	// flagtest, dry, run.  Should default to 'run'.
-	RunModeFV       string
-	NoPermissionsFV bool
-	SkipReduceFV    bool
+	RunModeFV    string
+	SkipReduceFV bool
 )
 
 // well-known flag values

@@ -14,8 +14,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type SitesUnitSuite struct {
@@ -181,7 +181,7 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			name: "random id",
 			id:   uuid.NewString() + "," + uuid.NewString(),
 			expectErr: func(t *testing.T, err error) bool {
-				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
 				return true
 			},
 		},
@@ -213,7 +213,7 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			name: "well formed url, no sites match",
 			id:   modifiedSiteURL,
 			expectErr: func(t *testing.T, err error) bool {
-				assert.ErrorIs(t, err, graph.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
 				return true
 			},
 		},
