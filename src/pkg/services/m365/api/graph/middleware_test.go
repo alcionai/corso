@@ -15,7 +15,6 @@ import (
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -47,6 +46,10 @@ func newMWReturns(code int, body []byte, err error) mwReturns {
 		//Status:     "",
 		Body: brc,
 	}
+
+	resp.Header = make(http.Header)
+
+	resp.Header.Add("Content-Type", "application/json")
 
 	if code == 0 {
 		resp = nil
@@ -155,9 +158,22 @@ func (suite *RetryMWIntgSuite) SetupSuite() {
 
 func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 	var (
-		uri     = "https://graph.microsoft.com"
-		urlPath = "/v1.0/users/user/messages/foo"
-		url     = uri + urlPath
+		//uri     = "https://graph.microsoft.com"
+		//urlPath = "/v1.0/users/"
+		//url     = uri + urlPath
+		//1623c35a-b67a-473a-9b21-5e4891f22e70
+
+		jsonData = map[string]interface{}{
+			"error": map[string]interface{}{
+				"code":    "invalidRequest",
+				"message": "Invalid request",
+				"innerError": map[string]interface{}{
+					"date":              "mmddyy",
+					"request-id":        "rid",
+					"client-request-id": "cid",
+				},
+			},
+		}
 	)
 
 	tests := []struct {
@@ -253,11 +269,13 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			body := "HTTP/1.1 400 Bad Request\r\nTransfer-Encoding: chunked\r\nCache-Control: max-age=0, private\r\nClient-Request-Id: 9546c859-8a3d-446f-8606-9d85bc3de41d\r\nContent-Type: application/json\r\nDate: Thu, 07 Dec 2023 10:06:17 GMT\r\nRequest-Id: ed7106b8-9ee7-42ff-907a-c3d2df29cf55\r\nStrict-Transport-Security: max-age=31536000\r\nVary: Accept-Encoding\r\nX-Ms-Ags-Diagnostic: {\"ServerInfo\":{\"DataCenter\":\"East US\",\"Slice\":\"E\",\"Ring\":\"5\",\"ScaleUnit\":\"004\",\"RoleInstance\":\"BL02EPF00007CD5\"}}\r\n\r\nda\r\n{\"error\":{\"code\":\"invalidRequest\",\"message\":\"Invalid request\",\"innerError\":{\"date\":\"2023-12-07T10:06:17\",\"request-id\":\"ed7106b8-9ee7-42ff-907a-c3d2df29cf55\",\"client-request-id\":\"9546c859-8a3d-446f-8606-9d85bc3de41d\"}}}\r\n0\r\n\r\n"
+			json_string, err := json.Marshal(jsonData)
+			require.NoError(t, err, clues.ToCore(err))
+
 			called := 0
 			mw := newTestMW(
 				func(*http.Request) { called++ },
-				newMWReturns(test.status, []byte(body), test.providedErr))
+				newMWReturns(test.status, json_string, test.providedErr))
 			mw.repeatReturn0 = true
 
 			// Add a large timeout of 100 seconds to ensure that the ctx deadline
@@ -274,7 +292,11 @@ func (suite *RetryMWIntgSuite) TestRetryMiddleware_Intercept_byStatusCode() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			// url doesn't fit the builder, but that shouldn't matter
-			_, err = users.NewCountRequestBuilder(url, adpt).Get(ctx, nil)
+			//_, err = users.NewCountRequestBuilder(url, adpt).Get(ctx, nil)
+
+			//Users().Get(context.Background(), nil)
+
+			_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			// -1 because the non-retried call always counts for one, then
