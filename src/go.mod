@@ -30,7 +30,7 @@ require (
 	github.com/microsoft/kiota-http-go v1.1.1
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
 	github.com/microsoft/kiota-serialization-json-go v1.0.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.28.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.29.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v3 v3.0.2
@@ -53,13 +53,15 @@ require (
 	gotest.tools/v3 v3.5.1
 )
 
-require github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
+require (
+	github.com/arran4/golang-ical v0.2.3
+	github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
+)
 
 require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/andybalholm/brotli v1.0.6 // indirect
-	github.com/arran4/golang-ical v0.2.3 // indirect
 	github.com/aws/aws-sdk-go v1.48.6 // indirect
 	github.com/cention-sany/utf7 v0.0.0-20170124080048-26cad61bd60a // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
