@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
@@ -124,6 +125,12 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 			path.GroupsService,
 			ro,
 			path.LibrariesCategory)
+		sharepointListsPath = makeMetadataBasePath(
+			suite.T(),
+			tid,
+			path.SharePointService,
+			ro,
+			path.ListsCategory)
 	)
 
 	groupLibsSitesPath, err := groupLibsPath.Append(false, odConsts.SitesPathDir)
@@ -275,6 +282,27 @@ func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 					},
 				},
 			}},
+		},
+		{
+			name:  "single reason sharepoint lists",
+			manID: "single-sharepoint-lists",
+			reasons: []identity.Reasoner{
+				identity.NewReason(tid, ro, path.SharePointService, path.ListsCategory),
+			},
+			preFetchPaths: []string{"previouspath"},
+			expectPaths: func(t *testing.T, files []string) []path.Path {
+				ps := make([]path.Path, 0, len(files))
+
+				assert.NoError(t, err, clues.ToCore(err))
+				for _, f := range files {
+					p, err := sharepointListsPath.AppendItem(f)
+					assert.NoError(t, err, clues.ToCore(err))
+					ps = append(ps, p)
+				}
+
+				return ps
+			},
+			restorePaths: getRestorePaths(t, sharepointListsPath, sharepoint.ListsMetadataFileNames()),
 		},
 	}
 	for _, test := range table {
