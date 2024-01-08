@@ -150,7 +150,7 @@ func (c Groups) GetByID(
 		}
 
 		if errors.Is(err, core.ErrResourceNotAccessible) {
-			return nil, graph.Stack(ctx, err)
+			return nil, err
 		}
 
 		logger.CtxErr(ctx, err).Info("finding group by id, falling back to secondary identifier")
@@ -172,7 +172,7 @@ func (c Groups) GetByID(
 		}
 
 		if errors.Is(err, core.ErrResourceNotAccessible) {
-			return nil, graph.Stack(ctx, err)
+			return nil, err
 		}
 
 		logger.CtxErr(ctx, err).Info("finding group by email, falling back to display name")
