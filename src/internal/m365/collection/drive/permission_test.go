@@ -1,18 +1,24 @@
 package drive
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/microsoftgraph/msgraph-sdk-go/drives"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/syncd"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
 type PermissionsUnitTestSuite struct {
@@ -168,4 +174,155 @@ func runComputeParentPermissionsTest(
 			assert.Equal(t, m, test.meta)
 		})
 	}
+}
+
+type mockUdip struct {
+	// cannot use []bool as this is not passed by ref
+	success chan bool
+}
+
+func (mockUdip) DeleteItemPermission(
+	ctx context.Context,
+	driveID, itemID, permissionID string,
+) error {
+	return nil
+}
+
+func (m mockUdip) PostItemPermissionUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemInvitePostRequestBody,
+) (drives.ItemItemsItemInviteResponseable, error) {
+	if ptr.Val(body.GetRecipients()[0].GetObjectId()) == "failure" {
+		m.success <- false
+
+		err := graphTD.ODataErrWithMsg("InvalidRequest", string("One or more users could not be resolved"))
+
+		return nil, err
+	}
+
+	m.success <- true
+
+	resp := drives.NewItemItemsItemInviteResponse()
+	perm := models.NewPermission()
+	perm.SetId(ptr.To(itemID))
+	resp.SetValue([]models.Permissionable{perm})
+
+	return resp, nil
+}
+
+func (suite *PermissionsUnitTestSuite) TestPermissionRestoreNonExistentUser() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	successChan := make(chan bool, 3)
+	m := mockUdip{
+		success: successChan,
+	}
+
+	err := UpdatePermissions(
+		ctx,
+		&m,
+		"drive-id",
+		"item-id",
+		[]metadata.Permission{
+			{Roles: []string{"write"}, EntityID: "user-id1"},
+			{Roles: []string{"write"}, EntityID: "failure"},
+			{Roles: []string{"write"}, EntityID: "user-id2"},
+		},
+		[]metadata.Permission{},
+		syncd.NewMapTo[string](),
+		fault.New(true))
+
+	assert.NoError(t, err, "update permissions")
+	close(successChan)
+
+	var successValues []bool
+	for success := range successChan {
+		successValues = append(successValues, success)
+	}
+
+	expectedSuccessValues := []bool{true, false, true}
+	assert.Equal(t, expectedSuccessValues, successValues)
+}
+
+type mockUpils struct {
+	success chan bool
+}
+
+func (mockUpils) DeleteItemPermission(
+	ctx context.Context,
+	driveID, itemID, permissionID string,
+) error {
+	return nil
+}
+
+func (m mockUpils) PostItemLinkShareUpdate(
+	ctx context.Context,
+	driveID, itemID string,
+	body *drives.ItemItemsItemCreateLinkPostRequestBody,
+) (models.Permissionable, error) {
+	shouldFail := false
+
+	recip := body.GetAdditionalData()["recipients"].([]map[string]string)
+	for _, r := range recip {
+		if r["objectId"] == "failure" {
+			shouldFail = true
+		}
+	}
+
+	if shouldFail {
+		m.success <- false
+
+		err := graphTD.ODataErrWithMsg("InvalidRequest", string("One or more users could not be resolved"))
+
+		return nil, err
+	}
+
+	m.success <- true
+
+	perm := models.NewPermission()
+	perm.SetId(ptr.To(itemID))
+
+	return perm, nil
+}
+
+func (suite *PermissionsUnitTestSuite) TestLinkShareRestoreNonExistentUser() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	successChan := make(chan bool, 10) // 7 required
+	m := mockUpils{
+		success: successChan,
+	}
+
+	_, err := UpdateLinkShares(
+		ctx,
+		&m,
+		"drive-id",
+		"item-id",
+		[]metadata.LinkShare{
+			{Roles: []string{"write"}, Entities: []metadata.Entity{{ID: "user-id"}}},
+			{Roles: []string{"write"}, Entities: []metadata.Entity{{ID: "failure"}}},
+			{Roles: []string{"write"}, Entities: []metadata.Entity{{ID: "user-id"}, {ID: "failure"}}},
+			{Roles: []string{"write"}, Entities: []metadata.Entity{{ID: "user-id"}, {ID: "failure"}, {ID: "user-id"}}},
+		},
+		[]metadata.LinkShare{},
+		syncd.NewMapTo[string](),
+		fault.New(true))
+
+	assert.NoError(t, err, "update permissions")
+	close(successChan)
+
+	var successValues []bool
+	for success := range successChan {
+		successValues = append(successValues, success)
+	}
+
+	expectedSuccessValues := []bool{true, false, false, false}
+	assert.Equal(t, expectedSuccessValues, successValues)
 }
