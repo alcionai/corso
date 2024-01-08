@@ -331,7 +331,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 		name             string
 		getList          func() *models.List
 		length           int
-		expectedColNames map[string]struct{}
+		expectedColNames map[string]any
 	}{
 		{
 			name: "all legacy columns",
@@ -345,7 +345,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				return lst
 			},
 			length:           0,
-			expectedColNames: map[string]struct{}{TitleColumnName: {}},
+			expectedColNames: map[string]any{TitleColumnName: nil},
 		},
 		{
 			name: "title and legacy columns",
@@ -360,7 +360,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				return lst
 			},
 			length:           0,
-			expectedColNames: map[string]struct{}{TitleColumnName: {}},
+			expectedColNames: map[string]any{TitleColumnName: nil},
 		},
 		{
 			name: "readonly and legacy columns",
@@ -375,7 +375,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				return lst
 			},
 			length:           0,
-			expectedColNames: map[string]struct{}{TitleColumnName: {}},
+			expectedColNames: map[string]any{TitleColumnName: nil},
 		},
 		{
 			name: "legacy and a text column",
@@ -390,9 +390,9 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				return lst
 			},
 			length: 1,
-			expectedColNames: map[string]struct{}{
-				TitleColumnName: {},
-				textColumnName:  {},
+			expectedColNames: map[string]any{
+				TitleColumnName: nil,
+				textColumnName:  nil,
 			},
 		},
 	}
@@ -431,7 +431,7 @@ func (suite *ListsUnitSuite) TestFieldValueSetable() {
 	origFs := models.NewFieldValueSet()
 	origFs.SetAdditionalData(additionalData)
 
-	colNames := map[string]struct{}{}
+	colNames := map[string]any{}
 
 	fs := retrieveFieldData(origFs, colNames)
 	fsAdditionalData := fs.GetAdditionalData()
@@ -506,8 +506,8 @@ func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 	origFs := models.NewFieldValueSet()
 	origFs.SetAdditionalData(additionalData)
 
-	colNames := map[string]struct{}{
-		"MyAddress": {},
+	colNames := map[string]any{
+		"MyAddress": nil,
 	}
 
 	fs := retrieveFieldData(origFs, colNames)
