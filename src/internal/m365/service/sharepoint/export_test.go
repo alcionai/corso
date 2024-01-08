@@ -189,14 +189,14 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 			handler := NewSharePointHandler(api.Client{}, nil)
 			handler.CacheItemInfo(test.itemInfo)
 
-			stats := metrics.ExportStats{}
+			stats := metrics.NewExportStats()
 
 			ecs, err := handler.ProduceExportCollections(
 				ctx,
 				int(version.Backup),
 				exportCfg,
 				dcs,
-				&stats,
+				stats,
 				fault.New(true))
 			assert.NoError(t, err, "export collections error")
 			assert.Len(t, ecs, 1, "num of collections")
@@ -220,10 +220,10 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 
 			assert.Equal(t, test.expectedItems, fitems, "items")
 
-			expectedStats := metrics.ExportStats{}
+			expectedStats := metrics.NewExportStats()
 			expectedStats.UpdateBytes(test.statsCat, int64(size))
 			expectedStats.UpdateResourceCount(test.statsCat)
-			assert.Equal(t, expectedStats, stats, "stats")
+			assert.Equal(t, expectedStats.GetStats(), stats.GetStats(), "stats")
 		})
 	}
 }

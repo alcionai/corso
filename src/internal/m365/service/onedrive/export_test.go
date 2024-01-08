@@ -248,12 +248,12 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			stats := metrics.ExportStats{}
+			stats := metrics.NewExportStats()
 			ec := drive.NewExportCollection(
 				"",
 				[]data.RestoreCollection{test.backingCollection},
 				test.version,
-				&stats)
+				stats)
 
 			items := ec.Items(ctx)
 
@@ -300,7 +300,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				}
 			}
 
-			assert.Equal(t, expectedStats, stats, "stats")
+			assert.Equal(t, expectedStats.GetStats(), stats.GetStats(), "stats")
 		})
 	}
 }
@@ -341,7 +341,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		},
 	}
 
-	stats := metrics.ExportStats{}
+	stats := metrics.NewExportStats()
 
 	ecs, err := NewOneDriveHandler(api.Client{}, nil).
 		ProduceExportCollections(
@@ -349,7 +349,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 			int(version.Backup),
 			exportCfg,
 			dcs,
-			&stats,
+			stats,
 			fault.New(true))
 	assert.NoError(t, err, "export collections error")
 	assert.Len(t, ecs, 1, "num of collections")
@@ -371,8 +371,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 
 	assert.Equal(t, expectedItems, fitems, "items")
 
-	expectedStats := metrics.ExportStats{}
+	expectedStats := metrics.NewExportStats()
 	expectedStats.UpdateBytes(path.FilesCategory, int64(size))
 	expectedStats.UpdateResourceCount(path.FilesCategory)
-	assert.Equal(t, expectedStats, stats, "stats")
+	assert.Equal(t, expectedStats.GetStats(), stats.GetStats(), "stats")
 }
