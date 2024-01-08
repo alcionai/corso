@@ -25,6 +25,7 @@ const (
 	AuthorLookupIDColumnName    = "AuthorLookupId"
 	EditorLookupIDColumnName    = "EditorLookupId"
 	AppAuthorLookupIDColumnName = "AppAuthorLookupId"
+	TitleColumnName             = "Title"
 
 	ContentTypeColumnDisplayName = "Content Type"
 
@@ -56,36 +57,10 @@ const (
 	AccessRequestsListTemplate  = "accessRequest"
 )
 
-var addressFieldNames = []string{
-	AddressFieldName,
-	CoordinatesFieldName,
-	DisplayNameFieldName,
-	LocationURIFieldName,
-	UniqueIDFieldName,
-}
-
-var readOnlyAddressFieldNames = []string{
-	CountryOrRegionFieldName,
-	StateFieldName,
-	CityFieldName,
-	PostalCodeFieldName,
-	StreetFieldName,
-	GeoLocFieldName,
-	DispNameFieldName,
-}
-
 var legacyColumns = keys.Set{
 	AttachmentsColumnName:        {},
 	EditColumnName:               {},
 	ContentTypeColumnDisplayName: {},
-}
-
-var readOnlyFieldNames = keys.Set{
-	AttachmentsColumnName: {},
-	EditColumnName:        {},
-	ContentTypeColumnName: {},
-	CreatedColumnName:     {},
-	ModifiedColumnName:    {},
 }
 
 var SkipListTemplates = keys.Set{
@@ -266,7 +241,7 @@ func (c Lists) PostList(
 	}
 
 	// this ensure all columns, contentTypes are set to the newList
-	newList := ToListable(oldList, newListName)
+	newList, columnNames := ToListable(oldList, newListName)
 
 	if newList.GetList() != nil &&
 		SkipListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
@@ -287,7 +262,7 @@ func (c Lists) PostList(
 	listItems := make([]models.ListItemable, 0)
 
 	for _, itm := range oldList.GetItems() {
-		temp := CloneListItem(itm)
+		temp := CloneListItem(itm, columnNames)
 		listItems = append(listItems, temp)
 	}
 
@@ -360,7 +335,7 @@ func BytesToListable(bytes []byte) (models.Listable, error) {
 // not attached in this method.
 // ListItems are not included in creation of new list, and have to be restored
 // in separate call.
-func ToListable(orig models.Listable, displayName string) models.Listable {
+func ToListable(orig models.Listable, displayName string) (models.Listable, map[string]any) {
 	newList := models.NewList()
 
 	newList.SetContentTypes(orig.GetContentTypes())
@@ -377,6 +352,7 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 	newList.SetParentReference(orig.GetParentReference())
 
 	columns := make([]models.ColumnDefinitionable, 0)
+	columnNames := map[string]any{TitleColumnName: nil}
 
 	for _, cd := range orig.GetColumns() {
 		var (
@@ -394,16 +370,17 @@ func ToListable(orig models.Listable, displayName string) models.Listable {
 
 		// Skips columns that cannot be uploaded for models.ColumnDefinitionable:
 		// - ReadOnly, Title, or Legacy columns: Attachments, Edit, or Content Type
-		if readOnly || displayName == "Title" || legacyColumns.HasKey(displayName) {
+		if readOnly || displayName == TitleColumnName || legacyColumns.HasKey(displayName) {
 			continue
 		}
 
 		columns = append(columns, cloneColumnDefinitionable(cd))
+		columnNames[ptr.Val(cd.GetName())] = nil
 	}
 
 	newList.SetColumns(columns)
 
-	return newList
+	return newList, columnNames
 }
 
 // cloneColumnDefinitionable utility function for encapsulating models.ColumnDefinitionable data
@@ -486,11 +463,11 @@ func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinit
 // CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
 // M365 data into it set fields.
 // - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
-func CloneListItem(orig models.ListItemable) models.ListItemable {
+func CloneListItem(orig models.ListItemable, columnNames map[string]any) models.ListItemable {
 	newItem := models.NewListItem()
 
 	// list item data
-	newFieldData := retrieveFieldData(orig.GetFields())
+	newFieldData := retrieveFieldData(orig.GetFields(), columnNames)
 	newItem.SetFields(newFieldData)
 
 	// list item attributes
@@ -523,18 +500,19 @@ func CloneListItem(orig models.ListItemable) models.ListItemable {
 // additionalData map
 // Further documentation on FieldValueSets:
 // - https://learn.microsoft.com/en-us/graph/api/resources/fieldvalueset?view=graph-rest-1.0
-func retrieveFieldData(orig models.FieldValueSetable) models.FieldValueSetable {
+func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]any) models.FieldValueSetable {
 	fields := models.NewFieldValueSet()
-	additionalData := filterAdditionalData(orig)
 
-	retainPrimaryAddressField(additionalData)
-
+	additionalData := setAdditionalDataByColumnNames(orig, columnNames)
 	fields.SetAdditionalData(additionalData)
 
 	return fields
 }
 
-func filterAdditionalData(orig models.FieldValueSetable) map[string]any {
+func setAdditionalDataByColumnNames(
+	orig models.FieldValueSetable,
+	columnNames map[string]any,
+) map[string]any {
 	if orig == nil {
 		return make(map[string]any)
 	}
@@ -542,53 +520,13 @@ func filterAdditionalData(orig models.FieldValueSetable) map[string]any {
 	fieldData := orig.GetAdditionalData()
 	filteredData := make(map[string]any)
 
-	for key, value := range fieldData {
-		if shouldFilterField(key, value) {
-			continue
+	for colName := range columnNames {
+		if _, ok := fieldData[colName]; ok {
+			filteredData[colName] = fieldData[colName]
 		}
-
-		filteredData[key] = value
 	}
 
 	return filteredData
-}
-
-func shouldFilterField(key string, value any) bool {
-	return readOnlyFieldNames.HasKey(key) ||
-		strings.HasPrefix(key, ReadOnlyOrHiddenFieldNamePrefix) ||
-		strings.HasPrefix(key, DescoratorFieldNamePrefix) ||
-		strings.Contains(key, LinkTitleFieldNamePart) ||
-		strings.Contains(key, ChildCountFieldNamePart) ||
-		strings.Contains(key, LookupIDFieldNamePart)
-}
-
-func retainPrimaryAddressField(additionalData map[string]any) {
-	if !hasAddressFields(additionalData) {
-		return
-	}
-
-	for _, k := range readOnlyAddressFieldNames {
-		delete(additionalData, k)
-	}
-}
-
-func hasAddressFields(additionalData map[string]any) bool {
-	if !keys.HasKeys(additionalData, readOnlyAddressFieldNames...) {
-		return false
-	}
-
-	for _, value := range additionalData {
-		nestedFields, ok := value.(map[string]any)
-		if !ok || keys.HasKeys(nestedFields, GeoLocFieldName) {
-			continue
-		}
-
-		if keys.HasKeys(nestedFields, addressFieldNames...) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (c Lists) getListItemFields(
