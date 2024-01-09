@@ -326,8 +326,9 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 // requests.
 func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 	var (
-		t         = suite.T()
-		retryInc  = 0
+		t        = suite.T()
+		retryInc = 0
+		// Formulate a graph error response which is parseable to odata error.
 		graphResp = map[string]any{
 			"error": map[string]any{
 				"code":    invalidRequest,
@@ -346,7 +347,9 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 
 	l := int64(len(serialized))
 
-	alwaysInvalidReq := mwForceResp{
+	// Set up a test middleware to always return a graph 400 invalidRequest
+	// response.
+	returnsGraphResp := mwForceResp{
 		alternate: func(req *http.Request) (bool, *http.Response, error) {
 			retryInc++
 
@@ -372,7 +375,7 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 		suite.credentials.AzureClientID,
 		suite.credentials.AzureClientSecret,
 		count.New(),
-		appendMiddleware(&alwaysInvalidReq))
+		appendMiddleware(&returnsGraphResp))
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {
@@ -411,8 +414,8 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 			defer flush()
 
 			err := test.apiRequest(tt, ctx)
-			assert.True(t, IsErrInvalidRequest(err), clues.ToCore(err))
-			assert.Equal(t, test.expectedRetries, retryInc, "number of retries")
+			assert.True(tt, IsErrInvalidRequest(err), clues.ToCore(err))
+			assert.Equal(tt, test.expectedRetries, retryInc, "number of retries")
 		})
 	}
 }
