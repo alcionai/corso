@@ -13,13 +13,11 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
-	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -394,12 +392,6 @@ func (aw *adapterWrap) Send(
 		}
 
 		err = stackWithCoreErr(ictx, err, 1)
-
-		// force an early exit on throttling issues.
-		// those retries are already handled in middleware.
-		if errors.Is(err, core.ErrApplicationThrottled) {
-			return nil, err
-		}
 
 		// exit most errors without retry
 		switch {
