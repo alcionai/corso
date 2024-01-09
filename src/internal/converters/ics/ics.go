@@ -489,30 +489,52 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddAttachment(base64.StdEncoding.EncodeToString(content), props...)
 	}
 
-	cancelldedOcurrances := event.GetAdditionalData()["cancelledOccurrences"]
-	if cancelldedOcurrances != nil {
-		for _, occ := range cancelldedOcurrances.([]any) {
-			instance, err := str.AnyToString(occ)
-			if err != nil {
-				return clues.Wrap(err, "getting cancelled occurrence id")
-			}
+	cancelledDates, err := getCancelledDates(ctx, event)
+	if err != nil {
+		return clues.Wrap(err, "getting cancelled dates")
+	}
 
-			splits := strings.Split(instance, ".")
-			if len(splits) < 2 {
-				return clues.NewWC(ctx, "invalid cancelled occurrence id").With("id", instance)
-			}
+	dateStrings := []string{}
+	for _, date := range cancelledDates {
+		dateStrings = append(dateStrings, date.Format(iCalDateFormat))
+	}
 
-			startStr := splits[len(splits)-1]
-
-			// the data just contains date and no time which seems to work
-			start, err := getUTCTime(startStr, ptr.Val(startTimezone))
-			if err != nil {
-				return clues.Wrap(err, "parsing cancelled event date")
-			}
-
-			iCalEvent.AddExdate(start.Format(iCalDateTimeFormat))
-		}
+	if len(dateStrings) > 0 {
+		iCalEvent.AddProperty(ics.ComponentPropertyExdate, strings.Join(dateStrings, ","))
 	}
 
 	return nil
+}
+
+func getCancelledDates(ctx context.Context, event models.Eventable) ([]time.Time, error) {
+	cancelldedOcurrances := event.GetAdditionalData()["cancelledOccurrences"]
+	if cancelldedOcurrances == nil {
+		return nil, nil
+	}
+
+	dates := []time.Time{}
+
+	for _, occ := range cancelldedOcurrances.([]any) {
+		instance, err := str.AnyToString(occ)
+		if err != nil {
+			return nil, clues.Wrap(err, "getting cancelled occurrence id")
+		}
+
+		splits := strings.Split(instance, ".")
+		if len(splits) < 2 {
+			return nil, clues.NewWC(ctx, "invalid cancelled occurrence id").With("id", instance)
+		}
+
+		startStr := splits[len(splits)-1]
+
+		// the data just contains date and no time which seems to work
+		start, err := getUTCTime(startStr, ptr.Val(event.GetStart().GetTimeZone()))
+		if err != nil {
+			return nil, clues.Wrap(err, "parsing cancelled event date")
+		}
+
+		dates = append(dates, start)
+	}
+
+	return dates, nil
 }

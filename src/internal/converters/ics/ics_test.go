@@ -1084,14 +1084,14 @@ func (suite *ICSUnitSuite) TestCancellations() {
 	table := []struct {
 		name         string
 		cancelledIds []string
-		expected     []string
+		expected     string
 	}{
 		{
 			name: "single",
 			cancelledIds: []string{
 				"OID.DEADBEEF=.2024-01-25",
 			},
-			expected: []string{"EXDATE:20240125T000000Z"},
+			expected: "EXDATE:20240125",
 		},
 		{
 			name: "multiple",
@@ -1099,10 +1099,7 @@ func (suite *ICSUnitSuite) TestCancellations() {
 				"OID.DEADBEEF=.2024-01-25",
 				"OID.LIVEBEEF=.2024-02-26",
 			},
-			expected: []string{
-				"EXDATE:20240125T000000Z",
-				"EXDATE:20240226T000000Z",
-			},
+			expected: "EXDATE:20240125,20240226",
 		},
 	}
 
@@ -1133,9 +1130,7 @@ func (suite *ICSUnitSuite) TestCancellations() {
 			out, err := FromJSON(ctx, bts)
 			require.NoError(t, err, "converting to ics")
 
-			for _, exp := range tt.expected {
-				assert.Contains(t, out, exp, "cancellation exrule")
-			}
+			assert.Contains(t, out, tt.expected, "cancellation exrule")
 		})
 	}
 }
