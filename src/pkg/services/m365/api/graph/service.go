@@ -380,12 +380,14 @@ func (aw *adapterWrap) Send(
 	requestInfo *abstractions.RequestInformation,
 	constructor serialization.ParsableFactory,
 	errorMappings abstractions.ErrorMappings,
-) (sp serialization.Parsable, err error) {
+) (sp serialization.Parsable, e error) {
 	defer func() {
 		if crErr := crash.Recovery(ctx, recover(), "graph adapter request"); crErr != nil {
-			err = Stack(ctx, crErr)
+			e = Stack(ctx, crErr)
 		}
 	}()
+
+	retriedErrors := []string{}
 
 	// This external retry wrapper is unsophisticated, but should
 	// only retry under certain circumstances
@@ -394,40 +396,47 @@ func (aw *adapterWrap) Send(
 	// 2. jwt token invalidation, which requires a re-auth that's handled
 	// in the Send() call, before reaching client middleware.
 	for i := 0; i < aw.config.maxConnectionRetries+1; i++ {
+		if i > 0 {
+			time.Sleep(aw.retryDelay)
+		}
+
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
-		sp, err = aw.RequestAdapter.Send(ictx, requestInfo, constructor, errorMappings)
+		resp, err := aw.RequestAdapter.Send(ictx, requestInfo, constructor, errorMappings)
 		if err == nil {
-			break
+			return resp, nil
 		}
 
 		err = stackWithCoreErr(ictx, err, 1)
+		e = err
 
-		// exit most errors without retry
-		switch {
-		case IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()):
+		if IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()) {
 			logger.Ctx(ictx).Debug("http connection error")
 			events.Inc(events.APICall, "connectionerror")
-		case IsErrBadJWTToken(err):
+		} else if IsErrBadJWTToken(err) {
 			logger.Ctx(ictx).Debug("bad jwt token")
 			events.Inc(events.APICall, "badjwttoken")
-		case requestInfo.Method.String() == http.MethodGet && IsErrInvalidRequest(err):
+		} else if requestInfo.Method.String() == http.MethodGet && IsErrInvalidRequest(err) {
 			// Graph may sometimes return a transient 400 response during onedrive
 			// and sharepoint backup. This is pending investigation on msft end, retry
 			// for now as it's a transient issue. Restrict retries to GET requests only
 			// to limit the scope of this fix.
 			logger.Ctx(ictx).Debug("invalid request")
-			events.Inc(events.APICall, "invalidrequest")
-		default:
-			return nil, err
+			events.Inc(events.APICall, "invalidgetrequest")
+		} else {
+			// exit most errors without retry
+			break
 		}
 
-		time.Sleep(aw.retryDelay)
+		retriedErrors = append(retriedErrors, err.Error())
 	}
 
-	if err != nil {
-		return nil, err
-	}
+	e = clues.Stack(e).
+		With("retried_errors", retriedErrors).
+		WithTrace(1).
+		OrNil()
 
-	return sp, nil
+	// no chance of a non-error return here.
+	// we handle that inside the loop.
+	return nil, e
 }
