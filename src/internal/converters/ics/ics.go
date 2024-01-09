@@ -106,6 +106,7 @@ func getUTCTime(ts, tz string) (time.Time, error) {
 // https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10
 // https://learn.microsoft.com/en-us/graph/api/resources/patternedrecurrence?view=graph-rest-1.0
 // Ref: https://github.com/closeio/sync-engine/pull/381/files
+// FIXME: When we have daily repeating task the last one is not getting added (due to timezone differences)
 func getRecurrencePattern(
 	ctx context.Context,
 	recurrence models.PatternedRecurrenceable,
