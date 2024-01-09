@@ -343,7 +343,11 @@ func kiotaMiddlewares(
 // Graph Api Adapter Wrapper
 // ---------------------------------------------------------------------------
 
-var _ abstractions.RequestAdapter = &adapterWrap{}
+var (
+	_ abstractions.RequestAdapter = &adapterWrap{}
+	// Delay between retry attempts
+	adapterRetryDelay = 3 * time.Second
+)
 
 // adapterWrap takes a GraphRequestAdapter and replaces the Send() function to
 // act as a middleware for all http calls.  Certain error conditions never reach
@@ -407,11 +411,17 @@ func (aw *adapterWrap) Send(
 		case IsErrBadJWTToken(err):
 			logger.Ctx(ictx).Debug("bad jwt token")
 			events.Inc(events.APICall, "badjwttoken")
+		case IsErrInvalidRequest(err):
+			// Graph may sometimes return a transient 400 response during onedrive
+			// and sharepoint backup. This is pending investigation on msft end, retry
+			// for now as it's a transient issue.
+			logger.Ctx(ictx).Debug("invalid request")
+			events.Inc(events.APICall, "invalidrequest")
 		default:
 			return nil, clues.StackWC(ictx, err).WithTrace(1)
 		}
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(adapterRetryDelay)
 	}
 
 	return sp, clues.Stack(err).OrNil()

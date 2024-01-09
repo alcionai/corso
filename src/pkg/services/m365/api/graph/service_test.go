@@ -1,6 +1,9 @@
 package graph
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"syscall"
@@ -55,6 +58,15 @@ func (suite *GraphIntgSuite) SetupSuite() {
 	suite.credentials = m365
 
 	InitializeConcurrencyLimiter(ctx, false, 0)
+
+	// We are going to validate retry attempts for a few errors as part of this
+	// test suite. Set retry delay to a low value to reduce suite runtime.
+	adapterRetryDelay = 10 * time.Millisecond
+}
+
+func (suite *GraphIntgSuite) TearDownSuite() {
+	// Reset retry delay on exit so that it doesn't affect other tests.
+	adapterRetryDelay = 3 * time.Second
 }
 
 func (suite *GraphIntgSuite) TestCreateAdapter() {
@@ -305,5 +317,67 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 	// the query doesn't matter
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 	assert.True(t, IsErrBadJWTToken(err), clues.ToCore(err))
+	assert.Equal(t, 4, retryInc, "number of retries")
+}
+
+func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
+	var (
+		t         = suite.T()
+		retryInc  = 0
+		graphResp = map[string]any{
+			"error": map[string]any{
+				"code":    invalidRequest,
+				"message": "Invalid request",
+				"innerError": map[string]any{
+					"date":              "2024-01-01T18:00:00",
+					"request-id":        "rid",
+					"client-request-id": "cid",
+				},
+			},
+		}
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	serialized, err := json.Marshal(graphResp)
+	require.NoError(t, err, clues.ToCore(err))
+
+	l := int64(len(serialized))
+
+	alwaysInvalidReq := mwForceResp{
+		alternate: func(req *http.Request) (bool, *http.Response, error) {
+			retryInc++
+
+			header := http.Header{}
+			header.Set("Content-Length", strconv.Itoa(int(l)))
+			header.Set("Content-Type", "application/json")
+
+			resp := &http.Response{
+				Body:          io.NopCloser(bytes.NewReader(serialized)),
+				ContentLength: l,
+				Header:        header,
+				Proto:         req.Proto,
+				Request:       req,
+				StatusCode:    http.StatusBadRequest, // Required retry condition
+			}
+
+			return true, resp, nil
+		},
+	}
+
+	adpt, err := CreateAdapter(
+		suite.credentials.AzureTenantID,
+		suite.credentials.AzureClientID,
+		suite.credentials.AzureClientSecret,
+		count.New(),
+		appendMiddleware(&alwaysInvalidReq))
+	require.NoError(t, err, clues.ToCore(err))
+
+	retryInc = 0
+
+	// The query doesn't matter.
+	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
+	assert.True(t, IsErrInvalidRequest(err), clues.ToCore(err))
 	assert.Equal(t, 4, retryInc, "number of retries")
 }
