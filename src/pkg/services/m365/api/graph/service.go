@@ -411,10 +411,11 @@ func (aw *adapterWrap) Send(
 		case IsErrBadJWTToken(err):
 			logger.Ctx(ictx).Debug("bad jwt token")
 			events.Inc(events.APICall, "badjwttoken")
-		case IsErrInvalidRequest(err):
+		case requestInfo.Method.String() == http.MethodGet && IsErrInvalidRequest(err):
 			// Graph may sometimes return a transient 400 response during onedrive
 			// and sharepoint backup. This is pending investigation on msft end, retry
-			// for now as it's a transient issue.
+			// for now as it's a transient issue. Restrict retries to GET requests only
+			// to limit the scope of this fix.
 			logger.Ctx(ictx).Debug("invalid request")
 			events.Inc(events.APICall, "invalidrequest")
 		default:

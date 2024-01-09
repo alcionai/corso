@@ -2,6 +2,7 @@ package graph
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -320,6 +321,9 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 	assert.Equal(t, 4, retryInc, "number of retries")
 }
 
+// TestAdapterWrap_retriesInvalidRequest tests adapter retries for graph 400
+// invalidRequest errors. It also tests that retries are only done for GET
+// requests.
 func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 	var (
 		t         = suite.T()
@@ -336,9 +340,6 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 			},
 		}
 	)
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
 
 	serialized, err := json.Marshal(graphResp)
 	require.NoError(t, err, clues.ToCore(err))
@@ -374,10 +375,44 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 		appendMiddleware(&alwaysInvalidReq))
 	require.NoError(t, err, clues.ToCore(err))
 
-	retryInc = 0
+	table := []struct {
+		name            string
+		apiRequest      func(t *testing.T, ctx context.Context) error
+		expectedRetries int
+	}{
+		{
+			name: "GET request, retried",
+			apiRequest: func(t *testing.T, ctx context.Context) error {
+				_, err = NewService(adpt).Client().Users().Get(ctx, nil)
+				return err
+			},
+			expectedRetries: 4,
+		},
+		{
+			name: "POST request, no retry",
+			apiRequest: func(t *testing.T, ctx context.Context) error {
+				u := models.NewUser()
 
-	// The query doesn't matter.
-	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
-	assert.True(t, IsErrInvalidRequest(err), clues.ToCore(err))
-	assert.Equal(t, 4, retryInc, "number of retries")
+				cfg := users.UsersRequestBuilderPostRequestConfiguration{}
+
+				_, err = NewService(adpt).Client().Users().Post(ctx, u, &cfg)
+				return err
+			},
+			expectedRetries: 1,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			tt := suite.T()
+			retryInc = 0
+
+			ctx, flush := tester.NewContext(tt)
+			defer flush()
+
+			err := test.apiRequest(tt, ctx)
+			assert.True(t, IsErrInvalidRequest(err), clues.ToCore(err))
+			assert.Equal(t, test.expectedRetries, retryInc, "number of retries")
+		})
+	}
 }
