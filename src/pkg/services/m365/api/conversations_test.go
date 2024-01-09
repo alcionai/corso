@@ -108,8 +108,8 @@ func (suite *ConversationsAPIUnitSuite) TestConversationPostInfo() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			chMsg, expected := test.postAndInfo()
-			result := conversationPostInfo(chMsg)
+			post, expected := test.postAndInfo()
+			result := conversationPostInfo(post, 0, "")
 
 			assert.Equal(t, expected, result)
 		})
@@ -176,7 +176,49 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 				attch := models.NewAttachment()
 				attch.SetSize(ptr.To[int32](50))
 
+				// First call to get the post will not expand attachments.
+				interceptV1Path(
+					"groups",
+					"group",
+					"conversations",
+					"conv",
+					"threads",
+					"thread",
+					"posts",
+					pid).
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), itm))
+
 				itm.SetAttachments([]models.Attachmentable{attch})
+
+				interceptV1Path(
+					"groups",
+					"group",
+					"conversations",
+					"conv",
+					"threads",
+					"thread",
+					"posts",
+					pid).
+					MatchParam("$expand", "attachments").
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), itm))
+			},
+			attachmentCount: 1,
+			size:            50,
+			expect:          assert.NoError,
+		},
+		{
+			name: "fetch multiple individual attachments",
+			setupf: func() {
+				itm := models.NewPost()
+
+				itm.SetId(&pid)
+				itm.SetHasAttachments(ptr.To(true))
+
+				attch := models.NewAttachment()
+				attch.SetId(&aid)
+				attch.SetSize(ptr.To[int32](200))
 
 				interceptV1Path(
 					"groups",
@@ -189,22 +231,6 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					pid).
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), itm))
-			},
-			attachmentCount: 1,
-			size:            50,
-			expect:          assert.NoError,
-		},
-		{
-			name: "fetch multiple individual attachments",
-			setupf: func() {
-				truthy := true
-				itm := models.NewPost()
-				itm.SetId(&pid)
-				itm.SetHasAttachments(&truthy)
-
-				attch := models.NewAttachment()
-				attch.SetId(&aid)
-				attch.SetSize(ptr.To[int32](200))
 
 				itm.SetAttachments([]models.Attachmentable{attch, attch, attch, attch, attch})
 
@@ -217,6 +243,7 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					"thread",
 					"posts",
 					pid).
+					MatchParam("$expand", "attachments").
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), itm))
 			},

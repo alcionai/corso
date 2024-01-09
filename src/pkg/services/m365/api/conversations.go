@@ -69,8 +69,6 @@ func (c Conversations) GetConversationPost(
 		preview = "malformed or unparseable html" + preview
 	}
 
-	// TODO(pandeyabs): Is this the best way to get embedded attachments?
-	// Attachmentable has inline field also. what about that?
 	if !ptr.Val(post.GetHasAttachments()) && !HasAttachments(post.GetBody()) {
 		return post, conversationPostInfo(post, contentLen, preview), nil
 	}
@@ -82,16 +80,15 @@ func (c Conversations) GetConversationPost(
 		threadID,
 		postID)
 	if err != nil {
-		// A failure can be caused by having a lot of attachments.
-		// If that happens, we can progres with a two-step approach of:
-		// 1. getting all attachment IDs.
-		// 2. fetching each attachment individually.
-		logger.CtxErr(ctx, err).Info("falling back to fetching attachments by id")
+		// Similar to exchange, a failure can happen if a post has a lot of attachments.
+		// We don't have a fallback option here to fetch attachments one by one. See
+		// issue #4991.
+		//
+		// Resort to failing the post backup for now since we don't know yet how this
+		// error might manifest itself for posts.
+		logger.CtxErr(ctx, err).Info("failed to get post attachments")
 
-		// attachments, totalSize, err = c.getAttachmentsIterated(ctx, userID, mailID, immutableIDs, errs)
-		// if err != nil {
-		// 	return nil, nil, clues.Stack(err)
-		// }
+		return nil, nil, clues.Stack(err)
 	}
 
 	contentLen += totalSize
@@ -156,8 +153,6 @@ func stripConversationPostHTML(post models.Postable) (string, int64, error) {
 }
 
 // getAttachments attempts to get all attachments, including their content, in a singe query.
-// microsoft.graph.itemattachment/item" is returning 403.
-// Compare with mail api. also try with attachments and Attachment() endpoint.
 func (c Conversations) getAttachments(
 	ctx context.Context,
 	groupID, conversationID, threadID, postID string,
@@ -197,44 +192,3 @@ func (c Conversations) getAttachments(
 
 	return result, totalSize, nil
 }
-
-// // getAttachments attempts to get all attachments, including their content, in a singe query.
-// // microsoft.graph.itemattachment/item" is returning 403.
-// func (c Conversations) getAttachments(
-// 	ctx context.Context,
-// 	groupID, conversationID, threadID, postID string,
-// ) ([]models.Attachmentable, int64, error) {
-// 	var (
-// 		result    = []models.Attachmentable{}
-// 		totalSize int64
-// 	)
-
-// 	cfg := &groups.ItemConversationsItemThreadsItemPostsItemAttachmentsRequestBuilderGetRequestConfiguration{
-// 		QueryParameters: &groups.ItemConversationsItemThreadsItemPostsItemAttachmentsRequestBuilderGetQueryParameters{
-// 			Expand: []string{"microsoft.graph.itemattachment/item"},
-// 		},
-// 	}
-
-// 	attachments, err := c.LargeItem.
-// 		Client().
-// 		Groups().
-// 		ByGroupId(groupID).
-// 		Conversations().
-// 		ByConversationId(conversationID).
-// 		Threads().
-// 		ByConversationThreadId(threadID).
-// 		Posts().
-// 		ByPostId(postID).
-// 		Attachments().
-// 		Get(ctx, cfg)
-// 	if err != nil {
-// 		return nil, 0, graph.Stack(ctx, err)
-// 	}
-
-// 	for _, a := range attachments.GetValue() {
-// 		totalSize += int64(ptr.Val(a.GetSize()))
-// 		result = append(result, a)
-// 	}
-
-// 	return result, totalSize, nil
-// }
