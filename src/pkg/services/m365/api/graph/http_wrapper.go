@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -115,18 +114,11 @@ func (hw httpWrapper) Request(
 		ctx = clues.Add(ctx, "request_retry_iter", i)
 
 		resp, err = hw.client.Do(req)
-
 		if err == nil {
 			break
 		}
 
 		err = stackWithCoreErr(ctx, err, 1)
-
-		// force an early exit on throttling issues.
-		// those retries are already handled in middleware.
-		if errors.Is(err, core.ErrApplicationThrottled) {
-			return nil, err
-		}
 
 		var http2StreamErr http2.StreamError
 		if !errors.As(err, &http2StreamErr) {
