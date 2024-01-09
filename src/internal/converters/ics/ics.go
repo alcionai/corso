@@ -217,7 +217,6 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	exceptionOcurrances := event.GetAdditionalData()["exceptionOccurrences"]
 	if exceptionOcurrances != nil {
 		for _, occ := range exceptionOcurrances.([]any) {
-
 			instance, ok := occ.(map[string]any)
 			if !ok {
 				return "", clues.New("converting exception instance to map[string]any").
@@ -492,7 +491,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 
 	cancelldedOcurrances := event.GetAdditionalData()["cancelledOccurrences"]
 	if cancelldedOcurrances != nil {
-		for _, occ := range cancelldedOcurrances.([]interface{}) {
+		for _, occ := range cancelldedOcurrances.([]any) {
 			instance, err := str.AnyToString(occ)
 			if err != nil {
 				return clues.Wrap(err, "getting cancelled occurrence id")

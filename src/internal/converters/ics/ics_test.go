@@ -1139,3 +1139,97 @@ func (suite *ICSUnitSuite) TestCancellations() {
 		})
 	}
 }
+
+func (suite *ICSUnitSuite) TestEventExceptions() {
+	table := []struct {
+		name  string
+		event func() *models.Event
+		check func(string)
+	}{
+		{
+			name: "single exception",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				exception := baseEvent()
+				exception.SetSubject(ptr.To("Exception"))
+				exception.SetOriginalStart(ptr.To(time.Date(2021, 1, 1, 12, 0, 0, 0, time.UTC)))
+
+				newStart := models.NewDateTimeTimeZone()
+				newStart.SetDateTime(ptr.To(time.Date(2021, 1, 1, 13, 0, 0, 0, time.UTC).Format(time.RFC3339)))
+				newStart.SetTimeZone(ptr.To("UTC"))
+
+				newEnd := models.NewDateTimeTimeZone()
+				newEnd.SetDateTime(ptr.To(time.Date(2021, 1, 1, 14, 0, 0, 0, time.UTC).Format(time.RFC3339)))
+				newEnd.SetTimeZone(ptr.To("UTC"))
+
+				exception.SetStart(newStart)
+				exception.SetEnd(newEnd)
+
+				// convert exception event to json
+				writer := kjson.NewJsonSerializationWriter()
+				defer writer.Close()
+
+				err := writer.WriteObjectValue("", exception)
+				require.NoError(suite.T(), err, "serializing exception event")
+
+				bts, err := writer.GetSerializedContent()
+				require.NoError(suite.T(), err, "getting serialized content")
+
+				// convert json to map
+				parsed := map[string]any{}
+				err = json.Unmarshal(bts, &parsed)
+				require.NoError(suite.T(), err, "unmarshalling json")
+
+				// add exception event to additional data
+				e.SetAdditionalData(map[string]any{
+					"exceptionOccurrences": []map[string]any{parsed},
+				})
+
+				return e
+			},
+			check: func(out string) {
+				lines := strings.Split(out, "\r\n")
+				events := 0
+
+				for _, l := range lines {
+					if strings.HasPrefix(l, "BEGIN:VEVENT") {
+						events++
+					}
+				}
+
+				assert.Equal(suite.T(), 2, events, "number of events")
+
+				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210101T120000Z", "recurrence id")
+
+				assert.Contains(suite.T(), out, "SUMMARY:Subject", "original event")
+				assert.Contains(suite.T(), out, "SUMMARY:Exception", "exception event")
+
+				assert.Contains(suite.T(), out, "DTSTART:20210101T130000Z", "new start time")
+				assert.Contains(suite.T(), out, "DTEND:20210101T140000Z", "new end time")
+			},
+		},
+	}
+
+	for _, tt := range table {
+		suite.Run(tt.name, func() {
+			ctx, flush := tester.NewContext(suite.T())
+			defer flush()
+
+			// convert event to bytes
+			writer := kjson.NewJsonSerializationWriter()
+			defer writer.Close()
+
+			err := writer.WriteObjectValue("", tt.event())
+			require.NoError(suite.T(), err, "serializing contact")
+
+			bts, err := writer.GetSerializedContent()
+			require.NoError(suite.T(), err, "getting serialized content")
+
+			out, err := FromJSON(ctx, bts)
+			require.NoError(suite.T(), err, "converting to ics")
+
+			tt.check(out)
+		})
+	}
+}
