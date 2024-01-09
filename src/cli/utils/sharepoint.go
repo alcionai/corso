@@ -25,8 +25,7 @@ type SharePointOpts struct {
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	ListFolder []string
-	ListItem   []string
+	Lists []string
 
 	PageFolder []string
 	Page       []string
@@ -50,8 +49,7 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 		FileModifiedAfter:  flags.FileModifiedAfterFV,
 		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
-		ListFolder: flags.ListFolderFV,
-		ListItem:   flags.ListItemFV,
+		Lists: flags.ListFV,
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
@@ -148,7 +146,7 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 
 	lfp, lfn := len(opts.FolderPath), len(opts.FileName)
 	ls, lwu := len(opts.SiteID), len(opts.WebURL)
-	slp, sli := len(opts.ListFolder), len(opts.ListItem)
+	sl := len(opts.Lists)
 	pf, pi := len(opts.PageFolder), len(opts.Page)
 
 	if ls == 0 {
@@ -157,7 +155,7 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 
 	sel := selectors.NewSharePointRestore(sites)
 
-	if lfp+lfn+lwu+slp+sli+pf+pi == 0 {
+	if lfp+lfn+lwu+sl+pf+pi == 0 {
 		sel.Include(sel.AllData())
 		return sel
 	}
@@ -179,21 +177,10 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 		}
 	}
 
-	if slp+sli > 0 {
-		if sli == 0 {
-			opts.ListItem = selectors.Any()
-		}
-
-		opts.ListFolder = trimFolderSlash(opts.ListFolder)
-		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListFolder)
-
-		if len(containsFolders) > 0 {
-			sel.Include(sel.ListItems(containsFolders, opts.ListItem))
-		}
-
-		if len(prefixFolders) > 0 {
-			sel.Include(sel.ListItems(prefixFolders, opts.ListItem, selectors.PrefixMatch()))
-		}
+	if sl > 0 {
+		opts.Lists = trimFolderSlash(opts.Lists)
+		sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 	}
 
 	if pf+pi > 0 {

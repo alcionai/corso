@@ -32,8 +32,7 @@ type GroupsOpts struct {
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	ListFolder []string
-	ListItem   []string
+	Lists []string
 
 	PageFolder []string
 	Page       []string
@@ -93,8 +92,7 @@ func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 		MessageLastReplyAfter:  flags.MessageLastReplyAfterFV,
 		MessageLastReplyBefore: flags.MessageLastReplyBeforeFV,
 
-		ListFolder: flags.ListFolderFV,
-		ListItem:   flags.ListItemFV,
+		Lists: flags.ListFV,
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
@@ -181,7 +179,7 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 	var (
 		groups                 = opts.Groups
 		folderPaths, fileNames = len(opts.FolderPath), len(opts.FileName)
-		listFolders, listItems = len(opts.ListFolder), len(opts.ListItem)
+		lists                  = len(opts.Lists)
 		pageFolders, pageItems = len(opts.PageFolder), len(opts.Page)
 		chans, chanMsgs        = len(opts.Channels), len(opts.Messages)
 		convs, convPosts       = len(opts.Conversations), len(opts.Posts)
@@ -194,7 +192,7 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 	sel := selectors.NewGroupsRestore(groups)
 
 	if folderPaths+fileNames+
-		listFolders+listItems+
+		lists+
 		pageFolders+pageItems+
 		chans+chanMsgs+
 		convs+convPosts == 0 {
@@ -205,7 +203,7 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 	// sharepoint site selectors
 
 	if folderPaths+fileNames+
-		listFolders+listItems+
+		lists+
 		pageFolders+pageItems > 0 {
 		if folderPaths+fileNames > 0 {
 			if fileNames == 0 {
@@ -224,21 +222,10 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 			}
 		}
 
-		if listFolders+listItems > 0 {
-			if listItems == 0 {
-				opts.ListItem = selectors.Any()
-			}
-
-			opts.ListFolder = trimFolderSlash(opts.ListFolder)
-			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListFolder)
-
-			if len(containsFolders) > 0 {
-				sel.Include(sel.ListItems(containsFolders, opts.ListItem))
-			}
-
-			if len(prefixFolders) > 0 {
-				sel.Include(sel.ListItems(prefixFolders, opts.ListItem, selectors.PrefixMatch()))
-			}
+		if lists > 0 {
+			opts.Lists = trimFolderSlash(opts.Lists)
+			sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
+			sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 		}
 
 		if pageFolders+pageItems > 0 {

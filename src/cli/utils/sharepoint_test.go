@@ -31,6 +31,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		multi             = []string{"more", "than", "one"}
 		containsOnly      = []string{"contains"}
 		prefixOnly        = []string{"/prefix"}
+		listNames         = []string{"list-name1"}
 		containsAndPrefix = []string{"contains", "/prefix"}
 		onlySlash         = []string{string(path.PathSeparator)}
 	)
@@ -60,8 +61,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			opts: utils.SharePointOpts{
 				FileName:   single,
 				FolderPath: single,
-				ListItem:   single,
-				ListFolder: single,
+				Lists:      single,
 				SiteID:     single,
 				WebURL:     single,
 			},
@@ -108,30 +108,11 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			expectIncludeLen: 2,
 		},
 		{
-			name: "list contains",
+			name: "list names",
 			opts: utils.SharePointOpts{
-				FileName:   empty,
-				FolderPath: empty,
-				ListItem:   empty,
-				ListFolder: containsOnly,
-				SiteID:     empty,
-				WebURL:     empty,
+				Lists: listNames,
 			},
 			expectIncludeLen: 1,
-		},
-		{
-			name: "list prefixes",
-			opts: utils.SharePointOpts{
-				ListFolder: prefixOnly,
-			},
-			expectIncludeLen: 1,
-		},
-		{
-			name: "list prefixes and contains",
-			opts: utils.SharePointOpts{
-				ListFolder: containsAndPrefix,
-			},
-			expectIncludeLen: 2,
 		},
 		{
 			name: "weburl contains",

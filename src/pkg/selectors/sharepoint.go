@@ -263,12 +263,9 @@ func (s *sharePoint) AllData() []SharePointScope {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // Any empty slice defaults to [selectors.None]
 func (s *sharePoint) Lists(lists []string, opts ...option) []SharePointScope {
-	var (
-		scopes = []SharePointScope{}
-		os     = append([]option{pathComparator()}, opts...)
-	)
+	scopes := []SharePointScope{}
 
-	scopes = append(scopes, makeScope[SharePointScope](SharePointList, lists, os...))
+	scopes = append(scopes, makeScope[SharePointScope](SharePointList, lists, opts...))
 
 	return scopes
 }
@@ -526,6 +523,7 @@ func (c sharePointCategory) pathValues(
 		folderCat, itemCat categorizer
 		itemID             string
 		rFld               string
+		itemName           string
 	)
 
 	switch c {
@@ -536,14 +534,22 @@ func (c sharePointCategory) pathValues(
 
 		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
 		rFld = ent.SharePoint.ParentPath
+		itemName = ent.ItemInfo.SharePoint.ItemName
 
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
+
 		rFld = ent.LocationRef
+		if cfg.OnlyMatchItemNames {
+			rFld = ent.ItemInfo.SharePoint.List.Name
+		}
+
+		itemName = ent.ItemInfo.SharePoint.List.Name
 
 	case SharePointPage, SharePointPageFolder:
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
 		rFld = ent.LocationRef
+		itemName = ent.ItemInfo.SharePoint.ItemName
 
 	default:
 		return nil, clues.New("unrecognized sharePointCategory").With("category", c)
@@ -555,7 +561,7 @@ func (c sharePointCategory) pathValues(
 	}
 
 	if cfg.OnlyMatchItemNames {
-		item = ent.ItemInfo.SharePoint.ItemName
+		item = itemName
 	}
 
 	result := map[categorizer][]string{
@@ -640,7 +646,7 @@ func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option)
 	os := []option{}
 
 	switch cat {
-	case SharePointLibraryFolder, SharePointList, SharePointPage:
+	case SharePointLibraryFolder, SharePointPage:
 		os = append(os, pathComparator())
 	}
 
