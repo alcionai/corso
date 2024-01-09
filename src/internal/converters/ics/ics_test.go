@@ -193,6 +193,37 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 			errCheck: require.NoError,
 		},
 		{
+			name: "daily with end date in different timezone",
+			recurrence: func() models.PatternedRecurrenceable {
+				rec := models.NewPatternedRecurrence()
+				pat := models.NewRecurrencePattern()
+
+				typ, err := models.ParseRecurrencePatternType("daily")
+				require.NoError(suite.T(), err)
+
+				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
+				pat.SetInterval(ptr.To(int32(1)))
+
+				rng := models.NewRecurrenceRange()
+
+				rrtype, err := models.ParseRecurrenceRangeType("endDate")
+				require.NoError(suite.T(), err)
+
+				rng.SetTypeEscaped(rrtype.(*models.RecurrenceRangeType))
+
+				edate := serialization.NewDateOnly(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC))
+				rng.SetEndDate(edate)
+				rng.SetRecurrenceTimeZone(ptr.To("India Standard Time"))
+
+				rec.SetPattern(pat)
+				rec.SetRangeEscaped(rng)
+
+				return rec
+			},
+			expect:   "FREQ=DAILY;INTERVAL=1;UNTIL=20210101T182959Z",
+			errCheck: require.NoError,
+		},
+		{
 			name: "weekly",
 			recurrence: func() models.PatternedRecurrenceable {
 				rec := models.NewPatternedRecurrence()
@@ -239,7 +270,7 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 
 				return rec
 			},
-			expect:   "FREQ=WEEKLY;INTERVAL=1;UNTIL=20210101T000000Z",
+			expect:   "FREQ=WEEKLY;INTERVAL=1;UNTIL=20210101T235959Z",
 			errCheck: require.NoError,
 		},
 		{
