@@ -341,31 +341,31 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInvalidRequest() {
 		err    error
 		expect assert.BoolAssertionFunc
 	}{
-		// {
-		// 	name:   "nil",
-		// 	err:    nil,
-		// 	expect: assert.False,
-		// },
-		// {
-		// 	name:   "non-matching",
-		// 	err:    assert.AnError,
-		// 	expect: assert.False,
-		// },
-		// {
-		// 	name:   "non-matching oDataErr",
-		// 	err:    graphTD.ODataErr("fnords"),
-		// 	expect: assert.False,
-		// },
-		// {
-		// 	name:   "non-matching oDataErrMsg",
-		// 	err:    graphTD.ODataErrWithMsg("fnords", "not supported"),
-		// 	expect: assert.False,
-		// },
-		// {
-		// 	name:   "invalidRequest oDataErr, missing 400 status code",
-		// 	err:    graphTD.ODataErr(string(invalidRequest)),
-		// 	expect: assert.False,
-		// },
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    graphTD.ODataErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErrMsg",
+			err:    graphTD.ODataErrWithMsg("fnords", "not supported"),
+			expect: assert.False,
+		},
+		{
+			name:   "invalidRequest oDataErr, missing 400 status code",
+			err:    graphTD.ODataErr(string(invalidRequest)),
+			expect: assert.False,
+		},
 		{
 			name:   "invalidRequest oDataErr, with 400 status code",
 			err:    graphTD.ODataErrWithAPIResponse(string(invalidRequest), http.StatusBadRequest),
