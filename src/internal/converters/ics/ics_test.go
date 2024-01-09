@@ -1079,3 +1079,63 @@ func (suite *ICSUnitSuite) TestAttachments() {
 		})
 	}
 }
+
+func (suite *ICSUnitSuite) TestCancellations() {
+	table := []struct {
+		name         string
+		cancelledIds []string
+		expected     []string
+	}{
+		{
+			name: "single",
+			cancelledIds: []string{
+				"OID.DEADBEEF=.2024-01-25",
+			},
+			expected: []string{"EXDATE:20240125T000000Z"},
+		},
+		{
+			name: "multiple",
+			cancelledIds: []string{
+				"OID.DEADBEEF=.2024-01-25",
+				"OID.LIVEBEEF=.2024-02-26",
+			},
+			expected: []string{
+				"EXDATE:20240125T000000Z",
+				"EXDATE:20240226T000000Z",
+			},
+		},
+	}
+
+	for _, tt := range table {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			// convert event to bytes
+			writer := kjson.NewJsonSerializationWriter()
+			defer writer.Close()
+
+			e := baseEvent()
+
+			e.SetIsCancelled(ptr.To(true))
+			e.SetAdditionalData(map[string]any{
+				"cancelledOccurrences": tt.cancelledIds,
+			})
+
+			err := writer.WriteObjectValue("", e)
+			require.NoError(t, err, "serializing contact")
+
+			bts, err := writer.GetSerializedContent()
+			require.NoError(t, err, "getting serialized content")
+
+			out, err := FromJSON(ctx, bts)
+			require.NoError(t, err, "converting to ics")
+
+			for _, exp := range tt.expected {
+				assert.Contains(t, out, exp, "cancellation exrule")
+			}
+		})
+	}
+}

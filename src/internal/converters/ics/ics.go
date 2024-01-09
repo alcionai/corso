@@ -505,6 +505,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 
 			startStr := splits[len(splits)-1]
 
+			// the data just contains date and no time which seems to work
 			start, err := getUTCTime(startStr, ptr.Val(startTimezone))
 			if err != nil {
 				return clues.Wrap(err, "parsing cancelled event date")
