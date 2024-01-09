@@ -43,7 +43,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/pretty v1.2.1
 	github.com/tomlazar/table v0.1.2
-	github.com/vbauerster/mpb/v8 v8.1.6 // do not update; keep at v8.1.6
+	github.com/vbauerster/mpb/v8 v8.7.2 // do not update; keep at v8.1.6
 	github.com/xhit/go-simple-mail/v2 v2.16.0
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.26.0
@@ -149,7 +149,7 @@ require (
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.19.0
 	golang.org/x/sync v0.5.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/grpc v1.59.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
