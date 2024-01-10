@@ -467,31 +467,31 @@ func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 
 	additionalData := map[string]any{
 		"MyAddress": map[string]any{
-			AddressFieldName: map[string]any{
-				NestedCityFieldName:       ptr.To(city),
-				NestedCountryFieldName:    ptr.To(country),
-				NestedPostalCodeFieldName: ptr.To(postal),
-				NestedStateFieldName:      ptr.To(state),
-				NestedStreetFieldName:     ptr.To(street),
+			AddressKey: map[string]any{
+				CityKey:       ptr.To(city),
+				CountryKey:    ptr.To(country),
+				PostalCodeKey: ptr.To(postal),
+				StateKey:      ptr.To(state),
+				StreetKey:     ptr.To(street),
 			},
-			CoordinatesFieldName: map[string]any{
-				NestedLatitudeFieldName:  ptr.To(lat),
-				NestedLongitudeFieldName: ptr.To(lon),
+			CoordinatesKey: map[string]any{
+				LatitudeKey:  ptr.To(lat),
+				LongitudeKey: ptr.To(lon),
 			},
-			DisplayNameFieldName: ptr.To(displayName),
-			LocationURIFieldName: ptr.To("https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032"),
-			UniqueIDFieldName:    ptr.To("https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032"),
+			DisplayNameKey: ptr.To(displayName),
+			LocationURIKey: ptr.To("https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032"),
+			UniqueIDKey:    ptr.To("https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032"),
 		},
-		CountryOrRegionFieldName: ptr.To(country),
-		StateFieldName:           ptr.To(state),
-		CityFieldName:            ptr.To(city),
-		PostalCodeFieldName:      ptr.To(postal),
-		StreetFieldName:          ptr.To(street),
-		GeoLocFieldName: map[string]any{
+		CountryOrRegionFN: ptr.To(country),
+		StateFN:           ptr.To(state),
+		CityFN:            ptr.To(city),
+		PostalCodeFN:      ptr.To(postal),
+		StreetFN:          ptr.To(street),
+		GeoLocFN: map[string]any{
 			"latitude":  ptr.To(lat),
 			"longitude": ptr.To(lon),
 		},
-		DispNameFieldName: ptr.To(displayName),
+		DispNameFN: ptr.To(displayName),
 	}
 
 	expectedData := map[string]any{
@@ -529,17 +529,17 @@ func (suite *ListsUnitSuite) TestConcatenateAddressFields() {
 		{
 			name: "Valid Address",
 			addressFields: map[string]any{
-				DisplayNameFieldName: ptr.To("John Doe"),
-				AddressFieldName: map[string]any{
-					NestedStreetFieldName:     ptr.To("123 Main St"),
-					NestedCityFieldName:       ptr.To("Cityville"),
-					NestedStateFieldName:      ptr.To("State"),
-					NestedCountryFieldName:    ptr.To("Country"),
-					NestedPostalCodeFieldName: ptr.To("12345"),
+				DisplayNameKey: ptr.To("John Doe"),
+				AddressKey: map[string]any{
+					StreetKey:     ptr.To("123 Main St"),
+					CityKey:       ptr.To("Cityville"),
+					StateKey:      ptr.To("State"),
+					CountryKey:    ptr.To("Country"),
+					PostalCodeKey: ptr.To("12345"),
 				},
-				CoordinatesFieldName: map[string]any{
-					NestedLatitudeFieldName:  ptr.To(40.7128),
-					NestedLongitudeFieldName: ptr.To(-74.0060),
+				CoordinatesKey: map[string]any{
+					LatitudeKey:  ptr.To(40.7128),
+					LongitudeKey: ptr.To(-74.0060),
 				},
 			},
 			expectedResult: "John Doe,123 Main St,Cityville,State,Country,12345,40.7128,-74.006",
@@ -547,7 +547,7 @@ func (suite *ListsUnitSuite) TestConcatenateAddressFields() {
 		{
 			name: "Empty Address Fields",
 			addressFields: map[string]any{
-				DisplayNameFieldName: ptr.To("John Doe"),
+				DisplayNameKey: ptr.To("John Doe"),
 			},
 			expectedResult: "John Doe",
 		},
@@ -580,37 +580,37 @@ func (suite *ListsUnitSuite) TestHasAddressFields() {
 			name: "Address Fields Found",
 			additionalData: map[string]any{
 				"person1": map[string]any{
-					AddressFieldName: map[string]any{
-						NestedStreetFieldName:     "123 Main St",
-						NestedCityFieldName:       "Cityville",
-						NestedStateFieldName:      "State",
-						NestedCountryFieldName:    "Country",
-						NestedPostalCodeFieldName: "12345",
+					AddressKey: map[string]any{
+						StreetKey:     "123 Main St",
+						CityKey:       "Cityville",
+						StateKey:      "State",
+						CountryKey:    "Country",
+						PostalCodeKey: "12345",
 					},
-					CoordinatesFieldName: map[string]any{
-						NestedLatitudeFieldName:  "40.7128",
-						NestedLongitudeFieldName: "-74.0060",
+					CoordinatesKey: map[string]any{
+						LatitudeKey:  "40.7128",
+						LongitudeKey: "-74.0060",
 					},
-					DisplayNameFieldName: "John Doe",
-					LocationURIFieldName: "some loc",
-					UniqueIDFieldName:    "some id",
+					DisplayNameKey: "John Doe",
+					LocationURIKey: "some loc",
+					UniqueIDKey:    "some id",
 				},
 			},
 			expectedFields: map[string]any{
-				AddressFieldName: map[string]any{
-					NestedStreetFieldName:     "123 Main St",
-					NestedCityFieldName:       "Cityville",
-					NestedStateFieldName:      "State",
-					NestedCountryFieldName:    "Country",
-					NestedPostalCodeFieldName: "12345",
+				AddressKey: map[string]any{
+					StreetKey:     "123 Main St",
+					CityKey:       "Cityville",
+					StateKey:      "State",
+					CountryKey:    "Country",
+					PostalCodeKey: "12345",
 				},
-				CoordinatesFieldName: map[string]any{
-					NestedLatitudeFieldName:  "40.7128",
-					NestedLongitudeFieldName: "-74.0060",
+				CoordinatesKey: map[string]any{
+					LatitudeKey:  "40.7128",
+					LongitudeKey: "-74.0060",
 				},
-				DisplayNameFieldName: "John Doe",
-				LocationURIFieldName: "some loc",
-				UniqueIDFieldName:    "some id",
+				DisplayNameKey: "John Doe",
+				LocationURIKey: "some loc",
+				UniqueIDKey:    "some id",
 			},
 			expectedName:  "person1",
 			expectedFound: true,
@@ -661,30 +661,30 @@ func (suite *ListsUnitSuite) TestConcatenateHyperlinkFields() {
 		{
 			name: "Valid Hyperlink",
 			hyperlinkFields: map[string]any{
-				HyperlinkURLFieldName:         ptr.To("https://www.example.com"),
-				HyperlinkDescriptionFieldName: ptr.To("Example Website"),
+				HyperlinkURLKey:         ptr.To("https://www.example.com"),
+				HyperlinkDescriptionKey: ptr.To("Example Website"),
 			},
 			expectedResult: "https://www.example.com,Example Website",
 		},
 		{
 			name: "Empty Hyperlink Fields",
 			hyperlinkFields: map[string]any{
-				HyperlinkURLFieldName:         nil,
-				HyperlinkDescriptionFieldName: nil,
+				HyperlinkURLKey:         nil,
+				HyperlinkDescriptionKey: nil,
 			},
 			expectedResult: "",
 		},
 		{
 			name: "Missing Description",
 			hyperlinkFields: map[string]any{
-				HyperlinkURLFieldName: ptr.To("https://www.example.com"),
+				HyperlinkURLKey: ptr.To("https://www.example.com"),
 			},
 			expectedResult: "https://www.example.com",
 		},
 		{
 			name: "Missing URL",
 			hyperlinkFields: map[string]any{
-				HyperlinkDescriptionFieldName: ptr.To("Example Website"),
+				HyperlinkDescriptionKey: ptr.To("Example Website"),
 			},
 			expectedResult: "Example Website",
 		},

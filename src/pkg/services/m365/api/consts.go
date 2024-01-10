@@ -31,29 +31,31 @@ const (
 
 	ContentTypeColumnDisplayName = "Content Type"
 
-	AddressFieldName          = "address"
-	NestedCityFieldName       = "city"
-	NestedCountryFieldName    = "countryOrRegion"
-	NestedPostalCodeFieldName = "postalCode"
-	NestedStateFieldName      = "state"
-	NestedStreetFieldName     = "street"
-	CoordinatesFieldName      = "coordinates"
-	NestedLatitudeFieldName   = "latitude"
-	NestedLongitudeFieldName  = "longitude"
-	DisplayNameFieldName      = "displayName"
-	LocationURIFieldName      = "locationUri"
-	UniqueIDFieldName         = "uniqueId"
+	AddressKey     = "address"
+	CoordinatesKey = "coordinates"
+	DisplayNameKey = "displayName"
+	LocationURIKey = "locationUri"
+	UniqueIDKey    = "uniqueId"
 
-	CountryOrRegionFieldName = "CountryOrRegion"
-	StateFieldName           = "State"
-	CityFieldName            = "City"
-	PostalCodeFieldName      = "PostalCode"
-	StreetFieldName          = "Street"
-	GeoLocFieldName          = "GeoLoc"
-	DispNameFieldName        = "DispName"
+	// entries that are nested within a second layer
+	CityKey       = "city"
+	CountryKey    = "countryOrRegion"
+	PostalCodeKey = "postalCode"
+	StateKey      = "state"
+	StreetKey     = "street"
+	LatitudeKey   = "latitude"
+	LongitudeKey  = "longitude"
 
-	HyperlinkDescriptionFieldName = "Description"
-	HyperlinkURLFieldName         = "Url"
+	CountryOrRegionFN = "CountryOrRegion"
+	StateFN           = "State"
+	CityFN            = "City"
+	PostalCodeFN      = "PostalCode"
+	StreetFN          = "Street"
+	GeoLocFN          = "GeoLoc"
+	DispNameFN        = "DispName"
+
+	HyperlinkDescriptionKey = "Description"
+	HyperlinkURLKey         = "Url"
 
 	LinkTitleFieldNamePart  = "LinkTitle"
 	ChildCountFieldNamePart = "ChildCount"
@@ -71,11 +73,11 @@ const (
 )
 
 var addressFieldNames = []string{
-	AddressFieldName,
-	CoordinatesFieldName,
-	DisplayNameFieldName,
-	LocationURIFieldName,
-	UniqueIDFieldName,
+	AddressKey,
+	CoordinatesKey,
+	DisplayNameKey,
+	LocationURIKey,
+	UniqueIDKey,
 }
 
 var legacyColumns = keys.Set{
