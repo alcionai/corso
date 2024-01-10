@@ -243,6 +243,11 @@ func IsErrItemAlreadyExistsConflict(err error) bool {
 		parseODataErr(err).hasErrorCode(err, nameAlreadyExists)
 }
 
+func IsErrNameAlreadyExistsConflict(err error) bool {
+	return errors.Is(err, ErrNameAlreadyExistsConflict) ||
+		parseODataErr(err).hasErrorCode(err, nameAlreadyExists)
+}
+
 // LabelStatus transforms the provided statusCode into
 // a standard label that can be attached to a clues error
 // and later reviewed when checking error statuses.

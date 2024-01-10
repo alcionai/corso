@@ -758,7 +758,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 
 	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
 	require.Error(t, err)
-	assert.Equal(t, graph.ErrNameAlreadyExistsConflict, err)
+	assert.True(t, graph.IsErrNameAlreadyExistsConflict(err))
 
 	newListItems := newList.GetItems()
 	require.Less(t, 0, len(newListItems))
