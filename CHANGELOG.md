@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - When running `backup details` on an empty backup returns a more helpful error message.
 
+### Known issues
+- Backing up a group mailbox item may fail if it has a very large number of attachments (500+).
+
 ## [v0.18.0] (beta) - 2024-01-02
 
 ### Fixed

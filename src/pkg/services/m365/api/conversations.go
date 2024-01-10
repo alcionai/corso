@@ -66,7 +66,7 @@ func (c Conversations) GetConversationPost(
 
 	preview, contentLen, err := getConversationPostContentPreview(post)
 	if err != nil {
-		preview = "malformed or unparseable html" + preview
+		preview = "malformed or unparseable content body: " + preview
 	}
 
 	if !ptr.Val(post.GetHasAttachments()) && !HasAttachments(post.GetBody()) {
