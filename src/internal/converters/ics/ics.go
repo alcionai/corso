@@ -448,7 +448,15 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.SetLocation(location)
 	}
 
-	// TODO Handle different attachment type (file, item and reference)
+	meeting := event.GetOnlineMeeting()
+	if meeting != nil {
+		url := ptr.Val(meeting.GetJoinUrl())
+		if len(url) > 0 {
+			iCalEvent.AddProperty("X-MICROSOFT-SKYPETEAMSMEETINGURL", url)
+		}
+	}
+
+	// TODO Handle different attachment types (file, item and reference)
 	attachments := event.GetAttachments()
 	for _, attachment := range attachments {
 		props := []ics.PropertyParameter{}
