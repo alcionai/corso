@@ -170,7 +170,8 @@ func createOneDriveCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"OneDrive",
 		selectorSet,
-		ins)
+		ins,
+		utils.ParseBackupOptions())
 }
 
 func validateOneDriveBackupCreateFlags(users []string) error {

@@ -183,7 +183,8 @@ func createSharePointCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"SharePoint",
 		selectorSet,
-		ins)
+		ins,
+		utils.ParseBackupOptions())
 }
 
 func validateSharePointBackupCreateFlags(sites, weburls, cats []string) error {

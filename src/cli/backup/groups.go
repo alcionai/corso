@@ -179,7 +179,8 @@ func createGroupsCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"Group",
 		selectorSet,
-		ins)
+		ins,
+		utils.ParseBackupOptions())
 }
 
 // ------------------------------------------------------------------------------------------------

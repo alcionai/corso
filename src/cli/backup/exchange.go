@@ -184,7 +184,8 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		r,
 		"Exchange",
 		selectorSet,
-		ins)
+		ins,
+		utils.ParseBackupOptions())
 }
 
 func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBackup {

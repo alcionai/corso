@@ -176,6 +176,7 @@ func genericCreateCommand(
 	serviceName string,
 	selectorSet []selectors.Selector,
 	ins idname.Cacher,
+	backupConfig control.BackupConfig,
 ) error {
 	var (
 		bIDs []string
@@ -190,7 +191,7 @@ func genericCreateCommand(
 			ictx  = clues.Add(ctx, "resource_owner_selected", owner)
 		)
 
-		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
+		bo, err := r.NewBackupWithLookup(ictx, discSel, ins, backupConfig)
 		if err != nil {
 			cerr := clues.WrapWC(ictx, err, owner)
 			errs = append(errs, cerr)
