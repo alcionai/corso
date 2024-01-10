@@ -146,7 +146,7 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	case isErrNotFound(err):
 		err = clues.Stack(core.ErrNotFound, err)
 	case isErrItemAlreadyExistsConflict(err):
-		err = clues.Stack(core.ErrConflictAlreadyExists, err)
+		err = clues.Stack(core.ErrAlreadyExists, err)
 	}
 
 	return stackWithDepth(ctx, err, 1+traceDepth)

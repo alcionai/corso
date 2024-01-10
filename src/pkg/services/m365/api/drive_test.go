@@ -115,7 +115,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 			onCollision: control.Skip,
 			postItem:    folder,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, core.ErrConflictAlreadyExists, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrAlreadyExists, clues.ToCore(err))
 			},
 			expectItem: func(t *testing.T, i models.DriveItemable) {
 				assert.Nil(t, i)
@@ -166,7 +166,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 			onCollision: control.Skip,
 			postItem:    file,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, core.ErrConflictAlreadyExists, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrAlreadyExists, clues.ToCore(err))
 			},
 			expectItem: func(t *testing.T, i models.DriveItemable) {
 				assert.Nil(t, i)

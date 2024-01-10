@@ -201,7 +201,7 @@ func (suite *EventsRestoreIntgSuite) TestRestoreEvent() {
 			collisionMap: map[string]string{collisionKey: "smarf"},
 			onCollision:  control.Skip,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, core.ErrConflictAlreadyExists, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrAlreadyExists, clues.ToCore(err))
 			},
 			expectMock: func(t *testing.T, m *eventRestoreMock) {
 				assert.False(t, m.calledPost, "new item posted")

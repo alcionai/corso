@@ -553,7 +553,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostDrive() {
 
 	// second post, same name, should error on name conflict]
 	_, err = acl.PostDrive(ctx, siteID, driveName)
-	require.ErrorIs(t, err, core.ErrConflictAlreadyExists, clues.ToCore(err))
+	require.ErrorIs(t, err, core.ErrAlreadyExists, clues.ToCore(err))
 }
 
 func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
