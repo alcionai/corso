@@ -25,13 +25,6 @@ import (
 
 // TODO locations: https://github.com/alcionai/corso/issues/5003
 
-// Field in the backed up data that we cannot handle
-// allowNewTimeProposals, hideAttendees, importance, isOnlineMeeting,
-// isOrganizer, isReminderOn, onlineMeeting, onlineMeetingProvider,
-// onlineMeetingUrl, originalEndTimeZone, originalStart,
-// originalStartTimeZone, reminderMinutesBeforeStart, responseRequested,
-// responseStatus
-
 const (
 	iCalDateTimeFormat = "20060102T150405Z"
 	iCalDateFormat     = "20060102"
@@ -459,6 +452,15 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddProperty(ics.ComponentPropertyClass, "PRIVATE")
 	} else if sensitivity == "confidential" {
 		iCalEvent.AddProperty(ics.ComponentPropertyClass, "CONFIDENTIAL")
+	}
+
+	// PRIORITY - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.9
+	imp := ptr.Val(event.GetImportance()).String()
+	switch imp {
+	case "high":
+		iCalEvent.AddProperty(ics.ComponentPropertyPriority, "1")
+	case "low":
+		iCalEvent.AddProperty(ics.ComponentPropertyPriority, "9")
 	}
 
 	meeting := event.GetOnlineMeeting()
