@@ -52,7 +52,8 @@ const (
 	// This error occurs when an attempt is made to create a folder that has
 	// the same name as another folder in the same parent. Such duplicate folder
 	// names are not allowed by graph.
-	folderExists errorCode = "ErrorFolderExists"
+	folderExists   errorCode = "ErrorFolderExists"
+	invalidRequest errorCode = "invalidRequest"
 	// Some datacenters are returning this when we try to get the inbox of a user
 	// that doesn't exist.
 	invalidUser                 errorCode = "ErrorInvalidUser"
@@ -167,6 +168,11 @@ func IsErrItemNotFound(err error) bool {
 
 func IsErrInvalidDelta(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, syncStateNotFound, resyncRequired, syncStateInvalid)
+}
+
+func IsErrInvalidRequest(err error) bool {
+	return parseODataErr(err).hasResponseCode(err, http.StatusBadRequest) &&
+		parseODataErr(err).hasErrorCode(err, invalidRequest)
 }
 
 func IsErrDeltaNotSupported(err error) bool {
@@ -555,6 +561,12 @@ func parseODataErr(err error) oDataErr {
 	}
 
 	return ode
+}
+
+// hasResponseCode checks if the error is an ODataError and carries the provided
+// http response code.
+func (ode oDataErr) hasResponseCode(err error, httpResponseCode int) bool {
+	return ode.isODataErr && ode.Resp.StatusCode == httpResponseCode
 }
 
 func (ode oDataErr) hasErrorCode(err error, codes ...errorCode) bool {

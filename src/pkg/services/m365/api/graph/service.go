@@ -345,6 +345,11 @@ func kiotaMiddlewares(
 
 var _ abstractions.RequestAdapter = &adapterWrap{}
 
+const (
+	// Delay between retry attempts
+	adapterRetryDelay = 3 * time.Second
+)
+
 // adapterWrap takes a GraphRequestAdapter and replaces the Send() function to
 // act as a middleware for all http calls.  Certain error conditions never reach
 // the the client middleware layer, and therefore miss out on logging and retries.
@@ -354,11 +359,16 @@ var _ abstractions.RequestAdapter = &adapterWrap{}
 // 3. Error and debug conditions are logged.
 type adapterWrap struct {
 	abstractions.RequestAdapter
-	config *clientConfig
+	config     *clientConfig
+	retryDelay time.Duration
 }
 
 func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter, cc *clientConfig) *adapterWrap {
-	return &adapterWrap{gra, cc}
+	return &adapterWrap{
+		RequestAdapter: gra,
+		config:         cc,
+		retryDelay:     adapterRetryDelay,
+	}
 }
 
 var connectionEnded = filters.Contains([]string{
@@ -407,11 +417,18 @@ func (aw *adapterWrap) Send(
 		case IsErrBadJWTToken(err):
 			logger.Ctx(ictx).Debug("bad jwt token")
 			events.Inc(events.APICall, "badjwttoken")
+		case requestInfo.Method.String() == http.MethodGet && IsErrInvalidRequest(err):
+			// Graph may sometimes return a transient 400 response during onedrive
+			// and sharepoint backup. This is pending investigation on msft end, retry
+			// for now as it's a transient issue. Restrict retries to GET requests only
+			// to limit the scope of this fix.
+			logger.Ctx(ictx).Debug("invalid request")
+			events.Inc(events.APICall, "invalidrequest")
 		default:
 			return nil, clues.StackWC(ictx, err).WithTrace(1)
 		}
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(aw.retryDelay)
 	}
 
 	return sp, clues.Stack(err).OrNil()
