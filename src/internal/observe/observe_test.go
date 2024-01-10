@@ -45,14 +45,13 @@ func (suite *ObserveProgressUnitSuite) TestObserve_ItemProgress() {
 	ctx = SeedObserver(ctx, &recorder, config{})
 
 	from := make([]byte, 100)
-	prog, abort := ItemProgress(
+	prog := ItemProgress(
 		ctx,
 		io.NopCloser(bytes.NewReader(from)),
 		"folder",
 		tst,
 		100)
 	require.NotNil(t, prog)
-	require.NotNil(t, abort)
 
 	var i int
 

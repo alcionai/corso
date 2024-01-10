@@ -824,7 +824,7 @@ func restoreFile(
 			iReader = itemData.ToReader()
 		}
 
-		progReader, closeProgressBar = observe.ItemProgress(
+		progReader = observe.ItemProgress(
 			ctx,
 			iReader,
 			observe.ItemRestoreMsg,
@@ -837,8 +837,8 @@ func restoreFile(
 			break
 		}
 
-		// clear out the progress bar immediately on error
-		closeProgressBar()
+		// close the progress bar immediately on error, else we might deadlock
+		progReader.Close()
 
 		// refresh the io.Writer to restart the upload
 		// TODO: @vkamra verify if var session is the desired input
