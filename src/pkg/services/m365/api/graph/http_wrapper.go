@@ -19,6 +19,14 @@ import (
 )
 
 // ---------------------------------------------------------------------------
+// HTTP wrapper config
+// ---------------------------------------------------------------------------
+
+const (
+	httpWrapperRetryDelay = 3 * time.Second
+)
+
+// ---------------------------------------------------------------------------
 // constructors
 // ---------------------------------------------------------------------------
 
@@ -61,7 +69,11 @@ func NewHTTPWrapper(
 
 	cc.apply(hc)
 
-	return &httpWrapper{hc, cc}
+	return &httpWrapper{
+		client:     hc,
+		config:     cc,
+		retryDelay: httpWrapperRetryDelay,
+	}
 }
 
 // NewNoTimeoutHTTPWrapper constructs a http wrapper with no context timeout.
@@ -132,7 +144,7 @@ func (hw httpWrapper) Request(
 		logger.Ctx(ctx).Debug("http2 stream error")
 		events.Inc(events.APICall, "streamerror")
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(hw.retryDelay)
 	}
 
 	if err != nil {
@@ -150,8 +162,9 @@ func (hw httpWrapper) Request(
 
 type (
 	httpWrapper struct {
-		client *http.Client
-		config *clientConfig
+		client     *http.Client
+		config     *clientConfig
+		retryDelay time.Duration
 	}
 
 	customTransport struct {
