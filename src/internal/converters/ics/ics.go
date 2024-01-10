@@ -19,9 +19,11 @@ import (
 )
 
 // This package is used to convert json response from graph to ics
-// Ref: https://icalendar.org/
-// Ref: https://www.rfc-editor.org/rfc/rfc5545
-// Ref: https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0
+// https://icalendar.org/
+// https://www.rfc-editor.org/rfc/rfc5545
+// https://www.rfc-editor.org/rfc/rfc2445.txt
+// https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcical/a685a040-5b69-4c84-b084-795113fb4012
 
 // TODO locations: https://github.com/alcionai/corso/issues/5003
 
@@ -337,22 +339,19 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		}
 	}
 
+	// TRANSP - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.7
 	showAs := ptr.Val(event.GetShowAs()).String()
-	if len(showAs) > 0 && showAs != "unknown" {
-		var freebusy ics.FreeBusyTimeType
+	if len(showAs) > 0 {
+		var transp ics.TimeTransparency
 
 		switch showAs {
-		case "free":
-			freebusy = ics.FreeBusyTimeTypeFree
-		case "tentative":
-			freebusy = ics.FreeBusyTimeTypeBusyTentative
-		case "busy":
-			freebusy = ics.FreeBusyTimeTypeBusy
-		case "oof", "workingElsewhere": // this is just best effort conversion
-			freebusy = ics.FreeBusyTimeTypeBusyUnavailable
+		case "free", "unknown":
+			transp = ics.TransparencyTransparent
+		default:
+			transp = ics.TransparencyOpaque
 		}
 
-		iCalEvent.AddProperty(ics.ComponentPropertyFreebusy, string(freebusy))
+		iCalEvent.AddProperty(ics.ComponentPropertyTransp, string(transp))
 	}
 
 	categories := event.GetCategories()

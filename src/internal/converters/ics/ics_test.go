@@ -612,7 +612,7 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 			},
 		},
 		{
-			name: "free busy free",
+			name: "showas free",
 			event: func() *models.Event {
 				e := baseEvent()
 
@@ -624,27 +624,11 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 				return e
 			},
 			check: func(out string) {
-				assert.Contains(t, out, "FREEBUSY:FREE", "free busy status")
+				assert.Contains(t, out, "TRANSP:TRANSPARENT", "free busy status")
 			},
 		},
 		{
-			name: "free busy unknown",
-			event: func() *models.Event {
-				e := baseEvent()
-
-				fbs, err := models.ParseFreeBusyStatus("unknown")
-				require.NoError(t, err, "parse free busy status")
-
-				e.SetShowAs(fbs.(*models.FreeBusyStatus))
-
-				return e
-			},
-			check: func(out string) {
-				assert.NotContains(t, out, "FREEBUSY", "free busy status")
-			},
-		},
-		{
-			name: "free busy oof",
+			name: "showas oof",
 			event: func() *models.Event {
 				e := baseEvent()
 
@@ -656,7 +640,7 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 				return e
 			},
 			check: func(out string) {
-				assert.Contains(t, out, "FREEBUSY:BUSY-UNAVAILABLE", "free busy status")
+				assert.Contains(t, out, "TRANSP:OPAQUE", "free busy status")
 			},
 		},
 		{
