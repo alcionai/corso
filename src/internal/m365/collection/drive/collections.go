@@ -50,7 +50,8 @@ type Collections struct {
 
 	statusUpdater support.StatusUpdater
 
-	ctrl control.Options
+	ctrl         control.Options
+	backupConfig control.BackupConfig
 
 	// collectionMap allows lookup of the data.BackupCollection
 	// for a OneDrive folder.
@@ -71,6 +72,7 @@ func NewCollections(
 	protectedResource idname.Provider,
 	statusUpdater support.StatusUpdater,
 	ctrlOpts control.Options,
+	backupOpts control.BackupConfig,
 	counter *count.Bus,
 ) *Collections {
 	return &Collections{
@@ -80,6 +82,7 @@ func NewCollections(
 		CollectionMap:     map[string]map[string]*Collection{},
 		statusUpdater:     statusUpdater,
 		ctrl:              ctrlOpts,
+		backupConfig:      backupOpts,
 		counter:           counter,
 	}
 }
@@ -786,14 +789,14 @@ func (c *Collections) PopulateDriveCollections(
 		// recreated multiple times in between a run.
 		seenFolders = map[string]string{}
 
-		limiter = newPagerLimiter(c.ctrl)
+		limiter = newPagerLimiter(c.backupConfig)
 		stats   = &driveEnumerationStats{}
 	)
 
 	ctx = clues.Add(ctx, "invalid_prev_delta", invalidPrevDelta)
 	logger.Ctx(ctx).Infow(
 		"running backup",
-		"limits", c.ctrl.PreviewLimits,
+		"limits", c.backupConfig.PreviewLimits,
 		"effective_limits", limiter.effectiveLimits())
 
 	if !invalidPrevDelta {

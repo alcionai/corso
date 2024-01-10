@@ -86,6 +86,7 @@ func CreateCollections(
 		scope,
 		dps,
 		bpc.Options,
+		bpc.BackupOptions,
 		counter,
 		errs)
 	if err != nil {
@@ -119,6 +120,7 @@ func populateCollections(
 	scope selectors.ExchangeScope,
 	dps metadata.DeltaPaths,
 	ctrlOpts control.Options,
+	backupOpts control.BackupConfig,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) (map[string]data.BackupCollection, error) {
@@ -138,7 +140,7 @@ func populateCollections(
 		// since they only act on a subset of items. Make a copy of the passed in
 		// limits so we can log both the passed in options and what they were set to
 		// if we used default values for some things.
-		effectiveLimits = ctrlOpts.PreviewLimits
+		effectiveLimits = backupOpts.PreviewLimits
 
 		addedItems      int
 		addedContainers int
@@ -182,7 +184,7 @@ func populateCollections(
 	logger.Ctx(ctx).Infow(
 		"filling collections",
 		"len_deltapaths", len(dps),
-		"limits", ctrlOpts.PreviewLimits,
+		"limits", backupOpts.PreviewLimits,
 		"effective_limits", effectiveLimits)
 	counter.Add(count.PrevDeltas, int64(len(dps)))
 

@@ -60,6 +60,7 @@ func ProduceBackupCollections(
 			bpc.ProtectedResource,
 			su,
 			bpc.Options,
+			bpc.BackupOptions,
 			counter)
 
 		pcfg := observe.ProgressCfg{

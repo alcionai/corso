@@ -38,11 +38,11 @@ func (c *Collections) getTree(
 	errs *fault.Bus,
 ) ([]data.BackupCollection, bool, error) {
 	ctx = clues.AddTraceName(ctx, "GetTree")
-	limiter := newPagerLimiter(c.ctrl)
+	limiter := newPagerLimiter(c.backupConfig)
 
 	logger.Ctx(ctx).Infow(
 		"running backup: getting collection data using tree structure",
-		"limits", c.ctrl.PreviewLimits,
+		"limits", c.backupConfig.PreviewLimits,
 		"effective_limits", limiter.effectiveLimits(),
 		"preview_mode", limiter.enabled())
 

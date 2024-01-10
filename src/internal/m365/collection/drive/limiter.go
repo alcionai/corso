@@ -18,7 +18,7 @@ type driveEnumerationStats struct {
 	numBytes      int64
 }
 
-func newPagerLimiter(opts control.Options) *pagerLimiter {
+func newPagerLimiter(opts control.BackupConfig) *pagerLimiter {
 	res := &pagerLimiter{limits: opts.PreviewLimits}
 
 	if res.limits.MaxContainers == 0 {

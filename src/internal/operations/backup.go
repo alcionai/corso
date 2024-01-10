@@ -40,6 +40,7 @@ import (
 // BackupOperation wraps an operation with backup-specific props.
 type BackupOperation struct {
 	operation
+	backupConfig control.BackupConfig
 
 	ResourceOwner idname.Provider
 
@@ -77,6 +78,7 @@ type BackupResults struct {
 func NewBackupOperation(
 	ctx context.Context,
 	opts control.Options,
+	backupConfig control.BackupConfig,
 	kw *kopia.Wrapper,
 	sw store.BackupStorer,
 	bp inject.BackupProducer,
@@ -88,13 +90,14 @@ func NewBackupOperation(
 ) (BackupOperation, error) {
 	op := BackupOperation{
 		operation:           newOperation(opts, bus, counter, kw, sw),
+		backupConfig:        backupConfig,
 		ResourceOwner:       owner,
 		Selectors:           selector,
 		Version:             "v0",
 		BackupVersion:       version.Backup,
 		account:             acct,
-		incremental:         useIncrementalBackup(selector, opts),
-		disableAssistBackup: opts.ToggleFeatures.ForceItemDataDownload,
+		incremental:         useIncrementalBackup(selector, backupConfig),
+		disableAssistBackup: backupConfig.Incrementals.ForceItemDataRefresh,
 		bp:                  bp,
 	}
 
@@ -360,6 +363,7 @@ func (op *BackupOperation) do(
 
 	logger.Ctx(ctx).With(
 		"control_options", op.Options,
+		"backup_config", op.backupConfig,
 		"selectors", op.Selectors).
 		Info("backing up selection")
 
@@ -435,6 +439,7 @@ func (op *BackupOperation) do(
 		mdColls,
 		lastBackupVersion,
 		op.Options,
+		op.backupConfig,
 		op.Counter,
 		op.Errors)
 	if err != nil {
@@ -498,12 +503,12 @@ func makeFallbackReasons(tenant string, sel selectors.Selector) ([]identity.Reas
 
 // checker to see if conditions are correct for incremental backup behavior such as
 // retrieving metadata like delta tokens and previous paths.
-func useIncrementalBackup(sel selectors.Selector, opts control.Options) bool {
+func useIncrementalBackup(sel selectors.Selector, opts control.BackupConfig) bool {
 	// Drop merge bases if we're doing a preview backup. Preview backups may use
 	// different delta token parameters so we need to ensure we do a token
 	// refresh. This could eventually be pushed down the stack if we track token
 	// versions.
-	return !opts.ToggleFeatures.DisableIncrementals && !opts.PreviewLimits.Enabled
+	return !opts.Incrementals.ForceFullEnumeration && !opts.PreviewLimits.Enabled
 }
 
 // ---------------------------------------------------------------------------
@@ -519,6 +524,7 @@ func produceBackupDataCollections(
 	metadata []data.RestoreCollection,
 	lastBackupVersion int,
 	ctrlOpts control.Options,
+	backupConfig control.BackupConfig,
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
@@ -529,6 +535,7 @@ func produceBackupDataCollections(
 		LastBackupVersion:   lastBackupVersion,
 		MetadataCollections: metadata,
 		Options:             ctrlOpts,
+		BackupOptions:       backupConfig,
 		ProtectedResource:   protectedResource,
 		Selector:            sel,
 	}
@@ -959,7 +966,7 @@ func (op *BackupOperation) createBackupModels(
 	//
 	// model.BackupTypeTag has more info about how these tags are used.
 	switch {
-	case op.Options.PreviewLimits.Enabled:
+	case op.backupConfig.PreviewLimits.Enabled:
 		// Preview backups need to be successful and without errors to be considered
 		// valid. Just reuse the merge base check for that since it has the same
 		// requirements.

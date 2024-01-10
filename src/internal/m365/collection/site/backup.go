@@ -50,6 +50,7 @@ func CollectLibraries(
 			bpc.ProtectedResource,
 			su,
 			bpc.Options,
+			bpc.BackupOptions,
 			counter)
 	)
 

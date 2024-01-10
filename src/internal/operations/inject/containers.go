@@ -25,6 +25,7 @@ type BackupProducerConfig struct {
 	LastBackupVersion   int
 	MetadataCollections []data.RestoreCollection
 	Options             control.Options
+	BackupOptions       control.BackupConfig
 	ProtectedResource   idname.Provider
 	Selector            selectors.Selector
 }
