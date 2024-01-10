@@ -6,7 +6,6 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -25,14 +24,6 @@ func IsServiceEnabled(
 		// answers the question the caller is asking.
 		if clues.HasLabel(err, graph.LabelsMysiteNotFound) || clues.HasLabel(err, graph.LabelsNoSharePointLicense) {
 			return false, nil
-		}
-
-		if graph.IsErrUserNotFound(err) {
-			return false, clues.Stack(core.ErrResourceOwnerNotFound, err)
-		}
-
-		if graph.IsErrResourceLocked(err) {
-			return false, clues.Stack(graph.ErrResourceLocked, err)
 		}
 
 		return false, clues.Stack(err)

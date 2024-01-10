@@ -157,10 +157,6 @@ func (c Sites) GetByID(
 				err = clues.Stack(core.ErrResourceOwnerNotFound, err)
 			}
 
-			if graph.IsErrResourceLocked(err) {
-				err = clues.Stack(graph.ErrResourceLocked, err)
-			}
-
 			return nil, err
 		}
 
@@ -201,10 +197,6 @@ func (c Sites) GetByID(
 		// error code, instead of something more sensible.
 		if graph.IsErrItemNotFound(err) {
 			err = clues.Stack(core.ErrResourceOwnerNotFound, err)
-		}
-
-		if graph.IsErrResourceLocked(err) {
-			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceLocked, err))
 		}
 
 		return nil, err

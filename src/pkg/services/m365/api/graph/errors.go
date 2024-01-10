@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
@@ -105,6 +106,10 @@ const (
 	LabelsSkippable = "skippable_errors"
 )
 
+// ---------------------------------------------------------------------------
+// error sentinels & categorization
+// ---------------------------------------------------------------------------
+
 // These errors are graph specific.  That means they don't have a clear parallel in
 // pkg/errs/core.  If these errors need to trickle outward to non-m365 layers, we
 // need to find a sufficiently coarse errs/core sentinel to use as transformation.
@@ -134,7 +139,26 @@ var (
 	ErrTokenExpired = clues.New("jwt token expired")
 )
 
-func IsErrApplicationThrottled(err error) bool {
+func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
+	if err == nil {
+		return nil
+	}
+
+	switch {
+	case isErrApplicationThrottled(err):
+		err = clues.Stack(core.ErrApplicationThrottled, err)
+	case isErrResourceLocked(err):
+		err = clues.Stack(core.ErrResourceNotAccessible, err)
+	case isErrUserNotFound(err):
+		err = clues.Stack(core.ErrResourceOwnerNotFound, err)
+	case isErrInsufficientAuthorization(err):
+		err = clues.Stack(core.ErrInsufficientAuthorization, err)
+	}
+
+	return stackWithDepth(ctx, err, 1+traceDepth)
+}
+
+func isErrApplicationThrottled(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, ApplicationThrottled)
 }
 
@@ -142,7 +166,7 @@ func IsErrAuthenticationError(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, AuthenticationError)
 }
 
-func IsErrInsufficientAuthorization(err error) bool {
+func isErrInsufficientAuthorization(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, AuthorizationRequestDenied)
 }
 
@@ -189,7 +213,7 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, ResourceNotFound, ErrorItemNotFound, MailboxNotEnabledForRESTAPI)
 }
 
-func IsErrUserNotFound(err error) bool {
+func isErrUserNotFound(err error) bool {
 	ode := parseODataErr(err)
 
 	if ode.hasErrorCode(err, RequestResourceNotFound, invalidUser) {
@@ -281,7 +305,7 @@ func IsErrSiteNotFound(err error) bool {
 	return parseODataErr(err).hasErrorMessage(err, requestedSiteCouldNotBeFound)
 }
 
-func IsErrResourceLocked(err error) bool {
+func isErrResourceLocked(err error) bool {
 	ode := parseODataErr(err)
 
 	return errors.Is(err, ErrResourceLocked) ||
@@ -297,6 +321,10 @@ func IsErrResourceLocked(err error) bool {
 func IsErrSharingDisabled(err error) bool {
 	return parseODataErr(err).hasInnerErrorCode(err, sharingDisabled)
 }
+
+// ---------------------------------------------------------------------------
+// quality of life wrappers
+// ---------------------------------------------------------------------------
 
 // Wrap is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns the error.
@@ -324,6 +352,10 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 // Stack is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns the error.
 func Stack(ctx context.Context, e error) *clues.Err {
+	return stackWithDepth(ctx, e, 1)
+}
+
+func stackWithDepth(ctx context.Context, e error, traceDepth int) *clues.Err {
 	if e == nil {
 		return nil
 	}
@@ -339,7 +371,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 
 	ce := clues.StackWC(ctx, e).
 		With("graph_api_err", ode).
-		WithTrace(1)
+		WithTrace(1 + traceDepth)
 
 	return setLabels(ce, ode)
 }
