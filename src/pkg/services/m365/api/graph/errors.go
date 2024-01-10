@@ -131,6 +131,8 @@ var (
 	ErrResourceLocked = clues.New("resource has been locked and must be unlocked by an administrator")
 
 	ErrTokenExpired = clues.New("jwt token expired")
+
+	ErrNameAlreadyExistsConflict = clues.New("Name already exists")
 )
 
 func IsErrApplicationThrottled(err error) bool {
