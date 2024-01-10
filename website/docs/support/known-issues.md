@@ -36,4 +36,4 @@ Below is a list of known Corso issues and limitations:
 
 * Restoring the data into a different Group from the one it was backed up from isn't currently supported.
 
-* Backing up a group mailbox item may fail if it has a very large number of attachments (500+).
+* Backing up a group mailbox item may fail if it has a large number of attachments (500+).
