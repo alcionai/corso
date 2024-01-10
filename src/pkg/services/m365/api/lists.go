@@ -579,3 +579,15 @@ func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 		},
 	}
 }
+
+func listCollisionKeyProps() []string {
+	return idAnd("displayName")
+}
+
+func ListCollisionKey(list models.Listable) string {
+	if list == nil {
+		return ""
+	}
+
+	return ptr.Val(list.GetDisplayName())
+}

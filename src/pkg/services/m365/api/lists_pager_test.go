@@ -42,6 +42,7 @@ func (suite *ListsPagerIntgSuite) TestEnumerateLists_withAssociatedRelationships
 		ac = suite.its.gockAC.Lists()
 
 		listID               = "fake-list-id"
+		listDisplayName      = "fake-list-name"
 		listLastModifiedTime = time.Now()
 		siteID               = suite.its.site.id
 		textColumnDefID      = "fake-text-column-id"
@@ -65,6 +66,7 @@ func (suite *ListsPagerIntgSuite) TestEnumerateLists_withAssociatedRelationships
 
 	suite.setStubListAndItsRelationShip(
 		listID,
+		listDisplayName,
 		siteID,
 		textColumnDefID,
 		textColumnDefName,
@@ -249,8 +251,60 @@ func (suite *ListsPagerIntgSuite) testEnumerateCTypeColumns(
 	return cTypeCols
 }
 
+func (suite *ListsPagerIntgSuite) TestGetListsByCollisionKey() {
+	var (
+		t  = suite.T()
+		ac = suite.its.gockAC.Lists()
+
+		listID               = "fake-list-id"
+		listDisplayName      = "fake-list-name"
+		listLastModifiedTime = time.Now()
+		siteID               = suite.its.site.id
+		textColumnDefID      = "fake-text-column-id"
+		textColumnDefName    = "itemName"
+		numColumnDefID       = "fake-num-column-id"
+		numColumnDefName     = "itemSize"
+		colLinkID            = "fake-collink-id"
+		cTypeID              = "fake-ctype-id"
+		listItemID           = "fake-list-item-id"
+
+		fieldsData = map[string]any{
+			"itemName": "item1",
+			"itemSize": 4,
+		}
+	)
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	defer gock.Off()
+
+	suite.setStubListAndItsRelationShip(
+		listID,
+		listDisplayName,
+		siteID,
+		textColumnDefID,
+		textColumnDefName,
+		numColumnDefID,
+		numColumnDefName,
+		colLinkID,
+		cTypeID,
+		listItemID,
+		listLastModifiedTime,
+		fieldsData)
+
+	expected := map[string]string{
+		listDisplayName: listID,
+	}
+
+	lists, err := ac.GetListsByCollisionKey(ctx, suite.its.site.id)
+	require.NoError(t, err)
+	assert.Equal(t, expected, lists)
+}
+
 func (suite *ListsPagerIntgSuite) setStubListAndItsRelationShip(
 	listID,
+	listDisplayName,
 	siteID,
 	textColumnDefID,
 	textColumnDefName,
@@ -265,6 +319,7 @@ func (suite *ListsPagerIntgSuite) setStubListAndItsRelationShip(
 	list := models.NewList()
 	list.SetId(ptr.To(listID))
 	list.SetLastModifiedDateTime(ptr.To(listLastModifiedTime))
+	list.SetDisplayName(ptr.To(listDisplayName))
 
 	listCol := models.NewListCollectionResponse()
 	listCol.SetValue([]models.Listable{list})
