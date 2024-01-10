@@ -30,29 +30,32 @@ const (
 
 	ContentTypeColumnDisplayName = "Content Type"
 
-	AddressFieldName          = "address"
-	NestedCityFieldName       = "city"
-	NestedCountryFieldName    = "countryOrRegion"
-	NestedPostalCodeFieldName = "postalCode"
-	NestedStateFieldName      = "state"
-	NestedStreetFieldName     = "street"
-	CoordinatesFieldName      = "coordinates"
-	NestedLatitudeFieldName   = "latitude"
-	NestedLongitudeFieldName  = "longitude"
-	DisplayNameFieldName      = "displayName"
-	LocationURIFieldName      = "locationUri"
-	UniqueIDFieldName         = "uniqueId"
+	AddressKey     = "address"
+	CoordinatesKey = "coordinates"
+	DisplayNameKey = "displayName"
+	LocationURIKey = "locationUri"
+	UniqueIDKey    = "uniqueId"
 
-	CountryOrRegionFieldName = "CountryOrRegion"
-	StateFieldName           = "State"
-	CityFieldName            = "City"
-	PostalCodeFieldName      = "PostalCode"
-	StreetFieldName          = "Street"
-	GeoLocFieldName          = "GeoLoc"
-	DispNameFieldName        = "DispName"
-	LinkTitleFieldNamePart   = "LinkTitle"
-	ChildCountFieldNamePart  = "ChildCount"
-	LookupIDFieldNamePart    = "LookupId"
+	// entries that are nested within a second layer
+	CityKey       = "city"
+	CountryKey    = "countryOrRegion"
+	PostalCodeKey = "postalCode"
+	StateKey      = "state"
+	StreetKey     = "street"
+	LatitudeKey   = "latitude"
+	LongitudeKey  = "longitude"
+
+	CountryOrRegionFN = "CountryOrRegion"
+	StateFN           = "State"
+	CityFN            = "City"
+	PostalCodeFN      = "PostalCode"
+	StreetFN          = "Street"
+	GeoLocFN          = "GeoLoc"
+	DispNameFN        = "DispName"
+
+	LinkTitleFieldNamePart  = "LinkTitle"
+	ChildCountFieldNamePart = "ChildCount"
+	LookupIDFieldNamePart   = "LookupId"
 
 	ReadOnlyOrHiddenFieldNamePrefix = "_"
 	DescoratorFieldNamePrefix       = "@"
@@ -66,11 +69,11 @@ const (
 )
 
 var addressFieldNames = []string{
-	AddressFieldName,
-	CoordinatesFieldName,
-	DisplayNameFieldName,
-	LocationURIFieldName,
-	UniqueIDFieldName,
+	AddressKey,
+	CoordinatesKey,
+	DisplayNameKey,
+	LocationURIKey,
+	UniqueIDKey,
 }
 
 var legacyColumns = keys.Set{
@@ -554,7 +557,7 @@ func setAdditionalDataByColumnNames(
 func hasAddressFields(additionalData map[string]any) (map[string]any, string, bool) {
 	for fieldName, value := range additionalData {
 		nestedFields, ok := value.(map[string]any)
-		if !ok || keys.HasKeys(nestedFields, GeoLocFieldName) {
+		if !ok || keys.HasKeys(nestedFields, GeoLocFN) {
 			continue
 		}
 
@@ -569,21 +572,21 @@ func hasAddressFields(additionalData map[string]any) (map[string]any, string, bo
 func concatenateAddressFields(addressFields map[string]any) string {
 	concatenatedAddress := ""
 
-	if dispName, ok := addressFields[DisplayNameFieldName].(*string); ok {
+	if dispName, ok := addressFields[DisplayNameKey].(*string); ok {
 		concatenatedAddress = fmt.Sprintf("%s,%s", concatenatedAddress, ptr.Val(dispName))
 	}
 
-	if address, ok := addressFields[AddressFieldName].(map[string]any); ok {
-		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedStreetFieldName)
-		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedCityFieldName)
-		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedStateFieldName)
-		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedCountryFieldName)
-		concatenatedAddress = concatenateField(concatenatedAddress, address, NestedPostalCodeFieldName)
+	if address, ok := addressFields[AddressKey].(map[string]any); ok {
+		concatenatedAddress = concatenateField(concatenatedAddress, address, StreetKey)
+		concatenatedAddress = concatenateField(concatenatedAddress, address, CityKey)
+		concatenatedAddress = concatenateField(concatenatedAddress, address, StateKey)
+		concatenatedAddress = concatenateField(concatenatedAddress, address, CountryKey)
+		concatenatedAddress = concatenateField(concatenatedAddress, address, PostalCodeKey)
 	}
 
-	if coords, ok := addressFields[CoordinatesFieldName].(map[string]any); ok {
-		concatenatedAddress = concatenateField(concatenatedAddress, coords, NestedLatitudeFieldName)
-		concatenatedAddress = concatenateField(concatenatedAddress, coords, NestedLongitudeFieldName)
+	if coords, ok := addressFields[CoordinatesKey].(map[string]any); ok {
+		concatenatedAddress = concatenateField(concatenatedAddress, coords, LatitudeKey)
+		concatenatedAddress = concatenateField(concatenatedAddress, coords, LongitudeKey)
 	}
 
 	if len(concatenatedAddress) > 0 {
