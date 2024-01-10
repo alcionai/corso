@@ -23,9 +23,7 @@ import (
 // Ref: https://www.rfc-editor.org/rfc/rfc5545
 // Ref: https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0
 
-// TODO: Items not handled
-// locations (different from location)
-// exceptions and modifications
+// TODO locations: https://github.com/alcionai/corso/issues/5003
 
 // Field in the backed up data that we cannot handle
 // allowNewTimeProposals, hideAttendees, importance, isOnlineMeeting,
@@ -54,7 +52,6 @@ func getLocationString(location models.Locationable) string {
 	dn := ptr.Val(location.GetDisplayName())
 	segments := []string{dn}
 
-	// TODO: Handle different location types
 	addr := location.GetAddress()
 	if addr != nil {
 		street := ptr.Val(addr.GetStreet())
@@ -330,6 +327,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	}
 
 	// TODO: Emojies currently don't seem to be read properly by Outlook
+	// When outlook exports them(in .eml), it exports them in text as it strips down html
 	bodyPreview := ptr.Val(event.GetBodyPreview())
 
 	if event.GetBody() != nil {
@@ -387,7 +385,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		name := ptr.Val(organizer.GetEmailAddress().GetName())
 		addr := ptr.Val(organizer.GetEmailAddress().GetAddress())
 
-		// TODO: What to do if we only have a name?
+		// It does not look like we can get just a name without an address
 		if len(name) > 0 && len(addr) > 0 {
 			iCalEvent.SetOrganizer(addr, ics.WithCN(name))
 		} else if len(addr) > 0 {
@@ -482,6 +480,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		}
 
 		// TODO: Inline attachments don't show up in Outlook
+		// Inline attachments is not something supported by the spec
 		inline := ptr.Val(attachment.GetIsInline())
 		if inline {
 			cidv, err := attachment.GetBackingStore().Get("contentId")
