@@ -746,17 +746,11 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 
 	fieldsData, list := getFieldsDataAndList()
 
-	err := writer.WriteObjectValue("", list)
-	require.NoError(t, err)
-
-	oldListByteArray, err := writer.GetSerializedContent()
-	require.NoError(t, err)
-
-	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
+	newList, err := acl.PostList(ctx, siteID, listName, list, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
 
-	_, err = acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
+	_, err = acl.PostList(ctx, siteID, listName, list, fault.New(true))
 	require.Error(t, err)
 
 	newListItems := newList.GetItems()
@@ -819,11 +813,17 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
+			overrideListInfo := models.NewListInfo()
+			overrideListInfo.SetTemplate(ptr.To(test.template))
+
+			_, list := getFieldsDataAndList()
+			list.SetList(overrideListInfo)
+
 			_, err := acl.PostList(
 				ctx,
 				siteID,
 				listName,
-				getStoredListBytes(t, test.template),
+				list,
 				fault.New(false))
 			require.Error(t, err)
 			assert.Equal(t, ErrSkippableListTemplate.Error(), err.Error())
@@ -848,13 +848,7 @@ func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
 
 	_, list := getFieldsDataAndList()
 
-	err := writer.WriteObjectValue("", list)
-	require.NoError(t, err)
-
-	oldListByteArray, err := writer.GetSerializedContent()
-	require.NoError(t, err)
-
-	newList, err := acl.PostList(ctx, siteID, listName, oldListByteArray, fault.New(true))
+	newList, err := acl.PostList(ctx, siteID, listName, list, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, listName, ptr.Val(newList.GetDisplayName()))
 
@@ -896,23 +890,4 @@ func getFieldsDataAndList() (map[string]any, *models.List) {
 	list.SetItems([]models.ListItemable{listItem})
 
 	return fieldsData, list
-}
-
-func getStoredListBytes(t *testing.T, template string) []byte {
-	writer := kjson.NewJsonSerializationWriter()
-	defer writer.Close()
-
-	overrideListInfo := models.NewListInfo()
-	overrideListInfo.SetTemplate(ptr.To(template))
-
-	_, list := getFieldsDataAndList()
-	list.SetList(overrideListInfo)
-
-	err := writer.WriteObjectValue("", list)
-	require.NoError(t, err)
-
-	storedListBytes, err := writer.GetSerializedContent()
-	require.NoError(t, err)
-
-	return storedListBytes
 }

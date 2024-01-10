@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -217,31 +216,15 @@ func (c Lists) PostList(
 	ctx context.Context,
 	siteID string,
 	listName string,
-	oldListByteArray []byte,
+	storedList models.Listable,
 	errs *fault.Bus,
 ) (models.Listable, error) {
 	var (
-		newListName = listName
-		el          = errs.Local()
+		el = errs.Local()
 	)
 
-	oldList, err := BytesToListable(oldListByteArray)
-	if err != nil {
-		return nil, clues.WrapWC(ctx, err, "generating list from stored bytes")
-	}
-
-	// the input listName is of format: destinationName_listID
-	// here we replace listID with displayName of list generated from stored bytes
-	if name, ok := ptr.ValOK(oldList.GetDisplayName()); ok {
-		nameParts := strings.Split(listName, "_")
-		if len(nameParts) > 0 {
-			nameParts[len(nameParts)-1] = name
-			newListName = strings.Join(nameParts, "_")
-		}
-	}
-
 	// this ensure all columns, contentTypes are set to the newList
-	newList, columnNames := ToListable(oldList, newListName)
+	newList, columnNames := ToListable(storedList, listName)
 
 	if newList.GetList() != nil &&
 		SkipListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
@@ -261,7 +244,7 @@ func (c Lists) PostList(
 
 	listItems := make([]models.ListItemable, 0)
 
-	for _, itm := range oldList.GetItems() {
+	for _, itm := range storedList.GetItems() {
 		temp := CloneListItem(itm, columnNames)
 		listItems = append(listItems, temp)
 	}

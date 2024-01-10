@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"runtime/trace"
+	"strings"
 
 	"github.com/alcionai/clues"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
@@ -156,8 +158,23 @@ func restoreListItem(
 
 	newName := fmt.Sprintf("%s_%s", destName, listName)
 
+	storedList, err := api.BytesToListable(bytes)
+	if err != nil {
+		return dii, clues.WrapWC(ctx, err, "generating list from stored bytes")
+	}
+
+	// newName is of format: destinationName_listID
+	// here we replace listID with displayName of list generated from stored bytes
+	if name, ok := ptr.ValOK(storedList.GetDisplayName()); ok {
+		nameParts := strings.Split(newName, "_")
+		if len(nameParts) > 0 {
+			nameParts[len(nameParts)-1] = name
+			newName = strings.Join(nameParts, "_")
+		}
+	}
+
 	// Restore to List base to M365 back store
-	restoredList, err := rh.PostList(ctx, newName, bytes, errs)
+	restoredList, err := rh.PostList(ctx, newName, storedList, errs)
 	if err != nil {
 		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
