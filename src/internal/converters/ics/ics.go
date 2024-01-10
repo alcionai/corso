@@ -443,6 +443,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddAttendee(addr, props...)
 	}
 
+	// LOCATION - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.7
 	location := getLocationString(event.GetLocation())
 	if len(location) > 0 {
 		iCalEvent.SetLocation(location)
@@ -454,6 +455,16 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddProperty("X-MICROSOFT-LOCATIONDISPLAYNAME", locationDisplayName)
 	}
 
+	// CLASS - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.3
+	// Graph also has the value "personal" which is not supported by the spec
+	// Default value is "public"
+	sensitivity := ptr.Val(event.GetSensitivity()).String()
+	if sensitivity == "private" {
+		iCalEvent.AddProperty(ics.ComponentPropertyClass, "PRIVATE")
+	} else if sensitivity == "confidential" {
+		iCalEvent.AddProperty(ics.ComponentPropertyClass, "CONFIDENTIAL")
+	}
+
 	meeting := event.GetOnlineMeeting()
 	if meeting != nil {
 		url := ptr.Val(meeting.GetJoinUrl())
@@ -462,6 +473,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		}
 	}
 
+	// ATTACH - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.1
 	// TODO Handle different attachment types (file, item and reference)
 	attachments := event.GetAttachments()
 	for _, attachment := range attachments {
