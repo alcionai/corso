@@ -448,6 +448,12 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.SetLocation(location)
 	}
 
+	// X-MICROSOFT-LOCATIONDISPLAYNAME (Outlook seems to use this)
+	locationDisplayName := ptr.Val(event.GetLocation().GetDisplayName())
+	if len(locationDisplayName) > 0 {
+		iCalEvent.AddProperty("X-MICROSOFT-LOCATIONDISPLAYNAME", locationDisplayName)
+	}
+
 	meeting := event.GetOnlineMeeting()
 	if meeting != nil {
 		url := ptr.Val(meeting.GetJoinUrl())
