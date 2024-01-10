@@ -30,7 +30,7 @@ import (
 // isOrganizer, isReminderOn, onlineMeeting, onlineMeetingProvider,
 // onlineMeetingUrl, originalEndTimeZone, originalStart,
 // originalStartTimeZone, reminderMinutesBeforeStart, responseRequested,
-// responseStatus, sensitivity
+// responseStatus
 
 const (
 	iCalDateTimeFormat = "20060102T150405Z"
@@ -311,14 +311,10 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddRrule(pattern)
 	}
 
+	// STATUS - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.11
 	cancelled := event.GetIsCancelled()
 	if cancelled != nil {
 		iCalEvent.SetStatus(ics.ObjectStatusCancelled)
-	}
-
-	draft := event.GetIsDraft()
-	if draft != nil {
-		iCalEvent.SetStatus(ics.ObjectStatusDraft)
 	}
 
 	summary := event.GetSubject()
@@ -350,20 +346,20 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 
 	showAs := ptr.Val(event.GetShowAs()).String()
 	if len(showAs) > 0 && showAs != "unknown" {
-		var status ics.FreeBusyTimeType
+		var freebusy ics.FreeBusyTimeType
 
 		switch showAs {
 		case "free":
-			status = ics.FreeBusyTimeTypeFree
+			freebusy = ics.FreeBusyTimeTypeFree
 		case "tentative":
-			status = ics.FreeBusyTimeTypeBusyTentative
+			freebusy = ics.FreeBusyTimeTypeBusyTentative
 		case "busy":
-			status = ics.FreeBusyTimeTypeBusy
+			freebusy = ics.FreeBusyTimeTypeBusy
 		case "oof", "workingElsewhere": // this is just best effort conversion
-			status = ics.FreeBusyTimeTypeBusyUnavailable
+			freebusy = ics.FreeBusyTimeTypeBusyUnavailable
 		}
 
-		iCalEvent.AddProperty(ics.ComponentPropertyFreebusy, string(status))
+		iCalEvent.AddProperty(ics.ComponentPropertyFreebusy, string(freebusy))
 	}
 
 	categories := event.GetCategories()
@@ -457,7 +453,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 
 	// CLASS - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.3
 	// Graph also has the value "personal" which is not supported by the spec
-	// Default value is "public"
+	// Default value is "public" (works for "normal")
 	sensitivity := ptr.Val(event.GetSensitivity()).String()
 	if sensitivity == "private" {
 		iCalEvent.AddProperty(ics.ComponentPropertyClass, "PRIVATE")
