@@ -59,15 +59,6 @@ func (suite *GraphIntgSuite) SetupSuite() {
 	suite.credentials = m365
 
 	InitializeConcurrencyLimiter(ctx, false, 0)
-
-	// We are going to validate retry attempts for a few errors as part of this
-	// test suite. Set retry delay to a low value to reduce suite runtime.
-	adapterRetryDelay = 10 * time.Millisecond
-}
-
-func (suite *GraphIntgSuite) TearDownSuite() {
-	// Reset retry delay on exit so that it doesn't affect other tests.
-	adapterRetryDelay = 3 * time.Second
 }
 
 func (suite *GraphIntgSuite) TestCreateAdapter() {
@@ -80,6 +71,9 @@ func (suite *GraphIntgSuite) TestCreateAdapter() {
 
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, adpt)
+
+	aw := adpt.(*adapterWrap)
+	assert.Equal(t, adapterRetryDelay, aw.retryDelay, "default retry delay")
 }
 
 func (suite *GraphIntgSuite) TestHTTPClient() {
@@ -211,6 +205,10 @@ func (suite *GraphIntgSuite) TestAdapterWrap_catchesPanic() {
 		appendMiddleware(&alwaysPanicMiddleware))
 	require.NoError(t, err, clues.ToCore(err))
 
+	// Set retry delay to a low value to reduce test runtime.
+	aw := adpt.(*adapterWrap)
+	aw.retryDelay = 10 * time.Millisecond
+
 	// the query doesn't matter
 	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
 	require.Error(t, err, clues.ToCore(err))
@@ -247,6 +245,10 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 		count.New(),
 		appendMiddleware(&alwaysECONNRESET))
 	require.NoError(t, err, clues.ToCore(err))
+
+	// Set retry delay to a low value to reduce test runtime.
+	aw := adpt.(*adapterWrap)
+	aw.retryDelay = 10 * time.Millisecond
 
 	// the query doesn't matter
 	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
@@ -304,6 +306,10 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 		count.New(),
 		appendMiddleware(&alwaysBadJWT))
 	require.NoError(t, err, clues.ToCore(err))
+
+	// Set retry delay to a low value to reduce test runtime.
+	aw := adpt.(*adapterWrap)
+	aw.retryDelay = 10 * time.Millisecond
 
 	// When run locally this may fail. Not sure why it works in github but not locally.
 	// Pester keepers if it bothers you.
@@ -377,6 +383,10 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 		count.New(),
 		appendMiddleware(&returnsGraphResp))
 	require.NoError(t, err, clues.ToCore(err))
+
+	// Set retry delay to a low value to reduce test runtime.
+	aw := adpt.(*adapterWrap)
+	aw.retryDelay = 10 * time.Millisecond
 
 	table := []struct {
 		name            string

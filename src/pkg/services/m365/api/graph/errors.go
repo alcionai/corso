@@ -566,11 +566,7 @@ func parseODataErr(err error) oDataErr {
 // hasResponseCode checks if the error is an ODataError and carries the provided
 // http response code.
 func (ode oDataErr) hasResponseCode(err error, httpResponseCode int) bool {
-	if !ode.isODataErr {
-		return false
-	}
-
-	return ode.Resp.StatusCode == httpResponseCode
+	return ode.isODataErr && ode.Resp.StatusCode == httpResponseCode
 }
 
 func (ode oDataErr) hasErrorCode(err error, codes ...errorCode) bool {

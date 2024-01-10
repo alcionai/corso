@@ -343,8 +343,9 @@ func kiotaMiddlewares(
 // Graph Api Adapter Wrapper
 // ---------------------------------------------------------------------------
 
-var (
-	_ abstractions.RequestAdapter = &adapterWrap{}
+var _ abstractions.RequestAdapter = &adapterWrap{}
+
+const (
 	// Delay between retry attempts
 	adapterRetryDelay = 3 * time.Second
 )
@@ -358,11 +359,16 @@ var (
 // 3. Error and debug conditions are logged.
 type adapterWrap struct {
 	abstractions.RequestAdapter
-	config *clientConfig
+	config     *clientConfig
+	retryDelay time.Duration
 }
 
 func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter, cc *clientConfig) *adapterWrap {
-	return &adapterWrap{gra, cc}
+	return &adapterWrap{
+		RequestAdapter: gra,
+		config:         cc,
+		retryDelay:     adapterRetryDelay,
+	}
 }
 
 var connectionEnded = filters.Contains([]string{
@@ -422,7 +428,7 @@ func (aw *adapterWrap) Send(
 			return nil, clues.StackWC(ictx, err).WithTrace(1)
 		}
 
-		time.Sleep(adapterRetryDelay)
+		time.Sleep(aw.retryDelay)
 	}
 
 	return sp, clues.Stack(err).OrNil()
