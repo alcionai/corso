@@ -1,21 +1,8 @@
 package control
 
-import (
-	"github.com/alcionai/corso/src/pkg/extensions"
-)
-
 // DefaultBackupOptions provides a Backup with the default values set.
 func DefaultBackupConfig() BackupConfig {
-	return BackupConfig{
-		FailureHandling: FailAfterRecovery,
-		Parallelism: Parallelism{
-			CollectionBuffer: 4,
-			ItemFetch:        4,
-		},
-		M365: BackupM365Config{
-			DeltaPageSize: 500,
-		},
-	}
+	return BackupConfig{}
 }
 
 // BackupConfig is the set of options used for backup operations. Each set of
@@ -23,12 +10,7 @@ func DefaultBackupConfig() BackupConfig {
 // same set of options for multiple backup operations pass the struct to all
 // operations.
 type BackupConfig struct {
-	FailureHandling      FailurePolicy                      `json:"failureHandling"`
-	ItemExtensionFactory []extensions.CreateItemExtensioner `json:"-"`
-	Parallelism          Parallelism                        `json:"parallelism"`
-	ServiceRateLimiter   RateLimiter                        `json:"serviceRateLimiter"`
-	Incrementals         IncrementalsConfig                 `json:"incrementalsConfig"`
-	M365                 BackupM365Config                   `json:"m365Config"`
+	Incrementals IncrementalsConfig `json:"incrementalsConfig"`
 
 	// PreviewLimits defines the number of items and/or amount of data to fetch on
 	// a best-effort basis for preview backups.
@@ -40,31 +22,6 @@ type BackupConfig struct {
 	// backup data until the set limits without paying attention to what the other
 	// had already backed up.
 	PreviewLimits PreviewItemLimits `json:"previewItemLimits"`
-}
-
-// BackupM365Config contains config options that are specific to backing up data
-// from M365 or Corso features that are only available during M365 backups.
-type BackupM365Config struct {
-	// DeltaPageSize controls the quantity of items fetched in each page during
-	// multi-page queries, such as graph api delta endpoints.
-	DeltaPageSize int32 `json:"deltaPageSize"`
-
-	// DisableDelta prevents backups from calling /delta endpoints and will force
-	// a full enumeration of all items. This is different from
-	// IncrementalsConfig.ForceFullEnumeration in that this does not even
-	// make use of delta endpoints if a delta token is available. This is
-	// necessary when the user has filled up their mailbox storage as Microsoft
-	// prevents the API from being able to make calls to /delta endpoints when a
-	// mailbox is over storage limits.
-	DisableDeltaEndpoint bool `json:"exchangeDeltaEndpoint,omitempty"`
-
-	// ExchangeImmutableIDs denotes whether Corso should store items with
-	// immutable Exchange IDs. This is only safe to set if the previous backup for
-	// incremental backups used immutable IDs or if a full backup is being done.
-	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
-
-	// see: https://github.com/alcionai/corso/issues/4688
-	UseDriveDeltaTree bool `json:"useDriveDeltaTree"`
 }
 
 type Parallelism struct {

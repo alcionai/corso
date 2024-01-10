@@ -17,16 +17,6 @@ type Options struct {
 	Repo                 repository.Options                 `json:"repo"`
 	SkipReduce           bool                               `json:"skipReduce"`
 	ToggleFeatures       Toggles                            `json:"toggleFeatures"`
-	// PreviewItemLimits defines the number of items and/or amount of data to
-	// fetch on a best-effort basis. Right now it's used for preview backups.
-	//
-	// Since this is not split out by service or data categories these limits
-	// apply independently to all data categories that appear in a single backup
-	// where they are set. For example, if doing a teams backup and there's both a
-	// SharePoint site and Messages available, both data categories would try to
-	// backup data until the set limits without paying attention to what the other
-	// had already backed up.
-	PreviewLimits PreviewItemLimits `json:"previewItemLimits"`
 }
 
 // RateLimiter is the set of options applied to any external service facing rate
@@ -68,15 +58,6 @@ func DefaultOptions() Options {
 // The default state for every toggle is false; toggles are only turned on
 // if specified by the caller.
 type Toggles struct {
-	// DisableIncrementals prevents backups from using incremental lookups,
-	// forcing a new, complete backup of all data regardless of prior state.
-	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
-	// ForceItemDataDownload disables finding cached items in previous failed
-	// backups (i.e. kopia-assisted incrementals). Data dedupe will still occur
-	// since that is based on content hashes. Items that have not changed since
-	// the previous backup (i.e. in the merge base) will not be redownloaded. Use
-	// DisableIncrementals to control that behavior.
-	ForceItemDataDownload bool `json:"forceItemDataDownload,omitempty"`
 	// DisableDelta prevents backups from using delta based lookups,
 	// forcing a backup by enumerating all items. This is different
 	// from DisableIncrementals in that this does not even makes use of
