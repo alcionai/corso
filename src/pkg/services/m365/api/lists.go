@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/keys"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -555,14 +556,14 @@ func setAdditionalDataByColumnNames(
 }
 
 func hasAddressFields(additionalData map[string]any) (map[string]any, string, bool) {
-	for fieldName, value := range additionalData {
-		nestedFields, ok := value.(map[string]any)
+	for k, v := range additionalData {
+		nestedFields, ok := v.(map[string]any)
 		if !ok || keys.HasKeys(nestedFields, GeoLocFN) {
 			continue
 		}
 
 		if keys.HasKeys(nestedFields, addressFieldNames...) {
-			return nestedFields, fieldName, true
+			return nestedFields, k, true
 		}
 	}
 
@@ -570,44 +571,40 @@ func hasAddressFields(additionalData map[string]any) (map[string]any, string, bo
 }
 
 func concatenateAddressFields(addressFields map[string]any) string {
-	concatenatedAddress := ""
+	parts := make([]string, 0)
 
 	if dispName, ok := addressFields[DisplayNameKey].(*string); ok {
-		concatenatedAddress = fmt.Sprintf("%s,%s", concatenatedAddress, ptr.Val(dispName))
+		parts = append(parts, ptr.Val(dispName))
 	}
 
-	if address, ok := addressFields[AddressKey].(map[string]any); ok {
-		concatenatedAddress = concatenateField(concatenatedAddress, address, StreetKey)
-		concatenatedAddress = concatenateField(concatenatedAddress, address, CityKey)
-		concatenatedAddress = concatenateField(concatenatedAddress, address, StateKey)
-		concatenatedAddress = concatenateField(concatenatedAddress, address, CountryKey)
-		concatenatedAddress = concatenateField(concatenatedAddress, address, PostalCodeKey)
+	if fields, ok := addressFields[AddressKey].(map[string]any); ok {
+		parts = append(parts, addressKeyToVal(fields, StreetKey))
+		parts = append(parts, addressKeyToVal(fields, CityKey))
+		parts = append(parts, addressKeyToVal(fields, StateKey))
+		parts = append(parts, addressKeyToVal(fields, CountryKey))
+		parts = append(parts, addressKeyToVal(fields, PostalCodeKey))
 	}
 
 	if coords, ok := addressFields[CoordinatesKey].(map[string]any); ok {
-		concatenatedAddress = concatenateField(concatenatedAddress, coords, LatitudeKey)
-		concatenatedAddress = concatenateField(concatenatedAddress, coords, LongitudeKey)
+		parts = append(parts, addressKeyToVal(coords, LatitudeKey))
+		parts = append(parts, addressKeyToVal(coords, LongitudeKey))
 	}
 
-	if len(concatenatedAddress) > 0 {
-		return concatenatedAddress[1:]
+	if len(parts) > 0 {
+		return strings.Join(parts, ",")
 	}
 
 	return ""
 }
 
-func concatenateField(concatenatedAddress string, field map[string]any, fieldName string) string {
-	if _, ok := field[fieldName]; !ok {
-		return concatenatedAddress
+func addressKeyToVal(fields map[string]any, key string) string {
+	if v, err := str.AnyValueToString(key, fields); err == nil {
+		return v
+	} else if v, ok := fields[key].(*float64); ok {
+		return fmt.Sprintf("%v", ptr.Val(v))
 	}
 
-	if ptrValue, ok := field[fieldName].(*string); ok {
-		concatenatedAddress = fmt.Sprintf("%s,%s", concatenatedAddress, ptr.Val(ptrValue))
-	} else if ptrValue, ok := field[fieldName].(*float64); ok {
-		concatenatedAddress = fmt.Sprintf("%s,%v", concatenatedAddress, ptr.Val(ptrValue))
-	}
-
-	return concatenatedAddress
+	return ""
 }
 
 func (c Lists) getListItemFields(
