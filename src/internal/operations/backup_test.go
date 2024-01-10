@@ -367,14 +367,6 @@ func TestBackupOpUnitSuite(t *testing.T) {
 	suite.Run(t, &BackupOpUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-// checkPopulated ensures that input has no zero-valued fields. That helps
-// ensure that even as future updates to input happen in other files the changes
-// are propagated here due to test failures.
-func checkPopulated(t *testing.T, input control.Options) {
-	err := tester.CheckPopulated(input)
-	require.NoError(t, err, clues.ToCore(err))
-}
-
 // TestNewBackupOperation_configuredOptionsMatchInputOptions ensures that the
 // passed in options are properly set in the backup operation during
 // intialization. This test is mostly expected to be used while transitioning
@@ -402,14 +394,19 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 		},
 		SkipReduce: true,
 		ToggleFeatures: control.Toggles{
-			DisableIncrementals:         true,
-			ForceItemDataDownload:       true,
 			DisableDelta:                true,
 			ExchangeImmutableIDs:        true,
 			RunMigrations:               true,
 			DisableSlidingWindowLimiter: true,
 			UseDeltaTree:                true,
 			DisableLazyItemReader:       true,
+		},
+	}
+
+	backupOpts := control.BackupConfig{
+		Incrementals: control.IncrementalsConfig{
+			ForceFullEnumeration: true,
+			ForceItemDataRefresh: true,
 		},
 		PreviewLimits: control.PreviewItemLimits{
 			MaxItems:             42,
@@ -429,7 +426,11 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 	// This is a sanity check to make sure all fields on the input control.Options
 	// are populated. This helps ensure that this chunk of code stays updated as
 	// options are added to the struct.
-	checkPopulated(t, opts)
+	err := tester.CheckPopulated(opts)
+	require.NoError(t, err, clues.ToCore(err), "control.Options")
+
+	err = tester.CheckPopulated(backupOpts)
+	require.NoError(t, err, clues.ToCore(err), "control.BackupConfig")
 
 	var (
 		kw   = &kopia.Wrapper{}
@@ -444,6 +445,7 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 	op, err := NewBackupOperation(
 		ctx,
 		opts,
+		backupOpts,
 		kw,
 		sw,
 		ctrl,
@@ -455,6 +457,7 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 	require.NoError(t, err, clues.ToCore(err))
 
 	assert.Equal(t, opts, op.Options)
+	assert.Equal(t, backupOpts, op.backupConfig)
 }
 
 func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
@@ -516,6 +519,7 @@ func (suite *BackupOpUnitSuite) TestBackupOperation_PersistResults() {
 			op, err := NewBackupOperation(
 				ctx,
 				control.DefaultOptions(),
+				control.DefaultBackupConfig(),
 				kw,
 				sw,
 				ctrl,
@@ -1575,6 +1579,7 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 			_, err := NewBackupOperation(
 				ctx,
 				opts,
+				control.DefaultBackupConfig(),
 				test.kw,
 				test.sw,
 				test.bp,
@@ -2016,11 +2021,14 @@ func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 
 			opts := control.DefaultOptions()
 			opts.FailureHandling = test.failurePolicy
-			opts.PreviewLimits.Enabled = test.previewBackup
+
+			backupOpts := control.DefaultBackupConfig()
+			backupOpts.PreviewLimits.Enabled = test.previewBackup
 
 			bo, err := NewBackupOperation(
 				ctx,
 				opts,
+				backupOpts,
 				suite.kw,
 				suite.sw,
 				&bp,
@@ -2338,6 +2346,7 @@ func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 			bo, err := NewBackupOperation(
 				ctx,
 				opts,
+				control.DefaultBackupConfig(),
 				suite.kw,
 				suite.sw,
 				&bp,

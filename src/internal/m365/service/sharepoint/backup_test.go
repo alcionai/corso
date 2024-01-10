@@ -113,6 +113,7 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 				idname.NewProvider(siteID, siteID),
 				nil,
 				control.DefaultOptions(),
+				control.DefaultBackupConfig(),
 				count.New())
 
 			c.CollectionMap = collMap

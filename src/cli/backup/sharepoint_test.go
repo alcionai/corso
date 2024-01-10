@@ -117,13 +117,10 @@ func (suite *SharePointUnitSuite) TestBackupCreateFlags() {
 	// TODO(ashmrtn): Remove flag checks on control.Options to control.Backup once
 	// restore flags are switched over too and we no longer parse flags beyond
 	// connection info into control.Options.
-	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
 	assert.True(t, backupOpts.Incrementals.ForceFullEnumeration)
 	assert.True(t, backupOpts.Incrementals.ForceItemDataRefresh)
 
 	assert.Equal(t, control.FailFast, co.FailureHandling)
-	assert.True(t, co.ToggleFeatures.DisableIncrementals)
-	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
 
 	assert.ElementsMatch(t, []string{strings.Join(flagsTD.SiteIDInput, ",")}, opts.SiteID)
 	assert.ElementsMatch(t, flagsTD.WebURLInput, opts.WebURL)

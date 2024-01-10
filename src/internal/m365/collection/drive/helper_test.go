@@ -185,8 +185,8 @@ func defaultMetadataPath(t *testing.T) path.Path {
 // limiter
 // ---------------------------------------------------------------------------
 
-func minimumLimitOpts() control.Options {
-	minLimitOpts := control.DefaultOptions()
+func minimumLimitOpts() control.BackupConfig {
+	minLimitOpts := control.DefaultBackupConfig()
 	minLimitOpts.PreviewLimits.Enabled = true
 	minLimitOpts.PreviewLimits.MaxBytes = 1
 	minLimitOpts.PreviewLimits.MaxContainers = 1
@@ -202,20 +202,20 @@ func minimumLimitOpts() control.Options {
 // ---------------------------------------------------------------------------
 
 func collWithMBH(mbh BackupHandler) *Collections {
-	return NewCollections(
+	opts := control.Options{ToggleFeatures: control.Toggles{
+		UseDeltaTree: true,
+	}}
+
+	return collWithMBHAndOpts(
 		mbh,
-		tenant,
-		idname.NewProvider(user, user),
-		func(*support.ControllerOperationStatus) {},
-		control.Options{ToggleFeatures: control.Toggles{
-			UseDeltaTree: true,
-		}},
-		count.New())
+		opts,
+		control.DefaultBackupConfig())
 }
 
 func collWithMBHAndOpts(
 	mbh BackupHandler,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 ) *Collections {
 	return NewCollections(
 		mbh,
@@ -223,6 +223,7 @@ func collWithMBHAndOpts(
 		idname.NewProvider(user, user),
 		func(*support.ControllerOperationStatus) {},
 		opts,
+		backupOpts,
 		count.New())
 }
 

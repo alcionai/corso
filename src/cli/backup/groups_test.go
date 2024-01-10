@@ -166,16 +166,11 @@ func (suite *GroupsUnitSuite) TestBackupCreateFlags() {
 	// TODO(ashmrtn): Remove flag checks on control.Options to control.Backup once
 	// restore flags are switched over too and we no longer parse flags beyond
 	// connection info into control.Options.
-	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(backupOpts.Parallelism.ItemFetch))
-	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
 	assert.True(t, backupOpts.Incrementals.ForceFullEnumeration)
 	assert.True(t, backupOpts.Incrementals.ForceItemDataRefresh)
-	assert.True(t, backupOpts.M365.DisableDeltaEndpoint)
 
 	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
 	assert.Equal(t, control.FailFast, co.FailureHandling)
-	assert.True(t, co.ToggleFeatures.DisableIncrementals)
-	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
 	assert.True(t, co.ToggleFeatures.DisableDelta)
 	assert.True(t, co.ToggleFeatures.DisableLazyItemReader)
 

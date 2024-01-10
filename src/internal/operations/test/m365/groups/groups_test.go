@@ -55,11 +55,16 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups() {
 		suite,
 		path.GroupsService,
 		control.DefaultOptions(),
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
-	runGroupsIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
+	runGroupsIncrementalBackupTests(
+		suite,
+		suite.its,
+		control.DefaultOptions(),
+		control.DefaultBackupConfig())
 }
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_extensionsGroups() {
@@ -75,6 +80,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_extensionsGroups() {
 		suite,
 		path.GroupsService,
 		control.DefaultOptions(),
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -114,6 +120,7 @@ func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeGroups() {
 		suite,
 		path.GroupsService,
 		opts,
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -121,7 +128,11 @@ func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeIncrementalGroups() {
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
-	runGroupsIncrementalBackupTests(suite, suite.its, opts)
+	runGroupsIncrementalBackupTests(
+		suite,
+		suite.its,
+		opts,
+		control.DefaultBackupConfig())
 }
 
 func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeExtensionsGroups() {
@@ -139,6 +150,7 @@ func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeExtensionsGroups() {
 		suite,
 		path.GroupsService,
 		opts,
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -150,6 +162,7 @@ func runGroupsIncrementalBackupTests(
 	suite tester.Suite,
 	its IntgTesterSetup,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 ) {
 	sel := selectors.NewGroupsRestore([]string{its.Group.ID})
 
@@ -179,6 +192,7 @@ func runGroupsIncrementalBackupTests(
 	RunIncrementalDriveishBackupTest(
 		suite,
 		opts,
+		backupOpts,
 		its.Group.ID,
 		its.User.ID,
 		path.GroupsService,
@@ -209,7 +223,15 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 		selTD.GroupsBackupChannelScope(sel),
 		selTD.GroupsBackupConversationScope(sel))
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel.Selector,
+		opts,
+		control.DefaultBackupConfig(),
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	reasons, err := bod.Sel.Reasons(bod.Acct.ID(), false)
@@ -264,6 +286,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 		bod,
 		incMB,
 		opts,
+		control.DefaultBackupConfig(),
 		count.New())
 
 	RunAndCheckBackup(t, ctx, &incBO, incMB, true)

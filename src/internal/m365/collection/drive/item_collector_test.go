@@ -276,6 +276,7 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 				control.Options{
 					ToggleFeatures: control.Toggles{},
 				},
+				control.DefaultBackupConfig(),
 				count.New())
 
 			ssmb := prefixmatcher.NewStringSetBuilder()

@@ -59,6 +59,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePoint() {
 		suite,
 		path.SharePointService,
 		control.DefaultOptions(),
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -85,6 +86,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointList() {
 		mb,
 		sel.Selector,
 		control.DefaultOptions(),
+		control.DefaultBackupConfig(),
 		version.Backup,
 		counter)
 	defer bod.Close(t, ctx)
@@ -124,7 +126,11 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_sharePointList() {
 }
 
 func (suite *SharePointBackupIntgSuite) TestBackup_Run_incrementalSharePoint() {
-	runSharePointIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
+	runSharePointIncrementalBackupTests(
+		suite,
+		suite.its,
+		control.DefaultOptions(),
+		control.DefaultBackupConfig())
 }
 
 func (suite *SharePointBackupIntgSuite) TestBackup_Run_extensionsSharePoint() {
@@ -139,6 +145,7 @@ func (suite *SharePointBackupIntgSuite) TestBackup_Run_extensionsSharePoint() {
 		suite,
 		path.SharePointService,
 		control.DefaultOptions(),
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -178,6 +185,7 @@ func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeSharePoint() {
 		suite,
 		path.SharePointService,
 		opts,
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -185,7 +193,7 @@ func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeIncrementalShareP
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
-	runSharePointIncrementalBackupTests(suite, suite.its, opts)
+	runSharePointIncrementalBackupTests(suite, suite.its, opts, control.DefaultBackupConfig())
 }
 
 func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeExtensionsSharePoint() {
@@ -203,6 +211,7 @@ func (suite *SharePointBackupTreeIntgSuite) TestBackup_Run_treeExtensionsSharePo
 		suite,
 		path.SharePointService,
 		opts,
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -214,6 +223,7 @@ func runSharePointIncrementalBackupTests(
 	suite tester.Suite,
 	its IntgTesterSetup,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 ) {
 	sel := selectors.NewSharePointRestore([]string{its.Site.ID})
 
@@ -247,6 +257,7 @@ func runSharePointIncrementalBackupTests(
 	RunIncrementalDriveishBackupTest(
 		suite,
 		opts,
+		backupOpts,
 		its.Site.ID,
 		its.User.ID,
 		path.SharePointService,
@@ -392,7 +403,15 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 	bsel.Filter(bsel.Library(rc.Location))
 	bsel.DiscreteOwner = suite.its.Site.ID
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, bsel.Selector, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		bsel.Selector,
+		opts,
+		control.DefaultBackupConfig(),
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	RunAndCheckBackup(t, ctx, &bo, mb, false)

@@ -71,6 +71,7 @@ func PrepNewTestBackupOp(
 	bus events.Eventer,
 	sel selectors.Selector,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 	backupVersion int,
 	counter *count.Bus,
 ) (
@@ -129,6 +130,7 @@ func PrepNewTestBackupOp(
 		bod,
 		bus,
 		opts,
+		backupOpts,
 		counter)
 	bo.BackupVersion = backupVersion
 
@@ -150,6 +152,7 @@ func NewTestBackupOp(
 	bod *BackupOpDependencies,
 	bus events.Eventer,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 	counter *count.Bus,
 ) operations.BackupOperation {
 	bod.Ctrl.IDNameLookup = idname.NewCache(map[string]string{bod.Sel.ID(): bod.Sel.Name()})
@@ -157,6 +160,7 @@ func NewTestBackupOp(
 	bo, err := operations.NewBackupOperation(
 		ctx,
 		opts,
+		backupOpts,
 		bod.KW,
 		bod.SW,
 		bod.Ctrl,
@@ -279,6 +283,7 @@ func RunMergeBaseGroupsUpdate(
 		mb,
 		sel,
 		opts,
+		control.DefaultBackupConfig(),
 		version.All8MigrateUserPNToID,
 		count.New())
 	defer bod.Close(t, ctx)
@@ -338,12 +343,15 @@ func RunMergeBaseGroupsUpdate(
 			opts = control.DefaultOptions()
 		)
 
+		opts.ToggleFeatures.UseDeltaTree = true
+
 		forcedFull := NewTestBackupOp(
 			t,
 			ctx,
 			bod,
 			mb,
 			opts,
+			control.DefaultBackupConfig(),
 			count.New())
 		forcedFull.BackupVersion = version.Groups9Update
 

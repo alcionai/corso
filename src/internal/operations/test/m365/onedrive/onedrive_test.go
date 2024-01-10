@@ -64,11 +64,16 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 		suite,
 		path.OneDriveService,
 		control.DefaultOptions(),
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
-	runOneDriveIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
+	runOneDriveIncrementalBackupTests(
+		suite,
+		suite.its,
+		control.DefaultOptions(),
+		control.DefaultBackupConfig())
 }
 
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_extensionsOneDrive() {
@@ -83,6 +88,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_extensionsOneDrive() {
 		suite,
 		path.OneDriveService,
 		control.DefaultOptions(),
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -122,6 +128,7 @@ func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeOneDrive() {
 		suite,
 		path.OneDriveService,
 		opts,
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -129,7 +136,11 @@ func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeIncrementalOneDrive
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
-	runOneDriveIncrementalBackupTests(suite, suite.its, opts)
+	runOneDriveIncrementalBackupTests(
+		suite,
+		suite.its,
+		opts,
+		control.DefaultBackupConfig())
 }
 
 func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeExtensionsOneDrive() {
@@ -147,6 +158,7 @@ func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeExtensionsOneDrive(
 		suite,
 		path.OneDriveService,
 		opts,
+		control.DefaultBackupConfig(),
 		sel.Selector)
 }
 
@@ -158,6 +170,7 @@ func runOneDriveIncrementalBackupTests(
 	suite tester.Suite,
 	its IntgTesterSetup,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 ) {
 	sel := selectors.NewOneDriveRestore([]string{its.User.ID})
 
@@ -191,6 +204,7 @@ func runOneDriveIncrementalBackupTests(
 	RunIncrementalDriveishBackupTest(
 		suite,
 		opts,
+		backupOpts,
 		its.User.ID,
 		its.User.ID,
 		path.OneDriveService,
@@ -246,7 +260,15 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	oldsel := selectors.NewOneDriveBackup([]string{uname})
 	oldsel.Include(selTD.OneDriveBackupFolderScope(oldsel))
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, oldsel.Selector, opts, 0, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		oldsel.Selector,
+		opts,
+		control.DefaultBackupConfig(),
+		0,
+		counter)
 	defer bod.Close(t, ctx)
 
 	sel := bod.Sel
@@ -274,7 +296,14 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	var (
 		incMB = evmock.NewBus()
 		// the incremental backup op should have a proper user ID for the id.
-		incBO = NewTestBackupOp(t, ctx, bod, incMB, opts, counter)
+		incBO = NewTestBackupOp(
+			t,
+			ctx,
+			bod,
+			incMB,
+			opts,
+			control.DefaultBackupConfig(),
+			counter)
 	)
 
 	require.NotEqualf(

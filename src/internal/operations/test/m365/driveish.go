@@ -45,6 +45,7 @@ func RunBasicDriveishBackupTests(
 	suite tester.Suite,
 	service path.ServiceType,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 	sel selectors.Selector,
 ) {
 	t := suite.T()
@@ -59,7 +60,15 @@ func RunBasicDriveishBackupTests(
 		ws      = deeTD.DriveIDFromRepoRef
 	)
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel,
+		opts,
+		backupOpts,
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	RunAndCheckBackup(t, ctx, &bo, mb, false)
@@ -90,6 +99,7 @@ func RunBasicDriveishBackupTests(
 func RunIncrementalDriveishBackupTest(
 	suite tester.Suite,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 	owner, permissionsUser string,
 	service path.ServiceType,
 	category path.CategoryType,
@@ -259,7 +269,15 @@ func RunIncrementalDriveishBackupTest(
 			locRef)
 	}
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel,
+		opts,
+		backupOpts,
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	sel = bod.Sel
@@ -657,6 +675,7 @@ func RunIncrementalDriveishBackupTest(
 					bod,
 					incMB,
 					opts,
+					backupOpts,
 					counter)
 			)
 
@@ -755,6 +774,7 @@ func RunDriveishBackupWithExtensionsTests(
 	suite tester.Suite,
 	service path.ServiceType,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 	sel selectors.Selector,
 ) {
 	t := suite.T()
@@ -771,7 +791,15 @@ func RunDriveishBackupWithExtensionsTests(
 
 	opts.ItemExtensionFactory = GetTestExtensionFactories()
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel,
+		opts,
+		backupOpts,
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	RunAndCheckBackup(t, ctx, &bo, mb, false)
@@ -883,6 +911,7 @@ func RunDriveAssistBaseGroupsUpdate(
 		mb,
 		sel,
 		opts,
+		control.DefaultBackupConfig(),
 		version.All8MigrateUserPNToID,
 		counter)
 	defer bod.Close(t, ctx)
@@ -929,6 +958,7 @@ func RunDriveAssistBaseGroupsUpdate(
 			bod,
 			mb,
 			opts,
+			control.DefaultBackupConfig(),
 			counter)
 		forcedFull.BackupVersion = version.Groups9Update
 
@@ -1003,7 +1033,15 @@ func RunDriveRestoreToAlternateProtectedResource(
 		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel,
+		opts,
+		control.DefaultBackupConfig(),
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	RunAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1160,7 +1198,15 @@ func RunDriveRestoreWithAdvancedOptions(
 		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel,
+		opts,
+		control.DefaultBackupConfig(),
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	RunAndCheckBackup(t, ctx, &bo, mb, false)

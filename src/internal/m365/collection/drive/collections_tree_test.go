@@ -707,7 +707,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_MakeDriveCollections() {
 				test.drive.able,
 				test.prevPaths,
 				deltaURL("prev"),
-				newPagerLimiter(control.DefaultOptions()),
+				newPagerLimiter(control.DefaultBackupConfig()),
 				globalExcludes,
 				c.counter,
 				fault.New(true))
@@ -1123,7 +1123,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 					},
 				},
 			},
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts:                        countTD.Expected{},
 				err:                           require.NoError,
@@ -1142,7 +1142,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				d.newEnumer().with(
 					delta(nil).with(
 						aPage()))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 1,
@@ -1168,7 +1168,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 					delta(nil).with(
 						aPage(),
 						aPage()))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 2,
@@ -1197,7 +1197,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 						aPage(
 							d.folderAt(root),
 							d.folderAt(folder, "chld"))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 7,
@@ -1234,7 +1234,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 							d.folderAt(root),
 							d.folderAt(folder, "chld"),
 							d.fileAt("chld", "fchld"))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 7,
@@ -1266,7 +1266,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				d.newEnumer().with(
 					delta(nil).with(
 						aPage(delItem(folderID(), folderID("parent"), isFolder))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       1,
@@ -1294,7 +1294,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 				d.newEnumer().with(
 					delta(nil).with(aPage(
 						delItem(folderID(), folderID("parent"), isFolder))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       1,
@@ -1330,7 +1330,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 							d.folderAt(root),
 							d.fileAt(folder)),
 						aPage(delItem(folderID(), rootID, isFolder))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       3,
@@ -1364,7 +1364,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 							driveItem(folderID(), folderName("moved"), d.dir(), folderID("parent"), isFolder),
 							driveFile(d.dir(folderName("parent"), folderName()), folderID())),
 						aPage(delItem(folderID(), folderID("parent"), isFolder))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       4,
@@ -1398,7 +1398,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalDeleteFoldersProcessed: 1,
@@ -1430,7 +1430,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_singleDelta(
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalDeleteFoldersProcessed: 1,
@@ -1557,7 +1557,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 							d.folderAt(root),
 							d.folderAt(folder, "chld"),
 							d.fileAt("chld", "fchld"))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalDeltasProcessed:        4,
@@ -1601,7 +1601,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 						with(aPage(
 							d.folderAt(root),
 							d.fileAt(folder))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalDeltasProcessed:        4,
@@ -1643,7 +1643,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 						aPage(
 							d.folderAt(root),
 							d.fileAt(folder))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalDeltasProcessed:        3,
@@ -1678,7 +1678,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 						aPage(
 							driveItem(folderID(), folderName("rename"), d.dir(), rootID, isFolder),
 							driveItem(fileID(), fileName("rename"), d.dir(folderName("rename")), folderID(), isFile))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalDeltasProcessed:        3,
@@ -1725,7 +1725,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_PopulateTree_multiDelta()
 					delta(nil).with(
 						aPage(
 							delItem(folderID(), rootID, isFolder))))),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: populateTreeExpected{
 				counts: countTD.Expected{
 					count.TotalDeltasProcessed:        3,
@@ -1845,7 +1845,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			name:    "nil page",
 			tree:    treeWithRoot,
 			page:    nextPage{},
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts:   countTD.Expected{},
 				err:      require.NoError,
@@ -1860,7 +1860,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			name:    "empty page",
 			tree:    treeWithRoot,
 			page:    nextPage{Items: []models.DriveItemable{}},
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts:   countTD.Expected{},
 				err:      require.NoError,
@@ -1875,7 +1875,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			name:    "root only",
 			tree:    treeWithRoot,
 			page:    aPage(),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 1,
@@ -1895,7 +1895,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				d.folderAt(root),
 				d.folderAt(folder, "chld"),
 				d.folderAt(root, "sib")),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed: 4,
@@ -1917,7 +1917,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			page: aPage(
 				d.folderAt(root),
 				delItem(folderID(), rootID, isFolder)),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       2,
@@ -1938,7 +1938,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 				d.folderAt(root, "parent"),
 				driveItem(folderID(), folderName("moved"), d.dir(folderName("parent")), folderID("parent"), isFolder),
 				delItem(folderID(), folderID("parent"), isFolder)),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       3,
@@ -1961,7 +1961,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			page: aPage(
 				delItem(folderID(), rootID, isFolder),
 				d.folderAt(root)),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       2,
@@ -1982,7 +1982,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_fold
 			page: aPage(
 				delItem(folderID(), rootID, isFolder),
 				d.folderAt(root)),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFoldersProcessed:       2,
@@ -2074,7 +2074,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			name:    "add folder",
 			tree:    treeWithRoot,
 			folder:  fld,
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				countLiveFolders: 2,
 				err:              require.NoError,
@@ -2093,7 +2093,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			name:    "re-add folder that already exists",
 			tree:    treeWithFolders,
 			folder:  subFld,
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				countLiveFolders: 3,
 				err:              require.NoError,
@@ -2112,7 +2112,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			name:    "add package",
 			tree:    treeWithRoot,
 			folder:  pack,
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				countLiveFolders: 2,
 				err:              require.NoError,
@@ -2131,7 +2131,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			name:    "tombstone a folder in a populated tree",
 			tree:    treeWithFolders,
 			folder:  del,
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				countLiveFolders: 2,
 				err:              require.NoError,
@@ -2150,7 +2150,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			name:    "tombstone new folder in unpopulated tree",
 			tree:    newTree,
 			folder:  del,
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				err: require.NoError,
 				counts: countTD.Expected{
@@ -2168,7 +2168,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			name:    "re-add tombstone that already exists",
 			tree:    treeWithTombstone,
 			folder:  del,
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				countLiveFolders: 1,
 				err:              require.NoError,
@@ -2187,7 +2187,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 			name:    "add malware",
 			tree:    treeWithRoot,
 			folder:  mal,
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				countLiveFolders: 1,
 				err:              require.NoError,
@@ -2573,7 +2573,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_EnumeratePageOfItems_file
 				tree,
 				d.able,
 				test.page.Items,
-				newPagerLimiter(control.DefaultOptions()),
+				newPagerLimiter(control.DefaultBackupConfig()),
 				counter,
 				fault.New(true))
 			test.expect.err(t, err, clues.ToCore(err))
@@ -2619,7 +2619,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			name:    "add new file",
 			tree:    treeWithRoot,
 			file:    d.fileAt(root),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFilesProcessed: 1,
@@ -2637,7 +2637,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			name:    "duplicate file",
 			tree:    treeWithFileAtRoot,
 			file:    d.fileAt(root),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFilesProcessed: 1,
@@ -2655,7 +2655,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			name:    "error file seen before parent",
 			tree:    treeWithRoot,
 			file:    d.fileAt(folder),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalFilesProcessed: 1,
@@ -2671,7 +2671,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			name:    "malware file",
 			tree:    treeWithRoot,
 			file:    malwareItem(fileID(), fileName(), d.dir(folderName()), rootID, isFile),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalMalwareProcessed: 1,
@@ -2687,7 +2687,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			name:    "delete non-existing file",
 			tree:    treeWithRoot,
 			file:    delItem(fileID(), folderID(), isFile),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 1,
@@ -2703,7 +2703,7 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFileToTree() {
 			name:    "delete existing file",
 			tree:    treeWithFileAtRoot,
 			file:    delItem(fileID(), rootID, isFile),
-			limiter: newPagerLimiter(control.DefaultOptions()),
+			limiter: newPagerLimiter(control.DefaultBackupConfig()),
 			expect: expected{
 				counts: countTD.Expected{
 					count.TotalDeleteFilesProcessed: 1,

@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/config"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -229,7 +230,11 @@ func (suite *PreparedBackupSharepointE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+		bop, err := suite.dpnd.repo.NewBackupWithLookup(
+			ctx,
+			sel.Selector,
+			ins,
+			control.DefaultBackupConfig())
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)
@@ -410,7 +415,12 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	sel := selectors.NewSharePointBackup(sites)
 	sel.Include(testdata.SharePointBackupFolderScope(sel))
 
-	backupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+	backupOp, err := suite.dpnd.repo.NewBackupWithLookup(
+		ctx,
+		sel.Selector,
+		ins,
+		control.DefaultBackupConfig())
+
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOp = backupOp
@@ -419,7 +429,11 @@ func (suite *BackupDeleteSharePointE2ESuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// secondary backup
-	secondaryBackupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+	secondaryBackupOp, err := suite.dpnd.repo.NewBackupWithLookup(
+		ctx,
+		sel.Selector,
+		ins,
+		control.DefaultBackupConfig())
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.secondaryBackupOp = secondaryBackupOp

@@ -125,7 +125,15 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 				whatSet = deeTD.CategoryFromRepoRef
 			)
 
-			bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+			bo, bod := PrepNewTestBackupOp(
+				t,
+				ctx,
+				mb,
+				sel,
+				opts,
+				control.DefaultBackupConfig(),
+				version.Backup,
+				counter)
 			defer bod.Close(t, ctx)
 
 			sel = bod.Sel
@@ -188,6 +196,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 					bod,
 					incMB,
 					opts,
+					control.DefaultBackupConfig(),
 					counter)
 			)
 
@@ -478,7 +487,15 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		}
 	}
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel.Selector, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		sel.Selector,
+		opts,
+		control.DefaultBackupConfig(),
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	// run the initial backup
@@ -820,7 +837,14 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
-			incBO := NewTestBackupOp(t, ctx, bod, incMB, opts, counter)
+			incBO := NewTestBackupOp(
+				t,
+				ctx,
+				bod,
+				incMB,
+				opts,
+				control.DefaultBackupConfig(),
+				counter)
 
 			suite.Run("PreTestSetup", func() {
 				t := suite.T()
@@ -976,7 +1000,15 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		baseSel.Selector,
+		opts,
+		control.DefaultBackupConfig(),
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	RunAndCheckBackup(t, ctx, &bo, mb, false)
@@ -1293,7 +1325,15 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 		opts    = control.DefaultOptions()
 	)
 
-	bo, bod := PrepNewTestBackupOp(t, ctx, mb, baseSel.Selector, opts, version.Backup, counter)
+	bo, bod := PrepNewTestBackupOp(
+		t,
+		ctx,
+		mb,
+		baseSel.Selector,
+		opts,
+		control.DefaultBackupConfig(),
+		version.Backup,
+		counter)
 	defer bod.Close(t, ctx)
 
 	RunAndCheckBackup(t, ctx, &bo, mb, false)

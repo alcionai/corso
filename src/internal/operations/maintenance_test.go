@@ -179,6 +179,7 @@ func (suite *MaintenanceOpNightlySuite) TestRepoMaintenance_GarbageCollection() 
 			bo, err := NewBackupOperation(
 				ctx,
 				opts,
+				control.DefaultBackupConfig(),
 				kw,
 				storer,
 				&bp,

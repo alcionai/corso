@@ -441,7 +441,7 @@ func backupLimitTable(t *testing.T, d1, d2 *deltaDrive) []backupLimitTest {
 // checks that don't examine metadata, collection states, etc. They really just
 // check the expected items appear.
 func (suite *LimiterUnitSuite) TestGet_PreviewLimits_noTree() {
-	iterGetPreviewLimitsTests(suite, control.DefaultOptions())
+	iterGetPreviewLimitsTests(suite, control.DefaultOptions(), control.DefaultBackupConfig())
 }
 
 // TestGet_PreviewLimits checks that the limits set for preview backups in
@@ -452,12 +452,13 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_tree() {
 	opts := control.DefaultOptions()
 	opts.ToggleFeatures.UseDeltaTree = true
 
-	iterGetPreviewLimitsTests(suite, opts)
+	iterGetPreviewLimitsTests(suite, opts, control.DefaultBackupConfig())
 }
 
 func iterGetPreviewLimitsTests(
 	suite *LimiterUnitSuite,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 ) {
 	d1, d2 := drive(), drive(2)
 
@@ -467,7 +468,8 @@ func iterGetPreviewLimitsTests(
 				suite.T(),
 				test,
 				d1, d2,
-				opts)
+				opts,
+				backupOpts)
 		})
 	}
 }
@@ -477,6 +479,7 @@ func runGetPreviewLimits(
 	test backupLimitTest,
 	drive1, drive2 *deltaDrive,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 ) {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -489,11 +492,11 @@ func runGetPreviewLimits(
 		false)
 	require.NoError(t, err, "making metadata path", clues.ToCore(err))
 
-	opts.PreviewLimits = test.limits
+	backupOpts.PreviewLimits = test.limits
 
 	var (
 		mbh       = defaultDriveBHWith(user, test.enumerator)
-		c         = collWithMBHAndOpts(mbh, opts)
+		c         = collWithMBHAndOpts(mbh, opts, backupOpts)
 		errs      = fault.New(true)
 		delList   = prefixmatcher.NewStringSetBuilder()
 		collPaths = []string{}
@@ -680,7 +683,8 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsNoTree() {
 			runGetPreviewLimitsDefaults(
 				suite.T(),
 				test,
-				control.DefaultOptions())
+				control.DefaultOptions(),
+				control.DefaultBackupConfig())
 		})
 	}
 }
@@ -698,7 +702,8 @@ func (suite *LimiterUnitSuite) TestGet_PreviewLimits_defaultsWithTree() {
 			runGetPreviewLimitsDefaults(
 				suite.T(),
 				test,
-				opts)
+				opts,
+				control.DefaultBackupConfig())
 		})
 	}
 }
@@ -707,6 +712,7 @@ func runGetPreviewLimitsDefaults(
 	t *testing.T,
 	test defaultLimitTest,
 	opts control.Options,
+	backupOpts control.BackupConfig,
 ) {
 	// Add a check that will fail if we make the default smaller than expected.
 	require.LessOrEqual(
@@ -761,14 +767,14 @@ func runGetPreviewLimitsDefaults(
 		pages = append(pages, page)
 	}
 
-	opts.PreviewLimits = test.limits
+	backupOpts.PreviewLimits = test.limits
 
 	var (
 		mockEnumerator = driveEnumerator(
 			d.newEnumer().with(
 				delta(nil).with(pages...)))
 		mbh           = defaultDriveBHWith(user, mockEnumerator)
-		c             = collWithMBHAndOpts(mbh, opts)
+		c             = collWithMBHAndOpts(mbh, opts, backupOpts)
 		errs          = fault.New(true)
 		delList       = prefixmatcher.NewStringSetBuilder()
 		numContainers int

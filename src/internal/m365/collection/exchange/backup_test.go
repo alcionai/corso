@@ -1199,6 +1199,7 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 					test.scope,
 					dps,
 					ctrlOpts,
+					control.DefaultBackupConfig(),
 					count.New(),
 					fault.New(test.failFast == control.FailFast))
 				test.expectErr(t, err, clues.ToCore(err))
@@ -1542,6 +1543,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_D
 						sc.scope,
 						test.inputMetadata(t, qp.Category),
 						control.Options{FailureHandling: control.FailFast},
+						control.DefaultBackupConfig(),
 						count.New(),
 						fault.New(true))
 					require.NoError(t, err, "getting collections", clues.ToCore(err))
@@ -1709,6 +1711,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_r
 				allScope,
 				dps,
 				control.Options{FailureHandling: control.FailFast},
+				control.DefaultBackupConfig(),
 				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -2066,7 +2069,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 			// deadlock.
 			opts := control.DefaultOptions()
 			opts.FailureHandling = control.FailFast
-			opts.PreviewLimits = test.limits
+
+			backupOpts := control.DefaultBackupConfig()
+			backupOpts.PreviewLimits = test.limits
 
 			resolver := newMockResolver(inputContainers...)
 			getter := mockGetter{results: inputItems}
@@ -2090,6 +2095,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 				allScope,
 				dps,
 				opts,
+				backupOpts,
 				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -2306,7 +2312,9 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 			// deadlock.
 			opts := control.DefaultOptions()
 			opts.FailureHandling = control.FailFast
-			opts.PreviewLimits = test.limits
+
+			backupOpts := control.DefaultBackupConfig()
+			backupOpts.PreviewLimits = test.limits
 
 			resolver := newMockResolver(inputContainers...)
 			getter := mockGetter{results: inputItems}
@@ -2328,6 +2336,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_P
 				allScope,
 				dps,
 				opts,
+				backupOpts,
 				count.New(),
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
@@ -2762,6 +2771,7 @@ func (suite *CollectionPopulationSuite) TestFilterContainersAndFillCollections_i
 						allScope,
 						test.dps,
 						ctrlOpts,
+						control.DefaultBackupConfig(),
 						count.New(),
 						fault.New(true))
 					assert.NoError(t, err, clues.ToCore(err))

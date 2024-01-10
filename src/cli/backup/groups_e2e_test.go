@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/config"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
@@ -323,7 +324,11 @@ func (suite *PreparedBackupGroupsE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+		bop, err := suite.dpnd.repo.NewBackupWithLookup(
+			ctx,
+			sel.Selector,
+			ins,
+			control.DefaultBackupConfig())
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)
@@ -549,7 +554,10 @@ func (suite *BackupDeleteGroupsE2ESuite) SetupSuite() {
 	sel.Include(selTD.GroupsBackupChannelScope(sel))
 
 	for i := 0; i < cap(suite.backupOps); i++ {
-		backupOp, err := suite.dpnd.repo.NewBackup(ctx, sel.Selector)
+		backupOp, err := suite.dpnd.repo.NewBackup(
+			ctx,
+			sel.Selector,
+			control.DefaultBackupConfig())
 		require.NoError(t, err, clues.ToCore(err))
 
 		suite.backupOps[i] = backupOp

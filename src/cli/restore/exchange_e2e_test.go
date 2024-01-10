@@ -115,7 +115,11 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+		bop, err := suite.repo.NewBackupWithLookup(
+			ctx,
+			sel.Selector,
+			ins,
+			control.DefaultBackupConfig())
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)

@@ -885,6 +885,7 @@ func (suite *CollectionsUnitSuite) TestPopulateDriveCollections() {
 				idname.NewProvider(user, user),
 				nil,
 				control.Options{ToggleFeatures: control.Toggles{}},
+				control.DefaultBackupConfig(),
 				count.New())
 
 			c.CollectionMap[drive.id] = map[string]*Collection{}
@@ -2635,6 +2636,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				idname.NewProvider(user, user),
 				func(*support.ControllerOperationStatus) {},
 				control.Options{ToggleFeatures: control.Toggles{}},
+				control.DefaultBackupConfig(),
 				count.New())
 
 			prevDelta := "prev-delta"
@@ -2801,6 +2803,7 @@ func (suite *CollectionsUnitSuite) TestAddURLCacheToDriveCollections() {
 				idname.NewProvider(user, user),
 				func(*support.ControllerOperationStatus) {},
 				control.Options{ToggleFeatures: control.Toggles{}},
+				control.DefaultBackupConfig(),
 				count.New())
 
 			errs := fault.New(true)
