@@ -85,7 +85,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrApplicationThrottled(test.err))
+			test.expect(suite.T(), isErrApplicationThrottled(test.err))
 		})
 	}
 }
@@ -153,7 +153,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInsufficientAuthorization() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrInsufficientAuthorization(test.err))
+			test.expect(suite.T(), isErrInsufficientAuthorization(test.err))
 		})
 	}
 }
@@ -335,6 +335,50 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeltaNotSupported() {
 	}
 }
 
+func (suite *GraphErrorsUnitSuite) TestIsErrInvalidRequest() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    graphTD.ODataErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErrMsg",
+			err:    graphTD.ODataErrWithMsg("fnords", "not supported"),
+			expect: assert.False,
+		},
+		{
+			name:   "invalidRequest oDataErr, missing 400 status code",
+			err:    graphTD.ODataErr(string(invalidRequest)),
+			expect: assert.False,
+		},
+		{
+			name:   "invalidRequest oDataErr, with 400 status code",
+			err:    graphTD.ODataErrWithAPIResponse(string(invalidRequest), http.StatusBadRequest),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrInvalidRequest(test.err))
+		})
+	}
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrQuotaExceeded() {
 	table := []struct {
 		name   string
@@ -437,7 +481,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrUserNotFound(test.err))
+			test.expect(suite.T(), isErrUserNotFound(test.err))
 		})
 	}
 }
@@ -924,7 +968,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrResourceLocked(test.err))
+			test.expect(suite.T(), isErrResourceLocked(test.err))
 		})
 	}
 }

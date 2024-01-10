@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -103,7 +102,9 @@ func (hw httpWrapper) Request(
 	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
 	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
 
-	var resp *http.Response
+	retriedErrors := []string{}
+
+	var e error
 
 	// stream errors from http/2 will fail before we reach
 	// client middleware handling, therefore we don't get to
@@ -112,36 +113,41 @@ func (hw httpWrapper) Request(
 	// retry in the event of a `stream error`, which is not
 	// a common expectation.
 	for i := 0; i < hw.config.maxConnectionRetries+1; i++ {
+		if i > 0 {
+			time.Sleep(3 * time.Second)
+		}
+
 		ctx = clues.Add(ctx, "request_retry_iter", i)
 
-		resp, err = hw.client.Do(req)
-
+		resp, err := hw.client.Do(req)
 		if err == nil {
-			break
+			logResp(ctx, resp)
+			return resp, nil
 		}
 
-		if IsErrApplicationThrottled(err) {
-			return nil, Stack(ctx, clues.Stack(core.ErrApplicationThrottled, err))
-		}
+		err = stackWithCoreErr(ctx, err, 1)
+		e = err
 
 		var http2StreamErr http2.StreamError
 		if !errors.As(err, &http2StreamErr) {
-			return nil, Stack(ctx, err)
+			// exit most errors without retry
+			break
 		}
 
 		logger.Ctx(ctx).Debug("http2 stream error")
 		events.Inc(events.APICall, "streamerror")
 
-		time.Sleep(3 * time.Second)
+		retriedErrors = append(retriedErrors, err.Error())
 	}
 
-	if err != nil {
-		return nil, Stack(ctx, err)
-	}
+	e = clues.Stack(e).
+		With("retried_errors", retriedErrors).
+		WithTrace(1).
+		OrNil()
 
-	logResp(ctx, resp)
-
-	return resp, nil
+	// no chance of a non-error return here.
+	// we handle that inside the loop.
+	return nil, e
 }
 
 // ---------------------------------------------------------------------------

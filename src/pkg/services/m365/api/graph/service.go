@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -345,6 +344,11 @@ func kiotaMiddlewares(
 
 var _ abstractions.RequestAdapter = &adapterWrap{}
 
+const (
+	// Delay between retry attempts
+	adapterRetryDelay = 3 * time.Second
+)
+
 // adapterWrap takes a GraphRequestAdapter and replaces the Send() function to
 // act as a middleware for all http calls.  Certain error conditions never reach
 // the the client middleware layer, and therefore miss out on logging and retries.
@@ -354,11 +358,16 @@ var _ abstractions.RequestAdapter = &adapterWrap{}
 // 3. Error and debug conditions are logged.
 type adapterWrap struct {
 	abstractions.RequestAdapter
-	config *clientConfig
+	config     *clientConfig
+	retryDelay time.Duration
 }
 
 func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter, cc *clientConfig) *adapterWrap {
-	return &adapterWrap{gra, cc}
+	return &adapterWrap{
+		RequestAdapter: gra,
+		config:         cc,
+		retryDelay:     adapterRetryDelay,
+	}
 }
 
 var connectionEnded = filters.Contains([]string{
@@ -371,12 +380,14 @@ func (aw *adapterWrap) Send(
 	requestInfo *abstractions.RequestInformation,
 	constructor serialization.ParsableFactory,
 	errorMappings abstractions.ErrorMappings,
-) (sp serialization.Parsable, err error) {
+) (sp serialization.Parsable, e error) {
 	defer func() {
 		if crErr := crash.Recovery(ctx, recover(), "graph adapter request"); crErr != nil {
-			err = Stack(ctx, crErr)
+			e = Stack(ctx, crErr)
 		}
 	}()
+
+	retriedErrors := []string{}
 
 	// This external retry wrapper is unsophisticated, but should
 	// only retry under certain circumstances
@@ -385,34 +396,47 @@ func (aw *adapterWrap) Send(
 	// 2. jwt token invalidation, which requires a re-auth that's handled
 	// in the Send() call, before reaching client middleware.
 	for i := 0; i < aw.config.maxConnectionRetries+1; i++ {
+		if i > 0 {
+			time.Sleep(aw.retryDelay)
+		}
+
 		ictx := clues.Add(ctx, "request_retry_iter", i)
 
-		sp, err = aw.RequestAdapter.Send(ictx, requestInfo, constructor, errorMappings)
+		resp, err := aw.RequestAdapter.Send(ictx, requestInfo, constructor, errorMappings)
 		if err == nil {
+			return resp, nil
+		}
+
+		err = stackWithCoreErr(ictx, err, 1)
+		e = err
+
+		if IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()) {
+			logger.Ctx(ictx).Debug("http connection error")
+			events.Inc(events.APICall, "connectionerror")
+		} else if IsErrBadJWTToken(err) {
+			logger.Ctx(ictx).Debug("bad jwt token")
+			events.Inc(events.APICall, "badjwttoken")
+		} else if requestInfo.Method.String() == http.MethodGet && IsErrInvalidRequest(err) {
+			// Graph may sometimes return a transient 400 response during onedrive
+			// and sharepoint backup. This is pending investigation on msft end, retry
+			// for now as it's a transient issue. Restrict retries to GET requests only
+			// to limit the scope of this fix.
+			logger.Ctx(ictx).Debug("invalid request")
+			events.Inc(events.APICall, "invalidgetrequest")
+		} else {
+			// exit most errors without retry
 			break
 		}
 
-		// force an early exit on throttling issues.
-		// those retries are well handled in middleware already. We want to ensure
-		// that the error gets wrapped with the appropriate sentinel here.
-		if IsErrApplicationThrottled(err) {
-			return nil, clues.StackWC(ictx, core.ErrApplicationThrottled, err).WithTrace(1)
-		}
-
-		// exit most errors without retry
-		switch {
-		case IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()):
-			logger.Ctx(ictx).Debug("http connection error")
-			events.Inc(events.APICall, "connectionerror")
-		case IsErrBadJWTToken(err):
-			logger.Ctx(ictx).Debug("bad jwt token")
-			events.Inc(events.APICall, "badjwttoken")
-		default:
-			return nil, clues.StackWC(ictx, err).WithTrace(1)
-		}
-
-		time.Sleep(3 * time.Second)
+		retriedErrors = append(retriedErrors, err.Error())
 	}
 
-	return sp, clues.Stack(err).OrNil()
+	e = clues.Stack(e).
+		With("retried_errors", retriedErrors).
+		WithTrace(1).
+		OrNil()
+
+	// no chance of a non-error return here.
+	// we handle that inside the loop.
+	return nil, e
 }

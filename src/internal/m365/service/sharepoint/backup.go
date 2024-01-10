@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -57,7 +58,7 @@ func ProduceBackupCollections(
 		case path.ListsCategory:
 			bh := site.NewListsBackupHandler(bpc.ProtectedResource.ID(), ac.Lists())
 
-			spcs, err = site.CollectLists(
+			spcs, canUsePreviousBackup, err = site.CollectLists(
 				ctx,
 				bh,
 				bpc,
@@ -65,16 +66,12 @@ func ProduceBackupCollections(
 				creds.AzureTenantID,
 				scope,
 				su,
-				errs,
-				counter)
+				counter,
+				errs)
 			if err != nil {
 				el.AddRecoverable(ctx, err)
 				continue
 			}
-
-			// Lists don't make use of previous metadata
-			// TODO: Revisit when we add support of lists
-			canUsePreviousBackup = true
 
 		case path.LibrariesCategory:
 			spcs, canUsePreviousBackup, err = site.CollectLibraries(
@@ -139,4 +136,11 @@ func ProduceBackupCollections(
 	}
 
 	return collections, ssmb.ToReader(), canUsePreviousBackup, el.Failure()
+}
+
+// ListsMetadataFileNames only contains PreviousPathFileName
+// and not DeltaURLsFileName because graph apis do not have delta support
+// for Sharepoint Lists
+func ListsMetadataFileNames() []string {
+	return []string{metadata.PreviousPathFileName}
 }

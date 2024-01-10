@@ -355,7 +355,7 @@ func BytesToListable(bytes []byte) (models.Listable, error) {
 // not attached in this method.
 // ListItems are not included in creation of new list, and have to be restored
 // in separate call.
-func ToListable(orig models.Listable, displayName string) (models.Listable, map[string]struct{}) {
+func ToListable(orig models.Listable, displayName string) (models.Listable, map[string]any) {
 	newList := models.NewList()
 
 	newList.SetContentTypes(orig.GetContentTypes())
@@ -372,7 +372,7 @@ func ToListable(orig models.Listable, displayName string) (models.Listable, map[
 	newList.SetParentReference(orig.GetParentReference())
 
 	columns := make([]models.ColumnDefinitionable, 0)
-	columnNames := map[string]struct{}{TitleColumnName: {}}
+	columnNames := map[string]any{TitleColumnName: nil}
 
 	for _, cd := range orig.GetColumns() {
 		var (
@@ -395,7 +395,7 @@ func ToListable(orig models.Listable, displayName string) (models.Listable, map[
 		}
 
 		columns = append(columns, cloneColumnDefinitionable(cd))
-		columnNames[ptr.Val(cd.GetName())] = struct{}{}
+		columnNames[ptr.Val(cd.GetName())] = nil
 	}
 
 	newList.SetColumns(columns)
@@ -483,7 +483,7 @@ func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinit
 // CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
 // M365 data into it set fields.
 // - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
-func CloneListItem(orig models.ListItemable, columnNames map[string]struct{}) models.ListItemable {
+func CloneListItem(orig models.ListItemable, columnNames map[string]any) models.ListItemable {
 	newItem := models.NewListItem()
 
 	// list item data
@@ -520,11 +520,10 @@ func CloneListItem(orig models.ListItemable, columnNames map[string]struct{}) mo
 // additionalData map
 // Further documentation on FieldValueSets:
 // - https://learn.microsoft.com/en-us/graph/api/resources/fieldvalueset?view=graph-rest-1.0
-func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]struct{}) models.FieldValueSetable {
+func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]any) models.FieldValueSetable {
 	fields := models.NewFieldValueSet()
 
 	additionalData := setAdditionalDataByColumnNames(orig, columnNames)
-
 	if addressField, fieldName, ok := hasAddressFields(additionalData); ok {
 		concatenatedAddress := concatenateAddressFields(addressField)
 		additionalData[fieldName] = concatenatedAddress
@@ -537,7 +536,7 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]str
 
 func setAdditionalDataByColumnNames(
 	orig models.FieldValueSetable,
-	columnNames map[string]struct{},
+	columnNames map[string]any,
 ) map[string]any {
 	if orig == nil {
 		return make(map[string]any)

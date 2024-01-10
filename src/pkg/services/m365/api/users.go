@@ -137,10 +137,6 @@ func (c Users) GetByID(
 		ByUserId(identifier).
 		Get(ctx, options)
 	if err != nil {
-		if graph.IsErrResourceLocked(err) {
-			err = clues.Stack(graph.ErrResourceLocked, err)
-		}
-
 		return nil, graph.Stack(ctx, err)
 	}
 
@@ -198,12 +194,8 @@ func EvaluateMailboxError(err error) error {
 	}
 
 	// must occur before MailFolderNotFound, due to overlapping cases.
-	if graph.IsErrUserNotFound(err) {
-		return clues.Stack(core.ErrResourceOwnerNotFound, err)
-	}
-
-	if graph.IsErrResourceLocked(err) {
-		return clues.Stack(graph.ErrResourceLocked, err)
+	if errors.Is(err, core.ErrResourceOwnerNotFound) || errors.Is(err, core.ErrResourceNotAccessible) {
+		return err
 	}
 
 	if graph.IsErrExchangeMailFolderNotFound(err) || graph.IsErrAuthenticationError(err) {

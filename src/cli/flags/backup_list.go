@@ -12,9 +12,11 @@ func AddAllBackupListFlags(cmd *cobra.Command) {
 }
 
 func AddFailedItemsFN(cmd *cobra.Command) {
-	cmd.Flags().StringVar(
-		&ListFailedItemsFV, FailedItemsFN, Show,
+	fs := cmd.Flags()
+	fs.StringVar(
+		&FailedItemsFV, FailedItemsFN, Show,
 		"Toggles showing or hiding the list of items that failed.")
+	cobra.CheckErr(fs.MarkHidden(FailedItemsFN))
 }
 
 func AddSkippedItemsFN(cmd *cobra.Command) {

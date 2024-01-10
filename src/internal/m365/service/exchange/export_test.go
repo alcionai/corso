@@ -169,12 +169,12 @@ func (suite *ExportUnitSuite) TestGetItems() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			stats := metrics.ExportStats{}
+			stats := metrics.NewExportStats()
 			ec := exchange.NewExportCollection(
 				"",
 				[]data.RestoreCollection{test.backingCollection},
 				test.version,
-				&stats)
+				stats)
 
 			items := ec.Items(ctx)
 
@@ -220,7 +220,7 @@ func (suite *ExportUnitSuite) TestGetItems() {
 				}
 			}
 
-			assert.Equal(t, expectedStats, stats, "stats")
+			assert.Equal(t, expectedStats.GetStats(), stats.GetStats(), "stats")
 		})
 	}
 }
@@ -404,7 +404,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			exportCfg := control.ExportConfig{}
-			stats := metrics.ExportStats{}
+			stats := metrics.NewExportStats()
 
 			ecs, err := NewExchangeHandler(api.Client{}, nil).
 				ProduceExportCollections(
@@ -412,7 +412,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 					int(version.Backup),
 					exportCfg,
 					tt.dcs,
-					&stats,
+					stats,
 					fault.New(true))
 
 			if tt.hasErr {
@@ -423,7 +423,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 			assert.NoError(t, err, "export collections error")
 			assert.Len(t, ecs, len(tt.expectedItems), "num of collections")
 
-			expectedStats := metrics.ExportStats{}
+			expectedStats := metrics.NewExportStats()
 
 			// We are dependent on the order the collections are
 			// returned in the test which is not necessary for the
@@ -456,7 +456,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				}
 			}
 
-			assert.Equal(t, expectedStats, stats, "stats")
+			assert.Equal(t, expectedStats.GetStats(), stats.GetStats(), "stats")
 		})
 	}
 }

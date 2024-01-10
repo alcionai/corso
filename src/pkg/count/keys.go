@@ -64,6 +64,7 @@ const (
 	PrevPaths                     Key = "previous-paths"
 	PreviousPathMetadataCollision Key = "previous-path-metadata-collision"
 	Sites                         Key = "sites"
+	Lists                         Key = "lists"
 	SkippedContainers             Key = "skipped-containers"
 	StreamBytesAdded              Key = "stream-bytes-added"
 	StreamDirsAdded               Key = "stream-dirs-added"

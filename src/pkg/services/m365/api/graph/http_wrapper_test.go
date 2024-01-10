@@ -182,7 +182,6 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_http2StreamErrorRetries() 
 
 			_, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
 			require.ErrorAs(t, err, &http2.StreamError{}, clues.ToCore(err))
-
 			require.Equal(t, test.expectRetries, tries, "count of retries")
 		})
 	}

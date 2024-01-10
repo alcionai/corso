@@ -53,7 +53,7 @@ func (h *onedriveHandler) ConsumeRestoreCollections(
 
 	ctx = clues.Add(ctx, "backup_version", rcc.BackupVersion)
 
-	err := caches.Populate(ctx, rh, rcc.ProtectedResource.ID())
+	err := caches.Populate(ctx, h.apiClient.Users(), h.apiClient.Groups(), rh, rcc.ProtectedResource.ID(), errs)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "initializing restore caches")
 	}

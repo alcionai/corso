@@ -15,7 +15,7 @@ import (
 )
 
 type client struct {
-	ac api.Client
+	AC api.Client
 }
 
 func NewM365Client(

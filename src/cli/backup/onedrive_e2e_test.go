@@ -94,7 +94,7 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_userNotInTenant() {
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "onedrive",
 		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
-		"--"+flags.UserFN, "foo@nothere.com")
+		"--"+flags.UserFN, "foo@not-there.com")
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetOut(&recorder)
@@ -107,7 +107,8 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_userNotInTenant() {
 	assert.Contains(
 		t,
 		err.Error(),
-		"not found in tenant", "error missing user not found")
+		"resource owner not found",
+		"error missing user not found")
 	assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 
 	t.Logf("backup error message: %s", err.Error())
