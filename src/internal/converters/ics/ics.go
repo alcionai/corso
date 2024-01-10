@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/alcionai/clues"
 	ics "github.com/arran4/golang-ical"
@@ -251,6 +252,15 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	return cal.Serialize(), nil
 }
 
+func isASCII(s string) bool {
+	for _, c := range s {
+		if c > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
+}
+
 func updateEventProperties(ctx context.Context, event models.Eventable, iCalEvent *ics.VEvent) error {
 	// CREATED - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.7.1
 	created := event.GetCreatedDateTime()
@@ -322,10 +332,6 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	}
 
 	// DESCRIPTION - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.5
-	// TODO: Emojies currently don't seem to be read properly by Outlook
-	// When outlook exports them(in .eml), it exports them in text as it strips down html
-	bodyPreview := ptr.Val(event.GetBodyPreview())
-
 	if event.GetBody() != nil {
 		description := ptr.Val(event.GetBody().GetContent())
 		contentType := event.GetBody().GetContentType().String()
@@ -333,13 +339,29 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		if len(description) > 0 && contentType == "text" {
 			iCalEvent.SetDescription(description)
 		} else if len(description) > 0 {
-			// https://stackoverflow.com/a/859475
-			iCalEvent.SetDescription(bodyPreview)
-
 			if contentType == "html" {
-				desc := strings.ReplaceAll(description, "\r\n", "")
-				desc = strings.ReplaceAll(desc, "\n", "")
-				iCalEvent.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
+				// If we have html, we have two routes. If we don't have
+				// UTF-8, then we can do an exact reproduction of the
+				// original data in outlook by using X-ALT-DESC field and
+				// using the html there. But if we have UTF-8, then we
+				// have to use DESCRIPTION field and use the content
+				// stripped of html there. This because even though the
+				// field technically supports UTF-8, Outlook does not
+				// seem to work with it.  Exchange does similar things
+				// when it attaches the event to an email.
+
+				// nolint:lll
+				// https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcical/d7f285da-9c7a-4597-803b-b74193c898a8
+				// X-ALT-DESC field uses "Text" as in https://www.rfc-editor.org/rfc/rfc2445#section-4.3.11
+				if isASCII(description) {
+					// https://stackoverflow.com/a/859475
+					desc := strings.ReplaceAll(description, "\r\n", "")
+					desc = strings.ReplaceAll(desc, "\n", "")
+					iCalEvent.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
+				} else {
+					stripped := HTMLtoText(description)
+					iCalEvent.SetDescription(stripped)
+				}
 			}
 		}
 	}
