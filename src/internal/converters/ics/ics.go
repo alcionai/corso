@@ -439,9 +439,12 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	}
 
 	// X-MICROSOFT-LOCATIONDISPLAYNAME (Outlook seems to use this)
-	locationDisplayName := ptr.Val(event.GetLocation().GetDisplayName())
-	if len(locationDisplayName) > 0 {
-		iCalEvent.AddProperty("X-MICROSOFT-LOCATIONDISPLAYNAME", locationDisplayName)
+	loc := event.GetLocation()
+	if loc != nil {
+		locationDisplayName := ptr.Val(event.GetLocation().GetDisplayName())
+		if len(locationDisplayName) > 0 {
+			iCalEvent.AddProperty("X-MICROSOFT-LOCATIONDISPLAYNAME", locationDisplayName)
+		}
 	}
 
 	// CLASS - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.3

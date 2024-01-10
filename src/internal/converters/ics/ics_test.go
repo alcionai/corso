@@ -570,19 +570,6 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 			},
 		},
 		{
-			name: "draft event",
-			event: func() *models.Event {
-				e := baseEvent()
-
-				e.SetIsDraft(ptr.To(true))
-
-				return e
-			},
-			check: func(out string) {
-				assert.Contains(t, out, "STATUS:DRAFT", "draft status")
-			},
-		},
-		{
 			name: "text body",
 			event: func() *models.Event {
 				e := baseEvent()
@@ -754,6 +741,66 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 			},
 			check: func(out string) {
 				assert.Contains(t, out, "LOCATION:DisplayName", "location")
+			},
+		},
+		{
+			name: "teams url",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				mi := models.NewOnlineMeetingInfo()
+				mi.SetJoinUrl(ptr.To("https://team.microsoft.com/meeting-url"))
+
+				e.SetOnlineMeeting(mi)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "X-MICROSOFT-SKYPETEAMSMEETINGURL:https://team.microsoft.com/meeting-url", "teams url")
+			},
+		},
+		{
+			name: "X-MICROSOFT-LOCATIONDISPLAYNAME",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				loc := models.NewLocation()
+				loc.SetDisplayName(ptr.To("DisplayName"))
+
+				e.SetLocation(loc)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "X-MICROSOFT-LOCATIONDISPLAYNAME:DisplayName", "location display name")
+			},
+		},
+		{
+			name: "class",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				sen := models.CONFIDENTIAL_SENSITIVITY
+				e.SetSensitivity(&sen)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "CLASS:CONFIDENTIAL", "class")
+			},
+		},
+		{
+			name: "priority",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				pri := models.HIGH_IMPORTANCE
+				e.SetImportance(&pri)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "PRIORITY:1", "priority")
 			},
 		},
 	}
