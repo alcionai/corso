@@ -252,18 +252,20 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 }
 
 func updateEventProperties(ctx context.Context, event models.Eventable, iCalEvent *ics.VEvent) error {
+	// CREATED - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.7.1
 	created := event.GetCreatedDateTime()
 	if created != nil {
 		iCalEvent.SetCreatedTime(ptr.Val(created))
 	}
 
+	// LAST-MODIFIED - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.7.3
 	modified := event.GetLastModifiedDateTime()
 	if modified != nil {
 		iCalEvent.SetModifiedAt(ptr.Val(modified))
 	}
 
+	// DTSTART - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.4
 	allDay := ptr.Val(event.GetIsAllDay())
-
 	startString := event.GetStart().GetDateTime()
 	startTimezone := event.GetStart().GetTimeZone()
 
@@ -280,6 +282,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		}
 	}
 
+	// DTEND - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.2
 	endString := event.GetEnd().GetDateTime()
 	endTimezone := event.GetEnd().GetTimeZone()
 
@@ -312,11 +315,13 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.SetStatus(ics.ObjectStatusCancelled)
 	}
 
+	// SUMMARY - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.12
 	summary := event.GetSubject()
 	if summary != nil {
 		iCalEvent.SetSummary(ptr.Val(summary))
 	}
 
+	// DESCRIPTION - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.5
 	// TODO: Emojies currently don't seem to be read properly by Outlook
 	// When outlook exports them(in .eml), it exports them in text as it strips down html
 	bodyPreview := ptr.Val(event.GetBodyPreview())
@@ -354,11 +359,13 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddProperty(ics.ComponentPropertyTransp, string(transp))
 	}
 
+	// CATEGORIES - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.2
 	categories := event.GetCategories()
 	for _, category := range categories {
 		iCalEvent.AddProperty(ics.ComponentPropertyCategories, category)
 	}
 
+	// URL - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.4.6
 	// According to the RFC, this property may be used in a calendar
 	// component to convey a location where a more dynamic rendition of
 	// the calendar information associated with the calendar component
@@ -368,6 +375,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.SetURL(url)
 	}
 
+	// ORGANIZER - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.4.3
 	organizer := event.GetOrganizer()
 	if organizer != nil {
 		name := ptr.Val(organizer.GetEmailAddress().GetName())
@@ -381,6 +389,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		}
 	}
 
+	// ATTENDEE - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.4.1
 	attendees := event.GetAttendees()
 	for _, attendee := range attendees {
 		props := []ics.PropertyParameter{}
@@ -525,6 +534,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddAttachment(base64.StdEncoding.EncodeToString(content), props...)
 	}
 
+	// EXDATE - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.5.1
 	cancelledDates, err := getCancelledDates(ctx, event)
 	if err != nil {
 		return clues.Wrap(err, "getting cancelled dates")
