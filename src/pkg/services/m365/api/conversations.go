@@ -11,6 +11,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -63,7 +64,38 @@ func (c Conversations) GetConversationPost(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	return post, conversationPostInfo(post), graph.Stack(ctx, err).OrNil()
+	preview, contentLen, err := getConversationPostContentPreview(post)
+	if err != nil {
+		preview = "malformed or unparseable content body: " + preview
+	}
+
+	if !ptr.Val(post.GetHasAttachments()) && !HasAttachments(post.GetBody()) {
+		return post, conversationPostInfo(post, contentLen, preview), nil
+	}
+
+	attachments, totalSize, err := c.getAttachments(
+		ctx,
+		groupID,
+		conversationID,
+		threadID,
+		postID)
+	if err != nil {
+		// Similar to exchange, a failure can happen if a post has a lot of attachments.
+		// We don't have a fallback option here to fetch attachments one by one. See
+		// issue #4991.
+		//
+		// Resort to failing the post backup for now since we don't know yet how this
+		// error might manifest itself for posts.
+		logger.CtxErr(ctx, err).Info("failed to get post attachments")
+
+		return nil, nil, clues.Stack(err)
+	}
+
+	contentLen += totalSize
+
+	post.SetAttachments(attachments)
+
+	return post, conversationPostInfo(post, contentLen, preview), graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -72,25 +104,16 @@ func (c Conversations) GetConversationPost(
 
 func conversationPostInfo(
 	post models.Postable,
+	size int64,
+	preview string,
 ) *details.GroupsInfo {
 	if post == nil {
 		return nil
 	}
 
-	preview, contentLen, err := getConversationPostContentPreview(post)
-	if err != nil {
-		preview = "malformed or unparseable html" + preview
-	}
-
 	var sender string
 	if post.GetSender() != nil && post.GetSender().GetEmailAddress() != nil {
 		sender = ptr.Val(post.GetSender().GetEmailAddress().GetAddress())
-	}
-
-	size := contentLen
-
-	for _, a := range post.GetAttachments() {
-		size += int64(ptr.Val(a.GetSize()))
 	}
 
 	cpi := details.ConversationPostInfo{
@@ -127,4 +150,45 @@ func stripConversationPostHTML(post models.Postable) (string, int64, error) {
 	content, err := html2text.FromString(content)
 
 	return content, origSize, clues.Stack(err).OrNil()
+}
+
+// getAttachments attempts to get all attachments, including their content, in a singe query.
+func (c Conversations) getAttachments(
+	ctx context.Context,
+	groupID, conversationID, threadID, postID string,
+) ([]models.Attachmentable, int64, error) {
+	var (
+		result    = []models.Attachmentable{}
+		totalSize int64
+	)
+
+	cfg := &groups.ItemConversationsItemThreadsItemPostsPostItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &groups.ItemConversationsItemThreadsItemPostsPostItemRequestBuilderGetQueryParameters{
+			Expand: []string{"attachments"},
+		},
+	}
+
+	post, err := c.LargeItem.
+		Client().
+		Groups().
+		ByGroupId(groupID).
+		Conversations().
+		ByConversationId(conversationID).
+		Threads().
+		ByConversationThreadId(threadID).
+		Posts().
+		ByPostId(postID).
+		Get(ctx, cfg)
+	if err != nil {
+		return nil, 0, graph.Stack(ctx, err)
+	}
+
+	attachments := post.GetAttachments()
+
+	for _, a := range attachments {
+		totalSize += int64(ptr.Val(a.GetSize()))
+		result = append(result, a)
+	}
+
+	return result, totalSize, nil
 }
