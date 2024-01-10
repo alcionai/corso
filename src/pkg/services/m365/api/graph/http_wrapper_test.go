@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/alcionai/clues"
 	khttp "github.com/microsoft/kiota-http-go"
@@ -184,8 +183,10 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_http2StreamErrorRetries() 
 				appendMiddleware(&mwResp),
 				MaxConnectionRetries(test.retries))
 
-			// Configure retry delay to reduce test time.
-			hw.retryDelay = 1 * time.Millisecond
+			// Configure retry delay to reduce test time. Retry delay doesn't
+			// really matter here since all requests will be intercepted by
+			// the test middleware.
+			hw.retryDelay = 0
 
 			_, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
 			require.ErrorAs(t, err, &http2.StreamError{}, clues.ToCore(err))
