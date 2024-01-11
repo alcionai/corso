@@ -1,21 +1,21 @@
-package mock
+package graph
 
 import (
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
+	abstractions "github.com/microsoft/kiota-abstractions-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-func NewService(
+func NewGockService(
 	creds account.M365Config,
 	counter *count.Bus,
-	opts ...graph.Option,
-) (*graph.Service, error) {
-	a, err := CreateAdapter(
+	opts ...Option,
+) (*Service, error) {
+	a, err := CreateGockAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
 		creds.AzureClientSecret,
@@ -25,29 +25,31 @@ func NewService(
 		return nil, clues.Wrap(err, "generating graph adapter")
 	}
 
-	return graph.NewService(a), nil
+	return NewService(a), nil
 }
 
-// CreateAdapter is similar to graph.CreateAdapter, but with option to
+// CreateGockAdapter is similar to graph.CreateAdapter, but with option to
 // enable interceptions via gock to make it mockable.
-func CreateAdapter(
+func CreateGockAdapter(
 	tenant, client, secret string,
 	counter *count.Bus,
-	opts ...graph.Option,
-) (*msgraphsdkgo.GraphRequestAdapter, error) {
-	auth, err := graph.GetAuth(tenant, client, secret)
+	opts ...Option,
+) (abstractions.RequestAdapter, error) {
+	auth, err := GetAuth(tenant, client, secret)
 	if err != nil {
 		return nil, err
 	}
 
-	httpClient, _ := graph.KiotaHTTPClient(counter, opts...)
+	httpClient, cc := KiotaHTTPClient(counter, opts...)
 
 	// This makes sure that we are able to intercept any requests via
 	// gock. Only necessary for testing.
 	gock.InterceptClient(httpClient)
 
-	return msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
+	ng, err := msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		auth,
 		nil, nil,
 		httpClient)
+
+	return wrapAdapter(ng, cc), clues.Stack(err).OrNil()
 }
