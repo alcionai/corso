@@ -215,7 +215,7 @@ func (col *prefetchCollection) streamItems(
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
-		progressMessage := observe.CollectionProgress(
+		progressMessage = observe.CollectionProgress(
 			ctx,
 			col.Category().HumanString(),
 			col.LocationPath().Elements())
