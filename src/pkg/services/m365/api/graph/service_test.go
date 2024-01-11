@@ -226,7 +226,6 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	url := "https://graph.microsoft.com/fnords/beaux/regard"
 	retryInc := 0
 
 	// the panics should get caught and returned as errors
@@ -243,24 +242,21 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 		suite.credentials.AzureClientID,
 		suite.credentials.AzureClientSecret,
 		count.New(),
-		appendMiddleware(&alwaysECONNRESET))
+		appendMiddleware(&alwaysECONNRESET),
+		// Configure retry middlewares so that they don't retry on connection reset.
+		// Those middlewares have their own tests to verify retries.
+		MaxRetries(-1))
 	require.NoError(t, err, clues.ToCore(err))
 
-	// Set retry delay to a low value to reduce test runtime.
+	// Retry delay doesn't really matter here since all requests will be intercepted
+	// by the test middleware. Set it to 0 to reduce test runtime.
 	aw := adpt.(*adapterWrap)
-	aw.retryDelay = 10 * time.Millisecond
-
-	// the query doesn't matter
-	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
-	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 16, retryInc, "number of retries")
-
-	retryInc = 0
+	aw.retryDelay = 0
 
 	// the query doesn't matter
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 16, retryInc, "number of retries")
+	require.Equal(t, 4, retryInc, "number of retries")
 }
 
 func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
@@ -307,9 +303,10 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 		appendMiddleware(&alwaysBadJWT))
 	require.NoError(t, err, clues.ToCore(err))
 
-	// Set retry delay to a low value to reduce test runtime.
+	// Retry delay doesn't really matter here since all requests will be intercepted
+	// by the test middleware. Set it to 0 to reduce test runtime.
 	aw := adpt.(*adapterWrap)
-	aw.retryDelay = 10 * time.Millisecond
+	aw.retryDelay = 0
 
 	// When run locally this may fail. Not sure why it works in github but not locally.
 	// Pester keepers if it bothers you.
@@ -384,9 +381,10 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 		appendMiddleware(&returnsGraphResp))
 	require.NoError(t, err, clues.ToCore(err))
 
-	// Set retry delay to a low value to reduce test runtime.
+	// Retry delay doesn't really matter here since all requests will be intercepted
+	// by the test middleware. Set it to 0 to reduce test runtime.
 	aw := adpt.(*adapterWrap)
-	aw.retryDelay = 10 * time.Millisecond
+	aw.retryDelay = 0
 
 	table := []struct {
 		name            string
