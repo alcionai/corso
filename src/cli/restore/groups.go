@@ -12,20 +12,13 @@ import (
 
 // called by restore.go to map subcommands to provider-specific handling.
 func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c  *cobra.Command\
 
 	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(cmd, groupsRestoreCmd(), utils.MarkPreviewCommand())
+		c, _ = utils.AddCommand(cmd, groupsRestoreCmd(), utils.MarkPreviewCommand())
 
 		c.Use = c.Use + " " + groupsServiceCommandUseSuffix
-
-		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --user) and more frequently used flags take precedence.
-		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, true)
 		flags.AddSiteFlag(c, false)

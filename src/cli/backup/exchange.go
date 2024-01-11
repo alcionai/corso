@@ -70,7 +70,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
-		fs.SortFlags = false
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
@@ -88,15 +87,12 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, exchangeListCmd())
-		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
-		fs.SortFlags = false
-
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
 
@@ -109,7 +105,6 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, exchangeDeleteCmd())
-		fs.SortFlags = false
 
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples

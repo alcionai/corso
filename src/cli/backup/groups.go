@@ -64,7 +64,6 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkPreviewCommand())
-		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandCreateUseSuffix
 		c.Example = groupsServiceCommandCreateExamples
@@ -79,14 +78,12 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	case listCommand:
 		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())
-		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, false)
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
 		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreviewCommand())
-		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDetailsUseSuffix
 		c.Example = groupsServiceCommandDetailsExamples
@@ -101,7 +98,6 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 
 	case deleteCommand:
 		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreviewCommand())
-		fs.SortFlags = false
 
 		c.Use = c.Use + " " + groupsServiceCommandDeleteUseSuffix
 		c.Example = groupsServiceCommandDeleteExamples
