@@ -761,10 +761,7 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList() {
 
 	newListItemsData := newListItemFields.GetAdditionalData()
 	require.NotEmpty(t, newListItemsData)
-
-	for k, v := range newListItemsData {
-		assert.Equal(t, fieldsData[k], ptr.Val(v.(*string)))
-	}
+	assert.Equal(t, fieldsData, newListItemsData)
 
 	err = acl.DeleteList(ctx, siteID, ptr.Val(newList.GetId()))
 	require.NoError(t, err)
@@ -875,7 +872,7 @@ func getFieldsDataAndList() (map[string]any, *models.List) {
 
 	fields := models.NewFieldValueSet()
 	fieldsData := map[string]any{
-		textColumnDefName: "item1",
+		textColumnDefName: ptr.To("item1"),
 	}
 	fields.SetAdditionalData(fieldsData)
 
