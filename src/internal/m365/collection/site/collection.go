@@ -186,9 +186,11 @@ func (pc *prefetchCollection) streamLists(
 		pc.fullPath,
 		&metrics)
 
-	// TODO: Insert correct ID for CollectionProgress
-	progress := observe.CollectionProgress(ctx, pc.fullPath.Category().HumanString(), pc.fullPath.Folders())
-	defer close(progress)
+	progressMessage := observe.CollectionProgress(
+		ctx,
+		pc.fullPath.Category().HumanString(),
+		pc.fullPath.Folders())
+	defer close(progressMessage)
 
 	semaphoreCh := make(chan struct{}, fetchChannelSize)
 	defer close(semaphoreCh)
@@ -206,7 +208,7 @@ func (pc *prefetchCollection) streamLists(
 		go pc.handleListItems(
 			ctx,
 			semaphoreCh,
-			progress,
+			progressMessage,
 			&wg,
 			listID,
 			&objects,
@@ -240,8 +242,11 @@ func (pc *prefetchCollection) streamPages(
 		&metrics)
 
 	// TODO: Insert correct ID for CollectionProgress
-	progress := observe.CollectionProgress(ctx, pc.fullPath.Category().HumanString(), pc.fullPath.Folders())
-	defer close(progress)
+	progressMessage := observe.CollectionProgress(
+		ctx,
+		pc.fullPath.Category().HumanString(),
+		pc.fullPath.Folders())
+	defer close(progressMessage)
 
 	betaService := pc.betaService
 	if betaService == nil {
@@ -301,7 +306,7 @@ func (pc *prefetchCollection) streamPages(
 		}
 
 		pc.stream[path.PagesCategory] <- item
-		progress <- struct{}{}
+		progressMessage <- struct{}{}
 	}
 }
 
@@ -455,8 +460,11 @@ func (lc *lazyFetchCollection) streamItems(
 		lc.fullPath,
 		&metrics)
 
-	progress := observe.CollectionProgress(ctx, lc.fullPath.Category().HumanString(), lc.fullPath.Folders())
-	defer close(progress)
+	progressMessage := observe.CollectionProgress(
+		ctx,
+		lc.fullPath.Category().HumanString(),
+		lc.fullPath.Folders())
+	defer close(progressMessage)
 
 	for listID, modTime := range lc.items {
 		if el.Failure() != nil {
@@ -477,7 +485,7 @@ func (lc *lazyFetchCollection) streamItems(
 
 		metrics.Successes++
 
-		progress <- struct{}{}
+		progressMessage <- struct{}{}
 	}
 
 	metrics.Objects += int(numLists)

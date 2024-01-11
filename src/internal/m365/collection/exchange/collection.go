@@ -190,12 +190,11 @@ func (col *prefetchCollection) streamItems(
 	errs *fault.Bus,
 ) {
 	var (
-		success     int64
-		totalBytes  int64
-		wg          sync.WaitGroup
-		colProgress chan<- struct{}
-
-		user = col.user
+		success         int64
+		totalBytes      int64
+		wg              sync.WaitGroup
+		progressMessage chan<- struct{}
+		user            = col.user
 	)
 
 	ctx = clues.Add(
@@ -218,11 +217,11 @@ func (col *prefetchCollection) streamItems(
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
-		colProgress = observe.CollectionProgress(
+		progressMessage = observe.CollectionProgress(
 			ctx,
 			col.Category().HumanString(),
 			col.LocationPath().Elements())
-		defer close(colProgress)
+		defer close(progressMessage)
 	}
 
 	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
@@ -246,8 +245,8 @@ func (col *prefetchCollection) streamItems(
 
 			atomic.AddInt64(&success, 1)
 
-			if colProgress != nil {
-				colProgress <- struct{}{}
+			if progressMessage != nil {
+				progressMessage <- struct{}{}
 			}
 		}(id)
 	}
@@ -335,8 +334,8 @@ func (col *prefetchCollection) streamItems(
 			atomic.AddInt64(&success, 1)
 			atomic.AddInt64(&totalBytes, info.Size)
 
-			if colProgress != nil {
-				colProgress <- struct{}{}
+			if progressMessage != nil {
+				progressMessage <- struct{}{}
 			}
 		}(id)
 	}
@@ -391,8 +390,8 @@ func (col *lazyFetchCollection) streamItems(
 	errs *fault.Bus,
 ) {
 	var (
-		success     int64
-		colProgress chan<- struct{}
+		success         int64
+		progressMessage chan<- struct{}
 
 		user = col.user
 	)
@@ -410,11 +409,11 @@ func (col *lazyFetchCollection) streamItems(
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
-		colProgress = observe.CollectionProgress(
+		progressMessage = observe.CollectionProgress(
 			ctx,
 			col.Category().HumanString(),
 			col.LocationPath().Elements())
-		defer close(colProgress)
+		defer close(progressMessage)
 	}
 
 	// delete all removed items
@@ -423,8 +422,8 @@ func (col *lazyFetchCollection) streamItems(
 
 		atomic.AddInt64(&success, 1)
 
-		if colProgress != nil {
-			colProgress <- struct{}{}
+		if progressMessage != nil {
+			progressMessage <- struct{}{}
 		}
 	}
 
@@ -460,8 +459,8 @@ func (col *lazyFetchCollection) streamItems(
 
 		atomic.AddInt64(&success, 1)
 
-		if colProgress != nil {
-			colProgress <- struct{}{}
+		if progressMessage != nil {
+			progressMessage <- struct{}{}
 		}
 	}
 }

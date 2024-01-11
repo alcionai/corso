@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -213,31 +212,13 @@ func (c Lists) PostList(
 	ctx context.Context,
 	siteID string,
 	listName string,
-	oldListByteArray []byte,
+	storedList models.Listable,
 	errs *fault.Bus,
 ) (models.Listable, error) {
-	var (
-		newListName = listName
-		el          = errs.Local()
-	)
-
-	oldList, err := BytesToListable(oldListByteArray)
-	if err != nil {
-		return nil, clues.WrapWC(ctx, err, "generating list from stored bytes")
-	}
-
-	// the input listName is of format: destinationName_listID
-	// here we replace listID with displayName of list generated from stored bytes
-	if name, ok := ptr.ValOK(oldList.GetDisplayName()); ok {
-		nameParts := strings.Split(listName, "_")
-		if len(nameParts) > 0 {
-			nameParts[len(nameParts)-1] = name
-			newListName = strings.Join(nameParts, "_")
-		}
-	}
+	el := errs.Local()
 
 	// this ensure all columns, contentTypes are set to the newList
-	newList, columnNames := ToListable(oldList, newListName)
+	newList, columnNames := ToListable(storedList, listName)
 
 	if newList.GetList() != nil &&
 		SkipListTemplates.HasKey(ptr.Val(newList.GetList().GetTemplate())) {
@@ -257,7 +238,7 @@ func (c Lists) PostList(
 
 	listItems := make([]models.ListItemable, 0)
 
-	for _, itm := range oldList.GetItems() {
+	for _, itm := range storedList.GetItems() {
 		temp := CloneListItem(itm, columnNames)
 		listItems = append(listItems, temp)
 	}
@@ -331,7 +312,7 @@ func BytesToListable(bytes []byte) (models.Listable, error) {
 // not attached in this method.
 // ListItems are not included in creation of new list, and have to be restored
 // in separate call.
-func ToListable(orig models.Listable, displayName string) (models.Listable, map[string]any) {
+func ToListable(orig models.Listable, listName string) (models.Listable, map[string]any) {
 	newList := models.NewList()
 
 	newList.SetContentTypes(orig.GetContentTypes())
@@ -339,7 +320,7 @@ func ToListable(orig models.Listable, displayName string) (models.Listable, map[
 	newList.SetCreatedByUser(orig.GetCreatedByUser())
 	newList.SetCreatedDateTime(orig.GetCreatedDateTime())
 	newList.SetDescription(orig.GetDescription())
-	newList.SetDisplayName(&displayName)
+	newList.SetDisplayName(ptr.To(listName))
 	newList.SetLastModifiedBy(orig.GetLastModifiedBy())
 	newList.SetLastModifiedByUser(orig.GetLastModifiedByUser())
 	newList.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())

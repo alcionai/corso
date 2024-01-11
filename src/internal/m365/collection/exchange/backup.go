@@ -62,16 +62,14 @@ func CreateCollections(
 		return nil, clues.NewWC(ctx, "unsupported backup category type")
 	}
 
-	pcfg := observe.ProgressCfg{
-		Indent:            1,
-		CompletionMessage: func() string { return fmt.Sprintf("(found %d folders)", len(collections)) },
-	}
-	foldersComplete := observe.MessageWithCompletion(
+	progressMessage := observe.MessageWithCompletion(
 		ctx,
-		pcfg,
+		observe.ProgressCfg{
+			Indent:            1,
+			CompletionMessage: func() string { return fmt.Sprintf("(found %d folders)", len(collections)) },
+		},
 		qp.Category.HumanString())
-
-	defer close(foldersComplete)
+	defer close(progressMessage)
 
 	rootFolder, cc := handler.NewContainerCache(bpc.ProtectedResource.ID())
 

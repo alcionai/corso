@@ -25,10 +25,62 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
+
+type SharePointRestoreUnitSuite struct {
+	tester.Suite
+}
+
+func TestSharePointRestoreUnitSuite(t *testing.T) {
+	suite.Run(t, &SharePointRestoreUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *SharePointCollectionUnitSuite) TestFormatListsRestoreDestination() {
+	t := suite.T()
+
+	dt := dttm.FormatNow(dttm.SafeForTesting)
+
+	tests := []struct {
+		name          string
+		destName      string
+		itemID        string
+		getStoredList func() models.Listable
+		expectedName  string
+	}{
+		{
+			name:     "stored list has a display name",
+			destName: "Corso_Restore_" + dt,
+			itemID:   "someid",
+			getStoredList: func() models.Listable {
+				list := models.NewList()
+				list.SetDisplayName(ptr.To("list1"))
+
+				return list
+			},
+			expectedName: "Corso_Restore_" + dt + "_list1",
+		},
+		{
+			name:     "stored list does not have a display name",
+			destName: "Corso_Restore_" + dt,
+			itemID:   "someid",
+			getStoredList: func() models.Listable {
+				return models.NewList()
+			},
+			expectedName: "Corso_Restore_" + dt + "_someid",
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			newName := formatListsRestoreDestination(test.destName, test.itemID, test.getStoredList())
+			assert.Equal(t, test.expectedName, newName, "new name for list")
+		})
+	}
+}
 
 type SharePointRestoreSuite struct {
 	tester.Suite

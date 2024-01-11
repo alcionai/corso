@@ -464,14 +464,12 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		return
 	}
 
-	displayPath := oc.handler.FormatDisplayPath(oc.driveName, parentPath)
-
-	folderProgress := observe.ProgressWithCount(
+	progressMessage := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		path.NewElements(displayPath),
+		path.NewElements(oc.handler.FormatDisplayPath(oc.driveName, parentPath)),
 		int64(len(oc.driveItems)))
-	defer close(folderProgress)
+	defer close(progressMessage)
 
 	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
 	defer close(semaphoreCh)
@@ -502,7 +500,7 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				oc.ctrl.ItemExtensionFactory,
 				errs)
 
-			folderProgress <- struct{}{}
+			progressMessage <- struct{}{}
 		}(item)
 	}
 
@@ -548,7 +546,7 @@ func (lig *lazyItemGetter) GetData(
 	lig.info.Extension.Data = extData.Data
 
 	// display/log the item download
-	progReader, _ := observe.ItemProgress(
+	progReader := observe.ItemProgress(
 		ctx,
 		extRc,
 		observe.ItemBackupMsg,
@@ -658,7 +656,7 @@ func (oc *Collection) streamDriveItem(
 	}
 
 	metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-		progReader, _ := observe.ItemProgress(
+		progReader := observe.ItemProgress(
 			ctx,
 			itemMeta,
 			observe.ItemBackupMsg,
