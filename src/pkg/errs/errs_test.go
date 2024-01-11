@@ -10,7 +10,6 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/repository"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type ErrUnitSuite struct {
@@ -34,10 +33,6 @@ func (suite *ErrUnitSuite) TestInternal_errs() {
 			get:    core.ErrBackupNotFound,
 			expect: []error{repository.ErrorBackupNotFound},
 		},
-		{
-			get:    core.ErrResourceNotAccessible,
-			expect: []error{graph.ErrResourceLocked},
-		},
 	}
 	for _, test := range table {
 		suite.Run(test.get.Error(), func() {
@@ -59,10 +54,6 @@ func (suite *ErrUnitSuite) TestIs() {
 		{
 			target: core.ErrBackupNotFound,
 			err:    repository.ErrorBackupNotFound,
-		},
-		{
-			target: core.ErrResourceNotAccessible,
-			err:    graph.ErrResourceLocked,
 		},
 	}
 	for _, test := range table {
