@@ -518,9 +518,8 @@ export default function KeyLoveFAQ() {
                 >
                   <div className="accordion-body p-5">
                     <p className="text-slate-400 !visible dark:text-gray-400">
-                      Corso currently supports OneDrive and Exchange. Support
-                      for Teams and SharePoint is in active development and is
-                      therefore not recommended for production use.
+                      Corso currently supports OneDrive, Exchange, SharePoint,
+                      and Teams. 
                     </p>
                   </div>
                 </div>
