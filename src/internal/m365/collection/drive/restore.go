@@ -795,9 +795,8 @@ func restoreFile(
 	}
 
 	var (
-		written          int64
-		progReader       io.ReadCloser
-		closeProgressBar func()
+		written        int64
+		progressReader io.ReadCloser
 	)
 
 	// This is just to retry file upload, the uploadSession creation is
@@ -824,21 +823,23 @@ func restoreFile(
 			iReader = itemData.ToReader()
 		}
 
-		progReader, closeProgressBar = observe.ItemProgress(
+		progressReader = observe.ItemProgress(
 			ctx,
 			iReader,
 			observe.ItemRestoreMsg,
 			clues.Hide(pname),
 			ss.Size())
+		defer progressReader.Close()
 
 		// Upload the stream data
-		written, err = io.CopyBuffer(w, progReader, copyBuffer)
+		written, err = io.CopyBuffer(w, progressReader, copyBuffer)
 		if err == nil {
 			break
 		}
 
-		// clear out the progress bar immediately on error
-		closeProgressBar()
+		// close the progress bar immediately on error, else we might deadlock
+		// its safe to double call Close on the reader.
+		progressReader.Close()
 
 		// refresh the io.Writer to restart the upload
 		// TODO: @vkamra verify if var session is the desired input
@@ -852,8 +853,6 @@ func restoreFile(
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "uploading file")
 	}
-
-	defer closeProgressBar()
 
 	dii := ir.AugmentItemInfo(
 		details.ItemInfo{},

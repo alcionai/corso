@@ -128,11 +128,11 @@ func (col *prefetchCollection[C, I]) Items(ctx context.Context, errs *fault.Bus)
 
 func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
-		streamedItems int64
-		totalBytes    int64
-		wg            sync.WaitGroup
-		colProgress   chan<- struct{}
-		el            = errs.Local()
+		streamedItems   int64
+		totalBytes      int64
+		wg              sync.WaitGroup
+		progressMessage chan<- struct{}
+		el              = errs.Local()
 	)
 
 	ctx = clues.Add(ctx, "category", col.Category().String())
@@ -154,11 +154,11 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
-		colProgress = observe.CollectionProgress(
+		progressMessage = observe.CollectionProgress(
 			ctx,
 			col.Category().HumanString(),
 			col.LocationPath().Elements())
-		defer close(colProgress)
+		defer close(progressMessage)
 	}
 
 	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
@@ -179,8 +179,8 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 			atomic.AddInt64(&streamedItems, 1)
 			col.Counter.Inc(count.StreamItemsRemoved)
 
-			if colProgress != nil {
-				colProgress <- struct{}{}
+			if progressMessage != nil {
+				progressMessage <- struct{}{}
 			}
 		}(id)
 	}
@@ -254,8 +254,8 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 
 			col.Counter.Add(count.StreamBytesAdded, info.Size)
 
-			if colProgress != nil {
-				colProgress <- struct{}{}
+			if progressMessage != nil {
+				progressMessage <- struct{}{}
 			}
 		}(id)
 	}
@@ -294,10 +294,10 @@ func (col *lazyFetchCollection[C, I]) Items(
 
 func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fault.Bus) {
 	var (
-		streamedItems int64
-		wg            sync.WaitGroup
-		colProgress   chan<- struct{}
-		el            = errs.Local()
+		streamedItems   int64
+		wg              sync.WaitGroup
+		progressMessage chan<- struct{}
+		el              = errs.Local()
 	)
 
 	ctx = clues.Add(ctx, "category", col.Category().String())
@@ -319,11 +319,11 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
-		colProgress = observe.CollectionProgress(
+		progressMessage = observe.CollectionProgress(
 			ctx,
 			col.Category().HumanString(),
 			col.LocationPath().Elements())
-		defer close(colProgress)
+		defer close(progressMessage)
 	}
 
 	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
@@ -344,8 +344,8 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 			atomic.AddInt64(&streamedItems, 1)
 			col.Counter.Inc(count.StreamItemsRemoved)
 
-			if colProgress != nil {
-				colProgress <- struct{}{}
+			if progressMessage != nil {
+				progressMessage <- struct{}{}
 			}
 		}(id)
 	}
@@ -386,8 +386,8 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 
 			atomic.AddInt64(&streamedItems, 1)
 
-			if colProgress != nil {
-				colProgress <- struct{}{}
+			if progressMessage != nil {
+				progressMessage <- struct{}{}
 			}
 		}(id, modTime)
 	}

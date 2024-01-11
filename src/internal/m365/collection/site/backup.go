@@ -58,12 +58,14 @@ func CollectLibraries(
 		path.LibrariesCategory.HumanString(),
 		stdpath.Base(bpc.ProtectedResource.Name()))
 
-	pcfg := observe.ProgressCfg{
-		Indent:            1,
-		CompletionMessage: func() string { return fmt.Sprintf("(found %d items)", colls.NumItems) },
-	}
-	progressBar := observe.MessageWithCompletion(ctx, pcfg, msg)
-	close(progressBar)
+	progressMessage := observe.MessageWithCompletion(
+		ctx,
+		observe.ProgressCfg{
+			Indent:            1,
+			CompletionMessage: func() string { return fmt.Sprintf("(found %d items)", colls.NumItems) },
+		},
+		msg)
+	close(progressMessage)
 
 	odcs, canUsePreviousBackup, err := colls.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 	if err != nil {
