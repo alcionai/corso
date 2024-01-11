@@ -31,6 +31,9 @@ var piiSafePathElems = pii.MapWithPlurals(
 	PagesCategory.String(),
 	DetailsCategory.String(),
 
+	// other internal values
+	"fault_error", // streamstore.FaultErrorType causes an import cycle
+
 	// well known folders
 	// https://learn.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0
 	"archive",
