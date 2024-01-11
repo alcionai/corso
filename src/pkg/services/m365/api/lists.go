@@ -219,9 +219,7 @@ func (c Lists) PostList(
 	storedList models.Listable,
 	errs *fault.Bus,
 ) (models.Listable, error) {
-	var (
-		el = errs.Local()
-	)
+	el := errs.Local()
 
 	// this ensure all columns, contentTypes are set to the newList
 	newList, columnNames := ToListable(storedList, listName)
