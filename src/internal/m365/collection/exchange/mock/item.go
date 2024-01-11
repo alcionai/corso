@@ -21,7 +21,6 @@ type ItemGetSerialize struct {
 func (m *ItemGetSerialize) GetItem(
 	context.Context,
 	string, string,
-	bool,
 	*fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	m.GetCount++

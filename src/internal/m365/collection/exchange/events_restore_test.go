@@ -75,7 +75,6 @@ func (m *eventRestoreMock) DeleteAttachment(
 
 func (m *eventRestoreMock) GetAttachments(
 	_ context.Context,
-	_ bool,
 	_, _ string,
 ) ([]models.Attachmentable, error) {
 	return []models.Attachmentable{}, nil

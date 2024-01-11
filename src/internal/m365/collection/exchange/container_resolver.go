@@ -28,7 +28,6 @@ type containersEnumerator[T any] interface {
 	EnumerateContainers(
 		ctx context.Context,
 		userID, baseDirID string,
-		immutableIDs bool,
 	) ([]T, error)
 }
 
