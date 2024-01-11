@@ -49,10 +49,6 @@ func HTMLToText(in string) (string, error) {
 				}
 
 				out += text
-
-				if lastTag == "a" && len(lastLink) > 0 {
-					out += "<" + lastLink + ">"
-				}
 			}
 		case html.StartTagToken, html.EndTagToken:
 			tn, _ := z.TagName()
@@ -77,7 +73,10 @@ func HTMLToText(in string) (string, error) {
 
 					lastLink = link
 				} else {
-					lastLink = ""
+					if len(lastLink) > 0 {
+						out += "<" + lastLink + ">"
+						lastLink = ""
+					}
 				}
 			case "br":
 				if tt == html.StartTagToken {
