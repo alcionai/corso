@@ -203,7 +203,7 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 			name: "invalid id",
 			id:   uuid.NewString(),
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrNotFound, clues.ToCore(err))
 			},
 		},
 		{
@@ -217,7 +217,7 @@ func (suite *GroupsIntgSuite) TestGroups_GetByID() {
 			name: "invalid displayName",
 			id:   "jabberwocky",
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrNotFound, clues.ToCore(err))
 			},
 		},
 	}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
@@ -85,7 +86,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrApplicationThrottled(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrApplicationThrottled(ode, test.err))
 		})
 	}
 }
@@ -153,7 +155,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInsufficientAuthorization() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrInsufficientAuthorization(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrInsufficientAuthorization(ode, test.err))
 		})
 	}
 }
@@ -192,7 +195,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrNotFound() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrNotFound(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrNotFound(ode, test.err))
 		})
 	}
 }
@@ -476,7 +480,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrUserNotFound(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrUserNotFound(ode, test.err))
 		})
 	}
 }
@@ -539,7 +544,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorizedOrBadToken() {
 		},
 		{
 			name:   "err token expired",
-			err:    clues.Stack(assert.AnError, ErrTokenExpired),
+			err:    clues.Stack(assert.AnError, core.ErrAuthTokenExpired),
 			expect: assert.True,
 		},
 		{
@@ -583,11 +588,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 			expect: assert.False,
 		},
 		{
-			name:   "err token expired",
-			err:    clues.Stack(assert.AnError, ErrTokenExpired),
-			expect: assert.False,
-		},
-		{
 			name:   "oDataErr code invalid auth token ",
 			err:    graphTD.ODataErr(string(invalidAuthenticationToken)),
 			expect: assert.True,
@@ -595,7 +595,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrBadJWTToken(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrBadJWTToken(ode, test.err))
 		})
 	}
 }
@@ -916,15 +917,11 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 					"deadbeef-7f1e-4578-8215-36004a2c935c Timestamp: 2023-12-05 19:31:01Z"),
 			expect: assert.True,
 		},
-		{
-			name:   "matching err sentinel",
-			err:    ErrResourceLocked,
-			expect: assert.True,
-		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), isErrResourceLocked(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrResourceLocked(ode, test.err))
 		})
 	}
 }

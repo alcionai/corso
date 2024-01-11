@@ -5,15 +5,13 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/repository"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // map of enums to errors.  We might want to re-use an enum for multiple
 // internal errors.
 var externalToInternal = map[*core.Err][]error{
-	core.ErrBackupNotFound:        {repository.ErrorBackupNotFound},
-	core.ErrRepoAlreadyExists:     {repository.ErrorRepoAlreadyExists},
-	core.ErrResourceNotAccessible: {graph.ErrResourceLocked},
+	core.ErrBackupNotFound:    {repository.ErrorBackupNotFound},
+	core.ErrRepoAlreadyExists: {repository.ErrorRepoAlreadyExists},
 }
 
 type ErrCheck func(error) bool
