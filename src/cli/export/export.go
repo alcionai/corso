@@ -13,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/export"
@@ -96,7 +97,7 @@ func runExport(
 		return Only(ctx, clues.Wrap(err, "Failed to initialize "+serviceName+" export"))
 	}
 
-	expColl, err := eo.Run(ctx)
+	collections, err := eo.Run(ctx)
 	if err != nil {
 		if errors.Is(err, data.ErrNotFound) {
 			return Only(ctx, clues.New("Backup or backup details missing for id "+backupID))
@@ -105,20 +106,8 @@ func runExport(
 		return Only(ctx, clues.Wrap(err, "Failed to run "+serviceName+" export"))
 	}
 
-	// It would be better to give a progressbar than a spinner, but we
-	// have any way of knowing how many files are available as of now.
-	diskWriteComplete := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Writing data to disk")
-
-	err = export.ConsumeExportCollections(ctx, exportLocation, expColl, eo.Errors)
-
-	// The progressbar has to be closed before we move on as the Infof
-	// below flushes progressbar to prevent clobbering the output and
-	// that causes the entire export operation to stall indefinitely.
-	// https://github.com/alcionai/corso/blob/8102523dc62c001b301cd2ab4e799f86146ab1a0/src/cli/print/print.go#L151
-	close(diskWriteComplete)
-
-	if err != nil {
-		return Only(ctx, err)
+	if err = showExportProgress(ctx, eo, collections, exportLocation); err != nil {
+		return err
 	}
 
 	if len(eo.Errors.Recovered()) > 0 {
@@ -138,6 +127,26 @@ func runExport(
 
 	for k, s := range stats {
 		Infof(ctx, "%s: %d items (%s)", k.HumanString(), s.ResourceCount, humanize.Bytes(uint64(s.BytesRead)))
+	}
+
+	return nil
+}
+
+// slim wrapper that allows us to defer the progress bar closure with the expected scope.
+func showExportProgress(
+	ctx context.Context,
+	op operations.ExportOperation,
+	collections []export.Collectioner,
+	exportLocation string,
+) error {
+	// It would be better to give a progressbar than a spinner, but we
+	// have any way of knowing how many files are available as of now.
+	progressMessage := observe.MessageWithCompletion(ctx, observe.DefaultCfg(), "Writing data to disk")
+	defer close(progressMessage)
+
+	err := export.ConsumeExportCollections(ctx, exportLocation, collections, op.Errors)
+	if err != nil {
+		return Only(ctx, err)
 	}
 
 	return nil

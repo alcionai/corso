@@ -43,7 +43,7 @@ type PostLister interface {
 	PostList(
 		ctx context.Context,
 		listName string,
-		storedListData []byte,
+		storedList models.Listable,
 		errs *fault.Bus,
 	) (models.Listable, error)
 }

@@ -47,11 +47,11 @@ func RestoreCollection(
 		category = fullPath.Category()
 	)
 
-	colProgress := observe.CollectionProgress(
+	progressMessage := observe.CollectionProgress(
 		ctx,
 		category.HumanString(),
 		fullPath.Folder(false))
-	defer close(colProgress)
+	defer close(progressMessage)
 
 	for {
 		select {
@@ -119,7 +119,7 @@ func RestoreCollection(
 				logger.Ctx(ictx).Infow("accounting for restored item", "error", err)
 			}
 
-			colProgress <- struct{}{}
+			progressMessage <- struct{}{}
 		}
 	}
 }
