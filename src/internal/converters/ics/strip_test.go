@@ -4,16 +4,23 @@ import (
 	_ "embed"
 	"testing"
 
-	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
 )
 
 //go:embed testdata/utf8.html
-var utf8_in string
+var utf8In string
 
 //go:embed testdata/utf8.txt
-var utf8_out string
+var utf8Out string
+
+//go:embed testdata/everything.html
+var everythingIn string
+
+//go:embed testdata/everything.txt
+var everythingOut string
 
 type StripUnitSuite struct {
 	tester.Suite
@@ -38,8 +45,14 @@ func (s *StripUnitSuite) TestStrip() {
 		},
 		{
 			name:      "teams meeting",
-			input:     utf8_in,
-			expected:  utf8_out,
+			input:     utf8In,
+			expected:  utf8Out,
+			errAssert: assert.NoError,
+		},
+		{
+			name:      "everything",
+			input:     everythingIn,
+			expected:  everythingOut,
 			errAssert: assert.NoError,
 		},
 	}

@@ -2,7 +2,6 @@ package ics
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -35,8 +34,6 @@ func HTMLToText(in string) (string, error) {
 		switch tt {
 		case html.ErrorToken:
 			// TODO(meain): usually EOF, but handle other error
-			fmt.Println(out)
-			return out, nil
 			return removeTrailingWhiltesapce(out), nil
 		case html.TextToken:
 			if depth > 0 {
@@ -110,7 +107,6 @@ func HTMLToText(in string) (string, error) {
 
 					out += "[" + cid + "]"
 				}
-
 			}
 		}
 	}
