@@ -153,7 +153,7 @@ func restoreMail(
 
 	item, err := mr.PostItem(ctx, userID, destinationID, msg)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "restoring mail message")
+		return nil, clues.Wrap(err, "restoring mail message")
 	}
 
 	// mails have no PUT request, and PATCH could retain data that's not
@@ -164,7 +164,7 @@ func restoreMail(
 	if shouldDeleteOriginal {
 		err := mr.DeleteItem(ctx, userID, collisionID)
 		if err != nil && !errors.Is(err, core.ErrNotFound) {
-			return nil, graph.Wrap(ctx, err, "deleting colliding mail message")
+			return nil, clues.Wrap(err, "deleting colliding mail message")
 		}
 	}
 

@@ -26,7 +26,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -222,7 +221,7 @@ func runSharePointIncrementalBackupTests(
 	) string {
 		d, err := its.AC.Sites().GetDefaultDrive(ctx, its.Site.ID)
 		if err != nil {
-			err = graph.Wrap(ctx, err, "retrieving default site drive").
+			err = clues.Wrap(err, "retrieving default site drive").
 				With("site", its.Site.ID)
 		}
 
@@ -410,7 +409,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			Drives().
 			ByDriveId(driveID).
 			Patch(ctx, patchBody, nil)
-		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
+		require.NoError(t, err, clues.ToCore(err))
 
 		var (
 			mb  = evmock.NewBus()
@@ -438,7 +437,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			ByDriveItemId(rootFolderID).
 			Children().
 			Get(ctx, nil)
-		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
+		require.NoError(t, err, clues.ToCore(err))
 
 		items := resp.GetValue()
 		assert.Len(t, items, 2)
@@ -461,7 +460,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			Drives().
 			ByDriveId(driveID).
 			Delete(ctx, nil)
-		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
+		require.NoError(t, err, clues.ToCore(err))
 
 		var (
 			mb  = evmock.NewBus()
@@ -515,7 +514,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			ByDriveItemId(rootFolderID).
 			Children().
 			Get(ctx, nil)
-		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
+		require.NoError(t, err, clues.ToCore(err))
 
 		items := resp.GetValue()
 		assert.Len(t, items, 1)
@@ -558,7 +557,7 @@ func (suite *SharePointRestoreNightlyIntgSuite) TestRestore_Run_sharepointDelete
 			ByDriveItemId(rootFolderID).
 			Children().
 			Get(ctx, nil)
-		require.NoError(t, err, clues.ToCore(graph.Stack(ctx, err)))
+		require.NoError(t, err, clues.ToCore(err))
 
 		items := resp.GetValue()
 		assert.Len(t, items, 2)

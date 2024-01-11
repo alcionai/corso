@@ -76,7 +76,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "group not found",
 			mock: func(ctx context.Context) api.GetByIDer[models.Groupable] {
 				return mockGBI{
-					err: graph.Stack(ctx, graphTD.ODataErrWithMsg(string(graph.RequestResourceNotFound), "message")),
+					err: clues.StackWC(ctx, graphTD.ODataErrWithMsg(string(graph.RequestResourceNotFound), "message")),
 				}
 			},
 			expect:    assert.False,

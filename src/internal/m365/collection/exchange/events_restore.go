@@ -158,7 +158,7 @@ func restoreEvent(
 
 	item, err := er.PostItem(ctx, userID, destinationID, event)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "restoring event")
+		return nil, clues.Wrap(err, "restoring event")
 	}
 
 	// events have no PUT request, and PATCH could retain data that's not
@@ -169,7 +169,7 @@ func restoreEvent(
 	if shouldDeleteOriginal {
 		err := er.DeleteItem(ctx, userID, collisionID)
 		if err != nil && !errors.Is(err, core.ErrNotFound) {
-			return nil, graph.Wrap(ctx, err, "deleting colliding event")
+			return nil, clues.Wrap(err, "deleting colliding event")
 		}
 	}
 

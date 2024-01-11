@@ -61,11 +61,8 @@ func (c Mail) CreateContainer(
 		ByMailFolderId(parentContainerID).
 		ChildFolders().
 		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating nested mail folder")
-	}
 
-	return mdl, nil
+	return mdl, clues.Wrap(err, "creating nested mail folder").OrNil()
 }
 
 // DeleteContainer removes a mail folder with the corresponding M365 ID  from the user's M365 Exchange account
@@ -78,7 +75,7 @@ func (c Mail) DeleteContainer(
 	// https://github.com/alcionai/corso/issues/2707
 	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
-		return graph.Stack(ctx, err)
+		return clues.StackWC(ctx, err)
 	}
 
 	err = srv.Client().
@@ -87,11 +84,8 @@ func (c Mail) DeleteContainer(
 		MailFolders().
 		ByMailFolderId(containerID).
 		Delete(ctx, nil)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
 
-	return nil
+	return clues.Stack(err).OrNil()
 }
 
 func (c Mail) GetContainerByID(
@@ -111,11 +105,8 @@ func (c Mail) GetContainerByID(
 		MailFolders().
 		ByMailFolderId(containerID).
 		Get(ctx, config)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	return resp, nil
+	return resp, clues.Stack(err).OrNil()
 }
 
 // GetContainerByName fetches a folder by name
@@ -159,7 +150,7 @@ func (c Mail) GetContainerByName(
 	}
 
 	if err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, clues.Stack(err)
 	}
 
 	gv := resp.GetValue()
@@ -199,11 +190,8 @@ func (c Mail) MoveContainer(
 		ByMailFolderId(containerID).
 		Move().
 		Post(ctx, body, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "moving mail folder")
-	}
 
-	return nil
+	return clues.Wrap(err, "moving mail folder").OrNil()
 }
 
 func (c Mail) PatchFolder(
@@ -218,11 +206,8 @@ func (c Mail) PatchFolder(
 		MailFolders().
 		ByMailFolderId(containerID).
 		Patch(ctx, body, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "patching mail folder")
-	}
 
-	return nil
+	return clues.Wrap(err, "patching mail folder").OrNil()
 }
 
 // TODO: needs pager implementation for completion
@@ -239,7 +224,7 @@ func (c Mail) GetContainerChildren(
 		ChildFolders().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting container child folders")
+		return nil, clues.Wrap(err, "getting container child folders")
 	}
 
 	return resp.GetValue(), nil
@@ -273,7 +258,7 @@ func (c Mail) GetItem(
 		ByMessageId(mailID).
 		Get(ctx, config)
 	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
+		return nil, nil, clues.Stack(err)
 	}
 
 	mailBody = mail.GetBody()
@@ -340,7 +325,7 @@ func (c Mail) getAttachments(
 		Attachments().
 		Get(ctx, cfg)
 	if err != nil {
-		return nil, 0, graph.Stack(ctx, err)
+		return nil, 0, clues.Stack(err)
 	}
 
 	for _, a := range attachments.GetValue() {
@@ -382,7 +367,7 @@ func (c Mail) getAttachmentsIterated(
 		Attachments().
 		Get(ctx, cfg)
 	if err != nil {
-		return nil, 0, graph.Wrap(ctx, err, "getting mail attachment ids")
+		return nil, 0, clues.Wrap(err, "getting mail attachment ids")
 	}
 
 	for _, a := range attachments.GetValue() {
@@ -462,7 +447,7 @@ func (c Mail) getAttachmentByID(
 			return nil, nil
 		}
 
-		return nil, graph.Wrap(ctx, err, "getting mail attachment by id")
+		return nil, clues.Wrap(err, "getting mail attachment by id")
 	}
 
 	return attachment, nil
@@ -482,7 +467,7 @@ func (c Mail) PostItem(
 		Messages().
 		Post(ctx, body, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating mail message")
+		return nil, clues.Wrap(err, "creating mail message")
 	}
 
 	if itm == nil {
@@ -510,7 +495,7 @@ func (c Mail) MoveItem(
 		Move().
 		Post(ctx, body, nil)
 	if err != nil {
-		return "", graph.Wrap(ctx, err, "moving message")
+		return "", clues.Wrap(err, "moving message")
 	}
 
 	return ptr.Val(resp.GetId()), nil
@@ -524,7 +509,7 @@ func (c Mail) DeleteItem(
 	// https://github.com/alcionai/corso/issues/2707
 	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
-		return graph.Stack(ctx, err)
+		return clues.StackWC(ctx, err)
 	}
 
 	err = srv.
@@ -534,11 +519,8 @@ func (c Mail) DeleteItem(
 		Messages().
 		ByMessageId(itemID).
 		Delete(ctx, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting mail message")
-	}
 
-	return nil
+	return clues.Wrap(err, "deleting mail message").OrNil()
 }
 
 func (c Mail) PostSmallAttachment(
@@ -556,11 +538,8 @@ func (c Mail) PostSmallAttachment(
 		ByMessageId(parentItemID).
 		Attachments().
 		Post(ctx, body, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "uploading small mail attachment")
-	}
 
-	return nil
+	return clues.Wrap(err, "uploading small mail attachment").OrNil()
 }
 
 func (c Mail) PostLargeAttachment(
@@ -584,7 +563,7 @@ func (c Mail) PostLargeAttachment(
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
-		return "", graph.Wrap(ctx, err, "uploading large mail attachment")
+		return "", clues.Wrap(err, "uploading large mail attachment")
 	}
 
 	url := ptr.Val(us.GetUploadUrl())
@@ -645,15 +624,12 @@ func (c Mail) Serialize(
 	defer writer.Close()
 
 	if err := writer.WriteObjectValue("", msg); err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	bs, err := writer.GetSerializedContent()
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "serializing email")
-	}
 
-	return bs, nil
+	return bs, clues.WrapWC(ctx, err, "serializing email").OrNil()
 }
 
 // ---------------------------------------------------------------------------

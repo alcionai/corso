@@ -126,7 +126,7 @@ func (cfc *contactContainerCache) Populate(
 		if err != nil {
 			errs.AddRecoverable(
 				ctx,
-				graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+				clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation))
 		}
 	}
 

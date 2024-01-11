@@ -31,7 +31,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -166,7 +165,7 @@ func runOneDriveIncrementalBackupTests(
 	) string {
 		d, err := its.AC.Users().GetDefaultDrive(ctx, its.User.ID)
 		if err != nil {
-			err = graph.Wrap(ctx, err, "retrieving default user drive").
+			err = clues.Wrap(err, "retrieving default user drive").
 				With("user", its.User.ID)
 		}
 

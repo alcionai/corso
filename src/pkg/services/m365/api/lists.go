@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
@@ -65,7 +64,7 @@ func (c Lists) PostDrive(
 
 	newList, err := builder.Post(ctx, list, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating documentLibrary list")
+		return nil, clues.Wrap(err, "creating documentLibrary list")
 	}
 
 	// drive information is not returned by the list creation.
@@ -74,7 +73,7 @@ func (c Lists) PostDrive(
 		Drive().
 		Get(ctx, nil)
 
-	return drive, graph.Wrap(ctx, err, "fetching created documentLibrary").OrNil()
+	return drive, clues.Wrap(err, "fetching created documentLibrary").OrNil()
 }
 
 // SharePoint lists represent lists on a site. Inherits additional properties from
@@ -100,12 +99,12 @@ func (c Lists) GetListByID(ctx context.Context,
 		ByListId(listID).
 		Get(ctx, nil)
 	if err != nil {
-		return nil, nil, graph.Wrap(ctx, err, "fetching list")
+		return nil, nil, clues.Wrap(err, "fetching list")
 	}
 
 	cols, cTypes, lItems, err := c.getListContents(ctx, siteID, listID)
 	if err != nil {
-		return nil, nil, graph.Wrap(ctx, err, "getting list contents")
+		return nil, nil, clues.Wrap(err, "getting list contents")
 	}
 
 	list.SetColumns(cols)
@@ -192,7 +191,7 @@ func (c Lists) PostList(
 		Lists().
 		Post(ctx, newList, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating list")
+		return nil, clues.Wrap(err, "creating list")
 	}
 
 	listItems := make([]models.ListItemable, 0)
@@ -208,7 +207,7 @@ func (c Lists) PostList(
 		ptr.Val(restoredList.GetId()),
 		listItems)
 	if err != nil {
-		err = graph.Wrap(ctx, err, "creating list item")
+		err = clues.Wrap(err, "creating list item")
 		el.AddRecoverable(ctx, err)
 	}
 
@@ -232,7 +231,7 @@ func (c Lists) PostListItems(
 			Items().
 			Post(ctx, lItem, nil)
 		if err != nil {
-			return graph.Wrap(ctx, err, "creating item in list")
+			return clues.Wrap(err, "creating item in list")
 		}
 	}
 
@@ -251,7 +250,7 @@ func (c Lists) DeleteList(
 		ByListId(listID).
 		Delete(ctx, nil)
 
-	return graph.Wrap(ctx, err, "deleting list").OrNil()
+	return clues.Wrap(err, "deleting list").OrNil()
 }
 
 func (c Lists) PatchList(

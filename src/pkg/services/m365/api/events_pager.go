@@ -57,7 +57,7 @@ func (p *eventsCalendarsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Calendarable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *eventsCalendarsPageCtrl) SetNextLink(nextLink string) {
@@ -74,7 +74,7 @@ func (c Events) EnumerateContainers(
 	userID, _ string, // baseContainerID not needed here
 ) ([]models.Calendarable, error) {
 	containers, err := pagers.BatchEnumerateItems(ctx, c.NewEventCalendarsPager(userID))
-	return containers, graph.Stack(ctx, err).OrNil()
+	return containers, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ func (p *eventsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Eventable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *eventsPageCtrl) SetNextLink(nextLink string) {
@@ -140,7 +140,7 @@ func (c Events) GetItemsInContainerByCollisionKey(
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating events")
+		return nil, clues.Wrap(err, "enumerating events")
 	}
 
 	m := map[string]string{}
@@ -161,7 +161,7 @@ func (c Events) GetItemIDsInContainer(
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating events")
+		return nil, clues.Wrap(err, "enumerating events")
 	}
 
 	m := map[string]struct{}{}
@@ -228,7 +228,7 @@ func (p *eventDeltaPager) GetPage(
 	ctx context.Context,
 ) (pagers.DeltaLinkValuer[models.Eventable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *eventDeltaPager) SetNextLink(nextLink string) {

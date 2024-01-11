@@ -54,7 +54,7 @@ func GetMailboxInfo(
 	// First check whether the user is able to access their inbox.
 	inbox, err := gmb.GetMailInbox(ctx, userID)
 	if err != nil {
-		if err := api.EvaluateMailboxError(graph.Stack(ctx, err)); err != nil {
+		if err := api.EvaluateMailboxError(clues.Stack(err)); err != nil {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
 
 			return mi, err
@@ -74,7 +74,7 @@ func GetMailboxInfo(
 		logger.CtxErr(ctx, err).Info("err getting user's mailbox settings")
 
 		if !graph.IsErrAccessDenied(err) {
-			return mi, graph.Wrap(ctx, err, "getting user's mailbox settings")
+			return mi, clues.Wrap(err, "getting user's mailbox settings")
 		}
 
 		logger.CtxErr(ctx, err).Info("mailbox settings access denied")

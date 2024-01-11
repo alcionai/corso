@@ -13,7 +13,6 @@ import (
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	betamodels "github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk/models"
 	betasites "github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk/sites"
 )
@@ -68,9 +67,13 @@ func GetSitePages(
 				err  error
 			)
 
-			page, err = serv.Client().SitesById(siteID).PagesById(pageID).Get(ctx, opts)
+			page, err = serv.
+				Client().
+				SitesById(siteID).
+				PagesById(pageID).
+				Get(ctx, opts)
 			if err != nil {
-				el.AddRecoverable(ctx, graph.Wrap(ctx, err, "fetching page"))
+				el.AddRecoverable(ctx, clues.Wrap(err, "fetching page"))
 				return
 			}
 
@@ -96,7 +99,7 @@ func FetchPages(ctx context.Context, bs *BetaService, siteID string) ([]NameID, 
 	for {
 		resp, err = builder.Get(ctx, opts)
 		if err != nil {
-			return nil, graph.Wrap(ctx, err, "fetching site page")
+			return nil, clues.Wrap(err, "fetching site page")
 		}
 
 		for _, entry := range resp.GetValue() {
@@ -146,9 +149,13 @@ func DeleteSitePage(
 	serv *BetaService,
 	siteID, pageID string,
 ) error {
-	err := serv.Client().SitesById(siteID).PagesById(pageID).Delete(ctx, nil)
+	err := serv.
+		Client().
+		SitesById(siteID).
+		PagesById(pageID).
+		Delete(ctx, nil)
 	if err != nil {
-		return graph.Wrap(ctx, err, "deleting page")
+		return clues.Wrap(err, "deleting page")
 	}
 
 	return nil
@@ -206,9 +213,13 @@ func RestoreSitePage(
 	// 1. Create the Page on the site
 	// 2. Publish the site
 	// See: https://learn.microsoft.com/en-us/graph/api/sitepage-create?view=graph-rest-beta
-	restoredPage, err := service.Client().SitesById(siteID).Pages().Post(ctx, page, nil)
+	restoredPage, err := service.
+		Client().
+		SitesById(siteID).
+		Pages().
+		Post(ctx, page, nil)
 	if err != nil {
-		return dii, graph.Wrap(ctx, err, "creating page")
+		return dii, clues.Wrap(err, "creating page")
 	}
 
 	pageID = ptr.Val(restoredPage.GetId())
@@ -226,7 +237,7 @@ func RestoreSitePage(
 		Publish().
 		Post(ctx, nil)
 	if err != nil {
-		return dii, graph.Wrap(ctx, err, "publishing page")
+		return dii, clues.Wrap(err, "publishing page")
 	}
 
 	dii.SharePoint = PageInfo(restoredPage, int64(len(byteArray)))

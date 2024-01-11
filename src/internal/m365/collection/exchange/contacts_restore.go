@@ -120,7 +120,7 @@ func restoreContact(
 ) (*details.ExchangeInfo, error) {
 	contact, err := api.BytesToContactable(body)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating contact from bytes")
+		return nil, clues.WrapWC(ctx, err, "creating contact from bytes")
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
@@ -148,7 +148,7 @@ func restoreContact(
 
 	item, err := cr.PostItem(ctx, userID, destinationID, contact)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "restoring contact")
+		return nil, clues.Wrap(err, "restoring contact")
 	}
 
 	// contacts have no PUT request, and PATCH could retain data that's not
@@ -159,7 +159,7 @@ func restoreContact(
 	if shouldDeleteOriginal {
 		err := cr.DeleteItem(ctx, userID, collisionID)
 		if err != nil && !errors.Is(err, core.ErrNotFound) {
-			return nil, graph.Wrap(ctx, err, "deleting colliding contact")
+			return nil, clues.Wrap(err, "deleting colliding contact")
 		}
 	}
 

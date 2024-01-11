@@ -33,7 +33,7 @@ func (p *listsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Listable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *listsPageCtrl) ValidModTimes() bool {
@@ -76,7 +76,7 @@ func (c Lists) GetLists(
 	pager := c.NewListsPager(siteID, cc)
 	items, err := pagers.BatchEnumerateItems[models.Listable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }
 
 func (c Lists) GetListsByCollisionKey(
@@ -121,7 +121,7 @@ func (p *listItemsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ListItemable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *listItemsPageCtrl) ValidModTimes() bool {
@@ -169,7 +169,7 @@ func (c Lists) GetListItems(
 	pager := c.NewListItemsPager(siteID, listID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ListItemable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -194,7 +194,7 @@ func (p *columnsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ColumnDefinitionable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *columnsPageCtrl) ValidModTimes() bool {
@@ -242,7 +242,7 @@ func (c Lists) GetListColumns(
 	pager := c.NewColumnsPager(siteID, listID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ColumnDefinitionable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -267,7 +267,7 @@ func (p *contentTypesPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ContentTypeable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *contentTypesPageCtrl) ValidModTimes() bool {
@@ -315,7 +315,7 @@ func (c Lists) GetContentTypes(
 	pager := c.NewContentTypesPager(siteID, listID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ContentTypeable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -341,7 +341,7 @@ func (p *cTypesColumnsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ColumnDefinitionable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *cTypesColumnsPageCtrl) ValidModTimes() bool {
@@ -394,7 +394,7 @@ func (c Lists) GetCTypesColumns(
 	pager := c.NewCTypesColumnsPager(siteID, listID, contentTypeID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ColumnDefinitionable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -420,7 +420,7 @@ func (p *columnLinksPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ColumnLinkable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *columnLinksPageCtrl) ValidModTimes() bool {
@@ -473,5 +473,5 @@ func (c Lists) GetColumnLinks(
 	pager := c.NewColumnLinksPager(siteID, listID, contentTypeID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ColumnLinkable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }

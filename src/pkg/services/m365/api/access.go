@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/alcionai/clues"
-
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -51,7 +49,7 @@ func (c Access) GetToken(
 
 	resp, err := c.Post(ctx, rawURL, headers, body)
 	if err != nil {
-		return graph.Stack(ctx, err)
+		return clues.Stack(err)
 	}
 
 	if resp.StatusCode == http.StatusBadRequest {

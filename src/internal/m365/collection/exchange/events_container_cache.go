@@ -101,9 +101,8 @@ func (ecc *eventContainerCache) Populate(
 
 		err := ecc.addFolder(&cacheFolder)
 		if err != nil {
-			errs.AddRecoverable(
-				ctx,
-				graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+			err := clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation)
+			errs.AddRecoverable(ctx, err)
 		}
 	}
 

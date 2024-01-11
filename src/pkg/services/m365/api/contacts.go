@@ -52,11 +52,8 @@ func (c Contacts) CreateContainer(
 		ByUserId(userID).
 		ContactFolders().
 		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating contact folder")
-	}
 
-	return mdl, nil
+	return mdl, clues.Wrap(err, "creating contact folder").OrNil()
 }
 
 // DeleteContainer deletes the ContactFolder associated with the M365 ID if permissions are valid.
@@ -68,7 +65,7 @@ func (c Contacts) DeleteContainer(
 	// https://github.com/alcionai/corso/issues/2707
 	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
-		return graph.Stack(ctx, err)
+		return clues.StackWC(ctx, err)
 	}
 
 	err = srv.
@@ -78,11 +75,8 @@ func (c Contacts) DeleteContainer(
 		ContactFolders().
 		ByContactFolderId(containerID).
 		Delete(ctx, nil)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
 
-	return nil
+	return clues.Stack(err).OrNil()
 }
 
 func (c Contacts) GetContainerByID(
@@ -102,11 +96,8 @@ func (c Contacts) GetContainerByID(
 		ContactFolders().
 		ByContactFolderId(containerID).
 		Get(ctx, config)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	return resp, nil
+	return resp, clues.Stack(err).OrNil()
 }
 
 // GetContainerByName fetches a folder by name
@@ -131,7 +122,7 @@ func (c Contacts) GetContainerByName(
 		ContactFolders().
 		Get(ctx, options)
 	if err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, clues.Stack(err)
 	}
 
 	gv := resp.GetValue()
@@ -170,11 +161,8 @@ func (c Contacts) PatchFolder(
 		ContactFolders().
 		ByContactFolderId(containerID).
 		Patch(ctx, body, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "patching contact folder")
-	}
 
-	return nil
+	return clues.Wrap(err, "patching contact folder").OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -198,11 +186,8 @@ func (c Contacts) GetItem(
 		Contacts().
 		ByContactId(itemID).
 		Get(ctx, options)
-	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
-	}
 
-	return cont, ContactInfo(cont), nil
+	return cont, ContactInfo(cont), clues.Stack(err).OrNil()
 }
 
 func (c Contacts) PostItem(
@@ -218,11 +203,8 @@ func (c Contacts) PostItem(
 		ByContactFolderId(containerID).
 		Contacts().
 		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating contact")
-	}
 
-	return itm, nil
+	return itm, clues.Wrap(err, "creating contact").OrNil()
 }
 
 func (c Contacts) DeleteItem(
@@ -233,7 +215,7 @@ func (c Contacts) DeleteItem(
 	// https://github.com/alcionai/corso/issues/2707
 	srv, err := c.Service(c.counter)
 	if err != nil {
-		return graph.Stack(ctx, err)
+		return clues.StackWC(ctx, err)
 	}
 
 	err = srv.
@@ -243,11 +225,8 @@ func (c Contacts) DeleteItem(
 		Contacts().
 		ByContactId(itemID).
 		Delete(ctx, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting contact")
-	}
 
-	return nil
+	return clues.Wrap(err, "deleting contact").OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -287,7 +266,7 @@ func (c Contacts) Serialize(
 ) ([]byte, error) {
 	contact, ok := item.(models.Contactable)
 	if !ok {
-		return nil, clues.New(fmt.Sprintf("item is not a Contactable: %T", item))
+		return nil, clues.NewWC(ctx, fmt.Sprintf("item is not a Contactable: %T", item))
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(contact.GetId()))
@@ -296,15 +275,12 @@ func (c Contacts) Serialize(
 	defer writer.Close()
 
 	if err := writer.WriteObjectValue("", contact); err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	bs, err := writer.GetSerializedContent()
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "serializing contact")
-	}
 
-	return bs, nil
+	return bs, clues.WrapWC(ctx, err, "serializing contact").OrNil()
 }
 
 // ---------------------------------------------------------------------------
