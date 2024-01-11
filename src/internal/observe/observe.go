@@ -470,7 +470,6 @@ func ItemSpinner(
 	closer := &autoCloser{rc: bar.ProxyReader(rc)}
 
 	closer.close = func() {
-		closer.closed = true
 		bar.SetTotal(-1, true)
 		bar.Abort(true)
 	}
