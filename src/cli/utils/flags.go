@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/alcionai/clues"
+
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -42,6 +43,7 @@ func trimFolderSlash(folders []string) []string {
 
 	return res
 }
+
 func validateCommonTimeFlags(opts any) error {
 	timeFlags := []string{
 		flags.FileCreatedAfterFN,
