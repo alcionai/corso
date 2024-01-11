@@ -123,7 +123,7 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	case isErrApplicationThrottled(ode, err):
 		err = clues.Stack(core.ErrApplicationThrottled, err)
 	case isErrUserNotFound(ode, err):
-		err = clues.Stack(core.ErrResourceOwnerNotFound, err)
+		err = clues.Stack(core.ErrNotFound, err)
 	case isErrResourceLocked(ode, err):
 		err = clues.Stack(core.ErrResourceNotAccessible, err)
 	case isErrInsufficientAuthorization(ode, err):

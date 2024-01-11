@@ -259,7 +259,7 @@ func (r resourceGetter) GetResourceIDAndNameFrom(
 	}
 
 	if len(id) == 0 || len(name) == 0 {
-		return nil, clues.Stack(core.ErrResourceOwnerNotFound)
+		return nil, clues.Stack(core.ErrNotFound)
 	}
 
 	return idname.NewProvider(id, name), nil
