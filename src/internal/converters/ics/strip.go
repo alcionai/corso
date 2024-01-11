@@ -8,6 +8,19 @@ import (
 	"golang.org/x/net/html"
 )
 
+// removeTrailingWhiltesapce removes trailing whitespace from every
+// line in a string.
+func removeTrailingWhiltesapce(in string) string {
+	out := ""
+	lines := strings.Split(in, "\n")
+
+	for _, line := range lines {
+		out += strings.TrimRight(line, " ") + "\n"
+	}
+
+	return strings.TrimSpace(out)
+}
+
 // MS converts content from HTML to text when then have to export it
 // to other formats. This is a best effort reproduction of what they do.
 func HTMLToText(in string) (string, error) {
