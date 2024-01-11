@@ -646,6 +646,10 @@ func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option)
 	os := []option{}
 
 	switch cat {
+	// SharePointList does not apply here because:
+	// 1.there is no nested folders -> there cannot be lists within other lists
+	// 2. list itself is the item -> so container and item are the same
+	// since there is no path involved here, we do not need any path filters.
 	case SharePointLibraryFolder, SharePointPage:
 		os = append(os, pathComparator())
 	}
