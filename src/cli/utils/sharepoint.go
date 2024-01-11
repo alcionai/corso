@@ -36,21 +36,6 @@ type SharePointOpts struct {
 	Populated flags.PopulatedFlags
 }
 
-func (s SharePointOpts) FileTimeField(flag string) string {
-	switch flag {
-	case flags.FileCreatedAfterFN:
-		return s.FileCreatedAfter
-	case flags.FileCreatedBeforeFN:
-		return s.FileCreatedBefore
-	case flags.FileModifiedAfterFN:
-		return s.FileModifiedAfter
-	case flags.FileModifiedBeforeFN:
-		return s.FileModifiedBefore
-	default:
-		return ""
-	}
-}
-
 func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 	return SharePointOpts{
 		SiteID: flags.SiteIDFV,
@@ -159,14 +144,41 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 		return sel
 	}
 
-	includeFolderAndPageSelectors(
-		sel,
-		opts,
-		opts.FolderPath,
-		opts.FileName,
-		opts.PageFolder,
-		opts.Page,
-		opts.Lists)
+	if folderPaths+fileNames > 0 {
+		if fileNames == 0 {
+			opts.FileName = selectors.Any()
+		}
+
+		opts.FolderPath = trimFolderSlash(opts.FolderPath)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPath)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.LibraryItems(containsFolders, opts.FileName))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.LibraryItems(prefixFolders, opts.FileName, selectors.PrefixMatch()))
+		}
+	}
+
+	configureSharepointListsSelector(sel, opts.Lists)
+
+	if pageFolders+pageItems > 0 {
+		if pageItems == 0 {
+			opts.Page = selectors.Any()
+		}
+
+		opts.PageFolder = trimFolderSlash(opts.PageFolder)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PageFolder)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.PageItems(containsFolders, opts.Page))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.PageItems(prefixFolders, opts.Page, selectors.PrefixMatch()))
+		}
+	}
 
 	if webUrls > 0 {
 		urls := make([]string, 0, len(opts.WebURL))
@@ -207,4 +219,18 @@ func FilterSharePointRestoreInfoSelectors(
 	AddSharePointInfo(sel, opts.FileCreatedBefore, sel.CreatedBefore)
 	AddSharePointInfo(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
 	AddSharePointInfo(sel, opts.FileModifiedBefore, sel.ModifiedBefore)
+}
+
+func configureSharepointListsSelector(sel any, optsList []string) {
+	if len(optsList) > 0 {
+		optsList = trimFolderSlash(optsList)
+		switch s := sel.(type) {
+		case *selectors.SharePointRestore:
+			s.Include(s.ListItems(optsList, optsList, selectors.StrictEqualMatch()))
+			s.Configure(selectors.Config{OnlyMatchItemNames: true})
+		case *selectors.GroupsRestore:
+			s.Include(s.ListItems(optsList, optsList, selectors.StrictEqualMatch()))
+			s.Configure(selectors.Config{OnlyMatchItemNames: true})
+		}
+	}
 }

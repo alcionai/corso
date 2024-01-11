@@ -43,21 +43,6 @@ type GroupsOpts struct {
 	Populated flags.PopulatedFlags
 }
 
-func (g GroupsOpts) FileTimeField(flag string) string {
-	switch flag {
-	case flags.FileCreatedAfterFN:
-		return g.FileCreatedAfter
-	case flags.FileCreatedBeforeFN:
-		return g.FileCreatedBefore
-	case flags.FileModifiedAfterFN:
-		return g.FileModifiedAfter
-	case flags.FileModifiedBeforeFN:
-		return g.FileModifiedBefore
-	default:
-		return ""
-	}
-}
-
 func GroupsAllowedCategories() map[string]struct{} {
 	return map[string]struct{}{
 		flags.DataLibraries:     {},
@@ -199,14 +184,47 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 		return sel
 	}
 
-	includeFolderAndPageSelectors(
-		sel,
-		opts,
-		opts.FolderPath,
-		opts.FileName,
-		opts.PageFolder,
-		opts.Page,
-		opts.Lists)
+	// sharepoint site selectors
+
+	if folderPaths+fileNames+
+		lists+
+		pageFolders+pageItems > 0 {
+		if folderPaths+fileNames > 0 {
+			if fileNames == 0 {
+				opts.FileName = selectors.Any()
+			}
+
+			opts.FolderPath = trimFolderSlash(opts.FolderPath)
+			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPath)
+
+			if len(containsFolders) > 0 {
+				sel.Include(sel.LibraryItems(containsFolders, opts.FileName))
+			}
+
+			if len(prefixFolders) > 0 {
+				sel.Include(sel.LibraryItems(prefixFolders, opts.FileName, selectors.PrefixMatch()))
+			}
+		}
+
+		configureSharepointListsSelector(sel, opts.Lists)
+
+		if pageFolders+pageItems > 0 {
+			if pageItems == 0 {
+				opts.Page = selectors.Any()
+			}
+
+			opts.PageFolder = trimFolderSlash(opts.PageFolder)
+			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PageFolder)
+
+			if len(containsFolders) > 0 {
+				sel.Include(sel.PageItems(containsFolders, opts.Page))
+			}
+
+			if len(prefixFolders) > 0 {
+				sel.Include(sel.PageItems(prefixFolders, opts.Page, selectors.PrefixMatch()))
+			}
+		}
+	}
 
 	// channel and message selectors
 
