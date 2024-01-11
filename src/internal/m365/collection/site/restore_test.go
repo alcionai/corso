@@ -53,7 +53,7 @@ func (suite *SharePointCollectionUnitSuite) TestFormatListsRestoreDestination() 
 	}{
 		{
 			name:     "stored list has a display name",
-			destName: "Corso_Restore_" + dt + "_",
+			destName: "Corso_Restore_" + dt,
 			itemID:   "someid",
 			getStoredList: func() models.Listable {
 				list := models.NewList()
@@ -65,7 +65,7 @@ func (suite *SharePointCollectionUnitSuite) TestFormatListsRestoreDestination() 
 		},
 		{
 			name:     "stored list does not have a display name",
-			destName: "Corso_Restore_" + dt + "_",
+			destName: "Corso_Restore_" + dt,
 			itemID:   "someid",
 			getStoredList: func() models.Listable {
 				return models.NewList()

@@ -316,7 +316,7 @@ func BytesToListable(bytes []byte) (models.Listable, error) {
 // not attached in this method.
 // ListItems are not included in creation of new list, and have to be restored
 // in separate call.
-func ToListable(orig models.Listable, displayName string) (models.Listable, map[string]any) {
+func ToListable(orig models.Listable, listName string) (models.Listable, map[string]any) {
 	newList := models.NewList()
 
 	newList.SetContentTypes(orig.GetContentTypes())
@@ -324,7 +324,7 @@ func ToListable(orig models.Listable, displayName string) (models.Listable, map[
 	newList.SetCreatedByUser(orig.GetCreatedByUser())
 	newList.SetCreatedDateTime(orig.GetCreatedDateTime())
 	newList.SetDescription(orig.GetDescription())
-	newList.SetDisplayName(&displayName)
+	newList.SetDisplayName(ptr.To(listName))
 	newList.SetLastModifiedBy(orig.GetLastModifiedBy())
 	newList.SetLastModifiedByUser(orig.GetLastModifiedByUser())
 	newList.SetLastModifiedDateTime(orig.GetLastModifiedDateTime())
