@@ -171,8 +171,7 @@ func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
 	}
 
 	if !filters.Contains(ids).Compare(sels.ID()) {
-		return clues.Stack(core.ErrResourceOwnerNotFound).
-			With("selector_protected_resource", sels.DiscreteOwner)
+		return clues.Stack(core.ErrNotFound).With("selector_protected_resource", sels.DiscreteOwner)
 	}
 
 	return nil

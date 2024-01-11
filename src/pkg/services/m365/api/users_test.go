@@ -81,9 +81,9 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 		},
 		{
 			name: "mail inbox err - user not found",
-			err:  core.ErrResourceOwnerNotFound,
+			err:  core.ErrNotFound,
 			expect: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.NoError(t, err, clues.ToCore(err))
 			},
 		},
 		{

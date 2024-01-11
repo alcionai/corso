@@ -115,45 +115,81 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 		return nil
 	}
 
+	ode := parseODataErr(err)
+
 	switch {
-	case isErrBadJWTToken(err):
+	case isErrBadJWTToken(ode, err):
 		err = clues.Stack(core.ErrAuthTokenExpired)
-	case isErrApplicationThrottled(err):
+	case isErrApplicationThrottled(ode, err):
 		err = clues.Stack(core.ErrApplicationThrottled, err)
-	case isErrResourceLocked(err):
-		err = clues.Stack(core.ErrResourceNotAccessible, err)
-	case isErrUserNotFound(err):
-		err = clues.Stack(core.ErrResourceOwnerNotFound, err)
-	case isErrInsufficientAuthorization(err):
-		err = clues.Stack(core.ErrInsufficientAuthorization, err)
-	case isErrNotFound(err):
+	case isErrUserNotFound(ode, err):
 		err = clues.Stack(core.ErrNotFound, err)
-	case isErrItemAlreadyExistsConflict(err):
+	case isErrResourceLocked(ode, err):
+		err = clues.Stack(core.ErrResourceNotAccessible, err)
+	case isErrInsufficientAuthorization(ode, err):
+		err = clues.Stack(core.ErrInsufficientAuthorization, err)
+	case isErrNotFound(ode, err):
+		err = clues.Stack(core.ErrNotFound, err)
+	case isErrItemAlreadyExists(ode, err):
 		err = clues.Stack(core.ErrAlreadyExists, err)
 	}
 
 	return stackWithDepth(ctx, err, 1+traceDepth)
 }
 
-func isErrApplicationThrottled(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, ApplicationThrottled)
+// unexported categorizers, for use with stackWithCoreErr
+
+func isErrApplicationThrottled(ode oDataErr, err error) bool {
+	return ode.hasErrorCode(err, ApplicationThrottled)
 }
 
-func IsErrAuthenticationError(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, AuthenticationError)
+func isErrInsufficientAuthorization(ode oDataErr, err error) bool {
+	return ode.hasErrorCode(err, AuthorizationRequestDenied)
 }
 
-func isErrInsufficientAuthorization(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, AuthorizationRequestDenied)
-}
-
-func isErrNotFound(err error) bool {
+func isErrNotFound(ode oDataErr, err error) bool {
 	return clues.HasLabel(err, LabelStatus(http.StatusNotFound)) ||
-		parseODataErr(err).hasErrorCode(
+		ode.hasErrorCode(
 			err,
 			ErrorItemNotFound,
 			ItemNotFound,
 			syncFolderNotFound)
+}
+
+func isErrUserNotFound(ode oDataErr, err error) bool {
+	if ode.hasErrorCode(err, RequestResourceNotFound, invalidUser) {
+		return true
+	}
+
+	if ode.hasErrorCode(err, ResourceNotFound) {
+		return strings.Contains(strings.ToLower(ode.Main.Message), "user")
+	}
+
+	return false
+}
+
+func isErrBadJWTToken(ode oDataErr, err error) bool {
+	return ode.hasErrorCode(err, invalidAuthenticationToken)
+}
+
+func isErrItemAlreadyExists(ode oDataErr, err error) bool {
+	return ode.hasErrorCode(err, nameAlreadyExists)
+}
+
+func isErrResourceLocked(ode oDataErr, err error) bool {
+	return ode.hasInnerErrorCode(err, ResourceLocked) ||
+		ode.hasErrorCode(err, NotAllowed) ||
+		ode.errMessageMatchesAllFilters(
+			err,
+			filters.In([]string{"the service principal for resource"}),
+			filters.In([]string{"this indicate that a subscription within the tenant has lapsed"}),
+			filters.In([]string{"preventing tokens from being issued for it"}))
+}
+
+// exported categorizers
+
+func IsErrAuthenticationError(err error) bool {
+	return parseODataErr(err).hasErrorCode(err, AuthenticationError)
 }
 
 func IsErrInvalidDelta(err error) bool {
@@ -177,20 +213,6 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 	// Not sure if we can actually see a resourceNotFound error here. I've only
 	// seen the latter two.
 	return parseODataErr(err).hasErrorCode(err, ResourceNotFound, ErrorItemNotFound, MailboxNotEnabledForRESTAPI)
-}
-
-func isErrUserNotFound(err error) bool {
-	ode := parseODataErr(err)
-
-	if ode.hasErrorCode(err, RequestResourceNotFound, invalidUser) {
-		return true
-	}
-
-	if ode.hasErrorCode(err, ResourceNotFound) {
-		return strings.Contains(strings.ToLower(ode.Main.Message), "user")
-	}
-
-	return false
 }
 
 func IsErrInvalidRecipients(err error) bool {
@@ -228,14 +250,6 @@ func IsErrUnauthorizedOrBadToken(err error) bool {
 		errors.Is(err, core.ErrAuthTokenExpired)
 }
 
-func isErrBadJWTToken(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, invalidAuthenticationToken)
-}
-
-func isErrItemAlreadyExistsConflict(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, nameAlreadyExists)
-}
-
 // LabelStatus transforms the provided statusCode into
 // a standard label that can be attached to a clues error
 // and later reviewed when checking error statuses.
@@ -268,18 +282,6 @@ func IsErrUsersCannotBeResolved(err error) bool {
 
 func IsErrSiteNotFound(err error) bool {
 	return parseODataErr(err).hasErrorMessage(err, requestedSiteCouldNotBeFound)
-}
-
-func isErrResourceLocked(err error) bool {
-	ode := parseODataErr(err)
-
-	return ode.hasInnerErrorCode(err, ResourceLocked) ||
-		ode.hasErrorCode(err, NotAllowed) ||
-		ode.errMessageMatchesAllFilters(
-			err,
-			filters.In([]string{"the service principal for resource"}),
-			filters.In([]string{"this indicate that a subscription within the tenant has lapsed"}),
-			filters.In([]string{"preventing tokens from being issued for it"}))
 }
 
 func IsErrSharingDisabled(err error) bool {
