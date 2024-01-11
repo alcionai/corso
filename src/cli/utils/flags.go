@@ -1,8 +1,12 @@
 package utils
 
 import (
+	"reflect"
 	"strconv"
 
+	"github.com/alcionai/clues"
+
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -38,4 +42,36 @@ func trimFolderSlash(folders []string) []string {
 	}
 
 	return res
+}
+
+func validateCommonTimeFlags(opts any) error {
+	timeFlags := []string{
+		flags.FileCreatedAfterFN,
+		flags.FileCreatedBeforeFN,
+		flags.FileModifiedAfterFN,
+		flags.FileModifiedBeforeFN,
+	}
+
+	switch opts := opts.(type) {
+	case GroupsOpts:
+		for _, flag := range timeFlags {
+			if _, ok := opts.Populated[flag]; ok {
+				timeField := reflect.ValueOf(opts).FieldByName(flag).String()
+				if !IsValidTimeFormat(timeField) {
+					return clues.New("invalid time format for " + flag)
+				}
+			}
+		}
+	case SharePointOpts:
+		for _, flag := range timeFlags {
+			if _, ok := opts.Populated[flag]; ok {
+				timeField := reflect.ValueOf(opts).FieldByName(flag).String()
+				if !IsValidTimeFormat(timeField) {
+					return clues.New("invalid time format for " + flag)
+				}
+			}
+		}
+	}
+
+	return nil
 }

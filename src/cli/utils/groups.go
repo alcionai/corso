@@ -124,22 +124,6 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool
 		}
 	}
 
-	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return clues.New("invalid time format for " + flags.FileCreatedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return clues.New("invalid time format for " + flags.FileCreatedBeforeFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return clues.New("invalid time format for " + flags.FileModifiedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
-	}
-
 	if _, ok := opts.Populated[flags.MessageCreatedAfterFN]; ok && !IsValidTimeFormat(opts.MessageCreatedAfter) {
 		return clues.New("invalid time format for " + flags.MessageCreatedAfterFN)
 	}
@@ -156,7 +140,7 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool
 		return clues.New("invalid time format for " + flags.MessageLastReplyBeforeFN)
 	}
 
-	return nil
+	return validateCommonTimeFlags(opts)
 }
 
 // AddGroupsFilter adds the scope of the provided values to the selector's
