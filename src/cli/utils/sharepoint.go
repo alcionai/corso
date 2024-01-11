@@ -106,7 +106,23 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		}
 	}
 
-	return validateCommonTimeFlags(opts)
+	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
+		return clues.New("invalid time format for " + flags.FileCreatedAfterFN)
+	}
+
+	if _, ok := opts.Populated[flags.FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
+		return clues.New("invalid time format for " + flags.FileCreatedBeforeFN)
+	}
+
+	if _, ok := opts.Populated[flags.FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
+		return clues.New("invalid time format for " + flags.FileModifiedAfterFN)
+	}
+
+	if _, ok := opts.Populated[flags.FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
+		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
+	}
+
+	return nil
 }
 
 // AddSharePointInfo adds the scope of the provided values to the selector's
