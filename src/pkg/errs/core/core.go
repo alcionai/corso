@@ -51,6 +51,11 @@ func (e Err) Error() string {
 }
 
 var (
+	// occurs when creation of an entity (usually by restful POST or PUT) errors
+	// because some other entity already already exists with a conflicting identifier.
+	// The identifier is not always the id.  For example: duplicate filenames
+	// in the same directory will cause conflicts, even with different IDs.
+	ErrAlreadyExists = &Err{msg: "conflict: already exists"}
 	// currently we have no internal throttling controls.  We only try to match
 	// external throttling requirements.  This sentinel assumes that an external
 	// server has returned one or more throttling errors which has stopped
@@ -63,6 +68,11 @@ var (
 	ErrBackupNotFound = &Err{msg: "backup not found"}
 	// a catch-all for downstream api auth issues.  doesn't matter which api.
 	ErrInsufficientAuthorization = &Err{msg: "insufficient authorization"}
+	// happens when we look up something using an identifier other than a canonical ID
+	// (ex: filtering, searching, etc). This error should only be returned if a unique
+	// result is an expected constraint of the behavior.  If it's possible to
+	// opportunistically select one of the many results, no error should get returned.
+	ErrMultipleResultsMatchIdentifier = &Err{msg: "multiple results match the identifier"}
 	// basically what it sounds like: we went looking for something by ID and
 	// it wasn't found.  This might be because it was deleted in flight, or
 	// was never created, or some other reason.
@@ -78,10 +88,6 @@ var (
 	// it, but are told by the external system that the resource is somehow
 	// unusable.
 	ErrResourceNotAccessible = &Err{msg: "resource not accesible"}
-	// use this when a resource (user, etc; whatever owner is used to own the
-	// data in the given backup) cannot be found in the system by the ID that
-	// the end user provided.
-	ErrResourceOwnerNotFound = &Err{msg: "resource owner not found"}
 	// a service is the set of application data within a given provider.  eg:
 	// if m365 is the provider, then exchange is a service, so is oneDrive.
 	// this sentinel is used to indicate that the service in question is not
