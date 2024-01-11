@@ -838,6 +838,7 @@ func restoreFile(
 		}
 
 		// close the progress bar immediately on error, else we might deadlock
+		// its safe to double call Close on the reader.
 		progressReader.Close()
 
 		// refresh the io.Writer to restart the upload

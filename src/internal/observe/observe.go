@@ -355,10 +355,12 @@ func (ac *autoCloser) Read(p []byte) (n int, err error) {
 }
 
 func (ac *autoCloser) Close() error {
-	if !ac.closed {
-		ac.closed = true
-		ac.close()
+	if ac.closed {
+		return nil
 	}
+
+	ac.closed = true
+	ac.close()
 
 	return ac.rc.Close()
 }
@@ -415,7 +417,6 @@ func ItemProgress(
 	closer := &autoCloser{rc: bar.ProxyReader(rc)}
 
 	closer.close = func() {
-		closer.closed = true
 		bar.SetTotal(-1, true)
 		bar.Abort(true)
 	}
