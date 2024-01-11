@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	gmock "github.com/alcionai/corso/src/pkg/services/m365/api/graph/mock"
 )
 
 // ---------------------------------------------------------------------------
@@ -25,12 +24,12 @@ import (
 // GockClient produces a new exchange api client that can be
 // mocked using gock.
 func gockClient(creds account.M365Config, counter *count.Bus) (Client, error) {
-	s, err := gmock.NewService(creds, counter)
+	s, err := graph.NewGockService(creds, counter)
 	if err != nil {
 		return Client{}, err
 	}
 
-	li, err := gmock.NewService(creds, counter, graph.NoTimeout())
+	li, err := graph.NewGockService(creds, counter, graph.NoTimeout())
 	if err != nil {
 		return Client{}, err
 	}

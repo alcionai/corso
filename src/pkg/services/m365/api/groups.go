@@ -11,6 +11,7 @@ import (
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
 	"github.com/microsoftgraph/msgraph-sdk-go/groups"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
@@ -133,10 +134,6 @@ func (c Groups) GetTeamByID(
 
 	t, err := c.Stable.Client().Teams().ByTeamId(identifier).Get(ctx, nil)
 	if err != nil {
-		if graph.IsErrResourceLocked(err) {
-			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceLocked, err))
-		}
-
 		return nil, graph.Wrap(ctx, err, "finding team by ID")
 	}
 
@@ -172,8 +169,8 @@ func (c Groups) GetByID(
 			return group, nil
 		}
 
-		if graph.IsErrResourceLocked(err) {
-			return nil, graph.Stack(ctx, clues.Stack(graph.ErrResourceLocked, err))
+		if errors.Is(err, core.ErrResourceNotAccessible) {
+			return nil, err
 		}
 
 		logger.CtxErr(ctx, err).Info("finding group by id, falling back to secondary identifier")
@@ -194,8 +191,8 @@ func (c Groups) GetByID(
 			return getGroupFromResponse(ctx, resp)
 		}
 
-		if graph.IsErrResourceLocked(err) {
-			err = clues.Stack(graph.ErrResourceLocked, err)
+		if errors.Is(err, core.ErrResourceNotAccessible) {
+			return nil, err
 		}
 
 		logger.CtxErr(ctx, err).Info("finding group by email, falling back to display name")
@@ -211,10 +208,6 @@ func (c Groups) GetByID(
 
 	resp, err := c.Stable.Client().Groups().Get(ctx, opts)
 	if err != nil {
-		if graph.IsErrResourceLocked(err) {
-			err = clues.Stack(graph.ErrResourceLocked, err)
-		}
-
 		return nil, graph.Wrap(ctx, err, "finding group by display name")
 	}
 
