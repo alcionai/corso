@@ -92,14 +92,14 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "overlapping resourcenotfound",
 			mock: func(ctx context.Context) getMailInboxer {
 				odErr := graphTD.ODataErrWithMsg(string(graph.ResourceNotFound), "User not found")
-				err := clues.Stack(core.ErrResourceOwnerNotFound, odErr)
+				err := clues.Stack(core.ErrNotFound, odErr)
 
 				return mockGMB{
 					mailboxErr: graph.Stack(ctx, err),
 				}
 			},
 			expect:    assert.False,
-			expectErr: assert.Error,
+			expectErr: assert.NoError,
 		},
 		{
 			name: "arbitrary error",

@@ -181,7 +181,7 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			name: "random id",
 			id:   uuid.NewString() + "," + uuid.NewString(),
 			expectErr: func(t *testing.T, err error) bool {
-				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrNotFound, clues.ToCore(err))
 				return true
 			},
 		},
@@ -213,7 +213,7 @@ func (suite *SitesIntgSuite) TestSites_GetByID() {
 			name: "well formed url, no sites match",
 			id:   modifiedSiteURL,
 			expectErr: func(t *testing.T, err error) bool {
-				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrNotFound, clues.ToCore(err))
 				return true
 			},
 		},

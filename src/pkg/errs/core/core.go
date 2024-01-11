@@ -88,10 +88,6 @@ var (
 	// it, but are told by the external system that the resource is somehow
 	// unusable.
 	ErrResourceNotAccessible = &Err{msg: "resource not accesible"}
-	// use this when a resource (user, etc; whatever owner is used to own the
-	// data in the given backup) cannot be found in the system by the ID that
-	// the end user provided.
-	ErrResourceOwnerNotFound = &Err{msg: "resource owner not found"}
 	// a service is the set of application data within a given provider.  eg:
 	// if m365 is the provider, then exchange is a service, so is oneDrive.
 	// this sentinel is used to indicate that the service in question is not
