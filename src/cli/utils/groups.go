@@ -43,6 +43,21 @@ type GroupsOpts struct {
 	Populated flags.PopulatedFlags
 }
 
+func (g GroupsOpts) GetFileTimeField(flag string) string {
+	switch flag {
+	case flags.FileCreatedAfterFN:
+		return g.FileCreatedAfter
+	case flags.FileCreatedBeforeFN:
+		return g.FileCreatedBefore
+	case flags.FileModifiedAfterFN:
+		return g.FileModifiedAfter
+	case flags.FileModifiedBeforeFN:
+		return g.FileModifiedBefore
+	default:
+		return ""
+	}
+}
+
 func GroupsAllowedCategories() map[string]struct{} {
 	return map[string]struct{}{
 		flags.DataLibraries:     {},
@@ -124,22 +139,6 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool
 		}
 	}
 
-	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return clues.New("invalid time format for " + flags.FileCreatedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return clues.New("invalid time format for " + flags.FileCreatedBeforeFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return clues.New("invalid time format for " + flags.FileModifiedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
-	}
-
 	if _, ok := opts.Populated[flags.MessageCreatedAfterFN]; ok && !IsValidTimeFormat(opts.MessageCreatedAfter) {
 		return clues.New("invalid time format for " + flags.MessageCreatedAfterFN)
 	}
@@ -156,7 +155,7 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool
 		return clues.New("invalid time format for " + flags.MessageLastReplyBeforeFN)
 	}
 
-	return nil
+	return validateCommonTimeFlags(opts)
 }
 
 // AddGroupsFilter adds the scope of the provided values to the selector's
@@ -202,47 +201,43 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 
 	// sharepoint site selectors
 
-	if folderPaths+fileNames+
-		lists+
-		pageFolders+pageItems > 0 {
-		if folderPaths+fileNames > 0 {
-			if fileNames == 0 {
-				opts.FileName = selectors.Any()
-			}
-
-			opts.FolderPath = trimFolderSlash(opts.FolderPath)
-			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPath)
-
-			if len(containsFolders) > 0 {
-				sel.Include(sel.LibraryItems(containsFolders, opts.FileName))
-			}
-
-			if len(prefixFolders) > 0 {
-				sel.Include(sel.LibraryItems(prefixFolders, opts.FileName, selectors.PrefixMatch()))
-			}
+	if folderPaths+fileNames > 0 {
+		if fileNames == 0 {
+			opts.FileName = selectors.Any()
 		}
 
-		if lists > 0 {
-			opts.Lists = trimFolderSlash(opts.Lists)
-			sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
-			sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+		opts.FolderPath = trimFolderSlash(opts.FolderPath)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPath)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.LibraryItems(containsFolders, opts.FileName))
 		}
 
-		if pageFolders+pageItems > 0 {
-			if pageItems == 0 {
-				opts.Page = selectors.Any()
-			}
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.LibraryItems(prefixFolders, opts.FileName, selectors.PrefixMatch()))
+		}
+	}
 
-			opts.PageFolder = trimFolderSlash(opts.PageFolder)
-			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PageFolder)
+	if lists > 0 {
+		opts.Lists = trimFolderSlash(opts.Lists)
+		sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+	}
 
-			if len(containsFolders) > 0 {
-				sel.Include(sel.PageItems(containsFolders, opts.Page))
-			}
+	if pageFolders+pageItems > 0 {
+		if pageItems == 0 {
+			opts.Page = selectors.Any()
+		}
 
-			if len(prefixFolders) > 0 {
-				sel.Include(sel.PageItems(prefixFolders, opts.Page, selectors.PrefixMatch()))
-			}
+		opts.PageFolder = trimFolderSlash(opts.PageFolder)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PageFolder)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.PageItems(containsFolders, opts.Page))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.PageItems(prefixFolders, opts.Page, selectors.PrefixMatch()))
 		}
 	}
 

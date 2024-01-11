@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"errors"
 	"strconv"
 
+	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -38,4 +41,51 @@ func trimFolderSlash(folders []string) []string {
 	}
 
 	return res
+}
+func validateCommonTimeFlags(opts any) error {
+	timeFlags := []string{
+		flags.FileCreatedAfterFN,
+		flags.FileCreatedBeforeFN,
+		flags.FileModifiedAfterFN,
+		flags.FileModifiedBeforeFN,
+	}
+
+	isFlagPopulated := func(opts any, flag string) bool {
+		switch opts := opts.(type) {
+		case GroupsOpts:
+			_, ok := opts.Populated[flag]
+			return ok
+		case SharePointOpts:
+			_, ok := opts.Populated[flag]
+			return ok
+		default:
+			return false
+		}
+	}
+
+	getTimeField := func(opts any, flag string) (string, error) {
+		switch opts := opts.(type) {
+		case GroupsOpts:
+			return opts.GetFileTimeField(flag), nil
+		case SharePointOpts:
+			return opts.GetFileTimeField(flag), nil
+		default:
+			return "", errors.New("unsupported type")
+		}
+	}
+
+	for _, flag := range timeFlags {
+		if populated := isFlagPopulated(opts, flag); populated {
+			timeField, err := getTimeField(opts, flag)
+			if err != nil {
+				return err
+			}
+
+			if !IsValidTimeFormat(timeField) {
+				return clues.New("invalid time format for " + flag)
+			}
+		}
+	}
+
+	return nil
 }

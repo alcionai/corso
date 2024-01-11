@@ -36,6 +36,21 @@ type SharePointOpts struct {
 	Populated flags.PopulatedFlags
 }
 
+func (s SharePointOpts) GetFileTimeField(flag string) string {
+	switch flag {
+	case flags.FileCreatedAfterFN:
+		return s.FileCreatedAfter
+	case flags.FileCreatedBeforeFN:
+		return s.FileCreatedBefore
+	case flags.FileModifiedAfterFN:
+		return s.FileModifiedAfter
+	case flags.FileModifiedBeforeFN:
+		return s.FileModifiedBefore
+	default:
+		return ""
+	}
+}
+
 func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 	return SharePointOpts{
 		SiteID: flags.SiteIDFV,
@@ -106,23 +121,7 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		}
 	}
 
-	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return clues.New("invalid time format for " + flags.FileCreatedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return clues.New("invalid time format for " + flags.FileCreatedBeforeFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return clues.New("invalid time format for " + flags.FileModifiedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
-	}
-
-	return nil
+	return validateCommonTimeFlags(opts)
 }
 
 // AddSharePointInfo adds the scope of the provided values to the selector's
