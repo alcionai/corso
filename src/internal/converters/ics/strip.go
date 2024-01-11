@@ -37,6 +37,7 @@ func HTMLToText(in string) (string, error) {
 			// TODO(meain): usually EOF, but handle other error
 			fmt.Println(out)
 			return out, nil
+			return removeTrailingWhiltesapce(out), nil
 		case html.TextToken:
 			if depth > 0 {
 				text := string(z.Text())
@@ -57,7 +58,6 @@ func HTMLToText(in string) (string, error) {
 			tn, _ := z.TagName()
 			lastTag = string(tn)
 
-			// TODO(meain): what about images?
 			switch lastTag {
 			case "a":
 				if tt == html.StartTagToken {
@@ -93,6 +93,25 @@ func HTMLToText(in string) (string, error) {
 				if len(out) > 0 && out[len(out)-1] != '\n' {
 					out += "\n"
 				}
+			case "img":
+				if tt == html.StartTagToken {
+					cid := ""
+
+					for {
+						key, val, more := z.TagAttr()
+						if string(key) == "src" {
+							cid = string(val)
+							break
+						}
+
+						if !more {
+							break
+						}
+					}
+
+					out += "[" + cid + "]"
+				}
+
 			}
 		}
 	}
