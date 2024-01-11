@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Events can now be exported from Exchange backups as .ics files
+
 ### Fixed
 - Retry transient 400 "invalidRequest" errors during onedrive & sharepoint backup.
 - Backup attachments associated with group mailbox items.
