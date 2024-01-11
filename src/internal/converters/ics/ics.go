@@ -359,7 +359,11 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 					desc = strings.ReplaceAll(desc, "\n", "")
 					iCalEvent.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
 				} else {
-					stripped := HTMLtoText(description)
+					stripped, err := HTMLToText(description)
+					if err != nil {
+						return clues.Wrap(err, "converting html to text")
+					}
+
 					iCalEvent.SetDescription(stripped)
 				}
 			}
