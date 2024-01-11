@@ -144,24 +144,24 @@ func AddSharePointInfo(
 func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointOpts) *selectors.SharePointRestore {
 	sites := opts.SiteID
 
-	lfp, lfn := len(opts.FolderPath), len(opts.FileName)
-	ls, lwu := len(opts.SiteID), len(opts.WebURL)
-	sl := len(opts.Lists)
-	pf, pi := len(opts.PageFolder), len(opts.Page)
+	folderPaths, fileNames := len(opts.FolderPath), len(opts.FileName)
+	siteIDs, webUrls := len(opts.SiteID), len(opts.WebURL)
+	lists := len(opts.Lists)
+	pageFolders, pageItems := len(opts.PageFolder), len(opts.Page)
 
-	if ls == 0 {
+	if siteIDs == 0 {
 		sites = selectors.Any()
 	}
 
 	sel := selectors.NewSharePointRestore(sites)
 
-	if lfp+lfn+lwu+sl+pf+pi == 0 {
+	if folderPaths+fileNames+webUrls+lists+pageFolders+pageItems == 0 {
 		sel.Include(sel.AllData())
 		return sel
 	}
 
-	if lfp+lfn > 0 {
-		if lfn == 0 {
+	if folderPaths+fileNames > 0 {
+		if fileNames == 0 {
 			opts.FileName = selectors.Any()
 		}
 
@@ -177,14 +177,14 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 		}
 	}
 
-	if sl > 0 {
+	if lists > 0 {
 		opts.Lists = trimFolderSlash(opts.Lists)
 		sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
 		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 	}
 
-	if pf+pi > 0 {
-		if pi == 0 {
+	if pageFolders+pageItems > 0 {
+		if pageItems == 0 {
 			opts.Page = selectors.Any()
 		}
 
@@ -200,7 +200,7 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 		}
 	}
 
-	if lwu > 0 {
+	if webUrls > 0 {
 		urls := make([]string, 0, len(opts.WebURL))
 
 		for _, wu := range opts.WebURL {
