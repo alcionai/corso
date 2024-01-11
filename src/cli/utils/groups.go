@@ -222,11 +222,7 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 			}
 		}
 
-		if lists > 0 {
-			opts.Lists = trimFolderSlash(opts.Lists)
-			sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
-			sel.Configure(selectors.Config{OnlyMatchItemNames: true})
-		}
+		configureSharepointListsSelector(sel, opts.Lists)
 
 		if pageFolders+pageItems > 0 {
 			if pageItems == 0 {

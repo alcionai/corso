@@ -177,11 +177,7 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 		}
 	}
 
-	if lists > 0 {
-		opts.Lists = trimFolderSlash(opts.Lists)
-		sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
-		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
-	}
+	configureSharepointListsSelector(sel, opts.Lists)
 
 	if pageFolders+pageItems > 0 {
 		if pageItems == 0 {
@@ -239,4 +235,18 @@ func FilterSharePointRestoreInfoSelectors(
 	AddSharePointInfo(sel, opts.FileCreatedBefore, sel.CreatedBefore)
 	AddSharePointInfo(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
 	AddSharePointInfo(sel, opts.FileModifiedBefore, sel.ModifiedBefore)
+}
+
+func configureSharepointListsSelector(sel any, optsList []string) {
+	if len(optsList) > 0 {
+		optsList = trimFolderSlash(optsList)
+		switch s := sel.(type) {
+		case *selectors.SharePointRestore:
+			s.Include(s.ListItems(optsList, optsList, selectors.StrictEqualMatch()))
+			s.Configure(selectors.Config{OnlyMatchItemNames: true})
+		case *selectors.GroupsRestore:
+			s.Include(s.ListItems(optsList, optsList, selectors.StrictEqualMatch()))
+			s.Configure(selectors.Config{OnlyMatchItemNames: true})
+		}
+	}
 }
