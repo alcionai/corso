@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-//go:embed testdata/in.html
-var in string
+//go:embed testdata/utf8.html
+var utf8_in string
 
-//go:embed testdata/out.txt
-var out string
+//go:embed testdata/utf8.txt
+var utf8_out string
 
 type StripUnitSuite struct {
 	tester.Suite
@@ -38,8 +38,8 @@ func (s *StripUnitSuite) TestStrip() {
 		},
 		{
 			name:      "teams meeting",
-			input:     in,
-			expected:  out,
+			input:     utf8_in,
+			expected:  utf8_out,
 			errAssert: assert.NoError,
 		},
 	}
