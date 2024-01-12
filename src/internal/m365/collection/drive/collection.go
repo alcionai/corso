@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/pkg/errors"
 	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
@@ -21,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -302,7 +304,7 @@ func (oc *Collection) getDriveItemContent(
 			return nil, clues.Wrap(err, "malware item").Label(graph.LabelsSkippable)
 		}
 
-		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || errors.Is(err, core.ErrNotFound) {
 			logger.CtxErr(ctx, err).Info("item not found, probably deleted in flight")
 			return nil, clues.Wrap(err, "deleted item").Label(graph.LabelsSkippable)
 		}
@@ -421,7 +423,7 @@ func readItemContents(
 	// Handle newly deleted items
 	if props.isDeleted {
 		logger.Ctx(ctx).Info("item deleted in cache")
-		return nil, graph.ErrDeletedInFlight
+		return nil, core.ErrNotFound
 	}
 
 	rc, err := downloadFile(ctx, iaag, props.downloadURL)
@@ -462,14 +464,12 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 		return
 	}
 
-	displayPath := oc.handler.FormatDisplayPath(oc.driveName, parentPath)
-
-	folderProgress := observe.ProgressWithCount(
+	progressMessage := observe.ProgressWithCount(
 		ctx,
 		observe.ItemQueueMsg,
-		path.NewElements(displayPath),
+		path.NewElements(oc.handler.FormatDisplayPath(oc.driveName, parentPath)),
 		int64(len(oc.driveItems)))
-	defer close(folderProgress)
+	defer close(progressMessage)
 
 	semaphoreCh := make(chan struct{}, graph.Parallelism(path.OneDriveService).Item())
 	defer close(semaphoreCh)
@@ -500,7 +500,7 @@ func (oc *Collection) streamItems(ctx context.Context, errs *fault.Bus) {
 				oc.ctrl.ItemExtensionFactory,
 				errs)
 
-			folderProgress <- struct{}{}
+			progressMessage <- struct{}{}
 		}(item)
 	}
 
@@ -546,7 +546,7 @@ func (lig *lazyItemGetter) GetData(
 	lig.info.Extension.Data = extData.Data
 
 	// display/log the item download
-	progReader, _ := observe.ItemProgress(
+	progReader := observe.ItemProgress(
 		ctx,
 		extRc,
 		observe.ItemBackupMsg,
@@ -607,7 +607,7 @@ func (oc *Collection) streamDriveItem(
 	itemMeta, itemMetaSize, err = downloadItemMeta(ctx, oc.handler, oc.driveID, item)
 	if err != nil {
 		// Skip deleted items
-		if !clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) && !graph.IsErrDeletedInFlight(err) {
+		if !clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) && !errors.Is(err, core.ErrNotFound) {
 			errs.AddRecoverable(ctx, clues.Wrap(err, "getting item metadata").Label(fault.LabelForceNoBackupCreation))
 		}
 
@@ -656,7 +656,7 @@ func (oc *Collection) streamDriveItem(
 	}
 
 	metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
-		progReader, _ := observe.ItemProgress(
+		progReader := observe.ItemProgress(
 			ctx,
 			itemMeta,
 			observe.ItemBackupMsg,

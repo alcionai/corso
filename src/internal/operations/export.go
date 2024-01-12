@@ -249,15 +249,13 @@ func (op *ExportOperation) do(
 		observe.ProgressCfg{},
 		fmt.Sprintf("Discovered %d items in backup %s to export", len(paths), op.BackupID))
 
-	kopiaComplete := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Enumerating items in repository")
-	defer close(kopiaComplete)
+	progressMessage := observe.MessageWithCompletion(ctx, observe.DefaultCfg(), "Enumerating items in repository")
+	defer close(progressMessage)
 
 	dcs, err := op.kopia.ProduceRestoreCollections(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing collections to export")
 	}
-
-	kopiaComplete <- struct{}{}
 
 	ctx = clues.Add(ctx, "coll_count", len(dcs))
 
@@ -340,11 +338,8 @@ func produceExportCollections(
 	exportStats *metrics.ExportStats,
 	errs *fault.Bus,
 ) ([]export.Collectioner, error) {
-	complete := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Preparing export")
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-	}()
+	progressMessage := observe.MessageWithCompletion(ctx, observe.DefaultCfg(), "Preparing export")
+	defer close(progressMessage)
 
 	ctx, end := diagnostics.Span(ctx, "m365:export")
 	defer end()

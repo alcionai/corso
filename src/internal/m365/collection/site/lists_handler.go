@@ -67,10 +67,10 @@ func NewListsRestoreHandler(protectedResource string, ac api.Lists) listsRestore
 func (rh listsRestoreHandler) PostList(
 	ctx context.Context,
 	listName string,
-	storedListData []byte,
+	storedList models.Listable,
 	errs *fault.Bus,
 ) (models.Listable, error) {
-	return rh.ac.PostList(ctx, rh.protectedResource, listName, storedListData, errs)
+	return rh.ac.PostList(ctx, rh.protectedResource, listName, storedList, errs)
 }
 
 func (rh listsRestoreHandler) DeleteList(

@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
@@ -105,65 +106,90 @@ const (
 	LabelsSkippable = "skippable_errors"
 )
 
-// These errors are graph specific.  That means they don't have a clear parallel in
-// pkg/errs/core.  If these errors need to trickle outward to non-m365 layers, we
-// need to find a sufficiently coarse errs/core sentinel to use as transformation.
-var (
-	// The folder or item was deleted between the time we identified
-	// it and when we tried to fetch data for it.
-	ErrDeletedInFlight = clues.New("deleted in flight")
+// ---------------------------------------------------------------------------
+// error categorization
+// ---------------------------------------------------------------------------
 
-	// ErrItemAlreadyExistsConflict denotes that a post or put attempted to create
-	// an item which already exists by some unique identifier.  The identifier is
-	// not always the id.  For example, in onedrive, this error can be produced
-	// when filenames collide in a @microsoft.graph.conflictBehavior=fail request.
-	ErrItemAlreadyExistsConflict = clues.New("item already exists")
+func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
+	if err == nil {
+		return nil
+	}
 
-	// ErrMultipleResultsMatchIdentifier describes a situation where we're doing a lookup
-	// in some way other than by canonical url ID (ex: filtering, searching, etc).
-	// This error should only be returned if a unique result is an expected constraint
-	// of the call results.  If it's possible to opportunistically select one of the many
-	// replies, no error should get returned.
-	ErrMultipleResultsMatchIdentifier = clues.New("multiple results match the identifier")
+	ode := parseODataErr(err)
 
-	// ErrResourceLocked occurs when a resource has had its access locked.
-	// Example case: https://learn.microsoft.com/en-us/sharepoint/manage-lock-status
-	// This makes the resource inaccessible for any Corso operations.
-	ErrResourceLocked = clues.New("resource has been locked and must be unlocked by an administrator")
+	switch {
+	case isErrBadJWTToken(ode, err):
+		err = clues.Stack(core.ErrAuthTokenExpired)
+	case isErrApplicationThrottled(ode, err):
+		err = clues.Stack(core.ErrApplicationThrottled, err)
+	case isErrUserNotFound(ode, err):
+		err = clues.Stack(core.ErrNotFound, err)
+	case isErrResourceLocked(ode, err):
+		err = clues.Stack(core.ErrResourceNotAccessible, err)
+	case isErrInsufficientAuthorization(ode, err):
+		err = clues.Stack(core.ErrInsufficientAuthorization, err)
+	case isErrNotFound(ode, err):
+		err = clues.Stack(core.ErrNotFound, err)
+	case isErrItemAlreadyExists(ode, err):
+		err = clues.Stack(core.ErrAlreadyExists, err)
+	}
 
-	ErrTokenExpired = clues.New("jwt token expired")
-)
-
-func IsErrApplicationThrottled(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, ApplicationThrottled)
+	return stackWithDepth(ctx, err, 1+traceDepth)
 }
 
-func IsErrAuthenticationError(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, AuthenticationError)
+// unexported categorizers, for use with stackWithCoreErr
+
+func isErrApplicationThrottled(ode oDataErr, err error) bool {
+	return ode.hasErrorCode(err, ApplicationThrottled)
 }
 
-func IsErrInsufficientAuthorization(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, AuthorizationRequestDenied)
+func isErrInsufficientAuthorization(ode oDataErr, err error) bool {
+	return ode.hasErrorCode(err, AuthorizationRequestDenied)
 }
 
-func IsErrDeletedInFlight(err error) bool {
-	if errors.Is(err, ErrDeletedInFlight) {
+func isErrNotFound(ode oDataErr, err error) bool {
+	return clues.HasLabel(err, LabelStatus(http.StatusNotFound)) ||
+		ode.hasErrorCode(
+			err,
+			ErrorItemNotFound,
+			ItemNotFound,
+			syncFolderNotFound)
+}
+
+func isErrUserNotFound(ode oDataErr, err error) bool {
+	if ode.hasErrorCode(err, RequestResourceNotFound, invalidUser) {
 		return true
 	}
 
-	if parseODataErr(err).hasErrorCode(
-		err,
-		ErrorItemNotFound,
-		ItemNotFound,
-		syncFolderNotFound) {
-		return true
+	if ode.hasErrorCode(err, ResourceNotFound) {
+		return strings.Contains(strings.ToLower(ode.Main.Message), "user")
 	}
 
 	return false
 }
 
-func IsErrItemNotFound(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, ItemNotFound, ErrorItemNotFound)
+func isErrBadJWTToken(ode oDataErr, err error) bool {
+	return ode.hasErrorCode(err, invalidAuthenticationToken)
+}
+
+func isErrItemAlreadyExists(ode oDataErr, err error) bool {
+	return ode.hasErrorCode(err, nameAlreadyExists)
+}
+
+func isErrResourceLocked(ode oDataErr, err error) bool {
+	return ode.hasInnerErrorCode(err, ResourceLocked) ||
+		ode.hasErrorCode(err, NotAllowed) ||
+		ode.errMessageMatchesAllFilters(
+			err,
+			filters.In([]string{"the service principal for resource"}),
+			filters.In([]string{"this indicate that a subscription within the tenant has lapsed"}),
+			filters.In([]string{"preventing tokens from being issued for it"}))
+}
+
+// exported categorizers
+
+func IsErrAuthenticationError(err error) bool {
+	return parseODataErr(err).hasErrorCode(err, AuthenticationError)
 }
 
 func IsErrInvalidDelta(err error) bool {
@@ -187,20 +213,6 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 	// Not sure if we can actually see a resourceNotFound error here. I've only
 	// seen the latter two.
 	return parseODataErr(err).hasErrorCode(err, ResourceNotFound, ErrorItemNotFound, MailboxNotEnabledForRESTAPI)
-}
-
-func IsErrUserNotFound(err error) bool {
-	ode := parseODataErr(err)
-
-	if ode.hasErrorCode(err, RequestResourceNotFound, invalidUser) {
-		return true
-	}
-
-	if ode.hasErrorCode(err, ResourceNotFound) {
-		return strings.Contains(strings.ToLower(ode.Main.Message), "user")
-	}
-
-	return false
 }
 
 func IsErrInvalidRecipients(err error) bool {
@@ -235,16 +247,7 @@ func IsErrConnectionReset(err error) bool {
 func IsErrUnauthorizedOrBadToken(err error) bool {
 	return clues.HasLabel(err, LabelStatus(http.StatusUnauthorized)) ||
 		parseODataErr(err).hasErrorCode(err, invalidAuthenticationToken) ||
-		errors.Is(err, ErrTokenExpired)
-}
-
-func IsErrBadJWTToken(err error) bool {
-	return parseODataErr(err).hasErrorCode(err, invalidAuthenticationToken)
-}
-
-func IsErrItemAlreadyExistsConflict(err error) bool {
-	return errors.Is(err, ErrItemAlreadyExistsConflict) ||
-		parseODataErr(err).hasErrorCode(err, nameAlreadyExists)
+		errors.Is(err, core.ErrAuthTokenExpired)
 }
 
 // LabelStatus transforms the provided statusCode into
@@ -281,22 +284,13 @@ func IsErrSiteNotFound(err error) bool {
 	return parseODataErr(err).hasErrorMessage(err, requestedSiteCouldNotBeFound)
 }
 
-func IsErrResourceLocked(err error) bool {
-	ode := parseODataErr(err)
-
-	return errors.Is(err, ErrResourceLocked) ||
-		ode.hasInnerErrorCode(err, ResourceLocked) ||
-		ode.hasErrorCode(err, NotAllowed) ||
-		ode.errMessageMatchesAllFilters(
-			err,
-			filters.In([]string{"the service principal for resource"}),
-			filters.In([]string{"this indicate that a subscription within the tenant has lapsed"}),
-			filters.In([]string{"preventing tokens from being issued for it"}))
-}
-
 func IsErrSharingDisabled(err error) bool {
 	return parseODataErr(err).hasInnerErrorCode(err, sharingDisabled)
 }
+
+// ---------------------------------------------------------------------------
+// quality of life wrappers
+// ---------------------------------------------------------------------------
 
 // Wrap is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns the error.
@@ -324,6 +318,10 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 // Stack is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns the error.
 func Stack(ctx context.Context, e error) *clues.Err {
+	return stackWithDepth(ctx, e, 1)
+}
+
+func stackWithDepth(ctx context.Context, e error, traceDepth int) *clues.Err {
 	if e == nil {
 		return nil
 	}
@@ -339,7 +337,7 @@ func Stack(ctx context.Context, e error) *clues.Err {
 
 	ce := clues.StackWC(ctx, e).
 		With("graph_api_err", ode).
-		WithTrace(1)
+		WithTrace(1 + traceDepth)
 
 	return setLabels(ce, ode)
 }
@@ -647,7 +645,7 @@ func IsURLExpired(
 	}
 
 	if expired {
-		return clues.StackWC(ctx, ErrTokenExpired), nil
+		return clues.StackWC(ctx, core.ErrAuthTokenExpired), nil
 	}
 
 	return nil, nil

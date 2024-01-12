@@ -49,6 +49,9 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper() {
 
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// Test http wrapper config
+	assert.Equal(t, httpWrapperRetryDelay, hw.retryDelay)
 }
 
 type mwForceResp struct {
@@ -180,9 +183,13 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_http2StreamErrorRetries() 
 				appendMiddleware(&mwResp),
 				MaxConnectionRetries(test.retries))
 
+			// Configure retry delay to reduce test time. Retry delay doesn't
+			// really matter here since all requests will be intercepted by
+			// the test middleware.
+			hw.retryDelay = 0
+
 			_, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
 			require.ErrorAs(t, err, &http2.StreamError{}, clues.ToCore(err))
-
 			require.Equal(t, test.expectRetries, tries, "count of retries")
 		})
 	}

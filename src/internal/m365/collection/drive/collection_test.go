@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/extensions"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -767,10 +768,10 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "url refreshed from cache but item deleted",
-			mgi:       getsItem{Item: itemWID, Err: graph.ErrDeletedInFlight},
+			mgi:       getsItem{Item: itemWID, Err: core.ErrNotFound},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, nil, nil},
-			getErr:    []error{errUnauth, graph.ErrDeletedInFlight, graph.ErrDeletedInFlight},
+			getErr:    []error{errUnauth, core.ErrNotFound, core.ErrNotFound},
 			expectErr: require.Error,
 			expect:    require.Nil,
 			muc: &mockURLCache{

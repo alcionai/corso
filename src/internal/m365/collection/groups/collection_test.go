@@ -22,9 +22,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type CollectionUnitSuite struct {
@@ -533,7 +533,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 	defer flush()
 
 	m := getAndAugmentConversation{
-		GetItemErr: graph.ErrDeletedInFlight,
+		GetItemErr: core.ErrNotFound,
 	}
 
 	li := data.NewLazyItemWithInfo(
@@ -558,7 +558,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 		"item mod time")
 
 	_, err := readers.NewVersionedRestoreReader(li.ToReader())
-	assert.ErrorIs(t, err, graph.ErrDeletedInFlight, "item should be marked deleted in flight")
+	assert.ErrorIs(t, err, core.ErrNotFound, "item should be marked deleted in flight")
 }
 
 func (suite *CollectionUnitSuite) TestLazyItem() {

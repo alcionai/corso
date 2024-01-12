@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/alcionai/clues"
@@ -15,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -60,16 +62,14 @@ func CreateCollections(
 		return nil, clues.NewWC(ctx, "unsupported backup category type")
 	}
 
-	pcfg := observe.ProgressCfg{
-		Indent:            1,
-		CompletionMessage: func() string { return fmt.Sprintf("(found %d folders)", len(collections)) },
-	}
-	foldersComplete := observe.MessageWithCompletion(
+	progressMessage := observe.MessageWithCompletion(
 		ctx,
-		pcfg,
+		observe.ProgressCfg{
+			Indent:            1,
+			CompletionMessage: func() string { return fmt.Sprintf("(found %d folders)", len(collections)) },
+		},
 		qp.Category.HumanString())
-
-	defer close(foldersComplete)
+	defer close(progressMessage)
 
 	rootFolder, cc := handler.NewContainerCache(bpc.ProtectedResource.ID())
 
@@ -267,7 +267,7 @@ func populateCollections(
 				prevDelta,
 				itemConfig)
 		if err != nil {
-			if !graph.IsErrDeletedInFlight(err) {
+			if !errors.Is(err, core.ErrNotFound) {
 				el.AddRecoverable(ctx, clues.Stack(err).Label(fault.LabelForceNoBackupCreation))
 				continue
 			}
