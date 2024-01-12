@@ -357,8 +357,8 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 				// X-ALT-DESC field uses "Text" as in https://www.rfc-editor.org/rfc/rfc2445#section-4.3.11
 				if isASCII(description) {
 					// https://stackoverflow.com/a/859475
-					desc := strings.ReplaceAll(description, "\r\n", "")
-					desc = strings.ReplaceAll(desc, "\n", "")
+					replacer := strings.NewReplacer("\r\n", "\\n", "\n", "\\n")
+					desc := replacer.Replace(description)
 					iCalEvent.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
 				} else {
 					stripped, err := html2text.FromString(description, html2text.Options{PrettyTables: true})
