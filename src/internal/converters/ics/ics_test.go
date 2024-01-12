@@ -1120,8 +1120,8 @@ func eventToMap(e *models.Event) (map[string]any, error) {
 		return nil, err
 	}
 
-	// convert json to map
 	parsed := map[string]any{}
+
 	err = json.Unmarshal(bts, &parsed)
 	if err != nil {
 		return nil, err
@@ -1143,6 +1143,7 @@ func eventToJSON(e *models.Event) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return bts, err
 }
 

@@ -216,7 +216,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	}
 
 	exceptionOcurrances := event.GetAdditionalData()["exceptionOccurrences"]
-	if exceptionOcurrances != nil {
+	if exceptionOcurrances == nil {
 		return cal.Serialize(), nil
 	}
 
@@ -510,28 +510,17 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 }
 
 func getCancelledDates(ctx context.Context, event models.Eventable) ([]time.Time, error) {
-	cancalledOcurrances := event.GetAdditionalData()["cancelledOccurrences"]
-	if cancalledOcurrances == nil {
-		return nil, nil
+	dateStrings, err := api.GetCancelledEventDateStrings(event)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "getting cancelled event date strings")
 	}
 
 	dates := []time.Time{}
+	tz := ptr.Val(event.GetStart().GetTimeZone())
 
-	for _, occ := range cancalledOcurrances.([]any) {
-		instance, err := str.AnyToString(occ)
-		if err != nil {
-			return nil, clues.WrapWC(ctx, err, "getting cancelled occurrence id")
-		}
-
-		splits := strings.Split(instance, ".")
-		if len(splits) < 2 {
-			return nil, clues.NewWC(ctx, "invalid cancelled occurrence id").With("id", instance)
-		}
-
-		startStr := splits[len(splits)-1]
-
+	for _, ds := range dateStrings {
 		// the data just contains date and no time which seems to work
-		start, err := getUTCTime(startStr, ptr.Val(event.GetStart().GetTimeZone()))
+		start, err := getUTCTime(ds, tz)
 		if err != nil {
 			return nil, clues.WrapWC(ctx, err, "parsing cancelled event date")
 		}
