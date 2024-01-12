@@ -734,14 +734,7 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			// convert event to bytes
-			writer := kjson.NewJsonSerializationWriter()
-			defer writer.Close()
-
-			err := writer.WriteObjectValue("", tt.event())
-			require.NoError(t, err, "serializing contact")
-
-			bts, err := writer.GetSerializedContent()
+			bts, err := eventToJSON(tt.event())
 			require.NoError(t, err, "getting serialized content")
 
 			e, err := FromJSON(ctx, bts)
@@ -849,10 +842,6 @@ func (suite *ICSUnitSuite) TestAttendees() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			// convert event to bytes
-			writer := kjson.NewJsonSerializationWriter()
-			defer writer.Close()
-
 			e := baseEvent()
 
 			atts := make([]models.Attendeeable, len(tt.att))
@@ -889,10 +878,7 @@ func (suite *ICSUnitSuite) TestAttendees() {
 
 			e.SetAttendees(atts)
 
-			err := writer.WriteObjectValue("", e)
-			require.NoError(t, err, "serializing contact")
-
-			bts, err := writer.GetSerializedContent()
+			bts, err := eventToJSON(e)
 			require.NoError(t, err, "getting serialized content")
 
 			out, err := FromJSON(ctx, bts)
@@ -1035,16 +1021,9 @@ func (suite *ICSUnitSuite) TestAttachments() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			// convert event to bytes
-			writer := kjson.NewJsonSerializationWriter()
-			defer writer.Close()
-
 			e := baseEvent()
 
-			err := writer.WriteObjectValue("", e)
-			require.NoError(t, err, "serializing contact")
-
-			bts, err := writer.GetSerializedContent()
+			bts, err := eventToJSON(e)
 			require.NoError(t, err, "getting serialized content")
 
 			parsed := map[string]any{}
@@ -1074,6 +1053,228 @@ func (suite *ICSUnitSuite) TestAttachments() {
 
 			out, err := FromJSON(ctx, bts)
 			require.NoError(t, err, "converting to ics")
+
+			tt.check(out)
+		})
+	}
+}
+
+func (suite *ICSUnitSuite) TestCancellations() {
+	table := []struct {
+		name         string
+		cancelledIds []string
+		expected     string
+	}{
+		{
+			name: "single",
+			cancelledIds: []string{
+				"OID.DEADBEEF=.2024-01-25",
+			},
+			expected: "EXDATE:20240125",
+		},
+		{
+			name: "multiple",
+			cancelledIds: []string{
+				"OID.DEADBEEF=.2024-01-25",
+				"OID.LIVEBEEF=.2024-02-26",
+			},
+			expected: "EXDATE:20240125,20240226",
+		},
+	}
+
+	for _, tt := range table {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			e := baseEvent()
+
+			e.SetIsCancelled(ptr.To(true))
+			e.SetAdditionalData(map[string]any{
+				"cancelledOccurrences": tt.cancelledIds,
+			})
+			bts, err := eventToJSON(e)
+			require.NoError(t, err, "getting serialized content")
+
+			out, err := FromJSON(ctx, bts)
+			require.NoError(t, err, "converting to ics")
+
+			assert.Contains(t, out, tt.expected, "cancellation exrule")
+		})
+	}
+}
+
+func getDateTimeZone(t time.Time, tz string) *models.DateTimeTimeZone {
+	dt := models.NewDateTimeTimeZone()
+	dt.SetDateTime(ptr.To(t.Format(time.RFC3339)))
+	dt.SetTimeZone(ptr.To(tz))
+
+	return dt
+}
+
+func eventToMap(e *models.Event) (map[string]any, error) {
+	bts, err := eventToJSON(e)
+	if err != nil {
+		return nil, err
+	}
+
+	parsed := map[string]any{}
+
+	err = json.Unmarshal(bts, &parsed)
+	if err != nil {
+		return nil, err
+	}
+
+	return parsed, nil
+}
+
+func eventToJSON(e *models.Event) ([]byte, error) {
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	err := writer.WriteObjectValue("", e)
+	if err != nil {
+		return nil, err
+	}
+
+	bts, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, err
+	}
+
+	return bts, err
+}
+
+func (suite *ICSUnitSuite) TestEventExceptions() {
+	table := []struct {
+		name  string
+		event func() *models.Event
+		check func(string)
+	}{
+		{
+			name: "single exception",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				exception := baseEvent()
+				exception.SetSubject(ptr.To("Exception"))
+				exception.SetOriginalStart(ptr.To(time.Date(2021, 1, 1, 12, 0, 0, 0, time.UTC)))
+
+				newStart := getDateTimeZone(time.Date(2021, 1, 1, 13, 0, 0, 0, time.UTC), "UTC")
+				newEnd := getDateTimeZone(time.Date(2021, 1, 1, 14, 0, 0, 0, time.UTC), "UTC")
+
+				exception.SetStart(newStart)
+				exception.SetEnd(newEnd)
+
+				parsed, err := eventToMap(exception)
+				require.NoError(suite.T(), err, "parsing exception")
+
+				// add exception event to additional data
+				e.SetAdditionalData(map[string]any{
+					"exceptionOccurrences": []map[string]any{parsed},
+				})
+
+				return e
+			},
+			check: func(out string) {
+				lines := strings.Split(out, "\r\n")
+				events := 0
+
+				for _, l := range lines {
+					if strings.HasPrefix(l, "BEGIN:VEVENT") {
+						events++
+					}
+				}
+
+				assert.Equal(suite.T(), 2, events, "number of events")
+
+				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210101T120000Z", "recurrence id")
+
+				assert.Contains(suite.T(), out, "SUMMARY:Subject", "original event")
+				assert.Contains(suite.T(), out, "SUMMARY:Exception", "exception event")
+
+				assert.Contains(suite.T(), out, "DTSTART:20210101T130000Z", "new start time")
+				assert.Contains(suite.T(), out, "DTEND:20210101T140000Z", "new end time")
+			},
+		},
+		{
+			name: "multiple exceptions",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				exception1 := baseEvent()
+				exception1.SetSubject(ptr.To("Exception 1"))
+				exception1.SetOriginalStart(ptr.To(time.Date(2021, 1, 1, 12, 0, 0, 0, time.UTC)))
+
+				newStart := getDateTimeZone(time.Date(2021, 1, 1, 13, 0, 0, 0, time.UTC), "UTC")
+				newEnd := getDateTimeZone(time.Date(2021, 1, 1, 14, 0, 0, 0, time.UTC), "UTC")
+
+				exception1.SetStart(newStart)
+				exception1.SetEnd(newEnd)
+
+				exception2 := baseEvent()
+				exception2.SetSubject(ptr.To("Exception 2"))
+				exception2.SetOriginalStart(ptr.To(time.Date(2021, 1, 2, 12, 0, 0, 0, time.UTC)))
+
+				newStart = getDateTimeZone(time.Date(2021, 1, 2, 13, 0, 0, 0, time.UTC), "UTC")
+				newEnd = getDateTimeZone(time.Date(2021, 1, 2, 14, 0, 0, 0, time.UTC), "UTC")
+
+				exception2.SetStart(newStart)
+				exception2.SetEnd(newEnd)
+
+				parsed1, err := eventToMap(exception1)
+				require.NoError(suite.T(), err, "parsing exception 1")
+
+				parsed2, err := eventToMap(exception2)
+				require.NoError(suite.T(), err, "parsing exception 2")
+
+				// add exception event to additional data
+				e.SetAdditionalData(map[string]any{
+					"exceptionOccurrences": []map[string]any{parsed1, parsed2},
+				})
+
+				return e
+			},
+			check: func(out string) {
+				lines := strings.Split(out, "\r\n")
+				events := 0
+
+				for _, l := range lines {
+					if strings.HasPrefix(l, "BEGIN:VEVENT") {
+						events++
+					}
+				}
+
+				assert.Equal(suite.T(), 3, events, "number of events")
+
+				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210101T120000Z", "recurrence id 1")
+				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210102T120000Z", "recurrence id 2")
+
+				assert.Contains(suite.T(), out, "SUMMARY:Subject", "original event")
+				assert.Contains(suite.T(), out, "SUMMARY:Exception 1", "exception event 1")
+				assert.Contains(suite.T(), out, "SUMMARY:Exception 2", "exception event 2")
+
+				assert.Contains(suite.T(), out, "DTSTART:20210101T130000Z", "new start time 1")
+				assert.Contains(suite.T(), out, "DTEND:20210101T140000Z", "new end time 1")
+
+				assert.Contains(suite.T(), out, "DTSTART:20210102T130000Z", "new start time 2")
+				assert.Contains(suite.T(), out, "DTEND:20210102T140000Z", "new end time 2")
+			},
+		},
+	}
+
+	for _, tt := range table {
+		suite.Run(tt.name, func() {
+			ctx, flush := tester.NewContext(suite.T())
+			defer flush()
+
+			bts, err := eventToJSON(tt.event())
+			require.NoError(suite.T(), err, "getting serialized content")
+
+			out, err := FromJSON(ctx, bts)
+			require.NoError(suite.T(), err, "converting to ics")
 
 			tt.check(out)
 		})
