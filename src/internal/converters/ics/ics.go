@@ -106,7 +106,6 @@ func getUTCTime(ts, tz string) (time.Time, error) {
 // https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10
 // https://learn.microsoft.com/en-us/graph/api/resources/patternedrecurrence?view=graph-rest-1.0
 // Ref: https://github.com/closeio/sync-engine/pull/381/files
-// FIXME: When we have daily repeating task the last one is not getting added (due to timezone differences)
 func getRecurrencePattern(
 	ctx context.Context,
 	recurrence models.PatternedRecurrenceable,
@@ -175,10 +174,19 @@ func getRecurrencePattern(
 		case models.ENDDATE_RECURRENCERANGETYPE:
 			end := rrange.GetEndDate()
 			if end != nil {
-				// NOTE: We convert just a date into date+time in a
-				// different timezone which will cause it to not be just
-				// a date anymore.
-				endTime, err := getUTCTime(end.String(), ptr.Val(rrange.GetRecurrenceTimeZone()))
+				parsedTime, err := dttm.ParseTime(end.String())
+				if err != nil {
+					return "", clues.Wrap(err, "parsing recurrence end date")
+				}
+
+				// end date is always computed as end of the day and
+				// so add 23 hours 59 minutes 59 seconds as seconds is
+				// the resolution we need
+				parsedTime = parsedTime.Add(24*time.Hour - 1*time.Second)
+
+				endTime, err := getUTCTime(
+					parsedTime.Format(string(dttm.M365DateTimeTimeZone)),
+					ptr.Val(rrange.GetRecurrenceTimeZone()))
 				if err != nil {
 					return "", clues.WrapWC(ctx, err, "parsing end time")
 				}
