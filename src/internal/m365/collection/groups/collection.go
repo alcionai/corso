@@ -3,6 +3,7 @@ package groups
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -420,7 +422,7 @@ func (lig *lazyItemGetter[C, I]) GetData(
 	if err != nil {
 		// For items that were deleted in flight, add the skip label so that
 		// they don't lead to recoverable failures during backup.
-		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || errors.Is(err, core.ErrNotFound) {
 			logger.CtxErr(ctx, err).Info("item deleted in flight. skipping")
 
 			// Returning delInFlight as true here for correctness, although the caller is going

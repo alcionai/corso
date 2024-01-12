@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
@@ -313,14 +314,14 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 	_, err = users.
 		NewItemCalendarsItemEventsDeltaRequestBuilder("https://graph.microsoft.com/fnords/beaux/regard", adpt).
 		Get(ctx, nil)
-	assert.True(t, IsErrBadJWTToken(err), clues.ToCore(err))
+	assert.ErrorIs(t, err, core.ErrAuthTokenExpired, clues.ToCore(err))
 	assert.Equal(t, 4, retryInc, "number of retries")
 
 	retryInc = 0
 
 	// the query doesn't matter
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
-	assert.True(t, IsErrBadJWTToken(err), clues.ToCore(err))
+	assert.ErrorIs(t, err, core.ErrAuthTokenExpired, clues.ToCore(err))
 	assert.Equal(t, 4, retryInc, "number of retries")
 }
 

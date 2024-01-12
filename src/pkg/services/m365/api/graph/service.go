@@ -13,11 +13,13 @@ import (
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/crash"
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -413,7 +415,7 @@ func (aw *adapterWrap) Send(
 		if IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()) {
 			logger.Ctx(ictx).Debug("http connection error")
 			events.Inc(events.APICall, "connectionerror")
-		} else if IsErrBadJWTToken(err) {
+		} else if errors.Is(err, core.ErrAuthTokenExpired) {
 			logger.Ctx(ictx).Debug("bad jwt token")
 			events.Inc(events.APICall, "badjwttoken")
 		} else if requestInfo.Method.String() == http.MethodGet && IsErrInvalidRequest(err) {

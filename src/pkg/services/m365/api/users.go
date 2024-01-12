@@ -194,11 +194,13 @@ func EvaluateMailboxError(err error) error {
 	}
 
 	// must occur before MailFolderNotFound, due to overlapping cases.
-	if errors.Is(err, core.ErrResourceOwnerNotFound) || errors.Is(err, core.ErrResourceNotAccessible) {
+	if errors.Is(err, core.ErrResourceNotAccessible) {
 		return err
 	}
 
-	if graph.IsErrExchangeMailFolderNotFound(err) || graph.IsErrAuthenticationError(err) {
+	if errors.Is(err, core.ErrNotFound) ||
+		graph.IsErrExchangeMailFolderNotFound(err) ||
+		graph.IsErrAuthenticationError(err) {
 		return nil
 	}
 

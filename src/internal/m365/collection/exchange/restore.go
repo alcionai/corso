@@ -3,6 +3,7 @@ package exchange
 import (
 	"bytes"
 	"context"
+	"errors"
 	"runtime/trace"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -87,7 +89,7 @@ func RestoreCollection(
 				errs,
 				ctr)
 			if err != nil {
-				if !graph.IsErrItemAlreadyExistsConflict(err) {
+				if !errors.Is(err, core.ErrAlreadyExists) {
 					el.AddRecoverable(ictx, clues.Wrap(err, "restoring item"))
 				}
 
@@ -256,7 +258,7 @@ func uploadAttachments(
 
 		retryBackoff.Reset()
 
-		for (retry == 0 || graph.IsErrItemNotFound(err)) && retry <= maxRetries {
+		for (retry == 0 || errors.Is(err, core.ErrNotFound)) && retry <= maxRetries {
 			retry++
 
 			ictx := clues.Add(actx, "attempt_num", retry)
@@ -272,7 +274,7 @@ func uploadAttachments(
 			// Sometimes graph returns a 404 when we try to post the attachment.
 			// We're not sure why, but maybe it has to do with attaching many items.
 			// In any case, wait a little while and try again.
-			if graph.IsErrItemNotFound(err) && retry <= maxRetries {
+			if errors.Is(err, core.ErrNotFound) && retry <= maxRetries {
 				waitTime := retryBackoff.NextBackOff()
 
 				logger.Ctx(ictx).Infow(

@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"errors"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -11,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -126,7 +128,7 @@ func restoreMail(
 			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
-			return nil, graph.ErrItemAlreadyExistsConflict
+			return nil, core.ErrAlreadyExists
 		}
 
 		collisionID = id
@@ -150,7 +152,8 @@ func restoreMail(
 	// at least we'll have accidentally over-produced data instead of deleting
 	// the user's data.
 	if shouldDeleteOriginal {
-		if err := mr.DeleteItem(ctx, userID, collisionID); err != nil && !graph.IsErrDeletedInFlight(err) {
+		err := mr.DeleteItem(ctx, userID, collisionID)
+		if err != nil && !errors.Is(err, core.ErrNotFound) {
 			return nil, graph.Wrap(ctx, err, "deleting colliding mail message")
 		}
 	}

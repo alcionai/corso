@@ -105,10 +105,6 @@ func (c Lists) PostDrive(
 		Lists()
 
 	newList, err := builder.Post(ctx, list, nil)
-	if graph.IsErrItemAlreadyExistsConflict(err) {
-		return nil, clues.StackWC(ctx, graph.ErrItemAlreadyExistsConflict, err)
-	}
-
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating documentLibrary list")
 	}
