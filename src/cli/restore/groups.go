@@ -2,7 +2,6 @@ package restore
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -12,7 +11,7 @@ import (
 
 // called by restore.go to map subcommands to provider-specific handling.
 func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
-	var c  *cobra.Command\
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case restoreCommand:

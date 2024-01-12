@@ -3,7 +3,6 @@ package backup
 import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
@@ -62,14 +61,11 @@ corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
 
 // called by backup.go to map subcommands to provider-specific handling.
 func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
+		c, _ = utils.AddCommand(cmd, exchangeCreateCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
@@ -86,13 +82,14 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddDisableSlidingWindowLimiterFlag(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, exchangeListCmd())
+		c, _ = utils.AddCommand(cmd, exchangeListCmd())
 
 		flags.AddBackupIDFlag(c, false)
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, exchangeDetailsCmd())
+		c, _ = utils.AddCommand(cmd, exchangeDetailsCmd())
+
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
 
@@ -104,7 +101,7 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddExchangeDetailsAndRestoreFlags(c, false)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, exchangeDeleteCmd())
+		c, _ = utils.AddCommand(cmd, exchangeDeleteCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples

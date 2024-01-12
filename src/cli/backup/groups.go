@@ -6,7 +6,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/flags"
@@ -56,14 +55,11 @@ corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd \
 
 // called by backup.go to map subcommands to provider-specific handling.
 func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkPreviewCommand())
+		c, _ = utils.AddCommand(cmd, groupsCreateCmd(), utils.MarkPreviewCommand())
 
 		c.Use = c.Use + " " + groupsServiceCommandCreateUseSuffix
 		c.Example = groupsServiceCommandCreateExamples
@@ -77,13 +73,13 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddDisableLazyItemReader(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())
+		c, _ = utils.AddCommand(cmd, groupsListCmd(), utils.MarkPreviewCommand())
 
 		flags.AddBackupIDFlag(c, false)
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreviewCommand())
+		c, _ = utils.AddCommand(cmd, groupsDetailsCmd(), utils.MarkPreviewCommand())
 
 		c.Use = c.Use + " " + groupsServiceCommandDetailsUseSuffix
 		c.Example = groupsServiceCommandDetailsExamples
@@ -97,7 +93,7 @@ func addGroupsCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreviewCommand())
+		c, _ = utils.AddCommand(cmd, groupsDeleteCmd(), utils.MarkPreviewCommand())
 
 		c.Use = c.Use + " " + groupsServiceCommandDeleteUseSuffix
 		c.Example = groupsServiceCommandDeleteExamples
