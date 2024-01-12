@@ -13,7 +13,7 @@ available on the golangci-lint
 version that you install should match the version the GitHub workflow uses to
 avoid failures even after running locally. The current version in use can be
 [found](https://github.com/alcionai/corso/blob/main/.github/workflows/lint.yml#L55)
-in `.github/worflows/lint.yaml`.
+in `.github/workflows/lint.yaml`.
 
 ## Running the linter
 
