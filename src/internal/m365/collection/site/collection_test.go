@@ -25,11 +25,11 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type SharePointCollectionUnitSuite struct {
@@ -469,7 +469,7 @@ func (suite *SharePointCollectionSuite) TestLazyItem_ReturnsEmptyReaderOnDeleted
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	lh := mock.NewListHandler(nil, "", graph.ErrDeletedInFlight)
+	lh := mock.NewListHandler(nil, "", core.ErrNotFound)
 
 	li := data.NewLazyItemWithInfo(
 		ctx,
@@ -491,6 +491,6 @@ func (suite *SharePointCollectionSuite) TestLazyItem_ReturnsEmptyReaderOnDeleted
 		"item mod time")
 
 	r, err := readers.NewVersionedRestoreReader(li.ToReader())
-	assert.ErrorIs(t, err, graph.ErrDeletedInFlight, "item should be marked deleted in flight")
+	assert.ErrorIs(t, err, core.ErrNotFound, "item should be marked deleted in flight")
 	assert.Nil(t, r)
 }

@@ -170,6 +170,8 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 		itemElems3 = []string{"folderD", "folderE"}
 		pairAC     = "folderA/folderC"
 		pairGH     = "folderG/folderH"
+		listID1    = "list1"
+		listID2    = "list2"
 		item       = toRR(
 			path.LibrariesCategory,
 			"sid",
@@ -187,6 +189,8 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			"item3")
 		item4 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item4")
 		item5 = stubRepoRef(path.SharePointService, path.PagesCategory, "sid", pairGH, "item5")
+		list1 = stubRepoRef(path.SharePointService, path.ListsCategory, "sid", listID1, listID1)
+		list2 = stubRepoRef(path.SharePointService, path.ListsCategory, "sid", listID2, listID2)
 	)
 
 	deets := &details.Details{
@@ -252,6 +256,34 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 						},
 					},
 				},
+				{
+					RepoRef:     list1,
+					LocationRef: listID1,
+					ItemRef:     "list1",
+					ItemInfo: details.ItemInfo{
+						SharePoint: &details.SharePointInfo{
+							ItemType: details.SharePointList,
+							List: &details.ListInfo{
+								Name: "listName1",
+							},
+							ParentPath: strings.Join([]string{listID1}, "/"),
+						},
+					},
+				},
+				{
+					RepoRef:     list2,
+					LocationRef: listID2,
+					ItemRef:     "list2",
+					ItemInfo: details.ItemInfo{
+						SharePoint: &details.SharePointInfo{
+							ItemType: details.SharePointList,
+							List: &details.ListInfo{
+								Name: "listName2",
+							},
+							ParentPath: strings.Join([]string{listID2}, "/"),
+						},
+					},
+				},
 			},
 		},
 	}
@@ -273,7 +305,7 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 				odr.Include(odr.AllData())
 				return odr
 			},
-			expect: arr(item, item2, item3, item4, item5),
+			expect: arr(item, item2, item3, item4, item5, list1, list2),
 		},
 		{
 			name: "only match item",
@@ -331,6 +363,25 @@ func (suite *SharePointSelectorSuite) TestSharePointRestore_Reduce() {
 			},
 			expect: arr(item4, item5),
 		},
+		{
+			name: "lists match by id",
+			makeSelector: func() *SharePointRestore {
+				odr := NewSharePointRestore([]string{"sid"})
+				odr.Include(odr.Lists([]string{listID1, listID2}))
+				return odr
+			},
+			expect: arr(list1, list2),
+		},
+		{
+			name: "lists match by name",
+			makeSelector: func() *SharePointRestore {
+				odr := NewSharePointRestore([]string{"sid"})
+				odr.Include(odr.ListItems(Any(), []string{"listName2"}))
+				return odr
+			},
+			expect: arr(list2),
+			cfg:    Config{OnlyMatchItemNames: true},
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -361,7 +412,7 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			"dir2.d",
 			itemID,
 		}
-		elems = []string{"dir1", "dir2", itemID}
+		elems = []string{itemID, itemID}
 	)
 
 	table := []struct {
@@ -401,9 +452,9 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 			name:      "SharePoint Lists",
 			sc:        SharePointListItem,
 			pathElems: elems,
-			locRef:    "dir1/dir2",
+			locRef:    itemID,
 			expected: map[categorizer][]string{
-				SharePointList:     {"dir1/dir2"},
+				SharePointList:     {itemID},
 				SharePointListItem: {itemID, shortRef},
 			},
 			cfg: Config{},
@@ -423,17 +474,28 @@ func (suite *SharePointSelectorSuite) TestSharePointCategory_PathValues() {
 				test.pathElems...)
 			require.NoError(t, err, clues.ToCore(err))
 
+			di := details.ItemInfo{}
+
+			if test.sc.PathType() == path.LibrariesCategory {
+				di.SharePoint = &details.SharePointInfo{
+					ItemName:   itemName,
+					ParentPath: test.parentPath,
+				}
+			} else if test.sc.PathType() == path.ListsCategory {
+				di.SharePoint = &details.SharePointInfo{
+					List: &details.ListInfo{
+						Name: itemName,
+					},
+					ParentPath: test.parentPath,
+				}
+			}
+
 			ent := details.Entry{
 				RepoRef:     itemPath.String(),
 				ShortRef:    shortRef,
 				ItemRef:     itemPath.Item(),
 				LocationRef: test.locRef,
-				ItemInfo: details.ItemInfo{
-					SharePoint: &details.SharePointInfo{
-						ItemName:   itemName,
-						ParentPath: test.parentPath,
-					},
-				},
+				ItemInfo:    di,
 			}
 
 			pv, err := test.sc.pathValues(itemPath, ent, test.cfg)

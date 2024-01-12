@@ -3,6 +3,7 @@ package ics
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -18,20 +19,18 @@ import (
 )
 
 // This package is used to convert json response from graph to ics
-// Ref: https://icalendar.org/
-// Ref: https://www.rfc-editor.org/rfc/rfc5545
-// Ref: https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0
+// https://icalendar.org/
+// https://www.rfc-editor.org/rfc/rfc5545
+// https://www.rfc-editor.org/rfc/rfc2445.txt
+// https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcical/a685a040-5b69-4c84-b084-795113fb4012
 
-// TODO: Items not handled
-// locations (different from location)
-// exceptions and modifications
+// TODO locations: https://github.com/alcionai/corso/issues/5003
 
-// Field in the backed up data that we cannot handle
-// allowNewTimeProposals, hideAttendees, importance, isOnlineMeeting,
-// isOrganizer, isReminderOn, onlineMeeting, onlineMeetingProvider,
-// onlineMeetingUrl, originalEndTimeZone, originalStart,
-// originalStartTimeZone, reminderMinutesBeforeStart, responseRequested,
-// responseStatus, sensitivity
+const (
+	iCalDateTimeFormat = "20060102T150405Z"
+	iCalDateFormat     = "20060102"
+)
 
 func keyValues(key, value string) *ics.KeyValues {
 	return &ics.KeyValues{
@@ -48,7 +47,6 @@ func getLocationString(location models.Locationable) string {
 	dn := ptr.Val(location.GetDisplayName())
 	segments := []string{dn}
 
-	// TODO: Handle different location types
 	addr := location.GetAddress()
 	if addr != nil {
 		street := ptr.Val(addr.GetStreet())
@@ -168,15 +166,24 @@ func getRecurrencePattern(
 		case models.ENDDATE_RECURRENCERANGETYPE:
 			end := rrange.GetEndDate()
 			if end != nil {
-				// NOTE: We convert just a date into date+time in a
-				// different timezone which will cause it to not be just
-				// a date anymore.
-				endTime, err := getUTCTime(end.String(), ptr.Val(rrange.GetRecurrenceTimeZone()))
+				parsedTime, err := dttm.ParseTime(end.String())
 				if err != nil {
-					return "", clues.Wrap(err, "parsing end time")
+					return "", clues.Wrap(err, "parsing recurrence end date")
 				}
 
-				recurComponents = append(recurComponents, "UNTIL="+endTime.Format("20060102T150405Z"))
+				// end date is always computed as end of the day and
+				// so add 23 hours 59 minutes 59 seconds as seconds is
+				// the resolution we need
+				parsedTime = parsedTime.Add(24*time.Hour - 1*time.Second)
+
+				endTime, err := getUTCTime(
+					parsedTime.Format(string(dttm.M365DateTimeTimeZone)),
+					ptr.Val(rrange.GetRecurrenceTimeZone()))
+				if err != nil {
+					return "", clues.WrapWC(ctx, err, "parsing end time")
+				}
+
+				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(iCalDateTimeFormat))
 			}
 		case models.NOEND_RECURRENCERANGETYPE:
 			// Nothing to do
@@ -192,153 +199,198 @@ func getRecurrencePattern(
 }
 
 func FromJSON(ctx context.Context, body []byte) (string, error) {
-	data, err := api.BytesToEventable(body)
+	event, err := api.BytesToEventable(body)
 	if err != nil {
-		return "", clues.Wrap(err, "converting to eventable")
+		return "", clues.WrapWC(ctx, err, "converting to eventable")
 	}
 
 	cal := ics.NewCalendar()
 	cal.SetProductId("-//Alcion//Corso") // Does this have to be customizable?
 
-	id := data.GetId() // XXX: iCalUId?
-	event := cal.AddEvent(ptr.Val(id))
+	id := ptr.Val(event.GetId())
+	iCalEvent := cal.AddEvent(id)
 
-	created := data.GetCreatedDateTime()
+	err = updateEventProperties(ctx, event, iCalEvent)
+	if err != nil {
+		return "", clues.Wrap(err, "updating event properties")
+	}
+
+	exceptionOcurrances := event.GetAdditionalData()["exceptionOccurrences"]
+	if exceptionOcurrances == nil {
+		return cal.Serialize(), nil
+	}
+
+	for _, occ := range exceptionOcurrances.([]any) {
+		instance, ok := occ.(map[string]any)
+		if !ok {
+			return "", clues.NewWC(ctx, "converting exception instance to map[string]any").
+				With("interface_type", fmt.Sprintf("%T", instance))
+		}
+
+		exBody, err := json.Marshal(instance)
+		if err != nil {
+			return "", clues.WrapWC(ctx, err, "marshalling exception instance")
+		}
+
+		exception, err := api.BytesToEventable(exBody)
+		if err != nil {
+			return "", clues.WrapWC(ctx, err, "converting to eventable")
+		}
+
+		exICalEvent := cal.AddEvent(id)
+		start := exception.GetOriginalStart() // will always be in UTC
+
+		exICalEvent.AddProperty(ics.ComponentProperty(ics.PropertyRecurrenceId), start.Format(iCalDateTimeFormat))
+
+		err = updateEventProperties(ctx, exception, exICalEvent)
+		if err != nil {
+			return "", clues.Wrap(err, "updating exception event properties")
+		}
+	}
+
+	return cal.Serialize(), nil
+}
+
+func updateEventProperties(ctx context.Context, event models.Eventable, iCalEvent *ics.VEvent) error {
+	// CREATED - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.7.1
+	created := event.GetCreatedDateTime()
 	if created != nil {
-		event.SetCreatedTime(ptr.Val(created))
+		iCalEvent.SetCreatedTime(ptr.Val(created))
 	}
 
-	modified := data.GetLastModifiedDateTime()
+	// LAST-MODIFIED - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.7.3
+	modified := event.GetLastModifiedDateTime()
 	if modified != nil {
-		event.SetModifiedAt(ptr.Val(modified))
+		iCalEvent.SetModifiedAt(ptr.Val(modified))
 	}
 
-	allDay := ptr.Val(data.GetIsAllDay())
-
-	startString := data.GetStart().GetDateTime()
-	timeZone := data.GetStart().GetTimeZone()
+	// DTSTART - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.4
+	allDay := ptr.Val(event.GetIsAllDay())
+	startString := event.GetStart().GetDateTime()
+	startTimezone := event.GetStart().GetTimeZone()
 
 	if startString != nil {
-		start, err := getUTCTime(ptr.Val(startString), ptr.Val(timeZone))
+		start, err := getUTCTime(ptr.Val(startString), ptr.Val(startTimezone))
 		if err != nil {
-			return "", clues.Wrap(err, "parsing start time")
+			return clues.WrapWC(ctx, err, "parsing start time")
 		}
 
 		if allDay {
-			event.SetStartAt(start, ics.WithValue(string(ics.ValueDataTypeDate)))
+			iCalEvent.SetStartAt(start, ics.WithValue(string(ics.ValueDataTypeDate)))
 		} else {
-			event.SetStartAt(start)
+			iCalEvent.SetStartAt(start)
 		}
 	}
 
-	endString := data.GetEnd().GetDateTime()
-	timeZone = data.GetEnd().GetTimeZone()
+	// DTEND - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.2
+	endString := event.GetEnd().GetDateTime()
+	endTimezone := event.GetEnd().GetTimeZone()
 
 	if endString != nil {
-		end, err := getUTCTime(ptr.Val(endString), ptr.Val(timeZone))
+		end, err := getUTCTime(ptr.Val(endString), ptr.Val(endTimezone))
 		if err != nil {
-			return "", clues.Wrap(err, "parsing end time")
+			return clues.WrapWC(ctx, err, "parsing end time")
 		}
 
 		if allDay {
-			event.SetEndAt(end, ics.WithValue(string(ics.ValueDataTypeDate)))
+			iCalEvent.SetEndAt(end, ics.WithValue(string(ics.ValueDataTypeDate)))
 		} else {
-			event.SetEndAt(end)
+			iCalEvent.SetEndAt(end)
 		}
 	}
 
-	recurrence := data.GetRecurrence()
+	recurrence := event.GetRecurrence()
 	if recurrence != nil {
 		pattern, err := getRecurrencePattern(ctx, recurrence)
 		if err != nil {
-			return "", clues.WrapWC(ctx, err, "generating RRULE")
+			return clues.Wrap(err, "generating RRULE")
 		}
 
-		event.AddRrule(pattern)
+		iCalEvent.AddRrule(pattern)
 	}
 
-	cancelled := data.GetIsCancelled()
+	// STATUS - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.11
+	cancelled := event.GetIsCancelled()
 	if cancelled != nil {
-		event.SetStatus(ics.ObjectStatusCancelled)
+		iCalEvent.SetStatus(ics.ObjectStatusCancelled)
 	}
 
-	draft := data.GetIsDraft()
-	if draft != nil {
-		event.SetStatus(ics.ObjectStatusDraft)
-	}
-
-	summary := data.GetSubject()
+	// SUMMARY - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.12
+	summary := event.GetSubject()
 	if summary != nil {
-		event.SetSummary(ptr.Val(summary))
+		iCalEvent.SetSummary(ptr.Val(summary))
 	}
 
+	// DESCRIPTION - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.5
 	// TODO: Emojies currently don't seem to be read properly by Outlook
-	bodyPreview := ptr.Val(data.GetBodyPreview())
+	// When outlook exports them(in .eml), it exports them in text as it strips down html
+	bodyPreview := ptr.Val(event.GetBodyPreview())
 
-	if data.GetBody() != nil {
-		description := ptr.Val(data.GetBody().GetContent())
-		contentType := data.GetBody().GetContentType().String()
+	if event.GetBody() != nil {
+		description := ptr.Val(event.GetBody().GetContent())
+		contentType := event.GetBody().GetContentType().String()
 
 		if len(description) > 0 && contentType == "text" {
-			event.SetDescription(description)
-		} else {
+			iCalEvent.SetDescription(description)
+		} else if len(description) > 0 {
 			// https://stackoverflow.com/a/859475
-			event.SetDescription(bodyPreview)
+			iCalEvent.SetDescription(bodyPreview)
 
 			if contentType == "html" {
 				desc := strings.ReplaceAll(description, "\r\n", "")
 				desc = strings.ReplaceAll(desc, "\n", "")
-				event.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
+				iCalEvent.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
 			}
 		}
 	}
 
-	showAs := ptr.Val(data.GetShowAs()).String()
-	if len(showAs) > 0 && showAs != "unknown" {
-		var status ics.FreeBusyTimeType
+	// TRANSP - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.7
+	showAs := ptr.Val(event.GetShowAs()).String()
+	if len(showAs) > 0 {
+		var transp ics.TimeTransparency
 
 		switch showAs {
-		case "free":
-			status = ics.FreeBusyTimeTypeFree
-		case "tentative":
-			status = ics.FreeBusyTimeTypeBusyTentative
-		case "busy":
-			status = ics.FreeBusyTimeTypeBusy
-		case "oof", "workingElsewhere": // this is just best effort conversion
-			status = ics.FreeBusyTimeTypeBusyUnavailable
+		case "free", "unknown":
+			transp = ics.TransparencyTransparent
+		default:
+			transp = ics.TransparencyOpaque
 		}
 
-		event.AddProperty(ics.ComponentPropertyFreebusy, string(status))
+		iCalEvent.AddProperty(ics.ComponentPropertyTransp, string(transp))
 	}
 
-	categories := data.GetCategories()
+	// CATEGORIES - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.2
+	categories := event.GetCategories()
 	for _, category := range categories {
-		event.AddProperty(ics.ComponentPropertyCategories, category)
+		iCalEvent.AddProperty(ics.ComponentPropertyCategories, category)
 	}
 
+	// URL - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.4.6
 	// According to the RFC, this property may be used in a calendar
 	// component to convey a location where a more dynamic rendition of
 	// the calendar information associated with the calendar component
 	// can be found.
-	url := ptr.Val(data.GetWebLink())
+	url := ptr.Val(event.GetWebLink())
 	if len(url) > 0 {
-		event.SetURL(url)
+		iCalEvent.SetURL(url)
 	}
 
-	organizer := data.GetOrganizer()
+	// ORGANIZER - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.4.3
+	organizer := event.GetOrganizer()
 	if organizer != nil {
 		name := ptr.Val(organizer.GetEmailAddress().GetName())
 		addr := ptr.Val(organizer.GetEmailAddress().GetAddress())
 
-		// TODO: What to do if we only have a name?
+		// It does not look like we can get just a name without an address
 		if len(name) > 0 && len(addr) > 0 {
-			event.SetOrganizer(addr, ics.WithCN(name))
+			iCalEvent.SetOrganizer(addr, ics.WithCN(name))
 		} else if len(addr) > 0 {
-			event.SetOrganizer(addr)
+			iCalEvent.SetOrganizer(addr)
 		}
 	}
 
-	attendees := data.GetAttendees()
+	// ATTENDEE - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.4.1
+	attendees := event.GetAttendees()
 	for _, attendee := range attendees {
 		props := []ics.PropertyParameter{}
 
@@ -385,16 +437,54 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		}
 
 		addr := ptr.Val(attendee.GetEmailAddress().GetAddress())
-		event.AddAttendee(addr, props...)
+		iCalEvent.AddAttendee(addr, props...)
 	}
 
-	location := getLocationString(data.GetLocation())
+	// LOCATION - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.7
+	location := getLocationString(event.GetLocation())
 	if len(location) > 0 {
-		event.SetLocation(location)
+		iCalEvent.SetLocation(location)
 	}
 
-	// TODO Handle different attachment type (file, item and reference)
-	attachments := data.GetAttachments()
+	// X-MICROSOFT-LOCATIONDISPLAYNAME (Outlook seems to use this)
+	loc := event.GetLocation()
+	if loc != nil {
+		locationDisplayName := ptr.Val(event.GetLocation().GetDisplayName())
+		if len(locationDisplayName) > 0 {
+			iCalEvent.AddProperty("X-MICROSOFT-LOCATIONDISPLAYNAME", locationDisplayName)
+		}
+	}
+
+	// CLASS - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.3
+	// Graph also has the value "personal" which is not supported by the spec
+	// Default value is "public" (works for "normal")
+	sensitivity := ptr.Val(event.GetSensitivity()).String()
+	if sensitivity == "private" {
+		iCalEvent.AddProperty(ics.ComponentPropertyClass, "PRIVATE")
+	} else if sensitivity == "confidential" {
+		iCalEvent.AddProperty(ics.ComponentPropertyClass, "CONFIDENTIAL")
+	}
+
+	// PRIORITY - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.9
+	imp := ptr.Val(event.GetImportance()).String()
+	switch imp {
+	case "high":
+		iCalEvent.AddProperty(ics.ComponentPropertyPriority, "1")
+	case "low":
+		iCalEvent.AddProperty(ics.ComponentPropertyPriority, "9")
+	}
+
+	meeting := event.GetOnlineMeeting()
+	if meeting != nil {
+		url := ptr.Val(meeting.GetJoinUrl())
+		if len(url) > 0 {
+			iCalEvent.AddProperty("X-MICROSOFT-SKYPETEAMSMEETINGURL", url)
+		}
+	}
+
+	// ATTACH - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.1
+	// TODO Handle different attachment types (file, item and reference)
+	attachments := event.GetAttachments()
 	for _, attachment := range attachments {
 		props := []ics.PropertyParameter{}
 		contentType := ptr.Val(attachment.GetContentType())
@@ -411,12 +501,12 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 		cb, err := attachment.GetBackingStore().Get("contentBytes")
 		if err != nil {
-			return "", clues.Wrap(err, "getting attachment content")
+			return clues.WrapWC(ctx, err, "getting attachment content")
 		}
 
 		content, ok := cb.([]uint8)
 		if !ok {
-			return "", clues.NewWC(ctx, "getting attachment content string")
+			return clues.NewWC(ctx, "getting attachment content string")
 		}
 
 		props = append(props, ics.WithEncoding("base64"), ics.WithValue("BINARY"))
@@ -425,23 +515,61 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		}
 
 		// TODO: Inline attachments don't show up in Outlook
+		// Inline attachments is not something supported by the spec
 		inline := ptr.Val(attachment.GetIsInline())
 		if inline {
 			cidv, err := attachment.GetBackingStore().Get("contentId")
 			if err != nil {
-				return "", clues.Wrap(err, "getting attachment content id")
+				return clues.WrapWC(ctx, err, "getting attachment content id")
 			}
 
 			cid, err := str.AnyToString(cidv)
 			if err != nil {
-				return "", clues.Wrap(err, "getting attachment content id string")
+				return clues.WrapWC(ctx, err, "getting attachment content id string")
 			}
 
 			props = append(props, keyValues("CID", cid))
 		}
 
-		event.AddAttachment(base64.StdEncoding.EncodeToString(content), props...)
+		iCalEvent.AddAttachment(base64.StdEncoding.EncodeToString(content), props...)
 	}
 
-	return cal.Serialize(), nil
+	// EXDATE - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.5.1
+	cancelledDates, err := getCancelledDates(ctx, event)
+	if err != nil {
+		return clues.Wrap(err, "getting cancelled dates")
+	}
+
+	dateStrings := []string{}
+	for _, date := range cancelledDates {
+		dateStrings = append(dateStrings, date.Format(iCalDateFormat))
+	}
+
+	if len(dateStrings) > 0 {
+		iCalEvent.AddProperty(ics.ComponentPropertyExdate, strings.Join(dateStrings, ","))
+	}
+
+	return nil
+}
+
+func getCancelledDates(ctx context.Context, event models.Eventable) ([]time.Time, error) {
+	dateStrings, err := api.GetCancelledEventDateStrings(event)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "getting cancelled event date strings")
+	}
+
+	dates := []time.Time{}
+	tz := ptr.Val(event.GetStart().GetTimeZone())
+
+	for _, ds := range dateStrings {
+		// the data just contains date and no time which seems to work
+		start, err := getUTCTime(ds, tz)
+		if err != nil {
+			return nil, clues.WrapWC(ctx, err, "parsing cancelled event date")
+		}
+
+		dates = append(dates, start)
+	}
+
+	return dates, nil
 }

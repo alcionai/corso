@@ -264,14 +264,15 @@ func backupChannels(
 		canUsePreviousBackup bool
 	)
 
-	pcfg := observe.ProgressCfg{
-		Indent: 1,
-		// TODO(meain): Use number of messages and not channels
-		CompletionMessage: func() string { return fmt.Sprintf("(found %d channels)", len(colls)) },
-	}
-	progressBar := observe.MessageWithCompletion(ctx, pcfg, scope.Category().PathType().HumanString())
-
-	defer close(progressBar)
+	progressMessage := observe.MessageWithCompletion(
+		ctx,
+		observe.ProgressCfg{
+			Indent: 1,
+			// TODO(meain): Use number of messages and not channels
+			CompletionMessage: func() string { return fmt.Sprintf("(found %d channels)", len(colls)) },
+		},
+		scope.Category().PathType().HumanString())
+	defer close(progressMessage)
 
 	if !api.IsTeam(ctx, bc.group) {
 		return colls, nil
@@ -325,13 +326,14 @@ func backupConversations(
 		colls []data.BackupCollection
 	)
 
-	pcfg := observe.ProgressCfg{
-		Indent:            1,
-		CompletionMessage: func() string { return fmt.Sprintf("(found %d conversations)", len(colls)) },
-	}
-	progressBar := observe.MessageWithCompletion(ctx, pcfg, scope.Category().PathType().HumanString())
-
-	defer close(progressBar)
+	progressMessage := observe.MessageWithCompletion(
+		ctx,
+		observe.ProgressCfg{
+			Indent:            1,
+			CompletionMessage: func() string { return fmt.Sprintf("(found %d conversations)", len(colls)) },
+		},
+		scope.Category().PathType().HumanString())
+	defer close(progressMessage)
 
 	useLazyReader := !bc.producerConfig.Options.ToggleFeatures.DisableLazyItemReader
 

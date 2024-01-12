@@ -13,7 +13,6 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -150,13 +149,6 @@ func (c Sites) GetByID(
 			Get(ctx, options)
 		if err != nil {
 			err := graph.Wrap(ctx, err, "getting site by id")
-
-			// a 404 when getting sites by ID returns an itemNotFound
-			// error code, instead of something more sensible.
-			if graph.IsErrItemNotFound(err) {
-				err = clues.Stack(core.ErrResourceOwnerNotFound, err)
-			}
-
 			return nil, err
 		}
 
@@ -192,13 +184,6 @@ func (c Sites) GetByID(
 		Get(ctx, nil)
 	if err != nil {
 		err := graph.Wrap(ctx, err, "getting site by weburl")
-
-		// a 404 when getting sites by ID returns an itemNotFound
-		// error code, instead of something more sensible.
-		if graph.IsErrItemNotFound(err) {
-			err = clues.Stack(core.ErrResourceOwnerNotFound, err)
-		}
-
 		return nil, err
 	}
 
