@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/clues"
 	ics "github.com/arran4/golang-ical"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"jaytaylor.com/html2text"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
@@ -360,7 +361,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 					desc = strings.ReplaceAll(desc, "\n", "")
 					iCalEvent.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
 				} else {
-					stripped, err := HTMLToText(description)
+					stripped, err := html2text.FromString(description, html2text.Options{PrettyTables: true})
 					if err != nil {
 						return clues.Wrap(err, "converting html to text")
 					}
