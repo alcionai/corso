@@ -220,7 +220,7 @@ func (c Events) GetItem(
 		return nil, nil, graph.Stack(ctx, err)
 	}
 
-	err = validateCancelledOccurrences(event)
+	_, err = GetCancelledEventDateStrings(event)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "verify cancelled occurrences")
 	}
@@ -307,39 +307,44 @@ func fixupExceptionOccurrences(
 	return nil
 }
 
-// Adding checks to ensure that the data is in the format that we expect M365 to return
-func validateCancelledOccurrences(event models.Eventable) error {
+func GetCancelledEventDateStrings(event models.Eventable) ([]string, error) {
 	cancelledOccurrences := event.GetAdditionalData()["cancelledOccurrences"]
-	if cancelledOccurrences != nil {
-		co, ok := cancelledOccurrences.([]any)
-		if !ok {
-			return clues.New("converting cancelledOccurrences to []any").
-				With("type", fmt.Sprintf("%T", cancelledOccurrences))
-		}
-
-		for _, instance := range co {
-			instance, err := str.AnyToString(instance)
-			if err != nil {
-				return err
-			}
-
-			// There might be multiple `.` in the ID and hence >2
-			splits := strings.Split(instance, ".")
-			if len(splits) < 2 {
-				return clues.New("unexpected cancelled event format").
-					With("instance", instance)
-			}
-
-			startStr := splits[len(splits)-1]
-
-			_, err = dttm.ParseTime(startStr)
-			if err != nil {
-				return clues.Wrap(err, "parsing cancelled event date")
-			}
-		}
+	if cancelledOccurrences == nil {
+		return nil, nil
 	}
 
-	return nil
+	co, ok := cancelledOccurrences.([]any)
+	if !ok {
+		return nil, clues.New("converting cancelledOccurrences to []any").
+			With("type", fmt.Sprintf("%T", cancelledOccurrences))
+	}
+
+	dates := []string{}
+
+	for _, instance := range co {
+		instance, err := str.AnyToString(instance)
+		if err != nil {
+			return nil, err
+		}
+
+		// There might be multiple `.` in the ID and hence >2
+		splits := strings.Split(instance, ".")
+		if len(splits) < 2 {
+			return nil, clues.New("unexpected cancelled event format").
+				With("instance", instance)
+		}
+
+		startStr := splits[len(splits)-1]
+
+		_, err = dttm.ParseTime(startStr)
+		if err != nil {
+			return nil, clues.Wrap(err, "parsing cancelled event date")
+		}
+
+		dates = append(dates, startStr)
+	}
+
+	return dates, nil
 }
 
 func parseableToMap(att serialization.Parsable) (map[string]any, error) {

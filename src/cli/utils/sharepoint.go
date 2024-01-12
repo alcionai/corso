@@ -25,8 +25,7 @@ type SharePointOpts struct {
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	ListFolder []string
-	ListItem   []string
+	Lists []string
 
 	PageFolder []string
 	Page       []string
@@ -35,6 +34,21 @@ type SharePointOpts struct {
 	ExportCfg  ExportCfgOpts
 
 	Populated flags.PopulatedFlags
+}
+
+func (s SharePointOpts) GetFileTimeField(flag string) string {
+	switch flag {
+	case flags.FileCreatedAfterFN:
+		return s.FileCreatedAfter
+	case flags.FileCreatedBeforeFN:
+		return s.FileCreatedBefore
+	case flags.FileModifiedAfterFN:
+		return s.FileModifiedAfter
+	case flags.FileModifiedBeforeFN:
+		return s.FileModifiedBefore
+	default:
+		return ""
+	}
 }
 
 func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
@@ -50,8 +64,7 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 		FileModifiedAfter:  flags.FileModifiedAfterFV,
 		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
-		ListFolder: flags.ListFolderFV,
-		ListItem:   flags.ListItemFV,
+		Lists: flags.ListFV,
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
@@ -108,23 +121,7 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		}
 	}
 
-	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return clues.New("invalid time format for " + flags.FileCreatedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return clues.New("invalid time format for " + flags.FileCreatedBeforeFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return clues.New("invalid time format for " + flags.FileModifiedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
-	}
-
-	return nil
+	return validateCommonTimeFlags(opts)
 }
 
 // AddSharePointInfo adds the scope of the provided values to the selector's
@@ -146,24 +143,24 @@ func AddSharePointInfo(
 func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointOpts) *selectors.SharePointRestore {
 	sites := opts.SiteID
 
-	lfp, lfn := len(opts.FolderPath), len(opts.FileName)
-	ls, lwu := len(opts.SiteID), len(opts.WebURL)
-	slp, sli := len(opts.ListFolder), len(opts.ListItem)
-	pf, pi := len(opts.PageFolder), len(opts.Page)
+	folderPaths, fileNames := len(opts.FolderPath), len(opts.FileName)
+	siteIDs, webUrls := len(opts.SiteID), len(opts.WebURL)
+	lists := len(opts.Lists)
+	pageFolders, pageItems := len(opts.PageFolder), len(opts.Page)
 
-	if ls == 0 {
+	if siteIDs == 0 {
 		sites = selectors.Any()
 	}
 
 	sel := selectors.NewSharePointRestore(sites)
 
-	if lfp+lfn+lwu+slp+sli+pf+pi == 0 {
+	if folderPaths+fileNames+webUrls+lists+pageFolders+pageItems == 0 {
 		sel.Include(sel.AllData())
 		return sel
 	}
 
-	if lfp+lfn > 0 {
-		if lfn == 0 {
+	if folderPaths+fileNames > 0 {
+		if fileNames == 0 {
 			opts.FileName = selectors.Any()
 		}
 
@@ -179,25 +176,14 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 		}
 	}
 
-	if slp+sli > 0 {
-		if sli == 0 {
-			opts.ListItem = selectors.Any()
-		}
-
-		opts.ListFolder = trimFolderSlash(opts.ListFolder)
-		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListFolder)
-
-		if len(containsFolders) > 0 {
-			sel.Include(sel.ListItems(containsFolders, opts.ListItem))
-		}
-
-		if len(prefixFolders) > 0 {
-			sel.Include(sel.ListItems(prefixFolders, opts.ListItem, selectors.PrefixMatch()))
-		}
+	if lists > 0 {
+		opts.Lists = trimFolderSlash(opts.Lists)
+		sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 	}
 
-	if pf+pi > 0 {
-		if pi == 0 {
+	if pageFolders+pageItems > 0 {
+		if pageItems == 0 {
 			opts.Page = selectors.Any()
 		}
 
@@ -213,7 +199,7 @@ func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointO
 		}
 	}
 
-	if lwu > 0 {
+	if webUrls > 0 {
 		urls := make([]string, 0, len(opts.WebURL))
 
 		for _, wu := range opts.WebURL {

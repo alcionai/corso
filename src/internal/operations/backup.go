@@ -522,8 +522,8 @@ func produceBackupDataCollections(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Discovering items to backup")
-	defer close(progressBar)
+	progressMessage := observe.MessageWithCompletion(ctx, observe.DefaultCfg(), "Discovering items to backup")
+	defer close(progressMessage)
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion:   lastBackupVersion,
@@ -559,8 +559,8 @@ func consumeBackupCollections(
 		"collection_source", "operations",
 		"snapshot_type", "item data")
 
-	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Backing up data")
-	defer close(progressBar)
+	progressMessage := observe.MessageWithCompletion(ctx, observe.DefaultCfg(), "Backing up data")
+	defer close(progressMessage)
 
 	tags := map[string]string{
 		kopia.TagBackupID:       string(backupID),

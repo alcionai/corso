@@ -32,8 +32,7 @@ type GroupsOpts struct {
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	ListFolder []string
-	ListItem   []string
+	Lists []string
 
 	PageFolder []string
 	Page       []string
@@ -42,6 +41,21 @@ type GroupsOpts struct {
 	ExportCfg  ExportCfgOpts
 
 	Populated flags.PopulatedFlags
+}
+
+func (g GroupsOpts) GetFileTimeField(flag string) string {
+	switch flag {
+	case flags.FileCreatedAfterFN:
+		return g.FileCreatedAfter
+	case flags.FileCreatedBeforeFN:
+		return g.FileCreatedBefore
+	case flags.FileModifiedAfterFN:
+		return g.FileModifiedAfter
+	case flags.FileModifiedBeforeFN:
+		return g.FileModifiedBefore
+	default:
+		return ""
+	}
 }
 
 func GroupsAllowedCategories() map[string]struct{} {
@@ -93,8 +107,7 @@ func MakeGroupsOpts(cmd *cobra.Command) GroupsOpts {
 		MessageLastReplyAfter:  flags.MessageLastReplyAfterFV,
 		MessageLastReplyBefore: flags.MessageLastReplyBeforeFV,
 
-		ListFolder: flags.ListFolderFV,
-		ListItem:   flags.ListItemFV,
+		Lists: flags.ListFV,
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
@@ -126,22 +139,6 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool
 		}
 	}
 
-	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return clues.New("invalid time format for " + flags.FileCreatedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return clues.New("invalid time format for " + flags.FileCreatedBeforeFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return clues.New("invalid time format for " + flags.FileModifiedAfterFN)
-	}
-
-	if _, ok := opts.Populated[flags.FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
-	}
-
 	if _, ok := opts.Populated[flags.MessageCreatedAfterFN]; ok && !IsValidTimeFormat(opts.MessageCreatedAfter) {
 		return clues.New("invalid time format for " + flags.MessageCreatedAfterFN)
 	}
@@ -158,7 +155,7 @@ func ValidateGroupsRestoreFlags(backupID string, opts GroupsOpts, isRestore bool
 		return clues.New("invalid time format for " + flags.MessageLastReplyBeforeFN)
 	}
 
-	return nil
+	return validateCommonTimeFlags(opts)
 }
 
 // AddGroupsFilter adds the scope of the provided values to the selector's
@@ -181,7 +178,7 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 	var (
 		groups                 = opts.Groups
 		folderPaths, fileNames = len(opts.FolderPath), len(opts.FileName)
-		listFolders, listItems = len(opts.ListFolder), len(opts.ListItem)
+		lists                  = len(opts.Lists)
 		pageFolders, pageItems = len(opts.PageFolder), len(opts.Page)
 		chans, chanMsgs        = len(opts.Channels), len(opts.Messages)
 		convs, convPosts       = len(opts.Conversations), len(opts.Posts)
@@ -194,7 +191,7 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 	sel := selectors.NewGroupsRestore(groups)
 
 	if folderPaths+fileNames+
-		listFolders+listItems+
+		lists+
 		pageFolders+pageItems+
 		chans+chanMsgs+
 		convs+convPosts == 0 {
@@ -204,58 +201,43 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 
 	// sharepoint site selectors
 
-	if folderPaths+fileNames+
-		listFolders+listItems+
-		pageFolders+pageItems > 0 {
-		if folderPaths+fileNames > 0 {
-			if fileNames == 0 {
-				opts.FileName = selectors.Any()
-			}
-
-			opts.FolderPath = trimFolderSlash(opts.FolderPath)
-			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPath)
-
-			if len(containsFolders) > 0 {
-				sel.Include(sel.LibraryItems(containsFolders, opts.FileName))
-			}
-
-			if len(prefixFolders) > 0 {
-				sel.Include(sel.LibraryItems(prefixFolders, opts.FileName, selectors.PrefixMatch()))
-			}
+	if folderPaths+fileNames > 0 {
+		if fileNames == 0 {
+			opts.FileName = selectors.Any()
 		}
 
-		if listFolders+listItems > 0 {
-			if listItems == 0 {
-				opts.ListItem = selectors.Any()
-			}
+		opts.FolderPath = trimFolderSlash(opts.FolderPath)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPath)
 
-			opts.ListFolder = trimFolderSlash(opts.ListFolder)
-			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListFolder)
-
-			if len(containsFolders) > 0 {
-				sel.Include(sel.ListItems(containsFolders, opts.ListItem))
-			}
-
-			if len(prefixFolders) > 0 {
-				sel.Include(sel.ListItems(prefixFolders, opts.ListItem, selectors.PrefixMatch()))
-			}
+		if len(containsFolders) > 0 {
+			sel.Include(sel.LibraryItems(containsFolders, opts.FileName))
 		}
 
-		if pageFolders+pageItems > 0 {
-			if pageItems == 0 {
-				opts.Page = selectors.Any()
-			}
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.LibraryItems(prefixFolders, opts.FileName, selectors.PrefixMatch()))
+		}
+	}
 
-			opts.PageFolder = trimFolderSlash(opts.PageFolder)
-			containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PageFolder)
+	if lists > 0 {
+		opts.Lists = trimFolderSlash(opts.Lists)
+		sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+	}
 
-			if len(containsFolders) > 0 {
-				sel.Include(sel.PageItems(containsFolders, opts.Page))
-			}
+	if pageFolders+pageItems > 0 {
+		if pageItems == 0 {
+			opts.Page = selectors.Any()
+		}
 
-			if len(prefixFolders) > 0 {
-				sel.Include(sel.PageItems(prefixFolders, opts.Page, selectors.PrefixMatch()))
-			}
+		opts.PageFolder = trimFolderSlash(opts.PageFolder)
+		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.PageFolder)
+
+		if len(containsFolders) > 0 {
+			sel.Include(sel.PageItems(containsFolders, opts.Page))
+		}
+
+		if len(prefixFolders) > 0 {
+			sel.Include(sel.PageItems(prefixFolders, opts.Page, selectors.PrefixMatch()))
 		}
 	}
 

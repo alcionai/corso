@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -1009,7 +1010,7 @@ func (suite *CollectionPopulationSuite) TestPopulateCollections() {
 			added:    []string{"a1", "a2", "a3"},
 			removed:  []string{"r1", "r2", "r3"},
 			newDelta: pagers.DeltaUpdate{URL: "delta_url"},
-			err:      graph.ErrDeletedInFlight,
+			err:      core.ErrNotFound,
 		}
 		container1 = mockContainer{
 			id:          strPtr("1"),

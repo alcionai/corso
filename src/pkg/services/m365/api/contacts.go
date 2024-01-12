@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/sanitize"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -143,7 +144,7 @@ func (c Contacts) GetContainerByName(
 	// Return an error if multiple container exist (unlikely) or if no container
 	// is found.
 	if len(gv) != 1 {
-		return nil, clues.StackWC(ctx, graph.ErrMultipleResultsMatchIdentifier).
+		return nil, clues.StackWC(ctx, core.ErrMultipleResultsMatchIdentifier).
 			With("returned_container_count", len(gv))
 	}
 

@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -200,10 +201,10 @@ func (suite *CollectionUnitSuite) TestGetItemWithRetries() {
 		{
 			name: "deleted in flight",
 			items: &mock.ItemGetSerialize{
-				GetErr: graph.ErrDeletedInFlight,
+				GetErr: core.ErrNotFound,
 			},
 			expectErr: func(t *testing.T, err error) {
-				assert.True(t, graph.IsErrDeletedInFlight(err), "is ErrDeletedInFlight")
+				assert.ErrorIs(t, err, core.ErrNotFound, "is ErrItemNotFound")
 			},
 			expectGetCalls: 1,
 		},
@@ -681,7 +682,7 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	getter := &mock.ItemGetSerialize{GetErr: graph.ErrDeletedInFlight}
+	getter := &mock.ItemGetSerialize{GetErr: core.ErrNotFound}
 
 	li := data.NewLazyItemWithInfo(
 		ctx,

@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -670,7 +671,7 @@ func (r mockContainerRefresher) refreshContainer(
 	rr, ok := r.entries[id]
 	if !ok {
 		// May not be this precise error, but it's easy to get a handle on.
-		return nil, graph.ErrDeletedInFlight
+		return nil, core.ErrNotFound
 	}
 
 	if rr.err != nil {
