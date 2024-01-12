@@ -330,8 +330,7 @@ func backupConversations(
 		bh = groups.NewConversationBackupHandler(
 			bc.producerConfig.ProtectedResource.ID(),
 			bc.apiCli.Conversations(),
-			groupEmail,
-		)
+			groupEmail)
 		colls []data.BackupCollection
 	)
 
