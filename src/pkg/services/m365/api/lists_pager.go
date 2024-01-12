@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
@@ -75,6 +77,26 @@ func (c Lists) GetLists(
 	items, err := pagers.BatchEnumerateItems[models.Listable](ctx, pager)
 
 	return items, graph.Stack(ctx, err).OrNil()
+}
+
+func (c Lists) GetListsByCollisionKey(
+	ctx context.Context,
+	siteID string,
+) (map[string]string, error) {
+	pager := c.NewListsPager(siteID, CallConfig{Select: listCollisionKeyProps()})
+
+	items, err := pagers.BatchEnumerateItems[models.Listable](ctx, pager)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "enumerating lists")
+	}
+
+	m := map[string]string{}
+
+	for _, item := range items {
+		m[ListCollisionKey(item)] = ptr.Val(item.GetId())
+	}
+
+	return m, nil
 }
 
 // ---------------------------------------------------------------------------

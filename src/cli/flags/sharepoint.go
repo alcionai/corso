@@ -12,8 +12,7 @@ const (
 
 const (
 	LibraryFN    = "library"
-	ListFolderFN = "list"
-	ListItemFN   = "list-item"
+	ListFN       = "list"
 	PageFolderFN = "page-folder"
 	PageFN       = "page"
 	SiteFN       = "site"    // site only accepts WebURL values
@@ -22,8 +21,7 @@ const (
 
 var (
 	LibraryFV    string
-	ListFolderFV []string
-	ListItemFV   []string
+	ListFV       []string
 	PageFolderFV []string
 	PageFV       []string
 	SiteIDFV     []string
@@ -67,17 +65,11 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 		"Select files modified before this datetime.")
 
 	// lists
-
 	fs.StringSliceVar(
-		&ListFolderFV,
-		ListFolderFN, nil,
+		&ListFV,
+		ListFN, nil,
 		"Select lists by name; accepts '"+Wildcard+"' to select all lists.")
-	cobra.CheckErr(fs.MarkHidden(ListFolderFN))
-	fs.StringSliceVar(
-		&ListItemFV,
-		ListItemFN, nil,
-		"Select lists by item name; accepts '"+Wildcard+"' to select all lists.")
-	cobra.CheckErr(fs.MarkHidden(ListItemFN))
+	cobra.CheckErr(fs.MarkHidden(ListFN))
 
 	// pages
 
