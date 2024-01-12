@@ -37,6 +37,7 @@ type getItemser interface {
 type restoreHandler interface {
 	PostLister
 	DeleteLister
+	GetLister
 }
 
 type PostLister interface {
@@ -53,4 +54,11 @@ type DeleteLister interface {
 		ctx context.Context,
 		listID string,
 	) error
+}
+
+type GetLister interface {
+	GetList(
+		ctx context.Context,
+		listID string,
+	) (models.Listable, *details.SharePointInfo, error)
 }

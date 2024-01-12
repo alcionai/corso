@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -94,21 +95,68 @@ func (lh *ListHandler) Check(t *testing.T, expected []string) {
 }
 
 type ListRestoreHandler struct {
-	List models.Listable
-	Err  error
+	ignoreSubsequentPostListFails bool
+	getListErr                    error
+	deleteListErr                 error
+	postListErr                   error
+	postListCalls                 int
+}
+
+func NewListRestoreHandler(getListErr, postListErr, deleteListErr error) *ListRestoreHandler {
+	return &ListRestoreHandler{
+		getListErr:    getListErr,
+		deleteListErr: deleteListErr,
+		postListErr:   postListErr,
+	}
+}
+
+func (lh *ListRestoreHandler) SetIgnoreSubsequentPostListFails() {
+	lh.ignoreSubsequentPostListFails = true
 }
 
 func (lh *ListRestoreHandler) PostList(
 	ctx context.Context,
 	listName string,
-	storedListBytes []byte,
+	storedList models.Listable,
+	_ *fault.Bus,
 ) (models.Listable, error) {
+	lh.postListCalls++
+
+	ls, _ := api.ToListable(storedList, listName)
+
+	if lh.postListErr == nil {
+		return ls, nil
+	}
+
+	var err error
+	if lh.ignoreSubsequentPostListFails {
+		err = lh.postListErr
+		lh.postListErr = nil
+	}
+
+	return nil, err
+}
+
+func (lh *ListRestoreHandler) GetList(
+	ctx context.Context,
+	listID string,
+) (models.Listable, *details.SharePointInfo, error) {
 	ls := models.NewList()
+	ls.SetId(ptr.To(listID))
 
-	lh.List = ls
-	lh.List.SetDisplayName(ptr.To(listName))
+	if lh.getListErr != nil {
+		return nil, nil, lh.getListErr
+	}
 
-	return lh.List, lh.Err
+	return ls, api.ListToSPInfo(ls), nil
+}
+
+func (lh *ListRestoreHandler) DeleteList(_ context.Context, _ string) error {
+	return lh.deleteListErr
+}
+
+func (lh *ListRestoreHandler) CheckPostListCalls(t *testing.T, expectedCalls int) {
+	assert.Equal(t, expectedCalls, lh.postListCalls, "unequal number of post-list calls")
 }
 
 func StubLists(ids ...string) []models.Listable {
