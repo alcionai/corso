@@ -2,6 +2,7 @@ package ics
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -37,15 +38,28 @@ func HTMLToText(in string) (string, error) {
 			return removeTrailingWhiltesapce(out), nil
 		case html.TextToken:
 			if depth > 0 {
-				text := string(z.Text())
-				text = strings.ReplaceAll(text, "\n", "")
-				text = strings.ReplaceAll(text, "  ", " ")
+				origText := string(z.Text())
+				if (origText == " " || origText == "\n") && len(out) > 0 &&
+					(out[len(out)-1] != '\n' || out[len(out)-1] != ' ') {
+					out += " "
+				}
+
+				origText = strings.ReplaceAll(origText, "\n", " ")
+				text := regexp.MustCompile(`\s+`).ReplaceAllString(origText, " ")
 
 				if len(strings.TrimSpace(text)) == 0 {
 					continue
 				}
 
-				out += text
+				if origText[0] == ' ' && len(out) > 0 && out[len(out)-1] != ' ' {
+					out += " "
+				}
+
+				out += strings.TrimSpace(text)
+
+				if origText[len(origText)-1] == ' ' && len(out) > 0 && out[len(out)-1] != ' ' {
+					out += " "
+				}
 			}
 		case html.StartTagToken, html.EndTagToken:
 			tn, _ := z.TagName()
