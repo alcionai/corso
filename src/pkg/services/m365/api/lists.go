@@ -634,3 +634,18 @@ func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 		},
 	}
 }
+
+func listCollisionKeyProps() []string {
+	return idAnd("displayName")
+}
+
+// Two lists with same name cannot be created,
+// hence going by the displayName itself as the collision key.
+// Only displayName can be set. name is system generated based on displayName.
+func ListCollisionKey(list models.Listable) string {
+	if list == nil {
+		return ""
+	}
+
+	return ptr.Val(list.GetDisplayName())
+}
