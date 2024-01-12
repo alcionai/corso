@@ -5,10 +5,12 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/errs"
@@ -148,4 +150,88 @@ func (suite *GroupsIntgSuite) TestSitesInGroup() {
 	sites, err := suite.cli.SitesInGroup(ctx, gid, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotEmpty(t, sites)
+}
+
+// ---------------------------------------------------------------------------
+// unit tests
+// ---------------------------------------------------------------------------
+
+type GroupsUnitSuite struct {
+	tester.Suite
+}
+
+func TestGroupsUnitSuite(t *testing.T) {
+	suite.Run(t, &GroupsUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *GroupsUnitSuite) TestParseGroupFromTeamable() {
+	id := uuid.NewString()
+	name := uuid.NewString()
+
+	table := []struct {
+		name      string
+		team      func() models.Teamable
+		expectErr assert.ErrorAssertionFunc
+		expect    Group
+	}{
+		{
+			name: "good team",
+			team: func() models.Teamable {
+				team := models.NewTeam()
+				team.SetId(ptr.To(id))
+				team.SetDisplayName(ptr.To(name))
+
+				return team
+			},
+			expectErr: assert.NoError,
+			expect: Group{
+				ID:          id,
+				DisplayName: name,
+				IsTeam:      true,
+			},
+		},
+		{
+			name: "no display name",
+			team: func() models.Teamable {
+				team := models.NewTeam()
+				team.SetId(ptr.To(id))
+
+				return team
+			},
+			expectErr: assert.NoError,
+			expect: Group{
+				ID:          id,
+				DisplayName: "",
+				IsTeam:      true,
+			},
+		},
+		{
+			name: "no id",
+			team: func() models.Teamable {
+				team := models.NewTeam()
+				team.SetDisplayName(ptr.To(name))
+
+				return team
+			},
+			expectErr: assert.Error,
+			expect:    Group{},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			result, err := parseGroupFromTeamable(ctx, test.team())
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if err != nil {
+				assert.Nil(t, result)
+			} else {
+				assert.Equal(t, test.expect, *result)
+			}
+		})
+	}
 }
