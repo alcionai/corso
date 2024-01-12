@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 
@@ -86,7 +87,7 @@ func (c Lists) GetListsByCollisionKey(
 
 	items, err := pagers.BatchEnumerateItems[models.Listable](ctx, pager)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating lists")
+		return nil, clues.WrapWC(ctx, err, "enumerating lists")
 	}
 
 	m := map[string]string{}
