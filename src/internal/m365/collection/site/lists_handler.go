@@ -86,3 +86,7 @@ func (rh listsRestoreHandler) GetList(
 ) (models.Listable, *details.SharePointInfo, error) {
 	return rh.ac.GetListByID(ctx, rh.protectedResource, listID)
 }
+
+func (rh listsRestoreHandler) GetListsByCollisionKey(ctx context.Context) (map[string]string, error) {
+	return rh.ac.GetListsByCollisionKey(ctx, rh.protectedResource)
+}

@@ -155,6 +155,10 @@ func (lh *ListRestoreHandler) DeleteList(_ context.Context, _ string) error {
 	return lh.deleteListErr
 }
 
+func (lh *ListRestoreHandler) GetListsByCollisionKey(ctx context.Context) (map[string]string, error) {
+	return map[string]string{}, nil
+}
+
 func (lh *ListRestoreHandler) CheckPostListCalls(t *testing.T, expectedCalls int) {
 	assert.Equal(t, expectedCalls, lh.postListCalls, "unequal number of post-list calls")
 }
