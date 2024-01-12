@@ -155,10 +155,11 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 		b        = stubBackup(now, "id", "name")
 		expectHs = []string{
 			"ID",
-			"Started At",
+			"Started at",
 			"Duration",
 			"Status",
-			"Resource Owner",
+			"Protected resource",
+			"Data",
 		}
 		nowFmt   = dttm.FormatToTabularDisplay(now)
 		expectVs = []string{
@@ -167,6 +168,7 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues() {
 			"1m0s",
 			"status (2 errors, 1 skipped: 1 malware)",
 			"name-pr",
+			"Contacts,Emails,Events",
 		}
 	)
 
@@ -194,10 +196,11 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues_onlyResourceOwners() {
 		b        = stubBackup(now, "id", "name")
 		expectHs = []string{
 			"ID",
-			"Started At",
+			"Started at",
 			"Duration",
 			"Status",
-			"Resource Owner",
+			"Protected resource",
+			"Data",
 		}
 		nowFmt   = dttm.FormatToTabularDisplay(now)
 		expectVs = []string{
@@ -206,6 +209,7 @@ func (suite *BackupUnitSuite) TestBackup_HeadersValues_onlyResourceOwners() {
 			"1m0s",
 			"status (2 errors, 1 skipped: 1 malware)",
 			"name-ro",
+			"Contacts,Emails,Events",
 		}
 	)
 

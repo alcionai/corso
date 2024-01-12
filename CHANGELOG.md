@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - When running `backup details` on an empty backup returns a more helpful error message.
+- Backup List additionally shows the data category for each backup.
 
 ### Known issues
 - Backing up a group mailbox item may fail if it has a very large number of attachments (500+).

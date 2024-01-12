@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -305,6 +306,8 @@ func (b Backup) Values(skipID bool) []string {
 	for _, r := range reasons {
 		reasonCats = append(reasonCats, r.Category().HumanString())
 	}
+
+	sort.Strings(reasonCats)
 
 	values := []string{
 		string(b.ID),
