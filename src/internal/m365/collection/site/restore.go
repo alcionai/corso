@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -134,6 +135,7 @@ func ConsumeRestoreCollections(
 // The name is changed to to {DestName}_{name}
 // API Reference: https://learn.microsoft.com/en-us/graph/api/list-create?view=graph-rest-1.0&tabs=http
 // Restored List can be verified within the Site contents.
+// [TODO](hitesh) sunset this function
 func restoreListItem(
 	ctx context.Context,
 	rh restoreHandler,
@@ -172,6 +174,123 @@ func restoreListItem(
 	dii.SharePoint = api.ListToSPInfo(restoredList)
 
 	return dii, nil
+}
+
+// [TODO](hitesh) integrate with RestoreListCollection
+func restoreListItemInPlace(
+	ctx context.Context,
+	rh restoreHandler,
+	itemData data.Item,
+	siteID, destName string,
+	collisionKeyToItemID map[string]string,
+	collisionPolicy control.CollisionPolicy,
+	ctr *count.Bus,
+	errs *fault.Bus,
+) (details.ItemInfo, error) {
+	var (
+		dii    = details.ItemInfo{}
+		itemID = itemData.ID()
+	)
+
+	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.ID()))
+	defer end()
+
+	ctx = clues.Add(ctx, "list_item_id", itemID)
+
+	bytes, err := io.ReadAll(itemData.ToReader())
+	if err != nil {
+		return dii, clues.WrapWC(ctx, err, "reading backup data")
+	}
+
+	storedList, err := api.BytesToListable(bytes)
+	if err != nil {
+		return dii, clues.WrapWC(ctx, err, "generating list from stored bytes")
+	}
+
+	var (
+		collisionKey = api.ListCollisionKey(storedList)
+		collisionID  string
+		restoredList models.Listable
+		newName      = formatListsRestoreDestination(destName, itemID, storedList)
+	)
+
+	if id, ok := collisionKeyToItemID[collisionKey]; ok {
+		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
+		log.Debug("item collision")
+
+		if collisionPolicy == control.Skip {
+			ctr.Inc(count.CollisionSkip)
+			log.Debug("skipping item with collision")
+
+			return dii, core.ErrAlreadyExists
+		}
+
+		collisionID = id
+	}
+
+	if collisionPolicy != control.Replace {
+		restoredList, err = rh.PostList(ctx, newName, storedList, errs)
+		if err != nil {
+			return dii, clues.WrapWC(ctx, err, "restoring list")
+		}
+	} else {
+		restoredList, err = handleListReplace(
+			ctx,
+			collisionID,
+			storedList,
+			rh,
+			ctr,
+			errs)
+		if err != nil {
+			return dii, err
+		}
+	}
+
+	// Restore to List base to M365 back store
+
+	dii.SharePoint = api.ListToSPInfo(restoredList)
+
+	return dii, nil
+}
+
+func handleListReplace(
+	ctx context.Context,
+	collisionID string,
+	storedList models.Listable,
+	rh restoreHandler,
+	ctr *count.Bus,
+	errs *fault.Bus,
+) (models.Listable, error) {
+	collisionList, _, err := rh.GetList(ctx, collisionID)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "fetching collided list")
+	}
+
+	err = rh.DeleteList(ctx, collisionID)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "deleting collided list")
+	}
+
+	restoredList, err := rh.PostList(
+		ctx,
+		ptr.Val(storedList.GetDisplayName()),
+		storedList,
+		errs)
+	if err == nil {
+		ctr.Inc(count.CollisionReplace)
+		return restoredList, nil
+	}
+
+	_, collisionListErr := rh.PostList(
+		ctx,
+		ptr.Val(collisionList.GetDisplayName()),
+		collisionList,
+		errs)
+	if err != collisionListErr {
+		return nil, clues.WrapWC(ctx, err, "re-creating collided list")
+	}
+
+	return nil, clues.WrapWC(ctx, err, "restoring list")
 }
 
 func RestoreListCollection(
