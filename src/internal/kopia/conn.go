@@ -88,6 +88,14 @@ type (
 		) (*snapshot.Manifest, error)
 	}
 
+	multiSnapshotLoader interface {
+		manifestFinder
+		LoadSnapshots(
+			ctx context.Context,
+			manifestIDs []manifest.ID,
+		) ([]*snapshot.Manifest, error)
+	}
+
 	snapshotLoader interface {
 		SnapshotRoot(man *snapshot.Manifest) (fs.Entry, error)
 	}
@@ -588,6 +596,14 @@ func persistRetentionConfigs(
 		})
 
 	return clues.WrapWC(ctx, err, "persisting config changes").OrNil()
+}
+
+func (w *conn) LoadSnapshots(
+	ctx context.Context,
+	manifestIDs []manifest.ID,
+) ([]*snapshot.Manifest, error) {
+	mans, err := snapshot.LoadSnapshots(ctx, w.Repository, manifestIDs)
+	return mans, clues.StackWC(ctx, err).OrNil()
 }
 
 func (w *conn) LoadSnapshot(
