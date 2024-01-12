@@ -19,20 +19,13 @@ import (
 )
 
 // This package is used to convert json response from graph to ics
-// Ref: https://icalendar.org/
-// Ref: https://www.rfc-editor.org/rfc/rfc5545
-// Ref: https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0
+// https://icalendar.org/
+// https://www.rfc-editor.org/rfc/rfc5545
+// https://www.rfc-editor.org/rfc/rfc2445.txt
+// https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcical/a685a040-5b69-4c84-b084-795113fb4012
 
-// TODO: Items not handled
-// locations (different from location)
-// exceptions and modifications
-
-// Field in the backed up data that we cannot handle
-// allowNewTimeProposals, hideAttendees, importance, isOnlineMeeting,
-// isOrganizer, isReminderOn, onlineMeeting, onlineMeetingProvider,
-// onlineMeetingUrl, originalEndTimeZone, originalStart,
-// originalStartTimeZone, reminderMinutesBeforeStart, responseRequested,
-// responseStatus, sensitivity
+// TODO locations: https://github.com/alcionai/corso/issues/5003
 
 const (
 	iCalDateTimeFormat = "20060102T150405Z"
@@ -54,7 +47,6 @@ func getLocationString(location models.Locationable) string {
 	dn := ptr.Val(location.GetDisplayName())
 	segments := []string{dn}
 
-	// TODO: Handle different location types
 	addr := location.GetAddress()
 	if addr != nil {
 		street := ptr.Val(addr.GetStreet())
@@ -260,18 +252,20 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 }
 
 func updateEventProperties(ctx context.Context, event models.Eventable, iCalEvent *ics.VEvent) error {
+	// CREATED - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.7.1
 	created := event.GetCreatedDateTime()
 	if created != nil {
 		iCalEvent.SetCreatedTime(ptr.Val(created))
 	}
 
+	// LAST-MODIFIED - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.7.3
 	modified := event.GetLastModifiedDateTime()
 	if modified != nil {
 		iCalEvent.SetModifiedAt(ptr.Val(modified))
 	}
 
+	// DTSTART - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.4
 	allDay := ptr.Val(event.GetIsAllDay())
-
 	startString := event.GetStart().GetDateTime()
 	startTimezone := event.GetStart().GetTimeZone()
 
@@ -288,6 +282,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		}
 	}
 
+	// DTEND - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.2
 	endString := event.GetEnd().GetDateTime()
 	endTimezone := event.GetEnd().GetTimeZone()
 
@@ -314,22 +309,21 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddRrule(pattern)
 	}
 
+	// STATUS - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.11
 	cancelled := event.GetIsCancelled()
 	if cancelled != nil {
 		iCalEvent.SetStatus(ics.ObjectStatusCancelled)
 	}
 
-	draft := event.GetIsDraft()
-	if draft != nil {
-		iCalEvent.SetStatus(ics.ObjectStatusDraft)
-	}
-
+	// SUMMARY - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.12
 	summary := event.GetSubject()
 	if summary != nil {
 		iCalEvent.SetSummary(ptr.Val(summary))
 	}
 
+	// DESCRIPTION - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.5
 	// TODO: Emojies currently don't seem to be read properly by Outlook
+	// When outlook exports them(in .eml), it exports them in text as it strips down html
 	bodyPreview := ptr.Val(event.GetBodyPreview())
 
 	if event.GetBody() != nil {
@@ -350,29 +344,28 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		}
 	}
 
+	// TRANSP - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.7
 	showAs := ptr.Val(event.GetShowAs()).String()
-	if len(showAs) > 0 && showAs != "unknown" {
-		var status ics.FreeBusyTimeType
+	if len(showAs) > 0 {
+		var transp ics.TimeTransparency
 
 		switch showAs {
-		case "free":
-			status = ics.FreeBusyTimeTypeFree
-		case "tentative":
-			status = ics.FreeBusyTimeTypeBusyTentative
-		case "busy":
-			status = ics.FreeBusyTimeTypeBusy
-		case "oof", "workingElsewhere": // this is just best effort conversion
-			status = ics.FreeBusyTimeTypeBusyUnavailable
+		case "free", "unknown":
+			transp = ics.TransparencyTransparent
+		default:
+			transp = ics.TransparencyOpaque
 		}
 
-		iCalEvent.AddProperty(ics.ComponentPropertyFreebusy, string(status))
+		iCalEvent.AddProperty(ics.ComponentPropertyTransp, string(transp))
 	}
 
+	// CATEGORIES - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.2
 	categories := event.GetCategories()
 	for _, category := range categories {
 		iCalEvent.AddProperty(ics.ComponentPropertyCategories, category)
 	}
 
+	// URL - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.4.6
 	// According to the RFC, this property may be used in a calendar
 	// component to convey a location where a more dynamic rendition of
 	// the calendar information associated with the calendar component
@@ -382,12 +375,13 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.SetURL(url)
 	}
 
+	// ORGANIZER - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.4.3
 	organizer := event.GetOrganizer()
 	if organizer != nil {
 		name := ptr.Val(organizer.GetEmailAddress().GetName())
 		addr := ptr.Val(organizer.GetEmailAddress().GetAddress())
 
-		// TODO: What to do if we only have a name?
+		// It does not look like we can get just a name without an address
 		if len(name) > 0 && len(addr) > 0 {
 			iCalEvent.SetOrganizer(addr, ics.WithCN(name))
 		} else if len(addr) > 0 {
@@ -395,6 +389,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		}
 	}
 
+	// ATTENDEE - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.4.1
 	attendees := event.GetAttendees()
 	for _, attendee := range attendees {
 		props := []ics.PropertyParameter{}
@@ -445,12 +440,50 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddAttendee(addr, props...)
 	}
 
+	// LOCATION - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.7
 	location := getLocationString(event.GetLocation())
 	if len(location) > 0 {
 		iCalEvent.SetLocation(location)
 	}
 
-	// TODO Handle different attachment type (file, item and reference)
+	// X-MICROSOFT-LOCATIONDISPLAYNAME (Outlook seems to use this)
+	loc := event.GetLocation()
+	if loc != nil {
+		locationDisplayName := ptr.Val(event.GetLocation().GetDisplayName())
+		if len(locationDisplayName) > 0 {
+			iCalEvent.AddProperty("X-MICROSOFT-LOCATIONDISPLAYNAME", locationDisplayName)
+		}
+	}
+
+	// CLASS - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.3
+	// Graph also has the value "personal" which is not supported by the spec
+	// Default value is "public" (works for "normal")
+	sensitivity := ptr.Val(event.GetSensitivity()).String()
+	if sensitivity == "private" {
+		iCalEvent.AddProperty(ics.ComponentPropertyClass, "PRIVATE")
+	} else if sensitivity == "confidential" {
+		iCalEvent.AddProperty(ics.ComponentPropertyClass, "CONFIDENTIAL")
+	}
+
+	// PRIORITY - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.9
+	imp := ptr.Val(event.GetImportance()).String()
+	switch imp {
+	case "high":
+		iCalEvent.AddProperty(ics.ComponentPropertyPriority, "1")
+	case "low":
+		iCalEvent.AddProperty(ics.ComponentPropertyPriority, "9")
+	}
+
+	meeting := event.GetOnlineMeeting()
+	if meeting != nil {
+		url := ptr.Val(meeting.GetJoinUrl())
+		if len(url) > 0 {
+			iCalEvent.AddProperty("X-MICROSOFT-SKYPETEAMSMEETINGURL", url)
+		}
+	}
+
+	// ATTACH - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.1
+	// TODO Handle different attachment types (file, item and reference)
 	attachments := event.GetAttachments()
 	for _, attachment := range attachments {
 		props := []ics.PropertyParameter{}
@@ -482,6 +515,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		}
 
 		// TODO: Inline attachments don't show up in Outlook
+		// Inline attachments is not something supported by the spec
 		inline := ptr.Val(attachment.GetIsInline())
 		if inline {
 			cidv, err := attachment.GetBackingStore().Get("contentId")
@@ -500,6 +534,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.AddAttachment(base64.StdEncoding.EncodeToString(content), props...)
 	}
 
+	// EXDATE - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.5.1
 	cancelledDates, err := getCancelledDates(ctx, event)
 	if err != nil {
 		return clues.Wrap(err, "getting cancelled dates")
