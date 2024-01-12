@@ -74,13 +74,13 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		cobra.CheckErr(fs.MarkHidden(flags.UseDeltaTreeFN))
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
+		c, _ = utils.AddCommand(cmd, oneDriveListCmd())
 
 		flags.AddBackupIDFlag(c, false)
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, oneDriveDetailsCmd())
+		c, _ = utils.AddCommand(cmd, oneDriveDetailsCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
@@ -90,7 +90,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddOneDriveDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, oneDriveDeleteCmd())
+		c, _ = utils.AddCommand(cmd, oneDriveDeleteCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
 		c.Example = oneDriveServiceCommandDeleteExamples
