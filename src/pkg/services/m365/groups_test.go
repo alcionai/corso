@@ -108,8 +108,8 @@ func (suite *GroupsIntgSuite) TestGroupByID_notFound() {
 
 	group, err := suite.cli.GroupByID(ctx, uuid.NewString())
 	require.Nil(t, group)
-	require.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
-	require.True(t, errs.Is(err, core.ErrResourceOwnerNotFound))
+	require.ErrorIs(t, err, core.ErrNotFound, clues.ToCore(err))
+	require.True(t, errs.Is(err, core.ErrNotFound))
 }
 
 func (suite *GroupsIntgSuite) TestGroups() {

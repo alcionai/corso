@@ -1,6 +1,10 @@
 package graph
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"syscall"
@@ -18,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
 
@@ -67,6 +72,9 @@ func (suite *GraphIntgSuite) TestCreateAdapter() {
 
 	assert.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, adpt)
+
+	aw := adpt.(*adapterWrap)
+	assert.Equal(t, adapterRetryDelay, aw.retryDelay, "default retry delay")
 }
 
 func (suite *GraphIntgSuite) TestHTTPClient() {
@@ -198,6 +206,10 @@ func (suite *GraphIntgSuite) TestAdapterWrap_catchesPanic() {
 		appendMiddleware(&alwaysPanicMiddleware))
 	require.NoError(t, err, clues.ToCore(err))
 
+	// Set retry delay to a low value to reduce test runtime.
+	aw := adpt.(*adapterWrap)
+	aw.retryDelay = 10 * time.Millisecond
+
 	// the query doesn't matter
 	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
 	require.Error(t, err, clues.ToCore(err))
@@ -215,7 +227,6 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	url := "https://graph.microsoft.com/fnords/beaux/regard"
 	retryInc := 0
 
 	// the panics should get caught and returned as errors
@@ -232,20 +243,21 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
 		suite.credentials.AzureClientID,
 		suite.credentials.AzureClientSecret,
 		count.New(),
-		appendMiddleware(&alwaysECONNRESET))
+		appendMiddleware(&alwaysECONNRESET),
+		// Configure retry middlewares so that they don't retry on connection reset.
+		// Those middlewares have their own tests to verify retries.
+		MaxRetries(-1))
 	require.NoError(t, err, clues.ToCore(err))
 
-	// the query doesn't matter
-	_, err = users.NewItemCalendarsItemEventsDeltaRequestBuilder(url, adpt).Get(ctx, nil)
-	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 16, retryInc, "number of retries")
-
-	retryInc = 0
+	// Retry delay doesn't really matter here since all requests will be intercepted
+	// by the test middleware. Set it to 0 to reduce test runtime.
+	aw := adpt.(*adapterWrap)
+	aw.retryDelay = 0
 
 	// the query doesn't matter
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 16, retryInc, "number of retries")
+	require.Equal(t, 4, retryInc, "number of retries")
 }
 
 func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
@@ -292,18 +304,127 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 		appendMiddleware(&alwaysBadJWT))
 	require.NoError(t, err, clues.ToCore(err))
 
+	// Retry delay doesn't really matter here since all requests will be intercepted
+	// by the test middleware. Set it to 0 to reduce test runtime.
+	aw := adpt.(*adapterWrap)
+	aw.retryDelay = 0
+
 	// When run locally this may fail. Not sure why it works in github but not locally.
 	// Pester keepers if it bothers you.
 	_, err = users.
 		NewItemCalendarsItemEventsDeltaRequestBuilder("https://graph.microsoft.com/fnords/beaux/regard", adpt).
 		Get(ctx, nil)
-	assert.True(t, IsErrBadJWTToken(err), clues.ToCore(err))
+	assert.ErrorIs(t, err, core.ErrAuthTokenExpired, clues.ToCore(err))
 	assert.Equal(t, 4, retryInc, "number of retries")
 
 	retryInc = 0
 
 	// the query doesn't matter
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
-	assert.True(t, IsErrBadJWTToken(err), clues.ToCore(err))
+	assert.ErrorIs(t, err, core.ErrAuthTokenExpired, clues.ToCore(err))
 	assert.Equal(t, 4, retryInc, "number of retries")
+}
+
+// TestAdapterWrap_retriesInvalidRequest tests adapter retries for graph 400
+// invalidRequest errors. It also tests that retries are only done for GET
+// requests.
+func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
+	var (
+		t        = suite.T()
+		retryInc = 0
+		// Formulate a graph error response which is parseable to odata error.
+		graphResp = map[string]any{
+			"error": map[string]any{
+				"code":    invalidRequest,
+				"message": "Invalid request",
+				"innerError": map[string]any{
+					"date":              "2024-01-01T18:00:00",
+					"request-id":        "rid",
+					"client-request-id": "cid",
+				},
+			},
+		}
+	)
+
+	serialized, err := json.Marshal(graphResp)
+	require.NoError(t, err, clues.ToCore(err))
+
+	l := int64(len(serialized))
+
+	// Set up a test middleware to always return a graph 400 invalidRequest
+	// response.
+	returnsGraphResp := mwForceResp{
+		alternate: func(req *http.Request) (bool, *http.Response, error) {
+			retryInc++
+
+			header := http.Header{}
+			header.Set("Content-Length", strconv.Itoa(int(l)))
+			header.Set("Content-Type", "application/json")
+
+			resp := &http.Response{
+				Body:          io.NopCloser(bytes.NewReader(serialized)),
+				ContentLength: l,
+				Header:        header,
+				Proto:         req.Proto,
+				Request:       req,
+				StatusCode:    http.StatusBadRequest, // Required retry condition
+			}
+
+			return true, resp, nil
+		},
+	}
+
+	adpt, err := CreateAdapter(
+		suite.credentials.AzureTenantID,
+		suite.credentials.AzureClientID,
+		suite.credentials.AzureClientSecret,
+		count.New(),
+		appendMiddleware(&returnsGraphResp))
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Retry delay doesn't really matter here since all requests will be intercepted
+	// by the test middleware. Set it to 0 to reduce test runtime.
+	aw := adpt.(*adapterWrap)
+	aw.retryDelay = 0
+
+	table := []struct {
+		name            string
+		apiRequest      func(t *testing.T, ctx context.Context) error
+		expectedRetries int
+	}{
+		{
+			name: "GET request, retried",
+			apiRequest: func(t *testing.T, ctx context.Context) error {
+				_, err = NewService(adpt).Client().Users().Get(ctx, nil)
+				return err
+			},
+			expectedRetries: 4,
+		},
+		{
+			name: "POST request, no retry",
+			apiRequest: func(t *testing.T, ctx context.Context) error {
+				u := models.NewUser()
+
+				cfg := users.UsersRequestBuilderPostRequestConfiguration{}
+
+				_, err = NewService(adpt).Client().Users().Post(ctx, u, &cfg)
+				return err
+			},
+			expectedRetries: 1,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			tt := suite.T()
+			retryInc = 0
+
+			ctx, flush := tester.NewContext(tt)
+			defer flush()
+
+			err := test.apiRequest(tt, ctx)
+			assert.True(tt, IsErrInvalidRequest(err), clues.ToCore(err))
+			assert.Equal(tt, test.expectedRetries, retryInc, "number of retries")
+		})
+	}
 }

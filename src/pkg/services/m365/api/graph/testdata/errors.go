@@ -57,6 +57,18 @@ func ODataInner(innerCode string) *odataerrors.ODataError {
 	return odErr
 }
 
+func ODataErrWithAPIResponse(
+	code string,
+	respCode int,
+) *odataerrors.ODataError {
+	odErr := ODataErr(code)
+
+	// TODO(pandeyabs): Expand this function to set response headers as well.
+	odErr.SetStatusCode(respCode)
+
+	return odErr
+}
+
 func ParseableToMap(t *testing.T, thing serialization.Parsable) map[string]any {
 	sw := kjson.NewJsonSerializationWriter()
 

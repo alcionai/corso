@@ -8,8 +8,10 @@ import (
 	"runtime/trace"
 
 	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
@@ -139,25 +141,30 @@ func restoreListItem(
 	siteID, destName string,
 	errs *fault.Bus,
 ) (details.ItemInfo, error) {
+	var (
+		dii    = details.ItemInfo{}
+		itemID = itemData.ID()
+	)
+
 	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.ID()))
 	defer end()
 
-	ctx = clues.Add(ctx, "list_item_id", itemData.ID())
-
-	var (
-		dii      = details.ItemInfo{}
-		listName = itemData.ID()
-	)
+	ctx = clues.Add(ctx, "list_item_id", itemID)
 
 	bytes, err := io.ReadAll(itemData.ToReader())
 	if err != nil {
 		return dii, clues.WrapWC(ctx, err, "reading backup data")
 	}
 
-	newName := fmt.Sprintf("%s_%s", destName, listName)
+	storedList, err := api.BytesToListable(bytes)
+	if err != nil {
+		return dii, clues.WrapWC(ctx, err, "generating list from stored bytes")
+	}
+
+	newName := formatListsRestoreDestination(destName, itemID, storedList)
 
 	// Restore to List base to M365 back store
-	restoredList, err := rh.PostList(ctx, newName, bytes, errs)
+	restoredList, err := rh.PostList(ctx, newName, storedList, errs)
 	if err != nil {
 		return dii, graph.Wrap(ctx, err, "restoring list")
 	}
@@ -327,4 +334,17 @@ func RestorePageCollection(
 	}
 
 	return metrics, el.Failure()
+}
+
+// newName is of format: destinationName_listID
+// here we replace listID with displayName of list generated from stored list
+func formatListsRestoreDestination(destName, itemID string, storedList models.Listable) string {
+	part1 := destName
+	part2 := itemID
+
+	if dispName, ok := ptr.ValOK(storedList.GetDisplayName()); ok {
+		part2 = dispName
+	}
+
+	return fmt.Sprintf("%s_%s", part1, part2)
 }

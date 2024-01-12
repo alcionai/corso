@@ -81,16 +81,16 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 		},
 		{
 			name: "mail inbox err - user not found",
-			err:  graphTD.ODataErr(string(graph.RequestResourceNotFound)),
+			err:  core.ErrNotFound,
 			expect: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, core.ErrResourceOwnerNotFound, clues.ToCore(err))
+				assert.NoError(t, err, clues.ToCore(err))
 			},
 		},
 		{
 			name: "mail inbox err - resoruceLocked",
-			err:  graphTD.ODataErr(string(graph.NotAllowed)),
+			err:  core.ErrResourceNotAccessible,
 			expect: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrResourceLocked, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrResourceNotAccessible, clues.ToCore(err))
 			},
 		},
 		{

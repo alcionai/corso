@@ -50,14 +50,14 @@ func writeItem(ctx context.Context, item Item, folder string) error {
 	name := item.Name
 	fpath := filepath.Join(folder, name)
 
-	progReader, pclose := observe.ItemSpinner(
+	progReader := observe.ItemSpinner(
 		ctx,
 		item.Body,
 		observe.ItemExportMsg,
 		clues.Hide(name))
 
 	defer item.Body.Close()
-	defer pclose()
+	defer progReader.Close()
 
 	err := os.MkdirAll(folder, os.ModePerm)
 	if err != nil {

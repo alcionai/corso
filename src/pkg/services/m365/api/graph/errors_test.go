@@ -14,6 +14,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
@@ -85,7 +86,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrApplicationThrottled(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrApplicationThrottled(ode, test.err))
 		})
 	}
 }
@@ -153,12 +155,13 @@ func (suite *GraphErrorsUnitSuite) TestIsErrInsufficientAuthorization() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrInsufficientAuthorization(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrInsufficientAuthorization(ode, test.err))
 		})
 	}
 }
 
-func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
+func (suite *GraphErrorsUnitSuite) TestIsErrNotFound() {
 	table := []struct {
 		name   string
 		err    error
@@ -173,11 +176,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 			name:   "non-matching",
 			err:    assert.AnError,
 			expect: assert.False,
-		},
-		{
-			name:   "as",
-			err:    ErrDeletedInFlight,
-			expect: assert.True,
 		},
 		{
 			name:   "non-matching oDataErr",
@@ -197,7 +195,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeletedInFlight() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrDeletedInFlight(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrNotFound(ode, test.err))
 		})
 	}
 }
@@ -335,6 +334,50 @@ func (suite *GraphErrorsUnitSuite) TestIsErrDeltaNotSupported() {
 	}
 }
 
+func (suite *GraphErrorsUnitSuite) TestIsErrInvalidRequest() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    graphTD.ODataErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErrMsg",
+			err:    graphTD.ODataErrWithMsg("fnords", "not supported"),
+			expect: assert.False,
+		},
+		{
+			name:   "invalidRequest oDataErr, missing 400 status code",
+			err:    graphTD.ODataErr(string(invalidRequest)),
+			expect: assert.False,
+		},
+		{
+			name:   "invalidRequest oDataErr, with 400 status code",
+			err:    graphTD.ODataErrWithAPIResponse(string(invalidRequest), http.StatusBadRequest),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrInvalidRequest(test.err))
+		})
+	}
+}
+
 func (suite *GraphErrorsUnitSuite) TestIsErrQuotaExceeded() {
 	table := []struct {
 		name   string
@@ -437,7 +480,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrUserNotFound(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrUserNotFound(ode, test.err))
 		})
 	}
 }
@@ -500,7 +544,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUnauthorizedOrBadToken() {
 		},
 		{
 			name:   "err token expired",
-			err:    clues.Stack(assert.AnError, ErrTokenExpired),
+			err:    clues.Stack(assert.AnError, core.ErrAuthTokenExpired),
 			expect: assert.True,
 		},
 		{
@@ -544,11 +588,6 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 			expect: assert.False,
 		},
 		{
-			name:   "err token expired",
-			err:    clues.Stack(assert.AnError, ErrTokenExpired),
-			expect: assert.False,
-		},
-		{
 			name:   "oDataErr code invalid auth token ",
 			err:    graphTD.ODataErr(string(invalidAuthenticationToken)),
 			expect: assert.True,
@@ -556,7 +595,8 @@ func (suite *GraphErrorsUnitSuite) TestIsErrIsErrBadJWTToken() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrBadJWTToken(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrBadJWTToken(ode, test.err))
 		})
 	}
 }
@@ -835,45 +875,6 @@ func (suite *GraphErrorsUnitSuite) TestGraphStack_labels() {
 	}
 }
 
-func (suite *GraphErrorsUnitSuite) TestIsErrItemNotFound() {
-	table := []struct {
-		name   string
-		err    error
-		expect assert.BoolAssertionFunc
-	}{
-		{
-			name:   "nil",
-			err:    nil,
-			expect: assert.False,
-		},
-		{
-			name:   "non-matching",
-			err:    assert.AnError,
-			expect: assert.False,
-		},
-		{
-			name:   "non-matching oDataErr",
-			err:    graphTD.ODataErr("fnords"),
-			expect: assert.False,
-		},
-		{
-			name:   "item not found oDataErr",
-			err:    graphTD.ODataErr(string(ItemNotFound)),
-			expect: assert.True,
-		},
-		{
-			name:   "error item not found oDataErr",
-			err:    graphTD.ODataErr(string(ErrorItemNotFound)),
-			expect: assert.True,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrItemNotFound(test.err))
-		})
-	}
-}
-
 func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 	table := []struct {
 		name   string
@@ -916,15 +917,11 @@ func (suite *GraphErrorsUnitSuite) TestIsErrResourceLocked() {
 					"deadbeef-7f1e-4578-8215-36004a2c935c Timestamp: 2023-12-05 19:31:01Z"),
 			expect: assert.True,
 		},
-		{
-			name:   "matching err sentinel",
-			err:    ErrResourceLocked,
-			expect: assert.True,
-		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), IsErrResourceLocked(test.err))
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrResourceLocked(ode, test.err))
 		})
 	}
 }
