@@ -746,3 +746,12 @@ func (w *Wrapper) UpdatePersistentConfig(
 ) error {
 	return clues.Stack(w.c.updatePersistentConfig(ctx, config)).OrNil()
 }
+
+func (w *Wrapper) VerifyBackups(
+	ctx context.Context,
+	storer store.Storer,
+) error {
+	return clues.Wrap(
+		verifyBackups(ctx, storer, w.c),
+		"verifying completeness of backups").OrNil()
+}

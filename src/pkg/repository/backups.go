@@ -53,6 +53,7 @@ type Backuper interface {
 		failOnMissing bool,
 		ids ...string,
 	) error
+	VerifyBackups(ctx context.Context) error
 }
 
 // NewBackup generates a BackupOperation runner.
@@ -355,4 +356,9 @@ func deleteBackups(
 	}
 
 	return sw.DeleteWithModelStoreIDs(ctx, toDelete...)
+}
+
+func (r repository) VerifyBackups(ctx context.Context) error {
+	return clues.Stack(r.dataLayer.VerifyBackups(ctx, store.NewWrapper(r.modelStore))).
+		OrNil()
 }
