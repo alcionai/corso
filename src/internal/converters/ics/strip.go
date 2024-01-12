@@ -24,14 +24,16 @@ func removeTrailingWhiltesapce(in string) string {
 // MS converts content from HTML to text when then have to export it
 // to other formats. This is a best effort reproduction of what they do.
 func HTMLToText(in string) (string, error) {
-	out := ""
+	in = strings.ReplaceAll(in, "\r\n", "\n")
 	z := html.NewTokenizer(bytes.NewReader([]byte(in)))
 	depth := 0
+	out := ""
 	lastTag := ""
 	lastLink := ""
 
 	for {
 		tt := z.Next()
+
 		switch tt {
 		case html.ErrorToken:
 			// TODO(meain): usually EOF, but handle other error
@@ -40,7 +42,7 @@ func HTMLToText(in string) (string, error) {
 			if depth > 0 {
 				origText := string(z.Text())
 				if (origText == " " || origText == "\n") && len(out) > 0 &&
-					(out[len(out)-1] != '\n' || out[len(out)-1] != ' ') {
+					(out[len(out)-1] != '\n' && out[len(out)-1] != ' ') {
 					out += " "
 				}
 
