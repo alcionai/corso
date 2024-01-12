@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -226,17 +227,19 @@ func (b Backup) MinimumPrintable() any {
 // for printing out to a terminal in a columnar display.
 func (b Backup) Headers(skipID bool) []string {
 	headers := []string{
-		"Started At",
+		"ID",
+		"Started at",
 		"Duration",
 		"Status",
-		"Resource Owner",
+		"Protected resource",
+		"Data",
 	}
 
 	if skipID {
-		return headers
+		headers = headers[1:]
 	}
 
-	return append([]string{"ID"}, headers...)
+	return headers
 }
 
 // Values returns the values matching the Headers list for printing
@@ -292,18 +295,31 @@ func (b Backup) Values(skipID bool) []string {
 
 	bs := b.toStats()
 
+	reasons, err := b.Selector.Reasons("doesnt-matter", false)
+	if err != nil {
+		logger.CtxErr(context.Background(), err).Error("getting reasons from selector")
+	}
+
+	reasonCats := []string{}
+
+	for _, r := range reasons {
+		reasonCats = append(reasonCats, r.Category().HumanString())
+	}
+
 	values := []string{
+		string(b.ID),
 		dttm.FormatToTabularDisplay(b.StartedAt),
 		bs.EndedAt.Sub(bs.StartedAt).String(),
 		status,
 		name,
+		strings.Join(reasonCats, ","),
 	}
 
 	if skipID {
-		return values
+		values = values[1:]
 	}
 
-	return append([]string{string(b.ID)}, values...)
+	return values
 }
 
 // ----- print backup stats
