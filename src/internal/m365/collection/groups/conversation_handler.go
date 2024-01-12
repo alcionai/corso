@@ -139,7 +139,7 @@ func (bh conversationsBackupHandler) augmentItemInfo(
 	c models.Conversationable,
 ) {
 	// Posts are always sent to the group email address, along with additional
-	// recipients if any. Currently, we don't have a way to get the unique
+	// recipients if any. Currently we don't have a way to get the unique
 	// recipient list for individual posts due to graph api limitations.
 	//
 	// Store the group mail address so that we can use it to populate the 'To'
