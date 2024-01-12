@@ -105,10 +105,6 @@ func (c Lists) PostDrive(
 		Lists()
 
 	newList, err := builder.Post(ctx, list, nil)
-	if graph.IsErrItemAlreadyExistsConflict(err) {
-		return nil, clues.StackWC(ctx, graph.ErrItemAlreadyExistsConflict, err)
-	}
-
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "creating documentLibrary list")
 	}
@@ -559,4 +555,19 @@ func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 			WebURL:    webURL,
 		},
 	}
+}
+
+func listCollisionKeyProps() []string {
+	return idAnd("displayName")
+}
+
+// Two lists with same name cannot be created,
+// hence going by the displayName itself as the collision key.
+// Only displayName can be set. name is system generated based on displayName.
+func ListCollisionKey(list models.Listable) string {
+	if list == nil {
+		return ""
+	}
+
+	return ptr.Val(list.GetDisplayName())
 }

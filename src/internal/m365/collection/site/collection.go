@@ -3,6 +3,7 @@ package site
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -23,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -501,7 +503,7 @@ func (lig *lazyItemGetter) GetData(
 ) (io.ReadCloser, *details.ItemInfo, bool, error) {
 	list, info, err := lig.getter.GetItemByID(ctx, lig.itemID)
 	if err != nil {
-		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || graph.IsErrDeletedInFlight(err) {
+		if clues.HasLabel(err, graph.LabelStatus(http.StatusNotFound)) || errors.Is(err, core.ErrNotFound) {
 			logger.CtxErr(ctx, err).Info("item deleted in flight. skipping")
 
 			// Returning delInFlight as true here for correctness, although the caller is going

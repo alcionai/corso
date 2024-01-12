@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -114,7 +115,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 			onCollision: control.Skip,
 			postItem:    folder,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrAlreadyExists, clues.ToCore(err))
 			},
 			expectItem: func(t *testing.T, i models.DriveItemable) {
 				assert.Nil(t, i)
@@ -165,7 +166,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 			onCollision: control.Skip,
 			postItem:    file,
 			expectErr: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+				assert.ErrorIs(t, err, core.ErrAlreadyExists, clues.ToCore(err))
 			},
 			expectItem: func(t *testing.T, i models.DriveItemable) {
 				assert.Nil(t, i)
@@ -201,7 +202,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer() {
 		// 	onCollision: control.Replace,
 		// 	postItem:    file,
 		// 	expectErr: func(t *testing.T, err error) {
-		// 		assert.ErrorIs(t, err, graph.ErrItemAlreadyExistsConflict, clues.ToCore(err))
+		// 		assert.ErrorIs(t, err, core.ErrConflictAlreadyExists, clues.ToCore(err))
 		// 	},
 		// 	expectItem: func(t *testing.T, i models.DriveItemable) {
 		// 		assert.Nil(t, i)

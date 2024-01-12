@@ -6,6 +6,7 @@ package exchange
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -19,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -278,7 +280,7 @@ func (col *prefetchCollection) streamItems(
 			if err != nil {
 				// Handle known error cases
 				switch {
-				case graph.IsErrDeletedInFlight(err):
+				case errors.Is(err, core.ErrNotFound):
 					// Don't report errors for deleted items as there's no way for us to
 					// back up data that is gone. Record it as a "success", since there's
 					// nothing else we can do, and not reporting it will make the status
@@ -490,7 +492,7 @@ func (lig *lazyItemGetter) GetData(
 		//
 		// The item will be deleted from kopia on the next backup when the
 		// delta token shows it's removed.
-		if graph.IsErrDeletedInFlight(err) {
+		if errors.Is(err, core.ErrNotFound) {
 			logger.CtxErr(ctx, err).Info("item not found")
 			return nil, nil, true, nil
 		}

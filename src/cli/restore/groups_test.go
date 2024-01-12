@@ -60,8 +60,7 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 						"--" + flags.FileCreatedBeforeFN, flagsTD.FileCreatedBeforeInput,
 						"--" + flags.FileModifiedAfterFN, flagsTD.FileModifiedAfterInput,
 						"--" + flags.FileModifiedBeforeFN, flagsTD.FileModifiedBeforeInput,
-						"--" + flags.ListItemFN, flagsTD.FlgInputs(flagsTD.ListItemInput),
-						"--" + flags.ListFolderFN, flagsTD.FlgInputs(flagsTD.ListFolderInput),
+						"--" + flags.ListFN, flagsTD.FlgInputs(flagsTD.ListsInput),
 						"--" + flags.PageFN, flagsTD.FlgInputs(flagsTD.PageInput),
 						"--" + flags.PageFolderFN, flagsTD.FlgInputs(flagsTD.PageFolderInput),
 						"--" + flags.CollisionsFN, flagsTD.Collisions,
@@ -92,6 +91,7 @@ func (suite *GroupsUnitSuite) TestAddGroupsCommands() {
 			assert.Equal(t, flagsTD.FileModifiedBeforeInput, opts.FileModifiedBefore)
 			assert.Equal(t, flagsTD.Collisions, opts.RestoreCfg.Collisions)
 			assert.Equal(t, flagsTD.Destination, opts.RestoreCfg.Destination)
+			assert.ElementsMatch(t, flagsTD.ListsInput, opts.Lists)
 			// assert.Equal(t, flagsTD.ToResource, opts.RestoreCfg.ProtectedResource)
 			assert.True(t, flags.NoPermissionsFV)
 			flagsTD.AssertProviderFlags(t, cmd)

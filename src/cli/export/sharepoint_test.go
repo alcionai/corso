@@ -60,8 +60,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 						"--" + flags.FileCreatedBeforeFN, flagsTD.FileCreatedBeforeInput,
 						"--" + flags.FileModifiedAfterFN, flagsTD.FileModifiedAfterInput,
 						"--" + flags.FileModifiedBeforeFN, flagsTD.FileModifiedBeforeInput,
-						"--" + flags.ListItemFN, flagsTD.FlgInputs(flagsTD.ListItemInput),
-						"--" + flags.ListFolderFN, flagsTD.FlgInputs(flagsTD.ListFolderInput),
+						"--" + flags.ListFN, flagsTD.FlgInputs(flagsTD.ListsInput),
 						"--" + flags.PageFN, flagsTD.FlgInputs(flagsTD.PageInput),
 						"--" + flags.PageFolderFN, flagsTD.FlgInputs(flagsTD.PageFolderInput),
 						"--" + flags.FormatFN, flagsTD.FormatType,
@@ -88,8 +87,7 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.Equal(t, flagsTD.FileCreatedBeforeInput, opts.FileCreatedBefore)
 			assert.Equal(t, flagsTD.FileModifiedAfterInput, opts.FileModifiedAfter)
 			assert.Equal(t, flagsTD.FileModifiedBeforeInput, opts.FileModifiedBefore)
-			assert.ElementsMatch(t, flagsTD.ListItemInput, opts.ListItem)
-			assert.ElementsMatch(t, flagsTD.ListFolderInput, opts.ListFolder)
+			assert.ElementsMatch(t, flagsTD.ListsInput, opts.Lists)
 			assert.ElementsMatch(t, flagsTD.PageInput, opts.Page)
 			assert.ElementsMatch(t, flagsTD.PageFolderInput, opts.PageFolder)
 			assert.Equal(t, flagsTD.Archive, opts.ExportCfg.Archive)

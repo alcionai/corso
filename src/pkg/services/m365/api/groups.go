@@ -218,9 +218,9 @@ func getGroupFromResponse(ctx context.Context, resp models.GroupCollectionRespon
 	vs := resp.GetValue()
 
 	if len(vs) == 0 {
-		return nil, clues.StackWC(ctx, core.ErrResourceOwnerNotFound)
+		return nil, clues.StackWC(ctx, core.ErrNotFound)
 	} else if len(vs) > 1 {
-		return nil, clues.StackWC(ctx, graph.ErrMultipleResultsMatchIdentifier)
+		return nil, clues.StackWC(ctx, core.ErrMultipleResultsMatchIdentifier)
 	}
 
 	return vs[0], nil

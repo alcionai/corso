@@ -59,8 +59,7 @@ var (
 	FileModifiedAfterInput  = "fileModifiedAfter"
 	FileModifiedBeforeInput = "fileModifiedBefore"
 
-	ListFolderInput = []string{"listFolder1", "listFolder2"}
-	ListItemInput   = []string{"listItem1", "listItem2"}
+	ListsInput = []string{"listName1", "listName2"}
 
 	PageFolderInput = []string{"pageFolder1", "pageFolder2"}
 	PageInput       = []string{"page1", "page2"}

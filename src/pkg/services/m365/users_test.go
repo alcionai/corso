@@ -175,13 +175,14 @@ func (suite *userIntegrationSuite) TestUserGetMailboxInfo() {
 			name: "invalid user",
 			user: uuid.NewString(),
 			expect: func(t *testing.T, info api.MailboxInfo) {
-				mi := api.MailboxInfo{
-					ErrGetMailBoxSetting: []error{},
-				}
-
-				require.Equal(t, mi, info)
+				require.NotNil(t, info)
+				assert.Contains(t, info.ErrGetMailBoxSetting, api.ErrMailBoxNotFound)
 			},
-			expectErr: require.Error,
+			// may seem odd, but we assume the user themselves
+			// has already been vetted, which turns this into a
+			// notFound error in the same way a mailboxNotFound
+			// is handled.
+			expectErr: require.NoError,
 		},
 	}
 	for _, test := range table {
