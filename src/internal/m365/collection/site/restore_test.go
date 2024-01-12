@@ -141,7 +141,16 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 		mockData     = generateListData(t, service, list)
 	)
 
-	deets, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName, fault.New(true))
+	deets, err := restoreListItem(
+		ctx,
+		lrh,
+		mockData,
+		suite.siteID,
+		destName,
+		nil,
+		control.Copy,
+		count.New(),
+		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, fmt.Sprintf("%s_%s", destName, listName), deets.SharePoint.List.Name)
 
@@ -191,6 +200,9 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 				listData,
 				suite.siteID,
 				destName,
+				nil,
+				control.Copy,
+				count.New(),
 				fault.New(false))
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), api.ErrSkippableListTemplate.Error())
@@ -221,7 +233,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_skip() {
 		api.ListCollisionKey(newList): "some-list-id",
 	}
 
-	deets, err := restoreListItemInPlace(
+	deets, err := restoreListItem(
 		ctx,
 		lrh,
 		mockData,
@@ -265,7 +277,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_copy() {
 		api.ListCollisionKey(newList): listID,
 	}
 
-	deets, err := restoreListItemInPlace(
+	deets, err := restoreListItem(
 		ctx,
 		lrh,
 		mockData,
@@ -322,7 +334,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replace()
 		api.ListCollisionKey(newList): listID,
 	}
 
-	deets, err := restoreListItemInPlace(
+	deets, err := restoreListItem(
 		ctx,
 		lrh,
 		mockData,
@@ -407,7 +419,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				test.lrh.SetIgnoreSubsequentPostListFails()
 			}
 
-			_, err := restoreListItemInPlace(
+			_, err := restoreListItem(
 				ctx,
 				test.lrh,
 				mockData,

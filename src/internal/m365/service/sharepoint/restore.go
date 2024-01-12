@@ -56,6 +56,7 @@ func (h *sharepointHandler) ConsumeRestoreCollections(
 		caches = drive.NewRestoreCaches(h.backupDriveIDNames)
 
 		el = errs.Local()
+		cl = ctr.Local()
 	)
 
 	// Reorder collections so that the parents directories are created
@@ -77,6 +78,7 @@ func (h *sharepointHandler) ConsumeRestoreCollections(
 				"restore_location", clues.Hide(rcc.RestoreConfig.Location),
 				"resource_owner", clues.Hide(dc.FullPath().ProtectedResource()),
 				"full_path", dc.FullPath())
+			collisionKeyToItemID map[string]string
 		)
 
 		switch dc.FullPath().Category() {
@@ -98,12 +100,21 @@ func (h *sharepointHandler) ConsumeRestoreCollections(
 				ctr)
 
 		case path.ListsCategory:
+			collisionKeyToItemID, err = listsRh.GetListsByCollisionKey(ictx)
+			if err != nil {
+				el.AddRecoverable(ictx, clues.Wrap(err, "building lists collision map"))
+				continue
+			}
+
 			metrics, err = site.RestoreListCollection(
 				ictx,
 				listsRh,
 				dc,
 				rcc.RestoreConfig.Location,
 				deets,
+				collisionKeyToItemID,
+				rcc.RestoreConfig.OnCollision,
+				cl,
 				errs)
 
 		case path.PagesCategory:
