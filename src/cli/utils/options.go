@@ -30,6 +30,7 @@ func Control() control.Options {
 	opt.ToggleFeatures.ExchangeImmutableIDs = flags.EnableImmutableIDFV
 	opt.ToggleFeatures.UseDeltaTree = flags.UseDeltaTreeFV
 	opt.Parallelism.ItemFetch = flags.FetchParallelismFV
+	opt.Repo.ReadOnly = flags.ReadOnlyFV
 
 	return opt
 }

@@ -14,6 +14,7 @@ const (
 	// Corso Flags
 	PassphraseFN      = "passphrase"
 	NewPassphraseFN   = "new-passphrase"
+	ReadOnlyFN        = "readonly"
 	SucceedIfExistsFN = "succeed-if-exists"
 )
 
@@ -25,6 +26,7 @@ var (
 	AWSSessionTokenFV    string
 	PassphraseFV         string
 	NewPhasephraseFV     string
+	ReadOnlyFV           bool
 	SucceedIfExistsFV    bool
 )
 
@@ -57,6 +59,13 @@ func AddAllStorageFlags(cmd *cobra.Command) {
 	AddCorsoPassphaseFlags(cmd)
 	// AddAzureCredsFlags is added by ProviderFlags
 	AddAWSCredsFlags(cmd)
+}
+
+func AddReadOnlyFlag(cmd *cobra.Command) {
+	fs := cmd.Flags()
+	fs.BoolVar(&ReadOnlyFV, ReadOnlyFN, false, "open repository in read-only mode")
+	//nolint:errcheck
+	fs.MarkHidden(ReadOnlyFN)
 }
 
 func AddAWSCredsFlags(cmd *cobra.Command) {

@@ -63,6 +63,14 @@ func AddCommands(cmd *cobra.Command) {
 			flags.AddAllStorageFlags(sc)
 		}
 	}
+
+	// Add verify command separately. It's not bound to a single service.
+	verifyCommand := verifyCmd()
+	flags.AddAllProviderFlags(verifyCommand)
+	flags.AddAllStorageFlags(verifyCommand)
+	flags.AddReadOnlyFlag(verifyCommand)
+
+	backupC.AddCommand(verifyCommand)
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +169,42 @@ func deleteCmd() *cobra.Command {
 // Produces the same output as `corso backup delete --help`.
 func handleDeleteCmd(cmd *cobra.Command, args []string) error {
 	return cmd.Help()
+}
+
+// The backup verify subcommand.
+// `corso backup verify`
+var verifyCommand = "verify"
+
+func verifyCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   verifyCommand,
+		Short: "Verifies all backups have all their data",
+		RunE:  handleVerifyCmd,
+		Args:  cobra.NoArgs,
+	}
+}
+
+// Handler for calls to `corso backup delete`.
+// Produces the same output as `corso backup delete --help`.
+func handleVerifyCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
+	r, _, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx,
+		cmd,
+		// Service doesn't really matter but we need to give it something valid.
+		path.OneDriveService)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	defer utils.CloseRepo(ctx, r)
+
+	if err := r.VerifyBackups(ctx); err != nil {
+		return Only(ctx, err)
+	}
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------
