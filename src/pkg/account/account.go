@@ -10,13 +10,22 @@ type accountProvider int
 
 //go:generate stringer -type=accountProvider -linecomment
 const (
-	ProviderUnknown accountProvider = iota // Unknown Provider
-	ProviderM365                           // M365
+	ProviderUnknown accountProvider = 0 // Unknown Provider
+	ProviderM365    accountProvider = 1 // M365
 )
 
 // storage parsing errors
 var (
 	errMissingRequired = clues.New("missing required storage configuration")
+	errInvalidProvider = clues.New("unsupported account provider")
+)
+
+const (
+	// M365 config
+	AccountProviderTypeKey = "account_provider"
+	AzureTenantIDKey       = "azure_tenantid"
+	AzureClientID          = "azure_client_id"
+	AzureSecret            = "azure_secret"
 )
 
 // Account defines an account provider, along with any credentials
@@ -30,6 +39,7 @@ type providerIDer interface {
 	common.StringConfigurer
 
 	providerID(accountProvider) string
+	configHash() (string, error)
 }
 
 // NewAccount aggregates all the supplied configurations into a single configuration
@@ -79,4 +89,18 @@ func (a Account) ID() string {
 	}
 
 	return a.Config[a.Provider.String()+"-tenant-id"]
+}
+
+func (a Account) GetAccountConfigHash() (string, error) {
+	switch a.Provider {
+	case ProviderM365:
+		m365, err := a.M365Config()
+		if err != nil {
+			return "", clues.Stack(err)
+		}
+
+		return m365.configHash()
+	}
+
+	return "", errInvalidProvider.With("provider", a.Provider)
 }

@@ -1,63 +1,41 @@
 package repo
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/internal/events"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
-// s3 bucket info from flags
-var (
-	bucket          string
-	endpoint        string
-	prefix          string
-	doNotUseTLS     bool
-	doNotVerifyTLS  bool
-	succeedIfExists bool
-)
-
 // called by repo.go to map subcommands to provider-specific handling.
 func addS3Commands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case initCommand:
-		c, fs = utils.AddCommand(cmd, s3InitCmd())
+		init := s3InitCmd()
+		flags.AddRetentionConfigFlags(init)
+		c, _ = utils.AddCommand(cmd, init)
+
 	case connectCommand:
-		c, fs = utils.AddCommand(cmd, s3ConnectCmd())
+		c, _ = utils.AddCommand(cmd, s3ConnectCmd())
 	}
 
 	c.Use = c.Use + " " + s3ProviderCommandUseSuffix
 	c.SetUsageTemplate(cmd.UsageTemplate())
 
-	// Flags addition ordering should follow the order we want them to appear in help and docs:
-	// More generic and more frequently used flags take precedence.
-	fs.StringVar(&bucket, "bucket", "", "Name of S3 bucket for repo. (required)")
-	cobra.CheckErr(c.MarkFlagRequired("bucket"))
-	fs.StringVar(&prefix, "prefix", "", "Repo prefix within bucket.")
-	fs.StringVar(&endpoint, "endpoint", "s3.amazonaws.com", "S3 service endpoint.")
-	fs.BoolVar(&doNotUseTLS, "disable-tls", false, "Disable TLS (HTTPS)")
-	fs.BoolVar(&doNotVerifyTLS, "disable-tls-verification", false, "Disable TLS (HTTPS) certificate verification.")
-
-	// In general, we don't want to expose this flag to users and have them mistake it
-	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
-	fs.BoolVar(&succeedIfExists, "succeed-if-exists", false, "Exit with success if the repo has already been initialized.")
-	cobra.CheckErr(fs.MarkHidden("succeed-if-exists"))
+	flags.AddCorsoPassphaseFlags(c)
+	flags.AddAWSCredsFlags(c)
+	flags.AddS3BucketFlags(c)
 
 	return c
 }
@@ -107,25 +85,24 @@ func s3InitCmd() *cobra.Command {
 func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
-
-	cfg, err := config.GetConfigRepoDetails(ctx, false, S3Overrides())
+	cfg, err := config.ReadCorsoConfig(
+		ctx,
+		storage.ProviderS3,
+		true,
+		false,
+		flags.S3FlagOverrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	// SendStartCorsoEvent uses distict ID as tenant ID because repoID is still not generated
-	utils.SendStartCorsoEvent(
-		ctx,
-		cfg.Storage,
-		cfg.Account.ID(),
-		map[string]any{"command": "init repo"},
-		cfg.Account.ID(),
-		options.Control())
+	opt := utils.ControlWithConfig(cfg)
 
-	s3Cfg, err := cfg.Storage.S3Config()
+	retentionOpts, err := utils.MakeRetentionOpts(cmd)
+	if err != nil {
+		return Only(ctx, err)
+	}
+
+	s3Cfg, err := cfg.Storage.ToS3Config()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
@@ -142,20 +119,31 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.Wrap(err, "Failed to parse m365 account config"))
 	}
 
-	r, err := repository.Initialize(ctx, cfg.Account, cfg.Storage, options.Control())
+	r, err := repository.New(
+		ctx,
+		cfg.Account,
+		cfg.Storage,
+		opt,
+		repository.NewRepoID)
 	if err != nil {
-		if succeedIfExists && errors.Is(err, repository.ErrorRepoAlreadyExists) {
+		return Only(ctx, clues.Wrap(err, "Failed to construct the repository controller"))
+	}
+
+	ric := repository.InitConfig{RetentionOpts: retentionOpts}
+
+	if err = r.Initialize(ctx, ric); err != nil {
+		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
 			return nil
 		}
 
-		return Only(ctx, clues.Wrap(err, "Failed to initialize a new S3 repository"))
+		return Only(ctx, clues.Stack(ErrInitializingRepo, err))
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
 	Infof(ctx, "Initialized a S3 repository within bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r.GetID()); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, opt.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 
@@ -182,16 +170,22 @@ func s3ConnectCmd() *cobra.Command {
 func connectS3Cmd(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if utils.HasNoFlagsAndShownHelp(cmd) {
-		return nil
-	}
-
-	cfg, err := config.GetConfigRepoDetails(ctx, true, S3Overrides())
+	cfg, err := config.ReadCorsoConfig(
+		ctx,
+		storage.ProviderS3,
+		true,
+		true,
+		flags.S3FlagOverrides(cmd))
 	if err != nil {
 		return Only(ctx, err)
 	}
 
-	s3Cfg, err := cfg.Storage.S3Config()
+	repoID := cfg.RepoID
+	if len(repoID) == 0 {
+		repoID = events.RepoIDNotFound
+	}
+
+	s3Cfg, err := cfg.Storage.ToS3Config()
 	if err != nil {
 		return Only(ctx, clues.Wrap(err, "Retrieving s3 configuration"))
 	}
@@ -208,30 +202,29 @@ func connectS3Cmd(cmd *cobra.Command, args []string) error {
 		return Only(ctx, clues.New(invalidEndpointErr))
 	}
 
-	r, err := repository.ConnectAndSendConnectEvent(ctx, cfg.Account, cfg.Storage, options.Control())
+	opts := utils.ControlWithConfig(cfg)
+
+	r, err := repository.New(
+		ctx,
+		cfg.Account,
+		cfg.Storage,
+		opts,
+		repoID)
 	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the S3 repository"))
+		return Only(ctx, clues.Wrap(err, "Failed to create a repository controller"))
+	}
+
+	if err := r.Connect(ctx, repository.ConnConfig{}); err != nil {
+		return Only(ctx, clues.Stack(ErrConnectingRepo, err))
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
 	Infof(ctx, "Connected to S3 bucket %s.", s3Cfg.Bucket)
 
-	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, r.GetID()); err != nil {
+	if err = config.WriteRepoConfig(ctx, s3Cfg, m365, opts.Repo, r.GetID()); err != nil {
 		return Only(ctx, clues.Wrap(err, "Failed to write repository configuration"))
 	}
 
 	return nil
-}
-
-func S3Overrides() map[string]string {
-	return map[string]string{
-		config.AccountProviderTypeKey: account.ProviderM365.String(),
-		config.StorageProviderTypeKey: storage.ProviderS3.String(),
-		storage.Bucket:                bucket,
-		storage.Endpoint:              endpoint,
-		storage.Prefix:                prefix,
-		storage.DoNotUseTLS:           strconv.FormatBool(doNotUseTLS),
-		storage.DoNotVerifyTLS:        strconv.FormatBool(doNotVerifyTLS),
-	}
 }

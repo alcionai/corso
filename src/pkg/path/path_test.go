@@ -2,7 +2,6 @@ package path
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -223,219 +222,17 @@ func TestPathUnitSuite(t *testing.T) {
 	suite.Run(t, &PathUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *PathUnitSuite) TestAppend() {
-	table := append(append([]testData{}, genericCases...), basicUnescapedInputs...)
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			p := Builder{}.Append(test.input...)
-			assert.Equal(t, test.expectedString, p.String())
-		})
-	}
+// set the clues hashing to mask for the span of this suite
+func (suite *PathUnitSuite) SetupSuite() {
+	clues.SetHasher(clues.HashCfg{HashAlg: clues.Flatmask})
 }
 
-func (suite *PathUnitSuite) TestUnescapeAndAppend() {
-	table := append(append([]testData{}, genericCases...), basicEscapedInputs...)
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			p, err := Builder{}.UnescapeAndAppend(test.input...)
-			require.NoError(t, err, clues.ToCore(err))
-
-			assert.Equal(t, test.expectedString, p.String())
-		})
-	}
+// revert clues hashing to plaintext for all other tests
+func (suite *PathUnitSuite) TeardownSuite() {
+	clues.SetHasher(clues.NoHash())
 }
 
-func (suite *PathUnitSuite) TestEscapedFailure() {
-	target := "i_s"
-
-	for c := range charactersToEscape {
-		suite.T().Run(fmt.Sprintf("Unescaped-%c", c), func(t *testing.T) {
-			tmp := strings.ReplaceAll(target, "_", string(c))
-
-			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
-			assert.Errorf(t, err, "path with unescaped %s did not error", string(c))
-		})
-	}
-}
-
-func (suite *PathUnitSuite) TestBadEscapeSequenceErrors() {
-	target := `i\_s/a`
-	notEscapes := []rune{'a', 'b', '#', '%'}
-
-	for _, c := range notEscapes {
-		suite.T().Run(fmt.Sprintf("Escaped-%c", c), func(t *testing.T) {
-			tmp := strings.ReplaceAll(target, "_", string(c))
-
-			_, err := Builder{}.UnescapeAndAppend("this", tmp, "path")
-			assert.Errorf(
-				t,
-				err,
-				"path with bad escape sequence %c%c did not error",
-				escapeCharacter,
-				c)
-		})
-	}
-}
-
-func (suite *PathUnitSuite) TestTrailingEscapeChar() {
-	base := []string{"this", "is", "a", "path"}
-
-	for i := 0; i < len(base); i++ {
-		suite.T().Run(fmt.Sprintf("Element%v", i), func(t *testing.T) {
-			path := make([]string, len(base))
-			copy(path, base)
-			path[i] = path[i] + string(escapeCharacter)
-
-			_, err := Builder{}.UnescapeAndAppend(path...)
-			assert.Error(
-				t,
-				err,
-				"path with trailing escape character did not error")
-		})
-	}
-}
-
-func (suite *PathUnitSuite) TestElements() {
-	table := []struct {
-		name     string
-		input    []string
-		output   []string
-		pathFunc func(elements []string) (*Builder, error)
-	}{
-		{
-			name:   "SimpleEscapedPath",
-			input:  []string{"this", "is", "a", "path"},
-			output: []string{"this", "is", "a", "path"},
-			pathFunc: func(elements []string) (*Builder, error) {
-				return Builder{}.UnescapeAndAppend(elements...)
-			},
-		},
-		{
-			name:   "SimpleUnescapedPath",
-			input:  []string{"this", "is", "a", "path"},
-			output: []string{"this", "is", "a", "path"},
-			pathFunc: func(elements []string) (*Builder, error) {
-				return Builder{}.Append(elements...), nil
-			},
-		},
-		{
-			name:   "EscapedPath",
-			input:  []string{"this", `is\/`, "a", "path"},
-			output: []string{"this", "is/", "a", "path"},
-			pathFunc: func(elements []string) (*Builder, error) {
-				return Builder{}.UnescapeAndAppend(elements...)
-			},
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			p, err := test.pathFunc(test.input)
-			require.NoError(t, err, clues.ToCore(err))
-
-			assert.Equal(t, test.output, p.Elements())
-		})
-	}
-}
-
-func (suite *PathUnitSuite) TestPopFront() {
-	table := []struct {
-		name           string
-		base           *Builder
-		expectedString string
-	}{
-		{
-			name:           "Empty",
-			base:           &Builder{},
-			expectedString: "",
-		},
-		{
-			name:           "OneElement",
-			base:           Builder{}.Append("something"),
-			expectedString: "",
-		},
-		{
-			name:           "TwoElements",
-			base:           Builder{}.Append("something", "else"),
-			expectedString: "else",
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			assert.Equal(t, test.expectedString, test.base.PopFront().String())
-		})
-	}
-}
-
-func (suite *PathUnitSuite) TestShortRef() {
-	table := []struct {
-		name          string
-		inputElements []string
-		expectedLen   int
-	}{
-		{
-			name:          "PopulatedPath",
-			inputElements: []string{"this", "is", "a", "path"},
-			expectedLen:   shortRefCharacters,
-		},
-		{
-			name:          "EmptyPath",
-			inputElements: nil,
-			expectedLen:   0,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			pb := Builder{}.Append(test.inputElements...)
-			ref := pb.ShortRef()
-			assert.Len(suite.T(), ref, test.expectedLen)
-		})
-	}
-}
-
-func (suite *PathUnitSuite) TestShortRefIsStable() {
-	t := suite.T()
-	pb := Builder{}.Append("this", "is", "a", "path")
-	prevRef := pb.ShortRef()
-	assert.Len(t, prevRef, shortRefCharacters)
-
-	for i := 0; i < 5; i++ {
-		ref := pb.ShortRef()
-		assert.Len(t, ref, shortRefCharacters)
-		assert.Equal(t, prevRef, ref, "ShortRef changed between calls")
-
-		prevRef = ref
-	}
-}
-
-func (suite *PathUnitSuite) TestShortRefIsUnique() {
-	pb1 := Builder{}.Append("this", "is", "a", "path")
-	pb2 := pb1.Append("also")
-
-	require.NotEqual(suite.T(), pb1, pb2)
-	assert.NotEqual(suite.T(), pb1.ShortRef(), pb2.ShortRef())
-}
-
-// TestShortRefUniqueWithEscaping tests that two paths that output the same
-// unescaped string but different escaped strings have different shortrefs. This
-// situation can occur when one path has embedded path separators while the
-// other does not but contains the same characters.
-func (suite *PathUnitSuite) TestShortRefUniqueWithEscaping() {
-	pb1 := Builder{}.Append(`this`, `is`, `a`, `path`)
-	pb2 := Builder{}.Append(`this`, `is/a`, `path`)
-
-	require.NotEqual(suite.T(), pb1, pb2)
-	assert.NotEqual(suite.T(), pb1.ShortRef(), pb2.ShortRef())
-}
-
-func (suite *PathUnitSuite) TestFromStringErrors() {
+func (suite *PathUnitSuite) TestFromDataLayerPathErrors() {
 	table := []struct {
 		name        string
 		escapedPath string
@@ -491,85 +288,10 @@ func (suite *PathUnitSuite) TestFromStringErrors() {
 	}
 }
 
-func (suite *PathUnitSuite) TestFolder() {
-	table := []struct {
-		name         string
-		p            func(t *testing.T) Path
-		escape       bool
-		expectFolder string
-		expectSplit  []string
-	}{
-		{
-			name: "clean path",
-			p: func(t *testing.T) Path {
-				p, err := Builder{}.
-					Append("a", "b", "c").
-					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return p
-			},
-			expectFolder: "a/b/c",
-			expectSplit:  []string{"a", "b", "c"},
-		},
-		{
-			name: "clean path escaped",
-			p: func(t *testing.T) Path {
-				p, err := Builder{}.
-					Append("a", "b", "c").
-					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return p
-			},
-			escape:       true,
-			expectFolder: "a/b/c",
-			expectSplit:  []string{"a", "b", "c"},
-		},
-		{
-			name: "escapable path",
-			p: func(t *testing.T) Path {
-				p, err := Builder{}.
-					Append("a/", "b", "c").
-					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return p
-			},
-			expectFolder: "a//b/c",
-			expectSplit:  []string{"a", "b", "c"},
-		},
-		{
-			name: "escapable path escaped",
-			p: func(t *testing.T) Path {
-				p, err := Builder{}.
-					Append("a/", "b", "c").
-					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return p
-			},
-			escape:       true,
-			expectFolder: "a\\//b/c",
-			expectSplit:  []string{"a\\/", "b", "c"},
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			p := test.p(t)
-			result := p.Folder(test.escape)
-			assert.Equal(t, test.expectFolder, result)
-			assert.Equal(t, test.expectSplit, Split(result))
-		})
-	}
-}
-
-func (suite *PathUnitSuite) TestFromString() {
+func (suite *PathUnitSuite) TestFromDataLayerPath() {
 	const (
 		testTenant         = "tenant"
-		testUser           = "user"
+		testResource       = "resource"
 		testElement1       = "folder/"
 		testElementTrimmed = "folder"
 		testElement2       = "folder2"
@@ -609,17 +331,15 @@ func (suite *PathUnitSuite) TestFromString() {
 			unescapedPath: fmt.Sprintf(
 				"%s/%%s/%s/%%s/%s/%s/%s",
 				testTenant,
-				testUser,
+				testResource,
 				testElement1,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -629,8 +349,7 @@ func (suite *PathUnitSuite) TestFromString() {
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
 				testElementTrimmed,
-				testElement2,
-			),
+				testElement2),
 			expectedItemSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -641,17 +360,15 @@ func (suite *PathUnitSuite) TestFromString() {
 			unescapedPath: fmt.Sprintf(
 				"/%s//%%s//%s//%%s//%s///%s//%s//",
 				testTenant,
-				testUser,
+				testResource,
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedFolder: fmt.Sprintf(
 				"%s/%s/%s",
 				testElementTrimmed,
 				testElement2,
-				testElement3,
-			),
+				testElement3),
 			expectedSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -661,8 +378,7 @@ func (suite *PathUnitSuite) TestFromString() {
 			expectedItemFolder: fmt.Sprintf(
 				"%s/%s",
 				testElementTrimmed,
-				testElement2,
-			),
+				testElement2),
 			expectedItemSplit: []string{
 				testElementTrimmed,
 				testElement2,
@@ -673,9 +389,10 @@ func (suite *PathUnitSuite) TestFromString() {
 	for service, cats := range serviceCategories {
 		for cat := range cats {
 			for _, item := range isItem {
-				suite.T().Run(fmt.Sprintf("%s-%s-%s", service, cat, item.name), func(t1 *testing.T) {
+				suite.Run(fmt.Sprintf("%s-%s-%s", service, cat, item.name), func() {
 					for _, test := range table {
-						t1.Run(test.name, func(t *testing.T) {
+						suite.Run(test.name, func() {
+							t := suite.T()
 							testPath := fmt.Sprintf(test.unescapedPath, service, cat)
 
 							p, err := FromDataLayerPath(testPath, item.isItem)
@@ -684,7 +401,7 @@ func (suite *PathUnitSuite) TestFromString() {
 							assert.Equal(t, service, p.Service(), "service")
 							assert.Equal(t, cat, p.Category(), "category")
 							assert.Equal(t, testTenant, p.Tenant(), "tenant")
-							assert.Equal(t, testUser, p.ResourceOwner(), "resource owner")
+							assert.Equal(t, testResource, p.ProtectedResource(), "resource owner")
 
 							fld := p.Folder(false)
 							escfld := p.Folder(true)
@@ -706,5 +423,225 @@ func (suite *PathUnitSuite) TestFromString() {
 				})
 			}
 		}
+	}
+}
+
+func (suite *PathUnitSuite) TestPrefixOrPathFromDataLayerPath() {
+	t := suite.T()
+	input := fmt.Sprintf(
+		"%s/%s/%s/%s",
+		"tenant",
+		ExchangeService.String(),
+		"user",
+		EmailCategory.String())
+
+	// Check that we can make a valid prefix path.
+	p, err := PrefixOrPathFromDataLayerPath(input, false)
+	assert.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, input, p.String())
+
+	// Check we can't make a regular path with the same input since it doesn't
+	// have enough segments.
+	_, err = FromDataLayerPath(input, false)
+	assert.Error(t, err)
+}
+
+func (suite *PathUnitSuite) TestBuildPrefix() {
+	table := []struct {
+		name      string
+		service   ServiceType
+		category  CategoryType
+		tenant    string
+		owner     string
+		expect    string
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name:      "ok",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "ro",
+			expect:    join([]string{"t", ExchangeService.String(), "ro", ContactsCategory.String()}),
+			expectErr: require.NoError,
+		},
+		{
+			name:      "bad category",
+			service:   ExchangeService,
+			category:  FilesCategory,
+			tenant:    "t",
+			owner:     "ro",
+			expectErr: require.Error,
+		},
+		{
+			name:      "bad tenant",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "",
+			owner:     "ro",
+			expectErr: require.Error,
+		},
+		{
+			name:      "bad owner",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "",
+			expectErr: require.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			r, err := BuildPrefix(test.tenant, test.owner, test.service, test.category)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if r == nil {
+				return
+			}
+
+			assert.Equal(t, test.expect, r.String())
+			assert.NotPanics(t, func() {
+				r.Folders()
+				r.Item()
+			}, "runs Folders() and Item()")
+		})
+	}
+}
+
+func (suite *PathUnitSuite) TestBuildRestorePaths() {
+	type args struct {
+		tenantID          string
+		protectedResource string
+		service           ServiceType
+		category          CategoryType
+		fp                []string
+	}
+
+	tests := []struct {
+		name        string
+		args        args
+		restorePath string
+		storagePath string
+		expectErr   require.ErrorAssertionFunc
+	}{
+		{
+			name: "single",
+			args: args{
+				tenantID:          "tenant",
+				protectedResource: "protectedResource",
+				service:           GroupsService,
+				category:          LibrariesCategory,
+				fp:                []string{"a"},
+			},
+			restorePath: "tenant/groupsMetadata/protectedResource/libraries",
+			storagePath: "tenant/groupsMetadata/protectedResource/libraries/a",
+			expectErr:   require.NoError,
+		},
+		{
+			name: "multi",
+			args: args{
+				tenantID:          "tenant",
+				protectedResource: "protectedResource",
+				service:           GroupsService,
+				category:          LibrariesCategory,
+				fp:                []string{"a", "b"},
+			},
+			restorePath: "tenant/groupsMetadata/protectedResource/libraries/a",
+			storagePath: "tenant/groupsMetadata/protectedResource/libraries/a/b",
+			expectErr:   require.NoError,
+		},
+	}
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			r, err := BuildMetadata(
+				test.args.tenantID,
+				test.args.protectedResource,
+				test.args.service,
+				test.args.category,
+				true,
+				test.args.fp...)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			rdir, err := r.Dir()
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.restorePath, rdir.String(), "restore path")
+			assert.Equal(t, test.storagePath, r.String(), "storage path")
+		})
+	}
+}
+
+func (suite *PathUnitSuite) TestArePathsEquivalent() {
+	tests := []struct {
+		name       string
+		path1      string
+		path2      string
+		equivalent bool
+	}{
+		// Test cases with equivalent paths
+		{
+			name:       "same linux normal path",
+			path1:      "/path/to/dir",
+			path2:      "/path/to/dir",
+			equivalent: true,
+		},
+		{
+			name:       "same windows normal path",
+			path1:      "C:\\Users\\User\\Documents",
+			path2:      "C:\\Users\\User\\Documents",
+			equivalent: true,
+		},
+		{
+			name:       "same linux extra trailing slash path",
+			path1:      "/path/with/trailing/slash/",
+			path2:      "/path/with/trailing/slash",
+			equivalent: true,
+		},
+		{
+			name:       "same linux relative path",
+			path1:      "relative/path",
+			path2:      "./relative/path",
+			equivalent: true,
+		},
+
+		// Test cases with non-equivalent paths
+		{
+			name:       "different linux normal path",
+			path1:      "/path/to/dir",
+			path2:      "/path/to/different/dir",
+			equivalent: false,
+		},
+		{
+			name:       "different windows normal path",
+			path1:      "C:\\Users\\User\\Documents",
+			path2:      "D:\\Users\\User\\Documents",
+			equivalent: false,
+		},
+		{
+			name:       "different linux extra trailing slash path",
+			path1:      "/path/with/trailing/slash/",
+			path2:      "/different/path/with/trailing/slash",
+			equivalent: false,
+		},
+		{
+			name:       "different linux relative path",
+			path1:      "relative/path",
+			path2:      "../relative/path",
+			equivalent: false,
+		},
+	}
+
+	for _, test := range tests {
+		t := suite.T()
+		suite.Run(test.name, func() {
+			result := ArePathsEquivalent(test.path1, test.path2)
+			if result != test.equivalent {
+				t.Errorf("Paths %s and %s are not equivalent as expected.", test.path1, test.path2)
+			}
+		})
 	}
 }

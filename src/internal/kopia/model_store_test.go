@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
@@ -13,10 +14,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/control/repository"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type fooModel struct {
@@ -26,10 +30,22 @@ type fooModel struct {
 
 //revive:disable-next-line:context-as-argument
 func getModelStore(t *testing.T, ctx context.Context) *ModelStore {
-	c, err := openKopiaRepo(t, ctx)
+	c, err := openLocalKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return &ModelStore{c: c, modelVersion: globalModelVersion}
+}
+
+func assertEqualNoModTime(t *testing.T, expected, got *fooModel) {
+	t.Helper()
+
+	expectedClean := *expected
+	gotClean := *got
+
+	expectedClean.ModTime = time.Time{}
+	gotClean.ModTime = time.Time{}
+
+	assert.Equal(t, expectedClean, gotClean)
 }
 
 // ---------------
@@ -44,8 +60,10 @@ func TestModelStoreUnitSuite(t *testing.T) {
 }
 
 func (suite *ModelStoreUnitSuite) TestCloseWithoutInitDoesNotPanic() {
-	assert.NotPanics(suite.T(), func() {
-		ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	assert.NotPanics(t, func() {
+		ctx, flush := tester.NewContext(t)
 		defer flush()
 
 		m := &ModelStore{}
@@ -67,13 +85,12 @@ func TestModelStoreIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ModelStoreIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
 func (suite *ModelStoreIntegrationSuite) SetupTest() {
-	suite.ctx, suite.flush = tester.NewContext()
+	suite.ctx, suite.flush = tester.NewContext(suite.T())
 	suite.m = getModelStore(suite.T(), suite.ctx)
 }
 
@@ -165,7 +182,7 @@ func (suite *ModelStoreIntegrationSuite) TestNoIDsErrors() {
 	err = suite.m.Delete(suite.ctx, theModelType, "")
 	assert.Error(t, err, clues.ToCore(err))
 
-	err = suite.m.DeleteWithModelStoreID(suite.ctx, "")
+	err = suite.m.DeleteWithModelStoreIDs(suite.ctx, "")
 	assert.Error(t, err, clues.ToCore(err))
 }
 
@@ -255,6 +272,8 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 			// Avoid some silly test errors from comparing nil to empty map.
 			foo.Tags = map[string]string{}
 
+			startTime := time.Now()
+
 			err := suite.m.Put(suite.ctx, test.s, foo)
 			test.check(t, err, clues.ToCore(err))
 
@@ -264,16 +283,22 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet() {
 
 			require.NotEmpty(t, foo.ModelStoreID)
 			require.NotEmpty(t, foo.ID)
-			require.Equal(t, globalModelVersion, foo.Version)
+			require.Equal(t, globalModelVersion, foo.ModelVersion)
 
 			returned := &fooModel{}
 			err = suite.m.Get(suite.ctx, test.s, foo.ID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+
+			assertEqualNoModTime(t, foo, returned)
+			assert.WithinDuration(t, startTime, returned.ModTime, 5*time.Second)
+
+			returned = &fooModel{}
 
 			err = suite.m.GetWithModelStoreID(suite.ctx, test.s, foo.ModelStoreID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+
+			assertEqualNoModTime(t, foo, returned)
+			assert.WithinDuration(t, startTime, returned.ModTime, 5*time.Second)
 		})
 	}
 }
@@ -286,7 +311,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_PreSetID() {
 		expect assert.ComparisonAssertionFunc
 	}{
 		{
-			name:   "genreate new id",
+			name:   "generate new id",
 			baseID: "",
 			expect: assert.NotEqual,
 		},
@@ -320,11 +345,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_PreSetID() {
 
 			err = suite.m.Get(suite.ctx, mdl, foo.ID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+			assertEqualNoModTime(t, foo, returned)
 
 			err = suite.m.GetWithModelStoreID(suite.ctx, mdl, foo.ModelStoreID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+			assertEqualNoModTime(t, foo, returned)
 		})
 	}
 }
@@ -346,11 +371,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutGet_WithTags() {
 	returned := &fooModel{}
 	err = suite.m.Get(suite.ctx, theModelType, foo.ID, returned)
 	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, foo, returned)
+	assertEqualNoModTime(t, foo, returned)
 
 	err = suite.m.GetWithModelStoreID(suite.ctx, theModelType, foo.ModelStoreID, returned)
 	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, foo, returned)
+	assertEqualNoModTime(t, foo, returned)
 }
 
 func (suite *ModelStoreIntegrationSuite) TestGet_NotFoundErrors() {
@@ -555,7 +580,16 @@ func (suite *ModelStoreIntegrationSuite) TestGetOfTypeWithTags() {
 			ids, err := suite.m.GetIDsForType(suite.ctx, test.s, test.tags)
 			require.NoError(t, err, clues.ToCore(err))
 
-			assert.ElementsMatch(t, expected, ids)
+			cleanIDs := make([]*model.BaseModel, 0, len(ids))
+
+			for _, id := range ids {
+				id2 := *id
+				id2.ModTime = time.Time{}
+
+				cleanIDs = append(cleanIDs, &id2)
+			}
+
+			assert.ElementsMatch(t, expected, cleanIDs)
 		})
 	}
 }
@@ -569,14 +603,14 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			name: "NoTags",
 			mutator: func(m *fooModel) {
 				m.Bar = "baz"
-				m.Version = 42
+				m.ModelVersion = 42
 			},
 		},
 		{
 			name: "WithTags",
 			mutator: func(m *fooModel) {
 				m.Bar = "baz"
-				m.Version = 42
+				m.ModelVersion = 42
 				m.Tags = map[string]string{
 					"a": "42",
 				}
@@ -586,10 +620,11 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			t := suite.T()
 			theModelType := model.BackupOpSchema
 
 			m := getModelStore(t, ctx)
@@ -607,7 +642,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 
 			oldModelID := foo.ModelStoreID
 			oldStableID := foo.ID
-			oldVersion := foo.Version
+			oldVersion := foo.ModelVersion
 
 			test.mutator(foo)
 
@@ -616,18 +651,18 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate() {
 			assert.Equal(t, oldStableID, foo.ID)
 			// The version in the model store has not changed so we get the old
 			// version back.
-			assert.Equal(t, oldVersion, foo.Version)
+			assert.Equal(t, oldVersion, foo.ModelVersion)
 
 			returned := &fooModel{}
 
 			err = m.GetWithModelStoreID(ctx, theModelType, foo.ModelStoreID, returned)
 			require.NoError(t, err, clues.ToCore(err))
-			assert.Equal(t, foo, returned)
+			assertEqualNoModTime(t, foo, returned)
 
 			ids, err := m.GetIDsForType(ctx, theModelType, nil)
 			require.NoError(t, err, clues.ToCore(err))
 			require.Len(t, ids, 1)
-			assert.Equal(t, globalModelVersion, ids[0].Version)
+			assert.Equal(t, globalModelVersion, ids[0].ModelVersion)
 
 			if oldModelID == foo.ModelStoreID {
 				// Unlikely, but we don't control ModelStoreID generation and can't
@@ -668,7 +703,7 @@ func (suite *ModelStoreIntegrationSuite) TestPutUpdate_FailsNotMatchingPrev() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			m := getModelStore(t, ctx)
@@ -706,13 +741,37 @@ func (suite *ModelStoreIntegrationSuite) TestPutDelete() {
 	assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
 }
 
+func (suite *ModelStoreIntegrationSuite) TestPutDeleteBatch() {
+	t := suite.T()
+	theModelType := model.BackupOpSchema
+	ids := []manifest.ID{}
+
+	for i := 0; i < 5; i++ {
+		foo := &fooModel{Bar: uuid.NewString()}
+
+		err := suite.m.Put(suite.ctx, theModelType, foo)
+		require.NoError(t, err, clues.ToCore(err))
+
+		ids = append(ids, foo.ModelStoreID)
+	}
+
+	err := suite.m.DeleteWithModelStoreIDs(suite.ctx, ids...)
+	require.NoError(t, err, clues.ToCore(err))
+
+	for _, id := range ids {
+		returned := &fooModel{}
+		err := suite.m.GetWithModelStoreID(suite.ctx, theModelType, id, returned)
+		assert.ErrorIs(t, err, data.ErrNotFound, clues.ToCore(err))
+	}
+}
+
 func (suite *ModelStoreIntegrationSuite) TestPutDelete_BadIDsNoop() {
 	t := suite.T()
 
 	err := suite.m.Delete(suite.ctx, model.BackupOpSchema, "foo")
 	assert.NoError(t, err, clues.ToCore(err))
 
-	err = suite.m.DeleteWithModelStoreID(suite.ctx, "foo")
+	err = suite.m.DeleteWithModelStoreIDs(suite.ctx, "foo")
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
@@ -727,8 +786,7 @@ func TestModelStoreRegressionSuite(t *testing.T) {
 	suite.Run(t, &ModelStoreRegressionSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -738,10 +796,10 @@ func TestModelStoreRegressionSuite(t *testing.T) {
 // Tests that if we get an error or crash while in the middle of an Update no
 // results will be visible to higher layers.
 func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEffect() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	m := getModelStore(t, ctx)
 	defer func() {
@@ -781,8 +839,7 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 			newID = foo.ModelStoreID
 
 			return assert.AnError
-		},
-	)
+		})
 
 	assert.ErrorIs(t, err, assert.AnError, clues.ToCore(err))
 
@@ -793,17 +850,18 @@ func (suite *ModelStoreRegressionSuite) TestFailDuringWriteSessionHasNoVisibleEf
 
 	err = m.GetWithModelStoreID(ctx, theModelType, foo.ModelStoreID, returned)
 	require.NoError(t, err, clues.ToCore(err))
-	assert.Equal(t, foo, returned)
+	assertEqualNoModTime(t, foo, returned)
 }
 
 func openConnAndModelStore(
 	t *testing.T,
 	ctx context.Context, //revive:disable-line:context-as-argument
 ) (*conn, *ModelStore) {
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewFilesystemStorage(t)
 	c := NewConn(st)
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
-	err := c.Initialize(ctx)
+	err := c.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {
@@ -822,7 +880,8 @@ func reconnectToModelStore(
 	ctx context.Context, //revive:disable-line:context-as-argument
 	c *conn,
 ) *ModelStore {
-	err := c.Connect(ctx)
+	repoNameHash := strTD.NewHashForRepoConfigName()
+	err := c.Connect(ctx, repository.Options{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer func() {
@@ -839,10 +898,11 @@ func reconnectToModelStore(
 // Ensures there's no shared configuration state between different instances of
 // the ModelStore (and consequently the underlying kopia instances).
 func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	backupModel := backup.Backup{
 		SnapshotID: "snapshotID",
 	}
@@ -897,8 +957,7 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 		ctx,
 		model.BackupSchema,
 		backupModel.ModelStoreID,
-		&gotBackup,
-	)
+		&gotBackup)
 	assert.Error(t, err, clues.ToCore(err))
 
 	// Old instance should still be able to access added model.
@@ -907,7 +966,6 @@ func (suite *ModelStoreRegressionSuite) TestMultipleConfigs() {
 		ctx,
 		model.BackupSchema,
 		backupModel.ModelStoreID,
-		&gotBackup,
-	)
+		&gotBackup)
 	assert.NoError(t, err, clues.ToCore(err))
 }

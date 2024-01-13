@@ -8,64 +8,54 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/account"
 )
 
-type M365IntegrationSuite struct {
+type M365IntgSuite struct {
 	tester.Suite
 }
 
-func TestM365IntegrationSuite(t *testing.T) {
-	suite.Run(t, &M365IntegrationSuite{
+func TestM365IntgSuite(t *testing.T) {
+	suite.Run(t, &M365IntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.M365AcctCredEnvs},
-		),
+			[][]string{}),
 	})
 }
 
-func (suite *M365IntegrationSuite) TestUsers() {
-	ctx, flush := tester.NewContext()
+func (suite *userIntegrationSuite) TestNewM365Client() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	var (
-		t    = suite.T()
-		acct = tester.NewM365Account(suite.T())
-	)
-
-	users, err := Users(ctx, acct, fault.New(true))
+	_, err := NewM365Client(ctx, tconfig.NewM365Account(t))
 	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotEmpty(t, users)
-
-	for _, u := range users {
-		suite.Run("user_"+u.ID, func() {
-			t := suite.T()
-
-			assert.NotEmpty(t, u.ID)
-			assert.NotEmpty(t, u.PrincipalName)
-			assert.NotEmpty(t, u.Name)
-		})
-	}
 }
 
-func (suite *M365IntegrationSuite) TestSites() {
-	ctx, flush := tester.NewContext()
-	defer flush()
+func (suite *userIntegrationSuite) TestNewM365Client_invalidCredentials() {
+	table := []struct {
+		name string
+		acct func(t *testing.T) account.Account
+	}{
+		{
+			name: "Invalid Credentials",
+			acct: func(t *testing.T) account.Account {
+				return tconfig.NewFakeM365Account(t)
+			},
+		},
+	}
 
-	var (
-		t    = suite.T()
-		acct = tester.NewM365Account(suite.T())
-	)
-
-	sites, err := Sites(ctx, acct, fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotEmpty(t, sites)
-
-	for _, s := range sites {
-		suite.Run("site", func() {
+	for _, test := range table {
+		suite.Run(test.name, func() {
 			t := suite.T()
-			assert.NotEmpty(t, s.WebURL)
-			assert.NotEmpty(t, s.ID)
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			_, err := NewM365Client(ctx, test.acct(t))
+			assert.Error(t, err, clues.ToCore(err))
 		})
 	}
 }

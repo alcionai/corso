@@ -1,33 +1,20 @@
 package backup
 
 import (
-	"context"
-
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/options"
+	"github.com/alcionai/corso/src/cli/flags"
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365"
 )
 
 // ------------------------------------------------------------------------------------------------
 // setup and globals
 // ------------------------------------------------------------------------------------------------
-
-// exchange bucket info from flags
-var (
-	exchangeData []string
-)
 
 const (
 	dataContacts = "contacts"
@@ -37,74 +24,68 @@ const (
 
 const (
 	exchangeServiceCommand                 = "exchange"
-	exchangeServiceCommandCreateUseSuffix  = "--user <email> | '" + utils.Wildcard + "'"
-	exchangeServiceCommandDeleteUseSuffix  = "--backup <backupId>"
+	exchangeServiceCommandCreateUseSuffix  = "--mailbox <email> | '" + flags.Wildcard + "'"
+	exchangeServiceCommandDeleteUseSuffix  = "--backups <backupId>"
 	exchangeServiceCommandDetailsUseSuffix = "--backup <backupId>"
 )
 
 const (
 	exchangeServiceCommandCreateExamples = `# Backup all Exchange data for Alice
-corso backup create exchange --user alice@example.com
+corso backup create exchange --mailbox alice@example.com
 
 # Backup only Exchange contacts for Alice and Bob
-corso backup create exchange --user alice@example.com,bob@example.com --data contacts
+corso backup create exchange --mailbox alice@example.com,bob@example.com --data contacts
 
 # Backup all Exchange data for all M365 users 
-corso backup create exchange --user '*'`
+corso backup create exchange --mailbox '*'`
 
-	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with ID 1234abcd-12ab-cd34-56de-1234abcd
-corso backup delete exchange --backup 1234abcd-12ab-cd34-56de-1234abcd`
+	exchangeServiceCommandDeleteExamples = `# Delete Exchange backup with IDs 1234abcd-12ab-cd34-56de-1234abcd \
+and 1234abcd-12ab-cd34-56de-1234abce
+corso backup delete exchange --backups 1234abcd-12ab-cd34-56de-1234abcd,1234abcd-12ab-cd34-56de-1234abce`
 
-	exchangeServiceCommandDetailsExamples = `# Explore Alice's items in backup 1234abcd-12ab-cd34-56de-1234abcd 
-corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd --user alice@example.com
+	exchangeServiceCommandDetailsExamples = `# Explore items in Alice's latest backup (1234abcd...)
+corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd
 
-# Explore Alice's emails with subject containing "Hello world" in folder "Inbox" from a specific backup 
+# Explore emails in the folder "Inbox" with subject containing "Hello world"
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --email-subject "Hello world" --email-folder Inbox
+    --email-subject "Hello world" --email-folder Inbox
 
-# Explore Bobs's events occurring after start of 2022 from a specific backup
+# Explore calendar events occurring after start of 2022
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user bob@example.com --event-starts-after 2022-01-01T00:00:00
+    --event-starts-after 2022-01-01T00:00:00
 
-# Explore Alice's contacts with name containing Andy from a specific backup
+# Explore contacts named Andy
 corso backup details exchange --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --contact-name Andy`
+    --contact-name Andy`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.
 func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, exchangeCreateCmd())
-		options.AddFeatureToggle(cmd, options.DisableIncrementals())
+		c, _ = utils.AddCommand(cmd, exchangeCreateCmd())
 
 		c.Use = c.Use + " " + exchangeServiceCommandCreateUseSuffix
 		c.Example = exchangeServiceCommandCreateExamples
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		utils.AddUserFlag(c)
-
-		fs.StringSliceVar(
-			&exchangeData,
-			utils.DataFN, nil,
-			"Select one or more types of data to backup: "+dataEmail+", "+dataContacts+", or "+dataEvents)
-		options.AddFetchParallelismFlag(c)
-		options.AddOperationFlags(c)
+		flags.AddMailBoxFlag(c)
+		flags.AddDataFlag(c, []string{dataEmail, dataContacts, dataEvents}, false)
+		flags.AddFetchParallelismFlag(c)
+		flags.AddDisableDeltaFlag(c)
+		flags.AddEnableImmutableIDFlag(c)
+		flags.AddDeltaPageSizeFlag(c)
+		flags.AddGenericBackupFlags(c)
+		flags.AddDisableSlidingWindowLimiterFlag(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, exchangeListCmd())
-		fs.SortFlags = false
+		c, _ = utils.AddCommand(cmd, exchangeListCmd())
 
-		utils.AddBackupIDFlag(c, false)
-		addFailedItemsFN(c)
-		addSkippedItemsFN(c)
-		addRecoveredErrorsFN(c)
+		flags.AddBackupIDFlag(c, false)
+		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
 		c, _ = utils.AddCommand(cmd, exchangeDetailsCmd())
@@ -112,12 +93,12 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDetailsUseSuffix
 		c.Example = exchangeServiceCommandDetailsExamples
 
-		options.AddSkipReduceFlag(c)
+		flags.AddSkipReduceFlag(c)
 
 		// Flags addition ordering should follow the order we want them to appear in help and docs:
 		// More generic (ex: --user) and more frequently used flags take precedence.
-		utils.AddBackupIDFlag(c, true)
-		utils.AddExchangeDetailsAndRestoreFlags(c)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddExchangeDetailsAndRestoreFlags(c, false)
 
 	case deleteCommand:
 		c, _ = utils.AddCommand(cmd, exchangeDeleteCmd())
@@ -125,7 +106,8 @@ func addExchangeCommands(cmd *cobra.Command) *cobra.Command {
 		c.Use = c.Use + " " + exchangeServiceCommandDeleteUseSuffix
 		c.Example = exchangeServiceCommandDeleteExamples
 
-		utils.AddBackupIDFlag(c, true)
+		flags.AddMultipleBackupIDsFlag(c, false)
+		flags.AddBackupIDFlag(c, false)
 	}
 
 	return c
@@ -153,39 +135,48 @@ func createExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := validateExchangeBackupCreateFlags(utils.User, exchangeData); err != nil {
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
+	}
+
+	if err := validateExchangeBackupCreateFlags(flags.UserFV, flags.CategoryDataFV); err != nil {
 		return err
 	}
 
-	r, acct, err := getAccountAndConnect(ctx)
+	r, acct, err := utils.AccountConnectAndWriteRepoConfig(
+		ctx,
+		cmd,
+		path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	defer utils.CloseRepo(ctx, r)
 
-	sel := exchangeBackupCreateSelectors(utils.User, exchangeData)
+	sel := exchangeBackupCreateSelectors(flags.UserFV, flags.CategoryDataFV)
 
-	// TODO: log/print recoverable errors
-	errs := fault.New(false)
-
-	users, err := m365.UserPNs(ctx, *acct, errs)
+	ins, err := utils.UsersMap(
+		ctx,
+		*acct,
+		utils.Control(),
+		r.Counter(),
+		fault.New(true))
 	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 user(s)"))
+		return Only(ctx, clues.Wrap(err, "Failed to retrieve M365 users"))
 	}
 
 	selectorSet := []selectors.Selector{}
 
-	for _, discSel := range sel.SplitByResourceOwner(users) {
+	for _, discSel := range sel.SplitByResourceOwner(ins.IDs()) {
 		selectorSet = append(selectorSet, discSel.Selector)
 	}
 
-	return runBackups(
+	return genericCreateCommand(
 		ctx,
 		r,
-		"Exchange", "user",
+		"Exchange",
 		selectorSet,
-	)
+		ins)
 }
 
 func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBackup {
@@ -213,7 +204,7 @@ func exchangeBackupCreateSelectors(userIDs, cats []string) *selectors.ExchangeBa
 
 func validateExchangeBackupCreateFlags(userIDs, cats []string) error {
 	if len(userIDs) == 0 {
-		return clues.New("--user requires one or more email addresses or the wildcard '*'")
+		return clues.New("--user/--mailbox requires one or more email addresses or the wildcard '*'")
 	}
 
 	for _, d := range cats {
@@ -242,7 +233,7 @@ func exchangeListCmd() *cobra.Command {
 
 // lists the history of backup operations
 func listExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericListCommand(cmd, utils.BackupID, path.ExchangeService, args)
+	return genericListCommand(cmd, flags.BackupIDFV, path.ExchangeService, args)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -266,91 +257,33 @@ func detailsExchangeCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctx := cmd.Context()
-	opts := utils.ExchangeOpts{
-		Users: utils.User,
-
-		Contact:       utils.Contact,
-		ContactFolder: utils.ContactFolder,
-		ContactName:   utils.ContactName,
-
-		Email:               utils.Email,
-		EmailFolder:         utils.EmailFolder,
-		EmailReceivedAfter:  utils.EmailReceivedAfter,
-		EmailReceivedBefore: utils.EmailReceivedBefore,
-		EmailSender:         utils.EmailSender,
-		EmailSubject:        utils.EmailSubject,
-		EventOrganizer:      utils.EventOrganizer,
-
-		Event:             utils.Event,
-		EventCalendar:     utils.EventCalendar,
-		EventRecurs:       utils.EventRecurs,
-		EventStartsAfter:  utils.EventStartsAfter,
-		EventStartsBefore: utils.EventStartsBefore,
-		EventSubject:      utils.EventSubject,
-
-		Populated: utils.GetPopulatedFlags(cmd),
-	}
-
-	r, _, err := getAccountAndConnect(ctx)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	ctrlOpts := options.Control()
-
-	ds, err := runDetailsExchangeCmd(ctx, r, utils.BackupID, opts, ctrlOpts.SkipReduce)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	if len(ds.Entries) == 0 {
-		Info(ctx, selectors.ErrorNoMatchingItems)
+	if flags.RunModeFV == flags.RunModeFlagTest {
 		return nil
 	}
 
-	ds.PrintEntries(ctx)
-
-	return nil
+	return runDetailsExchangeCmd(cmd)
 }
 
-// runDetailsExchangeCmd actually performs the lookup in backup details.
-// the fault.Errors return is always non-nil.  Callers should check if
-// errs.Failure() == nil.
-func runDetailsExchangeCmd(
-	ctx context.Context,
-	r repository.BackupGetter,
-	backupID string,
-	opts utils.ExchangeOpts,
-	skipReduce bool,
-) (*details.Details, error) {
-	if err := utils.ValidateExchangeRestoreFlags(backupID, opts); err != nil {
-		return nil, err
+func runDetailsExchangeCmd(cmd *cobra.Command) error {
+	ctx := cmd.Context()
+	opts := utils.MakeExchangeOpts(cmd)
+
+	sel := utils.IncludeExchangeRestoreDataSelectors(opts)
+	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
+	utils.FilterExchangeRestoreInfoSelectors(sel, opts)
+
+	ds, err := genericDetailsCommand(cmd, flags.BackupIDFV, sel.Selector)
+	if err != nil {
+		return Only(ctx, err)
 	}
 
-	ctx = clues.Add(ctx, "backup_id", backupID)
-
-	d, _, errs := r.GetBackupDetails(ctx, backupID)
-	// TODO: log/track recoverable errors
-	if errs.Failure() != nil {
-		if errors.Is(errs.Failure(), data.ErrNotFound) {
-			return nil, clues.New("No backup exists with the id " + backupID)
-		}
-
-		return nil, clues.Wrap(errs.Failure(), "Failed to get backup details in the repository")
+	if len(ds.Entries) > 0 {
+		ds.PrintEntries(ctx)
+	} else {
+		Info(ctx, selectors.ErrorNoMatchingItems)
 	}
 
-	ctx = clues.Add(ctx, "details_entries", len(d.Entries))
-
-	if !skipReduce {
-		sel := utils.IncludeExchangeRestoreDataSelectors(opts)
-		utils.FilterExchangeRestoreInfoSelectors(sel, opts)
-		d = sel.Reduce(ctx, d, errs)
-	}
-
-	return d, nil
+	return nil
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -369,5 +302,15 @@ func exchangeDeleteCmd() *cobra.Command {
 
 // deletes an exchange service backup.
 func deleteExchangeCmd(cmd *cobra.Command, args []string) error {
-	return genericDeleteCommand(cmd, utils.BackupID, "Exchange", args)
+	var backupIDValue []string
+
+	if len(flags.BackupIDsFV) > 0 {
+		backupIDValue = flags.BackupIDsFV
+	} else if len(flags.BackupIDFV) > 0 {
+		backupIDValue = append(backupIDValue, flags.BackupIDFV)
+	} else {
+		return clues.New("either --backup or --backups flag is required")
+	}
+
+	return genericDeleteCommand(cmd, path.ExchangeService, "Exchange", backupIDValue, args)
 }

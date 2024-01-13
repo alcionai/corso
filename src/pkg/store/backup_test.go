@@ -14,7 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/store"
-	storeMock "github.com/alcionai/corso/src/pkg/store/mock"
+	"github.com/alcionai/corso/src/pkg/store/mock"
 )
 
 // ------------------------------------------------------------
@@ -43,29 +43,30 @@ func TestStoreBackupUnitSuite(t *testing.T) {
 }
 
 func (suite *StoreBackupUnitSuite) TestGetBackup() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name   string
-		mock   *storeMock.MockModelStore
+		mock   *mock.ModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "gets backup",
-			mock:   storeMock.NewMock(&bu, nil),
+			mock:   mock.NewModelStoreMock(&bu, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   storeMock.NewMock(&bu, assert.AnError),
+			mock:   mock.NewModelStoreMock(&bu, assert.AnError),
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			sm := &store.Wrapper{Storer: test.mock}
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			sm := store.NewWrapper(test.mock)
 
 			result, err := sm.GetBackup(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err, clues.ToCore(err))
@@ -80,29 +81,30 @@ func (suite *StoreBackupUnitSuite) TestGetBackup() {
 }
 
 func (suite *StoreBackupUnitSuite) TestGetBackups() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name   string
-		mock   *storeMock.MockModelStore
+		mock   *mock.ModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "gets backups",
-			mock:   storeMock.NewMock(&bu, nil),
+			mock:   mock.NewModelStoreMock(&bu, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   storeMock.NewMock(&bu, assert.AnError),
+			mock:   mock.NewModelStoreMock(&bu, assert.AnError),
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			sm := &store.Wrapper{Storer: test.mock}
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			sm := store.NewWrapper(test.mock)
 
 			result, err := sm.GetBackups(ctx)
 			test.expect(t, err, clues.ToCore(err))
@@ -118,29 +120,30 @@ func (suite *StoreBackupUnitSuite) TestGetBackups() {
 }
 
 func (suite *StoreBackupUnitSuite) TestDeleteBackup() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	table := []struct {
 		name   string
-		mock   *storeMock.MockModelStore
+		mock   *mock.ModelStore
 		expect assert.ErrorAssertionFunc
 	}{
 		{
 			name:   "deletes backup",
-			mock:   storeMock.NewMock(&bu, nil),
+			mock:   mock.NewModelStoreMock(&bu, nil),
 			expect: assert.NoError,
 		},
 		{
 			name:   "errors",
-			mock:   storeMock.NewMock(&bu, assert.AnError),
+			mock:   mock.NewModelStoreMock(&bu, assert.AnError),
 			expect: assert.Error,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			sm := &store.Wrapper{Storer: test.mock}
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			sm := store.NewWrapper(test.mock)
 
 			err := sm.DeleteBackup(ctx, model.StableID(uuid.NewString()))
 			test.expect(t, err, clues.ToCore(err))

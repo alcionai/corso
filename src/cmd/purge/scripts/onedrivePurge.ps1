@@ -19,14 +19,17 @@ Param (
     [datetime]$PurgeBeforeTimestamp,
 
     [Parameter(Mandatory = $True, HelpMessage = "Purge folders with this prefix")]
-    [String[]]$FolderPrefixPurgeList
+    [String[]]$FolderPrefixPurgeList,
+
+    [Parameter(Mandatory = $False, HelpMessage = "Delete document libraries with this prefix")]
+    [String[]]$LibraryPrefixDeleteList = @()
 )
 
 Set-StrictMode -Version 2.0
 # Attempt to set network timeout to 10min
 [System.Net.ServicePointManager]::MaxServicePointIdleTime = 600000
 
-function Get-TimestampFromName {
+function Get-TimestampFromFolderName {
     param (
         [Parameter(Mandatory = $True, HelpMessage = "Folder ")]
         [Microsoft.SharePoint.Client.Folder]$folder
@@ -54,6 +57,36 @@ function Get-TimestampFromName {
 
     return $timestamp
 }
+
+function Get-TimestampFromListName {
+    param (
+        [Parameter(Mandatory = $True, HelpMessage = "List ")]
+        [Microsoft.SharePoint.Client.List]$list
+    )
+
+    $name = $list.Title
+
+    #fallback on list create time 
+    [datetime]$timestamp = $list.LastItemUserModifiedDate
+
+    try {
+        # Assumes that the timestamp is at the end and starts with yyyy-mm-ddT and is ISO8601
+        if ($name -imatch "(\d{4}}-\d{2}-\d{2}T.*)") {
+            $timestamp = [System.Convert]::ToDatetime($Matches.0)
+        }
+
+        # Assumes that the timestamp is at the end and starts with dd-MMM-yyyy_HH-MM-SS
+        if ($name -imatch "(\d{2}-[a-zA-Z]{3}-\d{4}_\d{2}-\d{2}-\d{2})") {
+            $timestamp = [datetime]::ParseExact($Matches.0, "dd-MMM-yyyy_HH-mm-ss", [CultureInfo]::InvariantCulture, "AssumeUniversal")
+        }
+    }
+    catch {}
+
+    Write-Verbose "List: $name, create timestamp: $timestamp"
+
+    return $timestamp
+}
+
 function Purge-Library {
     [CmdletBinding(SupportsShouldProcess)]
     Param (
@@ -77,7 +110,7 @@ function Purge-Library {
 
     foreach ($f in $folders) {
         $folderName = $f.Name
-        $createTime = Get-TimestampFromName -Folder $f
+        $createTime = Get-TimestampFromFolderName -Folder $f
 
         if ($PurgeBeforeTimestamp -gt $createTime) {
             foreach ($p in $FolderPrefixPurgeList) {
@@ -97,7 +130,7 @@ function Purge-Library {
         if ($f.ServerRelativeUrl -imatch "$SiteSuffix/{0,1}(.+?)/{0,1}$folderName$") {
             $siteRelativeParentPath = $Matches.1
         }
- 
+
         if ($PSCmdlet.ShouldProcess("Name: " + $f.Name + " Parent: " + $siteRelativeParentPath, "Remove folder")) {
             Write-Host "Deleting folder: "$f.Name" with parent: $siteRelativeParentPath"
             try {
@@ -105,6 +138,62 @@ function Purge-Library {
             }
             catch [ System.Management.Automation.ItemNotFoundException ] {
                 Write-Host "Folder: "$f.Name" with parent: $siteRelativeParentPath is already deleted. Skipping..."
+            }
+        }
+    }
+}
+
+function Delete-LibraryByPrefix {
+    [CmdletBinding(SupportsShouldProcess)]
+    Param (
+        [Parameter(Mandatory = $True, HelpMessage = "Document library root")]
+        [String]$LibraryNamePrefix,
+
+        [Parameter(Mandatory = $True, HelpMessage = "Purge folders before this date time (UTC)")]
+        [datetime]$PurgeBeforeTimestamp,
+
+        [Parameter(Mandatory = $True, HelpMessage = "Site suffix")]
+        [String[]]$SiteSuffix
+    )
+
+    Write-Host "`nDeleting library: $LibraryNamePrefix"
+
+    $listsToDelete = @()
+    $lists = Get-PnPList 
+
+    foreach ($l in $lists) {
+        $listName = $l.Title
+        $createTime = Get-TimestampFromListName -List $l
+
+        if ($PurgeBeforeTimestamp -gt $createTime) {
+            foreach ($p in $FolderPrefixPurgeList) {
+                if ($listName -like "$p*") {
+                    $listsToDelete += $l
+                }
+            }
+        }
+    }
+
+    Write-Host "Found"$listsToDelete.count"lists to delete"
+
+    foreach ($l in $listsToDelete) {
+        $listName = $l.Title
+
+        if ($PSCmdlet.ShouldProcess("Name: " + $l.Title + "Remove folder")) {
+            Write-Host "Deleting list: "$l.Title
+            try {
+                $listInfo = Get-PnPList -Identity $l.Id | Select-Object -Property Hidden
+                
+                # Check if the 'hidden' property is true
+                if ($listInfo.Hidden) {
+                    Write-Host "List: $($l.Title) is hidden. Skipping..."
+                    continue
+                }
+
+                Remove-PnPList -Identity $l.Id  -Force
+            }
+            catch [ System.Management.Automation.ItemNotFoundException ] {
+                Write-Host "List: "$f.Name" is already deleted. Skipping..."
             }
         }
     }
@@ -131,6 +220,7 @@ if (![string]::IsNullOrEmpty($User)) {
     # Works for dev domains where format is <user name>@<domain>.onmicrosoft.com
     $domain = $User.Split('@')[1].Split('.')[0]
     $userNameEscaped = $User.Replace('.', '_').Replace('@', '_')
+
     $siteUrl = "https://$domain-my.sharepoint.com/personal/$userNameEscaped/"
 
     if ($LibraryNameList.count -eq 0) {
@@ -147,14 +237,14 @@ elseif (![string]::IsNullOrEmpty($Site)) {
     }
 }
 else {
-    Write-Host "User (for OneDrvie) or Site (for Sharpeoint) is required"
+    Write-Host "User (for OneDrive) or Site (for Sharepoint) is required"
     Exit
 }
 
 #extract the suffix after the domain
-$siteSiffix = ""
+$siteSuffix = ""
 if ($siteUrl -imatch "^.*?(?<=sharepoint.com)(.*?$)") {
-    $siteSiffix = $Matches.1
+    $siteSuffix = $Matches.1
 }
 else {
     Write-Host "Site url appears to be malformed"
@@ -169,6 +259,14 @@ Write-Host "`nAuthenticating and connecting to $SiteUrl"
 Connect-PnPOnline -Url $siteUrl -Credential $cred
 Write-Host "Connected to $siteUrl`n"
 
+# ensure that there are no unexpanded entries in the list of parameters
+$LibraryNameList = $LibraryNameList | ForEach-Object { @($_.Split(',').Trim()) }
+$FolderPrefixPurgeList = $FolderPrefixPurgeList | ForEach-Object { @($_.Split(',').Trim()) }
+
 foreach ($library in $LibraryNameList) {
-    Purge-Library -LibraryName $library -PurgeBeforeTimestamp $PurgeBeforeTimestamp -FolderPrefixPurgeList $FolderPrefixPurgeList -SiteSuffix $siteSiffix
+    Purge-Library -LibraryName $library -PurgeBeforeTimestamp $PurgeBeforeTimestamp -FolderPrefixPurgeList $FolderPrefixPurgeList -SiteSuffix $siteSuffix
+}
+
+foreach ($libraryPfx in $LibraryPrefixDeleteList) {
+    Delete-LibraryByPrefix -LibraryNamePrefix $libraryPfx -PurgeBeforeTimestamp $PurgeBeforeTimestamp -SiteSuffix $siteSuffix
 }

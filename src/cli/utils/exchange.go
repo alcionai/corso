@@ -4,33 +4,13 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-// flag names
-const (
-	ContactFN       = "contact"
-	ContactFolderFN = "contact-folder"
-	ContactNameFN   = "contact-name"
+type ExchangeOpts struct {
+	Users []string
 
-	EmailFN               = "email"
-	EmailFolderFN         = "email-folder"
-	EmailReceivedAfterFN  = "email-received-after"
-	EmailReceivedBeforeFN = "email-received-before"
-	EmailSenderFN         = "email-sender"
-	EmailSubjectFN        = "email-subject"
-
-	EventFN             = "event"
-	EventCalendarFN     = "event-calendar"
-	EventOrganizerFN    = "event-organizer"
-	EventRecursFN       = "event-recurs"
-	EventStartsAfterFN  = "event-starts-after"
-	EventStartsBeforeFN = "event-starts-before"
-	EventSubjectFN      = "event-subject"
-)
-
-// flag population values
-var (
 	Contact       []string
 	ContactFolder []string
 	ContactName   string
@@ -49,104 +29,45 @@ var (
 	EventStartsAfter  string
 	EventStartsBefore string
 	EventSubject      string
-)
 
-type ExchangeOpts struct {
-	Contact             []string
-	ContactFolder       []string
-	Email               []string
-	EmailFolder         []string
-	Event               []string
-	EventCalendar       []string
-	Users               []string
-	ContactName         string
-	EmailReceivedAfter  string
-	EmailReceivedBefore string
-	EmailSender         string
-	EmailSubject        string
-	EventOrganizer      string
-	EventRecurs         string
-	EventStartsAfter    string
-	EventStartsBefore   string
-	EventSubject        string
+	RestoreCfg RestoreCfgOpts
+	ExportCfg  ExportCfgOpts
 
-	Populated PopulatedFlags
+	Populated flags.PopulatedFlags
 }
 
-// AddExchangeDetailsAndRestoreFlags adds flags that are common to both the
-// details and restore commands.
-func AddExchangeDetailsAndRestoreFlags(cmd *cobra.Command) {
-	fs := cmd.Flags()
+// populates an ExchangeOpts struct with the command's current flags.
+func MakeExchangeOpts(cmd *cobra.Command) ExchangeOpts {
+	return ExchangeOpts{
+		Users: flags.UserFV,
 
-	// email flags
-	fs.StringSliceVar(
-		&Email,
-		EmailFN, nil,
-		"Select emails by email ID; accepts '"+Wildcard+"' to select all emails.")
-	fs.StringSliceVar(
-		&EmailFolder,
-		EmailFolderFN, nil,
-		"Select emails within a folder; accepts '"+Wildcard+"' to select all email folders.")
-	fs.StringVar(
-		&EmailSubject,
-		EmailSubjectFN, "",
-		"Select emails with a subject containing this value.")
-	fs.StringVar(
-		&EmailSender,
-		EmailSenderFN, "",
-		"Select emails from a specific sender.")
-	fs.StringVar(
-		&EmailReceivedAfter,
-		EmailReceivedAfterFN, "",
-		"Select emails received after this datetime.")
-	fs.StringVar(
-		&EmailReceivedBefore,
-		EmailReceivedBeforeFN, "",
-		"Select emails received before this datetime.")
+		Contact:       flags.ContactFV,
+		ContactFolder: flags.ContactFolderFV,
+		ContactName:   flags.ContactNameFV,
 
-	// event flags
-	fs.StringSliceVar(
-		&Event,
-		EventFN, nil,
-		"Select events by event ID; accepts '"+Wildcard+"' to select all events.")
-	fs.StringSliceVar(
-		&EventCalendar,
-		EventCalendarFN, nil,
-		"Select events under a calendar; accepts '"+Wildcard+"' to select all events.")
-	fs.StringVar(
-		&EventSubject,
-		EventSubjectFN, "",
-		"Select events with a subject containing this value.")
-	fs.StringVar(
-		&EventOrganizer,
-		EventOrganizerFN, "",
-		"Select events from a specific organizer.")
-	fs.StringVar(
-		&EventRecurs,
-		EventRecursFN, "",
-		"Select recurring events. Use `--event-recurs false` to select non-recurring events.")
-	fs.StringVar(
-		&EventStartsAfter,
-		EventStartsAfterFN, "",
-		"Select events starting after this datetime.")
-	fs.StringVar(
-		&EventStartsBefore,
-		EventStartsBeforeFN, "",
-		"Select events starting before this datetime.")
+		Email:               flags.EmailFV,
+		EmailFolder:         flags.EmailFolderFV,
+		EmailReceivedAfter:  flags.EmailReceivedAfterFV,
+		EmailReceivedBefore: flags.EmailReceivedBeforeFV,
+		EmailSender:         flags.EmailSenderFV,
+		EmailSubject:        flags.EmailSubjectFV,
 
-	// contact flags
-	fs.StringSliceVar(
-		&Contact,
-		ContactFN, nil,
-		"Select contacts by contact ID; accepts '"+Wildcard+"' to select all contacts.")
-	fs.StringSliceVar(
-		&ContactFolder,
-		ContactFolderFN, nil,
-		"Select contacts within a folder; accepts '"+Wildcard+"' to select all contact folders.")
-	fs.StringVar(
-		&ContactName,
-		ContactNameFN, "",
-		"Select contacts whose contact name contains this value.")
+		Event:             flags.EventFV,
+		EventCalendar:     flags.EventCalendarFV,
+		EventOrganizer:    flags.EventOrganizerFV,
+		EventRecurs:       flags.EventRecursFV,
+		EventStartsAfter:  flags.EventStartsAfterFV,
+		EventStartsBefore: flags.EventStartsBeforeFV,
+		EventSubject:      flags.EventSubjectFV,
+
+		RestoreCfg: makeRestoreCfgOpts(cmd),
+		ExportCfg:  makeExportCfgOpts(cmd),
+
+		// populated contains the list of flags that appear in the
+		// command, according to pflags.  Use this to differentiate
+		// between an "empty" and a "missing" value.
+		Populated: flags.GetPopulatedFlags(cmd),
+	}
 }
 
 // AddExchangeInclude adds the scope of the provided values to the selector's
@@ -200,23 +121,23 @@ func ValidateExchangeRestoreFlags(backupID string, opts ExchangeOpts) error {
 		return clues.New("a backup ID is required")
 	}
 
-	if _, ok := opts.Populated[EmailReceivedAfterFN]; ok && !IsValidTimeFormat(opts.EmailReceivedAfter) {
+	if _, ok := opts.Populated[flags.EmailReceivedAfterFN]; ok && !IsValidTimeFormat(opts.EmailReceivedAfter) {
 		return clues.New("invalid time format for email-received-after")
 	}
 
-	if _, ok := opts.Populated[EmailReceivedBeforeFN]; ok && !IsValidTimeFormat(opts.EmailReceivedBefore) {
+	if _, ok := opts.Populated[flags.EmailReceivedBeforeFN]; ok && !IsValidTimeFormat(opts.EmailReceivedBefore) {
 		return clues.New("invalid time format for email-received-before")
 	}
 
-	if _, ok := opts.Populated[EventStartsAfterFN]; ok && !IsValidTimeFormat(opts.EventStartsAfter) {
+	if _, ok := opts.Populated[flags.EventStartsAfterFN]; ok && !IsValidTimeFormat(opts.EventStartsAfter) {
 		return clues.New("invalid time format for event-starts-after")
 	}
 
-	if _, ok := opts.Populated[EventStartsBeforeFN]; ok && !IsValidTimeFormat(opts.EventStartsBefore) {
+	if _, ok := opts.Populated[flags.EventStartsBeforeFN]; ok && !IsValidTimeFormat(opts.EventStartsBefore) {
 		return clues.New("invalid time format for event-starts-before")
 	}
 
-	if _, ok := opts.Populated[EventRecursFN]; ok && !IsValidBool(opts.EventRecurs) {
+	if _, ok := opts.Populated[flags.EventRecursFN]; ok && !IsValidBool(opts.EventRecurs) {
 		return clues.New("invalid format for event-recurs")
 	}
 

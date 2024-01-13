@@ -7,9 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
@@ -42,7 +43,7 @@ func (suite *ExchangeUtilsSuite) TestValidateRestoreFlags() {
 		{
 			name:     "valid time",
 			backupID: "bid",
-			opts:     utils.ExchangeOpts{EmailReceivedAfter: common.Now()},
+			opts:     utils.ExchangeOpts{EmailReceivedAfter: dttm.Now()},
 			expect:   assert.NoError,
 		},
 		{
@@ -62,7 +63,7 @@ func (suite *ExchangeUtilsSuite) TestValidateRestoreFlags() {
 func (suite *ExchangeUtilsSuite) TestIncludeExchangeRestoreDataSelectors() {
 	stub := []string{"id-stub"}
 	many := []string{"fnord", "smarf"}
-	a := []string{utils.Wildcard}
+	a := []string{flags.Wildcard}
 
 	table := []struct {
 		name             string

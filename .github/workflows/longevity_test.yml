@@ -1,0 +1,397 @@
+name: Longevity Testing
+on:
+  schedule:
+    # Run every day at 04:00 GMT (roughly 8pm PST)
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      user:
+        description: 'User to run longevity test on'
+
+permissions:
+  # required to retrieve AWS credentials
+  id-token: write
+  contents: write
+
+# cancel currently running jobs if a new version of the branch is pushed
+concurrency:
+  group: longevity_testing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  SetM365App:
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+
+  Longevity-Tests:
+    needs: [ SetM365App ]
+    environment: Testing
+    runs-on: ubuntu-latest
+    env:
+      # Need these in the local env so that corso can read them
+      AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+      AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+      AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+      CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+      # re-used values
+      CORSO_LOG_DIR: ${{ github.workspace }}/src/testlog
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-longevity.log
+      RESTORE_DEST_PFX: Corso_Test_Longevity_
+      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || vars.CORSO_M365_TEST_USER_ID }}
+      PREFIX: 'longevity'
+
+      # Options for retention.
+      RETENTION_MODE: GOVERNANCE
+      # Time to retain blobs for in hours.
+      RETENTION_DURATION: 216
+    defaults:
+      run:
+        working-directory: src
+        
+    ############################################################################
+    # setup
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # needed to get latest tag
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v4
+        with:
+          go-version-file: src/go.mod
+
+      - run: |
+          go build -o longevity-test ./cmd/longevity_test
+          go build -o s3checker ./cmd/s3checker
+
+      - name: Get version string
+        id: version
+        run: |
+          echo version=$(git describe --tags --abbrev=0) | tee -a $GITHUB_OUTPUT
+
+      # Checkout the .github directory at the original branch's ref so we have a
+      # stable view of the actions.
+      - name: Code Checkout
+        working-directory: ${{ github.workspace }}
+        run: |
+          git checkout ${{ steps.version.outputs.version }}
+          git checkout ${{ github.ref }} -- .github
+
+      - run: go build -o corso
+        timeout-minutes: 10
+      
+      - run: mkdir ${CORSO_LOG_DIR}
+
+        # Use shorter-lived credentials obtained from assume-role since these
+        # runs haven't been taking long.
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v4
+        timeout-minutes: 10
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          role-session-name: integration-testing
+          aws-region: us-east-1
+
+      ##########################################################################
+      # Repository commands
+
+      - name: Version Test
+        timeout-minutes: 10
+        run: |
+          ./corso --version | grep -c 'Corso version:'
+
+      - name: Repo init test
+        id: repo-init
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo init s3 \
+            --no-stats \
+            --hide-progress \
+            --retention-mode $(echo "${{ env.RETENTION_MODE }}" | tr '[:upper:]' '[:lower:]') \
+            --retention-duration "${{ env.RETENTION_DURATION }}h" \
+            --extend-retention \
+            --prefix ${{ env.PREFIX }} \
+            --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
+            --succeed-if-exists \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
+
+          if  grep -q 'Failed to' ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
+          then
+            echo "Repo could not be initialized"
+            exit 1
+          fi
+
+      - name: Repo connect test
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo connect s3 \
+            --no-stats \
+            --hide-progress \
+            --prefix ${{ env.PREFIX }} \
+            --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
+
+          if ! grep -q 'Connected to S3 bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
+          then
+            echo "Repo could not be connected"
+            exit 1
+          fi
+
+      ##########################################################################
+      # Exchange
+
+      - name: Backup exchange test
+        id: exchange-test
+        timeout-minutes: 30
+        run: |
+          echo -e "\nBackup Exchange test\n" >> ${CORSO_LOG_FILE}
+          ./corso backup create exchange \
+          --no-stats \
+          --mailbox "${TEST_USER}" \
+          --hide-progress \
+          --json \
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/backup_exchange.txt 
+
+          resultjson=$(sed -e '1,/Completed Backups/d' ${{ env.CORSO_LOG_DIR }}/backup_exchange.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
+ 
+      ##########################################################################
+      # Onedrive
+
+      - name: Backup onedrive test
+        id: onedrive-test
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          echo -e "\nBackup OneDrive test\n" >> ${CORSO_LOG_FILE}
+          ./corso backup create onedrive \
+          --no-stats \
+          --hide-progress \
+          --user "${TEST_USER}" \
+          --json \
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/backup_onedrive.txt 
+
+          resultjson=$(sed -e '1,/Completed Backups/d' ${{ env.CORSO_LOG_DIR }}/backup_onedrive.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
+
+      ##########################################################################
+      # Sharepoint test
+      - name: Backup sharepoint test
+        id: sharepoint-test
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
+
+          ./corso backup create sharepoint \
+          --no-stats \
+          --hide-progress \
+          --site "${{ vars.CORSO_M365_TEST_SITE_URL }}" \
+          --json \
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/backup_sharepoint.txt 
+
+          resultjson=$(sed -e '1,/Completed Backups/d' ${{ env.CORSO_LOG_DIR }}/backup_sharepoint.txt ) 
+
+          if  [[ $( echo $resultjson | jq -r '.[0] | .stats.errorCount') -ne 0 ]]; then
+            echo "backup was not successful"
+            exit 1
+          fi
+
+          data=$( echo $resultjson | jq -r '.[0] | .id' )
+          echo result=$data >> $GITHUB_OUTPUT
+
+      ##########################################################################
+      # Backup Exchange Deletion test
+      - name: Backup Delete exchange test
+        id: delete-exchange-test
+        timeout-minutes: 30
+        env:
+          SERVICE: "exchange"
+          DELETION_DAYS: 10
+        run: |
+          set -euo pipefail
+          echo -e "\nDelete Backup exchange \n" >> ${CORSO_LOG_FILE}
+          ./longevity-test
+
+      ##########################################################################
+      # Backup Onedrive Deletion test
+      - name: Backup Delete onedrive test
+        id: delete-onedrive-test
+        timeout-minutes: 30
+        env:
+          SERVICE: "onedrive"
+          DELETION_DAYS: 10
+        run: |
+          set -euo pipefail
+          echo -e "\nDelete Backup onedrive \n" >> ${CORSO_LOG_FILE}
+          ./longevity-test
+
+      ##########################################################################
+      # Backup Sharepoint Deletion test
+      - name: Backup Delete Sharepoint test
+        id: delete-sharepoint-test
+        timeout-minutes: 30
+        env:
+          SERVICE: "sharepoint"
+          DELETION_DAYS: 5
+        run: |
+          set -euo pipefail
+          echo -e "\nDelete Backup sharepoint \n" >> ${CORSO_LOG_FILE}
+          ./longevity-test
+
+      ##########################################################################
+      # Export OneDrive Test
+      - name: OneDrive Export test
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          echo -e "\Export OneDrive test\n" >> ${CORSO_LOG_FILE}
+
+          echo -e "\Export OneDrive test - first entry\n" >> ${CORSO_LOG_FILE}
+          ./corso backup list onedrive 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+              while read -r line; do
+                  ./corso export onedrive \
+                    "/tmp/corso-export--$line" \
+                    --no-stats \
+                    --backup "$line" \
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_first.txt
+              done
+
+          echo -e "\Export OneDrive test - last entry\n" >> ${CORSO_LOG_FILE}
+          ./corso backup list onedrive 2>/dev/null | tail -n1 | awk '{print $1}' |
+              while read -r line; do
+                  ./corso export onedrive \
+                    "/tmp/corso-export--$line" \
+                    --no-stats \
+                    --backup "$line" \
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_onedrive_last.txt
+              done
+
+      ##########################################################################
+      # Export SharePoint Test
+      - name: SharePoint Export test
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          echo -e "\Export SharePoint test\n" >> ${CORSO_LOG_FILE}
+
+          echo -e "\Export SharePoint test - first entry\n" >> ${CORSO_LOG_FILE}
+          ./corso backup list sharepoint 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+              while read -r line; do
+                  ./corso export sharepoint \
+                    "/tmp/corso-export--$line" \
+                    --no-stats \
+                    --backup "$line" \
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_first.txt
+              done
+
+          echo -e "\Export SharePoint test - last entry\n" >> ${CORSO_LOG_FILE}
+          ./corso backup list sharepoint 2>/dev/null | tail -n1 | awk '{print $1}' |
+              while read -r line; do
+                  ./corso export sharepoint \
+                    "/tmp/corso-export--$line" \
+                    --no-stats \
+                    --backup "$line" \
+                    2>&1 | tee ${{ env.CORSO_LOG_DIR }}/export_sharepoint_last.txt
+              done
+
+      ##########################################################################
+      # Maintenance test
+      - name: Maintenance test Daily
+        id: maintenance-test-daily
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          echo -e "\n Maintenance test Daily\n" >> ${CORSO_LOG_FILE}
+
+          # Run with the force flag so it doesn't fail if the github runner
+          # hostname isn't what's expected. This is only safe because we can
+          # guarantee only one runner will be executing maintenance at a time.
+          ./corso repo  maintenance --mode metadata \
+          --no-stats \
+          --hide-progress \
+          --force \
+          --json \
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_metadata.txt 
+
+      - name: Maintenance test Weekly
+        id: maintenance-test-weekly
+        timeout-minutes: 30
+        run: |
+          if [[ $(date +%A) == "Saturday" ]]; then
+            set -euo pipefail
+            echo -e "\n Maintenance test Weekly\n" >> ${CORSO_LOG_FILE}
+
+            ./corso repo  maintenance --mode complete \
+            --no-stats \
+            --hide-progress \
+            --force \
+            --json \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_complete.txt 
+
+            # TODO(ashmrtn): We can also check that non-current versions of
+            # blobs don't have their retention extended if we want.
+            #
+            # Assuming no failures during full maintenance, current versions of
+            # objects with the below versions should have retention times that
+            # are roughly (now + RETENTION_DURATION). We can explicitly check
+            # for this, but leave a little breathing room since maintenance may
+            # take some time to run.
+            #
+            # If we pick a live-retention-duration that is too small then we'll
+            # start seeing failures. The check for live objects is a lower bound
+            # check.
+            #
+            # Blob prefixes are as follows:
+            #   - kopia.blobcfg - repo-wide config
+            #   - kopia.repository - repo-wide config
+            #   - p - data pack blobs (i.e. file data)
+            #   - q - metadata pack blobs (i.e. manifests, directory listings, etc)
+            #   - x - index blobs
+            ./s3checker \
+              --bucket ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }} \
+              --prefix ${{ env.PREFIX }} \
+              --retention-mode ${{ env.RETENTION_MODE }} \
+              --live-retention-duration "$((${{ env.RETENTION_DURATION }}-1))h" \
+              --object-prefix "kopia.blobcfg" \
+              --object-prefix "kopia.repository" \
+              --object-prefix "p" \
+              --object-prefix "q" \
+              --object-prefix "x"
+          fi
+
+      ##########################################################################
+      # Logging & Notifications
+      # Upload the original go test output as an artifact for later review.
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longevity-test-log
+          path: src/testlog/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Notify failure in teams
+        if: failure()
+        uses: ./.github/actions/teams-message
+        with:
+          msg: "[FAILED] Longevity Test"
+          teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

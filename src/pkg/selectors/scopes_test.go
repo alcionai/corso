@@ -1,6 +1,9 @@
 package selectors
 
 import (
+	"fmt"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -57,7 +60,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "blank value",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filters.Equal("")
+				stub[rootCatStub.String()] = filters.Equal([]string{""})
 				return stub
 			},
 			check:  rootCatStub.String(),
@@ -67,7 +70,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "blank target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filterize(scopeConfig{}, "fnords")
+				stub[rootCatStub.String()] = filterFor(scopeConfig{}, "fnords")
 				return stub
 			},
 			check:  "",
@@ -77,7 +80,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "matching target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filterize(scopeConfig{}, rootCatStub.String())
+				stub[rootCatStub.String()] = filterFor(scopeConfig{}, rootCatStub.String())
 				return stub
 			},
 			check:  rootCatStub.String(),
@@ -87,7 +90,7 @@ func (suite *SelectorScopesSuite) TestContains() {
 			name: "non-matching target",
 			scope: func() mockScope {
 				stub := stubScope("")
-				stub[rootCatStub.String()] = filterize(scopeConfig{}, rootCatStub.String())
+				stub[rootCatStub.String()] = filterFor(scopeConfig{}, rootCatStub.String())
 				return stub
 			},
 			check:  "smarf",
@@ -109,7 +112,7 @@ func (suite *SelectorScopesSuite) TestGetCatValue() {
 	t := suite.T()
 
 	stub := stubScope("")
-	stub[rootCatStub.String()] = filterize(scopeConfig{}, rootCatStub.String())
+	stub[rootCatStub.String()] = filterFor(scopeConfig{}, rootCatStub.String())
 
 	assert.Equal(t,
 		[]string{rootCatStub.String()},
@@ -122,14 +125,14 @@ func (suite *SelectorScopesSuite) TestGetCatValue() {
 func (suite *SelectorScopesSuite) TestIsAnyTarget() {
 	t := suite.T()
 	stub := stubScope("")
-	assert.True(t, isAnyTarget(stub, rootCatStub))
-	assert.True(t, isAnyTarget(stub, leafCatStub))
-	assert.False(t, isAnyTarget(stub, mockCategorizer("smarf")))
+	assert.True(t, IsAnyTarget(stub, rootCatStub))
+	assert.True(t, IsAnyTarget(stub, leafCatStub))
+	assert.False(t, IsAnyTarget(stub, mockCategorizer("smarf")))
 
 	stub = stubScope("none")
-	assert.False(t, isAnyTarget(stub, rootCatStub))
-	assert.False(t, isAnyTarget(stub, leafCatStub))
-	assert.False(t, isAnyTarget(stub, mockCategorizer("smarf")))
+	assert.False(t, IsAnyTarget(stub, rootCatStub))
+	assert.False(t, IsAnyTarget(stub, leafCatStub))
+	assert.False(t, IsAnyTarget(stub, mockCategorizer("smarf")))
 }
 
 var reduceTestTable = []struct {
@@ -254,15 +257,14 @@ func (suite *SelectorScopesSuite) TestReduce() {
 	deets := func() details.Details {
 		return details.Details{
 			DetailsModel: details.DetailsModel{
-				Entries: []details.DetailsEntry{
+				Entries: []details.Entry{
 					{
 						RepoRef: stubRepoRef(
 							pathServiceStub,
 							pathCatStub,
 							rootCatStub.String(),
 							"stub",
-							leafCatStub.String(),
-						),
+							leafCatStub.String()),
 					},
 				},
 			},
@@ -276,7 +278,7 @@ func (suite *SelectorScopesSuite) TestReduce() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			errs := fault.New(true)
@@ -299,15 +301,14 @@ func (suite *SelectorScopesSuite) TestReduce_locationRef() {
 	deets := func() details.Details {
 		return details.Details{
 			DetailsModel: details.DetailsModel{
-				Entries: []details.DetailsEntry{
+				Entries: []details.Entry{
 					{
 						RepoRef: stubRepoRef(
 							pathServiceStub,
 							pathCatStub,
 							rootCatStub.String(),
 							"stub",
-							leafCatStub.String(),
-						),
+							leafCatStub.String()),
 						LocationRef: "a/b/c//defg",
 					},
 				},
@@ -322,7 +323,7 @@ func (suite *SelectorScopesSuite) TestReduce_locationRef() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			ds := deets()
@@ -342,7 +343,7 @@ func (suite *SelectorScopesSuite) TestScopesByCategory() {
 	t := suite.T()
 	s1 := stubScope("")
 	s2 := stubScope("")
-	s2[scopeKeyCategory] = filterize(scopeConfig{}, unknownCatStub.String())
+	s2[scopeKeyCategory] = filterFor(scopeConfig{}, unknownCatStub.String())
 	result := scopesByCategory[mockScope](
 		[]scope{scope(s1), scope(s2)},
 		map[path.CategoryType]mockCategorizer{
@@ -358,12 +359,12 @@ func (suite *SelectorScopesSuite) TestPasses() {
 	var (
 		cat   = rootCatStub
 		pth   = stubPath(suite.T(), "uid", []string{"fld"}, path.EventsCategory)
-		entry = details.DetailsEntry{
+		entry = details.Entry{
 			RepoRef: pth.String(),
 		}
 	)
 
-	pvs, err := cat.pathValues(pth, entry)
+	pvs, err := cat.pathValues(pth, entry, Config{})
 	require.NoError(suite.T(), err)
 
 	for _, test := range reduceTestTable {
@@ -449,10 +450,71 @@ func (suite *SelectorScopesSuite) TestMatchesPathValues() {
 			pvs[leafCatStub] = append(pvs[leafCatStub], test.shortRef)
 
 			sc := stubScope("")
-			sc[rootCatStub.String()] = filterize(scopeConfig{}, test.rootVal)
-			sc[leafCatStub.String()] = filterize(scopeConfig{}, test.leafVal)
+			sc[rootCatStub.String()] = filterFor(scopeConfig{}, test.rootVal)
+			sc[leafCatStub.String()] = filterFor(scopeConfig{}, test.leafVal)
 
 			test.expect(t, matchesPathValues(sc, cat, pvs))
+		})
+	}
+}
+
+func (suite *SelectorScopesSuite) TestDefaultItemOptions() {
+	table := []struct {
+		name   string
+		cfg    Config
+		match  []string
+		target string
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "no config, matches same value",
+			cfg:    Config{},
+			match:  []string{"foo"},
+			target: "foo",
+			expect: assert.True,
+		},
+		{
+			name:   "no config, does not match different case",
+			cfg:    Config{},
+			match:  []string{"bar"},
+			target: "BAR",
+			expect: assert.False,
+		},
+		{
+			name:   "no config, does not match substring",
+			cfg:    Config{},
+			match:  []string{"bar"},
+			target: "ba",
+			expect: assert.False,
+		},
+		{
+			name:   "only names, matches same same value",
+			cfg:    Config{OnlyMatchItemNames: true},
+			match:  []string{"fnords"},
+			target: "fnords",
+			expect: assert.True,
+		},
+		{
+			name:   "only names, matches different case",
+			cfg:    Config{OnlyMatchItemNames: true},
+			match:  []string{"smarf"},
+			target: "SMARF",
+			expect: assert.True,
+		},
+		{
+			name:   "only names, does not match substring",
+			cfg:    Config{OnlyMatchItemNames: true},
+			match:  []string{"brunhilda"},
+			target: "unhild",
+			expect: assert.False,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			sc := makeStubScope(test.cfg, test.match)
+
+			test.expect(t, sc.Matches(leafCatStub, test.target))
 		})
 	}
 }
@@ -504,89 +566,102 @@ func (suite *SelectorScopesSuite) TestClean() {
 	}
 }
 
-func (suite *SelectorScopesSuite) TestWrapFilter() {
-	table := []struct {
-		name       string
-		filter     filterFunc
-		input      []string
-		comparator int
-		target     string
-	}{
-		{
-			name:       "any",
-			filter:     filters.Contains,
-			input:      Any(),
-			comparator: int(filters.Passes),
-			target:     AnyTgt,
-		},
-		{
-			name:       "none",
-			filter:     filters.Greater,
-			input:      None(),
-			comparator: int(filters.Fails),
-			target:     NoneTgt,
-		},
-		{
-			name:       "something",
-			filter:     filters.Equal,
-			input:      []string{"userid"},
-			comparator: int(filters.EqualTo),
-			target:     "userid",
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ff := wrapFilter(test.filter)(test.input)
-			assert.Equal(t, int(ff.Comparator), test.comparator)
-			assert.Equal(t, ff.Target, test.target)
-		})
-	}
-}
-
 func (suite *SelectorScopesSuite) TestScopeConfig() {
 	input := "input"
 
 	table := []struct {
 		name   string
 		config scopeConfig
-		expect int
+		expect string
 	}{
 		{
 			name:   "no configs set",
 			config: scopeConfig{},
-			expect: int(filters.EqualTo),
+			expect: filters.EqualTo,
 		},
 		{
 			name:   "force prefix",
 			config: scopeConfig{usePrefixFilter: true},
-			expect: int(filters.TargetPrefixes),
+			expect: filters.TargetPrefixes,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result := filterize(test.config, input)
-			assert.Equal(t, test.expect, int(result.Comparator))
+			result := filterFor(test.config, input)
+			assert.Equal(t, test.expect, string(result.Comparator))
 		})
 	}
 }
 
-func (suite *SelectorScopesSuite) TestDiscreteCopy() {
-	var (
-		t     = suite.T()
-		orig  = stubScope(AnyTgt)
-		clone = discreteCopy(orig, "fnords")
-	)
+var _ fmt.State = &mockFMTState{}
 
-	for k, v := range orig {
-		if k != rootCatStub.String() {
-			assert.Equal(t, v.Target, clone[k].Target)
-		} else {
-			assert.Equal(t, AnyTgt, v.Target)
-			assert.Equal(t, "fnords", clone[k].Target)
-		}
+type mockFMTState struct {
+	w io.Writer
+}
+
+func (ms mockFMTState) Write(bs []byte) (int, error) { return ms.w.Write(bs) }
+func (ms mockFMTState) Width() (int, bool)           { return 0, false }
+func (ms mockFMTState) Precision() (int, bool)       { return 0, false }
+func (ms mockFMTState) Flag(int) bool                { return false }
+
+func (suite *SelectorScopesSuite) TestScopesPII() {
+	table := []struct {
+		name          string
+		s             mockScope
+		contains      []string
+		containsPlain []string
+	}{
+		{
+			name:          "empty",
+			s:             mockScope{},
+			contains:      []string{`{}`},
+			containsPlain: []string{`{}`},
+		},
+		{
+			name: "multiple filters",
+			s: mockScope{
+				"pass": filterFor(scopeConfig{}, "*"),
+				"fail": filterFor(scopeConfig{}, ""),
+				"foo":  filterFor(scopeConfig{}, "bar"),
+				"qux":  filterFor(scopeConfig{}, "fnords", "smarf"),
+			},
+			contains: []string{
+				`"pass":"Pass"`,
+				`"fail":"Fail"`,
+				`"foo":"EQ:bar"`,
+				`"qux":"EQ:fnords,smarf"`,
+			},
+			containsPlain: []string{
+				`"pass":"Pass"`,
+				`"fail":"Fail"`,
+				`"foo":"EQ:bar"`,
+				`"qux":"EQ:fnords,smarf"`,
+			},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := conceal(test.s)
+			for _, c := range test.contains {
+				assert.Contains(t, result, c, "conceal")
+			}
+
+			result = plainString(test.s)
+			for _, c := range test.containsPlain {
+				assert.Contains(t, result, c, "plainString")
+			}
+
+			sb := &strings.Builder{}
+			fs := mockFMTState{sb}
+
+			format(test.s, &fs, 0)
+			for _, c := range test.contains {
+				assert.Contains(t, sb.String(), c, "conceal")
+			}
+		})
 	}
 }

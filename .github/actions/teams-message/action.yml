@@ -1,0 +1,91 @@
+name: Send a message to Teams
+
+inputs:
+  msg:
+    description: The teams message text
+  teams_url:
+    description: passthrough for secrets.TEAMS_CORSO_CI_WEBHOOK_URL
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v3
+
+    - name: set github ref
+      shell: bash
+      run: |
+        echo "github_reference=${{ github.ref }}" >> $GITHUB_ENV
+
+    - name: trim github ref
+      shell: bash
+      run: |
+        echo "trimmed_ref=${github_reference#refs/}" >> $GITHUB_ENV
+
+    - name: build urls
+      shell: bash
+      run: |
+        echo "logurl=$(printf 'https://github.com/alcionai/corso/actions/runs/%s' ${{ github.run_id }})" >> $GITHUB_ENV
+        echo "commiturl=$(printf 'https://github.com/alcionai/corso/commit/%s' ${{ github.sha }})" >> $GITHUB_ENV
+        echo "refurl=$(printf 'https://github.com/alcionai/corso/%s' ${{ env.trimmed_ref }})" >> $GITHUB_ENV
+
+    - name: use url or blank val
+      shell: bash
+      run: |
+        echo "STEP=${{ env.trimmed_ref || '' }}" >> $GITHUB_ENV
+        echo "JOB=${{ github.job || '' }}" >> $GITHUB_ENV
+        echo "LOGS=${{ github.run_id && env.logurl || '-' }}" >> $GITHUB_ENV
+        echo "COMMIT=${{ github.sha && env.commiturl || '-' }}" >> $GITHUB_ENV
+        echo "REF=${{ env.trimmed_ref && env.refurl || '-' }}" >> $GITHUB_ENV
+
+    - name: Send JSON payload to Teams Webhook
+      shell: bash
+      run: |
+        curl -X POST \
+        -H "Content-Type: application/json" \
+        -d '{
+           "type":"message",
+           "attachments":[
+              {
+                 "contentType":"application/vnd.microsoft.card.adaptive",
+                 "contentUrl":null,
+                 "content":{
+                    "$schema":"http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type":"AdaptiveCard",
+                    "body": [
+                        {
+                            "type": "TextBlock",
+                            "size": "Medium",
+                            "weight": "Bolder",
+                            "text": "${{ inputs.msg }}",
+                            "color": "Attention"
+                        },
+                        {
+                            "type": "TextBlock",
+                            "text": "${{ env.JOB }} :: ${{ env.STEP }}",
+                            "wrap": true
+                        }
+                    ],
+                    "actions": [
+                        {
+                            "type": "Action.OpenUrl",
+                            "title": "Action",
+                            "url": "${{ env.LOGS }}"
+                        },
+                        {
+                            "type": "Action.OpenUrl",
+                            "title": "Commit",
+                            "url": "${{ env.COMMIT }}"
+                        },
+                        {
+                            "type": "Action.OpenUrl",
+                            "title": "Ref",
+                            "url": "${{ env.REF }}"
+                        }
+                    ],
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "version": "1.5"
+                 }
+              }
+           ]
+        }' \
+        ${{ inputs.teams_url }}

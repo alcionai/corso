@@ -10,15 +10,16 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/backup"
-	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/debug"
+	"github.com/alcionai/corso/src/cli/export"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/help"
-	"github.com/alcionai/corso/src/cli/options"
 	"github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/repo"
 	"github.com/alcionai/corso/src/cli/restore"
-	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -37,62 +38,49 @@ var corsoCmd = &cobra.Command{
 }
 
 func preRun(cc *cobra.Command, args []string) error {
-	if err := config.InitFunc(cc, args); err != nil {
+	if err := config.InitCmd(cc, args); err != nil {
 		return err
 	}
 
 	ctx := cc.Context()
 	log := logger.Ctx(ctx)
 
-	flags := utils.GetPopulatedFlags(cc)
-	flagSl := make([]string, 0, len(flags))
+	fs := flags.GetPopulatedFlags(cc)
+	flagSl := make([]string, 0, len(fs))
 
 	// currently only tracking flag names to avoid pii leakage.
-	for f := range flags {
+	for f := range fs {
 		flagSl = append(flagSl, f)
 	}
 
 	avoidTheseCommands := []string{
-		"corso", "env", "help", "backup", "details", "list", "restore", "delete", "repo", "init", "connect",
+		"corso", "env", "help", "backup", "details", "list", "restore", "export", "delete", "repo", "init", "connect",
 	}
 
-	if len(logger.LogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
-		print.Info(ctx, "Logging to file: "+logger.LogFile)
+	if len(logger.ResolvedLogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
+		print.Infof(ctx, "Logging to file: %s", logger.ResolvedLogFile)
 	}
 
-	avoidTheseDescription := []string{
-		"Initialize a repository.",
-		"Initialize a S3 repository",
-		"Help about any command",
-		"Free, Secure, Open-Source Backup for M365.",
-	}
-
-	if !slices.Contains(avoidTheseDescription, cc.Short) {
-		overrides := map[string]string{}
-		if cc.Short == "Connect to a S3 repository" {
-			// Get s3 overrides for connect. Ideally we also need this
-			// for init, but we don't reach this block for init.
-			overrides = repo.S3Overrides()
-		}
-
-		cfg, err := config.GetConfigRepoDetails(ctx, true, overrides)
-		if err != nil {
-			log.Error("Error while getting config info to run command: ", cc.Use)
-			return err
-		}
-
-		utils.SendStartCorsoEvent(
-			ctx,
-			cfg.Storage,
-			cfg.Account.ID(),
-			map[string]any{"command": cc.CommandPath()},
-			cfg.RepoID,
-			options.Control())
+	// handle deprecated user flag in Backup exchange command
+	if cc.CommandPath() == "corso backup create exchange" {
+		handleMailBoxFlag(ctx, cc, flagSl)
 	}
 
 	log.Infow("cli command", "command", cc.CommandPath(), "flags", flagSl, "version", version.CurrentVersion())
 
 	return nil
+}
+
+func handleMailBoxFlag(ctx context.Context, c *cobra.Command, flagNames []string) {
+	if !slices.Contains(flagNames, "user") && !slices.Contains(flagNames, "mailbox") {
+		print.Err(ctx, "either --user or --mailbox flag is required")
+		os.Exit(1)
+	}
+
+	if slices.Contains(flagNames, "user") && slices.Contains(flagNames, "mailbox") {
+		print.Err(ctx, "cannot use both [mailbox, user] flags in the same command")
+		os.Exit(1)
+	}
 }
 
 // Handler for flat calls to `corso`.
@@ -121,6 +109,7 @@ func CorsoCommand() *cobra.Command {
 func BuildCommandTree(cmd *cobra.Command) {
 	// want to order flags explicitly
 	cmd.PersistentFlags().SortFlags = false
+	flags.AddRunModeFlag(cmd, true)
 
 	cmd.Flags().BoolP("version", "v", false, "current version info")
 	cmd.PersistentPreRunE = preRun
@@ -128,8 +117,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	logger.AddLoggingFlags(cmd)
 	observe.AddProgressBarFlags(cmd)
 	print.AddOutputFlag(cmd)
-	options.AddGlobalOperationFlags(cmd)
-
+	flags.AddGlobalOperationFlags(cmd)
 	cmd.SetUsageTemplate(indentExamplesTemplate(corsoCmd.UsageTemplate()))
 
 	cmd.CompletionOptions.DisableDefaultCmd = true
@@ -137,6 +125,8 @@ func BuildCommandTree(cmd *cobra.Command) {
 	repo.AddCommands(cmd)
 	backup.AddCommands(cmd)
 	restore.AddCommands(cmd)
+	export.AddCommands(cmd)
+	debug.AddCommands(cmd)
 	help.AddCommands(cmd)
 }
 
@@ -146,17 +136,17 @@ func BuildCommandTree(cmd *cobra.Command) {
 
 // Handle builds and executes the cli processor.
 func Handle() {
+	//nolint:forbidigo
 	ctx := config.Seed(context.Background())
+	ctx, log := logger.Seed(ctx, logger.PreloadLoggingFlags(os.Args[1:]))
 	ctx = print.SetRootCmd(ctx, corsoCmd)
-
-	observe.SeedWriter(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
+	ctx = observe.SeedObserver(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
 
 	BuildCommandTree(corsoCmd)
 
-	loglevel, logfile := logger.PreloadLoggingFlags()
-	ctx, log := logger.Seed(ctx, loglevel, logfile)
-
 	defer func() {
+		observe.Flush(ctx) // flush the progress bars
+
 		_ = log.Sync() // flush all logs in the buffer
 	}()
 

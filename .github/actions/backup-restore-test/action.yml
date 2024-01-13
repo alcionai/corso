@@ -1,0 +1,231 @@
+name: Backup Restore Test
+
+inputs:
+  service:
+    description: Service to test
+    required: true
+  kind:
+    description: Kind of test
+    required: true
+  backup-id:
+    description: Backup to retrieve data out of
+    required: false
+  backup-args:
+    description: Arguments to pass for backup
+    required: false
+    default: ""
+  restore-args:
+    description: Arguments to pass for restore; restore is skipped when missing.
+    required: false
+    default: ""
+  restore-container:
+    description: Folder to use for testing
+    required: true
+  log-dir:
+    description: Folder to store test log files
+    required: true
+  on-collision:
+    description: Value for the --collisions flag
+    required: false
+    default: "replace"
+  with-export:
+    description: Runs export tests when true
+    required: false
+    default: false
+
+outputs:
+  backup-id:
+    value: ${{ steps.backup.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - name: Backup ${{ inputs.service }} ${{ inputs.kind }}
+      id: backup
+      shell: bash
+      working-directory: src
+      run: |
+        echo "---------------------------"
+        echo Backup ${{ inputs.service }} ${{ inputs.kind }}
+        echo "---------------------------"
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-backup-${{inputs.kind }}.log
+        ./corso backup create '${{ inputs.service }}' \
+            --no-stats --hide-progress --json \
+            ${{ inputs.backup-args }} |
+            tee /dev/stderr | # for printing logs
+            jq -r '.[0] | .id' |
+            sed 's/^/result=/' |
+            tee $GITHUB_OUTPUT
+
+    - name: Restore ${{ inputs.service }} ${{ inputs.kind }}
+      if: inputs.restore-args
+      id: restore
+      shell: bash
+      working-directory: src
+      run: |
+        echo "---------------------------"
+        echo Restore ${{ inputs.service }} ${{ inputs.kind }}
+        echo "---------------------------"
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-restore-${{inputs.kind }}.log
+        ./corso restore '${{ inputs.service }}' \
+            --no-stats \
+            --hide-progress \
+            --collisions ${{ inputs.on-collision }} \
+            ${{ inputs.restore-args }} \
+            --backup '${{ steps.backup.outputs.result }}' \
+            2>&1 |
+            tee /tmp/corsologs |
+            grep -i -e 'Restoring to folder ' |
+            sed "s/Restoring to folder /result=/" |
+            tee $GITHUB_OUTPUT
+
+            cat /tmp/corsologs
+
+    - name: Check restore ${{ inputs.service }} ${{ inputs.kind }}
+      if: inputs.restore-args
+      shell: bash
+      working-directory: src
+      env:
+        SANITY_TEST_RESTORE_CONTAINER: ${{ steps.restore.outputs.result }}
+        SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
+        SANITY_BACKUP_ID: ${{ inputs.backup-id }}
+      run: |
+        echo "---------------------------"
+        echo Sanity Test Restore ${{ inputs.service }} ${{ inputs.kind }}
+        echo "---------------------------"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-validate-${{inputs.kind }}.log
+        ./sanity-test restore ${{ inputs.service }}
+
+    - name: Export ${{ inputs.service }} ${{ inputs.kind }}
+      if: ${{ inputs.with-export == 'true' }}
+      id: export
+      shell: bash
+      working-directory: src
+      run: |
+        echo "---------------------------"
+        echo Export ${{ inputs.service }} ${{ inputs.kind }}
+        echo "---------------------------"
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-restore-${{inputs.kind }}.log
+        ./corso export '${{ inputs.service }}' \
+            /tmp/export-${{ inputs.service }}-${{inputs.kind }} \
+            --no-stats \
+            --hide-progress \
+            ${{ inputs.export-args }} \
+            --backup '${{ steps.backup.outputs.result }}'
+
+          cat /tmp/corsologs
+
+    - name: Check export ${{ inputs.service }} ${{ inputs.kind }}
+      if: ${{ inputs.with-export == 'true' }}
+      shell: bash
+      working-directory: src
+      env:
+        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
+        SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
+        SANITY_BACKUP_ID: ${{ inputs.backup-id }}
+      run: |
+        echo "---------------------------"
+        echo Sanity-Test Export ${{ inputs.service }} ${{ inputs.kind }}
+        echo "---------------------------"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-validate-${{inputs.kind }}.log
+        ./sanity-test export ${{ inputs.service }}
+
+    - name: Export archive ${{ inputs.service }} ${{ inputs.kind }}
+      if: ${{ inputs.with-export == 'true' }}
+      id: export-archive
+      shell: bash
+      working-directory: src
+      run: |
+        echo "---------------------------"
+        echo Export Archive ${{ inputs.service }} ${{ inputs.kind }}
+        echo "---------------------------"
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-restore-${{inputs.kind }}.log
+        ./corso export '${{ inputs.service }}' \
+            /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive \
+            --no-stats \
+            --hide-progress \
+            --archive \
+            ${{ inputs.export-args }} \
+            --backup '${{ steps.backup.outputs.result }}'
+
+          unzip /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive/*.zip \
+            -d /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
+          cat /tmp/corsologs
+
+    - name: Check archive export ${{ inputs.service }} ${{ inputs.kind }}
+      if: ${{ inputs.with-export == 'true' }}
+      shell: bash
+      working-directory: src
+      env:
+        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
+        SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
+        SANITY_BACKUP_ID: ${{ inputs.backup-id }}
+      run: |
+        echo "---------------------------"
+        echo Sanity-Test Export Archive ${{ inputs.service }} ${{ inputs.kind }}
+        echo "---------------------------"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-validate-${{inputs.kind }}.log
+        ./sanity-test export ${{ inputs.service }}
+
+    - name: List ${{ inputs.service }} ${{ inputs.kind }}
+      shell: bash
+      working-directory: src
+      run: |
+        echo "---------------------------"
+        echo Backup list ${{ inputs.service }} ${{ inputs.kind }}
+        echo "---------------------------"
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-${{ inputs.service }}-list-${{inputs.kind }}.log
+        ./corso backup list ${{ inputs.service }} \
+          --no-stats \
+          --hide-progress \
+          2>&1 |
+          tee /tmp/corso-backup-list.log
+
+        if ! grep -q  ${{ steps.backup.outputs.result }} /tmp/corso-backup-list.log 
+        then
+          echo "Unable to find backup from previous run in backup list"
+          exit 1
+        fi
+
+    - name: List item ${{ inputs.service }} ${{ inputs.kind }}
+      shell: bash
+      working-directory: src
+      run: |
+        echo "---------------------------"
+        echo Backup List w/ Backup ${{ inputs.service }} ${{ inputs.kind }}
+        echo "---------------------------"
+        set -euo pipefail
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-${{ inputs.service }}-single-${{inputs.kind }}.log
+        ./corso backup list ${{ inputs.service }} \
+          --no-stats \
+          --hide-progress \
+          --backup "${{ steps.backup.outputs.result }}" \
+          2>&1 |
+          tee /tmp/corso-backup-list-item.log
+
+        if ! grep -q  ${{ steps.backup.outputs.result }} /tmp/corso-backup-list-item.log 
+        then
+          echo "Unable to list previous backup"
+          exit 1
+        fi
+
+    - if: always()
+      shell: bash
+      run: |
+        echo "---------------------------"
+        echo Logging Results
+        echo "---------------------------"
+
+    - name: Upload test log
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: "${{ inputs.service }}-${{ inputs.kind }}-logs"
+        path: ${{ inputs.log-dir }}/*
+        if-no-files-found: error
+        retention-days: 14

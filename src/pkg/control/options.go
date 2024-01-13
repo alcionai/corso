@@ -1,67 +1,61 @@
 package control
 
 import (
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/extensions"
 )
 
 // Options holds the optional configurations for a process
 type Options struct {
-	Collision            CollisionPolicy `json:"-"`
-	DisableMetrics       bool            `json:"disableMetrics"`
-	FailFast             bool            `json:"failFast"`
-	RestorePermissions   bool            `json:"restorePermissions"`
-	SkipReduce           bool            `json:"skipReduce"`
-	ItemFetchParallelism int             `json:"itemFetchParallelism"`
-	ToggleFeatures       Toggles         `json:"ToggleFeatures"`
+	// DeltaPageSize controls the quantity of items fetched in each page
+	// during multi-page queries, such as graph api delta endpoints.
+	DeltaPageSize        int32                              `json:"deltaPageSize"`
+	DisableMetrics       bool                               `json:"disableMetrics"`
+	FailureHandling      FailurePolicy                      `json:"failureHandling"`
+	ItemExtensionFactory []extensions.CreateItemExtensioner `json:"-"`
+	Parallelism          Parallelism                        `json:"parallelism"`
+	Repo                 repository.Options                 `json:"repo"`
+	SkipReduce           bool                               `json:"skipReduce"`
+	ToggleFeatures       Toggles                            `json:"toggleFeatures"`
+	// PreviewItemLimits defines the number of items and/or amount of data to
+	// fetch on a best-effort basis. Right now it's used for preview backups.
+	//
+	// Since this is not split out by service or data categories these limits
+	// apply independently to all data categories that appear in a single backup
+	// where they are set. For example, if doing a teams backup and there's both a
+	// SharePoint site and Messages available, both data categories would try to
+	// backup data until the set limits without paying attention to what the other
+	// had already backed up.
+	PreviewLimits PreviewItemLimits `json:"previewItemLimits"`
 }
 
-// Defaults provides an Options with the default values set.
-func Defaults() Options {
+// RateLimiter is the set of options applied to any external service facing rate
+// limiters Corso may use during backups or restores.
+type RateLimiter struct {
+	DisableSlidingWindowLimiter bool `json:"disableSlidingWindowLimiter"`
+}
+
+type FailurePolicy string
+
+const (
+	// fails and exits the run immediately
+	FailFast FailurePolicy = "fail-fast"
+	// recovers whenever possible, reports non-zero recoveries as a failure
+	FailAfterRecovery FailurePolicy = "fail-after-recovery"
+	// recovers whenever possible, does not report recovery as failure
+	BestEffort FailurePolicy = "best-effort"
+)
+
+// DefaultOptions provides an Options with the default values set.
+func DefaultOptions() Options {
 	return Options{
-		FailFast:       true,
-		ToggleFeatures: Toggles{},
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Restore Item Collision Policy
-// ---------------------------------------------------------------------------
-
-// CollisionPolicy describes how the datalayer behaves in case of a collision.
-type CollisionPolicy int
-
-//go:generate stringer -type=CollisionPolicy
-const (
-	Unknown CollisionPolicy = iota
-	Copy
-	Skip
-	Replace
-)
-
-// ---------------------------------------------------------------------------
-// Restore Destination
-// ---------------------------------------------------------------------------
-
-const (
-	defaultRestoreLocation = "Corso_Restore_"
-)
-
-// RestoreDestination is a POD that contains an override of the resource owner
-// to restore data under and the name of the root of the restored container
-// hierarchy.
-type RestoreDestination struct {
-	// ResourceOwnerOverride overrides the default resource owner to restore to.
-	// If it is not populated items should be restored under the previous resource
-	// owner of the item.
-	ResourceOwnerOverride string
-	// ContainerName is the name of the root of the restored container hierarchy.
-	// This field must be populated for a restore.
-	ContainerName string
-}
-
-func DefaultRestoreDestination(timeFormat common.TimeFormat) RestoreDestination {
-	return RestoreDestination{
-		ContainerName: defaultRestoreLocation + common.FormatNow(timeFormat),
+		FailureHandling: FailAfterRecovery,
+		DeltaPageSize:   500,
+		ToggleFeatures:  Toggles{},
+		Parallelism: Parallelism{
+			CollectionBuffer: 4,
+			ItemFetch:        4,
+		},
 	}
 }
 
@@ -77,9 +71,42 @@ type Toggles struct {
 	// DisableIncrementals prevents backups from using incremental lookups,
 	// forcing a new, complete backup of all data regardless of prior state.
 	DisableIncrementals bool `json:"exchangeIncrementals,omitempty"`
+	// ForceItemDataDownload disables finding cached items in previous failed
+	// backups (i.e. kopia-assisted incrementals). Data dedupe will still occur
+	// since that is based on content hashes. Items that have not changed since
+	// the previous backup (i.e. in the merge base) will not be redownloaded. Use
+	// DisableIncrementals to control that behavior.
+	ForceItemDataDownload bool `json:"forceItemDataDownload,omitempty"`
+	// DisableDelta prevents backups from using delta based lookups,
+	// forcing a backup by enumerating all items. This is different
+	// from DisableIncrementals in that this does not even makes use of
+	// delta endpoints with or without a delta token. This is necessary
+	// when the user has filled up the mailbox storage available to the
+	// user as Microsoft prevents the API from being able to make calls
+	// to delta endpoints.
+	DisableDelta bool `json:"exchangeDelta,omitempty"`
+	// ExchangeImmutableIDs denotes whether Corso should store items with
+	// immutable Exchange IDs. This is only safe to set if the previous backup for
+	// incremental backups used immutable IDs or if a full backup is being done.
+	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
 
-	// EnablePermissionsBackup is used to enable backups of item
-	// permissions. Permission metadata increases graph api call count,
-	// so disabling their retrieval when not needed is advised.
-	EnablePermissionsBackup bool `json:"enablePermissionsBackup,omitempty"`
+	RunMigrations bool `json:"runMigrations"`
+
+	// DisableSlidingWindowLimiter disables the experimental sliding window rate
+	// limiter for graph API requests. This is only relevant for exchange backups.
+	// Setting this flag switches exchange backups to fallback to the default token
+	// bucket rate limiter.
+	DisableSlidingWindowLimiter bool `json:"disableSlidingWindowLimiter"`
+
+	// see: https://github.com/alcionai/corso/issues/4688
+	UseDeltaTree bool `json:"useDeltaTree"`
+
+	// AddDisableLazyItemReader disables lazy item reader, such that we fall
+	// back to prefetch reader. This flag is currently only meant for groups
+	// conversations backup. Although it can be utilized for other services
+	// in future.
+	//
+	// This flag should only be used if lazy item reader is the default choice
+	// and we want to fallback to prefetch reader.
+	DisableLazyItemReader bool `json:"disableLazyItemReader"`
 }

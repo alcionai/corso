@@ -1,5 +1,5 @@
 ---
-description: "Connect to a Microsft 365 tenant"
+description: "Connect to a Microsoft 365 tenant"
 ---
 
 # Microsoft 365 access
@@ -52,11 +52,19 @@ then click **Add permissions**.
 | API / Permissions Name | Type | Description
 |:--|:--|:--|
 | Calendars.ReadWrite | Application | Read and write calendars in all mailboxes |
+| ChannelMessage.Read.All | Application | Read all messages in Teams' channels |
+| ChannelSettings.Read.All | Application | Read all Teams' channel settings |
+| Chat.Read.All | Application | Read all Teams' chats and chat messages |
 | Contacts.ReadWrite | Application | Read and write contacts in all mailboxes |
+| Directory.Read.All | Application | Read all organization directory data |
 | Files.ReadWrite.All | Application | Read and write files in all site collections |
+| MailboxSettings.Read | Application | Read all user mailbox settings |
 | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
-| User.Read.All | Application | Read all users' full profiles |
+| Member.Read.Hidden | Application | Read hidden group memberships |
 | Sites.FullControl.All | Application | Have full control of all site collections |
+| TeamMember.Read.All | Application | Read all Teams' user memberships |
+| TeamSettings.Read.All | Application | Read all Teams' settings |
+| User.Read.All | Application | Read all users' full profiles |
 
 <!-- vale Microsoft.Spacing = YES -->
 
@@ -84,8 +92,8 @@ Copy the client and tenant IDs and export them into the following environment va
 <TabItem value="win" label="Powershell">
 
   ```powershell
-  $Env:AZURE_CLIENT_ID = "<Application (client) ID for configured app>"
-  $Env:AZURE_TENANT_ID = "<Directory (tenant) ID for configured app>"
+  $Env:AZURE_CLIENT_ID = '<Application (client) ID for configured app>'
+  $Env:AZURE_TENANT_ID = '<Directory (tenant) ID for configured app>'
   ```
 
 </TabItem>
@@ -123,7 +131,7 @@ environment variable.
 <TabItem value="win" label="Powershell">
 
   ```powershell
-  $Env:AZURE_CLIENT_SECRET = "<Client secret value>"
+  $Env:AZURE_CLIENT_SECRET = '<Client secret value>'
   ```
 
 </TabItem>

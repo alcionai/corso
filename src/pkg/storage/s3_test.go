@@ -7,14 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/credentials"
 )
 
-type S3CfgSuite struct {
-	suite.Suite
+type S3CfgUnitSuite struct {
+	tester.Suite
 }
 
-func TestS3CfgSuite(t *testing.T) {
-	suite.Run(t, new(S3CfgSuite))
+func TestS3CfgUnitSuite(t *testing.T) {
+	suite.Run(t, &S3CfgUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
 var (
@@ -24,6 +27,7 @@ var (
 		Prefix:         "pre/",
 		DoNotUseTLS:    false,
 		DoNotVerifyTLS: false,
+		AWS:            credentials.AWS{AccessKey: "access", SecretKey: "secret", SessionToken: "token"},
 	}
 
 	goodS3Map = map[string]string{
@@ -32,10 +36,13 @@ var (
 		keyS3Prefix:         "pre/",
 		keyS3DoNotUseTLS:    "false",
 		keyS3DoNotVerifyTLS: "false",
+		keyS3AccessKey:      "access",
+		keyS3SecretKey:      "secret",
+		keyS3SessionToken:   "token",
 	}
 )
 
-func (suite *S3CfgSuite) TestS3Config_Config() {
+func (suite *S3CfgUnitSuite) TestS3Config_Config() {
 	s3 := goodS3Config
 
 	c, err := s3.StringConfig()
@@ -54,13 +61,14 @@ func (suite *S3CfgSuite) TestS3Config_Config() {
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config() {
+func (suite *S3CfgUnitSuite) TestStorage_S3Config() {
 	t := suite.T()
-
 	in := goodS3Config
-	s, err := NewStorage(ProviderS3, in)
+
+	s, err := NewStorage(ProviderS3, &in)
 	assert.NoError(t, err, clues.ToCore(err))
-	out, err := s.S3Config()
+
+	out, err := s.ToS3Config()
 	assert.NoError(t, err, clues.ToCore(err))
 
 	assert.Equal(t, in.Bucket, out.Bucket)
@@ -68,26 +76,27 @@ func (suite *S3CfgSuite) TestStorage_S3Config() {
 	assert.Equal(t, in.Prefix, out.Prefix)
 }
 
-func makeTestS3Cfg(bkt, end, pre string) S3Config {
+func makeTestS3Cfg(bkt, end, pre, access, secret, session string) S3Config {
 	return S3Config{
 		Bucket:   bkt,
 		Endpoint: end,
 		Prefix:   pre,
+		AWS:      credentials.AWS{AccessKey: access, SecretKey: secret, SessionToken: session},
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
+func (suite *S3CfgUnitSuite) TestStorage_S3Config_invalidCases() {
 	// missing required properties
 	table := []struct {
 		name string
 		cfg  S3Config
 	}{
-		{"missing bucket", makeTestS3Cfg("", "end", "pre/")},
+		{"missing bucket", makeTestS3Cfg("", "end", "pre/", "", "", "")},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
-			_, err := NewStorage(ProviderUnknown, test.cfg)
-			assert.Error(t, err)
+		suite.Run(test.name, func() {
+			_, err := NewStorage(ProviderUnknown, &test.cfg)
+			assert.Error(suite.T(), err)
 		})
 	}
 
@@ -104,17 +113,20 @@ func (suite *S3CfgSuite) TestStorage_S3Config_invalidCases() {
 		},
 	}
 	for _, test := range table2 {
-		suite.T().Run(test.name, func(t *testing.T) {
-			st, err := NewStorage(ProviderUnknown, goodS3Config)
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			st, err := NewStorage(ProviderUnknown, &goodS3Config)
 			assert.NoError(t, err, clues.ToCore(err))
 			test.amend(st)
-			_, err = st.S3Config()
-			assert.Error(t, err)
+
+			_, err = st.ToS3Config()
+			assert.Error(t, err, clues.ToCore(err))
 		})
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
+func (suite *S3CfgUnitSuite) TestStorage_S3Config_StringConfig() {
 	table := []struct {
 		name   string
 		input  S3Config
@@ -126,8 +138,14 @@ func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 			expect: goodS3Map,
 		},
 		{
-			name:   "normalized bucket name",
-			input:  makeTestS3Cfg("s3://"+goodS3Config.Bucket, goodS3Config.Endpoint, goodS3Config.Prefix),
+			name: "normalized bucket name",
+			input: makeTestS3Cfg(
+				"s3://"+goodS3Config.Bucket,
+				goodS3Config.Endpoint,
+				goodS3Config.Prefix,
+				goodS3Config.AccessKey,
+				goodS3Config.SecretKey,
+				goodS3Config.SessionToken),
 			expect: goodS3Map,
 		},
 		{
@@ -145,11 +163,16 @@ func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 				keyS3Prefix:         "pre/",
 				keyS3DoNotUseTLS:    "true",
 				keyS3DoNotVerifyTLS: "true",
+				keyS3AccessKey:      "",
+				keyS3SecretKey:      "",
+				keyS3SessionToken:   "",
 			},
 		},
 	}
 	for _, test := range table {
-		suite.T().Run(test.name, func(t *testing.T) {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
 			result, err := test.input.StringConfig()
 			require.NoError(t, err, clues.ToCore(err))
 			assert.Equal(t, test.expect, result)
@@ -157,7 +180,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_StringConfig() {
 	}
 }
 
-func (suite *S3CfgSuite) TestStorage_S3Config_Normalize() {
+func (suite *S3CfgUnitSuite) TestStorage_S3Config_Normalize() {
 	const (
 		prefixedBkt = "s3://bkt"
 		normalBkt   = "bkt"
@@ -167,7 +190,7 @@ func (suite *S3CfgSuite) TestStorage_S3Config_Normalize() {
 		Bucket: prefixedBkt,
 	}
 
-	result := st.Normalize()
+	result := st.normalize()
 	assert.Equal(suite.T(), normalBkt, result.Bucket)
 	assert.NotEqual(suite.T(), st.Bucket, result.Bucket)
 }

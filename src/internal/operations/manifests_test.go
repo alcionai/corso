@@ -1,7 +1,10 @@
 package operations
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -11,10 +14,15 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/model"
+	"github.com/alcionai/corso/src/internal/m365"
+	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
+	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
+	"github.com/alcionai/corso/src/internal/operations/inject/mock"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -23,47 +31,47 @@ import (
 // interfaces
 // ---------------------------------------------------------------------------
 
-type mockManifestRestorer struct {
-	mockRestorer
-	mans  []*kopia.ManifestEntry
-	mrErr error // err varname already claimed by mockRestorer
-}
-
-func (mmr mockManifestRestorer) FetchPrevSnapshotManifests(
-	ctx context.Context,
-	reasons []kopia.Reason,
-	tags map[string]string,
-) ([]*kopia.ManifestEntry, error) {
-	return mmr.mans, mmr.mrErr
-}
-
-type mockGetBackuper struct {
-	detailsID     string
-	streamstoreID string
-	err           error
-}
-
-func (mg mockGetBackuper) GetBackup(
-	ctx context.Context,
-	backupID model.StableID,
-) (*backup.Backup, error) {
-	return &backup.Backup{
-		DetailsID:     mg.detailsID,
-		StreamStoreID: mg.streamstoreID,
-	}, mg.err
-}
-
 type mockColl struct {
 	id string // for comparisons
 	p  path.Path
 }
 
-func (mc mockColl) Items(context.Context, *fault.Bus) <-chan data.Stream {
+func (mc mockColl) Items(context.Context, *fault.Bus) <-chan data.Item {
 	return nil
 }
 
 func (mc mockColl) FullPath() path.Path {
 	return mc.p
+}
+
+type mockBackupFinder struct {
+	// ResourceOwner -> returned set of data for call to FindBases. We can just
+	// switch on the ResourceOwner as the passed in Reasons should be the same
+	// beyond that and results are returned for the union of the reasons anyway.
+	// This does assume that the return data is properly constructed to return a
+	// union of the reasons etc.
+	data map[string]kopia.BackupBases
+}
+
+func (bf *mockBackupFinder) FindBases(
+	_ context.Context,
+	reasons []identity.Reasoner,
+	_ map[string]string,
+) kopia.BackupBases {
+	if len(reasons) == 0 {
+		return kopia.NewMockBackupBases()
+	}
+
+	if bf == nil {
+		return kopia.NewMockBackupBases()
+	}
+
+	b := bf.data[reasons[0].ProtectedResource()]
+	if b == nil {
+		return kopia.NewMockBackupBases()
+	}
+
+	return b
 }
 
 // ---------------------------------------------------------------------------
@@ -78,11 +86,13 @@ func TestOperationsManifestsUnitSuite(t *testing.T) {
 	suite.Run(t, &OperationsManifestsUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
+func (suite *OperationsManifestsUnitSuite) TestGetMetadataPaths() {
 	const (
 		ro  = "owner"
 		tid = "tenantid"
 	)
+
+	t := suite.T()
 
 	var (
 		emailPath = makeMetadataBasePath(
@@ -97,571 +107,471 @@ func (suite *OperationsManifestsUnitSuite) TestCollectMetadata() {
 			path.ExchangeService,
 			ro,
 			path.ContactsCategory)
+		spLibsPath = makeMetadataBasePath(
+			suite.T(),
+			tid,
+			path.SharePointService,
+			ro,
+			path.LibrariesCategory)
+		messagesPath = makeMetadataBasePath(
+			suite.T(),
+			tid,
+			path.GroupsService,
+			ro,
+			path.ChannelMessagesCategory)
+		groupLibsPath = makeMetadataBasePath(
+			suite.T(),
+			tid,
+			path.GroupsService,
+			ro,
+			path.LibrariesCategory)
+		sharepointListsPath = makeMetadataBasePath(
+			suite.T(),
+			tid,
+			path.SharePointService,
+			ro,
+			path.ListsCategory)
 	)
 
+	groupLibsSitesPath, err := groupLibsPath.Append(false, odConsts.SitesPathDir)
+	assert.NoError(t, err, clues.ToCore(err))
+
+	groupLibsSite1Path, err := groupLibsSitesPath.Append(false, "site1")
+	assert.NoError(t, err, clues.ToCore(err))
+
+	groupLibsSite2Path, err := groupLibsSitesPath.Append(false, "site2")
+	assert.NoError(t, err, clues.ToCore(err))
+
+	getRestorePaths := func(t *testing.T, base path.Path, paths []string) []path.RestorePaths {
+		ps := []path.RestorePaths{}
+
+		for _, f := range paths {
+			p, err := base.AppendItem(f)
+			assert.NoError(t, err, clues.ToCore(err))
+
+			ps = append(ps, path.RestorePaths{StoragePath: p, RestorePath: base})
+		}
+
+		return ps
+	}
+
 	table := []struct {
-		name        string
-		manID       string
-		reasons     []kopia.Reason
-		fileNames   []string
-		expectPaths func(*testing.T, []string) []path.Path
-		expectErr   error
+		name               string
+		manID              string
+		reasons            []identity.Reasoner
+		preFetchPaths      []string
+		preFetchCollection []data.RestoreCollection
+		expectPaths        func(*testing.T, []string) []path.Path
+		restorePaths       []path.RestorePaths
+		expectErr          error
 	}{
 		{
-			name:  "single reason, single file",
-			manID: "single single",
-			reasons: []kopia.Reason{
-				{
-					ResourceOwner: ro,
-					Service:       path.ExchangeService,
-					Category:      path.EmailCategory,
-				},
+			name:  "single reason",
+			manID: "single",
+			reasons: []identity.Reasoner{
+				identity.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
 			},
+			preFetchPaths: []string{},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
 
 				for _, f := range files {
-					p, err := emailPath.Append(f, true)
+					p, err := emailPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
 				return ps
 			},
-			fileNames: []string{"a"},
+			restorePaths: getRestorePaths(t, emailPath, metadata.AllMetadataFileNames()),
 		},
 		{
-			name:  "single reason, multiple files",
-			manID: "single multi",
-			reasons: []kopia.Reason{
-				{
-					ResourceOwner: ro,
-					Service:       path.ExchangeService,
-					Category:      path.EmailCategory,
-				},
+			name:  "multiple reasons",
+			manID: "multi",
+			reasons: []identity.Reasoner{
+				identity.NewReason(tid, ro, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
 			},
+			preFetchPaths: []string{},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
 
 				for _, f := range files {
-					p, err := emailPath.Append(f, true)
+					p, err := emailPath.AppendItem(f)
+					assert.NoError(t, err, clues.ToCore(err))
+					ps = append(ps, p)
+					p, err = contactPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
 				return ps
 			},
-			fileNames: []string{"a", "b"},
+			restorePaths: append(
+				getRestorePaths(t, emailPath, metadata.AllMetadataFileNames()),
+				getRestorePaths(t, contactPath, metadata.AllMetadataFileNames())...),
 		},
 		{
-			name:  "multiple reasons, single file",
-			manID: "multi single",
-			reasons: []kopia.Reason{
-				{
-					ResourceOwner: ro,
-					Service:       path.ExchangeService,
-					Category:      path.EmailCategory,
-				},
-				{
-					ResourceOwner: ro,
-					Service:       path.ExchangeService,
-					Category:      path.ContactsCategory,
-				},
+			name:  "single reason sp libraries",
+			manID: "single-sp-libraries",
+			reasons: []identity.Reasoner{
+				identity.NewReason(tid, ro, path.SharePointService, path.LibrariesCategory),
 			},
+			preFetchPaths: []string{},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
 
 				for _, f := range files {
-					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err, clues.ToCore(err))
-					ps = append(ps, p)
-					p, err = contactPath.Append(f, true)
+					p, err := spLibsPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
 				return ps
 			},
-			fileNames: []string{"a"},
+			restorePaths: getRestorePaths(t, spLibsPath, metadata.AllMetadataFileNames()),
 		},
 		{
-			name:  "multiple reasons, multiple file",
-			manID: "multi multi",
-			reasons: []kopia.Reason{
-				{
-					ResourceOwner: ro,
-					Service:       path.ExchangeService,
-					Category:      path.EmailCategory,
-				},
-				{
-					ResourceOwner: ro,
-					Service:       path.ExchangeService,
-					Category:      path.ContactsCategory,
-				},
+			name:  "single reason groups messages",
+			manID: "single-groups-messages",
+			reasons: []identity.Reasoner{
+				identity.NewReason(tid, ro, path.GroupsService, path.ChannelMessagesCategory),
 			},
+			preFetchPaths: []string{},
 			expectPaths: func(t *testing.T, files []string) []path.Path {
 				ps := make([]path.Path, 0, len(files))
 
 				for _, f := range files {
-					p, err := emailPath.Append(f, true)
-					assert.NoError(t, err, clues.ToCore(err))
-					ps = append(ps, p)
-					p, err = contactPath.Append(f, true)
+					p, err := messagesPath.AppendItem(f)
 					assert.NoError(t, err, clues.ToCore(err))
 					ps = append(ps, p)
 				}
 
 				return ps
 			},
-			fileNames: []string{"a", "b"},
+			restorePaths: getRestorePaths(t, messagesPath, metadata.AllMetadataFileNames()),
+		},
+		{
+			name:  "single reason groups libraries",
+			manID: "single-groups-libraries",
+			reasons: []identity.Reasoner{
+				identity.NewReason(tid, ro, path.GroupsService, path.LibrariesCategory),
+			},
+			preFetchPaths: []string{"previouspath"},
+			expectPaths: func(t *testing.T, files []string) []path.Path {
+				ps := make([]path.Path, 0, len(files))
+
+				assert.NoError(t, err, clues.ToCore(err))
+				for _, f := range files {
+					p, err := groupLibsSitesPath.AppendItem(f)
+					assert.NoError(t, err, clues.ToCore(err))
+					ps = append(ps, p)
+				}
+
+				return ps
+			},
+			restorePaths: append(
+				getRestorePaths(t, groupLibsSite1Path, metadata.AllMetadataFileNames()),
+				getRestorePaths(t, groupLibsSite2Path, metadata.AllMetadataFileNames())...),
+			preFetchCollection: []data.RestoreCollection{dataMock.Collection{
+				ItemData: []data.Item{
+					&dataMock.Item{
+						ItemID: "previouspath",
+						Reader: io.NopCloser(bytes.NewReader(
+							[]byte(`{"site1": "/path/does/not/matter", "site2": "/path/does/not/matter"}`))),
+					},
+				},
+			}},
+		},
+		{
+			name:  "single reason sharepoint lists",
+			manID: "single-sharepoint-lists",
+			reasons: []identity.Reasoner{
+				identity.NewReason(tid, ro, path.SharePointService, path.ListsCategory),
+			},
+			preFetchPaths: []string{"previouspath"},
+			expectPaths: func(t *testing.T, files []string) []path.Path {
+				ps := make([]path.Path, 0, len(files))
+
+				assert.NoError(t, err, clues.ToCore(err))
+				for _, f := range files {
+					p, err := sharepointListsPath.AppendItem(f)
+					assert.NoError(t, err, clues.ToCore(err))
+					ps = append(ps, p)
+				}
+
+				return ps
+			},
+			restorePaths: getRestorePaths(t, sharepointListsPath, sharepoint.ListsMetadataFileNames()),
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			paths := test.expectPaths(t, test.fileNames)
+			paths := test.expectPaths(t, test.preFetchPaths)
 
-			mr := mockRestorer{err: test.expectErr}
+			mr := mockRestoreProducer{err: test.expectErr, colls: test.preFetchCollection}
 			mr.buildRestoreFunc(t, test.manID, paths)
 
-			man := &kopia.ManifestEntry{
-				Manifest: &snapshot.Manifest{ID: manifest.ID(test.manID)},
-				Reasons:  test.reasons,
+			base := kopia.BackupBase{
+				ItemDataSnapshot: &snapshot.Manifest{ID: manifest.ID(test.manID)},
+				Reasons:          test.reasons,
 			}
 
-			_, err := collectMetadata(ctx, &mr, man, test.fileNames, tid, fault.New(true))
+			controller := m365.Controller{}
+			pths, err := controller.GetMetadataPaths(ctx, &mr, base, fault.New(true))
 			assert.ErrorIs(t, err, test.expectErr, clues.ToCore(err))
-		})
-	}
-}
-
-func (suite *OperationsManifestsUnitSuite) TestVerifyDistinctBases() {
-	ro := "resource_owner"
-
-	table := []struct {
-		name   string
-		mans   []*kopia.ManifestEntry
-		expect assert.ErrorAssertionFunc
-	}{
-		{
-			name: "one manifest, one reason",
-			mans: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-			},
-			expect: assert.NoError,
-		},
-		{
-			name: "one incomplete manifest",
-			mans: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{IncompleteReason: "ir"},
-				},
-			},
-			expect: assert.NoError,
-		},
-		{
-			name: "one manifest, multiple reasons",
-			mans: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.ContactsCategory,
-						},
-					},
-				},
-			},
-			expect: assert.NoError,
-		},
-		{
-			name: "one manifest, duplicate reasons",
-			mans: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-			},
-			expect: assert.Error,
-		},
-		{
-			name: "two manifests, non-overlapping reasons",
-			mans: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-				{
-					Manifest: &snapshot.Manifest{},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.ContactsCategory,
-						},
-					},
-				},
-			},
-			expect: assert.NoError,
-		},
-		{
-			name: "two manifests, overlapping reasons",
-			mans: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-				{
-					Manifest: &snapshot.Manifest{},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-			},
-			expect: assert.Error,
-		},
-		{
-			name: "two manifests, overlapping reasons, one snapshot incomplete",
-			mans: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-				{
-					Manifest: &snapshot.Manifest{IncompleteReason: "ir"},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: ro,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-			},
-			expect: assert.NoError,
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			err := verifyDistinctBases(ctx, test.mans)
-			test.expect(suite.T(), err, clues.ToCore(err))
+			assert.ElementsMatch(t, test.restorePaths, pths, "restore paths")
 		})
 	}
 }
 
 func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
-	const (
-		ro  = "resourceowner"
-		tid = "tenantid"
-		did = "detailsid"
+	var (
+		ro          = "resourceowner"
+		tid         = "tenantid"
+		emailReason = identity.NewReason(tid, ro, path.ExchangeService, path.EmailCategory)
+
+		baseBuilder = func(id int) *kopia.BackupBaseBuilder {
+			return kopia.NewBackupBaseBuilder("", id).
+				WithReasons(emailReason)
+		}
+		colID = func(id int) string {
+			return fmt.Sprintf("ID%d-item-data", id)
+		}
 	)
 
-	makeMan := func(pct path.CategoryType, id, incmpl, bid string) *kopia.ManifestEntry {
-		tags := map[string]string{}
-		if len(bid) > 0 {
-			tags = map[string]string{"tag:" + kopia.TagBackupID: bid}
-		}
-
-		return &kopia.ManifestEntry{
-			Manifest: &snapshot.Manifest{
-				ID:               manifest.ID(id),
-				IncompleteReason: incmpl,
-				Tags:             tags,
-			},
-			Reasons: []kopia.Reason{
-				{
-					ResourceOwner: ro,
-					Service:       path.ExchangeService,
-					Category:      pct,
-				},
-			},
-		}
-	}
-
 	table := []struct {
-		name          string
-		mr            mockManifestRestorer
-		gb            mockGetBackuper
-		reasons       []kopia.Reason
-		getMeta       bool
-		assertErr     assert.ErrorAssertionFunc
-		assertB       assert.BoolAssertionFunc
-		expectDCS     []mockColl
-		expectNilMans bool
+		name        string
+		bf          *mockBackupFinder
+		rp          mockRestoreProducer
+		reasons     []identity.Reasoner
+		getMeta     bool
+		dropAssist  bool
+		assertErr   assert.ErrorAssertionFunc
+		assertB     assert.BoolAssertionFunc
+		expectDCS   []mockColl
+		expectPaths func(t *testing.T, gotPaths []path.Path)
+		expectMans  kopia.BackupBases
 	}{
 		{
-			name: "don't get metadata, no mans",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{},
-			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
-			getMeta:   false,
-			assertErr: assert.NoError,
-			assertB:   assert.False,
-			expectDCS: nil,
+			name:       "don't get metadata, no mans",
+			rp:         mockRestoreProducer{},
+			reasons:    []identity.Reasoner{},
+			getMeta:    false,
+			assertErr:  assert.NoError,
+			assertB:    assert.False,
+			expectDCS:  nil,
+			expectMans: kopia.NewMockBackupBases(),
 		},
 		{
 			name: "don't get metadata",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "")},
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).Build()),
+				},
 			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
+			rp:        mockRestoreProducer{},
+			reasons:   []identity.Reasoner{emailReason},
 			getMeta:   false,
 			assertErr: assert.NoError,
 			assertB:   assert.False,
 			expectDCS: nil,
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(baseBuilder(1).Build()).MockDisableMergeBases(),
 		},
 		{
-			name: "don't get metadata, incomplete manifest",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "ir", "")},
-			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
-			getMeta:   false,
-			assertErr: assert.NoError,
-			assertB:   assert.False,
-			expectDCS: nil,
-		},
-		{
-			name: "fetch manifests errors",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mrErr:        assert.AnError,
-			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
-			getMeta:   true,
-			assertErr: assert.Error,
-			assertB:   assert.False,
-			expectDCS: nil,
-		},
-		{
-			name: "verify distinct bases fails",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans: []*kopia.ManifestEntry{
-					makeMan(path.EmailCategory, "", "", ""),
-					makeMan(path.EmailCategory, "", "", ""),
+			name: "don't get metadata, assist base",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithAssistBases(baseBuilder(1).MarkAssistBase().Build()),
 				},
 			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
-			getMeta:   true,
-			assertErr: assert.NoError, // No error, even though verify failed.
-			assertB:   assert.False,
-			expectDCS: nil,
-		},
-		{
-			name: "no manifests",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{},
-			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
+			rp:        mockRestoreProducer{},
+			reasons:   []identity.Reasoner{emailReason},
 			getMeta:   true,
 			assertErr: assert.NoError,
+			// Doesn't matter if it's true or false as merge/assist bases are
+			// distinct. A future PR can go and remove the requirement to pass the
+			// flag to kopia and just pass it the bases instead.
 			assertB:   assert.True,
 			expectDCS: nil,
+			expectMans: kopia.NewMockBackupBases().
+				WithAssistBases(baseBuilder(1).MarkAssistBase().Build()),
 		},
 		{
-			name: "only incomplete manifests",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans: []*kopia.ManifestEntry{
-					makeMan(path.EmailCategory, "", "ir", ""),
-					makeMan(path.ContactsCategory, "", "ir", ""),
+			name: "one valid man, multiple reasons",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).AppendReasons(
+							identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
+							Build()),
 				},
 			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
-			getMeta:   true,
-			assertErr: assert.NoError,
-			assertB:   assert.True,
-			expectDCS: nil,
-		},
-		{
-			name: "man missing backup id",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
-				}},
-				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "")},
-			},
-			gb:            mockGetBackuper{detailsID: did},
-			reasons:       []kopia.Reason{},
-			getMeta:       true,
-			assertErr:     assert.Error,
-			assertB:       assert.False,
-			expectNilMans: true,
-		},
-		{
-			name: "backup missing details id",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
-			},
-			gb:        mockGetBackuper{},
-			reasons:   []kopia.Reason{},
-			getMeta:   true,
-			assertErr: assert.NoError,
-			assertB:   assert.False,
-		},
-		{
-			name: "one complete, one incomplete",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"id":        {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
-					"incmpl_id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "incmpl_id_coll"}}},
-				}},
-				mans: []*kopia.ManifestEntry{
-					makeMan(path.EmailCategory, "id", "", "bid"),
-					makeMan(path.EmailCategory, "incmpl_id", "ir", ""),
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID(1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID(1)}}},
 				},
 			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
+			reasons: []identity.Reasoner{
+				emailReason,
+				identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
+			},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []mockColl{{id: "id_coll"}},
+			expectDCS: []mockColl{{id: colID(1)}},
+			expectPaths: func(t *testing.T, gotPaths []path.Path) {
+				for _, p := range gotPaths {
+					assert.Equal(
+						t,
+						path.ExchangeMetadataService,
+						p.Service(),
+						"read data service")
+
+					assert.Contains(
+						t,
+						[]path.CategoryType{
+							path.EmailCategory,
+							path.ContactsCategory,
+						},
+						p.Category(),
+						"read data category doesn't match a given reason")
+				}
+			},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(baseBuilder(1).AppendReasons(
+					identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
+					Build()),
 		},
 		{
-			name: "single valid man",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"id": {data.NotFoundRestoreCollection{Collection: mockColl{id: "id_coll"}}},
-				}},
-				mans: []*kopia.ManifestEntry{makeMan(path.EmailCategory, "id", "", "bid")},
+			name: "one valid man, extra incomplete man",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).Build()).
+						WithAssistBases(baseBuilder(2).MarkAssistBase().Build()),
+				},
 			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID(1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID(1)}}},
+					colID(2): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID(2)}}},
+				},
+			},
+			reasons:   []identity.Reasoner{emailReason},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []mockColl{{id: "id_coll"}},
+			expectDCS: []mockColl{{id: colID(1)}},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(baseBuilder(1).Build()).
+				WithAssistBases(baseBuilder(2).MarkAssistBase().Build()),
+		},
+		{
+			name: "one valid man, extra incomplete man, drop assist bases",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).Build()).
+						WithAssistBases(baseBuilder(2).MarkAssistBase().Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID(1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID(1)}}},
+					colID(2): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID(2)}}},
+				},
+			},
+			reasons:    []identity.Reasoner{emailReason},
+			getMeta:    true,
+			dropAssist: true,
+			assertErr:  assert.NoError,
+			assertB:    assert.True,
+			expectDCS:  []mockColl{{id: colID(1)}},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(baseBuilder(1).Build()).
+				MockDisableAssistBases(),
 		},
 		{
 			name: "multiple valid mans",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{collsByID: map[string][]data.RestoreCollection{
-					"mail":    {data.NotFoundRestoreCollection{Collection: mockColl{id: "mail_coll"}}},
-					"contact": {data.NotFoundRestoreCollection{Collection: mockColl{id: "contact_coll"}}},
-				}},
-				mans: []*kopia.ManifestEntry{
-					makeMan(path.EmailCategory, "mail", "", "bid"),
-					makeMan(path.ContactsCategory, "contact", "", "bid"),
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().WithMergeBases(
+						baseBuilder(1).Build(),
+						baseBuilder(2).
+							WithReasons(
+								identity.NewReason(tid, ro, path.ExchangeService, path.EventsCategory)).
+							Build()),
 				},
 			},
-			gb:        mockGetBackuper{detailsID: did},
-			reasons:   []kopia.Reason{},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID(1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID(1)}}},
+					colID(2): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID(2)}}},
+				},
+			},
+			reasons: []identity.Reasoner{
+				emailReason,
+				identity.NewReason(tid, ro, path.ExchangeService, path.EventsCategory),
+			},
 			getMeta:   true,
 			assertErr: assert.NoError,
 			assertB:   assert.True,
-			expectDCS: []mockColl{
-				{id: "mail_coll"},
-				{id: "contact_coll"},
-			},
+			expectDCS: []mockColl{{id: colID(1)}, {id: colID(2)}},
+			expectMans: kopia.NewMockBackupBases().WithMergeBases(
+				baseBuilder(1).Build(),
+				baseBuilder(2).
+					WithReasons(
+						identity.NewReason(tid, ro, path.ExchangeService, path.EventsCategory)).
+					Build()),
 		},
 		{
 			name: "error collecting metadata",
-			mr: mockManifestRestorer{
-				mockRestorer: mockRestorer{err: assert.AnError},
-				mans:         []*kopia.ManifestEntry{makeMan(path.EmailCategory, "", "", "bid")},
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).Build()),
+				},
 			},
-			gb:            mockGetBackuper{detailsID: did},
-			reasons:       []kopia.Reason{},
-			getMeta:       true,
-			assertErr:     assert.Error,
-			assertB:       assert.False,
-			expectDCS:     nil,
-			expectNilMans: true,
+			rp:         mockRestoreProducer{err: assert.AnError},
+			reasons:    []identity.Reasoner{emailReason},
+			getMeta:    true,
+			assertErr:  assert.Error,
+			assertB:    assert.False,
+			expectDCS:  nil,
+			expectMans: nil,
 		},
 	}
+
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			emptyMockBackpuProducer := mock.NewMockBackupProducer(nil, data.CollectionStats{}, false)
 			mans, dcs, b, err := produceManifestsAndMetadata(
 				ctx,
-				&test.mr,
-				&test.gb,
-				test.reasons,
+				test.bf,
+				&emptyMockBackpuProducer,
+				&test.rp,
+				test.reasons, nil,
 				tid,
 				test.getMeta,
-				fault.New(true))
+				test.dropAssist)
 			test.assertErr(t, err, clues.ToCore(err))
 			test.assertB(t, b)
 
-			expectMans := test.mr.mans
-			if test.expectNilMans {
-				expectMans = nil
-			}
-			assert.Equal(t, expectMans, mans)
+			kopia.AssertBackupBasesEqual(t, test.expectMans, mans)
 
 			expect, got := []string{}, []string{}
 
@@ -672,23 +582,21 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			for _, dc := range dcs {
 				if !assert.IsTypef(
 					t,
-					data.NotFoundRestoreCollection{},
+					data.NoFetchRestoreCollection{},
 					dc,
 					"unexpected type returned [%T]",
-					dc,
-				) {
+					dc) {
 					continue
 				}
 
-				tmp := dc.(data.NotFoundRestoreCollection)
+				tmp := dc.(data.NoFetchRestoreCollection)
 
 				if !assert.IsTypef(
 					t,
 					mockColl{},
 					tmp.Collection,
 					"unexpected type returned [%T]",
-					tmp.Collection,
-				) {
+					tmp.Collection) {
 					continue
 				}
 
@@ -697,260 +605,384 @@ func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata() {
 			}
 
 			assert.ElementsMatch(t, expect, got, "expected collections are present")
+
+			if test.expectPaths != nil {
+				test.expectPaths(t, test.rp.gotPaths)
+			}
 		})
 	}
 }
 
-// ---------------------------------------------------------------------------
-// older tests
-// ---------------------------------------------------------------------------
-
-type BackupManifestUnitSuite struct {
-	tester.Suite
-}
-
-func TestBackupManifestUnitSuite(t *testing.T) {
-	suite.Run(t, &BackupManifestUnitSuite{Suite: tester.NewUnitSuite(t)})
-}
-
-func (suite *BackupManifestUnitSuite) TestBackupOperation_VerifyDistinctBases() {
-	const user = "a-user"
-
-	table := []struct {
-		name     string
-		input    []*kopia.ManifestEntry
-		errCheck assert.ErrorAssertionFunc
-	}{
-		{
-			name: "SingleManifestMultipleReasons",
-			input: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{
-						ID: "id1",
-					},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: user,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-						{
-							ResourceOwner: user,
-							Service:       path.ExchangeService,
-							Category:      path.EventsCategory,
-						},
-					},
-				},
-			},
-			errCheck: assert.NoError,
-		},
-		{
-			name: "MultipleManifestsDistinctReason",
-			input: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{
-						ID: "id1",
-					},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: user,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-				{
-					Manifest: &snapshot.Manifest{
-						ID: "id2",
-					},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: user,
-							Service:       path.ExchangeService,
-							Category:      path.EventsCategory,
-						},
-					},
-				},
-			},
-			errCheck: assert.NoError,
-		},
-		{
-			name: "MultipleManifestsSameReason",
-			input: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{
-						ID: "id1",
-					},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: user,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-				{
-					Manifest: &snapshot.Manifest{
-						ID: "id2",
-					},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: user,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-			},
-			errCheck: assert.Error,
-		},
-		{
-			name: "MultipleManifestsSameReasonOneIncomplete",
-			input: []*kopia.ManifestEntry{
-				{
-					Manifest: &snapshot.Manifest{
-						ID: "id1",
-					},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: user,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-				{
-					Manifest: &snapshot.Manifest{
-						ID:               "id2",
-						IncompleteReason: "checkpoint",
-					},
-					Reasons: []kopia.Reason{
-						{
-							ResourceOwner: user,
-							Service:       path.ExchangeService,
-							Category:      path.EmailCategory,
-						},
-					},
-				},
-			},
-			errCheck: assert.NoError,
-		},
-	}
-
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
-			err := verifyDistinctBases(ctx, test.input)
-			test.errCheck(suite.T(), err, clues.ToCore(err))
-		})
-	}
-}
-
-func (suite *BackupManifestUnitSuite) TestBackupOperation_CollectMetadata() {
+func (suite *OperationsManifestsUnitSuite) TestProduceManifestsAndMetadata_FallbackReasons() {
 	var (
-		tenant        = "a-tenant"
-		resourceOwner = "a-user"
-		fileNames     = []string{
-			"delta",
-			"paths",
-		}
+		ro   = "resourceowner"
+		fbro = "fb_resourceowner"
+		tid  = "tenantid"
 
-		emailDeltaPath = makeMetadataPath(
-			suite.T(),
-			tenant,
+		emailReason = identity.NewReason(
+			tid,
+			ro,
 			path.ExchangeService,
-			resourceOwner,
-			path.EmailCategory,
-			fileNames[0],
-		)
-		emailPathsPath = makeMetadataPath(
-			suite.T(),
-			tenant,
+			path.EmailCategory)
+
+		fbEmailReason = identity.NewReason(
+			tid,
+			fbro,
 			path.ExchangeService,
-			resourceOwner,
-			path.EmailCategory,
-			fileNames[1],
-		)
-		contactsDeltaPath = makeMetadataPath(
-			suite.T(),
-			tenant,
-			path.ExchangeService,
-			resourceOwner,
-			path.ContactsCategory,
-			fileNames[0],
-		)
-		contactsPathsPath = makeMetadataPath(
-			suite.T(),
-			tenant,
-			path.ExchangeService,
-			resourceOwner,
-			path.ContactsCategory,
-			fileNames[1],
-		)
+			path.EmailCategory)
+
+		baseBuilder = func(id int) *kopia.BackupBaseBuilder {
+			return kopia.NewBackupBaseBuilder("", id).
+				WithReasons(emailReason)
+		}
+		fbBaseBuilder = func(id int) *kopia.BackupBaseBuilder {
+			return kopia.NewBackupBaseBuilder("fb", id).
+				WithReasons(fbEmailReason)
+		}
+		colID = func(prefix string, id int) string {
+			return fmt.Sprintf("%sID%d-item-data", prefix, id)
+		}
 	)
 
 	table := []struct {
-		name       string
-		inputMan   *kopia.ManifestEntry
-		inputFiles []string
-		expected   []path.Path
+		name            string
+		bf              *mockBackupFinder
+		rp              mockRestoreProducer
+		reasons         []identity.Reasoner
+		fallbackReasons []identity.Reasoner
+		getMeta         bool
+		dropAssist      bool
+		assertErr       assert.ErrorAssertionFunc
+		assertB         assert.BoolAssertionFunc
+		expectDCS       []mockColl
+		expectMans      kopia.BackupBases
 	}{
 		{
-			name: "SingleReasonSingleFile",
-			inputMan: &kopia.ManifestEntry{
-				Manifest: &snapshot.Manifest{},
-				Reasons: []kopia.Reason{
-					{
-						ResourceOwner: resourceOwner,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
-					},
+			name: "don't get metadata, only fallbacks",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					fbro: kopia.NewMockBackupBases().
+						WithMergeBases(fbBaseBuilder(1).Build()),
 				},
 			},
-			inputFiles: []string{fileNames[0]},
-			expected:   []path.Path{emailDeltaPath},
+			rp:              mockRestoreProducer{},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
+			getMeta:         false,
+			assertErr:       assert.NoError,
+			assertB:         assert.False,
+			expectDCS:       nil,
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(fbBaseBuilder(1).Build()).
+				MockDisableMergeBases(),
 		},
 		{
-			name: "SingleReasonMultipleFiles",
-			inputMan: &kopia.ManifestEntry{
-				Manifest: &snapshot.Manifest{},
-				Reasons: []kopia.Reason{
-					{
-						ResourceOwner: resourceOwner,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
-					},
+			name: "only fallbacks",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					fbro: kopia.NewMockBackupBases().
+						WithMergeBases(fbBaseBuilder(1).Build()),
 				},
 			},
-			inputFiles: fileNames,
-			expected:   []path.Path{emailDeltaPath, emailPathsPath},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("fb", 1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 1)}}},
+				},
+			},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
+			getMeta:         true,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       []mockColl{{id: colID("fb", 1)}},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(fbBaseBuilder(1).Build()),
 		},
 		{
-			name: "MultipleReasonsMultipleFiles",
-			inputMan: &kopia.ManifestEntry{
-				Manifest: &snapshot.Manifest{},
-				Reasons: []kopia.Reason{
-					{
-						ResourceOwner: resourceOwner,
-						Service:       path.ExchangeService,
-						Category:      path.EmailCategory,
-					},
-					{
-						ResourceOwner: resourceOwner,
-						Service:       path.ExchangeService,
-						Category:      path.ContactsCategory,
-					},
+			name: "only fallbacks, drop assist",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					fbro: kopia.NewMockBackupBases().
+						WithMergeBases(fbBaseBuilder(1).Build()),
 				},
 			},
-			inputFiles: fileNames,
-			expected: []path.Path{
-				emailDeltaPath,
-				emailPathsPath,
-				contactsDeltaPath,
-				contactsPathsPath,
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("fb", 1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 1)}}},
+				},
 			},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
+			getMeta:         true,
+			dropAssist:      true,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       []mockColl{{id: colID("fb", 1)}},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(fbBaseBuilder(1).Build()).
+				MockDisableAssistBases(),
+		},
+		{
+			name: "complete mans and fallbacks",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).Build()),
+					fbro: kopia.NewMockBackupBases().
+						WithMergeBases(fbBaseBuilder(1).Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("", 1):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 1)}}},
+					colID("fb", 1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 1)}}},
+				},
+			},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
+			getMeta:         true,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       []mockColl{{id: colID("", 1)}},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(baseBuilder(1).Build()),
+		},
+		{
+			name: "incomplete mans and fallbacks",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithAssistBases(
+							baseBuilder(2).MarkAssistBase().Build()),
+					fbro: kopia.NewMockBackupBases().
+						WithAssistBases(fbBaseBuilder(2).MarkAssistBase().Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("", 2):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 2)}}},
+					colID("fb", 2): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 2)}}},
+				},
+			},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
+			getMeta:         true,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       nil,
+			expectMans: kopia.NewMockBackupBases().
+				WithAssistBases(baseBuilder(2).MarkAssistBase().Build()),
+		},
+		{
+			name: "complete and incomplete mans and fallbacks",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).Build()).
+						WithAssistBases(baseBuilder(2).MarkAssistBase().Build()),
+					fbro: kopia.NewMockBackupBases().
+						WithMergeBases(fbBaseBuilder(1).Build()).
+						WithAssistBases(fbBaseBuilder(2).MarkAssistBase().Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("", 1):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 1)}}},
+					colID("", 2):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 2)}}},
+					colID("fb", 1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 1)}}},
+					colID("fb", 2): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 2)}}},
+				},
+			},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
+			getMeta:         true,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       []mockColl{{id: colID("", 1)}},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(baseBuilder(1).Build()).
+				WithAssistBases(baseBuilder(2).MarkAssistBase().Build()),
+		},
+		{
+			name: "incomplete mans and complete fallbacks",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithAssistBases(
+							baseBuilder(2).MarkAssistBase().Build()),
+					fbro: kopia.NewMockBackupBases().
+						WithMergeBases(fbBaseBuilder(1).Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("", 2):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 2)}}},
+					colID("fb", 1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 1)}}},
+				},
+			},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
+			getMeta:         true,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       []mockColl{{id: colID("fb", 1)}},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(fbBaseBuilder(1).Build()).
+				WithAssistBases(baseBuilder(2).MarkAssistBase().Build()),
+		},
+		{
+			name: "incomplete mans and complete fallbacks, no assist bases",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithAssistBases(baseBuilder(2).MarkAssistBase().Build()),
+					fbro: kopia.NewMockBackupBases().
+						WithMergeBases(fbBaseBuilder(1).Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("", 2):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 2)}}},
+					colID("fb", 1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 1)}}},
+				},
+			},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
+			getMeta:         true,
+			dropAssist:      true,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       []mockColl{{id: colID("fb", 1)}},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(fbBaseBuilder(1).Build()).
+				MockDisableAssistBases(),
+		},
+		{
+			name: "complete mans and incomplete fallbacks",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).Build()),
+					fbro: kopia.NewMockBackupBases().
+						WithAssistBases(fbBaseBuilder(2).MarkAssistBase().Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("", 1):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 1)}}},
+					colID("fb", 2): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 2)}}},
+				},
+			},
+			reasons:         []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{fbEmailReason},
+			getMeta:         true,
+			assertErr:       assert.NoError,
+			assertB:         assert.True,
+			expectDCS:       []mockColl{{id: colID("", 1)}},
+			expectMans: kopia.NewMockBackupBases().
+				WithMergeBases(baseBuilder(1).Build()),
+		},
+		{
+			name: "complete mans and complete fallbacks, multiple reasons",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().WithMergeBases(
+						baseBuilder(1).
+							AppendReasons(identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
+							Build()),
+					fbro: kopia.NewMockBackupBases().WithMergeBases(
+						fbBaseBuilder(1).
+							AppendReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+							Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("", 1):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 1)}}},
+					colID("fb", 1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 1)}}},
+				},
+			},
+			reasons: []identity.Reasoner{
+				emailReason,
+				identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
+			},
+			fallbackReasons: []identity.Reasoner{
+				fbEmailReason,
+				identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory),
+			},
+			getMeta:   true,
+			assertErr: assert.NoError,
+			assertB:   assert.True,
+			expectDCS: []mockColl{{id: colID("", 1)}},
+			expectMans: kopia.NewMockBackupBases().WithMergeBases(
+				baseBuilder(1).
+					AppendReasons(identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory)).
+					Build()),
+		},
+		{
+			name: "complete mans and complete fallbacks, distinct reasons",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).Build()),
+					fbro: kopia.NewMockBackupBases().WithMergeBases(
+						fbBaseBuilder(1).
+							WithReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+							Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("", 1):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 1)}}},
+					colID("fb", 1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 1)}}},
+				},
+			},
+			reasons: []identity.Reasoner{emailReason},
+			fallbackReasons: []identity.Reasoner{
+				identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory),
+			},
+			getMeta:   true,
+			assertErr: assert.NoError,
+			assertB:   assert.True,
+			expectDCS: []mockColl{{id: colID("", 1)}, {id: colID("fb", 1)}},
+			expectMans: kopia.NewMockBackupBases().WithMergeBases(
+				baseBuilder(1).Build(),
+				fbBaseBuilder(1).
+					WithReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+					Build()),
+		},
+		{
+			name: "complete mans and complete fallbacks, fallback has superset of reasons",
+			bf: &mockBackupFinder{
+				data: map[string]kopia.BackupBases{
+					ro: kopia.NewMockBackupBases().
+						WithMergeBases(baseBuilder(1).Build()),
+					fbro: kopia.NewMockBackupBases().WithMergeBases(
+						fbBaseBuilder(1).
+							AppendReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+							Build()),
+				},
+			},
+			rp: mockRestoreProducer{
+				collsByID: map[string][]data.RestoreCollection{
+					colID("", 1):   {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("", 1)}}},
+					colID("fb", 1): {data.NoFetchRestoreCollection{Collection: mockColl{id: colID("fb", 1)}}},
+				},
+			},
+			reasons: []identity.Reasoner{
+				emailReason,
+				identity.NewReason(tid, ro, path.ExchangeService, path.ContactsCategory),
+			},
+			fallbackReasons: []identity.Reasoner{
+				fbEmailReason,
+				identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory),
+			},
+			getMeta:   true,
+			assertErr: assert.NoError,
+			assertB:   assert.True,
+			expectDCS: []mockColl{{id: colID("", 1)}, {id: colID("fb", 1)}},
+			expectMans: kopia.NewMockBackupBases().WithMergeBases(
+				baseBuilder(1).Build(),
+				fbBaseBuilder(1).
+					WithReasons(identity.NewReason(tid, fbro, path.ExchangeService, path.ContactsCategory)).
+					Build()),
 		},
 	}
 
@@ -958,15 +990,56 @@ func (suite *BackupManifestUnitSuite) TestBackupOperation_CollectMetadata() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			mr := &mockRestorer{}
+			mbp := mock.NewMockBackupProducer(nil, data.CollectionStats{}, false)
+			mans, dcs, b, err := produceManifestsAndMetadata(
+				ctx,
+				test.bf,
+				&mbp,
+				&test.rp,
+				test.reasons, test.fallbackReasons,
+				tid,
+				test.getMeta,
+				test.dropAssist)
+			test.assertErr(t, err, clues.ToCore(err))
+			test.assertB(t, b)
 
-			_, err := collectMetadata(ctx, mr, test.inputMan, test.inputFiles, tenant, fault.New(true))
-			assert.NoError(t, err, clues.ToCore(err))
+			kopia.AssertBackupBasesEqual(t, test.expectMans, mans)
 
-			checkPaths(t, test.expected, mr.gotPaths)
+			expect, got := []string{}, []string{}
+
+			for _, dc := range test.expectDCS {
+				expect = append(expect, dc.id)
+			}
+
+			for _, dc := range dcs {
+				if !assert.IsTypef(
+					t,
+					data.NoFetchRestoreCollection{},
+					dc,
+					"unexpected type returned [%T]",
+					dc) {
+					continue
+				}
+
+				tmp := dc.(data.NoFetchRestoreCollection)
+
+				if !assert.IsTypef(
+					t,
+					mockColl{},
+					tmp.Collection,
+					"unexpected type returned [%T]",
+					tmp.Collection) {
+					continue
+				}
+
+				mc := tmp.Collection.(mockColl)
+				got = append(got, mc.id)
+			}
+
+			assert.ElementsMatch(t, expect, got, "expected collections are present")
 		})
 	}
 }

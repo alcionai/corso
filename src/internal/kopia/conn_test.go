@@ -7,23 +7,47 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/kopia/kopia/repo"
+	"github.com/kopia/kopia/repo/blob"
+	"github.com/kopia/kopia/repo/format"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
-//revive:disable:context-as-argument
-func openKopiaRepo(t *testing.T, ctx context.Context) (*conn, error) {
-	//revive:enable:context-as-argument
-	st := tester.NewPrefixedS3Storage(t)
+func openLocalKopiaRepo(
+	t tester.TestT,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) (*conn, error) {
+	st := storeTD.NewFilesystemStorage(t)
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	k := NewConn(st)
-	if err := k.Initialize(ctx); err != nil {
+	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash); err != nil {
+		return nil, err
+	}
+
+	return k, nil
+}
+
+func openKopiaRepo(
+	t tester.TestT,
+	ctx context.Context, //revive:disable-line:context-as-argument
+) (*conn, error) {
+	st := storeTD.NewPrefixedS3Storage(t)
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	k := NewConn(st)
+	if err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash); err != nil {
 		return nil, err
 	}
 
@@ -42,12 +66,14 @@ func TestWrapperUnitSuite(t *testing.T) {
 }
 
 func (suite *WrapperUnitSuite) TestCloseWithoutOpenDoesNotCrash() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	k := conn{}
 
-	assert.NotPanics(suite.T(), func() {
+	assert.NotPanics(t, func() {
 		k.Close(ctx)
 	})
 }
@@ -63,61 +89,65 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 	suite.Run(t, &WrapperIntegrationSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
 func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
-
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewFilesystemStorage(t)
 	k := NewConn(st)
 
-	err := k.Initialize(ctx)
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	err = k.Initialize(ctx)
+	err = k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	assert.Error(t, err, clues.ToCore(err))
 	assert.ErrorIs(t, err, ErrorRepoAlreadyExists)
 }
 
 func (suite *WrapperIntegrationSuite) TestBadProviderErrors() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewFilesystemStorage(t)
 	st.Provider = storage.ProviderUnknown
 	k := NewConn(st)
 
-	err := k.Initialize(ctx)
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *WrapperIntegrationSuite) TestConnectWithoutInitErrors() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewFilesystemStorage(t)
 	k := NewConn(st)
 
-	err := k.Connect(ctx)
+	err := k.Connect(ctx, repository.Options{}, repoNameHash)
 	assert.Error(t, err, clues.ToCore(err))
 }
 
 func (suite *WrapperIntegrationSuite) TestCloseTwiceDoesNotCrash() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -131,10 +161,10 @@ func (suite *WrapperIntegrationSuite) TestCloseTwiceDoesNotCrash() {
 }
 
 func (suite *WrapperIntegrationSuite) TestCloseAfterWrap() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -156,10 +186,10 @@ func (suite *WrapperIntegrationSuite) TestCloseAfterWrap() {
 }
 
 func (suite *WrapperIntegrationSuite) TestOpenAfterClose() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -172,10 +202,10 @@ func (suite *WrapperIntegrationSuite) TestOpenAfterClose() {
 }
 
 func (suite *WrapperIntegrationSuite) TestBadCompressorType() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -190,10 +220,10 @@ func (suite *WrapperIntegrationSuite) TestBadCompressorType() {
 }
 
 func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -215,10 +245,11 @@ func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
 }
 
 func (suite *WrapperIntegrationSuite) TestSetCompressor() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	compressor := "pgzip"
 
 	k, err := openKopiaRepo(t, ctx)
@@ -258,6 +289,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 	newRetentionDaily := policy.OptionalInt(42)
 	newRetention := policy.RetentionPolicy{KeepDaily: &newRetentionDaily}
 	newSchedInterval := time.Second * 42
+	repoNameHash := strTD.NewHashForRepoConfigName()
 
 	table := []struct {
 		name          string
@@ -287,26 +319,22 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 				require.Equal(
 					t,
 					defaultRetention,
-					p.RetentionPolicy,
-				)
+					p.RetentionPolicy)
 				assert.Equal(
 					t,
 					math.MaxInt,
-					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42),
-				)
+					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42))
 			},
 			checkFunc: func(t *testing.T, p *policy.Policy) {
 				t.Helper()
 				require.Equal(
 					t,
 					newRetention,
-					p.RetentionPolicy,
-				)
+					p.RetentionPolicy)
 				assert.Equal(
 					t,
 					42,
-					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42),
-				)
+					p.RetentionPolicy.EffectiveKeepLatest().OrDefault(42))
 			},
 			mutator: func(innerCtx context.Context, p *policy.Policy) error {
 				updateRetentionOnPolicy(newRetention, p)
@@ -334,10 +362,10 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
 			k, err := openKopiaRepo(t, ctx)
 			require.NoError(t, err, clues.ToCore(err))
@@ -356,7 +384,7 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 			err = k.Close(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
-			err = k.Connect(ctx)
+			err = k.Connect(ctx, repository.Options{}, repoNameHash)
 			require.NoError(t, err, clues.ToCore(err))
 
 			defer func() {
@@ -372,10 +400,11 @@ func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect
 }
 
 func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	k, err := openKopiaRepo(t, ctx)
 	require.NoError(t, err, clues.ToCore(err))
@@ -384,9 +413,282 @@ func (suite *WrapperIntegrationSuite) TestInitAndConnWithTempDirectory() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Re-open with Connect.
-	err = k.Connect(ctx)
+	err = k.Connect(ctx, repository.Options{}, repoNameHash)
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
 	assert.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *WrapperIntegrationSuite) TestSetUserAndHost() {
+	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	opts := repository.Options{
+		User: "foo",
+		Host: "bar",
+	}
+
+	st := storeTD.NewFilesystemStorage(t)
+	k := NewConn(st)
+
+	err := k.Initialize(ctx, opts, repository.Retention{}, repoNameHash)
+	require.NoError(t, err, clues.ToCore(err))
+
+	kopiaOpts := k.ClientOptions()
+	require.Equal(t, opts.User, kopiaOpts.Username)
+	require.Equal(t, opts.Host, kopiaOpts.Hostname)
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Re-open with Connect and a different user/hostname.
+	opts.User = "hello"
+	opts.Host = "world"
+
+	err = k.Connect(ctx, opts, repoNameHash)
+	require.NoError(t, err, clues.ToCore(err))
+
+	kopiaOpts = k.ClientOptions()
+	require.Equal(t, opts.User, kopiaOpts.Username)
+	require.Equal(t, opts.Host, kopiaOpts.Hostname)
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Make sure not setting the values uses the kopia defaults.
+	opts.User = ""
+	opts.Host = ""
+
+	err = k.Connect(ctx, opts, repoNameHash)
+	require.NoError(t, err, clues.ToCore(err))
+
+	kopiaOpts = k.ClientOptions()
+	assert.NotEmpty(t, kopiaOpts.Username)
+	assert.NotEqual(t, "hello", kopiaOpts.Username)
+	assert.NotEmpty(t, kopiaOpts.Hostname)
+	assert.NotEqual(t, "world", kopiaOpts.Hostname)
+
+	err = k.Close(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *WrapperIntegrationSuite) TestUpdatePersistentConfig() {
+	table := []struct {
+		name string
+		opts func(
+			startParams format.MutableParameters,
+			startBlobConfig format.BlobStorageConfiguration,
+		) repository.PersistentConfig
+		expectErr    assert.ErrorAssertionFunc
+		expectConfig func(
+			startParams format.MutableParameters,
+			startBlobConfig format.BlobStorageConfiguration,
+		) (format.MutableParameters, format.BlobStorageConfiguration)
+	}{
+		{
+			name: "NoOptionsSet NoChange",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{}
+			},
+			expectErr: assert.NoError,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				return startParams, startBlobConfig
+			},
+		},
+		{
+			name: "NoValueChange NoChange",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{
+					MinEpochDuration: ptr.To(startParams.EpochParameters.MinEpochDuration),
+				}
+			},
+			expectErr: assert.NoError,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				return startParams, startBlobConfig
+			},
+		},
+		{
+			name: "MinEpochLessThanLowerBound Errors",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{
+					MinEpochDuration: ptr.To(minEpochDurationLowerBound - time.Second),
+				}
+			},
+			expectErr: assert.Error,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				return startParams, startBlobConfig
+			},
+		},
+		{
+			name: "MinEpochGreaterThanUpperBound Errors",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{
+					MinEpochDuration: ptr.To(minEpochDurationUpperBound + time.Second),
+				}
+			},
+			expectErr: assert.Error,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				return startParams, startBlobConfig
+			},
+		},
+		{
+			name: "UpdateMinEpoch Succeeds",
+			opts: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) repository.PersistentConfig {
+				return repository.PersistentConfig{
+					MinEpochDuration: ptr.To(minEpochDurationLowerBound),
+				}
+			},
+			expectErr: assert.NoError,
+			expectConfig: func(
+				startParams format.MutableParameters,
+				startBlobConfig format.BlobStorageConfiguration,
+			) (format.MutableParameters, format.BlobStorageConfiguration) {
+				startParams.EpochParameters.MinEpochDuration = minEpochDurationLowerBound
+				return startParams, startBlobConfig
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			repoNameHash := strTD.NewHashForRepoConfigName()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			st1 := storeTD.NewPrefixedS3Storage(t)
+
+			connection := NewConn(st1)
+			err := connection.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
+			require.NoError(t, err, "initializing repo: %v", clues.ToCore(err))
+
+			startParams, startBlobConfig, err := connection.getPersistentConfig(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			opts := test.opts(startParams, startBlobConfig)
+
+			err = connection.updatePersistentConfig(ctx, opts)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			// Need to close and reopen the repo since the format manager will cache
+			// the old value for some amount of time.
+			err = connection.Close(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			// Open another connection to the repo to verify params are as expected
+			// across repo connect calls.
+			err = connection.Connect(ctx, repository.Options{}, repoNameHash)
+			require.NoError(t, err, clues.ToCore(err))
+
+			gotParams, gotBlobConfig, err := connection.getPersistentConfig(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			expectParams, expectBlobConfig := test.expectConfig(startParams, startBlobConfig)
+
+			assert.Equal(t, expectParams, gotParams)
+			assert.Equal(t, expectBlobConfig, gotBlobConfig)
+		})
+	}
+}
+
+// ---------------
+// integration tests that require object locking to be enabled on the bucket.
+// ---------------
+type ConnRetentionIntegrationSuite struct {
+	tester.Suite
+}
+
+func TestConnRetentionIntegrationSuite(t *testing.T) {
+	suite.Run(t, &ConnRetentionIntegrationSuite{
+		Suite: tester.NewRetentionSuite(
+			t,
+			[][]string{storeTD.AWSStorageCredEnvs}),
+	})
+}
+
+// Test that providing retention doesn't change anything but retention values
+// from the default values that kopia uses.
+func (suite *ConnRetentionIntegrationSuite) TestInitWithAndWithoutRetention() {
+	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	st1 := storeTD.NewPrefixedS3Storage(t)
+
+	k1 := NewConn(st1)
+	err := k1.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
+	require.NoError(t, err, "initializing repo 1: %v", clues.ToCore(err))
+
+	st2 := storeTD.NewPrefixedS3Storage(t)
+
+	k2 := NewConn(st2)
+	err = k2.Initialize(
+		ctx,
+		repository.Options{},
+		repository.Retention{
+			Mode:     ptr.To(repository.GovernanceRetention),
+			Duration: ptr.To(time.Hour * 48),
+			Extend:   ptr.To(true),
+		},
+		repoNameHash)
+	require.NoError(t, err, "initializing repo 2: %v", clues.ToCore(err))
+
+	dr1, ok := k1.Repository.(repo.DirectRepository)
+	require.True(t, ok, "getting direct repo 1")
+
+	dr2, ok := k2.Repository.(repo.DirectRepository)
+	require.True(t, ok, "getting direct repo 2")
+
+	format1 := dr1.FormatManager().ScrubbedContentFormat()
+	format2 := dr2.FormatManager().ScrubbedContentFormat()
+
+	assert.Equal(t, format1, format2)
+
+	blobCfg1, err := dr1.FormatManager().BlobCfgBlob()
+	require.NoError(t, err, "getting blob config 1: %v", clues.ToCore(err))
+
+	blobCfg2, err := dr2.FormatManager().BlobCfgBlob()
+	require.NoError(t, err, "getting retention config 2: %v", clues.ToCore(err))
+
+	assert.NotEqual(t, blobCfg1, blobCfg2)
+
+	// Check to make sure retention not enabled unexpectedly.
+	checkRetentionParams(t, ctx, k1, blob.RetentionMode(""), 0, assert.False)
+
+	// Some checks to make sure retention was fully initialized as expected.
+	checkRetentionParams(t, ctx, k2, blob.Governance, time.Hour*48, assert.True)
 }

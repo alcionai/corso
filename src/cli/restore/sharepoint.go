@@ -1,50 +1,29 @@
 package restore
 
 import (
-	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
-	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/repository"
-)
-
-var (
-	listItems   []string
-	listPaths   []string
-	pageFolders []string
-	pages       []string
+	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
 func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(cmd, sharePointRestoreCmd())
+		c, _ = utils.AddCommand(cmd, sharePointRestoreCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandUseSuffix
 
-		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --site) and more frequently used flags take precedence.
-		fs.SortFlags = false
-
-		utils.AddBackupIDFlag(c, true)
-		utils.AddSharePointDetailsAndRestoreFlags(c)
-
-		// others
-		options.AddOperationFlags(c)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddSharePointDetailsAndRestoreFlags(c)
+		flags.AddNoPermissionsFlag(c)
+		flags.AddRestoreConfigFlags(c, true)
+		flags.AddFailFastFlag(c)
 	}
 
 	return c
@@ -55,20 +34,24 @@ const (
 	sharePointServiceCommandUseSuffix = "--backup <backupId>"
 
 	//nolint:lll
-	sharePointServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
+	sharePointServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's latest backup (1234abcd...)
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore a file named "ServerRenderTemplate.xsl in "Display Templates/Style Sheets".
+# Restore the file with ID 98765abcdef without its associated permissions
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --file 98765abcdef --no-permissions
+
+# Restore files named "ServerRenderTemplate.xsl" in the folder "Display Templates/Style Sheets".
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file "ServerRenderTemplate.xsl" --folder "Display Templates/Style Sheets"
 
-# Restore all files that were created before 2020.
-corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
+# Restore all files in the folder "Display Templates/Style Sheets" that were created before 2020.
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --file-created-before 2020-01-01T00:00:00 --folder "Display Templates/Style Sheets"
 
-# Restore all files in a certain library.
-corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd 
-    --library documents --folder "Display Templates/Style Sheets" `
+# Restore all files in the "Documents" library.
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --library Documents --folder "Display Templates/Style Sheets" `
 )
 
 // `corso restore sharepoint [<flag>...]`
@@ -90,60 +73,28 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := utils.SharePointOpts{
-		FileName:           utils.FileName,
-		FolderPath:         utils.FolderPath,
-		Library:            utils.Library,
-		ListItem:           listItems,
-		ListPath:           listPaths,
-		PageFolder:         pageFolders,
-		Page:               pages,
-		SiteID:             utils.SiteID,
-		WebURL:             utils.WebURL,
-		FileCreatedAfter:   utils.FileCreatedAfter,
-		FileCreatedBefore:  utils.FileCreatedBefore,
-		FileModifiedAfter:  utils.FileModifiedAfter,
-		FileModifiedBefore: utils.FileModifiedBefore,
-		Populated:          utils.GetPopulatedFlags(cmd),
+	opts := utils.MakeSharePointOpts(cmd)
+	opts.RestoreCfg.DTTMFormat = dttm.HumanReadableDriveItem
+
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
 	}
 
-	if err := utils.ValidateSharePointRestoreFlags(utils.BackupID, opts); err != nil {
+	if err := utils.ValidateSharePointRestoreFlags(flags.BackupIDFV, opts); err != nil {
 		return err
 	}
 
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository"))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
-	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
-
-	sel := utils.IncludeSharePointRestoreDataSelectors(opts)
+	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to initialize SharePoint restore"))
-	}
+	// Exclude lists from restore since they are not supported yet.
+	sel.Exclude(sel.Lists(selectors.Any()))
 
-	ds, err := ro.Run(ctx)
-	if err != nil {
-		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupID))
-		}
-
-		return Only(ctx, clues.Wrap(err, "Failed to run SharePoint restore"))
-	}
-
-	ds.PrintEntries(ctx)
-
-	return nil
+	return runRestore(
+		ctx,
+		cmd,
+		opts.RestoreCfg,
+		sel.Selector,
+		flags.BackupIDFV,
+		"SharePoint")
 }

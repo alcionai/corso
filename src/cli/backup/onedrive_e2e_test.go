@@ -7,22 +7,23 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/config"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/utils"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
+	"github.com/alcionai/corso/src/pkg/config"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/storage"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -31,75 +32,42 @@ import (
 
 type NoBackupOneDriveE2ESuite struct {
 	tester.Suite
-	acct       account.Account
-	st         storage.Storage
-	vpr        *viper.Viper
-	cfgFP      string
-	repo       repository.Repository
-	m365UserID string
-	recorder   strings.Builder
+	dpnd dependencies
 }
 
 func TestNoBackupOneDriveE2ESuite(t *testing.T) {
 	suite.Run(t, &NoBackupOneDriveE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *NoBackupOneDriveE2ESuite) SetupSuite() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
 
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	// prepare common details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
-
-	cfg, err := suite.st.S3Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
-	}
-
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
-
-	ctx = config.SetViper(ctx, suite.vpr)
-	suite.m365UserID = tester.M365UserID(t)
-
-	// init the repo first
-	suite.repo, err = repository.Initialize(
-		ctx,
-		suite.acct,
-		suite.st,
-		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
-		})
-	require.NoError(t, err, clues.ToCore(err))
+	suite.dpnd = prepM365Test(t, ctx, path.OneDriveService)
 }
 
 func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
-	ctx = config.SetViper(ctx, suite.vpr)
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
 
 	defer flush()
 
-	suite.recorder.Reset()
+	suite.dpnd.recorder.Reset()
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "list", "onedrive",
-		"--config-file", suite.cfgFP)
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
-	cmd.SetErr(&suite.recorder)
+	cmd.SetErr(&suite.dpnd.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
@@ -107,26 +75,26 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupListCmd_empty() {
 	err := cmd.ExecuteContext(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	result := suite.recorder.String()
+	result := suite.dpnd.recorder.String()
 
 	// as an offhand check: the result should contain the m365 user id
-	assert.Equal(t, "No backups available\n", result)
+	assert.True(t, strings.HasSuffix(result, "No backups available\n"))
 }
 
-func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_UserNotInTenant() {
+func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_userNotInTenant() {
 	recorder := strings.Builder{}
 
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	ctx = config.SetViper(ctx, suite.vpr)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "create", "onedrive",
-		"--config-file", suite.cfgFP,
-		"--"+utils.UserFN, "foo@nothere.com")
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
+		"--"+flags.UserFN, "foo@not-there.com")
 	cli.BuildCommandTree(cmd)
 
 	cmd.SetOut(&recorder)
@@ -139,7 +107,8 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_UserNotInTenant() {
 	assert.Contains(
 		t,
 		err.Error(),
-		"not found within tenant", "error missing user not found")
+		"resource owner not found",
+		"error missing user not found")
 	assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 
 	t.Logf("backup error message: %s", err.Error())
@@ -154,86 +123,66 @@ func (suite *NoBackupOneDriveE2ESuite) TestOneDriveBackupCmd_UserNotInTenant() {
 
 type BackupDeleteOneDriveE2ESuite struct {
 	tester.Suite
-	acct     account.Account
-	st       storage.Storage
-	vpr      *viper.Viper
-	cfgFP    string
-	repo     repository.Repository
-	backupOp operations.BackupOperation
-	recorder strings.Builder
+	dpnd      dependencies
+	backupOps [3]operations.BackupOperation
 }
 
 func TestBackupDeleteOneDriveE2ESuite(t *testing.T) {
 	suite.Run(t, &BackupDeleteOneDriveE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *BackupDeleteOneDriveE2ESuite) SetupSuite() {
 	t := suite.T()
 
-	// prepare common details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
-
-	cfg, err := suite.st.S3Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
-	}
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
-
-	ctx, flush := tester.NewContext()
-	ctx = config.SetViper(ctx, suite.vpr)
-
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	// init the repo first
-	suite.repo, err = repository.Initialize(
-		ctx,
-		suite.acct,
-		suite.st,
-		control.Options{
-			ToggleFeatures: control.Toggles{EnablePermissionsBackup: true},
-		})
-	require.NoError(t, err, clues.ToCore(err))
+	suite.dpnd = prepM365Test(t, ctx, path.OneDriveService)
 
-	m365UserID := tester.M365UserID(t)
-	users := []string{m365UserID}
+	var (
+		m365UserID = tconfig.M365UserID(t)
+		users      = []string{m365UserID}
+		ins        = idname.NewCache(map[string]string{m365UserID: m365UserID})
+	)
 
 	// some tests require an existing backup
 	sel := selectors.NewOneDriveBackup(users)
-	sel.Include(sel.Folders(selectors.Any()))
+	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 
-	suite.backupOp, err = suite.repo.NewBackup(ctx, sel.Selector)
-	require.NoError(t, err, clues.ToCore(err))
+	for i := 0; i < cap(suite.backupOps); i++ {
+		backupOp, err := suite.dpnd.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
+		require.NoError(t, err, clues.ToCore(err))
 
-	err = suite.backupOp.Run(ctx)
-	require.NoError(t, err, clues.ToCore(err))
+		suite.backupOps[i] = backupOp
+
+		err = suite.backupOps[i].Run(ctx)
+		require.NoError(t, err, clues.ToCore(err))
+	}
 }
 
 func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
-	ctx = config.SetViper(ctx, suite.vpr)
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
 
 	defer flush()
 
-	suite.recorder.Reset()
+	suite.dpnd.recorder.Reset()
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "onedrive",
-		"--config-file", suite.cfgFP,
-		"--"+utils.BackupFN, string(suite.backupOp.Results.BackupID))
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
+		"--"+flags.BackupIDsFN,
+		fmt.Sprintf("%s,%s",
+			string(suite.backupOps[0].Results.BackupID),
+			string(suite.backupOps[1].Results.BackupID)))
 	cli.BuildCommandTree(cmd)
-	cmd.SetErr(&suite.recorder)
+	cmd.SetErr(&suite.dpnd.recorder)
 
 	ctx = print.SetRootCmd(ctx, cmd)
 
@@ -241,15 +190,61 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 	err := cmd.ExecuteContext(ctx)
 	require.NoError(t, err, clues.ToCore(err))
 
-	result := suite.recorder.String()
-
-	assert.Equal(t, fmt.Sprintf("Deleted OneDrive backup %s\n", string(suite.backupOp.Results.BackupID)), result)
+	result := suite.dpnd.recorder.String()
+	assert.True(t,
+		strings.HasSuffix(
+			result,
+			fmt.Sprintf("Deleted OneDrive backup [%s %s]\n",
+				string(suite.backupOps[0].Results.BackupID),
+				string(suite.backupOps[1].Results.BackupID))))
 
 	// a follow-up details call should fail, due to the backup ID being deleted
-	cmd = tester.StubRootCmd(
+	cmd = cliTD.StubRootCmd(
 		"backup", "details", "onedrive",
-		"--config-file", suite.cfgFP,
-		"--backup", string(suite.backupOp.Results.BackupID))
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
+		"--backups", string(suite.backupOps[0].Results.BackupID))
+	cli.BuildCommandTree(cmd)
+
+	err = cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
+func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_SingleID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	suite.dpnd.recorder.Reset()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "onedrive",
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
+		"--"+flags.BackupFN,
+		string(suite.backupOps[2].Results.BackupID))
+	cli.BuildCommandTree(cmd)
+	cmd.SetErr(&suite.dpnd.recorder)
+
+	ctx = print.SetRootCmd(ctx, cmd)
+
+	// run the command
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	result := suite.dpnd.recorder.String()
+	assert.True(t,
+		strings.HasSuffix(
+			result,
+			fmt.Sprintf("Deleted OneDrive backup [%s]\n",
+				string(suite.backupOps[2].Results.BackupID))))
+
+	// a follow-up details call should fail, due to the backup ID being deleted
+	cmd = cliTD.StubRootCmd(
+		"backup", "details", "onedrive",
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
+		"--backup", string(suite.backupOps[0].Results.BackupID))
 	cli.BuildCommandTree(cmd)
 
 	err = cmd.ExecuteContext(ctx)
@@ -258,18 +253,37 @@ func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd() {
 
 func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_unknownID() {
 	t := suite.T()
-	ctx, flush := tester.NewContext()
-	ctx = config.SetViper(ctx, suite.vpr)
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
 
 	defer flush()
 
-	cmd := tester.StubRootCmd(
+	cmd := cliTD.StubRootCmd(
 		"backup", "delete", "onedrive",
-		"--config-file", suite.cfgFP,
-		"--"+utils.BackupFN, uuid.NewString())
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath,
+		"--"+flags.BackupIDsFN, uuid.NewString())
 	cli.BuildCommandTree(cmd)
 
 	// unknown backupIDs should error since the modelStore can't find the backup
+	err := cmd.ExecuteContext(ctx)
+	require.Error(t, err, clues.ToCore(err))
+}
+
+func (suite *BackupDeleteOneDriveE2ESuite) TestOneDriveBackupDeleteCmd_NoBackupID() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	ctx = config.SetViper(ctx, suite.dpnd.vpr)
+
+	defer flush()
+
+	cmd := cliTD.StubRootCmd(
+		"backup", "delete", "onedrive",
+		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
+	cli.BuildCommandTree(cmd)
+
+	// empty backupIDs should error since no data provided
 	err := cmd.ExecuteContext(ctx)
 	require.Error(t, err, clues.ToCore(err))
 }

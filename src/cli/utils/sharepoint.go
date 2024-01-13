@@ -1,97 +1,109 @@
 package utils
 
 import (
+	"context"
+	"net/url"
+	"strings"
+
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/cli/flags"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const (
-	ListItemFN   = "list-item"
-	ListFN       = "list"
-	PageFolderFN = "page-folder"
-	PagesFN      = "page"
-)
-
-// flag population variables
-var (
-	PageFolder []string
-	Page       []string
-)
-
 type SharePointOpts struct {
-	Library    string
-	FileName   []string // for libraries, to duplicate onedrive interface
-	FolderPath []string // for libraries, to duplicate onedrive interface
-
-	ListItem []string
-	ListPath []string
-
-	PageFolder []string
-	Page       []string
-
 	SiteID []string
 	WebURL []string
 
+	Library            string
+	FileName           []string // for libraries, to duplicate onedrive interface
+	FolderPath         []string // for libraries, to duplicate onedrive interface
 	FileCreatedAfter   string
 	FileCreatedBefore  string
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	Populated PopulatedFlags
+	Lists []string
+
+	PageFolder []string
+	Page       []string
+
+	RestoreCfg RestoreCfgOpts
+	ExportCfg  ExportCfgOpts
+
+	Populated flags.PopulatedFlags
 }
 
-// AddSharePointDetailsAndRestoreFlags adds flags that are common to both the
-// details and restore commands.
-func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
-	fs := cmd.Flags()
+func (s SharePointOpts) GetFileTimeField(flag string) string {
+	switch flag {
+	case flags.FileCreatedAfterFN:
+		return s.FileCreatedAfter
+	case flags.FileCreatedBeforeFN:
+		return s.FileCreatedBefore
+	case flags.FileModifiedAfterFN:
+		return s.FileModifiedAfter
+	case flags.FileModifiedBeforeFN:
+		return s.FileModifiedBefore
+	default:
+		return ""
+	}
+}
 
-	fs.StringVar(
-		&Library,
-		LibraryFN, "",
-		"Select only this library; defaults to all libraries.")
+func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
+	return SharePointOpts{
+		SiteID: flags.SiteIDFV,
+		WebURL: flags.WebURLFV,
 
-	fs.StringSliceVar(
-		&FolderPath,
-		FolderFN, nil,
-		"Select by folder; defaults to root.")
+		Library:            flags.LibraryFV,
+		FileName:           flags.FileNameFV,
+		FolderPath:         flags.FolderPathFV,
+		FileCreatedAfter:   flags.FileCreatedAfterFV,
+		FileCreatedBefore:  flags.FileCreatedBeforeFV,
+		FileModifiedAfter:  flags.FileModifiedAfterFV,
+		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
-	fs.StringSliceVar(
-		&FileName,
-		FileFN, nil,
-		"Select by file name.")
+		Lists: flags.ListFV,
 
-	fs.StringSliceVar(
-		&PageFolder,
-		PageFolderFN, nil,
-		"Select pages by folder name; accepts '"+Wildcard+"' to select all folders.")
-	cobra.CheckErr(fs.MarkHidden(PageFolderFN))
+		Page:       flags.PageFV,
+		PageFolder: flags.PageFolderFV,
 
-	fs.StringSliceVar(
-		&Page,
-		PagesFN, nil,
-		"Select pages by item name; accepts '"+Wildcard+"' to select all pages within the site.")
-	cobra.CheckErr(fs.MarkHidden(PagesFN))
+		RestoreCfg: makeRestoreCfgOpts(cmd),
+		ExportCfg:  makeExportCfgOpts(cmd),
 
-	fs.StringVar(
-		&FileCreatedAfter,
-		FileCreatedAfterFN, "",
-		"Select files created after this datetime.")
+		// populated contains the list of flags that appear in the
+		// command, according to pflags.  Use this to differentiate
+		// between an "empty" and a "missing" value.
+		Populated: flags.GetPopulatedFlags(cmd),
+	}
+}
 
-	fs.StringVar(
-		&FileCreatedBefore,
-		FileCreatedBeforeFN, "",
-		"Select files created before this datetime.")
+func SharePointAllowedCategories() map[string]struct{} {
+	return map[string]struct{}{
+		flags.DataLibraries: {},
+		// flags.DataLists:     {}, [TODO]: uncomment when lists are enabled
+	}
+}
 
-	fs.StringVar(
-		&FileModifiedAfter,
-		FileModifiedAfterFN, "",
-		"Select files modified after this datetime.")
-	fs.StringVar(
-		&FileModifiedBefore,
-		FileModifiedBeforeFN, "",
-		"Select files modified before this datetime.")
+func AddCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {
+	if len(cats) == 0 {
+		// backup of sharepoint lists not enabled yet
+		// sel.Include(sel.LibraryFolders(selectors.Any()), sel.Lists(selectors.Any()))
+		sel.Include(sel.LibraryFolders(selectors.Any()))
+	}
+
+	for _, d := range cats {
+		switch d {
+		// backup of sharepoint lists not enabled yet
+		// case flags.DataLists:
+		// 	sel.Include(sel.Lists(selectors.Any()))
+		case flags.DataLibraries:
+			sel.Include(sel.LibraryFolders(selectors.Any()))
+		}
+	}
+
+	return sel
 }
 
 // ValidateSharePointRestoreFlags checks common flags for correctness and interdependencies
@@ -100,23 +112,16 @@ func ValidateSharePointRestoreFlags(backupID string, opts SharePointOpts) error 
 		return clues.New("a backup ID is required")
 	}
 
-	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return clues.New("invalid time format for " + FileCreatedAfterFN)
+	// ensure url can parse all weburls provided by --site.
+	if _, ok := opts.Populated[flags.SiteFN]; ok {
+		for _, wu := range opts.WebURL {
+			if _, err := url.Parse(wu); err != nil {
+				return clues.New("invalid site url: " + wu)
+			}
+		}
 	}
 
-	if _, ok := opts.Populated[FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return clues.New("invalid time format for " + FileCreatedBeforeFN)
-	}
-
-	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return clues.New("invalid time format for " + FileModifiedAfterFN)
-	}
-
-	if _, ok := opts.Populated[FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return clues.New("invalid time format for " + FileModifiedBeforeFN)
-	}
-
-	return nil
+	return validateCommonTimeFlags(opts)
 }
 
 // AddSharePointInfo adds the scope of the provided values to the selector's
@@ -135,27 +140,27 @@ func AddSharePointInfo(
 
 // IncludeSharePointRestoreDataSelectors builds the common data-selector
 // inclusions for SharePoint commands.
-func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.SharePointRestore {
+func IncludeSharePointRestoreDataSelectors(ctx context.Context, opts SharePointOpts) *selectors.SharePointRestore {
 	sites := opts.SiteID
 
-	lfp, lfn := len(opts.FolderPath), len(opts.FileName)
-	ls, lwu := len(opts.SiteID), len(opts.WebURL)
-	slp, sli := len(opts.ListPath), len(opts.ListItem)
-	pf, pi := len(opts.PageFolder), len(opts.Page)
+	folderPaths, fileNames := len(opts.FolderPath), len(opts.FileName)
+	siteIDs, webUrls := len(opts.SiteID), len(opts.WebURL)
+	lists := len(opts.Lists)
+	pageFolders, pageItems := len(opts.PageFolder), len(opts.Page)
 
-	if ls == 0 {
+	if siteIDs == 0 {
 		sites = selectors.Any()
 	}
 
 	sel := selectors.NewSharePointRestore(sites)
 
-	if lfp+lfn+lwu+slp+sli+pf+pi == 0 {
+	if folderPaths+fileNames+webUrls+lists+pageFolders+pageItems == 0 {
 		sel.Include(sel.AllData())
 		return sel
 	}
 
-	if lfp+lfn > 0 {
-		if lfn == 0 {
+	if folderPaths+fileNames > 0 {
+		if fileNames == 0 {
 			opts.FileName = selectors.Any()
 		}
 
@@ -171,25 +176,14 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 		}
 	}
 
-	if slp+sli > 0 {
-		if sli == 0 {
-			opts.ListItem = selectors.Any()
-		}
-
-		opts.ListPath = trimFolderSlash(opts.ListPath)
-		containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.ListPath)
-
-		if len(containsFolders) > 0 {
-			sel.Include(sel.ListItems(containsFolders, opts.ListItem))
-		}
-
-		if len(prefixFolders) > 0 {
-			sel.Include(sel.ListItems(prefixFolders, opts.ListItem, selectors.PrefixMatch()))
-		}
+	if lists > 0 {
+		opts.Lists = trimFolderSlash(opts.Lists)
+		sel.Include(sel.ListItems(opts.Lists, opts.Lists, selectors.StrictEqualMatch()))
+		sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 	}
 
-	if pf+pi > 0 {
-		if pi == 0 {
+	if pageFolders+pageItems > 0 {
+		if pageItems == 0 {
 			opts.Page = selectors.Any()
 		}
 
@@ -205,17 +199,30 @@ func IncludeSharePointRestoreDataSelectors(opts SharePointOpts) *selectors.Share
 		}
 	}
 
-	if lwu > 0 {
-		opts.WebURL = trimFolderSlash(opts.WebURL)
-		containsURLs, suffixURLs := splitFoldersIntoContainsAndPrefix(opts.WebURL)
+	if webUrls > 0 {
+		urls := make([]string, 0, len(opts.WebURL))
 
-		if len(containsURLs) > 0 {
-			sel.Include(sel.WebURL(containsURLs))
+		for _, wu := range opts.WebURL {
+			// for normalization, ensure the site has a https:// prefix.
+			wu = strings.TrimPrefix(wu, "https://")
+			wu = strings.TrimPrefix(wu, "http://")
+
+			// don't add a prefix to path-only values
+			if len(wu) > 0 && wu != "*" && !strings.HasPrefix(wu, "/") {
+				wu = "https://" + wu
+			}
+
+			u, err := url.Parse(wu)
+			if err != nil {
+				// shouldn't be possible to err, if we called validation first.
+				logger.Ctx(ctx).With("web_url", wu).Error("malformed web url")
+				continue
+			}
+
+			urls = append(urls, u.String())
 		}
 
-		if len(suffixURLs) > 0 {
-			sel.Include(sel.WebURL(suffixURLs, selectors.SuffixMatch()))
-		}
+		sel.Include(sel.WebURL(urls))
 	}
 
 	return sel

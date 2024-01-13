@@ -4,54 +4,45 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type OneDriveOpts struct {
-	Users              []string
-	FileNames          []string
-	FolderPaths        []string
+	Users []string
+
+	FileName           []string
+	FolderPath         []string
 	FileCreatedAfter   string
 	FileCreatedBefore  string
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	Populated PopulatedFlags
+	RestoreCfg RestoreCfgOpts
+	ExportCfg  ExportCfgOpts
+
+	Populated flags.PopulatedFlags
 }
 
-// AddOneDriveDetailsAndRestoreFlags adds flags that are common to both the
-// details and restore commands.
-func AddOneDriveDetailsAndRestoreFlags(cmd *cobra.Command) {
-	fs := cmd.Flags()
+func MakeOneDriveOpts(cmd *cobra.Command) OneDriveOpts {
+	return OneDriveOpts{
+		Users: flags.UserFV,
 
-	fs.StringSliceVar(
-		&FolderPath,
-		FolderFN, nil,
-		"Select files by OneDrive folder; defaults to root.")
+		FileName:           flags.FileNameFV,
+		FolderPath:         flags.FolderPathFV,
+		FileCreatedAfter:   flags.FileCreatedAfterFV,
+		FileCreatedBefore:  flags.FileCreatedBeforeFV,
+		FileModifiedAfter:  flags.FileModifiedAfterFV,
+		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
-	fs.StringSliceVar(
-		&FileName,
-		FileFN, nil,
-		"Select files by name.")
+		RestoreCfg: makeRestoreCfgOpts(cmd),
+		ExportCfg:  makeExportCfgOpts(cmd),
 
-	fs.StringVar(
-		&FileCreatedAfter,
-		FileCreatedAfterFN, "",
-		"Select files created after this datetime.")
-	fs.StringVar(
-		&FileCreatedBefore,
-		FileCreatedBeforeFN, "",
-		"Select files created before this datetime.")
-
-	fs.StringVar(
-		&FileModifiedAfter,
-		FileModifiedAfterFN, "",
-		"Select files modified after this datetime.")
-
-	fs.StringVar(
-		&FileModifiedBefore,
-		FileModifiedBeforeFN, "",
-		"Select files modified before this datetime.")
+		// populated contains the list of flags that appear in the
+		// command, according to pflags.  Use this to differentiate
+		// between an "empty" and a "missing" value.
+		Populated: flags.GetPopulatedFlags(cmd),
+	}
 }
 
 // ValidateOneDriveRestoreFlags checks common flags for correctness and interdependencies
@@ -60,20 +51,20 @@ func ValidateOneDriveRestoreFlags(backupID string, opts OneDriveOpts) error {
 		return clues.New("a backup ID is required")
 	}
 
-	if _, ok := opts.Populated[FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
-		return clues.New("invalid time format for created-after")
+	if _, ok := opts.Populated[flags.FileCreatedAfterFN]; ok && !IsValidTimeFormat(opts.FileCreatedAfter) {
+		return clues.New("invalid time format for " + flags.FileCreatedAfterFN)
 	}
 
-	if _, ok := opts.Populated[FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
-		return clues.New("invalid time format for created-before")
+	if _, ok := opts.Populated[flags.FileCreatedBeforeFN]; ok && !IsValidTimeFormat(opts.FileCreatedBefore) {
+		return clues.New("invalid time format for " + flags.FileCreatedBeforeFN)
 	}
 
-	if _, ok := opts.Populated[FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
-		return clues.New("invalid time format for modified-after")
+	if _, ok := opts.Populated[flags.FileModifiedAfterFN]; ok && !IsValidTimeFormat(opts.FileModifiedAfter) {
+		return clues.New("invalid time format for " + flags.FileModifiedAfterFN)
 	}
 
-	if _, ok := opts.Populated[FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
-		return clues.New("invalid time format for modified-before")
+	if _, ok := opts.Populated[flags.FileModifiedBeforeFN]; ok && !IsValidTimeFormat(opts.FileModifiedBefore) {
+		return clues.New("invalid time format for " + flags.FileModifiedBeforeFN)
 	}
 
 	return nil
@@ -103,7 +94,7 @@ func IncludeOneDriveRestoreDataSelectors(opts OneDriveOpts) *selectors.OneDriveR
 
 	sel := selectors.NewOneDriveRestore(users)
 
-	lp, ln := len(opts.FolderPaths), len(opts.FileNames)
+	lp, ln := len(opts.FolderPath), len(opts.FileName)
 
 	// only use the inclusion if either a path or item name
 	// is specified
@@ -112,20 +103,20 @@ func IncludeOneDriveRestoreDataSelectors(opts OneDriveOpts) *selectors.OneDriveR
 		return sel
 	}
 
-	opts.FolderPaths = trimFolderSlash(opts.FolderPaths)
+	opts.FolderPath = trimFolderSlash(opts.FolderPath)
 
 	if ln == 0 {
-		opts.FileNames = selectors.Any()
+		opts.FileName = selectors.Any()
 	}
 
-	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPaths)
+	containsFolders, prefixFolders := splitFoldersIntoContainsAndPrefix(opts.FolderPath)
 
 	if len(containsFolders) > 0 {
-		sel.Include(sel.Items(containsFolders, opts.FileNames))
+		sel.Include(sel.Items(containsFolders, opts.FileName))
 	}
 
 	if len(prefixFolders) > 0 {
-		sel.Include(sel.Items(prefixFolders, opts.FileNames, selectors.PrefixMatch()))
+		sel.Include(sel.Items(prefixFolders, opts.FileName, selectors.PrefixMatch()))
 	}
 
 	return sel

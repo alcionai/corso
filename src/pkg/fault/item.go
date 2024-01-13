@@ -7,19 +7,23 @@ const (
 	AddtlLastModBy     = "last_modified_by"
 	AddtlContainerID   = "container_id"
 	AddtlContainerName = "container_name"
+	AddtlContainerPath = "container_path"
 	AddtlMalwareDesc   = "malware_description"
 )
 
-type itemType string
+type ItemType string
 
 const (
-	FileType          itemType = "file"
-	ContainerType     itemType = "container"
-	ResourceOwnerType itemType = "resource_owner"
+	EmailType         ItemType = "email"
+	FileType          ItemType = "file"
+	ContainerType     ItemType = "container"
+	ResourceOwnerType ItemType = "resource_owner"
 )
 
-func (it itemType) Printable() string {
+func (it ItemType) Printable() string {
 	switch it {
+	case EmailType:
+		return "Email"
 	case FileType:
 		return "File"
 	case ContainerType:
@@ -48,6 +52,12 @@ var (
 // by the end user (cli or sdk) for surfacing human-readable and
 // identifiable points of failure.
 type Item struct {
+	// deduplication namespace; the maximally-unique boundary of the
+	// item ID.  The scope of this boundary depends on the service.
+	// ex: exchange items are unique within their category, drive items
+	// are only unique within a given drive.
+	Namespace string `json:"namespace"`
+
 	// deduplication identifier; the ID of the observed item.
 	ID string `json:"id"`
 
@@ -55,7 +65,7 @@ type Item struct {
 	Name string `json:"name"`
 
 	// tracks the type of item represented by this entry.
-	Type itemType `json:"type"`
+	Type ItemType `json:"type"`
 
 	// Error() of the causal error, or a sentinel if this is the
 	// source of the error.  In case of ID collisions, the first
@@ -69,6 +79,12 @@ type Item struct {
 	// only for information that might be immediately relevant to the
 	// end user.
 	Additional map[string]any `json:"additional"`
+}
+
+// dedupeID is the id used to deduplicate items when aggreagating
+// errors in fault.Errors().
+func (i *Item) dedupeID() string {
+	return i.Namespace + i.ID
 }
 
 // Error complies with the error interface.
@@ -90,12 +106,13 @@ func (i Item) MinimumPrintable() any {
 
 // Headers returns the human-readable names of properties of an Item
 // for printing out to a terminal.
-func (i Item) Headers() []string {
+func (i Item) Headers(bool) []string {
+	// NOTE: skipID does not make sense in this context
 	return []string{"Action", "Type", "Name", "Container", "Cause"}
 }
 
 // Values populates the printable values matching the Headers list.
-func (i Item) Values() []string {
+func (i Item) Values(bool) []string {
 	var cn string
 
 	acn, ok := i.Additional[AddtlContainerName]
@@ -109,140 +126,29 @@ func (i Item) Values() []string {
 	return []string{"Error", i.Type.Printable(), i.Name, cn, i.Cause}
 }
 
-// ContainerErr produces a Container-type Item for tracking erronous items
-func ContainerErr(cause error, id, name string, addtl map[string]any) *Item {
-	return itemErr(ContainerType, cause, id, name, addtl)
+// ContainerErr produces a Container-type Item for tracking erroneous items
+func ContainerErr(cause error, namespace, id, name string, addtl map[string]any) *Item {
+	return itemErr(ContainerType, cause, namespace, id, name, addtl)
 }
 
-// FileErr produces a File-type Item for tracking erronous items.
-func FileErr(cause error, id, name string, addtl map[string]any) *Item {
-	return itemErr(FileType, cause, id, name, addtl)
+// FileErr produces a File-type Item for tracking erroneous items.
+func FileErr(cause error, namespace, id, name string, addtl map[string]any) *Item {
+	return itemErr(FileType, cause, namespace, id, name, addtl)
 }
 
-// OnwerErr produces a ResourceOwner-type Item for tracking erronous items.
-func OwnerErr(cause error, id, name string, addtl map[string]any) *Item {
-	return itemErr(ResourceOwnerType, cause, id, name, addtl)
+// OnwerErr produces a ResourceOwner-type Item for tracking erroneous items.
+func OwnerErr(cause error, namespace, id, name string, addtl map[string]any) *Item {
+	return itemErr(ResourceOwnerType, cause, namespace, id, name, addtl)
 }
 
-// itemErr produces a Item of the provided type for tracking erronous items.
-func itemErr(t itemType, cause error, id, name string, addtl map[string]any) *Item {
+// itemErr produces a Item of the provided type for tracking erroneous items.
+func itemErr(t ItemType, cause error, namespace, id, name string, addtl map[string]any) *Item {
 	return &Item{
+		Namespace:  namespace,
 		ID:         id,
 		Name:       name,
 		Type:       t,
 		Cause:      cause.Error(),
 		Additional: addtl,
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Skipped Items
-// ---------------------------------------------------------------------------
-
-// skipCause identifies the well-known conditions to Skip an item.  It is
-// important that skip cause enumerations do not overlap with general error
-// handling.  Skips must be well known, well documented, and consistent.
-// Transient failures, undocumented or unknown conditions, and arbitrary
-// handling should never produce a skipped item. Those cases should get
-// handled as normal errors.
-type skipCause string
-
-const (
-	// SkipMalware identifies a malware detection case.  Files that graph
-	// api identifies as malware cannot be downloaded or uploaded, and will
-	// permanently fail any attempts to backup or restore.
-	SkipMalware skipCause = "malware_detected"
-
-	// SkipNotFound identifies that a file was skipped because we could
-	// not find it when trying to download contents
-	SkipNotFound skipCause = "file_not_found"
-)
-
-var _ print.Printable = &Skipped{}
-
-// Skipped items are permanently unprocessable due to well-known conditions.
-// In order to skip an item, the following conditions should be met:
-// 1. The conditions for skipping the item are well-known and
-// well-documented.  End users need to be able to understand
-// both the conditions and identifications of skips.
-// 2. Skipping avoids a permanent and consistent failure.  If
-// the underlying reason is transient or otherwise recoverable,
-// the item should not be skipped.
-//
-// Skipped wraps Item primarily to minimze confusion when sharing the
-// fault interface.  Skipped items are not errors, and Item{} errors are
-// not the basis for a Skip.
-type Skipped struct {
-	Item Item `json:"item"`
-}
-
-// String complies with the stringer interface.
-func (s *Skipped) String() string {
-	if s == nil {
-		return "<nil>"
-	}
-
-	return "skipped " + s.Item.Error() + ": " + s.Item.Cause
-}
-
-// HasCause compares the underlying cause against the parameter.
-func (s *Skipped) HasCause(c skipCause) bool {
-	if s == nil {
-		return false
-	}
-
-	return s.Item.Cause == string(c)
-}
-
-func (s Skipped) MinimumPrintable() any {
-	return s
-}
-
-// Headers returns the human-readable names of properties of a skipped Item
-// for printing out to a terminal.
-func (s Skipped) Headers() []string {
-	return []string{"Action", "Type", "Name", "Container", "Cause"}
-}
-
-// Values populates the printable values matching the Headers list.
-func (s Skipped) Values() []string {
-	var cn string
-
-	acn, ok := s.Item.Additional[AddtlContainerName]
-	if ok {
-		str, ok := acn.(string)
-		if ok {
-			cn = str
-		}
-	}
-
-	return []string{"Skip", s.Item.Type.Printable(), s.Item.Name, cn, s.Item.Cause}
-}
-
-// ContainerSkip produces a Container-kind Item for tracking skipped items.
-func ContainerSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped {
-	return itemSkip(ContainerType, cause, id, name, addtl)
-}
-
-// FileSkip produces a File-kind Item for tracking skipped items.
-func FileSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped {
-	return itemSkip(FileType, cause, id, name, addtl)
-}
-
-// OnwerSkip produces a ResourceOwner-kind Item for tracking skipped items.
-func OwnerSkip(cause skipCause, id, name string, addtl map[string]any) *Skipped {
-	return itemSkip(ResourceOwnerType, cause, id, name, addtl)
-}
-
-// itemSkip produces a Item of the provided type for tracking skipped items.
-func itemSkip(t itemType, cause skipCause, id, name string, addtl map[string]any) *Skipped {
-	return &Skipped{
-		Item: Item{
-			ID:         id,
-			Name:       name,
-			Type:       t,
-			Cause:      string(cause),
-			Additional: addtl,
-		},
 	}
 }

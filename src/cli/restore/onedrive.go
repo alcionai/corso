@@ -1,43 +1,28 @@
 package restore
 
 import (
-	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
-	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/options"
-	. "github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/common"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/corso/src/pkg/dttm"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
 func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(cmd, oneDriveRestoreCmd())
+		c, _ = utils.AddCommand(cmd, oneDriveRestoreCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandUseSuffix
 
-		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --user) and more frequently used flags take precedence.
-		fs.SortFlags = false
-
-		utils.AddBackupIDFlag(c, true)
-		utils.AddOneDriveDetailsAndRestoreFlags(c)
-
-		// others
-		options.AddOperationFlags(c)
+		flags.AddBackupIDFlag(c, true)
+		flags.AddOneDriveDetailsAndRestoreFlags(c)
+		flags.AddNoPermissionsFlag(c)
+		flags.AddRestoreConfigFlags(c, true)
+		flags.AddFailFastFlag(c)
 	}
 
 	return c
@@ -47,19 +32,19 @@ const (
 	oneDriveServiceCommand          = "onedrive"
 	oneDriveServiceCommandUseSuffix = "--backup <backupId>"
 
-	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef
+	oneDriveServiceCommandRestoreExamples = `# Restore file with ID 98765abcdef in Bob's last backup (1234abcd...)
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef
 
-# Restore file with ID 98765abcdef along with its associated permissions
-corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --restore-permissions
+# Restore the file with ID 98765abcdef without its associated permissions
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd --file 98765abcdef --no-permissions
 
-# Restore Alice's file named "FY2021 Planning.xlsx in "Documents/Finance Reports" from a specific backup
+# Restore files named "FY2021 Planning.xlsx" in "Documents/Finance Reports"
 corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --user alice@example.com --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
+    --file "FY2021 Planning.xlsx" --folder "Documents/Finance Reports"
 
-# Restore all files from Bob's folder that were created before 2020 when captured in a specific backup
-corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd 
-    --user bob@example.com --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
+# Restore all files and folders in folder "Documents/Finance Reports" that were created before 2020
+corso restore onedrive --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
 )
 
 // `corso restore onedrive [<flag>...]`
@@ -81,55 +66,25 @@ func restoreOneDriveCmd(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	opts := utils.OneDriveOpts{
-		Users:              user,
-		FileNames:          utils.FileName,
-		FolderPaths:        utils.FolderPath,
-		FileCreatedAfter:   utils.FileCreatedAfter,
-		FileCreatedBefore:  utils.FileCreatedBefore,
-		FileModifiedAfter:  utils.FileModifiedAfter,
-		FileModifiedBefore: utils.FileModifiedBefore,
+	opts := utils.MakeOneDriveOpts(cmd)
+	opts.RestoreCfg.DTTMFormat = dttm.HumanReadableDriveItem
 
-		Populated: utils.GetPopulatedFlags(cmd),
+	if flags.RunModeFV == flags.RunModeFlagTest {
+		return nil
 	}
 
-	if err := utils.ValidateOneDriveRestoreFlags(utils.BackupID, opts); err != nil {
+	if err := utils.ValidateOneDriveRestoreFlags(flags.BackupIDFV, opts); err != nil {
 		return err
 	}
-
-	cfg, err := config.GetConfigRepoDetails(ctx, true, nil)
-	if err != nil {
-		return Only(ctx, err)
-	}
-
-	r, err := repository.Connect(ctx, cfg.Account, cfg.Storage, options.Control())
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to connect to the "+cfg.Storage.Provider.String()+" repository"))
-	}
-
-	defer utils.CloseRepo(ctx, r)
-
-	dest := control.DefaultRestoreDestination(common.SimpleDateTimeOneDrive)
-	Infof(ctx, "Restoring to folder %s", dest.ContainerName)
 
 	sel := utils.IncludeOneDriveRestoreDataSelectors(opts)
 	utils.FilterOneDriveRestoreInfoSelectors(sel, opts)
 
-	ro, err := r.NewRestore(ctx, utils.BackupID, sel.Selector, dest)
-	if err != nil {
-		return Only(ctx, clues.Wrap(err, "Failed to initialize OneDrive restore"))
-	}
-
-	ds, err := ro.Run(ctx)
-	if err != nil {
-		if errors.Is(err, data.ErrNotFound) {
-			return Only(ctx, clues.New("Backup or backup details missing for id "+utils.BackupID))
-		}
-
-		return Only(ctx, clues.Wrap(err, "Failed to run OneDrive restore"))
-	}
-
-	ds.PrintEntries(ctx)
-
-	return nil
+	return runRestore(
+		ctx,
+		cmd,
+		opts.RestoreCfg,
+		sel.Selector,
+		flags.BackupIDFV,
+		"OneDrive")
 }

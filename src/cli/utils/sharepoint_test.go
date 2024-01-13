@@ -6,8 +6,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 type SharePointUtilsSuite struct {
@@ -27,7 +31,9 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 		multi             = []string{"more", "than", "one"}
 		containsOnly      = []string{"contains"}
 		prefixOnly        = []string{"/prefix"}
+		listNames         = []string{"list-name1"}
 		containsAndPrefix = []string{"contains", "/prefix"}
+		onlySlash         = []string{string(path.PathSeparator)}
 	)
 
 	table := []struct {
@@ -55,8 +61,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			opts: utils.SharePointOpts{
 				FileName:   single,
 				FolderPath: single,
-				ListItem:   single,
-				ListPath:   single,
+				Lists:      single,
 				SiteID:     single,
 				WebURL:     single,
 			},
@@ -103,30 +108,11 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			expectIncludeLen: 2,
 		},
 		{
-			name: "list contains",
+			name: "list names",
 			opts: utils.SharePointOpts{
-				FileName:   empty,
-				FolderPath: empty,
-				ListItem:   empty,
-				ListPath:   containsOnly,
-				SiteID:     empty,
-				WebURL:     empty,
+				Lists: listNames,
 			},
 			expectIncludeLen: 1,
-		},
-		{
-			name: "list prefixes",
-			opts: utils.SharePointOpts{
-				ListPath: prefixOnly,
-			},
-			expectIncludeLen: 1,
-		},
-		{
-			name: "list prefixes and contains",
-			opts: utils.SharePointOpts{
-				ListPath: containsAndPrefix,
-			},
-			expectIncludeLen: 2,
 		},
 		{
 			name: "weburl contains",
@@ -156,7 +142,7 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 				SiteID:     empty,
 				WebURL:     containsAndPrefix, // prefix pattern matches suffix pattern
 			},
-			expectIncludeLen: 6,
+			expectIncludeLen: 3,
 		},
 		{
 			name: "Page Folder",
@@ -180,11 +166,240 @@ func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors() {
 			},
 			expectIncludeLen: 2,
 		},
+		{
+			name: "folder with just /",
+			opts: utils.SharePointOpts{
+				FolderPath: onlySlash,
+			},
+			expectIncludeLen: 1,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			sel := utils.IncludeSharePointRestoreDataSelectors(test.opts)
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			sel := utils.IncludeSharePointRestoreDataSelectors(ctx, test.opts)
 			assert.Len(suite.T(), sel.Includes, test.expectIncludeLen)
+		})
+	}
+}
+
+func (suite *SharePointUtilsSuite) TestIncludeSharePointRestoreDataSelectors_normalizedWebURLs() {
+	table := []struct {
+		name   string
+		weburl string
+		expect []string
+	}{
+		{
+			name:   "blank",
+			weburl: "",
+			expect: []string{""},
+		},
+		{
+			name:   "wildcard",
+			weburl: "*",
+			expect: []string{"*"},
+		},
+		{
+			name:   "no scheme",
+			weburl: "www.corsobackup.io/path",
+			expect: []string{"https://www.corsobackup.io/path"},
+		},
+		{
+			name:   "no path",
+			weburl: "https://www.corsobackup.io",
+			expect: []string{"https://www.corsobackup.io"},
+		},
+		{
+			name:   "http",
+			weburl: "http://www.corsobackup.io/path",
+			expect: []string{"https://www.corsobackup.io/path"},
+		},
+		{
+			name:   "https",
+			weburl: "https://www.corsobackup.io/path",
+			expect: []string{"https://www.corsobackup.io/path"},
+		},
+		{
+			name:   "path only",
+			weburl: "/path",
+			expect: []string{"/path"},
+		},
+		{
+			name:   "host only",
+			weburl: "www.corsobackup.io",
+			expect: []string{"https://www.corsobackup.io"},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			var (
+				opts = utils.SharePointOpts{WebURL: []string{test.weburl}}
+				sel  = utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
+			)
+
+			for _, scope := range sel.Scopes() {
+				if scope.InfoCategory() != selectors.SharePointWebURL {
+					continue
+				}
+
+				assert.ElementsMatch(suite.T(), test.expect, scope.Get(selectors.SharePointWebURL))
+			}
+		})
+	}
+}
+
+func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
+	table := []struct {
+		name     string
+		backupID string
+		opts     utils.SharePointOpts
+		expect   assert.ErrorAssertionFunc
+	}{
+		{
+			name:     "no opts",
+			backupID: "id",
+			opts:     utils.SharePointOpts{},
+			expect:   assert.NoError,
+		},
+		{
+			name:     "all valid",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				WebURL:             []string{"www.corsobackup.io/sites/foo"},
+				FileCreatedAfter:   dttm.Now(),
+				FileCreatedBefore:  dttm.Now(),
+				FileModifiedAfter:  dttm.Now(),
+				FileModifiedBefore: dttm.Now(),
+				Populated: flags.PopulatedFlags{
+					flags.SiteFN:               struct{}{},
+					flags.FileCreatedAfterFN:   struct{}{},
+					flags.FileCreatedBeforeFN:  struct{}{},
+					flags.FileModifiedAfterFN:  struct{}{},
+					flags.FileModifiedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.NoError,
+		},
+		{
+			name:     "no backupID",
+			backupID: "",
+			opts:     utils.SharePointOpts{},
+			expect:   assert.Error,
+		},
+		{
+			name:     "invalid weburl",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				WebURL: []string{"slander://:vree.garbles/:"},
+				Populated: flags.PopulatedFlags{
+					flags.SiteFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid file created after",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				FileCreatedAfter: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.FileCreatedAfterFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid file created before",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				FileCreatedBefore: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.FileCreatedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid file modified after",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				FileModifiedAfter: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.FileModifiedAfterFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid file modified before",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				FileModifiedBefore: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.FileModifiedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			test.expect(t, utils.ValidateSharePointRestoreFlags(test.backupID, test.opts))
+		})
+	}
+}
+
+// [TODO] uncomment the test cases once sharepoint list backup is enabled
+func (suite *SharePointUtilsSuite) TestAddSharepointCategories() {
+	table := []struct {
+		name           string
+		cats           []string
+		expectScopeLen int
+	}{
+		// {
+		// 	name:           "none",
+		// 	cats:           []string{},
+		// 	expectScopeLen: 2,
+		// },
+		{
+			name:           "libraries",
+			cats:           []string{flags.DataLibraries},
+			expectScopeLen: 1,
+		},
+		// {
+		// 	name:           "lists",
+		// 	cats:           []string{flags.DataLists},
+		// 	expectScopeLen: 1,
+		// },
+		// {
+		// 	name: "all allowed",
+		// 	cats: []string{
+		// 		flags.DataLibraries,
+		// 		flags.DataLists,
+		// 	},
+		// 	expectScopeLen: 2,
+		// },
+		{
+			name:           "bad inputs",
+			cats:           []string{"foo"},
+			expectScopeLen: 0,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			sel := utils.AddCategories(selectors.NewSharePointBackup(selectors.Any()), test.cats)
+			scopes := sel.Scopes()
+			assert.Len(suite.T(), scopes, test.expectScopeLen)
 		})
 	}
 }

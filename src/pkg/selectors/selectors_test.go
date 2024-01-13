@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -28,74 +29,19 @@ func (suite *SelectorSuite) TestNewSelector() {
 	assert.NotNil(t, s.Includes)
 }
 
+// set the clues hashing to mask for the span of this suite
+func (suite *SelectorSuite) SetupSuite() {
+	clues.SetHasher(clues.HashCfg{HashAlg: clues.Flatmask})
+}
+
+// revert clues hashing to plaintext for all other tests
+func (suite *SelectorSuite) TeardownSuite() {
+	clues.SetHasher(clues.NoHash())
+}
+
 func (suite *SelectorSuite) TestBadCastErr() {
 	err := badCastErr(ServiceUnknown, ServiceExchange)
 	assert.Error(suite.T(), err, clues.ToCore(err))
-}
-
-func (suite *SelectorSuite) TestResourceOwnersIn() {
-	rootCat := rootCatStub.String()
-
-	table := []struct {
-		name   string
-		input  []scope
-		expect []string
-	}{
-		{
-			name:   "nil",
-			input:  nil,
-			expect: []string{},
-		},
-		{
-			name:   "empty",
-			input:  []scope{},
-			expect: []string{},
-		},
-		{
-			name:   "single",
-			input:  []scope{{rootCat: filters.Identity("foo")}},
-			expect: []string{"foo"},
-		},
-		{
-			name:   "multiple values",
-			input:  []scope{{rootCat: filters.Identity(join("foo", "bar"))}},
-			expect: []string{"foo", "bar"},
-		},
-		{
-			name:   "with any",
-			input:  []scope{{rootCat: filters.Identity(join("foo", "bar", AnyTgt))}},
-			expect: []string{"foo", "bar"},
-		},
-		{
-			name:   "with none",
-			input:  []scope{{rootCat: filters.Identity(join("foo", "bar", NoneTgt))}},
-			expect: []string{"foo", "bar"},
-		},
-		{
-			name: "multiple scopes",
-			input: []scope{
-				{rootCat: filters.Identity(join("foo", "bar"))},
-				{rootCat: filters.Identity(join("baz"))},
-			},
-			expect: []string{"foo", "bar", "baz"},
-		},
-		{
-			name: "multiple scopes with duplicates",
-			input: []scope{
-				{rootCat: filters.Identity(join("foo", "bar"))},
-				{rootCat: filters.Identity(join("baz", "foo"))},
-			},
-			expect: []string{"foo", "bar", "baz"},
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			t := suite.T()
-
-			result := resourceOwnersIn(test.input, rootCat)
-			assert.ElementsMatch(t, test.expect, result)
-		})
-	}
 }
 
 func (suite *SelectorSuite) TestPathCategoriesIn() {
@@ -138,9 +84,9 @@ func (suite *SelectorSuite) TestContains() {
 	key := rootCatStub
 	target := "fnords"
 	does := stubScope("")
-	does[key.String()] = filterize(scopeConfig{}, target)
+	does[key.String()] = filterFor(scopeConfig{}, target)
 	doesNot := stubScope("")
-	doesNot[key.String()] = filterize(scopeConfig{}, "smarf")
+	doesNot[key.String()] = filterFor(scopeConfig{}, "smarf")
 
 	assert.True(t, matches(does, key, target), "does contain")
 	assert.False(t, matches(doesNot, key, target), "does not contain")
@@ -148,20 +94,20 @@ func (suite *SelectorSuite) TestContains() {
 
 func (suite *SelectorSuite) TestIsAnyResourceOwner() {
 	t := suite.T()
-	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{"foo"})))
-	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{})))
-	assert.False(t, isAnyResourceOwner(newSelector(ServiceUnknown, nil)))
-	assert.True(t, isAnyResourceOwner(newSelector(ServiceUnknown, []string{AnyTgt})))
-	assert.True(t, isAnyResourceOwner(newSelector(ServiceUnknown, Any())))
+	assert.False(t, isAnyProtectedResource(newSelector(ServiceUnknown, []string{"foo"})))
+	assert.False(t, isAnyProtectedResource(newSelector(ServiceUnknown, []string{})))
+	assert.False(t, isAnyProtectedResource(newSelector(ServiceUnknown, nil)))
+	assert.True(t, isAnyProtectedResource(newSelector(ServiceUnknown, []string{AnyTgt})))
+	assert.True(t, isAnyProtectedResource(newSelector(ServiceUnknown, Any())))
 }
 
 func (suite *SelectorSuite) TestIsNoneResourceOwner() {
 	t := suite.T()
-	assert.False(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{"foo"})))
-	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{})))
-	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, nil)))
-	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, []string{NoneTgt})))
-	assert.True(t, isNoneResourceOwner(newSelector(ServiceUnknown, None())))
+	assert.False(t, isNoneProtectedResource(newSelector(ServiceUnknown, []string{"foo"})))
+	assert.True(t, isNoneProtectedResource(newSelector(ServiceUnknown, []string{})))
+	assert.True(t, isNoneProtectedResource(newSelector(ServiceUnknown, nil)))
+	assert.True(t, isNoneProtectedResource(newSelector(ServiceUnknown, []string{NoneTgt})))
+	assert.True(t, isNoneProtectedResource(newSelector(ServiceUnknown, None())))
 }
 
 func (suite *SelectorSuite) TestSplitByResourceOnwer() {
@@ -228,7 +174,7 @@ func (suite *SelectorSuite) TestSplitByResourceOnwer() {
 			t := suite.T()
 
 			s := newSelector(ServiceUnknown, test.input)
-			result := splitByResourceOwner[mockScope](s, allOwners, rootCatStub)
+			result := splitByProtectedResource[mockScope](s, allOwners, rootCatStub)
 
 			assert.Len(t, result, test.expectLen)
 
@@ -244,6 +190,49 @@ func (suite *SelectorSuite) TestSplitByResourceOnwer() {
 
 				assert.Truef(t, found, "%s in list of discrete owners", expect)
 			}
+		})
+	}
+}
+
+func (suite *SelectorSuite) TestIDName() {
+	table := []struct {
+		title                string
+		id, name             string
+		expectID, expectName string
+	}{
+		{"empty", "", "", "", ""},
+		{"only id", "id", "", "id", "id"},
+		{"only name", "", "name", "", "name"},
+		{"both", "id", "name", "id", "name"},
+	}
+	for _, test := range table {
+		suite.Run(test.title, func() {
+			sel := Selector{DiscreteOwner: test.id, DiscreteOwnerName: test.name}
+			assert.Equal(suite.T(), test.expectID, sel.ID())
+			assert.Equal(suite.T(), test.expectName, sel.Name())
+		})
+	}
+}
+
+func (suite *SelectorSuite) TestSetDiscreteOwnerIDName() {
+	table := []struct {
+		title                string
+		initID, initName     string
+		id, name             string
+		expectID, expectName string
+	}{
+		{"empty", "", "", "", "", "", ""},
+		{"only id", "", "", "id", "", "id", "id"},
+		{"only name", "", "", "", "", "", ""},
+		{"both", "", "", "id", "name", "id", "name"},
+		{"both", "init-id", "", "", "name", "init-id", "name"},
+	}
+	for _, test := range table {
+		suite.Run(test.title, func() {
+			sel := Selector{DiscreteOwner: test.initID, DiscreteOwnerName: test.initName}
+			sel = sel.SetDiscreteOwnerIDName(test.id, test.name)
+			assert.Equal(suite.T(), test.expectID, sel.ID())
+			assert.Equal(suite.T(), test.expectName, sel.Name())
 		})
 	}
 }
@@ -374,6 +363,84 @@ func (suite *SelectorSuite) TestPathCategories_includes() {
 			}
 
 			test.isErr(t, err, clues.ToCore(err))
+		})
+	}
+}
+
+func (suite *SelectorSuite) TestSelector_pii() {
+	table := []struct {
+		name        string
+		sel         func() Selector
+		expect      string
+		expectPlain string
+	}{
+		{
+			name:        "empty selector",
+			sel:         func() Selector { return Selector{} },
+			expect:      `{"resourceOwners":"UnknownComparison:"}`,
+			expectPlain: `{"resourceOwners":"UnknownComparison:"}`,
+		},
+		{
+			name: "no scopes",
+			sel: func() Selector {
+				return Selector{
+					Service:        ServiceUnknown,
+					DiscreteOwner:  "owner",
+					ResourceOwners: filterFor(scopeConfig{}, "owner_1", "owner_2"),
+				}
+			},
+			expect:      `{"resourceOwners":"EQ:***,***","discreteOwner":"***"}`,
+			expectPlain: `{"resourceOwners":"EQ:owner_1,owner_2","discreteOwner":"owner"}`,
+		},
+		{
+			name: "one scope each type",
+			sel: func() Selector {
+				s := NewExchangeBackup([]string{"owner_1", "owner_2"})
+				s.DiscreteOwner = "owner"
+
+				s.Exclude(s.MailFolders([]string{"e"}))
+				s.Filter(s.MailFolders([]string{"f"}, SuffixMatch()))
+				s.Include(s.MailFolders([]string{"i"}, PrefixMatch()))
+
+				return s.Selector
+			},
+			//nolint:lll
+			expect: `{"service":1,` +
+				`"resourceOwners":"EQ:***,***",` +
+				`"discreteOwner":"***",` +
+				`"exclusions":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathCont:***","category":"Identity:***","type":"Identity:***"}],` +
+				`"filters":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathSfx:***","category":"Identity:***","type":"Identity:***"}],` +
+				`"includes":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathPfx:***","category":"Identity:***","type":"Identity:***"}]}`,
+			//nolint:lll
+			expectPlain: `{"service":1,` +
+				`"resourceOwners":"EQ:owner_1,owner_2",` +
+				`"discreteOwner":"owner",` +
+				`"exclusions":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathCont:e","category":"Identity:ExchangeMailFolder","type":"Identity:ExchangeMail"}],` +
+				`"filters":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathSfx:f","category":"Identity:ExchangeMailFolder","type":"Identity:ExchangeMail"}],` +
+				`"includes":[{"ExchangeMail":"Pass","ExchangeMailFolder":"PathPfx:i","category":"Identity:ExchangeMailFolder","type":"Identity:ExchangeMail"}]}`,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := test.sel().Conceal()
+			assert.Equal(t, test.expect, result, "conceal")
+
+			result = test.sel().String()
+			assert.Equal(t, test.expect, result, "string")
+
+			result = test.sel().PlainString()
+			assert.Equal(t, test.expectPlain, result, "plainString")
+
+			result = fmt.Sprintf("%s", test.sel())
+			assert.Equal(t, test.expect, result, "fmt %%s")
+
+			result = fmt.Sprintf("%v", test.sel())
+			assert.Equal(t, test.expect, result, "fmt %%v")
+
+			result = fmt.Sprintf("%+v", test.sel())
+			assert.Equal(t, test.expect, result, "fmt %%+v")
 		})
 	}
 }

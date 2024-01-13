@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
@@ -25,18 +26,18 @@ func TestOperationSuite(t *testing.T) {
 
 func (suite *OperationSuite) TestNewOperation() {
 	t := suite.T()
-	op := newOperation(control.Options{}, events.Bus{}, nil, nil)
+	op := newOperation(control.DefaultOptions(), events.Bus{}, &count.Bus{}, nil, nil)
 	assert.Greater(t, op.CreatedAt, time.Time{})
 }
 
 func (suite *OperationSuite) TestOperation_Validate() {
 	kwStub := &kopia.Wrapper{}
-	swStub := &store.Wrapper{}
+	swStub := store.NewWrapper(&kopia.ModelStore{})
 
 	table := []struct {
 		name     string
 		kw       *kopia.Wrapper
-		sw       *store.Wrapper
+		sw       store.BackupStorer
 		errCheck assert.ErrorAssertionFunc
 	}{
 		{"good", kwStub, swStub, assert.NoError},
@@ -45,7 +46,7 @@ func (suite *OperationSuite) TestOperation_Validate() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			err := newOperation(control.Options{}, events.Bus{}, test.kw, test.sw).validate()
+			err := newOperation(control.DefaultOptions(), events.Bus{}, &count.Bus{}, test.kw, test.sw).validate()
 			test.errCheck(suite.T(), err, clues.ToCore(err))
 		})
 	}

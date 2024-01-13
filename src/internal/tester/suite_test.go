@@ -93,3 +93,20 @@ func (suite *TesterNightlySuite) SetupSuite() {
 func (suite *TesterNightlySuite) TestNightlySuite() {
 	require.True(suite.T(), suite.called)
 }
+
+type TesterRetentionSuite struct {
+	tester.Suite
+	called bool
+}
+
+func TestTesterRetentionSuite(t *testing.T) {
+	suite.Run(t, &TesterRetentionSuite{Suite: tester.NewRetentionSuite(t, nil)})
+}
+
+func (suite *TesterRetentionSuite) SetupSuite() {
+	suite.called = true
+}
+
+func (suite *TesterRetentionSuite) TestRetentionSuite() {
+	require.True(suite.T(), suite.called)
+}

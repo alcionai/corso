@@ -51,9 +51,8 @@
 package path
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -84,9 +83,9 @@ type Path interface {
 	Service() ServiceType
 	Category() CategoryType
 	Tenant() string
-	ResourceOwner() string
-	Folder(bool) string
-	Folders() []string
+	ProtectedResource() string
+	Folder(escaped bool) string
+	Folders() Elements
 	Item() string
 	// UpdateParent updates parent from old to new if the item/folder was
 	// parented by old path
@@ -102,277 +101,37 @@ type Path interface {
 	// Elements returns all the elements in the path. This is a temporary function
 	// and will likely be updated to handle encoded elements instead of clear-text
 	// elements in the future.
-	Elements() []string
+	Elements() Elements
+	Equal(other Path) bool
 	// Append returns a new Path object with the given element added to the end of
 	// the old Path if possible. If the old Path is an item Path then Append
 	// returns an error.
-	Append(element string, isItem bool) (Path, error)
+	Append(isItem bool, elems ...string) (Path, error)
+	// AppendItem is a shorthand for Append(true, someItem)
+	AppendItem(item string) (Path, error)
 	// ShortRef returns a short reference representing this path. The short
 	// reference is guaranteed to be unique. No guarantees are made about whether
 	// a short reference can be converted back into the Path that generated it.
 	ShortRef() string
 	// ToBuilder returns a Builder instance that represents the current Path.
 	ToBuilder() *Builder
+
+	// Every path needs to comply with these funcs to ensure that PII
+	// is appropriately hidden from logging, errors, and other outputs.
+	clues.Concealer
+	fmt.Stringer
 }
 
-// Builder is a simple path representation that only tracks path elements. It
-// can join, escape, and unescape elements. Higher-level packages are expected
-// to wrap this struct to build resource-speicific contexts (e.x. an
-// ExchangeMailPath).
-// Resource-specific paths allow access to more information like segments in the
-// path. Builders that are turned into resource paths later on do not need to
-// manually add prefixes for items that normally appear in the data layer (ex.
-// tenant ID, service, user ID, etc).
-type Builder struct {
-	// Unescaped version of elements.
-	elements []string
+// RestorePaths denotes the location to find an item in kopia and the path of
+// the collection to place the item in for restore.
+type RestorePaths struct {
+	StoragePath Path
+	RestorePath Path
 }
 
-// UnescapeAndAppend creates a copy of this Builder and adds one or more already
-// escaped path elements to the end of the new Builder. Elements are added in
-// the order they are passed.
-func (pb Builder) UnescapeAndAppend(elements ...string) (*Builder, error) {
-	res := &Builder{elements: make([]string, 0, len(pb.elements))}
-	copy(res.elements, pb.elements)
-
-	if err := res.appendElements(true, elements); err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-// SplitUnescapeAppend takes in an escaped string representing a directory
-// path, splits the string, and appends it to the current builder.
-func (pb Builder) SplitUnescapeAppend(s string) (*Builder, error) {
-	elems := Split(TrimTrailingSlash(s))
-
-	return pb.UnescapeAndAppend(elems...)
-}
-
-// Append creates a copy of this Builder and adds the given elements them to the
-// end of the new Builder. Elements are added in the order they are passed.
-func (pb Builder) Append(elements ...string) *Builder {
-	res := &Builder{elements: make([]string, len(pb.elements))}
-	copy(res.elements, pb.elements)
-
-	// Unescaped elements can't fail validation.
-	//nolint:errcheck
-	res.appendElements(false, elements)
-
-	return res
-}
-
-func (pb *Builder) appendElements(escaped bool, elements []string) error {
-	for _, e := range elements {
-		if len(e) == 0 {
-			continue
-		}
-
-		tmp := e
-
-		if escaped {
-			tmp = TrimTrailingSlash(tmp)
-			// If tmp was just the path separator then it will be empty now.
-			if len(tmp) == 0 {
-				continue
-			}
-
-			if err := validateEscapedElement(tmp); err != nil {
-				return err
-			}
-
-			tmp = unescape(tmp)
-		}
-
-		pb.elements = append(pb.elements, tmp)
-	}
-
-	return nil
-}
-
-func (pb Builder) PopFront() *Builder {
-	if len(pb.elements) <= 1 {
-		return &Builder{}
-	}
-
-	elements := make([]string, len(pb.elements)-1)
-	copy(elements, pb.elements[1:])
-
-	return &Builder{
-		elements: elements,
-	}
-}
-
-func (pb Builder) Dir() *Builder {
-	if len(pb.elements) <= 1 {
-		return &Builder{}
-	}
-
-	return &Builder{
-		// Safe to use the same elements because Builders are immutable.
-		elements: pb.elements[:len(pb.elements)-1],
-	}
-}
-
-func (pb Builder) LastElem() string {
-	if len(pb.elements) == 0 {
-		return ""
-	}
-
-	return pb.elements[len(pb.elements)-1]
-}
-
-// String returns a string that contains all path elements joined together.
-// Elements of the path that need escaping are escaped.
-func (pb Builder) String() string {
-	escaped := make([]string, 0, len(pb.elements))
-
-	for _, e := range pb.elements {
-		escaped = append(escaped, escapeElement(e))
-	}
-
-	return join(escaped)
-}
-
-func (pb Builder) ShortRef() string {
-	if len(pb.elements) == 0 {
-		return ""
-	}
-
-	data := bytes.Buffer{}
-
-	for _, element := range pb.elements {
-		data.WriteString(element)
-	}
-
-	sum := sha256.Sum256(data.Bytes())
-
-	// Some conversions to get the right number of characters in the output. This
-	// outputs hex, so we need to take the target number of characters and do the
-	// equivalent of (shortRefCharacters * 4) / 8. This is
-	// <number of bits represented> / <bits per byte> which gets us how many bytes
-	// to give to our format command.
-	numBytes := shortRefCharacters / 2
-
-	return fmt.Sprintf("%x", sum[:numBytes])
-}
-
-// Elements returns all the elements in the path. This is a temporary function
-// and will likely be updated to handle encoded elements instead of clear-text
-// elements in the future.
-func (pb Builder) Elements() []string {
-	return append([]string{}, pb.elements...)
-}
-
-func verifyInputValues(tenant, resourceOwner string) error {
-	if len(tenant) == 0 {
-		return clues.Stack(errMissingSegment, clues.New("tenant"))
-	}
-
-	if len(resourceOwner) == 0 {
-		return clues.Stack(errMissingSegment, clues.New("resourceOwner"))
-	}
-
-	return nil
-}
-
-func (pb Builder) verifyPrefix(tenant, resourceOwner string) error {
-	if err := verifyInputValues(tenant, resourceOwner); err != nil {
-		return err
-	}
-
-	if len(pb.elements) == 0 {
-		return clues.New("missing path beyond prefix")
-	}
-
-	return nil
-}
-
-func (pb Builder) withPrefix(elements ...string) *Builder {
-	res := Builder{}.Append(elements...)
-	res.elements = append(res.elements, pb.elements...)
-
-	return res
-}
-
-func (pb Builder) ToStreamStorePath(
-	tenant, purpose string,
-	service ServiceType,
-	isItem bool,
-) (Path, error) {
-	if err := verifyInputValues(tenant, purpose); err != nil {
-		return nil, err
-	}
-
-	if isItem && len(pb.elements) == 0 {
-		return nil, clues.New("missing path beyond prefix")
-	}
-
-	metadataService := UnknownService
-
-	switch service {
-	case ExchangeService:
-		metadataService = ExchangeMetadataService
-	case OneDriveService:
-		metadataService = OneDriveMetadataService
-	case SharePointService:
-		metadataService = SharePointMetadataService
-	}
-
-	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			metadataService.String(),
-			purpose,
-			DetailsCategory.String()),
-		service:  metadataService,
-		category: DetailsCategory,
-		hasItem:  isItem,
-	}, nil
-}
-
-func (pb Builder) ToServiceCategoryMetadataPath(
-	tenant, user string,
-	service ServiceType,
-	category CategoryType,
-	isItem bool,
-) (Path, error) {
-	if err := validateServiceAndCategory(service, category); err != nil {
-		return nil, err
-	}
-
-	if err := verifyInputValues(tenant, user); err != nil {
-		return nil, err
-	}
-
-	if isItem && len(pb.elements) == 0 {
-		return nil, clues.New("missing path beyond prefix")
-	}
-
-	metadataService := UnknownService
-
-	switch service {
-	case ExchangeService:
-		metadataService = ExchangeMetadataService
-	case OneDriveService:
-		metadataService = OneDriveMetadataService
-	case SharePointService:
-		metadataService = SharePointMetadataService
-	}
-
-	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			metadataService.String(),
-			user,
-			category.String(),
-		),
-		service:  metadataService,
-		category: category,
-		hasItem:  isItem,
-	}, nil
-}
+// ---------------------------------------------------------------------------
+// Exported Helpers
+// ---------------------------------------------------------------------------
 
 func Build(
 	tenant, resourceOwner string,
@@ -389,61 +148,46 @@ func Build(
 		hasItem)
 }
 
-func (pb Builder) ToDataLayerPath(
-	tenant, user string,
+// BuildMetadata is a shorthand for Builder{}.Append(...).ToServiceCategoryMetadataPath(...)
+func BuildMetadata(
+	tenant, resourceOwner string,
 	service ServiceType,
 	category CategoryType,
-	isItem bool,
+	hasItem bool,
+	elements ...string,
 ) (Path, error) {
-	if err := validateServiceAndCategory(service, category); err != nil {
+	return Builder{}.
+		Append(elements...).
+		ToServiceCategoryMetadataPath(
+			tenant, resourceOwner,
+			service, category,
+			hasItem)
+}
+
+func BuildPrefix(
+	tenant, resourceOwner string,
+	s ServiceType,
+	c CategoryType,
+) (Path, error) {
+	pb := Builder{}
+
+	if err := ValidateServiceAndCategory(s, c); err != nil {
 		return nil, err
 	}
 
-	if err := pb.verifyPrefix(tenant, user); err != nil {
+	if err := verifyInputValues(tenant, resourceOwner); err != nil {
 		return nil, err
 	}
 
 	return &dataLayerResourcePath{
-		Builder: *pb.withPrefix(
-			tenant,
-			service.String(),
-			user,
-			category.String(),
-		),
-		service:  service,
-		category: category,
-		hasItem:  isItem,
+		Builder:  *pb.withPrefix(tenant, s.String(), resourceOwner, c.String()),
+		service:  s,
+		category: c,
+		hasItem:  false,
 	}, nil
 }
 
-func (pb Builder) ToDataLayerExchangePathForCategory(
-	tenant, user string,
-	category CategoryType,
-	isItem bool,
-) (Path, error) {
-	return pb.ToDataLayerPath(tenant, user, ExchangeService, category, isItem)
-}
-
-func (pb Builder) ToDataLayerOneDrivePath(
-	tenant, user string,
-	isItem bool,
-) (Path, error) {
-	return pb.ToDataLayerPath(tenant, user, OneDriveService, FilesCategory, isItem)
-}
-
-func (pb Builder) ToDataLayerSharePointPath(
-	tenant, site string,
-	category CategoryType,
-	isItem bool,
-) (Path, error) {
-	return pb.ToDataLayerPath(tenant, site, SharePointService, category, isItem)
-}
-
-// FromDataLayerPath parses the escaped path p, validates the elements in p
-// match a resource-specific path format, and returns a Path struct for that
-// resource-specific type. If p does not match any resource-specific paths or
-// is malformed returns an error.
-func FromDataLayerPath(p string, isItem bool) (Path, error) {
+func pathFromDataLayerPath(p string, isItem bool, minElements int) (Path, error) {
 	p = TrimTrailingSlash(p)
 	// If p was just the path separator then it will be empty now.
 	if len(p) == 0 {
@@ -456,16 +200,21 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		return nil, clues.Stack(errParsingPath, err).With("path_string", p)
 	}
 
-	if len(pb.elements) < 5 {
-		return nil, clues.New("path has too few segments").With("path_string", p)
+	if len(pb.elements) < minElements {
+		return nil, clues.New(
+			"missing required tenant, service, category, protected resource ID, or non-prefix segment").
+			With("path_string", pb)
 	}
 
 	service, category, err := validateServiceAndCategoryStrings(
 		pb.elements[1],
-		pb.elements[3],
-	)
+		pb.elements[3])
 	if err != nil {
-		return nil, clues.Stack(errParsingPath, err).With("path_string", p)
+		return nil, clues.Stack(errParsingPath, err).With("path_string", pb)
+	}
+
+	if err := verifyInputValues(pb.elements[0], pb.elements[2]); err != nil {
+		return nil, clues.Stack(err).With("path_string", pb)
 	}
 
 	return &dataLayerResourcePath{
@@ -474,6 +223,126 @@ func FromDataLayerPath(p string, isItem bool) (Path, error) {
 		category: category,
 		hasItem:  isItem,
 	}, nil
+}
+
+func PrefixOrPathFromDataLayerPath(p string, isItem bool) (Path, error) {
+	res, err := pathFromDataLayerPath(p, isItem, 4)
+	return res, clues.Stack(err).OrNil()
+}
+
+// FromDataLayerPath parses the escaped path p, validates the elements in p
+// match a resource-specific path format, and returns a Path struct for that
+// resource-specific type. If p does not match any resource-specific paths or
+// is malformed returns an error.
+func FromDataLayerPath(p string, isItem bool) (Path, error) {
+	res, err := pathFromDataLayerPath(p, isItem, 5)
+	return res, clues.Stack(err).OrNil()
+}
+
+// TrimTrailingSlash takes an escaped path element and returns an escaped path
+// element with the trailing path separator character(s) removed if they were not
+// escaped. If there were no trailing path separator character(s) or the separator(s)
+// were escaped the input is returned unchanged.
+func TrimTrailingSlash(element string) string {
+	for len(element) > 0 && element[len(element)-1] == PathSeparator {
+		lastIdx := len(element) - 1
+		numSlashes := 0
+
+		for i := lastIdx - 1; i >= 0; i-- {
+			if element[i] != escapeCharacter {
+				break
+			}
+
+			numSlashes++
+		}
+
+		if numSlashes%2 != 0 {
+			break
+		}
+
+		element = element[:lastIdx]
+	}
+
+	return element
+}
+
+// split takes an escaped string and returns a slice of path elements. The
+// string is split on the path separator according to the escaping rules. The
+// provided string must not contain an unescaped trailing path separator.
+func Split(segment string) []string {
+	res := make([]string, 0)
+	numEscapes := 0
+	startIdx := 0
+	// Start with true to ignore leading separator.
+	prevWasSeparator := true
+
+	for i, c := range segment {
+		if c == escapeCharacter {
+			prevWasSeparator = false
+			numEscapes++
+
+			continue
+		}
+
+		if c != PathSeparator {
+			prevWasSeparator = false
+			numEscapes = 0
+
+			continue
+		}
+
+		// Remaining is just path separator handling.
+		if numEscapes%2 != 0 {
+			// This is an escaped separator.
+			prevWasSeparator = false
+			numEscapes = 0
+
+			continue
+		}
+
+		// Ignore leading separator characters and don't add elements that would
+		// be empty.
+		if !prevWasSeparator {
+			res = append(res, segment[startIdx:i])
+		}
+
+		// We don't want to include the path separator in the result.
+		startIdx = i + 1
+		prevWasSeparator = true
+		numEscapes = 0
+	}
+
+	// Add the final segment because the loop above won't catch it. There should
+	// be no trailing separator character.
+	res = append(res, segment[startIdx:])
+
+	return res
+}
+
+func ArePathsEquivalent(path1, path2 string) bool {
+	normalizedPath1 := strings.TrimSpace(filepath.Clean(path1))
+	normalizedPath2 := strings.TrimSpace(filepath.Clean(path2))
+
+	normalizedPath1 = strings.TrimSuffix(normalizedPath1, string(filepath.Separator))
+	normalizedPath2 = strings.TrimSuffix(normalizedPath2, string(filepath.Separator))
+
+	return normalizedPath1 == normalizedPath2
+}
+
+// ---------------------------------------------------------------------------
+// Unexported Helpers
+// ---------------------------------------------------------------------------
+
+func verifyInputValues(tenant, resourceOwner string) error {
+	if len(tenant) == 0 {
+		return clues.Stack(errMissingSegment, clues.New("tenant"))
+	}
+
+	if len(resourceOwner) == 0 {
+		return clues.Stack(errMissingSegment, clues.New("resourceOwner"))
+	}
+
+	return nil
 }
 
 // escapeElement takes a single path element and escapes all characters that
@@ -571,90 +440,10 @@ func validateEscapedElement(element string) error {
 	return nil
 }
 
-// TrimTrailingSlash takes an escaped path element and returns an escaped path
-// element with the trailing path separator character(s) removed if they were not
-// escaped. If there were no trailing path separator character(s) or the separator(s)
-// were escaped the input is returned unchanged.
-func TrimTrailingSlash(element string) string {
-	for len(element) > 0 && element[len(element)-1] == PathSeparator {
-		lastIdx := len(element) - 1
-		numSlashes := 0
-
-		for i := lastIdx - 1; i >= 0; i-- {
-			if element[i] != escapeCharacter {
-				break
-			}
-
-			numSlashes++
-		}
-
-		if numSlashes%2 != 0 {
-			break
-		}
-
-		element = element[:lastIdx]
-	}
-
-	return element
-}
-
 // join returns a string containing the given elements joined by the path
 // separator '/'.
 func join(elements []string) string {
 	// Have to use strings because path package does not handle escaped '/' and
 	// '\' according to the escaping rules.
 	return strings.Join(elements, string(PathSeparator))
-}
-
-// split takes an escaped string and returns a slice of path elements. The
-// string is split on the path separator according to the escaping rules. The
-// provided string must not contain an unescaped trailing path separator.
-func Split(segment string) []string {
-	res := make([]string, 0)
-	numEscapes := 0
-	startIdx := 0
-	// Start with true to ignore leading separator.
-	prevWasSeparator := true
-
-	for i, c := range segment {
-		if c == escapeCharacter {
-			prevWasSeparator = false
-			numEscapes++
-
-			continue
-		}
-
-		if c != PathSeparator {
-			prevWasSeparator = false
-			numEscapes = 0
-
-			continue
-		}
-
-		// Remaining is just path separator handling.
-		if numEscapes%2 != 0 {
-			// This is an escaped separator.
-			prevWasSeparator = false
-			numEscapes = 0
-
-			continue
-		}
-
-		// Ignore leading separator characters and don't add elements that would
-		// be empty.
-		if !prevWasSeparator {
-			res = append(res, segment[startIdx:i])
-		}
-
-		// We don't want to include the path separator in the result.
-		startIdx = i + 1
-		prevWasSeparator = true
-		numEscapes = 0
-	}
-
-	// Add the final segment because the loop above won't catch it. There should
-	// be no trailing separator character.
-	res = append(res, segment[startIdx:])
-
-	return res
 }

@@ -16,35 +16,39 @@ import (
 	D "github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	ctrlTD "github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 //lint:ignore U1000 future test use
 func orgSiteSet(t *testing.T) []string {
-	return tester.LoadTestM365OrgSites(t)
+	return tconfig.LoadTestM365OrgSites(t)
 }
 
 //lint:ignore U1000 future test use
 func orgUserSet(t *testing.T) []string {
-	return tester.LoadTestM365OrgUsers(t)
+	return tconfig.LoadTestM365OrgUsers(t)
 }
 
 //lint:ignore U1000 future test use
 func singleSiteSet(t *testing.T) []string {
-	return []string{tester.LoadTestM365SiteID(t)}
+	return []string{tconfig.LoadTestM365SiteID(t)}
 }
 
 //lint:ignore U1000 future test use
 func singleUserSet(t *testing.T) []string {
-	return []string{tester.LoadTestM365UserID(t)}
+	return []string{tconfig.LoadTestM365UserID(t)}
 }
 
 var loadCtx context.Context
@@ -54,7 +58,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	ctx, logFlush := tester.NewContext()
+	ctx, logFlush := tester.NewContext(nil)
 	loadCtx = ctx
 
 	if err := D.InitCollector(); err != nil {
@@ -82,26 +86,34 @@ func TestMain(m *testing.M) {
 
 func initM365Repo(t *testing.T) (
 	context.Context,
-	repository.Repository,
+	repository.Repositoryer,
 	account.Account,
 	storage.Storage,
 ) {
-	tester.MustGetEnvSets(t, tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs)
+	tester.MustGetEnvSets(t, storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs)
 
-	ctx, flush := tester.WithContext(loadCtx)
+	ctx, flush := tester.WithContext(t, loadCtx)
 	defer flush()
 
-	st := tester.NewPrefixedS3Storage(t)
-	ac := tester.NewM365Account(t)
+	st := storeTD.NewPrefixedS3Storage(t)
+	ac := tconfig.NewM365Account(t)
 	opts := control.Options{
-		DisableMetrics: true,
-		FailFast:       true,
+		DisableMetrics:  true,
+		FailureHandling: control.FailFast,
 	}
 
-	repo, err := repository.Initialize(ctx, ac, st, opts)
+	r, err := repository.New(
+		ctx,
+		ac,
+		st,
+		opts,
+		repository.NewRepoID)
 	require.NoError(t, err, clues.ToCore(err))
 
-	return ctx, repo, ac, st
+	err = r.Initialize(ctx, repository.InitConfig{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	return ctx, r, ac, st
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -112,7 +124,7 @@ func initM365Repo(t *testing.T) (
 func runLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	prefix, service string,
 	usersUnderTest []string,
 	bupSel, restSel selectors.Selector,
@@ -137,7 +149,7 @@ func runLoadTest(
 func runRestoreLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	prefix, service, backupID string,
 	usersUnderTest []string,
 	restSel selectors.Selector,
@@ -150,9 +162,9 @@ func runRestoreLoadTest(
 			t.Skip("restore load test is toggled off")
 		}
 
-		dest := tester.DefaultTestRestoreDestination()
+		restoreCfg := ctrlTD.DefaultRestoreConfig("")
 
-		rst, err := r.NewRestore(ctx, backupID, restSel, dest)
+		rst, err := r.NewRestore(ctx, backupID, restSel, restoreCfg)
 		require.NoError(t, err, clues.ToCore(err))
 
 		doRestoreLoadTest(t, ctx, rst, service, bup.Results.ItemsWritten, usersUnderTest)
@@ -195,7 +207,7 @@ func runBackupLoadTest(
 func runBackupListLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	name, expectID string,
 ) {
 	//revive:enable:context-as-argument
@@ -232,7 +244,7 @@ func runBackupListLoadTest(
 func runBackupDetailsLoadTest(
 	t *testing.T,
 	ctx context.Context,
-	r repository.Repository,
+	r repository.Repositoryer,
 	name, backupID string,
 	users []string,
 ) {
@@ -302,10 +314,10 @@ func doRestoreLoadTest(
 }
 
 // noFolders removes all "folder" category details entries
-func noFolders(t *testing.T, des []details.DetailsEntry) []details.DetailsEntry {
+func noFolders(t *testing.T, des []details.Entry) []details.Entry {
 	t.Helper()
 
-	sansfldr := []details.DetailsEntry{}
+	sansfldr := []details.Entry{}
 
 	for _, ent := range des {
 		if ent.Folder == nil {
@@ -343,7 +355,7 @@ func ensureAllUsersInDetails(
 				continue
 			}
 
-			ro := p.ResourceOwner()
+			ro := p.ProtectedResource()
 			if !assert.NotEmpty(t, ro, "resource owner in path: "+rr) {
 				continue
 			}
@@ -404,7 +416,7 @@ func normalizeCategorySet(t *testing.T, cats map[string]struct{}) []string {
 type LoadExchangeSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
@@ -414,8 +426,7 @@ func TestLoadExchangeSuite(t *testing.T) {
 	suite.Run(t, &LoadExchangeSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -431,7 +442,7 @@ func (suite *LoadExchangeSuite) TeardownSuite() {
 }
 
 func (suite *LoadExchangeSuite) TestExchange() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewExchangeBackup(suite.usersUnderTest)
@@ -447,8 +458,7 @@ func (suite *LoadExchangeSuite) TestExchange() {
 		"all_users", "exchange",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
-		true,
-	)
+		true)
 }
 
 // single user, lots of data
@@ -456,7 +466,7 @@ func (suite *LoadExchangeSuite) TestExchange() {
 type IndividualLoadExchangeSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
@@ -466,8 +476,7 @@ func TestIndividualLoadExchangeSuite(t *testing.T) {
 	suite.Run(t, &IndividualLoadExchangeSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -484,7 +493,7 @@ func (suite *IndividualLoadExchangeSuite) TeardownSuite() {
 }
 
 func (suite *IndividualLoadExchangeSuite) TestExchange() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewExchangeBackup(suite.usersUnderTest)
@@ -500,8 +509,7 @@ func (suite *IndividualLoadExchangeSuite) TestExchange() {
 		"single_user", "exchange",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
-		true,
-	)
+		true)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -511,7 +519,7 @@ func (suite *IndividualLoadExchangeSuite) TestExchange() {
 type LoadOneDriveSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
@@ -521,8 +529,7 @@ func TestLoadOneDriveSuite(t *testing.T) {
 	suite.Run(t, &LoadOneDriveSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -539,11 +546,11 @@ func (suite *LoadOneDriveSuite) TeardownSuite() {
 }
 
 func (suite *LoadOneDriveSuite) TestOneDrive() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
-	bsel.Include(bsel.AllData())
+	bsel.Include(selTD.OneDriveBackupFolderScope(bsel))
 	sel := bsel.Selector
 
 	runLoadTest(
@@ -553,14 +560,13 @@ func (suite *LoadOneDriveSuite) TestOneDrive() {
 		"all_users", "one_drive",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
-		false,
-	)
+		false)
 }
 
 type IndividualLoadOneDriveSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	usersUnderTest []string
@@ -570,8 +576,7 @@ func TestIndividualLoadOneDriveSuite(t *testing.T) {
 	suite.Run(t, &IndividualLoadOneDriveSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -587,11 +592,11 @@ func (suite *IndividualLoadOneDriveSuite) TeardownSuite() {
 }
 
 func (suite *IndividualLoadOneDriveSuite) TestOneDrive() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewOneDriveBackup(suite.usersUnderTest)
-	bsel.Include(bsel.AllData())
+	bsel.Include(selTD.OneDriveBackupFolderScope(bsel))
 	sel := bsel.Selector
 
 	runLoadTest(
@@ -601,8 +606,7 @@ func (suite *IndividualLoadOneDriveSuite) TestOneDrive() {
 		"single_user", "one_drive",
 		suite.usersUnderTest,
 		sel, sel, // same selection for backup and restore
-		false,
-	)
+		false)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -612,7 +616,7 @@ func (suite *IndividualLoadOneDriveSuite) TestOneDrive() {
 type LoadSharePointSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	sitesUnderTest []string
@@ -622,8 +626,7 @@ func TestLoadSharePointSuite(t *testing.T) {
 	suite.Run(t, &LoadSharePointSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -640,7 +643,7 @@ func (suite *LoadSharePointSuite) TeardownSuite() {
 }
 
 func (suite *LoadSharePointSuite) TestSharePoint() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewSharePointBackup(suite.sitesUnderTest)
@@ -654,14 +657,13 @@ func (suite *LoadSharePointSuite) TestSharePoint() {
 		"all_sites", "share_point",
 		suite.sitesUnderTest,
 		sel, sel, // same selection for backup and restore
-		false,
-	)
+		false)
 }
 
 type IndividualLoadSharePointSuite struct {
 	tester.Suite
 	ctx            context.Context
-	repo           repository.Repository
+	repo           repository.Repositoryer
 	acct           account.Account //lint:ignore U1000 future test use
 	st             storage.Storage //lint:ignore U1000 future test use
 	sitesUnderTest []string
@@ -671,8 +673,7 @@ func TestIndividualLoadSharePointSuite(t *testing.T) {
 	suite.Run(t, &IndividualLoadSharePointSuite{
 		Suite: tester.NewLoadSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
@@ -689,7 +690,7 @@ func (suite *IndividualLoadSharePointSuite) TeardownSuite() {
 }
 
 func (suite *IndividualLoadSharePointSuite) TestSharePoint() {
-	ctx, flush := tester.WithContext(suite.ctx)
+	ctx, flush := tester.WithContext(suite.T(), suite.ctx)
 	defer flush()
 
 	bsel := selectors.NewSharePointBackup(suite.sitesUnderTest)
@@ -703,6 +704,5 @@ func (suite *IndividualLoadSharePointSuite) TestSharePoint() {
 		"single_site", "share_point",
 		suite.sitesUnderTest,
 		sel, sel, // same selection for backup and restore
-		false,
-	)
+		false)
 }

@@ -13,12 +13,57 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
+	dataMock "github.com/alcionai/corso/src/internal/data/mock"
+	istats "github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
+
+// ---------------
+// Wrappers to match required interfaces.
+// ---------------
+
+// These types are needed because we check that a fs.File was returned.
+// Unfortunately fs.StreamingFile and fs.File have different interfaces so we
+// have to fake things.
+type mockSeeker struct{}
+
+func (s mockSeeker) Seek(offset int64, whence int) (int64, error) {
+	return 0, clues.New("not implemented")
+}
+
+type mockReader struct {
+	io.ReadCloser
+	mockSeeker
+}
+
+func (r mockReader) Entry() (fs.Entry, error) {
+	return nil, clues.New("not implemented")
+}
+
+type mockFile struct {
+	// Use for Entry interface.
+	fs.StreamingFile
+	r       io.ReadCloser
+	openErr error
+	size    int64
+}
+
+func (f *mockFile) Open(ctx context.Context) (fs.Reader, error) {
+	if f.openErr != nil {
+		return nil, f.openErr
+	}
+
+	return mockReader{ReadCloser: f.r}, nil
+}
+
+func (f *mockFile) Size() int64 {
+	return f.size
+}
 
 // ---------------
 // unit tests
@@ -44,169 +89,256 @@ func (suite *KopiaDataCollectionUnitSuite) TestReturnsPath() {
 	require.NoError(t, err, clues.ToCore(err))
 
 	c := kopiaDataCollection{
-		streams: []data.Stream{},
-		path:    pth,
+		path: pth,
 	}
 
 	assert.Equal(t, pth, c.FullPath())
 }
 
 func (suite *KopiaDataCollectionUnitSuite) TestReturnsStreams() {
-	testData := [][]byte{
-		[]byte("abcdefghijklmnopqrstuvwxyz"),
-		[]byte("zyxwvutsrqponmlkjihgfedcba"),
+	type loadedData struct {
+		uuid string
+		data []byte
+		size int64
 	}
 
-	uuids := []string{
-		"a-file",
-		"another-file",
+	var (
+		fileData = [][]byte{
+			[]byte("abcdefghijklmnopqrstuvwxyz"),
+			[]byte("zyxwvutsrqponmlkjihgfedcba"),
+		}
+
+		uuids = []string{
+			"a-file",
+			"another-file",
+		}
+
+		files = []loadedData{
+			{uuid: uuids[0], data: fileData[0], size: int64(len(fileData[0]))},
+			{uuid: uuids[1], data: fileData[1], size: int64(len(fileData[1]))},
+		}
+
+		fileLookupErrName = "errLookup"
+		fileOpenErrName   = "errOpen"
+		notFileErrName    = "errNotFile"
+	)
+
+	// Needs to be a function so the readers get refreshed each time.
+	getLayout := func(t *testing.T) fs.Directory {
+		format := readers.SerializationFormat{
+			Version: readers.DefaultSerializationVersion,
+		}
+
+		r1, err := readers.NewVersionedBackupReader(
+			format,
+			io.NopCloser(bytes.NewReader(files[0].data)))
+		require.NoError(t, err, clues.ToCore(err))
+
+		r2, err := readers.NewVersionedBackupReader(
+			format,
+			io.NopCloser(bytes.NewReader(files[1].data)))
+		require.NoError(t, err, clues.ToCore(err))
+
+		return virtualfs.NewStaticDirectory(encodeAsPath("foo"), []fs.Entry{
+			&mockFile{
+				StreamingFile: virtualfs.StreamingFileFromReader(
+					encodeAsPath(files[0].uuid),
+					nil),
+				r:    r1,
+				size: int64(len(files[0].data) + readers.VersionFormatSize),
+			},
+			&mockFile{
+				StreamingFile: virtualfs.StreamingFileFromReader(
+					encodeAsPath(files[1].uuid),
+					nil),
+				r:    r2,
+				size: int64(len(files[1].data) + readers.VersionFormatSize),
+			},
+			&mockFile{
+				StreamingFile: virtualfs.StreamingFileFromReader(
+					encodeAsPath(fileOpenErrName),
+					nil),
+				openErr: assert.AnError,
+			},
+			virtualfs.NewStaticDirectory(encodeAsPath(notFileErrName), []fs.Entry{}),
+		})
 	}
 
 	table := []struct {
-		name    string
-		streams []data.Stream
+		name           string
+		uuidsAndErrors map[string]assert.ErrorAssertionFunc
+		// Data and stuff about the loaded data.
+		expectedLoaded []loadedData
 	}{
 		{
 			name: "SingleStream",
-			streams: []data.Stream{
-				&kopiaDataStream{
-					reader: io.NopCloser(bytes.NewReader(testData[0])),
-					uuid:   uuids[0],
-					size:   int64(len(testData[0])),
-				},
+			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
+				uuids[0]: nil,
 			},
+			expectedLoaded: []loadedData{files[0]},
 		},
 		{
 			name: "MultipleStreams",
-			streams: []data.Stream{
-				&kopiaDataStream{
-					reader: io.NopCloser(bytes.NewReader(testData[0])),
-					uuid:   uuids[0],
-					size:   int64(len(testData[0])),
-				},
-				&kopiaDataStream{
-					reader: io.NopCloser(bytes.NewReader(testData[1])),
-					uuid:   uuids[1],
-					size:   int64(len(testData[1])),
-				},
+			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
+				uuids[0]: nil,
+				uuids[1]: nil,
 			},
+			expectedLoaded: files,
+		},
+		{
+			name: "Some Not Found Errors",
+			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
+				fileLookupErrName: assert.Error,
+				uuids[0]:          nil,
+			},
+			expectedLoaded: []loadedData{files[0]},
+		},
+		{
+			name: "Some Not A File Errors",
+			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
+				notFileErrName: assert.Error,
+				uuids[0]:       nil,
+			},
+			expectedLoaded: []loadedData{files[0]},
+		},
+		{
+			name: "Some Open Errors",
+			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
+				fileOpenErrName: assert.Error,
+				uuids[0]:        nil,
+			},
+			expectedLoaded: []loadedData{files[0]},
+		},
+		{
+			name: "Empty Name Errors",
+			uuidsAndErrors: map[string]assert.ErrorAssertionFunc{
+				"": assert.Error,
+			},
+			expectedLoaded: []loadedData{},
 		},
 	}
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
 
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			items := []string{}
+			errs := []assert.ErrorAssertionFunc{}
+
+			for uuid, err := range test.uuidsAndErrors {
+				if err != nil {
+					errs = append(errs, err)
+				}
+
+				items = append(items, uuid)
+			}
+
 			c := kopiaDataCollection{
-				streams: test.streams,
-				path:    nil,
+				dir:             getLayout(t),
+				path:            nil,
+				items:           items,
+				expectedVersion: readers.DefaultSerializationVersion,
 			}
 
-			count := 0
-			for returnedStream := range c.Items(ctx, fault.New(true)) {
-				require.Less(t, count, len(test.streams))
-				assert.Equal(t, returnedStream.UUID(), uuids[count])
+			var (
+				found []loadedData
+				bus   = fault.New(false)
+			)
 
-				buf, err := io.ReadAll(returnedStream.ToReader())
-				require.NoError(t, err, clues.ToCore(err))
-				assert.Equal(t, buf, testData[count])
-				require.Implements(t, (*data.StreamSize)(nil), returnedStream)
+			for item := range c.Items(ctx, bus) {
+				require.Less(t, len(found), len(test.expectedLoaded), "items read safety")
 
-				ss := returnedStream.(data.StreamSize)
-				assert.Equal(t, len(buf), int(ss.Size()))
+				found = append(found, loadedData{})
+				f := &found[len(found)-1]
+				f.uuid = item.ID()
 
-				count++
+				buf, err := io.ReadAll(item.ToReader())
+				if !assert.NoError(t, err, clues.ToCore(err)) {
+					continue
+				}
+
+				f.data = buf
+
+				if !assert.Implements(t, (*data.ItemSize)(nil), item) {
+					continue
+				}
+
+				ss := item.(data.ItemSize)
+
+				f.size = ss.Size()
 			}
 
-			assert.Equal(t, len(test.streams), count)
+			// We expect the items to be fetched in the order they are
+			// in the struct or the errors will not line up
+			for i, err := range bus.Recovered() {
+				assert.True(t, errs[i](t, err), "expected error", clues.ToCore(err))
+			}
+
+			assert.NoError(t, bus.Failure(), "expected no hard failures")
+
+			assert.ElementsMatch(t, test.expectedLoaded, found, "loaded items")
 		})
 	}
 }
 
-// These types are needed because we check that a fs.File was returned.
-// Unfortunately fs.StreamingFile and fs.File have different interfaces so we
-// have to fake things.
-type mockSeeker struct{}
-
-func (s mockSeeker) Seek(offset int64, whence int) (int64, error) {
-	return 0, clues.New("not implemented")
-}
-
-type mockReader struct {
-	io.ReadCloser
-	mockSeeker
-}
-
-func (r mockReader) Entry() (fs.Entry, error) {
-	return nil, clues.New("not implemented")
-}
-
-type mockFile struct {
-	// Use for Entry interface.
-	fs.StreamingFile
-	r io.ReadCloser
-}
-
-func (f *mockFile) Open(ctx context.Context) (fs.Reader, error) {
-	return mockReader{ReadCloser: f.r}, nil
-}
-
-func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
+func (suite *KopiaDataCollectionUnitSuite) TestFetchItemByName() {
 	var (
 		tenant   = "a-tenant"
 		user     = "a-user"
-		service  = path.ExchangeService.String()
 		category = path.EmailCategory
 		folder1  = "folder1"
 		folder2  = "folder2"
 
 		noErrFileName = "noError"
 		errFileName   = "error"
+		errFileName2  = "error2"
 
 		noErrFileData = "foo bar baz"
-
-		errReader = &mockconnector.MockExchangeData{
+		errReader     = &dataMock.Item{
 			ReadErr: assert.AnError,
 		}
 	)
 
 	// Needs to be a function so we can switch the serialization version as
 	// needed.
-	getLayout := func(serVersion uint32) fs.Entry {
-		return virtualfs.NewStaticDirectory(encodeAsPath(tenant), []fs.Entry{
-			virtualfs.NewStaticDirectory(encodeAsPath(service), []fs.Entry{
-				virtualfs.NewStaticDirectory(encodeAsPath(user), []fs.Entry{
-					virtualfs.NewStaticDirectory(encodeAsPath(category.String()), []fs.Entry{
-						virtualfs.NewStaticDirectory(encodeAsPath(folder1), []fs.Entry{
-							virtualfs.NewStaticDirectory(encodeAsPath(folder2), []fs.Entry{
-								&mockFile{
-									StreamingFile: virtualfs.StreamingFileFromReader(
-										encodeAsPath(noErrFileName),
-										nil,
-									),
-									r: newBackupStreamReader(
-										serVersion,
-										io.NopCloser(bytes.NewReader([]byte(noErrFileData))),
-									),
-								},
-								&mockFile{
-									StreamingFile: virtualfs.StreamingFileFromReader(
-										encodeAsPath(errFileName),
-										nil,
-									),
-									r: newBackupStreamReader(
-										serVersion,
-										errReader.ToReader(),
-									),
-								},
-							}),
-						}),
-					}),
-				}),
-			}),
+	getLayout := func(
+		t *testing.T,
+		serVersion readers.SerializationVersion,
+	) fs.Directory {
+		format := readers.SerializationFormat{Version: serVersion}
+
+		r1, err := readers.NewVersionedBackupReader(
+			format,
+			io.NopCloser(bytes.NewReader([]byte(noErrFileData))))
+		require.NoError(t, err, clues.ToCore(err))
+
+		r2, err := readers.NewVersionedBackupReader(
+			format,
+			errReader.ToReader())
+		require.NoError(t, err, clues.ToCore(err))
+
+		return virtualfs.NewStaticDirectory(encodeAsPath(folder2), []fs.Entry{
+			&mockFile{
+				StreamingFile: virtualfs.StreamingFileFromReader(
+					encodeAsPath(noErrFileName),
+					nil),
+				r: r1,
+			},
+			&mockFile{
+				StreamingFile: virtualfs.StreamingFileFromReader(
+					encodeAsPath(errFileName),
+					nil),
+				r: r2,
+			},
+			&mockFile{
+				StreamingFile: virtualfs.StreamingFileFromReader(
+					encodeAsPath(errFileName2),
+					nil),
+				openErr: assert.AnError,
+			},
 		})
 	}
 
@@ -222,7 +354,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 	table := []struct {
 		name                      string
 		inputName                 string
-		inputSerializationVersion uint32
+		inputSerializationVersion readers.SerializationVersion
 		expectedData              []byte
 		lookupErr                 assert.ErrorAssertionFunc
 		readErr                   assert.ErrorAssertionFunc
@@ -231,7 +363,7 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 		{
 			name:                      "FileFound_NoError",
 			inputName:                 noErrFileName,
-			inputSerializationVersion: serializationVersion,
+			inputSerializationVersion: readers.DefaultSerializationVersion,
 			expectedData:              []byte(noErrFileData),
 			lookupErr:                 assert.NoError,
 			readErr:                   assert.NoError,
@@ -239,38 +371,46 @@ func (suite *KopiaDataCollectionUnitSuite) TestFetch() {
 		{
 			name:                      "FileFound_ReadError",
 			inputName:                 errFileName,
-			inputSerializationVersion: serializationVersion,
+			inputSerializationVersion: readers.DefaultSerializationVersion,
 			lookupErr:                 assert.NoError,
 			readErr:                   assert.Error,
 		},
 		{
 			name:                      "FileFound_VersionError",
 			inputName:                 noErrFileName,
-			inputSerializationVersion: serializationVersion + 1,
-			lookupErr:                 assert.NoError,
-			readErr:                   assert.Error,
+			inputSerializationVersion: readers.DefaultSerializationVersion + 1,
+			lookupErr:                 assert.Error,
 		},
 		{
 			name:                      "FileNotFound",
 			inputName:                 "foo",
-			inputSerializationVersion: serializationVersion + 1,
+			inputSerializationVersion: readers.DefaultSerializationVersion + 1,
 			lookupErr:                 assert.Error,
 			notFoundErr:               true,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
-			defer flush()
-
 			t := suite.T()
 
-			root := getLayout(test.inputSerializationVersion)
-			c := &i64counter{}
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-			col := &kopiaDataCollection{path: pth, snapshotRoot: root, counter: c}
+			root := getLayout(t, test.inputSerializationVersion)
 
-			s, err := col.Fetch(ctx, test.inputName)
+			counter := count.New()
+			c := istats.ByteCounter{
+				Counter: counter.AdderFor(count.PersistedUploadedBytes),
+			}
+
+			col := &kopiaDataCollection{
+				path:            pth,
+				dir:             root,
+				counter:         &c,
+				expectedVersion: readers.DefaultSerializationVersion,
+			}
+
+			s, err := col.FetchItemByName(ctx, test.inputName)
 
 			test.lookupErr(t, err)
 

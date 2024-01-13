@@ -20,7 +20,16 @@ const sidebars = {
     {
       type: 'category',
       label: 'Usage',
-      items: ['setup/concepts', 'setup/download', 'setup/m365-access', 'setup/configuration', 'setup/repos', 'setup/fault-tolerance'],
+      items: [
+        'setup/concepts',
+        'setup/download',
+        'setup/m365-access',
+        'setup/configuration',
+        'setup/repos',
+        'setup/fault-tolerance',
+        'setup/restore-options',
+        'setup/maintenance'
+      ],
     },
     {
       type: 'category',
@@ -33,14 +42,18 @@ const sidebars = {
       items: [
         {
           type: 'category',
-          label: 'Setup',
+          label: 'Setup and maintenance',
           link: {
             slug: 'cli/setup',
-            description: 'Documentation for commonly-used Corso setup CLI commands',
+            description: 'Documentation for Corso setup and maintenance commands',
           },
           items: [
             'cli/corso-repo-init-s3',
             'cli/corso-repo-connect-s3',
+            'cli/corso-repo-init-filesystem',
+            'cli/corso-repo-connect-filesystem',
+            'cli/corso-repo-maintenance',
+            'cli/corso-repo-update-passphrase',
             'cli/corso-env']
         },
         {
@@ -55,7 +68,23 @@ const sidebars = {
             'cli/corso-backup-list-exchange',
             'cli/corso-backup-details-exchange',
             'cli/corso-backup-delete-exchange',
-            'cli/corso-restore-exchange']
+            'cli/corso-restore-exchange',
+            'cli/corso-export-exchange']
+        },
+        {
+          type: 'category',
+          label: 'Groups & Teams',
+          link: {
+            slug: 'cli/groups',
+            description: 'Documentation for commonly-used Corso Groups & Teams CLI commands',
+          },
+          items: [
+            'cli/corso-backup-create-groups',
+            'cli/corso-backup-list-groups',
+            'cli/corso-backup-details-groups',
+            'cli/corso-backup-delete-groups',
+            'cli/corso-restore-groups',
+            'cli/corso-export-groups']
         },
         {
           type: 'category',
@@ -69,7 +98,8 @@ const sidebars = {
             'cli/corso-backup-list-onedrive',
             'cli/corso-backup-details-onedrive',
             'cli/corso-backup-delete-onedrive',
-            'cli/corso-restore-onedrive']
+            'cli/corso-restore-onedrive',
+            'cli/corso-export-onedrive']
         },
         {
           type: 'category',
@@ -83,7 +113,8 @@ const sidebars = {
             'cli/corso-backup-list-sharepoint',
             'cli/corso-backup-details-sharepoint',
             'cli/corso-backup-delete-sharepoint',
-            'cli/corso-restore-sharepoint']
+            'cli/corso-restore-sharepoint',
+            'cli/corso-export-sharepoint']
         }
       ]
     },

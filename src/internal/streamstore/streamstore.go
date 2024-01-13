@@ -6,13 +6,16 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"time"
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/stats"
-	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -60,6 +63,8 @@ func (ss *storeStreamer) Collect(ctx context.Context, col Collectable) error {
 
 // Write persists the collected objects in the stream store
 func (ss *storeStreamer) Write(ctx context.Context, errs *fault.Bus) (string, error) {
+	ctx = clues.Add(ctx, "snapshot_type", "stream store")
+
 	id, err := write(ctx, ss.kw, ss.dbcs, errs)
 	if err != nil {
 		return "", clues.Wrap(err, "writing to stream store")
@@ -78,16 +83,6 @@ func (ss *storeStreamer) Read(ctx context.Context, snapshotID string, col Collec
 	return nil
 }
 
-// Delete deletes a `details.Details` object from the kopia repository
-func (ss *storeStreamer) Delete(ctx context.Context, detailsID string) error {
-	err := ss.kw.DeleteSnapshot(ctx, detailsID)
-	if err != nil {
-		return clues.Wrap(err, "deleting snapshot in stream store")
-	}
-
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // interfaces
 // ---------------------------------------------------------------------------
@@ -98,7 +93,6 @@ type Streamer interface {
 	Collector
 	Writer
 	Reader
-	Delete(context.Context, string) error
 }
 
 type CollectorWriter interface {
@@ -136,7 +130,7 @@ type streamCollection struct {
 	// folderPath indicates what level in the hierarchy this collection
 	// represents
 	folderPath path.Path
-	item       *streamItem
+	item       data.Item
 }
 
 func (dc *streamCollection) FullPath() path.Path {
@@ -155,35 +149,14 @@ func (dc *streamCollection) DoNotMergeItems() bool {
 	return false
 }
 
-// Items() always returns a channel with a single data.Stream
+// Items() always returns a channel with a single data.Item
 // representing the object to be persisted
-func (dc *streamCollection) Items(context.Context, *fault.Bus) <-chan data.Stream {
-	items := make(chan data.Stream, 1)
+func (dc *streamCollection) Items(context.Context, *fault.Bus) <-chan data.Item {
+	items := make(chan data.Item, 1)
 	defer close(items)
 	items <- dc.item
 
 	return items
-}
-
-// ---------------------------------------------------------------------------
-// item
-// ---------------------------------------------------------------------------
-
-type streamItem struct {
-	name string
-	data []byte
-}
-
-func (di *streamItem) UUID() string {
-	return di.name
-}
-
-func (di *streamItem) ToReader() io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(di.data))
-}
-
-func (di *streamItem) Deleted() bool {
-	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -200,69 +173,56 @@ func collect(
 	// construct the path of the container
 	p, err := path.Builder{}.ToStreamStorePath(tenantID, col.purpose, service, false)
 	if err != nil {
-		return nil, clues.Stack(err).WithClues(ctx)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	// TODO: We could use an io.Pipe here to avoid a double copy but that
 	// makes error handling a bit complicated
 	bs, err := col.mr.Marshal()
 	if err != nil {
-		return nil, clues.Wrap(err, "marshalling body").WithClues(ctx)
+		return nil, clues.WrapWC(ctx, err, "marshalling body")
+	}
+
+	item, err := data.NewPrefetchedItem(
+		io.NopCloser(bytes.NewReader(bs)),
+		col.itemName,
+		time.Now())
+	if err != nil {
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	dc := streamCollection{
 		folderPath: p,
-		item: &streamItem{
-			name: col.itemName,
-			data: bs,
-		},
+		item:       item,
 	}
 
 	return &dc, nil
 }
 
-type backuper interface {
-	BackupCollections(
-		ctx context.Context,
-		bases []kopia.IncrementalBase,
-		cs []data.BackupCollection,
-		globalExcludeSet map[string]map[string]struct{},
-		tags map[string]string,
-		buildTreeWithBase bool,
-		errs *fault.Bus,
-	) (*kopia.BackupStats, *details.Builder, map[string]kopia.PrevRefs, error)
-}
-
 // write persists bytes to the store
 func write(
 	ctx context.Context,
-	bup backuper,
+	bup inject.BackupConsumer,
 	dbcs []data.BackupCollection,
 	errs *fault.Bus,
 ) (string, error) {
-	backupStats, _, _, err := bup.BackupCollections(
+	ctx = clues.Add(ctx, "collection_source", "streamstore")
+
+	backupStats, _, _, err := bup.ConsumeBackupCollections(
 		ctx,
 		nil,
-		dbcs,
 		nil,
+		dbcs,
+		prefixmatcher.NopReader[map[string]struct{}](),
 		nil,
 		false,
+		count.New(),
 		errs)
 	if err != nil {
 		return "", clues.Wrap(err, "storing marshalled bytes in repository")
 	}
 
 	return backupStats.SnapshotID, nil
-}
-
-type restorer interface {
-	RestoreMultipleItems(
-		ctx context.Context,
-		snapshotID string,
-		paths []path.Path,
-		bc kopia.ByteCounter,
-		errs *fault.Bus,
-	) ([]data.RestoreCollection, error)
 }
 
 // read retrieves an object from the store
@@ -272,7 +232,7 @@ func read(
 	tenantID string,
 	service path.ServiceType,
 	col Collectable,
-	rer restorer,
+	rer inject.RestoreProducer,
 	errs *fault.Bus,
 ) error {
 	// construct the path of the container
@@ -280,15 +240,25 @@ func read(
 		Append(col.itemName).
 		ToStreamStorePath(tenantID, col.purpose, service, true)
 	if err != nil {
-		return clues.Stack(err).WithClues(ctx)
+		return clues.StackWC(ctx, err)
+	}
+
+	pd, err := p.Dir()
+	if err != nil {
+		return clues.StackWC(ctx, err)
 	}
 
 	ctx = clues.Add(ctx, "snapshot_id", snapshotID)
 
-	cs, err := rer.RestoreMultipleItems(
+	cs, err := rer.ProduceRestoreCollections(
 		ctx,
 		snapshotID,
-		[]path.Path{p},
+		[]path.RestorePaths{
+			{
+				StoragePath: p,
+				RestorePath: pd,
+			},
+		},
 		&stats.ByteCounter{},
 		errs)
 	if err != nil {
@@ -297,8 +267,7 @@ func read(
 
 	// Expect only 1 data collection
 	if len(cs) != 1 {
-		return clues.New("unexpected collection count").
-			WithClues(ctx).
+		return clues.NewWC(ctx, "unexpected collection count").
 			With("collection_count", len(cs))
 	}
 
@@ -311,19 +280,19 @@ func read(
 	for {
 		select {
 		case <-ctx.Done():
-			return clues.New("context cancelled waiting for data").WithClues(ctx)
+			return clues.NewWC(ctx, "context cancelled waiting for data")
 
 		case itemData, ok := <-items:
 			if !ok {
 				if !found {
-					return clues.New("no data found").WithClues(ctx)
+					return clues.NewWC(ctx, "no data found")
 				}
 
 				return nil
 			}
 
 			if err := col.Unmr(itemData.ToReader()); err != nil {
-				return clues.Wrap(err, "unmarshalling data").WithClues(ctx)
+				return clues.WrapWC(ctx, err, "unmarshalling data")
 			}
 
 			found = true

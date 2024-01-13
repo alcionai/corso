@@ -5,8 +5,9 @@ import (
 
 	. "github.com/alcionai/corso/src/cli/print"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/connector/mockconnector"
+	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -51,28 +52,28 @@ func handleExchangeEmailFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	deets, err := generateAndRestoreItems(
 		ctx,
-		gc,
-		acct,
+		ctrl,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{User}).Selector,
 		Tenant, User, Destination,
 		Count,
 		func(id, now, subject, body string) []byte {
-			return mockconnector.GetMockMessageWith(
+			return exchMock.MessageWith(
 				User, User, User,
 				subject, body, body,
 				now, now, now, now)
 		},
-		control.Options{},
-		errs)
+		control.DefaultOptions(),
+		errs,
+		count.New())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -98,27 +99,30 @@ func handleExchangeCalendarEventFactory(cmd *cobra.Command, args []string) error
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	deets, err := generateAndRestoreItems(
 		ctx,
-		gc,
-		acct,
+		ctrl,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{User}).Selector,
 		Tenant, User, Destination,
 		Count,
 		func(id, now, subject, body string) []byte {
-			return mockconnector.GetMockEventWith(
+			return exchMock.EventWith(
 				User, subject, body, body,
-				now, now, false)
+				exchMock.NoOriginalStartDate, now, now,
+				exchMock.NoRecurrence, exchMock.NoAttendees,
+				exchMock.NoAttachments, exchMock.NoCancelledOccurrences,
+				exchMock.NoExceptionOccurrences)
 		},
-		control.Options{},
-		errs)
+		control.DefaultOptions(),
+		errs,
+		count.New())
 	if err != nil {
 		return Only(ctx, err)
 	}
@@ -144,15 +148,14 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gc, acct, err := getGCAndVerifyUser(ctx, User)
+	ctrl, _, _, err := getControllerAndVerifyResourceOwner(ctx, User, path.ExchangeService)
 	if err != nil {
 		return Only(ctx, err)
 	}
 
 	deets, err := generateAndRestoreItems(
 		ctx,
-		gc,
-		acct,
+		ctrl,
 		service,
 		category,
 		selectors.NewExchangeRestore([]string{User}).Selector,
@@ -161,15 +164,15 @@ func handleExchangeContactFactory(cmd *cobra.Command, args []string) error {
 		func(id, now, subject, body string) []byte {
 			given, mid, sur := id[:8], id[9:13], id[len(id)-12:]
 
-			return mockconnector.GetMockContactBytesWith(
+			return exchMock.ContactBytesWith(
 				given+" "+sur,
 				sur+", "+given,
 				given, mid, sur,
-				"123-456-7890",
-			)
+				"123-456-7890")
 		},
-		control.Options{},
-		errs)
+		control.DefaultOptions(),
+		errs,
+		count.New())
 	if err != nil {
 		return Only(ctx, err)
 	}

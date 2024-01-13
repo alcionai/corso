@@ -2,11 +2,13 @@ package selectors
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -41,6 +43,7 @@ type (
 var (
 	_ Reducer        = &SharePointRestore{}
 	_ pathCategorier = &SharePointRestore{}
+	_ reasoner       = &SharePointRestore{}
 )
 
 // NewSharePointBackup produces a new Selector with the service set to ServiceSharePoint.
@@ -67,7 +70,7 @@ func (s Selector) ToSharePointBackup() (*SharePointBackup, error) {
 }
 
 func (s SharePointBackup) SplitByResourceOwner(sites []string) []SharePointBackup {
-	sels := splitByResourceOwner[SharePointScope](s.Selector, sites, SharePointSite)
+	sels := splitByProtectedResource[SharePointScope](s.Selector, sites, SharePointSite)
 
 	ss := make([]SharePointBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -101,7 +104,7 @@ func (s Selector) ToSharePointRestore() (*SharePointRestore, error) {
 }
 
 func (s SharePointRestore) SplitByResourceOwner(sites []string) []SharePointRestore {
-	sels := splitByResourceOwner[SharePointScope](s.Selector, sites, SharePointSite)
+	sels := splitByProtectedResource[SharePointScope](s.Selector, sites, SharePointSite)
 
 	ss := make([]SharePointRestore, 0, len(sels))
 	for _, sel := range sels {
@@ -119,6 +122,22 @@ func (s sharePoint) PathCategories() selectorPathCategories {
 		Includes: pathCategoriesIn[SharePointScope, sharePointCategory](s.Includes),
 	}
 }
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s sharePoint) Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner {
+	return reasonsFor(s, tenantID, useOwnerNameForID)
+}
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s SharePointScope) Conceal() string             { return conceal(s) }
+func (s SharePointScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s SharePointScope) String() string              { return conceal(s) }
+func (s SharePointScope) PlainString() string         { return plainString(s) }
 
 // -------------------
 // Scope Factories
@@ -189,30 +208,35 @@ func (s *sharePoint) Scopes() []SharePointScope {
 
 // Produces one or more SharePoint webURL scopes.
 // One scope is created per webURL entry.
+// Defaults to equals check, on the assumption we identify fully qualified
+// urls, and do not want to default to contains.  ie: https://host/sites/foo
+// should not match https://host/sites/foo/bar.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (s *SharePointRestore) WebURL(urlSuffixes []string, opts ...option) []SharePointScope {
-	scopes := []SharePointScope{}
+func (s *SharePointRestore) WebURL(urls []string, opts ...option) []SharePointScope {
+	var (
+		scopes = []SharePointScope{}
+		os     = append([]option{ExactMatch()}, opts...)
+	)
 
 	scopes = append(
 		scopes,
 		makeInfoScope[SharePointScope](
 			SharePointLibraryItem,
 			SharePointWebURL,
-			urlSuffixes,
-			pathFilterFactory(opts...)),
+			urls,
+			pathFilterFactory(os...)),
 		makeInfoScope[SharePointScope](
 			SharePointListItem,
 			SharePointWebURL,
-			urlSuffixes,
-			pathFilterFactory(opts...)),
+			urls,
+			pathFilterFactory(os...)),
 		makeInfoScope[SharePointScope](
 			SharePointPage,
 			SharePointWebURL,
-			urlSuffixes,
-			pathFilterFactory(opts...)),
-	)
+			urls,
+			pathFilterFactory(os...)))
 
 	return scopes
 }
@@ -229,8 +253,7 @@ func (s *sharePoint) AllData() []SharePointScope {
 		scopes,
 		makeScope[SharePointScope](SharePointLibraryFolder, Any()),
 		makeScope[SharePointScope](SharePointList, Any()),
-		makeScope[SharePointScope](SharePointPageFolder, Any()),
-	)
+		makeScope[SharePointScope](SharePointPageFolder, Any()))
 
 	return scopes
 }
@@ -240,12 +263,9 @@ func (s *sharePoint) AllData() []SharePointScope {
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // Any empty slice defaults to [selectors.None]
 func (s *sharePoint) Lists(lists []string, opts ...option) []SharePointScope {
-	var (
-		scopes = []SharePointScope{}
-		os     = append([]option{pathComparator()}, opts...)
-	)
+	scopes := []SharePointScope{}
 
-	scopes = append(scopes, makeScope[SharePointScope](SharePointList, lists, os...))
+	scopes = append(scopes, makeScope[SharePointScope](SharePointList, lists, opts...))
 
 	return scopes
 }
@@ -260,9 +280,8 @@ func (s *sharePoint) ListItems(lists, items []string, opts ...option) []SharePoi
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointListItem, items).
-			set(SharePointList, lists, opts...),
-	)
+		makeScope[SharePointScope](SharePointListItem, items, defaultItemOptions(s.Cfg)...).
+			set(SharePointList, lists, opts...))
 
 	return scopes
 }
@@ -280,7 +299,7 @@ func (s *sharePoint) Library(library string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoLibraryDrive,
 			[]string{library},
-			wrapFilter(filters.Equal)),
+			filters.Equal),
 	}
 }
 
@@ -296,8 +315,7 @@ func (s *sharePoint) LibraryFolders(libraryFolders []string, opts ...option) []S
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibraryFolder, libraryFolders, os...),
-	)
+		makeScope[SharePointScope](SharePointLibraryFolder, libraryFolders, os...))
 
 	return scopes
 }
@@ -312,9 +330,8 @@ func (s *sharePoint) LibraryItems(libraries, items []string, opts ...option) []S
 
 	scopes = append(
 		scopes,
-		makeScope[SharePointScope](SharePointLibraryItem, items).
-			set(SharePointLibraryFolder, libraries, opts...),
-	)
+		makeScope[SharePointScope](SharePointLibraryItem, items, defaultItemOptions(s.Cfg)...).
+			set(SharePointLibraryFolder, libraries, opts...))
 
 	return scopes
 }
@@ -345,8 +362,7 @@ func (s *sharePoint) PageItems(pages, items []string, opts ...option) []SharePoi
 	scopes = append(
 		scopes,
 		makeScope[SharePointScope](SharePointPage, items).
-			set(SharePointPageFolder, pages, opts...),
-	)
+			set(SharePointPageFolder, pages, opts...))
 
 	return scopes
 }
@@ -360,7 +376,7 @@ func (s *sharePoint) CreatedAfter(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoCreatedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -370,7 +386,7 @@ func (s *sharePoint) CreatedBefore(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoCreatedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -380,7 +396,7 @@ func (s *sharePoint) ModifiedAfter(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoModifiedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -390,7 +406,7 @@ func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
 			SharePointLibraryItem,
 			SharePointInfoModifiedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -500,12 +516,14 @@ func (c sharePointCategory) isLeaf() bool {
 // => {spFolder: folder, spItemID: itemID}
 func (c sharePointCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
+	cfg Config,
 ) (map[categorizer][]string, error) {
 	var (
-		folderCat, itemCat    categorizer
-		itemName              = repo.Item()
-		dropDriveFolderPrefix bool
+		folderCat, itemCat categorizer
+		itemID             string
+		rFld               string
+		itemName           string
 	)
 
 	switch c {
@@ -514,33 +532,45 @@ func (c sharePointCategory) pathValues(
 			return nil, clues.New("no SharePoint ItemInfo in details")
 		}
 
-		dropDriveFolderPrefix = true
 		folderCat, itemCat = SharePointLibraryFolder, SharePointLibraryItem
-		itemName = ent.SharePoint.ItemName
+		rFld = ent.SharePoint.ParentPath
+		itemName = ent.ItemInfo.SharePoint.ItemName
 
 	case SharePointList, SharePointListItem:
 		folderCat, itemCat = SharePointList, SharePointListItem
 
+		rFld = ent.LocationRef
+		if cfg.OnlyMatchItemNames {
+			rFld = ent.ItemInfo.SharePoint.List.Name
+		}
+
+		itemName = ent.ItemInfo.SharePoint.List.Name
+
 	case SharePointPage, SharePointPageFolder:
 		folderCat, itemCat = SharePointPageFolder, SharePointPage
+		rFld = ent.LocationRef
+		itemName = ent.ItemInfo.SharePoint.ItemName
 
 	default:
 		return nil, clues.New("unrecognized sharePointCategory").With("category", c)
 	}
 
-	rFld := repo.Folder(false)
-	if dropDriveFolderPrefix {
-		// like onedrive, ignore `drives/<driveID>/root:` for library folder comparison
-		rFld = path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
+	item := ent.ItemRef
+	if len(item) == 0 {
+		item = repo.Item()
+	}
+
+	if cfg.OnlyMatchItemNames {
+		item = itemName
 	}
 
 	result := map[categorizer][]string{
 		folderCat: {rFld},
-		itemCat:   {itemName, ent.ShortRef},
+		itemCat:   {item, ent.ShortRef},
 	}
 
-	if len(ent.LocationRef) > 0 {
-		result[folderCat] = append(result[folderCat], ent.LocationRef)
+	if len(itemID) > 0 {
+		result[itemCat] = append(result[itemCat], itemID)
 	}
 
 	return result, nil
@@ -601,7 +631,7 @@ func (s SharePointScope) IncludesCategory(cat sharePointCategory) bool {
 // returns true if the category is included in the scope's data type,
 // and the value is set to Any().
 func (s SharePointScope) IsAny(cat sharePointCategory) bool {
-	return isAnyTarget(s, cat)
+	return IsAnyTarget(s, cat)
 }
 
 // Get returns the data category in the scope.  If the scope
@@ -616,7 +646,11 @@ func (s SharePointScope) set(cat sharePointCategory, v []string, opts ...option)
 	os := []option{}
 
 	switch cat {
-	case SharePointLibraryFolder, SharePointList, SharePointPage:
+	// SharePointList does not apply here because:
+	// 1.there is no nested folders -> there cannot be lists within other lists
+	// 2. list itself is the item -> so container and item are the same
+	// since there is no path involved here, we do not need any path filters.
+	case SharePointLibraryFolder, SharePointPage:
 		os = append(os, pathComparator())
 	}
 
@@ -640,12 +674,6 @@ func (s SharePointScope) setDefaults() {
 	case SharePointPageFolder:
 		s[SharePointPage.String()] = passAny
 	}
-}
-
-// DiscreteCopy makes a shallow clone of the scope, then replaces the clone's
-// site comparison with only the provided site.
-func (s SharePointScope) DiscreteCopy(site string) SharePointScope {
-	return discreteCopy(s, site)
 }
 
 // ---------------------------------------------------------------------------
@@ -688,9 +716,9 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	case SharePointWebURL:
 		i = info.WebURL
 	case SharePointInfoCreatedAfter, SharePointInfoCreatedBefore:
-		i = common.FormatTime(info.Created)
+		i = dttm.Format(info.Created)
 	case SharePointInfoModifiedAfter, SharePointInfoModifiedBefore:
-		i = common.FormatTime(info.Modified)
+		i = dttm.Format(info.Modified)
 	case SharePointInfoLibraryDrive:
 		ds := []string{}
 

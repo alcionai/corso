@@ -2,11 +2,13 @@ package selectors
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -41,6 +43,7 @@ type (
 var (
 	_ Reducer        = &OneDriveRestore{}
 	_ pathCategorier = &OneDriveRestore{}
+	_ reasoner       = &OneDriveRestore{}
 )
 
 // NewOneDriveBackup produces a new Selector with the service set to ServiceOneDrive.
@@ -67,7 +70,7 @@ func (s Selector) ToOneDriveBackup() (*OneDriveBackup, error) {
 }
 
 func (s OneDriveBackup) SplitByResourceOwner(users []string) []OneDriveBackup {
-	sels := splitByResourceOwner[OneDriveScope](s.Selector, users, OneDriveUser)
+	sels := splitByProtectedResource[OneDriveScope](s.Selector, users, OneDriveUser)
 
 	ss := make([]OneDriveBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -101,7 +104,7 @@ func (s Selector) ToOneDriveRestore() (*OneDriveRestore, error) {
 }
 
 func (s OneDriveRestore) SplitByResourceOwner(users []string) []OneDriveRestore {
-	sels := splitByResourceOwner[OneDriveScope](s.Selector, users, OneDriveUser)
+	sels := splitByProtectedResource[OneDriveScope](s.Selector, users, OneDriveUser)
 
 	ss := make([]OneDriveRestore, 0, len(sels))
 	for _, sel := range sels {
@@ -119,6 +122,22 @@ func (s oneDrive) PathCategories() selectorPathCategories {
 		Includes: pathCategoriesIn[OneDriveScope, oneDriveCategory](s.Includes),
 	}
 }
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s oneDrive) Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner {
+	return reasonsFor(s, tenantID, useOwnerNameForID)
+}
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s OneDriveScope) Conceal() string             { return conceal(s) }
+func (s OneDriveScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s OneDriveScope) String() string              { return conceal(s) }
+func (s OneDriveScope) PlainString() string         { return plainString(s) }
 
 // -------------------
 // Scope Factories
@@ -213,8 +232,7 @@ func (s *oneDrive) Folders(folders []string, opts ...option) []OneDriveScope {
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveFolder, folders, os...),
-	)
+		makeScope[OneDriveScope](OneDriveFolder, folders, os...))
 
 	return scopes
 }
@@ -229,9 +247,8 @@ func (s *oneDrive) Items(folders, items []string, opts ...option) []OneDriveScop
 
 	scopes = append(
 		scopes,
-		makeScope[OneDriveScope](OneDriveItem, items).
-			set(OneDriveFolder, folders, opts...),
-	)
+		makeScope[OneDriveScope](OneDriveItem, items, defaultItemOptions(s.Cfg)...).
+			set(OneDriveFolder, folders, opts...))
 
 	return scopes
 }
@@ -249,7 +266,7 @@ func (s *oneDrive) CreatedAfter(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoCreatedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -263,7 +280,7 @@ func (s *oneDrive) CreatedBefore(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoCreatedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -277,7 +294,7 @@ func (s *oneDrive) ModifiedAfter(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoModifiedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -291,7 +308,7 @@ func (s *oneDrive) ModifiedBefore(timeStrings string) []OneDriveScope {
 			OneDriveItem,
 			FileInfoModifiedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -381,18 +398,28 @@ func (c oneDriveCategory) isLeaf() bool {
 // => {odFolder: folder, odFileID: fileID}
 func (c oneDriveCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
+	cfg Config,
 ) (map[categorizer][]string, error) {
 	if ent.OneDrive == nil {
 		return nil, clues.New("no OneDrive ItemInfo in details")
 	}
 
 	// Ignore `drives/<driveID>/root:` for folder comparison
-	rFld := path.Builder{}.Append(repo.Folders()...).PopFront().PopFront().PopFront().String()
+	rFld := ent.OneDrive.ParentPath
+
+	item := ent.ItemRef
+	if len(item) == 0 {
+		item = repo.Item()
+	}
+
+	if cfg.OnlyMatchItemNames {
+		item = ent.ItemInfo.OneDrive.ItemName
+	}
 
 	result := map[categorizer][]string{
 		OneDriveFolder: {rFld},
-		OneDriveItem:   {ent.OneDrive.ItemName, ent.ShortRef},
+		OneDriveItem:   {item, ent.ShortRef},
 	}
 
 	if len(ent.LocationRef) > 0 {
@@ -457,7 +484,7 @@ func (s OneDriveScope) Matches(cat oneDriveCategory, target string) bool {
 // returns true if the category is included in the scope's data type,
 // and the value is set to Any().
 func (s OneDriveScope) IsAny(cat oneDriveCategory) bool {
-	return isAnyTarget(s, cat)
+	return IsAnyTarget(s, cat)
 }
 
 // Get returns the data category in the scope.  If the scope
@@ -486,12 +513,6 @@ func (s OneDriveScope) setDefaults() {
 	case OneDriveFolder:
 		s[OneDriveItem.String()] = passAny
 	}
-}
-
-// DiscreteCopy makes a clone of the scope, then replaces the clone's user comparison
-// with only the provided user.
-func (s OneDriveScope) DiscreteCopy(user string) OneDriveScope {
-	return discreteCopy(s, user)
 }
 
 // ---------------------------------------------------------------------------
@@ -529,9 +550,9 @@ func (s OneDriveScope) matchesInfo(dii details.ItemInfo) bool {
 
 	switch infoCat {
 	case FileInfoCreatedAfter, FileInfoCreatedBefore:
-		i = common.FormatTime(info.Created)
+		i = dttm.Format(info.Created)
 	case FileInfoModifiedAfter, FileInfoModifiedBefore:
-		i = common.FormatTime(info.Modified)
+		i = dttm.Format(info.Modified)
 	}
 
 	return s.Matches(infoCat, i)

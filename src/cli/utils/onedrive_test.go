@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/path"
 )
 
 type OneDriveUtilsSuite struct {
@@ -26,6 +27,7 @@ func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 		containsOnly      = []string{"contains"}
 		prefixOnly        = []string{"/prefix"}
 		containsAndPrefix = []string{"contains", "/prefix"}
+		onlySlash         = []string{string(path.PathSeparator)}
 	)
 
 	table := []struct {
@@ -36,56 +38,65 @@ func (suite *OneDriveUtilsSuite) TestIncludeOneDriveRestoreDataSelectors() {
 		{
 			name: "no inputs",
 			opts: utils.OneDriveOpts{
-				Users:       empty,
-				FileNames:   empty,
-				FolderPaths: empty,
+				Users:      empty,
+				FileName:   empty,
+				FolderPath: empty,
 			},
 			expectIncludeLen: 1,
 		},
 		{
 			name: "single inputs",
 			opts: utils.OneDriveOpts{
-				Users:       single,
-				FileNames:   single,
-				FolderPaths: single,
+				Users:      single,
+				FileName:   single,
+				FolderPath: single,
 			},
 			expectIncludeLen: 1,
 		},
 		{
 			name: "multi inputs",
 			opts: utils.OneDriveOpts{
-				Users:       multi,
-				FileNames:   multi,
-				FolderPaths: multi,
+				Users:      multi,
+				FileName:   multi,
+				FolderPath: multi,
 			},
 			expectIncludeLen: 1,
 		},
 		{
 			name: "folder contains",
 			opts: utils.OneDriveOpts{
-				Users:       empty,
-				FileNames:   empty,
-				FolderPaths: containsOnly,
+				Users:      empty,
+				FileName:   empty,
+				FolderPath: containsOnly,
 			},
 			expectIncludeLen: 1,
 		},
 		{
 			name: "folder prefixes",
 			opts: utils.OneDriveOpts{
-				Users:       empty,
-				FileNames:   empty,
-				FolderPaths: prefixOnly,
+				Users:      empty,
+				FileName:   empty,
+				FolderPath: prefixOnly,
 			},
 			expectIncludeLen: 1,
 		},
 		{
 			name: "folder prefixes and contains",
 			opts: utils.OneDriveOpts{
-				Users:       empty,
-				FileNames:   empty,
-				FolderPaths: containsAndPrefix,
+				Users:      empty,
+				FileName:   empty,
+				FolderPath: containsAndPrefix,
 			},
 			expectIncludeLen: 2,
+		},
+		{
+			name: "folder with just /",
+			opts: utils.OneDriveOpts{
+				Users:      empty,
+				FileName:   empty,
+				FolderPath: onlySlash,
+			},
+			expectIncludeLen: 1,
 		},
 	}
 	for _, test := range table {

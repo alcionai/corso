@@ -21,6 +21,16 @@ You can run the linter manually or with the `Makefile` in the repository. Runnin
 the `Makefile` will also ensure you have the proper version of golangci-lint
 installed.
 
+### Running the actions linter
+
+Installation:
+
+```sh
+go install github.com/rhysd/actionlint/cmd/actionlint@latest
+```
+
+[Instructions for running locally.](https://github.com/rhysd/actionlint/blob/main/docs/usage.md)
+
 ### Running with the `Makefile`
 
 There’s a `Makefile` in the corso/src that will automatically check if the proper
@@ -189,7 +199,9 @@ cryptic messages how you can fix the problems the linters flag.
 Each subsection also includes the version of golangci-lint it applies to and the
 linter in question.
 
-### `gci` `Expected 's', Found 'a' at file.go`
+```sh
+gci Expected 's', Found 'a' at file.go
+```
 
 This applies to golangci-lint v1.45.2 for the `gci` linter and is due to an import
 ordering issue. It occurs because imports in the file aren't grouped according

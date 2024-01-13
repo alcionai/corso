@@ -1,6 +1,7 @@
 package streamstore
 
 import (
+	"context"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -8,12 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 type StreamStoreIntgSuite struct {
@@ -27,21 +31,23 @@ func TestStreamStoreIntgSuite(t *testing.T) {
 	suite.Run(t, &StreamStoreIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs}),
+			[][]string{storeTD.AWSStorageCredEnvs}),
 	})
 }
 
 func (suite *StreamStoreIntgSuite) SetupSubTest() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
-
 	// need to initialize the repository before we can test connecting to it.
-	st := tester.NewPrefixedS3Storage(t)
+	st := storeTD.NewPrefixedS3Storage(t)
 
 	k := kopia.NewConn(st)
-	require.NoError(t, k.Initialize(ctx))
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
+	require.NoError(t, err, clues.ToCore(err))
 
 	suite.kcloser = func() { k.Close(ctx) }
 
@@ -64,16 +70,21 @@ func (suite *StreamStoreIntgSuite) TearDownSubTest() {
 }
 
 func (suite *StreamStoreIntgSuite) TestStreamer() {
+	deetsPath, err := path.FromDataLayerPath("tenant-id/exchange/user-id/email/Inbox/folder1/foo", true)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	locPath := path.Builder{}.Append(deetsPath.Folders()...)
+
 	table := []struct {
 		name      string
 		deets     func(*testing.T) *details.Details
-		errs      func() *fault.Errors
+		errs      func(context.Context) *fault.Errors
 		hasSnapID assert.ValueAssertionFunc
 	}{
 		{
 			name:      "none",
 			deets:     func(*testing.T) *details.Details { return nil },
-			errs:      func() *fault.Errors { return nil },
+			errs:      func(context.Context) *fault.Errors { return nil },
 			hasSnapID: assert.Empty,
 		},
 		{
@@ -81,26 +92,30 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 			deets: func(t *testing.T) *details.Details {
 				deetsBuilder := &details.Builder{}
 				require.NoError(t, deetsBuilder.Add(
-					"rr", "sr", "pr", "lr",
-					true,
+					deetsPath,
+					locPath,
 					details.ItemInfo{
-						Exchange: &details.ExchangeInfo{Subject: "hello world"},
+						Exchange: &details.ExchangeInfo{
+							ItemType: details.ExchangeMail,
+							Subject:  "hello world",
+						},
 					}))
-
 				return deetsBuilder.Details()
 			},
-			errs:      func() *fault.Errors { return nil },
+			errs:      func(context.Context) *fault.Errors { return nil },
 			hasSnapID: assert.NotEmpty,
 		},
 		{
 			name:  "errors",
 			deets: func(*testing.T) *details.Details { return nil },
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
-				bus.AddRecoverable(clues.New("bar"))
-				bus.AddRecoverable(fault.FileErr(clues.New("file"), "file-id", "file-name", map[string]any{"foo": "bar"}))
-				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddRecoverable(ctx, clues.New("bar"))
+				bus.AddRecoverable(
+					ctx,
+					fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(ctx, fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
 				return fe
@@ -112,20 +127,25 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 			deets: func(t *testing.T) *details.Details {
 				deetsBuilder := &details.Builder{}
 				require.NoError(t, deetsBuilder.Add(
-					"rr", "sr", "pr", "lr",
-					true,
+					deetsPath,
+					locPath,
 					details.ItemInfo{
-						Exchange: &details.ExchangeInfo{Subject: "hello world"},
+						Exchange: &details.ExchangeInfo{
+							ItemType: details.ExchangeMail,
+							Subject:  "hello world",
+						},
 					}))
 
 				return deetsBuilder.Details()
 			},
-			errs: func() *fault.Errors {
+			errs: func(ctx context.Context) *fault.Errors {
 				bus := fault.New(false)
 				bus.Fail(clues.New("foo"))
-				bus.AddRecoverable(clues.New("bar"))
-				bus.AddRecoverable(fault.FileErr(clues.New("file"), "file-id", "file-name", map[string]any{"foo": "bar"}))
-				bus.AddSkip(fault.FileSkip(fault.SkipMalware, "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddRecoverable(ctx, clues.New("bar"))
+				bus.AddRecoverable(
+					ctx,
+					fault.FileErr(clues.New("file"), "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
+				bus.AddSkip(ctx, fault.FileSkip(fault.SkipMalware, "ns", "file-id", "file-name", map[string]any{"foo": "bar"}))
 
 				fe := bus.Errors()
 				return fe
@@ -135,11 +155,12 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			ctx, flush := tester.NewContext()
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
 			defer flush()
 
 			var (
-				t   = suite.T()
 				ss  = suite.ss
 				err error
 			)
@@ -150,7 +171,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				require.NoError(t, err)
 			}
 
-			errs := test.errs()
+			errs := test.errs(ctx)
 			if errs != nil {
 				err = ss.Collect(ctx, FaultErrorsCollector(errs))
 				require.NoError(t, err)
@@ -179,7 +200,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				assert.Equal(t, deets.Entries[0].ShortRef, readDeets.Entries[0].ShortRef)
 				assert.Equal(t, deets.Entries[0].RepoRef, readDeets.Entries[0].RepoRef)
 				assert.Equal(t, deets.Entries[0].LocationRef, readDeets.Entries[0].LocationRef)
-				assert.Equal(t, deets.Entries[0].Updated, readDeets.Entries[0].Updated)
+				assert.Equal(t, deets.Entries[0].ItemRef, readDeets.Entries[0].ItemRef)
 				assert.NotNil(t, readDeets.Entries[0].Exchange)
 				assert.Equal(t, *deets.Entries[0].Exchange, *readDeets.Entries[0].Exchange)
 			} else {

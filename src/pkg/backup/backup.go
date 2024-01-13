@@ -3,13 +3,18 @@ package backup
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
+
 	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/version"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
@@ -32,9 +37,10 @@ type Backup struct {
 	// Selector used in this operation
 	Selector selectors.Selector `json:"selectors"`
 
-	// ResourceOwner reference
-	ResourceOwnerID   string `json:"resourceOwnerID"`
-	ResourceOwnerName string `json:"resourceOwnerName"`
+	// TODO: in process of gaining support, most cases will still use
+	// ResourceOwner and ResourceOwnerName.
+	ProtectedResourceID   string `json:"protectedResourceID,omitempty"`
+	ProtectedResourceName string `json:"protectedResourceName,omitempty"`
 
 	// Version represents the version of the backup format
 	Version int `json:"version"`
@@ -56,6 +62,10 @@ type Backup struct {
 	// Reference to the backup details storage location.
 	// Used to read backup.Details from the streamstore.
 	DetailsID string `json:"detailsID"`
+
+	// prefer protectedResource
+	ResourceOwnerID   string `json:"resourceOwnerID,omitempty"`
+	ResourceOwnerName string `json:"resourceOwnerName,omitempty"`
 }
 
 // interface compliance checks
@@ -63,22 +73,25 @@ var _ print.Printable = &Backup{}
 
 func New(
 	snapshotID, streamStoreID, status string,
+	backupVersion int,
 	id model.StableID,
 	selector selectors.Selector,
 	ownerID, ownerName string,
 	rw stats.ReadWrites,
 	se stats.StartAndEndTime,
 	fe *fault.Errors,
+	tags map[string]string,
 ) *Backup {
 	if fe == nil {
 		fe = &fault.Errors{}
 	}
 
 	var (
-		errCount                      = len(fe.Items)
-		skipCount                     = len(fe.Skipped)
-		failMsg                       string
-		malware, notFound, otherSkips int
+		errCount  = len(fe.Items)
+		skipCount = len(fe.Skipped)
+		failMsg   string
+
+		malware, invalidONFile, otherSkips int
 	)
 
 	if fe.Failure != nil {
@@ -90,8 +103,8 @@ func New(
 		switch true {
 		case s.HasCause(fault.SkipMalware):
 			malware++
-		case s.HasCause(fault.SkipNotFound):
-			notFound++
+		case s.HasCause(fault.SkipOneNote):
+			invalidONFile++
 		default:
 			otherSkips++
 		}
@@ -99,13 +112,14 @@ func New(
 
 	return &Backup{
 		BaseModel: model.BaseModel{
-			ID: id,
-			Tags: map[string]string{
-				model.ServiceTag: selector.PathService().String(),
-			},
+			ID:   id,
+			Tags: tags,
 		},
 
-		Version:       version.Backup,
+		ResourceOwnerID:   ownerID,
+		ResourceOwnerName: ownerName,
+
+		Version:       backupVersion,
 		SnapshotID:    snapshotID,
 		StreamStoreID: streamStoreID,
 
@@ -121,20 +135,48 @@ func New(
 		ReadWrites:      rw,
 		StartAndEndTime: se,
 		SkippedCounts: stats.SkippedCounts{
-			TotalSkippedItems: skipCount,
-			SkippedMalware:    malware,
-			SkippedNotFound:   notFound,
+			TotalSkippedItems:         skipCount,
+			SkippedMalware:            malware,
+			SkippedInvalidOneNoteFile: invalidONFile,
 		},
 	}
+}
+
+// Type returns the type of the backup according to the value stored in the
+// Backup's tags. Backup type is used during base finding to determine if a
+// given backup is eligible to be used for the upcoming incremental backup.
+func (b Backup) Type() string {
+	t, ok := b.Tags[model.BackupTypeTag]
+
+	// Older backups didn't set the backup type tag because we only persisted
+	// backup models for the MergeBackup type. Corso started adding the backup
+	// type tag when it was producing v8 backups. Any backup newer than that that
+	// doesn't have a backup type should just return an empty type and let the
+	// caller figure out what to do.
+	if !ok &&
+		b.Version != version.NoBackup &&
+		b.Version <= version.All8MigrateUserPNToID {
+		t = model.MergeBackup
+	}
+
+	return t
 }
 
 // --------------------------------------------------------------------------------
 // CLI Output
 // --------------------------------------------------------------------------------
 
+// ----- print backups
+
 // Print writes the Backup to StdOut, in the format requested by the caller.
 func (b Backup) Print(ctx context.Context) {
 	print.Item(ctx, b)
+}
+
+// PrintProperties writes the Backup to StdOut, in the format requested by the caller.
+// Unlike Print, it skips the ID of the Backup
+func (b Backup) PrintProperties(ctx context.Context) {
+	print.ItemProperties(ctx, b)
 }
 
 // PrintAll writes the slice of Backups to StdOut, in the format requested by the caller.
@@ -153,44 +195,53 @@ func PrintAll(ctx context.Context, bs []*Backup) {
 }
 
 type Printable struct {
-	ID            model.StableID `json:"id"`
-	ErrorCount    int            `json:"errorCount"`
-	StartedAt     time.Time      `json:"started at"`
-	Status        string         `json:"status"`
-	Version       string         `json:"version"`
-	BytesRead     int64          `json:"bytesRead"`
-	BytesUploaded int64          `json:"bytesUploaded"`
-	Owner         string         `json:"owner"`
+	ID                    model.StableID `json:"id"`
+	Status                string         `json:"status"`
+	Version               string         `json:"version"`
+	ProtectedResourceID   string         `json:"protectedResourceID,omitempty"`
+	ProtectedResourceName string         `json:"protectedResourceName,omitempty"`
+	Owner                 string         `json:"owner,omitempty"`
+	Stats                 backupStats    `json:"stats"`
+}
+
+// ToPrintable reduces the Backup to its minimally printable details.
+func (b Backup) ToPrintable() Printable {
+	return Printable{
+		ID:                    b.ID,
+		Status:                b.Status,
+		Version:               "0",
+		ProtectedResourceID:   b.Selector.DiscreteOwner,
+		ProtectedResourceName: b.Selector.DiscreteOwnerName,
+		Owner:                 b.Selector.DiscreteOwner,
+		Stats:                 b.toStats(),
+	}
 }
 
 // MinimumPrintable reduces the Backup to its minimally printable details.
 func (b Backup) MinimumPrintable() any {
-	return Printable{
-		ID:            b.ID,
-		ErrorCount:    b.ErrorCount,
-		StartedAt:     b.StartedAt,
-		Status:        b.Status,
-		Version:       "0",
-		BytesRead:     b.BytesRead,
-		BytesUploaded: b.BytesUploaded,
-		Owner:         b.Selector.DiscreteOwner,
-	}
+	return b.ToPrintable()
 }
 
 // Headers returns the human-readable names of properties in a Backup
 // for printing out to a terminal in a columnar display.
-func (b Backup) Headers() []string {
-	return []string{
+func (b Backup) Headers(skipID bool) []string {
+	headers := []string{
 		"Started At",
-		"ID",
+		"Duration",
 		"Status",
 		"Resource Owner",
 	}
+
+	if skipID {
+		return headers
+	}
+
+	return append([]string{"ID"}, headers...)
 }
 
 // Values returns the values matching the Headers list for printing
 // out to a terminal in a columnar display.
-func (b Backup) Values() []string {
+func (b Backup) Values(skipID bool) []string {
 	var (
 		status   = b.Status
 		errCount = b.ErrorCount
@@ -211,31 +262,127 @@ func (b Backup) Values() []string {
 	if b.TotalSkippedItems > 0 {
 		status += fmt.Sprintf("%d skipped", b.TotalSkippedItems)
 
-		if b.SkippedMalware+b.SkippedNotFound > 0 {
+		if b.SkippedMalware+b.SkippedInvalidOneNoteFile > 0 {
 			status += ": "
 		}
 	}
 
+	skipped := []string{}
+
 	if b.SkippedMalware > 0 {
-		status += fmt.Sprintf("%d malware", b.SkippedMalware)
-
-		if b.SkippedNotFound > 0 {
-			status += ", "
-		}
+		skipped = append(skipped, fmt.Sprintf("%d malware", b.SkippedMalware))
 	}
 
-	if b.SkippedNotFound > 0 {
-		status += fmt.Sprintf("%d not found", b.SkippedNotFound)
+	if b.SkippedInvalidOneNoteFile > 0 {
+		skipped = append(skipped, fmt.Sprintf("%d invalid OneNote file", b.SkippedInvalidOneNoteFile))
 	}
+
+	status += strings.Join(skipped, ", ")
 
 	if errCount+b.TotalSkippedItems > 0 {
 		status += (")")
 	}
 
-	return []string{
-		common.FormatTabularDisplayTime(b.StartedAt),
-		string(b.ID),
+	name := str.First(
+		b.ProtectedResourceName,
+		b.ResourceOwnerName,
+		b.ProtectedResourceID,
+		b.ResourceOwnerID,
+		b.Selector.Name())
+
+	bs := b.toStats()
+
+	values := []string{
+		dttm.FormatToTabularDisplay(b.StartedAt),
+		bs.EndedAt.Sub(bs.StartedAt).String(),
 		status,
-		b.Selector.DiscreteOwner,
+		name,
 	}
+
+	if skipID {
+		return values
+	}
+
+	return append([]string{string(b.ID)}, values...)
+}
+
+// ----- print backup stats
+
+func (b Backup) toStats() backupStats {
+	return backupStats{
+		ID:            string(b.ID),
+		BytesRead:     b.BytesRead,
+		BytesUploaded: b.NonMetaBytesUploaded,
+		EndedAt:       b.CompletedAt,
+		ErrorCount:    b.ErrorCount,
+		ItemsRead:     b.ItemsRead,
+		ItemsSkipped:  b.TotalSkippedItems,
+		ItemsWritten:  b.NonMetaItemsWritten,
+		StartedAt:     b.StartedAt,
+	}
+}
+
+// interface compliance checks
+var _ print.Printable = &backupStats{}
+
+type backupStats struct {
+	ID            string    `json:"id"`
+	BytesRead     int64     `json:"bytesRead"`
+	BytesUploaded int64     `json:"bytesUploaded"`
+	EndedAt       time.Time `json:"endedAt"`
+	ErrorCount    int       `json:"errorCount"`
+	ItemsRead     int       `json:"itemsRead"`
+	ItemsSkipped  int       `json:"itemsSkipped"`
+	ItemsWritten  int       `json:"itemsWritten"`
+	StartedAt     time.Time `json:"startedAt"`
+}
+
+// Print writes the Backup to StdOut, in the format requested by the caller.
+func (bs backupStats) Print(ctx context.Context) {
+	print.Item(ctx, bs)
+}
+
+// PrintProperties writes the Backup to StdOut, in the format requested by the caller.
+// Unlike Print, it skips the ID of backupStats
+func (bs backupStats) PrintProperties(ctx context.Context) {
+	print.ItemProperties(ctx, bs)
+}
+
+// MinimumPrintable reduces the Backup to its minimally printable details.
+func (bs backupStats) MinimumPrintable() any {
+	return bs
+}
+
+// Headers returns the human-readable names of properties in a Backup
+// for printing out to a terminal in a columnar display.
+func (bs backupStats) Headers(skipID bool) []string {
+	headers := []string{
+		"Bytes uploaded",
+		"Items uploaded",
+		"Items skipped",
+		"Errors",
+	}
+
+	if skipID {
+		return headers
+	}
+
+	return append([]string{"ID"}, headers...)
+}
+
+// Values returns the values matching the Headers list for printing
+// out to a terminal in a columnar display.
+func (bs backupStats) Values(skipID bool) []string {
+	values := []string{
+		humanize.Bytes(uint64(bs.BytesUploaded)),
+		strconv.Itoa(bs.ItemsWritten),
+		strconv.Itoa(bs.ItemsSkipped),
+		strconv.Itoa(bs.ErrorCount),
+	}
+
+	if skipID {
+		return values
+	}
+
+	return append([]string{bs.ID}, values...)
 }

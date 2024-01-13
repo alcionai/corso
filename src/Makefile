@@ -1,5 +1,5 @@
 # This must match the version defined in .github/workflows/lint.yaml.
-WANTED_LINT_VERSION := 1.50.1
+WANTED_LINT_VERSION := 1.54.2
 LINT_VERSION := $(shell golangci-lint version | cut -d' ' -f4)
 HAS_LINT := $(shell which golangci-lint)
 
@@ -18,7 +18,7 @@ lint: check-lint-version
 fmt:
 	gofumpt -w .
 	goimports -w .
-	gci write --skip-generated -s 'standard,default,prefix(github.com/alcionai/corso)' .
+	gci write --skip-generated -s 'standard' -s 'default' -s 'prefix(github.com/alcionai/corso)' .
 
 check-lint-version: check-lint
 	@if [ "$(LINT_VERSION)" != "$(WANTED_LINT_VERSION)" ]; then \
@@ -37,7 +37,7 @@ build-otel-daemon:
 	docker build -t xray-daemon .
 
 otel-daemon:
-	results_dir=$$PWD/test_results; \
+	results_dir=$$PWD/testlog; \
 	cd ./testfiles/otel_daemon; \
 	docker run \
 		-d \
@@ -51,7 +51,7 @@ otel-daemon:
 		--log-level debug 
 
 local-daemon:
-	results_dir=$$PWD/test_results; \
+	results_dir=$$PWD/testlog; \
 	cd ./testfiles/otel_daemon; \
 	docker run \
 		--attach STDOUT \
@@ -78,5 +78,8 @@ load-test:
 	-memprofile=mem.prof \
 	-mutexprofile=mutex.prof \
 	-trace=trace.out \
-	-outputdir=test_results \
+	-outputdir=testlog \
 	./pkg/repository/loadtest/repository_load_test.go
+
+getM365:
+	go build -o getM365 cmd/getM365/main.go

@@ -1,24 +1,19 @@
 package operations
 
 import (
-	"context"
 	"time"
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/connector"
-	"github.com/alcionai/corso/src/internal/connector/graph"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-// opStatus describes the current status of an operation.
+// OpStatus describes the current status of an operation.
 // InProgress - the standard value for any process that has not
 // arrived at an end state.  The end states are Failed, Completed,
 // or NoData.
@@ -34,15 +29,15 @@ import (
 // For example, if a backup is requested for a specific user's
 // mail, but that account contains zero mail messages, the backup
 // contains No Data.
-type opStatus int
+type OpStatus int
 
-//go:generate stringer -type=opStatus -linecomment
+//go:generate stringer -type=OpStatus -linecomment
 const (
-	Unknown    opStatus = iota // Status Unknown
-	InProgress                 // In Progress
-	Completed                  // Completed
-	Failed                     // Failed
-	NoData                     // No Data
+	Unknown    OpStatus = 0 // Status Unknown
+	InProgress OpStatus = 1 // In Progress
+	Completed  OpStatus = 2 // Completed
+	Failed     OpStatus = 3 // Failed
+	NoData     OpStatus = 4 // No Data
 )
 
 // --------------------------------------------------------------------------------
@@ -55,24 +50,27 @@ const (
 type operation struct {
 	CreatedAt time.Time `json:"createdAt"`
 
-	Errors  *fault.Bus      `json:"errors"`
+	Errors  *fault.Bus `json:"errors"`
+	Counter *count.Bus
 	Options control.Options `json:"options"`
-	Status  opStatus        `json:"status"`
+	Status  OpStatus        `json:"status"`
 
 	bus   events.Eventer
 	kopia *kopia.Wrapper
-	store *store.Wrapper
+	store store.BackupStorer
 }
 
 func newOperation(
 	opts control.Options,
 	bus events.Eventer,
+	ctr *count.Bus,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
 ) operation {
 	return operation{
 		CreatedAt: time.Now(),
-		Errors:    fault.New(opts.FailFast),
+		Errors:    fault.New(opts.FailureHandling == control.FailFast),
+		Counter:   ctr,
 		Options:   opts,
 
 		bus:   bus,
@@ -93,32 +91,4 @@ func (op operation) validate() error {
 	}
 
 	return nil
-}
-
-// produces a graph connector.
-func connectToM365(
-	ctx context.Context,
-	sel selectors.Selector,
-	acct account.Account,
-	errs *fault.Bus,
-) (*connector.GraphConnector, error) {
-	complete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Connecting to M365"))
-	defer func() {
-		complete <- struct{}{}
-		close(complete)
-		closer()
-	}()
-
-	// retrieve data from the producer
-	resource := connector.Users
-	if sel.Service == selectors.ServiceSharePoint {
-		resource = connector.Sites
-	}
-
-	gc, err := connector.NewGraphConnector(ctx, graph.HTTPClient(graph.NoTimeout()), acct, resource, errs)
-	if err != nil {
-		return nil, err
-	}
-
-	return gc, nil
 }

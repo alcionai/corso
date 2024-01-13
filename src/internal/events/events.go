@@ -3,10 +3,11 @@ package events
 import (
 	"context"
 	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"io"
+	"math"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -21,18 +22,18 @@ import (
 
 // keys for ease of use
 const (
-	corsoVersion = "corso_version"
-	repoID       = "repo_id"
-	tenantID     = "m365_tenant_hash"
+	corsoVersion       = "corso_version"
+	repoID             = "repo_id"
+	tenantID           = "m365_tenant_hash"
+	tenantIDDeprecated = "m365_tenant_hash_deprecated"
 
 	// Event Keys
-	CorsoStart   = "Corso Start"
-	RepoInit     = "Repo Init"
-	RepoConnect  = "Repo Connect"
-	BackupStart  = "Backup Start"
-	BackupEnd    = "Backup End"
-	RestoreStart = "Restore Start"
-	RestoreEnd   = "Restore End"
+	RepoInit       = "Repo Init"
+	RepoConnect    = "Repo Connect"
+	BackupEnd      = "Backup End"
+	RestoreEnd     = "Restore End"
+	ExportEnd      = "Export End"
+	MaintenanceEnd = "Maintenance End"
 
 	// Event Data Keys
 	BackupCreateTime = "backup_creation_time"
@@ -45,9 +46,18 @@ const (
 	ItemsWritten     = "items_written"
 	Resources        = "resources"
 	RestoreID        = "restore_id"
+	ExportID         = "export_id"
 	Service          = "service"
 	StartTime        = "start_time"
 	Status           = "status"
+
+	// default values for keys
+	RepoIDNotFound = "not_found"
+)
+
+const (
+	sha256OutputLength  = 64
+	truncatedHashLength = 32
 )
 
 type Eventer interface {
@@ -59,9 +69,10 @@ type Eventer interface {
 type Bus struct {
 	client analytics.Client
 
-	repoID  string // one-way hash that uniquely identifies the repo.
-	tenant  string // one-way hash that uniquely identifies the tenant.
-	version string // the Corso release version
+	repoID           string // one-way hash that uniquely identifies the repo.
+	tenant           string // one-way hash that uniquely identifies the tenant.
+	tenantDeprecated string // one-way hash that uniquely identified the tenand (old hashing algo for continuity).
+	version          string // the Corso release version
 }
 
 var (
@@ -69,8 +80,8 @@ var (
 	RudderStackDataPlaneURL string
 )
 
-func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.Options) (Bus, error) {
-	if opts.DisableMetrics {
+func NewBus(ctx context.Context, s storage.Storage, tenID string, co control.Options) (Bus, error) {
+	if co.DisableMetrics {
 		return Bus{}, nil
 	}
 
@@ -96,14 +107,15 @@ func NewBus(ctx context.Context, s storage.Storage, tenID string, opts control.O
 			})
 
 		if err != nil {
-			return Bus{}, clues.Wrap(err, "configuring event bus").WithClues(ctx)
+			return Bus{}, clues.WrapWC(ctx, err, "configuring event bus")
 		}
 	}
 
 	return Bus{
-		client:  client,
-		tenant:  tenantHash(tenID),
-		version: version.Version,
+		client:           client,
+		tenant:           sha256Truncated(tenID),
+		tenantDeprecated: tenantHash(tenID),
+		version:          version.Version,
 	}, nil
 }
 
@@ -124,38 +136,50 @@ func (b Bus) Event(ctx context.Context, key string, data map[string]any) {
 		NewProperties().
 		Set(repoID, b.repoID).
 		Set(tenantID, b.tenant).
+		Set(tenantIDDeprecated, b.tenantDeprecated).
 		Set(corsoVersion, b.version)
 
 	for k, v := range data {
 		props.Set(k, v)
 	}
 
-	// need to setup identity when initializing a new repo
-	if key == RepoInit {
+	// need to setup identity when initializing or connecting to a repo
+	if key == RepoInit || key == RepoConnect {
 		err := b.client.Enqueue(analytics.Identify{
-			UserId: b.repoID,
+			UserId: b.tenant,
 			Traits: analytics.NewTraits().
 				SetName(b.tenant).
-				Set(tenantID, b.tenant),
+				Set(tenantID, b.tenant).
+				Set(tenantIDDeprecated, b.tenantDeprecated).
+				Set(repoID, b.repoID),
 		})
 		if err != nil {
-			logger.Ctx(ctx).Debugw("analytics event failure", "err", err)
+			logger.CtxErr(ctx, err).Debug("analytics event failure: repo identity")
 		}
 	}
 
 	err := b.client.Enqueue(analytics.Track{
 		Event:      key,
-		UserId:     b.repoID,
+		UserId:     b.tenant,
 		Timestamp:  time.Now().UTC(),
 		Properties: props,
 	})
 	if err != nil {
-		logger.Ctx(ctx).Info("analytics event failure", "err", err)
+		logger.CtxErr(ctx, err).Info("analytics event failure: tracking event")
 	}
 }
 
 func (b *Bus) SetRepoID(hash string) {
 	b.repoID = hash
+}
+
+func sha256Truncated(tenID string) string {
+	outputLength := int(math.Min(truncatedHashLength, sha256OutputLength))
+
+	hash := sha256.Sum256([]byte(tenID))
+	hexHash := fmt.Sprintf("%x", hash)
+
+	return hexHash[0:outputLength]
 }
 
 func tenantHash(tenID string) string {
@@ -167,10 +191,12 @@ func tenantHash(tenID string) string {
 // metrics aggregation
 // ---------------------------------------------------------------------------
 
-type m string
+type metricsCategory string
 
 // metrics collection bucket
-const APICall m = "api_call"
+const (
+	APICall metricsCategory = "api_call"
+)
 
 // configurations
 const (
@@ -234,20 +260,20 @@ func dumpMetrics(ctx context.Context, stop <-chan struct{}, sig *metrics.InmemSi
 	}
 }
 
-func signalDump(ctx context.Context) {
-	if err := syscall.Kill(syscall.Getpid(), metrics.DefaultSignal); err != nil {
-		logger.CtxErr(ctx, err).Error("metrics interval signal")
-	}
-}
-
 // Inc increments the given category by 1.
-func Inc(cat m, keys ...string) {
+func Inc(cat metricsCategory, keys ...string) {
 	cats := append([]string{string(cat)}, keys...)
 	metrics.IncrCounter(cats, 1)
 }
 
+// IncN increments the given category by N.
+func IncN(n int, cat metricsCategory, keys ...string) {
+	cats := append([]string{string(cat)}, keys...)
+	metrics.IncrCounter(cats, float32(n))
+}
+
 // Since records the duration between the provided time and now, in millis.
-func Since(start time.Time, cat m, keys ...string) {
+func Since(start time.Time, cat metricsCategory, keys ...string) {
 	cats := append([]string{string(cat)}, keys...)
 	metrics.MeasureSince(cats, start)
 }

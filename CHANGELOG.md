@@ -7,6 +7,242 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Added
+- Events can now be exported from Exchange backups as .ics files.
+
+### Fixed
+- Retry transient 400 "invalidRequest" errors during onedrive & sharepoint backup.
+- Backup attachments associated with group mailbox items.
+- Groups and Teams backups no longer fail when a resource has no display name.
+
+### Changed
+- When running `backup details` on an empty backup returns a more helpful error message.
+
+### Known issues
+- Backing up a group mailbox item may fail if it has a very large number of attachments (500+).
+- Event description for exchange exports might look slightly different for certain events.
+
+## [v0.18.0] (beta) - 2024-01-02
+
+### Fixed
+- Handle the case where an email cannot be retrieved from Exchange due to an `ErrorInvalidRecipients` error. In
+this case, Corso will skip over the item but report this in the backup summary.
+- Fix `ErrorItemNotFound` errors when restoring emails with multiple attachments.
+- Avoid Graph SDK `Requests must contain extension changes exclusively.` errors by removing server-populated field from restored event items.
+- Improve Group mailbox(conversations) backup performance by only downloading new items or items with modified content.
+- Handle cases where Exchange backup stored invalid JSON blobs if there were special characters in the user content. These would result in errors during restore.
+
+### Known issues
+- Restoring OneDrive, SharePoint, or Teams & Groups items shared with external users while the tenant or site is configured to not allow sharing with external users will not restore permissions.
+
+### Added
+- Contacts can now be exported from Exchange backups as .vcf files
+
+## [v0.17.0] (beta) - 2023-12-11
+
+### Changed
+- Memory optimizations for large scale OneDrive and Sharepoint backups.
+
+### Fixed
+- Resolved a possible deadlock when backing up Teams Channel Messages.
+- Fixed an attachment download failure(ErrorTooManyObjectsOpened) during exchange backup.
+
+## [v0.16.0] (beta) - 2023-11-28
+
+### Added
+- Export support for emails in exchange backups as `.eml` files.
+- More colorful and informational cli display.
+
+### Changed
+- The file extension in Teams messages exports has switched to json to match the content type.
+- SDK consumption of the /services/m365 package has shifted from independent functions to a client-based api.
+- SDK consumers can now configure the /services/m365 graph api client configuration when constructing a new m365 client.
+- Dynamic api rate limiting allows small-scale Exchange backups to complete more quickly.
+- Kopia's local config files now uses unique filenames that match Corso configurations.  This can protect concurrent Corso operations from mistakenly clobbering storage configs during runtime.
+
+### Fixed
+- Handle OneDrive folders being deleted and recreated midway through a backup.
+- Automatically re-run a full delta query on incremental if the prior backup is found to have malformed prior-state information.
+- Retry drive item permission downloads during long-running backups after the jwt token expires and refreshes.
+- Retry item downloads during connection timeouts.
+
+## [v0.15.0] (beta) - 2023-10-31
+
+### Added
+- Added `corso repo update-passphrase` command to update the passphrase of an existing Corso repository
+- Added Subject and Message preview to channel messages detail entries
+
+### Fixed
+- SharePoint backup would fail if any site had an empty display name
+- Fix a bug with exports hanging post completion
+- Handle 503 errors in nested OneDrive packages
+
+### Changed
+- Item Details formatting in Groups and Teams backups
+
+## [v0.14.2] (beta) - 2023-10-17
+
+### Added
+- Skips graph calls for expired item download URLs.
+- Export operation now shows the stats at the end of the run
+
+### Fixed
+- Catch and report cases where a protected resource is locked out of access.  SDK consumers have a new errs sentinel that allows them to check for this case.
+- Fix a case where missing item LastModifiedTimes could cause incremental backups to fail.
+- Email size metadata was incorrectly set to the size of the last attachment.  Emails will now correctly report the size of the mail content plus the size of all attachments.
+- Improves the filtering capabilities for Groups restore and backup
+- Improve check to skip OneNote files that cannot be downloaded.
+- Fix Groups backup for non Team groups
+
+### Changed
+- Groups restore now expects the site whose backup we should restore
+
+## [v0.14.0] (beta) - 2023-10-09
+
+### Added
+- Enables local or network-attached storage for Corso repositories.
+- Reduce backup runtime for OneDrive and SharePoint incremental backups that have no file changes.
+- Increase Exchange backup performance by lazily fetching data only for items whose content changed.
+- Added `--backups` flag to delete multiple backups in `corso backup delete` command.
+- Backup now includes all sites that belongs to a team, not just the root site.
+
+### Fixed
+- Teams Channels that cannot support delta tokens (those without messages) fall back to non-delta enumeration and no longer fail a backup.
+
+### Known issues
+- Restoring the data into a different Group from the one it was backed up from is not currently supported
+
+### Other
+- Groups and Teams service support is still in feature preview
+
+## [v0.13.0] (beta) - 2023-09-18
+
+### Added
+- Groups and Teams service support available as a feature preview!  Channel messages and Files are now available for backup and restore in the CLI: `corso backup create groups --group '*'`
+  - The cli commands for "groups" and "teams" can be used interchangeably, and will operate on the same backup data.
+  - New permissions are required to backup Channel messages.  See the [Corso Documentation](https://corsobackup.io/docs/setup/m365-access/#configure-required-permissions) for complete details.
+  Even though Channel message restoration is not available, message write permissions are included to cover future integration.
+  - This is a feature preview, and may be subject to breaking changes based on feedback and testing.
+
+### Changed
+- Switched to Go 1.21
+- SharePoint exported libraries are now exported with a `Libraries` prefix.
+
+### Fixed
+- Contacts backups no longer slices root-folder data if outlook is set to languages other than english.
+- Failed backups if the --disable-incrementals flag was passed when there was a valid merge base under some conditions.
+
+## [v0.12.0] (beta) - 2023-08-29
+
+### Added
+- Added `export` command to export data from OneDrive and SharePoint backups as individual files or as a single zip file.
+- Restore commands now accept an optional resource override with the `--to-resource` flag.  This allows restores to recreate backup data within different mailboxes, sites, and users.  
+- Improve `--mask-sensitive-data` logging mode.
+- Reliability: Handle connection cancellation and resets observed when backing up or restoring large data sets.
+- Reliability: Recover from Graph SDK panics when the Graph API returns incomplete responses.
+- Performance: Improve backup delete performance by batching multiple storage operations into a single operation.
+
+### Fixed
+- SharePoint document libraries deleted after the last backup can now be restored.
+- Restore requires the protected resource to have access to the service being restored.
+- SharePoint data from multiple document libraries are not merged in exports
+- `corso backup delete` was not removing the backup details data associated with that snapshot
+- Fix OneDrive restores could fail with a concurrent map write error
+- Fix backup list displaying backups that had errors
+- Fix OneDrive backup could fail if item was deleted during backup
+- Exchange backups would fail attempting to use delta tokens even if the user was over quota
+
+
+## [v0.11.1] (beta) - 2023-07-20
+
+### Fixed
+- Allow repo connect to succeed when a `corso.toml` file was not provided but configuration is specified using environment variables and flags.
+
+## [v0.11.0] (beta) - 2023-07-18
+
+### Added
+- Drive items backup and restore link shares
+- Restore commands now accept an optional top-level restore destination with the `--destination` flag.  Setting the destination to '/' will restore items back into their original location.  
+- Restore commands can specify item collision behavior.  Options are Skip (default), Replace, and Copy.
+- Introduced repository maintenance commands to help optimize the repository as well as unreferenced data.
+
+### Fixed
+- Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
+- Added retries for http/2 stream connection failures when downloading large item content.
+- SharePoint document libraries that were deleted after the last backup can now be restored.
+
+### Known issues
+- If a link share is created for an item with inheritance disabled
+  (via the Graph API), the link shares restored in that item will
+  not be inheritable by children
+- Link shares with password protection can't be restored
+
+## [v0.10.0] (beta) - 2023-06-26
+
+### Added
+- Exceptions and cancellations for recurring events are now backed up and restored
+- Introduced a URL cache for OneDrive that helps reduce Graph API calls for long running (>1hr) backups
+- Improve incremental backup behavior by leveraging information from incomplete backups
+- Improve restore performance and memory use for Exchange and OneDrive
+
+### Fixed
+- Handle OLE conversion errors when trying to fetch attachments
+- Fix uploading large attachments for emails and calendar
+- Fixed high memory use in OneDrive backup related to logging
+- Return a ServiceNotEnabled error when a tenant has no active SharePoint license.
+
+### Changed
+- Switched to Go 1.20
+  
+## [v0.9.0] (beta) - 2023-06-05
+
+### Added
+- Added ProtectedResourceName to the backup list json output.  ProtectedResourceName holds either a UPN or a WebURL, depending on the resource type.
+- Rework base selection logic for incremental backups so it's more likely to find a valid base.
+- Improve OneDrive restore performance by paralleling item restores
+
+### Fixed
+- Fix Exchange folder cache population error when parent folder isn't found.
+- Fix Exchange backup issue caused by incorrect json serialization
+- Fix issues with details model containing duplicate entry for api consumers
+
+### Changed
+- Do not display all the items that we restored at the end if there are more than 15. You can override this with `--verbose`.
+
+## [v0.8.0] (beta) - 2023-05-15
+
+### Added
+- Released the --mask-sensitive-data flag, which will automatically obscure private data in logs.
+- Added `--disable-delta` flag to disable delta based backups for Exchange
+- Permission support for SharePoint libraries.
+
+### Fixed
+- Graph requests now automatically retry in case of a Bad Gateway or Gateway Timeout.
+- POST Retries following certain status codes (500, 502, 504) will re-use the post body instead of retrying with a no-content request.
+- Fix nil pointer exception when running an incremental backup on SharePoint where the base backup used an older index data format.
+- --user and --mailbox flags have been removed from CLI examples for details and restore commands (they were already not supported, this only updates the docs).
+- Improve restore time on large restores by optimizing how items are loaded from the remote repository.
+- Remove exchange item filtering based on m365 item ID via the CLI.
+- OneDrive backups no longer include a user's non-default drives.
+- OneDrive and SharePoint file downloads will properly redirect from 3xx responses.
+- Refined oneDrive rate limiter controls to reduce throttling errors.
+- Fix handling of duplicate folders at the same hierarchy level in Exchange. Duplicate folders will be merged during restore operations.
+- Fix backup for mailboxes that has used up all their storage quota
+- Restored folders no longer appear in the Restore results. Only restored items will be displayed.
+
+### Known Issues
+- Restore operations will merge duplicate Exchange folders at the same hierarchy level into a single folder.
+- Sharepoint SiteGroup permissions are not restored.
+- SharePoint document library data can't be restored after the library has been deleted.
+
+## [v0.7.0] (beta) - 2023-05-02
+
+### Added
+- Permissions backup for OneDrive is now out of experimental (By default, only newly backed up items will have their permissions backed up. You will have to run a full backup to ensure all items have their permissions backed up.)
+- LocationRef is now populated for all services and data types. It should be used in place of RepoRef if a location for an item is required.
+- User selection for Exchange and OneDrive can accept either a user PrincipalName or the user's canonical ID.
+- Add path information to items that were skipped during backup because they were flagged as malware.
+
 ### Fixed
 - Fixed permissions restore in latest backup version.
 - Incremental OneDrive backups could panic if the delta token expired and a folder was seen and deleted in the course of item enumeration for the backup.
@@ -15,6 +251,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Items not being deleted if they were created and deleted during item enumeration of a OneDrive backup.
 - Enable compression for all data uploaded by kopia.
 - SharePoint --folder selectors correctly return items.
+- Fix Exchange cli args for filtering items
+- Skip OneNote items bigger than 2GB (Graph API prevents us from downloading them)
+- ParentPath of json output for Exchange calendar now shows names instead of IDs.
+- Fixed failure when downloading huge amount of attachments
+- Graph API requests that return an ECONNRESET error are now retried.
+- Fixed edge case in incremental backups where moving a subfolder, deleting and recreating the subfolder's original parent folder, and moving the subfolder back to where it started would skip backing up unchanged items in the subfolder.
+- SharePoint now correctly displays site urls on `backup list`, instead of the site id.
+- Drives with a directory containing a folder named 'folder' will now restore without error.
+- The CORSO_LOG_FILE env is appropriately utilized if no --log-file flag is provided.
+- Fixed Exchange events progress output to show calendar names instead of IDs.
+- Fixed reporting no items match if restoring or listing details on an older Exchange backup and filtering by folder.
+- Fix backup for mailboxes that has used up all their storage quota
+
+### Known Issues
+- Restoring a OneDrive or SharePoint file with the same name as a file with that name as its M365 ID may restore both items.
+- Exchange event restores will display calendar IDs instead of names in the progress output.
 
 ## [v0.6.1] (beta) - 2023-03-21
 
@@ -105,7 +357,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Item.Attachments are disabled from being restored for the patching of ([#2353](https://github.com/alcionai/corso/issues/2353))
-- BetaClient introduced. Enables Corso to be able to interact with SharePoint Page objects. Package located `/internal/connector/graph/betasdk` 
+- BetaClient introduced. Enables Corso to be able to interact with SharePoint Page objects. Package located `/internal/connector/graph/betasdk`
 - Handle case where user's drive has not been initialized
 - Inline attachments (e.g. copy/paste ) are discovered and backed up correctly ([#2163](https://github.com/alcionai/corso/issues/2163))
 - Guest and External users (for cloud accounts) and non-on-premise users (for systems that use on-prem AD syncs) are now excluded from backup and restore operations.
@@ -142,7 +394,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Incremental backup support for Exchange ([#1777](https://github.com/alcionai/corso/issues/1777)). This is currently enabled by specifying the `--enable-incrementals`   
+- Incremental backup support for Exchange ([#1777](https://github.com/alcionai/corso/issues/1777)). This is currently enabled by specifying the `--enable-incrementals`  
   with the `backup create` command. This functionality will be enabled by default in an upcoming release.
 - Folder entries in backup details now include size and modified time for the hierarchy ([#1896](https://github.com/alcionai/corso/issues/1896))
 
@@ -225,7 +477,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[Unreleased]: https://github.com/alcionai/corso/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.18.0...HEAD
+[v0.18.0]: https://github.com/alcionai/corso/compare/v0.17.0...v0.18.0
+[v0.17.0]: https://github.com/alcionai/corso/compare/v0.16.0...v0.17.0
+[v0.16.0]: https://github.com/alcionai/corso/compare/v0.15.0...v0.16.0
+[v0.15.0]: https://github.com/alcionai/corso/compare/v0.14.0...v0.15.0
+[v0.14.0]: https://github.com/alcionai/corso/compare/v0.13.0...v0.14.0
+[v0.13.0]: https://github.com/alcionai/corso/compare/v0.12.0...v0.13.0
+[v0.12.0]: https://github.com/alcionai/corso/compare/v0.11.1...v0.12.0
+[v0.11.1]: https://github.com/alcionai/corso/compare/v0.11.0...v0.11.1
+[v0.11.0]: https://github.com/alcionai/corso/compare/v0.10.0...v0.11.0
+[v0.10.0]: https://github.com/alcionai/corso/compare/v0.9.0...v0.10.0
+[v0.9.0]: https://github.com/alcionai/corso/compare/v0.8.1...v0.9.0
+[v0.8.0]: https://github.com/alcionai/corso/compare/v0.7.1...v0.8.0
+[v0.7.0]: https://github.com/alcionai/corso/compare/v0.6.1...v0.7.0
 [v0.6.1]: https://github.com/alcionai/corso/compare/v0.5.0...v0.6.1
 [v0.5.0]: https://github.com/alcionai/corso/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/alcionai/corso/compare/v0.3.0...v0.4.0

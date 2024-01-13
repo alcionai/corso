@@ -21,10 +21,11 @@ func TestPrintUnitSuite(t *testing.T) {
 }
 
 func (suite *PrintUnitSuite) TestOnly() {
-	ctx, flush := tester.NewContext()
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	t := suite.T()
 	c := &cobra.Command{}
 	ctx = SetRootCmd(ctx, c)
 
@@ -35,20 +36,28 @@ func (suite *PrintUnitSuite) TestOnly() {
 
 func (suite *PrintUnitSuite) TestOut() {
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	b := bytes.Buffer{}
 	msg := "I have seen the fnords!"
 
-	out(&b, msg)
+	out(ctx, &b, msg)
 	assert.Contains(t, b.String(), msg)
 }
 
 func (suite *PrintUnitSuite) TestOutf() {
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
 	b := bytes.Buffer{}
 	msg := "I have seen the fnords!"
 	msg2 := "smarf"
 
-	outf(&b, msg, msg2)
+	outf(ctx, &b, msg, msg2)
 	bs := b.String()
 	assert.Contains(t, bs, msg)
 	assert.Contains(t, bs, msg2)

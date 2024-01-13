@@ -2,6 +2,7 @@ package restore_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -10,17 +11,21 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/config"
-	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/connector/exchange"
+	"github.com/alcionai/corso/src/cli/flags"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/repository"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/storage"
+	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
 var (
@@ -37,7 +42,7 @@ type RestoreExchangeE2ESuite struct {
 	st         storage.Storage
 	vpr        *viper.Viper
 	cfgFP      string
-	repo       repository.Repository
+	repo       repository.Repositoryer
 	m365UserID string
 	backupOps  map[path.CategoryType]operations.BackupOperation
 }
@@ -46,37 +51,47 @@ func TestRestoreExchangeE2ESuite(t *testing.T) {
 	suite.Run(t, &RestoreExchangeE2ESuite{
 		Suite: tester.NewE2ESuite(
 			t,
-			[][]string{tester.AWSStorageCredEnvs, tester.M365AcctCredEnvs},
-			tester.CorsoCITests,
-		),
+			[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs}),
 	})
 }
 
 func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 	t := suite.T()
 
-	ctx, flush := tester.NewContext()
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	// aggregate required details
-	suite.acct = tester.NewM365Account(t)
-	suite.st = tester.NewPrefixedS3Storage(t)
+	suite.acct = tconfig.NewM365Account(t)
+	suite.st = storeTD.NewPrefixedS3Storage(t)
 
-	cfg, err := suite.st.S3Config()
+	cfg, err := suite.st.ToS3Config()
 	require.NoError(t, err, clues.ToCore(err))
 
 	force := map[string]string{
-		tester.TestCfgAccountProvider: "M365",
-		tester.TestCfgStorageProvider: "S3",
-		tester.TestCfgPrefix:          cfg.Prefix,
+		tconfig.TestCfgAccountProvider: account.ProviderM365.String(),
+		tconfig.TestCfgStorageProvider: storage.ProviderS3.String(),
+		tconfig.TestCfgPrefix:          cfg.Prefix,
 	}
-	suite.vpr, suite.cfgFP = tester.MakeTempTestConfigClone(t, force)
+	suite.vpr, suite.cfgFP = tconfig.MakeTempTestConfigClone(t, force)
 
-	suite.m365UserID = tester.M365UserID(t)
-	users := []string{suite.m365UserID}
+	suite.m365UserID = strings.ToLower(tconfig.M365UserID(t))
+
+	var (
+		users = []string{suite.m365UserID}
+		ins   = idname.NewCache(map[string]string{suite.m365UserID: suite.m365UserID})
+	)
 
 	// init the repo first
-	suite.repo, err = repository.Initialize(ctx, suite.acct, suite.st, control.Options{})
+	suite.repo, err = repository.New(
+		ctx,
+		suite.acct,
+		suite.st,
+		control.DefaultOptions(),
+		repository.NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = suite.repo.Initialize(ctx, repository.InitConfig{Service: path.ExchangeService})
 	require.NoError(t, err, clues.ToCore(err))
 
 	suite.backupOps = make(map[path.CategoryType]operations.BackupOperation)
@@ -89,18 +104,18 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 
 		switch set {
 		case email:
-			scopes = sel.MailFolders([]string{exchange.DefaultMailFolder}, selectors.PrefixMatch())
+			scopes = sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch())
 
 		case contacts:
-			scopes = sel.ContactFolders([]string{exchange.DefaultContactFolder}, selectors.PrefixMatch())
+			scopes = sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch())
 
 		case events:
-			scopes = sel.EventCalendars([]string{exchange.DefaultCalendar}, selectors.PrefixMatch())
+			scopes = sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch())
 		}
 
 		sel.Include(scopes)
 
-		bop, err := suite.repo.NewBackup(ctx, sel.Selector)
+		bop, err := suite.repo.NewBackupWithLookup(ctx, sel.Selector, ins)
 		require.NoError(t, err, clues.ToCore(err))
 
 		err = bop.Run(ctx)
@@ -109,7 +124,7 @@ func (suite *RestoreExchangeE2ESuite) SetupSuite() {
 		suite.backupOps[set] = bop
 
 		// sanity check, ensure we can find the backup and its details immediately
-		_, err = suite.repo.Backup(ctx, bop.Results.BackupID)
+		_, err = suite.repo.Backup(ctx, string(bop.Results.BackupID))
 		require.NoError(t, err, "retrieving recent backup by ID", clues.ToCore(err))
 
 		_, _, errs := suite.repo.GetBackupDetails(ctx, string(bop.Results.BackupID))
@@ -123,15 +138,15 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd() {
 		suite.Run(set.String(), func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			ctx = config.SetViper(ctx, suite.vpr)
 
 			defer flush()
 
-			cmd := tester.StubRootCmd(
+			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
-				"--config-file", suite.cfgFP,
-				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID))
+				"--"+flags.ConfigFileFN, suite.cfgFP,
+				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID))
 			cli.BuildCommandTree(cmd)
 
 			// run the command
@@ -150,7 +165,7 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badTimeFlags() {
 		suite.Run(set.String(), func() {
 			t := suite.T()
 
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 			ctx = config.SetViper(ctx, suite.vpr)
 
 			defer flush()
@@ -158,15 +173,15 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badTimeFlags() {
 			var timeFilter string
 			switch set {
 			case email:
-				timeFilter = "--" + utils.EmailReceivedAfterFN
+				timeFilter = "--" + flags.EmailReceivedAfterFN
 			case events:
-				timeFilter = "--" + utils.EventStartsAfterFN
+				timeFilter = "--" + flags.EventStartsAfterFN
 			}
 
-			cmd := tester.StubRootCmd(
+			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
-				"--config-file", suite.cfgFP,
-				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID),
+				"--"+flags.ConfigFileFN, suite.cfgFP,
+				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "smarf")
 			cli.BuildCommandTree(cmd)
 
@@ -188,19 +203,19 @@ func (suite *RestoreExchangeE2ESuite) TestExchangeRestoreCmd_badBoolFlags() {
 
 			//nolint:forbidigo
 			ctx := config.SetViper(context.Background(), suite.vpr)
-			ctx, flush := tester.WithContext(ctx)
+			ctx, flush := tester.WithContext(t, ctx)
 			defer flush()
 
 			var timeFilter string
 			switch set {
 			case events:
-				timeFilter = "--" + utils.EventRecursFN
+				timeFilter = "--" + flags.EventRecursFN
 			}
 
-			cmd := tester.StubRootCmd(
+			cmd := cliTD.StubRootCmd(
 				"restore", "exchange",
-				"--config-file", suite.cfgFP,
-				"--"+utils.BackupFN, string(suite.backupOps[set].Results.BackupID),
+				"--"+flags.ConfigFileFN, suite.cfgFP,
+				"--"+flags.BackupFN, string(suite.backupOps[set].Results.BackupID),
 				timeFilter, "wingbat")
 			cli.BuildCommandTree(cmd)
 

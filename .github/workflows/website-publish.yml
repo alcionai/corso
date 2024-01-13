@@ -21,15 +21,14 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # needed to get latest tag
 
       - name: Get version string
         id: version
         run: |
-          echo "set-output name=version::$(git describe --tags --abbrev=0)"
-          echo "::set-output name=version::$(git describe --tags --abbrev=0)"
+          echo version=$(git describe --tags --abbrev=0) | tee -a $GITHUB_OUTPUT
 
   # ----------------------------------------------------------------------------------------------------
   # --- Website Linting -----------------------------------------------------------------------------------
@@ -41,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Lint Website
         uses: ./.github/actions/website-linting
@@ -57,7 +56,7 @@ jobs:
         working-directory: website
 
     steps:
-      - uses: actions/checkout@v3 # need to checkout to make the action available
+      - uses: actions/checkout@v4 # need to checkout to make the action available
 
       - name: Publish website
         uses: ./.github/actions/publish-website

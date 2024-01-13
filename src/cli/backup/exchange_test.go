@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -9,20 +10,23 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/cli/flags"
+	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
+	cliTD "github.com/alcionai/corso/src/cli/testdata"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/cli/utils/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/pkg/control"
 )
 
-type ExchangeSuite struct {
+type ExchangeUnitSuite struct {
 	tester.Suite
 }
 
-func TestExchangeSuite(t *testing.T) {
-	suite.Run(t, &ExchangeSuite{Suite: tester.NewUnitSuite(t)})
+func TestExchangeUnitSuite(t *testing.T) {
+	suite.Run(t, &ExchangeUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ExchangeSuite) TestAddExchangeCommands() {
+func (suite *ExchangeUnitSuite) TestAddExchangeCommands() {
 	expectUse := exchangeServiceCommand
 
 	table := []struct {
@@ -33,20 +37,32 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 		expectRunE  func(*cobra.Command, []string) error
 	}{
 		{
-			"create exchange", createCommand, expectUse + " " + exchangeServiceCommandCreateUseSuffix,
-			exchangeCreateCmd().Short, createExchangeCmd,
+			name:        "create exchange",
+			use:         createCommand,
+			expectUse:   expectUse + " " + exchangeServiceCommandCreateUseSuffix,
+			expectShort: exchangeCreateCmd().Short,
+			expectRunE:  createExchangeCmd,
 		},
 		{
-			"list exchange", listCommand, expectUse,
-			exchangeListCmd().Short, listExchangeCmd,
+			name:        "list exchange",
+			use:         listCommand,
+			expectUse:   expectUse,
+			expectShort: exchangeListCmd().Short,
+			expectRunE:  listExchangeCmd,
 		},
 		{
-			"details exchange", detailsCommand, expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
-			exchangeDetailsCmd().Short, detailsExchangeCmd,
+			name:        "details exchange",
+			use:         detailsCommand,
+			expectUse:   expectUse + " " + exchangeServiceCommandDetailsUseSuffix,
+			expectShort: exchangeDetailsCmd().Short,
+			expectRunE:  detailsExchangeCmd,
 		},
 		{
-			"delete exchange", deleteCommand, expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
-			exchangeDeleteCmd().Short, deleteExchangeCmd,
+			name:        "delete exchange",
+			use:         deleteCommand,
+			expectUse:   expectUse + " " + exchangeServiceCommandDeleteUseSuffix,
+			expectShort: exchangeDeleteCmd().Short,
+			expectRunE:  deleteExchangeCmd,
 		},
 	}
 	for _, test := range table {
@@ -69,7 +85,148 @@ func (suite *ExchangeSuite) TestAddExchangeCommands() {
 	}
 }
 
-func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
+func (suite *ExchangeUnitSuite) TestBackupCreateFlags() {
+	t := suite.T()
+
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: createCommand},
+		addExchangeCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
+		},
+		flagsTD.WithFlags(
+			exchangeServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.MailBoxFN, flagsTD.FlgInputs(flagsTD.MailboxInput),
+				"--" + flags.CategoryDataFN, flagsTD.FlgInputs(flagsTD.ExchangeCategoryDataInput),
+				"--" + flags.FetchParallelismFN, flagsTD.FetchParallelism,
+				"--" + flags.DeltaPageSizeFN, flagsTD.DeltaPageSize,
+
+				// bool flags
+				"--" + flags.DisableDeltaFN,
+				"--" + flags.EnableImmutableIDFN,
+				"--" + flags.DisableSlidingWindowLimiterFN,
+			},
+			flagsTD.PreparedGenericBackupFlags(),
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
+
+	opts := utils.MakeExchangeOpts(cmd)
+	co := utils.Control()
+	backupOpts := utils.ParseBackupOptions()
+
+	// TODO(ashmrtn): Remove flag checks on control.Options to control.Backup once
+	// restore flags are switched over too and we no longer parse flags beyond
+	// connection info into control.Options.
+	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(backupOpts.Parallelism.ItemFetch))
+	assert.Equal(t, flagsTD.DeltaPageSize, strconv.Itoa(int(backupOpts.M365.DeltaPageSize)))
+	assert.Equal(t, control.FailFast, backupOpts.FailureHandling)
+	assert.True(t, backupOpts.Incrementals.ForceFullEnumeration)
+	assert.True(t, backupOpts.Incrementals.ForceItemDataRefresh)
+	assert.True(t, backupOpts.M365.DisableDeltaEndpoint)
+	assert.True(t, backupOpts.M365.ExchangeImmutableIDs)
+	assert.True(t, backupOpts.ServiceRateLimiter.DisableSlidingWindowLimiter)
+
+	assert.Equal(t, flagsTD.FetchParallelism, strconv.Itoa(co.Parallelism.ItemFetch))
+	assert.Equal(t, flagsTD.DeltaPageSize, strconv.Itoa(int(co.DeltaPageSize)))
+	assert.Equal(t, control.FailFast, co.FailureHandling)
+	assert.True(t, co.ToggleFeatures.DisableIncrementals)
+	assert.True(t, co.ToggleFeatures.ForceItemDataDownload)
+	assert.True(t, co.ToggleFeatures.DisableDelta)
+	assert.True(t, co.ToggleFeatures.ExchangeImmutableIDs)
+	assert.True(t, co.ToggleFeatures.DisableSlidingWindowLimiter)
+
+	assert.ElementsMatch(t, flagsTD.MailboxInput, opts.Users)
+	flagsTD.AssertGenericBackupFlags(t, cmd)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *ExchangeUnitSuite) TestBackupListFlags() {
+	t := suite.T()
+
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: listCommand},
+		addExchangeCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
+		},
+		flagsTD.WithFlags(
+			exchangeServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, flagsTD.BackupInput,
+			},
+			flagsTD.PreparedBackupListFlags(),
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
+
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+	flagsTD.AssertBackupListFlags(t, cmd)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *ExchangeUnitSuite) TestBackupDetailsFlags() {
+	t := suite.T()
+
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: detailsCommand},
+		addExchangeCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
+		},
+		flagsTD.WithFlags(
+			exchangeServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, flagsTD.BackupInput,
+				"--" + flags.SkipReduceFN,
+			},
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
+
+	co := utils.Control()
+
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+	assert.True(t, co.SkipReduce)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *ExchangeUnitSuite) TestBackupDeleteFlags() {
+	t := suite.T()
+
+	cmd := cliTD.SetUpCmdHasFlags(
+		t,
+		&cobra.Command{Use: deleteCommand},
+		addExchangeCommands,
+		[]cliTD.UseCobraCommandFn{
+			flags.AddAllProviderFlags,
+			flags.AddAllStorageFlags,
+		},
+		flagsTD.WithFlags(
+			exchangeServiceCommand,
+			[]string{
+				"--" + flags.RunModeFN, flags.RunModeFlagTest,
+				"--" + flags.BackupFN, flagsTD.BackupInput,
+			},
+			flagsTD.PreparedProviderFlags(),
+			flagsTD.PreparedStorageFlags()))
+
+	assert.Equal(t, flagsTD.BackupInput, flags.BackupIDFV)
+	flagsTD.AssertProviderFlags(t, cmd)
+	flagsTD.AssertStorageFlags(t, cmd)
+}
+
+func (suite *ExchangeUnitSuite) TestValidateBackupCreateFlags() {
 	table := []struct {
 		name       string
 		user, data []string
@@ -106,7 +263,7 @@ func (suite *ExchangeSuite) TestValidateBackupCreateFlags() {
 	}
 }
 
-func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
+func (suite *ExchangeUnitSuite) TestExchangeBackupCreateSelectors() {
 	table := []struct {
 		name             string
 		user, data       []string
@@ -118,7 +275,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, no data",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			expectIncludeLen: 3,
 		},
 		{
@@ -128,7 +285,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, contacts",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataContacts},
 			expectIncludeLen: 1,
 		},
@@ -140,7 +297,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, email",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataEmail},
 			expectIncludeLen: 1,
 		},
@@ -152,7 +309,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, events",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataEvents},
 			expectIncludeLen: 1,
 		},
@@ -164,7 +321,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, contacts + email",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataContacts, dataEmail},
 			expectIncludeLen: 2,
 		},
@@ -176,7 +333,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, email + events",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataEmail, dataEvents},
 			expectIncludeLen: 2,
 		},
@@ -188,7 +345,7 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 		},
 		{
 			name:             "any users, events + contacts",
-			user:             []string{utils.Wildcard},
+			user:             []string{flags.Wildcard},
 			data:             []string{dataEvents, dataContacts},
 			expectIncludeLen: 2,
 		},
@@ -217,46 +374,6 @@ func (suite *ExchangeSuite) TestExchangeBackupCreateSelectors() {
 
 			sel := exchangeBackupCreateSelectors(test.user, test.data)
 			assert.Equal(t, test.expectIncludeLen, len(sel.Includes))
-		})
-	}
-}
-
-func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectors() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	for _, test := range testdata.ExchangeOptionDetailLookups {
-		suite.Run(test.Name, func() {
-			t := suite.T()
-
-			output, err := runDetailsExchangeCmd(
-				ctx,
-				test.BackupGetter,
-				"backup-ID",
-				test.Opts,
-				false)
-			assert.NoError(t, err, clues.ToCore(err))
-			assert.ElementsMatch(t, test.Expected, output.Entries)
-		})
-	}
-}
-
-func (suite *ExchangeSuite) TestExchangeBackupDetailsSelectorsBadFormats() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
-	for _, test := range testdata.BadExchangeOptionsFormats {
-		suite.Run(test.Name, func() {
-			t := suite.T()
-
-			output, err := runDetailsExchangeCmd(
-				ctx,
-				test.BackupGetter,
-				"backup-ID",
-				test.Opts,
-				false)
-			assert.Error(t, err, clues.ToCore(err))
-			assert.Empty(t, output)
 		})
 	}
 }

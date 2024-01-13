@@ -46,11 +46,12 @@ func (ev envVar) MinimumPrintable() any {
 	return ev
 }
 
-func (ev envVar) Headers() []string {
+func (ev envVar) Headers(bool) []string {
+	// NOTE: skipID does not make sense in this context
 	return []string{ev.category, " "}
 }
 
-func (ev envVar) Values() []string {
+func (ev envVar) Values(bool) []string {
 	return []string{ev.name, ev.description}
 }
 
@@ -93,8 +94,7 @@ func envGuide(cmd *cobra.Command, args []string) {
 	Info(ctx,
 		"\n--- Environment Variable Guide ---\n",
 		"As a best practice, Corso retrieves credentials and sensitive information from environment variables.\n ",
-		"\n",
-	)
+		"\n")
 	Table(ctx, toPrintable(corsoEVs))
 	Info(ctx, "\n")
 	Table(ctx, toPrintable(azureEVs))

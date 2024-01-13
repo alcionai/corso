@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
@@ -12,10 +13,11 @@ import (
 
 // Flags for declaring which scope of tests to run.
 const (
-	CorsoCITests      = "CORSO_CI_TESTS"
-	CorsoE2ETests     = "CORSO_E2E_TESTS"
-	CorsoLoadTests    = "CORSO_LOAD_TESTS"
-	CorsoNightlyTests = "CORSO_NIGHTLY_TESTS"
+	CorsoCITests        = "CORSO_CI_TESTS"
+	CorsoE2ETests       = "CORSO_E2E_TESTS"
+	CorsoLoadTests      = "CORSO_LOAD_TESTS"
+	CorsoNightlyTests   = "CORSO_NIGHTLY_TESTS"
+	CorsoRetentionTests = "CORSO_RETENTION_TESTS"
 )
 
 type Suite interface {
@@ -44,13 +46,14 @@ func NewIntegrationSuite(
 	envSets [][]string,
 	runOnAnyEnv ...string,
 ) *integrationSuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
 	RunOnAny(
 		t,
 		append(
 			[]string{CorsoCITests},
-			runOnAnyEnv...,
-		)...,
-	)
+			runOnAnyEnv...)...)
 
 	MustGetEnvSets(t, envSets...)
 
@@ -70,13 +73,14 @@ func NewE2ESuite(
 	envSets [][]string,
 	runOnAnyEnv ...string,
 ) *e2eSuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
 	RunOnAny(
 		t,
 		append(
 			[]string{CorsoE2ETests},
-			runOnAnyEnv...,
-		)...,
-	)
+			runOnAnyEnv...)...)
 
 	MustGetEnvSets(t, envSets...)
 
@@ -96,13 +100,14 @@ func NewLoadSuite(
 	envSets [][]string,
 	runOnAnyEnv ...string,
 ) *loadSuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
 	RunOnAny(
 		t,
 		append(
 			[]string{CorsoLoadTests},
-			runOnAnyEnv...,
-		)...,
-	)
+			runOnAnyEnv...)...)
 
 	MustGetEnvSets(t, envSets...)
 
@@ -122,13 +127,14 @@ func NewNightlySuite(
 	envSets [][]string,
 	runOnAnyEnv ...string,
 ) *nightlySuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
 	RunOnAny(
 		t,
 		append(
 			[]string{CorsoNightlyTests},
-			runOnAnyEnv...,
-		)...,
-	)
+			runOnAnyEnv...)...)
 
 	MustGetEnvSets(t, envSets...)
 
@@ -136,6 +142,33 @@ func NewNightlySuite(
 }
 
 type nightlySuite struct {
+	suite.Suite
+}
+
+// ---------------------------------------------------------------------------
+// Retention; requires object locking enabled on the S3 bucket.
+// ---------------------------------------------------------------------------
+
+func NewRetentionSuite(
+	t *testing.T,
+	envSets [][]string,
+	runOnAnyEnv ...string,
+) *retentionSuite {
+	// ensure clues does not obscure logging
+	clues.SetHasher(clues.NoHash())
+
+	RunOnAny(
+		t,
+		append(
+			[]string{CorsoRetentionTests},
+			runOnAnyEnv...)...)
+
+	MustGetEnvSets(t, envSets...)
+
+	return new(retentionSuite)
+}
+
+type retentionSuite struct {
 	suite.Suite
 }
 

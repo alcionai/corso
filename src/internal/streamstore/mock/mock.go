@@ -20,7 +20,7 @@ type Streamer struct {
 }
 
 func (ms Streamer) Collect(context.Context, streamstore.Collectable) error {
-	return clues.New("not implented")
+	return clues.New("not implemented")
 }
 
 func (ms Streamer) Read(
@@ -42,11 +42,11 @@ func (ms Streamer) Read(
 	case streamstore.FaultErrorsType:
 		mr = ms.Errors[snapshotID]
 	default:
-		return clues.New("unknown type: " + col.Type).WithClues(ctx)
+		return clues.NewWC(ctx, "unknown type: "+col.Type)
 	}
 
 	if mr == nil {
-		return clues.New("collectable " + col.Type + " has no marshaller").WithClues(ctx)
+		return clues.NewWC(ctx, "collectable "+col.Type+" has no marshaller")
 	}
 
 	bs, err := mr.Marshal()
@@ -58,9 +58,9 @@ func (ms Streamer) Read(
 }
 
 func (ms Streamer) Write(context.Context, *fault.Bus) (string, error) {
-	return "", clues.New("not implented")
+	return "", clues.New("not implemented")
 }
 
 func (ms Streamer) Delete(context.Context, string) error {
-	return clues.New("not implented")
+	return clues.New("not implemented")
 }

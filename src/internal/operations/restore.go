@@ -2,27 +2,32 @@ package operations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/internal/common/crash"
-	"github.com/alcionai/corso/src/internal/connector/onedrive"
-	"github.com/alcionai/corso/src/internal/connector/support"
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/kopia"
+	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/internal/operations/pathtransformer"
 	"github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -34,13 +39,14 @@ import (
 type RestoreOperation struct {
 	operation
 
-	BackupID    model.StableID             `json:"backupID"`
-	Results     RestoreResults             `json:"results"`
-	Selectors   selectors.Selector         `json:"selectors"`
-	Destination control.RestoreDestination `json:"destination"`
-	Version     string                     `json:"version"`
+	BackupID   model.StableID
+	Results    RestoreResults
+	Selectors  selectors.Selector
+	RestoreCfg control.RestoreConfig
+	Version    string
 
-	account account.Account
+	acct account.Account
+	rc   inject.RestoreConsumer
 }
 
 // RestoreResults aggregate the details of the results of the operation.
@@ -54,20 +60,23 @@ func NewRestoreOperation(
 	ctx context.Context,
 	opts control.Options,
 	kw *kopia.Wrapper,
-	sw *store.Wrapper,
+	sw store.BackupStorer,
+	rc inject.RestoreConsumer,
 	acct account.Account,
 	backupID model.StableID,
 	sel selectors.Selector,
-	dest control.RestoreDestination,
+	restoreCfg control.RestoreConfig,
 	bus events.Eventer,
+	ctr *count.Bus,
 ) (RestoreOperation, error) {
 	op := RestoreOperation{
-		operation:   newOperation(opts, bus, kw, sw),
-		BackupID:    backupID,
-		Selectors:   sel,
-		Destination: dest,
-		Version:     "v0",
-		account:     acct,
+		operation:  newOperation(opts, bus, ctr, kw, sw),
+		acct:       acct,
+		BackupID:   backupID,
+		RestoreCfg: control.EnsureRestoreConfigDefaults(ctx, restoreCfg),
+		Selectors:  sel,
+		Version:    "v0",
+		rc:         rc,
 	}
 	if err := op.validate(); err != nil {
 		return RestoreOperation{}, err
@@ -77,6 +86,10 @@ func NewRestoreOperation(
 }
 
 func (op RestoreOperation) validate() error {
+	if op.rc == nil {
+		return clues.New("missing restore consumer")
+	}
+
 	return op.operation.validate()
 }
 
@@ -86,7 +99,7 @@ func (op RestoreOperation) validate() error {
 // get populated asynchronously.
 type restoreStats struct {
 	cs            []data.RestoreCollection
-	gc            *support.ConnectorOperationStatus
+	ctrl          *data.CollectionStats
 	bytesRead     *stats.ByteCounter
 	resourceCount int
 
@@ -94,20 +107,10 @@ type restoreStats struct {
 	restoreID string
 }
 
-type restorer interface {
-	RestoreMultipleItems(
-		ctx context.Context,
-		snapshotID string,
-		paths []path.Path,
-		bc kopia.ByteCounter,
-		errs *fault.Bus,
-	) ([]data.RestoreCollection, error)
-}
-
 // Run begins a synchronous restore operation.
 func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.Details, err error) {
 	defer func() {
-		if crErr := crash.Recovery(ctx, recover()); crErr != nil {
+		if crErr := crash.Recovery(ctx, recover(), "restore"); crErr != nil {
 			err = crErr
 		}
 	}()
@@ -118,29 +121,56 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 			restoreID: uuid.NewString(),
 		}
 		start  = time.Now()
-		sstore = streamstore.NewStreamer(op.kopia, op.account.ID(), op.Selectors.PathService())
+		sstore = streamstore.NewStreamer(op.kopia, op.acct.ID(), op.Selectors.PathService())
 	)
 
 	// -----
 	// Setup
 	// -----
 
+	ctx = clues.AddLabelCounter(ctx, op.Counter.PlainAdder())
+
 	ctx, end := diagnostics.Span(ctx, "operations:restore:run")
-	defer func() {
-		end()
-		// wait for the progress display to clean up
-		observe.Complete()
-	}()
+	defer end()
 
 	ctx, flushMetrics := events.NewMetrics(ctx, logger.Writer{Ctx: ctx})
 	defer flushMetrics()
 
+	ctx = clues.AddTrace(ctx)
+
+	cats, err := op.Selectors.AllHumanPathCategories()
+	if err != nil {
+		// No need to exit over this, we'll just be missing a bit of info in the
+		// log.
+		logger.CtxErr(ctx, err).Info("getting categories for restore")
+	}
+
 	ctx = clues.Add(
 		ctx,
-		"tenant_id", op.account.ID(), // TODO: pii
+		"tenant_id", clues.Hide(op.acct.ID()),
 		"backup_id", op.BackupID,
 		"service", op.Selectors.Service,
-		"destination_container", op.Destination.ContainerName)
+		"categories", cats,
+		"destination_container", clues.Hide(op.RestoreCfg.Location))
+
+	defer func() {
+		op.bus.Event(
+			ctx,
+			events.RestoreEnd,
+			map[string]any{
+				events.BackupID:      op.BackupID,
+				events.DataRetrieved: op.Results.BytesRead,
+				events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
+				events.EndTime:       dttm.Format(op.Results.CompletedAt),
+				events.ItemsRead:     op.Results.ItemsRead,
+				events.ItemsWritten:  op.Results.ItemsWritten,
+				events.Resources:     op.Results.ResourceOwners,
+				events.RestoreID:     opStats.restoreID,
+				events.Service:       op.Selectors.Service.String(),
+				events.StartTime:     dttm.Format(op.Results.StartedAt),
+				events.Status:        op.Status.String(),
+			})
+	}()
 
 	// -----
 	// Execution
@@ -149,13 +179,18 @@ func (op *RestoreOperation) Run(ctx context.Context) (restoreDetails *details.De
 	deets, err := op.do(ctx, &opStats, sstore, start)
 	if err != nil {
 		// No return here!  We continue down to persistResults, even in case of failure.
-		logger.Ctx(ctx).
-			With("err", err).
-			Errorw("running restore", clues.InErr(err).Slice()...)
+		logger.CtxErr(ctx, err).Error("running restore")
+
+		if errors.Is(err, kopia.ErrNoRestorePath) {
+			op.Errors.Fail(clues.Wrap(err, "empty backup or unknown path provided"))
+		}
+
 		op.Errors.Fail(clues.Wrap(err, "running restore"))
 	}
 
+	finalizeErrorHandling(ctx, op.Options, op.Errors, "running restore")
 	LogFaultErrors(ctx, op.Errors.Errors(), "running restore")
+	logger.Ctx(ctx).With("total_counts", op.Counter.Values()).Info("restore stats")
 
 	// -----
 	// Persistence
@@ -178,6 +213,10 @@ func (op *RestoreOperation) do(
 	detailsStore streamstore.Reader,
 	start time.Time,
 ) (*details.Details, error) {
+	logger.Ctx(ctx).
+		With("control_options", op.Options, "selectors", op.Selectors).
+		Info("restoring selection")
+
 	bup, deets, err := getBackupAndDetailsFromID(
 		ctx,
 		op.BackupID,
@@ -188,44 +227,73 @@ func (op *RestoreOperation) do(
 		return nil, clues.Wrap(err, "getting backup and details")
 	}
 
-	observe.Message(ctx, observe.Safe("Restoring"), observe.Bullet, observe.PII(bup.Selector.DiscreteOwner))
+	restoreToProtectedResource, err := chooseRestoreResource(ctx, op.rc, op.RestoreCfg, bup.Selector)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting destination protected resource")
+	}
 
-	paths, err := formatDetailsForRestoration(ctx, bup.Version, op.Selectors, deets, op.Errors)
+	ctx = clues.Add(
+		ctx,
+		"backup_protected_resource_id", bup.Selector.ID(),
+		"backup_protected_resource_name", clues.Hide(bup.Selector.Name()),
+		"restore_protected_resource_id", restoreToProtectedResource.ID(),
+		"restore_protected_resource_name", clues.Hide(restoreToProtectedResource.Name()))
+
+	// Check if the resource has the service enabled to be able to restore.
+	enabled, err := op.rc.IsServiceEnabled(ctx, restoreToProtectedResource.ID())
+	if err != nil {
+		return nil, clues.Wrap(err, "verifying service restore is enabled")
+	}
+
+	if !enabled {
+		return nil, clues.StackWC(ctx, core.ErrServiceNotEnabled)
+	}
+
+	pcfg := observe.ProgressCfg{
+		NewSection:        true,
+		SectionIdentifier: clues.Hide(restoreToProtectedResource.Name()),
+	}
+	observe.Message(ctx, pcfg, "Restoring")
+
+	paths, err := formatDetailsForRestoration(
+		ctx,
+		bup.Version,
+		op.Selectors,
+		deets,
+		op.rc,
+		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "formatting paths from details")
 	}
 
 	ctx = clues.Add(
 		ctx,
-		"resource_owner", bup.Selector.DiscreteOwner,
 		"details_entries", len(deets.Entries),
 		"details_paths", len(paths),
 		"backup_snapshot_id", bup.SnapshotID,
 		"backup_version", bup.Version)
 
-	op.bus.Event(
+	if len(paths) == 0 {
+		return nil, clues.New("no items match the provided filters")
+	}
+
+	observe.Message(
 		ctx,
-		events.RestoreStart,
-		map[string]any{
-			events.StartTime:        start,
-			events.BackupID:         op.BackupID,
-			events.BackupCreateTime: bup.CreationTime,
-			events.RestoreID:        opStats.restoreID,
-		})
+		observe.ProgressCfg{},
+		fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID))
 
-	observe.Message(ctx, observe.Safe(fmt.Sprintf("Discovered %d items in backup %s to restore", len(paths), op.BackupID)))
-	logger.Ctx(ctx).With("selectors", op.Selectors).Info("restoring selection")
+	progressMessage := observe.MessageWithCompletion(ctx, observe.DefaultCfg(), "Enumerating items in repository")
+	defer close(progressMessage)
 
-	kopiaComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Enumerating items in repository"))
-	defer closer()
-	defer close(kopiaComplete)
-
-	dcs, err := op.kopia.RestoreMultipleItems(ctx, bup.SnapshotID, paths, opStats.bytesRead, op.Errors)
+	dcs, err := op.kopia.ProduceRestoreCollections(
+		ctx,
+		bup.SnapshotID,
+		paths,
+		opStats.bytesRead,
+		op.Errors)
 	if err != nil {
 		return nil, clues.Wrap(err, "producing collections to restore")
 	}
-
-	kopiaComplete <- struct{}{}
 
 	ctx = clues.Add(ctx, "coll_count", len(dcs))
 
@@ -233,35 +301,26 @@ func (op *RestoreOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
-	gc, err := connectToM365(ctx, op.Selectors, op.account, op.Errors)
-	if err != nil {
-		return nil, clues.Wrap(err, "connecting to M365")
-	}
-
-	restoreComplete, closer := observe.MessageWithCompletion(ctx, observe.Safe("Restoring data"))
-	defer closer()
-	defer close(restoreComplete)
-
-	restoreDetails, err := gc.RestoreDataCollections(
+	deets, colStats, err := consumeRestoreCollections(
 		ctx,
+		op.rc,
 		bup.Version,
-		op.account,
+		restoreToProtectedResource,
 		op.Selectors,
-		op.Destination,
+		op.RestoreCfg,
 		op.Options,
 		dcs,
-		op.Errors)
+		op.Errors,
+		op.Counter)
 	if err != nil {
-		return nil, clues.Wrap(err, "restoring collections")
+		return nil, clues.Stack(err)
 	}
 
-	restoreComplete <- struct{}{}
+	opStats.ctrl = colStats
 
-	opStats.gc = gc.AwaitStatus()
+	logger.Ctx(ctx).Debug(opStats.ctrl)
 
-	logger.Ctx(ctx).Debug(gc.PrintableStatus())
-
-	return restoreDetails, nil
+	return deets, nil
 }
 
 // persists details and statistics about the restore operation.
@@ -283,36 +342,77 @@ func (op *RestoreOperation) persistResults(
 	op.Results.ItemsRead = len(opStats.cs) // TODO: file count, not collection count
 	op.Results.ResourceOwners = opStats.resourceCount
 
-	if opStats.gc == nil {
+	if opStats.ctrl == nil {
 		op.Status = Failed
 		return clues.New("restoration never completed")
 	}
 
-	if op.Status != Failed && opStats.gc.Metrics.Successes == 0 {
+	if op.Status != Failed && opStats.ctrl.IsZero() {
 		op.Status = NoData
 	}
 
-	op.Results.ItemsWritten = opStats.gc.Metrics.Successes
-
-	op.bus.Event(
-		ctx,
-		events.RestoreEnd,
-		map[string]any{
-			events.BackupID:      op.BackupID,
-			events.DataRetrieved: op.Results.BytesRead,
-			events.Duration:      op.Results.CompletedAt.Sub(op.Results.StartedAt),
-			events.EndTime:       common.FormatTime(op.Results.CompletedAt),
-			events.ItemsRead:     op.Results.ItemsRead,
-			events.ItemsWritten:  op.Results.ItemsWritten,
-			events.Resources:     op.Results.ResourceOwners,
-			events.RestoreID:     opStats.restoreID,
-			events.Service:       op.Selectors.Service.String(),
-			events.StartTime:     common.FormatTime(op.Results.StartedAt),
-			events.Status:        op.Status.String(),
-		},
-	)
+	op.Results.ItemsWritten = opStats.ctrl.Successes
 
 	return op.Errors.Failure()
+}
+
+func chooseRestoreResource(
+	ctx context.Context,
+	pprian inject.PopulateProtectedResourceIDAndNamer,
+	restoreCfg control.RestoreConfig,
+	orig idname.Provider,
+) (idname.Provider, error) {
+	if len(restoreCfg.ProtectedResource) == 0 {
+		return orig, nil
+	}
+
+	resource, err := pprian.PopulateProtectedResourceIDAndName(
+		ctx,
+		restoreCfg.ProtectedResource,
+		nil)
+
+	return resource, clues.Stack(err).OrNil()
+}
+
+// ---------------------------------------------------------------------------
+// Restorer funcs
+// ---------------------------------------------------------------------------
+
+func consumeRestoreCollections(
+	ctx context.Context,
+	rc inject.RestoreConsumer,
+	backupVersion int,
+	toProtectedResource idname.Provider,
+	sel selectors.Selector,
+	restoreCfg control.RestoreConfig,
+	opts control.Options,
+	dcs []data.RestoreCollection,
+	errs *fault.Bus,
+	ctr *count.Bus,
+) (*details.Details, *data.CollectionStats, error) {
+	if len(dcs) == 0 {
+		return nil, nil, clues.New("no data collections to restore")
+	}
+
+	progressMessage := observe.MessageWithCompletion(ctx, observe.DefaultCfg(), "Restoring data")
+	defer close(progressMessage)
+
+	ctx, end := diagnostics.Span(ctx, "operations:restore")
+	defer end()
+
+	rcc := inject.RestoreConsumerConfig{
+		BackupVersion:     backupVersion,
+		Options:           opts,
+		ProtectedResource: toProtectedResource,
+		RestoreConfig:     restoreCfg,
+		Selector:          sel,
+	}
+
+	ctx = clues.Add(ctx, "restore_config", rcc.RestoreConfig)
+
+	deets, status, err := rc.ConsumeRestoreCollections(ctx, rcc, dcs, errs, ctr)
+
+	return deets, status, clues.Wrap(err, "restoring collections").OrNil()
 }
 
 // formatDetailsForRestoration reduces the provided detail entries according to the
@@ -322,47 +422,32 @@ func formatDetailsForRestoration(
 	backupVersion int,
 	sel selectors.Selector,
 	deets *details.Details,
+	cii inject.CacheItemInfoer,
 	errs *fault.Bus,
-) ([]path.Path, error) {
+) ([]path.RestorePaths, error) {
 	fds, err := sel.Reduce(ctx, deets, errs)
 	if err != nil {
 		return nil, err
 	}
 
-	var (
-		fdsPaths  = fds.Paths()
-		paths     = make([]path.Path, len(fdsPaths))
-		shortRefs = make([]string, len(fdsPaths))
-		el        = errs.Local()
-	)
-
-	for i := range fdsPaths {
-		if el.Failure() != nil {
-			break
-		}
-
-		p, err := path.FromDataLayerPath(fdsPaths[i], true)
-		if err != nil {
-			el.AddRecoverable(clues.
-				Wrap(err, "parsing details path after reduction").
-				WithMap(clues.In(ctx)).
-				With("path", fdsPaths[i]))
-
-			continue
-		}
-
-		paths[i] = p
-		shortRefs[i] = p.ShortRef()
+	// allow restore controllers to iterate over item metadata
+	for _, ent := range fds.Entries {
+		cii.CacheItemInfo(ent.ItemInfo)
 	}
 
-	if sel.Service == selectors.ServiceOneDrive {
+	paths, err := pathtransformer.GetPaths(ctx, backupVersion, fds.Items(), errs)
+	if err != nil {
+		return nil, clues.Wrap(err, "getting restore paths")
+	}
+
+	if sel.Service == selectors.ServiceOneDrive ||
+		sel.Service == selectors.ServiceSharePoint ||
+		sel.Service == selectors.ServiceGroups {
 		paths, err = onedrive.AugmentRestorePaths(backupVersion, paths)
 		if err != nil {
 			return nil, clues.Wrap(err, "augmenting paths")
 		}
 	}
 
-	logger.Ctx(ctx).With("short_refs", shortRefs).Infof("found %d details entries to restore", len(shortRefs))
-
-	return paths, el.Failure()
+	return paths, nil
 }

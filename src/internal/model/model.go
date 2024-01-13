@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/kopia/kopia/repo/manifest"
 )
 
@@ -22,20 +24,52 @@ func (id StableID) String() string {
 //
 //go:generate go run golang.org/x/tools/cmd/stringer -type=Schema
 const (
-	UnknownSchema = Schema(iota)
-	BackupOpSchema
-	RestoreOpSchema
-	BackupSchema
-	BackupDetailsSchema
-	RepositorySchema
+	UnknownSchema       Schema = 0
+	BackupOpSchema      Schema = 1
+	RestoreOpSchema     Schema = 2
+	BackupSchema        Schema = 3
+	BackupDetailsSchema Schema = 4
+	RepositorySchema    Schema = 5
 )
 
 // common tags for filtering
 const (
 	ServiceTag = "service"
+	// BackupTypeTag is the key used to store the resulting type of backup from a
+	// backup operation. The type of the backup is determined by a combination of
+	// input options and if errors were encountered during the backup. When making
+	// an incremental backup, previous backups' types are inspected to determine
+	// if they can be used as a base.
+	//
+	// The backup type associated with this key should only be used for
+	// determining if a backup is a valid base. Once the bases for a backup
+	// operation have been found, structs like kopia.BackupBases should be used to
+	// track the type of each base.
+	BackupTypeTag = "backup-type"
+	// AssistBackup denotes that this backup should only be used for kopia
+	// assisted incrementals since it doesn't contain the complete set of data
+	// being backed up.
+	//
+	// See comment on BackupTypeTag for more information.
+	AssistBackup = "assist-backup"
+	// MergeBackup denotes that this backup can be used as a merge base during an
+	// incremental backup. It contains a complete snapshot of the data in the
+	// external service. Merge bases can also be used as assist bases during an
+	// incremental backup or demoted to being only an assist base.
+	//
+	// See comment on BackupTypeTag for more information.
+	MergeBackup = "merge-backup"
+	// PreviewBackup denotes that this backup contains a subset of information for
+	// the protected resource. PreviewBackups are used to demonstrate value but
+	// are not safe to use as merge bases for incremental backups. It's possible
+	// they could be used as assist bases since the only difference from a regular
+	// backup is the amount of data they contain.
+	//
+	// See comment on BackupTypeTag for more information.
+	PreviewBackup = "preview-backup"
 )
 
-// Valid returns true if the ModelType value fits within the iota range.
+// Valid returns true if the ModelType value fits within the const range.
 func (mt Schema) Valid() bool {
 	return mt > 0 && mt < RepositorySchema+1
 }
@@ -59,13 +93,14 @@ type BaseModel struct {
 	// to refer to this one. This field may change if the model is updated. This
 	// field should be treated as read-only by users.
 	ModelStoreID manifest.ID `json:"-"`
-	// Version is a version number that can help track changes across models.
+	// ModelVersion is a version number that can help track changes across models.
 	// TODO(ashmrtn): Reference version control documentation.
-	Version int `json:"-"`
+	ModelVersion int `json:"-"`
 	// Tags associated with this model in the store to facilitate lookup. Tags in
 	// the struct are not serialized directly into the stored model, but are part
 	// of the metadata for the model.
-	Tags map[string]string `json:"-"`
+	Tags    map[string]string `json:"-"`
+	ModTime time.Time         `json:"-"`
 }
 
 func (bm *BaseModel) Base() *BaseModel {

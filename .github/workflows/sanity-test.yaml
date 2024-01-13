@@ -1,5 +1,5 @@
 name: Sanity Testing
-on: 
+on:
   push:
     branches:
       - main
@@ -19,310 +19,425 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  SetM365App:
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+
   Sanity-Tests:
+    needs: [ SetM365App ]
     environment: Testing
     runs-on: ubuntu-latest
     env:
+      # Need these in the local env so that corso can read them
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
-      AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+      AZURE_CLIENT_ID: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+      AZURE_CLIENT_SECRET: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
       AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-      CORSO_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
-      CORSO_LOG_FILE: ./src/testlog/testlogging.log
-      CORSO_M365_TEST_USER_ID: ${{ github.event.inputs.user != '' && github.event.inputs.user || secrets.CORSO_M365_TEST_USER_ID }}
       CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-      TEST_RESULT: "test_results"
+      # re-used values
+      CORSO_LOG_DIR: ${{ github.workspace }}/src/testlog
+      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-sanity.log
+      RESTORE_DEST_PFX: Corso_Test_Sanity_
+      TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || vars.CORSO_M365_TEST_USER_ID }}
 
     defaults:
       run:
         working-directory: src
+        
+##########################################################################################################################################
+
+# setup
     steps:
-      - uses: actions/checkout@v3
+
+      - uses: actions/checkout@v4
 
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v4
         with:
           go-version-file: src/go.mod
 
-      - run: make build
+      - run: go build -o corso
+        timeout-minutes: 10
 
-      - run: go build -o sanityCheck ./cmd/sanity_test
+      - run: go build -o sanity-test ./cmd/sanity_test
+        timeout-minutes: 10
 
-      - run: mkdir test_results
+      - run: mkdir ${CORSO_LOG_DIR}
 
-      # run the tests
-      - name: Version Test
+##########################################################################################################################################
+
+# Pre-Run cleanup
+
+      # unlike CI tests, sanity tests are not expected to run concurrently.
+      # however, the sanity yaml concurrency is set to a maximum of 1 run, preferring
+      # the latest release.  If we wait to clean up the production til after the tests
+      # It would be possible to complete all the testing but cancel the run before
+      # cleanup occurs.  Setting the cleanup before the tests ensures we always begin
+      # with a clean slate, and cannot compound data production.
+      - name: Set purge boundary
+        if: always()
         run: |
-          set -euo pipefail
-          if [ $( ./corso --version | grep 'Corso version:' | wc -l) -ne 1 ]
-          then
-              echo "valid version not found"
-              exit 1
-          fi
+          echo "NOW=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+
+      - name: Purge CI-Produced Folders for Users
+        timeout-minutes: 30
+        uses: ./.github/actions/purge-m365-data
+        with:
+          user: ${{ env.TEST_USER }}
+          folder-prefix: ${{ env.RESTORE_DEST_PFX }}
+          older-than: ${{ env.NOW }}
+          azure-client-id: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          azure-client-secret: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+
+      - name: Purge CI-Produced Folders for Sites
+        timeout-minutes: 30
+        if: always()
+        uses: ./.github/actions/purge-m365-data
+        with:
+          site: ${{ vars.CORSO_M365_TEST_SITE_URL }}
+          folder-prefix: ${{ env.RESTORE_DEST_PFX }}
+          libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
+          older-than: ${{ env.NOW }}
+          azure-client-id: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
+          azure-client-secret: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
+          azure-tenant-id: ${{ secrets.TENANT_ID }}
+          m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
+          m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+
+##########################################################################################################################################
+
+# Repository commands
+
+      - name: Version Test
+        timeout-minutes: 10
+        run: |
+          ./corso --version | grep -c 'Corso version:'
 
       - name: Repo init test
+        timeout-minutes: 10
         id: repo-init
-        env:
-          TEST_RESULT: "test_results"
         run: |
-          set -euo pipefail 
-          prefix=`date +"%Y-%m-%d-%T"`
-
+          set -euo pipefail
+          prefix=$(date +"%Y-%m-%d-%T")
+          echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
           ./corso repo init s3 \
-          --hide-progress \
-          --prefix $prefix \
-          --bucket  ${CORSO_BUCKET}  2>&1 | tee $TEST_RESULT/initrepo.txt 
+            --no-stats \
+            --hide-progress \
+            --prefix $prefix \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
 
-          if ! grep -q 'Initialized a S3 repository within bucket' $TEST_RESULT/initrepo.txt 
+          if ! grep -q 'Initialized a S3 repository within bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-init.log
           then
-            echo "repo could not be initiated"
+            echo "Repo could not be initialized"
             exit 1
           fi
-          
-          echo result="$prefix" >> $GITHUB_OUTPUT 
 
-      # run the tests
+          echo result="$prefix" >> $GITHUB_OUTPUT
+
       - name: Repo connect test
+        timeout-minutes: 10
         run: |
           set -euo pipefail
+          echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
           ./corso repo connect s3 \
-          --hide-progress \
-          --prefix ${{ steps.repo-init.outputs.result }} \
-          --bucket  ${CORSO_BUCKET} 2>&1 | tee $TEST_RESULT/connect.txt 
+            --no-stats \
+            --hide-progress \
+            --prefix ${{ steps.repo-init.outputs.result }} \
+            --bucket ${{ secrets.CI_TESTS_S3_BUCKET }} \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
 
-          if ! grep -q 'Connected to S3 bucket' $TEST_RESULT/connect.txt 
+          if ! grep -q 'Connected to S3 bucket' ${{ env.CORSO_LOG_DIR }}/gotest-repo-connect.log
           then
-            echo "repo could not be connected"
+            echo "Repo could not be connected"
             exit 1
           fi
 
-      # run the tests
-      - name: Backup exchange test
-        id: exchange-test
-        run: |
-          ./corso backup create exchange \
-          --user "${CORSO_M365_TEST_USER_ID}" \
-          --hide-progress \
-          --json \
-          2>&1 | tee $TEST_RESULT/backup_exchange.txt 
-
-          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange.txt ) 
-
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
-            echo "backup was not successful"
-            exit 1
-          fi
-
-          data=$( echo $resultjson | jq -r '.[0] | .id' )
-          echo result=$data >> $GITHUB_OUTPUT
-
-      # list all exchange backups
-      - name: Backup exchange list test
+      # Run maintenance on an empty repo just to make sure the command still
+      # works.
+      - name: Repo maintenance test
+        timeout-minutes: 30
         run: |
           set -euo pipefail
-          ./corso backup list exchange \
-          --hide-progress \
-          2>&1 | tee $TEST_RESULT/backup_exchange_list.txt
+          echo -e "\nRepo maintenance test\n" >> ${{ env.CORSO_LOG_FILE }}
+          ./corso repo maintenance \
+            --no-stats \
+            --hide-progress \
+            --mode complete \
+            2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-maintenance.log
 
-          if ! grep -q  ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt 
-          then
-            echo "listing of backup was not successful"
-            exit 1
-          fi
+##########################################################################################################################################
 
-      # list the previous exchange backups
-      - name: Backup exchange list single backup test
+# Exchange
+
+      # generate new entries to roll into the next load test
+      # only runs if the test was successful
+      - name: Exchange - Create new data
+        timeout-minutes: 30
+        working-directory: ./src/cmd/factory
         run: |
-          set -euo pipefail
-          ./corso backup list exchange \
-          --hide-progress \
-          --backup "${{ steps.exchange-test.outputs.result }}" \
-          2>&1 | tee $TEST_RESULT/backup_exchange_list_single.txt
+          go run . exchange emails \
+          --user ${{ env.TEST_USER }} \
+          --tenant ${{ secrets.TENANT_ID }} \
+          --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }} \
+          --count 4
 
-          if ! grep -q  ${{ steps.exchange-test.outputs.result }} $TEST_RESULT/backup_exchange_list.txt 
-          then
-            echo "listing of backup was not successful"
-            exit 1
-          fi
+      - name: Exchange - Backup
+        timeout-minutes: 30
+        id: exchange-backup
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: exchange
+          kind: first-backup
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
-      # test exchange restore
-      - name: Backup exchange restore
-        id: exchange-restore-test
+      - name: Exchange - Incremental backup
+        timeout-minutes: 30
+        id: exchange-backup-incremental
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: exchange
+          kind: incremental
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+      - name: Exchange - Non delta backup
+        timeout-minutes: 30
+        id: exchange-backup-non-delta
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: exchange
+          kind: non-delta
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email" --disable-delta'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+      - name: Exchange - Incremental backup after non-delta
+        timeout-minutes: 30
+        id: exchange-backup-incremental-after-non-delta
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: exchange
+          kind: non-delta-incremental
+          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+
+##########################################################################################################################################
+
+# Onedrive
+
+      # generate new entries for test
+      - name: OneDrive - Create new data
+        id: new-data-creation-onedrive
+        timeout-minutes: 30
+        working-directory: ./src/cmd/factory
         run: |
-          set -euo pipefail
-          ./corso restore exchange \
-          --hide-progress \
-          --backup "${{ steps.exchange-test.outputs.result }}" \
-          2>&1 | tee $TEST_RESULT/exchange-restore-test.txt
-          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
-        
-      - name: Restoration check
-        env:
-          SANITY_RESTORE_FOLDER: ${{ steps.exchange-restore-test.outputs.result }}
-          SANITY_RESTORE_SERVICE: "exchange"
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+
+          go run . onedrive files  \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+            --count 4
+
+          echo result="${suffix}" >> $GITHUB_OUTPUT
+
+      - name: OneDrive - Backup
+        id: onedrive-backup
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: onedrive
+          kind: first-backup
+          backup-args: '--user "${{ env.TEST_USER }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+      # generate some more enteries for incremental check
+      - name: OneDrive - Create new data (for incremental)
+        timeout-minutes: 30
+        working-directory: ./src/cmd/factory
         run: |
-          set -euo pipefail
-          ./sanityCheck
+          go run . onedrive files  \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} \
+            --count 4
 
-      # test incremental backup exchange
-      - name: Backup exchange incremental
-        id: exchange-incremental-test
+      - name: OneDrive - Incremental backup
+        id: onedrive-incremental
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: onedrive
+          kind: incremental
+          backup-args: '--user "${{ env.TEST_USER }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+##########################################################################################################################################
+
+# Sharepoint
+
+      # generate new entries for test
+      - name: SharePoint - Create new data
+        id: new-data-creation-sharepoint
+        timeout-minutes: 30
+        working-directory: ./src/cmd/factory
         run: |
-          set -euo pipefail
-          ./corso backup create exchange \
-          --hide-progress \
-          --user "${CORSO_M365_TEST_USER_ID}" \
-          --json \
-          2>&1 | tee $TEST_RESULT/backup_exchange_incremental.txt 
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
-          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_exchange_incremental.txt ) 
+          go run . sharepoint files  \
+            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+            --count 4
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
-            echo "backup was not successful"
-            exit 1
-          fi
+          echo result="${suffix}" >> $GITHUB_OUTPUT
 
-          echo result=$( echo $resultjson | jq -r '.[0] | .id' ) >> $GITHUB_OUTPUT
+      - name: SharePoint - Backup
+        id: sharepoint-backup
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: sharepoint
+          kind: first-backup
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
-      # test exchange restore
-      - name: Backup incremantal exchange restore
-        id: exchange-incremantal-restore-test
+      # generate some more enteries for incremental check
+      - name: SharePoint - Create new data (for incremental)
+        timeout-minutes: 30
+        working-directory: ./src/cmd/factory
         run: |
-          set -euo pipefail
-          ./corso restore exchange \
-          --hide-progress \
-          --backup "${{ steps.exchange-incremental-test.outputs.result }}" \
-          2>&1 | tee $TEST_RESULT/exchange-incremantal-restore-test.txt
-          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/exchange-incremantal-restore-test.txt | sed "s/Restoring to folder//" )  >> $GITHUB_OUTPUT
-        
-      - name: Restoration check
-        env:
-          SANITY_RESTORE_FOLDER: ${{ steps.exchange-incremantal-restore-test.outputs.result }}
-          SANITY_RESTORE_SERVICE: "exchange"
+          go run . sharepoint files  \
+            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} \
+            --count 4
+
+      - name: SharePoint - Incremental backup
+        id: sharepoint-incremental
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: sharepoint
+          kind: incremental
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
+          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+##########################################################################################################################################
+
+# Groups and Teams
+
+      # generate new entries for test
+      - name: Groups - Create new data
+        id: new-data-creation-groups
+        timeout-minutes: 30
+        working-directory: ./src/cmd/factory
         run: |
-          set -euo pipefail
-          ./sanityCheck
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
-        
- # Onedrive test
+          go run . sharepoint files  \
+            --site ${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+            --count 4
 
-      # run the tests
-      - name: Backup onedrive test
-        id: onedrive-test
+          echo result="${suffix}" >> $GITHUB_OUTPUT
+
+      - name: Groups - Backup
+        id: groups-backup
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: groups
+          kind: first-backup
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+      # generate some more entries for incremental check
+      - name: Groups - Create new data (for incremental)
+        timeout-minutes: 30
+        working-directory: ./src/cmd/factory
         run: |
-          set -euo pipefail
-          ./corso backup create onedrive \
-          --hide-progress \
-          --user "${CORSO_M365_TEST_USER_ID}" \
-          --json \
-          2>&1 | tee $TEST_RESULT/backup_onedrive.txt 
+          go run . sharepoint files  \
+            --site ${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }} \
+            --count 4
 
-          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_onedrive.txt ) 
+      - name: Groups - Incremental backup
+        id: groups-incremental
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: groups
+          kind: incremental
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
+          restore-args: '--site "${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }}" --folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
 
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
-            echo "backup was not successful"
-            exit 1
-          fi
+##########################################################################################################################################
 
-          data=$( echo $resultjson | jq -r '.[0] | .id' )
-          echo result=$data >> $GITHUB_OUTPUT
-
-      # list all onedrive backups
-      - name: Backup onedrive list test
-        run: |
-          set -euo pipefail
-          ./corso backup list onedrive \
-          --hide-progress \
-          2>&1 | tee $TEST_RESULT/backup_onedrive_list.txt 
-
-          if ! grep -q  ${{ steps.onedrive-test.outputs.result }} $TEST_RESULT/backup_onedrive_list.txt 
-          then
-            echo "listing of backup was not successful"
-            exit 1
-          fi
-
-      # list the previous onedrive backup
-      - name: Backup onedrive list test
-        run: |
-          set -euo pipefail
-          ./corso backup list onedrive \
-          --hide-progress \
-          --backup "${{ steps.onedrive-test.outputs.result }}" \
-          2>&1 | tee $TEST_RESULT/backup_onedrive_list_single.txt
-
-          if ! grep -q  ${{ steps.onedrive-test.outputs.result }} $TEST_RESULT/backup_onedrive_list.txt 
-          then
-            echo "listing of backup was not successful"
-            exit 1
-          fi
-
-      # test onedrive restore
-      - name: Backup onedrive restore
-        id: onedrive-restore-test
-        run: |
-          set -euo pipefail
-          ./corso restore onedrive \
-          --hide-progress \
-          --backup "${{ steps.onedrive-test.outputs.result }}" \
-          2>&1 | tee $TEST_RESULT/onedrive-restore-test.txt 
-          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
-
-      - name: Restoration oneDrive check
-        env:
-          SANITY_RESTORE_FOLDER: ${{ steps.onedrive-restore-test.outputs.result }}
-          SANITY_RESTORE_SERVICE: "onedrive"
-        run: |
-          set -euo pipefail
-          ./sanityCheck
-
-      # test onedrive incremental
-      - name: Backup onedrive test
-        id: onedrive-incremental-test
-        run: |
-          set -euo pipefail
-          ./corso backup create onedrive \
-          --hide-progress \
-          --user "${CORSO_M365_TEST_USER_ID}"\
-          --json \
-          2>&1 | tee $TEST_RESULT/backup_onedrive_incremental.txt 
-          
-          resultjson=$(sed -e '1,/Completed Backups/d' $TEST_RESULT/backup_onedrive_incremental.txt ) 
-
-          if  [[ $( echo $resultjson | jq -r '.[0] | .errorCount') -ne 0 ]]; then
-            echo "backup was not successful"
-            exit 1
-          fi
-
-          data=$( echo $resultjson | jq -r '.[0] | .id' )
-          echo result=$data >> $GITHUB_OUTPUT
-          
-      # test onedrive restore
-      - name: Backup onedrive restore
-        id: onedrive-incremental-restore-test
-        run: |
-          set -euo pipefail
-          ./corso restore onedrive \
-          --hide-progress \
-          --backup "${{ steps.onedrive-incremental-test.outputs.result }}" \
-          2>&1 | tee $TEST_RESULT/onedrive-incremental-restore-test.txt 
-          echo result=$(grep -i -e 'Restoring to folder ' $TEST_RESULT/onedrive-incremental-restore-test.txt | sed "s/Restoring to folder//")  >> $GITHUB_OUTPUT
-
-      - name: Restoration oneDrive check
-        env:
-          SANITY_RESTORE_FOLDER: ${{ steps.onedrive-incremental-restore-test.outputs.result }}
-          SANITY_RESTORE_SERVICE: "onedrive"
-        run: |
-          set -euo pipefail
-          ./sanityCheck
+# Logging & Notifications
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
-        uses: actions/upload-artifact@v3
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: test-log
-          path: src/testlog/*
+          name: sanity-test-log
+          path: ${{ env.CORSO_LOG_DIR }}/*
           if-no-files-found: error
           retention-days: 14
-      
+
+      - name: Notify failure in teams
+        if: failure()
+        uses: ./.github/actions/teams-message
+        with:
+          msg: "[FAILED] Sanity Tests"
+          teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

@@ -5,15 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
+
+	"github.com/alcionai/corso/src/internal/common/color"
+	"github.com/alcionai/corso/src/internal/observe"
 )
 
 var (
 	outputAsJSON      bool
 	outputAsJSONDebug bool
+	outputVerbose     bool
 )
 
 type rootCmdCtx struct{}
@@ -48,11 +53,17 @@ func AddOutputFlag(cmd *cobra.Command) {
 	fs.BoolVar(&outputAsJSON, "json", false, "output data in JSON format")
 	fs.BoolVar(&outputAsJSONDebug, "json-debug", false, "output all internal and debugging data in JSON format")
 	cobra.CheckErr(fs.MarkHidden("json-debug"))
+	fs.BoolVar(&outputVerbose, "verbose", false, "don't hide additional information")
 }
 
-// JSONFormat returns true if the printer plans to output as json.
-func JSONFormat() bool {
+// DisplayJSONFormat returns true if the printer plans to output as json.
+func DisplayJSONFormat() bool {
 	return outputAsJSON || outputAsJSONDebug
+}
+
+// DisplayVerbose returns true if verbose output is enabled
+func DisplayVerbose() bool {
+	return outputVerbose
 }
 
 // StderrWriter returns the stderr writer used in the root
@@ -62,7 +73,7 @@ func StderrWriter(ctx context.Context) io.Writer {
 }
 
 // ---------------------------------------------------------------------------------------------------------
-// Helper funcs
+// Exported interface
 // ---------------------------------------------------------------------------------------------------------
 
 // Only tells the CLI to only display this error, preventing the usage
@@ -74,57 +85,88 @@ func Only(ctx context.Context, e error) error {
 
 // Err prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-// Prepends the message with "Error: "
 func Err(ctx context.Context, s ...any) {
-	out(getRootCmd(ctx).ErrOrStderr())
+	cw := color.NewColorableWriter(color.Red, getRootCmd(ctx).ErrOrStderr())
+
+	s = append([]any{"Error:"}, s...)
+
+	out(ctx, cw, s...)
 }
 
 // Errf prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
-// Prepends the message with "Error: "
+// You should ideally be using SimpleError or OperationError.
 func Errf(ctx context.Context, tmpl string, s ...any) {
-	outf(getRootCmd(ctx).ErrOrStderr(), "Error: "+tmpl, s...)
+	cw := color.NewColorableWriter(color.Red, getRootCmd(ctx).ErrOrStderr())
+	tmpl = "Error: " + tmpl
+	outf(ctx, cw, tmpl, s...)
 }
 
 // Out prints the params to cobra's output writer (stdOut by default)
 // if s is nil, prints nothing.
 func Out(ctx context.Context, s ...any) {
-	out(getRootCmd(ctx).OutOrStdout(), s...)
+	out(ctx, getRootCmd(ctx).OutOrStdout(), s...)
 }
 
 // Out prints the formatted strings to cobra's output writer (stdOut by default)
 // if t is empty, prints nothing.
 func Outf(ctx context.Context, t string, s ...any) {
-	outf(getRootCmd(ctx).OutOrStdout(), t, s...)
+	outf(ctx, getRootCmd(ctx).OutOrStdout(), t, s...)
 }
 
 // Info prints the params to cobra's error writer (stdErr by default)
 // if s is nil, prints nothing.
 func Info(ctx context.Context, s ...any) {
-	out(getRootCmd(ctx).ErrOrStderr(), s...)
+	out(ctx, getRootCmd(ctx).ErrOrStderr(), s...)
 }
 
 // Info prints the formatted strings to cobra's error writer (stdErr by default)
 // if t is empty, prints nothing.
 func Infof(ctx context.Context, t string, s ...any) {
-	outf(getRootCmd(ctx).ErrOrStderr(), t, s...)
+	outf(ctx, getRootCmd(ctx).ErrOrStderr(), t, s...)
+}
+
+// Pretty prettifies and prints the value.
+func Pretty(ctx context.Context, a any) {
+	if a == nil {
+		Err(ctx, "<nil>")
+		return
+	}
+
+	printPrettyJSON(getRootCmd(ctx).ErrOrStderr(), a)
+}
+
+// PrettyJSON prettifies and prints the value.
+func PrettyJSON(ctx context.Context, p minimumPrintabler) {
+	if p == nil {
+		Err(ctx, "<nil>")
+		return
+	}
+
+	outputJSON(getRootCmd(ctx).ErrOrStderr(), p, outputAsJSONDebug)
 }
 
 // out is the testable core of exported print funcs
-func out(w io.Writer, s ...any) {
+func out(ctx context.Context, w io.Writer, s ...any) {
 	if len(s) == 0 {
 		return
 	}
+
+	// observe bars needs to be flushed before printing
+	observe.Flush(ctx)
 
 	fmt.Fprint(w, s...)
 	fmt.Fprintf(w, "\n")
 }
 
 // outf is the testable core of exported print funcs
-func outf(w io.Writer, t string, s ...any) {
+func outf(ctx context.Context, w io.Writer, t string, s ...any) {
 	if len(t) == 0 {
 		return
 	}
+
+	// observe bars needs to be flushed before printing
+	observe.Flush(ctx)
 
 	fmt.Fprintf(w, t, s...)
 	fmt.Fprintf(w, "\n")
@@ -135,14 +177,18 @@ func outf(w io.Writer, t string, s ...any) {
 // ---------------------------------------------------------------------------------------------------------
 
 type Printable interface {
-	// reduces the struct to a minimized format for easier human consumption
-	MinimumPrintable() any
+	minimumPrintabler
 	// should list the property names of the values surfaced in Values()
-	Headers() []string
+	Headers(skipID bool) []string
 	// list of values for tabular or csv formatting
 	// if the backing data is nil or otherwise missing,
 	// values should provide an empty string as opposed to skipping entries
-	Values() []string
+	Values(skipID bool) []string
+}
+
+type minimumPrintabler interface {
+	// reduces the struct to a minimized format for easier human consumption
+	MinimumPrintable() any
 }
 
 // Item prints the printable, according to the caller's requested format.
@@ -159,6 +205,23 @@ func printItem(w io.Writer, p Printable) {
 	}
 
 	outputTable(w, []Printable{p})
+}
+
+// ItemProperties prints the printable either as in a single line or a json
+// The difference between this and Item is that this one does not print the ID
+func ItemProperties(ctx context.Context, p Printable) {
+	printItemProperties(getRootCmd(ctx).OutOrStdout(), p)
+}
+
+// print prints the printable items,
+// according to the caller's requested format.
+func printItemProperties(w io.Writer, p Printable) {
+	if outputAsJSON || outputAsJSONDebug {
+		outputJSON(w, p, outputAsJSONDebug)
+		return
+	}
+
+	outputOneLine(w, []Printable{p})
 }
 
 // All prints the slice of printable items,
@@ -195,12 +258,12 @@ func Table(ctx context.Context, ps []Printable) {
 // output to stdout the list of printable structs in a table
 func outputTable(w io.Writer, ps []Printable) {
 	t := table.Table{
-		Headers: ps[0].Headers(),
+		Headers: ps[0].Headers(false),
 		Rows:    [][]string{},
 	}
 
 	for _, p := range ps {
-		t.Rows = append(t.Rows, p.Values())
+		t.Rows = append(t.Rows, p.Values(false))
 	}
 
 	_ = t.WriteTable(
@@ -216,13 +279,17 @@ func outputTable(w io.Writer, ps []Printable) {
 // JSON
 // ------------------------------------------------------------------------------------------
 
-func outputJSON(w io.Writer, p Printable, debug bool) {
+func outputJSON(w io.Writer, p minimumPrintabler, debug bool) {
 	if debug {
 		printJSON(w, p)
 		return
 	}
 
-	printJSON(w, p.MinimumPrintable())
+	if debug {
+		printJSON(w, p)
+	} else {
+		printJSON(w, p.MinimumPrintable())
+	}
 }
 
 func outputJSONArr(w io.Writer, ps []Printable, debug bool) {
@@ -248,4 +315,40 @@ func printJSON(w io.Writer, a any) {
 	}
 
 	fmt.Fprintln(w, string(pretty.Pretty(bs)))
+}
+
+// output to stdout the list of printable structs as prettified json.
+func printPrettyJSON(w io.Writer, a any) {
+	bs, err := json.MarshalIndent(a, "", "  ")
+	if err != nil {
+		fmt.Fprintf(w, "error formatting results to json: %v\n", err)
+		return
+	}
+
+	fmt.Fprintln(w, string(pretty.Pretty(bs)))
+}
+
+// -------------------------------------------------------------------------------------------
+// One line
+// -------------------------------------------------------------------------------------------
+
+// Output in the following format:
+// Bytes Uploaded: 401 kB | Items Uploaded: 59 | Items Skipped: 0 | Errors: 0
+func outputOneLine(w io.Writer, ps []Printable) {
+	headers := ps[0].Headers(true)
+	rows := [][]string{}
+
+	for _, p := range ps {
+		rows = append(rows, p.Values(true))
+	}
+
+	printables := []string{}
+
+	for _, row := range rows {
+		for i, col := range row {
+			printables = append(printables, fmt.Sprintf("%s: %s", headers[i], col))
+		}
+	}
+
+	fmt.Fprintln(w, strings.Join(printables, " | "))
 }

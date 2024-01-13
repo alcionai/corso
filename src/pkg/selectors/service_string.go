@@ -12,11 +12,12 @@ func _() {
 	_ = x[ServiceExchange-1]
 	_ = x[ServiceOneDrive-2]
 	_ = x[ServiceSharePoint-3]
+	_ = x[ServiceGroups-4]
 }
 
-const _service_name = "Unknown ServiceExchangeOneDriveSharePoint"
+const _service_name = "Unknown ServiceExchangeOneDriveSharePointGroups"
 
-var _service_index = [...]uint8{0, 15, 23, 31, 41}
+var _service_index = [...]uint8{0, 15, 23, 31, 41, 47}
 
 func (i service) String() string {
 	if i < 0 || i >= service(len(_service_index)-1) {

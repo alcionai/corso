@@ -49,10 +49,10 @@ func (suite *CrashTestDummySuite) TestRecovery() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			ctx, flush := tester.NewContext()
+			ctx, flush := tester.NewContext(t)
 
 			defer func() {
-				err := crash.Recovery(ctx, recover())
+				err := crash.Recovery(ctx, recover(), "test")
 				test.expect(t, err, clues.ToCore(err))
 				flush()
 			}()

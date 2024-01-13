@@ -2,12 +2,14 @@ package selectors
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -42,6 +44,7 @@ type (
 var (
 	_ Reducer        = &ExchangeRestore{}
 	_ pathCategorier = &ExchangeRestore{}
+	_ reasoner       = &ExchangeRestore{}
 )
 
 // NewExchange produces a new Selector with the service set to ServiceExchange.
@@ -68,7 +71,7 @@ func (s Selector) ToExchangeBackup() (*ExchangeBackup, error) {
 }
 
 func (s ExchangeBackup) SplitByResourceOwner(users []string) []ExchangeBackup {
-	sels := splitByResourceOwner[ExchangeScope](s.Selector, users, ExchangeUser)
+	sels := splitByProtectedResource[ExchangeScope](s.Selector, users, ExchangeUser)
 
 	ss := make([]ExchangeBackup, 0, len(sels))
 	for _, sel := range sels {
@@ -102,7 +105,7 @@ func (s Selector) ToExchangeRestore() (*ExchangeRestore, error) {
 }
 
 func (sr ExchangeRestore) SplitByResourceOwner(users []string) []ExchangeRestore {
-	sels := splitByResourceOwner[ExchangeScope](sr.Selector, users, ExchangeUser)
+	sels := splitByProtectedResource[ExchangeScope](sr.Selector, users, ExchangeUser)
 
 	ss := make([]ExchangeRestore, 0, len(sels))
 	for _, sel := range sels {
@@ -120,6 +123,22 @@ func (s exchange) PathCategories() selectorPathCategories {
 		Includes: pathCategoriesIn[ExchangeScope, exchangeCategory](s.Includes),
 	}
 }
+
+// Reasons returns a deduplicated set of the backup reasons produced
+// using the selector's discrete owner and each scopes' service and
+// category types.
+func (s exchange) Reasons(tenantID string, useOwnerNameForID bool) []identity.Reasoner {
+	return reasonsFor(s, tenantID, useOwnerNameForID)
+}
+
+// ---------------------------------------------------------------------------
+// Stringers and Concealers
+// ---------------------------------------------------------------------------
+
+func (s ExchangeScope) Conceal() string             { return conceal(s) }
+func (s ExchangeScope) Format(fs fmt.State, r rune) { format(s, fs, r) }
+func (s ExchangeScope) String() string              { return conceal(s) }
+func (s ExchangeScope) PlainString() string         { return plainString(s) }
 
 // -------------------
 // Exclude/Includes
@@ -206,9 +225,8 @@ func (s *exchange) Contacts(folders, contacts []string, opts ...option) []Exchan
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeContact, contacts).
-			set(ExchangeContactFolder, folders, opts...),
-	)
+		makeScope[ExchangeScope](ExchangeContact, contacts, defaultItemOptions(s.Cfg)...).
+			set(ExchangeContactFolder, folders, opts...))
 
 	return scopes
 }
@@ -226,8 +244,7 @@ func (s *exchange) ContactFolders(folders []string, opts ...option) []ExchangeSc
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeContactFolder, folders, os...),
-	)
+		makeScope[ExchangeScope](ExchangeContactFolder, folders, os...))
 
 	return scopes
 }
@@ -242,9 +259,8 @@ func (s *exchange) Events(calendars, events []string, opts ...option) []Exchange
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeEvent, events).
-			set(ExchangeEventCalendar, calendars, opts...),
-	)
+		makeScope[ExchangeScope](ExchangeEvent, events, defaultItemOptions(s.Cfg)...).
+			set(ExchangeEventCalendar, calendars, opts...))
 
 	return scopes
 }
@@ -263,8 +279,7 @@ func (s *exchange) EventCalendars(events []string, opts ...option) []ExchangeSco
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeEventCalendar, events, os...),
-	)
+		makeScope[ExchangeScope](ExchangeEventCalendar, events, os...))
 
 	return scopes
 }
@@ -279,9 +294,8 @@ func (s *exchange) Mails(folders, mails []string, opts ...option) []ExchangeScop
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeMail, mails).
-			set(ExchangeMailFolder, folders, opts...),
-	)
+		makeScope[ExchangeScope](ExchangeMail, mails, defaultItemOptions(s.Cfg)...).
+			set(ExchangeMailFolder, folders, opts...))
 
 	return scopes
 }
@@ -299,8 +313,7 @@ func (s *exchange) MailFolders(folders []string, opts ...option) []ExchangeScope
 
 	scopes = append(
 		scopes,
-		makeScope[ExchangeScope](ExchangeMailFolder, folders, os...),
-	)
+		makeScope[ExchangeScope](ExchangeMailFolder, folders, os...))
 
 	return scopes
 }
@@ -316,14 +329,13 @@ func (s *exchange) AllData() []ExchangeScope {
 	scopes = append(scopes,
 		makeScope[ExchangeScope](ExchangeContactFolder, Any()),
 		makeScope[ExchangeScope](ExchangeEventCalendar, Any()),
-		makeScope[ExchangeScope](ExchangeMailFolder, Any()),
-	)
+		makeScope[ExchangeScope](ExchangeMailFolder, Any()))
 
 	return scopes
 }
 
 // -------------------
-// Info Factories
+// ItemInfo Factories
 
 // ContactName produces one or more exchange contact name info scopes.
 // Matches any contact whose name contains the provided string.
@@ -336,11 +348,11 @@ func (sr *ExchangeRestore) ContactName(senderID string) []ExchangeScope {
 			ExchangeContact,
 			ExchangeInfoContactName,
 			[]string{senderID},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
-// EventSubject produces one or more exchange event subject info scopes.
+// EventOrganizer produces one or more exchange event subject info scopes.
 // Matches any event where the event subject contains one of the provided strings.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
@@ -351,7 +363,7 @@ func (sr *ExchangeRestore) EventOrganizer(organizer string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeInfoEventOrganizer,
 			[]string{organizer},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
@@ -366,7 +378,7 @@ func (sr *ExchangeRestore) EventRecurs(recurs string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeInfoEventRecurs,
 			[]string{recurs},
-			wrapFilter(filters.Equal)),
+			filters.Equal),
 	}
 }
 
@@ -380,7 +392,7 @@ func (sr *ExchangeRestore) EventStartsAfter(timeStrings string) []ExchangeScope 
 			ExchangeEvent,
 			ExchangeInfoEventStartsAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -394,7 +406,7 @@ func (sr *ExchangeRestore) EventStartsBefore(timeStrings string) []ExchangeScope
 			ExchangeEvent,
 			ExchangeInfoEventStartsBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -409,7 +421,7 @@ func (sr *ExchangeRestore) EventSubject(subject string) []ExchangeScope {
 			ExchangeEvent,
 			ExchangeInfoEventSubject,
 			[]string{subject},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
@@ -423,7 +435,7 @@ func (sr *ExchangeRestore) MailReceivedAfter(timeStrings string) []ExchangeScope
 			ExchangeMail,
 			ExchangeInfoMailReceivedAfter,
 			[]string{timeStrings},
-			wrapFilter(filters.Less)),
+			filters.Less),
 	}
 }
 
@@ -437,7 +449,7 @@ func (sr *ExchangeRestore) MailReceivedBefore(timeStrings string) []ExchangeScop
 			ExchangeMail,
 			ExchangeInfoMailReceivedBefore,
 			[]string{timeStrings},
-			wrapFilter(filters.Greater)),
+			filters.Greater),
 	}
 }
 
@@ -452,7 +464,7 @@ func (sr *ExchangeRestore) MailSender(sender string) []ExchangeScope {
 			ExchangeMail,
 			ExchangeInfoMailSender,
 			[]string{sender},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
@@ -467,7 +479,7 @@ func (sr *ExchangeRestore) MailSubject(subject string) []ExchangeScope {
 			ExchangeMail,
 			ExchangeInfoMailSubject,
 			[]string{subject},
-			wrapSliceFilter(filters.In)),
+			filters.In),
 	}
 }
 
@@ -583,7 +595,8 @@ func (ec exchangeCategory) isLeaf() bool {
 // => {exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(
 	repo path.Path,
-	ent details.DetailsEntry,
+	ent details.Entry,
+	cfg Config,
 ) (map[categorizer][]string, error) {
 	var folderCat, itemCat categorizer
 
@@ -601,13 +614,30 @@ func (ec exchangeCategory) pathValues(
 		return nil, clues.New("bad exchanageCategory").With("category", ec)
 	}
 
-	result := map[categorizer][]string{
-		folderCat: {repo.Folder(false)},
-		itemCat:   {repo.Item(), ent.ShortRef},
+	item := ent.ItemRef
+	if len(item) == 0 {
+		item = repo.Item()
 	}
 
-	if len(ent.LocationRef) > 0 {
-		result[folderCat] = append(result[folderCat], ent.LocationRef)
+	items := []string{ent.ShortRef, item}
+
+	// only include the item ID when the user is NOT matching
+	// item names. Exchange data does not contain an item name,
+	// only an ID, and we don't want to mix up the two.
+	if cfg.OnlyMatchItemNames {
+		items = []string{ent.ShortRef}
+	}
+
+	// Will hit the if-condition when we're at a top-level folder, but we'll get
+	// the same result when we extract from the RepoRef.
+	folder := ent.LocationRef
+	if len(folder) == 0 {
+		folder = repo.Folder(true)
+	}
+
+	result := map[categorizer][]string{
+		folderCat: {folder},
+		itemCat:   items,
 	}
 
 	return result, nil
@@ -667,7 +697,7 @@ func (s ExchangeScope) IncludesCategory(cat exchangeCategory) bool {
 // returns true if the category is included in the scope's data type,
 // and the value is set to Any().
 func (s ExchangeScope) IsAny(cat exchangeCategory) bool {
-	return isAnyTarget(s, cat)
+	return IsAnyTarget(s, cat)
 }
 
 // Get returns the data category in the scope.  If the scope
@@ -757,7 +787,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	case ExchangeInfoEventRecurs:
 		i = strconv.FormatBool(info.EventRecurs)
 	case ExchangeInfoEventStartsAfter, ExchangeInfoEventStartsBefore:
-		i = common.FormatTime(info.EventStart)
+		i = dttm.Format(info.EventStart)
 	case ExchangeInfoEventSubject:
 		i = info.Subject
 	case ExchangeInfoMailSender:
@@ -765,7 +795,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	case ExchangeInfoMailSubject:
 		i = info.Subject
 	case ExchangeInfoMailReceivedAfter, ExchangeInfoMailReceivedBefore:
-		i = common.FormatTime(info.Received)
+		i = dttm.Format(info.Received)
 	}
 
 	return s.Matches(infoCat, i)

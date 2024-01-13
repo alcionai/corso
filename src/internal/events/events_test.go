@@ -26,18 +26,17 @@ func TestMetricsIntegrationSuite(t *testing.T) {
 }
 
 func (suite *EventsIntegrationSuite) TestNewBus() {
-	ctx, flush := tester.NewContext()
-	defer flush()
-
 	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
 
 	s, err := storage.NewStorage(
 		storage.ProviderS3,
-		storage.S3Config{
+		&storage.S3Config{
 			Bucket: "bckt",
 			Prefix: "prfx",
-		},
-	)
+		})
 	require.NoError(t, err, clues.ToCore(err))
 
 	a, err := account.NewAccount(
@@ -48,11 +47,10 @@ func (suite *EventsIntegrationSuite) TestNewBus() {
 				AzureClientSecret: "secret",
 			},
 			AzureTenantID: "tid",
-		},
-	)
+		})
 	require.NoError(t, err, clues.ToCore(err))
 
-	b, err := events.NewBus(ctx, s, a.ID(), control.Options{})
+	b, err := events.NewBus(ctx, s, a.ID(), control.DefaultOptions())
 	require.NotEmpty(t, b)
 	require.NoError(t, err, clues.ToCore(err))
 

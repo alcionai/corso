@@ -1,268 +1,19 @@
 package details
 
 import (
-	"context"
 	"encoding/json"
 	"io"
-	"strconv"
-	"sync"
-	"time"
+	"strings"
 
 	"github.com/alcionai/clues"
-	"github.com/dustin/go-humanize"
 
-	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common"
+	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
-type folderEntry struct {
-	RepoRef     string
-	ShortRef    string
-	ParentRef   string
-	LocationRef string
-	Updated     bool
-	Info        ItemInfo
-}
-
-// --------------------------------------------------------------------------------
-// Model
-// --------------------------------------------------------------------------------
-
-// DetailsModel describes what was stored in a Backup
-type DetailsModel struct {
-	Entries []DetailsEntry `json:"entries"`
-}
-
-// Print writes the DetailModel Entries to StdOut, in the format
-// requested by the caller.
-func (dm DetailsModel) PrintEntries(ctx context.Context) {
-	if print.JSONFormat() {
-		printJSON(ctx, dm)
-	} else {
-		printTable(ctx, dm)
-	}
-}
-
-func printTable(ctx context.Context, dm DetailsModel) {
-	perType := map[ItemType][]print.Printable{}
-
-	for _, de := range dm.Entries {
-		it := de.infoType()
-		ps, ok := perType[it]
-
-		if !ok {
-			ps = []print.Printable{}
-		}
-
-		perType[it] = append(ps, print.Printable(de))
-	}
-
-	for _, ps := range perType {
-		print.All(ctx, ps...)
-	}
-}
-
-func printJSON(ctx context.Context, dm DetailsModel) {
-	ents := []print.Printable{}
-
-	for _, ent := range dm.Entries {
-		ents = append(ents, print.Printable(ent))
-	}
-
-	print.All(ctx, ents...)
-}
-
-// Paths returns the list of Paths for non-folder and non-meta items extracted
-// from the Entries slice.
-func (dm DetailsModel) Paths() []string {
-	r := make([]string, 0, len(dm.Entries))
-
-	for _, ent := range dm.Entries {
-		if ent.Folder != nil || ent.isMetaFile() {
-			continue
-		}
-
-		r = append(r, ent.RepoRef)
-	}
-
-	return r
-}
-
-// Items returns a slice of *ItemInfo that does not contain any FolderInfo
-// entries. Required because not all folders in the details are valid resource
-// paths, and we want to slice out metadata.
-func (dm DetailsModel) Items() []*DetailsEntry {
-	res := make([]*DetailsEntry, 0, len(dm.Entries))
-
-	for i := 0; i < len(dm.Entries); i++ {
-		ent := dm.Entries[i]
-		if ent.Folder != nil || ent.isMetaFile() {
-			continue
-		}
-
-		res = append(res, &ent)
-	}
-
-	return res
-}
-
-// FilterMetaFiles returns a copy of the Details with all of the
-// .meta files removed from the entries.
-func (dm DetailsModel) FilterMetaFiles() DetailsModel {
-	d2 := DetailsModel{
-		Entries: []DetailsEntry{},
-	}
-
-	for _, ent := range dm.Entries {
-		if !ent.isMetaFile() {
-			d2.Entries = append(d2.Entries, ent)
-		}
-	}
-
-	return d2
-}
-
-// Check if a file is a metadata file. These are used to store
-// additional data like permissions in case of OneDrive and are not to
-// be treated as regular files.
-func (de DetailsEntry) isMetaFile() bool {
-	// TODO: Add meta file filtering to SharePoint as well once we add
-	// meta files for SharePoint.
-	return de.ItemInfo.OneDrive != nil && de.ItemInfo.OneDrive.IsMeta
-}
-
-// ---------------------------------------------------------------------------
-// Builder
-// ---------------------------------------------------------------------------
-
-// Builder should be used to create a details model.
-type Builder struct {
-	d            Details
-	mu           sync.Mutex             `json:"-"`
-	knownFolders map[string]folderEntry `json:"-"`
-}
-
-func (b *Builder) Add(
-	repoRef, shortRef, parentRef, locationRef string,
-	updated bool,
-	info ItemInfo,
-) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return b.d.add(repoRef, shortRef, parentRef, locationRef, updated, info)
-}
-
-func (b *Builder) Details() *Details {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// Write the cached folder entries to details
-	for _, folder := range b.knownFolders {
-		b.d.addFolder(folder)
-	}
-
-	return &b.d
-}
-
-// TODO(ashmrtn): If we never need to pre-populate the modified time of a folder
-// we should just merge this with AddFoldersForItem, have Add call
-// AddFoldersForItem, and unexport AddFoldersForItem.
-func FolderEntriesForPath(parent, location *path.Builder) []folderEntry {
-	folders := []folderEntry{}
-	lfs := locationRefOf(location)
-
-	for len(parent.Elements()) > 0 {
-		var (
-			nextParent = parent.Dir()
-			lr         string
-			dn         = parent.LastElem()
-		)
-
-		// TODO: We may have future cases where the storage hierarchy
-		// doesn't match the location hierarchy.
-		if lfs != nil {
-			lr = lfs.String()
-
-			if len(lfs.Elements()) > 0 {
-				dn = lfs.LastElem()
-			}
-		}
-
-		folders = append(folders, folderEntry{
-			RepoRef:     parent.String(),
-			ShortRef:    parent.ShortRef(),
-			ParentRef:   nextParent.ShortRef(),
-			LocationRef: lr,
-			Info: ItemInfo{
-				Folder: &FolderInfo{
-					ItemType:    FolderItem,
-					DisplayName: dn,
-				},
-			},
-		})
-
-		parent = nextParent
-
-		if lfs != nil {
-			lfs = lfs.Dir()
-		}
-	}
-
-	return folders
-}
-
-// assumes the pb contains a path like:
-// <tenant>/<service>/<owner>/<category>/<logical_containers>...
-// and returns a string with only <logical_containers>/...
-func locationRefOf(pb *path.Builder) *path.Builder {
-	if pb == nil {
-		return nil
-	}
-
-	for i := 0; i < 4; i++ {
-		pb = pb.PopFront()
-	}
-
-	return pb
-}
-
-// AddFoldersForItem adds entries for the given folders. It skips adding entries that
-// have been added by previous calls.
-func (b *Builder) AddFoldersForItem(folders []folderEntry, itemInfo ItemInfo, updated bool) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.knownFolders == nil {
-		b.knownFolders = map[string]folderEntry{}
-	}
-
-	for _, folder := range folders {
-		if existing, ok := b.knownFolders[folder.ShortRef]; ok {
-			// We've seen this folder before for a different item.
-			// Update the "cached" folder entry
-			folder = existing
-		}
-
-		// Update the folder's size and modified time
-		itemModified := itemInfo.Modified()
-
-		folder.Info.Folder.Size += itemInfo.size()
-
-		if folder.Info.Folder.Modified.Before(itemModified) {
-			folder.Info.Folder.Modified = itemModified
-		}
-
-		// If the item being added was "updated" - propagate that to the
-		// folder entries
-		if updated {
-			folder.Updated = true
-		}
-
-		b.knownFolders[folder.ShortRef] = folder
-	}
-}
+// Max number of items for which we will print details. If there are
+// more than this, then we just show a summary.
+const maxPrintLimit = 50
 
 // --------------------------------------------------------------------------------
 // Details
@@ -276,66 +27,33 @@ type Details struct {
 }
 
 func (d *Details) add(
-	repoRef, shortRef, parentRef, locationRef string,
-	updated bool,
+	repoRef path.Path,
+	locationRef *path.Builder,
 	info ItemInfo,
-) error {
-	entry := DetailsEntry{
-		RepoRef:     repoRef,
-		ShortRef:    shortRef,
-		ParentRef:   parentRef,
-		LocationRef: locationRef,
-		Updated:     updated,
+) (Entry, error) {
+	if locationRef == nil {
+		return Entry{}, clues.New("nil LocationRef").With("repo_ref", repoRef)
+	}
+
+	entry := Entry{
+		RepoRef:     repoRef.String(),
+		ShortRef:    repoRef.ShortRef(),
+		ParentRef:   repoRef.ToBuilder().Dir().ShortRef(),
+		LocationRef: locationRef.String(),
+		ItemRef:     repoRef.Item(),
 		ItemInfo:    info,
 	}
 
 	// Use the item name and the path for the ShortRef. This ensures that renames
 	// within a directory generate unique ShortRefs.
-	if info.infoType() == OneDriveItem || info.infoType() == SharePointLibrary {
-		p, err := path.FromDataLayerPath(repoRef, true)
-		if err != nil {
-			return clues.Wrap(err, "munging OneDrive or SharePoint ShortRef")
-		}
-
-		if info.OneDrive == nil && info.SharePoint == nil {
-			return clues.New("item is not SharePoint or OneDrive type")
-		}
-
-		filename := ""
-		if info.OneDrive != nil {
-			filename = info.OneDrive.ItemName
-		} else if info.SharePoint != nil {
-			filename = info.SharePoint.ItemName
-		}
-
-		// Make the new path contain all display names and then the M365 item ID.
-		// This ensures the path will be unique, thus ensuring the ShortRef will be
-		// unique.
-		//
-		// If we appended the file's display name to the path then it's possible
-		// for a folder in the parent directory to have the same display name as the
-		// M365 ID of this file and also have a subfolder in the folder with a
-		// display name that matches the file's display name. That would result in
-		// duplicate ShortRefs, which we can't allow.
-		elements := p.Elements()
-		elements = append(elements[:len(elements)-1], filename, p.Item())
-		entry.ShortRef = path.Builder{}.Append(elements...).ShortRef()
+	if info.isDriveItem() {
+		// clean metadata suffixes from item refs
+		entry.ItemRef = withoutMetadataSuffix(entry.ItemRef)
 	}
 
 	d.Entries = append(d.Entries, entry)
 
-	return nil
-}
-
-// addFolder adds an entry for the given folder.
-func (d *Details) addFolder(folder folderEntry) {
-	d.Entries = append(d.Entries, DetailsEntry{
-		RepoRef:   folder.RepoRef,
-		ShortRef:  folder.ShortRef,
-		ParentRef: folder.ParentRef,
-		ItemInfo:  folder.Info,
-		Updated:   folder.Updated,
-	})
+	return entry, nil
 }
 
 // Marshal complies with the marshaller interface in streamStore.
@@ -350,384 +68,95 @@ func UnmarshalTo(d *Details) func(io.ReadCloser) error {
 	}
 }
 
-// --------------------------------------------------------------------------------
-// Entry
-// --------------------------------------------------------------------------------
+// remove metadata file suffixes from the string.
+// assumes only one suffix is applied to any given id.
+func withoutMetadataSuffix(id string) string {
+	id = strings.TrimSuffix(id, metadata.DirMetaFileSuffix)
+	id = strings.TrimSuffix(id, metadata.MetaFileSuffix)
+	id = strings.TrimSuffix(id, metadata.DataFileSuffix)
 
-// DetailsEntry describes a single item stored in a Backup
-type DetailsEntry struct {
-	// RepoRef is the full storage path of the item in Kopia
-	RepoRef   string `json:"repoRef"`
-	ShortRef  string `json:"shortRef"`
-	ParentRef string `json:"parentRef,omitempty"`
-
-	// LocationRef contains the logical path structure by its human-readable
-	// display names.  IE:  If an item is located at "/Inbox/Important", we
-	// hold that string in the LocationRef, while the actual IDs of each
-	// container are used for the RepoRef.
-	// LocationRef only holds the container values, and does not include
-	// the metadata prefixes (tenant, service, owner, etc) found in the
-	// repoRef.
-	// Currently only implemented for Exchange Calendars.
-	LocationRef string `json:"locationRef,omitempty"`
-
-	// Indicates the item was added or updated in this backup
-	// Always `true` for full backups
-	Updated bool `json:"updated"`
-
-	ItemInfo
+	return id
 }
 
-// --------------------------------------------------------------------------------
-// CLI Output
-// --------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// LocationIDer
+// ---------------------------------------------------------------------------
 
-// interface compliance checks
-var _ print.Printable = &DetailsEntry{}
-
-// MinimumPrintable DetailsEntries is a passthrough func, because no
-// reduction is needed for the json output.
-func (de DetailsEntry) MinimumPrintable() any {
-	return de
+// LocationIDer provides access to location information but guarantees that it
+// can also generate a unique location (among items in the same service but
+// possibly across data types within the service) that can be used as a key in
+// maps and other structures. The unique location may be different than
+// InDetails, the location used in backup details.
+type LocationIDer interface {
+	ID() *path.Builder
+	InDetails() *path.Builder
 }
 
-// Headers returns the human-readable names of properties in a DetailsEntry
-// for printing out to a terminal in a columnar display.
-func (de DetailsEntry) Headers() []string {
-	hs := []string{"ID"}
-
-	if de.ItemInfo.Folder != nil {
-		hs = append(hs, de.ItemInfo.Folder.Headers()...)
-	}
-
-	if de.ItemInfo.Exchange != nil {
-		hs = append(hs, de.ItemInfo.Exchange.Headers()...)
-	}
-
-	if de.ItemInfo.SharePoint != nil {
-		hs = append(hs, de.ItemInfo.SharePoint.Headers()...)
-	}
-
-	if de.ItemInfo.OneDrive != nil {
-		hs = append(hs, de.ItemInfo.OneDrive.Headers()...)
-	}
-
-	return hs
+type uniqueLoc struct {
+	pb          *path.Builder
+	prefixElems int
 }
 
-// Values returns the values matching the Headers list.
-func (de DetailsEntry) Values() []string {
-	vs := []string{de.ShortRef}
+func (ul uniqueLoc) ID() *path.Builder {
+	return ul.pb
+}
 
-	if de.ItemInfo.Folder != nil {
-		vs = append(vs, de.ItemInfo.Folder.Values()...)
+func (ul uniqueLoc) InDetails() *path.Builder {
+	return path.Builder{}.Append(ul.pb.Elements()[ul.prefixElems:]...)
+}
+
+// elementCount returns the number of non-prefix elements in the LocationIDer
+// (i.e. the number of elements in the InDetails path.Builder).
+func (ul uniqueLoc) elementCount() int {
+	res := len(ul.pb.Elements()) - ul.prefixElems
+	if res < 0 {
+		res = 0
 	}
 
-	if de.ItemInfo.Exchange != nil {
-		vs = append(vs, de.ItemInfo.Exchange.Values()...)
+	return res
+}
+
+func (ul *uniqueLoc) dir() {
+	if ul.elementCount() == 0 {
+		return
 	}
 
-	if de.ItemInfo.SharePoint != nil {
-		vs = append(vs, de.ItemInfo.SharePoint.Values()...)
+	ul.pb = ul.pb.Dir()
+}
+
+// lastElem returns the unescaped last element in the location. If the location
+// is empty returns an empty string.
+func (ul uniqueLoc) lastElem() string {
+	if ul.elementCount() == 0 {
+		return ""
 	}
 
-	if de.ItemInfo.OneDrive != nil {
-		vs = append(vs, de.ItemInfo.OneDrive.Values()...)
+	return ul.pb.LastElem()
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+func updateFolderWithinDrive(
+	t ItemType,
+	driveName, driveID string,
+	f *FolderInfo,
+) error {
+	if len(driveName) == 0 {
+		return clues.New("empty drive name")
+	} else if len(driveID) == 0 {
+		return clues.New("empty drive ID")
 	}
 
-	return vs
-}
-
-type ItemType int
-
-// ItemTypes are enumerated by service (hundredth digit) and data type (ones digit).
-// Ex: exchange is 00x where x is the data type.  Sharepoint is 10x, and etc.
-// Every item info struct should get its own hundredth enumeration entry.
-// Every item category for that service should get its own entry (even if differences
-// between types aren't apparent on initial implementation, this future-proofs
-// against breaking changes).
-// Entries should not be rearranged.
-// Additionally, any itemType directly assigned a number should not be altered.
-// This applies to  OneDriveItem and FolderItem
-const (
-	UnknownType ItemType = iota // 0, global unknown value
-
-	// Exchange (00x)
-	ExchangeContact
-	ExchangeEvent
-	ExchangeMail
-	// SharePoint (10x)
-	SharePointLibrary ItemType = iota + 97 // 100
-	SharePointList                         // 101...
-	SharePointPage
-
-	// OneDrive (20x)
-	OneDriveItem ItemType = 205
-
-	// Folder Management(30x)
-	FolderItem ItemType = 306
-)
-
-func UpdateItem(item *ItemInfo, repoPath, locPath path.Path) error {
-	// Only OneDrive and SharePoint have information about parent folders
-	// contained in them.
-	var updatePath func(repo path.Path, location path.Path) error
-
-	switch item.infoType() {
-	case ExchangeContact, ExchangeEvent, ExchangeMail:
-		updatePath = item.Exchange.UpdateParentPath
-	case SharePointLibrary:
-		updatePath = item.SharePoint.UpdateParentPath
-	case OneDriveItem:
-		updatePath = item.OneDrive.UpdateParentPath
-	default:
-		return nil
-	}
-
-	return updatePath(repoPath, locPath)
-}
-
-// ItemInfo is a oneOf that contains service specific
-// information about the item it tracks
-type ItemInfo struct {
-	Folder     *FolderInfo     `json:"folder,omitempty"`
-	Exchange   *ExchangeInfo   `json:"exchange,omitempty"`
-	SharePoint *SharePointInfo `json:"sharePoint,omitempty"`
-	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
-}
-
-// typedInfo should get embedded in each sesrvice type to track
-// the type of item it stores for multi-item service support.
-
-// infoType provides internal categorization for collecting like-typed ItemInfos.
-// It should return the most granular value type (ex: "event" for an exchange
-// calendar event).
-func (i ItemInfo) infoType() ItemType {
-	switch {
-	case i.Folder != nil:
-		return i.Folder.ItemType
-
-	case i.Exchange != nil:
-		return i.Exchange.ItemType
-
-	case i.SharePoint != nil:
-		return i.SharePoint.ItemType
-
-	case i.OneDrive != nil:
-		return i.OneDrive.ItemType
-	}
-
-	return UnknownType
-}
-
-func (i ItemInfo) size() int64 {
-	switch {
-	case i.Exchange != nil:
-		return i.Exchange.Size
-
-	case i.OneDrive != nil:
-		return i.OneDrive.Size
-
-	case i.SharePoint != nil:
-		return i.SharePoint.Size
-
-	case i.Folder != nil:
-		return i.Folder.Size
-	}
-
-	return 0
-}
-
-func (i ItemInfo) Modified() time.Time {
-	switch {
-	case i.Exchange != nil:
-		return i.Exchange.Modified
-
-	case i.OneDrive != nil:
-		return i.OneDrive.Modified
-
-	case i.SharePoint != nil:
-		return i.SharePoint.Modified
-
-	case i.Folder != nil:
-		return i.Folder.Modified
-	}
-
-	return time.Time{}
-}
-
-type FolderInfo struct {
-	ItemType    ItemType  `json:"itemType,omitempty"`
-	DisplayName string    `json:"displayName"`
-	Modified    time.Time `json:"modified,omitempty"`
-	Size        int64     `json:"size,omitempty"`
-}
-
-func (i FolderInfo) Headers() []string {
-	return []string{"Display Name"}
-}
-
-func (i FolderInfo) Values() []string {
-	return []string{i.DisplayName}
-}
-
-// ExchangeInfo describes an exchange item
-type ExchangeInfo struct {
-	ItemType    ItemType  `json:"itemType,omitempty"`
-	Sender      string    `json:"sender,omitempty"`
-	Subject     string    `json:"subject,omitempty"`
-	Recipient   []string  `json:"recipient,omitempty"`
-	ParentPath  string    `json:"parentPath,omitempty"`
-	Received    time.Time `json:"received,omitempty"`
-	EventStart  time.Time `json:"eventStart,omitempty"`
-	EventEnd    time.Time `json:"eventEnd,omitempty"`
-	Organizer   string    `json:"organizer,omitempty"`
-	ContactName string    `json:"contactName,omitempty"`
-	EventRecurs bool      `json:"eventRecurs,omitempty"`
-	Created     time.Time `json:"created,omitempty"`
-	Modified    time.Time `json:"modified,omitempty"`
-	Size        int64     `json:"size,omitempty"`
-}
-
-// Headers returns the human-readable names of properties in an ExchangeInfo
-// for printing out to a terminal in a columnar display.
-func (i ExchangeInfo) Headers() []string {
-	switch i.ItemType {
-	case ExchangeEvent:
-		return []string{"Organizer", "Subject", "Starts", "Ends", "Recurring"}
-
-	case ExchangeContact:
-		return []string{"Contact Name"}
-
-	case ExchangeMail:
-		return []string{"Sender", "Folder", "Subject", "Received"}
-	}
-
-	return []string{}
-}
-
-// Values returns the values matching the Headers list for printing
-// out to a terminal in a columnar display.
-func (i ExchangeInfo) Values() []string {
-	switch i.ItemType {
-	case ExchangeEvent:
-		return []string{
-			i.Organizer,
-			i.Subject,
-			common.FormatTabularDisplayTime(i.EventStart),
-			common.FormatTabularDisplayTime(i.EventEnd),
-			strconv.FormatBool(i.EventRecurs),
-		}
-
-	case ExchangeContact:
-		return []string{i.ContactName}
-
-	case ExchangeMail:
-		return []string{
-			i.Sender, i.ParentPath, i.Subject,
-			common.FormatTabularDisplayTime(i.Received),
-		}
-	}
-
-	return []string{}
-}
-
-func (i *ExchangeInfo) UpdateParentPath(_, locPath path.Path) error {
-	// Not all data types have this set yet.
-	if locPath == nil {
-		return nil
-	}
-
-	i.ParentPath = locPath.Folder(true)
+	f.DriveName = driveName
+	f.DriveID = driveID
+	f.DataType = t
 
 	return nil
 }
 
-// SharePointInfo describes a sharepoint item
-type SharePointInfo struct {
-	Created    time.Time `json:"created,omitempty"`
-	DriveName  string    `json:"driveName,omitempty"`
-	DriveID    string    `json:"driveID,omitempty"`
-	ItemName   string    `json:"itemName,omitempty"`
-	ItemType   ItemType  `json:"itemType,omitempty"`
-	Modified   time.Time `josn:"modified,omitempty"`
-	Owner      string    `json:"owner,omitempty"`
-	ParentPath string    `json:"parentPath,omitempty"`
-	Size       int64     `json:"size,omitempty"`
-	WebURL     string    `json:"webUrl,omitempty"`
-}
-
-// Headers returns the human-readable names of properties in a SharePointInfo
-// for printing out to a terminal in a columnar display.
-func (i SharePointInfo) Headers() []string {
-	return []string{"ItemName", "Library", "ParentPath", "Size", "Owner", "Created", "Modified"}
-}
-
-// Values returns the values matching the Headers list for printing
-// out to a terminal in a columnar display.
-func (i SharePointInfo) Values() []string {
-	return []string{
-		i.ItemName,
-		i.DriveName,
-		i.ParentPath,
-		humanize.Bytes(uint64(i.Size)),
-		i.Owner,
-		common.FormatTabularDisplayTime(i.Created),
-		common.FormatTabularDisplayTime(i.Modified),
-	}
-}
-
-func (i *SharePointInfo) UpdateParentPath(newPath, _ path.Path) error {
-	newParent, err := path.GetDriveFolderPath(newPath)
-	if err != nil {
-		return clues.Wrap(err, "making sharePoint path").With("path", newPath)
-	}
-
-	i.ParentPath = newParent
-
-	return nil
-}
-
-// OneDriveInfo describes a oneDrive item
-type OneDriveInfo struct {
-	Created    time.Time `json:"created,omitempty"`
-	DriveID    string    `json:"driveID,omitempty"`
-	DriveName  string    `json:"driveName,omitempty"`
-	IsMeta     bool      `json:"isMeta,omitempty"`
-	ItemName   string    `json:"itemName,omitempty"`
-	ItemType   ItemType  `json:"itemType,omitempty"`
-	Modified   time.Time `json:"modified,omitempty"`
-	Owner      string    `json:"owner,omitempty"`
-	ParentPath string    `json:"parentPath"`
-	Size       int64     `json:"size,omitempty"`
-}
-
-// Headers returns the human-readable names of properties in a OneDriveInfo
-// for printing out to a terminal in a columnar display.
-func (i OneDriveInfo) Headers() []string {
-	return []string{"ItemName", "ParentPath", "Size", "Owner", "Created", "Modified"}
-}
-
-// Values returns the values matching the Headers list for printing
-// out to a terminal in a columnar display.
-func (i OneDriveInfo) Values() []string {
-	return []string{
-		i.ItemName,
-		i.ParentPath,
-		humanize.Bytes(uint64(i.Size)),
-		i.Owner,
-		common.FormatTabularDisplayTime(i.Created),
-		common.FormatTabularDisplayTime(i.Modified),
-	}
-}
-
-func (i *OneDriveInfo) UpdateParentPath(newPath, _ path.Path) error {
-	newParent, err := path.GetDriveFolderPath(newPath)
-	if err != nil {
-		return clues.Wrap(err, "making oneDrive path").With("path", newPath)
-	}
-
-	i.ParentPath = newParent
-
-	return nil
+// ExtensionData stores extension data associated with an item
+type ExtensionData struct {
+	Data map[string]any `json:"data,omitempty"`
 }
