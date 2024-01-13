@@ -372,8 +372,6 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 	newList := createList(listTemplate, listName)
 	newList.SetId(ptr.To(listID))
 
-	mockData := generateListData(t, service, list)
-
 	collisionKeyToItemID := map[string]string{
 		api.ListCollisionKey(newList): listID,
 	}
@@ -384,6 +382,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 		lrh                           *siteMock.ListRestoreHandler
 		expectErr                     assert.ErrorAssertionFunc
 		expectedPostListCalls         int
+		expectCollisionCount          int64
 	}{
 		{
 			name: "GetList fails",
@@ -411,10 +410,22 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 			ignoreSubsequentPostListFails: true,
 			expectedPostListCalls:         2,
 		},
+		{
+			name: "PostList passes for stored list",
+			lrh: siteMock.NewListRestoreHandler(
+				nil,
+				nil,
+				nil),
+			expectErr:             assert.NoError,
+			expectedPostListCalls: 1,
+			expectCollisionCount:  1,
+		},
 	}
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
+			mockData := generateListData(t, service, list)
+
 			if test.ignoreSubsequentPostListFails {
 				test.lrh.SetIgnoreSubsequentPostListFails()
 			}
@@ -430,7 +441,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				cl,
 				fault.New(true))
 			test.expectErr(t, err)
-			assert.Zero(t, cl.Get(count.CollisionReplace))
+			assert.Equal(t, test.expectCollisionCount, cl.Get(count.CollisionReplace))
 			test.lrh.CheckPostListCalls(t, test.expectedPostListCalls)
 		})
 	}
