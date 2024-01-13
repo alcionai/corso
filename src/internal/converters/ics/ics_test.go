@@ -193,6 +193,37 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 			errCheck: require.NoError,
 		},
 		{
+			name: "daily with end date in different timezone",
+			recurrence: func() models.PatternedRecurrenceable {
+				rec := models.NewPatternedRecurrence()
+				pat := models.NewRecurrencePattern()
+
+				typ, err := models.ParseRecurrencePatternType("daily")
+				require.NoError(suite.T(), err)
+
+				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
+				pat.SetInterval(ptr.To(int32(1)))
+
+				rng := models.NewRecurrenceRange()
+
+				rrtype, err := models.ParseRecurrenceRangeType("endDate")
+				require.NoError(suite.T(), err)
+
+				rng.SetTypeEscaped(rrtype.(*models.RecurrenceRangeType))
+
+				edate := serialization.NewDateOnly(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC))
+				rng.SetEndDate(edate)
+				rng.SetRecurrenceTimeZone(ptr.To("India Standard Time"))
+
+				rec.SetPattern(pat)
+				rec.SetRangeEscaped(rng)
+
+				return rec
+			},
+			expect:   "FREQ=DAILY;INTERVAL=1;UNTIL=20210101T182959Z",
+			errCheck: require.NoError,
+		},
+		{
 			name: "weekly",
 			recurrence: func() models.PatternedRecurrenceable {
 				rec := models.NewPatternedRecurrence()
@@ -239,7 +270,7 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 
 				return rec
 			},
-			expect:   "FREQ=WEEKLY;INTERVAL=1;UNTIL=20210101T000000Z",
+			expect:   "FREQ=WEEKLY;INTERVAL=1;UNTIL=20210101T235959Z",
 			errCheck: require.NoError,
 		},
 		{
@@ -539,19 +570,6 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 			},
 		},
 		{
-			name: "draft event",
-			event: func() *models.Event {
-				e := baseEvent()
-
-				e.SetIsDraft(ptr.To(true))
-
-				return e
-			},
-			check: func(out string) {
-				assert.Contains(t, out, "STATUS:DRAFT", "draft status")
-			},
-		},
-		{
 			name: "text body",
 			event: func() *models.Event {
 				e := baseEvent()
@@ -589,12 +607,32 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 				return e
 			},
 			check: func(out string) {
-				assert.Contains(t, out, "DESCRIPTION:body preview", "body preview")
 				assert.Contains(t, out, "X-ALT-DESC;FMTTYPE=text/html:<html><body>body</body></html>", "body")
 			},
 		},
 		{
-			name: "free busy free",
+			name: "html body with utf8",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				body := models.NewItemBody()
+				btype, err := models.ParseBodyType("html")
+				require.NoError(t, err, "parse body type")
+
+				body.SetContentType(btype.(*models.BodyType))
+				body.SetContent(ptr.To("<html><body>മലയാളം</body></html>"))
+
+				e.SetBodyPreview(ptr.To("body preview"))
+				e.SetBody(body)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "DESCRIPTION:മലയാളം", "body")
+			},
+		},
+		{
+			name: "showas free",
 			event: func() *models.Event {
 				e := baseEvent()
 
@@ -606,27 +644,11 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 				return e
 			},
 			check: func(out string) {
-				assert.Contains(t, out, "FREEBUSY:FREE", "free busy status")
+				assert.Contains(t, out, "TRANSP:TRANSPARENT", "free busy status")
 			},
 		},
 		{
-			name: "free busy unknown",
-			event: func() *models.Event {
-				e := baseEvent()
-
-				fbs, err := models.ParseFreeBusyStatus("unknown")
-				require.NoError(t, err, "parse free busy status")
-
-				e.SetShowAs(fbs.(*models.FreeBusyStatus))
-
-				return e
-			},
-			check: func(out string) {
-				assert.NotContains(t, out, "FREEBUSY", "free busy status")
-			},
-		},
-		{
-			name: "free busy oof",
+			name: "showas oof",
 			event: func() *models.Event {
 				e := baseEvent()
 
@@ -638,7 +660,7 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 				return e
 			},
 			check: func(out string) {
-				assert.Contains(t, out, "FREEBUSY:BUSY-UNAVAILABLE", "free busy status")
+				assert.Contains(t, out, "TRANSP:OPAQUE", "free busy status")
 			},
 		},
 		{
@@ -725,6 +747,66 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 				assert.Contains(t, out, "LOCATION:DisplayName", "location")
 			},
 		},
+		{
+			name: "teams url",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				mi := models.NewOnlineMeetingInfo()
+				mi.SetJoinUrl(ptr.To("https://team.microsoft.com/meeting-url"))
+
+				e.SetOnlineMeeting(mi)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "X-MICROSOFT-SKYPETEAMSMEETINGURL:https://team.microsoft.com/meeting-url", "teams url")
+			},
+		},
+		{
+			name: "X-MICROSOFT-LOCATIONDISPLAYNAME",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				loc := models.NewLocation()
+				loc.SetDisplayName(ptr.To("DisplayName"))
+
+				e.SetLocation(loc)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "X-MICROSOFT-LOCATIONDISPLAYNAME:DisplayName", "location display name")
+			},
+		},
+		{
+			name: "class",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				sen := models.CONFIDENTIAL_SENSITIVITY
+				e.SetSensitivity(&sen)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "CLASS:CONFIDENTIAL", "class")
+			},
+		},
+		{
+			name: "priority",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				pri := models.HIGH_IMPORTANCE
+				e.SetImportance(&pri)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "PRIORITY:1", "priority")
+			},
+		},
 	}
 
 	for _, tt := range table {
@@ -734,14 +816,7 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			// convert event to bytes
-			writer := kjson.NewJsonSerializationWriter()
-			defer writer.Close()
-
-			err := writer.WriteObjectValue("", tt.event())
-			require.NoError(t, err, "serializing contact")
-
-			bts, err := writer.GetSerializedContent()
+			bts, err := eventToJSON(tt.event())
 			require.NoError(t, err, "getting serialized content")
 
 			e, err := FromJSON(ctx, bts)
@@ -849,10 +924,6 @@ func (suite *ICSUnitSuite) TestAttendees() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			// convert event to bytes
-			writer := kjson.NewJsonSerializationWriter()
-			defer writer.Close()
-
 			e := baseEvent()
 
 			atts := make([]models.Attendeeable, len(tt.att))
@@ -889,10 +960,7 @@ func (suite *ICSUnitSuite) TestAttendees() {
 
 			e.SetAttendees(atts)
 
-			err := writer.WriteObjectValue("", e)
-			require.NoError(t, err, "serializing contact")
-
-			bts, err := writer.GetSerializedContent()
+			bts, err := eventToJSON(e)
 			require.NoError(t, err, "getting serialized content")
 
 			out, err := FromJSON(ctx, bts)
@@ -1035,16 +1103,9 @@ func (suite *ICSUnitSuite) TestAttachments() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			// convert event to bytes
-			writer := kjson.NewJsonSerializationWriter()
-			defer writer.Close()
-
 			e := baseEvent()
 
-			err := writer.WriteObjectValue("", e)
-			require.NoError(t, err, "serializing contact")
-
-			bts, err := writer.GetSerializedContent()
+			bts, err := eventToJSON(e)
 			require.NoError(t, err, "getting serialized content")
 
 			parsed := map[string]any{}
@@ -1074,6 +1135,228 @@ func (suite *ICSUnitSuite) TestAttachments() {
 
 			out, err := FromJSON(ctx, bts)
 			require.NoError(t, err, "converting to ics")
+
+			tt.check(out)
+		})
+	}
+}
+
+func (suite *ICSUnitSuite) TestCancellations() {
+	table := []struct {
+		name         string
+		cancelledIds []string
+		expected     string
+	}{
+		{
+			name: "single",
+			cancelledIds: []string{
+				"OID.DEADBEEF=.2024-01-25",
+			},
+			expected: "EXDATE:20240125",
+		},
+		{
+			name: "multiple",
+			cancelledIds: []string{
+				"OID.DEADBEEF=.2024-01-25",
+				"OID.LIVEBEEF=.2024-02-26",
+			},
+			expected: "EXDATE:20240125,20240226",
+		},
+	}
+
+	for _, tt := range table {
+		suite.Run(tt.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			e := baseEvent()
+
+			e.SetIsCancelled(ptr.To(true))
+			e.SetAdditionalData(map[string]any{
+				"cancelledOccurrences": tt.cancelledIds,
+			})
+			bts, err := eventToJSON(e)
+			require.NoError(t, err, "getting serialized content")
+
+			out, err := FromJSON(ctx, bts)
+			require.NoError(t, err, "converting to ics")
+
+			assert.Contains(t, out, tt.expected, "cancellation exrule")
+		})
+	}
+}
+
+func getDateTimeZone(t time.Time, tz string) *models.DateTimeTimeZone {
+	dt := models.NewDateTimeTimeZone()
+	dt.SetDateTime(ptr.To(t.Format(time.RFC3339)))
+	dt.SetTimeZone(ptr.To(tz))
+
+	return dt
+}
+
+func eventToMap(e *models.Event) (map[string]any, error) {
+	bts, err := eventToJSON(e)
+	if err != nil {
+		return nil, err
+	}
+
+	parsed := map[string]any{}
+
+	err = json.Unmarshal(bts, &parsed)
+	if err != nil {
+		return nil, err
+	}
+
+	return parsed, nil
+}
+
+func eventToJSON(e *models.Event) ([]byte, error) {
+	writer := kjson.NewJsonSerializationWriter()
+	defer writer.Close()
+
+	err := writer.WriteObjectValue("", e)
+	if err != nil {
+		return nil, err
+	}
+
+	bts, err := writer.GetSerializedContent()
+	if err != nil {
+		return nil, err
+	}
+
+	return bts, err
+}
+
+func (suite *ICSUnitSuite) TestEventExceptions() {
+	table := []struct {
+		name  string
+		event func() *models.Event
+		check func(string)
+	}{
+		{
+			name: "single exception",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				exception := baseEvent()
+				exception.SetSubject(ptr.To("Exception"))
+				exception.SetOriginalStart(ptr.To(time.Date(2021, 1, 1, 12, 0, 0, 0, time.UTC)))
+
+				newStart := getDateTimeZone(time.Date(2021, 1, 1, 13, 0, 0, 0, time.UTC), "UTC")
+				newEnd := getDateTimeZone(time.Date(2021, 1, 1, 14, 0, 0, 0, time.UTC), "UTC")
+
+				exception.SetStart(newStart)
+				exception.SetEnd(newEnd)
+
+				parsed, err := eventToMap(exception)
+				require.NoError(suite.T(), err, "parsing exception")
+
+				// add exception event to additional data
+				e.SetAdditionalData(map[string]any{
+					"exceptionOccurrences": []map[string]any{parsed},
+				})
+
+				return e
+			},
+			check: func(out string) {
+				lines := strings.Split(out, "\r\n")
+				events := 0
+
+				for _, l := range lines {
+					if strings.HasPrefix(l, "BEGIN:VEVENT") {
+						events++
+					}
+				}
+
+				assert.Equal(suite.T(), 2, events, "number of events")
+
+				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210101T120000Z", "recurrence id")
+
+				assert.Contains(suite.T(), out, "SUMMARY:Subject", "original event")
+				assert.Contains(suite.T(), out, "SUMMARY:Exception", "exception event")
+
+				assert.Contains(suite.T(), out, "DTSTART:20210101T130000Z", "new start time")
+				assert.Contains(suite.T(), out, "DTEND:20210101T140000Z", "new end time")
+			},
+		},
+		{
+			name: "multiple exceptions",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				exception1 := baseEvent()
+				exception1.SetSubject(ptr.To("Exception 1"))
+				exception1.SetOriginalStart(ptr.To(time.Date(2021, 1, 1, 12, 0, 0, 0, time.UTC)))
+
+				newStart := getDateTimeZone(time.Date(2021, 1, 1, 13, 0, 0, 0, time.UTC), "UTC")
+				newEnd := getDateTimeZone(time.Date(2021, 1, 1, 14, 0, 0, 0, time.UTC), "UTC")
+
+				exception1.SetStart(newStart)
+				exception1.SetEnd(newEnd)
+
+				exception2 := baseEvent()
+				exception2.SetSubject(ptr.To("Exception 2"))
+				exception2.SetOriginalStart(ptr.To(time.Date(2021, 1, 2, 12, 0, 0, 0, time.UTC)))
+
+				newStart = getDateTimeZone(time.Date(2021, 1, 2, 13, 0, 0, 0, time.UTC), "UTC")
+				newEnd = getDateTimeZone(time.Date(2021, 1, 2, 14, 0, 0, 0, time.UTC), "UTC")
+
+				exception2.SetStart(newStart)
+				exception2.SetEnd(newEnd)
+
+				parsed1, err := eventToMap(exception1)
+				require.NoError(suite.T(), err, "parsing exception 1")
+
+				parsed2, err := eventToMap(exception2)
+				require.NoError(suite.T(), err, "parsing exception 2")
+
+				// add exception event to additional data
+				e.SetAdditionalData(map[string]any{
+					"exceptionOccurrences": []map[string]any{parsed1, parsed2},
+				})
+
+				return e
+			},
+			check: func(out string) {
+				lines := strings.Split(out, "\r\n")
+				events := 0
+
+				for _, l := range lines {
+					if strings.HasPrefix(l, "BEGIN:VEVENT") {
+						events++
+					}
+				}
+
+				assert.Equal(suite.T(), 3, events, "number of events")
+
+				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210101T120000Z", "recurrence id 1")
+				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210102T120000Z", "recurrence id 2")
+
+				assert.Contains(suite.T(), out, "SUMMARY:Subject", "original event")
+				assert.Contains(suite.T(), out, "SUMMARY:Exception 1", "exception event 1")
+				assert.Contains(suite.T(), out, "SUMMARY:Exception 2", "exception event 2")
+
+				assert.Contains(suite.T(), out, "DTSTART:20210101T130000Z", "new start time 1")
+				assert.Contains(suite.T(), out, "DTEND:20210101T140000Z", "new end time 1")
+
+				assert.Contains(suite.T(), out, "DTSTART:20210102T130000Z", "new start time 2")
+				assert.Contains(suite.T(), out, "DTEND:20210102T140000Z", "new end time 2")
+			},
+		},
+	}
+
+	for _, tt := range table {
+		suite.Run(tt.name, func() {
+			ctx, flush := tester.NewContext(suite.T())
+			defer flush()
+
+			bts, err := eventToJSON(tt.event())
+			require.NoError(suite.T(), err, "getting serialized content")
+
+			out, err := FromJSON(ctx, bts)
+			require.NoError(suite.T(), err, "converting to ics")
 
 			tt.check(out)
 		})

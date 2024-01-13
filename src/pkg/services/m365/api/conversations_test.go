@@ -108,8 +108,8 @@ func (suite *ConversationsAPIUnitSuite) TestConversationPostInfo() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			chMsg, expected := test.postAndInfo()
-			result := conversationPostInfo(chMsg)
+			post, expected := test.postAndInfo()
+			result := conversationPostInfo(post, 0, "")
 
 			assert.Equal(t, expected, result)
 		})
@@ -138,6 +138,7 @@ func (suite *ConversationAPIIntgSuite) SetupSuite() {
 func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload() {
 	pid := "fake-post-id"
 	aid := "fake-attachment-id"
+	contentWithAttachment := "<html><body><img src=\"cid:fake-attach-id\"/></body></html>"
 
 	tests := []struct {
 		name            string
@@ -173,6 +174,19 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 				itm.SetId(&pid)
 				itm.SetHasAttachments(ptr.To(true))
 
+				// First call to get the post will not expand attachments.
+				interceptV1Path(
+					"groups",
+					"group",
+					"conversations",
+					"conv",
+					"threads",
+					"thread",
+					"posts",
+					pid).
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), itm))
+
 				attch := models.NewAttachment()
 				attch.SetSize(ptr.To[int32](50))
 
@@ -187,6 +201,7 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					"thread",
 					"posts",
 					pid).
+					MatchParam("$expand", "attachments").
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), itm))
 			},
@@ -197,10 +212,22 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 		{
 			name: "fetch multiple individual attachments",
 			setupf: func() {
-				truthy := true
 				itm := models.NewPost()
+
 				itm.SetId(&pid)
-				itm.SetHasAttachments(&truthy)
+				itm.SetHasAttachments(ptr.To(true))
+
+				interceptV1Path(
+					"groups",
+					"group",
+					"conversations",
+					"conv",
+					"threads",
+					"thread",
+					"posts",
+					pid).
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), itm))
 
 				attch := models.NewAttachment()
 				attch.SetId(&aid)
@@ -217,11 +244,60 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					"thread",
 					"posts",
 					pid).
+					MatchParam("$expand", "attachments").
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), itm))
 			},
 			attachmentCount: 5,
 			size:            1000,
+			expect:          assert.NoError,
+		},
+		{
+			name: "embedded attachment",
+			setupf: func() {
+				itm := models.NewPost()
+				itm.SetId(&pid)
+
+				body := models.NewItemBody()
+				body.SetContentType(ptr.To(models.HTML_BODYTYPE))
+
+				// Test html content with embedded attachment.
+
+				body.SetContent(ptr.To(contentWithAttachment))
+
+				itm.SetBody(body)
+
+				interceptV1Path(
+					"groups",
+					"group",
+					"conversations",
+					"conv",
+					"threads",
+					"thread",
+					"posts",
+					pid).
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), itm))
+
+				attch := models.NewAttachment()
+				attch.SetSize(ptr.To[int32](50))
+				itm.SetAttachments([]models.Attachmentable{attch})
+
+				interceptV1Path(
+					"groups",
+					"group",
+					"conversations",
+					"conv",
+					"threads",
+					"thread",
+					"posts",
+					pid).
+					MatchParam("$expand", "attachments").
+					Reply(200).
+					JSON(graphTD.ParseableToMap(suite.T(), itm))
+			},
+			attachmentCount: 1,
+			size:            50 + int64(len(contentWithAttachment)),
 			expect:          assert.NoError,
 		},
 	}

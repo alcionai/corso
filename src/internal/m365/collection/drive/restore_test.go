@@ -22,6 +22,7 @@ import (
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -122,7 +123,7 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 				mock.DriveItemFileName: {ItemID: "smarf"},
 			},
 			onCollision:   control.Replace,
-			deleteErr:     graph.ErrDeletedInFlight,
+			deleteErr:     core.ErrNotFound,
 			expectSkipped: assert.False,
 			expectMock: func(t *testing.T, rh *mockRestoreHandler) {
 				assert.True(t, rh.CalledPostItem, "new item posted")
@@ -298,7 +299,7 @@ func (suite *RestoreUnitSuite) TestCreateFolder() {
 		{
 			name: "good with copy",
 			mock: &mockPIIC{
-				errs:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				errs:  []error{core.ErrAlreadyExists, nil},
 				items: []models.DriveItemable{nil, models.NewDriveItem()},
 			},
 			expectErr:  assert.NoError,
@@ -316,7 +317,7 @@ func (suite *RestoreUnitSuite) TestCreateFolder() {
 		{
 			name: "bad with copy",
 			mock: &mockPIIC{
-				errs:  []error{graph.ErrItemAlreadyExistsConflict, assert.AnError},
+				errs:  []error{core.ErrAlreadyExists, assert.AnError},
 				items: []models.DriveItemable{nil, nil},
 			},
 			expectErr:  assert.Error,
@@ -428,6 +429,17 @@ func (m *mockGDPARF) NewDrivePager(
 	return m.pager
 }
 
+type mockAllIDsAndNamesGetter struct {
+	kvs map[string]string
+}
+
+func (m mockAllIDsAndNamesGetter) GetAllIDsAndNames(
+	context.Context,
+	*fault.Bus,
+) (idname.Cacher, error) {
+	return idname.NewCache(m.kvs), nil
+}
+
 func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 	rfID := "this-is-id"
 	driveID := "another-id"
@@ -443,12 +455,14 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 	table := []struct {
 		name        string
 		mock        *apiMock.Pager[models.Driveable]
+		users       map[string]string
+		groups      map[string]string
 		expectErr   require.ErrorAssertionFunc
 		expectLen   int
 		checkValues bool
 	}{
 		{
-			name: "no results",
+			name: "no drive results",
 			mock: &apiMock.Pager[models.Driveable]{
 				ToReturn: []apiMock.PagerResult[models.Driveable]{
 					{Values: []models.Driveable{}},
@@ -458,7 +472,7 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 			expectLen: 0,
 		},
 		{
-			name: "one result",
+			name: "one drive result",
 			mock: &apiMock.Pager[models.Driveable]{
 				ToReturn: []apiMock.PagerResult[models.Driveable]{
 					{Values: []models.Driveable{md}},
@@ -478,6 +492,32 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 			expectErr: require.Error,
 			expectLen: 0,
 		},
+		{
+			name: "multiple users",
+			mock: &apiMock.Pager[models.Driveable]{
+				ToReturn: []apiMock.PagerResult[models.Driveable]{
+					{Values: []models.Driveable{}},
+				},
+			},
+			users: map[string]string{
+				"1": "one",
+				"2": "two",
+			},
+			expectErr: require.NoError,
+		},
+		{
+			name: "multiple groups",
+			mock: &apiMock.Pager[models.Driveable]{
+				ToReturn: []apiMock.PagerResult[models.Driveable]{
+					{Values: []models.Driveable{}},
+				},
+			},
+			groups: map[string]string{
+				"1": "one",
+				"2": "two",
+			},
+			expectErr: require.NoError,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -491,8 +531,16 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 				pager:      test.mock,
 			}
 
+			errs := fault.New(true)
+
 			rc := NewRestoreCaches(nil)
-			err := rc.Populate(ctx, gdparf, "shmoo")
+			err := rc.Populate(
+				ctx,
+				mockAllIDsAndNamesGetter{test.users},
+				mockAllIDsAndNamesGetter{test.groups},
+				gdparf,
+				"shmoo",
+				errs)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			assert.Equal(t, rc.DriveIDToDriveInfo.Size(), test.expectLen)
@@ -508,6 +556,16 @@ func (suite *RestoreUnitSuite) TestRestoreCaches_Populate() {
 				assert.Equal(t, driveID, nameResult.id, "drive id")
 				assert.Equal(t, name, nameResult.name, "drive name")
 				assert.Equal(t, rfID, nameResult.rootFolderID, "root folder id")
+			}
+
+			for key, val := range test.users {
+				name, _ := rc.AvailableEntities.Users.NameOf(key)
+				assert.Equal(t, name, val, "user")
+			}
+
+			for key, val := range test.groups {
+				name, _ := rc.AvailableEntities.Groups.NameOf(key)
+				assert.Equal(t, name, val, "group")
 			}
 		})
 	}
@@ -702,7 +760,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 			dp:   dp,
 			mock: &mockPDAGRF{
 				postResp: []models.Driveable{nil, makeMD()},
-				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				postErr:  []error{core.ErrAlreadyExists, nil},
 				grf:      grf,
 			},
 			rc:           NewRestoreCaches(nil),
@@ -716,7 +774,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 			dp:   oldDP,
 			mock: &mockPDAGRF{
 				postResp: []models.Driveable{nil, makeMD()},
-				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				postErr:  []error{core.ErrAlreadyExists, nil},
 				grf:      grf,
 			},
 			rc:           NewRestoreCaches(oldDriveIDNames),
@@ -730,7 +788,7 @@ func (suite *RestoreUnitSuite) TestEnsureDriveExists() {
 			dp:   dp,
 			mock: &mockPDAGRF{
 				postResp: []models.Driveable{nil, makeMD()},
-				postErr:  []error{graph.ErrItemAlreadyExistsConflict, nil},
+				postErr:  []error{core.ErrAlreadyExists, nil},
 				grf:      grf,
 			},
 			rc:           populatedCache(driveID),

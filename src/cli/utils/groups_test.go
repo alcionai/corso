@@ -30,6 +30,7 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 		containsOnly      = []string{"contains"}
 		prefixOnly        = []string{"/prefix"}
 		containsAndPrefix = []string{"contains", "/prefix"}
+		listNames         = []string{"list-name1"}
 		onlySlash         = []string{string(path.PathSeparator)}
 	)
 
@@ -91,28 +92,11 @@ func (suite *GroupsUtilsSuite) TestIncludeGroupsRestoreDataSelectors() {
 			expectIncludeLen: 2,
 		},
 		{
-			name: "list contains",
+			name: "list names",
 			opts: utils.GroupsOpts{
-				FileName:   empty,
-				FolderPath: empty,
-				ListItem:   empty,
-				ListFolder: containsOnly,
+				Lists: listNames,
 			},
 			expectIncludeLen: 1,
-		},
-		{
-			name: "list prefixes",
-			opts: utils.GroupsOpts{
-				ListFolder: prefixOnly,
-			},
-			expectIncludeLen: 1,
-		},
-		{
-			name: "list prefixes and contains",
-			opts: utils.GroupsOpts{
-				ListFolder: containsAndPrefix,
-			},
-			expectIncludeLen: 2,
 		},
 		{
 			name: "Page Folder",

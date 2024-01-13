@@ -255,19 +255,11 @@ func (r resourceGetter) GetResourceIDAndNameFrom(
 
 	id, name, err = r.getter.GetIDAndName(ctx, owner, api.CallConfig{})
 	if err != nil {
-		if graph.IsErrUserNotFound(err) {
-			return nil, clues.Stack(core.ErrResourceOwnerNotFound, err)
-		}
-
-		if graph.IsErrResourceLocked(err) {
-			return nil, clues.Stack(graph.ErrResourceLocked, err)
-		}
-
-		return nil, err
+		return nil, clues.Stack(err)
 	}
 
 	if len(id) == 0 || len(name) == 0 {
-		return nil, clues.Stack(core.ErrResourceOwnerNotFound)
+		return nil, clues.Stack(core.ErrNotFound)
 	}
 
 	return idname.NewProvider(id, name), nil

@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -239,7 +240,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 			name: "err: deleted in flight",
 			mock: mockBackupHandler{
 				channels:    testdata.StubChannels("one"),
-				messagesErr: graph.ErrDeletedInFlight,
+				messagesErr: core.ErrNotFound,
 			},
 			expectErr:           require.Error,
 			expectColls:         1,

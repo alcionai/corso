@@ -14,8 +14,16 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/errs/core"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/logger"
+)
+
+// ---------------------------------------------------------------------------
+// HTTP wrapper config
+// ---------------------------------------------------------------------------
+
+const (
+	httpWrapperRetryDelay = 3 * time.Second
 )
 
 // ---------------------------------------------------------------------------
@@ -61,7 +69,11 @@ func NewHTTPWrapper(
 
 	cc.apply(hc)
 
-	return &httpWrapper{hc, cc}
+	return &httpWrapper{
+		client:     hc,
+		config:     cc,
+		retryDelay: httpWrapperRetryDelay,
+	}
 }
 
 // NewNoTimeoutHTTPWrapper constructs a http wrapper with no context timeout.
@@ -103,7 +115,9 @@ func (hw httpWrapper) Request(
 	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
 	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
 
-	var resp *http.Response
+	retriedErrors := []string{}
+
+	var e error
 
 	// stream errors from http/2 will fail before we reach
 	// client middleware handling, therefore we don't get to
@@ -112,36 +126,46 @@ func (hw httpWrapper) Request(
 	// retry in the event of a `stream error`, which is not
 	// a common expectation.
 	for i := 0; i < hw.config.maxConnectionRetries+1; i++ {
-		ctx = clues.Add(ctx, "request_retry_iter", i)
+		if i > 0 {
+			time.Sleep(hw.retryDelay)
+		}
 
-		resp, err = hw.client.Do(req)
+		ictx := clues.Add(
+			ctx,
+			"request_retry_iter", i,
+			"request_start_time", dttm.Now())
 
+		resp, err := hw.client.Do(req)
 		if err == nil {
-			break
+			logResp(ictx, resp)
+			return resp, nil
 		}
 
-		if IsErrApplicationThrottled(err) {
-			return nil, Stack(ctx, clues.Stack(core.ErrApplicationThrottled, err))
-		}
+		err = stackWithCoreErr(ictx, err, 1)
+		e = err
 
 		var http2StreamErr http2.StreamError
 		if !errors.As(err, &http2StreamErr) {
-			return nil, Stack(ctx, err)
+			// exit most errors without retry
+			break
 		}
 
-		logger.Ctx(ctx).Debug("http2 stream error")
+		logger.Ctx(ictx).Debug("http2 stream error")
 		events.Inc(events.APICall, "streamerror")
 
-		time.Sleep(3 * time.Second)
+		retriedErrors = append(retriedErrors, err.Error())
 	}
 
-	if err != nil {
-		return nil, Stack(ctx, err)
-	}
+	e = clues.Stack(e).
+		With(
+			"retried_errors", retriedErrors,
+			"request_end_time", dttm.Now()).
+		WithTrace(1).
+		OrNil()
 
-	logResp(ctx, resp)
-
-	return resp, nil
+	// no chance of a non-error return here.
+	// we handle that inside the loop.
+	return nil, e
 }
 
 // ---------------------------------------------------------------------------
@@ -150,8 +174,9 @@ func (hw httpWrapper) Request(
 
 type (
 	httpWrapper struct {
-		client *http.Client
-		config *clientConfig
+		client     *http.Client
+		config     *clientConfig
+		retryDelay time.Duration
 	}
 
 	customTransport struct {

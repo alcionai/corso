@@ -7,9 +7,11 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/pkg/errors"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -52,7 +54,7 @@ func (c Drives) GetFolderByName(
 
 	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
-		if graph.IsErrDeletedInFlight(err) {
+		if errors.Is(err, core.ErrNotFound) {
 			return nil, graph.Stack(ctx, clues.Stack(ErrFolderNotFound, err))
 		}
 
@@ -182,10 +184,6 @@ func (c Drives) PostItemInContainer(
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
-		if graph.IsErrItemAlreadyExistsConflict(err) {
-			return nil, clues.Stack(graph.ErrItemAlreadyExistsConflict, err)
-		}
-
 		return nil, graph.Wrap(ctx, err, "creating item in folder")
 	}
 

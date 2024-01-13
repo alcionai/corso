@@ -2,11 +2,13 @@ package exchange
 
 import (
 	"context"
+	"errors"
 
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -95,12 +97,12 @@ func (cr *containerResolver) refreshContainer(
 	}
 
 	c, err := cr.refresher.refreshContainer(ctx, id)
-	if err != nil && graph.IsErrDeletedInFlight(err) {
+	if err != nil && errors.Is(err, core.ErrNotFound) {
 		logger.Ctx(ctx).Debug("container deleted")
 		return nil, true, nil
 	} else if err != nil {
 		// This is some other error, just return it.
-		return nil, false, clues.WrapWC(ctx, err, "refreshing container")
+		return nil, false, clues.Wrap(err, "refreshing container")
 	}
 
 	return c, false, nil
@@ -218,7 +220,7 @@ func (cr *containerResolver) idToPath(
 				locPath: nil,
 				cached:  true,
 				deleted: false,
-			}, clues.WrapWC(ctx, err, "refreshing container")
+			}, clues.Wrap(err, "refreshing container")
 		}
 
 		if shouldDelete {

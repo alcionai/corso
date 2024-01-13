@@ -19,6 +19,9 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
+// empty string is used to indicate that a permission cannot be restored
+const nonRestorablePermission = ""
+
 func getParentMetadata(
 	parentPath path.Path,
 	parentDirToMeta syncd.MapTo[metadata.Metadata],
@@ -214,7 +217,14 @@ func UpdatePermissions(
 
 		pid, ok := oldPermIDToNewID.Load(p.ID)
 		if !ok {
-			return clues.NewWC(ictx, "no new permission id")
+			el.AddRecoverable(ictx, clues.NewWC(ictx, "no permission matches id"))
+			continue
+		}
+
+		if pid == nonRestorablePermission {
+			// permission was not restored on parent and thus cannot
+			// be deleted
+			continue
 		}
 
 		err := udip.DeleteItemPermission(
@@ -277,7 +287,9 @@ func UpdatePermissions(
 
 		newPerm, err := udip.PostItemPermissionUpdate(ictx, driveID, itemID, pbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
-			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+			oldPermIDToNewID.Store(p.ID, nonRestorablePermission)
+			logger.CtxErr(ictx, err).Info("unable to restore permission")
+
 			continue
 		}
 
@@ -385,7 +397,9 @@ func UpdateLinkShares(
 
 		newLS, err := upils.PostItemLinkShareUpdate(ictx, driveID, itemID, lsbody)
 		if graph.IsErrUsersCannotBeResolved(err) {
-			logger.CtxErr(ictx, err).Info("Unable to restore link share")
+			oldLinkShareIDToNewID.Store(ls.ID, nonRestorablePermission)
+			logger.CtxErr(ictx, err).Info("unable to restore link share")
+
 			continue
 		}
 
@@ -435,6 +449,102 @@ func UpdateLinkShares(
 	return alreadyDeleted, nil
 }
 
+func filterUnavailableEntitiesInLinkShare(
+	ctx context.Context,
+	linkShares []metadata.LinkShare,
+	availableEntities ResourceIDNames,
+	oldLinkShareIDToNewID syncd.MapTo[string],
+) []metadata.LinkShare {
+	filtered := []metadata.LinkShare{}
+
+	if availableEntities.Users == nil || availableEntities.Groups == nil {
+		// This should not be happening unless we missed to fill in the caches
+		logger.Ctx(ctx).Info("no available entities, not filtering link shares")
+		return linkShares
+	}
+
+	for _, p := range linkShares {
+		entities := []metadata.Entity{}
+
+		for _, e := range p.Entities {
+			available := false
+
+			switch e.EntityType {
+			case metadata.GV2User:
+				_, ok := availableEntities.Users.NameOf(e.ID)
+				available = available || ok
+			case metadata.GV2Group:
+				_, ok := availableEntities.Groups.NameOf(e.ID)
+				available = available || ok
+			default:
+				// We only know about users and groups
+				available = true
+			}
+
+			if available {
+				entities = append(entities, e)
+			}
+		}
+
+		if len(entities) > 0 {
+			p.Entities = entities
+			filtered = append(filtered, p)
+
+			continue
+		}
+
+		// If we have no entities, we can't restore the link share
+		// and so we have to mark it as not restored.
+		// This is done to make sure we don't try to delete it later.
+		oldLinkShareIDToNewID.Store(p.ID, "")
+	}
+
+	return filtered
+}
+
+func filterUnavailableEntitiesInPermissions(
+	ctx context.Context,
+	perms []metadata.Permission,
+	availableEntities ResourceIDNames,
+	oldPermIDToNewID syncd.MapTo[string],
+) []metadata.Permission {
+	if availableEntities.Users == nil || availableEntities.Groups == nil {
+		// This should not be happening unless we missed to fill in the caches
+		logger.Ctx(ctx).Info("no available entities, not filtering link shares")
+		return perms
+	}
+
+	filtered := []metadata.Permission{}
+
+	for _, p := range perms {
+		available := false
+
+		switch p.EntityType {
+		case metadata.GV2User:
+			_, ok := availableEntities.Users.NameOf(p.EntityID)
+			available = available || ok
+		case metadata.GV2Group:
+			_, ok := availableEntities.Groups.NameOf(p.EntityID)
+			available = available || ok
+		default:
+			// We only know about users and groups
+			// TODO: extend the check to other entity types
+			available = true
+		}
+
+		if available {
+			filtered = append(filtered, p)
+			continue
+		}
+
+		// If we have no entities, we can't restore the permission
+		// and so we have to mark it as not restored.
+		oldPermIDToNewID.Store(p.ID, "")
+	}
+
+	return filtered
+}
+
 // RestorePermissions takes in the permissions of an item, computes
 // what permissions need to added and removed based on the parent
 // folder metas and uses that to add/remove the necessary permissions
@@ -448,42 +558,49 @@ func RestorePermissions(
 	current metadata.Metadata,
 	caches *restoreCaches,
 	errs *fault.Bus,
-) error {
+) {
 	if current.SharingMode == metadata.SharingModeInherited {
-		return nil
+		return
 	}
+
+	var didReset bool
 
 	ctx = clues.Add(ctx, "permission_item_id", itemID)
 
 	previousLinkShares, err := computePreviousLinkShares(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "previous link shares")
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "previous link shares"))
 	}
 
-	lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
+	if previousLinkShares != nil {
+		lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
+		lsAdded = filterUnavailableEntitiesInLinkShare(ctx, lsAdded, caches.AvailableEntities, caches.OldLinkShareIDToNewID)
 
-	// Link shares have to be updated before permissions as we have to
-	// use the information about if we had to reset the inheritance to
-	// decide if we have to restore all the permissions.
-	didReset, err := UpdateLinkShares(
-		ctx,
-		rh,
-		driveID,
-		itemID,
-		lsAdded,
-		lsRemoved,
-		caches.OldLinkShareIDToNewID,
-		errs)
-	if err != nil {
-		return clues.Wrap(err, "updating link shares")
+		// Link shares have to be updated before permissions as we have to
+		// use the information about if we had to reset the inheritance to
+		// decide if we have to restore all the permissions.
+		didReset, err = UpdateLinkShares(
+			ctx,
+			rh,
+			driveID,
+			itemID,
+			lsAdded,
+			lsRemoved,
+			caches.OldLinkShareIDToNewID,
+			errs)
+		if err != nil {
+			errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "updating link shares"))
+		}
 	}
 
 	previous, err := computePreviousMetadata(ctx, itemPath, caches.ParentDirToMeta)
 	if err != nil {
-		return clues.Wrap(err, "previous metadata")
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "previous metadata"))
+		return
 	}
 
 	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
+	permAdded = filterUnavailableEntitiesInPermissions(ctx, permAdded, caches.AvailableEntities, caches.OldPermIDToNewID)
 
 	if didReset {
 		// In case we did a reset of permissions when restoring link
@@ -506,8 +623,10 @@ func RestorePermissions(
 		errs)
 	if graph.IsErrSharingDisabled(err) {
 		logger.CtxErr(ctx, err).Info("sharing disabled, not restoring permissions")
-		return nil
+		return
 	}
 
-	return clues.Wrap(err, "updating permissions").OrNil()
+	if err != nil {
+		errs.AddRecoverable(ctx, clues.WrapWC(ctx, err, "updating permissions"))
+	}
 }

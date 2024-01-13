@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -281,7 +282,7 @@ func restoreItem(
 			itemData,
 			ctr)
 		if err != nil {
-			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
+			if errors.Is(err, core.ErrAlreadyExists) && rcc.RestoreConfig.OnCollision == control.Skip {
 				return details.ItemInfo{}, true, nil
 			}
 
@@ -339,7 +340,7 @@ func restoreItem(
 			ctr,
 			errs)
 		if err != nil {
-			if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
+			if errors.Is(err, core.ErrAlreadyExists) && rcc.RestoreConfig.OnCollision == control.Skip {
 				return details.ItemInfo{}, true, nil
 			}
 
@@ -365,7 +366,7 @@ func restoreItem(
 		ctr,
 		errs)
 	if err != nil {
-		if errors.Is(err, graph.ErrItemAlreadyExistsConflict) && rcc.RestoreConfig.OnCollision == control.Skip {
+		if errors.Is(err, core.ErrAlreadyExists) && rcc.RestoreConfig.OnCollision == control.Skip {
 			return details.ItemInfo{}, true, nil
 		}
 
@@ -452,7 +453,7 @@ func restoreV1File(
 		return details.ItemInfo{}, clues.Wrap(err, "restoring file")
 	}
 
-	err = RestorePermissions(
+	RestorePermissions(
 		ctx,
 		rh,
 		drivePath.DriveID,
@@ -461,9 +462,6 @@ func restoreV1File(
 		meta,
 		caches,
 		errs)
-	if err != nil {
-		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
-	}
 
 	return itemInfo, nil
 }
@@ -530,7 +528,7 @@ func restoreV6File(
 		return itemInfo, nil
 	}
 
-	err = RestorePermissions(
+	RestorePermissions(
 		ctx,
 		rh,
 		drivePath.DriveID,
@@ -539,9 +537,6 @@ func restoreV6File(
 		meta,
 		caches,
 		errs)
-	if err != nil {
-		return details.ItemInfo{}, clues.Wrap(err, "restoring item permissions")
-	}
 
 	return itemInfo, nil
 }
@@ -581,7 +576,7 @@ func CreateRestoreFolders(
 		return id, nil
 	}
 
-	err = RestorePermissions(
+	RestorePermissions(
 		ctx,
 		rh,
 		drivePath.DriveID,
@@ -591,7 +586,7 @@ func CreateRestoreFolders(
 		caches,
 		errs)
 
-	return id, err
+	return id, nil
 }
 
 type folderRestorer interface {
@@ -677,7 +672,7 @@ func createFolder(
 
 	// ErrItemAlreadyExistsConflict can only occur for folders if the
 	// item being replaced is a file, not another folder.
-	if err != nil && !errors.Is(err, graph.ErrItemAlreadyExistsConflict) {
+	if err != nil && !errors.Is(err, core.ErrAlreadyExists) {
 		return nil, clues.Wrap(err, "creating folder")
 	}
 
@@ -748,7 +743,7 @@ func restoreFile(
 			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
-			return "", details.ItemInfo{}, graph.ErrItemAlreadyExistsConflict
+			return "", details.ItemInfo{}, core.ErrAlreadyExists
 		}
 
 		collision = dci
@@ -763,7 +758,8 @@ func restoreFile(
 	// risk failures in the middle, or we post w/ copy, then delete, then patch
 	// the name, which could triple our graph calls in the worst case.
 	if shouldDeleteOriginal {
-		if err := ir.DeleteItem(ctx, driveID, collision.ItemID); err != nil && !graph.IsErrDeletedInFlight(err) {
+		err := ir.DeleteItem(ctx, driveID, collision.ItemID)
+		if err != nil && !errors.Is(err, core.ErrNotFound) {
 			return "", details.ItemInfo{}, clues.New("deleting colliding item")
 		}
 	}
@@ -801,9 +797,8 @@ func restoreFile(
 	}
 
 	var (
-		written          int64
-		progReader       io.ReadCloser
-		closeProgressBar func()
+		written        int64
+		progressReader io.ReadCloser
 	)
 
 	// This is just to retry file upload, the uploadSession creation is
@@ -830,21 +825,23 @@ func restoreFile(
 			iReader = itemData.ToReader()
 		}
 
-		progReader, closeProgressBar = observe.ItemProgress(
+		progressReader = observe.ItemProgress(
 			ctx,
 			iReader,
 			observe.ItemRestoreMsg,
 			clues.Hide(pname),
 			ss.Size())
+		defer progressReader.Close()
 
 		// Upload the stream data
-		written, err = io.CopyBuffer(w, progReader, copyBuffer)
+		written, err = io.CopyBuffer(w, progressReader, copyBuffer)
 		if err == nil {
 			break
 		}
 
-		// clear out the progress bar immediately on error
-		closeProgressBar()
+		// close the progress bar immediately on error, else we might deadlock
+		// its safe to double call Close on the reader.
+		progressReader.Close()
 
 		// refresh the io.Writer to restart the upload
 		// TODO: @vkamra verify if var session is the desired input
@@ -858,8 +855,6 @@ func restoreFile(
 	if err != nil {
 		return "", details.ItemInfo{}, clues.Wrap(err, "uploading file")
 	}
-
-	defer closeProgressBar()
 
 	dii := ir.AugmentItemInfo(
 		details.ItemInfo{},
@@ -977,7 +972,7 @@ func ensureDriveExists(
 		ictx := clues.Add(ctx, "new_drive_name", clues.Hide(nextDriveName))
 
 		newDrive, err = pdagrf.PostDrive(ictx, protectedResourceID, nextDriveName)
-		if err != nil && !errors.Is(err, graph.ErrItemAlreadyExistsConflict) {
+		if err != nil && !errors.Is(err, core.ErrAlreadyExists) {
 			return driveInfo{}, clues.Wrap(err, "creating new drive")
 		}
 

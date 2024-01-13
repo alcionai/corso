@@ -81,7 +81,7 @@ func (h *sharepointHandler) ConsumeRestoreCollections(
 
 		switch dc.FullPath().Category() {
 		case path.LibrariesCategory:
-			err = caches.Populate(ctx, lrh, rcc.ProtectedResource.ID())
+			err = caches.Populate(ctx, h.apiClient.Users(), h.apiClient.Groups(), lrh, rcc.ProtectedResource.ID(), errs)
 			if err != nil {
 				return nil, nil, clues.Wrap(err, "initializing restore caches")
 			}

@@ -22,7 +22,7 @@ import (
 const (
 	hideProgressBarsFN   = "hide-progress"
 	retainProgressBarsFN = "retain-progress"
-	progressBarWidth     = 40
+	progressBarWidth     = 32
 )
 
 func init() {
@@ -117,6 +117,10 @@ func (o *observer) resetWriter(ctx context.Context) {
 	// 	opts = append(opts, mpb.WithAutoRefresh())
 	// }
 
+	if o.mp != nil {
+		logger.Ctx(ctx).Infow("resetting progress bars", "bar_count", o.mp.BarCount())
+	}
+
 	o.mp = mpb.NewWithContext(ctx, opts...)
 }
 
@@ -154,7 +158,12 @@ func Flush(ctx context.Context) {
 	obs := getObserver(ctx)
 
 	if obs.mp != nil {
+		logr := logger.Ctx(ctx)
+		logr.Infow("blocked flushing progress bars", "bar_count", obs.mp.BarCount())
+
 		obs.mp.Wait()
+
+		logr.Infow("progress bars flushed")
 	}
 
 	obs.resetWriter(ctx)
@@ -176,6 +185,10 @@ type ProgressCfg struct {
 	SectionIdentifier any
 	Indent            int
 	CompletionMessage func() string
+}
+
+func DefaultCfg() ProgressCfg {
+	return ProgressCfg{}
 }
 
 // Message is used to display a progress message
@@ -351,10 +364,12 @@ func (ac *autoCloser) Read(p []byte) (n int, err error) {
 }
 
 func (ac *autoCloser) Close() error {
-	if !ac.closed {
-		ac.closed = true
-		ac.close()
+	if ac.closed {
+		return nil
 	}
+
+	ac.closed = true
+	ac.close()
 
 	return ac.rc.Close()
 }
@@ -362,15 +377,16 @@ func (ac *autoCloser) Close() error {
 // ItemProgress tracks the display of an item in a folder by counting the bytes
 // read through the provided readcloser, up until the byte count matches
 // the totalBytes.
+//
 // The progress bar will close automatically when the reader closes.  If an early
-// close is needed due to abort or other issue, the returned func can be used.
+// close is needed due to abort or other issue, the reader can be closed manually.
 func ItemProgress(
 	ctx context.Context,
 	rc io.ReadCloser,
 	header string,
 	iname any,
 	totalBytes int64,
-) (io.ReadCloser, func()) {
+) io.ReadCloser {
 	var (
 		obs   = getObserver(ctx)
 		plain = plainString(iname)
@@ -383,7 +399,7 @@ func ItemProgress(
 
 	if obs.hidden() || rc == nil {
 		defer log.Debug("done - " + header)
-		return rc, func() {}
+		return rc
 	}
 
 	obs.wg.Add(1)
@@ -410,22 +426,24 @@ func ItemProgress(
 	closer := &autoCloser{rc: bar.ProxyReader(rc)}
 
 	closer.close = func() {
-		closer.closed = true
 		bar.SetTotal(-1, true)
 		bar.Abort(true)
 	}
 
-	return closer, closer.close
+	return closer
 }
 
 // ItemSpinner is similar to ItemProgress, but for use in cases where
 // we don't know the file size but want to show progress.
+//
+// The progress bar will close automatically when the reader closes.  If an early
+// close is needed due to abort or other issue, the reader can be closed manually.
 func ItemSpinner(
 	ctx context.Context,
 	rc io.ReadCloser,
 	header string,
 	iname any,
-) (io.ReadCloser, func()) {
+) io.ReadCloser {
 	var (
 		obs   = getObserver(ctx)
 		plain = plainString(iname)
@@ -436,7 +454,7 @@ func ItemSpinner(
 
 	if obs.hidden() || rc == nil {
 		defer log.Debug("done - " + header)
-		return rc, func() {}
+		return rc
 	}
 
 	obs.wg.Add(1)
@@ -459,12 +477,14 @@ func ItemSpinner(
 		log.Debug("done - " + header)
 	})()
 
-	abort := func() {
+	closer := &autoCloser{rc: bar.ProxyReader(rc)}
+
+	closer.close = func() {
 		bar.SetTotal(-1, true)
 		bar.Abort(true)
 	}
 
-	return bar.ProxyReader(rc), abort
+	return closer
 }
 
 // ProgressWithCount tracks the display of a bar that tracks the completion

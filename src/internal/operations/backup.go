@@ -306,36 +306,42 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 	}
 
 	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
+	op.doPersistence(ctx, &opStats, sstore, deets, startTime)
+	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 
-	// -----
-	// Persistence
-	// -----
+	logger.Ctx(ctx).Infow(
+		"completed backup",
+		"results", op.Results,
+		"failure", op.Errors.Failure())
 
-	err = op.persistResults(startTime, &opStats, op.Counter)
+	return op.Errors.Failure()
+}
+
+func (op *BackupOperation) doPersistence(
+	ctx context.Context,
+	opStats *backupStats,
+	detailsStore streamstore.Streamer,
+	deets *details.Builder,
+	start time.Time,
+) {
+	observe.Message(ctx, observe.ProgressCfg{}, "Finalizing storage")
+
+	err := op.persistResults(start, opStats, op.Counter)
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
-		return op.Errors.Failure()
+		return
 	}
 
 	err = op.createBackupModels(
 		ctx,
-		sstore,
-		opStats,
+		detailsStore,
+		*opStats,
 		op.Results.BackupID,
 		op.BackupVersion,
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup models"))
-		return op.Errors.Failure()
 	}
-
-	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
-
-	if op.Errors.Failure() == nil {
-		logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
-	}
-
-	return op.Errors.Failure()
 }
 
 // do is purely the action of running a backup.  All pre/post behavior
@@ -522,8 +528,8 @@ func produceBackupDataCollections(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, prefixmatcher.StringSetReader, bool, error) {
-	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Discovering items to backup")
-	defer close(progressBar)
+	progressMessage := observe.MessageWithCompletion(ctx, observe.DefaultCfg(), "Discovering items to backup")
+	defer close(progressMessage)
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion:   lastBackupVersion,
@@ -559,8 +565,8 @@ func consumeBackupCollections(
 		"collection_source", "operations",
 		"snapshot_type", "item data")
 
-	progressBar := observe.MessageWithCompletion(ctx, observe.ProgressCfg{}, "Backing up data")
-	defer close(progressBar)
+	progressMessage := observe.MessageWithCompletion(ctx, observe.DefaultCfg(), "Backing up data")
+	defer close(progressMessage)
 
 	tags := map[string]string{
 		kopia.TagBackupID:       string(backupID),

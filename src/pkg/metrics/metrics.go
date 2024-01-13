@@ -2,8 +2,9 @@ package metrics
 
 import (
 	"io"
-	"sync/atomic"
 
+	"github.com/alcionai/corso/src/internal/common/syncd"
+	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 )
 
@@ -12,33 +13,53 @@ type KindStats struct {
 	ResourceCount int64
 }
 
+var (
+	bytesRead count.Key = "bytes-read"
+	resources count.Key = "resources"
+)
+
 type ExportStats struct {
 	// data is kept private so that we can enforce atomic int updates
-	data map[path.CategoryType]KindStats
+	data syncd.MapOf[path.CategoryType, *count.Bus]
 }
 
-func (es *ExportStats) UpdateBytes(kind path.CategoryType, bytesRead int64) {
-	if es.data == nil {
-		es.data = map[path.CategoryType]KindStats{}
+func NewExportStats() *ExportStats {
+	return &ExportStats{
+		data: syncd.NewMapOf[path.CategoryType, *count.Bus](),
 	}
+}
 
-	ks := es.data[kind]
-	atomic.AddInt64(&ks.BytesRead, bytesRead)
-	es.data[kind] = ks
+func (es *ExportStats) UpdateBytes(kind path.CategoryType, numBytes int64) {
+	es.getCB(kind).Add(bytesRead, numBytes)
 }
 
 func (es *ExportStats) UpdateResourceCount(kind path.CategoryType) {
-	if es.data == nil {
-		es.data = map[path.CategoryType]KindStats{}
+	es.getCB(kind).Inc(resources)
+}
+
+func (es *ExportStats) getCB(kind path.CategoryType) *count.Bus {
+	es.data.LazyInit()
+
+	cb, ok := es.data.Load(kind)
+	if !ok {
+		cb = count.New()
+		es.data.Store(kind, cb)
 	}
 
-	ks := es.data[kind]
-	atomic.AddInt64(&ks.ResourceCount, 1)
-	es.data[kind] = ks
+	return cb
 }
 
 func (es *ExportStats) GetStats() map[path.CategoryType]KindStats {
-	return es.data
+	toKindStats := map[path.CategoryType]KindStats{}
+
+	for k, cb := range es.data.Values() {
+		toKindStats[k] = KindStats{
+			BytesRead:     cb.Get(bytesRead),
+			ResourceCount: cb.Get(resources),
+		}
+	}
+
+	return toKindStats
 }
 
 type statsReader struct {

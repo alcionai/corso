@@ -7,12 +7,23 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
 type backupHandler interface {
 	getItemByIDer
 	getItemser
+	canonicalPather
+}
+
+// canonicalPath constructs the service and category specific path for
+// the given builder.
+type canonicalPather interface {
+	CanonicalPath(
+		storageDir path.Elements,
+		tenantID string,
+	) (path.Path, error)
 }
 
 type getItemByIDer interface {
@@ -32,7 +43,7 @@ type PostLister interface {
 	PostList(
 		ctx context.Context,
 		listName string,
-		storedListData []byte,
+		storedList models.Listable,
 		errs *fault.Bus,
 	) (models.Listable, error)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -22,6 +23,20 @@ func NewListsBackupHandler(protectedResource string, ac api.Lists) listsBackupHa
 		ac:                ac,
 		protectedResource: protectedResource,
 	}
+}
+
+func (bh listsBackupHandler) CanonicalPath(
+	storageDirFolders path.Elements,
+	tenantID string,
+) (path.Path, error) {
+	return storageDirFolders.
+		Builder().
+		ToDataLayerPath(
+			tenantID,
+			bh.protectedResource,
+			path.SharePointService,
+			path.ListsCategory,
+			false)
 }
 
 func (bh listsBackupHandler) GetItemByID(
@@ -52,10 +67,10 @@ func NewListsRestoreHandler(protectedResource string, ac api.Lists) listsRestore
 func (rh listsRestoreHandler) PostList(
 	ctx context.Context,
 	listName string,
-	storedListData []byte,
+	storedList models.Listable,
 	errs *fault.Bus,
 ) (models.Listable, error) {
-	return rh.ac.PostList(ctx, rh.protectedResource, listName, storedListData, errs)
+	return rh.ac.PostList(ctx, rh.protectedResource, listName, storedList, errs)
 }
 
 func (rh listsRestoreHandler) DeleteList(
