@@ -70,9 +70,12 @@ func (mc *mergeCollection) Items(
 	go func() {
 		defer close(res)
 
-		logger.Ctx(ctx).Infow(
-			"getting items for merged collection",
+		log := logger.Ctx(ctx)
+		log.Infow(
+			"streaming all merged collections' items",
 			"merged_collection_count", len(mc.cols))
+
+		defer log.Debug("done streaming all merged collections' items")
 
 		for _, c := range mc.cols {
 			// Unfortunately doesn't seem to be a way right now to see if the

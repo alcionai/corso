@@ -2,7 +2,6 @@ package restore
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
@@ -11,20 +10,13 @@ import (
 
 // called by restore.go to map subcommands to provider-specific handling.
 func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case restoreCommand:
-		c, fs = utils.AddCommand(cmd, oneDriveRestoreCmd())
+		c, _ = utils.AddCommand(cmd, oneDriveRestoreCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandUseSuffix
-
-		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --user) and more frequently used flags take precedence.
-		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, true)
 		flags.AddOneDriveDetailsAndRestoreFlags(c)
