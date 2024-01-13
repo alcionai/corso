@@ -650,6 +650,59 @@ func (suite *ListsUnitSuite) TestHasAddressFields() {
 	}
 }
 
+func (suite *ListsUnitSuite) TestConcatenateHyperlinkFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name            string
+		hyperlinkFields map[string]any
+		expectedResult  string
+	}{
+		{
+			name: "Valid Hyperlink",
+			hyperlinkFields: map[string]any{
+				HyperlinkURLKey:         ptr.To("https://www.example.com"),
+				HyperlinkDescriptionKey: ptr.To("Example Website"),
+			},
+			expectedResult: "https://www.example.com,Example Website",
+		},
+		{
+			name: "Empty Hyperlink Fields",
+			hyperlinkFields: map[string]any{
+				HyperlinkURLKey:         nil,
+				HyperlinkDescriptionKey: nil,
+			},
+			expectedResult: "",
+		},
+		{
+			name: "Missing Description",
+			hyperlinkFields: map[string]any{
+				HyperlinkURLKey: ptr.To("https://www.example.com"),
+			},
+			expectedResult: "https://www.example.com",
+		},
+		{
+			name: "Missing URL",
+			hyperlinkFields: map[string]any{
+				HyperlinkDescriptionKey: ptr.To("Example Website"),
+			},
+			expectedResult: "Example Website",
+		},
+		{
+			name:            "Empty Input",
+			hyperlinkFields: map[string]any{},
+			expectedResult:  "",
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			result := concatenateHyperLinkFields(test.hyperlinkFields)
+			assert.Equal(t, test.expectedResult, result)
+		})
+	}
+}
+
 type ListsAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup

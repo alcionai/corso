@@ -18,78 +18,6 @@ import (
 
 var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
 
-const (
-	AttachmentsColumnName       = "Attachments"
-	EditColumnName              = "Edit"
-	ContentTypeColumnName       = "ContentType"
-	CreatedColumnName           = "Created"
-	ModifiedColumnName          = "Modified"
-	AuthorLookupIDColumnName    = "AuthorLookupId"
-	EditorLookupIDColumnName    = "EditorLookupId"
-	AppAuthorLookupIDColumnName = "AppAuthorLookupId"
-	TitleColumnName             = "Title"
-
-	ContentTypeColumnDisplayName = "Content Type"
-
-	AddressKey     = "address"
-	CoordinatesKey = "coordinates"
-	DisplayNameKey = "displayName"
-	LocationURIKey = "locationUri"
-	UniqueIDKey    = "uniqueId"
-
-	// entries that are nested within a second layer
-	CityKey       = "city"
-	CountryKey    = "countryOrRegion"
-	PostalCodeKey = "postalCode"
-	StateKey      = "state"
-	StreetKey     = "street"
-	LatitudeKey   = "latitude"
-	LongitudeKey  = "longitude"
-
-	CountryOrRegionFN = "CountryOrRegion"
-	StateFN           = "State"
-	CityFN            = "City"
-	PostalCodeFN      = "PostalCode"
-	StreetFN          = "Street"
-	GeoLocFN          = "GeoLoc"
-	DispNameFN        = "DispName"
-
-	LinkTitleFieldNamePart  = "LinkTitle"
-	ChildCountFieldNamePart = "ChildCount"
-	LookupIDFieldNamePart   = "LookupId"
-
-	ReadOnlyOrHiddenFieldNamePrefix = "_"
-	DescoratorFieldNamePrefix       = "@"
-
-	WebTemplateExtensionsListTemplate = "webTemplateExtensionsList"
-	// This issue https://github.com/alcionai/corso/issues/4932
-	// tracks to backup/restore supportability of `documentLibrary` templated lists
-	DocumentLibraryListTemplate = "documentLibrary"
-	SharingLinksListTemplate    = "sharingLinks"
-	AccessRequestsListTemplate  = "accessRequest"
-)
-
-var addressFieldNames = []string{
-	AddressKey,
-	CoordinatesKey,
-	DisplayNameKey,
-	LocationURIKey,
-	UniqueIDKey,
-}
-
-var legacyColumns = keys.Set{
-	AttachmentsColumnName:        {},
-	EditColumnName:               {},
-	ContentTypeColumnDisplayName: {},
-}
-
-var SkipListTemplates = keys.Set{
-	WebTemplateExtensionsListTemplate: {},
-	DocumentLibraryListTemplate:       {},
-	SharingLinksListTemplate:          {},
-	AccessRequestsListTemplate:        {},
-}
-
 // ---------------------------------------------------------------------------
 // controller
 // ---------------------------------------------------------------------------
@@ -507,6 +435,11 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]any
 		additionalData[fieldName] = concatenatedAddress
 	}
 
+	if hyperLinkField, fieldName, ok := hasHyperLinkFields(additionalData); ok {
+		concatenatedHyperlink := concatenateHyperLinkFields(hyperLinkField)
+		additionalData[fieldName] = concatenatedHyperlink
+	}
+
 	fields.SetAdditionalData(additionalData)
 
 	return fields
@@ -547,6 +480,22 @@ func hasAddressFields(additionalData map[string]any) (map[string]any, string, bo
 	return nil, "", false
 }
 
+func hasHyperLinkFields(additionalData map[string]any) (map[string]any, string, bool) {
+	for fieldName, value := range additionalData {
+		nestedFields, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		if keys.HasKeys(nestedFields,
+			[]string{HyperlinkDescriptionKey, HyperlinkURLKey}...) {
+			return nestedFields, fieldName, true
+		}
+	}
+
+	return nil, "", false
+}
+
 func concatenateAddressFields(addressFields map[string]any) string {
 	parts := make([]string, 0)
 
@@ -565,6 +514,24 @@ func concatenateAddressFields(addressFields map[string]any) string {
 	if coords, ok := addressFields[CoordinatesKey].(map[string]any); ok {
 		parts = append(parts, addressKeyToVal(coords, LatitudeKey))
 		parts = append(parts, addressKeyToVal(coords, LongitudeKey))
+	}
+
+	if len(parts) > 0 {
+		return strings.Join(parts, ",")
+	}
+
+	return ""
+}
+
+func concatenateHyperLinkFields(hyperlinkFields map[string]any) string {
+	parts := make([]string, 0)
+
+	if v, err := str.AnyValueToString(HyperlinkURLKey, hyperlinkFields); err == nil {
+		parts = append(parts, v)
+	}
+
+	if v, err := str.AnyValueToString(HyperlinkDescriptionKey, hyperlinkFields); err == nil {
+		parts = append(parts, v)
 	}
 
 	if len(parts) > 0 {
