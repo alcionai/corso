@@ -124,7 +124,7 @@ func (c Conversations) GetConversationPost(
 func conversationPostInfo(
 	post models.Postable,
 	size int64,
-	preview, prevPostID string,
+	preview, inReplyToID string,
 ) *details.GroupsInfo {
 	if post == nil {
 		return nil
@@ -139,7 +139,7 @@ func conversationPostInfo(
 		CreatedAt: ptr.Val(post.GetCreatedDateTime()),
 		Creator:   sender,
 		Preview:   preview,
-		InReplyTo: prevPostID,
+		InReplyTo: inReplyToID,
 		Size:      size,
 	}
 
