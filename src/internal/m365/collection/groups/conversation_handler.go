@@ -124,13 +124,17 @@ func (bh conversationsBackupHandler) getItem(
 	containerIDs path.Elements, // expects: [conversationID, threadID]
 	postID string,
 ) (models.Postable, *details.GroupsInfo, error) {
+	cc := api.CallConfig{
+		Expand: []string{"inReplyTo"},
+	}
+
 	return bh.ac.GetConversationPost(
 		ctx,
 		groupID,
 		containerIDs[0],
 		containerIDs[1],
 		postID,
-		api.CallConfig{})
+		cc)
 }
 
 //lint:ignore U1000 false linter issue due to generics

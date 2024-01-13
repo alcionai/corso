@@ -109,7 +109,7 @@ func (suite *ConversationsAPIUnitSuite) TestConversationPostInfo() {
 			t := suite.T()
 
 			post, expected := test.postAndInfo()
-			result := conversationPostInfo(post, 0, "")
+			result := conversationPostInfo(post, 0, "", "")
 
 			assert.Equal(t, expected, result)
 		})

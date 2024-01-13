@@ -69,8 +69,25 @@ func (c Conversations) GetConversationPost(
 		preview = "malformed or unparseable content body: " + preview
 	}
 
+	var inReplyToID string
+
+	prevPost := post.GetInReplyTo()
+	if prevPost != nil {
+		inReplyToID = ptr.Val(prevPost.GetId())
+	}
+
+	// Set prev post to nil to avoid storing it again in the backup. Storage is unnecessary
+	// since this is a read only property and graph doesn't support POSTing it. This is
+	// also safe to do since we do a full enumeration every time, so post and all its
+	// ancestors are guaranteed to exist.
+	//
+	// All we need to persist here is the prev post ID here so that we can build the
+	// reply tree during restore operation and restore posts top to bottom using
+	// POST /groups/{id}/conversations/{id}/threads/{id}/posts/{id}/reply
+	post.SetInReplyTo(nil)
+
 	if !ptr.Val(post.GetHasAttachments()) && !HasAttachments(post.GetBody()) {
-		return post, conversationPostInfo(post, contentLen, preview), nil
+		return post, conversationPostInfo(post, contentLen, preview, inReplyToID), nil
 	}
 
 	attachments, totalSize, err := c.getAttachments(
@@ -95,7 +112,9 @@ func (c Conversations) GetConversationPost(
 
 	post.SetAttachments(attachments)
 
-	return post, conversationPostInfo(post, contentLen, preview), graph.Stack(ctx, err).OrNil()
+	return post,
+		conversationPostInfo(post, contentLen, preview, inReplyToID),
+		graph.Stack(ctx, err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -105,7 +124,7 @@ func (c Conversations) GetConversationPost(
 func conversationPostInfo(
 	post models.Postable,
 	size int64,
-	preview string,
+	preview, prevPostID string,
 ) *details.GroupsInfo {
 	if post == nil {
 		return nil
@@ -120,6 +139,7 @@ func conversationPostInfo(
 		CreatedAt: ptr.Val(post.GetCreatedDateTime()),
 		Creator:   sender,
 		Preview:   preview,
+		InReplyTo: prevPostID,
 		Size:      size,
 	}
 

@@ -65,6 +65,7 @@ type ConversationPostInfo struct {
 	Creator    string    `json:"creator,omitempty"`
 	Preview    string    `json:"preview,omitempty"`
 	Recipients []string  `json:"recipients,omitempty"`
+	InReplyTo  string    `json:"inReplyTo,omitempty"`
 	Size       int64     `json:"size,omitempty"`
 	Topic      string    `json:"topic,omitempty"`
 }
