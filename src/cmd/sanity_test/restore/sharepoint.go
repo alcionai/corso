@@ -2,9 +2,16 @@ package restore
 
 import (
 	"context"
+	"fmt"
+	"strings"
+
+	"github.com/alcionai/clues"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/driveish"
+	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -13,6 +20,8 @@ func CheckSharePointRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
+	CheckSharePointListsRestoration(ctx, ac, envs)
+
 	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
 	if err != nil {
 		common.Fatal(ctx, "getting site's default drive:", err)
@@ -25,4 +34,135 @@ func CheckSharePointRestoration(
 		envs,
 		// skip permissions tests
 		nil)
+}
+
+func CheckSharePointListsRestoration(
+	ctx context.Context,
+	ac api.Client,
+	envs common.Envs,
+) {
+	restoredTree := BuildListsSanitree(ctx, ac, envs.SiteID, true, "")
+	sourceTree := BuildListsSanitree(ctx, ac, envs.SiteID, false, "")
+
+	ctx = clues.Add(
+		ctx,
+		"restore_container_id", restoredTree.ID,
+		"restore_container_name", restoredTree.Name,
+		"source_container_id", sourceTree.ID,
+		"source_container_name", sourceTree.Name)
+
+	common.CompareDiffTrees[models.Siteable, models.Listable](
+		ctx,
+		sourceTree,
+		restoredTree,
+		nil)
+
+	common.Infof(ctx, "Success")
+}
+
+func BuildListsSanitree(
+	ctx context.Context,
+	ac api.Client,
+	siteID string,
+	allowPrefix bool,
+	containerName string,
+) *common.Sanitree[models.Siteable, models.Listable] {
+	common.Infof(ctx, "building sanitree for lists of site: %s", siteID)
+
+	site, err := ac.Sites().GetByID(ctx, siteID, api.CallConfig{})
+	if err != nil {
+		common.Fatal(
+			ctx,
+			fmt.Sprintf("finding site by id %q", siteID),
+			err)
+	}
+
+	cfg := api.CallConfig{
+		Select: []string{"id", "displayName", "list", "lastModifiedDateTime"},
+	}
+
+	lists, err := ac.Lists().GetLists(ctx, siteID, cfg)
+	if err != nil {
+		common.Fatal(
+			ctx,
+			fmt.Sprintf("finding lists of site with id %q", siteID),
+			err)
+	}
+
+	lists = getAllowedLists(lists)
+
+	lists = filterListsByPrefix(lists, control.DefaultRestoreLocation, allowPrefix)
+
+	rootTreeName := ptr.Val(site.GetDisplayName())
+	if len(containerName) > 0 {
+		rootTreeName = containerName
+	}
+
+	root := &common.Sanitree[models.Siteable, models.Listable]{
+		Self:        site,
+		ID:          ptr.Val(site.GetId()),
+		Name:        rootTreeName,
+		CountLeaves: len(lists),
+		Leaves:      map[string]*common.Sanileaf[models.Siteable, models.Listable]{},
+	}
+
+	for _, list := range lists {
+		listID := ptr.Val(list.GetId())
+
+		listItems, err := ac.Lists().GetListItems(ctx, siteID, listID, api.CallConfig{})
+		if err != nil {
+			common.Fatal(
+				ctx,
+				fmt.Sprintf("finding listItems of list with id %q", listID),
+				err)
+		}
+
+		m := &common.Sanileaf[models.Siteable, models.Listable]{
+			Parent: root,
+			Self:   list,
+			ID:     listID,
+			Name:   ptr.Val(list.GetDisplayName()),
+			// using list item count as size for lists
+			Size: int64(len(listItems)),
+		}
+
+		root.Leaves[m.ID] = m
+	}
+
+	return root
+}
+
+func getAllowedLists(lists []models.Listable) []models.Listable {
+	filteredLists := make([]models.Listable, 0)
+
+	for _, list := range lists {
+		if !api.SkipListTemplates.HasKey(ptr.Val(list.GetList().GetTemplate())) {
+			filteredLists = append(filteredLists, list)
+		}
+	}
+
+	return filteredLists
+}
+
+func filterListsByPrefix(lists []models.Listable, prefix string, allowPrefix bool) []models.Listable {
+	var (
+		filteredLists = make([]models.Listable, 0)
+		prefixCond    bool
+	)
+
+	for _, list := range lists {
+		allowPrefixCond := strings.HasPrefix(ptr.Val(list.GetDisplayName()), prefix)
+		notAllowPrefixCond := !allowPrefixCond
+
+		prefixCond = notAllowPrefixCond
+		if allowPrefix {
+			prefixCond = allowPrefixCond
+		}
+
+		if prefixCond {
+			filteredLists = append(filteredLists, list)
+		}
+	}
+
+	return filteredLists
 }
