@@ -385,6 +385,15 @@ jobs:
             awk 'NR > 1 {print $2}' | tr '\n' ',' | sed -e 's/,$//' -e 's/^/result=/' |
             tee $GITHUB_OUTPUT
 
+      - name: SharePoint Lists - Store restore container
+        id: sharepoint-lists-store-restore-container
+        run: |
+          echo ${{ steps.new-data-creation-sharepoint-lists.outputs.result }} |
+          cut -d',' -f1 |
+          cut -d'_' -f1,2,3,4,5 |
+          sed -e 's/^/result=/' |
+          tee $GITHUB_OUTPUT
+
       - name: SharePoint Lists - Backup
         id: sharepoint-lists-backup
         timeout-minutes: 30
@@ -394,9 +403,7 @@ jobs:
           kind: first-backup
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data lists'
           restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
-          # not required for lists, as the source conatiner is the site itself
-          # passing as it is a required field
-          restore-container: "N.A."
+          restore-container: "${{ steps.sharepoint-lists-store-restore-container.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
           category: lists
@@ -408,15 +415,26 @@ jobs:
         timeout-minutes: 30
         working-directory: ./src/cmd/factory
         run: |
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+          
           go run . sharepoint lists  \
             --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
             --user ${{ env.TEST_USER }} \
             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
-            --destination "$(echo ${{ steps.new-data-creation-sharepoint-lists.outputs.result }} | cut -d',' -f1 | cut -d'_' -f1,2,3,4,5)" \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
             --count 4 |
             awk 'NR > 1 {print $2}' | tr '\n' ',' | sed -e 's/,$//' -e 's/^/result=/' |
             tee $GITHUB_OUTPUT
+
+      - name: SharePoint Lists - Store restore container (for incremental)
+        id: sharepoint-lists-store-restore-container-inc
+        run: |
+          echo ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }} |
+          cut -d',' -f1 |
+          cut -d'_' -f1,2,3,4,5 |
+          sed -e 's/^/result=/' |
+          tee $GITHUB_OUTPUT
 
       - name: SharePoint Lists - Incremental backup
         id: sharepoint-lists-incremental
@@ -427,7 +445,7 @@ jobs:
           kind: incremental
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
           restore-args: "--list ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }}"
-          restore-container: 'N.A.'
+          restore-container: "${{ steps.sharepoint-lists-store-restore-container-inc.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
           category: lists

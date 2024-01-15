@@ -45,7 +45,7 @@ func CheckSharePointListsRestoration(
 	envs common.Envs,
 ) {
 	restoredTree := BuildListsSanitree(ctx, ac, envs.SiteID, true, envs.RestoreContainerPrefix, "")
-	sourceTree := BuildListsSanitree(ctx, ac, envs.SiteID, false, envs.RestoreContainerPrefix, "")
+	sourceTree := BuildListsSanitree(ctx, ac, envs.SiteID, true, envs.SourceContainer, "")
 
 	ctx = clues.Add(
 		ctx,
