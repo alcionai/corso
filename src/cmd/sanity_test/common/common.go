@@ -22,6 +22,7 @@ const (
 	sanityBackupID             = "SANITY_BACKUP_ID"
 	sanityTestSourceContainer  = "SANITY_TEST_SOURCE_CONTAINER"
 	sanityTestRestoreContainer = "SANITY_TEST_RESTORE_CONTAINER"
+	sanityTestExportContainer  = "SANITY_TEST_EXPORT_CONTAINER"
 	sanityTestUser             = "SANITY_TEST_USER"
 )
 
@@ -29,6 +30,7 @@ type Envs struct {
 	BackupID         string
 	SourceContainer  string
 	RestoreContainer string
+	ExportContainer  string
 	GroupID          string
 	SiteID           string
 	UserID           string
@@ -42,6 +44,7 @@ func EnvVars(ctx context.Context) Envs {
 		BackupID:         os.Getenv(sanityBackupID),
 		SourceContainer:  os.Getenv(sanityTestSourceContainer),
 		RestoreContainer: folder,
+		ExportContainer:  os.Getenv(sanityTestExportContainer),
 		GroupID:          tconfig.GetM365TeamID(ctx),
 		SiteID:           tconfig.GetM365SiteID(ctx),
 		UserID:           tconfig.GetM365UserID(ctx),

@@ -40,11 +40,11 @@ func CheckSharepointListsExport(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	containerName := "Lists"
+	exportFolderName := "Lists"
 
-	sourceTree := restore.BuildListsSanitree(ctx, ac, envs.SiteID, false, containerName)
+	sourceTree := restore.BuildListsSanitree(ctx, ac, envs.SiteID, false, envs.RestoreContainer, exportFolderName)
 
-	listsExportDir := filepath.Join(envs.RestoreContainer, containerName)
+	listsExportDir := filepath.Join(envs.ExportContainer, exportFolderName)
 	exportedTree := common.BuildFilepathSanitreeForSharepointLists(ctx, listsExportDir)
 
 	ctx = clues.Add(
