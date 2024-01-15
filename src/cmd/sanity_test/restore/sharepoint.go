@@ -19,20 +19,24 @@ func CheckSharePointRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	CheckSharePointListsRestoration(ctx, ac, envs)
-
-	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
-	if err != nil {
-		common.Fatal(ctx, "getting site's default drive:", err)
+	if envs.Category == "lists" {
+		CheckSharePointListsRestoration(ctx, ac, envs)
 	}
 
-	driveish.CheckRestoration(
-		ctx,
-		ac,
-		drive,
-		envs,
-		// skip permissions tests
-		nil)
+	if envs.Category == "libraries" {
+		drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
+		if err != nil {
+			common.Fatal(ctx, "getting site's default drive:", err)
+		}
+
+		driveish.CheckRestoration(
+			ctx,
+			ac,
+			drive,
+			envs,
+			// skip permissions tests
+			nil)
+	}
 }
 
 func CheckSharePointListsRestoration(

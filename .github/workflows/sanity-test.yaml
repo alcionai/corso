@@ -334,6 +334,7 @@ jobs:
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
+          category: libraries
 
       # generate some more enteries for incremental check
       - name: SharePoint - Create new data (for incremental)
@@ -360,6 +361,7 @@ jobs:
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
+          category: libraries
 
 ##########################################################################################################################################
 
@@ -399,6 +401,7 @@ jobs:
           restore-container: "N.A."
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
+          category: lists
 
       # generate some more enteries for incremental check
       - name: SharePoint Lists - Create new data (for incremental)
@@ -425,6 +428,7 @@ jobs:
           restore-container: 'N.A.'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
+          category: lists
 
 ##########################################################################################################################################
 
