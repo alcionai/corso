@@ -404,6 +404,7 @@ jobs:
 
       # generate some more enteries for incremental check
       - name: SharePoint Lists - Create new data (for incremental)
+        id: inc-data-creation-sharepoint-lists
         timeout-minutes: 30
         working-directory: ./src/cmd/factory
         run: |
@@ -413,7 +414,9 @@ jobs:
             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
             --destination "$(echo ${{ steps.new-data-creation-sharepoint-lists.outputs.result }} | cut -d',' -f1 | cut -d'_' -f1,2,3,4,5)" \
-            --count 4
+            --count 4 |
+            awk 'NR > 1 {print $2}' | tr '\n' ',' | sed -e 's/,$//' -e 's/^/result=/' |
+            tee $GITHUB_OUTPUT
 
       - name: SharePoint Lists - Incremental backup
         id: sharepoint-lists-incremental
@@ -423,7 +426,7 @@ jobs:
           service: sharepoint
           kind: incremental
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
-          restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
+          restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }},${{ steps.inc-data-creation-sharepoint-lists.outputs.result }}"
           restore-container: 'N.A.'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
