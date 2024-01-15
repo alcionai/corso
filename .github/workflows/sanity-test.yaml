@@ -329,7 +329,7 @@ jobs:
         with:
           service: sharepoint
           kind: first-backup
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data library'
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
@@ -355,7 +355,7 @@ jobs:
         with:
           service: sharepoint
           kind: incremental
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data library'
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
@@ -500,9 +500,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Notify failure in teams
-        if: failure()
-        uses: ./.github/actions/teams-message
-        with:
-          msg: "[FAILED] Sanity Tests"
-          teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}
+      #- name: Notify failure in teams
+      #  if: failure()
+      #  uses: ./.github/actions/teams-message
+      #  with:
+      #    msg: "[FAILED] Sanity Tests"
+      #    teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}
