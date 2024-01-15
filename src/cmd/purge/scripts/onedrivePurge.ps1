@@ -163,11 +163,20 @@ function Delete-LibraryByPrefix {
 
     foreach ($l in $lists) {
         $listName = $l.Title
+        Write-Host "Got list: "$l.Title
         $createTime = Get-TimestampFromListName -List $l
 
         if ($PurgeBeforeTimestamp -gt $createTime) {
             foreach ($p in $FolderPrefixPurgeList) {
                 if ($listName -like "$p*") {
+                    $listsToDelete += $l
+                }
+            }
+
+            # also delete list containing
+            foreach ($p in $FolderPrefixPurgeList) {
+                if ($listName -like "*$p*") {
+                    Write-Host "Qualified list: "$l.Title
                     $listsToDelete += $l
                 }
             }
