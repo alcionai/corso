@@ -94,9 +94,6 @@ func exportSharePointCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	// Exclude lists from exports since they are not supported yet.
-	// sel.Exclude(sel.Lists(selectors.Any()))
-
 	return runExport(
 		ctx,
 		cmd,
