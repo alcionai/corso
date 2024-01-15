@@ -157,6 +157,7 @@ func RestoreListCollection(
 	ctr *count.Bus,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
+	fmt.Println("-----------> restoring list")
 	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreListCollection", diagnostics.Label("path", dc.FullPath()))
 	defer end()
 

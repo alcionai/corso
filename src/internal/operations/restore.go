@@ -301,6 +301,7 @@ func (op *RestoreOperation) do(
 	opStats.resourceCount = 1
 	opStats.cs = dcs
 
+	fmt.Println("-----> colls", len(dcs))
 	deets, colStats, err := consumeRestoreCollections(
 		ctx,
 		op.rc,

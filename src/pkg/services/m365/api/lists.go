@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -215,6 +216,7 @@ func (c Lists) PostList(
 	storedList models.Listable,
 	errs *fault.Bus,
 ) (models.Listable, error) {
+	fmt.Println("-----------> post list")
 	el := errs.Local()
 
 	// this ensure all columns, contentTypes are set to the newList

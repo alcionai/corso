@@ -3,6 +3,7 @@ package sharepoint
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -28,6 +29,7 @@ func (h *sharepointHandler) ConsumeRestoreCollections(
 	errs *fault.Bus,
 	ctr *count.Bus,
 ) (*details.Details, *data.CollectionStats, error) {
+	fmt.Println("-----------> restoring coll")
 	if len(dcs) == 0 {
 		return nil, nil, clues.WrapWC(ctx, data.ErrNoData, "performing restore")
 	}
