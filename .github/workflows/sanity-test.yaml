@@ -426,7 +426,7 @@ jobs:
           service: sharepoint
           kind: incremental
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
-          restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }},${{ steps.inc-data-creation-sharepoint-lists.outputs.result }}"
+          restore-args: "--list ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }}"
           restore-container: 'N.A.'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
