@@ -11,7 +11,6 @@ import (
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/driveish"
 	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -41,8 +40,8 @@ func CheckSharePointListsRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	restoredTree := BuildListsSanitree(ctx, ac, envs.SiteID, true, "")
-	sourceTree := BuildListsSanitree(ctx, ac, envs.SiteID, false, "")
+	restoredTree := BuildListsSanitree(ctx, ac, envs.SiteID, true, envs.RestoreContainer, "")
+	sourceTree := BuildListsSanitree(ctx, ac, envs.SiteID, false, envs.RestoreContainer, "")
 
 	ctx = clues.Add(
 		ctx,
@@ -65,7 +64,8 @@ func BuildListsSanitree(
 	ac api.Client,
 	siteID string,
 	allowPrefix bool,
-	containerName string,
+	// using envs.RestoreContainer as a prefix for lists instead of folder containing lists
+	restoreContainer, exportFolderName string,
 ) *common.Sanitree[models.Siteable, models.Listable] {
 	common.Infof(ctx, "building sanitree for lists of site: %s", siteID)
 
@@ -91,11 +91,12 @@ func BuildListsSanitree(
 
 	lists = getAllowedLists(lists)
 
-	lists = filterListsByPrefix(lists, control.DefaultRestoreLocation, allowPrefix)
+	lists = filterListsByPrefix(lists, restoreContainer, allowPrefix)
 
 	rootTreeName := ptr.Val(site.GetDisplayName())
-	if len(containerName) > 0 {
-		rootTreeName = containerName
+	// lists get stored into the local dir at destination/Lists/
+	if len(exportFolderName) > 0 {
+		rootTreeName = exportFolderName
 	}
 
 	root := &common.Sanitree[models.Siteable, models.Listable]{
