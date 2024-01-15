@@ -40,8 +40,8 @@ func CheckSharePointListsRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	restoredTree := BuildListsSanitree(ctx, ac, envs.SiteID, true, envs.RestoreContainer, "")
-	sourceTree := BuildListsSanitree(ctx, ac, envs.SiteID, false, envs.RestoreContainer, "")
+	restoredTree := BuildListsSanitree(ctx, ac, envs.SiteID, true, envs.RestoreContainerPrefix, "")
+	sourceTree := BuildListsSanitree(ctx, ac, envs.SiteID, false, envs.RestoreContainerPrefix, "")
 
 	ctx = clues.Add(
 		ctx,
@@ -64,8 +64,7 @@ func BuildListsSanitree(
 	ac api.Client,
 	siteID string,
 	allowPrefix bool,
-	// using envs.RestoreContainer as a prefix for lists instead of folder containing lists
-	restoreContainer, exportFolderName string,
+	restoreContainerPrefix, exportFolderName string,
 ) *common.Sanitree[models.Siteable, models.Listable] {
 	common.Infof(ctx, "building sanitree for lists of site: %s", siteID)
 
@@ -91,7 +90,7 @@ func BuildListsSanitree(
 
 	lists = getAllowedLists(lists)
 
-	lists = filterListsByPrefix(lists, restoreContainer, allowPrefix)
+	lists = filterListsByPrefix(lists, restoreContainerPrefix, allowPrefix)
 
 	rootTreeName := ptr.Val(site.GetDisplayName())
 	// lists get stored into the local dir at destination/Lists/
