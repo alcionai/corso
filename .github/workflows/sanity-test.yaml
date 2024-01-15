@@ -2,7 +2,7 @@ name: Sanity Testing
 on:
   push:
     branches:
-      - main
+      - lists-sanity-ci
   workflow_dispatch:
     inputs:
       user:
