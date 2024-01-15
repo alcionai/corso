@@ -44,6 +44,7 @@ The following are the issues that we're currently aware of within the project.
 
 Following are unexpected behaviors or inherent limitations of the project.
 
+<!-- markdownlint-disable-next-line no-duplicate-heading -->
 ### Drive items (OneDrive/SharePoint)
 
 - Link shares with password protection can't be restored.
@@ -52,10 +53,12 @@ Following are unexpected behaviors or inherent limitations of the project.
 
 - Anonymous link shares (link shares which aren't associated with any user) aren't restored.
 
+<!-- markdownlint-disable-next-line no-duplicate-heading -->
 ### Exchange
 
 - Exports of multipart emails containing both HTML and text versions will only produce the HTML version of the email.
 
+<!-- markdownlint-disable-next-line no-duplicate-heading -->
 ### Teams
 
 - Teams messages don't support restore due to limited Graph API support for message creation.
