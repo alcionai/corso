@@ -400,6 +400,7 @@ jobs:
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
           category: lists
+          on-collision: copy
 
       # generate some more enteries for incremental check
       - name: SharePoint Lists - Create new data (for incremental)
@@ -427,6 +428,7 @@ jobs:
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
           category: lists
+          on-collision: copy
 
 ##########################################################################################################################################
 
