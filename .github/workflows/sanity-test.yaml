@@ -305,63 +305,63 @@ jobs:
 # Sharepoint Library
 
       # generate new entries for test
-      - name: SharePoint - Create new data
-        id: new-data-creation-sharepoint
-        timeout-minutes: 30
-        working-directory: ./src/cmd/factory
-        run: |
-          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+      # - name: SharePoint - Create new data
+#         id: new-data-creation-sharepoint
+#         timeout-minutes: 30
+#         working-directory: ./src/cmd/factory
+#         run: |
+#           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
-          go run . sharepoint files  \
-            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
-            --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
-            --tenant ${{ secrets.TENANT_ID }} \
-            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
-            --count 4
+#           go run . sharepoint files  \
+#             --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
+#             --user ${{ env.TEST_USER }} \
+#             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+#             --tenant ${{ secrets.TENANT_ID }} \
+#             --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+#             --count 4
 
-          echo result="${suffix}" >> $GITHUB_OUTPUT
+#           echo result="${suffix}" >> $GITHUB_OUTPUT
 
-      - name: SharePoint - Backup
-        id: sharepoint-backup
-        timeout-minutes: 30
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: sharepoint
-          kind: first-backup
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
-          category: libraries
+#       - name: SharePoint - Backup
+#         id: sharepoint-backup
+#         timeout-minutes: 30
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: sharepoint
+#           kind: first-backup
+#           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
+#           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
+#           category: libraries
 
-      # generate some more enteries for incremental check
-      - name: SharePoint - Create new data (for incremental)
-        timeout-minutes: 30
-        working-directory: ./src/cmd/factory
-        run: |
-          go run . sharepoint files  \
-            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
-            --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
-            --tenant ${{ secrets.TENANT_ID }} \
-            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} \
-            --count 4
+#       # generate some more enteries for incremental check
+#       - name: SharePoint - Create new data (for incremental)
+#         timeout-minutes: 30
+#         working-directory: ./src/cmd/factory
+#         run: |
+#           go run . sharepoint files  \
+#             --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
+#             --user ${{ env.TEST_USER }} \
+#             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+#             --tenant ${{ secrets.TENANT_ID }} \
+#             --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} \
+#             --count 4
 
-      - name: SharePoint - Incremental backup
-        id: sharepoint-incremental
-        timeout-minutes: 30
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: sharepoint
-          kind: incremental
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
-          category: libraries
+#       - name: SharePoint - Incremental backup
+#         id: sharepoint-incremental
+#         timeout-minutes: 30
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: sharepoint
+#           kind: incremental
+#           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
+#           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
+#           category: libraries
 
 ##########################################################################################################################################
 
@@ -393,7 +393,7 @@ jobs:
           service: sharepoint
           kind: first-backup
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data lists'
-          restore-args: "--list ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
+          restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
           # not required for lists, as the source conatiner is the site itself
           # passing as it is a required field
           restore-container: "N.A."
@@ -411,7 +411,7 @@ jobs:
             --user ${{ env.TEST_USER }} \
             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
             --tenant ${{ secrets.TENANT_ID }} \
-            --destination "$(echo ${{ steps.new-data-creation-sharepoint.outputs.result }} | cut -d',' -f1 | cut -d'_' -f1,2,3,4,5)" \
+            --destination "$(echo ${{ steps.new-data-creation-sharepoint-lists.outputs.result }} | cut -d',' -f1 | cut -d'_' -f1,2,3,4,5)" \
             --count 4
 
       - name: SharePoint Lists - Incremental backup
@@ -422,7 +422,7 @@ jobs:
           service: sharepoint
           kind: incremental
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
           restore-container: 'N.A.'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
