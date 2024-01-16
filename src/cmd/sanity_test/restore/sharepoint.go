@@ -92,8 +92,9 @@ func BuildListsSanitree(
 	}
 
 	lists = getAllowedLists(lists)
+	filteredLists := make([]models.Listable, 0)
 
-	lists = filterListsByPrefix(lists, restoreContainerPrefix)
+	filteredLists = filterListsByPrefix(lists, filteredLists, restoreContainerPrefix)
 
 	rootTreeName := ptr.Val(site.GetDisplayName())
 	// lists get stored into the local dir at destination/Lists/
@@ -105,11 +106,11 @@ func BuildListsSanitree(
 		Self:        site,
 		ID:          ptr.Val(site.GetId()),
 		Name:        rootTreeName,
-		CountLeaves: len(lists),
+		CountLeaves: len(filteredLists),
 		Leaves:      map[string]*common.Sanileaf[models.Siteable, models.Listable]{},
 	}
 
-	for _, list := range lists {
+	for _, list := range filteredLists {
 		listID := ptr.Val(list.GetId())
 
 		listItems, err := ac.Lists().GetListItems(ctx, siteID, listID, api.CallConfig{})
@@ -147,8 +148,13 @@ func getAllowedLists(lists []models.Listable) []models.Listable {
 	return filteredLists
 }
 
-func filterListsByPrefix(lists []models.Listable, prefix string) []models.Listable {
-	var filteredLists []models.Listable
+func filterListsByPrefix(lists, filteredLists []models.Listable, prefix string) []models.Listable {
+	if strings.Contains(prefix, ",") {
+		prefixes := strings.Split(prefix, ",")
+		for _, p := range prefixes {
+			filteredLists = filterListsByPrefix(lists, filteredLists, p)
+		}
+	}
 
 	for _, list := range lists {
 		listDisplayName := ptr.Val(list.GetDisplayName())
