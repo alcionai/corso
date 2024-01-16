@@ -20,19 +20,23 @@ func CheckSharePointExport(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	CheckSharepointListsExport(ctx, ac, envs)
-
-	drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
-	if err != nil {
-		common.Fatal(ctx, "getting the drive:", err)
+	if envs.Category == "lists" {
+		CheckSharepointListsExport(ctx, ac, envs)
 	}
 
-	envs.RestoreContainer = filepath.Join(envs.RestoreContainer, "Libraries/Documents") // check in default loc
-	driveish.CheckExport(
-		ctx,
-		ac,
-		drive,
-		envs)
+	if envs.Category == "libraries" {
+		drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
+		if err != nil {
+			common.Fatal(ctx, "getting the drive:", err)
+		}
+
+		envs.RestoreContainer = filepath.Join(envs.RestoreContainer, "Libraries/Documents") // check in default loc
+		driveish.CheckExport(
+			ctx,
+			ac,
+			drive,
+			envs)
+	}
 }
 
 func CheckSharepointListsExport(

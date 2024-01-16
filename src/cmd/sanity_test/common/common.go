@@ -24,6 +24,7 @@ const (
 	sanityTestRestoreContainer       = "SANITY_TEST_RESTORE_CONTAINER"
 	sanityTestRestoreContainerPrefix = "SANITY_TEST_RESTORE_CONTAINER_PREFIX"
 	sanityTestUser                   = "SANITY_TEST_USER"
+	sanityTestCategory               = "SANITY_TEST_CAT"
 )
 
 type Envs struct {
@@ -32,6 +33,7 @@ type Envs struct {
 	RestoreContainer string
 	// applies for sharepoint lists only
 	RestoreContainerPrefix string
+	Category               string
 	GroupID                string
 	SiteID                 string
 	UserID                 string
@@ -45,6 +47,7 @@ func EnvVars(ctx context.Context) Envs {
 		BackupID:               os.Getenv(sanityBackupID),
 		SourceContainer:        os.Getenv(sanityTestSourceContainer),
 		RestoreContainer:       folder,
+		Category:               os.Getenv(sanityTestCategory),
 		RestoreContainerPrefix: os.Getenv(sanityTestRestoreContainerPrefix),
 		GroupID:                tconfig.GetM365TeamID(ctx),
 		SiteID:                 tconfig.GetM365SiteID(ctx),
