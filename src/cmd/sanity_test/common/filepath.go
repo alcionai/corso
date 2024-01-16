@@ -23,30 +23,17 @@ func BuildFilepathSanitree(
 		info os.FileInfo,
 		err error,
 	) error {
-		if err != nil {
-			Fatal(ctx, "error passed to filepath walker", err)
-		}
-
-		relPath, err := filepath.Rel(rootDir, p)
-		if err != nil {
-			Fatal(ctx, "getting relative filepath", err)
-		}
-
-		if info != nil {
-			Debugf(ctx, "adding: %s", relPath)
-		}
-
 		if root == nil {
-			root = &Sanitree[fs.FileInfo, fs.FileInfo]{
-				Self:     info,
-				ID:       info.Name(),
-				Name:     info.Name(),
-				Leaves:   map[string]*Sanileaf[fs.FileInfo, fs.FileInfo]{},
-				Children: map[string]*Sanitree[fs.FileInfo, fs.FileInfo]{},
-			}
-
+			root = createNewRoot(info, true)
 			return nil
 		}
+
+		relPath := getRelativePath(
+			ctx,
+			rootDir,
+			p,
+			info,
+			err)
 
 		elems := path.Split(relPath)
 		node := root.NodeAt(ctx, elems[:len(elems)-1])
@@ -93,29 +80,17 @@ func BuildFilepathSanitreeForSharepointLists(
 		info os.FileInfo,
 		err error,
 	) error {
-		if err != nil {
-			Fatal(ctx, "error passed to filepath walker", err)
-		}
-
-		relPath, err := filepath.Rel(rootDir, p)
-		if err != nil {
-			Fatal(ctx, "getting relative filepath", err)
-		}
-
-		if info != nil {
-			Debugf(ctx, "adding: %s", relPath)
-		}
-
 		if root == nil {
-			root = &Sanitree[fs.FileInfo, fs.FileInfo]{
-				Self:   info,
-				ID:     info.Name(),
-				Name:   info.Name(),
-				Leaves: map[string]*Sanileaf[fs.FileInfo, fs.FileInfo]{},
-			}
-
+			root = createNewRoot(info, false)
 			return nil
 		}
+
+		relPath := getRelativePath(
+			ctx,
+			rootDir,
+			p,
+			info,
+			err)
 
 		if !info.IsDir() {
 			file, err := os.Open(p)
@@ -155,4 +130,42 @@ func BuildFilepathSanitreeForSharepointLists(
 	}
 
 	return root
+}
+
+func createNewRoot(info fs.FileInfo, initChildren bool) *Sanitree[fs.FileInfo, fs.FileInfo] {
+	root := &Sanitree[fs.FileInfo, fs.FileInfo]{
+		Self:     info,
+		ID:       info.Name(),
+		Name:     info.Name(),
+		Leaves:   map[string]*Sanileaf[fs.FileInfo, fs.FileInfo]{},
+		Children: map[string]*Sanitree[fs.FileInfo, fs.FileInfo]{},
+	}
+
+	if initChildren {
+		root.Children = map[string]*Sanitree[fs.FileInfo, fs.FileInfo]{}
+	}
+
+	return root
+}
+
+func getRelativePath(
+	ctx context.Context,
+	rootDir, p string,
+	info fs.FileInfo,
+	fileWalkerErr error,
+) string {
+	if fileWalkerErr != nil {
+		Fatal(ctx, "error passed to filepath walker", fileWalkerErr)
+	}
+
+	relPath, err := filepath.Rel(rootDir, p)
+	if err != nil {
+		Fatal(ctx, "getting relative filepath", err)
+	}
+
+	if info != nil {
+		Debugf(ctx, "adding: %s", relPath)
+	}
+
+	return relPath
 }
