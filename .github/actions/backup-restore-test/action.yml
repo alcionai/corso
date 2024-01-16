@@ -18,6 +18,10 @@ inputs:
     description: Arguments to pass for restore; restore is skipped when missing.
     required: false
     default: ""
+  export-args:
+    description: Arguments to pass for export.
+    required: false
+    default: ""
   restore-container:
     description: Folder to use for testing
     required: true
