@@ -400,7 +400,7 @@ jobs:
         uses: ./.github/actions/backup-restore-test
         with:
           service: sharepoint
-          kind: first-backup
+          kind: first-backup-lists
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data lists'
           restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
           restore-container: "${{ steps.sharepoint-lists-store-restore-container.outputs.result }}"
@@ -442,7 +442,7 @@ jobs:
         uses: ./.github/actions/backup-restore-test
         with:
           service: sharepoint
-          kind: incremental
+          kind: incremental-lists
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
           restore-args: "--list ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }}"
           restore-container: "${{ steps.sharepoint-lists-store-restore-container-inc.outputs.result }}"
