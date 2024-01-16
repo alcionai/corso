@@ -40,8 +40,8 @@ func CheckSharePointListsRestoration(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	restoredTree := BuildListsSanitree(ctx, ac, envs.SiteID, true, envs.RestoreContainerPrefix, "")
-	sourceTree := BuildListsSanitree(ctx, ac, envs.SiteID, false, envs.RestoreContainerPrefix, "")
+	restoredTree := BuildListsSanitree(ctx, ac, envs.SiteID, envs.RestoreContainerPrefix, "")
+	sourceTree := BuildListsSanitree(ctx, ac, envs.SiteID, envs.SourceContainer, "")
 
 	ctx = clues.Add(
 		ctx,
@@ -63,7 +63,6 @@ func BuildListsSanitree(
 	ctx context.Context,
 	ac api.Client,
 	siteID string,
-	allowPrefix bool,
 	restoreContainerPrefix, exportFolderName string,
 ) *common.Sanitree[models.Siteable, models.Listable] {
 	common.Infof(ctx, "building sanitree for lists of site: %s", siteID)
@@ -90,7 +89,7 @@ func BuildListsSanitree(
 
 	lists = getAllowedLists(lists)
 
-	lists = filterListsByPrefix(lists, restoreContainerPrefix, allowPrefix)
+	lists = filterListsByPrefix(lists, restoreContainerPrefix)
 
 	rootTreeName := ptr.Val(site.GetDisplayName())
 	// lists get stored into the local dir at destination/Lists/
@@ -144,22 +143,13 @@ func getAllowedLists(lists []models.Listable) []models.Listable {
 	return filteredLists
 }
 
-func filterListsByPrefix(lists []models.Listable, prefix string, allowPrefix bool) []models.Listable {
-	var (
-		filteredLists = make([]models.Listable, 0)
-		prefixCond    bool
-	)
+func filterListsByPrefix(lists []models.Listable, prefix string) []models.Listable {
+	var filteredLists []models.Listable
 
 	for _, list := range lists {
-		allowPrefixCond := strings.HasPrefix(ptr.Val(list.GetDisplayName()), prefix)
-		notAllowPrefixCond := !allowPrefixCond
+		listDisplayName := ptr.Val(list.GetDisplayName())
 
-		prefixCond = notAllowPrefixCond
-		if allowPrefix {
-			prefixCond = allowPrefixCond
-		}
-
-		if prefixCond {
+		if strings.HasPrefix(listDisplayName, prefix) {
 			filteredLists = append(filteredLists, list)
 		}
 	}
