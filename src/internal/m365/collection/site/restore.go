@@ -114,7 +114,7 @@ func handleListReplace(
 	ctr *count.Bus,
 	errs *fault.Bus,
 ) (models.Listable, error) {
-	collisionList, _, err := rh.GetList(ctx, collisionID)
+	collidedList, _, err := rh.GetList(ctx, collisionID)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "fetching collided list")
 	}
@@ -134,13 +134,13 @@ func handleListReplace(
 		return restoredList, nil
 	}
 
-	_, collisionListErr := rh.PostList(
+	_, collidedListErr := rh.PostList(
 		ctx,
-		ptr.Val(collisionList.GetDisplayName()),
-		collisionList,
+		ptr.Val(collidedList.GetDisplayName()),
+		collidedList,
 		errs)
-	if err != collisionListErr {
-		return nil, clues.WrapWC(ctx, err, "re-creating collided list")
+	if collidedListErr != nil {
+		return nil, clues.WrapWC(ctx, collidedListErr, "re-creating collided list")
 	}
 
 	return nil, clues.WrapWC(ctx, err, "restoring list")
