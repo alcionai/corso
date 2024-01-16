@@ -34,15 +34,17 @@ func restoreListItem(
 	ctx context.Context,
 	rh restoreHandler,
 	itemData data.Item,
-	siteID, destName string,
+	siteID string,
+	restoreCfg control.RestoreConfig,
 	collisionKeyToItemID map[string]string,
-	collisionPolicy control.CollisionPolicy,
 	ctr *count.Bus,
 	errs *fault.Bus,
 ) (details.ItemInfo, error) {
 	var (
-		dii    = details.ItemInfo{}
-		itemID = itemData.ID()
+		dii             = details.ItemInfo{}
+		itemID          = itemData.ID()
+		destName        = restoreCfg.Location
+		collisionPolicy = restoreCfg.OnCollision
 	)
 
 	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.ID()))
@@ -150,10 +152,9 @@ func RestoreListCollection(
 	ctx context.Context,
 	rh restoreHandler,
 	dc data.RestoreCollection,
-	restoreContainerName string,
+	restoreCfg control.RestoreConfig,
 	deets *details.Builder,
 	collisionKeyToItemID map[string]string,
-	collisionPolicy control.CollisionPolicy,
 	ctr *count.Bus,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
@@ -190,9 +191,8 @@ func RestoreListCollection(
 				rh,
 				itemData,
 				siteID,
-				restoreContainerName,
+				restoreCfg,
 				collisionKeyToItemID,
-				collisionPolicy,
 				ctr,
 				errs)
 			if errors.Is(err, api.ErrSkippableListTemplate) {

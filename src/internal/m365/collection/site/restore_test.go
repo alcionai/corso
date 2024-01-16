@@ -134,21 +134,23 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 	var (
 		listName     = "MockListing"
 		listTemplate = "genericList"
-		destName     = testdata.DefaultRestoreConfig("").Location
+		restoreCfg   = testdata.DefaultRestoreConfig("")
+		destName     = restoreCfg.Location
 		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
 		service      = createTestService(t, suite.creds)
 		list         = createList(listTemplate, listName)
 		mockData     = generateListData(t, service, list)
 	)
 
+	restoreCfg.OnCollision = control.Copy
+
 	deets, err := restoreListItem(
 		ctx,
 		lrh,
 		mockData,
 		suite.siteID,
-		destName,
+		restoreCfg,
 		nil,
-		control.Copy,
 		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -165,11 +167,13 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 	defer flush()
 
 	var (
-		lrh      = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
-		listName = "MockListing"
-		destName = testdata.DefaultRestoreConfig("").Location
-		service  = createTestService(t, suite.creds)
+		lrh        = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
+		listName   = "MockListing"
+		restoreCfg = testdata.DefaultRestoreConfig("")
+		service    = createTestService(t, suite.creds)
 	)
+
+	restoreCfg.OnCollision = control.Copy
 
 	tests := []struct {
 		name   string
@@ -199,9 +203,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 				lrh,
 				listData,
 				suite.siteID,
-				destName,
+				restoreCfg,
 				nil,
-				control.Copy,
 				count.New(),
 				fault.New(false))
 			require.Error(t, err)
@@ -219,7 +222,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_skip() {
 	var (
 		listName     = "MockListing"
 		listTemplate = "genericList"
-		destName     = testdata.DefaultRestoreConfig("").Location
+		restoreCfg   = testdata.DefaultRestoreConfig("")
 		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
 		service      = createTestService(t, suite.creds)
 		list         = createList(listTemplate, listName)
@@ -238,9 +241,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_skip() {
 		lrh,
 		mockData,
 		suite.siteID,
-		destName,
+		restoreCfg, // OnCollision is skip by default
 		collisionKeyToItemID,
-		control.Skip,
 		cl,
 		fault.New(true))
 	require.Error(t, err, clues.ToCore(err))
@@ -259,11 +261,13 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_copy() {
 		listName     = "MockListing"
 		listTemplate = "genericList"
 		listID       = "some-list-id"
-		destName     = testdata.DefaultRestoreConfig("").Location
+		restoreCfg   = testdata.DefaultRestoreConfig("")
 		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
 		service      = createTestService(t, suite.creds)
 		cl           = count.New()
 	)
+
+	restoreCfg.OnCollision = control.Copy
 
 	list := createList(listTemplate, listName)
 	list.SetId(ptr.To(listID))
@@ -282,9 +286,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_copy() {
 		lrh,
 		mockData,
 		suite.siteID,
-		destName,
+		restoreCfg,
 		collisionKeyToItemID,
-		control.Copy,
 		cl,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -304,13 +307,15 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replace()
 	var (
 		listName     = "MockListing"
 		listTemplate = "genericList"
-		destName     = testdata.DefaultRestoreConfig("").Location
+		restoreCfg   = testdata.DefaultRestoreConfig("")
 		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
 		service      = createTestService(t, suite.creds)
 		cl           = count.New()
 		now          = time.Now()
 		temMinAfter  = now.Add(10 * time.Minute)
 	)
+
+	restoreCfg.OnCollision = control.Replace
 
 	list := createList(listTemplate, listName)
 	list.SetLastModifiedDateTime(ptr.To(now))
@@ -339,9 +344,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replace()
 		lrh,
 		mockData,
 		suite.siteID,
-		destName,
+		restoreCfg,
 		collisionKeyToItemID,
-		control.Replace,
 		cl,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
@@ -361,10 +365,12 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 		listName     = "MockListing"
 		listTemplate = "genericList"
 		listID       = "some-list-id"
-		destName     = testdata.DefaultRestoreConfig("").Location
+		restoreCfg   = testdata.DefaultRestoreConfig("")
 		service      = createTestService(t, suite.creds)
 		cl           = count.New()
 	)
+
+	restoreCfg.OnCollision = control.Replace
 
 	list := createList(listTemplate, listName)
 	list.SetId(ptr.To(listID))
@@ -435,9 +441,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				test.lrh,
 				mockData,
 				suite.siteID,
-				destName,
+				restoreCfg,
 				collisionKeyToItemID,
-				control.Replace,
 				cl,
 				fault.New(true))
 			test.expectErr(t, err)
