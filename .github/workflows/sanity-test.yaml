@@ -443,7 +443,7 @@ jobs:
         with:
           service: sharepoint
           kind: incremental-lists
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data lists'
           restore-args: "--list ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }}"
           restore-container: "${{ steps.sharepoint-lists-store-restore-container-inc.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
