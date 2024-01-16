@@ -46,7 +46,7 @@ func CheckSharepointListsExport(
 ) {
 	exportFolderName := "Lists"
 
-	sourceTree := restore.BuildListsSanitree(ctx, ac, envs.SiteID, false, envs.RestoreContainerPrefix, exportFolderName)
+	sourceTree := restore.BuildListsSanitree(ctx, ac, envs.SiteID, envs.SourceContainer, exportFolderName)
 
 	listsExportDir := filepath.Join(envs.RestoreContainer, exportFolderName)
 	exportedTree := common.BuildFilepathSanitreeForSharepointLists(ctx, listsExportDir)

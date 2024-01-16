@@ -176,6 +176,7 @@ runs:
         SANITY_BACKUP_ID: ${{ inputs.backup-id }}
         # applies only for sharepoint lists
         SANITY_TEST_RESTORE_CONTAINER_PREFIX: ${{ steps.restore.outputs.result }}
+        SANITY_TEST_CAT: ${{ inputs.category }}
       run: |
         echo "---------------------------"
         echo Sanity-Test Export Archive ${{ inputs.service }} ${{ inputs.kind }}
