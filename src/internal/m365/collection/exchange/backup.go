@@ -432,11 +432,13 @@ func includeContainer(
 		loc = loc.Append(ptr.Val(c.GetDisplayName()))
 	}
 
-	dirPath, err := pb.ToDataLayerExchangePathForCategory(
+	dirPath, err := path.Build(
 		qp.TenantID,
 		qp.ProtectedResource.ID(),
+		path.ExchangeService,
 		category,
-		false)
+		false,
+		pb.Elements()...)
 	// Containers without a path (e.g. Root mail folder) always err here.
 	if err != nil {
 		return nil, nil, false
@@ -445,11 +447,13 @@ func includeContainer(
 	directory = dirPath.Folder(false)
 
 	if loc != nil {
-		locPath, err = loc.ToDataLayerExchangePathForCategory(
+		locPath, err = path.Build(
 			qp.TenantID,
 			qp.ProtectedResource.ID(),
+			path.ExchangeService,
 			category,
-			false)
+			false,
+			loc.Elements()...)
 		// Containers without a path (e.g. Root mail folder) always err here.
 		if err != nil {
 			return nil, nil, false

@@ -2,7 +2,6 @@ package m365
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -306,19 +305,7 @@ func ToDataLayerPath(
 		err error
 	)
 
-	switch service {
-	case path.ExchangeService:
-		p, err = pb.ToDataLayerExchangePathForCategory(tenant, resourceOwner, category, isItem)
-	case path.OneDriveService:
-		p, err = pb.ToDataLayerOneDrivePath(tenant, resourceOwner, isItem)
-	case path.SharePointService:
-		p, err = pb.ToDataLayerSharePointPath(tenant, resourceOwner, category, isItem)
-	case path.GroupsService:
-		p, err = pb.ToDataLayerPath(tenant, resourceOwner, service, category, false)
-	default:
-		err = clues.New(fmt.Sprintf("unknown service: %s", service))
-	}
-
+	p, err = pb.ToDataLayerPath(tenant, resourceOwner, service, category, isItem)
 	require.NoError(t, err, clues.ToCore(err))
 
 	return p
