@@ -30,8 +30,8 @@ import (
 // TODO locations: https://github.com/alcionai/corso/issues/5003
 
 const (
-	iCalDateTimeFormat = "20060102T150405Z"
-	iCalDateFormat     = "20060102"
+	ICalDateTimeFormat = "20060102T150405Z"
+	ICalDateFormat     = "20060102"
 )
 
 func keyValues(key, value string) *ics.KeyValues {
@@ -71,7 +71,7 @@ func getLocationString(location models.Locationable) string {
 	return strings.Join(nonEmpty, ", ")
 }
 
-func getUTCTime(ts, tz string) (time.Time, error) {
+func GetUTCTime(ts, tz string) (time.Time, error) {
 	// Timezone is always converted to UTC.  This is the easiest way to
 	// ensure we have the correct time as the .ics file expects the same
 	// timezone everywhere according to the spec.
@@ -179,14 +179,14 @@ func getRecurrencePattern(
 				// the resolution we need
 				parsedTime = parsedTime.Add(24*time.Hour - 1*time.Second)
 
-				endTime, err := getUTCTime(
+				endTime, err := GetUTCTime(
 					parsedTime.Format(string(dttm.M365DateTimeTimeZone)),
 					ptr.Val(rrange.GetRecurrenceTimeZone()))
 				if err != nil {
 					return "", clues.WrapWC(ctx, err, "parsing end time")
 				}
 
-				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(iCalDateTimeFormat))
+				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(ICalDateTimeFormat))
 			}
 		case models.NOEND_RECURRENCERANGETYPE:
 			// Nothing to do
@@ -208,13 +208,17 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			With("body_len", len(body))
 	}
 
+	return FromEventable(ctx, event)
+}
+
+func FromEventable(ctx context.Context, event models.Eventable) (string, error) {
 	cal := ics.NewCalendar()
 	cal.SetProductId("-//Alcion//Corso") // Does this have to be customizable?
 
 	id := ptr.Val(event.GetId())
 	iCalEvent := cal.AddEvent(id)
 
-	err = updateEventProperties(ctx, event, iCalEvent)
+	err := updateEventProperties(ctx, event, iCalEvent)
 	if err != nil {
 		return "", clues.Wrap(err, "updating event properties")
 	}
@@ -245,7 +249,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		exICalEvent := cal.AddEvent(id)
 		start := exception.GetOriginalStart() // will always be in UTC
 
-		exICalEvent.AddProperty(ics.ComponentProperty(ics.PropertyRecurrenceId), start.Format(iCalDateTimeFormat))
+		exICalEvent.AddProperty(ics.ComponentProperty(ics.PropertyRecurrenceId), start.Format(ICalDateTimeFormat))
 
 		err = updateEventProperties(ctx, exception, exICalEvent)
 		if err != nil {
@@ -285,7 +289,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	startTimezone := event.GetStart().GetTimeZone()
 
 	if startString != nil {
-		start, err := getUTCTime(ptr.Val(startString), ptr.Val(startTimezone))
+		start, err := GetUTCTime(ptr.Val(startString), ptr.Val(startTimezone))
 		if err != nil {
 			return clues.WrapWC(ctx, err, "parsing start time")
 		}
@@ -302,7 +306,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	endTimezone := event.GetEnd().GetTimeZone()
 
 	if endString != nil {
-		end, err := getUTCTime(ptr.Val(endString), ptr.Val(endTimezone))
+		end, err := GetUTCTime(ptr.Val(endString), ptr.Val(endTimezone))
 		if err != nil {
 			return clues.WrapWC(ctx, err, "parsing end time")
 		}
@@ -577,7 +581,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 
 	dateStrings := []string{}
 	for _, date := range cancelledDates {
-		dateStrings = append(dateStrings, date.Format(iCalDateFormat))
+		dateStrings = append(dateStrings, date.Format(ICalDateFormat))
 	}
 
 	if len(dateStrings) > 0 {
@@ -598,7 +602,7 @@ func getCancelledDates(ctx context.Context, event models.Eventable) ([]time.Time
 
 	for _, ds := range dateStrings {
 		// the data just contains date and no time which seems to work
-		start, err := getUTCTime(ds, tz)
+		start, err := GetUTCTime(ds, tz)
 		if err != nil {
 			return nil, clues.WrapWC(ctx, err, "parsing cancelled event date")
 		}
