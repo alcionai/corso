@@ -87,7 +87,7 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 			},
 		},
 		{
-			name: "mail inbox err - resoruceLocked",
+			name: "mail inbox err - resourceLocked",
 			err:  core.ErrResourceNotAccessible,
 			expect: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, core.ErrResourceNotAccessible, clues.ToCore(err))

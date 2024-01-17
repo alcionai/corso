@@ -2,12 +2,14 @@ package m365
 
 import (
 	"context"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -141,14 +143,23 @@ func parseGroup(ctx context.Context, mg models.Groupable) (*Group, error) {
 
 // parseGroup extracts information from `models.Teamable` we care about
 func parseGroupFromTeamable(ctx context.Context, mg models.Teamable) (*Group, error) {
-	if mg.GetDisplayName() == nil {
-		return nil, clues.New("group missing display name").
+	if len(ptr.Val(mg.GetId())) == 0 {
+		return nil, clues.New("group missing id").
 			With("group_id", ptr.Val(mg.GetId()))
 	}
 
+	if mg.GetDisplayName() == nil {
+		// logging just in case.  This shouldn't cause any issues, because
+		// idname consumers should be prepared to use the ID in place of the
+		// display name (or some other standard display).
+		logger.Ctx(ctx).
+			With("group_id", ptr.Val(mg.GetId())).
+			Info("group missing display name")
+	}
+
 	u := &Group{
-		ID:          ptr.Val(mg.GetId()),
-		DisplayName: ptr.Val(mg.GetDisplayName()),
+		ID:          strings.Clone(ptr.Val(mg.GetId())),
+		DisplayName: strings.Clone(ptr.Val(mg.GetDisplayName())),
 		IsTeam:      true,
 	}
 

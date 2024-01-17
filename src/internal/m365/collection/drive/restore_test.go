@@ -215,7 +215,13 @@ func (suite *RestoreUnitSuite) TestRestoreItem_collisionHandling() {
 
 			caches.collisionKeyToItemID = test.collisionKeys
 
-			dpp, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
+			dpp, err := path.Build(
+				"t",
+				"u",
+				path.OneDriveService,
+				path.FilesCategory,
+				false,
+				dpb.Elements()...)
 			require.NoError(t, err)
 
 			dp, err := path.ToDrivePath(dpp)
