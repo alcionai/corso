@@ -34,15 +34,17 @@ func restoreListItem(
 	ctx context.Context,
 	rh restoreHandler,
 	itemData data.Item,
-	siteID, destName string,
+	siteID string,
+	restoreCfg control.RestoreConfig,
 	collisionKeyToItemID map[string]string,
-	collisionPolicy control.CollisionPolicy,
 	ctr *count.Bus,
 	errs *fault.Bus,
 ) (details.ItemInfo, error) {
 	var (
-		dii    = details.ItemInfo{}
-		itemID = itemData.ID()
+		dii             = details.ItemInfo{}
+		itemID          = itemData.ID()
+		destName        = restoreCfg.Location
+		collisionPolicy = restoreCfg.OnCollision
 	)
 
 	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.ID()))
@@ -114,7 +116,7 @@ func handleListReplace(
 	ctr *count.Bus,
 	errs *fault.Bus,
 ) (models.Listable, error) {
-	collisionList, _, err := rh.GetList(ctx, collisionID)
+	collidedList, _, err := rh.GetList(ctx, collisionID)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "fetching collided list")
 	}
@@ -134,13 +136,13 @@ func handleListReplace(
 		return restoredList, nil
 	}
 
-	_, collisionListErr := rh.PostList(
+	_, collidedListErr := rh.PostList(
 		ctx,
-		ptr.Val(collisionList.GetDisplayName()),
-		collisionList,
+		ptr.Val(collidedList.GetDisplayName()),
+		collidedList,
 		errs)
-	if err != collisionListErr {
-		return nil, clues.WrapWC(ctx, err, "re-creating collided list")
+	if collidedListErr != nil {
+		return nil, clues.WrapWC(ctx, collidedListErr, "re-creating collided list")
 	}
 
 	return nil, clues.WrapWC(ctx, err, "restoring list")
@@ -150,10 +152,9 @@ func RestoreListCollection(
 	ctx context.Context,
 	rh restoreHandler,
 	dc data.RestoreCollection,
-	restoreContainerName string,
+	restoreCfg control.RestoreConfig,
 	deets *details.Builder,
 	collisionKeyToItemID map[string]string,
-	collisionPolicy control.CollisionPolicy,
 	ctr *count.Bus,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
@@ -190,9 +191,8 @@ func RestoreListCollection(
 				rh,
 				itemData,
 				siteID,
-				restoreContainerName,
+				restoreCfg,
 				collisionKeyToItemID,
-				collisionPolicy,
 				ctr,
 				errs)
 			if errors.Is(err, api.ErrSkippableListTemplate) {

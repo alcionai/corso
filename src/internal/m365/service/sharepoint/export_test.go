@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
@@ -90,7 +91,13 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				},
 			},
 			getCollPath: func(t *testing.T) path.Path {
-				p, err := dpb.ToDataLayerSharePointPath("t", "u", path.LibrariesCategory, false)
+				p, err := path.Build(
+					"t",
+					"u",
+					path.SharePointService,
+					path.LibrariesCategory,
+					false,
+					dpb.Elements()...)
 				assert.NoError(t, err, "build path")
 
 				return p
@@ -119,7 +126,13 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				},
 			},
 			getCollPath: func(t *testing.T) path.Path {
-				p, err := dpb.ToDataLayerSharePointPath("t", "u", path.LibrariesCategory, false)
+				p, err := path.Build(
+					"t",
+					"u",
+					path.SharePointService,
+					path.LibrariesCategory,
+					false,
+					dpb.Elements()...)
 				assert.NoError(t, err, "build path")
 
 				return p
@@ -148,9 +161,13 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				},
 			},
 			getCollPath: func(t *testing.T) path.Path {
-				p, err := path.Elements{"listid1"}.
-					Builder().
-					ToDataLayerSharePointListPath("t", "u", path.ListsCategory, false)
+				p, err := path.Build(
+					"t",
+					"u",
+					path.SharePointService,
+					path.ListsCategory,
+					false,
+					"listid1")
 				assert.NoError(t, err, "build path")
 
 				return p
@@ -198,9 +215,8 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 				dcs,
 				stats,
 				fault.New(true))
-			assert.NoError(t, err, "export collections error")
+			require.NoError(t, err, "export collections error")
 			assert.Len(t, ecs, 1, "num of collections")
-
 			assert.Equal(t, test.expectedPath, ecs[0].BasePath(), "base dir")
 
 			fitems := []export.Item{}

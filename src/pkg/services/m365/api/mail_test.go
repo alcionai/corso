@@ -375,7 +375,6 @@ func (suite *MailAPIIntgSuite) TestMail_attachmentListDownload() {
 				ctx,
 				"user",
 				mid,
-				false,
 				fault.New(true))
 			test.expect(t, err)
 
@@ -561,7 +560,6 @@ func (suite *MailAPIIntgSuite) TestMail_PostAndGetAttachments() {
 				ctx,
 				userID,
 				ptr.Val(m.GetId()),
-				false,
 				fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
@@ -723,7 +721,6 @@ func sendItemWithBodyAndGetSerialized(
 		ctx,
 		userID,
 		ptr.Val(item.GetId()),
-		false,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -755,7 +752,6 @@ func sendSerializedItemAndGetSerialized(
 		ctx,
 		userID,
 		ptr.Val(item.GetId()),
-		false,
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 

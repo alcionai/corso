@@ -607,8 +607,28 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 				return e
 			},
 			check: func(out string) {
-				assert.Contains(t, out, "DESCRIPTION:body preview", "body preview")
 				assert.Contains(t, out, "X-ALT-DESC;FMTTYPE=text/html:<html><body>body</body></html>", "body")
+			},
+		},
+		{
+			name: "html body with utf8",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				body := models.NewItemBody()
+				btype, err := models.ParseBodyType("html")
+				require.NoError(t, err, "parse body type")
+
+				body.SetContentType(btype.(*models.BodyType))
+				body.SetContent(ptr.To("<html><body>മലയാളം</body></html>"))
+
+				e.SetBodyPreview(ptr.To("body preview"))
+				e.SetBody(body)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "DESCRIPTION:മലയാളം", "body")
 			},
 		},
 		{

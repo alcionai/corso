@@ -881,11 +881,23 @@ func (h mockBackupHandler[T]) GetItemPermission(
 type canonPather func(*path.Builder, string, string) (path.Path, error)
 
 var defaultOneDriveCanonPather = func(pb *path.Builder, tID, ro string) (path.Path, error) {
-	return pb.ToDataLayerOneDrivePath(tID, ro, false)
+	return path.Build(
+		tID,
+		ro,
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		pb.Elements()...)
 }
 
 var defaultSharePointCanonPather = func(pb *path.Builder, tID, ro string) (path.Path, error) {
-	return pb.ToDataLayerSharePointPath(tID, ro, path.LibrariesCategory, false)
+	return path.Build(
+		tID,
+		ro,
+		path.SharePointService,
+		path.LibrariesCategory,
+		false,
+		pb.Elements()...)
 }
 
 type (

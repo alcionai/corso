@@ -217,7 +217,7 @@ func (suite *CollectionUnitSuite) TestGetItemWithRetries() {
 			defer flush()
 
 			// itemer is mocked, so only the errors are configured atm.
-			_, _, err := test.items.GetItem(ctx, "userID", "itemID", false, fault.New(true))
+			_, _, err := test.items.GetItem(ctx, "userID", "itemID", fault.New(true))
 			test.expectErr(t, err)
 		})
 	}
@@ -424,11 +424,10 @@ func (mlg *mockLazyItemGetterSerializer) GetItem(
 	ctx context.Context,
 	user string,
 	itemID string,
-	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	mlg.callIDs = append(mlg.callIDs, itemID)
-	return mlg.ItemGetSerialize.GetItem(ctx, user, itemID, immutableIDs, errs)
+	return mlg.ItemGetSerialize.GetItem(ctx, user, itemID, errs)
 }
 
 func (mlg *mockLazyItemGetterSerializer) check(t *testing.T, expectIDs []string) {

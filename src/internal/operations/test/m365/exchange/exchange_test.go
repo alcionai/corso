@@ -387,7 +387,6 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 			err error
 			aar pagers.AddedAndRemoved
 			cc  = api.CallConfig{
-				UseImmutableIDs:     toggles.ExchangeImmutableIDs,
 				CanMakeDeltaQueries: true,
 			}
 		)
