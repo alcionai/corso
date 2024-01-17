@@ -435,7 +435,7 @@ func (suite *RestoreIntgSuite) TestRestoreAndBackupEvent_recurringInstancesWithA
 	evts := ec.GetValue()
 	assert.Len(t, evts, 1, "count of events")
 
-	sp, info, err := suite.ac.Events().GetItem(ctx, userID, ptr.Val(evts[0].GetId()), false, fault.New(true))
+	sp, info, err := suite.ac.Events().GetItem(ctx, userID, ptr.Val(evts[0].GetId()), fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.NotNil(t, info, "event item info")
 

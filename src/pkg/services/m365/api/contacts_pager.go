@@ -27,11 +27,12 @@ type contactsFoldersPageCtrl struct {
 
 func (c Contacts) NewContactFoldersPager(
 	userID, baseContainerID string,
-	immutableIDs bool,
 	selectProps ...string,
 ) pagers.NonDeltaHandler[models.ContactFolderable] {
 	options := &users.ItemContactFoldersItemChildFoldersRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(maxNonDeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		QueryParameters: &users.ItemContactFoldersItemChildFoldersRequestBuilderGetQueryParameters{},
 		// do NOT set Top.  It limits the total items received.
 	}
@@ -70,9 +71,11 @@ func (p *contactsFoldersPageCtrl) ValidModTimes() bool {
 func (c Contacts) EnumerateContainers(
 	ctx context.Context,
 	userID, baseContainerID string,
-	immutableIDs bool,
 ) ([]models.ContactFolderable, error) {
-	containers, err := pagers.BatchEnumerateItems(ctx, c.NewContactFoldersPager(userID, baseContainerID, immutableIDs))
+	containers, err := pagers.BatchEnumerateItems(ctx, c.NewContactFoldersPager(
+		userID,
+		baseContainerID))
+
 	return containers, graph.Stack(ctx, err).OrNil()
 }
 
@@ -90,11 +93,12 @@ type contactsPageCtrl struct {
 
 func (c Contacts) NewContactsPager(
 	userID, containerID string,
-	immutableIDs bool,
 	selectProps ...string,
 ) pagers.NonDeltaHandler[models.Contactable] {
 	options := &users.ItemContactFoldersItemContactsRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(maxNonDeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		QueryParameters: &users.ItemContactFoldersItemContactsRequestBuilderGetQueryParameters{},
 		// do NOT set Top.  It limits the total items received.
 	}
@@ -134,7 +138,7 @@ func (c Contacts) GetItemsInContainerByCollisionKey(
 	userID, containerID string,
 ) (map[string]string, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewContactsPager(userID, containerID, false, contactCollisionKeyProps()...)
+	pager := c.NewContactsPager(userID, containerID, contactCollisionKeyProps()...)
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
@@ -155,7 +159,7 @@ func (c Contacts) GetItemIDsInContainer(
 	userID, containerID string,
 ) (map[string]struct{}, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewContactsPager(userID, containerID, false, idAnd()...)
+	pager := c.NewContactsPager(userID, containerID, idAnd()...)
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
@@ -204,13 +208,14 @@ func getContactDeltaBuilder(
 func (c Contacts) NewContactsDeltaPager(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	immutableIDs bool,
 	selectProps ...string,
 ) pagers.DeltaHandler[models.Contactable] {
 	options := &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetRequestConfiguration{
 		// do NOT set Top.  It limits the total items received.
 		QueryParameters: &users.ItemContactFoldersItemContactsDeltaRequestBuilderGetQueryParameters{},
-		Headers:         newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(c.options.DeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 	}
 
 	if len(selectProps) > 0 {
@@ -261,12 +266,10 @@ func (c Contacts) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 	pager := c.NewContactsPager(
 		userID,
 		containerID,
-		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Contactable](

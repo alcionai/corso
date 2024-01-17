@@ -196,7 +196,6 @@ func populateCollections(
 			cl         = counter.Local()
 			itemConfig = api.CallConfig{
 				CanMakeDeltaQueries: !ctrlOpts.ToggleFeatures.DisableDelta,
-				UseImmutableIDs:     ctrlOpts.ToggleFeatures.ExchangeImmutableIDs,
 			}
 			cID         = ptr.Val(c.GetId())
 			dp          = dps[cID]
