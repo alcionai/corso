@@ -25,7 +25,7 @@ require (
 	github.com/jaytaylor/html2text v0.0.0-20230321000545-74c2419ad056
 	github.com/jhillyerd/enmime v1.1.0
 	github.com/kopia/kopia v0.15.0
-	github.com/microsoft/kiota-abstractions-go v1.5.3
+	github.com/microsoft/kiota-abstractions-go v1.5.4
 	github.com/microsoft/kiota-authentication-azure-go v1.0.1
 	github.com/microsoft/kiota-http-go v1.1.1
 	github.com/microsoft/kiota-serialization-form-go v1.0.0
@@ -56,6 +56,7 @@ require (
 require (
 	github.com/arran4/golang-ical v0.2.3
 	github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
+	jaytaylor.com/html2text v0.0.0-20230321000545-74c2419ad056
 )
 
 require (
@@ -83,14 +84,13 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
-	github.com/std-uritemplate/std-uritemplate/go v0.0.47 // indirect
+	github.com/std-uritemplate/std-uritemplate/go v0.0.50 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/toorop/go-dkim v0.0.0-20201103131630-e1cd1a0a5208 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	go.opentelemetry.io/otel/metric v1.21.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231127180814-3a041ad873d4 // indirect
-	jaytaylor.com/html2text v0.0.0-20230321000545-74c2419ad056 // indirect
 )
 
 require (
